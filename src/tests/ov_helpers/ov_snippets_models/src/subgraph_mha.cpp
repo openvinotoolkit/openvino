@@ -4,11 +4,18 @@
 
 #include "subgraph_mha.hpp"
 
+#include <utility>
+
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/node_builders/fake_quantize.hpp"
 #include "fake_quantize_helper.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 #include "ov_ops/type_relaxed.hpp"
@@ -53,13 +60,35 @@ std::vector<int64_t> get_decomposed_order_after_split_m(size_t rank) {
 }
 } // namespace
 
+ov::Output<ov::Node> make_broadcast_shape(const ov::Output<ov::Node>& source) {
+    return std::make_shared<ov::op::v3::ShapeOf>(source, ov::element::i64);
+}
+
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_reshape_shapes(const ov::Output<ov::Node>& source,
+                                                                           size_t rank) {
+    const auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(source, ov::element::i64);
+    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    std::vector<int64_t> prefix_indices_data(rank - 1);
+    std::iota(prefix_indices_data.begin(), prefix_indices_data.end(), 0);
+    const auto prefix_indices =
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank - 1}, prefix_indices_data);
+    const auto prefix_shape = std::make_shared<ov::opset1::Gather>(shape_of, prefix_indices, axis);
+    const auto batch = std::make_shared<ov::opset1::ReduceProd>(prefix_shape, axis, true);
+    const auto minus_one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    const auto shape_before_softmax = std::make_shared<ov::opset1::Concat>(ov::OutputVector{batch, minus_one}, 0);
+    const auto shape_after_softmax = shape_of;
+
+    return {shape_before_softmax, shape_after_softmax};
+}
+
 std::shared_ptr<ov::Model> init_mha_original(const std::vector<PartialShape>& input_shapes,
                                              const std::vector<ov::element::Type>& precisions,
                                              bool with_mul,
                                              bool with_reshape,
                                              bool const_b_matmul0,
                                              bool const_b_matmul1,
-                                             bool with_broadcast) {
+                                             bool with_broadcast,
+                                             bool with_shape_of) {
     auto transpose0Param = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
     ov::ParameterVector ngraphParam = {transpose0Param};
@@ -106,25 +135,41 @@ std::shared_ptr<ov::Model> init_mha_original(const std::vector<PartialShape>& in
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, matmul_parent1);
     auto add_input = addParam->output(0);
     if (with_broadcast) {
-        OPENVINO_ASSERT(matMul0->get_output_partial_shape(0).is_static(),
-                        "MHAFunction with broadcast requires a static MatMul output shape");
-        const auto target_shape =
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, matMul0->get_output_shape(0));
+        ov::Output<ov::Node> target_shape;
+        if (with_shape_of) {
+            target_shape = make_broadcast_shape(matMul0);
+        } else {
+            OPENVINO_ASSERT(matMul0->get_output_partial_shape(0).is_static(),
+                            "MHAFunction with broadcast requires a static MatMul output shape");
+            target_shape =
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, matMul0->get_output_shape(0));
+        }
         add_input = std::make_shared<ov::op::v3::Broadcast>(add_input, target_shape, ov::op::BroadcastType::NUMPY);
     }
     const auto add = std::make_shared<ov::op::v1::Add>(matMul0, add_input);
 
     auto softmax_out = add->output(0);
     if (with_reshape) {
-        const auto interm_shape = add->get_output_shape(0);
-        const auto batch =
-            std::accumulate(interm_shape.cbegin(), interm_shape.cbegin() + (rank - 1), 1, std::multiplies<size_t>());
-        const auto reshape0ConstData = std::vector<int64_t>{batch, -1};
-        const auto reshape1ConstData = interm_shape;
-        const auto reshape0Const =
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape0ConstData.size()}, reshape0ConstData);
-        const auto reshape1Const =
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{reshape1ConstData.size()}, reshape1ConstData);
+        ov::Output<ov::Node> reshape0Const;
+        ov::Output<ov::Node> reshape1Const;
+        if (with_shape_of) {
+            const auto reshape_shapes = make_reshape_shapes(addParam, rank);
+            reshape0Const = reshape_shapes.first;
+            reshape1Const = reshape_shapes.second;
+        } else {
+            const auto shape_after_softmax = add->get_output_shape(0);
+            const auto batch = std::accumulate(shape_after_softmax.cbegin(),
+                                               shape_after_softmax.cbegin() + (rank - 1),
+                                               size_t{1},
+                                               std::multiplies<size_t>());
+            const auto shape_before_softmax = std::vector<int64_t>{static_cast<int64_t>(batch), -1};
+            reshape0Const = ov::op::v0::Constant::create(ov::element::i64,
+                                                         ov::Shape{shape_before_softmax.size()},
+                                                         shape_before_softmax);
+            reshape1Const = ov::op::v0::Constant::create(ov::element::i64,
+                                                         ov::Shape{shape_after_softmax.size()},
+                                                         shape_after_softmax);
+        }
 
         const auto reshape0 = std::make_shared<ov::opset1::Reshape>(add, reshape0Const, true);
         const auto softMax = std::make_shared<ov::opset1::Softmax>(reshape0, 1);
@@ -148,7 +193,8 @@ std::shared_ptr<ov::Model> init_mha_reference(const std::vector<PartialShape>& i
                                               bool with_mul,
                                               bool const_b_matmul0,
                                               bool const_b_matmul1,
-                                              bool with_broadcast = false) {
+                                              bool with_broadcast,
+                                              bool with_shape_of) {
     auto data0 = std::make_shared<ov::opset1::Parameter>(precisions[0], input_shapes[0]);
     auto data2 = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
     ov::ParameterVector ngraphParams = {data0};
@@ -195,9 +241,10 @@ std::shared_ptr<ov::Model> init_mha_reference(const std::vector<PartialShape>& i
     auto brgemm1Param = std::make_shared<ov::opset1::Parameter>(subgraph_parent1->get_element_type(),
                                                                 subgraph_parent1->get_output_partial_shape(0));
     auto addParam = std::make_shared<ov::opset1::Parameter>(precisions[2], input_shapes[2]);
+    ov::ParameterVector subgraph_params = {transpose0Param, brgemm1Param, addParam};
     auto transpose2Param =
         std::make_shared<ov::opset1::Parameter>(data3->get_element_type(), data3->get_output_partial_shape(0));
-    ov::ParameterVector subgraph_params = {transpose0Param, brgemm1Param, addParam, transpose2Param};
+    subgraph_params.push_back(transpose2Param);
 
     const auto transpose0Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
     const auto transpose2Const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, fusion_order);
@@ -207,16 +254,21 @@ std::shared_ptr<ov::Model> init_mha_reference(const std::vector<PartialShape>& i
     const auto matMul0 = std::make_shared<ov::op::v0::MatMul>(transpose0, brgemm1Param);
     auto add_input = addParam->output(0);
     if (with_broadcast) {
-        OPENVINO_ASSERT(matMul0->get_output_partial_shape(0).is_static(),
-                        "MHAFunction with broadcast requires a static MatMul output shape");
-        const auto target_shape =
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, matMul0->get_output_shape(0));
+        ov::Output<ov::Node> target_shape;
+        if (with_shape_of) {
+            target_shape = make_broadcast_shape(matMul0);
+        } else {
+            OPENVINO_ASSERT(matMul0->get_output_partial_shape(0).is_static(),
+                            "MHAFunction with broadcast requires a static MatMul output shape");
+            target_shape =
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank}, matMul0->get_output_shape(0));
+        }
         add_input = std::make_shared<ov::op::v3::Broadcast>(add_input, target_shape, ov::op::BroadcastType::NUMPY);
     }
     const auto add = std::make_shared<ov::op::v1::Add>(matMul0, add_input);
-    const auto softMax = std::make_shared<ov::opset1::Softmax>(add, rank - 1);
+    const auto softmax_out = std::make_shared<ov::opset1::Softmax>(add, rank - 1)->output(0);
     const auto transpose2 = std::make_shared<ov::op::v1::Transpose>(transpose2Param, transpose2Const);
-    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softMax, transpose2);
+    const auto matMul1 = std::make_shared<ov::op::v0::MatMul>(softmax_out, transpose2);
     const auto transpose3 = std::make_shared<ov::op::v1::Transpose>(matMul1, transpose3Const);
 
     const auto snippets_result = std::make_shared<ov::snippets::op::Result>(transpose3);
@@ -228,11 +280,18 @@ std::shared_ptr<ov::Model> init_mha_reference(const std::vector<PartialShape>& i
 }
 
 std::shared_ptr<ov::Model> MHAFunction::initOriginal() const {
-    return init_mha_original(input_shapes, precisions, with_mul, with_reshape, false, false, with_broadcast);
+    return init_mha_original(input_shapes,
+                             precisions,
+                             with_mul,
+                             with_reshape,
+                             false,
+                             false,
+                             with_broadcast,
+                             with_shape_of);
 }
 
 std::shared_ptr<ov::Model> MHAFunction::initReference() const {
-    return init_mha_reference(input_shapes, precisions, with_mul, false, false, with_broadcast);
+    return init_mha_reference(input_shapes, precisions, with_mul, false, false, with_broadcast, with_shape_of);
 }
 
 std::shared_ptr<ov::Model> MHAConstBFunction::initOriginal() const {
@@ -242,11 +301,12 @@ std::shared_ptr<ov::Model> MHAConstBFunction::initOriginal() const {
                              with_reshape,
                              const_b_matmul0,
                              const_b_matmul1,
+                             false,
                              false);
 }
 
 std::shared_ptr<ov::Model> MHAConstBFunction::initReference() const {
-    return init_mha_reference(input_shapes, precisions, with_mul, const_b_matmul0, const_b_matmul1);
+    return init_mha_reference(input_shapes, precisions, with_mul, const_b_matmul0, const_b_matmul1, false, false);
 }
 
 void MHAConstBFunction::validate_function(const std::shared_ptr<Model>& f) const {
