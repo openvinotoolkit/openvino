@@ -55,6 +55,14 @@ void AlignedBuffer::invoke_evict(AlignedBuffer& buffer, size_t offset, size_t si
 
 void AlignedBuffer::hint_prefetch() const {}
 
+void AlignedBuffer::hint_prefetch_async() const {}
+
+void AlignedBuffer::hint_prefetch_async(size_t offset, size_t size) const {}
+
+void AlignedBuffer::invoke_hint_prefetch_async(const AlignedBuffer& buffer, size_t offset, size_t size) {
+    buffer.hint_prefetch_async(offset, size);
+}
+
 void AlignedBuffer::invoke_hint_prefetch(const AlignedBuffer& buffer) {
     buffer.hint_prefetch();
 }

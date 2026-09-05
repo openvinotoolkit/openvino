@@ -25,6 +25,7 @@
 #include "openvino/runtime/threading/itask_executor.hpp"
 #include "sub_memory_manager.hpp"
 #include "weights_cache.hpp"
+#include "weights_prefetch.hpp"
 
 namespace ov::intel_cpu {
 
@@ -87,6 +88,7 @@ private:
     // WARNING: Do not use m_graphs directly.
     mutable std::deque<GraphGuard> m_graphs;
     mutable SocketsWeights m_socketWeights;
+    const WeightsPrefetch::Ptr m_weightsPrefetch = std::make_shared<WeightsPrefetch>();
 
     /* WARNING: Use get_graph() function to get access to graph in current stream.
      * NOTE: Main thread is interpreted as master thread of external stream so use this function to get access to graphs
