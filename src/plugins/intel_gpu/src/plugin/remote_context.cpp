@@ -251,9 +251,14 @@ const std::string& RemoteContextImpl::get_device_name() const {
 
 cldnn::memory::ptr RemoteContextImpl::try_get_cached_memory(size_t hash) {
     std::lock_guard<std::mutex> lock(m_cache_mutex);
-    if (m_memory_cache.has(hash))
-        return m_memory_cache.get(hash);
+    if (!m_memory_cache.has(hash))
+        return nullptr;
 
+    if (auto memory = m_memory_cache.get(hash).lock())
+        return memory;
+
+    // The last tensor which wrapped that memory is gone, so the entry is erased instead of being kept as the most recently used one
+    m_memory_cache.erase(hash);
     return nullptr;
 }
 

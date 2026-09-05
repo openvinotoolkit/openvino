@@ -17,6 +17,7 @@ OpenVINO™ toolkit is officially supported and validated on the following platf
 | Lunar Lake (integrated NPU)   | NPU 4000    | 0x643E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 | Panther Lake (integrated NPU) | NPU 5010    | 0xB03E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 | Wildcat Lake (integrated NPU) | NPU 5020    | 0xFD3E         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
+| Nova Lake (integrated NPU)    | NPU 6010    | 0xD71D         | Ubuntu* 22, Ubuntu* 24, MS Windows* 11   |
 <br>
 
 ## High Level Design
@@ -207,7 +208,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::cache_encryption_callbacks`/</br>`CACHE_ENCRYPTION_CALLBACKS` | WO | Encryption/Decryption functions called when exporting or reading the blob. | ov::EncryptionCallbacks structures populated with any function respecting signature `std::string(const std::string&)` for both encryption and decryption callbacks | ov::EncryptionCallbacks{nullptr, nullptr} |
 | `ov::cache_mode`/</br>`CACHE_MODE` | RW | If `CACHE_DIR` has been set, then this option indicates whether or not the size of the compiled model binary object will be reduced by decoupling a portion of the weights. | `OPTIMIZE_SIZE` /</br>`OPTIMIZE_SPEED` | `OPTIMIZE_SPEED` |
 | `ov::available_devices`/</br>`AVAILABLE_DEVICES` | RO | Returns the list of enumerated NPU devices. </br> NPU plugin does not currently support multiple devices. | `N/A`| `N/A` |
-| `ov::device::id`/</br>`DEVICE_ID` | RW | Device identifier. Empty means auto detection. | empty/</br> `3720`/</br> `4000` | empty |
+| `ov::device::id`/</br>`DEVICE_ID` | RW | Device identifier. Empty means auto detection. | empty/</br> `3720`/</br> `4000`/</br> `5010`/</br> `5020`/</br> `6010` | empty |
 | `ov::device::uuid`/</br> | RO | Returns the Universal Unique ID of the NPU device. | `N/A`| `N/A` |
 | `ov::device::architecture`/</br>`DEVICE_ARCHITECTURE` | RO | Returns the platform information. | `N/A`| `N/A` |
 | `ov::device::full_name`/</br>`FULL_DEVICE_NAME` | RO | Returns the full name of the NPU device. | `N/A`| `N/A` |
@@ -217,14 +218,14 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::device_alloc_mem_size`/</br>`NPU_DEVICE_ALLOC_MEM_SIZE` | RO | Size of already allocated NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::device_total_mem_size`/</br>`NPU_DEVICE_TOTAL_MEM_SIZE` | RO | Size of available NPU DDR memory | `N/A` | `N/A` |
 | `ov::intel_npu::driver_version`/</br>`NPU_DRIVER_VERSION` | RO | NPU driver version. | `N/A` | `N/A` |
-| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the compiler type to be used | `PREFER_PLUGIN`</br> `PLUGIN`</br>`DRIVER`| `PREFER_PLUGIN` |
+| `ov::intel_npu::compiler_type`/</br>`NPU_COMPILER_TYPE` | RW | Selects the compiler type to be used | `PREFER_PLUGIN`/</br> `PLUGIN`/</br>`DRIVER`| `PREFER_PLUGIN` |
 | `ov::intel_npu::compiler_version`/</br>`NPU_COMPILER_VERSION` | RO | NPU compiler version. MSB 16 bits are Major version, LSB 16 bits are Minor version | `N/A` | `N/A` |
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
 | `ov::intel_npu::compiler_dynamic_quantization`/</br>`NPU_COMPILER_DYNAMIC_QUANTIZATION` | RW | Enable/Disable dynamic quantization by NPU compiler | `YES` / `NO` | `N/A` |
 | `ov::intel_npu::qdq_optimization`/</br>`NPU_QDQ_OPTIMIZATION` | RW | Enable/Disable additional optimizations and balances performance and accuracy for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
 | `ov::intel_npu::qdq_optimization_aggressive`/</br>`NPU_QDQ_OPTIMIZATION_AGGRESSIVE` | RW | Enable/Disable additional optimizations to improve performance for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
 | `ov::intel_npu::turbo`/</br>`NPU_TURBO` | RW | Set Turbo mode on/off | `YES`/ `NO`| `NO` |
-| `ov::intel_npu::platform`/</br>`NPU_PLATFORM` | RW | Selects the target compilation platform. Used in offline compilation | `3720`/</br>`4000`</br>`5010`</br>`5020` | `AUTO_DETECT` |
+| `ov::intel_npu::platform`/</br>`NPU_PLATFORM` | RW | Selects the target compilation platform. Used in offline compilation | `AUTO_DETECT`/</br>`3720`/</br>`4000`/</br>`5010`/</br>`5020`/</br>`6010` | `AUTO_DETECT` |
 | `ov::intel_npu::tiles`/</br>`NPU_TILES` | RW | Sets the number of npu tiles to compile the model for | `[0-]` | `-1` |
 | `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RO | Maximum number of tiles supported by the device we compile for. It will be populated by driver, if present. | `[1-6] depends on npu platform` | `[-1]` |
 | `ov::intel_npu::bypass_umd_caching`/</br>`NPU_BYPASS_UMD_CACHING` | RW | Bypass the caching of compiled models in UMD. | `YES`/ `NO`| `NO` |
@@ -245,14 +246,16 @@ The following table shows the default values for the number of Tiles and DMA Eng
 
 | Performance hint | NPU Platform        | Number of Tiles      |
 | :---             | :---                | :---                 |
-| THROUGHPUT       | 3720                | 2 (all of them)      |
-| THROUGHPUT       | 4000                | 2 (out of 5/6)       |
-| THROUGHPUT       | 5010                | 1 (out of 3)         |
-| THROUGHPUT       | 5020                | 1 (out of 1)         |
-| LATENCY          | 3720                | 2 (all of them)      |
-| LATENCY          | 4000                | 4 (out of 5/6)       |
-| LATENCY          | 5010                | 3 (out of 3)         |
-| LATENCY          | 5020                | 1 (out of 1)         |
+| THROUGHPUT       | 3720                | 2                    |
+| THROUGHPUT       | 4000                | 2                    |
+| THROUGHPUT       | 5010                | 1                    |
+| THROUGHPUT       | 5020                | 1                    |
+| THROUGHPUT       | 6010                | 1                    |
+| LATENCY          | 3720                | 2                    |
+| LATENCY          | 4000                | 4                    |
+| LATENCY          | 5010                | 3                    |
+| LATENCY          | 5020                | 1                    |
+| LATENCY          | 6010                | 3                    |
 <br>
 
 ### Performance Hint: Optimal Number of Inference Requests
@@ -265,6 +268,7 @@ The following table shows the optimal number of inference requests returned by t
 | 4000                | 8                                           | 1                                       |
 | 5010                | 8                                           | 1                                       |
 | 5020                | 8                                           | 1                                       |
+| 6010                | 8                                           | 1                                       |
 <br>
 
 ### Compilation mode parameters

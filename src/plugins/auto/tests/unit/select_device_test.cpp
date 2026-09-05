@@ -815,6 +815,19 @@ TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, lowPowerDeviceOverridesThre
     EXPECT_EQ(result.unique_name, "NPU_01");
 }
 
+TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, lowPowerDeviceMatchesViaBaseNameFallback) {
+    // low_power_device="NPU" must still match a candidate whose device_name carries a HW id suffix.
+    std::vector<std::string> npuHwIdCapability = {"FP32", "FP16", "INT8", "BIN"};
+    ON_CALL(*core, get_property(StrEq("NPU.5010"), StrEq(ov::device::capabilities.name()), _))
+        .WillByDefault(RETURN_MOCK_VALUE(npuHwIdCapability));
+    std::vector<DeviceInformation> devicesWithHwId = {{"CPU", {}, -1, "01", "CPU_01", 0},
+                                                       {"NPU.5010", {}, -1, "01", "NPU_01", 0}};
+    EXPECT_CALL(*plugin, get_low_power_mode()).WillOnce(Return(true));
+    auto result = plugin->select_device(devicesWithHwId, netPrecision, 0, {thresholds, {}}, "NPU");
+    selectedUniqueName = result.unique_name;
+    EXPECT_EQ(result.unique_name, "NPU_01");
+}
+
 TEST_F(SelectDeviceWithLowPowerDevicePrecedenceTest, fallsBackToThresholdWhenNotInLowPowerMode) {
     EXPECT_CALL(*plugin, get_low_power_mode()).WillOnce(Return(false));
     auto result = plugin->select_device(devices, netPrecision, 0, {thresholds, {}}, "NPU");
