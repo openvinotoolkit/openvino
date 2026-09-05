@@ -22,6 +22,7 @@
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
@@ -29,6 +30,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/strided_slice.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -83,6 +85,7 @@ bool RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     }
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionLtxVideo>();
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionSliceAssign>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
     return symbolic_optimizations.run_on_model(model);
 }
@@ -1411,6 +1414,140 @@ RoPEFusionCohere::RoPEFusionCohere() {
         register_new_node(new_node);
         return true;
     };
+    auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
+    this->register_matcher(m, callback);
+}
+
+RoPEFusionSliceAssign::RoPEFusionSliceAssign() {
+    MATCHER_SCOPE(RoPEFusionSliceAssign);
+    using namespace pattern;
+
+    //   x [B,S,H,D] -> VariadicSplit(-1, [D/2, D/2]) -> x1, x2
+    //   out1 = x1*cos - x2*sin      (first half; Subtract, or Add of negated x2*sin)
+    //   out2 = x2*cos + x1*sin      (second half)
+    //   scatter1 = ScatterNDUpdate(any,     idx1, reshape(out1))
+    //   scatter2 = ScatterNDUpdate(scatter1, idx2, reshape(out2))
+    //   result   = reshape(scatter2)
+    //
+    // When idx1/idx2 are provably sequential and together cover the whole
+    // buffer, the scatters equal concat(out1, out2) and the subgraph collapses
+    // to a single RoPE op.
+    auto x = any_input(rank_equals(4));
+
+    auto cos = any_input(shape_matches("[?, half_ndims]") || shape_matches("[?, ?, half_ndims]") ||
+                         shape_matches("[?, ?, ?, half_ndims]"));
+    auto sin = any_input(shape_matches("[?, half_ndims]") || shape_matches("[?, ?, half_ndims]") ||
+                         shape_matches("[?, ?, ?, half_ndims]"));
+
+    auto x1 = wrap_type<v1::VariadicSplit>({x, any_input(), {"half_ndims", "?"}},
+                                           output_index_matches(0) && shape_matches("[?, ?, ?, half_ndims]"));
+    auto x2 = wrap_type<v1::VariadicSplit>({x, any_input(), {"half_ndims", "?"}},
+                                           output_index_matches(1) && shape_matches("[?, ?, ?, half_ndims]"));
+
+    // out1 = x1*cos - x2*sin. Multiply/Add operand order is handled by the matcher's
+    // commutativity; the negated x2*sin form appears as Add(x1*cos, (x2*sin)*(-1)).
+    auto mul_x1_cos = wrap_type<v1::Multiply>({x1, cos}, {{"auto_broadcast", "numpy"}});
+    auto mul_x2_sin = wrap_type<v1::Multiply>({x2, sin}, {{"auto_broadcast", "numpy"}});
+    auto neg_const = wrap_type<v0::Constant>(value_matches("-1"));
+    auto neg_x2_sin = wrap_type<v1::Multiply>({mul_x2_sin, neg_const});
+    auto out1 = wrap_type<v1::Subtract>({mul_x1_cos, mul_x2_sin}) | wrap_type<v1::Add>({mul_x1_cos, neg_x2_sin});
+
+    // out2 = x2*cos + x1*sin
+    auto mul_x2_cos = wrap_type<v1::Multiply>({x2, cos}, {{"auto_broadcast", "numpy"}});
+    auto mul_x1_sin = wrap_type<v1::Multiply>({x1, sin}, {{"auto_broadcast", "numpy"}});
+    auto out2 = wrap_type<v1::Add>({mul_x2_cos, mul_x1_sin});
+
+    // Scatter chain: data1 is a fresh (empty/zero-initialized) flat buffer - the two
+    // scatters write both halves, so the initial buffer content is irrelevant.
+    auto data1 = any_input();
+    auto updates1 = wrap_type<v1::Reshape>({out1, any_input()});
+    auto idx1 = wrap_type<v0::Constant>();
+    auto scatter1 = wrap_type<op_util::ScatterNDBase>({data1, idx1, updates1});
+
+    auto updates2 = wrap_type<v1::Reshape>({out2, any_input()});
+    auto idx2 = wrap_type<v0::Constant>();
+    auto scatter2 = wrap_type<op_util::ScatterNDBase>({scatter1, idx2, updates2});
+    auto result = wrap_type<v1::Reshape>({scatter2, any_input()});
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
+        const auto& pattern_map = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+
+        const auto& x_val = pattern_map.at(x);
+        const auto& cos_val = pattern_map.at(cos);
+        const auto& sin_val = pattern_map.at(sin);
+        const auto& idx1_val = pattern_map.at(idx1);
+        const auto& idx2_val = pattern_map.at(idx2);
+
+        auto symbols = m.get_symbols();
+        const auto& half_ndims = symbols["half_ndims"];
+        if (!half_ndims.is_integer())
+            return false;
+        const size_t half = static_cast<size_t>(half_ndims.i());
+        if (half == 0)
+            return false;
+        const size_t head_size = 2 * half;  // D = 2 * (D/2): evenness is implied by the equal halves
+
+        // Verify the scatter indices are sequential: idx1 = [0..N/2), idx2 = [N/2..N).
+        // N/2 (half_elems) is read from the index constant's shape, so x itself needn't be static.
+        auto idx1_const = ov::as_type_ptr<v0::Constant>(idx1_val.get_node_shared_ptr());
+        auto idx2_const = ov::as_type_ptr<v0::Constant>(idx2_val.get_node_shared_ptr());
+        if (!idx1_const || !idx2_const)
+            return false;
+
+        const auto idx1_shape = idx1_const->get_shape();
+        const auto idx2_shape = idx2_const->get_shape();
+        if (idx1_shape.size() != 2 || idx1_shape[1] != 1 || idx2_shape.size() != 2 || idx2_shape[1] != 1)
+            return false;
+        if (idx1_shape[0] != idx2_shape[0])
+            return false;
+        const size_t half_elems = idx1_shape[0];
+
+        const auto idx1_data = idx1_const->cast_vector<int64_t>();
+        const auto idx2_data = idx2_const->cast_vector<int64_t>();
+        for (size_t i = 0; i < half_elems; ++i) {
+            const int64_t expected1 = static_cast<int64_t>((i / half) * head_size + (i % half));
+            if (idx1_data[i] != expected1 || idx2_data[i] != expected1 + static_cast<int64_t>(half))
+                return false;
+        }
+
+        ov::op::internal::RoPE::Config config;
+        config.rotary_ndims = head_size;
+        config.cos_sin_ndims = half;
+        config.is_interleaved = false;
+
+        // The final reshape already outputs the rope shape iff its shape matches x's shape; if it
+        // flattens (e.g. [1,S,H,D] -> [1,S,H*D]) we keep the Reshape and feed it the fused RoPE.
+        const bool replace_root = root->get_output_partial_shape(0) == x_val.get_partial_shape();
+
+        auto rope = std::make_shared<ov::op::internal::RoPE>(OutputVector{x_val, cos_val, sin_val}, config);
+
+        NodeVector matched_nodes;
+        for (const auto& kv : pattern_map) {
+            const auto node = kv.second.get_node_shared_ptr();
+            if (ov::is_type<v0::Constant>(node) || node == x_val.get_node_shared_ptr() ||
+                node == cos_val.get_node_shared_ptr() || node == sin_val.get_node_shared_ptr())
+                continue;
+            matched_nodes.push_back(node);
+        }
+
+        if (replace_root) {
+            // The final reshape outputs the rope shape -> replace it directly.
+            rope->set_friendly_name(root->get_friendly_name());
+            ov::copy_runtime_info(matched_nodes, rope);
+            ov::replace_node(root, rope);
+            register_new_node(rope);
+        } else {
+            // The final reshape flattens the rope output (e.g. [1,S,H,D] -> [1,S,H*D]).
+            // Reuse the existing root Reshape (keeping its name/RT info) and just feed it
+            // the fused RoPE in place of the scatter chain.
+            ov::copy_runtime_info(matched_nodes, rope);
+            root->input(0).replace_source_output(rope);
+            register_new_node(rope);
+        }
+        return true;
+    };
+
     auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
