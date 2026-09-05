@@ -8,6 +8,7 @@
 
 #include <openvino/core/parallel.hpp>
 
+#include "openvino/core/type/float16.hpp"
 #include "util.hpp"
 #include "util_xarch.hpp"
 
@@ -1904,4 +1905,45 @@ void ov::npuw::util::XARCH::unpack_f8f16_scale(const ov::SoPtr<ov::ITensor>& fro
 #else
     OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
+}
+
+void ov::npuw::util::XARCH::rerotate_f16_rows(uint16_t* plane,
+                                              size_t num_tokens,
+                                              size_t seq_stride,
+                                              size_t rows_per_token,
+                                              size_t head_dim,
+                                              const float* delta_cos,
+                                              const float* delta_sin,
+                                              size_t half) {
+    for (size_t t = 0; t < num_tokens; ++t) {
+        const float* dcos = delta_cos + t * half;
+        const float* dsin = delta_sin + t * half;
+        uint16_t* token = plane + t * seq_stride;
+        for (size_t r = 0; r < rows_per_token; ++r) {
+            uint16_t* row = token + r * head_dim;
+            size_t j = 0;
+#if defined(HAVE_AVX2)
+            for (; j + 8 <= half; j += 8) {
+                const __m256 a = _mm256_cvtph_ps(_mm_loadu_si128(reinterpret_cast<const __m128i*>(row + j)));
+                const __m256 b = _mm256_cvtph_ps(_mm_loadu_si128(reinterpret_cast<const __m128i*>(row + j + half)));
+                const __m256 c = _mm256_loadu_ps(dcos + j);
+                const __m256 s = _mm256_loadu_ps(dsin + j);
+                // The compiler contracts these into FMAs, so a value here can land one
+                // f16 ULP away from what the scalar tail below would produce. Harmless
+                // for an f16 cache, but it does mean the two paths are not bit-equal.
+                const __m256 lo = _mm256_sub_ps(_mm256_mul_ps(a, c), _mm256_mul_ps(b, s));
+                const __m256 hi = _mm256_add_ps(_mm256_mul_ps(b, c), _mm256_mul_ps(a, s));
+                _mm_storeu_si128(reinterpret_cast<__m128i*>(row + j), _mm256_cvtps_ph(lo, _MM_FROUND_TO_NEAREST_INT));
+                _mm_storeu_si128(reinterpret_cast<__m128i*>(row + j + half),
+                                 _mm256_cvtps_ph(hi, _MM_FROUND_TO_NEAREST_INT));
+            }
+#endif
+            for (; j < half; ++j) {
+                const float a = static_cast<float>(ov::float16::from_bits(row[j]));
+                const float b = static_cast<float>(ov::float16::from_bits(row[j + half]));
+                row[j] = ov::float16(a * dcos[j] - b * dsin[j]).to_bits();
+                row[j + half] = ov::float16(b * dcos[j] + a * dsin[j]).to_bits();
+            }
+        }
+    }
 }

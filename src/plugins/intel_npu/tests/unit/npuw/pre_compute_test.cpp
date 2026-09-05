@@ -259,8 +259,8 @@ TEST(PreComputeTest, ExtractLongRopeContextLimitFromBothPatterns) {
     EXPECT_FALSE(pc::extract_longrope_context_limit(plain).has_value());
 }
 
-// Both regimes live in one tensor, short rows first. Views must be dense and, when the
-// long half is absent, both regimes must resolve to the same rows.
+// Both modes live in one tensor, short rows first. Views must be dense and, when the
+// long half is absent, both modes must resolve to the same rows.
 TEST(PreComputeTest, LongRopeCosSinTableLayout) {
     ov::npuw::patterns::pre_compute::LongRopeCosSin tables;
     tables.max_len = 8;
@@ -281,11 +281,11 @@ TEST(PreComputeTest, LongRopeCosSinTableLayout) {
     EXPECT_TRUE(long_rows.is_continuous());
     EXPECT_EQ(short_rows.data<ov::float16>(), tables.cos.data<ov::float16>());
     EXPECT_EQ(long_rows.data<ov::float16>(), tables.cos.data<ov::float16>() + 8 * 4);
-    // Row 1 differs between regimes because the frequencies do.
+    // Row 1 differs between modes because the frequencies do.
     EXPECT_NE(static_cast<float>(short_rows.data<ov::float16>()[4]),
               static_cast<float>(long_rows.data<ov::float16>()[4]));
 
-    // Long half dropped: half the memory, and both regimes bind the short rows.
+    // Long half dropped: half the memory, and both modes bind the short rows.
     tables.has_long = false;
     tables.rebuild_tables();
     ASSERT_TRUE(tables.is_valid());
@@ -293,7 +293,7 @@ TEST(PreComputeTest, LongRopeCosSinTableLayout) {
     EXPECT_EQ(tables.cos_rows(5, true).data<ov::float16>(), tables.cos_rows(5, false).data<ov::float16>());
 }
 
-// The host re-evaluates the regime as max(position_ids) >= context_limit, which only
+// The host re-evaluates the mode as max(position_ids) >= context_limit, which only
 // matches the graph when the compared sum adds exactly 1. Anything else must be
 // refused instead of silently binding the wrong coefficients.
 TEST(PreComputeTest, RopeCacheRejectsUnexpectedConditionOffset) {
