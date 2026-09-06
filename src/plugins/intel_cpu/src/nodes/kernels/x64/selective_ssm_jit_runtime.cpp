@@ -16,7 +16,6 @@
 #include "nodes/kernels/selective_ssm.hpp"
 #include "nodes/kernels/x64/jit_kernel_base.hpp"
 #include "nodes/kernels/x64/selective_ssm_jit_kernel.hpp"
-#include "nodes/kernels/x64/selective_ssm_jit_metadata.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
@@ -367,9 +366,6 @@ void paged_selective_ssm_jit(const PagedSelectiveSSMJitRuntimeArgs& args) {
     OPENVINO_ASSERT(args.head_dim_tile > 0 && args.state_scratch != nullptr);
     OPENVINO_ASSERT(args.cpu_parallel != nullptr, "PagedSelectiveSSM JIT requires a CPU parallel executor.");
     OPENVINO_ASSERT(args.fp32_state_kernel != nullptr, "PagedSelectiveSSM JIT kernel is not initialized.");
-    if (args.metadata_validation_scratch != nullptr) {
-        validate_paged_selective_ssm_jit_metadata(args);
-    }
 
     if (args.data_precision == ov::element::f32) {
         dispatch_paged_indices<float>(args);

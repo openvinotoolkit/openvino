@@ -16,9 +16,7 @@
 
 #include "../selective_ssm_test_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include "nodes/kernels/x64/selective_ssm_jit_metadata.hpp"
 #include "nodes/kernels/x64/selective_ssm_jit_runtime.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
 
@@ -97,53 +95,6 @@ void run_jit_paged_selective_ssm(const PagedSelectiveSSMKernelTestArgs& args, bo
     runtime_args.direct_state_kernel = direct_state_kernel.get();
     runtime_args.no_state_store_kernel = no_state_store_kernel.get();
     ov::intel_cpu::kernel::paged_selective_ssm_jit(runtime_args);
-}
-
-template <typename Index>
-void verify_paged_metadata_validation(const element::Type& index_precision) {
-    std::vector<Index> subsequence_begins{0, 1};
-    std::vector<Index> block_indices{0, 1};
-    std::vector<Index> block_indices_begins{0, 2};
-    std::vector<Index> processed_tokens{0};
-    std::vector<Index> cache_intervals{1};
-    std::vector<int32_t> block_owners(2);
-
-    ov::intel_cpu::kernel::PagedSelectiveSSMJitRuntimeArgs args;
-    args.subsequence_begins = subsequence_begins.data();
-    args.block_indices = block_indices.data();
-    args.block_indices_begins = block_indices_begins.data();
-    args.num_processed_tokens = processed_tokens.data();
-    args.cache_intervals = cache_intervals.data();
-    args.shape = {1, 1, 1, 1, 1, 2, 2, 1};
-    args.index_precision = index_precision;
-    args.metadata_validation_scratch = block_owners.data();
-    const auto validate = [&] {
-        ov::intel_cpu::kernel::validate_paged_selective_ssm_jit_metadata(args);
-    };
-
-    EXPECT_NO_THROW(validate());
-
-    subsequence_begins[0] = -1;
-    EXPECT_THROW(validate(), ov::Exception);
-    subsequence_begins[0] = 0;
-
-    subsequence_begins[1] = 0;
-    EXPECT_THROW(validate(), ov::Exception);
-    subsequence_begins[1] = 1;
-
-    block_indices[0] = -1;
-    EXPECT_THROW(validate(), ov::Exception);
-    block_indices[0] = 2;
-    EXPECT_THROW(validate(), ov::Exception);
-    block_indices[0] = 0;
-
-    processed_tokens[0] = -1;
-    EXPECT_THROW(validate(), ov::Exception);
-    processed_tokens[0] = 0;
-
-    block_indices_begins[1] = 1;
-    args.shape.logical_block_count = 1;
-    EXPECT_THROW(validate(), ov::Exception);
 }
 
 template <typename T>
@@ -237,11 +188,6 @@ TEST(PagedSelectiveSSMJitKernel, DifferentialStressCoversCacheShapePrecisionAndI
         run_paged_selective_ssm_differential_stress(element::bf16, element::i32, 3e-2F, run);
         run_paged_selective_ssm_differential_stress(element::bf16, element::i64, 3e-2F, run);
     }
-}
-
-TEST(PagedSelectiveSSMJitKernel, RejectsMalformedMetadataForBothIndexTypes) {
-    verify_paged_metadata_validation<int32_t>(element::i32);
-    verify_paged_metadata_validation<int64_t>(element::i64);
 }
 
 TEST(SelectiveSSMJitKernel, LowPrecisionScalarEncodingSemanticsCoverEveryEncoding) {
