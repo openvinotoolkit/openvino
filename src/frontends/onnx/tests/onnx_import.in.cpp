@@ -4597,6 +4597,27 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_roi_align_f32) {
     test_case.run_with_tolerance_as_fp(1.0e-4f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_roi_align_default_sampling) {
+    // ONNX RoiAlign spec default of sampling_ratio is 0 (adaptive sampling grid); a missing
+    // attribute must not be filled with 1 (fixed 1-point grid). Reference = onnxruntime.
+    const auto model = convert_model("roi_align_default_sampling.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 4, 4},
+                               {0.374540f, 0.950714f, 0.731994f, 0.598658f, 0.156019f, 0.155995f,
+                                0.058084f, 0.866176f, 0.601115f, 0.708073f, 0.020584f, 0.969910f,
+                                0.832443f, 0.212339f, 0.181825f, 0.183405f});
+    test_case.add_input<float>(Shape{4, 4}, {0.f, 0.f, 3.f, 3.f, 0.f, 1.f, 2.f, 3.f,
+                                             1.f, 0.f, 3.f, 2.f, 1.f, 1.f, 2.f, 2.f});
+    test_case.add_input<int64_t>(Shape{4}, {0, 0, 0, 0});
+    test_case.add_expected_output<float>(
+        Shape{4, 1, 2, 2},
+        {0.369716f, 0.440470f, 0.530485f, 0.302502f, 0.405300f, 0.235684f,
+         0.588492f, 0.280705f, 0.474197f, 0.563728f, 0.235684f, 0.478689f,
+         0.232688f, 0.110035f, 0.435030f, 0.164983f});
+    test_case.run_with_tolerance_as_fp(1.0e-5f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_roialign16_avg_out_half_pixel) {
     const auto model = convert_model("roialign16_avg_out_half_pixel.onnx");
 
