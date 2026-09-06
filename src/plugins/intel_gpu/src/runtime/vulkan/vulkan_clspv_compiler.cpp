@@ -17,6 +17,10 @@
 namespace cldnn::vulkan {
 namespace {
 
+// Clang advertises this extension, but CLSPV does not implement its Intel builtins.
+// Select the existing generic conversions in the kernel selector's bf16_utils.cl.
+constexpr char type_preamble[] = "#undef cl_intel_bfloat16_conversions\n";
+
 std::mutex& get_clspv_mutex() {
     static std::mutex mutex;
     return mutex;
@@ -45,7 +49,7 @@ std::string translate_source_options(const std::string& source_options) {
 }  // namespace
 
 std::string vulkan_clspv_compiler::identity() {
-    return OV_GPU_CLSPV_COMPILER_ID;
+    return OV_GPU_CLSPV_COMPILER_ID + std::string(type_preamble);
 }
 
 std::string vulkan_clspv_compiler::canonical_options(const std::string& source_options) {
@@ -59,8 +63,9 @@ vulkan_clspv_compilation vulkan_clspv_compiler::compile(const std::string& sourc
     OPENVINO_ASSERT(!entry_point.empty(), "[GPU][Vulkan] CLSPV requires an explicit entry point");
 
     const auto options = canonical_options(source_options);
-    const char* sources[] = {source.data()};
-    const size_t source_sizes[] = {source.size()};
+    const auto compiler_source = std::string(type_preamble) + source;
+    const char* sources[] = {compiler_source.data()};
+    const size_t source_sizes[] = {compiler_source.size()};
     char* output_binary = nullptr;
     size_t output_binary_size = 0;
     char* output_log = nullptr;

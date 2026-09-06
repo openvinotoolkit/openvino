@@ -100,7 +100,8 @@ public:
         OPENVINO_ASSERT(is_structural_copy(instance.get_input_layout(0), instance.get_output_layout(0)),
                         "[GPU][Vulkan] Structural Reorder requires byte-compatible runtime layouts");
         stream.wait_for_events(events);
-        return instance.output_memory_ptr()->copy_from(stream, *instance.input_memory_ptr(), true);
+        // Shape prediction can allocate more input storage than the current tensor requires.
+        return instance.output_memory_ptr()->copy_from(stream, *instance.input_memory_ptr(), 0, 0, instance.get_output_layout().bytes_count(), true);
     }
 };
 
