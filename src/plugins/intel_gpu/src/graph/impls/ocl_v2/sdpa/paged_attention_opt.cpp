@@ -1395,7 +1395,7 @@ public:
         // U4 BY_CHANNEL MIXED has shown concurrency-sensitive output instability in production workloads.
         // Keep micro SDPA for PREFILL and route only the affected MIXED configuration to OCL.
         const auto use_ocl_for_u4_by_channel_mixed = stage == PagedAttentionStage::MIXED &&
-                                                     data_type_traits::is_i4_u4(kv_cache_dt) &&
+                                                     kv_cache_dt == ov::element::u4 &&
                                                      desc->is_key_by_channel;
         const auto can_use_micro_sdpa = !use_ocl_for_u4_by_channel_mixed;
         GPU_DEBUG_TRACE_DETAIL << "can_use_micro_sdpa_for: stage = " << static_cast<size_t>(stage)

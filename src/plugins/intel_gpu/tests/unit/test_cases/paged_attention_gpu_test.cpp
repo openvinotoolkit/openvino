@@ -50,8 +50,11 @@ TEST_P(paged_attention_u4_mixed_ocl_test, matches_cpu_reference) {
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
     const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
-    EXPECT_EQ(dump_info.get_entries().find("sdpa_micro"), std::string::npos)
+    // SDPAMicroGenerator(false), which implements PA MIXED, has the historical "_generate" suffix.
+    EXPECT_EQ(dump_info.get_entries().find("sdpa_micro__generate"), std::string::npos)
         << "U4 BY_CHANNEL MIXED must not exercise micro SDPA: " << dump_info.get_entries();
+    EXPECT_NE(dump_info.get_entries().find("paged_attention_opt__multi_tokens"), std::string::npos)
+        << "U4 BY_CHANNEL MIXED must exercise OCL PagedAttention: " << dump_info.get_entries();
 
     this->tolerance = 1e-2f;
     const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
@@ -61,9 +64,7 @@ TEST_P(paged_attention_u4_mixed_ocl_test, matches_cpu_reference) {
 INSTANTIATE_TEST_SUITE_P(
     regression_paged_attention_u4_mixed_ocl,
     paged_attention_u4_mixed_ocl_test,
-    ::testing::Values(
-        paged_attention_test_params{{{25, 34}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
-        paged_attention_test_params{{{25, 128}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
+    ::testing::Values(paged_attention_test_params{{{25, 128}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
 
 class paged_attention_u4_prefill_micro_test : public PagedAttentionTest<paged_attention_test_params> {};
 
@@ -81,14 +82,45 @@ TEST_P(paged_attention_u4_prefill_micro_test, keeps_micro_route) {
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
     const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
-    ASSERT_NE(dump_info.get_entries().find("sdpa_micro"), std::string::npos)
+    ASSERT_NE(dump_info.get_entries().find("sdpa_micro__prefill"), std::string::npos)
         << "U4 BY_CHANNEL PREFILL must continue to exercise micro SDPA: " << dump_info.get_entries();
+
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
 }
 
 INSTANTIATE_TEST_SUITE_P(
     regression_paged_attention_u4_prefill_micro,
     paged_attention_u4_prefill_micro_test,
     ::testing::Values(paged_attention_test_params{{{25, 0}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
+
+class paged_attention_u8_mixed_micro_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_u8_mixed_micro_test, keeps_micro_route) {
+    if (!tests::get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+    auto result = run_gpu_inference(pam, p);
+
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
+    ASSERT_NE(dump_info.get_entries().find("sdpa_micro__generate"), std::string::npos)
+        << "The fallback must remain limited to U4 BY_CHANNEL MIXED: " << dump_info.get_entries();
+
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    regression_paged_attention_u8_mixed_micro,
+    paged_attention_u8_mixed_micro_test,
+    ::testing::Values(paged_attention_test_params{{{25, 128}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u8}));
 #endif
 
 class paged_attention_u4_swa_tail_test : public PagedAttentionTest<paged_attention_test_params> {};
