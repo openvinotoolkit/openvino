@@ -12,11 +12,11 @@ TEST_P(paged_attention_test, basic) {
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-class paged_attention_u4_mixed_micro_test : public PagedAttentionTest<paged_attention_test_params> {};
+class paged_attention_u4_mixed_ocl_test : public PagedAttentionTest<paged_attention_test_params> {};
 
-TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
+TEST_P(paged_attention_u4_mixed_ocl_test, matches_cpu_reference) {
     if (!tests::get_test_engine().get_device_info().supports_immad)
-        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+        GTEST_SKIP() << "Routing regression requires a micro SDPA-capable device";
 
     auto p = GetParam();
     ASSERT_TRUE(this->pam.has_value());
@@ -50,8 +50,8 @@ TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
     const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
-    ASSERT_NE(dump_info.get_entries().find("sdpa_micro"), std::string::npos)
-        << "Regression must exercise micro SDPA: " << dump_info.get_entries();
+    EXPECT_EQ(dump_info.get_entries().find("sdpa_micro"), std::string::npos)
+        << "U4 BY_CHANNEL MIXED must not exercise micro SDPA: " << dump_info.get_entries();
 
     this->tolerance = 1e-2f;
     const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
@@ -59,11 +59,36 @@ TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    regression_paged_attention_u4_mixed_micro,
-    paged_attention_u4_mixed_micro_test,
+    regression_paged_attention_u4_mixed_ocl,
+    paged_attention_u4_mixed_ocl_test,
     ::testing::Values(
         paged_attention_test_params{{{25, 34}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
         paged_attention_test_params{{{25, 128}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
+
+class paged_attention_u4_prefill_micro_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_u4_prefill_micro_test, keeps_micro_route) {
+    if (!tests::get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+    auto result = run_gpu_inference(pam, p);
+
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
+    ASSERT_NE(dump_info.get_entries().find("sdpa_micro"), std::string::npos)
+        << "U4 BY_CHANNEL PREFILL must continue to exercise micro SDPA: " << dump_info.get_entries();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    regression_paged_attention_u4_prefill_micro,
+    paged_attention_u4_prefill_micro_test,
+    ::testing::Values(paged_attention_test_params{{{25, 0}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
 #endif
 
 class paged_attention_u4_swa_tail_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -100,7 +125,9 @@ TEST_P(paged_attention_u4_swa_tail_test, ignores_invalid_value_cache_rows) {
 INSTANTIATE_TEST_SUITE_P(
     regression_paged_attention_u4_swa_tail,
     paged_attention_u4_swa_tail_test,
-    ::testing::Values(paged_attention_test_params{{{1, 35}}, 8, 2, 128, 128, 16, 16, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
+    ::testing::Values(
+        paged_attention_test_params{{{1, 35}}, 8, 2, 128, 128, 16, 16, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        paged_attention_test_params{{{25, 35}}, 8, 2, 128, 128, 16, 16, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
 
 class paged_attention_swa_partition_finalization_test : public PagedAttentionTest<paged_attention_test_params> {};
 
@@ -112,7 +139,9 @@ TEST_P(paged_attention_swa_partition_finalization_test, ignores_inactive_partiti
 INSTANTIATE_TEST_SUITE_P(
     regression_paged_attention_swa_partition_finalization,
     paged_attention_swa_partition_finalization_test,
-    ::testing::Values(paged_attention_test_params{{{1, 511}, {1, 512}}, 8, 2, 128, 128, 16, 256, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}));
+    ::testing::Values(
+        paged_attention_test_params{{{1, 511}, {1, 512}}, 8, 2, 128, 128, 16, 256, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},
+        paged_attention_test_params{{{25, 511}, {10, 512}}, 8, 2, 128, 128, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
 
 class xattention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_test, basic) {

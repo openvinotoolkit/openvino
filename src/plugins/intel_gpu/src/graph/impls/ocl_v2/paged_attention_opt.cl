@@ -181,7 +181,8 @@ KERNEL(pa_sdpa_opt)(
 
     const uint total_blocks_num = CEIL_DIV(seq_len, PAGED_ATTENTION_BLOCK_SIZE);
 
-#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
+// In MULTI_TOKENS_PROCESSING each work group handles one query token, so seq_len is exact here too.
+#if SWA_BLOCK_SKIP_ENABLED
     const uint swa_start_block = (seq_len > SLIDING_WINDOW_SIZE) ? ((seq_len - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE) : 0;
     const uint swa_start_token = swa_start_block * PAGED_ATTENTION_BLOCK_SIZE;
     const uint effective_blocks_num = total_blocks_num - swa_start_block;
@@ -658,7 +659,7 @@ KERNEL(pa_sdpa_opt)(
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, QUERIES_PER_WI) acc = OUTPUT_VAL_ZERO;
 #endif
 
-#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
+#if SWA_BLOCK_SKIP_ENABLED
         const uint effective_seq_len = seq_len - swa_start_token;
 #else
         const uint effective_seq_len = seq_len;
@@ -1028,7 +1029,8 @@ KERNEL(pa_sdpa_finalization_stage)(
     const uint seq_len = past_lens[seq_idx] + 1;
 #endif
 
-#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
+// Keep finalization's partition count aligned with the stage-0 SWA block range.
+#if SWA_BLOCK_SKIP_ENABLED
     const uint swa_start_block = (seq_len > SLIDING_WINDOW_SIZE) ? ((seq_len - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE) : 0;
     const uint effective_seq_len = seq_len - swa_start_block * PAGED_ATTENTION_BLOCK_SIZE;
 #else

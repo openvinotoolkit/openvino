@@ -9,6 +9,7 @@
 // clang-format on
 #include "paged_attention_opt.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <memory>
@@ -1386,7 +1387,17 @@ public:
     // only in the PREFILL kernels, and in MIXED neither micro SDPA nor paged_attention_opt.cl consumes token_type_ids.
     // TODO: implement bidirectional attention for MIXED with token_type_ids
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
-        const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage);
+        if (!supports_micro_sdpa(params) || !valid_micro_stage(stage))
+            return false;
+
+        const auto desc = params.typed_desc<paged_attention>();
+        const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+        // U4 BY_CHANNEL MIXED has shown concurrency-sensitive output instability in production workloads.
+        // Keep micro SDPA for PREFILL and route only the affected MIXED configuration to OCL.
+        const auto use_ocl_for_u4_by_channel_mixed = stage == PagedAttentionStage::MIXED &&
+                                                     data_type_traits::is_i4_u4(kv_cache_dt) &&
+                                                     desc->is_key_by_channel;
+        const auto can_use_micro_sdpa = !use_ocl_for_u4_by_channel_mixed;
         GPU_DEBUG_TRACE_DETAIL << "can_use_micro_sdpa_for: stage = " << static_cast<size_t>(stage)
                                << ", token_type_ids = " << params.get_input_layout(PagedAttentionInputIdx::TOKEN_TYPE_IDS).to_short_string()
                                << ", can_use_micro_sdpa = " << can_use_micro_sdpa << std::endl;
@@ -1482,13 +1493,14 @@ public:
         rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage);
 
         auto effective_context_len = rt_params->max_context_len;
-        // scores_output is only used in SnapKV path, and it doesn't yet handle the SWA block skip offset
-        if (desc->sliding_window > 0 && rt_params->stage == PagedAttentionStage::GENERATE && !desc->has_scores_output()) {
-            auto total_blocks = ceil_div(rt_params->max_context_len, paged_attention_block_size);
-            auto swa_start_block =
-                rt_params->max_context_len > desc->sliding_window ? (rt_params->max_context_len - desc->sliding_window) / paged_attention_block_size : 0;
-            auto effective_blocks = total_blocks - swa_start_block;
-            effective_context_len = effective_blocks * paged_attention_block_size;
+        // scores_output is only used in SnapKV path, and it doesn't yet handle the SWA block skip offset.
+        if (desc->sliding_window > 0 && !desc->has_scores_output() &&
+            (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED)) {
+            const auto total_blocks = ceil_div(rt_params->max_context_len, paged_attention_block_size);
+            // MIXED shares one partition count across tokens whose context lengths can have different block
+            // alignments. ceil(window / block) + 1 is the alignment-independent upper bound.
+            const auto max_window_blocks = ceil_div(desc->sliding_window, paged_attention_block_size) + 1;
+            effective_context_len = std::min(total_blocks, max_window_blocks) * paged_attention_block_size;
         }
         rt_params->num_of_partitions = ceil_div(effective_context_len, rt_params->partition_size);
 
