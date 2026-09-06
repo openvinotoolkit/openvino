@@ -6,9 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 #include <vector>
 
@@ -55,7 +57,7 @@ void run_jit_selective_ssm(const SelectiveSSMKernelTestArgs& args) {
     ov::intel_cpu::kernel::selective_ssm_jit(runtime_args);
 }
 
-void run_jit_paged_selective_ssm(const PagedSelectiveSSMKernelTestArgs& args) {
+void run_jit_paged_selective_ssm(const PagedSelectiveSSMKernelTestArgs& args, bool reuse_state_cache) {
     const auto fp32_state_kernel =
         ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(args.data_precision, args.shape.state_size);
     ASSERT_NE(fp32_state_kernel, nullptr);
@@ -88,7 +90,7 @@ void run_jit_paged_selective_ssm(const PagedSelectiveSSMKernelTestArgs& args) {
     runtime_args.data_precision = args.data_precision;
     runtime_args.index_precision = args.index_precision;
     runtime_args.state_scratch = args.state_scratch;
-    runtime_args.metadata_validation_scratch = args.metadata_validation_scratch;
+    runtime_args.reuse_state_cache = reuse_state_cache;
     runtime_args.head_dim_tile = args.head_dim_tile;
     runtime_args.cpu_parallel = args.cpu_parallel;
     runtime_args.fp32_state_kernel = fp32_state_kernel.get();
@@ -223,12 +225,18 @@ TEST(SelectiveSSMJitKernel, DifferentialStressCoversShapeTilingPrecisionAndAlias
 }
 
 TEST(PagedSelectiveSSMJitKernel, DifferentialStressCoversCacheShapePrecisionAndIndexMatrix) {
-    run_paged_selective_ssm_differential_stress(element::f32, element::i32, 1e-5F, run_jit_paged_selective_ssm);
-    run_paged_selective_ssm_differential_stress(element::f32, element::i64, 1e-5F, run_jit_paged_selective_ssm);
-    run_paged_selective_ssm_differential_stress(element::f16, element::i32, 3e-3F, run_jit_paged_selective_ssm);
-    run_paged_selective_ssm_differential_stress(element::f16, element::i64, 3e-3F, run_jit_paged_selective_ssm);
-    run_paged_selective_ssm_differential_stress(element::bf16, element::i32, 3e-2F, run_jit_paged_selective_ssm);
-    run_paged_selective_ssm_differential_stress(element::bf16, element::i64, 3e-2F, run_jit_paged_selective_ssm);
+    for (const bool reuse_state_cache : {false, true}) {
+        SCOPED_TRACE(testing::Message() << "reuse_state_cache=" << reuse_state_cache);
+        const auto run = [reuse_state_cache](const PagedSelectiveSSMKernelTestArgs& args) {
+            run_jit_paged_selective_ssm(args, reuse_state_cache);
+        };
+        run_paged_selective_ssm_differential_stress(element::f32, element::i32, 1e-5F, run);
+        run_paged_selective_ssm_differential_stress(element::f32, element::i64, 1e-5F, run);
+        run_paged_selective_ssm_differential_stress(element::f16, element::i32, 3e-3F, run);
+        run_paged_selective_ssm_differential_stress(element::f16, element::i64, 3e-3F, run);
+        run_paged_selective_ssm_differential_stress(element::bf16, element::i32, 3e-2F, run);
+        run_paged_selective_ssm_differential_stress(element::bf16, element::i64, 3e-2F, run);
+    }
 }
 
 TEST(PagedSelectiveSSMJitKernel, RejectsMalformedMetadataForBothIndexTypes) {
@@ -338,6 +346,186 @@ TEST(PagedSelectiveSSMJitKernel, CacheScheduleTracksSnapshots) {
     EXPECT_FALSE(schedule.should_store(schedule.absolute_token_count(1), false));
     EXPECT_TRUE(schedule.should_store(schedule.absolute_token_count(1), true));
     EXPECT_TRUE(schedule.should_store(schedule.absolute_token_count(2), false));
+}
+
+template <typename T>
+void verify_large_state_recurrence(const element::Type& precision) {
+    using ov::intel_cpu::kernel::create_selective_ssm_jit_kernel;
+    using ov::intel_cpu::kernel::jit_selective_ssm_call_args;
+    using ov::intel_cpu::kernel::jit_selective_ssm_state_mode;
+    constexpr std::array state_sizes{127U, 128U, 129U, 135U, 255U, 256U, 257U, 263U, 4095U, 4096U};
+    constexpr std::array state_modes{jit_selective_ssm_state_mode::in_place,
+                                     jit_selective_ssm_state_mode::separate,
+                                     jit_selective_ssm_state_mode::no_store};
+    for (const size_t state_size : state_sizes) {
+        for (const size_t rows : {1U, 4U, 5U}) {
+            for (const auto mode : state_modes) {
+                SCOPED_TRACE(testing::Message() << "precision=" << precision << ", state_size=" << state_size
+                                                << ", rows=" << rows << ", mode=" << static_cast<int>(mode));
+                const bool fp32_state = mode == jit_selective_ssm_state_mode::in_place;
+                const auto kernel =
+                    create_selective_ssm_jit_kernel(precision, state_size, fp32_state ? element::f32 : precision, mode);
+                ASSERT_NE(kernel, nullptr);
+                const auto input = cast_values<T>(make_values(rows, 0.03125F));
+                const auto B = make_values(state_size, 0.015625F);
+                const auto C = make_values(state_size, 0.0078125F);
+                auto state_f32 = make_values(rows * state_size, 0.03125F);
+                const auto original_state = state_f32;
+                const auto state_low = cast_values<T>(state_f32);
+                std::vector<T> final_state(rows * state_size, static_cast<T>(17.F));
+                std::vector<T> output(rows, static_cast<T>(19.F));
+                const jit_selective_ssm_call_args args{
+                    fp32_state ? static_cast<const void*>(state_f32.data()) : state_low.data(),
+                    B.data(),
+                    C.data(),
+                    input.data(),
+                    output.data(),
+                    0.5F,
+                    0.25F,
+                    rows,
+                    fp32_state ? static_cast<void*>(state_f32.data()) : final_state.data(),
+                };
+                (*kernel)(&args);
+                for (size_t row = 0; row < rows; ++row) {
+                    float expected_output = 0.F;
+                    for (size_t n = 0; n < state_size; ++n) {
+                        const size_t index = row * state_size + n;
+                        const float expected_state =
+                            original_state[index] * args.decay + static_cast<float>(input[row]) * args.delta * B[n];
+                        expected_output += expected_state * C[n];
+                        if (fp32_state) {
+                            EXPECT_FLOAT_EQ(state_f32[index], expected_state);
+                        } else if (mode == jit_selective_ssm_state_mode::separate) {
+                            EXPECT_EQ(final_state[index], static_cast<T>(expected_state));
+                        } else {
+                            EXPECT_EQ(final_state[index], static_cast<T>(17.F));
+                        }
+                    }
+                    EXPECT_EQ(output[row], static_cast<T>(expected_output));
+                }
+            }
+        }
+    }
+}
+
+TEST(SelectiveSSMJitKernel, RuntimeVectorLoopCoversBoundariesRowsAndStateModes) {
+    verify_large_state_recurrence<float>(element::f32);
+    verify_large_state_recurrence<float16>(element::f16);
+    verify_large_state_recurrence<bfloat16>(element::bf16);
+}
+
+TEST(SelectiveSSMJitKernel, RuntimeVectorLoopBoundsGeneratedCodeSize) {
+    using ov::intel_cpu::kernel::create_selective_ssm_jit_kernel;
+    using ov::intel_cpu::kernel::jit_selective_ssm_state_mode;
+    for (const auto& precision : {element::f32, element::f16, element::bf16}) {
+        for (const auto mode : {jit_selective_ssm_state_mode::in_place,
+                                jit_selective_ssm_state_mode::separate,
+                                jit_selective_ssm_state_mode::no_store}) {
+            const auto state_precision = mode == jit_selective_ssm_state_mode::in_place ? element::f32 : precision;
+            const auto medium = create_selective_ssm_jit_kernel(precision, 512, state_precision, mode);
+            const auto large = create_selective_ssm_jit_kernel(precision, 4096, state_precision, mode);
+            ASSERT_NE(medium, nullptr);
+            ASSERT_NE(large, nullptr);
+            // Only displacements and loop bounds change when the state grows by 8x.
+            EXPECT_LE(large->getSize(), medium->getSize() + 128U);
+        }
+    }
+}
+
+TEST(SelectiveSSMJitKernel, BF16OutputPreservesRoundingBoundariesAndSubnormals) {
+    // Low FP32 bits distinguish OpenVINO's BF16 conversion from native RNE.
+    constexpr std::array low_bits{0U, 0x3FFFU, 0x7FFFU, 0x8000U, 0x8001U, 0xFFFFU};
+    std::vector<float> state;
+    for (uint32_t high_bits = 0; high_bits <= 0xFFFFU; ++high_bits) {
+        if ((high_bits & 0x7F80U) == 0x7F80U) {
+            continue;
+        }
+        for (const uint32_t low : low_bits) {
+            const uint32_t bits = (high_bits << 16U) | low;
+            float value = 0.F;
+            std::memcpy(&value, &bits, sizeof(value));
+            state.push_back(value);
+        }
+    }
+    // Include the one-row tail in addition to four-row tiles.
+    state.push_back(1.F);
+    const auto original_state = state;
+    std::vector<bfloat16> input(state.size(), bfloat16(0.F));
+    std::vector<bfloat16> output(state.size());
+    const float B = 0.F;
+    const float C = 1.F;
+    const auto kernel = ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(element::bf16, 1);
+    ASSERT_NE(kernel, nullptr);
+    const ov::intel_cpu::kernel::jit_selective_ssm_call_args
+        args{state.data(), &B, &C, input.data(), output.data(), 1.F, 1.F, state.size(), state.data()};
+    (*kernel)(&args);
+    for (size_t i = 0; i < state.size(); ++i) {
+        const auto expected = static_cast<bfloat16>(original_state[i] + 0.F);
+        EXPECT_EQ(output[i].to_bits(), expected.to_bits()) << "index=" << i;
+    }
+}
+
+TEST(PagedSelectiveSSMJitKernel, SingleSnapshotWorkspaceCoversAliasedAndSeparateCache) {
+    constexpr size_t state_elements = 5 * 17;
+    const auto cpu_parallel = make_parallel();
+    const float A = -0.2F;
+    const std::vector<float> dt(3, 0.1F);
+    const auto B = make_values(3 * 17, 0.007F);
+    const auto C = make_values(3 * 17, 0.009F);
+    const auto x = make_values(3 * 5, 0.01F);
+    const std::array<int32_t, 2> subsequences{0, 3};
+    const std::array<int32_t, 2> block_begins{0, 2};
+    const int32_t processed = 2;
+    const int32_t interval = 8;
+    const auto initial_cache = make_values(3 * state_elements, 0.01F);
+    for (const bool alias_read : {false, true}) {
+        SCOPED_TRACE(testing::Message() << "alias_read=" << alias_read);
+        const std::array<int32_t, 2> blocks{0, alias_read ? 0 : 1};
+        std::vector<float> baseline_cache;
+        std::vector<float> baseline_output;
+        for (const bool reuse_state_cache : {false, true}) {
+            auto cache = initial_cache;
+            std::vector<float> output(x.size());
+            std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * state_elements,
+                                       17.F);
+            PagedSelectiveSSMKernelTestArgs args;
+            args.state_decay_rates = &A;
+            args.time_steps = dt.data();
+            args.fp32_input_projections = B.data();
+            args.fp32_output_projections = C.data();
+            args.input = x.data();
+            args.state_cache = cache.data();
+            args.subsequence_begins = subsequences.data();
+            args.block_indices = blocks.data();
+            args.block_indices_begins = block_begins.data();
+            args.num_processed_tokens = &processed;
+            args.cache_intervals = &interval;
+            args.output = output.data();
+            args.shape = {3, 1, 5, 1, 17, 3, 2, 1};
+            args.data_precision = element::f32;
+            args.index_precision = element::i32;
+            args.state_scratch = scratch.data();
+            args.head_dim_tile = 5;
+            args.cpu_parallel = cpu_parallel;
+            run_jit_paged_selective_ssm(args, reuse_state_cache);
+            const bool untouched_scratch = std::all_of(scratch.begin(), scratch.end(), [](float value) {
+                return value == 17.F;
+            });
+            EXPECT_EQ(untouched_scratch, reuse_state_cache);
+            for (size_t i = 0; i < cache.size(); ++i) {
+                if (i / state_elements != static_cast<size_t>(blocks[1])) {
+                    EXPECT_EQ(cache[i], initial_cache[i]) << "unchanged cache index=" << i;
+                }
+            }
+            if (!reuse_state_cache) {
+                baseline_cache = cache;
+                baseline_output = output;
+            } else {
+                EXPECT_EQ(cache, baseline_cache);
+                EXPECT_EQ(output, baseline_output);
+            }
+        }
+    }
 }
 
 TEST(SelectiveSSMJitKernel, FactoryCreatesLargestAdvertisedState) {

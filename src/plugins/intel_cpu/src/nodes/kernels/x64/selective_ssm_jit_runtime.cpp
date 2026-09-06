@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -27,11 +26,6 @@
 
 namespace ov::intel_cpu::kernel {
 namespace {
-
-bool should_reuse_state_cache_as_fp32_working_buffer() {
-    // Wide AVX-512 kernels benefit from private scratch; narrower kernels are limited by the extra state copies.
-    return !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core);
-}
 
 template <typename Destination, typename Source>
 void copy_convert(Destination* destination, const Source* source, size_t count) {
@@ -237,7 +231,6 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
                                                "JIT state block");
     const auto projection_stride = shape.num_groups * shape.state_size;
     const auto input_stride = shape.num_heads * shape.head_dim;
-    const bool reuse_single_snapshot_as_workspace = should_reuse_state_cache_as_fp32_working_buffer();
 
     args.cpu_parallel->parallel_for3d(
         shape.sequence_count,
@@ -306,7 +299,7 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
             if constexpr (std::is_same_v<Data, float>) {
                 const auto snapshot_count = cache.snapshot_count(token_end - token_begin);
                 // A single f32 snapshot can hold the working state, avoiding the scratch buffer and final copy.
-                if (snapshot_count == 1 && reuse_single_snapshot_as_workspace) {
+                if (snapshot_count == 1 && args.reuse_state_cache) {
                     const auto write_block = static_cast<size_t>(block_indices[logical_block_begin + snapshot_count]);
                     local_state = state_cache + write_block * layout.container_stride + state_offset;
                 }
@@ -374,7 +367,9 @@ void paged_selective_ssm_jit(const PagedSelectiveSSMJitRuntimeArgs& args) {
     OPENVINO_ASSERT(args.head_dim_tile > 0 && args.state_scratch != nullptr);
     OPENVINO_ASSERT(args.cpu_parallel != nullptr, "PagedSelectiveSSM JIT requires a CPU parallel executor.");
     OPENVINO_ASSERT(args.fp32_state_kernel != nullptr, "PagedSelectiveSSM JIT kernel is not initialized.");
-    validate_paged_selective_ssm_jit_metadata(args);
+    if (args.metadata_validation_scratch != nullptr) {
+        validate_paged_selective_ssm_jit_metadata(args);
+    }
 
     if (args.data_precision == ov::element::f32) {
         dispatch_paged_indices<float>(args);
