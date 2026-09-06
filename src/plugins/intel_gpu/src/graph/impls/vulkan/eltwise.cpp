@@ -106,6 +106,9 @@ kernel_selector::KernelsData get_reference_kernels_data(const kernel_impl_params
     }
     auto kernel_params = make_unfused_eltwise_kernel_params(canonical_params, params.is_dynamic());
     auto candidates = get_reference_kernel().GetKernelsData(kernel_params);
+    for (auto& candidate : candidates) {
+        candidate.kernelName = get_reference_kernel().GetName();
+    }
     if (convert_input && candidates.size() == 1) {
         auto& data = candidates.front();
         OPENVINO_ASSERT(data.kernels.size() == 1, "[GPU][Vulkan] Expected one reference Eltwise dispatch");

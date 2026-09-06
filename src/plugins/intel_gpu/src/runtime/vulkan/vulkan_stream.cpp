@@ -880,7 +880,7 @@ private:
         if (!profiling_enabled) {
             return;
         }
-        vkCmdWriteTimestamp2(slot.command_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, slot.profiling_query_pool, 1);
+        vkCmdWriteTimestamp2(slot.command_buffer, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, slot.profiling_query_pool, 1);
     }
 
     slot& begin_transfer(const vulkan_prepared_arguments& prepared) {

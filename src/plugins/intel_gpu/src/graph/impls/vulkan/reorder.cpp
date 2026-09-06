@@ -158,6 +158,7 @@ std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const 
     }
     auto candidates = get_reference_kernel().GetKernelsData(make_reference_params(params, params.is_dynamic()));
     OPENVINO_ASSERT(candidates.size() == 1, "[GPU][Vulkan] Kernel selector did not produce the generic reference Reorder kernel");
+    candidates.front().kernelName = get_reference_kernel().GetName();
     return std::make_unique<reorder_impl>(std::move(candidates.front()), params.is_dynamic());
 }
 
