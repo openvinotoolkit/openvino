@@ -314,14 +314,14 @@ void determine_tbb_partitioner_and_threads(Config& config,
         }
     }
 
-    if (num_streams == 1 &&
-        has_lp_ecores && (is_all_core_auto_case_high_lp_share_relaxed_profile(tolerance, lp_ecore_share) ||
-                          is_all_core_auto_case_high_lp_share_vision_profile(tolerance, lp_ecore_share) ||
-                          is_all_core_auto_case_high_lp_share_residual_vision_profile(tolerance, lp_ecore_share) ||
-                          is_all_core_auto_case_low_tolerance_dense_conv_profile(tolerance) ||
-                          is_all_core_auto_case_low_tolerance_zero_adds_profile(tolerance) ||
-                          (is_all_core_auto_case(tolerance) &&
-                           !is_all_core_auto_case_small_conv_exclusion_profile(tolerance, lp_ecore_share)))) {
+    if (num_streams == 1 && has_lp_ecores &&
+        (is_all_core_auto_case_high_lp_share_relaxed_profile(tolerance, lp_ecore_share) ||
+         is_all_core_auto_case_high_lp_share_vision_profile(tolerance, lp_ecore_share) ||
+         is_all_core_auto_case_high_lp_share_residual_vision_profile(tolerance, lp_ecore_share) ||
+         is_all_core_auto_case_low_tolerance_dense_conv_profile(tolerance) ||
+         is_all_core_auto_case_low_tolerance_zero_adds_profile(tolerance) ||
+         (is_all_core_auto_case(tolerance) &&
+          !is_all_core_auto_case_small_conv_exclusion_profile(tolerance, lp_ecore_share)))) {
         config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC] +
                                            proc_type_table[0][EFFICIENT_CORE_PROC] +
                                            proc_type_table[0][LP_EFFICIENT_CORE_PROC];
