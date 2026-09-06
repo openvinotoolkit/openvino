@@ -440,8 +440,9 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
 
 template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::advance_state_pointers(int64_t elements) {
-    const auto state_bytes = elements * static_cast<int64_t>(m_jcp.state_precision.size());
-    const auto projection_bytes = elements * static_cast<int64_t>(sizeof(float));
+    // Xbyak takes the bits of a sign-extended imm32; the state-size limit keeps both offsets representable.
+    const auto state_bytes = static_cast<uint32_t>(elements * static_cast<int64_t>(m_jcp.state_precision.size()));
+    const auto projection_bytes = static_cast<uint32_t>(elements * static_cast<int64_t>(sizeof(float)));
     add(reg_input_state, state_bytes);
     if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate) {
         add(reg_output_state, state_bytes);
