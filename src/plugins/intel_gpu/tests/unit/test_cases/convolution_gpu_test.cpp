@@ -7954,6 +7954,8 @@ INSTANTIATE_TEST_SUITE_P(convolution_grouped_fsv4_fsv16,
 
                             // Format: b_fs_yx_fsv16
                             TestParamType_grouped_convolution_gpu(12, 12, 1, 96, 96, 3, 3, 1, 32, 1, 1, true, true, true, format::b_fs_yx_fsv16, ""),
+                            TestParamType_grouped_convolution_gpu(8, 8, 1, 16, 16, 3, 3, 1, 16, 1, 1, true, true, true, format::b_fs_yx_fsv16, "convolution_gpu_imad"),
+                            TestParamType_grouped_convolution_gpu(8, 8, 1, 80, 16, 3, 3, 1, 16, 1, 1, true, true, true, format::b_fs_yx_fsv16, "convolution_gpu_imad"),
                             TestParamType_grouped_convolution_gpu(4, 4, 1, 8, 16, 3, 3, 1, 2, 1, 1, true, true, true, format::b_fs_yx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(7, 7, 1, 8, 4, 3, 3, 1, 4, 1, 1, true, true, true, format::b_fs_yx_fsv16, ""),
                             TestParamType_grouped_convolution_gpu(5, 5, 1, 34, 12, 3, 3, 1, 2, 1, 1, true, true, true, format::b_fs_yx_fsv16, ""),
