@@ -52,6 +52,11 @@ def main():
     stop = np.array([-4]).astype(np.int64)
     num = np.array([1]).astype(np.int32)
     linspace("linspace_3", start, stop, num, "int64")
+    # issue 37949: dtype=float64 must not be silently downgraded to float32
+    start = np.array([0.1]).astype(np.float32)
+    stop = np.array([0.9]).astype(np.float32)
+    num = np.array([3]).astype(np.int32)
+    linspace("linspace_float64", start, stop, num, "float64")
 
 
 if __name__ == "__main__":
