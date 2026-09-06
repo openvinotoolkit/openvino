@@ -361,22 +361,33 @@ TEST(SelectiveSSMJitKernel, RuntimeVectorLoopCoversBoundariesRowsAndStateModes) 
     verify_large_state_recurrence<bfloat16>(element::bf16);
 }
 
-TEST(SelectiveSSMJitKernel, RuntimeVectorLoopBoundsGeneratedCodeSize) {
-    using ov::intel_cpu::kernel::create_selective_ssm_jit_kernel;
+template <dnnl::impl::cpu::x64::cpu_isa_t isa>
+void verify_bounded_generated_code_size() {
+    using ov::intel_cpu::kernel::jit_selective_ssm_kernel;
     using ov::intel_cpu::kernel::jit_selective_ssm_state_mode;
     for (const auto& precision : {element::f32, element::f16, element::bf16}) {
         for (const auto mode : {jit_selective_ssm_state_mode::in_place,
                                 jit_selective_ssm_state_mode::separate,
                                 jit_selective_ssm_state_mode::no_store}) {
             const auto state_precision = mode == jit_selective_ssm_state_mode::in_place ? element::f32 : precision;
-            const auto medium = create_selective_ssm_jit_kernel(precision, 512, state_precision, mode);
-            const auto large = create_selective_ssm_jit_kernel(precision, 4096, state_precision, mode);
-            ASSERT_NE(medium, nullptr);
-            ASSERT_NE(large, nullptr);
-            // Only displacements and loop bounds change when the state grows by 8x.
-            EXPECT_LE(large->getSize(), medium->getSize() + 128U);
+            SCOPED_TRACE(testing::Message()
+                         << "isa=" << isa << ", precision=" << precision << ", mode=" << static_cast<int>(mode));
+            jit_selective_ssm_kernel<isa> medium({precision, state_precision, 512, mode});
+            jit_selective_ssm_kernel<isa> large({precision, state_precision, 4096, mode});
+            medium.create_kernel();
+            large.create_kernel();
+            // EVEX disp8 can become disp32 for larger row strides. Allow bounded encoding/alignment growth,
+            // not code growth proportional to the 8x increase in state size.
+            constexpr size_t max_encoding_growth = isa == dnnl::impl::cpu::x64::avx2 ? 128U : 512U;
+            EXPECT_LE(large.getSize(), medium.getSize() + max_encoding_growth);
         }
     }
+}
+
+TEST(SelectiveSSMJitKernel, RuntimeVectorLoopBoundsGeneratedCodeSize) {
+    // Generate both vector widths without executing instructions unsupported by the host.
+    verify_bounded_generated_code_size<dnnl::impl::cpu::x64::avx2>();
+    verify_bounded_generated_code_size<dnnl::impl::cpu::x64::avx512_core>();
 }
 
 TEST(SelectiveSSMJitKernel, BF16OutputPreservesRoundingBoundariesAndSubnormals) {
