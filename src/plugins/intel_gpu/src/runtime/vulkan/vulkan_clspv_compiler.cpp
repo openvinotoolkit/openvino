@@ -53,8 +53,10 @@ std::string vulkan_clspv_compiler::identity() {
 }
 
 std::string vulkan_clspv_compiler::canonical_options(const std::string& source_options) {
+    // Use Vulkan FMA rather than the builtin library's wide-integer emulation.
+    // Keep the library implementations of other math functions, including pow.
     return "--spv-version=1.6 --cl-std=CL1.2 --inline-entry-points --pod-pushconstant "
-           "--max-pushconstant-size=128 --long-vector" +
+           "--max-pushconstant-size=128 --long-vector --use-native-builtins=fma" +
            translate_source_options(source_options);
 }
 
