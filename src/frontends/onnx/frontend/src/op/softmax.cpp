@@ -65,7 +65,10 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
         break;
     }
     default: {
-        result = std::make_shared<v8::Softmax>(data, axis);
+        // ONNX Softmax opset 11/12 coerces the input to a 2-D matrix
+        // [prod(d0..d_axis-1), prod(d_axis..d_rank-1)], applies softmax on the second
+        // axis and restores the shape (same semantics as opset 1-10).
+        result = onnx_softmax(data, axis);
         break;
     }
     }
