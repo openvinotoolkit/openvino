@@ -9,7 +9,6 @@
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <utility>
 
@@ -105,13 +104,8 @@ size_t SelectiveSSMJitExecutorBase::ResourceRequirements::projection_scratch_ele
                : node::kernel::checked_size_product({size_t{2}, projection_elements}, "JIT B/C projection scratch");
 }
 
-size_t SelectiveSSMJitExecutorBase::ResourceRequirements::metadata_scratch_offset() const {
-    return node::kernel::checked_size_sum({state_scratch_elements, projection_scratch_elements()},
-                                          "JIT metadata scratch offset");
-}
-
 size_t SelectiveSSMJitExecutorBase::ResourceRequirements::total_scratch_elements() const {
-    return node::kernel::checked_size_sum({metadata_scratch_offset(), metadata_scratch_elements},
+    return node::kernel::checked_size_sum({state_scratch_elements, projection_scratch_elements()},
                                           "JIT combined scratch");
 }
 
@@ -363,7 +357,7 @@ bool PagedSelectiveSSMJitExecutor::update(const MemoryArgs& memory) {
     const auto projection_elements =
         node::kernel::checked_size_product({B_dims[0], B_dims[1], B_dims[2]}, "JIT B/C projection");
     return configure_resources(
-        {precision, state_dims[3], head_dim_tile, state_scratch_elements, projection_elements, state_dims[0], true});
+        {precision, state_dims[3], head_dim_tile, state_scratch_elements, projection_elements, true});
 }
 
 void PagedSelectiveSSMJitExecutor::execute(const MemoryArgs& memory) {
@@ -410,8 +404,8 @@ void PagedSelectiveSSMJitExecutor::execute(const MemoryArgs& memory) {
     args.data_precision = precision;
     args.index_precision = memory.at(ARG_PAGED_SSM_SUBSEQUENCE_BEGINS)->getDescPtr()->getPrecision();
     args.state_scratch = m_scratch->getDataAs<float>();
-    args.metadata_validation_scratch =
-        reinterpret_cast<int32_t*>(args.state_scratch + m_requirements.metadata_scratch_offset());
+    // AVX-512 benefits from private scratch; AVX2 avoids the extra state copies.
+    args.reuse_state_cache = !mayiuse(avx512_core);
     args.head_dim_tile = m_requirements.head_dim_tile;
     args.cpu_parallel = m_context->getCpuParallel();
     args.fp32_state_kernel = m_kernels.fp32_state.get();

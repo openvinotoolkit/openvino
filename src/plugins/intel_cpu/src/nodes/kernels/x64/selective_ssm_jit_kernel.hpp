@@ -21,8 +21,7 @@
 
 namespace ov::intel_cpu::kernel {
 
-// The state dimension is unrolled into the generated kernel. Bound it to keep code generation and code-cache use
-// predictable; larger states use the portable executor.
+// Supported state-size limit. Large states use a runtime loop over bounded groups of vectors.
 constexpr size_t max_selective_ssm_jit_state_size = 4096;
 
 enum class jit_selective_ssm_state_mode : std::uint8_t { in_place, separate, no_store };
@@ -58,30 +57,38 @@ private:
 
     static constexpr size_t vector_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen / sizeof(float);
     static constexpr size_t max_row_tile = 4;
+    // Keep the common 128-element state fully unrolled on AVX2 and AVX-512.
+    static constexpr size_t max_unrolled_vectors = 16;
 
     void generate() override;
     void emit_row_tile(size_t rows);
     void emit_state_vector(size_t rows, size_t active_lanes, size_t projection_offset, size_t state_vector_offset);
     void advance_row_pointers(size_t rows);
+    void advance_state_pointers(int64_t elements);
     void reduce_to_scalar(const Vmm& accumulator);
     void clear_inactive_lanes(const Vmm& value, size_t active_lanes);
-    void load_data_scalar(const Vmm& destination, size_t offset);
-    void store_data_scalar(const Vmm& source, size_t offset);
-    void prepare_f16_row_scales();
-    void store_f16_row_tile();
-    void store_avx2_bf16_full_vector(const Vmm& source, size_t offset);
+    void store_output(const Vmm& source, int element_count, size_t offset = 0);
+    void prepare_row_scales();
+    void store_row_tile();
+    void store_avx2_bf16(const Xbyak::Reg64& destination, const Vmm& source, int element_count, size_t offset);
     void store_state(const Vmm& source, int element_count, size_t offset);
-    void emit_bf16_subnormal_store(const Vmm& source, int element_count, size_t offset);
+    void store_bf16(const Xbyak::Reg64& destination, const Vmm& source, int element_count, size_t offset);
+    void emit_bf16_subnormal_store(const Xbyak::Reg64& destination,
+                                   const Vmm& source,
+                                   int element_count,
+                                   size_t offset);
     void load(const Vmm& destination,
               const Xbyak::Reg64& source,
               const ov::element::Type& source_precision,
               int element_count,
-              size_t offset = 0);
+              size_t offset = 0,
+              bool zero_fill = true);
     void store(const Xbyak::Reg64& destination,
                const Vmm& source,
                const ov::element::Type& destination_precision,
                int element_count,
-               size_t offset = 0);
+               size_t offset = 0,
+               const ov::element::Type& source_precision = ov::element::f32);
 
     static Vmm state_vmm(size_t row) {
         return Vmm(row);
@@ -94,13 +101,15 @@ private:
     }
 
     struct DeferredBf16SubnormalStore {
-        DeferredBf16SubnormalStore(const Vmm& source, int element_count, size_t offset)
-            : source(source),
+        DeferredBf16SubnormalStore(const Xbyak::Reg64& destination, const Vmm& source, int element_count, size_t offset)
+            : destination(destination),
+              source(source),
               element_count(element_count),
               offset(offset) {}
 
         Xbyak::Label entry;
         Xbyak::Label continuation;
+        Xbyak::Reg64 destination;
         Vmm source;
         int element_count;
         size_t offset;
@@ -114,6 +123,7 @@ private:
     const Xbyak::Reg64 reg_x = r11;
     const Xbyak::Reg64 reg_output = r12;
     const Xbyak::Reg64 reg_rows = r13;
+    const Xbyak::Reg64 reg_vector_chunks = rdx;
 
     const Vmm vmm_decay = Vmm(3 * max_row_tile);
     const Vmm vmm_input_projection = Vmm(3 * max_row_tile + 1);
@@ -125,6 +135,7 @@ private:
     // Stable addresses are required because branches bind these labels while the hot path is being generated.
     std::list<DeferredBf16SubnormalStore> deferred_bf16_subnormal_stores;
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
+    std::unique_ptr<jit_emitter> bf16_output_converter;
     const std::vector<size_t> pool_aux_gpr_idxs = {static_cast<size_t>(rax.getIdx()),
                                                    static_cast<size_t>(r14.getIdx()),
                                                    static_cast<size_t>(r15.getIdx())};

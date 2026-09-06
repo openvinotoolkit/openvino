@@ -12,6 +12,7 @@
 #include <memory>
 
 #include "cpu/x64/jit_generator.hpp"
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "nodes/kernels/x64/jit_kernel_base.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -27,8 +28,9 @@ void jit_selective_ssm_kernel<isa>::load(const Vmm& destination,
                                          const Xbyak::Reg64& source,
                                          const ov::element::Type& source_precision,
                                          int element_count,
-                                         size_t offset) {
-    const bool fill_tail = static_cast<size_t>(element_count) < vector_size;
+                                         size_t offset,
+                                         bool zero_fill) {
+    const bool fill_tail = zero_fill && static_cast<size_t>(element_count) < vector_size;
     const auto seed = load_emitter_params(source_precision, ov::element::f32, element_count, fill_tail, "zero").hash();
     auto& emitter = emitters[seed];
     if (!emitter) {
@@ -53,14 +55,15 @@ void jit_selective_ssm_kernel<isa>::store(const Xbyak::Reg64& destination,
                                           const Vmm& source,
                                           const ov::element::Type& destination_precision,
                                           int element_count,
-                                          size_t offset) {
-    const auto seed = store_emitter_params(ov::element::f32, destination_precision, element_count).hash();
+                                          size_t offset,
+                                          const ov::element::Type& source_precision) {
+    const auto seed = store_emitter_params(source_precision, destination_precision, element_count).hash();
     auto& emitter = emitters[seed];
     if (!emitter) {
         constexpr cpu_isa_t emitter_isa = (isa & zmm_bit) != 0 ? avx512_core : isa;
         emitter = std::make_unique<jit_store_emitter>(this,
                                                       emitter_isa,
-                                                      ov::element::f32,
+                                                      source_precision,
                                                       destination_precision,
                                                       element_count);
     }
@@ -112,65 +115,34 @@ void jit_selective_ssm_kernel<isa>::clear_inactive_lanes(const Vmm& value, size_
 }
 
 template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::load_data_scalar(const Vmm& destination, size_t offset) {
+void jit_selective_ssm_kernel<isa>::store_output(const Vmm& source, int element_count, size_t offset) {
     if (m_jcp.data_precision == ov::element::bf16) {
-        movzx(rax.cvt32(), word[reg_x + offset]);
-        shl(rax.cvt32(), 16);
-        vmovd(Xbyak::Xmm(destination.getIdx()), rax.cvt32());
-        return;
-    }
-    if constexpr (isa == avx512_core_fp16) {
-        if (m_jcp.data_precision == ov::element::f16) {
-            const Xbyak::Xmm destination_xmm(destination.getIdx());
-            vxorps(destination_xmm, destination_xmm, destination_xmm);
-            vcvtsh2ss(destination_xmm, destination_xmm, ptr[reg_x + offset]);
-            return;
+        if constexpr (isa == avx2) {
+            if (!mayiuse(avx2_vnni_2)) {
+                // State registers are dead here. Pass them to the conversion emitter to avoid spills.
+                if (!bf16_output_converter) {
+                    bf16_output_converter = std::make_unique<jit_uni_vcvtneps2bf16>(this, avx2);
+                }
+                const auto source_idx = static_cast<size_t>(source.getIdx());
+                bf16_output_converter->emit_code({source_idx},
+                                                 {source_idx},
+                                                 {static_cast<size_t>(state_vmm(2).getIdx())},
+                                                 pool_aux_gpr_idxs);
+                store(reg_output, source, ov::element::bf16, element_count, offset, ov::element::bf16);
+                return;
+            }
         }
+        store_bf16(reg_output, source, element_count, offset);
+    } else {
+        store(reg_output, source, m_jcp.data_precision, element_count, offset);
     }
-    if (m_jcp.data_precision == ov::element::f16) {
-        const Xbyak::Xmm destination_xmm(destination.getIdx());
-        movzx(rax.cvt32(), word[reg_x + offset]);
-        vmovd(destination_xmm, rax.cvt32());
-        vcvtph2ps(destination_xmm, destination_xmm);
-        return;
-    }
-    load(destination, reg_x, m_jcp.data_precision, 1, offset);
 }
 
 template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::store_data_scalar(const Vmm& source, size_t offset) {
-    if (m_jcp.data_precision == ov::element::bf16) {
-        uni_vmovd(rax.cvt32(), Xbyak::Xmm(source.getIdx()));
-        mov(r14.cvt32(), rax.cvt32());
-        and_(r14.cvt32(), 0x00010000);
-        shr(r14.cvt32(), 1);
-        add(rax.cvt32(), r14.cvt32());
-        shr(rax.cvt32(), 16);
-        mov(word[reg_output + offset], rax.cvt16());
-        return;
-    }
-    if constexpr (isa == avx512_core_fp16) {
-        if (m_jcp.data_precision == ov::element::f16) {
-            const Xbyak::Xmm source_xmm(source.getIdx());
-            vcvtss2sh(source_xmm, source_xmm, source_xmm);
-            vmovsh(ptr[reg_output + offset], source_xmm);
-            return;
-        }
-    }
-    if (m_jcp.data_precision == ov::element::f16) {
-        const Xbyak::Xmm source_xmm(source.getIdx());
-        vcvtps2ph(source_xmm, source_xmm, 0x4);
-        uni_vpextrw(word[reg_output + offset], source_xmm, 0);
-        return;
-    }
-    store(reg_output, source, m_jcp.data_precision, 1, offset);
-}
-
-template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::prepare_f16_row_scales() {
+void jit_selective_ssm_kernel<isa>::prepare_row_scales() {
     const Xbyak::Xmm packed_scales(vmm_input_projection.getIdx());
     const Xbyak::Xmm delta(accumulator_vmm(0).getIdx());
-    vcvtph2ps(packed_scales, ptr[reg_x]);
+    load(vmm_input_projection, reg_x, m_jcp.data_precision, max_row_tile, 0, false);
     vbroadcastss(delta, ptr[reg_args + GET_OFF(delta)]);
     vmulps(packed_scales, packed_scales, delta);
 
@@ -181,18 +153,24 @@ void jit_selective_ssm_kernel<isa>::prepare_f16_row_scales() {
 }
 
 template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::store_f16_row_tile() {
+void jit_selective_ssm_kernel<isa>::store_row_tile() {
     const Xbyak::Xmm packed_output(state_vmm(0).getIdx());
     const Xbyak::Xmm packed_output_high(state_vmm(1).getIdx());
     vunpcklps(packed_output, Xbyak::Xmm(accumulator_vmm(0).getIdx()), Xbyak::Xmm(accumulator_vmm(1).getIdx()));
     vunpcklps(packed_output_high, Xbyak::Xmm(accumulator_vmm(2).getIdx()), Xbyak::Xmm(accumulator_vmm(3).getIdx()));
     vshufps(packed_output, packed_output, packed_output_high, 0x44);
-    vcvtps2ph(packed_output, packed_output, 0x4);
-    uni_vmovq(qword[reg_output], packed_output);
+    store_output(state_vmm(0), max_row_tile);
 }
 
 template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::emit_bf16_subnormal_store(const Vmm& source, int element_count, size_t offset) {
+void jit_selective_ssm_kernel<isa>::emit_bf16_subnormal_store(const Xbyak::Reg64& destination,
+                                                              const Vmm& source,
+                                                              int element_count,
+                                                              size_t offset) {
+    if constexpr (isa == avx2) {
+        store_avx2_bf16(destination, source, element_count, offset);
+        return;
+    }
     uni_vmovups(vmm_reduce_tmp0, source);
     uni_vmovups(vmm_reduce_tmp1, source);
     uni_vpsrld(vmm_reduce_tmp1, vmm_reduce_tmp1, 16);
@@ -202,17 +180,20 @@ void jit_selective_ssm_kernel<isa>::emit_bf16_subnormal_store(const Vmm& source,
 
     const Xbyak::Zmm packed(vmm_reduce_tmp0.getIdx());
     if (static_cast<size_t>(element_count) == vector_size) {
-        vpmovdw(ptr[reg_output_state + offset], packed);
+        vpmovdw(ptr[destination + offset], packed);
     } else {
         const auto active_mask = static_cast<uint16_t>((uint32_t{1} << element_count) - 1U);
         mov(r14.cvt32(), active_mask);
         kmovw(k1, r14.cvt32());
-        vpmovdw(ptr[reg_output_state + offset], packed | k1);
+        vpmovdw(ptr[destination + offset], packed | k1);
     }
 }
 
 template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::store_avx2_bf16_full_vector(const Vmm& source, size_t offset) {
+void jit_selective_ssm_kernel<isa>::store_avx2_bf16(const Xbyak::Reg64& destination,
+                                                    const Vmm& source,
+                                                    int element_count,
+                                                    size_t offset) {
     if constexpr (isa == avx2) {
         const Xbyak::Ymm rounded(vmm_reduce_tmp0.getIdx());
         const Xbyak::Ymm rounding_bit(source.getIdx());
@@ -227,7 +208,13 @@ void jit_selective_ssm_kernel<isa>::store_avx2_bf16_full_vector(const Vmm& sourc
         const Xbyak::Xmm rounded_high(rounding_bit.getIdx());
         vextracti128(rounded_high, rounded, 1);
         vpackusdw(rounded_low, rounded_low, rounded_high);
-        vmovups(ptr[reg_output_state + offset], rounded_low);
+        if (static_cast<size_t>(element_count) == vector_size) {
+            vmovups(ptr[destination + offset], rounded_low);
+        } else {
+            for (int lane = 0; lane < element_count; ++lane) {
+                vpextrw(word[destination + offset + lane * sizeof(uint16_t)], rounded_low, lane);
+            }
+        }
     }
 }
 
@@ -249,26 +236,58 @@ void jit_selective_ssm_kernel<isa>::store_state(const Vmm& source, int element_c
             static_cast<size_t>(element_count) == vector_size) {
             // The caller has already accumulated the output, so the state register is dead and can hold the rounding
             // bit. This avoids the spills and constant-table setup required by the generic BF16 store emitter.
-            store_avx2_bf16_full_vector(source, offset);
+            store_avx2_bf16(reg_output_state, source, element_count, offset);
         } else {
-            store(reg_output_state, source, m_jcp.state_precision, element_count, offset);
+            store_bf16(reg_output_state, source, element_count, offset);
         }
         return;
+    }
+
+    store_bf16(reg_output_state, source, element_count, offset);
+}
+
+template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::store_bf16(const Xbyak::Reg64& destination,
+                                               const Vmm& source,
+                                               int element_count,
+                                               size_t offset) {
+    if constexpr (isa == avx2) {
+        if (!mayiuse(avx2_vnni_2)) {
+            store(destination, source, ov::element::bf16, element_count, offset);
+            return;
+        }
     }
 
     const auto emit_regular_store = [&]() {
         // OpenVINO bfloat16 conversion depends only on the retained LSB and the highest discarded bit. Clearing the
         // lower 15 bits before the native round-to-nearest-even conversion preserves that behavior.
-        vpandd(vmm_reduce_tmp0, source, vmm_bf16_round_mask);
-        store(reg_output_state, vmm_reduce_tmp0, m_jcp.state_precision, element_count, offset);
+        if constexpr (isa == avx2) {
+            vpsrld(vmm_reduce_tmp0, source, 15);
+            vpslld(vmm_reduce_tmp0, vmm_reduce_tmp0, 15);
+        } else {
+            vpandd(vmm_reduce_tmp0, source, vmm_bf16_round_mask);
+        }
+        store(destination, vmm_reduce_tmp0, ov::element::bf16, element_count, offset);
     };
 
-    if constexpr (isa == avx512_core_bf16) {
-        constexpr uint8_t fpclass_subnormal = 1U << 5;
+    if (mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2)) {
         // Keep the uncommon conversion block out of the generated hot path.
-        auto& fallback = deferred_bf16_subnormal_stores.emplace_back(source, element_count, offset);
-        vfpclassps(k1, source, fpclass_subnormal);
-        kortestw(k1, k1);
+        auto& fallback = deferred_bf16_subnormal_stores.emplace_back(destination, source, element_count, offset);
+        if constexpr (isa == avx2) {
+            // A state register is free after its output contribution has been accumulated.
+            const auto zero = source.getIdx() == 0 ? state_vmm(1) : state_vmm(0);
+            uni_vpxor(zero, zero, zero);
+            vpsrld(vmm_reduce_tmp0, source, 23);
+            vpslld(vmm_reduce_tmp0, vmm_reduce_tmp0, 24);
+            vpcmpeqd(vmm_reduce_tmp0, vmm_reduce_tmp0, zero);
+            vpmovmskb(r14.cvt32(), vmm_reduce_tmp0);
+            const auto active_bytes = static_cast<uint32_t>((uint64_t{1} << (4 * element_count)) - 1U);
+            test(r14.cvt32(), active_bytes);
+        } else {
+            constexpr uint8_t fpclass_subnormal = 1U << 5;
+            vfpclassps(k1, source, fpclass_subnormal);
+            kortestw(k1, k1);
+        }
         jnz(fallback.entry, T_NEAR);
         emit_regular_store();
         L(fallback.continuation);
@@ -358,44 +377,77 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
     const auto full_vectors = m_jcp.state_size / vector_size;
     const auto tail = m_jcp.state_size % vector_size;
 
-    const bool use_packed_f16 =
-        m_jcp.data_precision == ov::element::f16 && rows == max_row_tile && isa != avx512_core_fp16;
-    if (use_packed_f16) {
-        prepare_f16_row_scales();
+    const bool use_packed_rows = m_jcp.data_precision != ov::element::f32 && rows == max_row_tile;
+    if (use_packed_rows) {
+        prepare_row_scales();
     }
     for (size_t row = 0; row < rows; ++row) {
         const auto scale = input_scale_vmm(row);
         const auto accumulator = accumulator_vmm(row);
-        if (!use_packed_f16) {
-            load_data_scalar(scale, row * data_size);
+        if (!use_packed_rows) {
+            load(scale, reg_x, m_jcp.data_precision, 1, row * data_size, false);
             vmulss(Xbyak::Xmm(scale.getIdx()), Xbyak::Xmm(scale.getIdx()), ptr[reg_args + GET_OFF(delta)]);
         }
         vbroadcastss(scale, Xbyak::Xmm(scale.getIdx()));
         uni_vpxor(accumulator, accumulator, accumulator);
     }
 
-    for (size_t vector = 0; vector < full_vectors; ++vector) {
+    const auto loop_chunks = full_vectors > max_unrolled_vectors ? full_vectors / max_unrolled_vectors : 0;
+    const auto loop_vectors = loop_chunks * max_unrolled_vectors;
+    if (loop_chunks > 0) {
+        Xbyak::Label vector_loop;
+        mov(reg_vector_chunks, loop_chunks);
+        align(16);
+        L(vector_loop);
+        for (size_t vector = 0; vector < max_unrolled_vectors; ++vector) {
+            emit_state_vector(rows,
+                              vector_size,
+                              vector * vector_size * sizeof(float),
+                              vector * vector_size * state_element_size);
+        }
+        advance_state_pointers(max_unrolled_vectors * vector_size);
+        dec(reg_vector_chunks);
+        jnz(vector_loop, T_NEAR);
+    }
+
+    for (size_t vector = 0; vector < full_vectors - loop_vectors; ++vector) {
         const auto projection_offset = vector * vector_size * sizeof(float);
         const auto state_vector_offset = vector * vector_size * state_element_size;
         emit_state_vector(rows, vector_size, projection_offset, state_vector_offset);
     }
 
     if (tail > 0) {
-        const auto projection_offset = full_vectors * vector_size * sizeof(float);
-        const auto state_vector_offset = full_vectors * vector_size * state_element_size;
+        const auto projection_offset = (full_vectors - loop_vectors) * vector_size * sizeof(float);
+        const auto state_vector_offset = (full_vectors - loop_vectors) * vector_size * state_element_size;
         emit_state_vector(rows, tail, projection_offset, state_vector_offset);
+    }
+
+    if (loop_vectors > 0) {
+        advance_state_pointers(-static_cast<int64_t>(loop_vectors * vector_size));
     }
 
     for (size_t row = 0; row < rows; ++row) {
         const auto accumulator = accumulator_vmm(row);
         reduce_to_scalar(accumulator);
-        if (!use_packed_f16) {
-            store_data_scalar(accumulator, row * data_size);
+        if (!use_packed_rows) {
+            store_output(accumulator, 1, row * data_size);
         }
     }
-    if (use_packed_f16) {
-        store_f16_row_tile();
+    if (use_packed_rows) {
+        store_row_tile();
     }
+}
+
+template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::advance_state_pointers(int64_t elements) {
+    const auto state_bytes = elements * static_cast<int64_t>(m_jcp.state_precision.size());
+    const auto projection_bytes = elements * static_cast<int64_t>(sizeof(float));
+    add(reg_input_state, state_bytes);
+    if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate) {
+        add(reg_output_state, state_bytes);
+    }
+    add(reg_input_projection, projection_bytes);
+    add(reg_output_projection, projection_bytes);
 }
 
 template <cpu_isa_t isa>
@@ -424,7 +476,7 @@ void jit_selective_ssm_kernel<isa>::generate() {
     mov(reg_rows, ptr[reg_args + GET_OFF(row_count)]);
     vbroadcastss(vmm_decay, ptr[reg_args + GET_OFF(decay)]);
     if constexpr ((isa & zmm_bit) != 0) {
-        if (m_jcp.state_precision == ov::element::bf16) {
+        if (m_jcp.state_precision == ov::element::bf16 || m_jcp.data_precision == ov::element::bf16) {
             mov(r14.cvt32(), 0xFFFF8000);
             vmovd(Xbyak::Xmm(vmm_bf16_round_mask.getIdx()), r14.cvt32());
             vpbroadcastd(vmm_bf16_round_mask, Xbyak::Xmm(vmm_bf16_round_mask.getIdx()));
@@ -456,18 +508,19 @@ void jit_selective_ssm_kernel<isa>::generate() {
 
     Xbyak::Label kernel_exit;
     L(end);
-    if constexpr (isa == avx512_core_bf16) {
-        if (!deferred_bf16_subnormal_stores.empty()) {
-            jmp(kernel_exit, T_NEAR);
-            for (auto& fallback : deferred_bf16_subnormal_stores) {
-                L(fallback.entry);
-                emit_bf16_subnormal_store(fallback.source, fallback.element_count, fallback.offset);
-                jmp(fallback.continuation, T_NEAR);
-            }
+    if (!deferred_bf16_subnormal_stores.empty()) {
+        jmp(kernel_exit, T_NEAR);
+        for (auto& fallback : deferred_bf16_subnormal_stores) {
+            L(fallback.entry);
+            emit_bf16_subnormal_store(fallback.destination, fallback.source, fallback.element_count, fallback.offset);
+            jmp(fallback.continuation, T_NEAR);
         }
     }
     L(kernel_exit);
     this->postamble();
+    if (bf16_output_converter) {
+        bf16_output_converter->emit_data();
+    }
     for (const auto& emitter : emitters) {
         if (emitter.second) {
             emitter.second->emit_data();

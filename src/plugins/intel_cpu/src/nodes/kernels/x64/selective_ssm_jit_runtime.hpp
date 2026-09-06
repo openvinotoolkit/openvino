@@ -80,7 +80,9 @@ struct PagedSelectiveSSMJitRuntimeArgs {
     ov::element::Type data_precision = ov::element::dynamic;
     ov::element::Type index_precision = ov::element::dynamic;
     float* state_scratch = nullptr;
+    // Optional diagnostic validation; the executor trusts the runtime block mapping.
     int32_t* metadata_validation_scratch = nullptr;
+    bool reuse_state_cache = false;
     size_t head_dim_tile = 0;
     CpuParallelPtr cpu_parallel;
     const JitKernelBase* fp32_state_kernel = nullptr;
