@@ -556,17 +556,7 @@ std::shared_ptr<JitKernelBase> create_selective_ssm_jit_kernel(const ov::element
         state_size,
         state_mode,
     };
-    if (data_precision == ov::element::f16 && mayiuse(avx512_core_fp16)) {
-        auto result = std::make_shared<jit_selective_ssm_kernel<avx512_core_fp16>>(compile_params);
-        result->create_kernel();
-        return result;
-    }
-    if (state_precision == ov::element::bf16 && state_mode == jit_selective_ssm_state_mode::separate &&
-        mayiuse(avx512_core_bf16)) {
-        auto result = std::make_shared<jit_selective_ssm_kernel<avx512_core_bf16>>(compile_params);
-        result->create_kernel();
-        return result;
-    }
+    // Vector width selects the recurrence kernel; the emitters select native FP16/BF16 conversions.
     if (mayiuse(avx512_core)) {
         auto result = std::make_shared<jit_selective_ssm_kernel<avx512_core>>(compile_params);
         result->create_kernel();
@@ -582,7 +572,5 @@ std::shared_ptr<JitKernelBase> create_selective_ssm_jit_kernel(const ov::element
 
 template class jit_selective_ssm_kernel<avx2>;
 template class jit_selective_ssm_kernel<avx512_core>;
-template class jit_selective_ssm_kernel<avx512_core_bf16>;
-template class jit_selective_ssm_kernel<avx512_core_fp16>;
 
 }  // namespace ov::intel_cpu::kernel

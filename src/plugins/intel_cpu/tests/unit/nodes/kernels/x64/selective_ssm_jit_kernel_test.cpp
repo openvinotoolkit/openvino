@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -475,6 +476,8 @@ TEST(PagedSelectiveSSMJitKernel, SingleSnapshotWorkspaceCoversAliasedAndSeparate
 }
 
 TEST(SelectiveSSMJitKernel, FactoryCreatesLargestAdvertisedState) {
+    using namespace dnnl::impl::cpu::x64;
+    const auto expected_isa = mayiuse(avx512_core) ? avx512_core : avx2;
     const std::array precisions{element::f32, element::f16, element::bf16};
     constexpr std::array state_modes{ov::intel_cpu::kernel::jit_selective_ssm_state_mode::in_place,
                                      ov::intel_cpu::kernel::jit_selective_ssm_state_mode::separate,
@@ -486,12 +489,13 @@ TEST(SelectiveSSMJitKernel, FactoryCreatesLargestAdvertisedState) {
                 state_mode == ov::intel_cpu::kernel::jit_selective_ssm_state_mode::in_place ? element::f32 : precision;
             SCOPED_TRACE(testing::Message()
                          << "precision=" << precision << ", state_mode=" << static_cast<int>(state_mode));
-            EXPECT_NE(ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(
-                          precision,
-                          ov::intel_cpu::kernel::max_selective_ssm_jit_state_size,
-                          state_precision,
-                          state_mode),
-                      nullptr);
+            const auto kernel = ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(
+                precision,
+                ov::intel_cpu::kernel::max_selective_ssm_jit_state_size,
+                state_precision,
+                state_mode);
+            ASSERT_NE(kernel, nullptr);
+            EXPECT_EQ(kernel->getIsa(), expected_isa);
         }
     }
 }
