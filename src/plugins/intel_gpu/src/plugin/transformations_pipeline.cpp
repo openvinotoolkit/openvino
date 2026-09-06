@@ -100,6 +100,7 @@
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_moe_router.hpp"
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
+#include "plugin/transformations/group_query_attention_decomposition.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
@@ -551,8 +552,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             case ov::element::f16: return device_info.supports_fp16;
             case ov::element::f32: return true; // assume that all GPUs support f32 data type
             case ov::element::f64: return device_info.supports_fp64;
-            // TODO: Remove get_use_onednn() guard once OCL kernels support bf16
-            case ov::element::bf16: return device_info.supports_immad && config.get_use_onednn();
+            case ov::element::bf16: return device_info.supports_immad;
             default: return false;
         }
         return false;
@@ -793,6 +793,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::DecomposeOneHotNonConstValues>();
 
         manager.register_pass<ov::pass::CommonOptimizations>();
+        pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
+        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".
@@ -942,11 +944,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto& value_ps = sdpa->get_input_partial_shape(2);
 
             // Known limitations:
-            // - The data type of SDPA should be fp16
-            if (sdpa->get_output_element_type(0) != ov::element::f16)
+            // - The data type of SDPA should be fp16 or bf16
+            if (sdpa->get_output_element_type(0) != ov::element::f16 &&
+                sdpa->get_output_element_type(0) != ov::element::bf16)
                 return false;
 
-            // - The attn mask type of SDPA should be fp16
+            // - The attn mask type of SDPA should be fp16 or bf16
             if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 && sdpa->get_input_element_type(3) == ov::element::boolean) {
                 return false;
             }
