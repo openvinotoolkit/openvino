@@ -374,8 +374,8 @@ void verify_bounded_generated_code_size() {
                          << "isa=" << isa << ", precision=" << precision << ", mode=" << static_cast<int>(mode));
             jit_selective_ssm_kernel<isa> medium({precision, state_precision, 512, mode});
             jit_selective_ssm_kernel<isa> large({precision, state_precision, 4096, mode});
-            medium.create_kernel();
-            large.create_kernel();
+            ASSERT_NO_THROW(medium.create_kernel());
+            ASSERT_NO_THROW(large.create_kernel());
             // EVEX disp8 can become disp32 for larger row strides. Allow bounded encoding/alignment growth,
             // not code growth proportional to the 8x increase in state size.
             constexpr size_t max_encoding_growth = isa == dnnl::impl::cpu::x64::avx2 ? 128U : 512U;
@@ -385,9 +385,15 @@ void verify_bounded_generated_code_size() {
 }
 
 TEST(SelectiveSSMJitKernel, RuntimeVectorLoopBoundsGeneratedCodeSize) {
-    // Generate both vector widths without executing instructions unsupported by the host.
-    verify_bounded_generated_code_size<dnnl::impl::cpu::x64::avx2>();
-    verify_bounded_generated_code_size<dnnl::impl::cpu::x64::avx512_core>();
+    // Match the factory dispatch: shared conversion emitters also use the active host ISA.
+    using namespace dnnl::impl::cpu::x64;
+    if (mayiuse(avx512_core)) {
+        verify_bounded_generated_code_size<avx512_core>();
+    } else if (mayiuse(avx2)) {
+        verify_bounded_generated_code_size<avx2>();
+    } else {
+        GTEST_SKIP() << "SelectiveSSM JIT requires AVX2 or AVX-512.";
+    }
 }
 
 TEST(SelectiveSSMJitKernel, BF16OutputPreservesRoundingBoundariesAndSubnormals) {
