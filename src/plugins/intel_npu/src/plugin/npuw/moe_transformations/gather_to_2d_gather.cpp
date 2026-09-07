@@ -92,6 +92,16 @@ void transform_gather_to_2d(const GatherInfo& info) {
 
     std::string gather_name = gather->get_friendly_name();
 
+    // TopK/Gather accept i32 as well as i64 indices. Offset multiplication is
+    // performed in i64 so the index type agrees with the constants below and
+    // i32 expert IDs cannot overflow when expanded to row offsets.
+    if (indices_input.get_element_type() != ov::element::i64) {
+        auto converted = std::make_shared<ov::op::v0::Convert>(indices_input, ov::element::i64);
+        converted->set_friendly_name(gather_name + "/indices_i64");
+        ov::copy_runtime_info(gather, converted);
+        indices_input = converted;
+    }
+
     // Step 1: Reshape indices [I] -> [I, 1]
     std::vector<int64_t> indices_reshape_data = {static_cast<int64_t>(info.I), 1};
     auto indices_reshape_shape =
@@ -105,18 +115,14 @@ void transform_gather_to_2d(const GatherInfo& info) {
     auto experts_start = std::make_shared<ov::op::v1::Multiply>(reshaped_indices, m_const);
     experts_start->set_friendly_name(gather_name + "/experts_start");
 
-    // Step 3: Create range [0, 1, 2, ..., M-1] and tile to [I, M]
+    // A singleton row broadcasts against [I,1]; materializing a constant-only
+    // Tile creates a separate function that the NPU cannot execute. Keep this
+    // index metadata in the function body and let Add perform the broadcast.
     std::vector<int64_t> range_values(info.M);
     std::iota(range_values.begin(), range_values.end(), 0);
-    auto range_m =
+    auto range_m_tiled =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, static_cast<size_t>(info.M)}, range_values);
-    // Mark this constant to be preserved in function body during partitioning
-    range_m->get_rt_info()["npuw_moe_gather_indices"] = true;
-
-    // Tile range to [I, M]
-    std::vector<int64_t> tile_repeats_data = {static_cast<int64_t>(info.I), 1};
-    auto tile_repeats = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, tile_repeats_data.data());
-    auto range_m_tiled = std::make_shared<ov::op::v0::Tile>(range_m, tile_repeats);
+    range_m_tiled->get_rt_info()["npuw_moe_gather_indices"] = true;
     range_m_tiled->set_friendly_name(gather_name + "/range_tiled");
 
     // Step 4: Add experts_start + range to get final indices [I, M]

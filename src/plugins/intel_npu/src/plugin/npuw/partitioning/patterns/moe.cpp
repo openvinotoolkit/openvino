@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "../../logging.hpp"
+#include "../../moe_transformations/moe_topology.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -128,6 +129,16 @@ std::function<bool(ov::pass::pattern::Matcher&)> make_router_k_callback(
         }
         if (guard && !guard(matched_topk)) {
             return false;
+        }
+        // Legacy patterns locate TopK through the score expression. A generic
+        // router may compute those scores with a different TopK than the one
+        // selecting expert IDs. Prefer the explicit selection contract whenever
+        // available, independent of matcher registration/traversal order.
+        for (const auto& entry : node_to_output) {
+            if (const auto topology = ov::npuw::moe::match_batched_moe(entry.second.get_node_shared_ptr())) {
+                matched_topk = topology->topk;
+                break;
+            }
         }
         if (!tag_topk_k(matched_topk, *expected_k)) {
             LOG_WARN(class_name << ": failed to extract K from TopK '" << matched_topk->get_friendly_name()
@@ -251,6 +262,31 @@ std::pair<std::shared_ptr<opp::Matcher>, std::function<bool(opp::Matcher&)>> mak
 }
 
 }  // namespace
+
+BatchedExpert::BatchedExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    auto scatter = opp::wrap_type<ov::op::v3::ScatterElementsUpdate, ov::op::v12::ScatterElementsUpdate>();
+    auto expected_k = std::make_shared<std::optional<size_t>>();
+    const auto node_to_gptr = snapshot->getNodeToGroupMap();
+    auto callback = [=](opp::Matcher& matcher) {
+        const auto topology = ov::npuw::moe::match_batched_moe(matcher.get_match_root());
+        if (!topology || !tag_topk_k(topology->topk, *expected_k))
+            return false;
+        // Keep the semantic contract with the expert boundary itself. The
+        // router need not be folded into a function, so searching only folded
+        // router nodes can otherwise lose K and silently leave experts dense.
+        topology->weighted_output->get_rt_info()[RT_INFO_MOE_K] = topology->num_selected;
+        topology->reduction->get_rt_info()[RT_INFO_MOE_K] = topology->num_selected;
+        for (const auto& node : topology->expert_nodes)
+            isolate_node(node, isol_tag, node_to_gptr);
+        isolate_node(topology->weighted_output, isol_tag, node_to_gptr);
+        if (is_decoding_stage(topology->weighted_output))
+            isolate_node(topology->reduction, isol_tag, node_to_gptr);
+        LOG_INFO("BatchedExpert: isolated " << topology->num_selected << "/" << topology->num_experts
+                                             << " routed experts for " << topology->reduction->get_friendly_name());
+        return false;
+    };
+    register_matcher(std::make_shared<opp::Matcher>(scatter, "TagBatchedExpert"), std::move(callback));
+}
 
 /*
     GPT-OSS Expert Pattern:

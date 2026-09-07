@@ -5,13 +5,21 @@
 #include <gtest/gtest.h>
 
 #include <any>
+#include <array>
 #include <atomic>
 #include <cstring>
 #include <functional>
+#include <limits>
 #include <map>
-#include <numeric>
 #include <mutex>
+#include <numeric>
+#include <set>
 #include <vector>
+
+// Parse OpenVINO's exported classes before the private-access test shim;
+// changing Constant's access specifiers changes imported symbol names on MSVC.
+#include "openvino/op/ops.hpp"
+#include "openvino/openvino.hpp"
 
 #define private public
 #include "compiled_model.hpp"
@@ -19,11 +27,12 @@
 #include "just_sync_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
+#include "moe/moe_subgraph.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/pass/stateful_to_stateless.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "unfold_sync_infer_request.hpp"
-#include "openvino/op/scaled_dot_product_attention.hpp"
-#include "openvino/openvino.hpp"
-#include "openvino/pass/stateful_to_stateless.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {
@@ -36,6 +45,12 @@ constexpr std::size_t kKVCacheSize = kSeqLen + kPastKvLen;
 struct BehaviorHits {
     std::mutex mutex;
     std::vector<std::pair<std::size_t, std::size_t>> values;
+};
+
+struct EvaluationLog {
+    std::mutex mutex;
+    std::map<const ov::ICompiledModel*, std::vector<const ov::ISyncInferRequest*>> executions;
+    std::atomic<size_t> pending{0};
 };
 
 class TestPlugin final : public ov::IPlugin {
@@ -168,11 +183,23 @@ public:
 
 class FakeSubAsyncInferRequest final : public ov::IAsyncInferRequest {
 public:
-    explicit FakeSubAsyncInferRequest(const std::shared_ptr<ov::ISyncInferRequest>& request)
+    explicit FakeSubAsyncInferRequest(const std::shared_ptr<ov::ISyncInferRequest>& request,
+                                      std::shared_ptr<EvaluationLog> evaluation = {})
         : ov::IAsyncInferRequest(nullptr, nullptr, nullptr),
-          m_request(request) {}
+          m_request(request),
+          m_evaluation(std::move(evaluation)) {}
 
     void start_async() override {
+        if (m_evaluation) {
+            OPENVINO_ASSERT(!m_pending, "Test request is still pending");
+            m_pending = true;
+            ++m_evaluation->pending;
+            return;
+        }
+        complete();
+    }
+
+    void complete() {
         try {
             m_request->infer();
             if (m_callback) {
@@ -187,9 +214,16 @@ public:
         }
     }
 
-    void wait() override {}
+    void wait() override {
+        if (m_pending) {
+            m_pending = false;
+            --m_evaluation->pending;
+            complete();
+        }
+    }
 
     bool wait_for(const std::chrono::milliseconds&) override {
+        wait();
         return true;
     }
 
@@ -200,6 +234,7 @@ public:
     }
 
     void infer() override {
+        OPENVINO_ASSERT(!m_pending, "Test request is still pending");
         m_request->infer();
     }
 
@@ -212,6 +247,7 @@ public:
     }
 
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override {
+        OPENVINO_ASSERT(!m_pending, "Cannot rebind a pending test request");
         m_request->set_tensor(port, tensor);
     }
 
@@ -243,13 +279,22 @@ public:
 private:
     std::shared_ptr<ov::ISyncInferRequest> m_request;
     std::function<void(std::exception_ptr)> m_callback;
+    std::shared_ptr<EvaluationLog> m_evaluation;
+    bool m_pending = false;
 };
 
     class FakeSubCompiledModel final : public ov::ICompiledModel {
 public:
-    FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+    FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model,
+                         const std::shared_ptr<const ov::IPlugin>& plugin,
+                         std::shared_ptr<EvaluationLog> evaluation = {})
         : ov::ICompiledModel(model, plugin, nullptr, nullptr),
-          m_model(model) {}
+          m_model(model),
+          m_evaluation(std::move(evaluation)) {}
+
+    const std::shared_ptr<EvaluationLog>& evaluation_log() const {
+        return m_evaluation;
+    }
 
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
@@ -267,11 +312,12 @@ public:
         return std::make_shared<FakeSubInferRequest>(std::move(self));
     }
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override {
-        return std::make_shared<FakeSubAsyncInferRequest>(create_sync_infer_request());
+        return std::make_shared<FakeSubAsyncInferRequest>(create_sync_infer_request(), m_evaluation);
     }
 
 private:
     std::shared_ptr<ov::Model> m_model;
+    std::shared_ptr<EvaluationLog> m_evaluation;
 };
 
 FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledModel> compiled_model)
@@ -284,9 +330,26 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
         ov::ISyncInferRequest::set_tensor(output,
                                           ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
     }
+    // Sparse request pools run a warmup before bindings are populated.
+    for (const auto& input : get_compiled_model()->inputs()) {
+        auto tensor = ov::ISyncInferRequest::get_tensor(input);
+        std::memset(tensor->data(), 0, tensor->get_byte_size());
+    }
 }
 
 void FakeSubInferRequest::infer() {
+    const auto compiled = std::static_pointer_cast<const FakeSubCompiledModel>(get_compiled_model());
+    if (const auto& log = compiled->evaluation_log()) {
+        ov::TensorVector inputs, outputs;
+        for (const auto& port : compiled->inputs())
+            inputs.push_back(ov::make_tensor(ov::ISyncInferRequest::get_tensor(port)));
+        for (const auto& port : compiled->outputs())
+            outputs.push_back(ov::make_tensor(ov::ISyncInferRequest::get_tensor(port)));
+        OPENVINO_ASSERT(compiled->get_runtime_model()->evaluate(outputs, inputs), "Test model evaluation failed");
+        std::lock_guard<std::mutex> lock(log->mutex);
+        log->executions[compiled.get()].push_back(this);
+        return;
+    }
     for (const auto& output : get_compiled_model()->outputs()) {
         auto tensor = ov::ISyncInferRequest::get_tensor(output);
         std::memset(tensor->data(), 0, tensor->get_byte_size());
@@ -315,7 +378,8 @@ protected:
         props["NPUW_UNFOLD_IREQS"] = "YES";
         return props;
     }
-    std::shared_ptr<testing::NiceMock<ov::MockICore>> make_core(const std::shared_ptr<const ov::IPlugin>& plugin) const {
+    std::shared_ptr<testing::NiceMock<ov::MockICore>> make_core(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                std::shared_ptr<EvaluationLog> evaluation = {}) const {
         auto core = std::make_shared<testing::NiceMock<ov::MockICore>>();
 
         ON_CALL(*core, get_supported_property(testing::_, testing::_, testing::_))
@@ -358,14 +422,200 @@ protected:
                 compile_model(testing::Matcher<const std::shared_ptr<const ov::Model>&>(testing::_),
                               testing::Matcher<const std::string&>(testing::StrEq("CPU")),
                               testing::Matcher<const ov::AnyMap&>(testing::_)))
-            .WillByDefault([plugin](const std::shared_ptr<const ov::Model>& submodel, const std::string&, const ov::AnyMap&) {
-                return ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(
-                    std::const_pointer_cast<ov::Model>(submodel), plugin)};
+            .WillByDefault([plugin, evaluation](const std::shared_ptr<const ov::Model>& submodel,
+                                                const std::string&,
+                                                const ov::AnyMap&) {
+                return ov::SoPtr<ov::ICompiledModel>{
+                    std::make_shared<FakeSubCompiledModel>(std::const_pointer_cast<ov::Model>(submodel),
+                                                           plugin,
+                                                           evaluation)};
             });
 
         return core;
     }
 };
+
+std::shared_ptr<ov::Model> build_moe_dispatch_test_model(size_t tokens) {
+    constexpr size_t experts = 4, hidden = 8, intermediate = 16, k = 2;
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, hidden});
+    auto router = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, experts});
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, k});
+    x->output(0).set_names({"hidden"});
+    router->output(0).set_names({"logits"});
+    scores->output(0).set_names({"scores"});
+    auto topk = std::make_shared<ov::op::v11::TopK>(router,
+                                                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {k}),
+                                                    1,
+                                                    ov::op::v11::TopK::Mode::MAX,
+                                                    ov::op::v11::TopK::SortType::SORT_VALUES);
+    ov::OutputVector outputs;
+    for (size_t layer = 0; layer < 2; ++layer) {
+        auto weight = [layer, experts](size_t out, size_t in, size_t seed) {
+            std::vector<float> values(experts * out * in);
+            for (size_t i = 0; i < values.size(); ++i)
+                values[i] = (static_cast<float>((i + seed + layer + i / (out * in)) % 11) - 5.0f) / 16.0f;
+            return ov::op::v0::Constant::create(ov::element::f32, ov::Shape{experts, out, in}, values);
+        };
+        auto tile = std::make_shared<ov::op::v0::Tile>(
+            x,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {experts, size_t{1}}));
+        auto expanded = std::make_shared<ov::op::v1::Reshape>(
+            tile,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {experts, tokens, hidden}),
+            false);
+        auto gate = std::make_shared<ov::op::v0::MatMul>(expanded, weight(intermediate, hidden, 1), false, true);
+        auto up = std::make_shared<ov::op::v0::MatMul>(expanded, weight(intermediate, hidden, 2), false, true);
+        auto activated = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v4::Swish>(gate), up);
+        auto down = std::make_shared<ov::op::v0::MatMul>(activated, weight(hidden, intermediate, 3), false, true);
+        auto expert = std::make_shared<ov::op::v1::Reshape>(
+            down,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {experts, tokens, hidden}),
+            false);
+        auto scatter = std::make_shared<ov::op::v12::ScatterElementsUpdate>(
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{tokens, experts}, {0.0f}),
+            topk->output(1),
+            scores,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+        auto transposed = std::make_shared<ov::op::v1::Transpose>(
+            scatter,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0}));
+        auto mixing = std::make_shared<ov::op::v1::Reshape>(
+            transposed,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {experts, tokens, size_t{1}}),
+            false);
+        outputs.push_back(
+            std::make_shared<ov::op::v1::ReduceSum>(std::make_shared<ov::op::v1::Multiply>(expert, mixing),
+                                                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
+                                                    false));
+    }
+    return std::make_shared<ov::Model>(outputs, ov::ParameterVector{x, router, scores}, "moe_dispatch_regression");
+}
+
+TEST_F(SubgraphBehaviorInferTest, MoESparseDispatchPreservesScoresGlobalInputsAndCachedRequests) {
+    for (const size_t tokens : {size_t{1}, size_t{7}}) {
+        SCOPED_TRACE(tokens);
+        auto model = build_moe_dispatch_test_model(tokens);
+        auto evaluation = std::make_shared<EvaluationLog>();
+        auto plugin = std::make_shared<TestPlugin>();
+        auto core = make_core(plugin, evaluation);
+        plugin->set_core(core);
+        ov::AnyMap props{{"NPUW_DEVICES", "CPU"},
+                         {"NPUW_FALLBACK_EXEC", "NO"},
+                         {"NPUW_FOLD", "YES"},
+                         {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                         {"NPUW_UNFOLD_IREQS", "NO"},
+                         {"NPUW_ONLINE_PIPELINE", "REP"},
+                         {"NPUW_ONLINE_ISOLATE", "MOE"},
+                         {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "expert"},
+                         {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "4"},
+                         {"NPUW_F16IC", "NO"},
+                         {"NPUW_DQ", "NO"},
+                         {"NPUW_MOE_POOL_SIZE", "2"},
+                         {"NPUW_MOE_TOKEN_CHUNK_SIZE", "3"}};
+        auto compiled = std::make_shared<ov::npuw::CompiledModel>(model->clone(), plugin, props);
+        std::set<const ov::ICompiledModel*> expert_models;
+        size_t expert_calls = 0;
+        for (const auto& desc : compiled->m_compiled_submodels) {
+            const auto real = desc.replaced_by ? &compiled->m_compiled_submodels.at(*desc.replaced_by) : &desc;
+            if (const auto* state = ov::npuw::moe::get_compiled_experts(real->pipeline.context)) {
+                ++expert_calls;
+                EXPECT_EQ(state->num_active_experts, 2u);
+                EXPECT_EQ(state->input_token_count, tokens);
+                for (const auto& [chunk, submodel] : state->_compiled_models)
+                    expert_models.insert(submodel._ptr.get());
+            }
+        }
+        ASSERT_EQ(expert_calls, 2u) << "Must test the actual sparse executor, not a dense fallback";
+        auto request = compiled->create_infer_request();
+        evaluation->executions.clear();  // Exclude request-pool warmups.
+        const auto history = [&]() {
+            std::vector<const ov::ISyncInferRequest*> result;
+            std::lock_guard<std::mutex> lock(evaluation->mutex);
+            for (const auto* submodel : expert_models) {
+                const auto& calls = evaluation->executions[submodel];
+                result.insert(result.end(), calls.begin(), calls.end());
+            }
+            return result;
+        };
+        ov::TensorVector inputs;
+        for (const auto& port : model->inputs())
+            inputs.emplace_back(port.get_element_type(), port.get_shape());
+        const auto check = [&]() {
+            ov::TensorVector expected;
+            for (const auto& port : model->outputs())
+                expected.emplace_back(port.get_element_type(), port.get_shape());
+            ASSERT_TRUE(model->evaluate(expected, inputs));
+            for (size_t i = 0; i < inputs.size(); ++i)
+                request->set_tensor(compiled->inputs()[i], ov::get_tensor_impl(inputs[i]));
+            request->infer();
+            EXPECT_EQ(evaluation->pending.load(), 0u);
+            for (size_t i = 0; i < expected.size(); ++i) {
+                const auto actual = request->get_tensor(compiled->outputs()[i]);
+                ASSERT_EQ(actual->get_shape(), expected[i].get_shape());
+                for (size_t element = 0; element < expected[i].get_size(); ++element)
+                    EXPECT_NEAR(actual->data<float>()[element], expected[i].data<float>()[element], 1e-5f);
+            }
+        };
+        const std::vector<std::array<float, 2>> scores{{0.7f, 0.3f},
+                                                       {0.0f, 0.9f},
+                                                       {-0.4f, 0.8f},
+                                                       {0.0f, 0.0f},
+                                                       {0.6f, 0.0f},
+                                                       {0.7f, 0.3f},
+                                                       {0.0f, 0.9f},
+                                                       {1e-7f, -2e-8f}};
+        for (size_t iteration = 0; iteration < scores.size(); ++iteration) {
+            for (size_t i = 0; i < inputs[0].get_size(); ++i)
+                inputs[0].data<float>()[i] = (static_cast<float>((i + iteration) % 9) - 4.0f) / 8.0f;
+            std::fill_n(inputs[1].data<float>(), inputs[1].get_size(), -2.0f);
+            for (size_t token = 0; token < tokens; ++token) {
+                const size_t first = (iteration % 2 == 0 ? 0 : 1) + token;
+                const size_t second = (iteration % 2 == 0 ? 1 : 3) + token;
+                inputs[1].data<float>()[4 * token + first % 4] = 2.0f;
+                inputs[1].data<float>()[4 * token + second % 4] = 1.0f;
+                inputs[2].data<float>()[2 * token] = scores[iteration][0];
+                inputs[2].data<float>()[2 * token + 1] = scores[iteration][1];
+            }
+            const auto before = history().size();
+            check();
+            if (scores[iteration][0] == 0.0f && scores[iteration][1] == 0.0f) {
+                EXPECT_EQ(history().size(), before);
+                for (const auto& port : compiled->outputs()) {
+                    const auto tensor = request->get_tensor(port);
+                    for (size_t i = 0; i < ov::shape_size(tensor->get_shape()); ++i)
+                        EXPECT_FLOAT_EQ(tensor->data<float>()[i], 0.0f);
+                }
+            } else if (tokens == 1) {
+                EXPECT_EQ(history().size() - before, 2u);  // One K-expert inference per layer.
+            } else {
+                EXPECT_GT(history().size(), before);
+            }
+        }
+        if (tokens == 1) {
+            const auto calls = history();
+            ASSERT_EQ(calls.size(), 14u);
+            // The first and third iterations select the same expert set with
+            // different scores, separated by a different cached selection.
+            EXPECT_EQ(calls[0], calls[4]);
+            EXPECT_EQ(calls[1], calls[5]);
+            EXPECT_NE(calls[0], calls[2]);
+        } else {
+            // Expert 0 starts before parse-ahead sees expert 1's invalid score.
+            std::fill_n(inputs[1].data<float>(), inputs[1].get_size(), -2.0f);
+            for (size_t token = 0; token < tokens; ++token) {
+                inputs[1].data<float>()[4 * token] = 2.0f;
+                inputs[1].data<float>()[4 * token + 1] = 1.0f;
+                inputs[2].data<float>()[2 * token] = 0.7f;
+                inputs[2].data<float>()[2 * token + 1] = std::numeric_limits<float>::quiet_NaN();
+            }
+            EXPECT_THROW(request->infer(), ov::Exception);
+            EXPECT_EQ(evaluation->pending.load(), 0u) << "Exceptional prefill must drain outstanding chunks";
+            for (size_t token = 0; token < tokens; ++token)
+                inputs[2].data<float>()[2 * token + 1] = 0.3f;
+            check();  // The same request remains usable after validation failure.
+        }
+    }
+}
 
 TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecution) {
     auto baseline_model = build_static_llm_model();

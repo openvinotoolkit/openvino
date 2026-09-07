@@ -23,7 +23,7 @@
  *     - Convert(Parameter)
  *     - Multiply(Constant, Parameter)
  *     - Multiply(Parameter, Constant)            -- symmetric check
- *     - Add(Constant, Constant)                  -- unrecognized op type
+ *     - Divide(Constant, Constant)               -- unrecognized op type
  */
 
 namespace {
@@ -103,11 +103,20 @@ TEST(IsconstantDerivedTest, MultiplyParameterAndConstant) {
 }
 
 TEST(IsconstantDerivedTest, UnrecognizedOpType) {
-    // Add is not handled by is_constant_derived — must return false
+    // Arbitrary constant arithmetic is not part of a recognized weight chain.
     auto c0 = make_const_f32({4});
     auto c1 = make_const_f32({4});
-    auto add = std::make_shared<ov::op::v1::Add>(c0, c1);
-    EXPECT_FALSE(is_constant_derived(add));
+    auto divide = std::make_shared<ov::op::v1::Divide>(c0, c1);
+    EXPECT_FALSE(is_constant_derived(divide));
+}
+
+TEST(IsconstantDerivedTest, GroupedDequantizationView) {
+    auto weights = make_const_f32({4, 8, 2, 4});
+    auto zero_point = make_const_f32({4, 8, 2, 1});
+    auto shifted = std::make_shared<ov::op::v1::Subtract>(weights, zero_point);
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(shifted, zero_point);
+    auto shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {4, 8, 8});
+    EXPECT_TRUE(is_constant_derived(std::make_shared<ov::op::v1::Reshape>(scaled, shape, false)));
 }
 
 }  // namespace

@@ -74,6 +74,7 @@ struct ExpertBranchContext {
     ov::Output<ov::Node> weights_param_source;
     std::shared_ptr<ov::opset1::Multiply> multiply_node;
     std::shared_ptr<ov::opset1::Convert> convert_after_multiply;
+    std::shared_ptr<ov::opset1::Reshape> reshape_after_multiply;
     std::shared_ptr<ov::opset1::MatMul> matmul;
     ov::Shape scale_new_shape;
     ov::Shape weights_new_shape;
@@ -140,15 +141,28 @@ inline ov::Output<ov::Node> create_expert_branch_weights(const ExpertBranchConte
     new_multiply->set_friendly_name(ctx.multiply_node->get_friendly_name() + "/expert_" +
                                     std::to_string(ctx.expert_idx));
 
-    // 6. Convert after Multiply if needed
+    // Group-wise dequantization stores [E, out, groups, group_size]. Rebuild
+    // the view for ONE expert before converting to the MatMul precision.
+    ov::Output<ov::Node> dequantized = new_multiply;
+    if (ctx.reshape_after_multiply) {
+        auto shape = ctx.reshape_after_multiply->get_output_shape(0);
+        shape[0] = 1;
+        auto view = std::make_shared<ov::opset1::Reshape>(dequantized,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{shape.size()}, shape), false);
+        view->set_friendly_name(ctx.reshape_after_multiply->get_friendly_name() + "/expert_" +
+                               std::to_string(ctx.expert_idx));
+        dequantized = view;
+    }
+
+    // 6. Convert after Multiply/view if needed
     if (ctx.convert_after_multiply) {
         auto new_convert_after_multiply =
-            std::make_shared<ov::opset1::Convert>(new_multiply, ctx.convert_after_multiply->get_destination_type());
+            std::make_shared<ov::opset1::Convert>(dequantized, ctx.convert_after_multiply->get_destination_type());
         new_convert_after_multiply->set_friendly_name(ctx.convert_after_multiply->get_friendly_name() + "/expert_" +
                                                       std::to_string(ctx.expert_idx));
         return new_convert_after_multiply->output(0);
     }
-    return new_multiply->output(0);
+    return dequantized;
 }
 
 /**
@@ -265,18 +279,59 @@ UnrollMoEMatMul::UnrollMoEMatMul(std::shared_ptr<ov::Model> model) : model_(mode
         // ========== Step 1: Check input1 (weights path - common to all patterns) ==========
         auto input1_node = matmul_input1.get_node_shared_ptr();
         std::shared_ptr<ov::opset1::Convert> convert_after_multiply;
+        std::shared_ptr<ov::opset1::Reshape> reshape_after_multiply;
         std::shared_ptr<ov::opset1::Multiply> multiply_node;
 
         if (auto conv = std::dynamic_pointer_cast<ov::opset1::Convert>(input1_node)) {
             convert_after_multiply = conv;
-            multiply_node = std::dynamic_pointer_cast<ov::opset1::Multiply>(conv->input_value(0).get_node_shared_ptr());
-        } else {
-            multiply_node = std::dynamic_pointer_cast<ov::opset1::Multiply>(input1_node);
+            input1_node = conv->input_value(0).get_node_shared_ptr();
         }
+        if (auto reshape = std::dynamic_pointer_cast<ov::opset1::Reshape>(input1_node)) {
+            const auto input_shape = reshape->get_input_partial_shape(0);
+            const auto output_shape = reshape->get_output_partial_shape(0);
+            if (!input_shape.is_static() || !output_shape.is_static() || input_shape.size() < 3 ||
+                output_shape.size() != 3 || input_shape[0] != output_shape[0])
+                return false;
+            reshape_after_multiply = reshape;
+            input1_node = reshape->input_value(0).get_node_shared_ptr();
+        }
+        multiply_node = std::dynamic_pointer_cast<ov::opset1::Multiply>(input1_node);
 
         if (!multiply_node) {
-            LOG_DEBUG("  Input1 is not Multiply, skipping");
-            return false;
+            // Uncompressed experts use a Parameter, optionally converted. They
+            // obey the same sparse closure contract as compressed experts.
+            auto weights = get_param_node(matmul_input1);
+            if (!weights || !weights->get_partial_shape().is_static() || weights->get_shape().size() != 3 ||
+                weights->get_shape()[0] <= 1)
+                return false;
+            const size_t count = weights->get_shape()[0];
+            auto branches = prepare_input_branches(matmul_input0, count, matmul->get_friendly_name());
+            if (branches.size() != count)
+                return false;
+            auto shape = weights->get_shape();
+            shape[0] = 1;
+            ov::ParameterVector parameters;
+            ov::OutputVector outputs;
+            for (size_t i = 0; i < count; ++i) {
+                auto parameter = std::make_shared<ov::op::v0::Parameter>(weights->get_element_type(), shape);
+                parameter->set_friendly_name(weights->get_friendly_name() + "/expert_" + std::to_string(i));
+                parameter->get_rt_info()["moe_original_param"] = weights->get_friendly_name();
+                parameter->get_rt_info()["moe_expert_index"] = static_cast<int64_t>(i);
+                parameters.push_back(parameter);
+                ov::Output<ov::Node> value = parameter;
+                if (convert_after_multiply)
+                    value = std::make_shared<ov::opset1::Convert>(value, convert_after_multiply->get_destination_type());
+                auto branch = std::make_shared<ov::opset1::MatMul>(branches[i], value,
+                    matmul->get_transpose_a(), matmul->get_transpose_b());
+                branch->set_friendly_name(matmul->get_friendly_name() + "/expert_" + std::to_string(i));
+                outputs.push_back(branch);
+            }
+            auto concat = std::make_shared<ov::opset1::Concat>(outputs, 0);
+            concat->set_friendly_name(matmul->get_friendly_name() + "/concat");
+            model_->add_parameters(parameters);
+            ov::copy_runtime_info(matmul, concat);
+            ov::replace_node(matmul, concat);
+            return true;
         }
 
         auto multiply_input0 = multiply_node->input_value(0);
@@ -375,6 +430,7 @@ UnrollMoEMatMul::UnrollMoEMatMul(std::shared_ptr<ov::Model> model) : model_(mode
                                     weights_param_source,
                                     multiply_node,
                                     convert_after_multiply,
+                                    reshape_after_multiply,
                                     matmul,
                                     scale_new_shape,
                                     weights_new_shape};

@@ -277,9 +277,10 @@ std::shared_ptr<Model> create_complete_moe_graph(size_t num_experts = 32,
 
     // Output reshape
     auto reshape_shape2 = op::v0::Constant::create(element::i64,
-                                                   Shape{3},
+                                                   Shape{4},
                                                    std::vector<int64_t>{static_cast<int64_t>(num_experts),
                                                                         static_cast<int64_t>(token_count),
+                                                                        1,
                                                                         static_cast<int64_t>(hidden_dim)});
     auto reshape2 = std::make_shared<op::v1::Reshape>(add3, reshape_shape2, false);
     reshape2->set_friendly_name("__module.model." + layer_id + "mlp.experts/Reshape_out");
@@ -748,7 +749,8 @@ TEST_F(DeviceRoutedMoETransformTest, RouterBroadcastChainShapeUpdate) {
 
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 
-    // After: the Reshape in the chain must now have shape [k_value, 1, 1]
+    // The transactional builder collapses Reshape+Unsqueeze to one Reshape.
+    // Its final broadcast layout must contain only the K selected experts.
     bool found = false;
     for (const auto& node : model->get_ordered_ops()) {
         if (auto reshape = std::dynamic_pointer_cast<op::v1::Reshape>(node)) {
@@ -756,7 +758,7 @@ TEST_F(DeviceRoutedMoETransformTest, RouterBroadcastChainShapeUpdate) {
             if (!shp)
                 continue;
             auto d = shp->cast_vector<int64_t>();
-            if (d.size() == 3 && d[0] == k_value && d[1] == 1 && d[2] == 1) {
+            if (d.size() == 4 && d[0] == k_value && d[1] == 1 && d[2] == 1 && d[3] == 1) {
                 found = true;
             }
         }

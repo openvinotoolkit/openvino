@@ -66,7 +66,7 @@ protected:
     void validate_transformation(const std::shared_ptr<Model>& model, int64_t I, int64_t M, int64_t K) {
         // Verify node counts
         EXPECT_EQ(count_nodes<op::v8::Gather>(model), 1) << "Should have 1 Gather after transformation";
-        EXPECT_EQ(count_nodes<op::v0::Tile>(model), 1) << "Should have 1 Tile";
+        EXPECT_EQ(count_nodes<op::v0::Tile>(model), 0) << "Index metadata must broadcast without a constant-only Tile";
         EXPECT_EQ(count_nodes<op::v1::Multiply>(model), 1) << "Should have 1 Multiply";
         EXPECT_EQ(count_nodes<op::v1::Add>(model), 1) << "Should have 1 Add";
 
@@ -97,12 +97,7 @@ protected:
 
             for (size_t i = 0; i < 2; ++i) {
                 auto input = add->input_value(i).get_node_shared_ptr();
-                auto tile = std::dynamic_pointer_cast<op::v0::Tile>(input);
-                if (!tile)
-                    continue;
-
-                auto range_input = tile->input_value(0).get_node_shared_ptr();
-                auto constant = std::dynamic_pointer_cast<op::v0::Constant>(range_input);
+                auto constant = std::dynamic_pointer_cast<op::v0::Constant>(input);
                 if (!constant)
                     continue;
 
