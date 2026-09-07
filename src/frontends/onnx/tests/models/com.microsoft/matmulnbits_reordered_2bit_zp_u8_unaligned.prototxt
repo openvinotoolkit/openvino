@@ -1,0 +1,101 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "a"
+    input: "b_q"
+    input: "b_scales"
+    input: "b_zp"
+    output: "c"
+    op_type: "MatMulNBits"
+    attribute {
+      name: "K"
+      i: 32
+      type: INT
+    }
+    attribute {
+      name: "N"
+      i: 5
+      type: INT
+    }
+    attribute {
+      name: "accuracy_level"
+      i: 4
+      type: INT
+    }
+    attribute {
+      name: "bits"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "block_size"
+      i: 16
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  name: "matmulnbits_reordered_2bit_zp_u8_unaligned"
+  initializer {
+    dims: 2
+    dims: 5
+    dims: 4
+    data_type: 2
+    name: "b_q"
+    raw_data: "\034\307R\247-\324\263\315\367\250B\2058\346cmr\334}\220\017\221k\272\255\t\342\253%Y\205\325\320\337eH\215\332\224\226"
+  }
+  initializer {
+    dims: 2
+    dims: 5
+    data_type: 1
+    name: "b_scales"
+    raw_data: "\373#\311>\323\\f>\312\351;?w\361\377=\031\274\035?\256\3272?6\"\375>=\266\254>\033oM?\322\2166?"
+  }
+  initializer {
+    dims: 2
+    dims: 2
+    data_type: 2
+    name: "b_zp"
+    raw_data: "\'\003\267\001"
+  }
+  input {
+    name: "a"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 5
+          }
+          dim {
+            dim_value: 32
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "c"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 5
+          }
+          dim {
+            dim_value: 5
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 7
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}
