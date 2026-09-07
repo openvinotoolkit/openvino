@@ -17,6 +17,8 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
@@ -159,6 +161,50 @@ bool FoldShapeComputeChain::run_on_model(const std::shared_ptr<ov::Model>& model
     rewr.add_matcher<FoldUnsqueezeOfConst>();
     rewr.add_matcher<FoldConcatOfConsts>();
     return rewr.run_on_model(model);
+}
+
+bool FoldStaticMoEMetadata::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    bool changed = false;
+    constexpr size_t max_elements = 65536;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (node->get_input_size() == 0 || !node->has_evaluate() || ov::is_type<ov::op::v0::Result>(node) ||
+            ov::pass::constant_folding_is_disabled(node) || !node->can_constant_fold(node->input_values()))
+            continue;
+        size_t total = 0;
+        bool small = true;
+        for (const auto& output : node->outputs()) {
+            const auto type = output.get_element_type();
+            const auto shape = output.get_partial_shape();
+            if ((type != ov::element::i32 && type != ov::element::i64 && type != ov::element::boolean) ||
+                !shape.is_static()) {
+                small = false;
+                break;
+            }
+            size_t elements = 1;
+            for (const auto dimension : shape.to_shape()) {
+                if (dimension > max_elements || (dimension != 0 && elements > max_elements / dimension)) {
+                    small = false;
+                    break;
+                }
+                elements *= dimension;
+            }
+            if (!small || total > max_elements - elements) {
+                small = false;
+                break;
+            }
+            total += elements;
+        }
+        if (!small)
+            continue;
+        ov::OutputVector folded;
+        if (fold_if_all_const(node, folded)) {
+            for (const auto& output : folded)
+                ov::copy_runtime_info(node, output.get_node_shared_ptr());
+            ov::replace_node(node, folded);
+            changed = true;
+        }
+    }
+    return changed;
 }
 
 void foldShapeComputeChainsForConstAttrs(const std::shared_ptr<ov::Model>& model) {

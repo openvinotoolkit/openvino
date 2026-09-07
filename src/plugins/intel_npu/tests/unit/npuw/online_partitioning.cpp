@@ -16,11 +16,25 @@
 #include "partitioning/online/compiler.hpp"
 #include "partitioning/online/group.hpp"
 #include "partitioning/online/snapshot.hpp"
+#include "partitioning/online/utils/utils.hpp"
 
 using ov::test::npuw::LLMConfig;
 using ov::test::npuw::ModelBuilder;
 
 namespace {
+
+TEST(OnlinePartitioningMetadataTest, DistinguishesConstantAndRuntimeOperands) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{1, 1, 1, 128});
+    auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, data->get_shape());
+    auto constant = ov::op::v0::Constant::create(ov::element::boolean, data->get_shape(), {true});
+    auto dynamic_op = std::make_shared<ov::op::v1::LogicalAnd>(data, mask);
+    auto constant_op = std::make_shared<ov::op::v1::LogicalAnd>(data, constant);
+    EXPECT_NE(ov::npuw::online::util::getMetaDesc(dynamic_op), ov::npuw::online::util::getMetaDesc(constant_op));
+    auto different_value = ov::op::v0::Constant::create(ov::element::boolean, data->get_shape(), {false});
+    auto other_constant_op = std::make_shared<ov::op::v1::LogicalAnd>(data, different_value);
+    // Constant values are still allowed to vary between function calls.
+    EXPECT_EQ(ov::npuw::online::util::getMetaDesc(constant_op), ov::npuw::online::util::getMetaDesc(other_constant_op));
+}
 
 ::intel_npu::Config createConfigWithKeepBlockSize(std::size_t size) {
     auto opt_desc = std::make_shared<::intel_npu::OptionsDesc>();

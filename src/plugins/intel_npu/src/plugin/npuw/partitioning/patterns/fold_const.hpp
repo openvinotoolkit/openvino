@@ -78,6 +78,15 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
+// After static MoE specialization, collapse small integer/boolean metadata
+// expressions (ranges, mask indices, comparisons). Floating-point weights and
+// their decompression chains are intentionally excluded.
+class FoldStaticMoEMetadata : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("npuw::patterns::util::FoldStaticMoEMetadata");
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+};
+
 // Fold shape-compute chains (ShapeOf -> Gather -> Sub/Add -> Concat, ...) into
 // Constants before online partitioning creates subgraph boundaries. Otherwise a
 // partition boundary can cut such a chain and lift the (statically known) value
