@@ -170,7 +170,7 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
     auto boxes_source_m = any_input(rank_equals(2));
     auto class_ids_source_m = any_input(rank_equals(1));
     auto reduce_max_m = wrap_type<ov::op::v1::ReduceMax>({boxes_source_m, any_input()});
-    auto const_one_m = any_input(is_const_one_like);
+    auto const_one_m = any_input();
     auto max_plus_one_m = wrap_type<ov::op::v1::Add>({reduce_max_m, const_one_m});
     auto class_ids_convert_m = optional<ov::op::v0::Convert>({class_ids_source_m}, is_integral_to_fp_convert);
     auto offsets_multiply_m = wrap_type<ov::op::v1::Multiply>({class_ids_convert_m, max_plus_one_m});
@@ -201,7 +201,8 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         auto boxes_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(boxes_reshape_m).get_node_shared_ptr());
         auto scores_unsqueeze = pattern_map.at(scores_unsqueeze_m).get_node_shared_ptr();
 
-        if (!squeeze || !gather || !nms || !boxes_reshape || !scores_unsqueeze || transformation_callback(squeeze)) {
+        if (!squeeze || !gather || !nms || !boxes_reshape || !scores_unsqueeze ||
+            !is_const_one_like(pattern_map.at(const_one_m).get_node_shared_ptr()) || transformation_callback(squeeze)) {
             return false;
         }
 
