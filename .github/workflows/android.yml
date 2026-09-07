@@ -357,37 +357,41 @@ jobs:
         working-directory: ${{ env.INSTALL_TEST_DIR }}
 
       # One artifact per test binary so each emulator job downloads only the binary it runs
-      - name: Upload CPU functional test binary
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        with:
-          name: ov_cpu_func_tests_android_${{ matrix.arch }}
-          path: ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release/ov_cpu_func_tests
-          if-no-files-found: 'error'
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload CPU functional test binary
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        with:
+#          name: ov_cpu_func_tests_android_${{ matrix.arch }}
+#          path: ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release/ov_cpu_func_tests
+#          if-no-files-found: 'error'
 
-      - name: Upload CPU unit test binary
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        with:
-          name: ov_cpu_unit_tests_android_${{ matrix.arch }}
-          path: ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release/ov_cpu_unit_tests
-          if-no-files-found: 'error'
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload CPU unit test binary
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        with:
+#          name: ov_cpu_unit_tests_android_${{ matrix.arch }}
+#          path: ${{ env.INSTALL_TEST_DIR }}/bin/intel64/Release/ov_cpu_unit_tests
+#          if-no-files-found: 'error'
 
-      - name: Upload OpenVINO runtime package (Android)
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        with:
-          name: ov_android_package_${{ matrix.arch }}
-          path: ${{ env.INSTALL_DIR }}/
-          if-no-files-found: 'error'
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload OpenVINO runtime package (Android)
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        with:
+#          name: ov_android_package_${{ matrix.arch }}
+#          path: ${{ env.INSTALL_DIR }}/
+#          if-no-files-found: 'error'
 
-      - name: Store artifacts to a shared drive
-        id: store_artifacts
-        if: ${{ github.event_name != 'merge_group' }}
-        uses: ./openvino/.github/actions/store_artifacts
-        with:
-          artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-            ${{ env.MANIFEST_PATH }}
-          storage_dir: ${{ env.PRODUCT_TYPE }}
-          storage_root: ${{ env.ARTIFACTS_SHARE }}
-          branch_name: ${{ inputs.target-branch }}
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Store artifacts to a shared drive
+#        id: store_artifacts
+#        if: ${{ github.event_name != 'merge_group' }}
+#        uses: ./openvino/.github/actions/store_artifacts
+#        with:
+#          artifacts: |
+#            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+#            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+#            ${{ env.MANIFEST_PATH }}
+#          storage_dir: ${{ env.PRODUCT_TYPE }}
+#          storage_root: ${{ env.ARTIFACTS_SHARE }}
+#          branch_name: ${{ inputs.target-branch }}
 

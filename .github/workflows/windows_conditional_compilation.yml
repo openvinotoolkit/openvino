@@ -298,13 +298,14 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_package.zip
           if-no-files-found: 'error'
 
-      - name: Upload OpenVINO PDB package
-        if: ${{ always() }}
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        with:
-          name: openvino_pdb
-          path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
-          if-no-files-found: 'error'
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload OpenVINO PDB package
+#        if: ${{ always() }}
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        with:
+#          name: openvino_pdb
+#          path: ${{ env.BUILD_DIR }}/openvino_pdb.zip
+#          if-no-files-found: 'error'
 
       - name: Upload selective build statistics package
         if: ${{ always() }}

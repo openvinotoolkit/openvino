@@ -113,18 +113,19 @@ jobs:
           path: ${{ env.PARALLEL_TEST_CACHE }}
           key: ${{ runner.os }}-${{ runner.arch }}-tests-functional-cpu-stamp-${{ github.sha }}
 
-      - name: Upload Test Results
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
-        with:
-          name: test-results-functional-cpu
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
-            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
-            ${{ env.PARALLEL_TEST_CACHE }}
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload Test Results
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        if: always()
+#        with:
+#          name: test-results-functional-cpu
+#          path: |
+#            ${{ env.INSTALL_TEST_DIR }}/temp/*.log
+#            ${{ env.INSTALL_TEST_DIR }}/logs/*.log
+#            ${{ env.INSTALL_TEST_DIR }}/logs/failed/*.log
+#            ${{ env.INSTALL_TEST_DIR }}/logs/crashed/*.log
+#            ${{ env.INSTALL_TEST_DIR }}/logs/hanged/*.log
+#            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
+#            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
+#            ${{ env.PARALLEL_TEST_CACHE }}
           if-no-files-found: 'error'

@@ -146,11 +146,12 @@ jobs:
           name: sphinx_build_log_${{ env.PR_NUMBER }}.log
           path: ${{ env.BUILD_DIR }}/docs/sphinx.log
 
-      - name: Upload docs html
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        with:
-          name: openvino_docs_html_${{ env.PR_NUMBER }}
-          path: ${{ env.BUILD_DIR }}/docs/_build
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload docs html
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        with:
+#          name: openvino_docs_html_${{ env.PR_NUMBER }}
+#          path: ${{ env.BUILD_DIR }}/docs/_build
 
       - name: Run Pytest
         run: |
@@ -162,9 +163,10 @@ jobs:
                  --xfail="${OPENVINO_REPO}/docs/scripts/tests/xfail.txt" \
                  --self-contained-html ${OPENVINO_REPO}/docs/scripts/tests/test_docs.py
 
-      - name: Upload test results
-        if: failure()
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        with:
-          name: openvino_docs_pytest
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload test results
+#        if: failure()
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        with:
+#          name: openvino_docs_pytest
           path: ${{ env.BUILD_DIR }}/docs/_artifacts/

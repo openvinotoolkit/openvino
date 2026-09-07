@@ -208,13 +208,14 @@ jobs:
           path: ${{ env.BUILD_DIR }}/cov-int/build-log.txt
           if-no-files-found: 'error'
 
-      - name: Upload Coverity build archive
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
-        with:
-          name: coverity_archive
-          path: ${{ env.BUILD_DIR }}/openvino.tgz
-          if-no-files-found: 'error'
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload Coverity build archive
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        if: always()
+#        with:
+#          name: coverity_archive
+#          path: ${{ env.BUILD_DIR }}/openvino.tgz
+#          if-no-files-found: 'error'
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main

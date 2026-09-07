@@ -106,11 +106,12 @@ jobs:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU
 
-      - name: Upload Test Results
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-gguf-models-${{ inputs.model_scope }}
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload Test Results
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        if: ${{ !cancelled() }}
+#        with:
+#          name: test-results-gguf-models-${{ inputs.model_scope }}
+#          path: |
+#            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
           if-no-files-found: 'error'

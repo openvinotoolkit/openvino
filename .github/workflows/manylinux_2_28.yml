@@ -325,18 +325,19 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
-      - name: Store artifacts to a shared drive
-        id: store_artifacts
-        if: ${{ github.event_name != 'merge_group' }}
-        uses: ./src/.github/actions/store_artifacts
-        with:
-          artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-            ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
-            ${{ env.MANIFEST_PATH }}
-            ${{ env.INSTALL_WHEELS_DIR }}/wheels
-          storage_dir: ${{ env.PRODUCT_TYPE }}
-          storage_root: ${{ env.ARTIFACTS_SHARE }}
-          branch_name: ${{ inputs.target-branch }}
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Store artifacts to a shared drive
+#        id: store_artifacts
+#        if: ${{ github.event_name != 'merge_group' }}
+#        uses: ./src/.github/actions/store_artifacts
+#        with:
+#          artifacts: |
+#            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+#            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+#            ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
+#            ${{ env.MANIFEST_PATH }}
+#            ${{ env.INSTALL_WHEELS_DIR }}/wheels
+#          storage_dir: ${{ env.PRODUCT_TYPE }}
+#          storage_root: ${{ env.ARTIFACTS_SHARE }}
+#          branch_name: ${{ inputs.target-branch }}
 

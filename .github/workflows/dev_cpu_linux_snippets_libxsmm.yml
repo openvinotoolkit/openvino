@@ -209,19 +209,21 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
-      - name: Upload OpenVINO package
-        if: ${{ always() }}
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        with:
-          name: openvino_package
-          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-          if-no-files-found: 'error'
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload OpenVINO package
+#        if: ${{ always() }}
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        with:
+#          name: openvino_package
+#          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+#          if-no-files-found: 'error'
 
-      - name: Upload OpenVINO tests package
-        if: ${{ always() }}
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        with:
-          name: openvino_tests
-          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-          if-no-files-found: 'error'
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload OpenVINO tests package
+#        if: ${{ always() }}
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        with:
+#          name: openvino_tests
+#          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+#          if-no-files-found: 'error'
 

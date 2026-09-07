@@ -289,10 +289,11 @@ jobs:
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_hetero_func_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-OVHeteroFuncTests.xml --gtest_filter="*smoke*" --gtest_filter=-"nightly*"
 
-      - name: Upload Test Results
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-cpp
-          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload Test Results
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        if: ${{ !cancelled() }}
+#        with:
+#          name: test-results-cpp
+#          path: ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
           if-no-files-found: 'warn'
