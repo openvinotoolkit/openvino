@@ -628,6 +628,28 @@ ShapeOfParameter::ShapeOfParameter() {
     register_matcher(std::make_shared<opp::Matcher>(param_shp, "ShapeOfParameter"), std::move(callback));
 }
 
+ShapeOfConcat::ShapeOfConcat() {
+    auto concat_in = opp::wrap_type<ov::op::v0::Concat>();
+    auto concat_shp = opp::wrap_type<ov::op::v3::ShapeOf>({concat_in});
+
+    // Note: Use [=] to make sure the above objects stay alive in the callback
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        auto matched_shape_out = node_to_output.at(concat_shp);
+        auto& matched_shape_tensor = matched_shape_out.get_tensor();
+        if (matched_shape_tensor.has_and_set_bound()) {
+            auto new_const = std::make_shared<ov::op::v0::Constant>(matched_shape_tensor.get_upper_value());
+            new_const->set_friendly_name("NPUW/Precalculated/" +
+                                         matched_shape_out.get_node_shared_ptr()->get_friendly_name());
+            for (auto&& input : matched_shape_out.get_target_inputs()) {
+                input.replace_source_output(new_const);
+            }
+        }
+        return false;  // root hasn't changed (?)
+    };
+    register_matcher(std::make_shared<opp::Matcher>(concat_shp, "ShapeOfConcat"), std::move(callback));
+}
+
 // AttentionBroadcast4: folds the ShapeOf->Gather->Concat->Reshape chain that
 // appears on the attention mask path (originally part of QuantizedSDPAWithGlobalMask before
 // it was simplified). Running this before QuantizedSDPAWithGlobalMask allows that pattern
@@ -811,6 +833,7 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // while AttentionBroadcast patterns might break the partitioning (related to F16IC).
     ov::pass::GraphRewrite rewr2;
     rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
+    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>();
     model_changed |= rewr2.run_on_model(model);
 
     return model_changed;
