@@ -22,6 +22,7 @@
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "openvino/util/pp.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 #ifdef __linux__
 # include <dlfcn.h>
@@ -108,6 +109,11 @@ ProgramBuilder::ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& 
     CustomLayer::LoadFromFile(config_path, m_custom_layers, true);
     auto custom_layers_config = m_config.get_config_file();
     CustomLayer::LoadFromFile(custom_layers_config, m_custom_layers, custom_layers_config.empty());
+
+    // Populate ov::Symbol on dynamic dims so op factories can reason about
+    // equal-shape inputs. Runs after the transformations pipeline so that no
+    // subsequent ov::pass::Validate wipes the symbols via shape re-inference.
+    ov::pass::SymbolicPropagation().run_on_model(model);
 
     auto ops = model->get_ordered_ops();
 

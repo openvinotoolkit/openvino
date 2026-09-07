@@ -107,6 +107,12 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
     if (target.get_users().size() != 2)
         return false;
 
+    // If child is registered as a user of target, then it is a direct ancestor.
+    for (auto& user : target.get_users()) {
+        if (user == &child)
+            return true;
+    }
+
     // Limit the iteration depth to 5 for performance reason
     const auto* iter = &child;
     for (int i = 0; i < 5; i++) {
@@ -135,6 +141,36 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     auto d_layout = dep_node.get_output_layout();
 
     if (p_node.is_dynamic() || dep_node.is_dynamic()) {
+        // When the plugin has proven the two Add inputs share the same shape (including
+        // dynamic dims with matching ov::Symbol), sum post-op fusion is safe even for
+        // dynamic shapes. Structural conditions below are still enforced.
+        if (!desc.typed_desc<eltwise>()->inputs_equal_shape) {
+            // GPU_DEBUG_COUT << p_node.id() << " or " << dep_node.id() << " is dynamic, so dyn shape is not supported for sum post op" << std::endl;
+            return add_fusing_type::not_supported;
+        }
+        if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
+            && p_layout.format == d_layout.format
+            && p_layout.data_padding == d_layout.data_padding
+            && (dep_node.get_users().size() == 1 || is_direct_ancestor(p_node, dep_node))
+            && !dep_node.is_constant()
+            && !p_node.is_type<pooling>()
+            && !p_node.is_output()
+            && !(dep_node.is_type<input_layout>() && dep_node.get_users().size() > 1)) {
+
+            // GPU_DEBUG_COUT << "SUM: " << p_node.id() << " or " << dep_node.id() << " is dynamic, shapes are identical" << std::endl;
+            // return add_fusing_type::sum;
+        }
+        // print why sum was not supported:
+        // GPU_DEBUG_COUT << p_node.id() << " or " << dep_node.id() << " is not supported: " <<
+        //     "(dep_node.get_users().size()): " << (dep_node.get_users().size()) << ", " <<
+        //     "is_direct_ancestor(p_node, dep_node) " << is_direct_ancestor(p_node, dep_node) << ", " <<
+        //     std::endl;
+        // if (dep_node.get_users().size() > 1) {
+        //     // print names of dep_node.get_users()
+        //     for (auto& user : dep_node.get_users()) {
+        //         GPU_DEBUG_COUT << "   dep_node.get_users " << user->id() << std::endl;
+        //     }
+        // }
         return add_fusing_type::not_supported;
     }
 
