@@ -16,9 +16,10 @@
 
 namespace ov::intel_cpu::node::kernel::test {
 
+template <typename T>
 struct ReferenceResult {
-    std::vector<float> output;
-    std::vector<float> state;
+    std::vector<T> output;
+    std::vector<T> state;
 };
 
 inline std::vector<float> make_values(size_t count, float scale, float offset = 0.F) {
@@ -47,16 +48,17 @@ std::vector<float> to_float(const std::vector<T>& values) {
     return result;
 }
 
-inline ReferenceResult reference_selective_ssm(const std::vector<float>& state_decay_rates,
-                                               const std::vector<float>& time_steps,
-                                               const std::vector<float>& input_projections,
-                                               const std::vector<float>& input,
-                                               const std::vector<float>& output_projections,
-                                               const std::vector<float>& initial_state,
-                                               const SelectiveSSMShape& shape) {
-    ReferenceResult result;
+template <typename T = float>
+inline ReferenceResult<T> reference_selective_ssm(const std::vector<float>& state_decay_rates,
+                                                  const std::vector<float>& time_steps,
+                                                  const std::vector<float>& input_projections,
+                                                  const std::vector<float>& input,
+                                                  const std::vector<float>& output_projections,
+                                                  const std::vector<float>& initial_state,
+                                                  const SelectiveSSMShape& shape) {
+    ReferenceResult<T> result;
     result.output.resize(shape.batch_size * shape.sequence_length * shape.num_heads * shape.head_dim);
-    result.state = initial_state;
+    result.state.assign(initial_state.begin(), initial_state.end());
     const auto heads_per_group = shape.num_heads / shape.num_groups;
     const auto state_batch_stride = shape.num_heads * shape.head_dim * shape.state_size;
     const auto state_head_stride = shape.head_dim * shape.state_size;
@@ -70,10 +72,10 @@ inline ReferenceResult reference_selective_ssm(const std::vector<float>& state_d
                     ((batch * shape.sequence_length + token) * shape.num_groups + group) * shape.state_size;
                 const auto state_base = batch * state_batch_stride + head * state_head_stride;
                 const auto input_base = token_head * shape.head_dim;
-                const float time_step = time_steps[token_head];
-                const float decay = std::exp(state_decay_rates[head] * time_step);
+                const T time_step = time_steps[token_head];
+                const T decay = std::exp(state_decay_rates[head] * time_step);
                 for (size_t position = 0; position < shape.head_dim; ++position) {
-                    float value = 0.F;
+                    T value = 0;
                     for (size_t state_index = 0; state_index < shape.state_size; ++state_index) {
                         auto& state = result.state[state_base + position * shape.state_size + state_index];
                         state = state * decay + input[input_base + position] * time_step *
