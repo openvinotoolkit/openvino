@@ -2747,3 +2747,41 @@ TEST(activation_gpu, has_proper_synchronization) {
         ASSERT_EQ(test_mem[i], ref_mem[i]);
     }
 }
+
+// F16 Softplus enablement: the vectorised activation_opt
+// kernel (half4) must evaluate Softplus without overflowing float16.
+// exp(15) is already past the f16 max (~65504), so the naive log(exp(x) + 1)
+// in half precision returns +INF; the fp32 evaluation must yield a finite
+// value ~= x for large x.
+TEST(activation_f16_fw_gpu, softplus_fsv16_opt_large_input_finite) {
+    auto& engine = get_test_engine();
+
+    const size_t b = 2, f = 16, y = 8, x = 8;
+    auto in_layout = cldnn::layout(ov::PartialShape{b, f, y, x}, cldnn::data_types::f16, cldnn::format::bfyx);
+    auto in_mem = engine.allocate_memory(in_layout);
+    set_values<ov::float16>(in_mem, std::vector<ov::float16>(in_layout.get_linear_size(), ov::float16(15.0f)));
+
+    auto topology = cldnn::topology(
+        cldnn::input_layout("input", in_layout),
+        cldnn::reorder("to_fsv16", input_info("input"), cldnn::format::b_fs_yx_fsv16, cldnn::data_types::f16),
+        cldnn::activation("softplus", input_info("to_fsv16"), cldnn::activation_func::softplus));
+
+    auto config = get_test_default_config(engine);
+    auto impl_desc = ov::intel_gpu::ImplementationDesc{cldnn::format::b_fs_yx_fsv16, "activation_opt", cldnn::impl_types::ocl};
+    ov::intel_gpu::ImplForcingMap forcing_map{{"softplus", impl_desc}};
+    config.set_property(ov::intel_gpu::force_implementations(forcing_map));
+
+    cldnn::network net(engine, topology, config);
+    net.set_input_data("input", in_mem);
+    auto out_mem = net.execute().at("softplus").get_memory();
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_ptr.size(), in_layout.get_linear_size());
+    for (size_t i = 0; i < out_ptr.size(); ++i) {
+        float v = static_cast<float>(out_ptr[i]);
+        ASSERT_FALSE(std::isinf(v)) << "at i=" << i;
+        ASSERT_FALSE(std::isnan(v)) << "at i=" << i;
+        // softplus(15) ~= 15.0
+        ASSERT_NEAR(v, 15.0f, 0.02f) << "at i=" << i;
+    }
+}

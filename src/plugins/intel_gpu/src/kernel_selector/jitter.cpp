@@ -1103,7 +1103,8 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                                         Datatype out_dt,
                                         const std::string& suffix,
                                         bool use_type_parameter,
-                                        bool disable_type_conversion) {
+                                        bool disable_type_conversion,
+                                        size_t vec_size) {
     std::string name = "ACTIVATION_FUNC" + suffix;
     JitConstants jitConstants = {};
 
@@ -1315,10 +1316,24 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            const JitTerm input_f = out_dt == Datatype::F16 ? JitTerm{"convert_float(input)"} : input;
-            const JitTerm output =
-                out_dt == Datatype::F16 ? JitTerm{"convert_half(" + (log(exp(input_f) + one)).str() + ")"} : JitTerm{(log(exp(input_f) + one)).str()};
-            jitConstants.AddConstant(MakeJitConstant(macro_def, output.str()));
+            if (out_dt == Datatype::F16) {
+                // Softplus must be computed in fp32: float16 overflows for
+                // inputs above ~11 (exp(11) > HALF_MAX) and the CPU reference
+                // is fp32, which the F16 tests compare bit-exactly against.
+                // The width-aware convert keeps both kernels valid: the scalar
+                // ref kernel (width 1) matches the pre-existing behavior, and
+                // the vectorised opt kernel (width 4) expands to
+                // convert_float4/convert_half4.
+                std::string w = (vec_size == 1) ? "" : toCodeString(vec_size);
+                std::string formula = "convert_half" + w +
+                                      "(log(exp(convert_float" + w + "(input)) + " +
+                                      one.str() + "))";
+                jitConstants.AddConstant(MakeJitConstant(macro_def, formula));
+            } else {
+                jitConstants.AddConstant(MakeJitConstant(
+                        macro_def,
+                        (log(exp(input) + one)).str()));
+            }
             break;
         }
         case ActivationFunction::SOFTSIGN: {
@@ -1809,7 +1824,8 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                                         const std::string& suffix,
                                         bool use_type_parameter,
                                         bool disable_type_conversion,
-                                        bool convert_input_to_output_dt) {
+                                        bool convert_input_to_output_dt,
+                                        size_t vec_size) {
     JitConstants res = {};
     if (params.empty()) {
         return MakeActivationJitConstants({ActivationFunction::NONE, 0.f, 0.f}, out_dt,
@@ -1833,7 +1849,7 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
         auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, nl_m),
                                          MakeJitConstant("NL_N" + activation_suffix, nl_n)};
         jitConstants.Merge(MakeActivationJitConstants(
-                params[i].function, out_dt, activation_suffix, use_type_parameter, disable_type_conversion));
+                params[i].function, out_dt, activation_suffix, use_type_parameter, disable_type_conversion, vec_size));
         res.Merge(jitConstants);
 
         if (i == 0) {

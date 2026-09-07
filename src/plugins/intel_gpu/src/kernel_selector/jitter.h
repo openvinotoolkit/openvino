@@ -306,13 +306,15 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                                         Datatype output_dt,
                                         const std::string& suffix,
                                         bool use_type_parameter,
-                                        bool disable_type_conversion = false);
+                                        bool disable_type_conversion = false,
+                                        size_t vec_size = 1);
 JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activation_params> params,
                                         Datatype output_dt,
                                         const std::string& suffix = "",
                                         bool use_type_parameter = false,
                                         bool disable_type_conversion = false,
-                                        bool convert_input_to_output_dt = false);
+                                        bool convert_input_to_output_dt = false,
+                                        size_t vec_size = 1);
 JitConstants MakeBaseParamsJitConstants(const base_params& params);
 JitConstants MakeLoopUnrollParamsJitConstants(uint32_t loopCount);
 

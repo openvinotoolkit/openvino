@@ -100,10 +100,6 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
         }
     }
 
-    if (params.activations[0].function == ActivationFunction::SOFTPLUS && input_dt == Datatype::F16) {
-        DO_NOT_USE_THIS_KERNEL(params.layerID);
-    }
-
     return true;
 }
 
@@ -164,7 +160,9 @@ JitConstants ActivationKernelOpt::GetJitConstants(const activation_params& param
                                              IndexType::TENSOR_COORD};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vector, conf_scalar}));
     }
-    jit.Merge(MakeActivationJitConstants(params.activations, GetComputeDatatype(input_dt), "_KERNEL"));
+    // The opt kernel processes width-4 vectors, so the activation JIT constants
+    // must generate vector-wide type conversions (e.g. convert_float4/half4).
+    jit.Merge(MakeActivationJitConstants(params.activations, GetComputeDatatype(input_dt), "_KERNEL", false, false, false, 4));
 
     return jit;
 }
