@@ -231,4 +231,4 @@ jobs:
 #          path: |
 #            ${{ env.INSTALL_TEST_DIR }}\TEST*.html
 #            ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_unsupported_ops_*.log
-          if-no-files-found: 'error'
+#          if-no-files-found: 'error'

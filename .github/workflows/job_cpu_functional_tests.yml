@@ -134,4 +134,4 @@ jobs:
 #            ${{ env.INSTALL_TEST_DIR }}/logs/interapted/*.log
 #            ${{ env.INSTALL_TEST_DIR }}/logs/hash_table.csv
 #            ${{ env.PARALLEL_TEST_CACHE }}
-          if-no-files-found: 'error'
+#          if-no-files-found: 'error'

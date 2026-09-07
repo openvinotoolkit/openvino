@@ -155,4 +155,4 @@ jobs:
 #        with:
 #          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
 #          path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
-          if-no-files-found: 'error'
+#          if-no-files-found: 'error'

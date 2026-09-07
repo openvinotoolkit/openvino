@@ -153,4 +153,4 @@ jobs:
 #        with:
 #          name: test-results-samples
 #          path: ${{ env.INSTALL_TEST_DIR }}/TEST-samples_smoke_tests.xml
-          if-no-files-found: 'warn'
+#          if-no-files-found: 'warn'

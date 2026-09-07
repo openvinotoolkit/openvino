@@ -143,4 +143,4 @@ jobs:
 #          path: |
 #            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
 #            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
-          if-no-files-found: 'warn'
+#          if-no-files-found: 'warn'
