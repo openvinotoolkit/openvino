@@ -2,13 +2,21 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import pytest
+
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
-def test_is_testing_flag_false():
-    assert _is_testing({"testing": "false"}) == False
-    assert _is_testing({"testing": "0"}) == False
 
-def test_is_testing_flag_true():
-    assert _is_testing({"testing": "true"}) == True
-    assert _is_testing({"testing": "1"}) == True
-    assert _is_testing({"testing": True}) == True
+@pytest.mark.parametrize(
+    ("testing_value", "expected"),
+    [
+        ("false", False),
+        ("0", False),
+        (False, False),
+        ("true", True),
+        ("1", True),
+        (True, True),
+    ],
+)
+def test_is_testing_flag(testing_value, expected):
+    assert _is_testing({"testing": testing_value}) == expected
