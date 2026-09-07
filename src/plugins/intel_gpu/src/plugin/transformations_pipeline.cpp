@@ -99,6 +99,7 @@
 #include "plugin/transformations/clamp_fp16_output.hpp"
 #include "plugin/transformations/convert_convolution.hpp"
 #include "plugin/transformations/convert_fc_to_compressed.hpp"
+#include "plugin/transformations/convert_logical_xor_to_not_equal.hpp"
 #include "plugin/transformations/convert_matmul_to_fc.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
@@ -809,6 +810,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             pass_config->disable<ov::pass::ConvertDivide>();
         }
         manager.register_pass<ov::pass::CommonOptimizations>();
+        if (cldnn::is_android() && cldnn::is_arm() && cldnn::is_vulkan(m_context->get_engine().runtime_type())) {
+            // Lower while the Boolean type is still explicit, before integer ConvertPrecision.
+            manager.register_pass<ov::intel_gpu::ConvertLogicalXorToNotEqual>();
+        }
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".

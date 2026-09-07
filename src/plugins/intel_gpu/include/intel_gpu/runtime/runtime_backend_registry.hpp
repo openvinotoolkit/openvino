@@ -18,6 +18,11 @@ namespace cldnn {
 class engine;
 struct device;
 
+// Platform predicates describe the compiled target, including cross-builds.
+bool is_android();
+bool is_arm();
+bool is_vulkan(runtime_types runtime_type);
+
 struct gpu_operation_lowering_capabilities {
     bool direct_divide = false;
     bool direct_binary_power = false;

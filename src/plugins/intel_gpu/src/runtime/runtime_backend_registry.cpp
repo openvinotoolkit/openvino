@@ -33,6 +33,27 @@
 #endif
 
 namespace cldnn {
+
+bool is_android() {
+#ifdef __ANDROID__
+    return true;
+#else
+    return false;
+#endif
+}
+
+bool is_arm() {
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+    return true;
+#else
+    return false;
+#endif
+}
+
+bool is_vulkan(runtime_types runtime_type) {
+    return runtime_type == runtime_types::vulkan;
+}
+
 namespace {
 
 const char* runtime_name(runtime_types runtime_type) {
