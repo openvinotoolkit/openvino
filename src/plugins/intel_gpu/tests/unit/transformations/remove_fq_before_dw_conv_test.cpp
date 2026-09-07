@@ -30,12 +30,14 @@ namespace {
 struct GraphOptions {
     bool shared_parent = true;
     bool shared_fake_quantize = false;
+    bool shared_convolution = false;
     bool with_mvn = true;
     bool mvn_reduces_channel = true;
     bool channelwise_fake_quantize = true;
     bool constant_fake_quantize_bounds = true;
     bool quantized_weights = true;
     bool dynamic_spatial_shape = false;
+    bool dynamic_rank = false;
     size_t groups = 8;
     size_t input_channels_per_group = 1;
     size_t output_channels_per_group = 1;
@@ -54,7 +56,10 @@ struct TestGraph {
 TestGraph make_test_graph(const GraphOptions& options) {
     const size_t in_channels = options.groups * options.input_channels_per_group;
     const size_t output_channels = options.groups * options.output_channels_per_group;
-    const ov::PartialShape data_shape = options.dynamic_spatial_shape ? ov::PartialShape{1, ov::Dimension::value_type(in_channels), -1, -1} : ov::PartialShape{1, ov::Dimension::value_type(in_channels), 8, 8};
+    const ov::PartialShape data_shape = options.dynamic_rank
+                                            ? ov::PartialShape::dynamic()
+                                            : (options.dynamic_spatial_shape ? ov::PartialShape{1, ov::Dimension::value_type(in_channels), -1, -1}
+                                                                             : ov::PartialShape{1, ov::Dimension::value_type(in_channels), 8, 8});
 
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, data_shape);
     auto parent = std::make_shared<ov::op::v0::Relu>(input);
@@ -116,6 +121,9 @@ TestGraph make_test_graph(const GraphOptions& options) {
     }
     if (options.shared_fake_quantize) {
         outputs.push_back(std::make_shared<ov::op::v0::Relu>(fake_quantize));
+    }
+    if (options.shared_convolution) {
+        outputs.push_back(std::make_shared<ov::op::v0::Relu>(convolution));
     }
 
     return {std::make_shared<ov::Model>(outputs, parameters), parent, fake_quantize, convolution, weights, parent_consumer};
@@ -215,6 +223,18 @@ TEST(RemoveFakeQuantizeBeforeDepthwiseConvTest, RemovesFakeQuantizeForDynamicSha
     GraphOptions options;
     options.dynamic_spatial_shape = true;
     run_pass_and_check(options, true);
+}
+
+TEST(RemoveFakeQuantizeBeforeDepthwiseConvTest, KeepsFakeQuantizeForDynamicRank) {
+    GraphOptions options;
+    options.dynamic_rank = true;
+    run_pass_and_check(options, false);
+}
+
+TEST(RemoveFakeQuantizeBeforeDepthwiseConvTest, KeepsFakeQuantizeForBranchingConvolutionOutput) {
+    GraphOptions options;
+    options.shared_convolution = true;
+    run_pass_and_check(options, false);
 }
 
 }  // namespace ov::test::intel_gpu

@@ -32,11 +32,11 @@ bool has_supported_depthwise_shape(const std::shared_ptr<ov::op::v1::GroupConvol
     const auto& data_shape = convolution->get_input_partial_shape(0);
     const auto& weights_shape = convolution->get_input_partial_shape(1);
     const auto& output_shape = convolution->get_output_partial_shape(0);
-    if (!data_shape[channel_axis].is_static() || !weights_shape.is_static() || !output_shape[channel_axis].is_static()) {
+    if (data_shape.rank() != 4 || weights_shape.rank() != 5 || output_shape.rank() != 4) {
         return false;
     }
 
-    if (data_shape.size() != 4 || weights_shape.size() != 5 || output_shape.size() != 4) {
+    if (!data_shape[channel_axis].is_static() || !weights_shape.is_static() || !output_shape[channel_axis].is_static()) {
         return false;
     }
 
@@ -51,11 +51,13 @@ bool has_supported_depthwise_shape(const std::shared_ptr<ov::op::v1::GroupConvol
            kernel_y * kernel_x <= max_depthwise_kernel_elements;
 }
 
+// Precondition: data_shape.rank() == 4 and channel dimension is static, checked by has_supported_depthwise_shape.
 bool has_channelwise_fake_quantize(const std::shared_ptr<ov::op::v0::FakeQuantize>& fake_quantize, const std::shared_ptr<ov::op::v1::GroupConvolution>& convolution) {
-    if (convolution->get_input_partial_shape(0)[channel_axis].is_dynamic()) {
+    const auto& data_shape = convolution->get_input_partial_shape(0);
+    if (data_shape.rank() != 4 || data_shape[channel_axis].is_dynamic()) {
         return false;
     }
-    size_t channels = convolution->get_input_partial_shape(0)[channel_axis].get_length();
+    size_t channels = data_shape[channel_axis].get_length();
 
     const ov::Shape expected_shape{1, channels, 1, 1};
     for (size_t index = 1; index < fake_quantize->get_input_size(); ++index) {
@@ -75,6 +77,9 @@ bool has_channelwise_int8_weights(const std::shared_ptr<ov::op::v1::GroupConvolu
     }
 
     const auto weights_shape = convolution->get_input_partial_shape(1);
+    if (weights_shape.rank() != 5) {
+        return false;
+    }
     const ov::PartialShape expected_scale_shape{weights_shape[0], 1, 1, 1, 1};
     for (size_t scale_index = 0; scale_index < 2; ++scale_index) {
         const auto scale = ov::as_type_ptr<ov::op::v0::Constant>(multiply->get_input_node_shared_ptr(scale_index));
@@ -172,40 +177,49 @@ bool mvn_reduces_channel(const std::shared_ptr<ov::Node>& node, size_t current_c
 }
 
 bool has_mvn_dequantization_barrier(const ov::Output<ov::Node>& output, size_t current_channel_axis, size_t bridge_operations = 0) {
-    for (const auto& target_input : output.get_target_inputs()) {
+    const auto target_inputs = output.get_target_inputs();
+    if (target_inputs.empty()) {
+        return false;
+    }
+
+    for (const auto& target_input : target_inputs) {
         const auto consumer = target_input.get_node()->shared_from_this();
         if (target_input.get_index() == 0 && mvn_reduces_channel(consumer, current_channel_axis)) {
-            return true;
+            continue;
         }
 
         if (bridge_operations >= max_bridge_operations) {
-            continue;
+            return false;
         }
 
         if (const auto add = ov::as_type_ptr<ov::op::v1::Add>(consumer)) {
             const size_t data_index = target_input.get_index();
             if (data_index >= add->get_input_size()) {
-                continue;
+                return false;
             }
 
             const size_t other_index = 1 - data_index;
             if (ov::is_type<ov::op::v0::Constant>(add->get_input_node_shared_ptr(other_index)) &&
                 has_mvn_dequantization_barrier(add->output(0), current_channel_axis, bridge_operations + 1)) {
-                return true;
+                continue;
             }
+            return false;
         } else if (const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(consumer)) {
             if (target_input.get_index() != 0) {
-                continue;
+                return false;
             }
 
             const auto transposed_channel_axis = get_transposed_channel_axis(transpose, current_channel_axis);
             if (transposed_channel_axis.has_value() && has_mvn_dequantization_barrier(transpose->output(0), *transposed_channel_axis, bridge_operations + 1)) {
-                return true;
+                continue;
             }
+            return false;
+        } else {
+            return false;
         }
     }
 
-    return false;
+    return true;
 }
 
 }  // namespace
