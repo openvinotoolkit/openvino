@@ -5971,6 +5971,16 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_expand_scalar_failsafe_node_ort_mem) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_tile_scalar_empty_repeats) {
+    const auto model = convert_model("tile_scalar_empty_repeats.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    const auto input_data = std::vector<float>{3.5f};
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(input_data);
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_scan15_fib_like) {
     const auto model = convert_model("scan15_fib_like.onnx");
 
