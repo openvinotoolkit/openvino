@@ -34,12 +34,18 @@ CASES = {
     "mellum": {"qk": True, "moe": True},
     "muse-glimmer": {"qk": True, "post": True, "swa": True, "gate": True},
     "deepseek2-ocr": {"moe": True, "lead": 1, "shared": True},
+    "devstral-small": {"architecture": "llama", "embedding": 40},
+    "devstral-small2": {"architecture": "mistral3", "embedding": 40, "yarn": 48.0,
+                       "yarn_log_mul": 1.0, "temperature": 0.1, "original_context": 2},
+    "devstral2": {"architecture": "mistral3", "yarn": 64.0, "yarn_beta_fast": 4.0,
+                 "yarn_log_mul": 0.0, "original_context": 128},
 }
 
 
 def write_model(path, arch, opts):
+    arch = opts.get("architecture", arch)
     w = gguf.GGUFWriter(path, arch)
-    d, heads, head, ff, vocab = 32, 4, 8, 48, 32
+    d, heads, head, ff, vocab = opts.get("embedding", 32), 4, 8, 48, 32
     kv = 1 if opts.get("mqa") else heads if opts.get("full_qk") or arch == "deepseek2-ocr" else 2
     layers = opts.get("layers", 2)
     w.add_context_length(128)
@@ -55,6 +61,14 @@ def write_model(path, arch, opts):
     w.add_layer_norm_rms_eps(1e-5)
     w.add_vocab_size(vocab)
     w.add_tokenizer_model("none")
+    if opts.get("yarn"):
+        w.add_rope_scaling_type(gguf.RopeScalingType.YARN)
+        w.add_rope_scaling_factor(opts["yarn"])
+        w.add_rope_scaling_orig_ctx_len(opts["original_context"])
+        w.add_rope_scaling_yarn_beta_fast(opts.get("yarn_beta_fast", 32.0))
+        w.add_rope_scaling_yarn_beta_slow(1.0)
+        w.add_rope_scaling_yarn_log_mul(opts["yarn_log_mul"])
+        w.add_attn_temperature_scale(opts.get("temperature", 0.0))
     if opts.get("swa"):
         w.add_sliding_window(2)
         w.add_sliding_window_pattern(2)

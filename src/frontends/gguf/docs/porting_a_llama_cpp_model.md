@@ -10,6 +10,9 @@ rebuilding that OpenVINO release.
 
 ## Choose the smallest implementation
 
+The [Devstral case study](devstral_support.md) shows the actual shared-builder changes,
+external-library wrapper and validation needed for models using existing architecture names.
+
 | Requirement | Implementation |
 |---|---|
 | Existing decoder topology, new architecture name | `make_decoder_architecture(name, rope)` |

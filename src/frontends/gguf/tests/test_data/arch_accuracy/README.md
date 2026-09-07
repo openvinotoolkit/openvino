@@ -17,6 +17,11 @@ Gemma2 and Muse Glimmer cross a two-token sliding window; SmolLM3 exercises its 
 NoPE layer. ERNIE omits `expert_shared_count`, as the real 21B checkpoint does. Bailing
 covers sigmoid routing, biased selection, group filtering, and a shared expert.
 
+Devstral adds three configurations under the existing `llama` and `mistral3` families.
+Small models use unequal embedding/query widths. Small 2 crosses reduced original-context
+boundaries at positions 2 and 4 to exercise attention temperature; Devstral 2 uses non-default
+YaRN correction parameters. Each runs natively and through the loadable Devstral example.
+
 `GGUFArchitectureAccuracy` compiles the native frontend graph on CPU with F32 inference,
 F16 KV state and dynamic activation quantization disabled. It checks every logit using
 normalized MSE below `1e-5`. Missing references fail the test. These fixtures run in the
@@ -32,7 +37,7 @@ c++ -std=c++17 architecture_oracle.cpp \
 PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_arch_accuracy.py \
     --oracle ./architecture_oracle --architectures llama qwen2 qwen3 phi3 minicpm olmoe \
     hunyuan-dense hunyuan-moe qwen3moe gemma gemma2 exaone4 ernie4_5-moe bailingmoe2 \
-    maincoder mistral3 smollm3 mellum deepseek2-ocr
+    maincoder mistral3 smollm3 mellum deepseek2-ocr devstral-small devstral-small2 devstral2
 # Use the Muse-capable revision for --architectures muse-glimmer.
 ```
 

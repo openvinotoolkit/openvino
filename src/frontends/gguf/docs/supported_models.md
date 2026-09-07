@@ -110,9 +110,10 @@ Classify the mode against a reference before registering a new architecture.
 
 ### Native architecture regression coverage (2026-09-07)
 
-`GGUFArchitectureAccuracy` checks 20 small, nonzero F32 models against complete logit
+`GGUFArchitectureAccuracy` checks 23 small, nonzero F32 models against complete logit
 vectors produced by the real llama.cpp CPU backend. The cases cover all 13 newly
-promoted architectures, Hunyuan MoE, and six existing verified architectures. Each runs
+promoted architectures, Hunyuan MoE, six existing verified architectures, and three Devstral
+configurations. The Devstral cases also run through a loaded external library. Each runs
 multi-token prefill, one-token decode, and a two-token cache append. The normalized MSE
 limit is `1e-5`. F32 inference, F16 KV cache and disabled activation quantization isolate
 architecture behavior from optional CPU approximations.
@@ -157,6 +158,15 @@ See [reference generation and reproduction instructions](../tests/test_data/arch
 These references are shipped with the frontend tests; no model download or llama.cpp
 build is needed in the regular test run. Real-model hub tests separately exercise
 additional checkpoint/quantization combinations in precommit/nightly jobs.
+
+### Devstral text models
+
+Devstral Small 2507 (`llama`) and Devstral Small 2 (`mistral3`) now have real 24B Q4_K_M
+checkpoint checks and numerical fixtures through both native and external registration.
+Both real models match all 13 reference choices on the tested prompt. Shared fixes handle
+YaRN metadata and position-dependent attention temperature. Devstral 2 has small-fixture
+coverage; its 123B checkpoint is not verified. Vision and tool orchestration are separate.
+See [Devstral support, validation and integration effort](devstral_support.md).
 
 ### Historical GenAI audit (before the architecture fixes)
 

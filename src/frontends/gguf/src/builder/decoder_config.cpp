@@ -224,8 +224,16 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     rope_config.freq_scale = cfg_f("rope_freq_scale");
     rope_config.ext_factor = cfg_f("rope_ext_factor");
     rope_config.attn_factor = 1.0f;
-    rope_config.beta_fast = 32.0f;
-    rope_config.beta_slow = 1.0f;
+    rope_config.beta_fast = cfg_f("rope_yarn_beta_fast");
+    rope_config.beta_slow = cfg_f("rope_yarn_beta_slow");
+    const float yarn_log_mul = cfg_f("rope_yarn_log_mul");
+    if (rope_config.ext_factor != 0.0f && yarn_log_mul != 0.0f && rope_config.freq_scale < 1.0f) {
+        // The RoPE translator already applies YaRN's default magnitude factor.
+        rope_config.attn_factor /= 1.0f + 0.1f * yarn_log_mul * std::log(1.0f / rope_config.freq_scale);
+    }
+    attention_temperature_scale = cfg_f("attention_temperature_scale");
+    OPENVINO_ASSERT(attention_temperature_scale == 0.0f || rope_config.n_ctx_orig > 0,
+                    "[GGUF] Attention temperature scaling requires a positive original context length");
     // Gemma4: separate rope config for SWA layers (different freq_base and n_dims).
     rope_config_swa = rope_config;
     rope_config_swa.freq_base = cfg_f("rope_freq_base_swa");

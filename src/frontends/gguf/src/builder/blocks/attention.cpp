@@ -157,6 +157,27 @@ std::string attention(GraphEmitter& e,
         k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
     }
 
+    if (cfg.attention_temperature_scale != 0.0f) {
+        const auto positions = ps({1, 1, 1, D});
+        e.set_tensor_meta("inp_pos", positions, ov::element::i32);
+        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {"inp_pos"}, positions, f32);
+        temp = scale(e, temp, 1.0f / cfg.rope_config.n_ctx_orig, p + "temp_window");
+        // Positions are nonnegative: integer conversion implements floor(position / context).
+        temp = e.add_op("GGML_OP_CPY", p + "temp_floor", {temp}, positions, ov::element::i32);
+        temp = e.add_op("GGML_OP_CPY", p + "temp_float", {temp}, positions, f32);
+        temp = e.add_op("GGML_OP_SCALE", p + "temp_offset", {temp}, positions, f32, 0, {{"bias", 1.0f}});
+        temp = e.add_op("GGML_OP_LOG", p + "temp_log", {temp}, positions, f32);
+        temp = e.add_op("GGML_OP_SCALE",
+                        p + "temp_scale",
+                        {temp},
+                        positions,
+                        f32,
+                        0,
+                        {{"scale", cfg.attention_temperature_scale}, {"bias", 1.0f}});
+        temp = e.add_op("GGML_OP_RESHAPE", p + "temp_broadcast", {temp}, ps({1, T, 1, 1}), f32, 1);
+        q = e.add_op("GGML_OP_MUL", p + "Qcur_temp_scaled", {q, temp}, e.shape_of_tensor(q), f32);
+    }
+
     // ---- KV cache store ----
     // Gemma4: layers with shared_kv_layers have no K/V of their own; they reuse the KV
     // from the last layer of the same SWA type that has its own KV cache. SWA layers

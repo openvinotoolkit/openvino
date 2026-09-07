@@ -377,3 +377,23 @@ TEST(GGUFBuilderSDK, ArchitectureOptionsOverrideAmbiguousTensorSemantics) {
     EXPECT_THROW(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights, RopeMode::Neox, options),
                  ov::Exception);
 }
+
+TEST(GGUFBuilderSDK, DevstralReadsYarnAndAttentionTemperatureMetadata) {
+    Environment env;
+    env.decoder();
+    env.metadata["test.rope.scaling.type"] = std::string("yarn");
+    env.real("test.rope.scaling.factor", 48.0f);
+    env.real("test.rope.scaling.yarn_beta_fast", 4.0f);
+    env.real("test.rope.scaling.yarn_beta_slow", 1.0f);
+    env.real("test.rope.scaling.yarn_log_multiplier", 1.0f);
+    env.integer("test.rope.scaling.original_context_length", 8192);
+    env.real("test.attention.temperature_scale", 0.1f);
+    env.architecture("mistral3");
+    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+    EXPECT_FLOAT_EQ(config.rope_config.beta_fast, 4.0f);
+    EXPECT_FLOAT_EQ(config.rope_config.beta_slow, 1.0f);
+    EXPECT_FLOAT_EQ(config.rope_config.attn_factor, 1.0f / (1.0f + 0.1f * std::log(48.0f)));
+    EXPECT_FLOAT_EQ(config.attention_temperature_scale, 0.1f);
+    env.integer("mistral3.rope.scaling.original_context_length", 0);
+    EXPECT_THROW(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights), ov::Exception);
+}

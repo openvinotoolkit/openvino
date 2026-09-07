@@ -904,6 +904,11 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
         const bool is_yarn = metadata.count(arch + ".rope.scaling.type") &&
                              std::get<std::string>(metadata.at(arch + ".rope.scaling.type")) == "yarn";
         config["rope_ext_factor"] = is_yarn ? 1.0f : 0.0f;
+        config["rope_yarn_beta_fast"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_beta_fast", 32.0f);
+        config["rope_yarn_beta_slow"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_beta_slow", 1.0f);
+        config["rope_yarn_log_mul"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_log_multiplier", 0.0f);
+        config["attention_temperature_scale"] =
+            metadata_to_float_or(metadata, arch + ".attention.temperature_scale", 0.0f);
 
         // n_ctx_orig: use rope.scaling.original_context_length when present; fall back to
         // context_length (the training context, which is also n_ctx_train in llama.cpp).

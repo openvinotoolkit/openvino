@@ -26,7 +26,11 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const auto directory = override_dir ? std::filesystem::path(override_dir)
                                         : std::filesystem::path(ov_gguf_test::test_data_dir()) / "arch_accuracy";
     ASSERT_TRUE(std::filesystem::exists(directory)) << "Missing architecture reference data: " << directory;
-    const auto base = directory / GetParam();
+    std::string name = GetParam();
+    const bool extension = name.size() > 10 && name.compare(name.size() - 10, 10, "_extension") == 0;
+    if (extension)
+        name.resize(name.size() - 10);
+    const auto base = directory / name;
     std::vector<std::vector<int64_t>> schedule{{1, 2, 3}, {4}, {5, 6}};
     std::vector<float> reference;
     int32_t vocab = 0;
@@ -85,6 +89,11 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         ASSERT_TRUE(file);
     }
     ov::frontend::gguf::FrontEnd fe;
+    if (extension) {
+        const auto library =
+            std::filesystem::path(ov::test::utils::getExecutableDirectory()) / DEVSTRAL_EXTENSION_LIBRARY;
+        static_cast<ov::frontend::FrontEnd&>(fe).add_extension(library.string());
+    }
     fe.add_extension(
         std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::GGUFMakeStateful()));
     fe.add_extension(
@@ -178,7 +187,13 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "smollm3",
                                            "mellum",
                                            "muse-glimmer",
-                                           "deepseek2-ocr"),
+                                           "deepseek2-ocr",
+                                           "devstral-small",
+                                           "devstral-small2",
+                                           "devstral2",
+                                           "devstral-small_extension",
+                                           "devstral-small2_extension",
+                                           "devstral2_extension"),
                          [](const ::testing::TestParamInfo<const char*>& info) {
                              std::string name = info.param;
                              std::replace(name.begin(), name.end(), '-', '_');
