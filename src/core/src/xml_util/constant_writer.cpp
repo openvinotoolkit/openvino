@@ -4,6 +4,9 @@
 
 #include "openvino/xml_util/constant_writer.hpp"
 
+#include <algorithm>
+#include <iterator>
+
 #include "openvino/core/except.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/reference/convert.hpp"
@@ -27,8 +30,6 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
                                                    bool compress_to_fp16,
                                                    ov::element::Type src_type,
                                                    bool ptr_is_temporary) {
-    const FilePosition write_pos = m_binary_output.get().tellp();
-    const auto raw_offset = write_pos - m_blob_offset;
     new_size = size;
 
     const auto fp16_data = compress_to_fp16 ? compress_data_to_fp16(ptr, size, src_type, new_size) : nullptr;
@@ -51,15 +52,17 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
         }
     }
 
-    // Pad to 8 B to avoid UB from unaligned reinterpret_cast during mmap access.
-    constexpr size_t alignment = 8;
-    const auto pad = ov::util::align_padding_size(alignment, static_cast<size_t>(raw_offset));
-    if (pad > 0) {
-        constexpr char zeros[alignment] = {};
-        m_binary_output.get().write(zeros, pad);
+    // Pad to this type's own alignment, measured from the absolute stream position
+    const auto written_type = compress_to_fp16 ? element::f16 : src_type;
+    const size_t alignment = written_type.is_dynamic() ? 8 : written_type.size();
+    const FilePosition write_pos = m_binary_output.get().tellp();
+    if (write_pos >= 0) {  // negative: stream can't report its position (e.g. pass::Hash's sink)
+        const auto pad = ov::util::align_padding_size(alignment, static_cast<size_t>(write_pos));
+        if (pad > 0) {
+            std::fill_n(std::ostream_iterator<char>(m_binary_output.get()), pad, 0);
+        }
     }
-    const FilePosition aligned_pos = m_binary_output.get().tellp();
-    const auto offset = aligned_pos - m_blob_offset;
+    const FilePosition offset = m_binary_output.get().tellp() - m_blob_offset;
 
     if (m_enable_compression) {
         if (!ptr_is_temporary) {

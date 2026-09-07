@@ -364,13 +364,15 @@ TEST_F(SerializationConstantCompressionTest, EmptyAndNotEmptyConstantsDifferentV
 
     ov::pass::Serialize(m_out_xml_path_1, m_out_bin_path_1).run_on_model(model_initial);
 
+    // No exact .bin size assertion: A is an empty i32 constant with a 1 B placeholder allocation
+    // (see Constant::allocate_buffer), so its alignment padding can vary with traversal order.
     ov::Core core;
     auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
 
     // Verify the two constants were not deduplicated (different data, different pointers)
     std::vector<const void*> ptrs;
     for (auto& node : model_imported->get_ops()) {
-        if (auto c = std::dynamic_pointer_cast<ov::op::v0::Constant>(node))
+        if (auto c = ov::as_type_ptr<ov::op::v0::Constant>(node))
             ptrs.push_back(c->get_data_ptr());
     }
     ASSERT_EQ(ptrs.size(), 2);

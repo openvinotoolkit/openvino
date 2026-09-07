@@ -918,35 +918,27 @@ TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefine
     ASSERT_TRUE(files_equal(m_dynamic_type_out_xml_path, m_undefined_type_out_xml_path))
         << "Serialized XML files are different: dynamic type vs undefined type";
 }
-TEST_F(SerializePassTest, constant_data_pointers_are_aligned) {
-    // bool (1 B), i32 (4 B), i64 (8 B) serialised consecutively.
-    // Without alignment padding the i64 lands at offset 5, which is UB.
+TEST_P(SerializePassTestP, constant_data_pointer_is_aligned) {
+    // A 1 B u8 spacer precedes the constant under test, so missing alignment padding would
+    // leave it at an unaligned offset.
+    const auto& precision = GetParam();
     auto param = std::make_shared<Parameter>(element::f32, Shape{1});
+    auto spacer = std::make_shared<Constant>(element::u8, Shape{1}, std::vector<uint8_t>{7});
+    auto c = std::make_shared<Constant>(precision, Shape{1}, std::vector{1});
 
-    auto bc = std::make_shared<Constant>(element::boolean, Shape{}, std::vector<char>{0});
-    auto ic4 = std::make_shared<Constant>(element::i32, Shape{}, std::vector<int32_t>{1});
-    auto ic8 = std::make_shared<Constant>(element::i64, Shape{}, std::vector<int64_t>{2});
+    auto a1 = std::make_shared<Add>(param, std::make_shared<op::v0::Convert>(spacer, element::f32));
+    auto a2 = std::make_shared<Add>(a1, std::make_shared<op::v0::Convert>(c, element::f32));
+    m_model = std::make_shared<Model>(OutputVector{a2}, ParameterVector{param});
 
-    auto cvt_b = std::make_shared<op::v0::Convert>(bc, element::f32);
-    auto cvt_i4 = std::make_shared<op::v0::Convert>(ic4, element::f32);
-    auto cvt_i8 = std::make_shared<op::v0::Convert>(ic8, element::f32);
+    OV_ASSERT_NO_THROW(ov::serialize(m_model, m_out_xml_path, m_out_bin_path));
 
-    auto a1 = std::make_shared<op::v1::Add>(param, cvt_b);
-    auto a2 = std::make_shared<op::v1::Add>(a1, cvt_i4);
-    auto a3 = std::make_shared<op::v1::Add>(a2, cvt_i8);
-
-    m_model = std::make_shared<Model>(OutputVector{a3}, ParameterVector{param});
-    pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m_model);
-
-    auto reloaded = test::readModel(m_out_xml_path.string(), m_out_bin_path.string());
+    const auto reloaded = test::readModel(m_out_xml_path.string(), m_out_bin_path.string());
+    const auto alignment = precision.size();
     for (auto& node : reloaded->get_ops()) {
-        auto c = std::dynamic_pointer_cast<Constant>(node);
-        if (!c || c->get_element_type() == element::string)
-            continue;
-        auto alignment = c->get_element_type().size();
-        auto ptr = c->get_data_ptr();
-        EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr) % alignment, 0)
-            << "Constant " << c->get_friendly_name() << " data pointer is not aligned to " << alignment << " bytes";
+        if (const auto& constant = ov::as_type_ptr<Constant>(node);
+            constant && constant->get_element_type() == precision) {
+            EXPECT_EQ(reinterpret_cast<uintptr_t>(constant->get_data_ptr()) % alignment, 0) << *constant;
+        }
     }
 }
 }  // namespace ov::test
