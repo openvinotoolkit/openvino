@@ -62,7 +62,7 @@ public:
 
 private:
     // For special config, stream executors must be set accordingly to ensure correct behavior.
-    void configure_stream_executors(ov::streams::Num numStreams);
+    void configure_stream_executors(ov::streams::Num numStreams, bool runInferencesSequentially);
 
     Logger _logger;
 

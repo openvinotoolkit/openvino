@@ -69,7 +69,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     const std::shared_ptr<InferRequest>& inferRequest = _device->createInferRequest(shared_from_this(), localConfig);
 
     std::call_once(_streamExecutorsInitFlag, [this, &localConfig] {
-        const_cast<CompiledModel*>(this)->configure_stream_executors(localConfig.get<NUM_STREAMS>());
+        const_cast<CompiledModel*>(this)->configure_stream_executors(localConfig.get<NUM_STREAMS>(),
+                                                                     localConfig.get<RUN_INFERENCES_SEQUENTIALLY>());
     });
 
     return std::make_shared<AsyncInferRequest>(inferRequest,
@@ -217,12 +218,10 @@ void CompiledModel::release_memory() {
     }
 }
 
-void CompiledModel::configure_stream_executors(ov::streams::Num numStreams) {
-    const auto localConfig = _propertiesManager->getConfig();
-
+void CompiledModel::configure_stream_executors(ov::streams::Num numStreams, bool runInferencesSequentially) {
     // In case of sequential execution of async requests for the same compiled model, the compiled model must use
     // dedicated executors with a single thread to ensure sequential execution of its async requests.
-    if (localConfig.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (runInferencesSequentially) {
         set_task_executor(make_executor("Intel NPU plugin start inferences executor", 1));
         _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", 1);
 
