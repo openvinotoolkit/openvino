@@ -78,6 +78,12 @@ TEST(ONNXFeConvertException, exception_if_qlinear_concat_invalid_x_input_triplet
                     testing::AllOf(testing::HasSubstr("expected 2 + 3*N inputs"), testing::HasSubstr(" got: 6")));
 }
 
+TEST(ONNXFeConvertException, exception_if_matmulnbits_weight_prepacked_unsupported) {
+    OV_EXPECT_THROW(convert_model("com.microsoft/matmulnbits_weight_prepacked_unsupported.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("weight_prepacked != 0"));
+}
+
 TEST(ONNXFeConvertException, exception_if_scan_num_scan_inputs_exceeds_body_inputs) {
     OV_EXPECT_THROW(convert_model("scan15_num_scan_inputs_exceeds_body_inputs.onnx"),
                     ov::frontend::OpConversionFailure,

@@ -58,6 +58,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     const auto bits = node.get_attribute_value<int64_t>(
         "bits",
         4);  // required, in docs: number of bits used for weight quantization (default 4)
+    // optional, default 0 (not prepacked). 1/2 mean B is prepacked into a CUDA-specific
+    // (CUTLASS SM80/SM90 fpA_intB) byte layout that this frontend does not decode.
+    const auto weight_prepacked = node.get_attribute_value<int64_t>("weight_prepacked", 0);
 
     // Validate attributes before any arithmetic to prevent division-by-zero and signed overflow
     CHECK_VALID_NODE(node, K > 0, "Wrong K attribute value: ", K);
@@ -68,6 +71,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                      block_size);
     CHECK_VALID_NODE(node, bits == 2 || bits == 4 || bits == 8, "Unsupported bits value: ", bits);
     CHECK_VALID_NODE(node, accuracy_level >= 0 && accuracy_level <= 4, "Unsupported accuracy level: ", accuracy_level);
+    CHECK_VALID_NODE(node,
+                     weight_prepacked == 0,
+                     "MatMulNBits limitation: weight_prepacked != 0 requires decoding an EP-specific "
+                     "(CUDA CUTLASS) prepacked weight layout, which is not supported, got: ",
+                     weight_prepacked);
 
     const auto u_K = static_cast<uint64_t>(K);
     const auto u_block_size = static_cast<uint64_t>(block_size);
