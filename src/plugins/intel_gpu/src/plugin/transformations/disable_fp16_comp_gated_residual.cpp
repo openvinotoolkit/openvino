@@ -24,23 +24,14 @@ DisableFP16CompForQwenImageGatedResidualPattern::DisableFP16CompForQwenImageGate
     using namespace ov::pass;
     using namespace ov::pass::pattern;
 
-    auto outer_split = wrap_type_strict_index<ov::op::v1::VariadicSplit>({any_input(), any_input(), any_input()});
-    auto outer_split_out = outer_split->output(0) | outer_split->output(1);
-    auto inner_split = wrap_type_strict_index<ov::op::v1::VariadicSplit>({outer_split_out, any_input(), any_input()});
+    auto outer_split = wrap_type<ov::op::v1::VariadicSplit>();
+    auto inner_split = wrap_type_strict_index<ov::op::v1::VariadicSplit>({outer_split, any_input(), any_input()});
     auto gate = wrap_type<ov::op::v0::Unsqueeze>({inner_split->output(2), any_input()}, type_matches(element::f32));
 
     auto branch_matmul = wrap_type<ov::op::v0::MatMul>({any_input(), any_input()}, type_matches(element::f32));
-    auto linear_add0 = wrap_type<ov::op::v1::Add>({branch_matmul, any_input()}, type_matches(element::f32));
-    auto linear_add1 = wrap_type<ov::op::v1::Add>({any_input(), branch_matmul}, type_matches(element::f32));
-    auto linear_add = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{linear_add0, linear_add1});
-
-    auto gated_branch0 = wrap_type<ov::op::v1::Multiply>({gate, linear_add}, type_matches(element::f32));
-    auto gated_branch1 = wrap_type<ov::op::v1::Multiply>({linear_add, gate}, type_matches(element::f32));
-    auto gated_branch = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{gated_branch0, gated_branch1});
-
-    auto residual_add0 = wrap_type<ov::op::v1::Add>({any_input(), gated_branch}, type_matches(element::f32));
-    auto residual_add1 = wrap_type<ov::op::v1::Add>({gated_branch, any_input()}, type_matches(element::f32));
-    auto residual_add = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{residual_add0, residual_add1});
+    auto linear_add = wrap_type<ov::op::v1::Add>({branch_matmul, any_input()}, type_matches(element::f32));
+    auto gated_branch = wrap_type<ov::op::v1::Multiply>({gate, linear_add}, type_matches(element::f32));
+    auto residual_add = wrap_type<ov::op::v1::Add>({gated_branch, any_input()}, type_matches(element::f32));
     auto mvn = wrap_type<ov::op::v6::MVN>({residual_add, any_input()}, type_matches(element::f32));
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
