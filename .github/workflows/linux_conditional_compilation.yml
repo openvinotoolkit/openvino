@@ -2,6 +2,10 @@ name: Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
 on:
   workflow_dispatch:
     inputs:
+      enable-compile-cache:
+        description: 'Use sccache/ccache for compilation (workflow_dispatch default applies to other triggers)'
+        type: boolean
+        default: true
       target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
@@ -116,8 +120,8 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'sccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'sccache' || '' }}
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'sccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'sccache' || '' }}
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
@@ -133,7 +137,7 @@ jobs:
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -199,7 +203,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Compile cache statistics (openvino cc collect main)
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-collect-openvino-main
@@ -214,7 +218,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
       - name: Compile cache statistics (sea_itt_lib)
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-collect-sea-itt-lib
@@ -236,7 +240,7 @@ jobs:
         run: cmake --build ${BUILD_DIR}/cpp_samples --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
 
       - name: Compile cache statistics (cpp samples)
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-collect-cpp-samples
@@ -314,8 +318,8 @@ jobs:
       options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'sccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'sccache' || '' }}
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'sccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'sccache' || '' }}
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
@@ -327,7 +331,7 @@ jobs:
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -398,7 +402,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 8 --target benchmark_app -- --quiet
 
       - name: Compile cache statistics (cc on benchmark_app)
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-on-benchmark-app
