@@ -56,6 +56,11 @@ internal to the frontend.
 Implement `ModelBuilder::build()` with a `GgufGraphContext`. The `BuildContext` is a borrowed view of
 metadata and weights, valid for the synchronous factory/build call. Do not retain it afterward.
 
+Read scalar metadata with `get_int`, `get_float`, `get_bool`, or `get_str`; they return
+`std::optional`, so defaults use standard `value_or`, e.g.
+`metadata.get_int("my-arch.block_count").value_or(1)`. Array getters return typed vectors.
+Numeric conversion reuses OpenVINO's tensor utilities rather than a separate SDK type dispatcher.
+
 The [projector example](../examples/architecture_extension/projector.cpp) is a complete small
 non-decoder family. It reads a weight, accepts a variable number of input embeddings and projects
 them into another space. Its architecture definition is separate from the plugin entry point.

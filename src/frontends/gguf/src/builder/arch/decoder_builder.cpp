@@ -20,7 +20,6 @@
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
-#include "builder/sdk/metadata_store.hpp"
 #include "openvino/op/parameter.hpp"
 
 namespace ov {
@@ -41,7 +40,7 @@ DecoderBuilder::DecoderBuilder(const std::map<std::string, GGUFMetaData>& config
                                std::unordered_map<std::string, GgufTensorType>& qtypes,
                                std::optional<RopeMode> rope,
                                const DecoderOptions& options)
-    : m_cfg(detail::DecoderMeta{config}, weights, rope, options),
+    : m_cfg(config, weights, rope, options),
       m_emit(weights, qtypes, m_cfg.arch),
       m_kv(blocks::KvCachePlan::build(m_cfg)) {
     auto& graph = *m_emit.graph();

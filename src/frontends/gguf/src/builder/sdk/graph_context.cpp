@@ -59,10 +59,7 @@ DecoderDimensions GgufGraphContext::configure_decoder(RopeMode rope, const Decod
     m_impl->check_open();
     OPENVINO_ASSERT(!m_impl->decoder, "[GGUF] decoder is already configured");
     auto normalized = decoder_config_from_meta(detail::MetadataAccess::get(metadata()).map);
-    auto config = std::make_unique<DecoderConfig>(detail::DecoderMeta{normalized},
-                                                  m_impl->build_ctx.weights->weights,
-                                                  rope,
-                                                  options);
+    auto config = std::make_unique<DecoderConfig>(normalized, m_impl->build_ctx.weights->weights, rope, options);
     auto& graph = *m_impl->emitter.graph();
     graph.has_rope = true;
     graph.rope_config = config->rope_config;
@@ -170,33 +167,20 @@ void GgufGraphContext::build_attn_inp_kv(bool swa) {
 
 // ---- ggml op vocabulary ----
 
-namespace {
-
-// ggml's elementwise ops give the result the FIRST operand's shape; the second is broadcast into
-// it. Taking a per-axis maximum instead would be wrong for the commonest case in a transformer: a
-// norm scale or bias is a ggml 1-D vector, which the parser stores as an [n, 1] tensor, so a
-// per-axis max against a [1, 1, T, n] activation would invent an [1, 1, n, n] result.
-ov::PartialShape binary_shape(const GgufValue& a, const GgufValue& b) {
-    (void)b;
-    return to4d(a.shape());
-}
-
-}  // namespace
-
 GgufValue GgufGraphContext::add(const GgufValue& a, const GgufValue& b) {
-    return m_impl->emit("GGML_OP_ADD", {a, b}, binary_shape(a, b), a.type());
+    return m_impl->emit("GGML_OP_ADD", {a, b}, to4d(a.shape()), a.type());
 }
 
 GgufValue GgufGraphContext::sub(const GgufValue& a, const GgufValue& b) {
-    return m_impl->emit("GGML_OP_SUB", {a, b}, binary_shape(a, b), a.type());
+    return m_impl->emit("GGML_OP_SUB", {a, b}, to4d(a.shape()), a.type());
 }
 
 GgufValue GgufGraphContext::mul(const GgufValue& a, const GgufValue& b) {
-    return m_impl->emit("GGML_OP_MUL", {a, b}, binary_shape(a, b), a.type());
+    return m_impl->emit("GGML_OP_MUL", {a, b}, to4d(a.shape()), a.type());
 }
 
 GgufValue GgufGraphContext::div(const GgufValue& a, const GgufValue& b) {
-    return m_impl->emit("GGML_OP_DIV", {a, b}, binary_shape(a, b), a.type());
+    return m_impl->emit("GGML_OP_DIV", {a, b}, to4d(a.shape()), a.type());
 }
 
 GgufValue GgufGraphContext::scale(const GgufValue& x, float factor) {

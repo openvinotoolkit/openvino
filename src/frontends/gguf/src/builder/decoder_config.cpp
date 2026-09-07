@@ -14,7 +14,6 @@
 #include <variant>
 
 #include "arch_registry.hpp"
-#include "builder/sdk/metadata_store.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov {
@@ -41,11 +40,10 @@ float cfg_float(const std::map<std::string, GGUFMetaData>& config, const std::st
 
 }  // namespace
 
-DecoderConfig::DecoderConfig(const detail::DecoderMeta& meta,
+DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
                              const std::unordered_map<std::string, ov::Tensor>& weights,
                              std::optional<RopeMode> rope,
                              const DecoderOptions& options) {
-    const auto& config = meta.config;
     const auto has = [&weights](const std::string& name) {
         return weights.count(name) > 0;
     };

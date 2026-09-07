@@ -8,6 +8,7 @@
 #include "builder/gguf_graph.hpp"
 #include "builder/sdk/metadata_store.hpp"
 #include "gtest/gtest.h"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
@@ -62,6 +63,66 @@ ArchitectureDefinition handler(const std::string& id, ArchitectureDefinition::Ma
             std::move(match)};
 }
 }  // namespace
+
+TEST(GGUFBuilderSDK, MetadataReadsReuseNumericConversionAcrossWidths) {
+    Environment env;
+    const auto& metadata = env.context.metadata;
+    for (auto type : {ov::element::boolean,
+                      ov::element::i8,
+                      ov::element::u8,
+                      ov::element::i16,
+                      ov::element::u16,
+                      ov::element::i32,
+                      ov::element::u32,
+                      ov::element::i64,
+                      ov::element::u64,
+                      ov::element::f32,
+                      ov::element::f64}) {
+        SCOPED_TRACE(type.get_type_name());
+        env.metadata["scalar"] = ov::util::make_tensor_of_value(type, 1);
+        env.metadata["array"] = ov::util::make_tensor_of_value(type, 1, {3});
+        EXPECT_EQ(metadata.get_float("scalar"), 1.0);
+        EXPECT_EQ(metadata.get_float_array("array"), (std::vector<double>{1, 1, 1}));
+        EXPECT_FALSE(metadata.get_float("array"));
+        if (type.is_real()) {
+            EXPECT_FALSE(metadata.get_int("scalar"));
+            EXPECT_TRUE(metadata.get_int_array("array").empty());
+        } else {
+            EXPECT_EQ(metadata.get_int("scalar"), 1);
+            EXPECT_EQ(metadata.get_bool("scalar"), true);
+            EXPECT_EQ(metadata.get_int_array("array"), (std::vector<int64_t>{1, 1, 1}));
+        }
+    }
+    env.metadata["signed"] = ov::util::make_tensor_of_value(ov::element::i64, -7);
+    EXPECT_EQ(metadata.get_int("signed"), -7);
+    env.metadata["unsigned"] = ov::util::make_tensor_of_value(ov::element::u64, uint64_t{1} << 63);
+    EXPECT_EQ(metadata.get_float("unsigned"), double(uint64_t{1} << 63));
+}
+
+TEST(GGUFBuilderSDK, MetadataMissingAndIncompatibleValuesRemainOptional) {
+    Environment env;
+    const auto& metadata = env.context.metadata;
+    env.metadata["string"] = std::string("value");
+    env.metadata["strings"] = std::vector<std::string>{"a", "b"};
+    env.metadata["integers"] = std::vector<int32_t>{-2, 3};
+    env.metadata["integer"] = 7;
+    env.metadata["float"] = 0.5f;
+    for (const auto* key : {"missing", "string", "strings"}) {
+        EXPECT_FALSE(metadata.get_int(key));
+        EXPECT_FALSE(metadata.get_float(key));
+        EXPECT_FALSE(metadata.get_bool(key));
+        EXPECT_TRUE(metadata.get_int_array(key).empty());
+        EXPECT_TRUE(metadata.get_float_array(key).empty());
+    }
+    EXPECT_FALSE(metadata.has("missing"));
+    EXPECT_TRUE(metadata.has("string"));
+    EXPECT_EQ(metadata.get_str("string"), "value");
+    EXPECT_EQ(metadata.get_str("missing").value_or("fallback"), "fallback");
+    EXPECT_EQ(metadata.get_str_array("strings"), (std::vector<std::string>{"a", "b"}));
+    EXPECT_EQ(metadata.get_int_array("integers"), (std::vector<int64_t>{-2, 3}));
+    EXPECT_EQ(metadata.get_int("integer"), 7);
+    EXPECT_EQ(metadata.get_float("float"), 0.5);
+}
 
 TEST(GGUFBuilderSDK, LogicalWeightDimensionsPreserveVectorsAndExpertAxes) {
     Environment env;

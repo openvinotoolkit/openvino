@@ -38,11 +38,6 @@ struct MetadataAccess {
     }
 };
 
-// The normalized decoder metadata DecoderConfig is built from, behind detail::DecoderMeta.
-struct DecoderMeta {
-    const std::map<std::string, GGUFMetaData>& config;
-};
-
 // The parser's tensor tables plus the emitter that turns a weight into a graph leaf, behind
 // GgufTensors. The emitter is what makes a weight lookup able to emit; the tables are what make it
 // able to answer "does this file have that tensor" without emitting.

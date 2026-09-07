@@ -11,6 +11,7 @@
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/builder/model_builder.hpp"
 #include "openvino/frontend/gguf/builder/value.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace frontend {
@@ -32,17 +33,6 @@ int64_t GgufValue::ne(size_t i) const {
 
 ModelBuilder::~ModelBuilder() = default;
 
-namespace {
-
-// The graph leaf a weight becomes carries the tensor under its full ".weight" name; a tensor that
-// is not a ".weight" (a bias, a norm scale stored without the suffix) goes through the plain path.
-bool is_dot_weight(const std::string& name) {
-    static const std::string suffix = ".weight";
-    return name.size() > suffix.size() && name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
-}
-
-}  // namespace
-
 bool GgufTensors::has(const std::string& gguf_name) const {
     return (*m_ctx->m_impl).emitter.has_weight(gguf_name);
 }
@@ -59,7 +49,7 @@ GgufValue GgufTensors::operator()(const std::string& gguf_name) const {
     // Emission is idempotent -- a weight read repeatedly by a layer loop, or shared between ops,
     // becomes exactly one leaf.
     if (!e.weight_emitted(gguf_name)) {
-        if (is_dot_weight(gguf_name)) {
+        if (ov::util::ends_with(gguf_name, ".weight")) {
             e.add_weight(gguf_name);
         } else {
             e.add_named_weight(gguf_name);

@@ -10,19 +10,12 @@
 
 #include "openvino/frontend/gguf/builder/decoder_options.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
-#include "openvino/frontend/gguf/visibility.hpp"
 #include "openvino/runtime/tensor.hpp"
+#include "quant/gguf.hpp"
 
 namespace ov {
 namespace frontend {
 namespace gguf {
-
-namespace detail {
-// Opaque handle to the normalized decoder metadata DecoderConfig is built from. Defined inside the
-// frontend, so this header does not expose the metadata variant that carries it -- an extension
-// receives an already-built DecoderConfig and never constructs one.
-struct DecoderMeta;
-}  // namespace detail
 
 // Everything the decoder topology needs to know about ONE model, resolved once up front.
 //
@@ -41,7 +34,7 @@ struct DecoderMeta;
 struct DecoderConfig {
     // Resolve the whole description from the parsed metadata (already normalized by
     // config_from_meta) and the parser's tensor table.
-    DecoderConfig(const detail::DecoderMeta& config,
+    DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
                   const std::unordered_map<std::string, ov::Tensor>& weights,
                   std::optional<RopeMode> rope = {},
                   const DecoderOptions& options = {});
