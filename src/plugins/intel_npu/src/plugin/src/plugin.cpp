@@ -247,7 +247,7 @@ bool Plugin::is_property_supported(const std::string& name, const ov::AnyMap& ar
     return _propertiesManager->isPropertySupported(name, arguments);
 }
 
-void Plugin::update_properties_before_operation(const ov::AnyMap& properties) const {
+void Plugin::update_global_properties(const ov::AnyMap& properties) const {
     const auto logLevel = properties.find(ov::log::level.name());
     const auto disableIdleMemoryPruning = properties.find(ov::intel_npu::disable_idle_memory_prunning.name());
     if (logLevel == properties.end() && disableIdleMemoryPruning == properties.end()) {
@@ -271,7 +271,7 @@ void Plugin::update_properties_before_operation(const ov::AnyMap& properties) co
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
-    update_properties_before_operation(properties);
+    update_global_properties(properties);
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -594,7 +594,7 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(std::istream)");
-    update_properties_before_operation(properties);
+    update_global_properties(properties);
 
     _logger.debug("Importing a compiled model from the given stream");
 
@@ -623,7 +623,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiledBlob,
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(ov::Tensor)");
-    update_properties_before_operation(properties);
+    update_global_properties(properties);
 
     _logger.debug("Importing a compiled model from the given tensor");
 
@@ -705,7 +705,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model,
                                         const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::query_model");
-    update_properties_before_operation(properties);
+    update_global_properties(properties);
 
     auto localProperties = properties;
 

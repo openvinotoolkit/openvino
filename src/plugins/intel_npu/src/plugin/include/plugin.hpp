@@ -64,7 +64,7 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    void update_properties_before_operation(const ov::AnyMap& properties) const;
+    void update_global_properties(const ov::AnyMap& properties) const;
 
     std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
 

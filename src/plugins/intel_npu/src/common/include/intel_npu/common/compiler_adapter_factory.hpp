@@ -7,7 +7,9 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -32,6 +34,12 @@ public:
     static const std::vector<ov::intel_npu::CompilerType>& getKnownCompilerTypes();
 
 private:
+    std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType> resolvePluginCompiler(
+        const ov::SoPtr<IEngineBackend>& engineBackend,
+        const std::shared_ptr<OptionSupportCache>& optionSupportCache,
+        const std::optional<IDevice::DeviceProperties>& deviceProperties,
+        std::string_view platform) const;
+
     enum class PluginCompilerPresence : std::uint8_t {
         UNKNOWN = 0,
         PRESENT = 1,
