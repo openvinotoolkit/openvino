@@ -853,10 +853,11 @@ ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primiti
 }
 
 void network::clear_output_memory_blocks() {
-    for (auto& [prim_id, block_ptr] : _output_memory_blocks) {
+    // Move map out first so _output_memory_blocks is empty even if invalidation throws.
+    auto blocks = std::move(_output_memory_blocks);
+    for (auto& [prim_id, block_ptr] : blocks) {
         invalidate_ext_block_compute_nodes(prim_id);
     }
-    _output_memory_blocks.clear();
 }
 
 void network::add_to_exec_order(const primitive_id& id) {

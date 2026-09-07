@@ -5,6 +5,7 @@
 #include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
 
 #include "itt.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
@@ -26,21 +27,30 @@ namespace ov::pass {
 EliminateConvPaddingMaskGating::EliminateConvPaddingMaskGating() {
     MATCHER_SCOPE(EliminateConvPaddingMaskGating);
 
-    // Pattern: attention_mask -> Slice -> Unsqueeze -> [Convert] -> Multiply -> Add -> Multiply(H, mask_expr)
+    // Pattern: attention_mask -> Slice -> [Unsqueeze] -> [Convert] -> [Multiply] -> [Add] -> Multiply(H, mask_expr)
     auto attn_mask = wrap_type<v0::Parameter>([](const ov::Output<ov::Node>& output) {
         return output.get_names().count("attention_mask");
     });
     auto slice = wrap_type<v8::Slice>({attn_mask, any_input(), any_input(), any_input(), any_input()});
-    auto unsqueeze = pattern::optional<v0::Unsqueeze>({slice, any_input()});
+    auto unsqueeze = pattern::wrap_type<v0::Unsqueeze>({slice, any_input()});
     auto convert = pattern::optional<v0::Convert>({unsqueeze});
-    auto mul_mask = wrap_type<v1::Multiply>({convert, any_input()});
-    auto add = wrap_type<v1::Add>({mul_mask, any_input()});
-    auto hidden_states = any_input();
-    auto mul_gate = wrap_type<v1::Multiply>({hidden_states, add});
+    auto scale = pattern::optional<v1::Multiply>({convert, any_input()});
+    auto shift = pattern::optional<v1::Add>({scale, any_input()});
 
-    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+    auto hidden_states = any_input();
+    auto mul_gate = wrap_type<v1::Multiply>({hidden_states, shift});
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pm = m.get_pattern_value_map();
-        pm.at(mul_gate).get_node_shared_ptr()->output(0).replace(pm.at(hidden_states));
+        const auto& gated = pm.at(hidden_states);
+        // The mask's scale/shift are compile-time constants, so the real gate is the branch that is not
+        // constant-foldable; this rejects the inner mask-scale Multiply, whose other operand is the constant scale.
+        // Checked here rather than in a pattern predicate to avoid running bound evaluation on every Multiply.
+        // (was observed to dramatically worsen the compile-time on large models if put in the pattern predicate)
+        if (ov::util::get_constant_from_source(gated) != nullptr) {
+            return false;
+        }
+        pm.at(mul_gate).get_node_shared_ptr()->output(0).replace(gated);
         return true;
     };
 

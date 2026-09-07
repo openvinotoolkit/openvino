@@ -59,7 +59,7 @@ if(NOT BUILD_SHARED_LIBS)
     # redefine all collected symbols
     foreach(onednn_symbol IN LISTS onednn_symbols)
         if(NOT onednn_symbol MATCHES "^#.+")
-            add_compile_definitions(${onednn_symbol}=ov_cpu_${onednn_symbol})
+            list(APPEND onednn_renamed_definitions ${onednn_symbol}=ov_cpu_${onednn_symbol})
         endif()
     endforeach()
 endif()
@@ -235,6 +235,10 @@ ov_add_plugin(NAME ${TARGET_NAME}
               ADD_CLANG_FORMAT
               ADD_CLANG_TIDY)
 
+if(NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${TARGET_NAME} PRIVATE ${onednn_renamed_definitions})
+endif()
+
 # give a different file name depending on target platform architecture
 if(ARM OR AARCH64)
     set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME "openvino_arm_cpu_plugin")
@@ -266,7 +270,7 @@ endif()
 
 if(RISCV64)
     # Set `XBYAK_RISCV_V=1` to compile Xbyak-code for RVV-related instructions
-    target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1)
+    target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1 XBYAK_RISCV_VSETV_DEFAULT_OLD=0)
     target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
     target_include_directories(${TARGET_NAME} SYSTEM INTERFACE $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
@@ -275,7 +279,11 @@ endif()
 # since many files include x64 related headers unconditionally.
 add_definitions(-DXBYAK64)
 
+# disable strict check for memory register size in Xbyak to avoid compilation errors on some platforms
+add_definitions(-DXBYAK_STRICT_CHECK_MEM_REG_SIZE=0)
+
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/third_party/xbyak)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation
 # is not (yet) needed.
@@ -397,6 +405,7 @@ ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
     target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
+    target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/onednn/third_party/xbyak)
 
     set(CPU_OBJ_LINK_SYSTEM LIBRARIES dnnl openvino::pugixml)
     if(RISCV64)

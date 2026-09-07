@@ -17,12 +17,18 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/primitive.hpp"
 
+#include "intel_gpu/runtime/layout.hpp"
+
+#include "openvino/core/shape.hpp"
+#include "openvino/core/shape_util.hpp"
+
 #include "kernel_selector_params.h"
 #include "weight_bias_params.h"
 #include "kernel_selector_common.h"
 #include "tensor_type.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 #include <memory>
@@ -262,6 +268,66 @@ inline bool broadcastable(const ov::PartialShape& first_pshape, const ov::Partia
     return true;
 }
 
+// Computes a lower-rank representation of a fused eltwise peer when collapsing its leading spatial
+// axes is an order-preserving reshape and the result broadcasts directly to the host layout.
+// E.g. peer [1,2,8,6,10] (bfzyx) folds to [1,2,48,10] (bfyx) for host [1,2,48,10]: axes 2 and 3 (8,6)
+// collapse into 48, which then matches the host shape exactly.
+inline std::optional<ov::PartialShape> fold_higher_rank_fused_peer(const layout& peer_layout, const layout& host_layout) {
+    const auto& peer_shape = peer_layout.get_partial_shape();
+    const auto& host_shape = host_layout.get_partial_shape();
+
+    const size_t peer_rank = peer_shape.size();
+    const size_t host_rank = host_shape.size();
+    if (peer_rank <= host_rank || host_rank < 3)
+        return std::nullopt;
+    if (peer_shape.is_dynamic() || host_shape.is_dynamic())
+        return std::nullopt;
+    if (peer_layout.data_padding || host_layout.data_padding)
+        return std::nullopt;
+
+    const auto& peer_format = peer_layout.format;
+    const auto& host_format = host_layout.format;
+    if (!format::is_default_format(peer_format) || !format::is_default_format(host_format))
+        return std::nullopt;
+    // A default format adjusted to another rank is always that rank's default format.
+    OPENVINO_ASSERT(format::adjust_to_rank(peer_format, host_rank) == host_format,
+                    "Default format rank adjustment must match the host's default format");
+
+    const auto peer_dims = peer_shape.to_shape();
+    const auto host_dims = host_shape.to_shape();
+    const size_t fold_count = peer_rank - host_rank + 1;
+    ov::Shape folded_dims;
+    folded_dims.reserve(host_rank);
+    folded_dims.push_back(peer_dims[0]);
+    folded_dims.push_back(peer_dims[1]);
+
+    size_t grouped = 1;
+    for (size_t i = 2; i < 2 + fold_count; ++i) {
+        const auto grouped_size = ov::util::shape_size_safe({grouped, peer_dims[i]});
+        if (!grouped_size.has_value())
+            return std::nullopt;
+        grouped = grouped_size.value();
+    }
+    folded_dims.push_back(grouped);
+    folded_dims.insert(folded_dims.end(), peer_dims.begin() + 2 + fold_count, peer_dims.end());
+
+    const auto peer_total = ov::util::shape_size_safe(peer_dims);
+    const auto folded_total = ov::util::shape_size_safe(folded_dims);
+    if (!peer_total.has_value() || !folded_total.has_value())
+        return std::nullopt;
+    // Folding only regroups existing dims, so the element count is preserved whenever both totals fit.
+    OPENVINO_ASSERT(peer_total.value() == folded_total.value(), "Peer folding must preserve the total element count");
+    if (folded_dims.size() != host_dims.size())
+        return std::nullopt;
+
+    for (size_t i = 0; i < folded_dims.size(); ++i) {
+        if (folded_dims[i] != 1 && folded_dims[i] != host_dims[i])
+            return std::nullopt;
+    }
+
+    return ov::PartialShape(folded_dims);
+}
+
 inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& impl_params) {
     auto updated_impl_params = impl_params;
     bool use_new_shape_infer = impl_params.prog->is_new_shape_infer();
@@ -269,12 +335,25 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
     for (auto& fd : updated_impl_params.fused_desc) {
         if (fd.is_type<eltwise>() && fd.total_num_deps == 2 && fd.has_outer_dep()) {
             if (updated_impl_params.input_layouts.size() > size_t(fd.outer_dep_start_idx)) {
-                const auto& out_pshape = updated_impl_params.output_layouts[0].get_partial_shape();
+                const auto& out_layout = updated_impl_params.output_layouts[0];
+                const auto& out_pshape = out_layout.get_partial_shape();
 
                 auto& dep_layout = updated_impl_params.input_layouts[fd.outer_dep_start_idx];
                 const auto& dep_shape = dep_layout.get_partial_shape();
 
-                if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
+                if (dep_shape.size() > out_pshape.size()) {
+                    // Always fold higher-rank peers, regardless of broadcastable(): in legacy shape-infer mode
+                    // broadcastable() only compares the first out_pshape.size() axes, so a peer whose leading
+                    // axes are all 1 can be misreported as compatible while its rank still mismatches the host's
+                    // iteration space, causing the fused-op kernel to index the peer incorrectly.
+                    auto folded = fold_higher_rank_fused_peer(dep_layout, out_layout);
+                    // can_fuse_reorder_to_prev() must have already declined fusion for any non-foldable peer.
+                    OPENVINO_ASSERT(folded.has_value(),
+                                    "Unfoldable higher-rank fused eltwise peer reached canonicalization; "
+                                    "can_fuse_reorder_to_prev guard was expected to prevent this.");
+                    dep_layout.set_partial_shape(*folded);
+                    dep_layout.format = format::adjust_to_rank(dep_layout.format, out_pshape.size());
+                } else if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
                     dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
                 }
             }

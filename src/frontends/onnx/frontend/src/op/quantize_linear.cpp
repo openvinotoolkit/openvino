@@ -4,6 +4,7 @@
 
 #include <algorithm>
 
+#include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/core/validation_util.hpp"
@@ -26,12 +27,16 @@ namespace onnx {
 namespace ai_onnx {
 namespace detail {
 namespace {
-ov::Output<ov::Node> get_zero_point(const ov::OutputVector& inputs) {
-    if (inputs.size() > 2) {
+ov::Output<ov::Node> get_zero_point(const Node& onnx_node, const ov::OutputVector& inputs) {
+    if (inputs.size() > 2 && !ov::op::util::is_null(inputs.at(2))) {
         return inputs.at(2);
-    } else {
-        return std::make_shared<v0::Constant>(ov::element::u8, ov::Shape{}, std::uint8_t(0));
     }
+    // Since opset 21 the destination type may be defined by the "output_dtype" attribute
+    // instead of the "y_zero_point" input. u8 is the default, as defined by the ONNX spec.
+    const auto output_dtype = onnx_node.get_attribute_value<int64_t>("output_dtype", 0);
+    const auto destination_type =
+        output_dtype != 0 ? common::get_ov_element_type(output_dtype) : ov::element::Type(ov::element::u8);
+    return std::make_shared<v0::Constant>(destination_type, ov::Shape{}, 0);
 }
 
 void validate_zero_point_type(const Node& onnx_node, const ov::Output<ov::Node>& y_zero_point) {
@@ -42,26 +47,38 @@ void validate_zero_point_type(const Node& onnx_node, const ov::Output<ov::Node>&
             (y_zero_point_et == ov::element::u4 || y_zero_point_et == ov::element::i4 ||
              y_zero_point_et == ov::element::u8 || y_zero_point_et == ov::element::i8 ||
              y_zero_point_et == ov::element::u16 || y_zero_point_et == ov::element::i16 ||
-             y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2),
+             y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2 ||
+             y_zero_point_et == ov::element::f4e2m1),
         "\"y_zero_point\" input data for QuantizeLinear operator must be one of the supported types: u4, i4, u8, i8, "
-        "u16, i16, f8e4m3 or f8e5m2.");
+        "u16, i16, f8e4m3, f8e5m2 or f4e2m1.");
 
-    // The ONNX spec requires the zero point to be 0 for fp8 types.
-    // Both f8e4m3 and f8e5m2 encode 0.0 as the all-zero bit pattern (0x00),
-    // so checking that every raw byte is zero is sufficient.
-    if (y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2) {
+    // The ONNX spec requires the zero point to be 0 for low precision floating point types,
+    // so when it is a constant, decode it and check that every element is equal to 0.0.
+    if (y_zero_point_et == ov::element::f8e4m3 || y_zero_point_et == ov::element::f8e5m2 ||
+        y_zero_point_et == ov::element::f4e2m1) {
         const auto zp_const = ov::util::get_constant_from_source(y_zero_point);
         if (zp_const) {
-            const auto raw = zp_const->cast_vector<float>();
+            const auto values = zp_const->cast_vector<float>();
             CHECK_VALID_NODE(onnx_node,
-                             std::all_of(raw.begin(),
-                                         raw.end(),
+                             std::all_of(values.begin(),
+                                         values.end(),
                                          [](const float value) {
                                              return value == 0.0f;
                                          }),
-                             "Expecting \"y_zero_point\" in QuantizeLinear equal zero for 8-bit floating point types.");
+                             "Expecting \"y_zero_point\" in QuantizeLinear equal zero for low precision floating "
+                             "point types.");
         }
     }
+}
+
+void validate_output_dtype(const Node& onnx_node, const ov::Output<ov::Node>& y_zero_point) {
+    const auto output_dtype = onnx_node.get_attribute_value<int64_t>("output_dtype", 0);
+    if (output_dtype == 0) {
+        return;
+    }
+    CHECK_VALID_NODE(onnx_node,
+                     common::get_ov_element_type(output_dtype) == y_zero_point.get_element_type(),
+                     "The \"output_dtype\" attribute of QuantizeLinear must match the \"y_zero_point\" element type.");
 }
 
 ov::Output<ov::Node> validate_scale(const Node& onnx_node, const ov::Output<ov::Node>& y_scale) {
@@ -174,8 +191,9 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
     const ov::element::Type& destination_type = y_zero_point.get_element_type();
     const ov::element::Type& data_type = data.get_element_type();
 
-    // For 8-bit floating point output types, use FakeConvert instead of FakeQuantize
-    if (destination_type == ov::element::f8e4m3 || destination_type == ov::element::f8e5m2) {
+    // For low precision floating point output types, use FakeConvert instead of FakeQuantize
+    if (destination_type == ov::element::f8e4m3 || destination_type == ov::element::f8e5m2 ||
+        destination_type == ov::element::f4e2m1) {
         return make_fake_convert(y_scale, y_zero_point, data);
     }
 
@@ -209,10 +227,11 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     auto x = inputs.at(0);
     auto y_scale = inputs.at(1);
-    auto y_zero_point = detail::get_zero_point(inputs);
+    auto y_zero_point = detail::get_zero_point(node, inputs);
 
     x = detail::validate_data(node, x);
     detail::validate_zero_point_type(node, y_zero_point);
+    detail::validate_output_dtype(node, y_zero_point);
     y_scale = detail::validate_scale(node, y_scale);
 
     return {detail::make_fake_quantize(y_scale, y_zero_point, x)};
@@ -233,6 +252,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 
     x = detail::validate_data(node, x);
     detail::validate_zero_point_type(node, y_zero_point);
+    detail::validate_output_dtype(node, y_zero_point);
     y_scale = detail::validate_scale(node, y_scale);
 
     const auto& x_shape = x.get_partial_shape();
@@ -314,7 +334,7 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
 
     const auto& x = inputs[0];
     const auto& scale = inputs[1];
-    const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
+    const auto zero_point = ai_onnx::detail::get_zero_point(node, inputs);
 
     // per-tensor quantization, axis attribute ignored
     if (ai_onnx::detail::is_per_tensor_quantization(scale, zero_point)) {
@@ -337,7 +357,7 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
 
     const auto& x = inputs[0];
     const auto& scale = inputs[1];
-    const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
+    const auto zero_point = ai_onnx::detail::get_zero_point(node, inputs);
 
     if (ai_onnx::detail::is_per_tensor_quantization(scale, zero_point)) {
         return ai_onnx::opset_1::quantize_linear(node);

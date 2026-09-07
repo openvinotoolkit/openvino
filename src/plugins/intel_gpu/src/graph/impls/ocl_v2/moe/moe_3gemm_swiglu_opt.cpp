@@ -1273,7 +1273,16 @@ public:
         ib >> use_gpu_mask_gen_prefill;
         ib >> use_grouped_gemm_prefill;
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
-        init(impl_params->typed_desc<moe_3gemm_fused_compressed>());
+        auto cur_moe = impl_params->typed_desc<moe_3gemm_fused_compressed>();
+        init(cur_moe);
+        if (cur_moe->_otd.lru_expert_num > 0) {
+            _weight_provider = std::make_shared<OffloadExpertWeightProvider>(cur_moe->_otd.lru_expert_num,
+                                                                             cur_moe->_config,
+                                                                             cur_moe->_otd.weight_bin_offsets,
+                                                                             cur_moe->_otd.weights_path);
+        } else {
+            _weight_provider = std::make_shared<ResidentExpertWeightProvider>();
+        }
     }
 
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {

@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "../common_optimizations/ssm_test_models.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/abs.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/einsum.hpp"
@@ -7174,6 +7176,85 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
         model_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
     }
 }
+// Scale without shift (synthetic): the mask-scale Multiply is structurally identical to a collapsed
+// gate, so this checks the gate is still found while the inner Multiply (consumer = gate Multiply)
+// is not mistaken for it.
+TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating_NoAdd) {
+    {
+        auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i32, "attention_mask");
+        auto slice = makeOP<v8::Slice>({attention_mask, {0}, {1}, {1}, {1}});
+        auto unsqueeze = makeOP<v0::Unsqueeze>({slice, 1});
+        auto convert = makeOP<v0::Convert>({unsqueeze}, {{"destination_type", "f32"}});
+        auto multiply = makeOP<v1::Multiply>({convert, 1024.0f}, {{"auto_broadcast", "numpy"}});
+        auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
+        auto multiply_gate = makeOP<v1::Multiply>({multiply_gate_param, multiply}, {{"auto_broadcast", "numpy"}});
+
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
+        auto matmul =
+            makeOP<v0::MatMul>({matmul_param, multiply_gate}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto res = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({attention_mask, matmul_param, multiply_gate_param});
+        model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
+
+        ov::pass::Manager pass_manager;
+        pass_manager.set_per_pass_validation(false);
+        pass_manager.register_pass<ov::pass::EliminateConvPaddingMaskGating>();
+        pass_manager.run_passes(model);
+
+        model->remove_parameter(params[0]);
+    }
+    {
+        auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
+        auto matmul =
+            makeOP<v0::MatMul>({matmul_param, multiply_gate_param}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto res = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({matmul_param, multiply_gate_param});
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
+    }
+}
+
+// granite-4.0-h-micro shape: hidden_states is gated with the Converted mask directly
+// (no scale Multiply, no shift Add), so mask_expr ends at Convert.
+TEST_F(SDPAToPATest, SDPAToPA_EliminateConvPaddingMaskGating_GraniteMamba) {
+    {
+        auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i32, "attention_mask");
+        auto slice = makeOP<v8::Slice>({attention_mask, {0}, {1}, {1}, {1}});
+        auto unsqueeze = makeOP<v0::Unsqueeze>({slice, 1});
+        auto convert = makeOP<v0::Convert>({unsqueeze}, {{"destination_type", "f32"}});
+        auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
+        auto multiply_gate = makeOP<v1::Multiply>({multiply_gate_param, convert}, {{"auto_broadcast", "numpy"}});
+
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
+        auto matmul =
+            makeOP<v0::MatMul>({matmul_param, multiply_gate}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto res = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({attention_mask, matmul_param, multiply_gate_param});
+        model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
+
+        ov::pass::Manager pass_manager;
+        pass_manager.set_per_pass_validation(false);
+        pass_manager.register_pass<ov::pass::EliminateConvPaddingMaskGating>();
+        pass_manager.run_passes(model);
+
+        model->remove_parameter(params[0]);
+    }
+    {
+        auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
+        auto matmul =
+            makeOP<v0::MatMul>({matmul_param, multiply_gate_param}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto res = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({matmul_param, multiply_gate_param});
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
+    }
+}
 
 // Minimal single-layer stateful SDPA model. With fq_on_k / fq_on_v, a 5-input v0::FakeQuantize is
 // inserted after the KV-cache Concat (the a8w8 / SmoothQuant location) - feeding SDPA directly
@@ -7390,6 +7471,31 @@ TEST(SDPAToPA_ActivationFakeQuantizeOnKV_PerChannel, NotTolerated) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::SDPAToPagedAttention>();
     OV_EXPECT_THROW(manager.run_passes(model), ov::Exception, ::testing::HasSubstr("undeclared parameters"));
+}
+
+// SDPAToPagedAttention must not silently leave stateful SSM nodes in the graph. SelectiveSSMFusion fuses
+// the loop-based SSM into a SelectiveSSM, but its plain-Parameter recurrent state (no Gather(ReadValue))
+// prevents PagedSelectiveSSMFusion from converting it, so the two fused counts diverge and the
+// transformation throws.
+TEST(SDPAToPA_SelectiveSSM_Unconvertible, StatefulSSMLeftInGraphThrows) {
+    auto model = make_single_layer_sdpa_model(/*fq_on_k=*/false, /*fq_on_v=*/false, /*gqa=*/false);
+
+    // plain_parameter_state=true keeps the fused SelectiveSSM unconvertible by PagedSelectiveSSMFusion.
+    auto ssm_model = ov::test::ssm::build_looped_ssm(/*num_heads=*/4,
+                                                     /*num_groups=*/2,
+                                                     /*head_dim=*/8,
+                                                     /*state_size=*/16,
+                                                     /*with_post_loop=*/false,
+                                                     /*break_body=*/false,
+                                                     /*plain_parameter_state=*/true);
+    model->add_parameters(ssm_model->get_parameters());
+    model->add_results(ssm_model->get_results());
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    OV_EXPECT_THROW(manager.run_passes(model),
+                    ov::Exception,
+                    ::testing::HasSubstr("Stateful SSM nodes cannot be left in the graph"));
 }
 
 /*

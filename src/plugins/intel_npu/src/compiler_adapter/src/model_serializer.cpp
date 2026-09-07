@@ -85,6 +85,8 @@ std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precisio
         return "FP8_E5M2";
     case ov::element::Type_t::f8e8m0:
         return "FP8_E8M0";
+    case ov::element::Type_t::f4e2m1:
+        return "FP4_E2M1";
     case ov::element::Type_t::nf4:
         return "NF4";
     case ov::element::Type_t::i4:
@@ -320,6 +322,7 @@ protected:
         if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
             manager.register_pass<ov::pass::EliminateIdentity>();
         }
+
         manager.run_passes(model);
 
         // Step 2: store the WeightlessCacheAttributes if requested
