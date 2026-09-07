@@ -476,40 +476,13 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     }
 };
 
-struct PROFILING_TYPE final : OptionBase<PROFILING_TYPE, ov::intel_npu::ProfilingType> {
+struct PROFILING final : OptionBase<PROFILING, bool> {
     static std::string_view key() {
-        return ov::intel_npu::profiling_type.name();
+        return ov::intel_npu::profiling.name();
     }
 
-    static constexpr std::string_view getTypeName() {
-        return "ov::intel_npu::ProfilingType";
-    }
-
-    static ov::intel_npu::ProfilingType defaultValue() {
-        return ov::intel_npu::ProfilingType::MODEL;
-    }
-
-    static ov::intel_npu::ProfilingType parse(std::string_view val) {
-        if (val == "MODEL") {
-            return ov::intel_npu::ProfilingType::MODEL;
-        } else if (val == "INFER") {
-            return ov::intel_npu::ProfilingType::INFER;
-        }
-
-        OPENVINO_THROW("Value '", val, "' is not a valid PROFILING_TYPE option");
-    }
-
-    static std::string toString(const ov::intel_npu::ProfilingType& val) {
-        std::stringstream strStream;
-        if (val == ov::intel_npu::ProfilingType::MODEL) {
-            strStream << "MODEL";
-        } else if (val == ov::intel_npu::ProfilingType::INFER) {
-            strStream << "INFER";
-        } else {
-            OPENVINO_THROW("No valid string for current PROFILING_TYPE option");
-        }
-
-        return strStream.str();
+    static bool defaultValue() {
+        return false;
     }
 
     static OptionMode mode() {

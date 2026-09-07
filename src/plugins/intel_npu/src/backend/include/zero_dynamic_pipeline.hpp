@@ -158,6 +158,8 @@ public:
                                                  const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors);
 
 private:
+    void setup_infer_profiling() override;
+
     void execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                             DynamicArguments& args,
                             std::vector<ze_command_list_handle_t>& commandLists,

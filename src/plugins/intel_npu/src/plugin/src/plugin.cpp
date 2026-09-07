@@ -171,7 +171,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(PLATFORM);
     REGISTER_OPTION(CREATE_EXECUTOR);
     REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
-    REGISTER_OPTION(PROFILING_TYPE);
+    REGISTER_OPTION(PROFILING);
     REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
     REGISTER_OPTION(BATCH_MODE);
     REGISTER_OPTION(BYPASS_UMD_CACHING);
@@ -527,6 +527,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
                                             localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
 
+        auto compilerConfig = localConfig;
+        if (compilerConfig.has<PROFILING>() && compilerConfig.get<PROFILING>() && compilerConfig.has<PERF_COUNT>() &&
+            compilerConfig.get<PERF_COUNT>()) {
+            _logger.info("%s is enabled, disabling %s for this compilation",
+                         ov::intel_npu::profiling.name(),
+                         ov::enable_profiling.name());
+            compilerConfig.update({{ov::enable_profiling.name(), PERF_COUNT::toString(false)}});
+        }
+
         if (shouldWarnAboutLatency) {
             _logger.warning("PERFORMANCE_HINT is explicitly set to LATENCY mode, but batch dimension (N) is "
                             "detected in the model. The NPU Plugin will reshape the model to batch size 1 and "
@@ -540,13 +549,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         if (shouldForceThroughput) {
             _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
 
-            auto modifiedConfig = localConfig;  // Copy only when needed
             std::stringstream strStream;
             strStream << ov::hint::PerformanceMode::THROUGHPUT;
-            modifiedConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
-            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
+            compilerConfig.update({{ov::hint::performance_mode.name(), strStream.str()}});
+            graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
         } else {
-            graph = compileWithConfig(std::move(modelToCompile), localConfig);
+            graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());

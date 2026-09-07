@@ -206,36 +206,6 @@ inline std::istream& operator>>(std::istream& is, ModelSerializerVersion& modelS
 }
 
 /**
- * @brief [Only for NPU Plugin]
- * Type: string, default is MODEL.
- * Type of profiling to execute. Can be Model (default) or INFER (based on npu timestamps)
- * @note Configuration API v 2.0
- */
-enum class ProfilingType { MODEL, INFER };
-
-/**
- * @brief Prints a string representation of ov::intel_npu::ProfilingType to a stream
- * @param out An output stream to send to
- * @param fmt A profiling type value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
- */
-inline std::ostream& operator<<(std::ostream& out, const ProfilingType& fmt) {
-    switch (fmt) {
-    case ProfilingType::MODEL: {
-        out << "MODEL";
-    } break;
-    case ProfilingType::INFER: {
-        out << "INFER";
-    } break;
-    default:
-        out << static_cast<uint32_t>(fmt);
-        break;
-    }
-    return out;
-}
-
-/**
  * @brief Defines the options corresponding to the legacy set of values.
  */
 enum class LegacyPriority {
@@ -326,12 +296,13 @@ static constexpr ov::Property<std::string> dynamic_shape_to_static{"NPU_DYNAMIC_
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: string, default is empty.
- * MODEL - model layer profiling is done
- * INFER - npu inference performance numbers are measured
- * Model layers profiling are used if this string is empty
+ * Type: boolean, default is false.
+ * Measures the duration of each inference from NPU timestamps taken around the whole execution.
+ * @note This is resolved at runtime only and never reaches the compiler, so it adds no compilation overhead.
+ * When enabled it takes precedence over ov::enable_profiling: the model is not instrumented for layer profiling
+ * and get_profiling_info() reports these inference timings instead of layer statistics.
  */
-static constexpr ov::Property<ProfilingType> profiling_type{"NPU_PROFILING_TYPE"};
+static constexpr ov::Property<bool> profiling{"NPU_PROFILING"};
 
 /**
  * @brief [Only for NPU Plugin]

@@ -387,10 +387,11 @@ TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
 
     OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
 
-    if (configuration.find(ov::intel_npu::profiling_type.name())->second == ov::intel_npu::ProfilingType::MODEL) {
-        ASSERT_ANY_THROW(inferReq.infer());
-    } else {
+    if (configuration.at(ov::intel_npu::profiling.name()).as<bool>()) {
+        // NPU_PROFILING turns layer profiling off, so an uninstrumented blob stays usable.
         OV_ASSERT_NO_THROW(inferReq.infer());
+    } else {
+        ASSERT_ANY_THROW(inferReq.infer());
     }
 }
 
@@ -2908,8 +2909,8 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                                                                                   false})),  // with reset infer request
                          ov::test::utils::appendPlatformTypeTestName<BooleanPrecisionInferRequestRunTests>);
 
-const std::vector<ov::AnyMap> profilingConfigs{{ov::intel_npu::profiling_type(ov::intel_npu::ProfilingType::MODEL)},
-                                               {ov::intel_npu::profiling_type(ov::intel_npu::ProfilingType::INFER)}};
+const std::vector<ov::AnyMap> profilingConfigs{{ov::intel_npu::profiling(false)},
+                                               {ov::intel_npu::profiling(true)}};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ProfilingBlob,

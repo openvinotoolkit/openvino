@@ -44,6 +44,7 @@ public:
 
 protected:
     void enable_profiling();
+    virtual void setup_infer_profiling() = 0;
 
     // Helper function handling strides for Zero Pipeline and ZeroDynamicPipeline. Stateless regarding pipeline
     // instances, hence static
@@ -106,6 +107,8 @@ public:
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
 private:
+    void setup_infer_profiling() override;
+
     std::vector<std::unique_ptr<CommandList>> _command_lists;
 };
 

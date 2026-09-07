@@ -152,7 +152,7 @@ void CompiledModelPropertyManager::registerProperties() {
     try_register_property_based_on_config_if_set_as_read_only<WEIGHTS_PATH>(_config, _properties, ov::weights_path.name());
     try_register_property_based_on_config_if_set_as_read_only<CACHE_DIR>(_config, _properties, ov::cache_dir.name());
     try_register_property_based_on_config_if_set_as_read_only<PERF_COUNT>(_config, _properties, ov::enable_profiling.name());
-    try_register_property_based_on_config_if_set_as_read_only<PROFILING_TYPE>(_config, _properties, ov::intel_npu::profiling_type.name());
+    try_register_property_based_on_config_if_set_as_read_only<PROFILING>(_config, _properties, ov::intel_npu::profiling.name());
     try_register_property_based_on_config_if_set_as_read_only<TURBO>(_config, _properties, ov::intel_npu::turbo.name());
     try_register_property_based_on_config_if_set_as_read_only<COMPILATION_MODE_PARAMS>(_config, _properties, ov::intel_npu::compilation_mode_params.name());
     try_register_property_based_on_config_if_set_as_read_only<DMA_ENGINES>(_config, _properties, ov::intel_npu::dma_engines.name());
