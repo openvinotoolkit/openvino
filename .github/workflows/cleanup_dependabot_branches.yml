@@ -26,6 +26,11 @@ on:
 
 permissions: read-all
 
+env:
+
+  OPENVINO_CI_REF: '10364dc5360713192e3d348d965a8cfe7a342368'
+  OPENVINO_GENAI_CI_REF: '57a8d560ca759bb34d420b6733ba00228bee7e52'
+
 jobs:
   Cleanup_Dependabot_Branches:
     name: Cleanup stale dependabot branches
@@ -48,7 +53,7 @@ jobs:
           # was read from, so pinning this workflow with @<sha> pins the workflow
           # but not the script it runs.
           repository: openvinotoolkit/openvino
-          ref: ${{ github.repository == 'openvinotoolkit/openvino' && github.ref || 'master' }}
+          ref: ${{ env.OPENVINO_CI_REF }}
           sparse-checkout: '.github/scripts/dependabot_cleanup'
 
       - name: Setup Python
