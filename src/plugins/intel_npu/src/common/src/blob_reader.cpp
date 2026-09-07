@@ -50,9 +50,10 @@ void BlobReader::register_reader(const SectionType type,
     m_logger.debug("Registered a reader for section type %lu", type);
 }
 
-void BlobReader::register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& evaluator) {
-    m_section_type_evaluators[evaluator->get_section_type()] = evaluator;
-    m_logger.debug("Registered a section type evaluator for section type %lu", evaluator->get_section_type());
+void BlobReader::register_section_type_evaluator(const SectionType section_type,
+                                                 const std::shared_ptr<ISectionTypeEvaluator>& evaluator) {
+    m_section_type_evaluators[section_type] = evaluator;
+    m_logger.debug("Registered a section type evaluator for section type %u", section_type);
 }
 
 void BlobReader::register_section_instance_evaluator(const SectionType type,

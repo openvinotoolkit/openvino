@@ -53,7 +53,8 @@ public:
      */
     void register_reader(const SectionType type, std::function<std::shared_ptr<ISection>(BlobReaderInterface&)> reader);
 
-    void register_section_type_evaluator(const std::shared_ptr<ISectionTypeEvaluator>& evaluator);
+    void register_section_type_evaluator(const SectionType section_type,
+                                         const std::shared_ptr<ISectionTypeEvaluator>& evaluator);
 
     void register_section_instance_evaluator(const SectionType type,
                                              const std::shared_ptr<ISectionInstanceEvaluator>& evaluator);

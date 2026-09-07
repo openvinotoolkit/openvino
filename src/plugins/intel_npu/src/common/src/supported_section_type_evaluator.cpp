@@ -4,12 +4,7 @@
 
 #include "intel_npu/common/supported_section_type_evaluator.hpp"
 
-#include "openvino/core/except.hpp"
-
 namespace intel_npu {
-
-SupportedSectionTypeEvaluator::SupportedSectionTypeEvaluator(const SectionType section_type)
-    : ISectionTypeEvaluator(section_type) {}
 
 bool SupportedSectionTypeEvaluator::evaluate() const {
     return true;

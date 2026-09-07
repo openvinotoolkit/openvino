@@ -17,11 +17,9 @@ namespace intel_npu {
  */
 class ISectionTypeEvaluator {
 public:
-    ISectionTypeEvaluator(const SectionType section_type);
+    ISectionTypeEvaluator() = default;
 
     virtual ~ISectionTypeEvaluator() = default;
-
-    SectionType get_section_type() const;
 
     /**
      * @brief Checks whether or not the NPU plugin supports the section type.
@@ -43,8 +41,6 @@ private:
      */
     virtual bool evaluate() const = 0;
 
-    // TODO redundant?
-    SectionType m_section_type;
     /**
      * @brief If evaluation is performed, the result will be stored here for future use.
      */

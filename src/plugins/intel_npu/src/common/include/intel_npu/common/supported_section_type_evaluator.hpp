@@ -10,7 +10,7 @@ namespace intel_npu {
 
 class SupportedSectionTypeEvaluator final : public ISectionTypeEvaluator {
 public:
-    SupportedSectionTypeEvaluator(const SectionType section_type);
+    SupportedSectionTypeEvaluator() = default;
 
 private:
     bool evaluate() const override;
