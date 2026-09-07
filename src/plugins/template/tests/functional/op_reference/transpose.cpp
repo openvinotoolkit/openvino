@@ -277,7 +277,8 @@ std::vector<TransposeParams> generateTransposeParamsForSubByte() {
     std::vector<TransposeParams> params;
 
     // NOTE: Sub-byte types (u2, u3, u4, u6, i4) pack multiple values per byte.
-    // These tests validate transpose_2bit, transpose_split_bit and transpose_4bit reference implementations.
+    // These tests validate transpose_2bit, transpose_3bit, transpose_6bit and transpose_4bit reference
+    // implementations.
     // u2: 4 values per byte (2 bits each), u4/i4: 2 values per byte (4 bits each),
     // u3/u6: linear LSB-first bit-stream, values may straddle a byte boundary.
 

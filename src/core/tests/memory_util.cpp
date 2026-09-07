@@ -62,7 +62,7 @@ INSTANTIATE_TEST_SUITE_P(
     GetMemorySizeOverflowTest::get_test_name);
 
 INSTANTIATE_TEST_SUITE_P(
-    split_bit_type_precision,
+    cross_byte_bit_type_precision,
     GetMemorySizeOverflowTest,
     testing::Values(std::make_tuple(element::u3, Shape{}, std::optional<size_t>(1)),
                     std::make_tuple(element::u3, Shape{3}, std::optional<size_t>(2)),
@@ -144,7 +144,7 @@ INSTANTIATE_TEST_SUITE_P(nibble_type_precision,
                                          std::make_tuple(element::i4, 3, 6),
                                          std::make_tuple(element::i4, 4, 8)));
 
-INSTANTIATE_TEST_SUITE_P(split_bit_type_precision,
+INSTANTIATE_TEST_SUITE_P(cross_byte_bit_type_precision,
                          GetMaxElementsForMemorySizeTest,
                          testing::Values(std::make_tuple(element::u3, 0, 0),
                                          std::make_tuple(element::u3, 1, 2),

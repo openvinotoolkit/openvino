@@ -28,11 +28,14 @@ namespace element {
 /**
  * @brief Checks if element type is N in-raw bits type.
  *
+ * The values are packed as a linear bit-stream, value `i` occupies bits `[i * bitwidth, i * bitwidth + bitwidth)`
+ * and can straddle a byte boundary if the bit width is not a divisor of 8 (u3, u6).
+ *
  * @param et  Element type to check
  * @return True if element type is bit type otherwise false.
  */
 constexpr bool is_bit_type(Type_t et) {
-    return et == u1 || et == u2;
+    return et == u1 || et == u2 || et == u3 || et == u6;
 }
 
 /**
@@ -46,26 +49,13 @@ constexpr bool is_nibble_type(Type_t et) {
 }
 
 /**
- * @brief Checks if element type is split bit type.
- *
- * The value is packed LSB-first as a linear, cross-byte bit-stream: value `i` occupies bits
- * `[i * bitwidth, i * bitwidth + bitwidth)` of the stream and may straddle a byte boundary.
- *
- * @param et  Element type to check
- * @return True if element type is split bit type otherwise false.
- */
-constexpr bool is_split_bit_type(Type_t et) {
-    return et == u3 || et == u6;
-}
-
-/**
  * @brief Checks element type is using only N bytes as value.
  *
  * @param et  Element type to check.
  * @return True if element type use byte(s) for its value, false otherwise.
  */
 constexpr bool is_byte_type(Type_t et) {
-    return !is_bit_type(et) && !is_split_bit_type(et) && !is_nibble_type(et) && et != string;
+    return !is_bit_type(et) && !is_nibble_type(et) && et != string;
 }
 
 /**
@@ -144,7 +134,7 @@ template <class T, Type_t ET, class Enable = void>
 class BitProxy {};
 
 /**
- * @brief The BitProxy specialization for types which are represented by N in-raw bits in byte.
+ * @brief The BitProxy specialization for types which are represented by N bits in the packed bit-stream.
  *
  * @tparam T  Fundamental type of sub-byte value which must be same as fundamental type of element::Type_t.
  * @tparam ET OpenVINO element type.
@@ -158,9 +148,9 @@ private:
     using Bits = std::conditional_t<std::is_const_v<T>, const uint8_t, uint8_t>;
 
     static constexpr size_t m_bits = bit_width<ET>();                           //!< Number of bit for single value.
+    static constexpr bool m_straddles_bytes = (8 % m_bits) != 0;                //!< Value can span two bytes.
     static constexpr size_t m_num_values = 8 / m_bits;                          //!< Number values in byte.
     static constexpr size_t m_shift_init = is_lsb_packed(ET) ? 0 : 8 - m_bits;  //!< Initial value for bit shift.
-    static constexpr size_t m_shift_last = is_lsb_packed(ET) ? 8 - m_bits : 0;  //!< Last value for bit shift.
 
     Bits* m_ptr;         //!< Pointer to T as Bits used to get value from bits.
     size_t m_bit_shift;  //!< Current bit shift to get value.
@@ -169,13 +159,34 @@ private:
 
     uint8_t get_bit_value() const {
         constexpr auto value_mask = util::make_n_bit_mask(m_bits);
-        return (*m_ptr >> m_bit_shift) & value_mask;
+        if constexpr (m_straddles_bytes) {
+            // Read the next byte only if the value spans it, to not access memory past the buffer end.
+            auto bits = static_cast<uint16_t>(m_ptr[0]);
+            if (m_bit_shift + m_bits > 8) {
+                bits |= static_cast<uint16_t>(m_ptr[1]) << 8U;
+            }
+            return static_cast<uint8_t>((bits >> m_bit_shift) & value_mask);
+        } else {
+            return (*m_ptr >> m_bit_shift) & value_mask;
+        }
     }
 
     void set_bit_value(uint8_t value) {
         constexpr auto value_mask = util::make_n_bit_mask(m_bits);
-        *m_ptr &= ~(value_mask << m_bit_shift);
-        *m_ptr |= value << m_bit_shift;
+        if constexpr (m_straddles_bytes) {
+            const auto shifted_mask = static_cast<uint16_t>(value_mask << m_bit_shift);
+            const auto shifted_value = static_cast<uint16_t>(value << m_bit_shift);
+
+            m_ptr[0] = static_cast<uint8_t>((m_ptr[0] & ~static_cast<uint8_t>(shifted_mask)) |
+                                            static_cast<uint8_t>(shifted_value));
+            if (m_bit_shift + m_bits > 8) {
+                m_ptr[1] = static_cast<uint8_t>((m_ptr[1] & ~static_cast<uint8_t>(shifted_mask >> 8U)) |
+                                                static_cast<uint8_t>(shifted_value >> 8U));
+            }
+        } else {
+            *m_ptr &= ~(value_mask << m_bit_shift);
+            *m_ptr |= value << m_bit_shift;
+        }
     }
 
 public:
@@ -293,92 +304,6 @@ public:
 };
 
 /**
- * @brief The BitProxy specialization for u3, u6 precisions.
- *
- * Values are packed LSB-first as a linear bit-stream and may straddle a byte boundary, so a value
- * spans at most 2 bytes (bit width <= 6, intra-byte offset <= 7).
- *
- * @tparam T  Fundamental type of sub-byte value which must be same as fundamental type of element::Type_t.
- * @tparam ET OpenVINO element type.
- */
-template <class T, Type_t ET>
-class BitProxy<T, ET, std::enable_if_t<is_split_bit_type(ET)>> {
-private:
-    template <Type_t, class>
-    friend class Iterator;  //!< Iterator class is friend to access private members to manipulate pointer.
-
-    using Bits = std::conditional_t<std::is_const_v<T>, const uint8_t, uint8_t>;
-
-    static constexpr size_t m_bits = bit_width<ET>();  //!< Number of bit for single value.
-
-    Bits* m_ptr;         //!< Pointer to byte containing the first bit of the value.
-    size_t m_bit_shift;  //!< Offset (0..7) of the value's first bit within *m_ptr.
-
-    constexpr BitProxy(T* ptr) noexcept : m_ptr{reinterpret_cast<Bits*>(ptr)}, m_bit_shift{0} {}
-
-public:
-    using value_type = std::decay_t<T>;  //!< Fundamental type of sub-byte.
-
-    /**
-     * @brief Compare proxy value is equal than rhs.
-     *
-     * @tparam U   Type of value to compare.
-     * @param rhs  Value to compare.
-     * @return True if equal, false otherwise.
-     */
-    template <class U>
-    constexpr bool operator==(const U& rhs) const {
-        return static_cast<value_type>(*this) == rhs;
-    }
-
-    /**
-     * @brief Compare proxy value is less than rhs.
-     *
-     * @tparam U   Type of value to compare.
-     * @param rhs  Value to compare.
-     * @return True if less otherwise false.
-     */
-    template <class U>
-    constexpr bool operator<(const U& rhs) const {
-        return static_cast<value_type>(*this) < rhs;
-    }
-
-    /**
-     * @brief Converts to fundamental type.
-     *
-     * @return Value of BitProxy.
-     */
-    operator value_type() const {
-        constexpr auto mask = static_cast<uint16_t>(util::make_n_bit_mask(m_bits));
-        // Only touch the 2nd byte when the value actually straddles into it (avoids reading past
-        // the end of the allocated buffer for the last value in a tensor).
-        uint16_t w = static_cast<uint16_t>(m_ptr[0]);
-        if (m_bit_shift + m_bits > 8) {
-            w |= static_cast<uint16_t>(m_ptr[1]) << 8;
-        }
-        return static_cast<value_type>((w >> m_bit_shift) & mask);
-    }
-
-    /**
-     * @brief Sets current ProxyBit to value.
-     * @param v  Value to be set.
-     */
-    BitProxy<T, ET>& operator=(const value_type v) {
-        constexpr auto mask = static_cast<uint16_t>(util::make_n_bit_mask(m_bits));
-        const auto shifted_mask = static_cast<uint16_t>(mask << m_bit_shift);
-        const auto shifted_value = static_cast<uint16_t>((static_cast<uint16_t>(v) & mask) << m_bit_shift);
-
-        m_ptr[0] = static_cast<uint8_t>((m_ptr[0] & ~static_cast<uint8_t>(shifted_mask & 0xffU)) |
-                                        static_cast<uint8_t>(shifted_value & 0xffU));
-        if (m_bit_shift + m_bits > 8) {
-            m_ptr[1] = static_cast<uint8_t>((m_ptr[1] & ~static_cast<uint8_t>(shifted_mask >> 8U)) |
-                                            static_cast<uint8_t>(shifted_value >> 8U));
-        }
-        return *this;
-    }
-};
-
-/**
  * @brief Put BitProxy value to output stream.
  *
  * @param os    Reference to output stream.
@@ -426,19 +351,15 @@ public:
         if constexpr (is_nibble_type(ET)) {
             m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
             m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
-        } else if constexpr (is_split_bit_type(ET)) {
+        } else if constexpr (is_lsb_packed(ET)) {
             m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
             if (m_et_ptr.m_bit_shift >= 8) {
                 m_et_ptr.m_bit_shift -= 8;
                 ++m_et_ptr.m_ptr;
             }
         } else {
-            if constexpr (is_lsb_packed(ET)) {
-                m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
-            } else {
-                m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
-            }
-            m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % (m_et_ptr.m_num_values * m_et_ptr.m_bits);
+            m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
+            m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % 8;
             m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
         }
         return *this;
@@ -456,22 +377,8 @@ public:
             if (n % m_et_ptr.m_num_values) {
                 ++*this;
             }
-        } else if constexpr (is_split_bit_type(ET)) {
-            // floor-divide the new absolute bit position by 8 to get byte advance + new offset
-            const auto total_bits =
-                static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift) + n * static_cast<std::ptrdiff_t>(m_et_ptr.m_bits);
-            auto div = total_bits / 8;
-            auto rem = total_bits % 8;
-            if (rem < 0) {
-                rem += 8;
-                --div;
-            }
-            m_et_ptr.m_bit_shift = static_cast<size_t>(rem);
-            m_et_ptr.m_ptr += div;
         } else if constexpr (is_lsb_packed(ET)) {
-            const auto advance = n + m_et_ptr.m_bit_shift / m_et_ptr.m_bits;
-            m_et_ptr.m_bit_shift = (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
-            m_et_ptr.m_ptr += advance / m_et_ptr.m_num_values;
+            advance_bits(n * static_cast<difference_type>(m_et_ptr.m_bits));
         } else {
             const auto advance = n + (m_et_ptr.m_shift_init - m_et_ptr.m_bit_shift) / m_et_ptr.m_bits;
             m_et_ptr.m_bit_shift = m_et_ptr.m_shift_init - (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
@@ -490,20 +397,16 @@ public:
         if constexpr (is_nibble_type(ET)) {
             m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
             m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == 4);
-        } else if constexpr (is_split_bit_type(ET)) {
+        } else if constexpr (is_lsb_packed(ET)) {
             if (m_et_ptr.m_bit_shift < m_et_ptr.m_bits) {
                 m_et_ptr.m_bit_shift += 8;
                 --m_et_ptr.m_ptr;
             }
             m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
         } else {
-            if constexpr (is_lsb_packed(ET)) {
-                m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
-            } else {
-                m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
-            }
-            m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % (m_et_ptr.m_num_values * m_et_ptr.m_bits);
-            m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_last);
+            m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
+            m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % 8;
+            m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == 0);
         }
         return *this;
     }
@@ -520,22 +423,8 @@ public:
             if (n % m_et_ptr.m_num_values) {
                 --*this;
             }
-        } else if constexpr (is_split_bit_type(ET)) {
-            // same as operator+=(-n): floor-divide the new absolute bit position by 8
-            const auto total_bits =
-                static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift) - n * static_cast<std::ptrdiff_t>(m_et_ptr.m_bits);
-            auto div = total_bits / 8;
-            auto rem = total_bits % 8;
-            if (rem < 0) {
-                rem += 8;
-                --div;
-            }
-            m_et_ptr.m_bit_shift = static_cast<size_t>(rem);
-            m_et_ptr.m_ptr += div;
         } else if constexpr (is_lsb_packed(ET)) {
-            const auto advance = n + (m_et_ptr.m_shift_last - m_et_ptr.m_bit_shift) / m_et_ptr.m_bits;
-            m_et_ptr.m_bit_shift = m_et_ptr.m_shift_last - (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
-            m_et_ptr.m_ptr -= advance / m_et_ptr.m_num_values;
+            advance_bits(-n * static_cast<difference_type>(m_et_ptr.m_bits));
         } else {
             const auto advance = m_et_ptr.m_bit_shift / m_et_ptr.m_bits + n;
             m_et_ptr.m_bit_shift = (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
@@ -565,6 +454,19 @@ public:
     }
 
 private:
+    //! Move by n (can be negative) bits within the packed bit-stream.
+    void advance_bits(const difference_type n) {
+        const auto total_bits = static_cast<difference_type>(m_et_ptr.m_bit_shift) + n;
+        auto bytes = total_bits / 8;
+        auto bit_shift = total_bits % 8;
+        if (bit_shift < 0) {
+            bit_shift += 8;
+            --bytes;
+        }
+        m_et_ptr.m_bit_shift = static_cast<size_t>(bit_shift);
+        m_et_ptr.m_ptr += bytes;
+    }
+
     proxy_type m_et_ptr;
 };
 
