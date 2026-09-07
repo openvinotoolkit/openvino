@@ -326,7 +326,12 @@ bool requantize_q8_0_channelwise_faithful(const GgufTensor& tensor,
             amax = std::max(amax, std::fabs(rowf[c]));
         }
         const float d = amax / 127.0f;
-        const float id = d ? 1.0f / d : 0.0f;
+        // A zero row has a zero scale and must remain zero. Keep the division in a
+        // branch where its divisor is known to be non-zero.
+        float id = 0.0f;
+        if (d != 0.0f) {
+            id = 1.0f / d;
+        }
         out_scales[r] = ov::float16(d);
         for (size_t c = 0; c < cols; ++c) {
             out_weights[r * cols + c] = static_cast<int8_t>(std::lround(rowf[c] * id));
@@ -621,10 +626,10 @@ void gguf_fill_mxfp4(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& 
     });
 }
 
-// Q4_0 symmetric: same block layout as Q4_0 but XORs each packed byte with 0x88 to
+// Q4_0 symmetric: unpack each GGML block and XOR every packed byte with 0x88 to
 // flip the MSB of every nibble, converting u4 [0..15] to i4 [-8..7] in-place. No bias
 // tensor is produced (zp is exactly -8 * scale = a fixed shift, not per-element).
-void gguf_fill_q4_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+static void fill_q4_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t bytes_per_block = 18;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<uint8_t*>(weights_arr.data());
@@ -684,10 +689,12 @@ void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tenso
     });
 }
 
-// Symmetric types (Q8_0, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no zero-point.
+// Symmetric types (Q4_0, Q8_0, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no zero-point.
 // Q8_K uses f32 scales and is handled by a separate overload dispatched on tensor.type.
 void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
-    if (tensor.type == GGUF_TYPE_Q8_0) {
+    if (tensor.type == GGUF_TYPE_Q4_0) {
+        fill_q4_0(tensor, weights, scales);
+    } else if (tensor.type == GGUF_TYPE_Q8_0) {
         fill_q8_0(tensor, weights, scales);
     } else if (tensor.type == GGUF_TYPE_Q5_0) {
         fill_q5_0(tensor, weights, scales);

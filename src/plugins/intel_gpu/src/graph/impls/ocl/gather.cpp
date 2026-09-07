@@ -203,16 +203,15 @@ std::unique_ptr<primitive_impl> GatherImplementationManager::create_impl(const p
 namespace detail {
 
 attach_gather_impl::attach_gather_impl() {
-    auto dyn_types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::bf16,
-        data_types::i8,
-        data_types::u8,
-        data_types::i4,
-        data_types::u4,
-        data_types::i32
-    };
+    auto dyn_types = {data_types::f32,
+                      data_types::f16,
+                      data_types::bf16,
+                      data_types::i8,
+                      data_types::u8,
+                      data_types::i4,
+                      data_types::u4,
+                      data_types::i32,
+                      data_types::f8e4m3};
 
     auto dyn_formats = {
         format::bfyx,
