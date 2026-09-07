@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 
+#include "intel_npu/common/major_minor_version.hpp"
 #include "intel_npu/compat_string_parser.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
@@ -21,6 +22,9 @@ constexpr size_t FOOTER_SIZE = sizeof(uint64_t) + intel_npu::MAGIC_BYTES.size();
 constexpr size_t MINIMUM_BLOB_SIZE = sizeof(uint32_t) + FOOTER_SIZE;
 constexpr size_t SIZE_OF_INIT_SCHEDULE_SIZE = sizeof(uint64_t);
 constexpr size_t SIZE_OF_LAYOUT_SIZE = sizeof(uint16_t);
+
+constexpr size_t OV_VERSION_PARTS = 3;
+constexpr size_t METADATA_VERSION_PARTS = 2;
 
 constexpr std::string_view MISSING_METADATA_MESSAGE = "The blob is missing the NPU metadata!";
 constexpr std::string_view BLOB_TOO_SMALL_MESSAGE =
@@ -37,35 +41,6 @@ void write_text_field(std::ostream& stream, std::string_view key, const T& value
         stream << ';';
     }
     stream << key << '=' << value;
-}
-
-std::vector<uint16_t> parse_version(std::string_view sv) {
-    const auto hasOnlyDigits = [](std::string_view sv) {
-        return !sv.empty() && std::all_of(sv.begin(), sv.end(), [](unsigned char c) {
-            return std::isdigit(c);
-        });
-    };
-
-    std::vector<uint16_t> parts;
-    std::string_view remaining = sv;
-    while (true) {
-        const size_t dot = remaining.find('.');
-        const std::string_view part = remaining.substr(0, dot);
-        if (!hasOnlyDigits(part)) {
-            OPENVINO_THROW("Invalid version '",
-                           sv,
-                           "': version must meet the format MAJOR.MINOR.PATCH with numeric components");
-        }
-        parts.push_back(static_cast<uint16_t>(std::stoul(std::string(part))));
-        if (dot == std::string_view::npos) {
-            break;
-        }
-        remaining = remaining.substr(dot + 1);
-        if (remaining.empty()) {
-            OPENVINO_THROW("Invalid version '", sv, "': trailing dot");
-        }
-    }
-    return parts;
 }
 
 size_t get_and_check_remaining_source_size(intel_npu::BlobSource& source) {
@@ -382,8 +357,11 @@ void Metadata<METADATA_VERSION_2_0>::read_as_text(const std::map<std::string, st
     if (it == textAttrs.end()) {
         OPENVINO_THROW("Human-readable metadata missing '" + std::string(MetadataTextKeys::OV) + "' field.");
     }
-    const auto ovParts = parse_version(it->second);
-    if (ovParts.size() != 3) {
+
+    std::vector<uint16_t> ovParts;
+    try {
+        ovParts = parse_dotted_version(it->second, OV_VERSION_PARTS);
+    } catch (const ov::Exception&) {
         OPENVINO_THROW("Human-readable metadata: '" + std::string(MetadataTextKeys::OV) +
                        "' is not in MAJOR.MINOR.PATCH format: " + it->second);
     }
@@ -637,8 +615,10 @@ std::unique_ptr<MetadataBase> read_as_text(std::string_view input) {
         OPENVINO_THROW("NPU compatibility string is malformed: ", ex.what());
     }
 
-    const auto metaParts = parse_version(versionStr);
-    if (metaParts.size() != 2) {
+    std::vector<uint16_t> metaParts;
+    try {
+        metaParts = parse_dotted_version(versionStr, METADATA_VERSION_PARTS);
+    } catch (const ov::Exception&) {
         OPENVINO_THROW("NPU compatibility string is malformed: 'meta' must be in MAJOR.MINOR format: ", versionStr);
     }
     const uint32_t metaVersion = MetadataBase::make_version(metaParts[0], metaParts[1]);
