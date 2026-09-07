@@ -156,7 +156,9 @@ void run_selective_ssm(const Data* state_decay_rates,
             if constexpr (std::is_same_v<Data, float>) {
                 local_state = final_state + state_offset;
             } else {
-                local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * layout.scratch_stride;
+                // A serial call outside a TBB arena has no worker slot.
+                const auto worker = static_cast<size_t>(std::max(0, parallel_get_thread_num()));
+                local_state = state_scratch + worker * layout.scratch_stride;
             }
             copy_convert(local_state, initial_state + state_offset, state_elements);
 
@@ -294,7 +296,8 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
                 }
             }
 
-            auto* local_state = state_scratch + static_cast<size_t>(parallel_get_thread_num()) * layout.scratch_stride;
+            const auto worker = static_cast<size_t>(std::max(0, parallel_get_thread_num()));
+            auto* local_state = state_scratch + worker * layout.scratch_stride;
             if constexpr (std::is_same_v<Data, float>) {
                 const auto snapshot_count = cache.snapshot_count(token_end - token_begin);
                 // A single f32 snapshot can hold the working state, avoiding the scratch buffer and final copy.
