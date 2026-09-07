@@ -213,7 +213,7 @@ TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
 }
 
 TransposeSDPAMatcher::TransposeSDPAMatcher() {
-    // veesion: i8 and u8 are accepted alongside the float types because micro-SDPA can contract
+    // i8 and u8 are accepted alongside the float types because micro-SDPA can contract
     // an integer K on the systolic pipe. This matcher folds q, k and v ALL-OR-NOTHING, so a
     // single narrowed operand rejecting here does not merely leave one transpose materialised
     // -- it materialises all three and, downstream, un-fuses the q-side RoPE as well.
@@ -276,7 +276,7 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         size_t input_k_output_idx = sdpa->get_input_source_output(1).get_index();
         size_t input_v_output_idx = sdpa->get_input_source_output(2).get_index();
 
-        // veesion: {0, 1, 3, 2} on V is the marker for a value tensor that has been physically
+        // {0, 1, 3, 2} on V is the marker for a value tensor that has been physically
         // materialised as (batch, heads, head_size, tokens). micro-SDPA's V*S microkernel
         // contracts V over tokens, so with the deployed layout its reduction axis is the strided
         // one and gemmstone answers with an SLM staging pass; k-contiguous V lets it load
