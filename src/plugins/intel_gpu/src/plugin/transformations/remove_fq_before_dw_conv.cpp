@@ -204,7 +204,9 @@ bool has_mvn_dequantization_barrier(const ov::Output<ov::Node>& output, size_t c
                 continue;
             }
             return false;
-        } else if (const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(consumer)) {
+        }
+
+        if (const auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(consumer)) {
             if (target_input.get_index() != 0) {
                 return false;
             }
@@ -214,9 +216,9 @@ bool has_mvn_dequantization_barrier(const ov::Output<ov::Node>& output, size_t c
                 continue;
             }
             return false;
-        } else {
-            return false;
         }
+
+        return false;
     }
 
     return true;
