@@ -1,10 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Definition of GgufGraphContext::Impl.
-//
-// Split out of graph_context.cpp because GgufTensors also needs it: a weight lookup emits into the
-// same GraphEmitter the context wraps, and the two live in different translation units.
+// Shared implementation for graph operations and emitting weight lookups.
 
 #pragma once
 
@@ -41,8 +38,7 @@ struct GgufGraphContext::Impl {
     }
     GraphEmitter emitter;
 
-    // Per-node output shapes are static, at a representative token length; see
-    // the internal GraphEmitter contract.
+    // Representative token length for static translator metadata.
     static constexpr int64_t T = 1;
 
     // Generate unique names for SDK operations. Shared decoder blocks use layer prefixes.
@@ -51,7 +47,6 @@ struct GgufGraphContext::Impl {
         return op + "_" + std::to_string(seq++);
     }
 
-    // Emit `op_type` and wrap the result. Every op wrapper funnels through this.
     GgufValue emit(const std::string& op_type,
                    const std::vector<GgufValue>& inputs,
                    const ov::PartialShape& out_shape,

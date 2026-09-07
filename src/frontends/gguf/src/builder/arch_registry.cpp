@@ -52,9 +52,7 @@ std::vector<ArchitectureDefinition> builtin_architectures() {
     for (const auto& entry : decoders) {
         definitions.push_back(make_decoder_architecture(entry.name, entry.rope, {}, entry.maturity));
     }
-    // Promote a custom architecture by adding its definition here, e.g.
-    // definitions.push_back(make_my_vision_architecture());
-    // Its factory and SDK builder are identical to those in the external library.
+    // Add custom definitions here; their factories and builders are shared with external plugins.
     return definitions;
 }
 

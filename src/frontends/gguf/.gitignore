@@ -1,8 +1,4 @@
-# The root .gitignore's "[Bb]uild*/" rule (meant for CMake build output dirs) also matches any
-# source directory named "builder". Re-include ours; this is tracked source code.
-#
-# Un-excluding the DIRECTORY is what makes this work: git will not re-include a file whose parent
-# directory is excluded, so a rule naming the files alone would silently do nothing -- and the
-# headers would go missing from the commit with no warning at all.
+# Re-include builder directories matched by the root [Bb]uild*/ rule.
+# Git requires the parent directory to be included before its files.
 !src/builder
 !dev_api/openvino/frontend/gguf/builder

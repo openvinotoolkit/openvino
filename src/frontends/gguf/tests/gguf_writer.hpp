@@ -1,14 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// A minimal GGUF writer, for tests that need a file no fixture provides.
-//
-// The per-architecture fixtures come from llama.cpp's `test-llama-archs`, which only emits causal
-// decoders. A non-decoder family -- an mmproj vision encoder -- therefore has no fixture at all,
-// and the extension mechanism's whole point is that such a family can be added from outside, so
-// there has to be a way to produce one here. This writes the header the parser reads (magic, KV
-// metadata, tensor table) and zero-fills the tensor data, which is all graph construction depends
-// on -- the same reasoning that lets test_arch_conversion.cpp rebuild its fixtures from headers.
+// Minimal GGUF writer for synthetic decoder and non-decoder fixtures.
+// Tensor data is F32, optionally initialized with supplied values.
 
 #pragma once
 
@@ -52,8 +46,7 @@ public:
         m_kv.insert(m_kv.end(), v.begin(), v.end());
     }
 
-    // Declare a tensor. `dims` is in GGUF on-disk order (fastest-varying first), as the format
-    // stores it -- the reverse of the OpenVINO shape it becomes.
+    // dims uses GGUF order (fastest axis first). Empty values produce zero-filled data.
     void tensor(const std::string& name, const std::vector<uint64_t>& dims, const std::vector<float>& values = {}) {
         put_str(m_ti, name);
         put(m_ti, static_cast<uint32_t>(dims.size()));

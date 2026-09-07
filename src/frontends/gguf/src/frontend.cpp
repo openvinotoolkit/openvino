@@ -47,8 +47,7 @@ struct FrontEnd::Impl {
     // default (stateless) SetRows lowering for an alternative (e.g. a backend stateful lowering).
     std::vector<DecoderTransformationExtension::Ptr> transformation_extensions;
     TelemetryExtension::Ptr telemetry;
-    // Architectures this frontend accepts: the built-in set plus any registered at runtime.
-    // Per-instance, like the extension lists above, so two frontends do not share registrations.
+    // Per-instance catalog: runtime registrations do not affect other frontends.
     ArchRegistry arch_registry;
 };
 

@@ -13,8 +13,7 @@ namespace ov::frontend::gguf {
 
 enum class RopeMode { Normal, Neox, Interleaved };
 
-// Architecture facts that cannot reliably be inferred from tensor names. Unset options retain
-// detection. Dimensions and derived execution plans are deliberately not writable by extensions.
+// Architecture overrides; unset options retain detection. Dimensions and derived plans stay internal.
 struct GGUF_FRONTEND_API DecoderOptions {
     std::optional<bool> geglu;
     std::optional<bool> value_norm;
@@ -26,16 +25,14 @@ struct GGUF_FRONTEND_API DecoderOptions {
     std::optional<int> sliding_window;
 };
 
-// Resolved dimensions for custom decoder topology. Returned by value; changing the snapshot
-// does not modify the configuration used by the shared decoder blocks.
+// Value snapshot; changes do not affect the shared decoder configuration.
 struct GGUF_FRONTEND_API DecoderDimensions {
     int layers;
     int embedding;
     float norm_epsilon;
 };
 
-// Per-layer snapshot for custom attention implementations. Values come from the same resolved
-// configuration as decoder_attention, including per-layer KV heads and SWA RoPE parameters.
+// Per-layer snapshot from decoder_attention configuration, including KV heads and SWA RoPE.
 struct GGUF_FRONTEND_API DecoderLayerParameters {
     int query_heads;
     int kv_heads;

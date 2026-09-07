@@ -21,9 +21,7 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-// Generic graph operations and adapters to the frontend's shared decoder blocks. This API uses
-// GGML operand order and reversed dimension order; it is not a clone of llama.cpp's graph API.
-// Built-in and external architectures use the same metadata resolver and decoder blocks.
+// Graph operations and shared decoder blocks. Operands use GGML order; shapes use OpenVINO order.
 class GGUF_FRONTEND_API GgufGraphContext {
 public:
     explicit GgufGraphContext(const BuildContext& ctx);
@@ -32,10 +30,10 @@ public:
     GgufGraphContext(const GgufGraphContext&) = delete;
     GgufGraphContext& operator=(const GgufGraphContext&) = delete;
 
-    // ---- what is being built ----
+    // Model configuration
     const GgufMetadata& metadata() const;
-    // Resolve decoder metadata once, before building decoder blocks. Non-decoder families never
-    // need this. Options are validated before derived plans and model metadata are computed.
+    // Call once before using decoder blocks; optional for other families.
+    // Options are validated before deriving execution plans and graph metadata.
     DecoderDimensions configure_decoder(RopeMode rope, const DecoderOptions& options = {});
     DecoderLayerParameters decoder_layer_parameters(int layer) const;
     GgufValue decoder_attention(int layer, const GgufValue& normalized_input);
@@ -43,21 +41,19 @@ public:
     const std::string& arch() const;
     GgufTensors tensors();
 
-    // ---- model inputs ----
-    // Token embedding lookup: GET_ROWS(tok_embd, inp_tokens). Creates "inp_tokens" on first use.
+    // Inputs
+    // GET_ROWS(tok_embd, inp_tokens), creating inp_tokens on first use.
     GgufValue build_inp_embd(const GgufValue& tok_embd);
     // Position indices consumed by RoPE.
     GgufValue build_inp_pos();
-    // Row selector applied to the last layer's output (llama.cpp's inp_out_ids).
+    // Row selector for the last layer's output (inp_out_ids).
     GgufValue build_inp_out_ids();
-    // Declare the attention inputs: the causal mask, the KV write index, and -- when `swa` --
-    // the sliding-window mask. Call once before the layer loop, like llama.cpp's
-    // build_attn_inp_kv().
+    // Declare masks, KV write indices, and token lengths before the layer loop.
+    // The SWA mask is included when requested here or by configure_decoder.
     void build_attn_inp_kv(bool swa = false);
-    // A model input this family defines itself (a vision encoder's pixel input, say).
     GgufValue add_input(const std::string& name, ov::element::Type type, const ov::PartialShape& shape);
 
-    // ---- ggml op vocabulary (output shapes inferred) ----
+    // Operations with inferred output shapes
     GgufValue add(const GgufValue& a, const GgufValue& b);
     GgufValue sub(const GgufValue& a, const GgufValue& b);
     GgufValue mul(const GgufValue& a, const GgufValue& b);
@@ -77,18 +73,15 @@ public:
     GgufValue relu(const GgufValue& x);
     GgufValue sqr(const GgufValue& x);
     GgufValue sqrt(const GgufValue& x);
-    // Reshape to an explicit shape, given in ggml ne order (fastest-varying dimension first),
-    // so a ported `ggml_reshape_3d(ctx, cur, a, b, c)` becomes `reshape(cur, {a, b, c})`.
-    // A -1 denotes an inferred dimension. No attention layout is inferred from the target rank.
+    // Explicit shape in GGML order (fastest axis first), with at most one inferred dimension (-1).
+    // Use split_heads/merge_heads for attention layouts.
     GgufValue reshape(const GgufValue& x, const std::vector<int64_t>& ne);
     // Explicit decoder layout operations preserve a dynamic token axis and the leading batch.
     GgufValue split_heads(const GgufValue& x, int64_t heads, int64_t head_size);
     GgufValue merge_heads(const GgufValue& x);
     GgufValue cont(const GgufValue& x);
     GgufValue transpose(const GgufValue& x);
-    // Reorder axes. `perm` is given in the shape's own [ne3, ne2, ne1, ne0] axis numbering (axis 3
-    // is ggml's ne[0]), NOT in ggml_permute's ne order -- a ported ggml_permute therefore needs its
-    // axes translated, which is the one place a port cannot be a copy.
+    // Permutation of OpenVINO axes [0, 1, 2, 3]; axis 3 is GGML ne[0].
     GgufValue permute(const GgufValue& x, const std::vector<int64_t>& perm);
     // Concatenate along a ggml dimension index.
     GgufValue concat(const GgufValue& a, const GgufValue& b, int ggml_dim);
@@ -99,9 +92,7 @@ public:
                        const RopeConfig& cfg,
                        int rope_op_case);
 
-    // Append a node in the GGML op vocabulary directly, for anything the wrappers above do not
-    // cover. The output shape and type are explicit because they cannot be inferred for an
-    // arbitrary op.
+    // Emit a GGML operation with explicit output metadata and translator-specific attributes.
     GgufValue raw_op(const std::string& op_type,
                      const std::vector<GgufValue>& inputs,
                      const ov::PartialShape& out_shape,
@@ -109,19 +100,16 @@ public:
                      int op_case = 0,
                      const std::map<std::string, ov::Any>& attrs = {});
 
-    // ---- normalization blocks ----
+    // Normalization
 
-    // RMS norm, optionally scaled by `w` (pass an empty value for llama.cpp's NULL weight, which
-    // means a plain normalization with no multiplicative term).
+    // RMS norm with optional weight scaling; an empty w leaves it unscaled.
     GgufValue build_norm(const GgufValue& cur, const GgufValue& w, float eps);
     // LayerNorm with optional weight and bias.
     GgufValue build_norm_ln(const GgufValue& cur, const GgufValue& w, const GgufValue& b, float eps);
 
-    // ---- finishing ----
-    // Mark `logits` as the model's output. The port of `res->t_logits = cur` plus
-    // ggml_build_forward_expand.
+    // Outputs and state
     void set_output(const GgufValue& logits);
-    // Model contracts used by the existing normalization passes.
+    // Record the sliding window for normalization passes.
     void set_sliding_window(int64_t tokens);
     // Registers an overwritten state, automatically marking the update as a model output.
     void add_recurrent_state(const GgufValue& input, const GgufValue& update);

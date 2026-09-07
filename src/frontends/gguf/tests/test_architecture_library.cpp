@@ -10,8 +10,7 @@
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "projector.hpp"
 
-// This test links the actual frontend library. It does not compile frontend implementation
-// sources into the executable, and the dynamically loaded module uses only installed headers.
+// Link the actual frontend library to exercise the SDK and module-loading boundary.
 TEST(GGUFArchitectureLibrary, ExternalModuleMatchesDirectRegistrationAcrossTokenCounts) {
     const auto path =
         std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + "_projector.gguf");

@@ -74,9 +74,7 @@ public:
     // ---- emitted-tensor queries ----
     const ov::PartialShape& shape_of_tensor(const std::string& name) const;
 
-    // Element type recorded for an already-emitted tensor (or a model input registered through
-    // set_tensor_meta). Counterpart of shape_of_tensor, needed wherever a tensor is referenced by
-    // name alone and its type has to travel with it -- the builder SDK's value handles do that.
+    // Recorded element type for an emitted tensor or a model input with metadata.
     ov::element::Type type_of_tensor(const std::string& name) const;
 
     // Static shape of an already-emitted tensor, for ops whose translator needs its input's own

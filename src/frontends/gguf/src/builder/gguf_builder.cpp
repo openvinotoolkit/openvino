@@ -1,24 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Entry point of the native GGUF -> GgufGraph path: parse the container, decide which model FAMILY
-// the file holds, and hand it to that family's ModelBuilder. No llama.cpp / gguf dependency.
-//
-// The emitted nodes use the GGML op vocabulary and reproduce llama.cpp's cgraph topology, so the
-// resulting GgufGraph drives the same op translators as the llama.cpp cgraph path.
-//
-// Layering (see docs/adding_an_architecture.md):
-//   graph_emitter.hpp     arch-agnostic "how do I write a node"
-//   blocks/               reusable graph fragments (norm, ffn, attention, gated delta net)
-//   decoder_config.hpp    all per-architecture detection for the decoder family
-//   arch/decoder_builder  the decoder family's topology
-//   arch_registry.hpp     which architectures are accepted, and their RoPE mode
-//   model_kind.hpp        which family a file belongs to
-//
-// Adding an ARCHITECTURE of an existing family is a name in arch_registry.cpp, or -- without
-// rebuilding anything -- an ArchitectureExtension registered by the caller.
-// Adding a FAMILY (mmproj vision/audio, encoder-decoder) is a ModelBuilder subclass, which an
-// extension may also supply; see the dispatch in build_ggml_graph_from_gguf below.
+// Parse GGUF, select an architecture definition, and build a graph for the shared op translators.
+// See docs/adding_an_architecture.md for the builder layers and registration paths.
 
 #include "gguf_builder.hpp"
 

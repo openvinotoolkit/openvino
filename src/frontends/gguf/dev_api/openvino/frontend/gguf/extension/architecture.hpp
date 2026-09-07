@@ -18,9 +18,7 @@ namespace ov::frontend::gguf {
 enum class Maturity { Experimental, Verified };
 enum class RegistrationMode { Add, Replace };
 
-// The same definition is used by the built-in catalog and a separately compiled extension.
-// Keep the function returning this definition in the architecture's source file. To upstream it,
-// add that source and its definition to the catalog; neither the factory nor the builder changes.
+// Shared by built-in and external registration; promotion preserves the factory and builder.
 struct GGUF_FRONTEND_API ArchitectureDefinition {
     using BuilderFactory = std::function<std::shared_ptr<ModelBuilder>(const BuildContext&)>;
     using MatchFn = std::function<bool(const GgufMetadata&)>;
@@ -34,9 +32,7 @@ struct GGUF_FRONTEND_API ArchitectureDefinition {
     bool matches(const GgufMetadata& metadata) const;
 };
 
-// A decoder definition uses the frontend's metadata reader, configuration resolver and blocks.
-// Options are collected BEFORE resolving configuration. The callback may read model metadata,
-// but cannot mutate derived dimensions or execution plans.
+// Use the native decoder resolver and blocks. Options are collected before configuration is resolved.
 using DecoderOptionsFn = std::function<DecoderOptions(const GgufMetadata&)>;
 GGUF_FRONTEND_API ArchitectureDefinition make_decoder_architecture(std::string architecture,
                                                                    RopeMode rope,

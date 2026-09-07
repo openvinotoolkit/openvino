@@ -114,7 +114,6 @@ std::shared_ptr<ov::Model> convert_with(const std::string& path,
     return frontend.convert(frontend.load(path));
 }
 
-// Count nodes by op type name, for structural assertions on a graph with no pinned fingerprint.
 std::map<std::string, size_t> op_histogram(const std::shared_ptr<ov::Model>& model) {
     std::map<std::string, size_t> hist;
     for (const auto& node : model->get_ops()) {
@@ -136,12 +135,9 @@ TEST(GGUFArchitectureExtension, UnknownArchitectureIsRejectedWithoutAnExtension)
                                    testing::HasSubstr("ArchitectureExtension")));
 }
 
-// The core claim: a name and a RoPE mode are enough, and the graph is IDENTICAL to what the
-// built-in builder produces for the same file under its real name.
 TEST(GGUFArchitectureExtension, DecoderDefinitionMatchesBuiltInGraph) {
     ScratchDir scratch;
 
-    // Reference: the same fixture under its real name, through the built-in path.
     const auto ref_path = write_decoder_gguf(scratch.path());
     ASSERT_FALSE(ref_path.empty());
     const auto reference = convert_with(ref_path, {});
@@ -163,8 +159,6 @@ TEST(GGUFArchitectureExtension, DecoderDefinitionMatchesBuiltInGraph) {
         << "an architecture enabled by extension must build the same graph as the built-in path";
 }
 
-// The RoPE mode is the one fact about a same-family architecture that cannot be read from the
-// file, so registering the wrong one has to be observable -- otherwise the parameter is decorative.
 TEST(GGUFArchitectureExtension, DecoderRopeModeReachesTheBuilder) {
     ScratchDir scratch;
     const auto path = write_decoder_gguf(scratch.path(), kUnknownArch);
@@ -189,8 +183,7 @@ TEST(GGUFArchitectureExtension, DecoderOptionsSelectTheActivation) {
     const auto plain = convert_with(path, {std::make_shared<ArchitectureExtension>(kUnknownArch, RopeMode::Neox)});
     ASSERT_TRUE(plain);
 
-    // Switch the FFN from SwiGLU to GeGLU. That is a real per-architecture choice the tensor table
-    // cannot disambiguate, which is why the hook exists; it must change the emitted activation.
+    // SwiGLU and GeGLU use the same tensor layout; the option must select the activation.
     auto hooked_ext = std::make_shared<ArchitectureExtension>(
         make_decoder_architecture(kUnknownArch, RopeMode::Neox, [](const GgufMetadata&) {
             DecoderOptions options;
@@ -239,14 +232,12 @@ private:
 TEST(GGUFArchitectureExtension, CustomDecoderUsesSharedAttentionBlocks) {
     ScratchDir scratch;
 
-    // Reference: the built-in qwen3 builder on the same file.
     const auto ref_path = write_decoder_gguf(scratch.path());
     ASSERT_FALSE(ref_path.empty());
     const auto reference = convert_with(ref_path, {});
     ASSERT_TRUE(reference);
     const auto ref_hist = op_histogram(reference);
 
-    // Under test: the ported builder, supplied entirely by an extension.
     ScratchDir scratch2;
     const auto path = write_decoder_gguf(scratch2.path(), kUnknownArch);
     ASSERT_FALSE(path.empty());
@@ -261,8 +252,7 @@ TEST(GGUFArchitectureExtension, CustomDecoderUsesSharedAttentionBlocks) {
     auto hist = op_histogram(model);
 
     const size_t n_layer = 2;
-    // The synthetic fixture requests softcapping: BOTH paths must respect it. Compare the
-    // attention operations instead of assuming every checkpoint lowers to an SDPA node.
+    // Softcapping can decompose attention; compare against the native graph rather than requiring SDPA.
     EXPECT_EQ(hist["ScaledDotProductAttention"],
               (ref_hist.count("ScaledDotProductAttention") ? ref_hist.at("ScaledDotProductAttention") : 0u));
     // Logits plus a K and a V cache per layer -- the same output surface the built-in path has.
@@ -282,7 +272,6 @@ TEST(GGUFArchitectureExtension, CustomDecoderUsesSharedAttentionBlocks) {
 
 namespace {
 
-// Hyperparameters of the synthetic mmproj vision encoder below.
 constexpr uint32_t kVisEmbd = 32;
 constexpr uint32_t kVisLayers = 2;
 constexpr uint32_t kVisHeads = 4;
@@ -290,9 +279,7 @@ constexpr uint32_t kVisPatches = 16;
 constexpr uint32_t kVisFF = 64;
 constexpr uint32_t kVisProjDim = 48;
 
-// Write a minimal mmproj (vision encoder) GGUF. It names itself "clip" and declares
-// clip.has_vision_encoder, exactly as llama.cpp's mmproj files do (tools/mtmd/clip-impl.h), which
-// is why identifying it needs a metadata predicate rather than an architecture name.
+// Vision and audio files share architecture "clip"; metadata distinguishes them.
 std::string write_vision_gguf(const std::string& dir) {
     GgufWriter w;
     w.kv_str("general.architecture", "clip");
@@ -324,11 +311,7 @@ std::string write_vision_gguf(const std::string& dir) {
     return w.write(path) ? path : std::string{};
 }
 
-// A vision encoder: patch embeddings -> N NON-CAUSAL transformer blocks -> projector.
-//
-// Nothing about this is a causal decoder -- no KV cache, no RoPE, no causal mask, and its own
-// input -- so it exercises the part of the mechanism that matters most: a family the frontend does
-// not implement, contributed entirely from outside it.
+// Patch embeddings -> non-causal transformer blocks -> projector. No decoder configuration or KV cache.
 class VisionEncoderBuilder : public ModelBuilder {
 public:
     explicit VisionEncoderBuilder(const BuildContext& ctx) : m_ctx(ctx) {}
@@ -345,8 +328,7 @@ public:
         const int64_t n_patches = kVisPatches;
         const int64_t head_size = n_embd / n_head;
 
-        // The encoder's own input: one embedding per image patch. A decoder's token input would
-        // make no sense here, which is the point.
+        // One embedding per image patch.
         auto cur = ctx.add_input("inp_patches", ov::element::f32, ov::PartialShape({1, 1, n_patches, n_embd}));
         cur = ctx.add(cur, tensors.require("v.position_embd.weight"));
 
@@ -356,17 +338,15 @@ public:
 
             cur = ctx.build_norm(cur, tensors.require(p + "ln1.weight"), eps);
 
-            // Non-causal self-attention, written out with the ggml vocabulary because there is no
-            // KV cache to hide behind a build_attn: Q@K^T -> softmax -> @V.
+            // Non-causal attention: softmax(Q @ K^T / sqrt(head_size)) @ V.
             auto q = ctx.mul_mat(tensors.require(p + "attn_q.weight"), cur);
             auto k = ctx.mul_mat(tensors.require(p + "attn_k.weight"), cur);
             auto v = ctx.mul_mat(tensors.require(p + "attn_v.weight"), cur);
 
-            // [patches, heads, head_size] -> [heads, patches, head_size], so the matmuls contract
-            // over head_size with the head axis batched, as llama.cpp's ggml_permute does here.
+            // Q/K: [1, heads, patches, head_size], contracting over head_size.
             q = ctx.permute(ctx.reshape(q, {head_size, n_head, n_patches}), {0, 2, 1, 3});
             k = ctx.permute(ctx.reshape(k, {head_size, n_head, n_patches}), {0, 2, 1, 3});
-            // V is contracted over the patch axis instead, so it needs head_size innermost.
+            // V: [1, heads, head_size, patches], contracting over patches.
             v = ctx.permute(ctx.reshape(v, {head_size, n_head, n_patches}), {0, 2, 3, 1});
 
             auto kq = ctx.mul_mat(k, q);
@@ -399,7 +379,6 @@ private:
 
 }  // namespace
 
-// Without the extension, an mmproj file is refused -- the built-in builder only does decoders.
 TEST(GGUFArchitectureExtension, NonDecoderFileIsRejectedWithoutAnExtension) {
     ScratchDir scratch;
     const auto path = write_vision_gguf(scratch.path());
@@ -410,13 +389,12 @@ TEST(GGUFArchitectureExtension, NonDecoderFileIsRejectedWithoutAnExtension) {
                     testing::AllOf(testing::HasSubstr("decoder family"), testing::HasSubstr("ArchitectureExtension")));
 }
 
-// The headline case: a family the frontend has no code for at all, added from outside it.
 TEST(GGUFArchitectureExtension, NonDecoderFamilyConvertsEndToEnd) {
     ScratchDir scratch;
     const auto path = write_vision_gguf(scratch.path());
     ASSERT_FALSE(path.empty());
 
-    // The file calls itself "clip", so the extension claims it by metadata flag, not by name.
+    // Match both architecture "clip" and its vision flag.
     auto ext = std::make_shared<ArchitectureExtension>(
         ArchitectureDefinition{"clip.vision",
                                "clip",
@@ -430,7 +408,6 @@ TEST(GGUFArchitectureExtension, NonDecoderFamilyConvertsEndToEnd) {
     const auto model = convert_with(path, {ext});
     ASSERT_TRUE(model);
 
-    // It must be the vision graph, not something that accidentally went down the decoder path.
     EXPECT_EQ(model->inputs().size(), 1u) << "a vision encoder takes patches and nothing else -- "
                                           << "no tokens, no positions, no KV caches";
     EXPECT_EQ(model->inputs()[0].get_any_name(), "inp_patches");
@@ -448,8 +425,7 @@ TEST(GGUFArchitectureExtension, SharedLibraryWrappedExtensionStillRegisters) {
     const auto path = write_decoder_gguf(scratch.path(), kUnknownArch);
     ASSERT_FALSE(path.empty());
 
-    // A null library handle is enough: SOExtension only keeps it alive, and this extension's code
-    // lives in the test binary, exactly as a real one's lives in its .so.
+    // A null library handle suffices because the builder code lives in this test executable.
     const auto inner = std::make_shared<ArchitectureExtension>(kUnknownArch, RopeMode::Neox);
     const auto wrapped = std::make_shared<ov::detail::SOExtension>(inner, std::shared_ptr<void>{});
 
@@ -457,8 +433,6 @@ TEST(GGUFArchitectureExtension, SharedLibraryWrappedExtensionStillRegisters) {
     ASSERT_TRUE(model);
 }
 
-// Two extensions claiming one file is a registration bug. Picking one silently would surface much
-// later as an inexplicably wrong graph, so it must fail loudly and name both.
 TEST(GGUFArchitectureExtension, AmbiguousClaimIsReportedNotGuessed) {
     ScratchDir scratch;
     const auto path = write_vision_gguf(scratch.path());

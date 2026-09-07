@@ -14,46 +14,27 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-// The built graph. Opaque to an extension: a builder produces one through GgufGraphContext and
-// returns it, and never needs to inspect it. Defined in the frontend (builder/gguf_graph.hpp).
+// Opaque graph produced by GgufGraphContext; defined in builder/gguf_graph.hpp.
 struct GgufGraph;
 
 namespace detail {
 struct WeightStore;
 }
 
-// Everything a model builder is handed about the file it is building from.
-//
-// It is a VIEW: the metadata and weight tables belong to the parser and stay alive for the whole
-// synchronous factory/build call. Copying this view does not copy the weight tables; a builder
-// must not retain it after build() returns. Returned graphs retain the weight tensor storage.
+// Borrowed metadata and weights, valid only during the synchronous factory/build call.
+// Returned graphs retain the weight storage; builders must not retain this view afterward.
 struct GGUF_FRONTEND_API BuildContext {
-    // The file's KV metadata.
     GgufMetadata metadata;
 
     // `general.architecture` as the file spells it.
     std::string arch;
 
-    // The parser's tensor tables (weights and their quantization types), opaque here: they are
-    // reached through GgufTensors, which knows how to emit a weight as the graph leaf the
-    // translators expect.
+    // Opaque weight tables accessed through GgufTensors.
     detail::WeightStore* weights = nullptr;
 };
 
-// Base class for a whole-model graph builder: one subclass per MODEL FAMILY.
-//
-// A family is a distinct graph SHAPE with its own inputs, its own block vocabulary and its own
-// notion of a "layer": the causal decoder stack is one; a vision/mmproj encoder or an audio
-// encoder is another. Within a family, individual architectures are data -- detected from the GGUF
-// tensor table and metadata -- rather than code.
-//
-// This mirrors llama.cpp's split between llm_graph_context (LLMs) and clip_graph (mmproj), where
-// each family has its own base and its own build_norm/build_ffn/build_attn vocabulary, rather than
-// one builder growing flags for structurally unrelated models.
-//
-// An EXTENSION supplies a family by subclassing this and registering a factory through
-// ArchitectureExtension: that is how a non-decoder architecture is added without touching the
-// frontend. See docs/porting_a_llama_cpp_model.md.
+// Whole-model builder for any family, registered through ArchitectureDefinition.
+// See docs/porting_a_llama_cpp_model.md for external and built-in registration.
 class GGUF_FRONTEND_API ModelBuilder {
 public:
     virtual ~ModelBuilder();

@@ -163,7 +163,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-# Exercise a real independently compiled architecture library and the installed SDK boundary.
+# Test loading an independently compiled architecture module using only SDK headers.
 set(ARCH_EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../examples/architecture_extension")
 add_library(gguf_projector_extension MODULE
             "${ARCH_EXAMPLE_DIR}/projector.cpp" "${ARCH_EXAMPLE_DIR}/extension.cpp")

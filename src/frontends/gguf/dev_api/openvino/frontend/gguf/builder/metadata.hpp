@@ -16,10 +16,7 @@ namespace frontend {
 namespace gguf {
 
 namespace detail {
-// Opaque holder for the parser's metadata table. Defined inside the frontend so this header does
-// not drag in the internal GGUF metadata variant (or the quant/ headers that define it): an
-// extension is meant to read metadata through the typed accessors below, not to pattern-match a
-// std::variant whose alternatives are an implementation detail.
+// Keep the parser metadata representation out of the developer API.
 struct MetadataStore;
 struct MetadataAccess;
 }  // namespace detail
@@ -33,7 +30,6 @@ public:
 
     bool has(const std::string& key) const;
 
-    // ---- typed reads; std::nullopt when the key is absent or holds an incompatible type ----
     std::optional<int64_t> get_int(const std::string& key) const;
     std::optional<double> get_float(const std::string& key) const;
     std::optional<bool> get_bool(const std::string& key) const;

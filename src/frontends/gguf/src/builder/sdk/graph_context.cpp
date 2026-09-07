@@ -29,10 +29,7 @@ namespace {
 // Dynamic extent, for model-input Parameters.
 constexpr int64_t D = -1;
 
-// Pad a shape to rank 4 with leading 1s. Shapes are carried in [ne3, ne2, ne1, ne0] order, so a
-// rank-2 weight [rows, cols] becomes [1, 1, rows, cols] -- which is what ggml means by it too,
-// every tensor being nominally 4D with trailing 1s in ne[] order. Shape inference below indexes
-// positionally, so it needs every operand at the same rank.
+// Pad with leading ones for positional shape inference, e.g. [rows, cols] -> [1, 1, rows, cols].
 ov::PartialShape to4d(const ov::PartialShape& s) {
     OPENVINO_ASSERT(s.rank().is_static(), "[GGUF] tensor rank must be known");
     const size_t r = s.size();
@@ -130,8 +127,7 @@ GgufValue GgufGraphContext::add_input(const std::string& name, ov::element::Type
     if (!e.has_model_input(name)) {
         e.add_input(name, type, shape);
     }
-    // The Parameter is dynamic in the token axis, but per-node metadata is static: record the
-    // representative shape, with any dynamic dimension pinned to T.
+    // Keep the Parameter dynamic; translators use representative static dimensions in node metadata.
     ov::PartialShape meta = shape;
     for (auto& d : meta) {
         if (d.is_dynamic()) {
@@ -287,9 +283,7 @@ GgufValue GgufGraphContext::merge_heads(const GgufValue& x) {
 }
 
 GgufValue GgufGraphContext::cont(const GgufValue& x) {
-    // ggml_cont makes a tensor memory-contiguous. A permute here already emitted a real Transpose,
-    // so the result is contiguous by construction and case 1 is a pass-through -- which is exactly
-    // what a ported `ggml_cont(ctx, ggml_permute(...))` means.
+    // OpenVINO handles tensor layout; GGML CONT case 1 is a pass-through.
     return m_impl->emit("GGML_OP_CONT", {x}, x.shape(), x.type(), 1);
 }
 
@@ -352,7 +346,7 @@ GgufValue GgufGraphContext::raw_op(const std::string& op_type,
     return m_impl->emit(op_type, inputs, out_shape, out_type, op_case, attrs);
 }
 
-// ---- llm_graph_context-style blocks ----
+// Normalization blocks
 
 GgufValue GgufGraphContext::build_norm(const GgufValue& cur, const GgufValue& w, float eps) {
     m_impl->check_open();
