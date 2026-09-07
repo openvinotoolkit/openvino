@@ -1394,19 +1394,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     if (allow_new_shape_infer) {
         // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
         auto out_lay_rank = node.get_output_layout(false).get_rank();
-        auto has_reshape_user = [&](const program_node& node) -> bool {
-            for (const auto& user_node : node.get_users()) {
-                if (user_node->is_type<reshape>())
-                    return true;
-            }
-            return false;
-        };
-
-        // Return default format for output layout rank when user node is reshape
-        // to add reorder in front of reshape in reorder_input stage instead of handle_reshpae stage.
-        // It is only applied for the dynamic shape with static input shape
-        if (!node.is_dynamic() &&  has_reshape_user(node))
-            return format::get_default_format(out_lay_rank);
 
         if (node.is_type<shape_of>())
             return format::get_default_format(node.get_input_layout(0).get_rank());

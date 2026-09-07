@@ -55,6 +55,10 @@ std::string attention(GraphEmitter& e,
     const int n_head_kv_l = cfg.layer_n_head_kv(il);
     const float kq_scale = cfg.layer_kq_scale(il);
     const RopeConfig rope_config_l = cfg.layer_rope_config(il);
+    // Shape dimensions are int64_t. Widen before multiplication so malformed metadata cannot
+    // overflow the intermediate int expression before it reaches the PartialShape.
+    const int64_t q_width = static_cast<int64_t>(head_size_l) * cfg.n_head;
+    const int64_t kv_width = static_cast<int64_t>(head_size_l) * n_head_kv_l;
 
     // Q/K/V projections: MUL_MAT(w, attn_norm), then conceptual reshape to heads.
     // Fused-QKV archs (phi-3, minicpm) carry a single attn_qkv weight; split it into
@@ -78,21 +82,9 @@ std::string attention(GraphEmitter& e,
             e.add_weight_from(p + "attn_v.weight", p + "attn_k");
         }
     }
-    auto q = e.add_op("GGML_OP_MUL_MAT",
-                      p + "Qcur",
-                      {p + "attn_q.weight", attn_norm},
-                      ps({1, 1, T, head_size_l * cfg.n_head}),
-                      f32);
-    auto k = e.add_op("GGML_OP_MUL_MAT",
-                      p + "Kcur",
-                      {p + "attn_k.weight", attn_norm},
-                      ps({1, 1, T, head_size_l * n_head_kv_l}),
-                      f32);
-    auto v = e.add_op("GGML_OP_MUL_MAT",
-                      p + "Vcur",
-                      {p + "attn_v.weight", attn_norm},
-                      ps({1, 1, T, head_size_l * n_head_kv_l}),
-                      f32);
+    auto q = e.add_op("GGML_OP_MUL_MAT", p + "Qcur", {p + "attn_q.weight", attn_norm}, ps({1, 1, T, q_width}), f32);
+    auto k = e.add_op("GGML_OP_MUL_MAT", p + "Kcur", {p + "attn_k.weight", attn_norm}, ps({1, 1, T, kv_width}), f32);
+    auto v = e.add_op("GGML_OP_MUL_MAT", p + "Vcur", {p + "attn_v.weight", attn_norm}, ps({1, 1, T, kv_width}), f32);
 
     // Q/K/V projection biases (qwen2 / qwen2.5: separate attn_{q,k,v}.bias; phi-3-style
     // fused-QKV archs: attn_qkv.bias, already split into attn_{q,k,v}.bias by
@@ -267,8 +259,7 @@ std::string attention(GraphEmitter& e,
                          std::move(attn_attrs));
 
     // reshape back to [1, 1, n_tokens, n_head*head_size]
-    auto attn_2d =
-        e.add_op("GGML_OP_RESHAPE", p + "kqv_merged", {attn}, ps({1, 1, T, cfg.n_head * head_size_l}), f32, 2);
+    auto attn_2d = e.add_op("GGML_OP_RESHAPE", p + "kqv_merged", {attn}, ps({1, 1, T, q_width}), f32, 2);
 
     // muse-glimmer: sigmoid output gate. The gate is a projection of the PRE-attention
     // normed hidden (the same `attn_norm` tensor Q/K/V come from), squashed by sigmoid and
@@ -278,7 +269,7 @@ std::string attention(GraphEmitter& e,
         auto gate = e.add_op("GGML_OP_MUL_MAT",
                              p + "attn_gate",
                              {p + "attn_gate.weight", attn_norm},
-                             ps({1, 1, T, cfg.n_head * head_size_l}),
+                             ps({1, 1, T, q_width}),
                              f32);
         gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate}, e.shape_of_tensor(gate), f32);
         attn_2d = e.add_op("GGML_OP_MUL", p + "kqv_gated", {attn_2d, gate}, e.shape_of_tensor(attn_2d), f32);
