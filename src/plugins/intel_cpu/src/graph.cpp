@@ -24,6 +24,7 @@
 #include <new>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <optional>
 #include <set>
 #include <string>
 #include <tuple>

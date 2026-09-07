@@ -11,6 +11,7 @@
 #include <memory>
 #include <mutex>
 #include <ostream>
+#include <optional>
 #include <utility>
 #include <vector>
 
