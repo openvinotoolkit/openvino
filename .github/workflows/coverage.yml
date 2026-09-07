@@ -24,6 +24,7 @@ concurrency:
 permissions: read-all
 
 env:
+  OV_COMPILE_CACHE_ENABLED: 'true'  # set to 'false' to disable compile cache
   ENABLE_BRANCH_COVERAGE: 'false'
   LCOV_CAPTURE_TIMEOUT_SECONDS: '3600'
   NODE_VERSION: '21'
@@ -74,6 +75,7 @@ jobs:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
+      enable-compile-cache: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
       runner: 'aks-linux-16-cores-32gb-ab'
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       affected-components: '{"JS_API":true}'

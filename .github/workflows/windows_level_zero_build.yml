@@ -25,6 +25,7 @@ concurrency:
 permissions: read-all
 
 env:
+  OV_COMPILE_CACHE_ENABLED: 'true'  # set to 'false' to disable compile cache
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
@@ -65,6 +66,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
     uses: ./.github/workflows/job_build_windows.yml
     with:
+      enable-compile-cache: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
       runner: 'aks-win-16-cores-32gb-build-ab'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'

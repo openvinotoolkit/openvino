@@ -25,6 +25,9 @@ concurrency:
 
 permissions: read-all
 
+env:
+  OV_COMPILE_CACHE_ENABLED: 'true'  # set to 'false' to disable compile cache
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -116,8 +119,8 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'sccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'sccache' || '' }}
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_CACHE_SIZE: 50G
@@ -131,6 +134,7 @@ jobs:
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -193,6 +197,7 @@ jobs:
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
 
       - name: Compile cache statistics (openvino main build)
+        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
         uses: ./src/.github/actions/compile_cache_stats
         with:
           build-label: openvino-main
@@ -232,6 +237,7 @@ jobs:
           done
 
       - name: Compile cache statistics (python api wheels)
+        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
         uses: ./src/.github/actions/compile_cache_stats
         with:
           build-label: python-api-wheels
@@ -255,6 +261,7 @@ jobs:
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node/bin
 
       - name: Compile cache statistics (openvino js api)
+        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
         uses: ./src/.github/actions/compile_cache_stats
         with:
           build-label: openvino-js-api

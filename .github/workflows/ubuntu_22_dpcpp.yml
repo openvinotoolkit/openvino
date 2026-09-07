@@ -16,6 +16,9 @@ concurrency:
 
 permissions: read-all
 
+env:
+  OV_COMPILE_CACHE_ENABLED: 'true'  # set to 'false' to disable compile cache
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -84,6 +87,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
+      enable-compile-cache: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
       runner: 'aks-linux-16-cores-32gb-ab'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_dpcpp }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}

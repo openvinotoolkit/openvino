@@ -107,8 +107,8 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'ccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'ccache' || '' }}
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
@@ -229,8 +229,8 @@ jobs:
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_BUILD_DIR}/dependencies/conan_toolchain.cmake \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'ccache' || '' }} \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'ccache' || '' }} \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
             -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
             -S ${OPENVINO_REPO} \
@@ -246,6 +246,7 @@ jobs:
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel 15 -- --quiet
 
       - name: Compile cache statistics (openvino main build)
+        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: openvino-main
@@ -260,6 +261,7 @@ jobs:
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel 15 --target install -- --quiet
 
       - name: Compile cache statistics (cmake install target)
+        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cmake-install-target

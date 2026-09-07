@@ -102,8 +102,8 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'sccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'sccache' || '' }}
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
@@ -118,6 +118,7 @@ jobs:
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -166,6 +167,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Compile cache statistics (openvino main build)
+        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: openvino-main

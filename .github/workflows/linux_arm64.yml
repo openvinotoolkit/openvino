@@ -26,6 +26,7 @@ concurrency:
 permissions: read-all
 
 env:
+  OV_COMPILE_CACHE_ENABLED: 'true'  # set to 'false' to disable compile cache
 
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
@@ -98,6 +99,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
+      enable-compile-cache: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
       runner: 'aks-linux-16-cores-32gb-arm-ab'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}

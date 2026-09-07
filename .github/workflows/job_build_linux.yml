@@ -96,6 +96,12 @@ on:
         required: false
         default: false
 
+      enable-compile-cache:
+        description: 'Use compiler cache (sccache/ccache) for builds in this job'
+        type: boolean
+        required: false
+        default: true
+
 permissions: read-all
 
 env:
@@ -121,8 +127,8 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && 'sccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && 'sccache' || '' }}
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: ${{ github.workspace }}/sccache_log.txt
@@ -144,6 +150,7 @@ jobs:
       PIP_TRUSTED_HOST: ${{ contains(inputs.runner, 'aks') && 'pip-proxy.pip-proxy.svc.cluster.local' || '' }}
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: ${{ inputs.enable-compile-cache }}
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -245,6 +252,7 @@ jobs:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
 
       - name: Zero compile cache stats (openvino main build)
+        if: ${{ inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -253,6 +261,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Compile cache statistics (openvino main build)
+        if: ${{ inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: openvino-main
@@ -293,7 +302,7 @@ jobs:
         run: cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
 
       - name: Zero compile cache stats (python api wheels)
-        if: ${{ inputs.build-additional-python-packages }}
+        if: ${{ inputs.build-additional-python-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -331,7 +340,7 @@ jobs:
           ARCH: ${{ inputs.arch }}
 
       - name: Compile cache statistics (python api wheels)
-        if: ${{ inputs.build-additional-python-packages }}
+        if: ${{ inputs.build-additional-python-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: python-api-wheels
@@ -382,7 +391,7 @@ jobs:
                 ${BUILD_DIR}
 
       - name: Zero compile cache stats (debian packages)
-        if: ${{ inputs.build-debian-packages }}
+        if: ${{ inputs.build-debian-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -392,7 +401,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target package -- --quiet
 
       - name: Compile cache statistics (debian packages)
-        if: ${{ inputs.build-debian-packages }}
+        if: ${{ inputs.build-debian-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: debian-packages
@@ -409,7 +418,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Zero compile cache stats (openvino contrib)
-        if: ${{ inputs.build-contrib }}
+        if: ${{ inputs.build-contrib && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -419,7 +428,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Compile cache statistics (openvino contrib)
-        if: ${{ inputs.build-contrib }}
+        if: ${{ inputs.build-contrib && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: openvino-contrib
@@ -434,7 +443,7 @@ jobs:
                 -DENABLE_WHEEL=OFF
 
       - name: Zero compile cache stats (openvino js api)
-        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -444,7 +453,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
 
       - name: Compile cache statistics (openvino js api)
-        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: openvino-js-api
@@ -490,7 +499,7 @@ jobs:
                 ${BUILD_DIR}
 
       - name: Zero compile cache stats (rpm packages)
-        if: ${{ inputs.build-rpm-packages }}
+        if: ${{ inputs.build-rpm-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -500,7 +509,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 --target package -- --quiet
 
       - name: Compile cache statistics (rpm packages)
-        if: ${{ inputs.build-rpm-packages }}
+        if: ${{ inputs.build-rpm-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: rpm-packages

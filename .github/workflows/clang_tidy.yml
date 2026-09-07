@@ -21,6 +21,7 @@ concurrency:
 permissions: read-all
 
 env:
+  OV_COMPILE_CACHE_ENABLED: 'true'  # set to 'false' to disable compile cache
   RISCV_TOOLCHAIN_ROOT: /opt/riscv
 
 jobs:
@@ -122,6 +123,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
+      enable-compile-cache: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
       runner: aks-linux-16-cores-32gb-ab
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
@@ -135,6 +137,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
+      enable-compile-cache: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
       runner: aks-linux-16-cores-32gb-arm-ab
       image: ${{ fromJSON(needs.docker_arm.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       cmake-generator: 'Unix Makefiles'
@@ -150,6 +153,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
+      enable-compile-cache: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
       runner: aks-linux-16-cores-32gb-ab
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       cmake-generator: 'Unix Makefiles'
@@ -166,6 +170,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
+      enable-compile-cache: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
       runner: aks-linux-16-cores-32gb-ab
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
