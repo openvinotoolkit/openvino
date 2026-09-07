@@ -170,15 +170,20 @@ TEST(skip_permute_at_runtime, dynamic_remote_output_switches_between_skip_and_ex
     network network(engine, topology, config);
     auto permute_inst = network.get_primitive("permute");
     auto producer_inst = network.get_primitive("producer");
+    memory::ptr previous_output;
+    std::vector<float> previous_values;
 
     auto run = [&](const ov::Shape& input_shape,
                    const ov::Shape& output_shape,
                    const std::vector<float>& input_values,
                    const std::vector<float>& expected,
-                   bool expect_skip) {
+                   bool expect_skip,
+                   bool reuse_output = false) {
         auto input_mem = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
         set_values(input_mem, input_values);
-        auto output_mem = engine.allocate_memory({output_shape, data_types::f32, format::bfyx});
+        const auto output_layout = layout{output_shape, data_types::f32, format::bfyx};
+        auto output_mem = reuse_output ? engine.reinterpret_buffer(*previous_output, output_layout)
+                                       : engine.allocate_memory(output_layout);
 
         network.set_input_data("input", input_mem);
         network.set_output_memory("output", output_mem, true);
@@ -192,16 +197,66 @@ TEST(skip_permute_at_runtime, dynamic_remote_output_switches_between_skip_and_ex
             ASSERT_NE(producer_inst->output_memory_ptr()->buffer_ptr(), output_mem->buffer_ptr());
         }
 
+        if (previous_output && !reuse_output) {
+            EXPECT_FALSE(engine.is_the_same_buffer(producer_inst->output_memory(), *previous_output));
+            mem_lock<float> previous_ptr(previous_output, get_test_stream());
+            for (size_t index = 0; index < previous_values.size(); ++index) {
+                EXPECT_EQ(previous_ptr[index], previous_values[index]) << "Previous output changed at " << index;
+            }
+        }
+
         mem_lock<float> output_ptr(output_mem, get_test_stream());
         for (size_t i = 0; i < expected.size(); ++i) {
             ASSERT_EQ(output_ptr[i], expected[i]) << "Mismatch at index " << i;
         }
+        previous_output = output_mem;
+        previous_values = expected;
+        network.reset_output_remote_memory_ptrs();
     };
 
     run({1, 1, 3}, {1, 3, 1}, {6.f, 7.f, 8.f}, {6.f, 7.f, 8.f}, true);
     run({1, 1, 3}, {1, 3, 1}, {9.f, 10.f, 11.f}, {9.f, 10.f, 11.f}, true);
+    run({1, 1, 6}, {1, 6, 1}, {6.f, 7.f, 8.f, 9.f, 10.f, 11.f}, {6.f, 7.f, 8.f, 9.f, 10.f, 11.f}, true);
     run({1, 2, 3}, {1, 3, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f}, {0.f, 3.f, 1.f, 4.f, 2.f, 5.f}, false);
+    run({1, 1, 6}, {1, 6, 1}, {6.f, 7.f, 8.f, 9.f, 10.f, 11.f}, {6.f, 7.f, 8.f, 9.f, 10.f, 11.f}, true, true);
+    run({1, 1, 6}, {1, 6, 1}, {12.f, 13.f, 14.f, 15.f, 16.f, 17.f}, {12.f, 13.f, 14.f, 15.f, 16.f, 17.f}, true, true);
+    run({1, 2, 3}, {1, 3, 2}, {0.f, 1.f, 2.f, 3.f, 4.f, 5.f}, {0.f, 3.f, 1.f, 4.f, 2.f, 5.f}, false, true);
     run({1, 1, 3}, {1, 3, 1}, {12.f, 13.f, 14.f}, {12.f, 13.f, 14.f}, true);
+}
+
+TEST(skip_permute_at_runtime, dynamic_remote_output_preserves_input_binding) {
+    auto& engine = get_test_engine();
+    const auto dynamic_layout = layout{ov::PartialShape::dynamic(3), data_types::f32, format::bfyx};
+    topology topology(input_layout("input", dynamic_layout),
+                      permute("permute", input_info("input"), {0, 2, 1}),
+                      reorder("output", input_info("permute"), format::bfyx, data_types::f32));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    auto input_mem = engine.allocate_memory({{1, 1, 3}, data_types::f32, format::bfyx});
+    const std::vector<float> expected{6.f, 7.f, 8.f};
+    set_values(input_mem, expected);
+    network.set_input_data("input", input_mem);
+    auto initial_outputs = network.execute();
+    initial_outputs.at("output").get_memory();
+    ASSERT_TRUE(network.get_primitive("permute")->can_be_optimized());
+
+    auto remote_output = engine.allocate_memory({{1, 3, 1}, data_types::f32, format::bfyx});
+    set_values(remote_output, std::vector<float>{-1.f, -1.f, -1.f});
+    network.set_output_memory("output", remote_output, true);
+    auto outputs = network.execute();
+    ASSERT_FALSE(network.get_primitive("permute")->can_be_optimized());
+    ASSERT_TRUE(engine.is_the_same_buffer(*outputs.at("output").get_memory(), *remote_output));
+    ASSERT_TRUE(engine.is_the_same_buffer(network.get_primitive("input")->output_memory(), *input_mem));
+
+    mem_lock<float> input_ptr(input_mem, get_test_stream());
+    mem_lock<float> output_ptr(remote_output, get_test_stream());
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_EQ(input_ptr[index], expected[index]);
+        EXPECT_EQ(output_ptr[index], expected[index]);
+    }
 }
 
 TEST(skip_permute_at_runtime, dynamic_remote_output_with_shared_producer_falls_back_to_execution) {
@@ -349,5 +404,40 @@ TEST(skip_permute_at_runtime, dynamic_output_chain_caches_are_isolated_by_remote
     for (size_t i = 0; i < 3; ++i) {
         ASSERT_EQ(output_ptr[i], static_cast<float>(i + 6)) << "Mismatch at index " << i;
     }
+}
+
+TEST(skip_permute_at_runtime, dynamic_remote_output_unbinds_before_non_remote_inference) {
+    auto& engine = get_test_engine();
+    const auto dynamic_layout = layout{ov::PartialShape{1, ov::Dimension(1, 3), ov::Dimension(1, 3)}, data_types::f32, format::bfyx};
+    topology topology(input_layout("input", dynamic_layout),
+                      activation("producer", input_info("input"), activation_func::relu),
+                      permute("permute", input_info("producer"), {0, 2, 1}),
+                      reorder("output", input_info("permute"), format::bfyx, data_types::f32));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+
+    const auto concrete_layout = layout{{1, 1, 1}, data_types::f32, format::bfyx};
+    auto input_mem = engine.allocate_memory(concrete_layout);
+    auto remote_output = engine.allocate_memory(concrete_layout);
+    auto final_output = engine.allocate_memory(concrete_layout);
+    set_values(input_mem, std::vector<float>{6.f});
+    network.set_input_data("input", input_mem);
+    network.set_output_memory("output", remote_output, true);
+    auto outputs = network.execute();
+    ASSERT_TRUE(engine.is_the_same_buffer(*outputs.at("output").get_memory(), *remote_output));
+    ASSERT_TRUE(engine.is_the_same_buffer(network.get_primitive("producer")->output_memory(), *remote_output));
+    network.reset_output_remote_memory_ptrs();
+
+    network.set_output_memory("output", final_output);
+    set_values(input_mem, std::vector<float>{9.f});
+    outputs = network.execute();
+    ASSERT_TRUE(engine.is_the_same_buffer(*outputs.at("output").get_memory(), *final_output));
+    ASSERT_FALSE(engine.is_the_same_buffer(network.get_primitive("producer")->output_memory(), *remote_output));
+    mem_lock<float> remote_ptr(remote_output, get_test_stream());
+    mem_lock<float> final_ptr(final_output, get_test_stream());
+    EXPECT_EQ(remote_ptr[0], 6.f);
+    EXPECT_EQ(final_ptr[0], 9.f);
 }
 }  // namespace skip_permute_tests

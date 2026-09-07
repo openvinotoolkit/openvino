@@ -272,6 +272,8 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     // skip all the buzz if no action actually required
     event::ptr ev = nullptr;
     if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx])) {
+        if (idx == 0)
+            _remote_permute_output_alias.reset();
         return nullptr;
     }
 
@@ -285,6 +287,8 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     } else {
         _outputs[idx] = mem_new;
         _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
+        if (idx == 0)
+            _remote_permute_output_alias.reset();
     }
     return ev;
 }
@@ -663,6 +667,7 @@ bool primitive_inst::need_reset_output_memory() const {
 void primitive_inst::clear_output_memory() {
     _outputs[0] = nullptr;
     _max_output_layout_count[0] = 0;
+    _remote_permute_output_alias.reset();
 }
 
 void primitive_inst::realloc_intermediates() {
@@ -747,7 +752,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
-    if (!can_be_optimized() && _outputs.size() == 1 && users.size() == 1) {
+    if (!can_be_optimized() && is_dynamic() && !is_input() && !is_output() && !is_constant() && !has_inner_networks() &&
+        !get_node().is_type<mutable_data>() && !dynamic_cast<memory_state::variable*>(this) &&
+        _outputs.size() == 1 && users.size() == 1) {
         auto* permute_inst = users.front();
         if (permute_inst->get_node().is_type<permute>() && !permute_inst->is_output() &&
             permute_inst->get_node().is_runtime_skippable() && !permute_inst->_impl_params->has_fused_primitives() &&
@@ -765,13 +772,15 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
             if (can_bind_remote) {
                 const bool memory_changed = !_outputs[0] ||
                     !get_network().get_engine().is_the_same_buffer(*_outputs[0], *remote_memory);
-                if (memory_changed && _outputs[0] && get_node().get_program().get_config().get_enable_memory_pool()) {
+                if (memory_changed && _outputs[0] && !_remote_permute_output_alias &&
+                    get_node().get_program().get_config().get_enable_memory_pool()) {
                     get_network().get_memory_pool().release_memory(_outputs[0].get(),
                                                                    get_node().get_unique_id(),
                                                                    get_node().id(),
                                                                    get_network_id());
                 }
                 _outputs[0] = get_network().get_engine().reinterpret_buffer(*remote_memory, actual_layouts[0]);
+                _remote_permute_output_alias = _outputs[0];
                 _max_output_layout_count[0] = remote_memory->size() / data_type_traits::size_of(actual_layouts[0].data_type);
                 _mem_allocated = false;
                 if (memory_changed)
@@ -787,6 +796,15 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 _mem_allocated = false;
             }
         }
+    }
+
+    if (_remote_permute_output_alias) {
+        if (_outputs[0] && get_network().get_engine().is_the_same_buffer(*_outputs[0], *_remote_permute_output_alias)) {
+            clear_output_memory();
+            _mem_allocated = false;
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        }
+        _remote_permute_output_alias.reset();
     }
 
     if (users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
@@ -2204,7 +2222,8 @@ void primitive_inst::prepare_primitive() {
     const bool prev_execution_skipped = can_be_optimized()
                         || (_impl_params->output_layouts[0].is_static() && _impl_params->output_layouts[0].count() == 0);
     const auto orig_outputs = _outputs;
-    const bool output_reallocation_requested = _output_reallocation_requested;
+    const bool output_reallocation_requested = _output_reallocation_requested ||
+        (_remote_permute_output_alias && !get_network().is_output_remote_memory(*_remote_permute_output_alias));
     _output_reallocation_requested = false;
     bool outputs_reallocated = false;
     if ((is_dynamic() || get_node().is_in_shape_of_subgraph()) && !has_inner_networks()) {
@@ -2261,10 +2280,12 @@ void primitive_inst::prepare_primitive() {
         do_runtime_in_place_crop();
         do_runtime_skip_resample();
 
-        if (can_be_optimized() && get_node().is_runtime_skippable() && output_memory_ptr() &&
+        if (can_be_optimized() && get_node().is_type<permute>() && get_node().is_runtime_skippable() && output_memory_ptr() &&
             get_network().is_output_remote_memory(*output_memory_ptr()) &&
             (!input_memory_ptr() || !get_network().get_engine().is_the_same_buffer(input_memory(), output_memory()))) {
             set_can_be_optimized(false);
+            if (prev_execution_skipped)
+                set_flag(ExecutionFlags::SHAPE_CHANGED);
         }
 
         if (!is_valid_fusion()) {

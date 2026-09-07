@@ -537,9 +537,9 @@ std::vector<primitive_inst*> network::build_output_chain(std::shared_ptr<primiti
             add_mdata_chain(nc_cand);
         }
 
-        // Runtime-skippable nodes may need to execute after their concrete shape is known.
-        // Keep a remote output bound to the node without aliasing its input producer.
-        if (is_remote && cand->get_node().is_runtime_skippable() && !cand->get_node().is_type<reorder>())
+        // A runtime-skippable permute may need to execute after its concrete shape is known.
+        // Keep a remote output bound to the permute without aliasing its input producer.
+        if (is_remote && cand->get_node().is_type<permute>() && cand->get_node().is_runtime_skippable())
             continue;
 
         for (const auto& dep : cand->dependencies()) {
@@ -603,7 +603,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
 
     if (is_remote) {
         for (auto* prim : o_iter->second) {
-            if (!prim->get_node().is_runtime_skippable() || prim->dependencies().empty())
+            if (!prim->get_node().is_type<permute>() || !prim->get_node().is_runtime_skippable() || prim->dependencies().empty())
                 continue;
 
             auto producer = find_primitive(prim->dependencies().front().first->id());

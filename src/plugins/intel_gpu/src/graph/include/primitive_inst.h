@@ -430,6 +430,7 @@ protected:
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
     std::vector<memory::ptr> _outputs;
+    memory::ptr _remote_permute_output_alias;
 
     std::vector<memory::ptr> _intermediates_memory;
 
