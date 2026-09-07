@@ -806,16 +806,12 @@ TEST(rms_gpu_test, rms_f16_inf_input_no_nan) {
     auto& engine = get_test_engine();
 
     const int N = 16;
-    auto input = engine.allocate_memory({ov::PartialShape{1, 1, N}, data_types::f16, format::bfyx});
-    auto gamma = engine.allocate_memory({ov::PartialShape{1, N}, data_types::f16, format::bfyx});
 
     std::vector<ov::float16> input_data(N, ov::float16(1.0f));
     input_data[0] = ov::float16::from_bits(0x7C00);  // +INF
     input_data[1] = ov::float16::from_bits(0xFC00);  // -INF
-    set_values(input, input_data);
 
     std::vector<ov::float16> gamma_data(N, ov::float16(1.0f));
-    set_values(gamma, gamma_data);
 
     // Compute reference: clamp INF to 65504 before squaring (same as kernel fix)
     constexpr float FP16_MAX = 65504.0f;
@@ -834,29 +830,46 @@ TEST(rms_gpu_test, rms_f16_inf_input_no_nan) {
         ref[i] = rms_factor * clamped * static_cast<float>(gamma_data[i]);
     }
 
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(input_layout("gamma", gamma->get_layout()));
-    topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon));
+    auto run_with_kernel = [&](const std::string& kernel_name) {
+        auto input = engine.allocate_memory({ov::PartialShape{1, 1, N}, data_types::f16, format::bfyx});
+        auto gamma = engine.allocate_memory({ov::PartialShape{1, N}, data_types::f16, format::bfyx});
+        set_values(input, input_data);
+        set_values(gamma, gamma_data);
 
-    auto config = get_test_default_config(engine);
-    config.set_property(ov::hint::inference_precision(ov::element::f16));
-    network network(engine, topology, config);
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(input_layout("gamma", gamma->get_layout()));
+        topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon));
 
-    network.set_input_data("input", input);
-    network.set_input_data("gamma", gamma);
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::hint::inference_precision(ov::element::f16));
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"rms", {format::bfyx, kernel_name}}
+        }));
+        network network(engine, topology, config);
 
-    auto outputs = network.execute();
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "rms");
+        network.set_input_data("input", input);
+        network.set_input_data("gamma", gamma);
 
-    auto output = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+        auto impl = network.get_primitive("rms")->get_impl();
+        ASSERT_NE(impl, nullptr);
+        ASSERT_EQ(impl->get_kernel_name(), kernel_name);
 
-    for (int i = 0; i < N; ++i) {
-        float val = static_cast<float>(output_ptr[i]);
-        ASSERT_NEAR(val, ref[i], 1e-3f) << " index=" << i;
-    }
+        auto outputs = network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "rms");
+
+        auto output = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+        for (int i = 0; i < N; ++i) {
+            float val = static_cast<float>(output_ptr[i]);
+            ASSERT_NEAR(val, ref[i], 1e-3f) << " kernel=" << kernel_name << " index=" << i;
+        }
+    };
+
+    run_with_kernel("rms_gpu_bfyx_opt");
+    run_with_kernel("rms_gpu_ref");
 }
 
 // ============================================================================
