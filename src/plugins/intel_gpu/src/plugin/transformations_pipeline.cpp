@@ -90,6 +90,7 @@
 #include "transformations/common_optimizations/moe_op_fusion.hpp"
 #include "transformations/op_conversions/convert_gather_matmul_to_compressed.hpp"
 #include "plugin/transformations/convert_stridedslices_to_variadicsplit.hpp"
+#include "plugin/transformations/decompose_one_hot_non_const_values.hpp"
 #include "plugin/transformations/decompose_reduce_scalar_output.hpp"
 #include "plugin/transformations/dynamic_quantize_fully_connected.hpp"
 #include "plugin/transformations/fc_convert_fusion.hpp"
@@ -99,12 +100,13 @@
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_moe_router.hpp"
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
+#include "plugin/transformations/group_query_attention_decomposition.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
-#include "plugin/transformations/preserve_selective_ssm_precision.hpp"
+#include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
 #include "plugin/transformations/kv_cache_fusion.hpp"
 #include "plugin/transformations/lora_horizontal_fusion.hpp"
@@ -119,6 +121,8 @@
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
+#include "plugin/transformations/disable_fp16_comp_gated_residual.hpp"
 #include "plugin/transformations/disable_fp16_comp_rms.hpp"
 #include "plugin/transformations/swiglu_fusion_with_clamp.hpp"
 #include "plugin/transformations/disable_fp16_comp_cumsum_sin_gen.hpp"
@@ -548,8 +552,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             case ov::element::f16: return device_info.supports_fp16;
             case ov::element::f32: return true; // assume that all GPUs support f32 data type
             case ov::element::f64: return device_info.supports_fp64;
-            // TODO: Remove get_use_onednn() guard once OCL kernels support bf16
-            case ov::element::bf16: return device_info.supports_immad && config.get_use_onednn();
+            case ov::element::bf16: return device_info.supports_immad;
             default: return false;
         }
         return false;
@@ -750,7 +753,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
+        const bool fp16_activation_scaling_enabled =
+            config.get_activations_scale_factor() > 0.f && infer_precision == ov::element::f16;
+        // Gated residuals need FP32 protection only when FP16 activation scaling is enabled.
+        if (fp16_activation_scaling_enabled)
+            manager.register_pass<DisableFP16CompForQwenImageGatedResidualPattern>();
         manager.register_pass<DisableFP16ComForGPTOSSROPEPattern>();
+        manager.register_pass<DisableFP16CompForDirectMultiplySinCos>();
         manager.register_pass<DisableFP16CompCumSumSinGen>();
         // HiFiGAN matches a strict suffix of the CumSumSinGen chain — skip
         // when the same Sin was already marked above.
@@ -770,7 +779,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // (the intact op requires fp32 scales; it is decomposed later in CommonOptimizations).
         manager.register_pass<ov::intel_gpu::KeepGQAKVScalePrecision>();
         manager.register_pass<ov::intel_gpu::EliminateEmptySelectiveSSM>();
-        manager.register_pass<ov::intel_gpu::PreserveSelectiveSSMPrecision>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
                                                           empty_fuse_map,
@@ -778,7 +786,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);
 
+        // The one_hot primitive takes on/off as compile time values,
+        // so OneHot ops fed by a runtime scalar are turned into a boolean mask + Select.
+        // This runs right before "CommonOptimizations",
+        // whose ConstantFolding folds the mask away when indices and depth are constants.
+        manager.register_pass<ov::intel_gpu::DecomposeOneHotNonConstValues>();
+
         manager.register_pass<ov::pass::CommonOptimizations>();
+        pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
+        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".
@@ -928,11 +944,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto& value_ps = sdpa->get_input_partial_shape(2);
 
             // Known limitations:
-            // - The data type of SDPA should be fp16
-            if (sdpa->get_output_element_type(0) != ov::element::f16)
+            // - The data type of SDPA should be fp16 or bf16
+            if (sdpa->get_output_element_type(0) != ov::element::f16 &&
+                sdpa->get_output_element_type(0) != ov::element::bf16)
                 return false;
 
-            // - The attn mask type of SDPA should be fp16
+            // - The attn mask type of SDPA should be fp16 or bf16
             if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 && sdpa->get_input_element_type(3) == ov::element::boolean) {
                 return false;
             }
@@ -1015,7 +1032,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return false;
                     }
 
-                    if (lstm_seq->get_clip() > 0.f) {
+                    // Only a finite positive clip requires decomposition; invalid values are ignored as no-clip.
+                    if (ov::op::util::classify_rnn_clip(lstm_seq->get_clip()) == ov::op::util::RNNClipMode::CLAMP) {
                         return false;
                     }
 
@@ -1139,7 +1157,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             }
             if (const auto& lstm_cell_v1 = ov::as_type_ptr<const ov::op::v0::LSTMCell>(node)) {
-                return lstm_cell_v1->get_clip() == 0.0f && lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
+                // clip == 0 and clip == inf both mean "no clipping" (see RNNCellBase::clip), so treat inf as no-clip
+                return ov::op::util::classify_rnn_clip(lstm_cell_v1->get_clip()) == ov::op::util::RNNClipMode::NONE &&
+                       lstm_cell_v1->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"};
             }
             return false;
         };
@@ -1150,8 +1170,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // (WA) We can ignore real sequence_lengths input for batch_size == 1 case when seq_length in first input is dynamic.
         // This WA applies to GRUSequence only.
         // RNN Sequence is not supported in GPU plugin and is always converted to TensorIterator
-        // LSTM Sequence supported with clip == 0, and activations have default values (sigmoid, tanh, tanh)
-        // GRU Sequence supported with clip == 0, and activations have default values (sigmoid, tanh)
+        // LSTM Sequence is supported when clipping is not required and activations have default values.
+        // GRU Sequence is supported when clipping is not required and activations have default values.
         auto isSequencePrimitiveSupported = [](const_node_ptr &node) -> bool {
             const auto& data = node->input(0);
             const auto& data_pshape = data.get_partial_shape();
@@ -1162,22 +1182,20 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
             if (const auto& gru_seq = ov::as_type_ptr<const ov::op::v5::GRUSequence>(node)) {
                 bool is_batch_one_with_dynamic_seq_len = data_pshape[0] == 1 && !data_pshape[1].is_static();
-                return gru_seq->get_clip() == 0.0f &&
-                    gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} &&
-                    max_seq_len != 1 &&
-                    (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0),
-                                                        gru_seq->get_input_node_shared_ptr(2)) ||
-                    is_batch_one_with_dynamic_seq_len) &&
-                    gru_seq->get_linear_before_reset();
+                // Invalid clip values are ignored as no-clip by the native primitive.
+                return ov::op::util::classify_rnn_clip(gru_seq->get_clip()) != ov::op::util::RNNClipMode::CLAMP &&
+                       gru_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh"} && max_seq_len != 1 &&
+                       (!ov::op::util::is_seq_len_provided(gru_seq->get_input_node_shared_ptr(0), gru_seq->get_input_node_shared_ptr(2)) ||
+                        is_batch_one_with_dynamic_seq_len) &&
+                       gru_seq->get_linear_before_reset();
             }
             if (const auto& lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node)) {
                 if (!data_pshape[1].is_static())
                     return false;
-                return (lstm_seq->get_clip() == 0.0f &&
-                    lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
-                    max_seq_len != 1 &&
-                    !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
-                                                        lstm_seq->get_input_node_shared_ptr(3)));
+                // Invalid clip values are ignored as no-clip by the native primitive.
+                return (ov::op::util::classify_rnn_clip(lstm_seq->get_clip()) != ov::op::util::RNNClipMode::CLAMP &&
+                        lstm_seq->get_activations() == std::vector<std::string>{"sigmoid", "tanh", "tanh"} && max_seq_len != 1 &&
+                        !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0), lstm_seq->get_input_node_shared_ptr(3)));
             }
             return false;
         };

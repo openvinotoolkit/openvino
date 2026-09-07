@@ -256,3 +256,43 @@ TEST(GGUFFusedQkvBias, SplitsIntoExpectedRanges) {
         EXPECT_FLOAT_EQ(parts[2].data<float>()[i], static_cast<float>(n_q + n_k + i));
     }
 }
+
+TEST(GGUFFusedQkvWeight, PreservesScalesForMxfp4AndQ8K) {
+    const auto check = [](ov::frontend::gguf::GgufTensorType qtype,
+                          const ov::element::Type& weight_type,
+                          const ov::element::Type& scale_type,
+                          size_t groups) {
+        constexpr size_t rows = 6;
+        constexpr size_t cols = 256;
+        std::unordered_map<std::string, ov::Tensor> weights{
+            {"fused.weight", ov::Tensor(weight_type, {rows, cols})},
+            {"fused.scales", ov::Tensor(scale_type, {rows, groups})},
+        };
+        std::unordered_map<std::string, ov::frontend::gguf::GgufTensorType> qtypes{{"fused.qtype", qtype}};
+
+        auto qkv = ov::frontend::gguf::split_fused_qkv_extracted("fused", weights, qtypes, 2, 2, 2);
+        for (const auto& part : qkv) {
+            ASSERT_TRUE(part.tensors.scales);
+            EXPECT_EQ(part.tensors.scales.get_shape(), (ov::Shape{2, groups}));
+        }
+
+        auto q_gate = ov::frontend::gguf::split_interleaved_q_gate("fused", weights, qtypes, 1);
+        for (const auto& part : q_gate) {
+            ASSERT_TRUE(part.tensors.scales);
+            EXPECT_EQ(part.tensors.scales.get_shape(), (ov::Shape{3, groups}));
+        }
+    };
+
+    check(ov::frontend::gguf::GGUF_TYPE_MXFP4, ov::element::f4e2m1, ov::element::f8e8m0, 8);
+    check(ov::frontend::gguf::GGUF_TYPE_Q8_K, ov::element::i8, ov::element::f32, 1);
+}
+
+TEST(GGUFWeight, RejectsMissingAuxiliaryTensors) {
+    using namespace ov::frontend::gguf;
+
+    WeightTensors without_scales{ov::Tensor(ov::element::i4, {1, 32}), {}, {}};
+    EXPECT_THROW(make_weight_node(without_scales, GGUF_TYPE_Q4_0), ov::Exception);
+
+    WeightTensors without_zero_point{ov::Tensor(ov::element::u32, {1, 4}), ov::Tensor(ov::element::f16, {1, 1}), {}};
+    EXPECT_THROW(make_weight_node(without_zero_point, GGUF_TYPE_Q4_K), ov::Exception);
+}
