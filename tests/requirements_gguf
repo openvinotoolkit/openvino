@@ -1,0 +1,11 @@
+# Requirements for the GGUF frontend model hub tests (tests/model_hub_tests/gguf).
+#
+# The tests only need numpy (to build input tensors), pytest, and huggingface_hub (to
+# download the .gguf checkpoints). No tokenizer / transformers / framework dependency:
+# the suite feeds synthetic token ids and checks conversion + a single forward step,
+# not generated text.
+numpy==1.26.4; python_version < "3.12"
+numpy==2.2.1; python_version >= "3.12"
+pytest==7.0.1
+pytest-html==4.2.0
+huggingface-hub==0.25.2

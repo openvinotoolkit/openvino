@@ -39,6 +39,7 @@ set(OV_CORE_TESTS_VISITORS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op/convert.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/convert_color_i420.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/convert_color_nv12.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/convert_color_to_nv12.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/convert_like.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/convert_promote_types.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op/convolution.cpp

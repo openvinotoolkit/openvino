@@ -49,6 +49,8 @@ micro::Type convert_type(ov::element::Type t) {
         return micro::Type::f32;
     case ov::element::f16:
         return micro::Type::f16;
+    case ov::element::bf16:
+        return micro::Type::bf16;
     case ov::element::i8:
         return micro::Type::s8;
     case ov::element::u8:
@@ -336,7 +338,7 @@ sdpa_config_t xehpg_q_h512_s64_2nd = {8, 16, 32, 8, 32, 1, 16, 2};
 sdpa_config_t xehpg_q_h512_s256_2nd = {16, 8, 32, 8, 16, 2, 16, 2};
 sdpa_config_t xehpg_q_h512_2nd = {16, 8, 16, 8, 32, 1, 32, 1};
 
-sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 8, 2, 32, 2};
+sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 32, 1, 32, 1};
 sdpa_config_t xehpg_h512 = {8, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpg_h512_2nd = {8, 8, 32, 8, 16, 1, 16, 1};
 
@@ -384,7 +386,7 @@ sdpa_config_t xehpc_h256 = {16, 32, 32, 32, 8, 4, 8, 4};
 sdpa_config_t xehpc_h256_s64 = {16, 32, 32, 32, 8, 1, 8, 1};
 sdpa_config_t xehpc_h256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t xehpc_h512_pa = {16, 16, 16, 16, 16, 1, 32, 1};
+sdpa_config_t xehpc_h512_pa = {16, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpc_h512 = {32, 16, 64, 16, 8, 4, 8, 4};
 sdpa_config_t xehpc_h512_s64 = {16, 16, 64, 16, 8, 2, 8, 2};
 sdpa_config_t xehpc_h512_s128_2nd = {16, 16, 64, 16, 8, 1, 8, 1};
@@ -836,6 +838,10 @@ std::string SDPAMicroGenerator::get_build_options(const kernel_impl_params& para
     extra_options += " -Dcl_intel_global_float_atomic";
     extra_options += " -Dcl_intel_subgroup_matrix_multiply_accumulate";
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
+    bool debug_pa_integrity_check = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_pa_integrity_check(), false);
+    if (debug_pa_integrity_check && !m_is_gqa_single_token) {
+        extra_options += " -DPA_INTEGRITY_CHECK=1";
+    }
 
     return base_options + extra_options;
 }
@@ -1078,6 +1084,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     size_t scale_input_idx = 4;
     jit.make("IS_CAUSAL", config.is_causal);
+    jit.make("CAUSAL_MASK_LOWER_RIGHT", config.causal_lower_right);
     if (!config.is_paged_attention) {
         const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
         if (config.has_const_attn_mask_val) {
@@ -1563,6 +1570,17 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
     }
 
+    if (!is_prefill) {
+        const auto& wg_cfg = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_workgroup_config(), std::vector<int>{});
+        if (wg_cfg.size() >= 4) {
+            config->wg_m_kq = wg_cfg[0];
+            config->wg_n_kq = wg_cfg[1];
+            config->wg_m_vs = wg_cfg[2];
+            config->wg_n_vs = wg_cfg[3];
+        }
+    }
+    GPU_DEBUG_TRACE_DETAIL << "is_prefill=" << is_prefill << " single_token " << is_gqa_single_token << " Chosen config for xe_hpg: " << config->wg_m_kq << ", "
+                           << config->wg_n_kq << ", " << config->wg_m_vs << ", " << config->wg_n_vs << ", " << std::endl;
     OPENVINO_ASSERT(config != nullptr);
 
     /* Get device information */
@@ -1585,7 +1603,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem.Ta_ext = convert_type(kv_cache_precision);
     }
 
-    problem.Ta = problem.Tb = micro::Type::f16;
+    problem.Ta = problem.Tb = (Q.data_type == ov::element::bf16) ? micro::Type::bf16 : micro::Type::f16;
     problem.Tc = problem.Tc_ext = micro::Type::f32;
     problem.Ts = problem.Tc;
 

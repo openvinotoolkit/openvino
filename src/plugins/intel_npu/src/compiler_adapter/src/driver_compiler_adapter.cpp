@@ -259,7 +259,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                                              std::move(initNetworkMetadata),
                                              /* initBlobs = */ std::nullopt,
                                              std::move(model),
-                                             updatedConfig);
+                                             updatedConfig,
+                                             /* persistentBlob = */ false,
+                                             get_compatibility_descriptor(mainGraphHandle._handle));
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

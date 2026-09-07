@@ -6,7 +6,7 @@ import typing
 """
 openvino.properties.intel_auto submodule that simulates ov::intel_auto
 """
-__all__: list[str] = ['SchedulePolicy', 'device_bind_buffer', 'devices_utilization_threshold', 'enable_runtime_fallback', 'enable_startup_fallback', 'schedule_policy']
+__all__: list[str] = ['SchedulePolicy', 'device_bind_buffer', 'devices_utilization_threshold', 'enable_runtime_fallback', 'enable_startup_fallback', 'low_power_device', 'perf_curve_table', 'schedule_policy']
 class SchedulePolicy:
     """
     Members:
@@ -78,6 +78,21 @@ def enable_startup_fallback() -> str:
     ...
 @typing.overload
 def enable_startup_fallback(arg0: bool) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+@typing.overload
+def low_power_device() -> str:
+    ...
+@typing.overload
+def low_power_device(arg0: str) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+@typing.overload
+def perf_curve_table() -> str:
+    ...
+@typing.overload
+def perf_curve_table(arg0: str) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+@typing.overload
+def perf_curve_table(arg0: collections.abc.Mapping[str, collections.abc.Mapping[typing.SupportsInt | typing.SupportsIndex, typing.SupportsFloat | typing.SupportsIndex]]) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def schedule_policy() -> str:

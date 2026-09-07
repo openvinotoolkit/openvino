@@ -50,8 +50,8 @@ void* IGraph::get_handle() const {
     OPENVINO_THROW("get_handle not implemented");
 }
 
-bool IGraph::is_dynamic() const {
-    return false;
+GraphKind IGraph::get_kind() const {
+    return GraphKind::Weightful;
 }
 
 BlobType IGraph::get_blob_type() const {

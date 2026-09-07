@@ -11,6 +11,65 @@ namespace kernel_selector {
 
 static constexpr size_t sub_group_size = 16;
 
+// The kernel only supports F16, so an input read always covers a whole sub-group.
+static constexpr size_t read_chunk_size = sub_group_size;
+
+// Limit estimated register use to 75% and reserve the rest for addresses and loop temporaries.
+static constexpr size_t registers_count = 128;
+static constexpr size_t reg_threshold = registers_count * 3 / 4;
+
+static std::pair<size_t, size_t> get_bfyx_req_input_block_dims(size_t output_block_width,
+                                                               size_t output_block_height,
+                                                               const uSize& filter_size,
+                                                               const uSize& stride,
+                                                               const uSize& dilation,
+                                                               size_t sg_size,
+                                                               size_t read_chunk_size,
+                                                               size_t min_read_size) {
+    assert(output_block_width > 0 && output_block_height > 0);
+    assert(stride.x > 0 && stride.y > 0);
+    assert(filter_size.x > 0 && filter_size.y > 0);
+
+    // Number of elements in X dimension needed from input to compute output block without re-reading input.
+    size_t input_block_req_width = (output_block_width - 1) * stride.x + (filter_size.x - 1) * dilation.x + 1;
+    // Number of elements in Y dimension needed from input to compute output block without re-reading input.
+    size_t input_block_req_height = (output_block_height - 1) * stride.y + (filter_size.y - 1) * dilation.y + 1;
+
+    // Required number of elements in X dimension rounded to nearest >= read chunk size.
+    size_t input_block_read_width = std::max(RoundUp(input_block_req_width, read_chunk_size), min_read_size);
+    // Number of sub-group-sized vectors of unit type needed to store input block.
+    size_t input_block_array_size = CeilDiv(input_block_req_height * input_block_read_width, sg_size);
+
+    return std::make_pair(input_block_array_size, input_block_read_width);
+}
+
+// Estimate registers used by weights, accumulators, and the input block.
+static size_t get_min_register_usage(const convolution_params& cp, size_t block_width, size_t block_height) {
+    // Match NUM_CALC_UNIT_SIZE in the OpenCL kernel.
+    const size_t units_per_thread = (cp.weights.OFM().v > sub_group_size) ? 2 : 1;
+
+    size_t weights_registers = units_per_thread;
+    size_t output_registers = block_width * block_height * units_per_thread;
+    size_t input_registers = get_bfyx_req_input_block_dims(block_width,
+                                                           block_height,
+                                                           cp.filterSize,
+                                                           cp.stride,
+                                                           cp.dilation,
+                                                           sub_group_size,
+                                                           read_chunk_size,
+                                                           sub_group_size).first;
+
+    return weights_registers + output_registers + input_registers;
+}
+
+// Shrink only when the 1x1 block fits the register budget.
+static bool needs_smaller_block(const convolution_params& cp, size_t block_width, size_t block_height) {
+    if (get_min_register_usage(cp, block_width, block_height) < reg_threshold)
+        return false;
+
+    return get_min_register_usage(cp, 1, 1) < reg_threshold;
+}
+
 ConvolutionKernel_bfyx_os_iyx_osv32::ConvolutionKernel_bfyx_os_iyx_osv32()
     : ConvolutionKernelBase("convolution_gpu_bfyx_os_iyx_osv32") {
     // Generate the dispatch options to the auto-tuner.
@@ -81,13 +140,16 @@ ConvolutionKernel_bfyx_os_iyx_osv32::AutoTuneOption ConvolutionKernel_bfyx_os_iy
         }
     };
 
-    if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size()))) {
+    const convolution_params& cp = static_cast<const convolution_params&>(p);
+
+    if ((autoTuneIndex >= 0) && (autoTuneIndex < static_cast<int>(autoTuneOptions.size())) &&
+        !needs_smaller_block(cp,
+                             autoTuneOptions[autoTuneIndex].blockWidth,
+                             autoTuneOptions[autoTuneIndex].blockHeight)) {
         return autoTuneOptions[autoTuneIndex];
     }
 
     AutoTuneOption option = {0, 0, EXE_MODE_DEFAULT};
-
-    const convolution_params& cp = static_cast<const convolution_params&>(p);
 
     if (cp.stride.x == 1 && cp.stride.y == 1) {
         if (cp.filterSize.x == 1 && cp.filterSize.y == 1) {
@@ -118,36 +180,21 @@ ConvolutionKernel_bfyx_os_iyx_osv32::AutoTuneOption ConvolutionKernel_bfyx_os_iy
     if (!p.is_shape_agnostic && (cp.filterSize.x != 1 || cp.filterSize.y != 1)) {
         shrink_blocks_to_output_size(cp.outputs[0].X().v, cp.outputs[0].Y().v, option.blockWidth, option.blockHeight, sub_group_size);
     }
+
+    // Shrink to the register budget and prefer wider blocks for contiguous memory access.
+    while ((option.blockWidth > 1 || option.blockHeight > 1) &&
+           needs_smaller_block(cp, option.blockWidth, option.blockHeight)) {
+        if (option.blockHeight >= option.blockWidth)
+            option.blockHeight--;
+        else
+            option.blockWidth--;
+    }
+
     return option;
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv32::SetDefault(const convolution_params& cp,
                                                                                     int autoTuneIndex) const {
-    auto get_bfyx_req_input_block_dims = [](size_t output_block_width,
-                                            size_t output_block_height,
-                                            const uSize& filter_size,
-                                            const uSize& stride,
-                                            const uSize& dilation,
-                                            size_t sg_size,
-                                            size_t read_chunk_size,
-                                            size_t min_read_size) {
-        assert(output_block_width > 0 && output_block_height > 0);
-        assert(stride.x > 0 && stride.y > 0);
-        assert(filter_size.x > 0 && filter_size.y > 0);
-
-        // Number of elements in X dimension needed from input to compute output block without re-reading input.
-        size_t input_block_req_width = (output_block_width - 1) * stride.x + (filter_size.x - 1) * dilation.x + 1;
-        // Number of elements in Y dimension needed from input to compute output block without re-reading input.
-        size_t input_block_req_height = (output_block_height - 1) * stride.y + (filter_size.y - 1) * dilation.y + 1;
-
-        // Required number of elements in X dimension rounded to nearest >= read chunk size.
-        size_t input_block_read_width = std::max(RoundUp(input_block_req_width, read_chunk_size), min_read_size);
-        // Number of sub-group-sized vectors of unit type needed to store input block.
-        size_t input_block_array_size = CeilDiv(input_block_req_height * input_block_read_width, sg_size);
-
-        return std::make_pair(input_block_array_size, input_block_read_width);
-    };
-
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(cp);
 
     const auto of_maps = CeilDiv(cp.outputs[0].Feature().v, 2);
@@ -163,7 +210,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_os_iyx_osv32::SetDefa
                                                           cp.stride,
                                                           cp.dilation,
                                                           sub_group_size,
-                                                          cp.outputs[0].GetDType() == Datatype::F16 ? sub_group_size : sub_group_size / 2,
+                                                          read_chunk_size,
                                                           sub_group_size);
     dispatchData.cldnnStyle.inputBlockArraySize = input_block_dims.first;
     dispatchData.cldnnStyle.inputBlockWidth = input_block_dims.second;
