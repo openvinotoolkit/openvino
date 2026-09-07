@@ -396,7 +396,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /cgthreads1
 
       - name: Compile cache statistics (cc on benchmark_app)
         uses: ./openvino/.github/actions/compile_cache_stats
