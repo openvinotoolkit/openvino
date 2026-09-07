@@ -61,17 +61,12 @@ outputs:
     description: "Whether the workflow should be run with Smart CI rules applied or skipped completely"
     value: ${{ steps.smart_ci.outputs.skip_workflow }}
 
-env:
-  OPENVINO_CI_REF: '10364dc5360713192e3d348d965a8cfe7a342368'
-  OPENVINO_GENAI_CI_REF: '57a8d560ca759bb34d420b6733ba00228bee7e52'
-
 runs:
   using: "composite"
   steps:
     - name: checkout wait-for-check action
       uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
       with:
-        ref: ${{ env.OPENVINO_CI_REF }}
         repository: openvinotoolkit/openvino
         sparse-checkout: .github/actions/wait-for-check-completion
         sparse-checkout-cone-mode: false
@@ -89,7 +84,6 @@ runs:
     - name: checkout components and labeler files
       uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
       with:
-        ref: ${{ env.OPENVINO_CI_REF }}
         sparse-checkout: |
           .github/components.yml
           .github/labeler.yml
