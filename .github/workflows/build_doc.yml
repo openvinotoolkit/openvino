@@ -1,12 +1,7 @@
 name: Documentation
 on:
   workflow_dispatch:
-    inputs:
-      enable-compile-cache:
-        description: 'Use sccache/ccache for compilation (workflow_dispatch default applies to other triggers)'
-        type: boolean
-        default: true
-  pull_request:
+    inputs:  pull_request:
     types:
       - opened
       - synchronize
@@ -93,8 +88,8 @@ jobs:
     env:
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       BUILD_DIR: ${{ github.workspace }}/build
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'sccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'sccache' || '' }}
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_CACHE_SIZE: 50G
@@ -103,7 +98,6 @@ jobs:
       PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
-        if: ${{ inputs.enable-compile-cache != false }}
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"

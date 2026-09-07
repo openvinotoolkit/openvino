@@ -1,12 +1,7 @@
 name: Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)
 on:
   workflow_dispatch:
-    inputs:
-      enable-compile-cache:
-        description: 'Use sccache/ccache for compilation (workflow_dispatch default applies to other triggers)'
-        type: boolean
-        default: true
-  pull_request:
+    inputs:  pull_request:
     types:
       - opened
       - synchronize
@@ -127,7 +122,6 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      enable-compile-cache: ${{ inputs.enable-compile-cache != false }}
       runner: aks-linux-16-cores-32gb-ab
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
@@ -141,7 +135,6 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      enable-compile-cache: ${{ inputs.enable-compile-cache != false }}
       runner: aks-linux-16-cores-32gb-arm-ab
       image: ${{ fromJSON(needs.docker_arm.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       cmake-generator: 'Unix Makefiles'
@@ -157,7 +150,6 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      enable-compile-cache: ${{ inputs.enable-compile-cache != false }}
       runner: aks-linux-16-cores-32gb-ab
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       cmake-generator: 'Unix Makefiles'
@@ -174,7 +166,6 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      enable-compile-cache: ${{ inputs.enable-compile-cache != false }}
       runner: aks-linux-16-cores-32gb-ab
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'

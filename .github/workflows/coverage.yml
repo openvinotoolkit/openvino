@@ -5,12 +5,7 @@ on:
     # run daily at 00:00 UTC
     - cron: '0 0 * * *'
   workflow_dispatch:
-    inputs:
-      enable-compile-cache:
-        description: 'Use sccache/ccache for compilation (workflow_dispatch default applies to other triggers)'
-        type: boolean
-        default: true
-      run-cpu-tests:
+    inputs:      run-cpu-tests:
         description: 'Run the standard CPU coverage lanes'
         type: boolean
         required: false
@@ -78,7 +73,6 @@ jobs:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      enable-compile-cache: ${{ inputs.enable-compile-cache != false }}
       runner: 'aks-linux-16-cores-32gb-ab'
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       affected-components: '{"JS_API":true}'
