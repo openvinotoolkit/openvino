@@ -703,8 +703,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params) const 
 
     if (enough_slm && enough_lws && enough_items)
         return GetMultiStageKernelsData(orgParams);
-    else
-        return GetCommonKernelsData(params);
+    return GetCommonKernelsData(params);
 }
 
 KernelsPriority MVNKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params& /*params*/) const {

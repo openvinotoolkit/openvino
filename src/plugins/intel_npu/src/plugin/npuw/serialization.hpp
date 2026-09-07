@@ -48,7 +48,11 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR 
 const constexpr ov::npuw::s11n::IndicatorType NPUW_GQA_COMPILED_MODEL_INDICATOR =
     {char{0x47}, char{0x51}, char{0x41}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.29";
+// FL2 = 0x46,0x4c,0x32 + CMO = 0x43,0x4d,0x4f
+const constexpr ov::npuw::s11n::IndicatorType NPUW_FLUX2_COMPILED_MODEL_INDICATOR =
+    {char{0x46}, char{0x4c}, char{0x32}, char{0x43}, char{0x4d}, char{0x4f}};
+
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.31";
 
 // Forward declaration
 namespace intel_npu {

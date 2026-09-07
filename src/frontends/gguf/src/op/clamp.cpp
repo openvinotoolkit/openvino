@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <memory>
 #include "openvino/op/clamp.hpp"
+
+#include <memory>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
@@ -24,7 +25,7 @@ OutputVector translate_clamp(const NodeContext& context) {
     float max = context.get_attribute<float>("clamp_max");
 
     auto res = std::make_shared<ov::op::v0::Clamp>(input, min, max);
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

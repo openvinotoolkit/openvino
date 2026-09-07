@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -27,6 +26,13 @@ std::vector<IDataProvider::Ptr> createConstantProviders(LayersDataMap&& layers_d
 
 std::vector<IDataProvider::Ptr> createRandomProviders(const LayersInfo& layers,
                                                       const std::map<std::string, IRandomGenerator::Ptr>& generators);
+
+// NB: Resolves a random generator per input layer: explicit per-layer/global initializers
+// take precedence, otherwise falls back to a precision-aware default (e.g. boolean layers
+// default to {0, 1} instead of the generic U8 {0, 255} range).
+std::map<std::string, IRandomGenerator::Ptr> resolveInitializers(
+        const LayersInfo& layers, const LayerVariantAttr<IRandomGenerator::Ptr>& initializers,
+        const IRandomGenerator::Ptr& global_initializer);
 
 std::vector<std::filesystem::path> createDirectoryLayout(const std::filesystem::path& path,
                                                          const std::vector<std::string>& layer_names);

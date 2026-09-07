@@ -62,8 +62,8 @@ KERNEL(swiglu_gpu_ref)(
         #endif
     #endif
 #endif
-    ACCUMULATOR_TYPE gate = (ACCUMULATOR_TYPE) input[gate_idx];
-    ACCUMULATOR_TYPE up = (ACCUMULATOR_TYPE) input[input_idx];
+    ACCUMULATOR_TYPE gate = DECODE_INPUT0_COMPUTE_TYPE(input[gate_idx]);
+    ACCUMULATOR_TYPE up = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx]);
 #ifdef SCALE_FACTOR
     // Restore original scale before clamp / swish / up_add_val so that
     // clamp bounds and UP_ADD_VAL stay in the original (unscaled) range.
@@ -73,8 +73,8 @@ KERNEL(swiglu_gpu_ref)(
 #endif
     #if GLU_TYPE == 0   // Swish
         #if defined(CLAMP_MIN) && defined(CLAMP_MAX)
-        gate = ACCUMULATOR_MIN_FUNC(TO_OUTPUT_TYPE(CLAMP_MAX), gate);
-        up = ACCUMULATOR_MAX_FUNC(TO_OUTPUT_TYPE(CLAMP_MIN), ACCUMULATOR_MIN_FUNC(up, TO_OUTPUT_TYPE(CLAMP_MAX)));
+        gate = ACCUMULATOR_MIN_FUNC(TO_OUTPUT_COMPUTE_TYPE(CLAMP_MAX), gate);
+        up = ACCUMULATOR_MAX_FUNC(TO_OUTPUT_COMPUTE_TYPE(CLAMP_MIN), ACCUMULATOR_MIN_FUNC(up, TO_OUTPUT_COMPUTE_TYPE(CLAMP_MAX)));
         #endif
         gate /= (ACCUMULATOR_VAL_ONE + exp(-SWISH_BETA * gate));
     #elif GLU_TYPE == 1 // Gelu

@@ -80,8 +80,8 @@ ConvolutionKernel_mmad_b_fs_yx_fsv32::AutoTuneOption ConvolutionKernel_mmad_b_fs
 
     AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
-    auto& params = dynamic_cast<const convolution_params&>(p);
-    auto& output = params.outputs[0];
+    const auto& params = dynamic_cast<const convolution_params&>(p);
+    const auto& output = params.outputs[0];
 
     // TODO: Check if other block size can improve performance
     option.blockHeight = 1;

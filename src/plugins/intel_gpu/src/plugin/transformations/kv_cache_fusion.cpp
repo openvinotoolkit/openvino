@@ -103,13 +103,12 @@ KVCacheFusionMatcher::KVCacheFusionMatcher() {
         const auto adjust_axis_to_positive = [&new_read_value_node](auto axis) ->std::optional<uint64_t> {
             if (axis >= 0) {
                 return static_cast<uint64_t>(axis);
-            } else {
-                const auto input_rank = new_read_value_node->get_output_partial_shape(0).rank();
-                if (input_rank.is_static()) {
-                    const auto adjusted_axis = input_rank.get_interval().get_min_val() + axis;
-                    if (adjusted_axis >= 0) {
-                        return static_cast<uint64_t>(adjusted_axis);
-                    }
+            }
+            const auto input_rank = new_read_value_node->get_output_partial_shape(0).rank();
+            if (input_rank.is_static()) {
+                const auto adjusted_axis = input_rank.get_interval().get_min_val() + axis;
+                if (adjusted_axis >= 0) {
+                    return static_cast<uint64_t>(adjusted_axis);
                 }
             }
             return std::nullopt;

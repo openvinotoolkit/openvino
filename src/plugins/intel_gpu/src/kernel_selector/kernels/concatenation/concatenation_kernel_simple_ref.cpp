@@ -11,12 +11,14 @@ namespace kernel_selector {
 ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -82,7 +84,8 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p) const {
              same_layout == DataLayout::b_fs_zyx_fsv32 || same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16
             || same_layout == DataLayout::bs_fs_yx_bsv32_fsv32)) {
             continue;
-        } else if (cur_layout != same_layout) {
+        }
+        if (cur_layout != same_layout) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }

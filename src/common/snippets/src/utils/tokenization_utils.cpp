@@ -38,6 +38,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -48,6 +49,11 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::utils {
+
+bool is_numpy_broadcast(const std::shared_ptr<const ov::Node>& node) {
+    const auto broadcast = ov::as_type_ptr<const ov::op::util::BroadcastBase>(node);
+    return broadcast && broadcast->get_broadcast_spec().m_type == ov::op::BroadcastType::NUMPY;
+}
 
 namespace {
 // copy_runtime_info drops the non-copyable DisablePrecisionConversion attribute; propagate it

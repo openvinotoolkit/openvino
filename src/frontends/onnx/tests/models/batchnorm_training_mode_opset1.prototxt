@@ -1,0 +1,184 @@
+ir_version: 3
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    input: "s"
+    input: "bias"
+    input: "mean"
+    input: "var"
+    output: "y"
+    output: "out_mean"
+    output: "out_var"
+    output: "saved_mean"
+    output: "saved_var"
+    op_type: "BatchNormalization"
+    attribute {
+      name: "consumed_inputs"
+      ints: 0
+      ints: 0
+      ints: 0
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+    attribute {
+      name: "is_test"
+      i: 0
+      type: INT
+    }
+  }
+  name: "test_batchnorm_training_mode"
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "s"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "bias"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "mean"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "var"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 3
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out_mean"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "out_var"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "saved_mean"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "saved_var"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  domain: ""
+  version: 1
+}

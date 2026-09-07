@@ -81,8 +81,8 @@ bool ReduceKernelSimpleToScalar::Validate(const Params& p) const {
     if (supported_modes.find(params.reduceMode) == supported_modes.end())
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    auto& in_dims = params.inputs[0].GetDims();
-    auto& out_dims = params.outputs[0].GetDims();
+    const auto& in_dims = params.inputs[0].GetDims();
+    const auto& out_dims = params.outputs[0].GetDims();
     auto has_padding = std::count_if(in_dims.cbegin(), in_dims.cend(),
         [](Tensor::Dim d) { return d.pad.before > 0 || d.pad.after > 0; }) > 0;
     has_padding |= std::count_if(out_dims.cbegin(), out_dims.cend(),

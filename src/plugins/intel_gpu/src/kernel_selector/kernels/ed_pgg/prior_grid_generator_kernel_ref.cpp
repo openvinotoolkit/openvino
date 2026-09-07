@@ -57,7 +57,7 @@ bool ExperimentalDetectronPriorGridGeneratorKernelRef::Validate(const Params &p)
     if (p.GetType() != KernelType::EXPERIMENTAL_DETECTRON_PRIOR_GRID_GENERATOR)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    auto &params = dynamic_cast<const experimental_detectron_prior_grid_generator_params&>(p);
+    const auto& params = dynamic_cast<const experimental_detectron_prior_grid_generator_params&>(p);
     if (params.inputs.size() != 1)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 

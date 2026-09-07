@@ -82,7 +82,7 @@ void onednn_add_fusing_helpers::for_eltwise(
     const program_node& node, eltwise_mode mode,
     std::function<void(const program_node& p_node,
                     const fused_primitive_desc& desc)> func) {
-    for (auto& fo : node.get_fused_primitives()) {
+    for (const auto& fo : node.get_fused_primitives()) {
         if (fo.is_type<eltwise>() && fo.typed_desc<eltwise>()->mode == mode) {
             func(node, fo);
         }
@@ -107,9 +107,37 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
     if (target.get_users().size() != 2)
         return false;
 
-    // Limit the iteration depth to 5 for performance reason
-    auto iter = &child;
-    for (int i = 0; i < 5; i++) {
+    // The walk follows dependency(0) only, so this bounds the length of the single-input chain
+    // between the two nodes; the equality test precedes the hop, so a bound of N reaches a target
+    // at most N - 1 hops away.
+    //
+    // An attention residual sits 6 hops up. Walking dependency(0) from the projection that carries
+    // the post-op, on a graph dump of a multi-head attention block:
+    //
+    //     0  the output projection            <- carries the fused eltwise sum
+    //     1  reshape                          <- heads folded back into the feature axis
+    //     2  the attention op
+    //     3  reshape                          <- feature axis split into heads
+    //     4  the QKV matmul
+    //     5  the norm
+    //     6  the block input                  <- the residual root, two users
+    //
+    // 7 is therefore the smallest bound that reaches it, and the bound is kept at that minimum
+    // deliberately. Note the two reshapes: it is easy to count this chain as 4 hops from the
+    // operator list alone and conclude a bound of 5 or 6 is enough, and both leave every
+    // attention residual demoted.
+    //
+    // Raising it beyond the minimum is not a compile-time cost -- the walk is a bounded pointer
+    // chase. It is a trade. What the result decides is add_fusing_type::sum versus binary_add, and
+    // both are post-ops on the same onednn primitive: sum lets onednn accumulate into the added
+    // tensor's buffer, at the price of disabling implicit concat on that predecessor
+    // (prepare_buffer_fusing), inhibiting reorder elimination in two passes (layout_optimizer and
+    // remove_redundant_reorders) and blocking buffer sharing (basic_memory_dependencies). So a
+    // longer chain should only be admitted against a workload that is measured to want it.
+    static constexpr int max_ancestor_walk_depth = 7;
+
+    const auto* iter = &child;
+    for (int i = 0; i < max_ancestor_walk_depth; i++) {
         if (iter == &target)
             return true;
         if (iter->get_dependencies().empty())
@@ -148,7 +176,8 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
             && !p_node.is_output()
             && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)) {
             return add_fusing_type::sum;
-        } else if (p_layout.get_tensor() == d_layout.get_tensor()) {
+        }
+        if (p_layout.get_tensor() == d_layout.get_tensor()) {
             return add_fusing_type::binary_per_tensor;
         }
     }
@@ -158,7 +187,7 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
 
 int32_t onednn_add_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
     if (node.get_preferred_impl_type() == impl_types::onednn) {
-        for (auto& fused_op : node.get_fused_primitives()) {
+        for (const auto& fused_op : node.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                 // If it is first sum, reuse the buffer
                 auto fusing_type = get_add_fusing_type(node, fused_op);

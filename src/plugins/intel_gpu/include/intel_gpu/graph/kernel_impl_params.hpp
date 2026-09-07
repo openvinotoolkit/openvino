@@ -149,10 +149,10 @@ struct kernel_impl_params final {
     }
 
     bool is_dynamic() const {
-        for (auto& i : input_layouts)
+        for (const auto& i : input_layouts)
             if (i.is_dynamic())
                 return true;
-        for (auto& i : output_layouts)
+        for (const auto& i : output_layouts)
             if (i.is_dynamic())
                 return true;
         return false;

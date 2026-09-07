@@ -1,0 +1,35 @@
+# List of small models (roughly <=4B parameters) used to verify the GGUF frontend converts,
+# compiles, and runs a single forward step correctly for each supported architecture.
+#
+# Format: arch,repo_id,filename[,mark,reason]
+#   arch     - architecture name (matches src/frontends/gguf/docs/supported_models.md)
+#   repo_id  - Hugging Face Hub repo hosting the .gguf file
+#   filename - the specific .gguf file to download from that repo
+#   mark     - optional: "skip" or "xfail"
+#   reason   - required if mark is set
+#
+# See src/frontends/gguf/docs/supported_models.md for the full architecture list and the
+# checkpoints this project validates them against; entries below prefer the smallest
+# available quantization of the same (or an equivalently small) checkpoint.
+#
+# Runner sizing: these convert + compile in-process, so the driving cost is the peak
+# resident memory recorded in that document's memory table (the largest entry here,
+# gemma4, peaks around 12 GiB) -- hence the 8-core/32 GiB precommit runner.
+llama,bartowski/Llama-3.2-1B-Instruct-GGUF,Llama-3.2-1B-Instruct-Q4_K_M.gguf
+qwen2,Qwen/Qwen2.5-0.5B-Instruct-GGUF,qwen2.5-0.5b-instruct-q4_k_m.gguf
+qwen3,Qwen/Qwen3-0.6B-GGUF,Qwen3-0.6B-Q8_0.gguf
+phi3,bartowski/Phi-3-mini-4k-instruct-GGUF,Phi-3-mini-4k-instruct-Q4_K_M.gguf
+minicpm,runfuture/MiniCPM-2B-dpo-q4km-gguf,MiniCPM-2B-dpo-q4km-gguf.gguf
+hunyuan-dense,bartowski/tencent_Hunyuan-0.5B-Instruct-GGUF,tencent_Hunyuan-0.5B-Instruct-Q4_K_M.gguf
+qwen3moe,mradermacher/Qwen3-0.9B-A0.6B-GGUF,Qwen3-0.9B-A0.6B.Q4_K_M.gguf
+gemma,RichardErkhov/google_-_gemma-2b-it-gguf,gemma-2b-it.Q4_K_M.gguf
+gemma2,bartowski/gemma-2-2b-it-GGUF,gemma-2-2b-it-Q4_K_M.gguf
+gemma3,unsloth/gemma-3-1b-it-GGUF,gemma-3-1b-it-Q4_K_M.gguf
+gemma4,unsloth/gemma-4-E4B-it-GGUF,gemma-4-E4B-it-Q4_K_M.gguf
+llama-embed,sabafallah/llama-nemotron-embed-1b-v2-GGUF,llama-nemotron-embed-1b-v2-Q4_K_M.gguf
+exaone4,LGAI-EXAONE/EXAONE-4.0-1.2B-GGUF,EXAONE-4.0-1.2B-Q4_K_M.gguf
+plamo3,mmnga-o/plamo-3-nict-2b-base-gguf,plamo-3-nict-2b-base-Q4_K_M.gguf
+smollm3,bartowski/HuggingFaceTB_SmolLM3-3B-GGUF,HuggingFaceTB_SmolLM3-3B-Q4_K_M.gguf
+maincoder,mradermacher/Maincoder-1B-GGUF,Maincoder-1B.Q4_K_M.gguf
+mistral3,mradermacher/Ministral-3b-instruct-GGUF,Ministral-3b-instruct.Q4_K_M.gguf
+qwen35,ggml-org/Qwen3.5-0.8B-GGUF,Qwen3.5-0.8B-Q4_0.gguf

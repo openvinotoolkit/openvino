@@ -35,7 +35,7 @@ JitConstants STFTKernelOpt::GetJitConstants(const STFT_params& params) const {
     jit.AddConstants({MakeJitConstant("FREQ_PER_BLOCK", FREQ_PER_BLOCK)});
     jit.AddConstants({MakeJitConstant("STATIC_MAX_X_I_BUFFER", STATIC_MAX_X_I_BUFFER)});
 
-    const auto xiMaxBuffer = params.is_shape_agnostic ? "STATIC_MAX_X_I_BUFFER" : "INPUT1_SIZE_X";
+    const auto* const xiMaxBuffer = params.is_shape_agnostic ? "STATIC_MAX_X_I_BUFFER" : "INPUT1_SIZE_X";
     jit.AddConstants({MakeJitConstant("SHARED_X_I_BUFFER_SIZE", xiMaxBuffer)});
 
     return jit;

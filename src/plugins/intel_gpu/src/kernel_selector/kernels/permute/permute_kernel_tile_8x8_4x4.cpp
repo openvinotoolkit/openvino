@@ -18,12 +18,14 @@ namespace kernel_selector {
 ParamsKey PermuteKernel_tile_8x8_4x4::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -314,10 +316,10 @@ KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& par
 
     if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) && (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
         return FORCE_PRIORITY_1;
-    } else if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) || (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
-        return FORCE_PRIORITY_2;
-    } else {
-        return FORCE_PRIORITY_3;
     }
+    if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) || (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
+        return FORCE_PRIORITY_2;
+    }
+    return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector

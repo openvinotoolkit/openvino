@@ -140,9 +140,8 @@ struct kv_cache : public primitive_base<kv_cache> {
     size_t get_compression_scales_inputs_num() const {
         if (compressed) {
             return 1;
-        } else {
-            return 0;
         }
+        return 0;
     }
 
     size_t get_compression_zp_inputs_num() const {
@@ -150,9 +149,8 @@ struct kv_cache : public primitive_base<kv_cache> {
             quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
             quantization_attributes.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
             return 1;
-        } else {
-            return 0;
         }
+        return 0;
     }
 };
 }  // namespace cldnn

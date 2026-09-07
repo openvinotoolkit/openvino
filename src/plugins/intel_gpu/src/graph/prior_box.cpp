@@ -442,7 +442,7 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
     std::vector<ShapeType> output_shapes = {ShapeType()};
     std::unordered_map<size_t, ov::Tensor> const_data;
 
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
 
     if (memory_deps.count(0) && memory_deps.count(1)) {
         auto output_size_mem = memory_deps.at(0);
@@ -453,7 +453,7 @@ std::vector<layout> prior_box_inst::calc_output_layouts(prior_box_node const& /*
 
         const_data.emplace(0, make_tensor(output_size_mem->get_layout(), output_size_lock.data()));
 
-        auto p_param = const_cast<kernel_impl_params*>(&impl_param);
+        auto* p_param = const_cast<kernel_impl_params*>(&impl_param);
         if (output_size_mem->get_layout().data_type == cldnn::data_types::i64) {
             auto output_height = reinterpret_cast<int64_t*>(output_size_lock.data())[0];
             auto output_width = reinterpret_cast<int64_t*>(output_size_lock.data())[1];
@@ -524,9 +524,9 @@ template std::vector<layout> prior_box_inst::calc_output_layouts<ov::PartialShap
 
 std::string prior_box_inst::to_string(prior_box_node const& node) {
     auto desc = node.get_primitive();
-    auto flip = desc->flip ? "true" : "false";
-    auto clip = desc->clip ? "true" : "false";
-    auto scale_all_sizes = desc->scale_all_sizes ? "true" : "false";
+    const auto* flip = desc->flip ? "true" : "false";
+    const auto* clip = desc->clip ? "true" : "false";
+    const auto* scale_all_sizes = desc->scale_all_sizes ? "true" : "false";
     auto node_info = node.desc_to_json();
 
     std::string str_min_sizes = vector_to_string(desc->min_sizes);

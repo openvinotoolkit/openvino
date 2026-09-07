@@ -103,7 +103,7 @@ struct RNNParams : public primitive_base<PType> {
         seed = hash_combine(seed, !B.pid.empty());
         seed = hash_combine(seed, clip);
         seed = hash_range(seed, activations.begin(), activations.end());
-        for (auto& act_param : activation_params) {
+        for (const auto& act_param : activation_params) {
             seed = hash_combine(seed, act_param.a);
             seed = hash_combine(seed, act_param.b);
         }

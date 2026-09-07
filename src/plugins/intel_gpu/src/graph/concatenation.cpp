@@ -152,11 +152,11 @@ concatenation_inst::typed_primitive_inst(network& network, concatenation_node co
         build_deps();
         std::list<std::vector<std::pair<primitive_inst*, int32_t>>*> stack = {&_deps};
         while (!stack.empty()) {
-            auto nodes_list = stack.front();
+            auto* nodes_list = stack.front();
             stack.pop_front();
 
             for (const auto& processed_nodes : *nodes_list) {
-                auto processed_node = processed_nodes.first;
+                auto* processed_node = processed_nodes.first;
                 processed_node->_outputs = _outputs;
                 if (processed_node->type() == concatenation::type_id() && processed_node->can_be_optimized()) {
                     if (!processed_node->_deps.empty())

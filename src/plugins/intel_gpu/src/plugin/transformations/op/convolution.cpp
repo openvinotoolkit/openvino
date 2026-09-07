@@ -103,21 +103,20 @@ std::shared_ptr<Node> Convolution::clone_with_new_inputs(const ov::OutputVector&
                                              m_groups,
                                              m_auto_pad,
                                              m_output_type);
-    } else {
-        return std::make_shared<Convolution>(new_args.at(0),
-                                             new_args.at(1),
-                                             new_args.at(2),
-                                             new_args.at(3),
-                                             new_args.at(4),
-                                             new_args.at(5),
-                                             m_strides,
-                                             m_pads_begin,
-                                             m_pads_end,
-                                             m_dilations,
-                                             m_groups,
-                                             m_auto_pad,
-                                             m_output_type);
     }
+    return std::make_shared<Convolution>(new_args.at(0),
+                                         new_args.at(1),
+                                         new_args.at(2),
+                                         new_args.at(3),
+                                         new_args.at(4),
+                                         new_args.at(5),
+                                         m_strides,
+                                         m_pads_begin,
+                                         m_pads_end,
+                                         m_dilations,
+                                         m_groups,
+                                         m_auto_pad,
+                                         m_output_type);
 }
 
 bool Convolution::has_groups() const {
@@ -143,14 +142,13 @@ std::vector<ov::PartialShape> shape_infer(const Convolution* op,
         tmp_op.set_auto_pad(op->get_auto_pad());
 
         return shape_infer(&tmp_op, input_shapes, pads_begin, pads_end);
-   } else {
-        ov::op::v1::Convolution tmp_op;
-        tmp_op.set_strides(op->get_strides());
-        tmp_op.set_dilations(op->get_dilations());
-        tmp_op.set_auto_pad(op->get_auto_pad());
-
-        return shape_infer(&tmp_op, input_shapes, pads_begin, pads_end);
    }
+   ov::op::v1::Convolution tmp_op;
+   tmp_op.set_strides(op->get_strides());
+   tmp_op.set_dilations(op->get_dilations());
+   tmp_op.set_auto_pad(op->get_auto_pad());
+
+   return shape_infer(&tmp_op, input_shapes, pads_begin, pads_end);
 }
 
 }  // namespace ov::intel_gpu::op

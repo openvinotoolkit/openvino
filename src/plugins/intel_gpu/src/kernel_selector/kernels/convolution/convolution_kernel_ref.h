@@ -22,8 +22,7 @@ protected:
     WeightsLayout GetPreferredWeightsLayout(const convolution_params &params) const override {
         if (params.inputs[0].Dimentions() == 4)
             return (params.groups > 1) ? WeightsLayout::goiyx : WeightsLayout::oiyx;
-        else
-            return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
+        return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         // FusedOpType::REORDER should be registered explicitly here

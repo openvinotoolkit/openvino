@@ -11,7 +11,7 @@ namespace kernel_selector {
 bool MVNKernelBase::Validate(const Params& params) const {
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
 
-    for (auto& fused_op : orgParams.fused_ops) {
+    for (const auto& fused_op : orgParams.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(params.layerID);
     }

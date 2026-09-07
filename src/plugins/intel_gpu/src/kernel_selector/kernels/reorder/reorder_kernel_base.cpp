@@ -160,8 +160,8 @@ ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_weig
 ReorderKernelBase::DispatchData ReorderKernelBase::SetDefault(const reorder_params& params) const {
     DispatchData dispatchData;
 
-    auto& input = params.inputs[0];
-    auto& output = params.outputs[0];
+    const auto& input = params.inputs[0];
+    const auto& output = params.outputs[0];
     auto input_l = input.GetLayout();
     auto output_l = output.GetLayout();
     DataTensor input_tensor = input;

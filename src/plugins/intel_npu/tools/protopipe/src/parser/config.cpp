@@ -7,6 +7,7 @@
 
 #include "utils/error.hpp"
 #include "utils/logger.hpp"
+#include "utils/utils.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -99,6 +100,8 @@ static int toDepth(const std::string& prec) {
         return CV_8U;
     if (prec == "I32" || prec == "I64")
         return CV_32S;
+    if (prec == "BOOL")
+        return utils::kBooleanDepth;
     throw std::logic_error("Unsupported precision type: " + prec);
 }
 

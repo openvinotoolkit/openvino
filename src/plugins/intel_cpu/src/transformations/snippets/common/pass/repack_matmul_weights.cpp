@@ -58,6 +58,9 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
         const auto i = repacker_entry.first;
         OPENVINO_ASSERT(i < params.size(), "Incorrect index of externally repacked weights");
         OPENVINO_ASSERT(i < m_src_mem_ptrs.size(), "Incorrect memory index of externally repacked weights");
+        if (!m_compile_time_repacking_idxs.count(i)) {
+            continue;
+        }
         const auto& parameter = params[i];
 
         const auto shape_infer_leaf = ov::snippets::utils::get_leaf_node_of_first_child_shape_infer_seq(parameter);
@@ -68,18 +71,9 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
 
         const auto& orig_src_mem_ptr = m_src_mem_ptrs[i];
         const auto repacked = repack(consumer, get_weights_source(consumer, orig_src_mem_ptr), orig_src_mem_ptr);
-        if (!repacked) {
-            OPENVINO_ASSERT(supports_runtime_repacking(),
-                            "Failed to repack weights input ",
-                            i,
-                            " for ",
-                            consumer->get_friendly_name(),
-                            ": runtime repacking is not supported");
-            continue;
-        }
 
-        m_src_mem_ptrs[i] = repacked->memory;
-        m_input_repackers[i] = InputRepacker(nullptr, repacked->desc, {}, {});
+        m_src_mem_ptrs[i] = repacked.memory;
+        m_input_repackers[i] = InputRepacker(nullptr, repacked.desc, {}, {});
         weights_idxs.insert(i);
     }
 

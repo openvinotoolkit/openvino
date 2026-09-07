@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "../common_optimizations/ssm_test_models.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/abs.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/einsum.hpp"
@@ -1461,6 +1463,329 @@ TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacerLFM2_DirectParameterBranchRank4
 
         model_ref = std::make_shared<Model>(OutputVector{add},
                                             ParameterVector{max_context_len, curr_seq_len, lhs, position_ids, q});
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+namespace {
+// Whether the optional Unsqueeze/Convert wrappers sit between position_ids and the batch-drop select Gather.
+struct EliminateDropBatchWrappers {
+    bool has_unsqueeze;
+    bool has_convert;
+};
+
+std::string test_name(const EliminateDropBatchWrappers& wrappers) {
+    std::string name = "Select";
+    name += wrappers.has_unsqueeze ? "_Unsqueeze" : "_NoUnsqueeze";
+    name += wrappers.has_convert ? "_Convert" : "_NoConvert";
+    return name;
+}
+
+std::shared_ptr<Node> wrap_optional(const std::shared_ptr<Node>& data, const EliminateDropBatchWrappers& wrappers) {
+    std::shared_ptr<Node> result = data;
+    if (wrappers.has_unsqueeze) {
+        result = std::make_shared<v0::Unsqueeze>(result, v0::Constant::create(element::i32, Shape{}, {0}));
+    }
+    if (wrappers.has_convert) {
+        result = std::make_shared<v0::Convert>(result, element::f32);
+    }
+    return result;
+}
+}  // namespace
+
+class SDPAToPAEliminateDropBatchTest : public TransformationTestsF,
+                                       public ::testing::WithParamInterface<EliminateDropBatchWrappers> {};
+
+TEST_P(SDPAToPAEliminateDropBatchTest, SDPAToPA_EliminateDropBatch_CollapsesToReshape) {
+    // Parameter(position_ids) -> Unsqueeze(optional) -> Convert(optional) -> Gather(select dim=0, index=0)
+    // collapses to Parameter(position_ids) -> Unsqueeze(optional) -> Convert(optional) -> Reshape([-1]),
+    // regardless of which of the optional wrapper nodes are present.
+    const auto wrappers = GetParam();
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto data = wrap_optional(position_ids, wrappers);
+        auto select = std::make_shared<v8::Gather>(data,
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)},
+                                        nodes_to_params({position_ids}));
+        manager.register_pass<pass::EliminateDropBatch>();
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto data = wrap_optional(position_ids, wrappers);
+        auto reshape = std::make_shared<v1::Reshape>(data, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(reshape)},
+                                            nodes_to_params({position_ids}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         SDPAToPAEliminateDropBatchTest,
+                         ::testing::Values(EliminateDropBatchWrappers{false, false},
+                                           EliminateDropBatchWrappers{false, true},
+                                           EliminateDropBatchWrappers{true, false},
+                                           EliminateDropBatchWrappers{true, true}),
+                         [](const ::testing::TestParamInfo<EliminateDropBatchWrappers>& info) {
+                             return test_name(info.param);
+                         });
+
+TEST_F(SDPAToPATest, SDPAToPA_EliminateDropBatch_ReconnectsDownstreamConsumer) {
+    // The replaced Gather's consumers must be reconnected to the new Reshape node.
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto select = std::make_shared<v8::Gather>(position_ids,
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        auto add = std::make_shared<v1::Add>(select, v0::Constant::create(element::i64, Shape{}, {1}));
+        model =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(add)}, nodes_to_params({position_ids}));
+        manager.register_pass<pass::EliminateDropBatch>();
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto reshape =
+            std::make_shared<v1::Reshape>(position_ids, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        auto add = std::make_shared<v1::Add>(reshape, v0::Constant::create(element::i64, Shape{}, {1}));
+        model_ref =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(add)}, nodes_to_params({position_ids}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+namespace {
+// A Gather that isn't the scalar select(dim=0, index=0) pattern on a Parameter named "position_ids": wrong
+// index, wrong axis, non-zero batch_dims, a non-scalar indices tensor, or a differently-named Parameter.
+struct EliminateDropBatchNegativeCase {
+    std::vector<int64_t> indices;
+    int64_t axis;
+    int64_t batch_dims;
+    std::string param_name;
+    std::string name;
+};
+}  // namespace
+
+class SDPAToPAEliminateDropBatchNegativeTest : public TransformationTestsF,
+                                               public ::testing::WithParamInterface<EliminateDropBatchNegativeCase> {};
+
+TEST_P(SDPAToPAEliminateDropBatchNegativeTest, SDPAToPA_EliminateDropBatch_NotABatchDropSelect) {
+    const auto& test_case = GetParam();
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, test_case.param_name);
+    auto select = std::make_shared<v8::Gather>(
+        position_ids,
+        v0::Constant::create(element::i64, Shape{test_case.indices.size()}, test_case.indices),
+        v0::Constant::create(element::i64, Shape{}, {test_case.axis}),
+        test_case.batch_dims);
+    model =
+        std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(select)}, nodes_to_params({position_ids}));
+    manager.register_pass<pass::EliminateDropBatch>();
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    SDPAToPA,
+    SDPAToPAEliminateDropBatchNegativeTest,
+    ::testing::Values(EliminateDropBatchNegativeCase{{1}, 0, 0, "position_ids", "WrongIndex"},
+                      EliminateDropBatchNegativeCase{{0}, 1, 0, "position_ids", "WrongAxis"},
+                      EliminateDropBatchNegativeCase{{0, 1}, 0, 0, "position_ids", "NonScalarIndices"},
+                      EliminateDropBatchNegativeCase{{0}, 0, 0, "input_ids", "NotPositionIdsParam"},
+                      EliminateDropBatchNegativeCase{{0}, 0, -1, "position_ids", "WrongBatchDims"}),
+    [](const ::testing::TestParamInfo<EliminateDropBatchNegativeCase>& info) {
+        return info.param.name;
+    });
+
+namespace {
+// Builds the "manual RoPE" outer-product tail that RoPEUnsqueezeAxisReplacer requires before its trailing
+// Unsqueeze(axis=0): Unsqueeze -> MatMul(inv_freq) -> Cos/Sin -> Multiply(scale) -> Broadcast(optional).
+std::shared_ptr<Node> build_rope_broadcast(const Output<Node>& positions, bool use_sin, bool with_broadcast) {
+    auto positions_unsqueeze =
+        std::make_shared<v0::Unsqueeze>(positions, v0::Constant::create(element::i32, Shape{1}, {1}));
+    auto inv_freq = v0::Constant::create(element::f32, Shape{4, 1}, std::vector<float>{0.1f, 0.2f, 0.3f, 0.4f});
+    auto outer = std::make_shared<v0::MatMul>(positions_unsqueeze, inv_freq, false, true);
+    std::shared_ptr<Node> trig;
+    if (use_sin) {
+        trig = std::make_shared<v0::Sin>(outer);
+    } else {
+        trig = std::make_shared<v0::Cos>(outer);
+    }
+    auto scale = v0::Constant::create(element::f32, Shape{}, {1.0f});
+    std::shared_ptr<Node> scaled = std::make_shared<v1::Multiply>(scale, trig);
+    if (with_broadcast) {
+        auto broadcast_shape = v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{4, 4});
+        scaled = std::make_shared<v3::Broadcast>(scaled, broadcast_shape);
+    }
+    return scaled;
+}
+
+// Whether the RoPE tail computes Sin (vs Cos), and whether the optional Broadcast is present before the
+// trailing Unsqueeze.
+struct RoPEUnsqueezeAxisCase {
+    bool use_sin;
+    bool with_broadcast;
+};
+
+std::string test_name(const RoPEUnsqueezeAxisCase& test_case) {
+    std::string name = test_case.use_sin ? "Sin" : "Cos";
+    name += test_case.with_broadcast ? "_Broadcast" : "_NoBroadcast";
+    return name;
+}
+}  // namespace
+
+class SDPAToPARoPEUnsqueezeAxisReplacerTest : public TransformationTestsF,
+                                              public ::testing::WithParamInterface<RoPEUnsqueezeAxisCase> {};
+
+TEST_P(SDPAToPARoPEUnsqueezeAxisReplacerTest, SDPAToPA_RoPEUnsqueezeAxisReplacer_RewritesAxis) {
+    // Manual RoPE outer-product tail ending in Unsqueeze(axis=0): the flattened-tokens axis must move from
+    // index 1 to index 0 to match the layout PagedAttention's Q/K arrive in, so the trailing Unsqueeze's axis
+    // is rewritten from 0 to 1. This holds for both the Cos and Sin branches, and regardless of whether the
+    // optional Broadcast is present.
+    const auto test_case = GetParam();
+    {
+        auto positions = make_param(PartialShape{DYN}, element::f32, "positions");
+        auto broadcast = build_rope_broadcast(positions, test_case.use_sin, test_case.with_broadcast);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {0}));
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
+                                        nodes_to_params({positions}));
+        manager.register_pass<pass::RoPEUnsqueezeAxisReplacer>();
+    }
+    {
+        auto positions = make_param(PartialShape{DYN}, element::f32, "positions");
+        auto broadcast = build_rope_broadcast(positions, test_case.use_sin, test_case.with_broadcast);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {1}));
+        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
+                                            nodes_to_params({positions}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         SDPAToPARoPEUnsqueezeAxisReplacerTest,
+                         ::testing::Values(RoPEUnsqueezeAxisCase{false, true},
+                                           RoPEUnsqueezeAxisCase{false, false},
+                                           RoPEUnsqueezeAxisCase{true, true},
+                                           RoPEUnsqueezeAxisCase{true, false}),
+                         [](const ::testing::TestParamInfo<RoPEUnsqueezeAxisCase>& info) {
+                             return test_name(info.param);
+                         });
+
+class SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest : public TransformationTestsF,
+                                                      public ::testing::WithParamInterface<int64_t> {};
+
+TEST_P(SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest, SDPAToPA_RoPEUnsqueezeAxisReplacer_NonZeroAxisUnchanged) {
+    // A trailing Unsqueeze with an axis other than 0 is not the tokens-to-batch reorientation this pass
+    // targets (this includes axis=1, the value this pass itself rewrites axis=0 to), so the model must
+    // remain unchanged.
+    auto positions = make_param(PartialShape{DYN}, element::f32, "positions");
+    auto broadcast = build_rope_broadcast(positions, false, true);
+    auto unsqueeze =
+        std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {GetParam()}));
+    model =
+        std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)}, nodes_to_params({positions}));
+    manager.register_pass<pass::RoPEUnsqueezeAxisReplacer>();
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAToPA,
+                         SDPAToPARoPEUnsqueezeAxisReplacerNegativeTest,
+                         ::testing::Values(1, 2),
+                         [](const ::testing::TestParamInfo<int64_t>& info) {
+                             return "Axis" + std::to_string(info.param);
+                         });
+
+namespace {
+// Minimal embedding-sum graph PositionIDsReplacer targets: Add(input_embed, Gather(pos_weight,
+// Convert(Add(<positions>, offset)), axis)), where <positions> is the node under test.
+std::shared_ptr<Node> build_position_embedding_sum(const Output<Node>& positions) {
+    auto embed_weight = v0::Constant::create(element::f32, Shape{10, 4}, std::vector<float>(40, 1.0f));
+    auto input_ids = v0::Constant::create(element::i64, Shape{2}, {0, 1});
+    auto axis = v0::Constant::create(element::i64, Shape{}, {0});
+    auto input_embed = std::make_shared<v8::Gather>(embed_weight, input_ids, axis);
+
+    auto pos_weight = v0::Constant::create(element::f32, Shape{10, 4}, std::vector<float>(40, 1.0f));
+    auto offset = v0::Constant::create(element::i64, Shape{}, {2});
+    auto add_offset = std::make_shared<v1::Add>(positions, offset);
+    auto convert = std::make_shared<v0::Convert>(add_offset, element::i32);
+    auto position_embed = std::make_shared<v8::Gather>(pos_weight, convert, axis);
+
+    return std::make_shared<v1::Add>(input_embed, position_embed);
+}
+}  // namespace
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacer_SkipsAlreadyWiredPositionIds) {
+    // position_ids already reaches the embedding sum via the Unsqueeze(-1) SDPAToPagedAttention::run_on_model
+    // splices onto its consumers; PositionIDsReplacer receives that same node, so the match resolves to a
+    // self-replacement and the model must remain unchanged.
+    auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+    auto unsqueezed = std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+    auto sum = build_position_embedding_sum(unsqueezed);
+    model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(sum)}, nodes_to_params({position_ids}));
+    manager.register_pass<pass::PositionIDsReplacer>(unsqueezed);
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_PositionIDsReplacer_RedirectsDetachedPositions) {
+    // The embedding sum is fed by positions computed internally (unrelated to the position_ids parameter), so
+    // it must be redirected to the shared rank-restored position_ids node run_on_model wires onto the parameter.
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto unsqueezed =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto detached_positions = std::make_shared<v4::Range>(v0::Constant::create(element::i64, Shape{}, {0}),
+                                                              v0::Constant::create(element::i64, Shape{}, {2}),
+                                                              v0::Constant::create(element::i64, Shape{}, {1}),
+                                                              element::i64);
+        auto sum = build_position_embedding_sum(detached_positions);
+        model =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(sum)}, nodes_to_params({position_ids}));
+        manager.register_pass<pass::PositionIDsReplacer>(unsqueezed);
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
+        auto unsqueezed =
+            std::make_shared<v0::Unsqueeze>(position_ids, v0::Constant::create(element::i32, Shape{}, {-1}));
+        auto sum = build_position_embedding_sum(unsqueezed);
+        model_ref =
+            std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(sum)}, nodes_to_params({position_ids}));
+    }
+
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    disable_rt_info_check();
+}
+
+TEST_F(SDPAToPATest, SDPAToPA_RoPEUnsqueezeAxisReplacer_WithEliminateDropBatch) {
+    // Full flow: EliminateDropBatch collapses the now-invalid batch-drop select to a Reshape, and
+    // RoPEUnsqueezeAxisReplacer independently rewrites the RoPE outer-product tail's trailing Unsqueeze axis from 0
+    // to 1. Neither pass depends on the other having run.
+    {
+        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+        auto convert = std::make_shared<v0::Convert>(position_ids, element::f32);
+        auto select = std::make_shared<v8::Gather>(convert,
+                                                   v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   v0::Constant::create(element::i64, Shape{}, {0}));
+        auto broadcast = build_rope_broadcast(select, false, true);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {0}));
+        model = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
+                                        nodes_to_params({position_ids}));
+        manager.register_pass<pass::EliminateDropBatch>();
+        manager.register_pass<pass::RoPEUnsqueezeAxisReplacer>();
+    }
+    {
+        auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+        auto convert = std::make_shared<v0::Convert>(position_ids, element::f32);
+        auto reshape =
+            std::make_shared<v1::Reshape>(convert, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
+        auto broadcast = build_rope_broadcast(reshape, false, true);
+        auto unsqueeze = std::make_shared<v0::Unsqueeze>(broadcast, v0::Constant::create(element::i32, Shape{1}, {1}));
+        model_ref = std::make_shared<Model>(ResultVector{std::make_shared<v0::Result>(unsqueeze)},
+                                            nodes_to_params({position_ids}));
     }
 
     comparator.enable(FunctionsComparator::ATTRIBUTES);
@@ -6851,6 +7176,85 @@ TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating) {
         model_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
     }
 }
+// Scale without shift (synthetic): the mask-scale Multiply is structurally identical to a collapsed
+// gate, so this checks the gate is still found while the inner Multiply (consumer = gate Multiply)
+// is not mistaken for it.
+TEST_F(SDPAToPATest, SDPAToPA_LFM2_EliminateConvPaddingMaskGating_NoAdd) {
+    {
+        auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i32, "attention_mask");
+        auto slice = makeOP<v8::Slice>({attention_mask, {0}, {1}, {1}, {1}});
+        auto unsqueeze = makeOP<v0::Unsqueeze>({slice, 1});
+        auto convert = makeOP<v0::Convert>({unsqueeze}, {{"destination_type", "f32"}});
+        auto multiply = makeOP<v1::Multiply>({convert, 1024.0f}, {{"auto_broadcast", "numpy"}});
+        auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
+        auto multiply_gate = makeOP<v1::Multiply>({multiply_gate_param, multiply}, {{"auto_broadcast", "numpy"}});
+
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
+        auto matmul =
+            makeOP<v0::MatMul>({matmul_param, multiply_gate}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto res = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({attention_mask, matmul_param, multiply_gate_param});
+        model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
+
+        ov::pass::Manager pass_manager;
+        pass_manager.set_per_pass_validation(false);
+        pass_manager.register_pass<ov::pass::EliminateConvPaddingMaskGating>();
+        pass_manager.run_passes(model);
+
+        model->remove_parameter(params[0]);
+    }
+    {
+        auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
+        auto matmul =
+            makeOP<v0::MatMul>({matmul_param, multiply_gate_param}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto res = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({matmul_param, multiply_gate_param});
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
+    }
+}
+
+// granite-4.0-h-micro shape: hidden_states is gated with the Converted mask directly
+// (no scale Multiply, no shift Add), so mask_expr ends at Convert.
+TEST_F(SDPAToPATest, SDPAToPA_EliminateConvPaddingMaskGating_GraniteMamba) {
+    {
+        auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i32, "attention_mask");
+        auto slice = makeOP<v8::Slice>({attention_mask, {0}, {1}, {1}, {1}});
+        auto unsqueeze = makeOP<v0::Unsqueeze>({slice, 1});
+        auto convert = makeOP<v0::Convert>({unsqueeze}, {{"destination_type", "f32"}});
+        auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
+        auto multiply_gate = makeOP<v1::Multiply>({multiply_gate_param, convert}, {{"auto_broadcast", "numpy"}});
+
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
+        auto matmul =
+            makeOP<v0::MatMul>({matmul_param, multiply_gate}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto res = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({attention_mask, matmul_param, multiply_gate_param});
+        model = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
+
+        ov::pass::Manager pass_manager;
+        pass_manager.set_per_pass_validation(false);
+        pass_manager.register_pass<ov::pass::EliminateConvPaddingMaskGating>();
+        pass_manager.run_passes(model);
+
+        model->remove_parameter(params[0]);
+    }
+    {
+        auto multiply_gate_param = make_param(PartialShape{DYN, DYN, DYN}, element::f32, "gate_param");
+        auto matmul_param = make_param(PartialShape{48, 16}, element::f32, "weights");
+        auto matmul =
+            makeOP<v0::MatMul>({matmul_param, multiply_gate_param}, {{"transpose_a", false}, {"transpose_b", true}});
+        auto res = makeOP<v0::Result>({matmul});
+
+        auto params = nodes_to_params({matmul_param, multiply_gate_param});
+
+        model_ref = std::make_shared<ov::Model>(OutputVector{res}, ParameterVector{params});
+    }
+}
 
 // Minimal single-layer stateful SDPA model. With fq_on_k / fq_on_v, a 5-input v0::FakeQuantize is
 // inserted after the KV-cache Concat (the a8w8 / SmoothQuant location) - feeding SDPA directly
@@ -7067,6 +7471,31 @@ TEST(SDPAToPA_ActivationFakeQuantizeOnKV_PerChannel, NotTolerated) {
     ov::pass::Manager manager;
     manager.register_pass<ov::pass::SDPAToPagedAttention>();
     OV_EXPECT_THROW(manager.run_passes(model), ov::Exception, ::testing::HasSubstr("undeclared parameters"));
+}
+
+// SDPAToPagedAttention must not silently leave stateful SSM nodes in the graph. SelectiveSSMFusion fuses
+// the loop-based SSM into a SelectiveSSM, but its plain-Parameter recurrent state (no Gather(ReadValue))
+// prevents PagedSelectiveSSMFusion from converting it, so the two fused counts diverge and the
+// transformation throws.
+TEST(SDPAToPA_SelectiveSSM_Unconvertible, StatefulSSMLeftInGraphThrows) {
+    auto model = make_single_layer_sdpa_model(/*fq_on_k=*/false, /*fq_on_v=*/false, /*gqa=*/false);
+
+    // plain_parameter_state=true keeps the fused SelectiveSSM unconvertible by PagedSelectiveSSMFusion.
+    auto ssm_model = ov::test::ssm::build_looped_ssm(/*num_heads=*/4,
+                                                     /*num_groups=*/2,
+                                                     /*head_dim=*/8,
+                                                     /*state_size=*/16,
+                                                     /*with_post_loop=*/false,
+                                                     /*break_body=*/false,
+                                                     /*plain_parameter_state=*/true);
+    model->add_parameters(ssm_model->get_parameters());
+    model->add_results(ssm_model->get_results());
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    OV_EXPECT_THROW(manager.run_passes(model),
+                    ov::Exception,
+                    ::testing::HasSubstr("Stateful SSM nodes cannot be left in the graph"));
 }
 
 /*

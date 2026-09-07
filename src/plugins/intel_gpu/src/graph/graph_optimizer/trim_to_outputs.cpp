@@ -24,7 +24,7 @@ void trim_to_outputs::run(program& p) {
     queue.push(p.get_outputs());
 
     std::vector<program_node*> special_nodes;
-    for (auto& node : p.get_processing_order()) {   // input layout may become disconnected during prior boxes calculations so
+    for (const auto& node : p.get_processing_order()) {  // input layout may become disconnected during prior boxes calculations so
         if (node->is_type<input_layout>()) {        // it may have not been marked at this place but we don't want to remove it
             special_nodes.push_back(node);          // ToDo: remove this after support for multi-outputs in primitives will
         }                                           // be implemented.
@@ -40,9 +40,9 @@ void trim_to_outputs::run(program& p) {
                 node->mark();
                 if (!node->get_dependencies().empty()) {
                    std::vector<program_node*> deps;
-                    for (auto& dep : node->get_dependencies()) {
-                        deps.push_back(dep.first);
-                    }
+                   for (const auto& dep : node->get_dependencies()) {
+                       deps.push_back(dep.first);
+                   }
                     queue.push(deps);
                 }
             }
@@ -51,13 +51,13 @@ void trim_to_outputs::run(program& p) {
 
     // all not-marked nodes should be removed
     std::vector<program_node*> to_rem;
-    for (auto& node : p.get_processing_order()) {
+    for (const auto& node : p.get_processing_order()) {
         if (!node->is_marked())
             to_rem.push_back(node);
     }
     p.remove_nodes(to_rem);
 
-    for (auto& node : p.get_processing_order()) {
+    for (const auto& node : p.get_processing_order()) {
         node->unmark();
     }
 }

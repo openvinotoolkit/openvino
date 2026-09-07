@@ -104,10 +104,20 @@ bool is_graph_iterator_enabled() {
 }
 
 // !!! Experimental feature, it may be changed or removed in the future !!!
+// Constants loaded from an external data file are already marked with a real offset there.
+// If a model has such constants, the rest are left unmarked, otherwise all constants are marked
+// with an index in order of walking through the model.
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
     const auto& operations = model->get_ordered_ops();
+    const auto has_external_data =
+        std::any_of(operations.begin(), operations.end(), [](const std::shared_ptr<ov::Node>& operation) {
+            return operation->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) > 0;
+        });
+    if (has_external_data)
+        return;
+
     for (uint32_t idx = 0; idx < operations.size(); ++idx) {
-        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
+        const auto& const_node = ov::as_type_ptr<ov::op::v0::Constant>(operations[idx]);
         if (const_node == nullptr)
             continue;
         const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
@@ -161,7 +171,7 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
 #    ifdef OV_PROTOBUF_ABSL_IS_USED
-    absl::SetGlobalVLogLevel(0);
+    absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfinity);
 #    else
     google::protobuf::SetLogHandler(nullptr);
 #    endif

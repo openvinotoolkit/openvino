@@ -46,7 +46,7 @@ namespace kernel_selector {
 
 namespace fc_kernel_bf_tiled_utils {
 std::pair<size_t, size_t> get_input_bf_size(const fully_connected_params& params) {
-    auto& input = params.inputs[0];
+    const auto& input = params.inputs[0];
     size_t input_f = input.Feature().v;
     size_t input_batch = input.Batch().v;
 
@@ -304,10 +304,10 @@ bool FullyConnected_bf_tiled::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
-    auto& input = fc_params.inputs[0];
-    auto& output = fc_params.outputs[0];
-    auto& weights = fc_params.weights;
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& input = fc_params.inputs[0];
+    const auto& output = fc_params.outputs[0];
+    const auto& weights = fc_params.weights;
 
     // Block reads must be aligned to 4 bytes, for fp16 we can correct for offset misalignment,
     // but we need to ensure that batch pitch preserves alignment.
@@ -482,35 +482,34 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
             if (is_weight_vertical(params, output_f)) {
                 if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
                     return selector.Default(tune_params(1, 1, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
-                } else if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
+                }
+                if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
             } else if (is_weight_small_kn(params, output_f)) {
                 if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv32_isv2) {
                     if (swiglu_fused)
                         return selector.Default(tune_params(1, 1, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
-                    else
-                        return selector.Default(tune_params(1, 1, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
-                } else {
-                    return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+                    return selector.Default(tune_params(1, 1, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
+                return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+
             } else {
                 if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16) {
                     return selector.Default(tune_params(1, 1, 4, 4, 1, 1, 1, EXE_MODE_DEFAULT));
-                } else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
+                }
+                if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2) {
                     // Here : b1 static
                     if (swiglu_fused) {
                         return selector.Default(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
-                    } else {
-                        selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT))
-                                .Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                     }
+                    selector.Case(tune_params(1, 4, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT)).Case(tune_params(1, 4, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
+
                 } else {
                     if (swiglu_fused) {
                         return selector.Default(tune_params(1, 2, 4, 2, 2, 1, 1, EXE_MODE_DEFAULT));
-                    } else {
-                        return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                     }
+                    return selector.Default(tune_params(1, 2, 4, 2, 1, 1, 1, EXE_MODE_DEFAULT));
                 }
             }
         } else {
@@ -527,10 +526,9 @@ FullyConnected_bf_tiled::GetAutoTuneParams(const fully_connected_params& params,
 
             if (params.weights.GetLayout() == WeightsLayout::os_iyx_osv16)
                 return selector.Default(tune_params(8, 1, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
-            else if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
+            if (params.weights.GetLayout() == WeightsLayout::os_is_yx_osv64_isv2)
                 return selector.Default(tune_params(8, 4, 1, 2, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
-            else
-                return selector.Default(tune_params(8, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
+            return selector.Default(tune_params(8, 2, 1, 4, forced_outer_ofm, 1, 1, EXE_MODE_DEFAULT));
         }
     } else if (params.compressed && params.engineInfo.supports_immad) {
         return selector.Default(tune_params(1, 1, 1, 4, 1, 1, 1, EXE_MODE_DEFAULT));
@@ -904,7 +902,7 @@ void FullyConnected_bf_tiled::SetDispatchDataFunc(KernelData& kd, const Dispatch
 
         kd.kernels[execute].skip_execution = KernelData::SkipKernelExecution(prim_params);
 
-        auto& input = prim_params.inputs[0];
+        const auto& input = prim_params.inputs[0];
         if (prim_params.outputs[0].GetLayout() == DataLayout::bfyx)
             OPENVINO_ASSERT(input.X().pad.Total() == 0 && input.Y().pad.Total() == 0,
                             "[GPU] Invalid padding in spatial axes observed in FC bf tiled.");
@@ -1003,7 +1001,7 @@ void FullyConnected_bf_tiled::GetUpdateDispatchDataFunc(KernelData& kd) const {
 
 KernelsData FullyConnected_bf_tiled::GetTunedKernelsDataByIndex(const Params &params,
                                                                 const int autoTuneIndex) const {
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(auto_tune_params.size())
         && !TuneParamsSelector::VerifyTuneParams(fc_params, auto_tune_params[autoTuneIndex]))
@@ -1120,7 +1118,7 @@ KernelsData FullyConnected_bf_tiled::GetKernelsDataForAutoTune(const Params& par
 
 KernelsData FullyConnected_bf_tiled::GetKernelsData(const Params& params) const {
     KernelsData res = {};
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto tparams = GetAutoTuneParams(fc_params);
 
     KernelsData kds = GetTunedKernelsDataByIndex(params, -1);

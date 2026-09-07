@@ -68,7 +68,7 @@ bool DeconvolutionKernel_imad_along_f_tile_bfx::Validate(const Params& p) const 
     if (!Parent::Validate(p))
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    auto& params = static_cast<const deconvolution_params&>(p);
+    const auto& params = static_cast<const deconvolution_params&>(p);
     if (params.groups > 1 && params.weights.IFM().v % 4 != 0)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
@@ -128,8 +128,7 @@ KernelsPriority DeconvolutionKernel_imad_along_f_tile_bfx::GetKernelsPriority(co
     // Currently most optimized for fsv16 formats
     if (p.inputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16)
         return FORCE_PRIORITY_7;
-    else
-        return FORCE_PRIORITY_8;
+    return FORCE_PRIORITY_8;
 }
 
 JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const deconvolution_params& params) const {
@@ -145,7 +144,7 @@ JitConstants DeconvolutionKernel_imad_along_f_tile_bfx::GetJitConstants(const de
     jit.AddConstant(MakeJitConstant("TILE_B", tile_b));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
 
-    auto& in = params.inputs[0];
+    const auto& in = params.inputs[0];
     auto in_layout = in.GetLayout();
 
     // Layout specific params

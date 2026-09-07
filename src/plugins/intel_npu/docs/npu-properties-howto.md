@@ -120,11 +120,6 @@ struct OptionBase {
         return ov::PropertyMutability::RW; 
     } 
 
-    /// Overload this for options conditioned by compiler version 
-    static uint32_t compilerSupportVersion() { 
-        return ONEAPI_MAKE_VERSION(0, 0); 
-    } 
-
     static std::string toString(const ValueType& val) { 
         return OptionPrinter<ValueType>::toString(val); 
     } 
@@ -198,10 +193,6 @@ struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::Exam
         return ov::intel_npu::ExampleType::VAL3; 
     } 
 
-    static uint32_t compilerSupportVersion() { 
-        return ONEAPI_MAKE_VERSION(5, 5); 
-    } 
-
     static bool isPublic() { 
         return true; 
     } 
@@ -243,7 +234,6 @@ Notes:
 - key(): needs to return the string name of the property (the NPU_EXAMPLE_PROPERTY defined in the property at step 1)  
 - getTypeName: returns the type name as a human-readable string  
 - defaultValue: returns the option's default value (if there was no user-defined value set, config.get or get_property(EXAMPLE_PROPERTY) will call this function  
-- compilerSupportVersion: the compiler version from which this key is supported by compiler  
 - isPublic: defines whether the option is a **public or a private** one  
 - mode: defines the OptionMode of this option. Can be:  
     - CompileTime (for options used ONLY by the compiler)  

@@ -98,13 +98,14 @@ inline size_t GemmKernelMMADint8::GetMmadOperationsNumber(const GemmTuningData& 
 bool GemmKernelMMADint8::HasLeftovers(const GemmTuningData& tuning_data, int tile_size) const {
     if (tile_size == 32) {
         return ((tuning_data.size_m % 32) != 0u) || ((tuning_data.size_n % 16) != 0u) || ((tuning_data.size_k % 64) != 0u);
-    } else if (tile_size == 16) {
-        return ((tuning_data.size_m % 16) != 0u) || ((tuning_data.size_n % 16) != 0u) || ((tuning_data.size_k % 64) != 0u);
-    } else if (tile_size == 8) {
-        return ((tuning_data.size_m % 8) != 0u) || ((tuning_data.size_n % 8) != 0u) || ((tuning_data.size_k % 32) != 0u);
-    } else {
-        return true;
     }
+    if (tile_size == 16) {
+        return ((tuning_data.size_m % 16) != 0u) || ((tuning_data.size_n % 16) != 0u) || ((tuning_data.size_k % 64) != 0u);
+    }
+    if (tile_size == 8) {
+        return ((tuning_data.size_m % 8) != 0u) || ((tuning_data.size_n % 8) != 0u) || ((tuning_data.size_k % 32) != 0u);
+    }
+    return true;
 }
 
 GemmKernelMMADint8::GemmTuningData GemmKernelMMADint8::SetTuningParams(const gemm_params& params) const {

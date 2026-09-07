@@ -114,13 +114,12 @@ public:
                                   format::is_weights_format(impl_params.get_output_layout().format);
         if (is_reorder_weights) {
             return create_reorder_weights(impl_params);
-        } else {
-            auto& engine = impl_params.prog->get_engine();
-            auto& config = impl_params.prog->get_config();
-            auto attr = impl_params.attrs_onednn;
-            auto prim_desc = get_reorder_primitive_descriptor(impl_params, *attr);
-            return std::make_unique<reorder_onednn>(engine, config, attr, *prim_desc);
         }
+        auto& engine = impl_params.prog->get_engine();
+        const auto& config = impl_params.prog->get_config();
+        auto attr = impl_params.attrs_onednn;
+        auto prim_desc = get_reorder_primitive_descriptor(impl_params, *attr);
+        return std::make_unique<reorder_onednn>(engine, config, attr, *prim_desc);
     }
 
     static std::unique_ptr<primitive_impl> create_reorder_weights(const kernel_impl_params& impl_param) {

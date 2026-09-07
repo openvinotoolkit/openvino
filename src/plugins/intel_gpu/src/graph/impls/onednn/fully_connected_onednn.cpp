@@ -198,14 +198,8 @@ protected:
                 bias_md,
                 output_md,
                 attr);
-        } else {
-            return std::make_shared<dnnl::matmul::primitive_desc>(
-                engine.get_onednn_engine(),
-                input_md,
-                weights_md,
-                output_md,
-                attr);
         }
+        return std::make_shared<dnnl::matmul::primitive_desc>(engine.get_onednn_engine(), input_md, weights_md, output_md, attr);
     }
 
 public:
@@ -273,7 +267,7 @@ public:
         const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
 
         auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
-        auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
+        const auto& arg = impl_params->get_program().get_node(impl_params->desc->id).as<fully_connected>();
         int idx = !arg.bias_term() ? 1 : 2;
         int per_oc = PER_OC << shift_size;
         int grouped = (1 << prim->input_size) - 1;
@@ -323,7 +317,7 @@ public:
             auto src_scale_idx = ++idx;
             auto partial_shape = impl_params->get_input_layout(0).get_partial_shape();
             auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
-            auto& src_scale_shape = impl_params->input_layouts[src_scale_idx].get_partial_shape();
+            const auto& src_scale_shape = impl_params->input_layouts[src_scale_idx].get_partial_shape();
             int64_t src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
             int64_t src_group_size = innermost_len / src_scale_ngroups;
 
@@ -356,7 +350,7 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const fully_connected_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
         auto prim = impl_params.typed_desc<fully_connected>();
         int group_size = 0;
@@ -431,9 +425,9 @@ public:
 
             if (is_dyn_quan_input && prim->dynamic_quantized_activation) {
                 auto src_scale_idx = ++idx;
-                auto& partial_shape = impl_params.input_layouts[0].get_partial_shape();
+                const auto& partial_shape = impl_params.input_layouts[0].get_partial_shape();
                 auto innermost_len = partial_shape[partial_shape.size() - 1].get_length();
-                auto& src_scale_shape = impl_params.input_layouts[src_scale_idx].get_partial_shape();
+                const auto& src_scale_shape = impl_params.input_layouts[src_scale_idx].get_partial_shape();
                 int64_t src_scale_ngroups = src_scale_shape[src_scale_shape.size() - 1].get_length();
                 int64_t src_group_size = innermost_len / src_scale_ngroups;
 
@@ -462,12 +456,11 @@ public:
             prim_onednn->_ds_data_type = ds_data_type;
             prim_onednn->_dzp_data_type = dzp_data_type;
             return prim_onednn;
-        } else {
-            auto prim_desc = get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(),
-                                                             prim->input_size, prim->weights_rank, prim->bias.is_valid(), *attr);
-
-            return std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc);
         }
+        auto prim_desc =
+            get_matmul_primitive_descriptor(impl_params, impl_params.prog->get_engine(), prim->input_size, prim->weights_rank, prim->bias.is_valid(), *attr);
+
+        return std::make_unique<fully_connected_onednn>(engine, config, attr, *prim_desc);
     }
 };
 

@@ -190,7 +190,7 @@ bool DFTKernelRef::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    auto& params = dynamic_cast<const dft_params&>(p);
+    const auto& params = dynamic_cast<const dft_params&>(p);
     if (params.inputs.size() != 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }

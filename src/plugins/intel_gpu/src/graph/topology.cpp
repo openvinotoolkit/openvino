@@ -39,11 +39,11 @@ void topology::change_input_layout(const primitive_id& id, const layout& new_lay
         new_layout.data_type != data_types::i64)
         throw std::invalid_argument("Unknown data_type of layout.");
 
-    auto& inp_layout = this->at(id);
+    const auto& inp_layout = this->at(id);
     if (inp_layout->type != input_layout::type_id()) {
         throw std::runtime_error("Primitive: " + id + " is not input_layout.");
     }
-    auto inp_lay_prim = static_cast<input_layout*>(inp_layout.get());
+    auto* inp_lay_prim = static_cast<input_layout*>(inp_layout.get());
     inp_lay_prim->change_layout(new_layout);
 }
 

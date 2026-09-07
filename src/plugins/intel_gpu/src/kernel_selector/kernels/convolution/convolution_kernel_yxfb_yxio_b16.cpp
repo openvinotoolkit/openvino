@@ -38,9 +38,8 @@ DeviceFeaturesKey ConvolutionKernel_yxfb_yxio_b16::get_required_device_features_
 std::string ConvolutionKernel_yxfb_yxio_b16::GetKernelName(const convolution_params& params) const {
     if (params.inputs[0].GetDType() == Datatype::F32) {
         return kernelName + "_fp32";
-    } else {
-        return kernelName + "_fp16";
     }
+    return kernelName + "_fp16";
 }
 
 namespace {
@@ -52,14 +51,13 @@ size_t GetBatchesPerWorkItem(size_t batch_size, Datatype dataType) {
 
         if (batch_size % (4 * min_batches_per_wi * min_lws) == 0) {
             return 4 * min_batches_per_wi;  // USE_BLOCK_READ_2 + as_half4
-        } else if (batch_size % (2 * min_batches_per_wi * min_lws) == 0) {
-            return 2 * min_batches_per_wi;  // USE_BLOCK_READ_1 + as_half2
-        } else {
-            return min_batches_per_wi;
         }
-    } else {
-        return 2;
+        if (batch_size % (2 * min_batches_per_wi * min_lws) == 0) {
+            return 2 * min_batches_per_wi;  // USE_BLOCK_READ_1 + as_half2
+        }
+        return min_batches_per_wi;
     }
+    return 2;
 }
 
 size_t GetOfmPerWorkitem(Datatype dataType) {

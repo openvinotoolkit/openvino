@@ -135,6 +135,16 @@ void rebuild_sliding_window_mask(const std::shared_ptr<ov::Node>& attention_mask
     LOG_INFO(std::string(log_prefix) + " sliding window attention mask pattern found and patched.");
 }
 
+// True only for a single-element constant holding zero.
+bool is_zero_scalar_constant(const ov::Output<ov::Node>& output) {
+    auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+    if (!constant || ov::shape_size(constant->get_shape()) != 1u) {
+        return false;
+    }
+    const auto values = constant->cast_vector<int64_t>();
+    return !values.empty() && values.front() == 0;
+}
+
 class OldPhi3SlidingMaskMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::OldPhi3SlidingMaskMatcher");
@@ -465,6 +475,20 @@ public:
         auto opt_key_range_f32 = opp::optional<ov::op::v0::Convert>({key_range_row->output(0)});
 
         // Q (query) side: Gemma4-specific -- cache_pos = Range(0, seq_len) + past_kv_len
+        //
+        //   Gather (past_kv_len) --------------------------------.
+        //     |                                                  |
+        //     v                                                  |
+        //   Add (past_kv_len + seq_len = full_ctx_len)           |
+        //     |                                                  |
+        //     v                                                  v
+        //   Range (0, full_ctx_len, 1)          Add (Range(0, seq_len, 1), past_kv_len)
+        //     |  K positions                      |  Q positions (cache_position)
+        //   Unsqueeze x3                        Unsqueeze x3
+        //      \                                  /
+        //       `---> Greater / LessEqual -> sliding & causal masks
+        //
+        // Both sides consume the very same shape Gather.
         auto q_range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
         auto cache_position = opp::wrap_type<ov::op::v1::Add>({q_range, past_kv_len_squeeze});
         auto query_range_column = unsqueeze_sequence(cache_position);
@@ -512,6 +536,115 @@ public:
     }
 };
 
+class Gemma4UnifiedSlidingMaskMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::Gemma4UnifiedSlidingMaskMatcher");
+
+    Gemma4UnifiedSlidingMaskMatcher(const std::shared_ptr<ov::Node>& attention_mask_node_ptr,
+                                    const std::shared_ptr<ov::Node>& position_ids_node_ptr) {
+        // Same fix as Gemma4SlidingMaskMatcher, for the sliding window mask emitted by
+        // "Gemma 4 Unified" exports (optimum-intel 3eb79ef3 / huggingface/optimum-intel#1770
+        // and later).
+        //
+        // Those exports no longer feed the shape Gather into the Q-side Add. They build the
+        // whole cache_position range first and take its first element, which is numerically
+        // the same past_kv_len, reached through a different subgraph:
+        //
+        //   Gather (past_kv_len) --------------------------------.
+        //     |                                                  |
+        //     v                                                  v
+        //   Add (past_kv_len + seq_len = full_ctx_len)          Range (past_kv_len, full_ctx_len, 1)
+        //     |                                                  |
+        //     v                                                  v
+        //   Range (0, full_ctx_len, 1)                          Gather (.., 0)  -- cache_position[0]
+        //     |  K positions                                      |             -- == past_kv_len
+        //   Unsqueeze x3                                        Add (Range(0, seq_len, 1), ..)
+        //      \                                                  |  Q positions
+        //       \                                               Unsqueeze x3
+        //        `---> Greater / LessEqual -> sliding & causal masks
+        //
+        // Left unmatched, the mask keeps the form that assumes unpadded KV, and every SWA
+        // layer drops the whole prefill context once the static KV buffer grows past the
+        // sliding window.
+        auto unsqueeze_sequence = [&](std::shared_ptr<ov::Node> node) {
+            auto u1 = opp::wrap_type<ov::op::v0::Unsqueeze>({node, opp::any_input()});
+            auto u2 = opp::wrap_type<ov::op::v0::Unsqueeze>({u1, opp::any_input()});
+            auto u3 = opp::wrap_type<ov::op::v0::Unsqueeze>({u2, opp::any_input()});
+            return u3;
+        };
+
+        // K (key) side: Range(0, past_kv_len + seq_len, 1) -- unchanged from the pattern above
+        auto past_kv_len = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto past_kv_len_squeeze = opp::optional<ov::op::v0::Squeeze>({past_kv_len});
+        auto zero_const = opp::wrap_type<ov::op::v0::Constant>();
+        auto full_ctx_len = opp::wrap_type<ov::op::v1::Add>({opp::any_input(), past_kv_len_squeeze});
+        auto key_range = opp::wrap_type<ov::op::v4::Range>({zero_const, full_ctx_len, opp::any_input()});
+        auto key_range_row = unsqueeze_sequence(key_range);
+        auto opt_key_range_f32 = opp::optional<ov::op::v0::Convert>({key_range_row->output(0)});
+
+        // Q (query) side: past length taken as the first element of the cache_position range.
+        // The Range still starts from the same past_kv_len, which keeps this pattern anchored
+        // to the subgraph the K side was matched on.
+        auto cache_pos_range =
+            opp::wrap_type<ov::op::v4::Range>({past_kv_len_squeeze, opp::any_input(), opp::any_input()});
+        auto past_kv_len_select =
+            opp::wrap_type<ov::op::v8::Gather>({cache_pos_range, opp::any_input(), opp::any_input()});
+        auto q_range = opp::wrap_type<ov::op::v4::Range>({opp::any_input(), opp::any_input(), opp::any_input()});
+        auto cache_position = opp::wrap_type<ov::op::v1::Add>({q_range, past_kv_len_select});
+        auto query_range_column = unsqueeze_sequence(cache_position);
+
+        // Sliding window & causal masks (positive form: 1 = attend)
+        auto neg_window_size = opp::wrap_type<ov::op::v0::Constant>();
+        auto query_left_bound = opp::wrap_type<ov::op::v1::Add>({query_range_column, neg_window_size});
+        auto sliding_mask = opp::wrap_type<ov::op::v1::Greater>({opt_key_range_f32, query_left_bound});
+        auto sliding_and_true = opp::wrap_type<ov::op::v13::BitwiseAnd>({opp::any_input(), sliding_mask});
+        auto causal_mask = opp::wrap_type<ov::op::v1::LessEqual>({opt_key_range_f32, query_range_column});
+        auto sliding_and_causal_mask = opp::wrap_type<ov::op::v13::BitwiseAnd>({sliding_and_true, causal_mask});
+
+        auto callback = [=](opp::Matcher& m) {
+            auto& node_to_output = m.get_pattern_value_map();
+
+            // Only cache_position[0] equals past_kv_len. Any other element of the range is
+            // a different value, and rewriting the mask around it would silently shift the
+            // window, so leave such a subgraph alone.
+            auto matched_select = node_to_output.at(past_kv_len_select).get_node_shared_ptr();
+            if (!is_zero_scalar_constant(matched_select->input_value(1)) ||
+                !is_zero_scalar_constant(matched_select->input_value(2))) {
+                return false;
+            }
+
+            // Extract matched nodes from pattern
+            auto optional_squeeze = node_to_output.find(past_kv_len_squeeze);
+            auto matched_past_kv_len = optional_squeeze != node_to_output.end()
+                                           ? optional_squeeze->second.get_node_shared_ptr()
+                                           : node_to_output.at(past_kv_len).get_node_shared_ptr();
+            auto matched_full_ctx_len = node_to_output.at(full_ctx_len).get_node_shared_ptr();
+            auto matched_neg_window_size = node_to_output.at(neg_window_size).get_node_shared_ptr();
+            auto matched_sliding_mask = node_to_output.at(sliding_mask).get_node_shared_ptr();
+            auto matched_sliding_and_causal_mask = node_to_output.at(sliding_and_causal_mask).get_node_shared_ptr();
+
+            auto optional_convert = node_to_output.find(opt_key_range_f32);
+            auto matched_key_range_row = optional_convert != node_to_output.end()
+                                             ? optional_convert->second.get_node_shared_ptr()
+                                             : node_to_output.at(key_range_row).get_node_shared_ptr();
+
+            // Call shared transformation helper
+            rebuild_sliding_window_mask(attention_mask_node_ptr,
+                                        position_ids_node_ptr,
+                                        matched_past_kv_len,
+                                        matched_full_ctx_len,
+                                        matched_key_range_row,
+                                        matched_neg_window_size,
+                                        matched_sliding_mask,
+                                        matched_sliding_and_causal_mask,
+                                        "Gemma4 Unified");
+            return true;
+        };
+        register_matcher(std::make_shared<opp::Matcher>(sliding_and_causal_mask, "Gemma4UnifiedSlidingMaskMatcher"),
+                         std::move(callback));
+    }
+};
+
 #ifdef __GNUC__
 #    pragma GCC diagnostic pop
 #endif
@@ -546,6 +679,7 @@ bool SlidingWindowMask::run_on_model(const std::shared_ptr<ov::Model>& model) {
     manager.set_per_pass_validation(true);
     const auto rewriter = manager.register_pass<ov::pass::GraphRewrite>();
     rewriter->add_matcher<Gemma4SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
+    rewriter->add_matcher<Gemma4UnifiedSlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<Phi3SlidingMaskMatcher>(attention_mask_node_ptr, position_ids_node_ptr);
     rewriter->add_matcher<OldPhi3SlidingMaskMatcher>();
     return manager.run_passes(model);

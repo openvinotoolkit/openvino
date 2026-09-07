@@ -387,7 +387,7 @@ KernelsData Convolution_kernel_b_fs_yx_fsv16_imad_1x1::GetKernelsDataForAutoTune
     if (!Validate(params)) {
         return {};
     }
-    auto& conv_params = static_cast<const convolution_params&>(params);
+    const auto& conv_params = static_cast<const convolution_params&>(params);
 
     KernelsData res = {};
 

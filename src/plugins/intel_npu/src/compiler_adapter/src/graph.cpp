@@ -24,8 +24,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const FilteredConfig& config,
              const std::optional<std::string>& compatibilityDescriptor,
-             const bool blobIsPersistent,
-             const bool calledFromWeightlessGraph)
+             const bool blobIsPersistent)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -34,21 +33,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _blob(std::move(blob)),
       _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
-      _logger("Graph", config.get<LOG_LEVEL>()) {
-    if (!calledFromWeightlessGraph) {
-        _logger.info("The current compiled model is a weightful one");
-    }
-
-    if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
-        _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
-        return;
-    }
-
-    if (!calledFromWeightlessGraph) {
-        // Will be called at a later stage from WeightlessGraph::initialize() in order to save some memory
-        initialize(config);
-    }
-}
+      _logger("Graph", config.get<LOG_LEVEL>()) {}
 
 const NetworkMetadata& Graph::get_metadata() const {
     return _metadata;

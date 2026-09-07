@@ -7,6 +7,8 @@
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
 
+#include <algorithm>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -187,6 +189,14 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     std::vector<cl_platform_id> platform_ids(num_platforms);
     error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), nullptr);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
+
+    // The ICD loader doesn't guarantee platform order. Keep Intel devices first.
+    const auto intel_platform = std::find_if(platform_ids.begin(), platform_ids.end(), [](const cl_platform_id id) {
+        return cl::Platform(id).getInfo<CL_PLATFORM_VENDOR>() == INTEL_PLATFORM_VENDOR;
+    });
+    if (intel_platform != platform_ids.end()) {
+        std::rotate(platform_ids.begin(), intel_platform, std::next(intel_platform));
+    }
 
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {

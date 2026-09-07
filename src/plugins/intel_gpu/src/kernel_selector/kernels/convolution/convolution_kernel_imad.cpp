@@ -188,7 +188,7 @@ bool ConvolutionKernel_imad::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    auto& conv_params = static_cast<const convolution_params&>(params);
+    const auto& conv_params = static_cast<const convolution_params&>(params);
     if (conv_params.groups > 1 && conv_params.weights.IFM().v % 4 != 0 &&
         conv_params.inputs[0].GetLayout() != DataLayout::b_fs_yx_fsv16)
         DO_NOT_USE_THIS_KERNEL(params.layerID);
