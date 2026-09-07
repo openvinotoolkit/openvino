@@ -156,6 +156,16 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
     target_compile_options(${MODULE_NAME} PRIVATE
         $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
+    # Unloading a .so with SYCL code is unsafe in two ways:
+    #  1. libsycl.so drops the kernel name index on unregister, so kernels provided
+    #     by another loaded module go missing.
+    #  2. libsycl.so's static destructor touches vtables (e.g., SYCLMemObjAllocatorHolder)
+    #     emitted in the unloaded module at process exit (observed on an NVIDIA backend).
+    # Mark the plugin NODELETE so it is never unloaded.
+    if(OV_GPU_WITH_SYCL AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_link_options(${MODULE_NAME} PRIVATE "LINKER:-z,nodelete")
+    endif()
+
     target_link_libraries(${MODULE_NAME} PRIVATE openvino_intel_gpu_graph${SUFFIX} openvino::pugixml)
 
     target_include_directories(${MODULE_NAME} PRIVATE
