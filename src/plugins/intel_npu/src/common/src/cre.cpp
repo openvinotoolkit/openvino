@@ -25,16 +25,161 @@ constexpr std::string_view NOT_TOKEN_NAME = "NOT";
 constexpr std::string_view OPEN_TOKEN_NAME = "OPEN";
 constexpr std::string_view CLOSE_TOKEN_NAME = "CLOSE";
 
-inline bool and_function(bool a, bool b) {
-    return a && b;
+constexpr std::string_view UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE = "Unsupported \"ov::CompatibilityCheck\" value";
+
+/**
+ * @brief Logical AND function between two "compatibility check" data types
+ * @details Consider:
+ *   * ov::CompatibilityCheck::SUPPORTED = TRUE
+ *   * ov::CompatibilityCheck::UNSUPPORTED = FALSE
+ *   * ov::CompatibilityCheck::NOT_APPLICABLE = UNKNOWN
+ *
+ * Then:
+ *   * TRUE AND TRUE = TRUE
+ *   * TRUE AND FALSE = FALSE
+ *   * TRUE AND UNKNOWN = UNKNOWN
+ *   * FALSE AND FALSE = FALSE
+ *   * FALSE AND UNKNOWN = FALSE
+ *   * UNKNOWN AND UNKNOWN = UNKNOWN
+ */
+ov::CompatibilityCheck and_function(const ov::CompatibilityCheck a, const ov::CompatibilityCheck b) {
+    switch (a) {
+    case ov::CompatibilityCheck::SUPPORTED: {
+        switch (b) {
+        case ov::CompatibilityCheck::SUPPORTED:
+            return ov::CompatibilityCheck::SUPPORTED;
+        case ov::CompatibilityCheck::UNSUPPORTED:
+            return ov::CompatibilityCheck::UNSUPPORTED;
+        case ov::CompatibilityCheck::NOT_APPLICABLE:
+            return ov::CompatibilityCheck::NOT_APPLICABLE;
+        default:
+            OPENVINO_THROW(UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE);
+        }
+    }
+    case ov::CompatibilityCheck::UNSUPPORTED: {
+        switch (b) {
+        case ov::CompatibilityCheck::SUPPORTED:
+            return ov::CompatibilityCheck::UNSUPPORTED;
+        case ov::CompatibilityCheck::UNSUPPORTED:
+            return ov::CompatibilityCheck::UNSUPPORTED;
+        case ov::CompatibilityCheck::NOT_APPLICABLE:
+            return ov::CompatibilityCheck::UNSUPPORTED;
+        default:
+            OPENVINO_THROW(UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE);
+        }
+    }
+    case ov::CompatibilityCheck::NOT_APPLICABLE: {
+        switch (b) {
+        case ov::CompatibilityCheck::SUPPORTED:
+            return ov::CompatibilityCheck::NOT_APPLICABLE;
+        case ov::CompatibilityCheck::UNSUPPORTED:
+            return ov::CompatibilityCheck::UNSUPPORTED;
+        case ov::CompatibilityCheck::NOT_APPLICABLE:
+            return ov::CompatibilityCheck::NOT_APPLICABLE;
+        default:
+            OPENVINO_THROW(UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE);
+        }
+    }
+    default: {
+        OPENVINO_THROW(UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE);
+    }
+    }
 }
 
-inline bool or_function(bool a, bool b) {
-    return a || b;
+/**
+ * @brief Logical OR function between two "compatibility check" data types
+ * @details Consider:
+ *   * ov::CompatibilityCheck::SUPPORTED = TRUE
+ *   * ov::CompatibilityCheck::UNSUPPORTED = FALSE
+ *   * ov::CompatibilityCheck::NOT_APPLICABLE = UNKNOWN
+ *
+ * Then:
+ *   * TRUE OR TRUE = TRUE
+ *   * TRUE OR FALSE = TRUE
+ *   * TRUE OR UNKNOWN = TRUE
+ *   * FALSE OR FALSE = FALSE
+ *   * FALSE OR UNKNOWN = UNKNOWN
+ *   * UNKNOWN OR UNKNOWN = UNKNOWN
+ */
+ov::CompatibilityCheck or_function(const ov::CompatibilityCheck a, const ov::CompatibilityCheck b) {
+    switch (a) {
+    case ov::CompatibilityCheck::SUPPORTED: {
+        switch (b) {
+        case ov::CompatibilityCheck::SUPPORTED:
+            return ov::CompatibilityCheck::SUPPORTED;
+        case ov::CompatibilityCheck::UNSUPPORTED:
+            return ov::CompatibilityCheck::SUPPORTED;
+        case ov::CompatibilityCheck::NOT_APPLICABLE:
+            return ov::CompatibilityCheck::SUPPORTED;
+        default:
+            OPENVINO_THROW(UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE);
+        }
+    }
+    case ov::CompatibilityCheck::UNSUPPORTED: {
+        switch (b) {
+        case ov::CompatibilityCheck::SUPPORTED:
+            return ov::CompatibilityCheck::SUPPORTED;
+        case ov::CompatibilityCheck::UNSUPPORTED:
+            return ov::CompatibilityCheck::UNSUPPORTED;
+        case ov::CompatibilityCheck::NOT_APPLICABLE:
+            return ov::CompatibilityCheck::NOT_APPLICABLE;
+        default:
+            OPENVINO_THROW(UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE);
+        }
+    }
+    case ov::CompatibilityCheck::NOT_APPLICABLE: {
+        switch (b) {
+        case ov::CompatibilityCheck::SUPPORTED:
+            return ov::CompatibilityCheck::SUPPORTED;
+        case ov::CompatibilityCheck::UNSUPPORTED:
+            return ov::CompatibilityCheck::NOT_APPLICABLE;
+        case ov::CompatibilityCheck::NOT_APPLICABLE:
+            return ov::CompatibilityCheck::NOT_APPLICABLE;
+        default:
+            OPENVINO_THROW(UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE);
+        }
+    }
+    default: {
+        OPENVINO_THROW(UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE);
+    }
+    }
 }
 
-inline bool first_operand_function(bool /*a*/, bool b) {
+/**
+ * @brief Logical NOT function applied on a "compatibility check" data type
+ * @details Consider:
+ *   * ov::CompatibilityCheck::SUPPORTED = TRUE
+ *   * ov::CompatibilityCheck::UNSUPPORTED = FALSE
+ *   * ov::CompatibilityCheck::NOT_APPLICABLE = UNKNOWN
+ *
+ * Then:
+ *   * NOT TRUE = FALSE
+ *   * NOT FALSE = TRUE
+ *   * NOT UNKNOWN = UNKNOWN
+ */
+ov::CompatibilityCheck not_function(const ov::CompatibilityCheck a) {
+    switch (a) {
+    case ov::CompatibilityCheck::SUPPORTED:
+        return ov::CompatibilityCheck::UNSUPPORTED;
+    case ov::CompatibilityCheck::UNSUPPORTED:
+        return ov::CompatibilityCheck::SUPPORTED;
+    case ov::CompatibilityCheck::NOT_APPLICABLE:
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    default:
+        OPENVINO_THROW(UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE);
+    }
+}
+
+/**
+ * @note This function exists only to make the CRE evaluation function more compact
+ * @returns The second argument
+ */
+ov::CompatibilityCheck first_operand_function(const ov::CompatibilityCheck /*a*/, const ov::CompatibilityCheck b) {
     return b;
+}
+
+ov::CompatibilityCheck bool_to_compatibility_check(const bool a) {
+    return a ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
 }
 
 std::string reserved_token_to_string(const CREToken token) {
@@ -222,13 +367,14 @@ ov::CompatibilityCheck CRE::evaluate(
     const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators,
     const Delimiter end_delimiter,
     const bool skip_all_evaluations) const {
-    std::function<bool(bool, bool)> logical_function = first_operand_function;
-    bool result = true;
+    std::function<ov::CompatibilityCheck(ov::CompatibilityCheck, ov::CompatibilityCheck)> logical_function =
+        first_operand_function;
+    ov::CompatibilityCheck result(ov::CompatibilityCheck::SUPPORTED);
     bool negate = false;
     bool expect_binary_operator = false;
     bool at_least_one_iteration = false;
     bool skip_next_evaluation = false;
-    bool subexpression_result;
+    ov::CompatibilityCheck subexpression_result;
 
     while (!end_condition(expression_iterator, expression_end, end_delimiter)) {
         CRE_EVAL_ASSERT(*expression_iterator != CLOSE, "Found a closed parrenthesis without any matching open token");
@@ -260,7 +406,7 @@ ov::CompatibilityCheck CRE::evaluate(
                             "Expected a closed parrenthesis token during CRE evaluation. Received: ",
                             *expression_iterator);
 
-            subexpression_result = negate ? !subexpression_result : subexpression_result;
+            subexpression_result = negate ? not_function(subexpression_result) : subexpression_result;
             negate = false;
 
             result = logical_function(result, subexpression_result);
@@ -271,7 +417,7 @@ ov::CompatibilityCheck CRE::evaluate(
 
             logical_function = and_function;
             // No point in evaluating the next operand if the previous one yielded "false"
-            skip_next_evaluation = result == false ? true : false;
+            skip_next_evaluation = result == ov::CompatibilityCheck::UNSUPPORTED ? true : false;
             break;
         case OR:
             CRE_EVAL_ASSERT(expect_binary_operator, "A binary operator was found when an operand was expected");
@@ -279,7 +425,7 @@ ov::CompatibilityCheck CRE::evaluate(
 
             logical_function = or_function;
             // No point in evaluating the next operand if the previous one yielded "true"
-            skip_next_evaluation = result == true ? true : false;
+            skip_next_evaluation = result == ov::CompatibilityCheck::SUPPORTED ? true : false;
             break;
         default:
             // A section type (instance) token was found
@@ -289,13 +435,13 @@ ov::CompatibilityCheck CRE::evaluate(
 
             if (!skip_all_evaluations && !skip_next_evaluation) {
                 const SectionType section_type = *expression_iterator;
-                bool operand = section_type_evaluators.count(section_type)
-                                   ? section_type_evaluators.at(section_type)->get_result()
-                                   : false;
+                ov::CompatibilityCheck operand = bool_to_compatibility_check(
+                    section_type_evaluators.count(section_type) ? section_type_evaluators.at(section_type)->get_result()
+                                                                : false);
 
                 m_logger.trace("Section type %lu evaluated to %d", section_type, operand);
 
-                if (operand) {
+                if (operand != ov::CompatibilityCheck::UNSUPPORTED) {
                     // Only if the section type evaluation succeeded, proceed to evaluate the section type instance if
                     // an instance ID is also found
                     expression_iterator++;
@@ -306,14 +452,14 @@ ov::CompatibilityCheck CRE::evaluate(
                         const SectionID section_id = *expression_iterator;
                         operand = section_instance_evaluators.count(section_id)
                                       ? section_instance_evaluators.at(section_id).get_result()
-                                      : true;
+                                      : ov::CompatibilityCheck::SUPPORTED;
 
                         m_logger.trace("Section ID %s evaluated to %d", section_id, operand);
                     }
                     expression_iterator--;
                 }
 
-                operand = negate ? !operand : operand;
+                operand = negate ? not_function(operand) : operand;
 
                 result = logical_function(result, operand);
             }
@@ -336,7 +482,7 @@ ov::CompatibilityCheck CRE::check_compatibility(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
     const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators) const {
     if (m_subexpressions.empty()) {
-        return true;
+        return ov::CompatibilityCheck::SUPPORTED;
     }
 
     const std::vector<CREToken> expression = get_expression();
