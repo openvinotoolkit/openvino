@@ -46,7 +46,7 @@ OutputVector translate_argsort(const NodeContext& context) {
                                                    ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
     auto indices = make_topk_indices(input, k, axis, mode, index_type);
 
-    return rename_outputs_with_suffix({indices}, context.get_name());
+    return rename_outputs_with_suffix({std::move(indices)}, context.get_name());
 }
 
 }  // namespace op

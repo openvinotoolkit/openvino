@@ -353,7 +353,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
     ASSERT_EQ(broadcast_shape, ov::Shape{8});
 }
 
-TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_disables_micro_layout) {
+TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
@@ -570,6 +570,10 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_disables_micr
 
     auto pa_inst = network.get_primitive("paged_attention");
     const auto& intermediate_mems = pa_inst->get_intermediates_memories();
-    ASSERT_EQ(intermediate_mems.size(), 7u);
+
+    // Allocation-time and execution-time micro/non-micro decisions must agree; a mismatch shows up
+    // as the wrong buffer count. token_type_ids no longer forces the non-micro path in MIXED.
+    const bool micro_layout = engine.get_device_info().supports_immad;
+    ASSERT_EQ(intermediate_mems.size(), micro_layout ? 4u : 7u);
 }
 }  // update_shape_test

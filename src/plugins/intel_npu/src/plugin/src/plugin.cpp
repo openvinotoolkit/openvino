@@ -384,7 +384,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const auto isDynamicHostCompilePort = [&hasFiniteUpperBounds](const auto& port) {
             const auto& shape = port.get_partial_shape();
             const auto rank = shape.rank();
-            return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && hasFiniteUpperBounds(port);
+
+            // Keep batch static to avoid failures in ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv,
+            // because reshape operations in these passes do not support dynamic batch shapes.
+            return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && shape[0].is_static() &&
+                   hasFiniteUpperBounds(port);
         };
 
         const auto& modelInputs = model->inputs();

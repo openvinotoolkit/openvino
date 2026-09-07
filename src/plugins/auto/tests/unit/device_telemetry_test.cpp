@@ -59,10 +59,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
                          DeviceMonitorKeyTest::getTestCaseName);
 
 TEST(DeviceMonitorTest, low_power_mode_gear_mapping_matches_expected_policy) {
+    // Gears 1-3 request low-latency/performance operation (perf_curve_table); only
+    // gears 4-7 request low power operation (low_power_device).
     EXPECT_FALSE(device_monitor::is_low_power_gear(-1));
     EXPECT_FALSE(device_monitor::is_low_power_gear(0));
-    EXPECT_TRUE(device_monitor::is_low_power_gear(1));
-    EXPECT_TRUE(device_monitor::is_low_power_gear(2));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(1));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(2));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(3));
+    EXPECT_TRUE(device_monitor::is_low_power_gear(4));
+    EXPECT_TRUE(device_monitor::is_low_power_gear(7));
+    // Gears above the EPO-defined range are not low power.
+    EXPECT_FALSE(device_monitor::is_low_power_gear(8));
+    EXPECT_FALSE(device_monitor::is_low_power_gear(100));
+}
+
+TEST(DeviceMonitorTest, valid_gear_range_matches_epo_specification) {
+    // EPO defines gears 1-7; anything outside that range is not a valid gear.
+    EXPECT_FALSE(device_monitor::is_valid_gear(-1));
+    EXPECT_FALSE(device_monitor::is_valid_gear(0));
+    EXPECT_TRUE(device_monitor::is_valid_gear(1));
+    EXPECT_TRUE(device_monitor::is_valid_gear(7));
+    EXPECT_FALSE(device_monitor::is_valid_gear(8));
+    EXPECT_FALSE(device_monitor::is_valid_gear(100));
 }
 
 TEST(DeviceMonitorTest, telemetry_client_low_power_mode_is_safe) {
@@ -139,8 +157,11 @@ TEST(DeviceMonitorTest, telemetry_client_utilization_returns_nullopt_when_query_
 TEST(DeviceMonitorTest, telemetry_client_is_low_power_mode_reflects_initial_gear) {
     auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
     EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(true));
+    // Matches both the DTT status and EPO status paths; either being unreachable disables gear tracking.
+    ON_CALL(*mock, get_value(::testing::HasSubstr("Status"))).WillByDefault(::testing::Return(R"("Enabled")"));
     ON_CALL(*mock, get_value(::testing::HasSubstr("Version"))).WillByDefault(::testing::Return(R"("1.2.3")"));
-    ON_CALL(*mock, get_value(::testing::HasSubstr("CurrentGear"))).WillByDefault(::testing::Return(R"("2")"));
+    // Gear 5 is within the EPO low-power range [4,7].
+    ON_CALL(*mock, get_value(::testing::HasSubstr("CurrentGear"))).WillByDefault(::testing::Return(R"("5")"));
     ON_CALL(*mock, register_event(::testing::_, ::testing::_)).WillByDefault(::testing::Return(true));
 
     device_monitor::TelemetryClient client(std::move(mock));
@@ -153,8 +174,10 @@ TEST(DeviceMonitorTest, telemetry_client_is_low_power_mode_updates_on_gear_chang
     auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
     device_monitor::IpfEventCallback captured_callback;
     EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(true));
+    ON_CALL(*mock, get_value(::testing::HasSubstr("Status"))).WillByDefault(::testing::Return(R"("Enabled")"));
     ON_CALL(*mock, get_value(::testing::HasSubstr("Version"))).WillByDefault(::testing::Return(R"("1.2.3")"));
-    ON_CALL(*mock, get_value(::testing::HasSubstr("CurrentGear"))).WillByDefault(::testing::Return(R"("0")"));
+    // Gear 1 is valid (EPO range [1,7]) but not a low-power gear.
+    ON_CALL(*mock, get_value(::testing::HasSubstr("CurrentGear"))).WillByDefault(::testing::Return(R"("1")"));
     EXPECT_CALL(*mock, register_event(::testing::_, ::testing::_))
         .WillOnce(::testing::DoAll(::testing::SaveArg<1>(&captured_callback), ::testing::Return(true)));
 
@@ -162,13 +185,15 @@ TEST(DeviceMonitorTest, telemetry_client_is_low_power_mode_updates_on_gear_chang
     ASSERT_FALSE(client.is_low_power_mode().value());
 
     ASSERT_TRUE(static_cast<bool>(captured_callback));
-    captured_callback(R"({"OnEpoGearChanged": "2"})");
+    // Gear 5 is within the EPO low-power range [4,7].
+    captured_callback(R"({"OnEpoGearChanged": "5"})");
     EXPECT_TRUE(client.is_low_power_mode().value());
 }
 
 TEST(DeviceMonitorTest, telemetry_client_unregisters_event_on_destruction_when_registered) {
     auto mock = std::make_unique<::testing::NiceMock<MockIpfClient>>();
     EXPECT_CALL(*mock, is_valid()).WillRepeatedly(::testing::Return(true));
+    ON_CALL(*mock, get_value(::testing::HasSubstr("Status"))).WillByDefault(::testing::Return(R"("Enabled")"));
     ON_CALL(*mock, register_event(::testing::_, ::testing::_)).WillByDefault(::testing::Return(true));
     EXPECT_CALL(*mock, unregister_event(::testing::_)).Times(1);
 

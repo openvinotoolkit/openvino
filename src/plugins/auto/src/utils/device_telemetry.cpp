@@ -10,6 +10,7 @@
 #    include <cmath>
 #    include <memory>
 #    include <mutex>
+#    include <optional>
 
 #    include "log_util.hpp"
 #    include "nlohmann/json.hpp"
@@ -22,11 +23,13 @@ inline std::string get_log_tag() {
     return "[IPF]";
 }
 
-// IPF namespace/paths confirmed against the DttSampleEfApp sample (Demo.cpp / Constants.h) and
-// DTT team feedback. Note the registered event path ends in "OnEpoGearChanged", not
-// "OnGearChanged"; the event's own eventPath argument is delivered as the parent node
-// ("...Policy.EPO"), with the real event name/value inside the JSON payload instead.
+// The registered event path ends in "OnEpoGearChanged", not "OnGearChanged"; the event's
+// own eventPath argument is delivered as the parent node ("...Policy.EPO"), with the real
+// event name/value inside the JSON payload instead.
+constexpr const char* k_dtt_root_path = "Platform.Features.DTT";
+constexpr const char* k_dtt_status_path = "Platform.Features.DTT.Software.Status";
 constexpr const char* k_dtt_version_path = "Platform.Features.DTT.Software.Version";
+constexpr const char* k_dtt_epo_status_path = "Platform.Features.DTT.Policy.EPO.Status";
 constexpr const char* k_dtt_current_gear_path = "Platform.Features.DTT.Policy.EPO.CurrentGear";
 constexpr const char* k_dtt_gear_changed_path = "Platform.Features.DTT.Policy.EPO.OnEpoGearChanged";
 
@@ -84,13 +87,36 @@ std::optional<float> parse_utilization_from_aiselector_json_impl(const std::stri
     }
 }
 
+// Rejects anything outside the EPO-defined range so untrusted telemetry cannot force a mode.
+std::optional<int> parse_gear(const std::string& gear_str) {
+    int gear = 0;
+    std::size_t parsed_chars = 0;
+    try {
+        gear = std::stoi(gear_str, &parsed_chars);
+    } catch (const std::exception&) {
+        LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
+        return std::nullopt;
+    }
+    // std::stoi accepts a numeric prefix (e.g. "4garbage"); require the whole string to be consumed.
+    if (parsed_chars != gear_str.size()) {
+        LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
+        return std::nullopt;
+    }
+    if (!is_valid_gear(gear)) {
+        LOG_WARNING_TAG("TelemetryClient: EPO gear %d is out of the supported range [%d, %d]",
+                        gear,
+                        k_min_gear,
+                        k_max_gear);
+        return std::nullopt;
+    }
+    return gear;
+}
+
 // Stores a parsed gear value; captured by value (shared_ptr) in the event callback closure so it
 // remains safe to invoke even if IpfClientApiAdapter ever has to leak a failed-unregister callback.
 void store_gear(const std::shared_ptr<std::atomic<int>>& shared_gear, const std::string& gear_str) {
-    try {
-        shared_gear->store(std::stoi(gear_str));
-    } catch (const std::exception&) {
-        LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
+    if (const auto gear = parse_gear(gear_str)) {
+        shared_gear->store(*gear);
     }
 }
 
@@ -153,56 +179,117 @@ public:
         if (!m_client->is_valid()) {
             return std::nullopt;
         }
-        std::call_once(m_low_power_init_once, [this]() {
-            m_shared_gear = std::make_shared<std::atomic<int>>(-1);
-            log_dtt_version();
-            log_current_gear();
-            m_gear_event_registered =
-                m_client->register_event(k_dtt_gear_changed_path,
-                                          [shared_gear = m_shared_gear](const std::string& event_json) {
-                                              handle_gear_changed_event(shared_gear, event_json);
-                                          });
-            if (m_gear_event_registered) {
-                LOG_INFO_TAG("TelemetryClient: registered for %s", k_dtt_gear_changed_path);
-            }
-        });
-        // After first init, this is an atomic read; the call_once body does not re-run.
-        const int gear = m_shared_gear->load();
-        if (gear < 0) {
+        ensure_gear_tracking_registered();
+        if (!m_shared_gear) {
             return std::nullopt;
         }
-        return is_low_power_gear(gear);
+        const int gear = m_shared_gear->load();
+        if (gear < 0) {
+            LOG_DEBUG_TAG("TelemetryClient: EPO gear unknown, low power mode unavailable");
+            return std::nullopt;
+        }
+        const bool low_power = is_low_power_gear(gear);
+        LOG_DEBUG_TAG("TelemetryClient: EPO gear=%d, low_power_mode=%s", gear, low_power ? "true" : "false");
+        return low_power;
     }
 
 private:
-    // Best-effort one-shot reads; failures are already logged by the underlying IIpfClient.
-    void log_dtt_version() {
-        const std::string json_str = m_client->get_value(k_dtt_version_path);
-        if (json_str.empty()) {
+    // DTT is probed once per client.
+    void ensure_gear_tracking_registered() {
+        std::call_once(m_low_power_init_once, [this]() { initialize_gear_tracking(); });
+    }
+
+    // Must only be called from ensure_gear_tracking_registered() (call_once-guarded).
+    void initialize_gear_tracking() {
+        m_shared_gear = std::make_shared<std::atomic<int>>(-1);
+        refresh_dtt_nodes();
+        if (!is_dtt_available()) {
+            LOG_WARNING_TAG("TelemetryClient: DTT unavailable, EPO gear tracking is disabled");
             return;
         }
+        log_dtt_version();
+        // Seed the gear only while EPO is enabled; otherwise CurrentGear may be stale.
+        if (is_epo_enabled()) {
+            log_current_gear();
+        }
+        m_gear_event_registered =
+            m_client->register_event(k_dtt_gear_changed_path,
+                                      [shared_gear = m_shared_gear](const std::string& event_json) {
+                                          handle_gear_changed_event(shared_gear, event_json);
+                                      });
+        if (m_gear_event_registered) {
+            LOG_INFO_TAG("TelemetryClient: registered for %s", k_dtt_gear_changed_path);
+        }
+    }
+
+    // DTT requires reading its root node once to refresh the subtree before individual value queries.
+    void refresh_dtt_nodes() {
+        const std::string json_str = m_client->get_node(k_dtt_root_path);
+        LOG_DEBUG_TAG("TelemetryClient: DTT root node refresh %s", json_str.empty() ? "failed" : "succeeded");
+    }
+
+    // DTT publishes its own health here; an unreadable status means the driver is missing or stopped.
+    bool is_dtt_available() {
+        const auto status = get_value_as_string(k_dtt_status_path);
+        if (!status.has_value()) {
+            LOG_WARNING_TAG("TelemetryClient: DTT status unavailable, DTT driver may not be installed or running");
+            return false;
+        }
+        LOG_INFO_TAG("TelemetryClient: DTT status = %s", status->c_str());
+        return true;
+    }
+
+    // CurrentGear only reflects the live platform state while EPO is enabled.
+    bool is_epo_enabled() {
+        const auto status = get_value_as_string(k_dtt_epo_status_path);
+        if (!status.has_value()) {
+            LOG_WARNING_TAG("TelemetryClient: EPO status unavailable, treating low power mode as unknown");
+            return false;
+        }
+        LOG_INFO_TAG("TelemetryClient: EPO status = %s", status->c_str());
+        if (*status != "Enabled") {
+            LOG_WARNING_TAG("TelemetryClient: EPO is not enabled, ignoring current EPO gear");
+            return false;
+        }
+        return true;
+    }
+
+    // Best-effort one-shot read; failures are already logged by get_value_as_string.
+    void log_dtt_version() {
+        const auto version = get_value_as_string(k_dtt_version_path);
+        if (version.has_value()) {
+            LOG_INFO_TAG("TelemetryClient: DTT version = %s", version->c_str());
+        }
+    }
+
+    // DTT values arrive as JSON; non-string nodes are dumped verbatim so they stay loggable.
+    std::optional<std::string> get_value_as_string(const char* path) {
+        const std::string json_str = m_client->get_value(path);
+        if (json_str.empty()) {
+            return std::nullopt;
+        }
+        LOG_DEBUG_TAG("TelemetryClient: raw IPF value at %s: %s", path, json_str.c_str());
         try {
             const auto parsed = nlohmann::json::parse(json_str);
-            const std::string version = parsed.is_string() ? parsed.get<std::string>() : parsed.dump();
-            LOG_INFO_TAG("TelemetryClient: DTT version = %s", version.c_str());
+            if (parsed.is_null()) {
+                LOG_WARNING_TAG("TelemetryClient: IPF value at %s is null", path);
+                return std::nullopt;
+            }
+            return parsed.is_string() ? parsed.get<std::string>() : parsed.dump();
         } catch (const nlohmann::json::exception& e) {
-            LOG_WARNING_TAG("TelemetryClient: failed to parse DTT version: %s", e.what());
+            LOG_WARNING_TAG("TelemetryClient: failed to parse value at %s: %s", path, e.what());
+            return std::nullopt;
         }
     }
 
     void log_current_gear() {
-        const std::string json_str = m_client->get_value(k_dtt_current_gear_path);
-        if (json_str.empty()) {
+        const auto gear_str = get_value_as_string(k_dtt_current_gear_path);
+        if (!gear_str.has_value()) {
+            LOG_WARNING_TAG("TelemetryClient: current EPO gear unavailable");
             return;
         }
-        try {
-            const auto parsed = nlohmann::json::parse(json_str);
-            const std::string gear_str = parsed.is_string() ? parsed.get<std::string>() : parsed.dump();
-            LOG_INFO_TAG("TelemetryClient: current EPO gear = %s", gear_str.c_str());
-            store_gear(m_shared_gear, gear_str);
-        } catch (const nlohmann::json::exception& e) {
-            LOG_WARNING_TAG("TelemetryClient: failed to parse current EPO gear: %s", e.what());
-        }
+        LOG_INFO_TAG("TelemetryClient: current EPO gear = %s", gear_str->c_str());
+        store_gear(m_shared_gear, *gear_str);
     }
 
     std::unique_ptr<IIpfClient> m_client;
