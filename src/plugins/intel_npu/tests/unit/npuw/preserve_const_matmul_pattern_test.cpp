@@ -17,6 +17,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/pass/manager.hpp"
+#include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "partitioning/patterns/opt.hpp"
 
 namespace {
@@ -65,10 +66,16 @@ SubgraphNodes build_asymm_matmul_subgraph(const ov::Shape& weight_shape,
     if (weight_shift.has_value()) {
         auto shift = ov::op::v0::Constant::create(mid_type, ov::Shape{}, {weight_shift.value()});
         shifted_weight = std::make_shared<ov::op::v1::Subtract>(cvtw, shift);
+        if (weight_shift.value() == 128.0f) {
+            shifted_weight.get_node_shared_ptr()->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+        }
     }
     if (zerop_shift.has_value()) {
         auto shift = ov::op::v0::Constant::create(mid_type, ov::Shape{}, {zerop_shift.value()});
         shifted_zerop = std::make_shared<ov::op::v1::Subtract>(cvtz, shift);
+        if (zerop_shift.value() == 128.0f) {
+            shifted_zerop.get_node_shared_ptr()->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+        }
     }
     auto sub = std::make_shared<ov::op::v1::Subtract>(shifted_weight, shifted_zerop);
     auto mul = std::make_shared<ov::op::v1::Multiply>(sub, qcoeff);
@@ -259,6 +266,30 @@ TEST(OptPatterns, OneSidedSub128_DoesNotPreserveConsts) {
                                                                         /*convert_before_matmul=*/true,
                                                                         128.0f,
                                                                         std::nullopt);
+
+    ResultNodes to_keep;
+    run_preserve_pattern(model, to_keep);
+
+    EXPECT_TRUE(to_keep.empty());
+}
+
+TEST(OptPatterns, UnmarkedSub128_DoesNotPreserveConsts) {
+    const ov::Shape weight_shape{32064, 3072};
+    const ov::Shape scale_shape{32064, 1};
+    auto [qweight, qzerop, qcoeff, model] = build_asymm_matmul_subgraph(weight_shape,
+                                                                        ov::element::u8,
+                                                                        weight_shape,
+                                                                        scale_shape,
+                                                                        /*transpose_b=*/true,
+                                                                        /*convert_before_matmul=*/true,
+                                                                        128.0f,
+                                                                        128.0f);
+
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v1::Subtract>(node)) {
+            node->get_rt_info().erase(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO);
+        }
+    }
 
     ResultNodes to_keep;
     run_preserve_pattern(model, to_keep);

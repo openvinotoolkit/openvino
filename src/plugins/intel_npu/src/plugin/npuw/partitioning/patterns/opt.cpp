@@ -6,6 +6,7 @@
 
 #include "../../logging.hpp"
 #include "../../util.hpp"
+#include "../../npuw_transformations/insert_vocab_sub128.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
@@ -22,17 +23,7 @@ namespace {
 
 bool is_subtract_128(const std::shared_ptr<ov::Node>& node) {
     const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(node);
-    if (subtract == nullptr) {
-        return false;
-    }
-
-    const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(subtract->input_value(1).get_node_shared_ptr());
-    if (constant == nullptr || ov::shape_size(constant->get_shape()) != 1) {
-        return false;
-    }
-
-    const auto value = constant->cast_vector<double>();
-    return value.front() == 128.0;
+    return subtract != nullptr && subtract->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0;
 }
 
 }  // namespace

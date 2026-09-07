@@ -32,6 +32,10 @@ std::shared_ptr<ov::Model> make_gather_model(float shift_value) {
     auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {shift_value});
     auto shifted_weight = std::make_shared<ov::opset10::Subtract>(weight_convert, shift);
     auto shifted_zero_point = std::make_shared<ov::opset10::Subtract>(zero_point_convert, shift);
+    if (shift_value == 128.0f) {
+        shifted_weight->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+        shifted_zero_point->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+    }
 
     auto dequantized = std::make_shared<ov::opset10::Subtract>(shifted_weight, shifted_zero_point);
     auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, scale);
@@ -77,10 +81,16 @@ std::shared_ptr<ov::Model> make_parameter_gather_model(std::optional<float> weig
     if (weight_shift.has_value()) {
         auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {weight_shift.value()});
         dequantized_weight = std::make_shared<ov::opset10::Subtract>(weight_convert, shift);
+        if (weight_shift.value() == 128.0f) {
+            dequantized_weight.get_node_shared_ptr()->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+        }
     }
     if (zero_point_shift.has_value()) {
         auto shift = ov::opset10::Constant::create(ov::element::f16, ov::Shape{}, {zero_point_shift.value()});
         dequantized_zero_point = std::make_shared<ov::opset10::Subtract>(zero_point_convert, shift);
+        if (zero_point_shift.value() == 128.0f) {
+            dequantized_zero_point.get_node_shared_ptr()->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+        }
     }
 
     auto dequantized = std::make_shared<ov::opset10::Subtract>(dequantized_weight, dequantized_zero_point);

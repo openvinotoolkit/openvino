@@ -10,6 +10,8 @@
 
 namespace ov::npuw {
 
+inline constexpr const char* NPUW_SUB128_SHIFT_RT_INFO = "npuw_sub128_shift";
+
 class InsertVocabSub128 : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("ov::npuw::InsertVocabSub128");

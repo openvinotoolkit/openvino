@@ -95,6 +95,8 @@ public:
             ov::mark_as_decompression(zerop_convert.get_node_shared_ptr());
             const auto shifted_weight = std::make_shared<ov::op::v1::Subtract>(weight_convert, shift);
             const auto shifted_zerop = std::make_shared<ov::op::v1::Subtract>(zerop_convert, shift);
+            shifted_weight->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+            shifted_zerop->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
             subtract->input(0).replace_source_output(shifted_weight);
             subtract->input(1).replace_source_output(shifted_zerop);
             return true;
