@@ -2,8 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import unittest
+import unittest.mock
 
-from collect_compile_cache_stats import parse_ccache_stats, parse_sccache_stats
+from collect_compile_cache_stats import (
+    extract_summary_metrics,
+    format_step_summary_markdown,
+    parse_ccache_stats,
+    parse_sccache_stats,
+)
 
 
 SCCACHE_SAMPLE = """\
@@ -84,6 +90,43 @@ class TestParseCcacheStats(unittest.TestCase):
             7857 / 8754,
             places=6,
         )
+
+
+class TestStepSummaryMarkdown(unittest.TestCase):
+    def test_sccache_summary_table(self):
+        report = parse_sccache_stats(SCCACHE_SAMPLE)
+        report["build_label"] = "openvino-main"
+        markdown = format_step_summary_markdown(report)
+        self.assertIn("## Compile cache statistics (openvino main)", markdown)
+        self.assertIn("| 10793 | 70 | 99.36% | 11 |", markdown)
+
+    def test_explicit_summary_title(self):
+        report = parse_sccache_stats(SCCACHE_SAMPLE)
+        with unittest.mock.patch.dict(
+            "os.environ",
+            {"COMPILE_CACHE_SUMMARY_TITLE": "Compile cache statistics (openvino main build)"},
+            clear=False,
+        ):
+            markdown = format_step_summary_markdown(report)
+        self.assertIn("## Compile cache statistics (openvino main build)", markdown)
+
+    def test_job_title_when_no_build_label(self):
+        report = parse_sccache_stats(SCCACHE_SAMPLE)
+        with unittest.mock.patch.dict(
+            "os.environ",
+            {"GITHUB_JOB": "build_linux", "COMPILE_CACHE_SUMMARY_TITLE": ""},
+            clear=False,
+        ):
+            markdown = format_step_summary_markdown(report)
+        self.assertIn("## build_linux", markdown)
+
+    def test_ccache_summary_metrics(self):
+        report = parse_ccache_stats(CCACHE_SAMPLE)
+        metrics = extract_summary_metrics(report)
+        self.assertEqual(metrics["cache_hits"], 8754)
+        self.assertEqual(metrics["cache_misses"], 1004)
+        self.assertEqual(metrics["cache_hit_rate"], "89.71%")
+        self.assertIsNone(metrics["errors"])
 
 
 if __name__ == "__main__":

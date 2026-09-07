@@ -353,6 +353,76 @@ def append_step_summary(text: str) -> None:
             handle.write("\n")
 
 
+def resolve_summary_title(report: dict[str, Any]) -> str:
+    explicit = os.environ.get("COMPILE_CACHE_SUMMARY_TITLE", "").strip()
+    if explicit:
+        return explicit
+
+    build_label = str(report.get("build_label", "")).strip()
+    if build_label:
+        return f"Compile cache statistics ({build_label.replace('-', ' ')})"
+
+    job = os.environ.get("GITHUB_JOB", "").strip()
+    return job or "Compile cache statistics"
+
+
+def _summary_hit_rate_display(report: dict[str, Any]) -> str:
+    computed = report.get("computed") or {}
+    if report["tool"] == "sccache":
+        pct = computed.get("cache_hit_percentage")
+    else:
+        pct = computed.get("cache_hit_percentage_of_cacheable")
+    if pct is None:
+        return "—"
+    return f"{pct:.2f}%"
+
+
+def extract_summary_metrics(report: dict[str, Any]) -> dict[str, Any]:
+    if report["tool"] == "sccache":
+        metrics = report.get("metrics") or {}
+        return {
+            "cache_hits": metrics.get("cache_hits"),
+            "cache_misses": metrics.get("cache_misses"),
+            "cache_hit_rate": _summary_hit_rate_display(report),
+            "errors": metrics.get("cache_errors"),
+        }
+
+    metrics = report.get("metrics") or {}
+    hits = metrics.get("hits")
+    misses = metrics.get("misses")
+    cache_hits = hits.get("numerator") if isinstance(hits, dict) else None
+    cache_misses = misses.get("numerator") if isinstance(misses, dict) else None
+    return {
+        "cache_hits": cache_hits,
+        "cache_misses": cache_misses,
+        "cache_hit_rate": _summary_hit_rate_display(report),
+        "errors": metrics.get("errors"),
+    }
+
+
+def format_step_summary_markdown(report: dict[str, Any]) -> str:
+    title = resolve_summary_title(report)
+    values = extract_summary_metrics(report)
+
+    def cell(value: Any) -> str:
+        if value is None:
+            return "—"
+        return str(value)
+
+    lines = [
+        f"## {title}",
+        "",
+        "| Cache hits | Cache misses | Cache hit rate | Errors |",
+        "| ---: | ---: | ---: | ---: |",
+        (
+            f"| {cell(values['cache_hits'])} | {cell(values['cache_misses'])} | "
+            f"{cell(values['cache_hit_rate'])} | {cell(values['errors'])} |"
+        ),
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def _ci_context() -> dict[str, Any]:
     keys = (
         "GITHUB_RUN_ID",
@@ -459,11 +529,7 @@ def main() -> int:
     set_github_output("stats-json", stats_json)
     set_github_output("stats-json-path", json_path)
 
-    append_step_summary("## Compile cache statistics\n\n")
-    append_step_summary(f"**Tool:** `{report['tool']}` (`{report['executable']}`)\n\n")
-    append_step_summary("```json\n")
-    append_step_summary(json.dumps(report, indent=2, sort_keys=True))
-    append_step_summary("\n```\n")
+    append_step_summary(format_step_summary_markdown(report))
 
     return 0
 

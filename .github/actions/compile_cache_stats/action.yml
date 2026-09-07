@@ -9,6 +9,10 @@ inputs:
     description: 'Logical name of the cmake --build step (included in JSON and used for the default JSON filename).'
     required: false
     default: ''
+  summary-title:
+    description: 'Heading for the workflow job summary table. Defaults to GITHUB_JOB and build-label when set.'
+    required: false
+    default: ''
   artifact-name:
     description: 'Name of the uploaded artifact containing the JSON report (collect mode only).'
     required: false
@@ -49,6 +53,7 @@ runs:
       env:
         ACTION_PATH: ${{ runner.os == 'Windows' && '$env:GITHUB_ACTION_PATH' || '$GITHUB_ACTION_PATH' }}
         COMPILE_CACHE_BUILD_LABEL: ${{ inputs.build-label }}
+        COMPILE_CACHE_SUMMARY_TITLE: ${{ inputs.summary-title }}
         COMPILE_CACHE_STATS_JSON_PATH: ${{ inputs.json-path != '' && inputs.json-path || (inputs.build-label != '' && format('{0}/compile-cache-stats-{1}.json', runner.temp, inputs.build-label) || format('{0}/compile-cache-stats.json', runner.temp)) }}
 
     - name: Upload compile cache statistics
