@@ -1,201 +1,199 @@
-# Porting a llama.cpp model to the GGUF frontend
+# Architecture definitions: external plugins and built-in support
 
-A new architecture can be added to the GGUF frontend **at runtime**, from outside the OpenVINO
-build, by registering an [`ArchitectureExtension`](../dev_api/openvino/frontend/gguf/extension/architecture.hpp).
-No frontend rebuild, no OpenVINO rebuild — a downstream project such as OpenVINO GenAI can enable a
-model on its own.
+An architecture is described by an `ArchitectureDefinition`. The native catalog and runtime
+extensions consume the **same definition**, invoke the same factory, and use the same conversion
+and normalization pipeline. `ArchitectureExtension` is only the runtime registration adapter.
 
-This document covers the whole range: a same-family architecture that needs no code at all, and a
-structurally new family (a vision encoder, an audio encoder, an encoder-decoder) written by porting
-the corresponding `llama.cpp` model file.
+The SDK is a developer API. Build an extension against the OpenVINO release it will run with;
+compatibility with future SDK revisions is not promised. Loading an extension does not require
+rebuilding that OpenVINO release.
 
-For the in-tree route — adding an architecture to the frontend itself — see
-[adding_an_architecture.md](adding_an_architecture.md). The decision between them is at the end.
+## Choose the smallest implementation
 
-## Three tiers of effort
+| Requirement | Implementation |
+|---|---|
+| Existing decoder topology, new architecture name | `make_decoder_architecture(name, rope)` |
+| Decoder needs different architecture facts | Supply a callback returning `DecoderOptions` |
+| Custom layer order using existing decoder sublayers | `ModelBuilder` using `configure_decoder`, `decoder_attention`, `decoder_ffn` |
+| Different model family | `ModelBuilder` using generic graph operations and its own metadata |
 
-Pick the lowest one that fits. Most architectures are Tier 1.
+Prefer structural detection to overriding an option. Tensor presence, metadata, and the native
+configuration resolver already handle the supported decoder features. A custom topology owns its
+embedding, normalization, residual, and output ordering; the shared sublayer methods do not assemble
+those automatically. `decoder_layer_parameters(layer)` supplies resolved head counts, attention
+scale and RoPE parameters when implementing a custom attention fragment.
 
-| Tier | What the architecture needs | What you write |
-|---|---|---|
-| 1 | Same family, structure derivable from the file | A name and a RoPE mode |
-| 2 | Same family, plus a fact the file does not state | A `configure` callback over `DecoderConfig` |
-| 3 | Its own graph shape — including a non-decoder family | A `ModelBuilder`, against the builder SDK |
-
-### Tier 1 — a name and a RoPE mode
-
-The generic decoder builder derives structure from the GGUF tensor table and metadata: QK-norm,
-projection biases, fused QKV, MoE routing, shared experts, sliding-window attention, soft-caps,
-per-layer KV head counts. For an architecture in that family, everything except the RoPE mode is
-already known, and the RoPE mode is the one thing a GGUF file does not record.
+## Define a decoder
 
 ```cpp
 #include "openvino/frontend/gguf/extension/architecture.hpp"
 
-core.add_extension(std::make_shared<ov::frontend::gguf::ArchitectureExtension>(
-    "my-arch", ov::frontend::gguf::RopeMode::Neox));
+ov::frontend::gguf::ArchitectureDefinition my_architecture() {
+    using namespace ov::frontend::gguf;
+    return make_decoder_architecture(
+        "my-arch", RopeMode::Neox,
+        [](const GgufMetadata& metadata) {
+            DecoderOptions options;
+            options.geglu = true;
+            return options;
+        });
+}
 ```
 
-`RopeMode::Neox` rotates halves (qwen, phi3, gemma, ...); `RopeMode::Normal` rotates consecutive
-pairs (llama, minicpm, ...). Mirror `llama_model_rope_type` for the architecture. Getting it wrong
-produces a model that converts and generates nonsense, so check it against llama.cpp rather than
-guessing.
+Omit the callback when no overrides are required. `RopeMode` explicitly distinguishes consecutive
+pairs (`Normal`), rotate-halves (`Neox`), and interleaved multimodal RoPE (`Interleaved`). Verify the
+mode against the architecture's reference implementation.
 
-### Tier 2 — plus a configuration hook
+`DecoderOptions` contains supported architectural overrides, not mutable dimensions or execution
+plans. The callback runs before configuration resolution. The native resolver validates the options
+and derives the SWA RoPE configuration and KV plan afterward. There is no second SDK hyperparameter
+reader: both built-in and custom decoder topologies use `decoder_config_from_meta` and
+`DecoderConfig`, including their defaults and RoPE scaling rules. The resolved configuration stays
+internal to the frontend.
 
-When one property genuinely cannot be detected — the classic case is GeGLU vs SwiGLU, which the
-tensor table does not distinguish — adjust the auto-detected config:
+## Define a custom builder
+
+Implement `ModelBuilder::build()` with a `GgufGraphContext`. The `BuildContext` is a borrowed view of
+metadata and weights, valid for the synchronous factory/build call. Do not retain it afterward.
+
+The [projector example](../examples/architecture_extension/projector.cpp) is a complete small
+non-decoder family. It reads a weight, accepts a variable number of input embeddings and projects
+them into another space. Its architecture definition is separate from the plugin entry point.
+
+For custom decoder layer order, initialize the shared decoder blocks once:
 
 ```cpp
-std::make_shared<ArchitectureExtension>(
-    "my-arch", RopeMode::Neox,
-    [](ov::frontend::gguf::DecoderConfig& cfg) {
-        cfg.is_geglu = true;
-    });
+auto dimensions = graph.configure_decoder(RopeMode::Neox, options);
+graph.build_inp_pos();
+graph.build_attn_inp_kv();
+// Inside the custom layer loop, after constructing the appropriate normalization:
+auto attention = graph.decoder_attention(layer, normalized_input);
+auto feed_forward = graph.decoder_ffn(layer, normalized_ffn_input);
 ```
 
-The callback runs after structural detection, so it sees a fully populated
-[`DecoderConfig`](../dev_api/openvino/frontend/gguf/builder/decoder_config.hpp) and can override any
-field. Prefer letting detection do the work and overriding only what it cannot know.
+These methods call the existing `blocks::attention` / `blocks::gated_delta_net` and dense/GeGLU/MoE
+FFN implementations. Configuration chooses the applicable sublayer. There is no parallel SDK
+implementation of those blocks. Decoder dimensions are returned as a value snapshot; modifying it
+does not mutate the resolved model. See the custom decoder in
+[`test_architecture_extension.cpp`](../tests/test_architecture_extension.cpp).
 
-### Tier 3 — your own builder
+## Tensor operations and shapes
 
-For a graph shape the decoder builder does not have — a hybrid stack, an encoder, a projector —
-supply a `ModelBuilder`. This is also the **only** route for a non-decoder family, and it is not
-limited by anything the frontend already implements.
+The SDK uses GGML operand order, e.g. `mul_mat(weight, activation)`. Value shapes use OpenVINO order;
+`value.ne(i)` accesses the reversed, GGML dimension order. Weight values preserve all logical
+axes, including vectors and expert dimensions. Looking up a missing optional weight returns an
+empty value; `tensors.require(name)` reports missing mandatory weights.
+
+`reshape(value, {width, heads, -1})` takes a target in GGML dimension order. It is an explicit
+reshape with at most one inferred dimension. It does not infer an attention operation from the
+number of requested dimensions. Use `split_heads(value, heads, width)` and `merge_heads(value)`
+for decoder attention layouts that must preserve the leading batch and dynamic token axis.
+
+Use `-1` for a variable extent. SDK values retain dynamic dimensions; representative static
+metadata is internal bookkeeping for existing GGML translators, not a token-count API.
+`permute` uses OpenVINO axis numbering and requires each of the four axes exactly once.
+
+The SDK is not a drop-in implementation of llama.cpp's `llm_graph_context`. When porting a model,
+map its sublayers onto existing blocks first, and use generic operations for new structure. The
+removed `GgufHparams`, `LayerTensors`, and `build_lora_mm` facades should not be recreated in each
+architecture. Tensor names can be kept in a model-specific helper when that improves readability.
+
+`raw_op` supports operations outside the convenience vocabulary. It describes an existing GGML
+translator's shape, case, and attribute contract; a new operation can be supplied with a
+`ConversionExtension`. It does not make every ggml memory-view or stride operation interchangeable
+with an OpenVINO tensor operation.
+
+## Declare model contracts
+
+Graph nodes alone do not describe how consumers should maintain state or form masks:
+
+- `configure_decoder` records the resolved RoPE and sliding-window metadata automatically.
+- `rope_ext` records per-operation RoPE use and the multimodal position contract.
+- `set_sliding_window(tokens)` records the window for a custom attention implementation.
+- `add_recurrent_state(input, update)` declares an overwritten state and marks the update as an
+  output. `GGUFMakeStateful` consumes this relationship. Its existing batch/beam restrictions still
+  apply.
+- `set_output(value)` declares other outputs. `finish()` validates references and outputs and seals
+  the context against further emission.
+
+These declarations are passed through the same `GgufGraph` and `TranslateSession` pipeline as the
+built-in decoder. A consumer selects `GGUFMakeStateful` and `AdaptToGenAI` through transformation
+extensions; an architecture definition does not select a device or force stateful execution.
+
+## Selection and replacement
+
+A definition has both a unique handler **id** and the file's **architecture**. Matching requires
+`general.architecture` to agree, followed by the optional metadata predicate. For example, two
+handlers may share `architecture = "clip"` but use ids `"clip.vision"` and `"clip.audio"`, with
+disjoint modality predicates. They coexist without overwriting each other.
+
+Two matching handlers are an error. Duplicate ids are also an error. To intentionally replace an
+existing handler, including a built-in, register with `RegistrationMode::Replace`:
 
 ```cpp
-std::make_shared<ArchitectureExtension>(
-    "clip",
-    [](const BuildContext& c) { return std::make_shared<MyVisionBuilder>(c); },
-    [](const GgufMetadata& m) { return m.get_key_or("clip.has_vision_encoder", false); });
+frontend.add_extension(std::make_shared<ArchitectureExtension>(
+    my_architecture(), RegistrationMode::Replace));
 ```
 
-The third argument is a **match predicate**, for a file whose `general.architecture` does not
-identify it. mmproj files are the reason it exists: they all call themselves `"clip"` and are told
-apart by a metadata flag (llama.cpp `tools/mtmd/clip-impl.h`). Without a predicate, the extension
-claims files that name its architecture.
+Replacement requires the id to already exist. Registries belong to individual frontends, so a
+replacement never changes another frontend's catalog.
 
-An extension that claims a file is consulted **before** the built-in family detection, which is what
-lets it handle a file the decoder builder would otherwise reject.
+## Build and load an external plugin
 
-## Porting a llama.cpp model file
-
-A llama.cpp model file (`src/models/<arch>.cpp`) has three parts, which map directly:
-
-| llama.cpp | Here |
-|---|---|
-| `load_arch_hparams` | `GgufHparams`, or `metadata().get_key(...)` for anything unusual |
-| `load_arch_tensors` | nothing — weights are looked up by name, not declared up front |
-| `build_arch_graph` / the `graph` ctor | `ModelBuilder::build()`, against `GgufGraphContext` |
-
-`load_arch_tensors` has no counterpart on purpose. It exists in llama.cpp because every architecture
-enumerates its tensors by hand; here they are read straight from the file's tensor table, so a
-tensor the file lacks simply yields an empty value.
-
-### Construct-by-construct mapping
-
-[`GgufGraphContext`](../dev_api/openvino/frontend/gguf/builder/graph_context.hpp) is the counterpart
-of `llm_graph_context` and is named after it, so most lines port by substitution:
-
-| llama.cpp | Here |
-|---|---|
-| `ggml_tensor *` | `GgufValue` |
-| `NULL` tensor, `if (w)` | empty `GgufValue`, `if (w)` — same idiom |
-| `model.layers[il].attn_norm` | `tensors.layer(il).attn_norm` |
-| `model.tok_embd` | `tensors("token_embd.weight")` |
-| `ml.get_key(LLM_KV_..., x)` | `ctx.metadata().get_key("<arch>.key", x)` |
-| `hparams.n_embd_head_v()` | `ctx.hparams().n_embd_head_v()` |
-| `n_tokens` | `ctx.n_tokens()` |
-| `build_inp_embd(model.tok_embd)` | `ctx.build_inp_embd(...)` |
-| `build_inp_pos()` | `ctx.build_inp_pos()` |
-| `build_attn_inp_kv()` | `ctx.build_attn_inp_kv()` |
-| `build_norm(cur, w, NULL, LLM_NORM_RMS, il)` | `ctx.build_norm(cur, w, eps)` |
-| `build_ffn(...)` | `ctx.build_ffn(...)` |
-| `build_attn(inp, wo, wo_b, Q, K, V, ..., scale, il)` | `ctx.build_attn(il, Q, K, V, wo, wo_b, scale)` |
-| `build_lora_mm(w, cur)` | `ctx.build_lora_mm(w, cur)` |
-| `ggml_add` / `ggml_mul` / `ggml_scale` | `ctx.add` / `ctx.mul` / `ctx.scale` |
-| `ggml_rope_ext(...)` | `ctx.rope_ext(x, pos, freq_factors, cfg, rope_case)` |
-| `ggml_reshape_3d(ctx, x, a, b, c)` | `ctx.reshape(x, {a, b, c})` |
-| `ggml_soft_max` / `ggml_silu` / `ggml_gelu` | `ctx.soft_max` / `ctx.silu` / `ctx.gelu` |
-| `cb(cur, "name", il)` | `ctx.cb(cur, "name", il)` — kept so these lines survive untouched |
-| `res->t_logits = cur; ggml_build_forward_expand(gf, cur);` | `ctx.set_output(cur);` |
-
-Two places where a port cannot be a copy:
-
-- **`ggml_permute`.** `ctx.permute` takes axes in the shape's own `[ne3, ne2, ne1, ne0]` numbering,
-  the reverse of ggml's `ne` order, so the axis list has to be translated.
-- **Shapes.** `ctx.reshape` takes ggml `ne` order (fastest-varying first), matching
-  `ggml_reshape_*`, but `GgufValue::shape()` is stored reversed. Use `GgufValue::ne(i)` to read a
-  dimension the way `t->ne[i]` does.
-
-Everything else — including output shapes, which the wrappers infer — needs no bookkeeping.
-
-### Anything not covered
-
-`ctx.raw_op(...)` appends a node in the GGML op vocabulary directly. If the operation is one the
-frontend does not translate yet, register an `ov::frontend::ConversionExtension` for it alongside
-the architecture extension; the two compose, so a genuinely new operation still does not require a
-frontend change. See [how_to_add_op.md](how_to_add_op.md) for what a translator does.
-
-### A worked example
-
-`tests/test_architecture_extension.cpp` contains two complete builders, both written against
-nothing but the SDK headers, and both covered by tests:
-
-- **`Qwen3PortBuilder`** — a port of llama.cpp's `src/models/qwen3.cpp`. Read it side by side with
-  the original; the structure, ordering and naming are deliberately preserved. The test asserts it
-  builds a real KV-cached decoder whose attention fuses to one SDPA per layer.
-- **`VisionEncoderBuilder`** — an mmproj vision encoder: patch embeddings, non-causal attention
-  blocks, projector. It is a family the frontend has no code for at all, and it is registered by
-  metadata predicate rather than by name.
-
-## Packaging as a shared library
-
-For a genuinely rebuild-free workflow, ship the extension in its own library:
+The plugin entry point only wraps the definition:
 
 ```cpp
 OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>{
-    std::make_shared<ov::frontend::gguf::ArchitectureExtension>("my-arch", RopeMode::Neox),
-});
+    std::make_shared<ov::frontend::gguf::ArchitectureExtension>(my_architecture())});
 ```
+
+Link against `openvino::frontend::gguf`. The
+[standalone CMake example](../examples/architecture_extension/CMakeLists.txt) builds against the
+installed SDK:
+
+```sh
+cmake -S src/frontends/gguf/examples/architecture_extension -B /tmp/gguf-extension \
+    -DOpenVINO_DIR=/path/to/openvino/runtime/cmake
+cmake --build /tmp/gguf-extension
+```
+
+Load by framework name: GGUF is currently hidden from automatic frontend selection.
 
 ```cpp
-core.add_extension("libmy_arch.so");
+ov::frontend::FrontEndManager manager;
+auto frontend = manager.load_by_framework("gguf");
+frontend->add_extension("/path/to/libgguf_projector_extension.so");
+auto model = frontend->convert(frontend->load("model.gguf"));
 ```
 
-Link it against `openvino::frontend::gguf`, which installs the SDK headers used above. Extensions
-arriving this way are wrapped in an `ov::detail::SOExtension`; the frontend unwraps them, so
-registration works identically to the in-process form.
+A consumer integrating through `Core` must arrange for its extensions to reach the explicitly
+selected GGUF frontend. Registering on an unrelated frontend instance does not forward them.
 
-Extensions are held **per `FrontEnd` instance**, like conversion and transformation extensions, so
-registrations on one `Core`/`FrontEnd` do not leak into another.
+## Promote the same implementation into OpenVINO
 
-## Verifying a new architecture
+1. Move the architecture source/header (for example, `projector.cpp` / `projector.hpp`) into
+   `src/builder/arch/`. Keep the definition factory and `ModelBuilder` unchanged. The frontend
+   source collection includes files under this directory.
+2. Include its header in `src/builder/arch_registry.cpp` and add
+   `definitions.push_back(my_architecture());` to `builtin_architectures()`.
+3. Add the source to the explicit frontend-source list in `tests/CMakeLists.txt`, and retain its
+   conversion and accuracy tests. The plugin-only `OPENVINO_CREATE_EXTENSIONS` source is not needed.
+4. Update supported-model documentation and declare `Maturity::Verified` only after real-model
+   accuracy validation. Synthetic conversion tests do not establish model support.
 
-1. **It converts.** The frontend is not auto-selected, so ask for it by name:
-   `fe = FrontEndManager().load_by_framework("gguf")`, then `fe.convert(fe.load("model.gguf"))`.
-2. **The graph is sane.** Check the op histogram: attention should collapse to a single SDPA per
-   layer and MoE routing to a grouped matmul, not a long chain of primitives. A layout mistake shows
-   up here as a decomposed attention.
-3. **The numbers are right.** Generate through OpenVINO GenAI and compare against
-   `llama.cpp`'s `llama-cli` on the same prompt. Greedy tokens should match; small drift after
-   dozens of tokens is expected from kernel differences. This is the step that catches a wrong RoPE
-   mode, which nothing structural will.
-4. **Nothing else regressed**, if you changed shared code: `tests/test_arch_conversion.cpp` pins a
-   graph fingerprint for every supported architecture.
+For a plain decoder, add a row to the decoder catalog with name, RoPE mode, and maturity. For a
+decoder with options, add the unchanged definition factory instead. Do not also register a plain
+decoder row under the same id.
 
-Declare an architecture `Maturity::Verified` only after step 3. Until then leave it
-`Experimental` (the default), which converts but warns once, so a user knows it is best-effort.
+No new family-dispatch branch, frontend registration method, or alternate graph implementation is
+needed. The tests compile the projector source both as a library and into a catalog test to exercise
+this migration path.
 
-## Extension or in-tree?
+## Validate
 
-Ship an **extension** when the architecture is yours to maintain, when you need it in a released
-OpenVINO you cannot rebuild, or when it is not ready to be supported for everyone.
-
-Contribute **in-tree** when the architecture belongs to a family the frontend already supports and
-would benefit every user — a Tier-1 architecture is a one-line change to
-[`arch_registry.cpp`](../src/builder/arch_registry.cpp) plus a fixture, and then it is covered by
-the frontend's own regression tests rather than yours.
-
-The two use the same machinery, so moving an architecture from one to the other is mechanical.
+- Compile an external plugin using installed headers and load the actual library.
+- Compare numerical results against a reference, including multiple token lengths and subsequent
+  decoding with previously generated state. Check SWA beyond its window and non-default RoPE scaling.
+- Run `ov_gguf_frontend_tests` architecture fixtures to check built-in graph fingerprints.
+- For a real architecture, also compare generation to llama.cpp on the same checkpoint before
+  marking it verified.

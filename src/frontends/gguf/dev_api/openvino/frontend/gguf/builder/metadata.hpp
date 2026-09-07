@@ -21,6 +21,7 @@ namespace detail {
 // extension is meant to read metadata through the typed accessors below, not to pattern-match a
 // std::variant whose alternatives are an implementation detail.
 struct MetadataStore;
+struct MetadataAccess;
 }  // namespace detail
 
 // Read-only view of a GGUF file's KV metadata: the port of llama.cpp's `llama_model_loader` as a
@@ -74,6 +75,7 @@ public:
     std::string architecture() const;
 
 private:
+    friend struct detail::MetadataAccess;
     const detail::MetadataStore* m_store;
 };
 

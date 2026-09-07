@@ -6,11 +6,9 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
 
 #include "openvino/frontend/gguf/builder/metadata.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
-#include "openvino/runtime/tensor.hpp"
 
 namespace ov {
 namespace frontend {
@@ -27,8 +25,8 @@ struct WeightStore;
 // Everything a model builder is handed about the file it is building from.
 //
 // It is a VIEW: the metadata and weight tables belong to the parser and stay alive for the whole
-// build. A builder holds this, not copies of it -- the weight table maps every tensor in the file,
-// which for a real checkpoint is the whole model.
+// synchronous factory/build call. Copying this view does not copy the weight tables; a builder
+// must not retain it after build() returns. Returned graphs retain the weight tensor storage.
 struct GGUF_FRONTEND_API BuildContext {
     // The file's KV metadata.
     GgufMetadata metadata;

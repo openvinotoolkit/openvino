@@ -1,55 +1,41 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-//
 
 #include "openvino/frontend/gguf/extension/architecture.hpp"
 
-#include <utility>
+#include "builder/arch/decoder_builder.hpp"
+#include "builder/sdk/metadata_store.hpp"
+#include "openvino/core/except.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
+
+bool ArchitectureDefinition::matches(const GgufMetadata& metadata) const {
+    return metadata.architecture() == architecture && (!match || match(metadata));
+}
+
+ArchitectureDefinition make_decoder_architecture(std::string architecture,
+                                                 RopeMode rope,
+                                                 DecoderOptionsFn options,
+                                                 Maturity maturity) {
+    ArchitectureDefinition definition;
+    definition.id = definition.architecture = std::move(architecture);
+    definition.maturity = maturity;
+    definition.factory = [rope, options = std::move(options)](const BuildContext& ctx) {
+        OPENVINO_ASSERT(ctx.weights, "[GGUF] decoder builder requires a weight table");
+        const auto overrides = options ? options(ctx.metadata) : DecoderOptions{};
+        auto config = decoder_config_from_meta(detail::MetadataAccess::get(ctx.metadata).map);
+        return std::make_shared<DecoderBuilder>(config, ctx.weights->weights, ctx.weights->qtypes, rope, overrides);
+    };
+    return definition;
+}
+
+ArchitectureExtension::ArchitectureExtension(ArchitectureDefinition definition, RegistrationMode mode)
+    : m_definition(std::move(definition)),
+      m_mode(mode) {}
 
 ArchitectureExtension::ArchitectureExtension(std::string architecture, RopeMode rope, Maturity maturity)
-    : m_architecture(std::move(architecture)),
-      m_rope(rope),
-      m_maturity(maturity) {}
-
-ArchitectureExtension::ArchitectureExtension(std::string architecture,
-                                             RopeMode rope,
-                                             ConfigureFn configure,
-                                             Maturity maturity)
-    : m_architecture(std::move(architecture)),
-      m_rope(rope),
-      m_maturity(maturity),
-      m_configure(std::move(configure)) {}
-
-ArchitectureExtension::ArchitectureExtension(std::string architecture,
-                                             BuilderFactory factory,
-                                             MatchFn match,
-                                             Maturity maturity)
-    : m_architecture(std::move(architecture)),
-      m_maturity(maturity),
-      m_factory(std::move(factory)),
-      m_match(std::move(match)) {}
+    : ArchitectureExtension(make_decoder_architecture(std::move(architecture), rope, {}, maturity)) {}
 
 ArchitectureExtension::~ArchitectureExtension() = default;
 
-bool ArchitectureExtension::matches(const GgufMetadata& meta) const {
-    // A predicate takes precedence: it exists precisely for a file whose `general.architecture`
-    // does not identify it (an mmproj file calls itself "clip" whatever it actually holds).
-    if (m_match) {
-        return m_match(meta);
-    }
-    return meta.architecture() == m_architecture;
-}
-
-void ArchitectureExtension::configure(DecoderConfig& config) const {
-    if (m_configure) {
-        m_configure(config);
-    }
-}
-
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

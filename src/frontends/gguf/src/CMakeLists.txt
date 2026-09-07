@@ -10,7 +10,7 @@
 # paths converge on the same op translators: a live GgufDecoder (cgraph path) and a native
 # .gguf-file builder.
 # dev_api/ carries the builder SDK an out-of-tree ArchitectureExtension is written against (graph
-# context, value handles, hparams/tensor views, ModelBuilder). It is a DEVELOPER API: installed and
+# context, value handles, tensor views, ModelBuilder). It is a DEVELOPER API: installed and
 # linkable, but deliberately not part of the stable public API contract, like frontends/common's.
 set(GGUF_FRONTEND_DEV_API "${CMAKE_CURRENT_SOURCE_DIR}/../dev_api")
 

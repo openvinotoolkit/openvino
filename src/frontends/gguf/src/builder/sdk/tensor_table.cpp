@@ -44,17 +44,18 @@ bool is_dot_weight(const std::string& name) {
 }  // namespace
 
 bool GgufTensors::has(const std::string& gguf_name) const {
-    return m_ctx->impl().emitter.has_weight(gguf_name);
+    return (*m_ctx->m_impl).emitter.has_weight(gguf_name);
 }
 
 GgufValue GgufTensors::operator()(const std::string& gguf_name) const {
-    auto& impl = m_ctx->impl();
+    auto& impl = (*m_ctx->m_impl);
     auto& e = impl.emitter;
     if (!e.has_weight(gguf_name)) {
         // Absent is a normal, meaningful state: it is how GGUF encodes structure. Report it as an
         // empty value so a ported `if (layer.attn_q_norm)` works.
         return GgufValue();
     }
+    impl.check_open();
     // Emission is idempotent -- a weight read repeatedly by a layer loop, or shared between ops,
     // becomes exactly one leaf.
     if (!e.weight_emitted(gguf_name)) {
@@ -64,7 +65,13 @@ GgufValue GgufTensors::operator()(const std::string& gguf_name) const {
             e.add_named_weight(gguf_name);
         }
     }
-    return GgufValue(gguf_name, e.shape_of_tensor(gguf_name), e.type_of_tensor(gguf_name));
+    // The emitter's historical metadata is specialized for decoder matmuls. SDK values carry
+    // the full logical shape instead, including vectors and expert/kernel dimensions.
+    auto shape = e.weight_tensor(gguf_name).get_shape();
+    OPENVINO_ASSERT(shape.size() <= 4, "[GGUF] weight rank exceeds GGML's four dimensions");
+    shape.insert(shape.begin(), 4 - shape.size(), 1);
+    e.set_tensor_meta(gguf_name, shape, e.type_of_tensor(gguf_name));
+    return GgufValue(gguf_name, shape, e.type_of_tensor(gguf_name));
 }
 
 GgufValue GgufTensors::require(const std::string& gguf_name) const {
@@ -80,56 +87,6 @@ GgufValue GgufTensors::require(const std::string& gguf_name) const {
 
 GgufValue GgufTensors::layer(int il, const std::string& suffix) const {
     return (*this)("blk." + std::to_string(il) + "." + suffix);
-}
-
-LayerTensors GgufTensors::layer(int il) const {
-    const auto w = [&](const std::string& suffix) {
-        return layer(il, suffix);
-    };
-    LayerTensors t;
-
-    t.attn_norm = w("attn_norm.weight");
-    t.attn_norm_2 = w("attn_norm_2.weight");
-    t.attn_q_norm = w("attn_q_norm.weight");
-    t.attn_k_norm = w("attn_k_norm.weight");
-    t.attn_post_norm = w("post_attention_norm.weight");
-
-    t.wq = w("attn_q.weight");
-    t.wk = w("attn_k.weight");
-    t.wv = w("attn_v.weight");
-    t.wo = w("attn_output.weight");
-    t.wqkv = w("attn_qkv.weight");
-    t.bq = w("attn_q.bias");
-    t.bk = w("attn_k.bias");
-    t.bv = w("attn_v.bias");
-    t.bo = w("attn_output.bias");
-    t.bqkv = w("attn_qkv.bias");
-
-    t.attn_sinks = w("attn_sinks.weight");
-    t.wqkv_gate = w("attn_gate.weight");
-
-    t.ffn_norm = w("ffn_norm.weight");
-    t.ffn_post_norm = w("post_ffw_norm.weight");
-
-    t.ffn_gate = w("ffn_gate.weight");
-    t.ffn_up = w("ffn_up.weight");
-    t.ffn_down = w("ffn_down.weight");
-    t.ffn_gate_b = w("ffn_gate.bias");
-    t.ffn_up_b = w("ffn_up.bias");
-    t.ffn_down_b = w("ffn_down.bias");
-
-    t.ffn_gate_inp = w("ffn_gate_inp.weight");
-    t.ffn_gate_inp_b = w("ffn_gate_inp.bias");
-    t.ffn_gate_exps = w("ffn_gate_exps.weight");
-    t.ffn_up_exps = w("ffn_up_exps.weight");
-    t.ffn_down_exps = w("ffn_down_exps.weight");
-    t.ffn_exp_probs_b = w("exp_probs_b.bias");
-
-    t.ffn_gate_shexp = w("ffn_gate_shexp.weight");
-    t.ffn_up_shexp = w("ffn_up_shexp.weight");
-    t.ffn_down_shexp = w("ffn_down_shexp.weight");
-
-    return t;
 }
 
 }  // namespace gguf

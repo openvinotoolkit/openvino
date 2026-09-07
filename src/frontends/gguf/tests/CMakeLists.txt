@@ -39,7 +39,6 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/model_kind.cpp"
     "${FE_SRC_DIR}/extension/architecture.cpp"
     "${FE_SRC_DIR}/builder/sdk/graph_context.cpp"
-    "${FE_SRC_DIR}/builder/sdk/hparams.cpp"
     "${FE_SRC_DIR}/builder/sdk/metadata.cpp"
     "${FE_SRC_DIR}/builder/sdk/tensor_table.cpp"
     "${FE_SRC_DIR}/builder/arch/decoder_builder.cpp"
@@ -95,6 +94,7 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_adapt_to_genai.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_conversion.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_architecture_extension.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_builder_sdk.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_dequant_vs_ggml.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_extensions.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_op_coverage.cpp"
@@ -162,3 +162,26 @@ target_compile_definitions(${TARGET_NAME} PRIVATE
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+# Exercise a real independently compiled architecture library and the installed SDK boundary.
+set(ARCH_EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../examples/architecture_extension")
+add_library(gguf_projector_extension MODULE
+            "${ARCH_EXAMPLE_DIR}/projector.cpp" "${ARCH_EXAMPLE_DIR}/extension.cpp")
+target_link_libraries(gguf_projector_extension PRIVATE openvino::frontend::gguf)
+target_compile_features(gguf_projector_extension PRIVATE cxx_std_17)
+install(TARGETS gguf_projector_extension LIBRARY DESTINATION tests RUNTIME DESTINATION tests
+        COMPONENT tests EXCLUDE_FROM_ALL)
+
+ov_add_test_target(
+    NAME ov_gguf_architecture_library_tests
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/test_architecture_library.cpp" "${ARCH_EXAMPLE_DIR}/projector.cpp"
+    LINK_LIBRARIES gtest gtest_main common_test_utils openvino::runtime openvino::frontend::gguf
+    INCLUDES "${ARCH_EXAMPLE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}"
+    LABELS OV UNIT GGUF_FE)
+target_compile_definitions(ov_gguf_architecture_library_tests PRIVATE
+                           ARCH_EXTENSION_LIBRARY="$<TARGET_FILE_NAME:gguf_projector_extension>")
+add_dependencies(ov_gguf_architecture_library_tests gguf_projector_extension)
+
+# The same definition can be seeded into the native catalog without the plugin entry point.
+target_sources(${TARGET_NAME} PRIVATE "${ARCH_EXAMPLE_DIR}/projector.cpp")
+target_include_directories(${TARGET_NAME} PRIVATE "${ARCH_EXAMPLE_DIR}")

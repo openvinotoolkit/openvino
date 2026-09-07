@@ -15,6 +15,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "openvino/frontend/gguf/builder/metadata.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "quant/gguf.hpp"
 
@@ -29,6 +30,12 @@ namespace detail {
 // The parsed KV metadata, behind GgufMetadata.
 struct MetadataStore {
     const std::unordered_map<std::string, GGUFMetaData>& map;
+};
+
+struct MetadataAccess {
+    static const MetadataStore& get(const GgufMetadata& metadata) {
+        return *metadata.m_store;
+    }
 };
 
 // The normalized decoder metadata DecoderConfig is built from, behind detail::DecoderMeta.

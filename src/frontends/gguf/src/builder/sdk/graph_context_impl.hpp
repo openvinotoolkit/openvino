@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "builder/blocks/attention.hpp"
 #include "builder/graph_emitter.hpp"
 #include "builder/sdk/metadata_store.hpp"
 #include "openvino/core/except.hpp"
@@ -24,19 +25,27 @@ namespace gguf {
 struct GgufGraphContext::Impl {
     explicit Impl(const BuildContext& ctx)
         : build_ctx(ctx),
-          hparams(ctx.metadata, ctx.arch),
           emitter(ctx.weights->weights, ctx.weights->qtypes, ctx.arch) {}
 
     BuildContext build_ctx;
-    GgufHparams hparams;
+    std::unique_ptr<DecoderConfig> decoder;
+    blocks::KvCachePlan kv;
+    bool finished = false;
+    void check_open() const {
+        OPENVINO_ASSERT(!finished, "[GGUF] graph is already finished");
+    }
+    void check_layer(int layer) const {
+        check_open();
+        OPENVINO_ASSERT(decoder, "[GGUF] call configure_decoder before using decoder blocks");
+        OPENVINO_ASSERT(layer >= 0 && layer < decoder->n_layer, "[GGUF] decoder layer is out of range");
+    }
     GraphEmitter emitter;
 
     // Per-node output shapes are static, at a representative token length; see
-    // GgufGraphContext::n_tokens().
+    // the internal GraphEmitter contract.
     static constexpr int64_t T = 1;
 
-    // Op names must be unique. A ported model file names values through cb() at best, and often
-    // not at all, so names are generated here and cb() only decorates them.
+    // Generate unique names for SDK operations. Shared decoder blocks use layer prefixes.
     int seq = 0;
     std::string fresh(const std::string& op) {
         return op + "_" + std::to_string(seq++);
@@ -49,6 +58,7 @@ struct GgufGraphContext::Impl {
                    ov::element::Type out_type,
                    int op_case = 0,
                    std::map<std::string, ov::Any> attrs = {}) {
+        check_open();
         std::vector<std::string> in_names;
         in_names.reserve(inputs.size());
         for (const auto& v : inputs) {
@@ -56,7 +66,12 @@ struct GgufGraphContext::Impl {
             in_names.push_back(v.name());
         }
         const auto name = fresh(op_type);
-        emitter.add_op(op_type, name, in_names, out_shape, out_type, op_case, std::move(attrs));
+        auto metadata_shape = out_shape;
+        OPENVINO_ASSERT(metadata_shape.rank().is_static(), "[GGUF] SDK values require a known rank");
+        for (auto& dim : metadata_shape)
+            if (dim.is_dynamic())
+                dim = T;
+        emitter.add_op(op_type, name, in_names, metadata_shape, out_type, op_case, std::move(attrs));
         return GgufValue(name, out_shape, out_type);
     }
 };

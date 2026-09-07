@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "openvino/frontend/gguf/builder/decoder_options.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -36,13 +37,14 @@ struct DecoderMeta;
 // genuinely tensor-table-ambiguous properties (GeGLU vs SwiGLU, gemma4's V-norm) fall back to an
 // architecture-name check; prefer weight presence when adding a new one.
 //
-// An ArchitectureExtension registered with a configuration hook receives this struct after
-// detection has run and may adjust any field, which is how an architecture states the handful of
-// things its GGUF file does not (see extension/architecture.hpp, Tier 2).
-struct GGUF_FRONTEND_API DecoderConfig {
+// Internal resolved configuration. Extensions provide DecoderOptions before derivation.
+struct DecoderConfig {
     // Resolve the whole description from the parsed metadata (already normalized by
     // config_from_meta) and the parser's tensor table.
-    DecoderConfig(const detail::DecoderMeta& config, const std::unordered_map<std::string, ov::Tensor>& weights);
+    DecoderConfig(const detail::DecoderMeta& config,
+                  const std::unordered_map<std::string, ov::Tensor>& weights,
+                  std::optional<RopeMode> rope = {},
+                  const DecoderOptions& options = {});
 
     std::string arch;
 

@@ -7,7 +7,7 @@
 // Ground truth for each rule is llama.cpp's per-architecture hparam loading
 // (src/models/*.cpp::load_arch_hparams) and llm_graph_context.
 
-#include "openvino/frontend/gguf/builder/decoder_config.hpp"
+#include "builder/decoder_config.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -42,7 +42,9 @@ float cfg_float(const std::map<std::string, GGUFMetaData>& config, const std::st
 }  // namespace
 
 DecoderConfig::DecoderConfig(const detail::DecoderMeta& meta,
-                             const std::unordered_map<std::string, ov::Tensor>& weights) {
+                             const std::unordered_map<std::string, ov::Tensor>& weights,
+                             std::optional<RopeMode> rope,
+                             const DecoderOptions& options) {
     const auto& config = meta.config;
     const auto has = [&weights](const std::string& name) {
         return weights.count(name) > 0;
@@ -250,6 +252,40 @@ DecoderConfig::DecoderConfig(const detail::DecoderMeta& meta,
     rope_config_swa = rope_config;
     rope_config_swa.freq_base = cfg_f("rope_freq_base_swa");
     rope_config_swa.n_dims = cfg_i("rope_dimension_count_swa");
+    if (options.geglu)
+        is_geglu = *options.geglu;
+    if (options.value_norm)
+        has_v_norm = *options.value_norm;
+    if (options.embedding_norm)
+        scaleless_embd_norm = *options.embedding_norm;
+    if (options.rope_on_swa_only)
+        rope_on_swa_only = *options.rope_on_swa_only;
+    if (options.post_norm_epsilon) {
+        OPENVINO_ASSERT(std::isfinite(*options.post_norm_epsilon) && *options.post_norm_epsilon > 0,
+                        "[GGUF] post-norm epsilon must be finite and positive");
+        post_norm_eps = *options.post_norm_epsilon;
+    }
+    if (options.swa_rope_frequency_base) {
+        OPENVINO_ASSERT(std::isfinite(*options.swa_rope_frequency_base) && *options.swa_rope_frequency_base > 0,
+                        "[GGUF] SWA RoPE frequency base must be finite and positive");
+        rope_freq_base_swa = rope_config_swa.freq_base = *options.swa_rope_frequency_base;
+    }
+    if (options.swa_rope_dimensions) {
+        OPENVINO_ASSERT(*options.swa_rope_dimensions > 0 && *options.swa_rope_dimensions % 2 == 0 &&
+                            *options.swa_rope_dimensions <= (head_size_swa > 0 ? head_size_swa : head_size),
+                        "[GGUF] SWA RoPE dimensions must be positive, even and fit the attention head");
+        rope_dim_swa = rope_config_swa.n_dims = *options.swa_rope_dimensions;
+    }
+    if (options.sliding_window) {
+        OPENVINO_ASSERT(*options.sliding_window > 0, "[GGUF] sliding window must be positive");
+        swa_window_size = *options.sliding_window;
+        has_swa = true;
+    }
+    if (rope) {
+        rope_op_case = *rope == RopeMode::Interleaved ? ROPE_OP_CASE_IMROPE
+                       : *rope == RopeMode::Neox      ? ROPE_OP_CASE_NEOX
+                                                      : ROPE_OP_CASE_NORMAL;
+    }
     // Per-op sin/cos is required whenever SWA and global layers differ in any rope
     // parameter that feeds the shared sin/cos table: n_dims (gemma4) OR freq_base (gemma3,
     // whose SWA layers rope at 10000 vs the global 1000000). Without it every layer would

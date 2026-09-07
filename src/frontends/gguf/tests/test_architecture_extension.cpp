@@ -1,24 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Tests for adding a GGUF architecture at RUNTIME, through ov::frontend::gguf::ArchitectureExtension.
-//
-// The claim under test is that a new architecture -- of ANY family, decoder or not -- can be
-// enabled without rebuilding the GGUF frontend or any other OpenVINO binary. Each tier of the
-// mechanism gets a test that would fail if that tier stopped working:
-//
-//   Tier 1  a name and a RoPE mode. Asserted by FINGERPRINT EQUALITY against the built-in builder:
-//           an architecture the frontend does not know, enabled only by an extension, must produce
-//           the byte-for-byte same graph as the built-in one does for the architecture it was
-//           renamed from. That is a much stronger statement than "it converted".
-//   Tier 2  a configuration hook, which must actually reach the auto-detected DecoderConfig.
-//   Tier 3  a whole custom builder written against the builder SDK. Two of them: a port of
-//           llama.cpp's qwen3.cpp (a decoder, so the port can be compared against the built-in
-//           result), and a vision encoder (a family the frontend has no support for at all, which
-//           is the case the mechanism exists for).
-//
-// Plus the packaging claim: an extension wrapped as a shared-library extension still reaches the
-// registry, which is what makes `core.add_extension("libmy_arch.so")` work.
+// Runtime registration, shared decoder blocks, and non-decoder architecture construction.
 
 #include <cstdint>
 #include <filesystem>
@@ -28,29 +11,35 @@
 #include <string>
 #include <vector>
 
+#include "builder/decoder_config.hpp"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/core/so_extension.hpp"
-#include "openvino/frontend/gguf/builder/decoder_config.hpp"
+#include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/extension/architecture.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
+#include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/op/util/variable_context.hpp"
 #include "openvino/util/file_util.hpp"
 
 using namespace ov_gguf_test;
+using ov::frontend::gguf::ArchitectureDefinition;
 using ov::frontend::gguf::ArchitectureExtension;
-using ov::frontend::gguf::AttnOptions;
 using ov::frontend::gguf::BuildContext;
-using ov::frontend::gguf::FfnOp;
+using ov::frontend::gguf::DecoderOptions;
 using ov::frontend::gguf::GgufGraph;
 using ov::frontend::gguf::GgufGraphContext;
 using ov::frontend::gguf::GgufMetadata;
 using ov::frontend::gguf::GgufValue;
+using ov::frontend::gguf::make_decoder_architecture;
 using ov::frontend::gguf::Maturity;
 using ov::frontend::gguf::ModelBuilder;
+using ov::frontend::gguf::RegistrationMode;
 using ov::frontend::gguf::RopeMode;
 
 namespace {
@@ -253,10 +242,10 @@ TEST(GGUFArchitectureExtension, Tier1RopeModeReachesTheBuilder) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Tier 2: a configuration hook over the auto-detected DecoderConfig.
+// Decoder options are applied before deriving the configuration.
 // ---------------------------------------------------------------------------------------------
 
-TEST(GGUFArchitectureExtension, Tier2ConfigureHookReachesTheDecoderConfig) {
+TEST(GGUFArchitectureExtension, DecoderOptionsSelectTheActivation) {
     if (!fixtures_present()) {
         GTEST_SKIP() << "no arch fixtures -- generate them with tests/gen_arch_fixtures.py --fetch";
     }
@@ -271,11 +260,12 @@ TEST(GGUFArchitectureExtension, Tier2ConfigureHookReachesTheDecoderConfig) {
 
     // Switch the FFN from SwiGLU to GeGLU. That is a real per-architecture choice the tensor table
     // cannot disambiguate, which is why the hook exists; it must change the emitted activation.
-    auto hooked_ext = std::make_shared<ArchitectureExtension>(kUnknownArch,
-                                                              RopeMode::Neox,
-                                                              [](ov::frontend::gguf::DecoderConfig& cfg) {
-                                                                  cfg.is_geglu = true;
-                                                              });
+    auto hooked_ext = std::make_shared<ArchitectureExtension>(
+        make_decoder_architecture(kUnknownArch, RopeMode::Neox, [](const GgufMetadata&) {
+            DecoderOptions options;
+            options.geglu = true;
+            return options;
+        }));
     std::string hooked_error;
     const auto hooked = convert_with(path, {hooked_ext}, hooked_error);
     ASSERT_TRUE(hooked) << hooked_error;
@@ -290,108 +280,38 @@ TEST(GGUFArchitectureExtension, Tier2ConfigureHookReachesTheDecoderConfig) {
 
 namespace {
 
-// A port of llama.cpp's qwen3 graph. Compare against src/models/qwen3.cpp upstream: the structure,
-// the order of operations and the names are deliberately kept as close as the two APIs allow, which
-// is the property that makes porting an upstream model file a reviewable change rather than a
-// reimplementation. See docs/porting_a_llama_cpp_model.md.
+// Custom topology reuses the very same decoder blocks as the built-in family.
 class Qwen3PortBuilder : public ModelBuilder {
 public:
     explicit Qwen3PortBuilder(const BuildContext& ctx) : m_ctx(ctx) {}
-
     std::shared_ptr<GgufGraph> build() override {
         GgufGraphContext ctx(m_ctx);
-        const auto& hparams = ctx.hparams();
+        const auto dimensions = ctx.configure_decoder(RopeMode::Neox);
         auto tensors = ctx.tensors();
-
-        const int64_t n_embd_head = hparams.n_embd_head_v();
-        const int n_layer = static_cast<int>(hparams.n_layer);
-        const int64_t n_head = hparams.n_head();
-        const int64_t n_head_kv = hparams.n_head_kv();
-        const float kq_scale = 1.0f / std::sqrt(static_cast<float>(n_embd_head));
-
-        ov::frontend::gguf::RopeConfig rope{};
-        rope.freq_base = hparams.rope_freq_base_train;
-        rope.freq_scale = hparams.rope_freq_scale_train;
-        rope.n_dims = static_cast<int32_t>(hparams.n_rot);
-        rope.n_ctx_orig = static_cast<int32_t>(hparams.n_ctx_train);
-        rope.attn_factor = 1.0f;
-        rope.beta_fast = 32.0f;
-        rope.beta_slow = 1.0f;
-
-        auto inpL = ctx.build_inp_embd(tensors.require("token_embd.weight"));
-        auto inp_pos = ctx.build_inp_pos();
+        auto cur = ctx.build_inp_embd(tensors.require("token_embd.weight"));
+        ctx.build_inp_pos();
         ctx.build_attn_inp_kv();
-
-        for (int il = 0; il < n_layer; ++il) {
-            const auto layer = tensors.layer(il);
-            auto inpSA = inpL;
-
-            // norm
-            auto cur = ctx.build_norm(inpL, layer.attn_norm, hparams.f_norm_rms_eps);
-            ctx.cb(cur, "attn_norm", il);
-
-            // self-attention
-            {
-                auto Qcur = ctx.build_lora_mm(layer.wq, cur);
-                auto Kcur = ctx.build_lora_mm(layer.wk, cur);
-                auto Vcur = ctx.build_lora_mm(layer.wv, cur);
-
-                Qcur = ctx.reshape(Qcur, {n_embd_head, n_head, ctx.n_tokens()});
-                Kcur = ctx.reshape(Kcur, {n_embd_head, n_head_kv, ctx.n_tokens()});
-                Vcur = ctx.reshape(Vcur, {n_embd_head, n_head_kv, ctx.n_tokens()});
-
-                Qcur = ctx.build_norm(Qcur, layer.attn_q_norm, hparams.f_norm_rms_eps);
-                ctx.cb(Qcur, "Qcur_normed", il);
-                Qcur = ctx.rope_ext(Qcur, inp_pos, GgufValue(), rope, kRopeNeox);
-
-                Kcur = ctx.build_norm(Kcur, layer.attn_k_norm, hparams.f_norm_rms_eps);
-                ctx.cb(Kcur, "Kcur_normed", il);
-                Kcur = ctx.rope_ext(Kcur, inp_pos, GgufValue(), rope, kRopeNeox);
-
-                cur = ctx.build_attn(il, Qcur, Kcur, Vcur, layer.wo, layer.bo, kq_scale);
-            }
-
-            auto ffn_inp = ctx.add(cur, inpSA);
-            ctx.cb(ffn_inp, "ffn_inp", il);
-
-            // feed-forward network
-            cur = ctx.build_norm(ffn_inp, layer.ffn_norm, hparams.f_norm_rms_eps);
-            ctx.cb(cur, "ffn_norm", il);
-            cur = ctx.build_ffn(cur,
-                                layer.ffn_up,
-                                GgufValue(),
-                                layer.ffn_gate,
-                                GgufValue(),
-                                layer.ffn_down,
-                                GgufValue(),
-                                FfnOp::Silu);
-            ctx.cb(cur, "ffn_out", il);
-
-            cur = ctx.add(cur, ffn_inp);
-            inpL = cur;
+        for (int layer = 0; layer < dimensions.layers; ++layer) {
+            auto norm = ctx.build_norm(cur, tensors.layer(layer, "attn_norm.weight"), dimensions.norm_epsilon);
+            cur = ctx.add(ctx.decoder_attention(layer, norm), cur);
+            norm = ctx.build_norm(cur, tensors.layer(layer, "ffn_norm.weight"), dimensions.norm_epsilon);
+            cur = ctx.add(ctx.decoder_ffn(layer, norm), cur);
         }
-
-        auto cur = ctx.build_norm(inpL, tensors.require("output_norm.weight"), hparams.f_norm_rms_eps);
-
-        // lm_head; qwen3 ties it to the token embedding when there is no separate output tensor.
+        cur = ctx.build_norm(cur, tensors.require("output_norm.weight"), dimensions.norm_epsilon);
         auto output = tensors("output.weight");
-        if (!output) {
+        if (!output)
             output = tensors.require("token_embd.weight");
-        }
-        cur = ctx.build_lora_mm(output, cur);
-        ctx.set_output(cur);
+        ctx.set_output(ctx.mul_mat(output, cur));
         return ctx.finish();
     }
 
 private:
-    // NEOX rope: rotate halves. See arch_registry.hpp's ROPE_OP_CASE_NEOX.
-    static constexpr int kRopeNeox = 0x00010000;
     BuildContext m_ctx;
 };
 
 }  // namespace
 
-TEST(GGUFArchitectureExtension, Tier3PortedDecoderBuildsAnEquivalentGraph) {
+TEST(GGUFArchitectureExtension, CustomDecoderUsesSharedAttentionBlocks) {
     if (!fixtures_present()) {
         GTEST_SKIP() << "no arch fixtures -- generate them with tests/gen_arch_fixtures.py --fetch";
     }
@@ -409,9 +329,10 @@ TEST(GGUFArchitectureExtension, Tier3PortedDecoderBuildsAnEquivalentGraph) {
     ScratchDir scratch2;
     const auto path = materialize(kQwen3Header, kQwen3DataBytes, scratch2.path(), "qwen3", kUnknownArch);
     ASSERT_FALSE(path.empty());
-    auto ext = std::make_shared<ArchitectureExtension>(kUnknownArch, [](const BuildContext& c) {
-        return std::make_shared<Qwen3PortBuilder>(c);
-    });
+    auto ext = std::make_shared<ArchitectureExtension>(
+        ArchitectureDefinition{kUnknownArch, kUnknownArch, [](const BuildContext& c) {
+                                   return std::make_shared<Qwen3PortBuilder>(c);
+                               }});
 
     std::string error;
     const auto model = convert_with(path, {ext}, error);
@@ -419,20 +340,11 @@ TEST(GGUFArchitectureExtension, Tier3PortedDecoderBuildsAnEquivalentGraph) {
 
     auto hist = op_histogram(model);
 
-    // The port is NOT expected to be node-identical to the built-in builder, and demanding that
-    // would be testing the wrong thing. It is a faithful port of upstream qwen3.cpp, whereas the
-    // built-in builder additionally honours whatever the FILE says -- and this synthetic fixture
-    // populates every key llama.cpp knows, including an attn_logit_softcapping that no real qwen3
-    // checkpoint carries. The built-in graph therefore soft-caps and lowers to an explicit softmax;
-    // the port does not, and fuses to SDPA instead. Both are correct for their input.
-    //
-    // What must hold is that the port built the same ARCHITECTURE, through the SDK alone.
-    const size_t n_layer = 2;  // the fixture's block_count
-
-    // The hardest thing build_attn has to get right: a KV-cached attention that still fuses into a
-    // single SDPA per layer. A shape or layout mistake shows up here as a decomposed chain.
-    EXPECT_EQ(hist["ScaledDotProductAttention"], n_layer) << "attention must collapse to one SDPA per layer";
-
+    const size_t n_layer = 2;
+    // The synthetic fixture requests softcapping: BOTH paths must respect it. Compare the
+    // attention operations instead of assuming every checkpoint lowers to an SDPA node.
+    EXPECT_EQ(hist["ScaledDotProductAttention"],
+              (ref_hist.count("ScaledDotProductAttention") ? ref_hist.at("ScaledDotProductAttention") : 0u));
     // Logits plus a K and a V cache per layer -- the same output surface the built-in path has.
     EXPECT_EQ(model->outputs().size(), reference->outputs().size())
         << "the ported model must expose the same outputs (logits + per-layer KV caches)";
@@ -530,9 +442,9 @@ public:
 
             // Non-causal self-attention, written out with the ggml vocabulary because there is no
             // KV cache to hide behind a build_attn: Q@K^T -> softmax -> @V.
-            auto q = ctx.build_lora_mm(tensors.require(p + "attn_q.weight"), cur);
-            auto k = ctx.build_lora_mm(tensors.require(p + "attn_k.weight"), cur);
-            auto v = ctx.build_lora_mm(tensors.require(p + "attn_v.weight"), cur);
+            auto q = ctx.mul_mat(tensors.require(p + "attn_q.weight"), cur);
+            auto k = ctx.mul_mat(tensors.require(p + "attn_k.weight"), cur);
+            auto v = ctx.mul_mat(tensors.require(p + "attn_v.weight"), cur);
 
             // [patches, heads, head_size] -> [heads, patches, head_size], so the matmuls contract
             // over head_size with the head axis batched, as llama.cpp's ggml_permute does here.
@@ -548,24 +460,19 @@ public:
 
             cur = ctx.permute(kqv, {0, 2, 1, 3});
             cur = ctx.reshape(ctx.cont(cur), {n_embd, n_patches});
-            cur = ctx.build_lora_mm(tensors.require(p + "attn_out.weight"), cur);
+            cur = ctx.mul_mat(tensors.require(p + "attn_out.weight"), cur);
             cur = ctx.add(cur, residual);
 
             residual = cur;
             cur = ctx.build_norm(cur, tensors.require(p + "ln2.weight"), eps);
-            cur = ctx.build_ffn(cur,
-                                tensors.require(p + "ffn_up.weight"),
-                                GgufValue(),
-                                GgufValue(),  // ungated: up -> GELU -> down
-                                GgufValue(),
-                                tensors.require(p + "ffn_down.weight"),
-                                GgufValue(),
-                                FfnOp::Gelu);
+            cur = ctx.mul_mat(tensors.require(p + "ffn_up.weight"), cur);
+            cur = ctx.gelu(cur);
+            cur = ctx.mul_mat(tensors.require(p + "ffn_down.weight"), cur);
             cur = ctx.add(cur, residual);
         }
 
         cur = ctx.build_norm(cur, tensors.require("v.post_ln.weight"), eps);
-        cur = ctx.build_lora_mm(tensors.require("mm.0.weight"), cur);
+        cur = ctx.mul_mat(tensors.require("mm.0.weight"), cur);
         ctx.set_output(cur);
         return ctx.finish();
     }
@@ -598,13 +505,14 @@ TEST(GGUFArchitectureExtension, Tier3NonDecoderFamilyConvertsEndToEnd) {
 
     // The file calls itself "clip", so the extension claims it by metadata flag, not by name.
     auto ext = std::make_shared<ArchitectureExtension>(
-        "clip",
-        [](const BuildContext& c) {
-            return std::make_shared<VisionEncoderBuilder>(c);
-        },
-        [](const GgufMetadata& m) {
-            return m.get_key_or("clip.has_vision_encoder", false);
-        });
+        ArchitectureDefinition{"clip.vision",
+                               "clip",
+                               [](const BuildContext& c) {
+                                   return std::make_shared<VisionEncoderBuilder>(c);
+                               },
+                               [](const GgufMetadata& m) {
+                                   return m.get_key_or("clip.has_vision_encoder", false);
+                               }});
 
     std::string error;
     const auto model = convert_with(path, {ext}, error);
@@ -660,12 +568,169 @@ TEST(GGUFArchitectureExtension, AmbiguousClaimIsReportedNotGuessed) {
     const auto factory = [](const BuildContext& c) {
         return std::make_shared<VisionEncoderBuilder>(c);
     };
-    auto first = std::make_shared<ArchitectureExtension>("first-claimant", factory, claim_everything);
-    auto second = std::make_shared<ArchitectureExtension>("second-claimant", factory, claim_everything);
+    auto first = std::make_shared<ArchitectureExtension>(
+        ArchitectureDefinition{"first-claimant", "clip", factory, claim_everything});
+    auto second = std::make_shared<ArchitectureExtension>(
+        ArchitectureDefinition{"second-claimant", "clip", factory, claim_everything});
 
     std::string error;
     const auto model = convert_with(path, {first, second}, error);
     ASSERT_FALSE(model) << "two extensions claimed the same file and one was silently chosen";
     EXPECT_NE(error.find("first-claimant"), std::string::npos) << "actual error:\n" << error;
     EXPECT_NE(error.find("second-claimant"), std::string::npos) << "actual error:\n" << error;
+}
+
+TEST(GGUFArchitectureExtension, SharedDecoderBlocksMatchNumericallyAcrossPrefillAndDecode) {
+    ScratchDir scratch;
+    const auto path = ov::util::path_join({scratch.path(), "small-qwen3.gguf"}).string();
+    GgufWriter writer;
+    writer.kv_str("general.architecture", "qwen3");
+    writer.kv_u32("qwen3.block_count", 1);
+    writer.kv_u32("qwen3.embedding_length", 8);
+    writer.kv_u32("qwen3.attention.head_count", 2);
+    writer.kv_u32("qwen3.attention.head_count_kv", 1);
+    writer.kv_u32("qwen3.rope.dimension_count", 4);
+    writer.kv_u32("qwen3.context_length", 32);
+    writer.kv_f32("qwen3.attention.layer_norm_rms_epsilon", 1e-5f);
+    writer.kv_f32("qwen3.rope.scaling.factor", 4.f);
+    writer.kv_f32("qwen3.attn_logit_softcapping", 2.f);
+    writer.kv_u32("qwen3.attention.sliding_window", 2);
+    const auto weight = [&](const std::string& name, const std::vector<uint64_t>& shape, bool norm = false) {
+        size_t count = 1;
+        for (auto d : shape)
+            count *= d;
+        std::vector<float> values(count);
+        for (size_t i = 0; i < count; ++i)
+            values[i] = norm ? 1.f : 0.1f * std::sin(float(i + 1));
+        writer.tensor(name, shape, values);
+    };
+    weight("token_embd.weight", {8, 16});
+    weight("output_norm.weight", {8}, true);
+    weight("blk.0.attn_norm.weight", {8}, true);
+    weight("blk.0.attn_q.weight", {8, 8});
+    weight("blk.0.attn_k.weight", {8, 4});
+    weight("blk.0.attn_v.weight", {8, 4});
+    weight("blk.0.attn_output.weight", {8, 8});
+    weight("blk.0.attn_q_norm.weight", {4}, true);
+    weight("blk.0.attn_k_norm.weight", {4}, true);
+    weight("blk.0.ffn_norm.weight", {8}, true);
+    weight("blk.0.ffn_gate.weight", {8, 12});
+    weight("blk.0.ffn_up.weight", {8, 12});
+    weight("blk.0.ffn_down.weight", {12, 8});
+    ASSERT_TRUE(writer.write(path));
+
+    const auto load = [&](bool custom) {
+        ov::frontend::gguf::FrontEnd frontend;
+        if (custom) {
+            frontend.add_extension(std::make_shared<ArchitectureExtension>(
+                ArchitectureDefinition{"qwen3",
+                                       "qwen3",
+                                       [](const BuildContext& ctx) {
+                                           return std::make_shared<Qwen3PortBuilder>(ctx);
+                                       }},
+                RegistrationMode::Replace));
+        }
+        frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
+            ov::frontend::gguf::pass::GGUFMakeStateful()));
+        frontend.add_extension(
+            std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
+        return frontend.convert(frontend.load(path));
+    };
+    auto builtin = load(false);
+    auto custom = load(true);
+    ASSERT_EQ(builtin->get_variables().size(), 2);
+    ASSERT_EQ(custom->get_variables().size(), 2);
+    builtin->output().set_names({"logits"});
+    custom->output().set_names({"logits"});
+    const auto evaluation_context = [](const std::shared_ptr<ov::Model>& model) {
+        ov::op::util::VariableContext variables;
+        for (const auto& variable : model->get_variables()) {
+            auto value = std::make_shared<ov::op::util::VariableValue>(ov::Tensor(variable->get_info().data_type, {0}));
+            variables.set_variable_value(variable, value);
+        }
+        return ov::EvaluationContext{{"VariableContext", variables}};
+    };
+    auto ref_context = evaluation_context(builtin);
+    auto ext_context = evaluation_context(custom);
+    size_t past = 0;
+    for (size_t tokens : {3u, 1u, 2u}) {
+        const auto infer = [&](const std::shared_ptr<ov::Model>& model, ov::EvaluationContext& context) {
+            ov::Tensor ids(ov::element::i64, {1, tokens});
+            ov::Tensor pos(ov::element::i64, {1, tokens});
+            for (size_t i = 0; i < tokens; ++i) {
+                ids.data<int64_t>()[i] = static_cast<int64_t>((past + i + 1) % 16);
+                pos.data<int64_t>()[i] = static_cast<int64_t>(past + i);
+            }
+            ov::Tensor mask(ov::element::i64, {1, past + tokens});
+            std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+            ov::Tensor beam(ov::element::i32, {1});
+            *beam.data<int32_t>() = 0;
+            ov::Tensor indices(ov::element::i32, {1, 1, 1, tokens});
+            for (size_t i = 0; i < tokens; ++i)
+                indices.data<int32_t>()[i] = static_cast<int32_t>(past + i);
+            ov::Tensor legacy_tokens(ov::element::i32, {1, 1, 1, tokens});
+            ov::Tensor rows(ov::element::i32, {1, 1, 1, tokens});
+            for (size_t i = 0; i < tokens; ++i) {
+                legacy_tokens.data<int32_t>()[i] = static_cast<int32_t>((past + i + 1) % 16);
+                rows.data<int32_t>()[i] = static_cast<int32_t>(i);
+            }
+            ov::Tensor length(ov::element::i64, {1});
+            *length.data<int64_t>() = static_cast<int64_t>(tokens);
+            ov::Tensor causal(ov::element::f32, {1, 1, tokens, past + tokens});
+            ov::Tensor windowed(ov::element::f32, {1, 1, tokens, past + tokens});
+            for (size_t q = 0; q < tokens; ++q) {
+                for (size_t k = 0; k < past + tokens; ++k) {
+                    causal.data<float>()[q * (past + tokens) + k] =
+                        k <= past + q ? 0.f : -std::numeric_limits<float>::infinity();
+                    windowed.data<float>()[q * (past + tokens) + k] =
+                        k <= past + q && k + 2 > past + q ? 0.f : -std::numeric_limits<float>::infinity();
+                }
+            }
+            // Normalization may retain disconnected legacy parameters; supply them as well.
+            const std::map<std::string, ov::Tensor> inputs{{"input_ids", ids},
+                                                           {"position_ids", pos},
+                                                           {"attention_mask", mask},
+                                                           {"beam_idx", beam},
+                                                           {"inp_kv_idx", indices},
+                                                           {"inp_pos", indices},
+                                                           {"inp_tokens", legacy_tokens},
+                                                           {"inp_out_ids", rows},
+                                                           {"token_len_per_seq", length},
+                                                           {"self_kq_mask", causal},
+                                                           {"self_kq_mask_swa", windowed}};
+            ov::TensorVector ordered;
+            for (const auto& parameter : model->inputs()) {
+                bool found = false;
+                for (const auto& entry : inputs) {
+                    if (parameter.get_names().count(entry.first)) {
+                        ordered.push_back(entry.second);
+                        found = true;
+                        break;
+                    }
+                }
+                OPENVINO_ASSERT(found, "Unexpected model input: ", parameter.get_any_name());
+            }
+            ov::TensorVector output{ov::Tensor(ov::element::f32, {0})};
+            EXPECT_TRUE(model->evaluate(output, ordered, context));
+            return output.front();
+        };
+        auto a = infer(builtin, ref_context);
+        auto b = infer(custom, ext_context);
+        ASSERT_GE(a.get_size(), 16);
+        ASSERT_GE(b.get_size(), 16);
+        const auto* last_a = a.data<float>() + a.get_size() - 16;
+        const auto* last_b = b.data<float>() + b.get_size() - 16;
+        for (size_t i = 0; i < 16; ++i) {
+            ASSERT_TRUE(std::isfinite(last_a[i]));
+            EXPECT_NEAR(last_a[i], last_b[i], 1e-5f);
+        }
+        for (auto* context : {&ref_context, &ext_context}) {
+            const auto& states =
+                context->at("VariableContext").as<ov::op::util::VariableContext>().get_variable_values();
+            ASSERT_EQ(states.size(), 2);
+            for (const auto& state : states)
+                EXPECT_EQ(state.second->get_state().get_size(), (past + tokens) * 4);
+        }
+        past += tokens;
+    }
 }

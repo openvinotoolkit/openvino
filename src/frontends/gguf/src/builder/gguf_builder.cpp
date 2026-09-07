@@ -76,61 +76,31 @@ std::shared_ptr<GgufGraph> build_ggml_graph_from_gguf(const std::string& file, c
     const GgufMetadata meta_view(meta_store);
     detail::WeightStore weight_store{weights, qtypes};
 
-    // A registered architecture extension gets first refusal, BEFORE the family is decided.
-    //
-    // This ordering is what lets an extension add a non-decoder architecture. The built-in path
-    // below can only build the decoder family, and it reads decoder hyperparameters to do it; an
-    // mmproj or encoder-decoder file has none of those keys, so anything that inspected the family
-    // first would reject the file before its extension was ever consulted.
-    if (auto ext = registry.find(meta_view); ext && ext->has_builder()) {
-        BuildContext ctx{meta_view, meta_view.architecture(), &weight_store};
-        if (!ext->verified()) {
-            OPENVINO_WARN("[GGUF] architecture '",
-                          ext->architecture(),
-                          "' is provided by an extension that reports itself unverified. Validate accuracy "
-                          "before relying on it.");
-        }
-        auto builder = ext->builder_factory()(ctx);
-        OPENVINO_ASSERT(builder,
-                        "[GGUF] the extension for architecture '",
-                        ext->architecture(),
-                        "' returned no builder");
-        auto graph = builder->build();
-        OPENVINO_ASSERT(graph, "[GGUF] the builder for architecture '", ext->architecture(), "' returned no graph");
-        graph->tokenizer_config = extract_tokenizer_config(metadata);
-        return graph;
+    // Built-in and external definitions share selection, construction and postprocessing.
+    // Family detection is only a diagnostic fallback; it must not reject a registered family.
+    const auto definition = registry.find(meta_view);
+    if (!definition) {
+        const auto kind = detect_model_kind(metadata);
+        OPENVINO_ASSERT(kind == ModelKind::DECODER,
+                        "[GGUF] no builder for ",
+                        model_kind_name(kind),
+                        "; the default catalog implements the decoder family. Register an ArchitectureExtension.");
+        OPENVINO_THROW("[GGUF] native GGUF builder does not support architecture '",
+                       meta_view.architecture(),
+                       "'. Supported: ",
+                       registry.describe_supported(),
+                       ". Register an ArchitectureExtension.");
     }
-
-    // Decide the family: the metadata key layout differs per family, so reading any decoder
-    // hyperparameter before this point would misreport an mmproj file as a broken LLM.
-    const ModelKind kind = detect_model_kind(metadata);
-    OPENVINO_ASSERT(kind == ModelKind::DECODER,
-                    "[GGUF] this file holds a ",
-                    model_kind_name(kind),
-                    " model; the native GGUF builder implements the decoder family only. Support for another "
-                    "family is added by registering an ov::frontend::gguf::ArchitectureExtension that supplies "
-                    "its own ModelBuilder -- no frontend rebuild required. See "
-                    "docs/porting_a_llama_cpp_model.md.");
-
-    auto config = decoder_config_from_meta(metadata);
-
-    const std::string arch = std::get<std::string>(config.at("architecture"));
-    OPENVINO_ASSERT(registry.is_supported(arch),
-                    "[GGUF] native GGUF builder does not support architecture '",
-                    arch,
-                    "'. Supported: ",
-                    registry.describe_supported(),
-                    ". A new architecture can be added at runtime with an "
-                    "ov::frontend::gguf::ArchitectureExtension; see docs/adding_an_architecture.md.");
-    if (registry.is_experimental(arch)) {
-        OPENVINO_WARN("[GGUF] architecture '",
-                      arch,
-                      "' is experimental: it is built by structural auto-detection but has not been "
-                      "end-to-end verified against a reference. Validate accuracy before relying on it.");
+    if (definition->maturity == Maturity::Experimental) {
+        OPENVINO_WARN("[GGUF] architecture handler '",
+                      definition->id,
+                      "' is experimental; validate accuracy before relying on it.");
     }
-
-    std::unique_ptr<ModelBuilder> builder = std::make_unique<DecoderBuilder>(config, weights, qtypes, registry);
+    BuildContext ctx{meta_view, meta_view.architecture(), &weight_store};
+    auto builder = definition->factory(ctx);
+    OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition->id, "' returned no builder");
     auto graph = builder->build();
+    OPENVINO_ASSERT(graph, "[GGUF] architecture handler '", definition->id, "' returned no graph");
     graph->tokenizer_config = extract_tokenizer_config(metadata);
     return graph;
 }

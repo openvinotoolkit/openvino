@@ -9,141 +9,59 @@
 #include <string>
 
 #include "openvino/core/extension.hpp"
-#include "openvino/frontend/gguf/builder/metadata.hpp"
+#include "openvino/frontend/gguf/builder/decoder_options.hpp"
 #include "openvino/frontend/gguf/builder/model_builder.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
-struct DecoderConfig;
+enum class Maturity { Experimental, Verified };
+enum class RegistrationMode { Add, Replace };
 
-// How an architecture's RoPE rotates, mirroring llama_model_rope_type. This is the one fact about
-// a same-family architecture that cannot be derived from its GGUF file, so an extension has to
-// state it.
-enum class RopeMode {
-    Normal,  // rotate consecutive pairs (llama, minicpm, ...)
-    Neox,    // rotate halves (qwen, phi3, gemma, ...)
+// The same definition is used by the built-in catalog and a separately compiled extension.
+// Keep the function returning this definition in the architecture's source file. To upstream it,
+// add that source and its definition to the catalog; neither the factory nor the builder changes.
+struct GGUF_FRONTEND_API ArchitectureDefinition {
+    using BuilderFactory = std::function<std::shared_ptr<ModelBuilder>(const BuildContext&)>;
+    using MatchFn = std::function<bool(const GgufMetadata&)>;
+
+    std::string id;            // Unique handler identity, e.g. "clip.vision".
+    std::string architecture;  // Required general.architecture, e.g. "clip".
+    BuilderFactory factory;
+    MatchFn match;  // Optional additional constraint within this architecture.
+    Maturity maturity = Maturity::Experimental;
+
+    bool matches(const GgufMetadata& metadata) const;
 };
 
-// Whether an architecture has been checked end to end against a reference implementation.
-// An Experimental one still converts, but warns once, so a caller knows it is best-effort.
-enum class Maturity {
-    Experimental,
-    Verified,
-};
+// A decoder definition uses the frontend's metadata reader, configuration resolver and blocks.
+// Options are collected BEFORE resolving configuration. The callback may read model metadata,
+// but cannot mutate derived dimensions or execution plans.
+using DecoderOptionsFn = std::function<DecoderOptions(const GgufMetadata&)>;
+GGUF_FRONTEND_API ArchitectureDefinition make_decoder_architecture(std::string architecture,
+                                                                   RopeMode rope,
+                                                                   DecoderOptionsFn options = {},
+                                                                   Maturity maturity = Maturity::Experimental);
 
-// Registers support for a GGUF architecture at RUNTIME, so a new model can be enabled without
-// rebuilding the GGUF frontend or any other OpenVINO binary.
-//
-// It is registered like any other frontend extension -- `fe->add_extension(ext)`, or from a
-// standalone shared library through `core.add_extension(path)` plus OPENVINO_CREATE_EXTENSIONS --
-// and composes with the others: an architecture that needs an operation the frontend does not yet
-// translate ships an ov::frontend::ConversionExtension alongside this one.
-//
-// Three tiers, by how much the architecture actually differs from what the frontend already
-// builds. Most architectures are the first one.
-//
-//   Tier 1 -- a name and a RoPE mode.
-//     The generic decoder builder derives everything else (QK-norm, projection biases, fused QKV,
-//     MoE routing, sliding-window attention, soft-caps) from the GGUF tensor table and metadata,
-//     so a same-family architecture needs no code at all:
-//
-//       core.add_extension(std::make_shared<ArchitectureExtension>("my-arch", RopeMode::Neox));
-//
-//   Tier 2 -- plus a few hyperparameters that cannot be detected from the file.
-//     A callback receives the auto-detected DecoderConfig and adjusts it:
-//
-//       std::make_shared<ArchitectureExtension>("my-arch", RopeMode::Neox, [](DecoderConfig& c) {
-//           c.is_geglu = true;
-//       });
-//
-//   Tier 3 -- a whole custom builder, for ANY family.
-//     The architecture supplies its own ModelBuilder, written against the builder SDK
-//     (openvino/frontend/gguf/builder/graph_context.hpp). This is not limited to decoders: a
-//     vision or audio encoder, or anything else with its own graph shape, is added this way. The
-//     optional match predicate claims files this architecture owns but does not name -- an mmproj
-//     file, for instance, calls itself "clip" and is identified by a metadata flag:
-//
-//       std::make_shared<ArchitectureExtension>(
-//           "clip",
-//           [](const BuildContext& c) { return std::make_shared<MyVisionBuilder>(c); },
-//           [](const GgufMetadata& m) { return m.get_key_or("clip.has_vision_encoder", false); });
-//
-// See docs/porting_a_llama_cpp_model.md for the workflow of porting a llama.cpp model file.
 class GGUF_FRONTEND_API ArchitectureExtension : public ov::Extension {
 public:
     OPENVINO_RTTI("gguf::ArchitectureExtension", "", ov::Extension);
-
     using Ptr = std::shared_ptr<ArchitectureExtension>;
 
-    // Adjusts the auto-detected configuration of a decoder architecture.
-    using ConfigureFn = std::function<void(DecoderConfig&)>;
-    // Creates the builder for one file.
-    using BuilderFactory = std::function<std::shared_ptr<ModelBuilder>(const BuildContext&)>;
-    // Claims a file this architecture owns but does not name; see Tier 3 above.
-    using MatchFn = std::function<bool(const GgufMetadata&)>;
-
-    // Tier 1.
+    explicit ArchitectureExtension(ArchitectureDefinition definition, RegistrationMode mode = RegistrationMode::Add);
     ArchitectureExtension(std::string architecture, RopeMode rope, Maturity maturity = Maturity::Experimental);
-
-    // Tier 2.
-    ArchitectureExtension(std::string architecture,
-                          RopeMode rope,
-                          ConfigureFn configure,
-                          Maturity maturity = Maturity::Experimental);
-
-    // Tier 3.
-    ArchitectureExtension(std::string architecture,
-                          BuilderFactory factory,
-                          MatchFn match = {},
-                          Maturity maturity = Maturity::Experimental);
-
     ~ArchitectureExtension() override;
 
-    const std::string& architecture() const {
-        return m_architecture;
+    const ArchitectureDefinition& definition() const {
+        return m_definition;
     }
-
-    // Meaningless for a Tier-3 builder, which ropes however it likes.
-    RopeMode rope_mode() const {
-        return m_rope;
+    RegistrationMode registration_mode() const {
+        return m_mode;
     }
-
-    bool rope_neox() const {
-        return m_rope == RopeMode::Neox;
-    }
-
-    bool verified() const {
-        return m_maturity == Maturity::Verified;
-    }
-
-    // True when this extension brings its own builder (Tier 3).
-    bool has_builder() const {
-        return static_cast<bool>(m_factory);
-    }
-
-    const BuilderFactory& builder_factory() const {
-        return m_factory;
-    }
-
-    // Whether this extension claims `meta`. True when it has no predicate and the file names this
-    // architecture, or when its predicate accepts.
-    bool matches(const GgufMetadata& meta) const;
-
-    // Apply the Tier-2 adjustments; a no-op when there are none.
-    void configure(DecoderConfig& config) const;
 
 private:
-    std::string m_architecture;
-    RopeMode m_rope = RopeMode::Normal;
-    Maturity m_maturity = Maturity::Experimental;
-    ConfigureFn m_configure;
-    BuilderFactory m_factory;
-    MatchFn m_match;
+    ArchitectureDefinition m_definition;
+    RegistrationMode m_mode;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

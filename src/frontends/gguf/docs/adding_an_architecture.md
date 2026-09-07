@@ -13,11 +13,11 @@ translators (`src/op/*.cpp`) run for both the native path and the llama.cpp cgra
 |---|---|---|
 | [`graph_emitter.hpp`](../src/builder/graph_emitter.hpp) | `add_op` / `add_input` / `add_weight` + shape & type bookkeeping | nothing about transformers |
 | [`blocks/`](../src/builder/blocks) | reusable graph fragments: `common` (norm/scale/bias), `ffn` (dense/GeGLU/MoE), `attention`, `gated_delta_net`, `qkv_repack` | a decoder layer |
-| [`decoder_config.hpp`](../dev_api/openvino/frontend/gguf/builder/decoder_config.hpp) | all per-architecture detection + per-layer accessors | one model's hyperparameters |
+| [`decoder_config.hpp`](../src/builder/decoder_config.hpp) | all per-architecture detection + per-layer accessors | one model's hyperparameters |
 | [`arch/decoder_builder.cpp`](../src/builder/arch/decoder_builder.cpp) | the order a decoder is assembled in | the whole decoder family |
-| [`arch_registry.cpp`](../src/builder/arch_registry.cpp) | which architectures are accepted, and their RoPE mode | names only |
-| [`model_kind.hpp`](../src/builder/model_kind.hpp) | which model *family* a file holds | raw metadata |
-| [`gguf_builder.cpp`](../src/builder/gguf_builder.cpp) | parse → detect family → dispatch to a `ModelBuilder` | the entry point |
+| [`arch_registry.cpp`](../src/builder/arch_registry.cpp) | which architectures are accepted, and their RoPE mode | architecture definitions |
+| [`model_kind.hpp`](../src/builder/model_kind.hpp) | family diagnosis for an unclaimed file | raw metadata |
+| [`gguf_builder.cpp`](../src/builder/gguf_builder.cpp) | parse → resolve definition → invoke its `ModelBuilder` | the entry point |
 
 A single generic `DecoderBuilder` covers the whole "llama family" of decoder-only transformers.
 This is deliberately **not** llama.cpp's one-file-per-architecture layout: llama.cpp needs that
@@ -26,38 +26,27 @@ the tensor table, so a same-family architecture costs zero lines of code.
 
 ## Two routes: in-tree, or an extension
 
-Everything below adds an architecture **to the frontend itself**, which means rebuilding it.
+Both routes use `ArchitectureDefinition`, the same factory, and the same conversion pipeline.
+An external library wraps its definition in `ArchitectureExtension`; the frontend registers that
+same definition in `builtin_architectures()`. See
+[porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md) for the SDK and the migration steps.
 
-An architecture can also be added **at runtime**, with no rebuild of the frontend or of OpenVINO, by
-registering an `ArchitectureExtension` -- including a non-decoder family, which the sections below
-cannot cover. That route is documented separately in
-[porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md), and it uses the same detection and the
-same builder, so an architecture can move between the two mechanically.
+## The 90% case: add a decoder definition
 
-Contribute in-tree when the architecture would benefit every user and belongs to a family already
-supported here; ship an extension when it is yours to maintain, or when you need it in a released
-OpenVINO you cannot rebuild.
-
-## The 90% case: add a name
-
-Most new architectures in the transformer family need **no code** — the builder auto-detects
-their structure from the GGUF tensor table and metadata. To enable one, add its
-`general.architecture` string to `verified_archs()` (or `experimental_archs()`) in
+For an existing decoder topology, add a row to the `decoders` catalog in
 [`arch_registry.cpp`](../src/builder/arch_registry.cpp):
 
 ```cpp
-const std::set<std::string>& experimental_archs() {
-    static const std::set<std::string> archs = {
-        "llama-embed", "exaone4", ...,
-        "your-arch",   // <-- add here
-    };
-    return archs;
-}
+{"your-arch", RopeMode::Neox, Maturity::Experimental},
 ```
 
-Then check whether RoPE is NEOX (rotate-halves) or NORMAL (rotate consecutive pairs) for the
-arch and, if NEOX, add it to `arch_uses_neox_rope()` in the same file (mirror
-`llama_model_rope_type` in llama.cpp). That is the whole change for a same-family arch.
+The catalog owns the architecture name, RoPE mode and maturity together. `verified_archs()` and
+`experimental_archs()` are derived views, not separate registration sites. Check the RoPE mode
+against the reference implementation.
+
+For an architecture requiring overrides, define it with `make_decoder_architecture` and a callback
+returning `DecoderOptions`, then add the definition to `builtin_architectures()`. The exact same
+function can be shipped externally. Overrides are applied before dependent configuration is resolved.
 
 ### What is auto-detected (no code needed)
 
@@ -127,7 +116,7 @@ To add such a feature:
 
 ## Adding a new model FAMILY (mmproj, audio, encoder-decoder)
 
-An architecture is data; a **family** is code. A family is a distinct graph shape with its own
+An architecture definition selects a builder; a **family** supplies its topology. A family is a distinct graph shape with its own
 inputs and its own notion of a layer — a vision/mmproj encoder and an audio encoder are each one,
 and neither is a causal decoder. Do **not** add flags to `DecoderConfig` for them.
 
@@ -137,19 +126,13 @@ audio encoder is added without touching anything here; see
 [porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md). The steps below are for a family that
 should ship in-tree; the builder itself is written the same way either way.
 
-Instead:
-
-1. Detect it in [`model_kind.cpp`](../src/builder/model_kind.cpp). mmproj files set
-   `general.architecture = "clip"` and carry `clip.has_vision_encoder` / `clip.has_audio_encoder`
-   (llama.cpp `tools/mtmd/clip-impl.h`), so `detect_model_kind()` already classifies them; the
-   check runs *before* any decoder hyperparameter is read, because those keys do not exist there.
-2. Add a metadata reader next to `decoder_config_from_meta()` for that family's key layout, and a
-   config struct next to `DecoderConfig`.
-3. Subclass [`ModelBuilder`](../dev_api/openvino/frontend/gguf/builder/model_builder.hpp) in `arch/`, reusing `GraphEmitter`
-   and `blocks/common`. A ViT needs its own attention — non-causal, no KV cache, no RoPE — so it
-   will not reuse `blocks::attention`; this is the same split llama.cpp makes between
-   `llm_graph_context` and `clip_graph`.
-4. Add a branch in `build_ggml_graph_from_gguf()`.
+1. Implement a `ModelBuilder` with the generic `GgufGraphContext` SDK. A non-decoder reads its
+   own metadata and does not call `configure_decoder`.
+2. Return an `ArchitectureDefinition` with a unique handler id, GGUF architecture name, factory,
+   and optional metadata predicate. Predicates distinguish, for example, vision and audio files
+   that both name themselves `clip`.
+3. Add that definition to `builtin_architectures()` in `arch_registry.cpp`. Family detection is
+   only a diagnostic fallback when no definition matches; no new dispatch branch is needed.
 
 Nothing in the decoder family changes.
 

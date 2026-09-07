@@ -11,8 +11,8 @@
 
 #include "builder/arch_registry.hpp"
 #include "builder/blocks/attention.hpp"
+#include "builder/decoder_config.hpp"
 #include "builder/graph_emitter.hpp"
-#include "openvino/frontend/gguf/builder/decoder_config.hpp"
 #include "openvino/frontend/gguf/builder/model_builder.hpp"
 #include "quant/gguf.hpp"
 
@@ -35,14 +35,11 @@ namespace gguf {
 // OpenVINO KV cache registers ov::frontend::gguf::pass::MakeStateful as a transformation extension.
 class DecoderBuilder : public ModelBuilder {
 public:
-    // `registry` supplies the per-architecture facts that are not in the file: the RoPE mode, and
-    // any configuration hook a registered ArchitectureExtension wants to apply to the
-    // auto-detected DecoderConfig. Defaulted so a caller that only wants the built-in
-    // architectures -- a test constructing this directly -- need not thread one through.
     DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
                    std::unordered_map<std::string, ov::Tensor>& weights,
                    std::unordered_map<std::string, GgufTensorType>& qtypes,
-                   const ArchRegistry& registry = default_arch_registry());
+                   std::optional<RopeMode> rope = {},
+                   const DecoderOptions& options = {});
 
     std::shared_ptr<GgufGraph> build() override;
 

@@ -15,68 +15,6 @@ namespace gguf {
 
 class GgufGraphContext;
 
-// The weights of one decoder layer, named exactly as in llama.cpp's `llama_layer`.
-//
-// The field names are the point of this struct. A llama.cpp model file addresses weights as
-// `model.layers[il].attn_norm`; the GGUF frontend addresses them by their on-disk string name,
-// "blk.<il>.attn_norm.weight". Mirroring llama_layer's spelling turns that difference into a
-// mechanical prefix substitution (`model.layers[il].` -> `ctx.layer(il).`) instead of a rewrite,
-// which is what keeps a port of an upstream model file small enough to review against its original.
-//
-// Every field is a GgufValue, EMPTY when the file has no such tensor -- so llama.cpp's null-tensor
-// idiom (`build_norm(cur, layer.attn_norm, NULL, ...)`, `layer.bq ? ... : ...`) ports unchanged.
-// Looking a weight up also emits it into the graph, once; repeated lookups of the same weight are
-// deduplicated, so a port may read a field as many times as the original does.
-struct GGUF_FRONTEND_API LayerTensors {
-    // attention: norms
-    GgufValue attn_norm;
-    GgufValue attn_norm_2;
-    GgufValue attn_q_norm;
-    GgufValue attn_k_norm;
-    GgufValue attn_post_norm;
-
-    // attention: projections and their biases
-    GgufValue wq;
-    GgufValue wk;
-    GgufValue wv;
-    GgufValue wo;
-    GgufValue wqkv;  // fused QKV (phi-3, minicpm)
-    GgufValue bq;
-    GgufValue bk;
-    GgufValue bv;
-    GgufValue bo;
-    GgufValue bqkv;
-
-    // attention: sinks (gpt-oss) and output gate (muse-glimmer)
-    GgufValue attn_sinks;
-    GgufValue wqkv_gate;
-
-    // feed-forward: norms
-    GgufValue ffn_norm;
-    GgufValue ffn_post_norm;
-
-    // feed-forward: dense projections and their biases
-    GgufValue ffn_gate;
-    GgufValue ffn_up;
-    GgufValue ffn_down;
-    GgufValue ffn_gate_b;
-    GgufValue ffn_up_b;
-    GgufValue ffn_down_b;
-
-    // feed-forward: MoE routing and experts
-    GgufValue ffn_gate_inp;
-    GgufValue ffn_gate_inp_b;
-    GgufValue ffn_gate_exps;
-    GgufValue ffn_up_exps;
-    GgufValue ffn_down_exps;
-    GgufValue ffn_exp_probs_b;
-
-    // feed-forward: always-active shared experts
-    GgufValue ffn_gate_shexp;
-    GgufValue ffn_up_shexp;
-    GgufValue ffn_down_shexp;
-};
-
 // Lookup of a model's weights by GGUF tensor name, as a llama.cpp model file addresses them.
 //
 // A lookup EMITS the weight into the graph (as the GGML_OP_NONE leaf the translators expect) and
@@ -105,10 +43,6 @@ public:
 
     // Weight of layer `il` by suffix: layer(3, "attn_norm.weight") -> "blk.3.attn_norm.weight".
     GgufValue layer(int il, const std::string& suffix) const;
-
-    // All of layer `il`'s weights, named as in llama.cpp's llama_layer. Absent tensors are empty
-    // values. Emits only the tensors the file actually has.
-    LayerTensors layer(int il) const;
 
 private:
     GgufGraphContext* m_ctx;

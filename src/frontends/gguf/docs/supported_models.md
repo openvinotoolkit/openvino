@@ -58,11 +58,11 @@ The builder's accept-list is the union of two sets, both defined in
 - **`verified_archs()`** — convert + compile + generation checked against a reference on a
   real checkpoint.
 - **`experimental_archs()`** — expected to work via the builder's GGUF-tensor-table
-  auto-detection, but not end-to-end verified. These convert and emit a one-time
-  `OPENVINO_WARN` so callers know they are best-effort.
+  auto-detection, but not end-to-end verified. These convert and emit a
+  warning through `OPENVINO_WARN` so callers know they are best-effort.
 
-Anything not in either set is rejected with an explicit `OPENVINO_ASSERT` at load time
-rather than converting into a silently wrong graph.
+Without additional architecture registrations, names outside these sets are rejected at load
+time. External definitions and custom-family catalog entries extend the same registry.
 
 ### `verified_archs()` — 11 architectures
 
@@ -104,10 +104,9 @@ rather than converting into a silently wrong graph.
 | `gemma` | Gemma 2B / 7B. Demoted: throws through the builder (see below) |
 | `gemma2` | post-norms + attention soft-cap. Demoted: degenerate output through the builder |
 
-RoPE flavor is **not** in these tables because it is a separate switch: archs listed in
-`arch_uses_neox_rope()` use NEOX (rotate-halves), everything else uses NORMAL (rotate
-consecutive pairs). Adding an arch to the accept-list without also classifying its RoPE is
-the most common way to get a model that loads and produces garbage.
+The decoder catalog stores each architecture name, RoPE mode, and maturity together.
+`arch_uses_neox_rope()` is a derived lookup; `qwen35` uses interleaved multimodal RoPE.
+Classify the mode against a reference before registering a new architecture.
 
 ### Measured status through OpenVINO GenAI
 
@@ -160,8 +159,8 @@ That leaves **4 architectures that generate correctly under llama.cpp but not th
 builder** — `qwen3moe`, `gemma2`, `exaone4` and `ernie4_5-moe` (blank output) —
 i.e. real conversion defects, plus `gemma`, which throws instead of converting cleanly.
 `qwen3moe`, `gemma2` and `gemma` were previously misclassified as
-`verified_archs()`; they have been moved to `experimental_archs()` (and now emit the one-time
-`OPENVINO_WARN`) until the underlying defects are fixed and re-verified.
+`verified_archs()`; they have been moved to `experimental_archs()` (and now emit a
+warning through `OPENVINO_WARN`) until the underlying defects are fixed and re-verified.
 
 **`qwen35` is greedy / batch-1 only.** The recurrent conv and delta states are a single
 static-shaped block with no batch axis, and `MakeStateful` does not reorder them by `beam_idx` the
@@ -198,6 +197,5 @@ Support for a new architecture is a combination of:
 
 For the native builder specifically, see
 [`adding_an_architecture.md`](adding_an_architecture.md) — for a same-family arch the change
-is usually just adding the name to `experimental_archs()` plus the `arch_uses_neox_rope()`
-classification, and promotion to `verified_archs()` should require the GenAI-vs-llama.cpp
-comparison above.
+is usually adding a decoder-catalog entry with its name, RoPE mode and experimental maturity.
+Promotion to verified maturity should require the GenAI-vs-llama.cpp comparison above.

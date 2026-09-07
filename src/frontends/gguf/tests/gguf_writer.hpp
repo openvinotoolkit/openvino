@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -53,7 +54,7 @@ public:
 
     // Declare a tensor. `dims` is in GGUF on-disk order (fastest-varying first), as the format
     // stores it -- the reverse of the OpenVINO shape it becomes.
-    void tensor(const std::string& name, const std::vector<uint64_t>& dims) {
+    void tensor(const std::string& name, const std::vector<uint64_t>& dims, const std::vector<float>& values = {}) {
         put_str(m_ti, name);
         put(m_ti, static_cast<uint32_t>(dims.size()));
         for (auto d : dims) {
@@ -71,6 +72,12 @@ public:
         if (const uint64_t rem = bytes % kAlignment) {
             bytes += kAlignment - rem;
         }
+        if (!values.empty() && values.size() != n)
+            throw std::invalid_argument("tensor payload size mismatch");
+        const auto offset = m_data.size();
+        m_data.resize(offset + bytes, 0);
+        if (!values.empty())
+            std::memcpy(m_data.data() + offset, values.data(), n * sizeof(float));
         m_data_size += bytes;
         ++m_n_tensors;
     }
@@ -95,13 +102,7 @@ public:
             const std::vector<char> pad(kAlignment - rem, 0);
             out.write(pad.data(), static_cast<std::streamsize>(pad.size()));
         }
-        const std::vector<char> zeros(64 * 1024, 0);
-        uint64_t remaining = m_data_size;
-        while (remaining > 0) {
-            const uint64_t chunk = std::min<uint64_t>(remaining, zeros.size());
-            out.write(zeros.data(), static_cast<std::streamsize>(chunk));
-            remaining -= chunk;
-        }
+        out.write(m_data.data(), static_cast<std::streamsize>(m_data.size()));
         return static_cast<bool>(out);
     }
 
@@ -129,6 +130,7 @@ private:
 
     std::vector<char> m_kv;
     std::vector<char> m_ti;
+    std::vector<char> m_data;
     uint64_t m_n_kv = 0;
     uint64_t m_n_tensors = 0;
     uint64_t m_data_size = 0;

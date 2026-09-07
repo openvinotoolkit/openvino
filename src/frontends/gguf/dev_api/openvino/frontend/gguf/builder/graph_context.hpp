@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "openvino/core/any.hpp"
-#include "openvino/frontend/gguf/builder/hparams.hpp"
+#include "openvino/frontend/gguf/builder/decoder_options.hpp"
 #include "openvino/frontend/gguf/builder/model_builder.hpp"
 #include "openvino/frontend/gguf/builder/tensor_table.hpp"
 #include "openvino/frontend/gguf/builder/value.hpp"
@@ -21,42 +21,9 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-// Activation of a gated feed-forward block, matching llama.cpp's llm_ffn_op_type.
-enum class FfnOp {
-    Silu,  // SwiGLU (llama, qwen, phi3, ...)
-    Gelu,  // GeGLU  (gemma)
-    Relu,
-};
-
-// Optional inputs of an attention block that only some architectures carry.
-struct GGUF_FRONTEND_API AttnOptions {
-    // Per-head sink logit, the 5th FLASH_ATTN_EXT input (gpt-oss).
-    GgufValue sinks;
-    // Which mask input to attend against. Sliding-window layers use "self_kq_mask_swa".
-    std::string mask = "self_kq_mask";
-    // Attention logit soft-cap (gemma2); 0 disables.
-    float kq_soft_cap = 0.0f;
-};
-
-// The graph-building vocabulary an extension writes a model against: the port target for a
-// llama.cpp `src/models/<arch>.cpp` file, and the counterpart of its `llm_graph_context`.
-//
-// Two levels are available, and a port normally uses both:
-//
-//   * the ggml op vocabulary (add, mul_mat, rope_ext, reshape, ...), which mirrors the `ggml_*`
-//     calls a model file makes directly. Unlike raw ggml these INFER each op's output shape from
-//     its inputs, which is what removes the shape bookkeeping that would otherwise dominate a port.
-//
-//   * the `build_*` blocks (build_norm, build_ffn, build_attn, ...), which mirror the
-//     llm_graph_context methods and expand to the same multi-op subgraphs llama.cpp's do.
-//
-// Anything not covered by either is reachable through raw_op(), which appends a node in the GGML
-// op vocabulary directly. Pair it with an ov::frontend::ConversionExtension when the op is one the
-// frontend does not yet translate: the two extension types compose, so a genuinely new operation
-// does not require a frontend change either.
-//
-// Shapes are carried in the OpenVINO/GGML logical order [ne3, ne2, ne1, ne0], the reverse of
-// ggml's ne[] indexing; GgufValue::ne() reads them back in ggml order.
+// Generic graph operations and adapters to the frontend's shared decoder blocks. This API uses
+// GGML operand order and reversed dimension order; it is not a clone of llama.cpp's graph API.
+// Built-in and external architectures use the same metadata resolver and decoder blocks.
 class GGUF_FRONTEND_API GgufGraphContext {
 public:
     explicit GgufGraphContext(const BuildContext& ctx);
@@ -67,17 +34,14 @@ public:
 
     // ---- what is being built ----
     const GgufMetadata& metadata() const;
-    const GgufHparams& hparams() const;
+    // Resolve decoder metadata once, before building decoder blocks. Non-decoder families never
+    // need this. Options are validated before derived plans and model metadata are computed.
+    DecoderDimensions configure_decoder(RopeMode rope, const DecoderOptions& options = {});
+    DecoderLayerParameters decoder_layer_parameters(int layer) const;
+    GgufValue decoder_attention(int layer, const GgufValue& normalized_input);
+    GgufValue decoder_ffn(int layer, const GgufValue& normalized_input);
     const std::string& arch() const;
     GgufTensors tensors();
-
-    // Representative token count used for per-node output shapes.
-    //
-    // Per-node shapes are STATIC, as in the llama.cpp cgraph path, which builds its graph for one
-    // concrete token length. The real dynamic-ness lives in the model's input Parameters; this
-    // value only feeds each node's shape metadata, which translators consult. A port that would
-    // write `n_tokens` in llama.cpp writes this.
-    int64_t n_tokens() const;
 
     // ---- model inputs ----
     // Token embedding lookup: GET_ROWS(tok_embd, inp_tokens). Creates "inp_tokens" on first use.
@@ -115,7 +79,11 @@ public:
     GgufValue sqrt(const GgufValue& x);
     // Reshape to an explicit shape, given in ggml ne order (fastest-varying dimension first),
     // so a ported `ggml_reshape_3d(ctx, cur, a, b, c)` becomes `reshape(cur, {a, b, c})`.
+    // A -1 denotes an inferred dimension. No attention layout is inferred from the target rank.
     GgufValue reshape(const GgufValue& x, const std::vector<int64_t>& ne);
+    // Explicit decoder layout operations preserve a dynamic token axis and the leading batch.
+    GgufValue split_heads(const GgufValue& x, int64_t heads, int64_t head_size);
+    GgufValue merge_heads(const GgufValue& x);
     GgufValue cont(const GgufValue& x);
     GgufValue transpose(const GgufValue& x);
     // Reorder axes. `perm` is given in the shape's own [ne3, ne2, ne1, ne0] axis numbering (axis 3
@@ -141,7 +109,7 @@ public:
                      int op_case = 0,
                      const std::map<std::string, ov::Any>& attrs = {});
 
-    // ---- llm_graph_context-style blocks ----
+    // ---- normalization blocks ----
 
     // RMS norm, optionally scaled by `w` (pass an empty value for llama.cpp's NULL weight, which
     // means a plain normalization with no multiplicative term).
@@ -149,54 +117,20 @@ public:
     // LayerNorm with optional weight and bias.
     GgufValue build_norm_ln(const GgufValue& cur, const GgufValue& w, const GgufValue& b, float eps);
 
-    // Gated feed-forward network. `gate` may be empty, which selects the ungated
-    // (up -> activation -> down) form; each bias may be empty.
-    GgufValue build_ffn(const GgufValue& cur,
-                        const GgufValue& up,
-                        const GgufValue& up_b,
-                        const GgufValue& gate,
-                        const GgufValue& gate_b,
-                        const GgufValue& down,
-                        const GgufValue& down_b,
-                        FfnOp op);
-
-    // Attention over an explicit Q/K/V, with the KV cache store, the attention itself and the
-    // output projection -- the port of llm_graph_context::build_attn.
-    //
-    // Q/K/V arrive in ggml's natural [n_tokens, n_head(_kv), head_size] layout, exactly as the
-    // preceding reshape/rope in a ported model file leaves them. Returns the sublayer output
-    // before the residual add, as llama.cpp's build_attn does.
-    GgufValue build_attn(int il,
-                         const GgufValue& q,
-                         const GgufValue& k,
-                         const GgufValue& v,
-                         const GgufValue& wo,
-                         const GgufValue& wo_b,
-                         float kq_scale,
-                         const AttnOptions& opts = {});
-
-    // Matrix multiply against a model weight; the port of build_lora_mm (no LoRA here, so it is
-    // mul_mat, spelled the way a model file spells it).
-    GgufValue build_lora_mm(const GgufValue& w, const GgufValue& cur);
-
-    // Name a value, for readable graphs and diagnostics. The port of llama.cpp's cb(); ignoring
-    // the layer index is fine, it only ever fed debug output.
-    void cb(const GgufValue& v, const std::string& name, int il = -1);
-
     // ---- finishing ----
     // Mark `logits` as the model's output. The port of `res->t_logits = cur` plus
     // ggml_build_forward_expand.
     void set_output(const GgufValue& logits);
-    // The finished graph. Call once, last.
+    // Model contracts used by the existing normalization passes.
+    void set_sliding_window(int64_t tokens);
+    // Registers an overwritten state, automatically marking the update as a model output.
+    void add_recurrent_state(const GgufValue& input, const GgufValue& update);
+    // Validate and seal the finished graph. Call once, last.
     std::shared_ptr<GgufGraph> finish();
 
-    // Internal: used by GgufTensors to emit a weight leaf on lookup.
-    struct Impl;
-    Impl& impl() {
-        return *m_impl;
-    }
-
 private:
+    friend class GgufTensors;
+    struct Impl;
     std::unique_ptr<Impl> m_impl;
 };
 

@@ -1,23 +1,18 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Implementation of the extension-facing graph-building vocabulary.
-//
-// This is a FACADE over GraphEmitter, not a second builder: it adds the two things a ported
-// llama.cpp model file needs and the internal string-based API deliberately does not have --
-// value handles that carry shape and type, and per-op output-shape inference -- and then emits
-// exactly the same GGML-vocabulary nodes the in-tree builder emits. The in-tree blocks/ keep their
-// own string-based API; nothing here is on their path.
-//
-// Ground truth for each block's expansion is llama.cpp's llm_graph_context (build_norm, build_ffn,
-// build_attn) and, for the KV-cache store, the SET_ROWS/VIEW pattern in blocks/attention.cpp,
-// which this must match node-for-node so a ported architecture converts to the same graph as the
-// built-in path.
+// Generic graph operations and adapters to the shared native decoder blocks.
 
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
+#include <set>
 
+#include "builder/blocks/common.hpp"
+#include "builder/blocks/ffn.hpp"
+#include "builder/blocks/gated_delta_net.hpp"
 #include "builder/sdk/graph_context_impl.hpp"
 
 namespace ov {
@@ -39,9 +34,7 @@ constexpr int64_t D = -1;
 // every tensor being nominally 4D with trailing 1s in ne[] order. Shape inference below indexes
 // positionally, so it needs every operand at the same rank.
 ov::PartialShape to4d(const ov::PartialShape& s) {
-    if (s.rank().is_dynamic()) {
-        return s;
-    }
+    OPENVINO_ASSERT(s.rank().is_static(), "[GGUF] tensor rank must be known");
     const size_t r = s.size();
     OPENVINO_ASSERT(r <= 4, "[GGUF] builder SDK: shape of rank ", r, " exceeds ggml's 4 dimensions");
     std::vector<ov::Dimension> dims(4 - r, ov::Dimension(1));
@@ -51,8 +44,9 @@ ov::PartialShape to4d(const ov::PartialShape& s) {
 
 }  // namespace
 
-GgufGraphContext::GgufGraphContext(const BuildContext& ctx) : m_impl(std::make_unique<Impl>(ctx)) {
+GgufGraphContext::GgufGraphContext(const BuildContext& ctx) {
     OPENVINO_ASSERT(ctx.weights, "[GGUF] builder SDK: BuildContext has no weight table");
+    m_impl = std::make_unique<Impl>(ctx);
 }
 
 GgufGraphContext::~GgufGraphContext() = default;
@@ -61,8 +55,59 @@ const GgufMetadata& GgufGraphContext::metadata() const {
     return m_impl->build_ctx.metadata;
 }
 
-const GgufHparams& GgufGraphContext::hparams() const {
-    return m_impl->hparams;
+DecoderDimensions GgufGraphContext::configure_decoder(RopeMode rope, const DecoderOptions& options) {
+    m_impl->check_open();
+    OPENVINO_ASSERT(!m_impl->decoder, "[GGUF] decoder is already configured");
+    auto normalized = decoder_config_from_meta(detail::MetadataAccess::get(metadata()).map);
+    auto config = std::make_unique<DecoderConfig>(detail::DecoderMeta{normalized},
+                                                  m_impl->build_ctx.weights->weights,
+                                                  rope,
+                                                  options);
+    auto& graph = *m_impl->emitter.graph();
+    graph.has_rope = true;
+    graph.rope_config = config->rope_config;
+    graph.use_per_op_rope = config->use_per_op_rope;
+    graph.swa_window_size = config->swa_window_size;
+    const DecoderDimensions dimensions{config->n_layer, config->n_embd, config->rms_eps};
+    m_impl->kv = blocks::KvCachePlan::build(*config);
+    m_impl->decoder = std::move(config);
+    return dimensions;
+}
+
+DecoderLayerParameters GgufGraphContext::decoder_layer_parameters(int layer) const {
+    m_impl->check_layer(layer);
+    const auto& cfg = *m_impl->decoder;
+    return {cfg.n_head,
+            cfg.layer_n_head_kv(layer),
+            cfg.layer_head_size(layer),
+            cfg.layer_kq_scale(layer),
+            cfg.layer_rope_config(layer),
+            cfg.layer_is_swa(layer),
+            cfg.is_recurrent_layer(layer)};
+}
+
+GgufValue GgufGraphContext::decoder_attention(int layer, const GgufValue& input) {
+    m_impl->check_layer(layer);
+    OPENVINO_ASSERT(input, "[GGUF] decoder attention requires a normalized input");
+    const auto& cfg = *m_impl->decoder;
+    auto& emitter = m_impl->emitter;
+    const auto output = cfg.is_recurrent_layer(layer)
+                            ? blocks::gated_delta_net(emitter, cfg, layer, input.name(), Impl::T)
+                            : blocks::attention(emitter, cfg, m_impl->kv, layer, input.name(), Impl::T);
+    return GgufValue(output, input.shape(), emitter.type_of_tensor(output));
+}
+
+GgufValue GgufGraphContext::decoder_ffn(int layer, const GgufValue& input) {
+    m_impl->check_layer(layer);
+    OPENVINO_ASSERT(input, "[GGUF] decoder FFN requires a normalized input");
+    const auto& cfg = *m_impl->decoder;
+    auto& emitter = m_impl->emitter;
+    const auto prefix = "blk." + std::to_string(layer) + ".";
+    const auto output = cfg.is_moe && layer >= cfg.n_dense_lead
+                            ? blocks::moe_ffn(emitter, cfg, prefix, input.name(), Impl::T)
+                        : cfg.is_geglu ? blocks::geglu_ffn(emitter, cfg, prefix, input.name(), Impl::T)
+                                       : blocks::dense_ffn(emitter, cfg, prefix, input.name(), Impl::T);
+    return GgufValue(output, input.shape(), emitter.type_of_tensor(output));
 }
 
 const std::string& GgufGraphContext::arch() const {
@@ -73,14 +118,18 @@ GgufTensors GgufGraphContext::tensors() {
     return GgufTensors(*this);
 }
 
-int64_t GgufGraphContext::n_tokens() const {
-    return Impl::T;
-}
-
 // ---- model inputs ----
 
 GgufValue GgufGraphContext::add_input(const std::string& name, ov::element::Type type, const ov::PartialShape& shape) {
+    m_impl->check_open();
+    OPENVINO_ASSERT(shape.rank().is_static() && shape.size() <= 4, "[GGUF] input rank must be known and at most four");
     auto& e = m_impl->emitter;
+    if (e.has_model_input(name)) {
+        const auto& previous = e.graph()->model_inputs.at(name);
+        OPENVINO_ASSERT(previous->get_output_partial_shape(0) == shape && previous->get_output_element_type(0) == type,
+                        "[GGUF] conflicting declarations for input ",
+                        name);
+    }
     if (!e.has_model_input(name)) {
         e.add_input(name, type, shape);
     }
@@ -93,7 +142,7 @@ GgufValue GgufGraphContext::add_input(const std::string& name, ov::element::Type
         }
     }
     e.set_tensor_meta(name, meta, type);
-    return GgufValue(name, meta, type);
+    return GgufValue(name, shape, type);
 }
 
 GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
@@ -112,10 +161,11 @@ GgufValue GgufGraphContext::build_inp_out_ids() {
 
 void GgufGraphContext::build_attn_inp_kv(bool swa) {
     add_input("self_kq_mask", f32, ov::PartialShape({1, 1, D, D}));
-    if (swa) {
+    if (swa || (m_impl->decoder && m_impl->decoder->has_swa)) {
         add_input("self_kq_mask_swa", f32, ov::PartialShape({1, 1, D, D}));
     }
     add_input("inp_kv_idx", i32, ov::PartialShape({1, 1, 1, D}));
+    add_input("token_len_per_seq", i64, ov::PartialShape({1}));
 }
 
 // ---- ggml op vocabulary ----
@@ -220,19 +270,36 @@ GgufValue GgufGraphContext::reshape(const GgufValue& x, const std::vector<int64_
     std::vector<int64_t> dims(ne.rbegin(), ne.rend());
     const ov::PartialShape out = to4d(ov::PartialShape(dims));
 
-    // The RESHAPE translator has one case per layout change rather than a general reshape, so pick
-    // the one this target expresses. The two that matter in a transformer are the head split and
-    // its inverse, which are also the only two that must keep the token axis dynamic:
-    //   3 ggml dims {head_size, n_head, n_tokens} -- split a projection into heads   (case 1)
-    //   2 ggml dims {n_head*head_size, n_tokens}  -- merge the heads back            (case 2)
-    // Anything else is a fully static reshape (case 7).
-    int op_case = 7;
-    if (ne.size() == 3) {
-        op_case = 1;
-    } else if (ne.size() == 2) {
-        op_case = 2;
-    }
-    return m_impl->emit("GGML_OP_RESHAPE", {x}, out, x.type(), op_case);
+    OPENVINO_ASSERT(std::count(ne.begin(), ne.end(), -1) <= 1 && std::all_of(ne.begin(),
+                                                                             ne.end(),
+                                                                             [](int64_t d) {
+                                                                                 return d > 0 || d == -1;
+                                                                             }),
+                    "[GGUF] reshape dimensions must be positive, with at most one inferred dimension");
+    dims.insert(dims.begin(), 4 - dims.size(), 1);
+    return m_impl->emit("GGML_OP_RESHAPE", {x}, out, x.type(), 6, {{"reshape_target", dims}});
+}
+
+GgufValue GgufGraphContext::split_heads(const GgufValue& x, int64_t heads, int64_t head_size) {
+    OPENVINO_ASSERT(heads > 0 && head_size > 0, "[GGUF] head dimensions must be positive");
+    const auto shape = to4d(x.shape());
+    return m_impl->emit("GGML_OP_RESHAPE",
+                        {x},
+                        {shape[0], shape[2], heads, head_size},
+                        x.type(),
+                        1,
+                        {{"preserve_dynamic_layout", true}});
+}
+
+GgufValue GgufGraphContext::merge_heads(const GgufValue& x) {
+    const auto shape = to4d(x.shape());
+    OPENVINO_ASSERT(shape[2].is_static() && shape[3].is_static(), "[GGUF] head dimensions must be static");
+    return m_impl->emit("GGML_OP_RESHAPE",
+                        {x},
+                        {shape[0], 1, shape[1], shape[2] * shape[3]},
+                        x.type(),
+                        2,
+                        {{"preserve_dynamic_layout", true}});
 }
 
 GgufValue GgufGraphContext::cont(const GgufValue& x) {
@@ -244,6 +311,7 @@ GgufValue GgufGraphContext::cont(const GgufValue& x) {
 
 GgufValue GgufGraphContext::permute(const GgufValue& x, const std::vector<int64_t>& perm) {
     OPENVINO_ASSERT(perm.size() == 4, "[GGUF] permute: expected 4 axes");
+    OPENVINO_ASSERT(std::set<int64_t>(perm.begin(), perm.end()).size() == 4, "[GGUF] permute axes must be unique");
     const auto s = to4d(x.shape());
     std::vector<ov::Dimension> dims;
     dims.reserve(4);
@@ -279,6 +347,11 @@ GgufValue GgufGraphContext::rope_ext(const GgufValue& x,
                                      const GgufValue& freq_factors,
                                      const RopeConfig& cfg,
                                      int rope_op_case) {
+    m_impl->check_open();
+    auto& graph = *m_impl->emitter.graph();
+    graph.has_rope = true;
+    graph.use_per_op_rope = true;
+    graph.rope_config.is_imrope |= ((rope_op_case >> 16) == 2);
     std::vector<GgufValue> inputs{x, positions};
     if (freq_factors) {
         inputs.push_back(freq_factors);
@@ -298,12 +371,12 @@ GgufValue GgufGraphContext::raw_op(const std::string& op_type,
 // ---- llm_graph_context-style blocks ----
 
 GgufValue GgufGraphContext::build_norm(const GgufValue& cur, const GgufValue& w, float eps) {
-    auto out = rms_norm(cur, eps);
-    // A NULL weight in llama.cpp means a plain normalization with no multiplicative term.
-    if (w) {
-        out = mul(out, w);
-    }
-    return out;
+    m_impl->check_open();
+    OPENVINO_ASSERT(cur, "[GGUF] normalization requires an input");
+    if (!w)
+        return rms_norm(cur, eps);
+    const auto out = blocks::rms_norm(m_impl->emitter, cur.name(), w.name(), m_impl->fresh("norm"), eps);
+    return GgufValue(out, cur.shape(), m_impl->emitter.type_of_tensor(out));
 }
 
 GgufValue GgufGraphContext::build_norm_ln(const GgufValue& cur, const GgufValue& w, const GgufValue& b, float eps) {
@@ -317,168 +390,58 @@ GgufValue GgufGraphContext::build_norm_ln(const GgufValue& cur, const GgufValue&
     return out;
 }
 
-GgufValue GgufGraphContext::build_ffn(const GgufValue& cur,
-                                      const GgufValue& up,
-                                      const GgufValue& up_b,
-                                      const GgufValue& gate,
-                                      const GgufValue& gate_b,
-                                      const GgufValue& down,
-                                      const GgufValue& down_b,
-                                      FfnOp op) {
-    OPENVINO_ASSERT(up, "[GGUF] build_ffn: the up projection is required");
-    OPENVINO_ASSERT(down, "[GGUF] build_ffn: the down projection is required");
-
-    auto tmp = mul_mat(up, cur);
-    if (up_b) {
-        tmp = add(tmp, up_b);
-    }
-
-    GgufValue activated;
-    if (gate) {
-        // Gated (parallel) form: activation on the gate branch, multiplied into the up branch.
-        auto g = mul_mat(gate, cur);
-        if (gate_b) {
-            g = add(g, gate_b);
-        }
-        switch (op) {
-        case FfnOp::Silu:
-            g = silu(g);
-            break;
-        case FfnOp::Gelu:
-            g = gelu(g);
-            break;
-        case FfnOp::Relu:
-            g = relu(g);
-            break;
-        }
-        activated = mul(g, tmp);
-    } else {
-        switch (op) {
-        case FfnOp::Silu:
-            activated = silu(tmp);
-            break;
-        case FfnOp::Gelu:
-            activated = gelu(tmp);
-            break;
-        case FfnOp::Relu:
-            activated = relu(tmp);
-            break;
-        }
-    }
-
-    auto out = mul_mat(down, activated);
-    if (down_b) {
-        out = add(out, down_b);
-    }
-    return out;
-}
-
-GgufValue GgufGraphContext::build_attn(int il,
-                                       const GgufValue& q,
-                                       const GgufValue& k,
-                                       const GgufValue& v,
-                                       const GgufValue& wo,
-                                       const GgufValue& wo_b,
-                                       float kq_scale,
-                                       const AttnOptions& opts) {
-    auto& e = m_impl->emitter;
-    auto& graph = *e.graph();
-    const int64_t T = Impl::T;
-
-    // Q/K/V arrive ggml-natural: [1, n_tokens, n_head(_kv), head_size].
-    const auto kq = to4d(k.shape());
-    const auto qs = to4d(q.shape());
-    OPENVINO_ASSERT(kq[2].is_static() && kq[3].is_static() && qs[2].is_static(),
-                    "[GGUF] build_attn: Q/K must have a static head count and head size; "
-                    "reshape them to [n_tokens, n_head, head_size] first");
-    const int64_t n_head_kv = kq[2].get_length();
-    const int64_t head_size = kq[3].get_length();
-    const int64_t n_head = qs[2].get_length();
-
-    // ---- KV cache store ----
-    // Per-layer f16 cache Parameters, written through by SET_ROWS. The frontend lowers SET_ROWS to
-    // a stateless ScatterUpdate; a caller that registers the MakeStateful transformation extension
-    // gets a real OpenVINO state instead. Both need the updated cache to be a model output.
-    const std::string kc = "cache_k_l" + std::to_string(il);
-    const std::string vc = "cache_v_l" + std::to_string(il);
-    const ov::PartialShape cache_shape({1, D, n_head_kv, head_size});
-    const ov::PartialShape cache_meta({1, T, n_head_kv, head_size});
-    if (!e.has_model_input(kc)) {
-        e.add_input(kc, f16, cache_shape);
-        e.add_input(vc, f16, cache_shape);
-    }
-    e.set_tensor_meta(kc, cache_meta, f16);
-    e.set_tensor_meta(vc, cache_meta, f16);
-
-    OPENVINO_ASSERT(e.has_model_input("inp_kv_idx"),
-                    "[GGUF] build_attn: the attention inputs are not declared; "
-                    "call build_attn_inp_kv() before the layer loop");
-
-    e.add_op("GGML_OP_SET_ROWS", kc, {k.name(), "inp_kv_idx", kc}, cache_meta, f16);
-    e.add_op("GGML_OP_SET_ROWS", vc, {v.name(), "inp_kv_idx", vc}, cache_meta, f16);
-    graph.model_output_names.push_back(kc);
-    graph.model_output_names.push_back(vc);
-
-    const GgufValue k_cache(kc, cache_meta, f16);
-    const GgufValue v_cache(vc, cache_meta, f16);
-
-    // ---- attention ----
-    // Q/K/V stay ggml-natural here: the permute to [1, n_head, n_tokens, head_size] happens inside
-    // the FLASH_ATTN translator, AFTER the GQA broadcast of K/V. That order (concat -> tile ->
-    // single transpose -> SDPA) is what lets the CPU plugin fuse the whole thing into
-    // ScaledDotProductAttentionWithKVCache, so op_case 100 (the builder layout) matters.
-    std::vector<GgufValue> attn_in{q, k_cache, v_cache};
-    const std::string mask = opts.mask;
-    OPENVINO_ASSERT(e.has_model_input(mask),
-                    "[GGUF] build_attn: mask input '",
-                    mask,
-                    "' is not declared; pass swa=true to build_attn_inp_kv() for a sliding-window mask");
-    attn_in.emplace_back(mask, e.shape_of_tensor(mask), e.type_of_tensor(mask));
-    if (opts.sinks) {
-        attn_in.push_back(opts.sinks);
-    }
-
-    std::map<std::string, ov::Any> attrs{{"scale", kq_scale}};
-    if (opts.kq_soft_cap != 0.0f) {
-        attrs["kq_soft_cap"] = opts.kq_soft_cap;
-    }
-    auto attn = m_impl->emit("GGML_OP_FLASH_ATTN_EXT",
-                             attn_in,
-                             ov::PartialShape({1, T, n_head, head_size}),
-                             f32,
-                             100,
-                             std::move(attrs));
-
-    // Merge the heads back: [1, 1, n_tokens, n_head*head_size].
-    auto merged = m_impl->emit("GGML_OP_RESHAPE", {attn}, ov::PartialShape({1, 1, T, n_head * head_size}), f32, 2);
-
-    if (!wo) {
-        return merged;
-    }
-    auto out = mul_mat(wo, merged);
-    if (wo_b) {
-        out = add(out, wo_b);
-    }
-    return out;
-}
-
-GgufValue GgufGraphContext::build_lora_mm(const GgufValue& w, const GgufValue& cur) {
-    return mul_mat(w, cur);
-}
-
-void GgufGraphContext::cb(const GgufValue&, const std::string&, int) {
-    // Names are generated when a node is emitted, and the graph is consumed by op type and
-    // topology rather than by name, so this is a no-op. It exists so the cb() calls a ported
-    // model file is littered with compile untouched.
-}
-
 void GgufGraphContext::set_output(const GgufValue& logits) {
+    m_impl->check_open();
     OPENVINO_ASSERT(logits, "[GGUF] set_output: the output value is empty");
     m_impl->emitter.graph()->model_output_names.push_back(logits.name());
 }
 
+void GgufGraphContext::set_sliding_window(int64_t tokens) {
+    m_impl->check_open();
+    OPENVINO_ASSERT(tokens > 0 && tokens <= std::numeric_limits<int>::max(),
+                    "[GGUF] sliding window must be a positive int");
+    m_impl->emitter.graph()->swa_window_size = static_cast<int>(tokens);
+}
+
+void GgufGraphContext::add_recurrent_state(const GgufValue& input, const GgufValue& update) {
+    m_impl->check_open();
+    OPENVINO_ASSERT(input && update && m_impl->emitter.has_model_input(input.name()),
+                    "[GGUF] recurrent state must refer to a model input and an update");
+    OPENVINO_ASSERT(input.type() == update.type() && input.shape().compatible(update.shape()),
+                    "[GGUF] recurrent state input and update must have compatible shapes and equal types");
+    auto& graph = *m_impl->emitter.graph();
+    for (const auto& pair : graph.recurrent_states) {
+        OPENVINO_ASSERT(pair.first != input.name() && pair.second != update.name(),
+                        "[GGUF] recurrent state is already registered");
+    }
+    graph.recurrent_states.emplace_back(input.name(), update.name());
+    if (std::find(graph.model_output_names.begin(), graph.model_output_names.end(), update.name()) ==
+        graph.model_output_names.end())
+        set_output(update);
+}
+
 std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
-    return m_impl->emitter.graph();
+    m_impl->check_open();
+    const auto graph = m_impl->emitter.graph();
+    OPENVINO_ASSERT(!graph->model_output_names.empty(), "[GGUF] graph has no outputs");
+    std::set<std::string> available;
+    for (const auto& entry : graph->model_inputs)
+        available.insert(entry.first);
+    for (const auto& entry : graph->model_extra_inputs)
+        available.insert(entry.first);
+    for (const auto& node : graph->nodes) {
+        for (const auto& input : node.input_names) {
+            OPENVINO_ASSERT(available.count(input), "[GGUF] node '", node.name, "' uses unknown value '", input, "'");
+        }
+        available.insert(node.output_name);
+    }
+    std::set<std::string> outputs;
+    for (const auto& output : graph->model_output_names) {
+        OPENVINO_ASSERT(available.count(output), "[GGUF] unknown output '", output, "'");
+        OPENVINO_ASSERT(outputs.insert(output).second, "[GGUF] duplicate output '", output, "'");
+    }
+    m_impl->finished = true;
+    return graph;
 }
 
 }  // namespace gguf
