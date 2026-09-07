@@ -112,7 +112,6 @@ permissions: read-all
 env:
 
   OPENVINO_CI_REF: '10364dc5360713192e3d348d965a8cfe7a342368'
-  OPENVINO_GENAI_CI_REF: '57a8d560ca759bb34d420b6733ba00228bee7e52'
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
