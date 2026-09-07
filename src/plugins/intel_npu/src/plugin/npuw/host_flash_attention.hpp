@@ -90,8 +90,17 @@ struct HostFlashAttention {
     // Final tiled model for flash attention execution (with division and transpose)
     std::shared_ptr<ov::Model> _final_tile_model;
 
-    // Tile configuration
-    int64_t _tile_size = 0;  // K/V tile size for flash attention chunking
+    // Tile configuration.
+    // _past_tile_size ("C"): K/V chunk size used for REGULAR tiles (one NPU call per chunk).
+    // Equal to the KV cache block size in block-split mode, or to _query_size in continuous
+    // (non-block) mode.
+    int64_t _past_tile_size = 0;
+    // _final_tile_size: K/V length processed by the FINAL tile in a single inference. Equal to
+    // _query_size plus any leftover past length that doesn't divide evenly into
+    // _past_tile_size (a KV "tail"/remainder chunk which is merged with the present KV instead
+    // of getting its own regular-tile call). When there's no remainder, _final_tile_size ==
+    // _query_size (today's behavior).
+    int64_t _final_tile_size = 0;
 
     // Query length used for tile_size/PREFILL-GENERATE/context_length logic.
     // Equal to Q shape[2] when PropagateSliceUp did not touch this SDPA (in which
@@ -139,7 +148,7 @@ struct HostFlashAttention {
 
     // Validation helpers
     bool is_valid() const {
-        return _tile_model != nullptr && _final_tile_model != nullptr && _tile_size > 0;
+        return _tile_model != nullptr && _final_tile_model != nullptr && _past_tile_size > 0 && _final_tile_size > 0;
     }
 
     // Factory method
@@ -216,8 +225,10 @@ struct HostFlashAttention {
     // Attention parameter info from original SDPA model (not from tile models)
     HostFlashAttentionInfo _sdpa_attention_info;
 
-    // Tile configuration
-    int64_t _tile_size = 0;
+    // Tile configuration. See function::HostFlashAttention for the detailed semantics of these
+    // two fields.
+    int64_t _past_tile_size = 0;
+    int64_t _final_tile_size = 0;
 
     /// Whether tensor views can be used for tile extraction (depends on compiler and driver support)
     bool _can_use_tensor_view = false;
@@ -240,7 +251,8 @@ struct HostFlashAttention {
     }
 
     bool is_valid() const {
-        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _tile_size > 0;
+        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _past_tile_size > 0 &&
+               _final_tile_size > 0;
     }
 };
 
@@ -289,8 +301,12 @@ struct HFARuntimeContext {
     /// Cached mask tiles: (tensor, offset, length) -> tile
     std::map<HFATileMaskKey, ov::SoPtr<ov::ITensor>> m_mask_tile_cache;
 
-    /// Pre-allocated buffers for mask extraction on cache miss
+    /// Pre-allocated buffers for mask extraction on cache miss (REGULAR tiles)
     std::vector<ov::SoPtr<ov::ITensor>> m_mask_tile_buffers;
+
+    /// Pre-allocated buffer for mask extraction on cache miss (FINAL tile only, at most one
+    /// FINAL tile call per run() so a single buffer suffices).
+    ov::SoPtr<ov::ITensor> m_final_mask_tile_buffer;
 
     // ============================================================================
     // State Double-Buffering Optimization
@@ -306,33 +322,51 @@ struct HFARuntimeContext {
     // Initialization
     // ============================================================================
 
-    /// Initialize mask cache: allocate `context_size / query_size` temporary buffers.
+    /// Initialize mask cache: allocate temporary buffers for REGULAR (past) tile mask extraction,
+    /// plus one dedicated buffer for the FINAL tile (which may be a different length whenever a
+    /// KV remainder is merged into it, _past_tile_size != _final_tile_size).
     /// Call once during setup before inference.
-    /// @throws std::runtime_error if context_size not divisible by query_size
     template <typename HFADesc>
     void initialize_mask_cache(const HFADesc& hfa_desc, const std::string& device_name, AllocatorFn allocator) {
-        // Get mask tensor shape from the final tile model
+        m_mask_tile_buffers.clear();
+        m_final_mask_tile_buffer = {};
+
+        // _tile_input_indices.mask is built from final_tile_model only (see
+        // build_tile_param_mapping), but create_hfa_tile_model always places the first 6 params
+        // in the same fixed order and appends mask_tile (if present) as the last one — so the
+        // same index is valid for the regular tile model too, whenever it also has a mask input.
         const size_t mask_input_idx = hfa_desc._sdpa_attention_info._tile_input_indices.mask;
-        const auto& mask_port = hfa_desc._compiled_final_tile_model->inputs()[mask_input_idx];
+
+        // Final tile model always has a mask input (mask-skipping only applies to regular tiles).
+        const auto& final_inputs = hfa_desc._compiled_final_tile_model->inputs();
+        if (mask_input_idx < final_inputs.size()) {
+            const auto& final_mask_port = final_inputs[mask_input_idx];
+            m_final_mask_tile_buffer =
+                allocator(final_mask_port.get_element_type(), final_mask_port.get_shape(), device_name);
+        }
+
+        // Regular tile model may omit the mask input entirely when mask-skipping is enabled.
+        const auto& regular_inputs = hfa_desc._compiled_tile_model->inputs();
+        if (mask_input_idx >= regular_inputs.size()) {
+            return;
+        }
+
+        const size_t past_tile_size = static_cast<size_t>(hfa_desc._past_tile_size);
+        if (past_tile_size == 0) {
+            return;
+        }
+
+        const auto& mask_port = regular_inputs[mask_input_idx];
         const auto mask_shape = mask_port.get_shape();
         const auto mask_dtype = mask_port.get_element_type();
 
-        // Calculate maximum number of tiles based on context size.
+        // Upper bound on the number of concurrently-cached regular-tile mask tiles. Doesn't need
+        // to be exact — context_size may not divide evenly by past_tile_size once a KV remainder
+        // is merged into the final tile instead of getting its own regular-tile chunk.
         const size_t context_size = hfa_desc._sdpa_attention_info._context_size;
-        const size_t tile_size = hfa_desc._sdpa_attention_info._query_size;
+        const size_t max_num_tiles = (context_size + past_tile_size - 1) / past_tile_size;
 
-        // Validate configuration
-        if (context_size % tile_size != 0) {
-            throw std::runtime_error("HFA: context_size (" + std::to_string(context_size) +
-                                     ") must be divisible by tile_size (" + std::to_string(tile_size) + ")");
-        }
-
-        const size_t max_num_tiles = context_size / tile_size;
-
-        // Allocate temporary buffers for mask tile extraction
-        m_mask_tile_buffers.clear();
         m_mask_tile_buffers.reserve(max_num_tiles);
-
         for (size_t i = 0; i < max_num_tiles; ++i) {
             auto mask_tile = allocator(mask_dtype, mask_shape, device_name);
             m_mask_tile_buffers.push_back(mask_tile);
@@ -353,6 +387,14 @@ struct HFARuntimeContext {
 
     /// Get temporary buffer for mask extraction (throws if out of bounds)
     ov::SoPtr<ov::ITensor> get_mask_tile_buffer(size_t index) const;
+
+    /// Get the dedicated FINAL tile mask extraction buffer (throws if not initialized)
+    ov::SoPtr<ov::ITensor> get_final_mask_tile_buffer() const {
+        if (!m_final_mask_tile_buffer) {
+            throw std::runtime_error("HFA: final tile mask buffer not initialized");
+        }
+        return m_final_mask_tile_buffer;
+    }
 
     /// Number of temporary mask tile buffers
     size_t num_mask_tile_buffers() const {

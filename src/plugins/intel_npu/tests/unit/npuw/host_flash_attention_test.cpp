@@ -407,7 +407,8 @@ TEST(HostFlashAttentionFromTest, Fused_MaskTileIndexInMapIsSix) {
 TEST(HostFlashAttentionFromTest, Fused_TileSizeAndQuerySizeAreCorrect) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->_tile_size, static_cast<int64_t>(QUERY_SIZE));
+    EXPECT_EQ(result->_past_tile_size, static_cast<int64_t>(QUERY_SIZE));
+    EXPECT_EQ(result->_final_tile_size, static_cast<int64_t>(QUERY_SIZE));
     EXPECT_EQ(result->_query_size, QUERY_SIZE);
 }
 

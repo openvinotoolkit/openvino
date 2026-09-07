@@ -600,7 +600,8 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._tile_output_indices.acc, rhs._tile_output_indices.acc);
     EXPECT_EQ(lhs._tile_output_indices.max, rhs._tile_output_indices.max);
     EXPECT_EQ(lhs._tile_output_indices.d, rhs._tile_output_indices.d);
-    EXPECT_EQ(expected._tile_size, actual._tile_size);
+    EXPECT_EQ(expected._past_tile_size, actual._past_tile_size);
+    EXPECT_EQ(expected._final_tile_size, actual._final_tile_size);
     EXPECT_EQ(expected._can_use_tensor_view, actual._can_use_tensor_view);
 }
 
@@ -1155,7 +1156,8 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
     var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
-    var._tile_size = 64;
+    var._past_tile_size = 64;
+    var._final_tile_size = 8;
     var._can_use_tensor_view = true;
 
     ov::npuw::compiled::HostFlashAttention res;
@@ -1183,7 +1185,8 @@ TEST(SerializationTest, OVTypes_HostFlashAttention_OOBTileIndexRejected) {
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, std::numeric_limits<std::size_t>::max(), 14, 15};
     var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
-    var._tile_size = 64;
+    var._past_tile_size = 64;
+    var._final_tile_size = 8;
     var._can_use_tensor_view = true;
 
     ov::npuw::compiled::HostFlashAttention res;

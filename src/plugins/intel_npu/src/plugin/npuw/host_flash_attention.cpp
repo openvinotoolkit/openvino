@@ -976,6 +976,66 @@ static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::sh
     return ov::util::try_normalize_axis(concat_op->get_axis(), concat_out_shape.rank(), *concat_op);
 }
 
+// ============================================================================
+// Helper struct/function: Analyze past-KV tiling (past tile size "C" + remainder)
+// ============================================================================
+// Describes how the past KV (all Concat inputs except the last, present-KV, one) should be
+// chunked into REGULAR tile calls, and how much of it (if any) doesn't evenly divide and must
+// instead be merged with the present KV into a single FINAL tile call.
+//
+// Two KV layouts are distinguished by parameter naming, following the convention used by the
+// SplitKVCacheIntoBlocks transformation (npuw_transformations/split_kvcache_into_blocks.cpp),
+// which names block parameters "<name>_block_<i>" and an optional trailing smaller tail
+// parameter "<name>_block_tail":
+//   - Block-split KV (2+ past Concat inputs): all past inputs must share one uniform block
+//     size ("C") -- HFA only supports PREFILL, where the KV cache is always populated in exact
+//     block-size increments, so no shorter trailing "tail" block is expected.
+//   - Single past Concat input: either block-split with exactly one block, or plain continuous
+//     KV. Disambiguated via the "_block_" name substring; continuous KV uses C = query_size.
+static int64_t analyze_past_tiling(const std::shared_ptr<ov::Node>& concat_node,
+                                   std::size_t seq_dim,
+                                   std::size_t query_size) {
+    const std::size_t n_concat_inputs = concat_node->get_input_size();
+    NPUW_ASSERT(n_concat_inputs >= 1 && "KV Concat must have at least the present-KV input");
+    const std::size_t n_past_inputs = n_concat_inputs - 1;  // exclude present (always last)
+
+    auto get_len = [&](std::size_t idx) -> int64_t {
+        auto node = skip_convert_nodes(concat_node->get_input_node_shared_ptr(idx));
+        return static_cast<int64_t>(node->get_output_partial_shape(0).to_shape()[seq_dim]);
+    };
+    auto is_block_named = [&](std::size_t idx) -> bool {
+        auto node = skip_convert_nodes(concat_node->get_input_node_shared_ptr(idx));
+        return node->get_friendly_name().find("_block_") != std::string::npos;
+    };
+
+    if (n_past_inputs == 0) {
+        // No past at all (e.g. first PREFILL chunk). C is unused; default it to query_size so the
+        // (unused) regular tile model still compiles with a valid, non-zero shape.
+        return static_cast<int64_t>(query_size);
+    }
+    if (n_past_inputs == 1) {
+        const int64_t len = get_len(0);
+        if (is_block_named(0)) {
+            // A single block; nothing else to batch it with, so treat it as one regular-tile
+            // chunk of its own size.
+            return len;
+        }
+        // Continuous (non-block) KV: chunk by query_size.
+        const int64_t past_tile_size = static_cast<int64_t>(query_size);
+        NPUW_ASSERT(len % past_tile_size == 0 &&
+                    "HFA: continuous KV length must be a multiple of query_size (PREFILL-only)");
+        return past_tile_size;
+    }
+    // Block-split KV with 2+ past inputs: all must share the same block size (PREFILL always
+    // fills the KV cache in exact block-size increments, so there is no shorter tail block).
+    const int64_t past_tile_size = get_len(0);
+    NPUW_ASSERT(past_tile_size > 0 && "HFA: KV block size must be positive");
+    for (std::size_t i = 1; i < n_past_inputs; ++i) {
+        NPUW_ASSERT(get_len(i) == past_tile_size && "HFA: all KV blocks must share the same block size");
+    }
+    return past_tile_size;
+}
+
 std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
                                                            bool fused_flash_attention,
                                                            bool enable_mask_skipping) {
@@ -1100,10 +1160,15 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
         return std::nullopt;
     }
 
-    // tile_size: shared by regular and final tiles. The final tile's actual present-KV
-    // length is asserted equal to it at runtime (attn_subgraph.cpp), so they can't differ
-    // yet anyway (e.g. SWA); revisit as a separate variable if that changes.
-    const std::size_t tile_size = query_size;
+    // past_tile_size ("C"): chunk size for REGULAR tiles; final_tile_size: K/V length processed
+    // by the single FINAL tile call (query_size plus any past remainder that doesn't divide
+    // evenly into C, merged in instead of getting its own regular-tile call).
+    // past_tile_size ("C"): chunk size for REGULAR tiles. final_tile_size: K/V length processed
+    // by the single FINAL tile call -- always equal to query_size (HFA only supports PREFILL,
+    // where the KV cache is filled in exact past_tile_size increments, so there is never a
+    // leftover KV "tail" to merge into the final tile).
+    const std::size_t past_tile_size = static_cast<std::size_t>(analyze_past_tiling(k_concat, k_seq_dim, query_size));
+    const std::size_t final_tile_size = query_size;
 
     // ========================================================================
     // Step 5: Create tile models
@@ -1116,9 +1181,9 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // Final tile: state still uses block_kv_dtype (f16) for zero-copy with regular
     //   tile outputs; KV-tile uses present_kv_dtype (f32) matching the upstream graph.
     //   past_acc/max/d: f16   k_tile/v_tile: f32  (present-KV from upstream)
-    LOG_INFO("Creating HFA tile models: tile_size=" << tile_size << ", v_transposed=" << v_transposed
-                                                    << ", block_kv=" << block_kv_dtype
-                                                    << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
+    LOG_INFO("Creating HFA tile models: past_tile_size="
+             << past_tile_size << ", final_tile_size=" << final_tile_size << ", v_transposed=" << v_transposed
+             << ", block_kv=" << block_kv_dtype << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
 
     // Per-SDPA mask-skipping decision
     // DetectAttentionMask (run earlier on the original SDPA node) may have annotated
@@ -1168,7 +1233,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                             block_kv_dtype,  // kv_tile_dtype (past blocks)
                                             q_dtype,
                                             mask_dtype,
-                                            tile_size,
+                                            past_tile_size,
                                             kv_num_heads,
                                             false,
                                             fused_flash_attention,
@@ -1184,7 +1249,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                   present_kv_dtype,  // kv_tile_dtype (present-KV, f32)
                                                   q_dtype,
                                                   mask_dtype,
-                                                  tile_size,
+                                                  final_tile_size,
                                                   kv_num_heads,
                                                   true,
                                                   fused_flash_attention,
@@ -1204,7 +1269,8 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     hfa._final_tile_model = final_tile_model;
     hfa._query_size = query_size;  // Query length for PREFILL/GENERATE logic and context_length
     hfa._context_size = context_size;
-    hfa._tile_size = tile_size;  // KV tile size, used for runtime tile-count math
+    hfa._past_tile_size = static_cast<int64_t>(past_tile_size);    // Regular tile chunk size ("C")
+    hfa._final_tile_size = static_cast<int64_t>(final_tile_size);  // Final tile K/V length (query + remainder)
     hfa._k_seq_dim = k_seq_dim;
     hfa._v_seq_dim = v_seq_dim;
 
@@ -1225,8 +1291,9 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     build_tile_output_mapping(hfa, tile_model);
 
-    LOG_INFO("Successfully created HostFlashAttention with query_size=" << query_size << ", context_size="
-                                                                        << context_size << ", tile_size=" << tile_size);
+    LOG_INFO("Successfully created HostFlashAttention with query_size="
+             << query_size << ", context_size=" << context_size << ", past_tile_size=" << past_tile_size
+             << ", final_tile_size=" << final_tile_size);
 
     return hfa;
 }
@@ -1241,7 +1308,8 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     LOG_BLOCK();
 
     // Extract tile configuration from function HFA
-    _tile_size = func_hfa._tile_size;
+    _past_tile_size = func_hfa._past_tile_size;
+    _final_tile_size = func_hfa._final_tile_size;
 
     // Store the tile models for later compilation
     _tile_model_to_compile = func_hfa._tile_model;
@@ -1398,6 +1466,7 @@ int64_t PositionIDs::context_length() const {
 void HFARuntimeContext::reset() {
     m_mask_tile_cache.clear();
     m_mask_tile_buffers.clear();
+    m_final_mask_tile_buffer = {};
     m_state_buffers.reset();
     m_current_buffer_idx = 0;
 }
