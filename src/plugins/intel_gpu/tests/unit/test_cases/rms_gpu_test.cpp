@@ -802,18 +802,26 @@ TEST(rms_gpu_test, in_place_crop_rms_spatial_split) {
     }
 }
 
-TEST(rms_gpu_test, rms_f16_inf_input_no_nan) {
+// Batch 0 carries +-INF (must be clamped to a finite RMS, never NaN); batch 1 carries a real
+// NaN (must stay NaN - OpenCL clamp()/fmin()/fmax() would otherwise map NaN to a clamp bound,
+// hiding an upstream NaN bug). The two cases are kept in separate RMS groups (rows) rather than
+// the same array: RMS normalizes per group, so a NaN anywhere in a group poisons every element
+// of that group, which would make it impossible to also verify the +-INF clamp behavior.
+TEST(rms_gpu_test, rms_f16_inf_and_nan_input) {
     auto& engine = get_test_engine();
 
     const int N = 16;
+    const int B = 2;
 
-    std::vector<ov::float16> input_data(N, ov::float16(1.0f));
-    input_data[0] = ov::float16::from_bits(0x7C00);  // +INF
-    input_data[1] = ov::float16::from_bits(0xFC00);  // -INF
+    std::vector<ov::float16> input_data(B * N, ov::float16(1.0f));
+    input_data[0] = ov::float16::from_bits(0x7C00);      // +INF
+    input_data[1] = ov::float16::from_bits(0xFC00);      // -INF
+    input_data[N + 0] = ov::float16::from_bits(0x7E00);  // quiet NaN
 
     std::vector<ov::float16> gamma_data(N, ov::float16(1.0f));
 
-    // Compute reference: clamp INF to 65504 before squaring (same as kernel fix)
+    // Reference for batch 0 only: clamp INF to 65504 before squaring (same as kernel fix).
+    // Batch 1 (NaN) has no numeric reference - every element of that group must come out NaN.
     constexpr float FP16_MAX = 65504.0f;
     constexpr float epsilon = 1e-6f;
     std::vector<float> ref(N);
@@ -831,7 +839,7 @@ TEST(rms_gpu_test, rms_f16_inf_input_no_nan) {
     }
 
     auto run_with_kernel = [&](const std::string& kernel_name) {
-        auto input = engine.allocate_memory({ov::PartialShape{1, 1, N}, data_types::f16, format::bfyx});
+        auto input = engine.allocate_memory({ov::PartialShape{B, 1, N}, data_types::f16, format::bfyx});
         auto gamma = engine.allocate_memory({ov::PartialShape{1, N}, data_types::f16, format::bfyx});
         set_values(input, input_data);
         set_values(gamma, gamma_data);
@@ -862,9 +870,15 @@ TEST(rms_gpu_test, rms_f16_inf_input_no_nan) {
         auto output = outputs.begin()->second.get_memory();
         cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
 
+        // Batch 0: +-INF clamped, finite result expected.
         for (int i = 0; i < N; ++i) {
             float val = static_cast<float>(output_ptr[i]);
             ASSERT_NEAR(val, ref[i], 1e-3f) << " kernel=" << kernel_name << " index=" << i;
+        }
+        // Batch 1: real NaN must propagate, not be clamped away.
+        for (int i = 0; i < N; ++i) {
+            float val = static_cast<float>(output_ptr[N + i]);
+            ASSERT_TRUE(std::isnan(val)) << " kernel=" << kernel_name << " index=" << i << " val=" << val;
         }
     };
 
@@ -992,4 +1006,16 @@ TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_near_zero) {
     run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{1, 1, 4096}, /*with_gamma=*/true, /*dynamic=*/false,
                  /*epsilon=*/1e-5f, /*in_min=*/0.001f, /*in_max=*/0.003f,
                  /*abs_floor=*/0.01f, /*rel_tol=*/0.05f);
+}
+
+// BF16 values above the FP16 finite max (65504) must NOT be clamped: INPUT0_TYPE_SIZE == 2
+// also matches BF16, but BF16's dynamic range (~3.4e38) makes the F16 INF-clamp bug irrelevant
+// here, and clamping would corrupt otherwise-legitimate large BF16 inputs.
+TEST(rms_gpu_test, rms_test_bf16_large_values_not_clamped) {
+    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{1, 1, 16}, /*with_gamma=*/true, /*dynamic=*/false,
+                 /*epsilon=*/1e-5f, /*in_min=*/1e5f, /*in_max=*/2e5f,
+                 /*abs_floor=*/0.01f, /*rel_tol=*/0.02f);
+    run_rms_bf16("rms_gpu_ref", ov::PartialShape{1, 1, 16}, /*with_gamma=*/true, /*dynamic=*/false,
+                 /*epsilon=*/1e-5f, /*in_min=*/1e5f, /*in_max=*/2e5f,
+                 /*abs_floor=*/0.01f, /*rel_tol=*/0.02f);
 }
