@@ -5,7 +5,8 @@ on:
     # at 00:00 on Wednesday and Saturday (with latest OneDNN)
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
-    inputs:      target-branch:
+    inputs:
+      target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false

@@ -2,7 +2,8 @@ name: Linux (Ubuntu 26.04, Python 3.14)
 run-name: ${{ github.event_name == 'schedule' && 'Linux (Ubuntu 26.04, Python 3.14) - Nightly' || 'Linux (Ubuntu 26.04, Python 3.14)' }}
 on:
   workflow_dispatch:
-    inputs:      target-branch:
+    inputs:
+      target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
