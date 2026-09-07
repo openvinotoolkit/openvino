@@ -22,10 +22,43 @@
 
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
+#    if AXIS_VALUE == AXIS_B
+#        define AXIS_SIZE OUTPUT_BATCH_NUM
+#    elif AXIS_VALUE == AXIS_F
+#        define AXIS_SIZE OUTPUT_FEATURE_NUM
+#    elif AXIS_VALUE == AXIS_Y
+#        define AXIS_SIZE OUTPUT_SIZE_Y
+#    else
+#        define AXIS_SIZE OUTPUT_SIZE_X
+#    endif
 #elif OUTPUT_DIMS == 5
     #define ORDER b,f,z,y,x
+#    if AXIS_VALUE == AXIS_B
+#        define AXIS_SIZE OUTPUT_BATCH_NUM
+#    elif AXIS_VALUE == AXIS_F
+#        define AXIS_SIZE OUTPUT_FEATURE_NUM
+#    elif AXIS_VALUE == AXIS_Z
+#        define AXIS_SIZE OUTPUT_SIZE_Z
+#    elif AXIS_VALUE == AXIS_Y
+#        define AXIS_SIZE OUTPUT_SIZE_Y
+#    else
+#        define AXIS_SIZE OUTPUT_SIZE_X
+#    endif
 #elif OUTPUT_DIMS == 6
     #define ORDER b,f,w,z,y,x
+#    if AXIS_VALUE == AXIS_B
+#        define AXIS_SIZE OUTPUT_BATCH_NUM
+#    elif AXIS_VALUE == AXIS_F
+#        define AXIS_SIZE OUTPUT_FEATURE_NUM
+#    elif AXIS_VALUE == AXIS_W
+#        define AXIS_SIZE OUTPUT_SIZE_W
+#    elif AXIS_VALUE == AXIS_Z
+#        define AXIS_SIZE OUTPUT_SIZE_Z
+#    elif AXIS_VALUE == AXIS_Y
+#        define AXIS_SIZE OUTPUT_SIZE_Y
+#    else
+#        define AXIS_SIZE OUTPUT_SIZE_X
+#    endif
 #endif
 
 #ifdef USE_LAYOUT_AWARE_INDEXING
@@ -207,6 +240,11 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
         const uint index_by_axis = convert_int(indices[OUTPUT_INDEX_ON_AXIS]);
     #endif
 
+        // No exception path on GPU (unlike CPU's assert in scatter_update.cpp): skip OOB writes instead.
+        if (index_by_axis >= (uint)AXIS_SIZE) {
+            return;
+        }
+
     const uint output_idx = GET_OUTPUT_INDEX(SECOND_ITER_OUTPUT_INDEX_ORDER);
 
     #ifdef USE_LAYOUT_AWARE_INDEXING
@@ -258,3 +296,4 @@ KERNEL(scatter_update_ref)(OPTIONAL_SHAPE_INFO_ARG
 #undef AXIS_Z
 #undef AXIS_Y
 #undef AXIS_X
+#undef AXIS_SIZE
