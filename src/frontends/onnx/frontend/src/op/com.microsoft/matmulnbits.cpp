@@ -301,13 +301,10 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
             }
         }
 
-        // Possible issue with slice implementation, had to move conversion before slice, instead of slicing uint4
-        // TODO: Ticket
-        // Comments: it is still there, so need to convert b to fp16 first.
-
-        // TODO: Need to collect performance data in case constant folding is applied. Possible some perf/mem-gap
-        // Comments: in this latest code, the const folding is gone; it triggers the oneDNN kernel
-        //           and use u2/u4/u8 weights as the kernel's input, won't do const folding anymore.
+        // OV core has no Slice evaluate()/constant-fold path for packed sub-byte types (u4/u2/i4/nf4/
+        // f4e2m1) by design (CVS-173497, PR #32388 "[Core/Op] Disable Slice constant folding and
+        // evaluate for LP"), so casted_b must be dequantized to a.get_element_type() first; any Slice
+        // (padding trim) has to run after that conversion, never directly on the raw packed data.
 
         // compute in input A's precision (FP32/FP16/BF16)
         const auto scales_converted = std::make_shared<v0::Convert>(scales, a.get_element_type());
