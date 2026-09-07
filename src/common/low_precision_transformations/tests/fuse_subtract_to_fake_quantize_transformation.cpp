@@ -318,4 +318,35 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues)),
     FuseSubtractToFakeQuantizeTransformation::getTestCaseName);
 } // namespace testValues2
+
+// regression test for a fix where FuseSubtractToFakeQuantizeFunction::get applied
+// dequantization to both branches instead of dequantization2 to the second one
+TEST(LPT, FuseSubtractToFakeQuantizeGetAppliesDistinctBranchDequantization) {
+    const auto function = ov::builder::subgraph::FuseSubtractToFakeQuantizeFunction::get(
+        ov::PartialShape{ 1, 4, 9, 9 },
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
+        { { ov::element::f32 }, { 128.f }, { 0.5f } },
+        { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 255.f } },
+        { { ov::element::f32 }, { 64.f }, { 0.5f } });
+
+    std::shared_ptr<ov::Node> output2;
+    for (const auto& op : function->get_ordered_ops()) {
+        if (op->get_friendly_name() == "output2") {
+            output2 = op;
+            break;
+        }
+    }
+    ASSERT_NE(output2, nullptr) << "output2 operation was not found";
+
+    const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(output2);
+    ASSERT_NE(multiply, nullptr) << "the second branch is expected to end with a Multiply";
+
+    const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(multiply->get_input_node_shared_ptr(0));
+    ASSERT_NE(subtract, nullptr) << "the second branch is expected to be dequantized by a Subtract";
+
+    const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(subtract->get_input_node_shared_ptr(1));
+    ASSERT_NE(constant, nullptr);
+    ASSERT_EQ(constant->cast_vector<float>(), std::vector<float>({ 64.f }))
+        << "the second branch must be dequantized with dequantization2, not dequantization";
+}
 } // namespace

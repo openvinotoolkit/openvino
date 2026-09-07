@@ -61,7 +61,14 @@ public:
             testValues.inputShape,
             testValues.actual.precision1,
             testValues.actual.dequantization1,
+            testValues.actual.precision2,
             testValues.actual.dequantization2);
+
+        // compare_functions() below builds both graphs with the same function, so it can't
+        // catch a branch-2 parameter precision mix-up on its own; check it directly.
+        const auto& parameters = actualFunction->get_parameters();
+        ASSERT_EQ(parameters[2]->get_element_type(), testValues.actual.precision2);
+        ASSERT_EQ(parameters[3]->get_element_type(), testValues.actual.precision2);
 
         SimpleLowPrecisionTransformer transform;
         transform.add<ov::pass::low_precision::AddTransformation, ov::op::v1::Add>(testValues.params);
@@ -71,6 +78,7 @@ public:
             testValues.inputShape,
             testValues.expected.precision1,
             testValues.expected.dequantization1,
+            testValues.expected.precision2,
             testValues.expected.dequantization2);
     }
 
@@ -130,6 +138,24 @@ const std::vector<ElementwiseWithMultiParentDequantizationTransformationTestValu
             {},
             ov::element::u8,
             { {ov::element::f32},  { 7.f }, { 10.f }}
+        }
+    },
+    // mixed precisions on branches: precision1 != precision2
+    {
+        ov::element::f32,
+        ov::Shape{1, 4, 16, 16},
+        LayerTransformation::createParamsU8I8(),
+        {
+            ov::element::u8,
+            { {ov::element::f32},  { 7.f }, { 10.f }},
+            ov::element::i8,
+            { {ov::element::f32},  { -3.f }, { 5.f }}
+        },
+        {
+            ov::element::u8,
+            { {ov::element::f32},  { 7.f }, { 10.f }},
+            ov::element::i8,
+            { {ov::element::f32},  { -3.f }, { 5.f }}
         }
     }
 };

@@ -59,6 +59,7 @@ public:
         const ov::Shape& inputShape,
         const ov::element::Type& precision1,
         const ov::builder::subgraph::DequantizationOperations& dequantization1,
+        const ov::element::Type& precision2,
         const ov::builder::subgraph::DequantizationOperations& dequantization2);
 };
 
