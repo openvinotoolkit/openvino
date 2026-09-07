@@ -736,9 +736,8 @@ void expose_runtime_states_as_inputs(const std::shared_ptr<ov::Model>& model) {
 void normalize_input_key_value_names(const std::shared_ptr<ov::Model>& model) {
     ov::ResultVector new_results, old_results;
     for (const auto& in : model->inputs()) {
-        // Decomposed cross-attention (word-level timestamps) exposes extra ports
-        // (e.g. the qk-score outputs) that may have no tensor name at all here -
-        // get_any_name() throws on those, unlike get_names().
+        // Cross-attention decomposition can leave ports nameless (qk-score names get
+        // moved onto a new Add) - get_any_name() throws on those, get_names() doesn't.
         if (in.get_names().empty() || in.get_any_name().find("decoder") == std::string::npos) {
             continue;
         }
@@ -755,8 +754,7 @@ void normalize_input_key_value_names(const std::shared_ptr<ov::Model>& model) {
 void normalize_output_key_value_names(const std::shared_ptr<ov::Model>& model) {
     ov::ResultVector new_results, old_results;
     for (const auto& out : model->outputs()) {
-        // See normalize_input_key_value_names: decomposed cross-attention adds
-        // outputs (qk scores) that can be nameless at this point in the pipeline.
+        // See normalize_input_key_value_names: decomposition can leave outputs nameless.
         if (out.get_names().empty() || out.get_any_name().find("decoder") == std::string::npos) {
             continue;
         }
