@@ -60,6 +60,9 @@ public:
     // This is the only broadcast pattern that survives the iteration-space flattening applied to an MVN
     // which requires alignment (see mvn_impl::static_canonicalize_shapes).
     layout get_per_last_axis_layout(mvn_test_params& p) {
+        if (p.default_format == format::bfzyx) {
+            return layout{ p.default_type, p.default_format, tensor{ 1, 1, p.input_size.spatial[0], 1, 1 } };
+        }
         return layout{ p.default_type, p.default_format, tensor{ 1, 1, p.input_size.spatial[0], 1 } };
     }
 };
@@ -117,6 +120,20 @@ public:
 // Negative control: same aligned MVN, but the peer broadcasts along the feature axis, which the flatten
 // destroys - fusion must stay disabled.
 #define CASE_MVN_LAST_AXIS_F16_NEG { 2, 3, 32, 4 },  { 1, 3, 1, 1 },   data_types::f16, format::bfyx, {3}, true, data_types::f16, format::bfyx
+
+// 4D last-axis MVN with ACROSS_CHANNELS: axes={1, 3} (feature and X), Y > 1.
+// across_channels() is true (reduction includes axis 1), and requires_alignment() is true (Y is not reduced).
+// Kernel uses ACROSS_CHANNELS idx_order, flattening [B, 1, 1, F*Y*X].
+#define CASE_MVN_LAST_AXIS_ACROSS_CHANNELS_F16 { 2, 3, 32, 4 },  { 1, 1, 32, 1 },  data_types::f16, format::bfyx, {1, 3}, true, data_types::f16, format::bfyx
+#define CASE_MVN_LAST_AXIS_ACROSS_CHANNELS_F32 { 2, 3, 32, 4 },  { 1, 1, 32, 1 },  data_types::f32, format::bfyx, {1, 3}, true, data_types::f32, format::bfyx
+
+// 5D last-axis MVN (bfzyx) with WITHIN_CHANNELS: axes={4} (innermost X), Z > 1, Y > 1.
+// requires_alignment() is true. Exercises rank-5 WITHIN_CHANNELS idx_order branch in GetJitConstants().
+#define CASE_MVN_5D_LAST_AXIS_F16              { 2, 3, 32, 4, 4 }, { 1, 1, 32, 1, 1 }, data_types::f16, format::bfzyx, {4}, true, data_types::f16, format::bfzyx
+
+// 5D last-axis MVN (bfzyx) with ACROSS_CHANNELS: axes={1, 4} (feature and X), Z > 1, Y > 1.
+// across_channels() is true and requires_alignment() is true. Exercises rank-5 ACROSS_CHANNELS idx_order branch.
+#define CASE_MVN_5D_LAST_AXIS_ACROSS_CHANNELS_F16 { 2, 3, 32, 4, 4 }, { 1, 1, 32, 1, 1 }, data_types::f16, format::bfzyx, {1, 4}, true, data_types::f16, format::bfzyx
 
 // F16 with blocked formats (fsv16/fsv32) - covers new float support in mvn_gpu_b_fs_yx_fsv16 kernel
 #define CASE_MVN_F16_FSV16_1  { 1, 16, 8, 8 },    { 1, 16, 8, 8 },    data_types::f16, format::b_fs_yx_fsv16, {2, 3}, true, data_types::f16, format::bfyx
@@ -234,7 +251,7 @@ TEST_P(mvn_last_axis_scale_quantize_i8, basic) {
         data("out_high", get_mem(get_single_element_layout(p), 127)),
         quantize("quant", input_info("scale"), input_info("in_low"), input_info("in_high"),
                  input_info("out_low"), input_info("out_high"), 256, data_types::i8),
-        reorder("reorder_bfyx", input_info("quant"), format::bfyx, data_types::f32)
+        reorder("reorder_bfyx", input_info("quant"), p.default_format, data_types::f32)
     );
 
     tolerance = 1.f;
@@ -245,6 +262,8 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_last_axis_scale_quantize_i8, ::testing
     mvn_test_params{ CASE_MVN_LAST_AXIS_F16_1, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_LAST_AXIS_F16_2, 2, 2, 4 },
     mvn_test_params{ CASE_MVN_LAST_AXIS_F32_1, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_LAST_AXIS_ACROSS_CHANNELS_F16, 2, 2, 4 },
+    mvn_test_params{ CASE_MVN_LAST_AXIS_ACROSS_CHANNELS_F32, 2, 2, 4 },
 }));
 
 class mvn_scale_activation_eltwise_fp32_quantize_i8 : public MVNFusingTest {};
@@ -367,6 +386,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, mvn_eltwise_f16, ::testing::ValuesIn(std::
     mvn_test_params{ CASE_MVN_F16_FSV32_1, 2, 2, 3},
     mvn_test_params{ CASE_MVN_LAST_AXIS_F16_1, 2, 2, 3},
     mvn_test_params{ CASE_MVN_LAST_AXIS_F16_2, 2, 2, 3},
+    mvn_test_params{ CASE_MVN_LAST_AXIS_ACROSS_CHANNELS_F16, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_5D_LAST_AXIS_F16, 2, 2, 3 },
+    mvn_test_params{ CASE_MVN_5D_LAST_AXIS_ACROSS_CHANNELS_F16, 2, 2, 3 },
     // Peer broadcasts along the feature axis of an aligned MVN - must not fuse
     mvn_test_params{ CASE_MVN_LAST_AXIS_F16_NEG, 3, 3, 3},
 }));

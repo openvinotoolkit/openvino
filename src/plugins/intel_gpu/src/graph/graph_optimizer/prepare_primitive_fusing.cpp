@@ -657,6 +657,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         //     the innermost axis keeps unit stride inside the folded innermost dim;
         //   - MVNKernelBfyxOpt indexes peers with FUSED_OP_n_INPUTm_GET_INDEX_SAFE(b, f, y, x), which takes each
         //     index modulo that axis' size, so `x % peer_size_x` still yields the original innermost index.
+        //     In ACROSS_CHANNELS mode, idx_order similarly indexes the innermost dim with
+        //     ((in_data_set_idx + iteration_in_data_set_offset) % OUTPUT_SIZE_X), so x % peer_size_x recovers the
+        //     same innermost index as well.
         // A peer which varies along any other axis (e.g. a full-shape eltwise peer) would be indexed with a
         // batch value that runs over the whole folded outer dim and must not be fused.
         auto mvn_flattened_peer_is_indexable = [](const mvn_node& node, const layout& peer_layout) -> bool {
