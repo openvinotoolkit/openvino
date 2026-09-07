@@ -2,6 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define OV_CONFIG_RELEASE_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...)                              \
+    public:                                                                                                 \
+        static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() {            \
+            static PluginConfig::GlobalOptionInitializer init_helper(PropertyNamespace::PropertyVar.name(), \
+                                                                     m_allowed_env_prefix,                  \
+                                                                     m_##PropertyVar);                      \
+            return init_helper.m_option.value;                                                              \
+        }                                                                                                   \
+                                                                                                            \
+    private:                                                                                                \
+        static inline ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type,                    \
+                                   OptionVisibility::RELEASE>                                          \
+            m_##PropertyVar{nullptr,                                                                        \
+                            PropertyNamespace::PropertyVar.name(),                                          \
+                            #PropertyNamespace "::" #PropertyVar,                                           \
+                            __VA_ARGS__};                                                                   \
+        OptionRegistrationHelper m_##PropertyVar##_rh{this, PropertyNamespace::PropertyVar.name(), &m_##PropertyVar};
+
 // Namespace, property name, default value, [validator], description
 OV_CONFIG_RELEASE_OPTION(ov, enable_profiling, false, "Enable profiling for the plugin")
 OV_CONFIG_RELEASE_OPTION(ov::device, id, "0", "ID of the current device")
@@ -78,7 +96,7 @@ OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_batch_limit, std::numeric_limi
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_profiling_data_per_iter, false, "Save profiling data w/o per-iteration aggregation")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, log_to_file, "", "Save verbose log to specified file")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, debug_config, "", "Path to debug config in json format")
-OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::log, level, ov::log::Level::ERR, "Set log level")
+OV_CONFIG_RELEASE_GLOBAL_OPTION(ov::log, level, ov::log::Level::ERR, "Set log level")
 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_onednn_post_ops_opt, false, "Disable optimization pass for onednn post-ops")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_profiling_data_path, "", "Save csv file with per-stage and per-primitive profiling data to specified folder")
