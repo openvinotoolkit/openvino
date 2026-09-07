@@ -17,6 +17,12 @@ on:
         required: false
         default: null
 
+      enable-compile-cache:
+        description: 'Use compiler cache (sccache/ccache) for builds in this job'
+        type: boolean
+        required: false
+        default: true
+
 permissions: read-all
 
 env:
@@ -26,7 +32,6 @@ env:
   LLAMA_CPP_REPO: mvafin/llama.cpp
   LLAMA_CPP_REF: 16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb
   INSTALL_DIR: ${{ github.workspace }}/install
-  NINJA_LOGS_ARCHIVE_DIR: ${{ github.workspace }}/ninja_logs_archive
   SCCACHE_DIR: ${{ github.workspace }}/.sccache
 
 jobs:
@@ -54,6 +59,7 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Cache sccache
+        if: ${{ inputs.enable-compile-cache }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.SCCACHE_DIR }}
@@ -61,6 +67,15 @@ jobs:
           restore-keys: |
             gguf-llamacpp-sccache-${{ runner.os }}-${{ github.base_ref || github.ref_name }}-
             gguf-llamacpp-sccache-${{ runner.os }}-
+
+      - name: Checkout compile cache statistics action
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 5
+        with:
+          path: openvino-ci-actions
+          sparse-checkout: |
+            .github/actions/compile_cache_stats
+          sparse-checkout-cone-mode: false
 
       - name: Checkout llama.cpp
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -70,53 +85,30 @@ jobs:
           ref: ${{ env.LLAMA_CPP_REF }}
           path: llama.cpp
 
-      - name: Prepare Ninja log collection directory
-        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
-
-      - name: Checkout collect_ninja_logs script
-        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
-        timeout-minutes: 15
-        with:
-          path: ci-scripts-openvino
-          sparse-checkout: .github/scripts/collect_ninja_logs_snapshot.sh
-          sparse-checkout-cone-mode: true
-
       - name: Configure llama.cpp against the OpenVINO package
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           cmake -G Ninja -S llama.cpp -B llama.cpp/build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ inputs.enable-compile-cache && 'sccache' || '' }} \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ inputs.enable-compile-cache && 'sccache' || '' }} \
             -DGGML_OPENVINO=ON
 
-      - name: Build llama.cpp
-        run: cmake --build llama.cpp/build --parallel "$(nproc)"
-
-      - name: Snapshot Ninja logs after llama.cpp build
-        if: always()
-        run: |
-          bash "${{ github.workspace }}/ci-scripts-openvino/.github/scripts/collect_ninja_logs_snapshot.sh" \
-            "${NINJA_LOGS_ARCHIVE_DIR}" llama_cpp_build "${{ github.workspace }}/llama.cpp/build"
-
-      - name: Archive collected Ninja logs
-        if: always()
-        run: |
-          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
-            exit 0
-          fi
-          tar -czf "${{ github.workspace }}/llama.cpp/build/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
-
-      - name: Upload Ninja build logs
-        if: always()
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+      - name: Zero compile cache stats (llama.cpp build)
+        if: ${{ inputs.enable-compile-cache }}
+        uses: ./openvino-ci-actions/.github/actions/compile_cache_stats
         with:
-          name: ninja_log_gguf_llamacpp_validation
-          path: ${{ github.workspace }}/llama.cpp/build/ninja_logs.tar.gz
-          if-no-files-found: warn
+          mode: zero-stats
 
-      - name: Show sccache stats
-        run: sccache --show-stats
+      - name: Build llama.cpp
+        run: cmake --build llama.cpp/build --parallel 15
+
+      - name: Compile cache statistics (llama.cpp build)
+        if: ${{ inputs.enable-compile-cache }}
+        uses: ./openvino-ci-actions/.github/actions/compile_cache_stats
+        with:
+          build-label: llama-cpp-build
+          artifact-name: compile-cache-stats-gguf-llamacpp-llama-cpp-build
 
       - name: Run llama.cpp tests against the ggml-openvino backend
         env:

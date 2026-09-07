@@ -17,6 +17,12 @@ on:
         type: string
         required: true
 
+      enable-compile-cache:
+        description: 'Use compiler cache (sccache/ccache) for builds in this job'
+        type: boolean
+        required: false
+        default: true
+
 permissions: read-all
 
 env:
@@ -42,18 +48,18 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && 'sccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && 'sccache' || '' }}
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-azure-key-prefix }}
       ONNX_RUNTIME_REPO: ${{ github.workspace }}/onnxruntime
       ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
-      NINJA_LOGS_ARCHIVE_DIR: ${{ github.workspace }}/ninja_logs_archive
       ONNX_RUNTIME_UTILS: ${{ github.workspace }}/src/frontends/onnx/tests/ci_utils/onnxruntime
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: ${{ inputs.enable-compile-cache }}
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -72,7 +78,7 @@ jobs:
         with:
           sparse-checkout: |
             src/frontends/onnx/tests/ci_utils/onnxruntime
-            .github/scripts/collect_ninja_logs_snapshot.sh
+            .github/actions/compile_cache_stats
           sparse-checkout-cone-mode: false
 
       - name: Get ONNX runtime version
@@ -104,8 +110,11 @@ jobs:
       # Tests
       #
 
-      - name: Prepare Ninja log collection directory
-        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+      - name: Zero compile cache stats (onnx runtime build)
+        if: ${{ inputs.enable-compile-cache }}
+        uses: ./.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
       - name: Build Lin ONNX Runtime
         run: |
@@ -115,7 +124,7 @@ jobs:
             --config RelWithDebInfo \
             --use_openvino CPU \
             --build_shared_lib \
-            --parallel $(nproc) \
+            --parallel 15 \
             --skip_tests \
             --compile_no_warning_as_error \
             --allow_running_as_root \
@@ -123,30 +132,12 @@ jobs:
         env:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
 
-      - name: Snapshot Ninja logs after ONNX Runtime build
-        if: always()
-        run: |
-          bash "${{ github.workspace }}/.github/scripts/collect_ninja_logs_snapshot.sh" \
-            "${NINJA_LOGS_ARCHIVE_DIR}" onnx_runtime_build "${ONNX_RUNTIME_BUILD_DIR}"
-
-      - name: Archive collected Ninja logs
-        if: always()
-        run: |
-          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
-            exit 0
-          fi
-          tar -czf "${ONNX_RUNTIME_BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
-
-      - name: Upload Ninja build logs
-        if: always()
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+      - name: Compile cache statistics (onnx runtime build)
+        if: ${{ inputs.enable-compile-cache }}
+        uses: ./.github/actions/compile_cache_stats
         with:
-          name: ninja_log_onnx_runtime
-          path: ${{ env.ONNX_RUNTIME_BUILD_DIR }}/ninja_logs.tar.gz
-          if-no-files-found: warn
-
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
+          build-label: onnx-runtime-build
+          artifact-name: compile-cache-stats-onnx-runtime-build
 
       - name: Run onnxruntime_test_all
         if: ${{ runner.arch != 'ARM64' }} # Ticket: 126277

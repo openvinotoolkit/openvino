@@ -80,11 +80,6 @@ on:
         type: boolean
         required: false
         default: true
-      upload-ninja-log:
-        description: 'Whether to upload Ninja .ninja_log from the OpenVINO build directory'
-        type: boolean
-        required: false
-        default: true
       install-frontend-test-deps:
         description: 'Whether to install TensorFlow/TFLite/Paddle frontend unit test requirements (no Python 3.14 wheels yet)'
         type: boolean
@@ -100,6 +95,17 @@ on:
         type: boolean
         required: false
         default: false
+
+      enable-compile-cache:
+        description: 'Use compiler cache (sccache/ccache) for builds in this job'
+        type: boolean
+        required: false
+        default: true
+      upload-ninja-log:
+        description: 'Whether to upload Ninja .ninja_log from the OpenVINO build directory'
+        type: boolean
+        required: false
+        default: true
 
 permissions: read-all
 
@@ -118,12 +124,20 @@ jobs:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
         - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      options: >-
+        -e SCCACHE_AZURE_BLOB_CONTAINER
     defaults:
       run:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && 'sccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && 'sccache' || '' }}
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: ${{ github.workspace }}/sccache_log.txt
+      SCCACHE_LOG: warn
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
       INSTALL_DIR: ${{ github.workspace }}/openvino/openvino_install
@@ -132,6 +146,7 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/openvino/install/wheels
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/openvino/developer_package_install
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
+      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_release
@@ -140,6 +155,16 @@ jobs:
       PIP_INDEX_URL: ${{ contains(inputs.runner, 'aks') && 'http://pip-proxy.pip-proxy.svc.cluster.local/simple/' || '' }}
       PIP_TRUSTED_HOST: ${{ contains(inputs.runner, 'aks') && 'pip-proxy.pip-proxy.svc.cluster.local' || '' }}
     steps:
+      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: ${{ inputs.enable-compile-cache }}
+        shell: bash
+        run: |
+          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
+          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
+          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
+          echo "✓ Connection string loaded and masked"
+
       - name: Clone OpenVINO (with trace)
         if: ${{ inputs.os == 'fedora_29' }} # to debug ticket 160901
         env:
@@ -236,8 +261,21 @@ jobs:
         if: ${{ inputs.upload-ninja-log }}
         run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
 
+      - name: Zero compile cache stats (openvino main build)
+        if: ${{ inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+
+      - name: Compile cache statistics (openvino main build)
+        if: ${{ inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-main
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-openvino-main
 
       - name: Snapshot Ninja logs after Cmake build - OpenVINO
         if: ${{ inputs.upload-ninja-log }}
@@ -271,11 +309,17 @@ jobs:
           python3 ${OPENVINO_REPO}/src/frontends/gguf/tests/gen_arch_fixtures.py \
             --fetch \
             --out-dir ${INSTALL_TEST_DIR}/tests/test_data/arch_fixtures \
-            -j $(nproc)
+            -j 15
 
       - name: Install Python wheels for the main Python
         if: ${{ ! inputs.build-additional-python-packages }}
         run: cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
+
+      - name: Zero compile cache stats (python api wheels)
+        if: ${{ inputs.build-additional-python-packages && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
       - name: Build Python API and wheels
         if: ${{ inputs.build-additional-python-packages }}
@@ -302,7 +346,7 @@ jobs:
             fi
 
             cmake ${CMAKE_OPTIONS} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}
-            cmake --build ${PY_BUILD_DIR} --parallel $(nproc) -- --quiet
+            cmake --build ${PY_BUILD_DIR} --parallel 15 -- --quiet
             if [[ "${UPLOAD_NINJA_LOG}" == "true" ]]; then
               bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" \
                 "${NINJA_LOGS_ARCHIVE_DIR}" "python_api_py${py_version}" "${PY_BUILD_DIR}"
@@ -313,6 +357,13 @@ jobs:
         env:
           ARCH: ${{ inputs.arch }}
           UPLOAD_NINJA_LOG: ${{ inputs.upload-ninja-log }}
+
+      - name: Compile cache statistics (python api wheels)
+        if: ${{ inputs.build-additional-python-packages && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: python-api-wheels
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-python-api-wheels
 
       - name: Pack openvino_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
@@ -336,7 +387,7 @@ jobs:
             find . -type f -name '*.gcno' -exec cp --parents {} "${COVERAGE_NOTES_DIR}/main-build/" \;
           )
 
-      - name: Build Debian packages
+      - name: Configure Debian packages build
         if: ${{ inputs.build-debian-packages }}
         env:
           OS: ${{ inputs.os }}
@@ -357,13 +408,29 @@ jobs:
                 -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target package -- --quiet
+
+      - name: Zero compile cache stats (debian packages)
+        if: ${{ inputs.build-debian-packages && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Build Debian packages
+        if: ${{ inputs.build-debian-packages }}
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target package -- --quiet
+
+      - name: Compile cache statistics (debian packages)
+        if: ${{ inputs.build-debian-packages && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: debian-packages
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-debian-packages
 
       - name: Snapshot Ninja logs after Build Debian packages
         if: ${{ inputs.upload-ninja-log && inputs.build-debian-packages }}
         run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" debian_package "${BUILD_DIR}"
 
-      - name: Cmake & Build - OpenVINO Contrib
+      - name: Configure OpenVINO Contrib build
         if: ${{ inputs.build-contrib }}
         run: |
           cmake \
@@ -372,25 +439,60 @@ jobs:
             -DENABLE_WHEEL=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+
+      - name: Zero compile cache stats (openvino contrib)
+        if: ${{ inputs.build-contrib && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Cmake build - OpenVINO Contrib
+        if: ${{ inputs.build-contrib }}
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+
+      - name: Compile cache statistics (openvino contrib)
+        if: ${{ inputs.build-contrib && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-contrib
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-openvino-contrib
 
       - name: Snapshot Ninja logs after Cmake & Build - OpenVINO Contrib
         if: ${{ inputs.upload-ninja-log && inputs.build-contrib }}
         run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" contrib_build "${BUILD_DIR}"
 
-      - name: CMake configure, build and install - OpenVINO JS API
+      - name: Configure OpenVINO JS API build
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: |
           cmake -UTBB* -S ${OPENVINO_REPO} -B ${BUILD_DIR} \
                 -DCPACK_GENERATOR=NPM \
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
-          cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
-          cmake --install ${BUILD_DIR} --prefix ${INSTALL_DIR_JS}
+
+      - name: Zero compile cache stats (openvino js api)
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Cmake build - OpenVINO JS API
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
+
+      - name: Compile cache statistics (openvino js api)
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-js-api
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-openvino-js-api
 
       - name: Snapshot Ninja logs after OpenVINO JS API build
         if: ${{ inputs.upload-ninja-log && fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" js_api_build "${BUILD_DIR}"
+
+      - name: Cmake install - OpenVINO JS API
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        run: cmake --install ${BUILD_DIR} --prefix ${INSTALL_DIR_JS}
 
       - name: Pack openvino_js_package
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
@@ -414,7 +516,7 @@ jobs:
             find . -type f -name '*.gcno' -exec cp --parents {} "${COVERAGE_NOTES_DIR}/js-build/" \;
           )
 
-      - name: Build RPM packages
+      - name: Configure RPM packages build
         if: ${{ inputs.build-rpm-packages }}
         run: |
           # RPM packages always ship the openvino-samples package, so enable samples regardless of build-samples
@@ -426,7 +528,23 @@ jobs:
                 -DENABLE_TESTS=OFF \
                 -DENABLE_SAMPLES=ON \
                 ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --target package -- --quiet
+
+      - name: Zero compile cache stats (rpm packages)
+        if: ${{ inputs.build-rpm-packages && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Build RPM packages
+        if: ${{ inputs.build-rpm-packages }}
+        run: cmake --build ${BUILD_DIR} --parallel 15 --target package -- --quiet
+
+      - name: Compile cache statistics (rpm packages)
+        if: ${{ inputs.build-rpm-packages && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: rpm-packages
+          artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-rpm-packages
 
       - name: Snapshot Ninja logs after Build RPM packages
         if: ${{ inputs.upload-ninja-log && inputs.build-rpm-packages }}
@@ -435,6 +553,14 @@ jobs:
       #
       # Upload build artifacts and logs
       #
+      - name: Upload build logs
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: build_logs
+          path: ${{ env.SCCACHE_ERROR_LOG }}
+          if-no-files-found: 'ignore'
+
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()

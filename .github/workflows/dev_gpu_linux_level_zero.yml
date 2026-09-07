@@ -24,6 +24,9 @@ concurrency:
 
 permissions: read-all
 
+env:
+  OV_COMPILE_CACHE_ENABLED: 'true'  # set to 'false' to disable compile cache
+
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest
@@ -59,7 +62,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-ab
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -70,7 +73,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\",\"ubuntu_24_04_x64_dgpu\":\"mock\"},\"ov_build\":{\"ubuntu_24_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -83,6 +86,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_24_04_x64
+            ov_test/ubuntu_24_04_x64_dgpu
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.smart_ci.outputs.changed_components }}
@@ -92,7 +96,8 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-32gb'
+      enable-compile-cache: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+      runner: 'aks-linux-16-cores-32gb-ab'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}

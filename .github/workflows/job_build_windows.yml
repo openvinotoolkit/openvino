@@ -36,6 +36,12 @@ on:
         type: boolean
         required: false
         default: false
+
+      enable-compile-cache:
+        description: 'Use compiler cache (sccache/ccache) for builds in this job'
+        type: boolean
+        required: false
+        default: true
       upload-ninja-log:
         description: 'Whether to upload Ninja .ninja_log from the OpenVINO build directory'
         type: boolean
@@ -57,6 +63,12 @@ jobs:
     runs-on: ${{ inputs.runner }}
     env:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && inputs.build-type != 'Debug' && 'ccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && inputs.build-type != 'Debug' && 'ccache' || '' }}
+      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}"
+      CCACHE_DIR: ${{ github.workspace }}\\ccache
+      CCACHE_MAXSIZE: 3G
+      CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
@@ -148,6 +160,18 @@ jobs:
       # Build
       #
 
+      - name: Setup ccache
+        if: ${{ inputs.enable-compile-cache && inputs.build-type != 'Debug' }}
+        uses: ./openvino/.github/actions/cache
+        with:
+          save-always: 'true'
+          cleanup-always: 'true'
+          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
+          path: ${{ env.CCACHE_DIR }}
+          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-ccache
+
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         if: ${{ contains(inputs.build-variant, 'vs2022') }}
@@ -180,8 +204,21 @@ jobs:
           }
           New-Item -ItemType Directory -Path $env:NINJA_LOGS_ARCHIVE_DIR -Force | Out-Null
 
+      - name: Zero compile cache stats (openvino main build)
+        if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Cmake build - OpenVINO
-        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $ENV:NUMBER_OF_PROCESSORS -- --quiet
+        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel 15 -- --quiet
+
+      - name: Compile cache statistics (openvino main build)
+        if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-main
+          artifact-name: compile-cache-stats-windows-${{ inputs.build-type }}-${{ inputs.build-variant }}-openvino-main
 
       - name: Snapshot Ninja logs after Cmake build - OpenVINO
         if: ${{ inputs.upload-ninja-log }}
@@ -243,6 +280,12 @@ jobs:
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
+      - name: Zero compile cache stats (additional python wheels)
+        if: ${{ inputs.build-additional-python-wheels && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
@@ -264,7 +307,7 @@ jobs:
               cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
             }
 
-            cmake --build "$pyBuildDir" --parallel $ENV:NUMBER_OF_PROCESSORS --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+            cmake --build "$pyBuildDir" --parallel 15 --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
             if ($LASTEXITCODE -ne 0) {
               Write-Host "Failed to build Python wheels for Python $pyVersion"
               exit $LASTEXITCODE
@@ -287,8 +330,15 @@ jobs:
             }
           }
         env:
-          CMAKE_GENERATOR: 'Ninja'
+          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
           UPLOAD_NINJA_LOG: ${{ inputs.upload-ninja-log }}
+
+      - name: Compile cache statistics (additional python wheels)
+        if: ${{ inputs.build-additional-python-wheels && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: python-wheels-additional
+          artifact-name: compile-cache-stats-windows-${{ inputs.build-type }}-${{ inputs.build-variant }}-python-wheels-additional
 
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.14t
@@ -300,6 +350,12 @@ jobs:
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
           allow-prereleases: 'true'
+
+      - name: Zero compile cache stats (python 3.14t wheels)
+        if: ${{ inputs.build-additional-python-wheels && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
       - name: Build additional Python wheels - Python 3.14t
         if: ${{ inputs.build-additional-python-wheels }}
@@ -317,7 +373,7 @@ jobs:
 
           cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
 
-          cmake --build "$pyBuildDir" --parallel $ENV:NUMBER_OF_PROCESSORS --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+          cmake --build "$pyBuildDir" --parallel 15 --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
           if ($LASTEXITCODE -ne 0) {
             Write-Host "Failed to build Python wheels for Python $pyVersion"
             exit $LASTEXITCODE
@@ -339,8 +395,15 @@ jobs:
             exit $LASTEXITCODE
           }
         env:
-          CMAKE_GENERATOR: 'Ninja'
+          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
           UPLOAD_NINJA_LOG: ${{ inputs.upload-ninja-log }}
+
+      - name: Compile cache statistics (python 3.14t wheels)
+        if: ${{ inputs.build-additional-python-wheels && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: python-wheels-3-14t
+          artifact-name: compile-cache-stats-windows-${{ inputs.build-type }}-${{ inputs.build-variant }}-python-wheels-3-14t
 
       - name: Pack Artifacts
         run: |
@@ -385,15 +448,30 @@ jobs:
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
-      - name: CMake configure, build and install - OpenVINO JS API
+      - name: Configure OpenVINO JS API build
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
         run: |
           cmake -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} `
                 -DCPACK_GENERATOR=NPM `
                 -DENABLE_SYSTEM_TBB=OFF `
                 -DENABLE_WHEEL=OFF
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS -- --quiet
-          cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR_JS }}
+
+      - name: Zero compile cache stats (openvino js api)
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Cmake build - OpenVINO JS API
+        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 15 -- --quiet
+
+      - name: Compile cache statistics (openvino js api)
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-js-api
+          artifact-name: compile-cache-stats-windows-${{ inputs.build-type }}-${{ inputs.build-variant }}-openvino-js-api
 
       - name: Snapshot Ninja logs after OpenVINO JS API build
         if: ${{ inputs.upload-ninja-log && fromJSON(inputs.affected-components).JS_API }}
@@ -402,6 +480,10 @@ jobs:
             -ArchiveRoot $env:NINJA_LOGS_ARCHIVE_DIR `
             -SnapshotName js_api_build `
             -BuildDirs @($env:BUILD_DIR)
+
+      - name: Cmake install - OpenVINO JS API
+        if: ${{ fromJSON(inputs.affected-components).JS_API }}
+        run: cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR_JS }}
 
       - name: Pack JS Artifacts
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
@@ -429,12 +511,27 @@ jobs:
           Compress-Archive @compress
         working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
-      - name: Cmake & Build - OpenVINO Contrib
+      - name: Configure OpenVINO Contrib build
         run: |
           cmake -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} `
                 -DOPENVINO_EXTRA_MODULES="${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${{ env.OPENVINO_CONTRIB_REPO }}/modules/java_api" `
                 -DENABLE_WHEEL=OFF
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS -- --quiet
+
+      - name: Zero compile cache stats (openvino contrib)
+        if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Cmake build - OpenVINO Contrib
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 15 -- --quiet
+
+      - name: Compile cache statistics (openvino contrib)
+        if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-contrib
+          artifact-name: compile-cache-stats-windows-${{ inputs.build-type }}-${{ inputs.build-variant }}-openvino-contrib
 
       - name: Snapshot Ninja logs after Cmake & Build - OpenVINO Contrib
         if: ${{ inputs.upload-ninja-log }}

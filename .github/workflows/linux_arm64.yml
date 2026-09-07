@@ -26,6 +26,7 @@ concurrency:
 permissions: read-all
 
 env:
+  OV_COMPILE_CACHE_ENABLED: 'true'  # set to 'false' to disable compile cache
 
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
@@ -64,7 +65,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-8gb-arm-docker-build
+    runs-on: aks-linux-4-cores-8gb-arm-docker-build-ab
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -88,6 +89,7 @@ jobs:
         with:
           images: |
             ov_build/ubuntu_22_04_arm64
+            ov_test/ubuntu_22_04_arm64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: ${{ needs.Smart_CI.outputs.changed_components }}
@@ -97,8 +99,8 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      store_artifacts: false
-      runner: 'aks-linux-16-cores-32gb-arm'
+      enable-compile-cache: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+      runner: 'aks-linux-16-cores-32gb-arm-ab'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
