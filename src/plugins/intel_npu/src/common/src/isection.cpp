@@ -65,23 +65,23 @@ bool ISection::evaluate_compatibility_based_on_section_content(BlobReaderInterfa
 
 std::string section_type_to_string(const SectionType type) {
     switch (type) {
-    case PredefinedSectionType::RUNTIME_REQUIREMENTS:
+    case KnownSectionType::RUNTIME_REQUIREMENTS:
         return RUNTIME_REQUIREMENTS_SECTION_NAME.data();
-    case PredefinedSectionType::MANIFEST:
+    case KnownSectionType::MANIFEST:
         return MANIFEST_SECTION_NAME.data();
-    case PredefinedSectionType::ELF_MAIN_SCHEDULE:
+    case KnownSectionType::ELF_MAIN_SCHEDULE:
         return ELF_MAIN_SCHEDULE_SECTION_NAME.data();
-    case PredefinedSectionType::ELF_INIT_SCHEDULES:
+    case KnownSectionType::ELF_INIT_SCHEDULES:
         return ELF_INIT_SCHEDULES_SECTION_NAME.data();
-    case PredefinedSectionType::DYNAMIC_SCHEDULE:
+    case KnownSectionType::DYNAMIC_SCHEDULE:
         return DYNAMIC_SCHEDULE_SECTION_NAME.data();
-    case PredefinedSectionType::IO_LAYOUTS:
+    case KnownSectionType::IO_LAYOUTS:
         return IO_LAYOUTS_SECTION_NAME.data();
-    case PredefinedSectionType::BATCH_SIZE:
+    case KnownSectionType::BATCH_SIZE:
         return BATCH_SIZE_SECTION_NAME.data();
-    case PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG:
+    case KnownSectionType::ENCRYPTED_SCHEDULES_FLAG:
         return ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME.data();
-    case PredefinedSectionType::COMPILER_VERSION:
+    case KnownSectionType::COMPILER_VERSION:
         return COMPILER_VERSION_SECTION_NAME.data();
     default:
         return std::to_string(type);
@@ -90,31 +90,31 @@ std::string section_type_to_string(const SectionType type) {
 
 SectionType section_type_from_string(std::string_view type) {
     if (type == RUNTIME_REQUIREMENTS_SECTION_NAME) {
-        return PredefinedSectionType::RUNTIME_REQUIREMENTS;
+        return KnownSectionType::RUNTIME_REQUIREMENTS;
     }
     if (type == MANIFEST_SECTION_NAME) {
-        return PredefinedSectionType::MANIFEST;
+        return KnownSectionType::MANIFEST;
     }
     if (type == ELF_MAIN_SCHEDULE_SECTION_NAME) {
-        return PredefinedSectionType::ELF_MAIN_SCHEDULE;
+        return KnownSectionType::ELF_MAIN_SCHEDULE;
     }
     if (type == ELF_INIT_SCHEDULES_SECTION_NAME) {
-        return PredefinedSectionType::ELF_INIT_SCHEDULES;
+        return KnownSectionType::ELF_INIT_SCHEDULES;
     }
     if (type == DYNAMIC_SCHEDULE_SECTION_NAME) {
-        return PredefinedSectionType::DYNAMIC_SCHEDULE;
+        return KnownSectionType::DYNAMIC_SCHEDULE;
     }
     if (type == IO_LAYOUTS_SECTION_NAME) {
-        return PredefinedSectionType::IO_LAYOUTS;
+        return KnownSectionType::IO_LAYOUTS;
     }
     if (type == BATCH_SIZE_SECTION_NAME) {
-        return PredefinedSectionType::BATCH_SIZE;
+        return KnownSectionType::BATCH_SIZE;
     }
     if (type == ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME) {
-        return PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG;
+        return KnownSectionType::ENCRYPTED_SCHEDULES_FLAG;
     }
     if (type == COMPILER_VERSION_SECTION_NAME) {
-        return PredefinedSectionType::COMPILER_VERSION;
+        return KnownSectionType::COMPILER_VERSION;
     }
 
     OPENVINO_ASSERT(has_only_digits(type),

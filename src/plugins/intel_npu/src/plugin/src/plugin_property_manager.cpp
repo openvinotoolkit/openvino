@@ -187,8 +187,8 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(std::string_view 
     const auto compiler_schedules_instance_evaluator = std::make_shared<CompilerScheduleInstanceEvaluator>(
         backend,
         std::make_shared<CompilerOptionSupportHelper>(optionSupportHelper));
-    instance_evaluators[PredefinedSectionType::ELF_MAIN_SCHEDULE] = compiler_schedules_instance_evaluator;
-    instance_evaluators[PredefinedSectionType::DYNAMIC_SCHEDULE] = compiler_schedules_instance_evaluator;
+    instance_evaluators[KnownSectionType::ELF_MAIN_SCHEDULE] = compiler_schedules_instance_evaluator;
+    instance_evaluators[KnownSectionType::DYNAMIC_SCHEDULE] = compiler_schedules_instance_evaluator;
 
     try {
         return runtimeRequirementsSection->get_runtime_requirements().get_compatibility_check_result(

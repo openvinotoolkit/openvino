@@ -76,7 +76,7 @@ bool Manifest::empty() const {
 }
 
 ManifestSection::ManifestSection(const Manifest& manifest, const ov::log::Level log_level)
-    : ISection(PredefinedSectionType::MANIFEST),
+    : ISection(KnownSectionType::MANIFEST),
       m_manifest(manifest),
       m_logger("ManifestSection", log_level) {}
 

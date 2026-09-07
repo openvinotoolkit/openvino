@@ -50,7 +50,7 @@ class BlobReaderInterface;
 /**
  * @brief Section types already known by the NPU plugin. These section type IDs are reserved.
  */
-namespace PredefinedSectionType {
+namespace KnownSectionType {
 enum : SectionType {
     RUNTIME_REQUIREMENTS = 100,
     MANIFEST = 101,
@@ -64,27 +64,26 @@ enum : SectionType {
 };
 };
 
-static inline const std::unordered_set<SectionType> PREDEFINED_SECTION_TYPES{
-    PredefinedSectionType::RUNTIME_REQUIREMENTS,
-    PredefinedSectionType::MANIFEST,
-    PredefinedSectionType::ELF_MAIN_SCHEDULE,
-    PredefinedSectionType::ELF_INIT_SCHEDULES,
-    PredefinedSectionType::DYNAMIC_SCHEDULE,
-    PredefinedSectionType::IO_LAYOUTS,
-    PredefinedSectionType::BATCH_SIZE,
-    PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG,
-    PredefinedSectionType::COMPILER_VERSION};
+static inline const std::unordered_set<SectionType> PREDEFINED_SECTION_TYPES{KnownSectionType::RUNTIME_REQUIREMENTS,
+                                                                             KnownSectionType::MANIFEST,
+                                                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                                                             KnownSectionType::ELF_INIT_SCHEDULES,
+                                                                             KnownSectionType::DYNAMIC_SCHEDULE,
+                                                                             KnownSectionType::IO_LAYOUTS,
+                                                                             KnownSectionType::BATCH_SIZE,
+                                                                             KnownSectionType::ENCRYPTED_SCHEDULES_FLAG,
+                                                                             KnownSectionType::COMPILER_VERSION};
 
 static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TYPES{
-    PredefinedSectionType::RUNTIME_REQUIREMENTS,
-    PredefinedSectionType::MANIFEST,
-    PredefinedSectionType::ELF_MAIN_SCHEDULE,
-    PredefinedSectionType::ELF_INIT_SCHEDULES,
-    PredefinedSectionType::DYNAMIC_SCHEDULE,
-    PredefinedSectionType::IO_LAYOUTS,
-    PredefinedSectionType::BATCH_SIZE,
-    PredefinedSectionType::ENCRYPTED_SCHEDULES_FLAG,
-    PredefinedSectionType::COMPILER_VERSION};
+    KnownSectionType::RUNTIME_REQUIREMENTS,
+    KnownSectionType::MANIFEST,
+    KnownSectionType::ELF_MAIN_SCHEDULE,
+    KnownSectionType::ELF_INIT_SCHEDULES,
+    KnownSectionType::DYNAMIC_SCHEDULE,
+    KnownSectionType::IO_LAYOUTS,
+    KnownSectionType::BATCH_SIZE,
+    KnownSectionType::ENCRYPTED_SCHEDULES_FLAG,
+    KnownSectionType::COMPILER_VERSION};
 
 /**
  * @brief Interface that should be implemented by all blob section handlers. Its role is to standardize the

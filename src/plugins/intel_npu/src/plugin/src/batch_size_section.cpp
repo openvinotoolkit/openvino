@@ -11,7 +11,7 @@
 namespace intel_npu {
 
 BatchSizeSection::BatchSizeSection(const int64_t batch_size, const ov::log::Level log_level)
-    : ISection(PredefinedSectionType::BATCH_SIZE),
+    : ISection(KnownSectionType::BATCH_SIZE),
       m_batch_size(batch_size),
       m_logger("BatchSizeSection", log_level) {
     m_logger.trace("Section created");

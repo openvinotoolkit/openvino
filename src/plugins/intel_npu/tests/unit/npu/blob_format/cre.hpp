@@ -39,13 +39,13 @@ protected:
 public:
     static std::string tokenToString(CREToken token) {
         switch (token) {
-        case PredefinedSectionType::RUNTIME_REQUIREMENTS:
+        case KnownSectionType::RUNTIME_REQUIREMENTS:
             return "CRE_EVAL";
-        case PredefinedSectionType::ELF_MAIN_SCHEDULE:
+        case KnownSectionType::ELF_MAIN_SCHEDULE:
             return "ELF";
-        case PredefinedSectionType::BATCH_SIZE:
+        case KnownSectionType::BATCH_SIZE:
             return "BATCH";
-        case PredefinedSectionType::ELF_INIT_SCHEDULES:
+        case KnownSectionType::ELF_INIT_SCHEDULES:
             return "WS";
         default:
             return std::to_string(token);
@@ -83,23 +83,23 @@ using CREAppendSingleToken = ::testing::Test;
 
 TEST_F(CREAppendSingleToken, AppendValidTokenUpdatesExpression) {
     CRE cre;
-    cre.append_to_expression(PredefinedSectionType::ELF_MAIN_SCHEDULE);
+    cre.append_to_expression(KnownSectionType::ELF_MAIN_SCHEDULE);
     EXPECT_EQ(cre.get_expression_length(), 1);
-    EXPECT_EQ(cre.get_expression(), (std::vector<CREToken>{PredefinedSectionType::ELF_MAIN_SCHEDULE}));
+    EXPECT_EQ(cre.get_expression(), (std::vector<CREToken>{KnownSectionType::ELF_MAIN_SCHEDULE}));
 }
 
 TEST_F(CREAppendSingleToken, AppendMultipleValidTokensAccumulates) {
     CRE cre;
-    cre.append_to_expression(PredefinedSectionType::ELF_MAIN_SCHEDULE);
-    cre.append_to_expression(PredefinedSectionType::BATCH_SIZE);
-    cre.append_to_expression(PredefinedSectionType::ELF_INIT_SCHEDULES);
+    cre.append_to_expression(KnownSectionType::ELF_MAIN_SCHEDULE);
+    cre.append_to_expression(KnownSectionType::BATCH_SIZE);
+    cre.append_to_expression(KnownSectionType::ELF_INIT_SCHEDULES);
     EXPECT_EQ(cre.get_expression_length(), 5);
     EXPECT_EQ(cre.get_expression(),
-              (std::vector<CREToken>{PredefinedSectionType::ELF_MAIN_SCHEDULE,
+              (std::vector<CREToken>{KnownSectionType::ELF_MAIN_SCHEDULE,
                                      CRE::AND,
-                                     PredefinedSectionType::BATCH_SIZE,
+                                     KnownSectionType::BATCH_SIZE,
                                      CRE::AND,
-                                     PredefinedSectionType::ELF_INIT_SCHEDULES}));
+                                     KnownSectionType::ELF_INIT_SCHEDULES}));
 }
 
 TEST_F(CREAppendSingleToken, AppendReservedTokenThrows) {
@@ -113,17 +113,16 @@ TEST_F(CREAppendSingleToken, AppendReservedTokenThrows) {
 
 TEST_F(CREAppendSingleToken, BuildsEvaluableAndExpression) {
     CRE cre;
-    cre.append_to_expression(PredefinedSectionType::ELF_MAIN_SCHEDULE);
-    cre.append_to_expression(PredefinedSectionType::BATCH_SIZE);
+    cre.append_to_expression(KnownSectionType::ELF_MAIN_SCHEDULE);
+    cre.append_to_expression(KnownSectionType::BATCH_SIZE);
 
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
-    caps[PredefinedSectionType::ELF_MAIN_SCHEDULE] =
-        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::ELF_MAIN_SCHEDULE);
-    caps[PredefinedSectionType::BATCH_SIZE] =
-        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
+    caps[KnownSectionType::ELF_MAIN_SCHEDULE] =
+        std::make_shared<SupportedSectionTypeEvaluator>(KnownSectionType::ELF_MAIN_SCHEDULE);
+    caps[KnownSectionType::BATCH_SIZE] = std::make_shared<SupportedSectionTypeEvaluator>(KnownSectionType::BATCH_SIZE);
     EXPECT_TRUE(cre.check_compatibility(caps));
 
-    caps.erase(PredefinedSectionType::BATCH_SIZE);
+    caps.erase(KnownSectionType::BATCH_SIZE);
     EXPECT_FALSE(cre.check_compatibility(caps));
 }
 
@@ -139,27 +138,27 @@ TEST_F(CREAppendToken, AppendEmptyVector) {
 TEST_F(CREAppendToken, AppendSubexpressionTokens) {
     CRE cre;
     cre.append_to_expression(std::vector<CREToken>{CRE::OPEN,
-                                                   PredefinedSectionType::BATCH_SIZE,
+                                                   KnownSectionType::BATCH_SIZE,
                                                    CRE::OR,
-                                                   PredefinedSectionType::ELF_INIT_SCHEDULES,
+                                                   KnownSectionType::ELF_INIT_SCHEDULES,
                                                    CRE::CLOSE});
     EXPECT_EQ(cre.get_expression(),
               (std::vector<CREToken>{CRE::OPEN,
-                                     PredefinedSectionType::BATCH_SIZE,
+                                     KnownSectionType::BATCH_SIZE,
                                      CRE::OR,
-                                     PredefinedSectionType::ELF_INIT_SCHEDULES,
+                                     KnownSectionType::ELF_INIT_SCHEDULES,
                                      CRE::CLOSE}));
 
-    cre.append_to_expression(std::vector<CREToken>{CRE::OPEN, PredefinedSectionType::BATCH_SIZE, CRE::CLOSE});
+    cre.append_to_expression(std::vector<CREToken>{CRE::OPEN, KnownSectionType::BATCH_SIZE, CRE::CLOSE});
     EXPECT_EQ(cre.get_expression(),
               (std::vector<CREToken>{CRE::OPEN,
-                                     PredefinedSectionType::BATCH_SIZE,
+                                     KnownSectionType::BATCH_SIZE,
                                      CRE::OR,
-                                     PredefinedSectionType::ELF_INIT_SCHEDULES,
+                                     KnownSectionType::ELF_INIT_SCHEDULES,
                                      CRE::CLOSE,
                                      CRE::AND,
                                      CRE::OPEN,
-                                     PredefinedSectionType::BATCH_SIZE,
+                                     KnownSectionType::BATCH_SIZE,
                                      CRE::CLOSE}));
 }
 
@@ -170,37 +169,33 @@ TEST_F(CREAppendToken, AppendSubexpressionTokens) {
 TEST_F(CREAppendToken, AppendSubexpressionAddsParrentheses) {
     CRE cre;
     cre.append_to_expression(
-        std::vector<CREToken>{PredefinedSectionType::BATCH_SIZE, CRE::OR, PredefinedSectionType::ELF_INIT_SCHEDULES});
+        std::vector<CREToken>{KnownSectionType::BATCH_SIZE, CRE::OR, KnownSectionType::ELF_INIT_SCHEDULES});
     EXPECT_EQ(cre.get_expression(),
               (std::vector<CREToken>{CRE::OPEN,
-                                     PredefinedSectionType::BATCH_SIZE,
+                                     KnownSectionType::BATCH_SIZE,
                                      CRE::OR,
-                                     PredefinedSectionType::ELF_INIT_SCHEDULES,
+                                     KnownSectionType::ELF_INIT_SCHEDULES,
                                      CRE::CLOSE}));
 
     cre = {};
-    cre.append_to_expression(std::vector<CREToken>{CRE::OPEN,
-                                                   PredefinedSectionType::BATCH_SIZE,
-                                                   CRE::OR,
-                                                   PredefinedSectionType::ELF_INIT_SCHEDULES});
+    cre.append_to_expression(
+        std::vector<CREToken>{CRE::OPEN, KnownSectionType::BATCH_SIZE, CRE::OR, KnownSectionType::ELF_INIT_SCHEDULES});
     EXPECT_EQ(cre.get_expression(),
               (std::vector<CREToken>{CRE::OPEN,
                                      CRE::OPEN,
-                                     PredefinedSectionType::BATCH_SIZE,
+                                     KnownSectionType::BATCH_SIZE,
                                      CRE::OR,
-                                     PredefinedSectionType::ELF_INIT_SCHEDULES,
+                                     KnownSectionType::ELF_INIT_SCHEDULES,
                                      CRE::CLOSE}));
 
     cre = {};
-    cre.append_to_expression(std::vector<CREToken>{PredefinedSectionType::BATCH_SIZE,
-                                                   CRE::OR,
-                                                   PredefinedSectionType::ELF_INIT_SCHEDULES,
-                                                   CRE::CLOSE});
+    cre.append_to_expression(
+        std::vector<CREToken>{KnownSectionType::BATCH_SIZE, CRE::OR, KnownSectionType::ELF_INIT_SCHEDULES, CRE::CLOSE});
     EXPECT_EQ(cre.get_expression(),
               (std::vector<CREToken>{CRE::OPEN,
-                                     PredefinedSectionType::BATCH_SIZE,
+                                     KnownSectionType::BATCH_SIZE,
                                      CRE::OR,
-                                     PredefinedSectionType::ELF_INIT_SCHEDULES,
+                                     KnownSectionType::ELF_INIT_SCHEDULES,
                                      CRE::CLOSE,
                                      CRE::CLOSE}));
 }
@@ -211,13 +206,13 @@ TEST_F(CREAppendToken, AppendSubexpressionAddsParrentheses) {
  */
 TEST_F(CREAppendToken, AppendSubexpressionWithoutParrentheses) {
     CRE cre;
-    cre.append_to_expression(std::vector<CREToken>{CRE::NOT, PredefinedSectionType::BATCH_SIZE});
-    EXPECT_EQ(cre.get_expression(), (std::vector<CREToken>{CRE::NOT, PredefinedSectionType::BATCH_SIZE}));
+    cre.append_to_expression(std::vector<CREToken>{CRE::NOT, KnownSectionType::BATCH_SIZE});
+    EXPECT_EQ(cre.get_expression(), (std::vector<CREToken>{CRE::NOT, KnownSectionType::BATCH_SIZE}));
 
     cre = {};
-    cre.append_to_expression(std::vector<CREToken>{CRE::OPEN, CRE::NOT, PredefinedSectionType::BATCH_SIZE, CRE::CLOSE});
+    cre.append_to_expression(std::vector<CREToken>{CRE::OPEN, CRE::NOT, KnownSectionType::BATCH_SIZE, CRE::CLOSE});
     EXPECT_EQ(cre.get_expression(),
-              (std::vector<CREToken>{CRE::OPEN, CRE::NOT, PredefinedSectionType::BATCH_SIZE, CRE::CLOSE}));
+              (std::vector<CREToken>{CRE::OPEN, CRE::NOT, KnownSectionType::BATCH_SIZE, CRE::CLOSE}));
 }
 
 /**
@@ -226,49 +221,48 @@ TEST_F(CREAppendToken, AppendSubexpressionWithoutParrentheses) {
  */
 TEST_F(CREAppendToken, AvoidAppendingDuplicates) {
     CRE cre;
-    cre.append_to_expression(PredefinedSectionType::BATCH_SIZE);
-    cre.append_to_expression(PredefinedSectionType::BATCH_SIZE);
-    EXPECT_EQ(cre.get_expression(), (std::vector<CREToken>{PredefinedSectionType::BATCH_SIZE}));
+    cre.append_to_expression(KnownSectionType::BATCH_SIZE);
+    cre.append_to_expression(KnownSectionType::BATCH_SIZE);
+    EXPECT_EQ(cre.get_expression(), (std::vector<CREToken>{KnownSectionType::BATCH_SIZE}));
 
     cre = {};
     cre.append_to_expression(std::vector<CREToken>{CRE::OPEN,
                                                    CRE::NOT,
-                                                   PredefinedSectionType::BATCH_SIZE,
+                                                   KnownSectionType::BATCH_SIZE,
                                                    CRE::OR,
-                                                   PredefinedSectionType::ELF_INIT_SCHEDULES,
+                                                   KnownSectionType::ELF_INIT_SCHEDULES,
                                                    CRE::CLOSE});
     cre.append_to_expression(std::vector<CREToken>{CRE::OPEN,
                                                    CRE::NOT,
-                                                   PredefinedSectionType::BATCH_SIZE,
+                                                   KnownSectionType::BATCH_SIZE,
                                                    CRE::OR,
-                                                   PredefinedSectionType::ELF_INIT_SCHEDULES,
+                                                   KnownSectionType::ELF_INIT_SCHEDULES,
                                                    CRE::CLOSE});
     EXPECT_EQ(cre.get_expression(),
               (std::vector<CREToken>{CRE::OPEN,
                                      CRE::NOT,
-                                     PredefinedSectionType::BATCH_SIZE,
+                                     KnownSectionType::BATCH_SIZE,
                                      CRE::OR,
-                                     PredefinedSectionType::ELF_INIT_SCHEDULES,
+                                     KnownSectionType::ELF_INIT_SCHEDULES,
                                      CRE::CLOSE}));
 }
 
 TEST_F(CREAppendToken, MixedAppend) {
     CRE cre;
-    cre.append_to_expression(PredefinedSectionType::ELF_MAIN_SCHEDULE);
+    cre.append_to_expression(KnownSectionType::ELF_MAIN_SCHEDULE);
     cre.append_to_expression(std::vector<CREToken>{CRE::OPEN,
-                                                   PredefinedSectionType::BATCH_SIZE,
+                                                   KnownSectionType::BATCH_SIZE,
                                                    CRE::OR,
-                                                   PredefinedSectionType::ELF_INIT_SCHEDULES,
+                                                   KnownSectionType::ELF_INIT_SCHEDULES,
                                                    CRE::CLOSE});
 
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> caps;
-    caps[PredefinedSectionType::ELF_MAIN_SCHEDULE] =
-        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::ELF_MAIN_SCHEDULE);
-    caps[PredefinedSectionType::BATCH_SIZE] =
-        std::make_shared<SupportedSectionTypeEvaluator>(PredefinedSectionType::BATCH_SIZE);
+    caps[KnownSectionType::ELF_MAIN_SCHEDULE] =
+        std::make_shared<SupportedSectionTypeEvaluator>(KnownSectionType::ELF_MAIN_SCHEDULE);
+    caps[KnownSectionType::BATCH_SIZE] = std::make_shared<SupportedSectionTypeEvaluator>(KnownSectionType::BATCH_SIZE);
     EXPECT_TRUE(cre.check_compatibility(caps));
 
-    caps.erase(PredefinedSectionType::ELF_MAIN_SCHEDULE);
+    caps.erase(KnownSectionType::ELF_MAIN_SCHEDULE);
     EXPECT_FALSE(cre.check_compatibility(caps));
 }
 
