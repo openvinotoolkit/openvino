@@ -31,6 +31,7 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
 
     constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
     jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", softmax_accumulator_type));
+
     constexpr size_t subgroup_size = 16;
     jit.make("SUBGROUP_SIZE", subgroup_size);
 
