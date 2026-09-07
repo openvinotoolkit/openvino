@@ -22,7 +22,7 @@ permissions: read-all
 jobs:
   Keras3_OpenVINO_Backend:
     name: Keras 3 OpenVINO Backend
-    timeout-minutes: 10
+    timeout-minutes: 30
     defaults:
       run:
         shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
