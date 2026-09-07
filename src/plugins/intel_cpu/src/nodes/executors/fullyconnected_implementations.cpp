@@ -106,6 +106,20 @@ static const TypeMapping aclLowpFCTypeMapping {
     {{_u8 | _i8, _i8, _any, _f32},                 {bypass(), bypass(), use<3>(), bypass()}}
 };
 
+#if defined(OV_CPU_WITH_KLEIDIAI)
+static const TypeMapping kleidiaiFCTypeMapping {
+    // {src, wei, bia, dst}                        pt<src, wei, bias, dst>
+    // f32 weights are used as-is by the F32 NEON MLA kernel
+    {{_f32, _f32, _any, _any},                     {bypass(), bypass(), use<0>(), use<0>()}},
+    // Keep low-precision (compressed) weights intact so the dynamic-quant
+    // KleidiAI kernels (i8 / i4 / u4, incl. group asymmetric) receive the
+    // original weight precision instead of an upconverted f32 tensor.
+    {{_f32, _i8 | _i4 | _u4, _any, _any},          {bypass(), bypass(), use<0>(), use<0>()}},
+    // fallback
+    {{_any, _any, _any, _any},                     {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
+};
+#endif
+
 static const MappingNotation fcMappingNotation {
     {ARG_SRC,  0},
     {ARG_WEI,  1},
@@ -371,14 +385,20 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(all_of(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
-                VERIFY(any_of(weiType(config), f32, i8, i4), UNSUPPORTED_WEI_PRECISIONS);
+                VERIFY(any_of(weiType(config), f32, i8, i4, u4), UNSUPPORTED_WEI_PRECISIONS);
                 VERIFY(implication(hasBias(config), biaType(config) == f32), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 VERIFY(MatMulKleidiAIExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
                 return true;
             },
-            HasNoOptimalConfig<FCAttrs>{},
+            // createOptimalConfig
+            [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
+                return createOptimalConfigCommon(config,
+                                                 kleidiaiFCTypeMapping,
+                                                 dnnlFCLayoutConfig,
+                                                 fcMappingNotation);
+            },
             AcceptsAnyShape<FCAttrs>,
             CreateDefault<MatMulKleidiAIExecutor, FCAttrs>{}
             )

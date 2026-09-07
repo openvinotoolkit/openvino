@@ -228,6 +228,9 @@ public:
     /// @brief Type name of original ov operation.
     std::string origin_op_type_name;
 
+    /// @brief Set via "gpu_shape_of_subgraph_root" rt_info; protected from fusion like shape_of.
+    bool is_shape_of_subgraph_root = false;
+
     /// @brief Requested output padding.
     std::vector<padding> output_paddings;
 
@@ -267,6 +270,7 @@ public:
         }
         ob << input;
         ob << num_outputs;
+        ob << is_shape_of_subgraph_root;
     }
 
     virtual void load(BinaryInputBuffer& ib) {
@@ -293,6 +297,7 @@ public:
         }
         ib >> input;
         ib >> num_outputs;
+        ib >> is_shape_of_subgraph_root;
     }
 
     virtual padding get_output_padding(size_t idx) const {

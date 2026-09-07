@@ -5,8 +5,15 @@
 set(OV_FRONTEND_NAME "mock_py")
 set(TARGET_NAME "${FRONTEND_NAME_PREFIX}${OV_FRONTEND_NAME}${FRONTEND_NAME_SUFFIX}")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE LIBRARY_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
+set(LIBRARY_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/frontend_wrapper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/mock_py_frontend.cpp
+)
+set(LIBRARY_HEADERS
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mock_py_frontend/frontend_wrappers.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mock_py_frontend/mock_py_frontend.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/mock_py_frontend/visibility.hpp
+)
 
 source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${LIBRARY_HEADERS})

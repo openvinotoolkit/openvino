@@ -1226,12 +1226,11 @@ public:
             // softmax_results, subsequence_offsets, exp_sums, max_logits, tmp_out
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // softmax_results
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // subsequence_offsets
-            if (has_score_aggregation) {
+            if (has_score_aggregation)
                 args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // cumulative_score_aggregation_sum
-            }
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // exp_sums
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // max_logits
-            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});  // tmp_out
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // exp_sums
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // max_logits
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, internal_index++});      // tmp_out
 
             // Scalar used for proper offset calculation of intermediate data buffers
             args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
@@ -1377,21 +1376,22 @@ public:
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     bool valid_micro_stage(const PagedAttentionStage& stage) const {
-        if (stage == PagedAttentionStage::PREFILL) {
+        if (stage == PagedAttentionStage::PREFILL)
             return !pa_sdpa_micro->kd.micro_kernels.empty();
-        }
-        if (stage == PagedAttentionStage::MIXED) {
+        if (stage == PagedAttentionStage::MIXED)
             return !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
-        }
         return false;
     }
 
+    // MIXED may use micro SDPA regardless of token_type_ids: bidirectional masking is implemented
+    // only in the PREFILL kernels, and in MIXED neither micro SDPA nor paged_attention_opt.cl consumes token_type_ids.
+    // TODO: implement bidirectional attention for MIXED with token_type_ids
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
-        if (!supports_micro_sdpa(params) || !valid_micro_stage(stage)) {
-            return false;
-        }
-        const auto desc = params.typed_desc<paged_attention>();
-        return !desc->has_token_type_ids || stage == PagedAttentionStage::PREFILL;
+        const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage);
+        GPU_DEBUG_TRACE_DETAIL << "can_use_micro_sdpa_for: stage = " << static_cast<size_t>(stage)
+                               << ", token_type_ids = " << params.get_input_layout(PagedAttentionInputIdx::TOKEN_TYPE_IDS).to_short_string()
+                               << ", can_use_micro_sdpa = " << can_use_micro_sdpa << std::endl;
+        return can_use_micro_sdpa;
     }
 
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
@@ -1426,7 +1426,7 @@ public:
             return false;
         }
 
-        if (desc->k_head_size > 256 || desc->v_head_size > 256) {
+        if (desc->k_head_size > 512 || desc->v_head_size > 512) {
             return false;
         }
 
@@ -1454,12 +1454,10 @@ public:
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         if (use_micro_sdpa) {
-            if (stage == PagedAttentionStage::PREFILL) {
+            if (stage == PagedAttentionStage::PREFILL)
                 return get_micro_tile_qsize(pa_sdpa_micro->kd);
-            }
-            if (stage == PagedAttentionStage::MIXED) {
+            if (stage == PagedAttentionStage::MIXED)
                 return get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
-            }
         }
         return default_block_size;
     }
@@ -1495,9 +1493,8 @@ public:
         }
         rt_params->num_of_partitions = ceil_div(effective_context_len, rt_params->partition_size);
 
-        if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic()) {
+        if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
             rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
-        }
 
         rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
 
@@ -1567,12 +1564,11 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
-            } else {
+            } else
+#endif
+            {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
             }
-#else
-            res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
-#endif
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
@@ -1582,12 +1578,11 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa) {
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
-                } else {
+                } else
+#endif
+                {
                     res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
                 }
-#else
-                res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
-#endif
             }
             if (num_of_partitions > 1 && !rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token_finalization : pa_single_token_finalization)};
@@ -1856,9 +1851,8 @@ public:
             return sequential_gws_subseq_mapping_idx;
         };
 
-        if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output && !use_micro_sdpa)) {
+        if ((stage == PagedAttentionStage::UNKNOWN) || (stage == PagedAttentionStage::GENERATE && !has_scores_output && !use_micro_sdpa))
             return;
-        }
 
         auto& stream = instance.get_network().get_stream();
         const auto past_lens_mem = instance.past_lens_memory_ptr();

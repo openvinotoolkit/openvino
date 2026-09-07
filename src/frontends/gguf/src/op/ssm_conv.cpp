@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/constant.hpp"
-#include "openvino/op/group_conv.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/transpose.hpp"
 #include <vector>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -43,8 +43,12 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     auto c_new_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{d_inner, 1, 1, d_conv});
     auto c_reshaped = std::make_shared<ov::op::v1::Reshape>(c, c_new_shape, false);
 
-    auto conv = std::make_shared<ov::op::v1::GroupConvolution>(
-        sx_reshaped, c_reshaped, ov::Strides{1}, ov::CoordinateDiff{0}, ov::CoordinateDiff{0}, ov::Strides{1});
+    auto conv = std::make_shared<ov::op::v1::GroupConvolution>(sx_reshaped,
+                                                               c_reshaped,
+                                                               ov::Strides{1},
+                                                               ov::CoordinateDiff{0},
+                                                               ov::CoordinateDiff{0},
+                                                               ov::Strides{1});
 
     // [n_s, d_inner, n_t] -> [n_s, n_t, d_inner]
     auto perm = ov::op::v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, 2, 1});
@@ -54,7 +58,7 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, n_s, -1, d_inner});
     auto res = std::make_shared<ov::op::v1::Reshape>(transposed, out_shape, false);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

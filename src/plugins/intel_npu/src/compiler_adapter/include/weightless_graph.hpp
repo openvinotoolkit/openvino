@@ -41,7 +41,8 @@ public:
                                  std::shared_ptr<const ov::Model>,
                                  std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
                     const FilteredConfig& config,
-                    const bool blobIsPersistent = false);
+                    const bool blobIsPersistent = false,
+                    const std::optional<std::string>& compatibilityDescriptor = std::nullopt);
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
@@ -58,8 +59,6 @@ public:
      * compiled model.
      */
     void initialize_impl(const FilteredConfig& config) override;
-
-    std::optional<std::string_view> get_compatibility_descriptor() const override;
 
     // TODO: public for multi-threaded execution
     struct InputData {

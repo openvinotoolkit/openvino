@@ -117,11 +117,10 @@ ov::pass::RemoveConcatSliceAfterLoopSSM::RemoveConcatSliceAfterLoopSSM() {
                                         init_state,
                                         pattern::any_input()};
 
-    auto loop_output0 = pattern::wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(0));
-    auto loop_output1 = pattern::wrap_type<ov::op::v5::Loop>(loop_inputs, pattern::output_index_matches(1));
+    auto loop = pattern::wrap_type_strict_index<ov::op::v5::Loop>(loop_inputs);
 
-    auto reshape_output = pattern::wrap_type<v1::Reshape>({loop_output0, {-1}});
-    auto reshape_state = pattern::wrap_type<v1::Reshape>({loop_output1, {-1}});
+    auto reshape_output = pattern::wrap_type<v1::Reshape>({loop->output(0), {-1}});
+    auto reshape_state = pattern::wrap_type<v1::Reshape>({loop->output(1), {-1}});
     auto concat_loop = pattern::wrap_type<v0::Concat>({reshape_output, reshape_state}, {{"axis", 0}});
     auto out_numel = pattern::any_input(pattern::has_static_shape());
     auto slice_output = pattern::wrap_type<ov::op::v8::Slice>({concat_loop, {0}, out_numel, {1}, {0}});
@@ -137,7 +136,7 @@ ov::pass::RemoveConcatSliceAfterLoopSSM::RemoveConcatSliceAfterLoopSSM() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         bool changed = false;
-        auto loop_node = pattern_map.at(loop_output0).get_node_shared_ptr();
+        auto loop_node = m.get_pattern_map().at(loop);
         if (pattern_map.count(restored_output)) {
             auto restored_output_out = pattern_map.at(restored_output);
             if (!ov::replace_output_update_name(restored_output_out, loop_node->output(0))) {
@@ -160,7 +159,7 @@ ov::pass::RemoveConcatSliceAfterLoopSSM::RemoveConcatSliceAfterLoopSSM() {
     register_matcher(m, callback);
 }
 
-ov::pass::FuseSSMLoop::FuseSSMLoop() {
+ov::pass::FuseSSMLoop::FuseSSMLoop(size_t& fused_count) {
     auto dt = pattern::any_input(pattern::shape_matches("[?, ?, head_num]"));
     auto x = pattern::any_input(pattern::shape_matches("[?, ?, head_num, head_dim]"));
     auto init_state = pattern::any_input(pattern::shape_matches("[?, head_num, head_dim, state_size]"));
@@ -201,7 +200,7 @@ ov::pass::FuseSSMLoop::FuseSSMLoop() {
                                                               init_state,
                                                               pattern::any_input()});  // output accumulator buffer
 
-    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS, &fused_count](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto loop_node = pattern_map.at(loop_output).get_node_shared_ptr();
 
@@ -223,6 +222,7 @@ ov::pass::FuseSSMLoop::FuseSSMLoop() {
 
         ov::copy_runtime_info(m.get_matched_nodes(), selective_ssm);
         ov::replace_node(loop_node, selective_ssm);
+        ++fused_count;
         return true;
     };
 
@@ -235,6 +235,6 @@ bool ov::pass::SelectiveSSMFusion::run_on_model(const std::shared_ptr<ov::Model>
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
     symbolic_ctx_manager->register_pass<ov::pass::RemoveConcatSliceAfterLoopSSM>();
-    symbolic_ctx_manager->register_pass<ov::pass::FuseSSMLoop>();
+    symbolic_ctx_manager->register_pass<ov::pass::FuseSSMLoop>(m_fused_count);
     return symbolic_optimizations.run_on_model(model);
 }

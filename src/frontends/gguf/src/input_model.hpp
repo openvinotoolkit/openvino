@@ -33,6 +33,7 @@ public:
     // Model-scope topology (forwarded to the underlying decoder's model-scope accessors).
     const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_inputs() const;
     std::vector<std::string> get_model_output_names() const;
+    const std::vector<std::pair<std::string, std::string>>& get_recurrent_states() const;
     RopeConfig get_rope_config() const;
     void visit_subgraph(const std::function<void(std::shared_ptr<GgufDecoder>)>& node_visitor) const;
 
