@@ -2478,6 +2478,24 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_no_zp_block_size) 
     test_case.run_with_tolerance_as_fp(0.1f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_group_idx) {
+    // g_idx (group_idx) reorders which block/scale each K-element uses instead of the usual
+    // floor(k / block_size) assignment. K=32, block_size=16 -> 2 groups: group0 has raw quantized
+    // value 138 (dequant 10 with default 8-bit zp=128) and scale 1.0; group1 has raw value 148
+    // (dequant 20) and scale 2.0. g_idx swaps the group assignment of the two halves of K (first
+    // 16 elements use group1, last 16 use group0), so every dequantized element becomes
+    // 10*2.0 = 20*1.0 = 20. With A all-ones, the matmul reduces to sum(20 for 32 elements) = 640.
+    // If g_idx were ignored (falling back to sequential grouping) the result would instead be
+    // 16*10 + 16*40 = 800, so this test fails loudly on a regression.
+    const auto model = convert_model("com.microsoft/matmulnbits_group_idx.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(std::vector<float>(32, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 1}, {640.f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_bf16) {
     // bfloat16 A/scales/zero_points/output (spec parity: T1/T3 allow bfloat16). Values are chosen
     // to be exactly representable in bf16 so the comparison can be bit-exact.

@@ -13,6 +13,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
@@ -133,6 +134,24 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                          group_idx.get_element_type() == ov::element::i32,
                          "Unsupported input group_idx type, accepted I32, got: ",
                          group_idx.get_element_type());
+        // group_idx[k] gives the block/group index dequantizing element k should use, replacing the
+        // usual floor(k / block_size) assignment (act-order/GPTQ-style non-sequential grouping).
+        // Per onnxruntime's own validator (matmul_nbits_helper.h): 1D, sized K or block-padded K.
+        const auto& g_idx_shape = group_idx.get_partial_shape();
+        CHECK_VALID_NODE(node,
+                         g_idx_shape.rank().is_static() && g_idx_shape.size() == 1 && g_idx_shape[0].is_static(),
+                         "Expected input group_idx to be a 1D tensor with a static size, got: ",
+                         g_idx_shape);
+        const auto g_idx_size = static_cast<uint64_t>(g_idx_shape[0].get_length());
+        const auto k_padded = n_blocks_per_col * u_block_size;
+        CHECK_VALID_NODE(node,
+                         g_idx_size == u_K || g_idx_size == k_padded,
+                         "Wrong group_idx size, expected K (",
+                         K,
+                         ") or block-padded K (",
+                         k_padded,
+                         "), got: ",
+                         g_idx_size);
     }
 
     if (common::is_input_valid(node, 5)) {
@@ -291,27 +310,72 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         //           and use u2/u4/u8 weights as the kernel's input, won't do const folding anymore.
 
         // compute in input A's precision (FP32/FP16/BF16)
-
-        // sub and scale via the shared low-precision dequantization helper
         const auto scales_converted = std::make_shared<v0::Convert>(scales, a.get_element_type());
-        const auto scales_reshaped =
-            op::util::reshape(scales_converted,
-                              ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
 
-        auto scaled_b = ov::decomposition::low_precision_dequantize(casted_b, scales_reshaped, converted_zero_points);
+        if (group_idx.get_node_shared_ptr()) {
+            // group_idx present: element k's scale/zero-point comes from block group_idx[k], not
+            // floor(k / block_size). There is no shared contiguous block left to broadcast over, so
+            // flatten B/scales/zero_points along the block axis and Gather each K-column's group
+            // directly (this mirrors onnxruntime's own reorder_idx dequant path, which is likewise a
+            // per-element lookup rather than a block-broadcast fast path).
+            auto flat_shape = v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, -1});
+            ov::Output<ov::Node> b_flat = std::make_shared<v1::Reshape>(casted_b, flat_shape, true);  // [N, k_padded]
 
-        // reshape b to [N, K]
-        auto shape_b = v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, -1});
-        auto reshaped_b = std::make_shared<v1::Reshape>(scaled_b, shape_b, true);
+            const auto k_padded = n_blocks_per_col * u_block_size;
+            const auto g_idx_size = static_cast<uint64_t>(group_idx.get_partial_shape()[0].get_length());
+            const bool g_idx_is_full_k = (g_idx_size == u_K);
+            // group_idx sized K: trim B to K first so it lines up with group_idx for the gather below.
+            // group_idx sized block-padded K: gather stays block-padded; trim to K (if any) happens
+            // after dequantization instead (see below).
+            if (g_idx_is_full_k && k_padded != u_K) {
+                b_flat = std::make_shared<v8::Slice>(b_flat, zero, elements, one, axis);
+            }
 
-        // if n_blocks_per_col*blob_size*X != K
-        // need slice it to K
-        // to produce b = [N, K]
-        const bool slice_needed = (K % block_size != 0);
-        if (slice_needed) {
-            b = std::make_shared<v8::Slice>(reshaped_b, zero, elements, one, axis);
+            const auto gather_axis = v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
+            auto scales_flat =
+                op::util::reshape(scales_converted,
+                                  ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col)});
+            ov::Output<ov::Node> scale_per_k = std::make_shared<v8::Gather>(scales_flat, group_idx, gather_axis);
+
+            ov::Output<ov::Node> zp_per_k = converted_zero_points;
+            if (zero_points.get_node_shared_ptr()) {
+                // converted_zero_points is [N, n_blocks_per_col, 1] here; drop the trailing 1 to gather.
+                auto zp_flat =
+                    op::util::reshape(converted_zero_points,
+                                      ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col)});
+                zp_per_k = std::make_shared<v8::Gather>(zp_flat, group_idx, gather_axis);
+            }
+            // else: converted_zero_points already holds the default zp as a [1]-shaped scalar, which
+            // broadcasts naturally against the [N, len(group_idx)] tensors above.
+
+            auto dequant = ov::decomposition::low_precision_dequantize(b_flat, scale_per_k, zp_per_k);
+            if (!g_idx_is_full_k && k_padded != u_K) {
+                b = std::make_shared<v8::Slice>(dequant, zero, elements, one, axis);
+            } else {
+                b = dequant;
+            }
         } else {
-            b = reshaped_b;
+            // sub and scale via the shared low-precision dequantization helper
+            const auto scales_reshaped =
+                op::util::reshape(scales_converted,
+                                  ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
+
+            auto scaled_b =
+                ov::decomposition::low_precision_dequantize(casted_b, scales_reshaped, converted_zero_points);
+
+            // reshape b to [N, K]
+            auto shape_b = v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, -1});
+            auto reshaped_b = std::make_shared<v1::Reshape>(scaled_b, shape_b, true);
+
+            // if n_blocks_per_col*blob_size*X != K
+            // need slice it to K
+            // to produce b = [N, K]
+            const bool slice_needed = (K % block_size != 0);
+            if (slice_needed) {
+                b = std::make_shared<v8::Slice>(reshaped_b, zero, elements, one, axis);
+            } else {
+                b = reshaped_b;
+            }
         }
 
         // mm = matmul(a,b)
