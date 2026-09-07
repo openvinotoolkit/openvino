@@ -306,6 +306,8 @@ data_types from_data_type(kernel_selector::data_type dt) {
         return cldnn::data_types::f16;
     case kernel_selector::data_type::F32:
         return cldnn::data_types::f32;
+    case kernel_selector::data_type::BF16:
+        return cldnn::data_types::bf16;
     case kernel_selector::data_type::F4E2M1:
         return cldnn::data_types::f4e2m1;
     case kernel_selector::data_type::F8E4M3:
