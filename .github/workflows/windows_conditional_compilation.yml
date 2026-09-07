@@ -2,6 +2,10 @@ name: Windows Conditional Compilation (VS 2022, Python 3.11)
 on:
   workflow_dispatch:
     inputs:
+      enable-compile-cache:
+        description: 'Use sccache/ccache for compilation (workflow_dispatch default applies to other triggers)'
+        type: boolean
+        default: true
       target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
@@ -75,8 +79,8 @@ jobs:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'ccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'ccache' || '' }}
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'ccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'ccache' || '' }}
       CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
@@ -138,7 +142,7 @@ jobs:
       #
 
       - name: Setup ccache
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/cache
         with:
           save-always: 'true'
@@ -185,7 +189,7 @@ jobs:
         run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Compile cache statistics (openvino cc collect main)
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-collect-openvino-main
@@ -200,7 +204,7 @@ jobs:
         run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
       - name: Compile cache statistics (sea_itt_lib)
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-collect-sea-itt-lib
@@ -223,7 +227,7 @@ jobs:
         run: cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
 
       - name: Compile cache statistics (cpp samples)
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-collect-cpp-samples
@@ -408,7 +412,7 @@ jobs:
         run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
 
       - name: Compile cache statistics (cc on benchmark_app)
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-on-benchmark-app

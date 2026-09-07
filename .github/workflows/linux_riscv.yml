@@ -5,6 +5,10 @@ on:
     - cron: '0 0 * * 3,6'
   workflow_dispatch:
     inputs:
+      enable-compile-cache:
+        description: 'Use sccache/ccache for compilation (workflow_dispatch default applies to other triggers)'
+        type: boolean
+        default: true
       target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
@@ -135,8 +139,8 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'ccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' && 'ccache' || '' }}
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'ccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'ccache' || '' }}
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
@@ -206,7 +210,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
 
       - name: Compile cache statistics (openvino main build)
-        if: ${{ env.OV_COMPILE_CACHE_ENABLED != 'false' }}
+        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: openvino-main
