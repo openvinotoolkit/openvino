@@ -903,30 +903,21 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         OPENVINO_ASSERT(hfa_desc->is_valid(), "HFA configuration must be valid");
                         // GENERATE (decoding) is not supported yet: the past-tile math below
                         // assumes past_total_length always divides evenly by past_tile_size --
-                        // true for PREFILL chunking (the KV cache is always filled in exact
-                        // past_tile_size increments), but not for GENERATE, where the actual past
+                        // true for PREFILL chunking, but not for GENERATE, where the actual past
                         // length grows one token at a time and can land in the middle of a block.
                         NPUW_ASSERT(state.hfa_selector->this_case() ==
                                         runtime::host_flash_attention::Selector::Case::PREFILL &&
                                     "HFA does not support GENERATE (decoding) yet — use Pyramid or Dynamic attention "
                                     "for the generate stage.");
-                        // past_tile_size ("C"): chunk size for REGULAR tiles.
-                        // final_tile_size: K/V length processed by the single FINAL tile call —
-                        // always equal to present (query) size (PREFILL never leaves a KV
-                        // "remainder" -- see analyze_past_tiling in host_flash_attention.cpp).
+                        // past_tile_size ("C"): chunk size for REGULAR tiles -- e.g. the SWA window
+                        // capacity for a sliding-window layer, which may differ from the query
+                        // chunk size shared by every layer (present_tile_size / final_tile_size).
                         const int64_t past_tile_size = hfa_desc->_past_tile_size;
                         const int64_t final_tile_size = hfa_desc->_final_tile_size;
                         const int64_t present_tile_size =
                             static_cast<int64_t>(hfa_desc->_sdpa_attention_info._query_size);
                         OPENVINO_ASSERT(final_tile_size == present_tile_size,
                                         "HFA: final tile size must equal the query size (PREFILL-only)");
-
-                        const int64_t total_kv_length = state.hfa_selector->context_length();
-                        const int64_t past_total_length = total_kv_length - present_tile_size;
-                        OPENVINO_ASSERT(
-                            past_tile_size > 0 ? (past_total_length % past_tile_size == 0) : (past_total_length == 0),
-                            "HFA: past length must be a multiple of the past tile size");
-                        const int64_t past_full_tiles = (past_tile_size > 0) ? (past_total_length / past_tile_size) : 0;
 
                         const auto& hfa_inputs = io.inputs;
                         const auto& sdpa_info = hfa_desc->_sdpa_attention_info;
@@ -947,6 +938,27 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
                         auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
                         auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
+                        const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
+
+                        // total_kv_length controls how many KV tiles HFA processes.
+                        // Use min(global_context_length, layer_bound_kv_length) to satisfy both constraints:
+                        // 1) Global layers: do not exceed real conversation length when block capacity is rounded up.
+                        // 2) SWA layers: do not exceed KV that is actually bound in layer tensors (the sliding
+                        //    window's past capacity may be smaller than the global/full-attention context).
+                        int64_t layer_bound_kv_length =
+                            static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
+                        for (const auto& k_block : past_key_blocks) {
+                            layer_bound_kv_length += static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
+                        }
+                        const int64_t global_context_length = state.hfa_selector->context_length();
+                        const int64_t total_kv_length = std::min(global_context_length, layer_bound_kv_length);
+
+                        const int64_t past_total_length = total_kv_length - present_tile_size;
+                        OPENVINO_ASSERT(
+                            past_tile_size > 0 ? (past_total_length % past_tile_size == 0) : (past_total_length == 0),
+                            "HFA: past length must be a multiple of the past tile size");
+                        const int64_t past_full_tiles = (past_tile_size > 0) ? (past_total_length / past_tile_size) : 0;
+
                         auto& regular_tile_request = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE];
                         auto& final_tile_request = state.hfa_requests.infer_requests[HFARequestSet::FINAL_TILE];
                         auto attention_output_tensor =
@@ -1004,7 +1016,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0],
                                                        attention_output_tensor);
 
-                        const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
                         const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
                         constexpr uint32_t MASK_KV_SEQ_DIM = 3;
                         size_t next_available_mask_buffer_idx = 0;
