@@ -1233,16 +1233,31 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
         network->unregister_output_memory_block(internal_name);
 
         auto& engine = m_graph->get_engine();
+        // Reject zero-copy when the caller buffer is also fed back as an input: binding it as the
+        // output would let a tiled kernel overwrite the input before it is fully read.
+        const bool aliases_input = output_ptr_aliases_input(user_tensor->data());
         // Import a caller USM-host pointer as a shared remote tensor so the graph writes into it directly.
         const bool can_share_user_usm_host =
             !is_remote_tensor_impl && !is_generic_remote && !convert_needed &&
             engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
             engine.detect_usm_allocation_type(user_tensor->data()) == cldnn::allocation_type::usm_host &&
-            can_use_usm_host(engine, total_output_bytes);
+            can_use_usm_host(engine, total_output_bytes) &&
+            !aliases_input;
         const bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
         if (can_share_user_usm_host) {
             m_plugin_outputs[output_idx] =
                 create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
+        } else if (aliases_input && !is_remote_tensor_impl && !is_generic_remote) {
+            // The output buffer is also used as an input: allocate plugin-owned memory to avoid
+            // overwriting the input data before it is read. The result is copied out in wait().
+            auto tensor_shape = user_tensor->get_shape();
+            auto actual_memory_shape = predict_shape(internal_name,
+                                                     cldnn::layout(tensor_shape,
+                                                                   device_tensor_et,
+                                                                   cldnn::format::get_default_format(tensor_shape.size())),
+                                                     *m_shape_predictor);
+            m_plugin_outputs[output_idx] = { create_device_tensor(actual_memory_shape, device_tensor_et, need_lockable_mem || convert_needed),
+                                             TensorOwner::PLUGIN };
         } else if (had_user_device_buffer && !is_remote_tensor_impl && !is_generic_remote) {
             // Prev binding shared caller memory but the new host tensor is ineligible: recreate
             // plugin-owned memory so set_output_memory() rebinds the Result off the stale allocation.
@@ -1285,6 +1300,18 @@ void SyncInferRequest::init_mappings() {
 
 bool SyncInferRequest::is_batched_input(const ov::Output<const ov::Node>& port) const {
     return m_batched_tensors.count(port.get_tensor_ptr()) > 0;
+}
+
+bool SyncInferRequest::output_ptr_aliases_input(const void* ptr) const {
+    if (ptr == nullptr)
+        return false;
+    auto inputs = m_user_inputs.read();
+    for (const auto& [key, wrapper] : *inputs) {
+        // Remote tensors don't implement data(), so skip them.
+        if (wrapper.ptr && !std::dynamic_pointer_cast<IRemoteTensor>(wrapper.ptr) && wrapper.ptr->data() == ptr)
+            return true;
+    }
+    return false;
 }
 
 }  // namespace ov::intel_gpu
