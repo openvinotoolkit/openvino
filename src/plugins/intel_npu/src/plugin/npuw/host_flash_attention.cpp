@@ -1003,9 +1003,11 @@ static int64_t analyze_past_tiling(const std::shared_ptr<ov::Node>& concat_node,
         auto node = skip_convert_nodes(concat_node->get_input_node_shared_ptr(idx));
         return static_cast<int64_t>(node->get_output_partial_shape(0).to_shape()[seq_dim]);
     };
+    // A past-KV param is "block-named" (block-split, e.g. "..._block_3"/"..._block_tail")
+    // when it does NOT match the plain contiguous naming ("past_key_values.<n>.key/value").
     auto is_block_named = [&](std::size_t idx) -> bool {
         auto node = skip_convert_nodes(concat_node->get_input_node_shared_ptr(idx));
-        return node->get_friendly_name().find("_block_") != std::string::npos;
+        return !ov::npuw::util::isPastKeyValuesContiguous(node->get_friendly_name()).has_value();
     };
 
     if (n_past_inputs == 0) {
@@ -1015,16 +1017,18 @@ static int64_t analyze_past_tiling(const std::shared_ptr<ov::Node>& concat_node,
     }
     if (n_past_inputs == 1) {
         const int64_t len = get_len(0);
-        if (is_block_named(0)) {
-            // A single block; nothing else to batch it with, so treat it as one regular-tile
-            // chunk of its own size.
+        const int64_t query_len = static_cast<int64_t>(query_size);
+        if (is_block_named(0) || len < query_len) {
+            // Either an explicit single block, or a continuous past shorter than one query
+            // chunk (e.g. a sliding-window layer whose past capacity was shrunk below
+            // query_size) -- nothing to chunk it with, so treat it as one regular-tile chunk
+            // of its own size.
             return len;
         }
-        // Continuous (non-block) KV: chunk by query_size.
-        const int64_t past_tile_size = static_cast<int64_t>(query_size);
-        NPUW_ASSERT(len % past_tile_size == 0 &&
+        // Continuous (non-block) KV, at least one full query-chunk long: chunk by query_size.
+        NPUW_ASSERT(len % query_len == 0 &&
                     "HFA: continuous KV length must be a multiple of query_size (PREFILL-only)");
-        return past_tile_size;
+        return query_len;
     }
     // Block-split KV with 2+ past inputs: all must share the same block size (PREFILL always
     // fills the KV cache in exact block-size increments, so there is no shorter tail block).
