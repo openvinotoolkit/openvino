@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -26,6 +27,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 namespace {
 
@@ -235,6 +237,15 @@ TEST_F(PagedSelectiveSSMFusionTest, FusePagedSSM) {
 
     const auto var_ids_to_remove = run_paged_selective_ssm_fusion(model);
     EXPECT_EQ(var_ids_to_remove.count("ssm_var_0"), 1u);
+
+    const auto& parameters = model->get_parameters();
+    const auto state_table =
+        std::find_if(parameters.begin(), parameters.end(), [](const std::shared_ptr<v0::Parameter>& parameter) {
+            return parameter->get_friendly_name() == "selective_ssm_state_table.0";
+        });
+    ASSERT_NE(state_table, parameters.end());
+    EXPECT_TRUE(ov::is_keep_const_precision(*state_table));
+    EXPECT_EQ((*state_table)->get_output_element_type(0), ov::element::dynamic);
 }
 
 TEST(PagedSelectiveSSMFusionCount, ReportsConvertedCount) {

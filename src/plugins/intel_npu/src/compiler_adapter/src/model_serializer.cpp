@@ -322,6 +322,7 @@ protected:
         if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
             manager.register_pass<ov::pass::EliminateIdentity>();
         }
+
         manager.run_passes(model);
 
         // Step 2: store the WeightlessCacheAttributes if requested

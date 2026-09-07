@@ -1,4 +1,10 @@
-ghapi==1.0.4
+attrs==26.1.0
 fastcore==1.12.1
-pyyaml==6.0.1
+ghapi==1.0.4
 jsonschema==4.19.1
+jsonschema-specifications==2025.9.1
+packaging==26.3
+PyYAML==6.0.1
+referencing==0.37.0
+rpds-py==2026.6.3
+typing_extensions==4.16.0

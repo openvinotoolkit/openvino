@@ -174,6 +174,7 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     }
 
     config.is_causal = desc->is_causal;
+    config.causal_lower_right = desc->causal_lower_right;
 
     if (desc->scale_val.has_value()) {
         config.has_const_scale_val = true;
@@ -223,6 +224,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         auto data_inputs_num = get_data_inputs_num(*desc);
 
         jit.make("IS_CAUSAL", desc->is_causal);
+        jit.make("CAUSAL_MASK_LOWER_RIGHT", desc->causal_lower_right);
         if (desc->has_sink_input) {
             jit.make("SINK_DATA_T", to_ocl_type(params.input_layouts[5].data_type));
             jit.make("HAS_SINK_INPUT", 1);
@@ -299,33 +301,37 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
             jit.make("INPUT2_DIMS_ORDER", get_dims_order(extended_input_v_transpose_order));
         }
 
+        // LayoutJitter preserves dynamic dimensions as runtime shape_info expressions.
         auto updated_params = static_canonicalize_shapes(params);
         LayoutJitter q_jitter(updated_params.input_layouts[0], in_offsets_map.at(0));
-        jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
-
         LayoutJitter k_jitter(updated_params.input_layouts[1], in_offsets_map.at(1));
+        LayoutJitter v_jitter(updated_params.input_layouts[2], in_offsets_map.at(2));
+
+        jit.make("TARGET_SEQ_LEN", q_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_q_transpose_order)));
         jit.make("SOURCE_SEQ_LEN", k_jitter.dim(get_transposed_channel(ChannelName::Y, extended_input_k_transpose_order)));
 
-        const auto q_head_size = ensure_positive_dim(get_head_size(params.get_input_layout(0), extended_input_q_transpose_order),
-                                                     "q_head_size",
-                                                     "SDPA: invalid non-positive ",
-                                                     " for JIT constants generation");
-        const auto q_num_head = ensure_positive_dim(get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order),
-                                                    "q_num_head",
-                                                    "SDPA: invalid non-positive ",
-                                                    " for JIT constants generation");
-        auto k_head_size = ensure_positive_dim(get_head_size(params.get_input_layout(1), extended_input_k_transpose_order),
-                                               "k_head_size",
-                                               "SDPA: invalid non-positive ",
-                                               " for JIT constants generation");
-        const auto k_num_head = ensure_positive_dim(get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order),
-                                                    "k_num_head",
-                                                    "SDPA: invalid non-positive ",
-                                                    " for JIT constants generation");
-        auto v_head_size = ensure_positive_dim(get_head_size(params.get_input_layout(2), extended_input_v_transpose_order),
-                                               "v_head_size",
-                                               "SDPA: invalid non-positive ",
-                                               " for JIT constants generation");
+        auto get_static_or_runtime_dim = [](int64_t dim, std::string runtime_dim, const char* dim_name) {
+            if (dim < 0)
+                return runtime_dim;
+
+            return std::to_string(ensure_positive_dim(dim, dim_name, "SDPA: invalid non-positive ", " for JIT constants generation"));
+        };
+
+        const auto q_head_size = get_static_or_runtime_dim(get_head_size(params.get_input_layout(0), extended_input_q_transpose_order),
+                                                           q_jitter.dim(get_transposed_channel(ChannelName::X, extended_input_q_transpose_order)),
+                                                           "q_head_size");
+        const auto q_num_head = get_static_or_runtime_dim(get_num_heads(params.get_input_layout(0), extended_input_q_transpose_order),
+                                                          q_jitter.dim(get_transposed_channel(ChannelName::FEATURE, extended_input_q_transpose_order)),
+                                                          "q_num_head");
+        auto k_head_size = get_static_or_runtime_dim(get_head_size(params.get_input_layout(1), extended_input_k_transpose_order),
+                                                     k_jitter.dim(get_transposed_channel(ChannelName::X, extended_input_k_transpose_order)),
+                                                     "k_head_size");
+        const auto k_num_head = get_static_or_runtime_dim(get_num_heads(params.get_input_layout(1), extended_input_k_transpose_order),
+                                                          k_jitter.dim(get_transposed_channel(ChannelName::FEATURE, extended_input_k_transpose_order)),
+                                                          "k_num_head");
+        auto v_head_size = get_static_or_runtime_dim(get_head_size(params.get_input_layout(2), extended_input_v_transpose_order),
+                                                     v_jitter.dim(get_transposed_channel(ChannelName::X, extended_input_v_transpose_order)),
+                                                     "v_head_size");
 
         // 4-bit KV-cache: K/V layouts have head_size/2 due to u4→i8 packing.
         // Override with logical head size from query (which is not packed).
@@ -425,6 +431,28 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
 
 void SDPAImplBase::update(cldnn::primitive_inst& inst, const RuntimeParams& impl_params) {
     if (impl_params.is_type<scaled_dot_product_attention>()) {
+        const auto desc = impl_params.typed_desc<scaled_dot_product_attention>();
+        ensure_positive_dim(get_head_size(impl_params.get_input_layout(0), desc->input_q_transpose_order),
+                            "q_head_size",
+                            "SDPA: invalid non-positive ",
+                            " for runtime dispatch");
+        ensure_positive_dim(get_num_heads(impl_params.get_input_layout(0), desc->input_q_transpose_order),
+                            "q_num_head",
+                            "SDPA: invalid non-positive ",
+                            " for runtime dispatch");
+        ensure_positive_dim(get_head_size(impl_params.get_input_layout(1), desc->input_k_transpose_order),
+                            "k_head_size",
+                            "SDPA: invalid non-positive ",
+                            " for runtime dispatch");
+        ensure_positive_dim(get_num_heads(impl_params.get_input_layout(1), desc->input_k_transpose_order),
+                            "k_num_head",
+                            "SDPA: invalid non-positive ",
+                            " for runtime dispatch");
+        ensure_positive_dim(get_head_size(impl_params.get_input_layout(2), desc->input_v_transpose_order),
+                            "v_head_size",
+                            "SDPA: invalid non-positive ",
+                            " for runtime dispatch");
+
         // SDPA maybe 3D or 4D, need shape_canonicalization to 4D
         auto new_impl_params = SDPABase::requires_shape_canonicalization(impl_params) ? SDPABase::static_canonicalize_shapes(impl_params) : impl_params;
         inst.update_shape_info_tensor(new_impl_params);

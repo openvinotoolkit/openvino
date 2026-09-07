@@ -105,6 +105,8 @@ void ov::npuw::dump_tensor(const ov::SoPtr<ov::ITensor>& input, const std::strin
     } else {
         // Create temporary tensor and copy data in. Dumping is never fast, anyway
         tensor = ov::get_tensor_impl(ov::Tensor(input->get_element_type(), input->get_shape()));
+        NPUW_ASSERT(tensor._ptr &&
+                    "temporary dump tensor has null implementation — element type or shape may be invalid");
         input->copy_to(tensor._ptr);
     }
     NPUW_ASSERT(tensor);
