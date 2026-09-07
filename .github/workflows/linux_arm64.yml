@@ -64,7 +64,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-8gb-arm-docker-build-ab
+    runs-on: aks-linux-4-cores-8gb-arm-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -98,7 +98,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-32gb-arm-ab'
+      runner: 'aks-linux-16-cores-32gb-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}

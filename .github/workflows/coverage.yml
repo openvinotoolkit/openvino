@@ -45,7 +45,7 @@ jobs:
   Docker:
     name: Coverage Docker Images
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
-    runs-on: aks-linux-4-cores-16gb-docker-build-ab
+    runs-on: aks-linux-4-cores-16gb-docker-build
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -74,7 +74,7 @@ jobs:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-32gb-ab'
+      runner: 'aks-linux-16-cores-32gb'
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       affected-components: '{"JS_API":true}'
       event-name: ${{ github.event_name }}

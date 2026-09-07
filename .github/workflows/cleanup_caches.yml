@@ -12,7 +12,7 @@ env:
 jobs:
   Cleanup_PIP:
     name: Cleanup PIP cache
-    runs-on: aks-linux-medium-ab
+    runs-on: aks-linux-medium
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
@@ -39,7 +39,7 @@ jobs:
 
   Cleanup_HF_Cache_Linux:
     name: Cleanup HuggingFace cache
-    runs-on: aks-linux-medium-ab
+    runs-on: aks-linux-medium
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
@@ -94,7 +94,7 @@ jobs:
   Cleanup_HF_Cache_Windows:
     name: Cleanup Windows HuggingFace cache
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
-    runs-on: 'aks-win-4-cores-8gb-test-ab'
+    runs-on: 'aks-win-4-cores-8gb-test'
     defaults:
       run:
         shell: pwsh
@@ -122,7 +122,7 @@ jobs:
 
   Cleanup_ccache_lin:
     name: Cleanup Linux ccache
-    runs-on: aks-linux-medium-ab
+    runs-on: aks-linux-medium
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
@@ -150,7 +150,7 @@ jobs:
 
   Cleanup_ccache_win:
     name: Cleanup Windows ccache
-    runs-on: 'aks-win-4-cores-8gb-test-ab'
+    runs-on: 'aks-win-4-cores-8gb-test'
     env:
       CCACHE_PATH: C:\\mount\\caches\\ccache
 
