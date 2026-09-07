@@ -3,9 +3,8 @@ on:
   workflow_dispatch:
     inputs:
       openvinoRef:
-        description: 'Commit to clone openvino from (pinned for CI)'
+        description: 'Branch, tag or commit hash to clone openvino from. Taken from event context if not set'
         type: string
-        default: '10364dc5360713192e3d348d965a8cfe7a342368'
       openvinoContribRef:
         description: 'Branch, tag or commit hash to clone openvino_contrib from. Taken from event context if not set'
         type: string
@@ -32,7 +31,6 @@ permissions: read-all
 
 env:
 
-  OPENVINO_CI_REF: '10364dc5360713192e3d348d965a8cfe7a342368'
   PYTHON_VERSION: '3.11'
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
@@ -116,7 +114,7 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
-          ref: ${{ env.OPENVINO_CI_REF }}
+          ref: ${{ inputs.openvinoRef }}
 
       - name: Clone OpenVINO Contrib
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries

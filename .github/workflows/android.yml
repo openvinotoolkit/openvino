@@ -26,8 +26,6 @@ concurrency:
 permissions: read-all
 
 env:
-  OPENVINO_CI_REF: '10364dc5360713192e3d348d965a8cfe7a342368'
-  OPENVINO_GENAI_CI_REF: '57a8d560ca759bb34d420b6733ba00228bee7e52'
 
 jobs:
   Smart_CI:
@@ -156,7 +154,6 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          ref: ${{ env.OPENVINO_CI_REF }}
           path: 'openvino'
           submodules: 'recursive'
 
@@ -167,7 +164,7 @@ jobs:
           repository: 'openvinotoolkit/openvino.genai'
           path: ${{ env.OPENVINO_GENAI_REPO }}
           submodules: 'true'
-          ref: ${{ env.OPENVINO_GENAI_CI_REF }}
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
         id: create_manifest

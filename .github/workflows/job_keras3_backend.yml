@@ -21,7 +21,6 @@ permissions: read-all
 
 env:
 
-
 jobs:
   Keras3_OpenVINO_Backend:
     name: Keras 3 OpenVINO Backend

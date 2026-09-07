@@ -9,7 +9,6 @@ permissions: read-all
 
 env:
 
-
 jobs:
   Cleanup_PIP:
     name: Cleanup PIP cache
