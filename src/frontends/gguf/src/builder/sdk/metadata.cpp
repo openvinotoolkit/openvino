@@ -7,7 +7,7 @@
 #include <type_traits>
 
 #include "builder/sdk/metadata_store.hpp"
-#include "openvino/core/tensor_util.hpp"
+#include "openvino/op/constant.hpp"
 
 namespace ov::frontend::gguf {
 namespace {
@@ -24,7 +24,7 @@ std::vector<T> tensor_values(const ov::Tensor& tensor) {
     if (type == ov::element::string || type.is_dynamic() ||
         (!type.is_integral() && !(std::is_floating_point_v<T> && type.is_real())))
         return {};
-    return ov::util::to_vector<T>(tensor).value_or(std::vector<T>{});
+    return ov::op::v0::Constant(tensor).cast_vector<T>();
 }
 
 template <typename T>

@@ -9,11 +9,11 @@
 #include "builder/gguf_graph.hpp"
 #include "builder/sdk/metadata_store.hpp"
 #include "gtest/gtest.h"
-#include "openvino/core/tensor_util.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/assign.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/pass/manager.hpp"
 #include "projector.hpp"
 
@@ -68,6 +68,11 @@ ArchitectureDefinition handler(const std::string& id, ArchitectureDefinition::Ma
 TEST(GGUFBuilderSDK, MetadataReadsReuseNumericConversionAcrossWidths) {
     Environment env;
     const auto& metadata = env.context.metadata;
+    const auto store = [&](const std::string& key, const ov::op::v0::Constant& value) {
+        ov::TensorVector output;
+        ASSERT_TRUE(value.evaluate(output, {}));
+        env.metadata[key] = output.front();
+    };
     for (auto type : {ov::element::boolean,
                       ov::element::i8,
                       ov::element::u8,
@@ -80,8 +85,8 @@ TEST(GGUFBuilderSDK, MetadataReadsReuseNumericConversionAcrossWidths) {
                       ov::element::f32,
                       ov::element::f64}) {
         SCOPED_TRACE(type.get_type_name());
-        env.metadata["scalar"] = ov::util::make_tensor_of_value(type, 1);
-        env.metadata["array"] = ov::util::make_tensor_of_value(type, 1, {3});
+        store("scalar", ov::op::v0::Constant(type, {}, 1));
+        store("array", ov::op::v0::Constant(type, {3}, 1));
         EXPECT_EQ(metadata.get_float("scalar"), 1.0);
         EXPECT_EQ(metadata.get_float_array("array"), (std::vector<double>{1, 1, 1}));
         EXPECT_FALSE(metadata.get_float("array"));
@@ -94,9 +99,9 @@ TEST(GGUFBuilderSDK, MetadataReadsReuseNumericConversionAcrossWidths) {
             EXPECT_EQ(metadata.get_int_array("array"), (std::vector<int64_t>{1, 1, 1}));
         }
     }
-    env.metadata["signed"] = ov::util::make_tensor_of_value(ov::element::i64, -7);
+    store("signed", ov::op::v0::Constant(ov::element::i64, {}, -7));
     EXPECT_EQ(metadata.get_int("signed"), -7);
-    env.metadata["unsigned"] = ov::util::make_tensor_of_value(ov::element::u64, uint64_t{1} << 63);
+    store("unsigned", ov::op::v0::Constant(ov::element::u64, {}, uint64_t{1} << 63));
     EXPECT_EQ(metadata.get_float("unsigned"), double(uint64_t{1} << 63));
 }
 
