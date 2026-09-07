@@ -170,7 +170,7 @@ def parse_sccache_stats(stdout: str) -> dict[str, Any]:
 
 _RATIO_LINE = re.compile(
     r"^(?P<indent>\s*)(?P<name>[^:]+):\s+"
-    r"(?P<num>[\d.]+)\s*/\s*(?P<den>[\d.]+)\s*\((?P<pct>[\d.]+)%\)\s*$"
+    r"(?P<num>[\d.]+)\s*/\s*(?P<den>[\d.]+)\s*\(\s*(?P<pct>[\d.]+)%\)\s*$"
 )
 _SINGLE_LINE = re.compile(r"^(?P<indent>\s*)(?P<name>[^:]+):\s+(?P<val>[\d.]+)\s*$")
 

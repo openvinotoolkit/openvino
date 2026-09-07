@@ -137,6 +137,26 @@ class TestStepSummaryMarkdown(unittest.TestCase):
         self.assertIn("| Cache size | Cache max size | Cache saturation |", markdown)
         self.assertIn("| 3 GB | 3 GB | 99.97% |", markdown)
 
+    def test_ccache_parses_spaced_percentage_in_parentheses(self):
+        """ccache right-aligns small percentages as '( 0.42%)' on Windows CI."""
+        stdout = """\
+Cacheable calls:   4312 / 4347 (99.19%)
+  Hits:            4294 / 4312 (99.58%)
+    Direct:        4291 / 4294 (99.93%)
+    Preprocessed:     3 / 4294 ( 0.07%)
+  Misses:            18 / 4312 ( 0.42%)
+Local storage:
+  Cache size (GB):  1.4 /  3.0 (45.03%)
+  Hits:            4294 / 4312 (99.58%)
+  Misses:            18 / 4312 ( 0.42%)
+"""
+        report = parse_ccache_stats(stdout)
+        self.assertEqual(report["metrics"]["misses"]["numerator"], 18)
+        metrics = extract_summary_metrics(report)
+        self.assertEqual(metrics["cache_hits"], 4294)
+        self.assertEqual(metrics["cache_misses"], 18)
+        self.assertEqual(metrics["cache_hit_rate"], "99.58%")
+
     def test_sccache_summary_table_omits_cache_size_columns(self):
         report = parse_sccache_stats(SCCACHE_SAMPLE)
         markdown = format_step_summary_markdown(report)
