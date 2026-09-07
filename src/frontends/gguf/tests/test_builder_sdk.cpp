@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cmath>
 #include <numeric>
 
 #include "builder/arch_registry.hpp"
+#include "builder/decoder_config.hpp"
 #include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
 #include "builder/sdk/metadata_store.hpp"
@@ -41,6 +43,14 @@ struct Environment {
         *t.data<float>() = value;
         metadata[key] = t;
     }
+    void architecture(const std::string& name) {
+        std::unordered_map<std::string, GGUFMetaData> renamed;
+        for (const auto& entry : metadata)
+            renamed[entry.first.rfind("test.", 0) == 0 ? name + entry.first.substr(4) : entry.first] = entry.second;
+        metadata = std::move(renamed);
+        metadata["general.architecture"] = name;
+    }
+
     void decoder() {
         integer("test.block_count", 2);
         integer("test.embedding_length", 32);
@@ -300,4 +310,70 @@ TEST(GGUFBuilderSDK, SingleHeadSplitPreservesDynamicTokens) {
     ASSERT_TRUE(model->evaluate(results, {data}));
     EXPECT_EQ(results[0].get_shape(), (ov::Shape{1, 3, 1, 8}));
     EXPECT_EQ(results[1].get_shape(), data.get_shape());
+}
+
+TEST(GGUFBuilderSDK, Gemma2DefaultsIncludeSlidingWindowAnd27BAttentionScale) {
+    Environment env;
+    env.decoder();
+    env.integer("test.block_count", 46);
+    env.integer("test.embedding_length", 4608);
+    env.integer("test.attention.head_count", 32);
+    env.integer("test.attention.key_length", 128);
+    env.architecture("gemma2");
+    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+    EXPECT_EQ(config.swa_window_size, 4096);
+    EXPECT_TRUE(config.layer_is_swa(0));
+    EXPECT_FALSE(config.layer_is_swa(1));
+    EXPECT_FLOAT_EQ(config.layer_kq_scale(0), 1.f / 12.f);
+}
+
+TEST(GGUFBuilderSDK, ErnieInterleavesDenseAndExpertLayers) {
+    Environment env;
+    env.decoder();
+    env.integer("test.block_count", 4);
+    env.integer("test.interleave_moe_layer_step", 2);
+    env.weights["blk.1.ffn_gate_exps.weight"] = ov::Tensor(ov::element::f32, {4, 48, 32});
+    env.architecture("ernie4_5-moe");
+    for (uint32_t dense_lead : {0u, 1u}) {
+        env.integer("ernie4_5-moe.leading_dense_block_count", dense_lead);
+        DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+        EXPECT_FALSE(config.layer_is_moe(0));
+        EXPECT_TRUE(config.layer_is_moe(1));
+        EXPECT_FALSE(config.layer_is_moe(2));
+        EXPECT_TRUE(config.layer_is_moe(3));
+        EXPECT_TRUE(config.expert_weights_norm);
+    }
+}
+
+TEST(GGUFBuilderSDK, Exaone64LayerDefaultsIncludeLocalRopeAndSlidingWindow) {
+    Environment env;
+    env.decoder();
+    env.integer("test.block_count", 64);
+    env.architecture("exaone4");
+    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
+    EXPECT_TRUE(config.post_norm_only);
+    EXPECT_TRUE(config.rope_on_swa_only);
+    EXPECT_EQ(config.swa_window_size, 4096);
+    EXPECT_TRUE(config.layer_is_swa(0));
+    EXPECT_TRUE(config.layer_is_swa(2));
+    EXPECT_FALSE(config.layer_is_swa(3));
+    EXPECT_TRUE(config.layer_is_swa(4));
+}
+
+TEST(GGUFBuilderSDK, ArchitectureOptionsOverrideAmbiguousTensorSemantics) {
+    Environment env;
+    env.decoder();
+    DecoderOptions options;
+    options.qk_norm_after_rope = true;
+    options.post_norm_only = true;
+    options.normalize_expert_weights = true;
+    options.rope_skip_period = 4;
+    DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights, RopeMode::Neox, options);
+    EXPECT_TRUE(config.qk_norm_after_rope);
+    EXPECT_TRUE(config.post_norm_only);
+    EXPECT_TRUE(config.expert_weights_norm);
+    EXPECT_EQ(config.rope_skip_period, 4);
+    options.rope_skip_period = -1;
+    EXPECT_THROW(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights, RopeMode::Neox, options),
+                 ov::Exception);
 }

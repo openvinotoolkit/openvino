@@ -260,10 +260,9 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     // (muse-glimmer's post-norms use a tighter 1e-8 than its pre-norms).
     const float post_eps = m_cfg.post_norm_eps > 0.0f ? m_cfg.post_norm_eps : m_cfg.rms_eps;
 
-    // attn_norm (key varies by arch: "attn_norm.weight" for most, "post_attention_norm.weight"
-    // for exaone4)
     const std::string attn_norm =
-        blocks::rms_norm(m_emit, cur, p + m_cfg.attn_norm_key, p + "attn_norm", m_cfg.rms_eps);
+        m_cfg.post_norm_only ? cur
+                             : blocks::rms_norm(m_emit, cur, p + m_cfg.attn_norm_key, p + "attn_norm", m_cfg.rms_eps);
 
     if (m_cfg.is_qwen35 && m_cfg.is_recurrent_layer(il)) {
         // Hybrid stack: 3 of every 4 layers replace attention with a Gated DeltaNet block.
@@ -290,7 +289,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         // (llama.cpp routes both the GDN and full-attention layers through build_moe_ffn), so a
         // real model has no per-layer dense FFN tensors here and dense_ffn's weight_tensor lookup
         // would assert.
-        const bool is_moe_layer_r = m_cfg.is_moe && (il >= m_cfg.n_dense_lead);
+        const bool is_moe_layer_r = m_cfg.layer_is_moe(il);
         auto down_r = is_moe_layer_r   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm_r, T)
                       : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm_r, T)
                                        : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm_r, T);
@@ -322,10 +321,12 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     auto ffn_inp = m_emit.add_op("GGML_OP_ADD", p + "ffn_inp", {ao, sa}, ps({1, 1, T, m_cfg.n_embd}), f32);
 
     // Pre-FFN/MoE norm. Key varies by arch (ffn_norm_key is resolved in DecoderConfig).
-    auto ffn_norm = blocks::rms_norm(m_emit, ffn_inp, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
+    auto ffn_norm = m_cfg.post_norm_only
+                        ? ffn_inp
+                        : blocks::rms_norm(m_emit, ffn_inp, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
 
     // Hybrid MoE: lead layers (il < n_dense_lead) are always dense regardless of is_moe.
-    const bool is_moe_layer = m_cfg.is_moe && (il >= m_cfg.n_dense_lead);
+    const bool is_moe_layer = m_cfg.layer_is_moe(il);
     std::string down = is_moe_layer     ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm, T)
                        : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm, T)
                                         : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm, T);

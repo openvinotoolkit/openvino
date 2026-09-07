@@ -47,6 +47,10 @@ against the reference implementation.
 For an architecture requiring overrides, define it with `make_decoder_architecture` and a callback
 returning `DecoderOptions`, then add the definition to `builtin_architectures()`. The exact same
 function can be shipped externally. Overrides are applied before dependent configuration is resolved.
+`qk_norm_after_rope`, `post_norm_only`, `normalize_expert_weights` and `rope_skip_period`
+cover order and routing semantics that tensor names alone cannot determine. For example,
+EXAONE4's `post_attention_norm` is a post-norm, while GPT-OSS uses the same name for a
+pre-FFN norm. Reuse the shared blocks with explicit options for such differences.
 
 ### What is auto-detected (no code needed)
 
@@ -54,15 +58,15 @@ function can be shipped externally. Overrides are applied before dependent confi
 
 | Feature | Detected from |
 |---|---|
-| Per-head Q/K norm (qwen3, hunyuan) | `blk.0.attn_q_norm.weight` |
+| Per-head Q/K norm (qwen3, hunyuan; ordering is architecture-specific) | `blk.0.attn_q_norm.weight` |
 | Full-width Q/K norm (OLMoE) | `attn_q_norm.weight` width == `n_head*head_size` |
 | Q/K/V projection biases (qwen2) | `blk.0.attn_q.bias` |
 | Output-projection bias | `blk.0.attn_output.bias` |
 | Fused QKV (phi-3, minicpm) | `blk.0.attn_qkv.weight` |
 | Fused gate+up FFN (phi-3) | absence of `blk.0.ffn_gate.weight` |
-| MoE routing (OLMoE, gpt-oss, qwen3moe) | `blk.<lead>.ffn_gate_exps.weight` |
-| Shared experts | `expert_shared_count` metadata + `ffn_*_shexp.weight` |
-| Hybrid dense-lead MoE | `leading_dense_block_count` metadata |
+| MoE routing (OLMoE, gpt-oss, qwen3moe) | `ffn_gate_exps.weight` on the first routed layer |
+| Shared experts | `ffn_*_shexp.weight`, including files without `expert_shared_count` |
+| Hybrid dense-lead MoE | `leading_dense_block_count` and `interleave_moe_layer_step` metadata |
 | RoPE freq factors (llama-3, phi-3) | `rope_freqs.weight` |
 | Scalar scales (minicpm) | `embedding_scale` / `residual_scale` / `logit_scale` metadata |
 | Soft-caps (gemma2/3) | `attn_logit_softcapping` / `final_logit_softcapping` metadata |
@@ -80,6 +84,7 @@ are handled by the per-layer accessors on `DecoderConfig` — the single source 
 so the topology stays declarative:
 
 - `layer_is_swa(il)` — sliding-window layer? (per-layer flag array or period)
+- `layer_is_moe(il)` — routed experts? (dense lead and interleaving stride)
 - `layer_head_size(il)` — head size (SWA layers may differ, e.g. gemma4)
 - `layer_n_head_kv(il)` — KV head count (may vary per layer)
 - `layer_kq_scale(il)` — attention softmax scale (`1/sqrt(layer_head_size(il))` unless overridden)
@@ -154,3 +159,9 @@ passes (`MakeStateful`, `AdaptToGenAI`) are caller-registered rather than built 
 4. **No graph regression** for existing archs: `tests/test_arch_conversion.cpp` converts every
    architecture fixture and asserts a pinned `(op count, input count)` fingerprint, so any
    restructuring of a supported architecture shows up there.
+
+5. **Numerical regression**: add a nonzero fixture to `tests/gen_arch_accuracy.py`, evaluate it
+   with `tests/architecture_oracle.cpp` linked to real llama.cpp CPU, and commit its NPZ.
+   Register the case in `test_arch_accuracy.cpp`. Exercise distinct query/KV heads, nonzero
+   token positions, and prefill plus cached decode. Architecture promotion also requires a
+   real-checkpoint comparison; synthetic conversion alone is insufficient.

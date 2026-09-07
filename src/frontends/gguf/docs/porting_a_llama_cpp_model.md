@@ -49,7 +49,9 @@ plans. The callback runs before configuration resolution. The native resolver va
 and derives the SWA RoPE configuration and KV plan afterward. There is no second SDK hyperparameter
 reader: both built-in and custom decoder topologies use `decoder_config_from_meta` and
 `DecoderConfig`, including their defaults and RoPE scaling rules. The resolved configuration stays
-internal to the frontend.
+internal to the frontend. Options also cover QK-norm placement (`qk_norm_after_rope`),
+post-norm-only blocks (`post_norm_only`), selected expert normalization
+(`normalize_expert_weights`), and periodic NoPE layers (`rope_skip_period`, zero to disable).
 
 ## Define a custom builder
 

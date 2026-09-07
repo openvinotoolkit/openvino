@@ -15,6 +15,9 @@ enum class RopeMode { Normal, Neox, Interleaved };
 
 // Architecture overrides; unset options retain detection. Dimensions and derived plans stay internal.
 struct GGUF_FRONTEND_API DecoderOptions {
+    std::optional<bool> qk_norm_after_rope;
+    std::optional<bool> post_norm_only;
+    std::optional<bool> normalize_expert_weights;
     std::optional<bool> geglu;
     std::optional<bool> value_norm;
     std::optional<bool> embedding_norm;
@@ -23,6 +26,7 @@ struct GGUF_FRONTEND_API DecoderOptions {
     std::optional<float> swa_rope_frequency_base;
     std::optional<int> swa_rope_dimensions;
     std::optional<int> sliding_window;
+    std::optional<int> rope_skip_period;
 };
 
 // Value snapshot; changes do not affect the shared decoder configuration.

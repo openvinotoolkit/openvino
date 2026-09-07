@@ -80,14 +80,11 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
         const size_t qn = weights.at("blk.0.attn_q_norm.weight").get_shape()[0];
         qk_norm_full = (arch != "gemma4") && (qn != static_cast<size_t>(head_size));
     }
-    // Hunyuan's graph applies RoPE before its learned per-head Q/K RMSNorm. This order is
-    // architecture-specific and cannot be inferred from the identical tensor shapes used by
-    // Qwen3/Gemma, which normalize before RoPE.
-    qk_norm_after_rope = arch == "hunyuan-dense" || arch == "hunyuan-moe";
     n_dense_lead = cfg_i("n_layer_dense_lead");
-    // Detect MoE from the first non-dense-lead layer (layer 0 may be dense even in MoE models).
+    moe_layer_step = std::max(1, cfg_i("moe_layer_step"));
+    // Inspect the first routed layer, accounting for both dense lead layers and MoE stride.
     {
-        const int probe = std::max(0, n_dense_lead);
+        const int probe = (std::max(0, n_dense_lead) / moe_layer_step + 1) * moe_layer_step - 1;
         const std::string pp = "blk." + std::to_string(probe) + ".";
         is_moe = has(pp + "ffn_gate_exps.weight");
     }
@@ -100,42 +97,21 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     has_v_norm = (arch == "gemma4");
     n_expert = cfg_i("expert_count");
     n_expert_used = cfg_i("expert_used_count");
-    n_expert_shared = cfg_i("expert_shared_count");
+    expert_groups = std::max(1, cfg_i("expert_groups"));
+    expert_groups_used = std::max(1, cfg_i("expert_groups_used"));
     has_moe_gate_bias = has("blk.0.ffn_gate_inp.bias");     // gpt-oss
     has_moe_expert_bias = has("blk.0.ffn_gate_exps.bias");  // gpt-oss
     has_sinks = has("blk.0.attn_sinks.weight");             // gpt-oss
-    // Gemma2/Gemma4: per-layer post-attention and post-FFN RMSNorm applied after the sublayer
-    // output and before the residual add. Detected from the tensor table at layer 0.
-    //
-    // Key naming ambiguity across architectures:
-    //   Gemma2/Gemma4: attn_norm (pre-attn) + ffn_norm (pre-FFN)
-    //                  + post_attention_norm (post-attn) + post_ffw_norm (post-FFN)
-    //   gpt-oss:       attn_norm (pre-attn) + post_attention_norm (pre-FFN, no ffn_norm!)
-    //   exaone4:       post_attention_norm (pre-attn!) + post_ffw_norm (pre-FFN!) — no attn_norm
-    //
-    // Rule: post_attention_norm is a true POST-attn norm only when both attn_norm.weight
-    // AND ffn_norm.weight also exist.  Same for post_ffw_norm as a true POST-FFN norm.
-    {
-        const bool has_attn_norm_w = has("blk.0.attn_norm.weight");
-        const bool has_ffn_norm_w = has("blk.0.ffn_norm.weight");
-        has_attn_post_norm = has("blk.0.post_attention_norm.weight") && has_attn_norm_w && has_ffn_norm_w;
-        has_ffn_post_norm = has("blk.0.post_ffw_norm.weight") && has_ffn_norm_w;
-
-        // Compute effective pre-attn and pre-FFN norm key suffixes.
-        // Standard: "attn_norm.weight" / "ffn_norm.weight".
-        // exaone4:  "post_attention_norm.weight" / "post_ffw_norm.weight".
-        // gpt-oss:  "attn_norm.weight" / "post_attention_norm.weight".
-        if (!has_attn_norm_w && has("blk.0.post_attention_norm.weight")) {
-            attn_norm_key = "post_attention_norm.weight";  // exaone4
-        }
-        if (!has_ffn_norm_w) {
-            if (has("blk.0.post_ffw_norm.weight")) {
-                ffn_norm_key = "post_ffw_norm.weight";  // exaone4
-            } else if (has("blk.0.post_attention_norm.weight")) {
-                ffn_norm_key = "post_attention_norm.weight";  // gpt-oss
-            }
-        }
-    }
+    qk_norm_after_rope =
+        options.qk_norm_after_rope.value_or(arch == "hunyuan-dense" || arch == "hunyuan-moe" || arch == "maincoder");
+    post_norm_only = options.post_norm_only.value_or(arch == "exaone4");
+    // EXAONE4 has only post-norms; GPT-OSS names its pre-FFN norm post_attention_norm.
+    has_attn_post_norm = has("blk.0.post_attention_norm.weight") &&
+                         (post_norm_only || (has("blk.0.attn_norm.weight") && has("blk.0.ffn_norm.weight")));
+    has_ffn_post_norm = has("blk.0.post_ffw_norm.weight") && (post_norm_only || has("blk.0.ffn_norm.weight"));
+    if (!post_norm_only && !has("blk.0.ffn_norm.weight") && has("blk.0.post_attention_norm.weight"))
+        ffn_norm_key = "post_attention_norm.weight";
+    moe_sigmoid_gating = cfg_i("expert_gating_func") == 2;
     // gpt-oss uses "softmax-after-topk" gating + the OAI gated activation; OLMoE uses
     // softmax-before-topk + plain SwiGLU. Detect by weight-tensor presence so the logic
     // extends to future architectures without touching this file.
@@ -159,7 +135,9 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // tighter eps (post_norm_eps = 1e-8) than the pre-norms use.
     const bool is_muse_glimmer = arch == "muse-glimmer";
     scaleless_embd_norm = is_muse_glimmer;
-    rope_on_swa_only = is_muse_glimmer;
+    rope_on_swa_only = is_muse_glimmer || (arch == "exaone4" && n_layer == 64);
+    rope_skip_period = options.rope_skip_period.value_or(arch == "smollm3" ? 4 : 0);
+    OPENVINO_ASSERT(rope_skip_period >= 0, "[GGUF] RoPE skip period must be nonnegative");
     post_norm_eps = is_muse_glimmer ? 1e-8f : 0.0f;  // 0 -> reuse rms_eps
 
     // ---- qwen35 (Qwen3.5/3.6): hybrid Gated-DeltaNet + full attention ----
@@ -216,7 +194,9 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     logit_scale = cfg_f("logit_scale");
     attention_scale = cfg_f("attention_scale");            // 0 -> 1/sqrt(head_size)
     expert_weights_scale = cfg_f("expert_weights_scale");  // 0 -> 1.0 no-op
-    expert_weights_norm = cfg_i("expert_weights_norm") != 0;
+    // These llama.cpp builders require normalization independently of optional GGUF metadata.
+    expert_weights_norm = options.normalize_expert_weights.value_or(
+        arch == "qwen3moe" || arch == "ernie4_5-moe" || arch == "mellum" || cfg_i("expert_weights_norm") != 0);
     rope_freq_base_swa = cfg_f("rope_freq_base_swa");
     swa_layer_pattern = cfg_i("swa_layer_pattern");
     // Gemma4: per-layer SWA boolean flags (non-empty when swa_layer_pattern==0).
@@ -301,6 +281,10 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
         rope_config.is_imrope = true;
         use_per_op_rope = true;
     }
+}
+
+bool DecoderConfig::layer_is_moe(int il) const {
+    return is_moe && il >= n_dense_lead && (il + 1) % moe_layer_step == 0;
 }
 
 bool DecoderConfig::layer_is_swa(int il) const {

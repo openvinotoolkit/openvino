@@ -127,9 +127,11 @@ std::string moe_ffn(GraphEmitter& e,
         logits = add_bias(e, logits, p + "ffn_gate_inp.bias", p + "moe_logits_b");
     }
 
-    // gating: softmax (OLMoE) or softmax-after-topk (gpt-oss "softmax_weight").
+    // GPT-OSS applies softmax after top-k; other routers use softmax or sigmoid here.
     std::string probs = logits;
-    if (!cfg.moe_softmax_weight) {
+    if (cfg.moe_sigmoid_gating) {
+        probs = e.add_op("GGML_UNARY_OP_SIGMOID", p + "moe_probs", {logits}, ps({1, 1, T, E}), f32);
+    } else if (!cfg.moe_softmax_weight) {
         probs = e.add_op("GGML_OP_SOFT_MAX",
                          p + "moe_probs",
                          {logits},
@@ -140,7 +142,16 @@ std::string moe_ffn(GraphEmitter& e,
     }
 
     // top-k expert selection -> indices [1,1,T,K] (i32).
-    auto selected = e.add_op("GGML_OP_TOP_K", p + "moe_topk", {probs}, ps({1, 1, T, K}), ov::element::i32);
+    auto selection_probs = probs;
+    if (e.has_weight(p + "exp_probs_b.bias"))
+        selection_probs = add_bias(e, probs, p + "exp_probs_b.bias", p + "moe_selection_probs");
+    auto selected = e.add_op("GGML_OP_TOP_K",
+                             p + "moe_topk",
+                             {selection_probs},
+                             ps({1, 1, T, K}),
+                             ov::element::i32,
+                             0,
+                             {{"expert_groups", cfg.expert_groups}, {"expert_groups_used", cfg.expert_groups_used}});
 
     // weights = gather probs by selected; op_case 10 returns a per-expert column
     // [1,T,K,1] (robust to dynamic T). gpt-oss softmaxes over the K (expert) axis.
@@ -260,10 +271,8 @@ std::string moe_ffn(GraphEmitter& e,
     auto summed = e.add_op("GGML_OP_SUM_ROWS", p + "moe_sum", {tr}, ps({1, T, cfg.n_embd, 1}), f32);
     auto moe_out = e.add_op("GGML_OP_RESHAPE", p + "moe_out", {summed}, ps({1, 1, T, cfg.n_embd}), f32, 5);
 
-    // Shared experts (deepseek2-ocr, bailingmoe2, exaone-moe): always-active experts whose
-    // output is added to the routed experts' weighted sum. Uses plain SwiGLU dense FFN with
-    // ffn_{gate,up,down}_shexp.weight (n_ff_shared = shexp rows). Output added to moe_out.
-    if (cfg.n_expert_shared > 0 && e.has_weight(p + "ffn_gate_shexp.weight")) {
+    // Shared experts are always active; some checkpoints omit expert_shared_count.
+    if (e.has_weight(p + "ffn_gate_shexp.weight")) {
         auto s_act = swiglu_gate_up(e,
                                     p + "ffn_gate_shexp.weight",
                                     p + "ffn_up_shexp.weight",

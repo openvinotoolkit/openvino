@@ -126,7 +126,8 @@ std::string attention(GraphEmitter& e,
     // For gemma4: global layers use rope_freqs (proportional/NTK scaling), SWA layers don't.
     // muse-glimmer ropes ONLY its sliding-window layers; its global layers are NoPE
     // (llama.cpp muse-glimmer.cpp: `const bool use_rope = hparams.is_swa(il)`).
-    const bool use_rope = !cfg.rope_on_swa_only || is_swa_layer;
+    const bool use_rope =
+        (!cfg.rope_on_swa_only || is_swa_layer) && (cfg.rope_skip_period == 0 || (il + 1) % cfg.rope_skip_period != 0);
     const bool use_rope_freqs = cfg.has_rope_freqs && !is_swa_layer;
     const std::vector<std::string> q_rope_in = use_rope_freqs
                                                    ? std::vector<std::string>{q, "inp_pos", "rope_freqs.weight"}
@@ -151,7 +152,6 @@ std::string attention(GraphEmitter& e,
                      {{"rope_config", rope_config_l}});
     }
 
-    // Hunyuan differs from Qwen/Gemma: its learned per-head Q/K RMSNorm follows RoPE.
     if (cfg.has_qk_norm && !cfg.qk_norm_full && cfg.qk_norm_after_rope) {
         q = rms_norm(e, q, p + "attn_q_norm.weight", p + "Qcur_normed", cfg.rms_eps);
         k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);

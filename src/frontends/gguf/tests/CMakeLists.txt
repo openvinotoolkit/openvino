@@ -93,6 +93,7 @@ set(FRONTEND_SRCS
 set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_adapt_to_genai.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_conversion.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_accuracy.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_architecture_extension.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_builder_sdk.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_dequant_vs_ggml.cpp"
@@ -143,6 +144,7 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test_data"
         EXCLUDE_FROM_ALL
         FILES_MATCHING
             PATTERN "*.npy"
+            PATTERN "*.npz"
             PATTERN "manifest.txt")
 
 # Sources compiled into the binary: resolve the visibility macros to local definitions, not dllimport.
