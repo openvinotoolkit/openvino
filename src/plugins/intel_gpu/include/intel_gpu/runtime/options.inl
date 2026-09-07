@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#define OV_CONFIG_RELEASE_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...)                              \
+#define OV_CONFIG_RELEASE_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...)                                \
     public:                                                                                                 \
         static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() {            \
             static PluginConfig::GlobalOptionInitializer init_helper(PropertyNamespace::PropertyVar.name(), \
@@ -13,7 +13,7 @@
                                                                                                             \
     private:                                                                                                \
         static inline ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type,                    \
-                                   OptionVisibility::RELEASE>                                          \
+                                   OptionVisibility::RELEASE>                                               \
             m_##PropertyVar{nullptr,                                                                        \
                             PropertyNamespace::PropertyVar.name(),                                          \
                             #PropertyNamespace "::" #PropertyVar,                                           \
