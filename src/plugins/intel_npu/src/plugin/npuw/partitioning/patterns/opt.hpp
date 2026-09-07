@@ -71,7 +71,6 @@ struct Context {
     struct QuantizedGather {
         struct Params {
             PPtr w, z, s;
-            bool apply_sub128 = false;
         };
 
         // New param -> orig params
@@ -84,8 +83,7 @@ struct Context {
                                   const PPtr& w,
                                   const PPtr& z,
                                   const PPtr& s,
-                                  ov::element::Type type,
-                                  bool apply_sub128 = false);
+                                  ov::element::Type type);
 
     using Ref = std::reference_wrapper<Context>;
 };

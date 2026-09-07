@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
+#include <tuple>
 #include <vector>
 
 #include "npuw_transformations/insert_vocab_sub128.hpp"
@@ -98,20 +100,75 @@ bool run_host_gather(const std::shared_ptr<ov::Model>& model, ov::npuw::patterns
     return rewrite.run_on_model(model);
 }
 
-std::shared_ptr<ov::Model> make_vocab_matmul_model() {
+enum class VocabMatMulTerminal { Add, Transpose, Convert, Gated };
+
+std::shared_ptr<ov::Model> make_vocab_matmul_model(bool convert_before_matmul,
+                                                   std::optional<VocabMatMulTerminal> terminal = std::nullopt) {
     auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2});
     auto weights = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2}, std::vector<uint8_t>(8, 200));
-    auto zero_point = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1}, std::vector<uint8_t>(4, 128));
-    auto scale = ov::opset10::Constant::create(ov::element::f16, ov::Shape{4, 1}, std::vector<float>(4, 1.0f));
-    auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, ov::element::f16);
+    auto zero_point =
+        ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1}, std::vector<uint8_t>(4, 128));
+    const auto scale_type = convert_before_matmul ? ov::element::f16 : ov::element::f32;
+    auto scale = ov::opset10::Constant::create(scale_type, ov::Shape{4, 1}, std::vector<float>(4, 1.0f));
+    auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, scale_type);
     weight_convert->set_friendly_name("vocab_weight_convert");
-    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, ov::element::f16);
+    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, scale_type);
     zero_point_convert->set_friendly_name("vocab_zero_point_convert");
     auto dequantized = std::make_shared<ov::opset10::Subtract>(weight_convert, zero_point_convert);
     auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, scale);
-    auto converted = std::make_shared<ov::opset10::Convert>(scaled, ov::element::f32);
-    auto matmul = std::make_shared<ov::opset10::MatMul>(hidden, converted, false, true);
+    ov::Output<ov::Node> matmul_weights = scaled;
+    if (convert_before_matmul) {
+        matmul_weights = std::make_shared<ov::opset10::Convert>(scaled, ov::element::f32);
+    }
+    auto matmul = std::make_shared<ov::opset10::MatMul>(hidden, matmul_weights, false, true);
+    ov::Output<ov::Node> output = matmul;
+    if (terminal == VocabMatMulTerminal::Add) {
+        auto bias = ov::opset10::Constant::create(ov::element::f32, ov::Shape{1, 4}, std::vector<float>(4, 1.0f));
+        output = std::make_shared<ov::opset10::Add>(matmul, bias);
+    } else if (terminal == VocabMatMulTerminal::Transpose) {
+        auto order = ov::opset10::Constant::create(ov::element::i32, ov::Shape{2}, {1, 0});
+        output = std::make_shared<ov::opset10::Transpose>(matmul, order);
+    } else if (terminal == VocabMatMulTerminal::Convert) {
+        output = std::make_shared<ov::opset10::Convert>(matmul, ov::element::f32);
+    } else if (terminal == VocabMatMulTerminal::Gated) {
+        auto divisor = ov::opset10::Constant::create(ov::element::f32, ov::Shape{}, {2.0f});
+        auto div = std::make_shared<ov::opset10::Divide>(matmul, divisor);
+        auto tanh = std::make_shared<ov::opset10::Tanh>(div);
+        auto multiplier = ov::opset10::Constant::create(ov::element::f32, ov::Shape{}, {2.0f});
+        output = std::make_shared<ov::opset10::Multiply>(tanh, multiplier);
+    }
+    return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{hidden});
+}
+
+std::shared_ptr<ov::Model> make_pretransposed_vocab_matmul_model(bool convert_before_matmul) {
+    auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 2});
+    auto weights = ov::opset10::Constant::create(ov::element::u8, ov::Shape{2, 4}, std::vector<uint8_t>(8, 200));
+    auto zero_point =
+        ov::opset10::Constant::create(ov::element::u8, ov::Shape{1, 4}, std::vector<uint8_t>(4, 128));
+    const auto scale_type = convert_before_matmul ? ov::element::f16 : ov::element::f32;
+    auto scale = ov::opset10::Constant::create(scale_type, ov::Shape{1, 4}, std::vector<float>(4, 1.0f));
+    auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, scale_type);
+    weight_convert->set_friendly_name("vocab_weight_convert");
+    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, scale_type);
+    zero_point_convert->set_friendly_name("vocab_zero_point_convert");
+    auto dequantized = std::make_shared<ov::opset10::Subtract>(weight_convert, zero_point_convert);
+    auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, scale);
+    ov::Output<ov::Node> matmul_weights = scaled;
+    if (convert_before_matmul) {
+        matmul_weights = std::make_shared<ov::opset10::Convert>(scaled, ov::element::f32);
+    }
+    auto matmul = std::make_shared<ov::opset10::MatMul>(hidden, matmul_weights, false, false);
     return std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{hidden});
+}
+
+std::size_t count_subtracts(const std::shared_ptr<ov::Model>& model) {
+    std::size_t count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::opset10::Subtract>(node)) {
+            ++count;
+        }
+    }
+    return count;
 }
 
 bool contains_node(const std::shared_ptr<ov::Model>& model, const std::string& name) {
@@ -142,7 +199,6 @@ TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
     EXPECT_TRUE(run_host_gather(make_parameter_gather_model(128.0f), context));
     ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
     ASSERT_EQ(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.size(), 1);
-    EXPECT_TRUE(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.begin()->second.apply_sub128);
 }
 
 TEST(HostGatherQuantAsymmTest, RejectsNon128Subtractions) {
@@ -150,9 +206,23 @@ TEST(HostGatherQuantAsymmTest, RejectsNon128Subtractions) {
     EXPECT_FALSE(run_host_gather(make_parameter_gather_model(127.0f), context));
 }
 
-TEST(InsertVocabSub128PrePostProcessingTest, PreservesVocabularyConverts) {
-    const auto model = make_vocab_matmul_model();
-    ov::npuw::InsertVocabSub128().run_on_model(model);
+using VocabSub128TestParams = std::tuple<bool, bool>;
+
+class InsertVocabSub128PrePostProcessingTest : public ::testing::TestWithParam<VocabSub128TestParams> {
+public:
+    static std::string getTestCaseName(const ::testing::TestParamInfo<VocabSub128TestParams>& info) {
+        const auto [pretransposed_layout, convert_before_matmul] = info.param;
+        return std::string(pretransposed_layout ? "Pretransposed" : "Standard") +
+               (convert_before_matmul ? "WithConvert" : "DirectMatMul");
+    }
+};
+
+TEST_P(InsertVocabSub128PrePostProcessingTest, PreservesVocabularyConverts) {
+    const auto [pretransposed_layout, convert_before_matmul] = GetParam();
+    const auto model = pretransposed_layout ? make_pretransposed_vocab_matmul_model(convert_before_matmul) :
+                                              make_vocab_matmul_model(convert_before_matmul);
+    EXPECT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
+    EXPECT_EQ(count_subtracts(model), 3u);
 
     const auto nodes = model->get_ordered_ops();
     const auto weight_convert = std::find_if(nodes.begin(), nodes.end(), [](const auto& node) {
@@ -171,3 +241,53 @@ TEST(InsertVocabSub128PrePostProcessingTest, PreservesVocabularyConverts) {
     EXPECT_TRUE(contains_node(model, "vocab_weight_convert"));
     EXPECT_TRUE(contains_node(model, "vocab_zero_point_convert"));
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    LayoutAndConversion,
+    InsertVocabSub128PrePostProcessingTest,
+    ::testing::Values(std::make_tuple(false, false),
+                      std::make_tuple(false, true),
+                      std::make_tuple(true, false),
+                      std::make_tuple(true, true)),
+    InsertVocabSub128PrePostProcessingTest::getTestCaseName);
+
+class InsertVocabSub128LmHeadTerminalTest : public ::testing::TestWithParam<VocabMatMulTerminal> {
+public:
+    static std::string getTestCaseName(const ::testing::TestParamInfo<VocabMatMulTerminal>& info) {
+        switch (info.param) {
+        case VocabMatMulTerminal::Add:
+            return "Add";
+        case VocabMatMulTerminal::Transpose:
+            return "Transpose";
+        case VocabMatMulTerminal::Convert:
+            return "Convert";
+        case VocabMatMulTerminal::Gated:
+            return "Gated";
+        }
+        return "Unknown";
+    }
+};
+
+TEST_P(InsertVocabSub128LmHeadTerminalTest, InsertsSub128BeforeLmHeadTerminal) {
+    const auto model = make_vocab_matmul_model(false, GetParam());
+
+    EXPECT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
+    EXPECT_EQ(count_subtracts(model), 3u);
+}
+
+INSTANTIATE_TEST_SUITE_P(LmHeadTerminal,
+                         InsertVocabSub128LmHeadTerminalTest,
+                         ::testing::Values(VocabMatMulTerminal::Add,
+                                           VocabMatMulTerminal::Transpose,
+                                           VocabMatMulTerminal::Convert,
+                                           VocabMatMulTerminal::Gated),
+                         InsertVocabSub128LmHeadTerminalTest::getTestCaseName);
+
+TEST(InsertVocabSub128LmHeadTerminalTest, SkipsManuallyAddedOutput) {
+    const auto model = make_vocab_matmul_model(false);
+    model->get_results().front()->get_rt_info()["manually_added_output"] = true;
+
+    EXPECT_FALSE(ov::npuw::InsertVocabSub128().run_on_model(model));
+    EXPECT_EQ(count_subtracts(model), 1u);
+}
+

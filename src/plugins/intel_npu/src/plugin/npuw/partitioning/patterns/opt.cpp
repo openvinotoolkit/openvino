@@ -161,8 +161,7 @@ Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
                                                 const Context::PPtr& w,
                                                 const Context::PPtr& z,
                                                 const Context::PPtr& s,
-                                                ov::element::Type type,
-                                                bool apply_sub128) {
+                                                ov::element::Type type) {
     const auto& w_shape = w->get_shape();
     const auto& ids_shape = ids->get_shape();
 
@@ -197,7 +196,7 @@ Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
 
     NPUW_ASSERT(new_param);
     params_to_quant_gather_unpack = QuantizedGather{};
-    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {w, z, s, apply_sub128};
+    params_to_quant_gather_unpack->params_to_runtime_unpack_gather[new_param] = {w, z, s};
     params_to_quant_gather_unpack->pids = ids;
     return new_param;
 }
@@ -1472,8 +1471,7 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
                                                              matched_qweight,
                                                              matched_qzerop,
                                                              matched_qcoeff,
-                                                             ov::element::f16,
-                                                             node_to_output.count(qshiftw) != 0);
+                                                             ov::element::f16);
             matched_node_cvt->input(0).replace_source_output(new_wi);
 
             matched_node_cvt->validate_and_infer_types();

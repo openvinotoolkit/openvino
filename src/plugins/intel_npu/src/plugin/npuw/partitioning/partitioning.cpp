@@ -1422,7 +1422,7 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
                 LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
                                     << ": It is safe to keep this bank in function");
                 func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
-            } else {
+            } else if (ov::op::util::is_constant(node)) {
                 LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape
                                     << ": This const op will be cut-off from the function");
             }
@@ -2423,8 +2423,7 @@ void Partitioner::optimize(const std::string& func_name) {
                                                                                                gather_w_id,
                                                                                                gather_z_id,
                                                                                                gather_s_id,
-                                                                                               gather_idx_id,
-                                                                                               param_new_and_unpack_gather.second.apply_sub128};
+                                                                                               gather_idx_id};
                 }
             }
         }
