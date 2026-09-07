@@ -402,7 +402,12 @@ std::shared_ptr<ov::Node> requantize_q8_0_channelwise(const std::vector<float>& 
             amax = std::max(amax, std::fabs(x[r * cols + c]));
         }
         const float d = amax / 127.0f;
-        const float id = d ? 1.0f / d : 0.0f;
+        // A zero row has a zero scale and must remain zero. Keep the division in a
+        // branch where its divisor is known to be non-zero.
+        float id = 0.0f;
+        if (d != 0.0f) {
+            id = 1.0f / d;
+        }
         s[r] = ov::float16(d);
         for (size_t c = 0; c < cols; ++c) {
             w[r * cols + c] = static_cast<int8_t>(std::lround(x[r * cols + c] * id));

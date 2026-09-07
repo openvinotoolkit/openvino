@@ -857,20 +857,14 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     const std::string arch = *arch_ptr;
     config["architecture"] = arch;
     config["layer_num"] = metadata_to_int(metadata, arch + ".block_count");
-    config["head_num"] = metadata_to_int(metadata, arch + ".attention.head_count");
-    // When key_length is absent, head_size falls back to embedding_length / head_count, which
-    // runs before supported_archs() can reject anything; a malformed/adversarial file with
-    // head_count == 0 would otherwise be an uncatchable SIGFPE crash rather than a clear error.
-    if (!metadata.count(arch + ".attention.key_length")) {
-        OPENVINO_ASSERT(std::get<int>(config["head_num"]) > 0,
-                        "[GGUF] '",
-                        arch,
-                        ".attention.head_count' must be positive");
-    }
+    const int head_count = metadata_to_int(metadata, arch + ".attention.head_count");
+    // Validate this independently of key_length: head_count is also used by the builder and,
+    // when key_length is absent, is the divisor for the head-size fallback below.
+    OPENVINO_ASSERT(head_count > 0, "[GGUF] '", arch, ".attention.head_count' must be positive");
+    config["head_num"] = head_count;
     config["head_size"] = metadata.count(arch + ".attention.key_length")
                               ? metadata_to_int(metadata, arch + ".attention.key_length")
-                              : (metadata_to_int(metadata, arch + ".embedding_length") /
-                                 metadata_to_int(metadata, arch + ".attention.head_count"));
+                              : (metadata_to_int(metadata, arch + ".embedding_length") / head_count);
     {
         const std::string kv_key = arch + ".attention.head_count_kv";
         if (metadata.count(kv_key)) {
