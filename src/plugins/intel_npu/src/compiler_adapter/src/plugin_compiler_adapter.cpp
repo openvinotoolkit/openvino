@@ -7,9 +7,11 @@
 #include <memory>
 #include <string>
 
+#include "compiler_schedules_sections.hpp"
 #include "dynamic_graph.hpp"
 #include "graph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/encrypted_schedules_flag_section.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/config/options.hpp"
@@ -70,10 +72,12 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const FilteredConfig& config) const {
+                                                       const FilteredConfig& config,
+                                                       const std::shared_ptr<BlobWriter>& blobWriter) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
+    OPENVINO_ASSERT(blobWriter, "Requested compilation without providing a blob writer object");
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
@@ -111,7 +115,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
     }
 
-    return std::make_shared<Graph>(
+    auto graph = std::make_shared<Graph>(
         _zeGraphExt,
         _zeroInitStruct,
         graphDesc,
@@ -120,12 +124,28 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         config,
         compatibilityDescriptor,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
+
+    std::optional<ov::EncryptionCallbacks> encryptionCallbacks = std::nullopt;
+    if (config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+        // TODO shotgun surgery? could create a common factory/reader instead, but this may create dependency issues
+        // since not all sections can be placed in the common directory (schedules need graphs)
+        encryptionCallbacks = config.get<CACHE_ENCRYPTION_CALLBACKS>();
+        blobWriter->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+    }
+
+    // Tell the blob writer to store the main schedule in the blob at export time
+    blobWriter->register_section(std::make_shared<ELFMainScheduleSection>(graph, encryptionCallbacks, _logger.level()));
+
+    return graph;
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const FilteredConfig& config) const {
+                                                         const FilteredConfig& config,
+                                                         const std::shared_ptr<BlobWriter>& blobWriter) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
+    OPENVINO_ASSERT(blobWriter, "Requested compilation without providing a blob writer object");
 
     FilteredConfig localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
@@ -259,7 +279,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     _logger.debug("compile end");
 
-    return std::make_shared<WeightlessGraph>(
+    auto weightlessGraph = std::make_shared<WeightlessGraph>(
         _zeGraphExt,
         _zeroInitStruct,
         mainGraphDesc,
@@ -272,6 +292,21 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         localConfig,
         /* persistentBlob = */ true,
         compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
+
+    std::optional<ov::EncryptionCallbacks> encryptionCallbacks = std::nullopt;
+    if (localConfig.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+        encryptionCallbacks = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>();
+        blobWriter->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
+    }
+
+    // At export time, all schedules (main + inits) shall be stored in the blob
+    blobWriter->register_section(
+        std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallbacks, _logger.level()));
+    blobWriter->register_section(
+        std::make_shared<ELFInitSchedulesSection>(weightlessGraph, encryptionCallbacks, _logger.level()));
+
+    return weightlessGraph;
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

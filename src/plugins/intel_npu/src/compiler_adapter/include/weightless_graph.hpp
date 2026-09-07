@@ -45,9 +45,11 @@ public:
                     const std::optional<std::string>& compatibilityDescriptor = std::nullopt);
 
     /**
-     * @brief The main schedule along with the weights initialization ones are exported.
+     * @brief The weights initialization schedules are exported.
      */
-    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+    std::vector<uint64_t> export_init_blobs(std::ostream& stream) const;
+
+    size_t get_number_of_inits() const;
 
     GraphKind get_kind() const override {
         return GraphKind::Weightless;

@@ -11,13 +11,18 @@
 #include <vector>
 
 #include "compiler_option_support_helper.hpp"
+#include "compiler_schedule_instance_evaluator.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/runtime_requirements.hpp"
+#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
 
 namespace {
+
+using namespace intel_npu;
 
 constexpr uint32_t maxNumOfOptimalInferRequests = 8u;
 
@@ -153,21 +158,53 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
     }
 }
 
-ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
-                                                       const ov::AnyMap& arguments,
-                                                       intel_npu::CompilerOptionSupportHelper& optionSupportHelper) {
-    using namespace intel_npu;
+// TODO consider refactoring this
+ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(std::string_view runtimeRequirements,
+                                                               const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+                                                               CompilerOptionSupportHelper& optionSupportHelper) {
+    // Need to create a few object to connect to the API used within the import path
+    BlobSource source(
+        ov::Tensor(ov::element::Type_t::u8, ov::Shape({runtimeRequirements.size()}), runtimeRequirements.data()));
+    BlobReaderInterface readerInterface(source, 0, runtimeRequirements.size(), 0, runtimeRequirements.size());
 
-    if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    std::shared_ptr<RuntimeRequirementsSection> runtimeRequirementsSection;
+    try {
+        runtimeRequirementsSection =
+            std::dynamic_pointer_cast<RuntimeRequirementsSection>(RuntimeRequirementsSection::read(readerInterface));
+    } catch (...) {
+        // E.g. unsupported version
+        return ov::CompatibilityCheck::UNSUPPORTED;
     }
 
-    const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
+    // Build the section type & instance evaluators
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators;
 
-    if (runtimeRequirements.empty()) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    // This evaluator can be shared, since all it does is to return "true"
+    const auto supported_section_type_evaluator = std::make_shared<SupportedSectionTypeEvaluator>();
+    for (const SectionType type : ALREADY_SUPPORTED_SECTION_TYPES) {
+        type_evaluators[type] = supported_section_type_evaluator;
     }
 
+    const auto compiler_schedules_instance_evaluator = std::make_shared<CompilerScheduleInstanceEvaluator>(
+        backend,
+        std::make_shared<CompilerOptionSupportHelper>(optionSupportHelper));
+    instance_evaluators[SectionTypeCode::ELF_MAIN_SCHEDULE] = compiler_schedules_instance_evaluator;
+    instance_evaluators[SectionTypeCode::DYNAMIC_SCHEDULE] = compiler_schedules_instance_evaluator;
+
+    try {
+        return runtimeRequirementsSection->get_runtime_requirements().get_compatibility_check_result(
+            type_evaluators,
+            instance_evaluators);
+    } catch (...) {
+        // TODO why?
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+}
+
+ov::CompatibilityCheck validateCompatibilityDescriptorFormatV1(std::string_view runtimeRequirements,
+                                                               const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+                                                               CompilerOptionSupportHelper& optionSupportHelper) {
     std::unique_ptr<MetadataBase> metadata = nullptr;
     try {
         metadata = read_as_text(runtimeRequirements);
@@ -175,32 +212,42 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
         return ov::CompatibilityCheck::UNSUPPORTED;
     }
 
-    const auto descriptorView = metadata->get_compatibility_descriptor();
-    std::string compatibilityDescriptor = descriptorView.has_value() ? std::string(descriptorView.value()) : "";
+    const auto compilerRuntimeRequirements = metadata->get_compatibility_descriptor();
 
-    if (compatibilityDescriptor.empty()) {
+    if (!compilerRuntimeRequirements.has_value() || compilerRuntimeRequirements->empty()) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
-
-    OPENVINO_ASSERT(backend && backend->getDevice(), "Device is not available for compatibility descriptor validation");
-
-    const auto device = backend->getDevice();
-    const auto initStructs = backend->getInitStructs();
-
-    if (device != nullptr && initStructs != nullptr && initStructs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16)) {
-        auto result = device->validateCompatibilityDescriptor(compatibilityDescriptor);
-        return result ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
-    }
-
-    // Fallback routed through the option support helper.
     try {
-        const bool supported = optionSupportHelper.isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
-                                                                     ov::compatibility_check.name(),
-                                                                     std::make_optional(compatibilityDescriptor));
-        return supported ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
+        return CompilerScheduleInstanceEvaluator(backend,
+                                                 std::make_shared<CompilerOptionSupportHelper>(optionSupportHelper))
+            .evaluate(compilerRuntimeRequirements.value());
     } catch (...) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
+}
+
+ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<IEngineBackend>& backend,
+                                                       const ov::AnyMap& arguments,
+                                                       CompilerOptionSupportHelper& optionSupportHelper) {
+    if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+
+    const auto& runtimeRequirements = arguments.at(ov::runtime_requirements.name()).as<const std::string&>();
+    if (runtimeRequirements.empty()) {
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
+
+    bool is_v2 = false;
+    try {
+        is_v2 = is_runtime_requirements_format_v2(runtimeRequirements);
+    } catch (...) {
+        // Failed to parse the string
+        return ov::CompatibilityCheck::UNSUPPORTED;
+    }
+
+    return is_v2 ? validateCompatibilityDescriptorFormatV2(runtimeRequirements, backend, optionSupportHelper)
+                 : validateCompatibilityDescriptorFormatV1(runtimeRequirements, backend, optionSupportHelper);
 }
 
 }  // namespace

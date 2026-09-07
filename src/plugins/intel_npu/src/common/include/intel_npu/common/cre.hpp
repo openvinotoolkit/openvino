@@ -1,0 +1,140 @@
+// Copyright (C) 2018-2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#pragma once
+
+#include <unordered_set>
+
+#include "intel_npu/common/cre_token.hpp"
+#include "intel_npu/common/isection.hpp"
+#include "intel_npu/common/isection_type_evaluator.hpp"
+#include "intel_npu/common/section_id.hpp"
+#include "intel_npu/common/section_instance_evaluator.hpp"
+#include "intel_npu/common/section_type.hpp"
+#include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/core/except.hpp"
+
+namespace intel_npu {
+
+class InvalidCRE final : public ov::AssertFailure {
+public:
+    [[noreturn]] static void create(const char* file,
+                                    int line,
+                                    const char* check_string,
+                                    const std::string& context_info,
+                                    const std::string& explanation);
+
+protected:
+    explicit InvalidCRE(const std::string& what_arg) : ov::AssertFailure(what_arg) {}
+};
+
+// TODO double check it's fine to have no predetermined value (these are not stored)
+enum class CRESpecialTokenCode { AND, OR, NOT, OPEN, CLOSE };
+
+class CRESpecialToken final : public CREToken {
+public:
+    CRESpecialToken(const CRESpecialTokenCode code);
+
+    CRESpecialTokenCode get_code() const;
+
+    bool operator==(const CRESpecialToken& other) const;
+
+private:
+    CRESpecialTokenCode m_code;
+};
+
+bool is_cre_special_token(const std::shared_ptr<CREToken>& candidate);
+
+class CRE final {
+public:
+    CRE(const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    CRE(const std::vector<std::shared_ptr<CREToken>>& subexpression,
+        const ov::log::Level log_level = ov::log::Level::WARNING);
+
+    /**
+     * @brief Append a new token to the CRE, at depth-level 1. All tokens found at this depth-level are bound by a
+     * logical "AND" operator.
+     */
+    void append_to_expression(const std::shared_ptr<CREToken> requirement_token);
+
+    /**
+     * @brief Append a new CRE subexpression to the CRE, at depth-level 1. All tokens found at this depth-level are
+     * bound by a logical "AND" operator.
+     */
+    void append_to_expression(const std::vector<std::shared_ptr<CREToken>>& subexpression);
+
+    size_t get_expression_length() const;
+
+    std::vector<std::shared_ptr<CREToken>> get_expression() const;
+
+    bool empty() const;
+
+    /**
+     * @brief Evaluates the expression against all known section types.
+     * @details The support for section types is evaluated in a lazy manner: the check support function is called only
+     * upon encountering the corresponding CRE token.
+     *
+     * @param section_type_evaluators A mapping between CRE tokens and their (lazy) evaluators.
+     */
+    ov::CompatibilityCheck check_compatibility(
+        const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
+        const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators) const;
+
+    // TODO reconsider these
+    // Some "globals" for convenience
+    static inline const auto AND = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND);
+    static inline const auto OR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR);
+    static inline const auto NOT = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::NOT);
+    static inline const auto OPEN = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OPEN);
+    static inline const auto CLOSE = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::CLOSE);
+
+private:
+    enum class Delimiter { PARRENTHESIS, SIZE };
+
+    bool subexpression_already_registered(const std::vector<std::shared_ptr<CREToken>>& subexpression) const;
+
+    void advance_iterator(std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
+                          const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end) const;
+
+    bool end_condition(const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
+                       const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end,
+                       const Delimiter end_delimiter) const;
+
+    // TODO update comments
+    /**
+     * @brief Evaluates a subexpression from left to right.
+     * @details The evaluation starts from the position where the iterator was left at. The end of the subexpression is
+     * determined based on the given type of delimiter.
+     *
+     * The parent of the current subexpression might have determined that all evaluations within this subexpression have
+     * no impact on the final result. If that is the case, then "skip_all_evaluations" should be set to true, and
+     * operand evaluation will be skipped to save some resources.
+     * @param expression_iterator The cursor corresponding to the expression that is being evaluated. The initial value
+     * indicates the start of the subexpression.
+     * @param expression_end Points towards the end of the whole expression.
+     * @param section_type_evaluators
+     * @param end_delimiter The type of delimiter that is used for judging the end of the subexpression.
+     * @param skip_all_evaluations If set to "true", all operand evaluations wihtin this subexpressions will be skipped.
+     * However, CRE validity checks will still be performed.
+     */
+    ov::CompatibilityCheck evaluate(
+        std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
+        const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end,
+        const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
+        const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators,
+        const Delimiter end_delimiter,
+        const bool skip_all_evaluations = false) const;
+
+    std::vector<std::vector<std::shared_ptr<CREToken>>> m_subexpressions;
+
+    Logger m_logger;
+};
+
+// TODO test these
+std::string cre_to_string(const CRE cre);
+
+CRE cre_from_string(std::string_view cre);
+
+}  // namespace intel_npu
