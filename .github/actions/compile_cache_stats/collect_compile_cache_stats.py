@@ -170,7 +170,7 @@ def parse_sccache_stats(stdout: str) -> dict[str, Any]:
 
 _RATIO_LINE = re.compile(
     r"^(?P<indent>\s*)(?P<name>[^:]+):\s+"
-    r"(?P<num>[\d.]+)\s*/\s*(?P<den>[\d.]+)\s*\((?P<pct>[\d.]+)%\)\s*$"
+    r"(?P<num>[\d.]+)\s*/\s*(?P<den>[\d.]+)\s*\(\s*(?P<pct>[\d.]+)%\)\s*$"
 )
 _SINGLE_LINE = re.compile(r"^(?P<indent>\s*)(?P<name>[^:]+):\s+(?P<val>[\d.]+)\s*$")
 
@@ -366,15 +366,41 @@ def resolve_summary_title(report: dict[str, Any]) -> str:
     return job or "Compile cache statistics"
 
 
+def _format_summary_count(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, int):
+        return value
+    return value
+
+
+def _ccache_ratio_numerator(report: dict[str, Any], key: str) -> float | int | None:
+    metrics = report.get("metrics") or {}
+    entry = metrics.get(key)
+    if isinstance(entry, dict) and "numerator" in entry:
+        return entry["numerator"]
+    local_storage = report.get("local_storage") or {}
+    entry = local_storage.get(key)
+    if isinstance(entry, dict) and "numerator" in entry:
+        return entry["numerator"]
+    return None
+
+
 def _summary_hit_rate_display(report: dict[str, Any]) -> str:
     computed = report.get("computed") or {}
     if report["tool"] == "sccache":
         pct = computed.get("cache_hit_percentage")
     else:
         pct = computed.get("cache_hit_percentage_of_cacheable")
+        if pct is None:
+            hits = (report.get("metrics") or {}).get("hits")
+            if isinstance(hits, dict) and hits.get("percentage") is not None:
+                pct = hits["percentage"]
     if pct is None:
         return "—"
-    return f"{pct:.2f}%"
+    return f"{float(pct):.2f}%"
 
 
 def extract_summary_metrics(report: dict[str, Any]) -> dict[str, Any]:
@@ -388,10 +414,8 @@ def extract_summary_metrics(report: dict[str, Any]) -> dict[str, Any]:
         }
 
     metrics = report.get("metrics") or {}
-    hits = metrics.get("hits")
-    misses = metrics.get("misses")
-    cache_hits = hits.get("numerator") if isinstance(hits, dict) else None
-    cache_misses = misses.get("numerator") if isinstance(misses, dict) else None
+    cache_hits = _format_summary_count(_ccache_ratio_numerator(report, "hits"))
+    cache_misses = _format_summary_count(_ccache_ratio_numerator(report, "misses"))
     summary: dict[str, Any] = {
         "cache_hits": cache_hits,
         "cache_misses": cache_misses,

@@ -78,6 +78,8 @@ class TestParseCcacheStats(unittest.TestCase):
         self.assertEqual(report["tool"], "ccache")
         self.assertEqual(report["metrics"]["cacheable_calls"]["numerator"], 9758)
         self.assertEqual(report["metrics"]["hits"]["numerator"], 8754)
+        self.assertEqual(report["metrics"]["misses"]["numerator"], 1004)
+        self.assertEqual(report["metrics"]["preprocessed"]["numerator"], 897)
         self.assertEqual(report["metrics"]["direct"]["numerator"], 7857)
         self.assertEqual(report["local_storage"]["cleanups"], 113)
         self.assertAlmostEqual(
@@ -90,6 +92,33 @@ class TestParseCcacheStats(unittest.TestCase):
             7857 / 8754,
             places=6,
         )
+
+    def test_parses_ccache_lines_with_spaced_percent_parentheses(self):
+        report = parse_ccache_stats(CCACHE_WINDOWS_CC_SAMPLE)
+        self.assertEqual(report["metrics"]["misses"]["numerator"], 258)
+        self.assertEqual(report["metrics"]["preprocessed"]["numerator"], 3)
+        self.assertEqual(report["metrics"]["uncacheable_calls"]["numerator"], 35)
+        self.assertEqual(report["local_storage"]["misses"]["numerator"], 258)
+        metrics = extract_summary_metrics(report)
+        self.assertEqual(metrics["cache_hits"], 4054)
+        self.assertEqual(metrics["cache_misses"], 258)
+        self.assertEqual(metrics["cache_hit_rate"], "94.02%")
+        markdown = format_step_summary_markdown({**report, "build_label": "cc-collect-openvino-main"})
+        self.assertIn("| 4054 | 258 | 94.02% | — |", markdown)
+
+
+CCACHE_WINDOWS_CC_SAMPLE = """\
+Cacheable calls:   4312 / 4347 (99.19%)
+  Hits:            4054 / 4312 (94.02%)
+    Direct:        4051 / 4054 (99.93%)
+    Preprocessed:     3 / 4054 ( 0.07%)
+  Misses:           258 / 4312 ( 5.98%)
+Uncacheable calls:   35 / 4347 ( 0.81%)
+Local storage:
+  Cache size (GB):  1.3 /  3.0 (44.65%)
+  Hits:            4054 / 4312 (94.02%)
+  Misses:           258 / 4312 ( 5.98%)
+"""
 
 
 class TestStepSummaryMarkdown(unittest.TestCase):
