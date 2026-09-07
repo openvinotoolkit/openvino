@@ -191,16 +191,16 @@ bool is_size_preserving_slice(const TDim& dim, const Bounds& start, const Bounds
         const auto start_at_begin = (start.first == 0 && start.second == 0) ||
                                     (ov::util::is_min(start.first) && ov::util::is_min(start.second)) ||
                                     (!is_inf && start.second < 0 && start.second <= -dim_max);
-        const auto stop_at_end = (ov::util::is_max(stop.first) && ov::util::is_max(stop.second)) ||
-                                 (!is_inf && stop.first >= dim_max);
+        const auto stop_at_end =
+            (ov::util::is_max(stop.first) && ov::util::is_max(stop.second)) || (!is_inf && stop.first >= dim_max);
         return start_at_begin && stop_at_end;
     }
     // start clips to the last index and stop to before the first one for every length within the dimension
     const auto start_at_last = (ov::util::is_max(start.first) && ov::util::is_max(start.second)) ||
                                (start.first == -1 && start.second == -1) ||
                                (!is_inf && start.first >= 0 && start.first >= dim_max - 1);
-    const auto stop_before_begin = (ov::util::is_min(stop.first) && ov::util::is_min(stop.second)) ||
-                                   (!is_inf && stop.second <= -dim_max - 1);
+    const auto stop_before_begin =
+        (ov::util::is_min(stop.first) && ov::util::is_min(stop.second)) || (!is_inf && stop.second <= -dim_max - 1);
     return start_at_last && stop_before_begin;
 }
 
