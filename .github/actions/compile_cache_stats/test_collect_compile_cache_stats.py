@@ -127,6 +127,21 @@ class TestStepSummaryMarkdown(unittest.TestCase):
         self.assertEqual(metrics["cache_misses"], 1004)
         self.assertEqual(metrics["cache_hit_rate"], "89.71%")
         self.assertIsNone(metrics["errors"])
+        self.assertEqual(metrics["cache_size_gb"], "3 GB")
+        self.assertEqual(metrics["cache_max_size_gb"], "3 GB")
+        self.assertEqual(metrics["cache_saturation"], "99.97%")
+
+    def test_ccache_summary_table_includes_cache_size_columns(self):
+        report = parse_ccache_stats(CCACHE_SAMPLE)
+        markdown = format_step_summary_markdown(report)
+        self.assertIn("| Cache size | Cache max size | Cache saturation |", markdown)
+        self.assertIn("| 3 GB | 3 GB | 99.97% |", markdown)
+
+    def test_sccache_summary_table_omits_cache_size_columns(self):
+        report = parse_sccache_stats(SCCACHE_SAMPLE)
+        markdown = format_step_summary_markdown(report)
+        self.assertNotIn("Cache size", markdown)
+        self.assertNotIn("Cache saturation", markdown)
 
 
 if __name__ == "__main__":

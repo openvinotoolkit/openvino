@@ -392,12 +392,41 @@ def extract_summary_metrics(report: dict[str, Any]) -> dict[str, Any]:
     misses = metrics.get("misses")
     cache_hits = hits.get("numerator") if isinstance(hits, dict) else None
     cache_misses = misses.get("numerator") if isinstance(misses, dict) else None
-    return {
+    summary: dict[str, Any] = {
         "cache_hits": cache_hits,
         "cache_misses": cache_misses,
         "cache_hit_rate": _summary_hit_rate_display(report),
         "errors": metrics.get("errors"),
     }
+
+    local_storage = report.get("local_storage") or {}
+    cache_size = local_storage.get("cache_size_gb")
+    if isinstance(cache_size, dict):
+        current_gb = cache_size.get("numerator")
+        max_gb = cache_size.get("denominator")
+        saturation_pct = cache_size.get("percentage")
+        if saturation_pct is None:
+            computed = report.get("computed") or {}
+            saturation_pct = computed.get("local_cache_size_utilization_percentage")
+        if current_gb is not None:
+            summary["cache_size_gb"] = f"{current_gb:g} GB"
+        if max_gb is not None:
+            summary["cache_max_size_gb"] = f"{max_gb:g} GB"
+        if saturation_pct is not None:
+            summary["cache_saturation"] = f"{float(saturation_pct):.2f}%"
+
+    return summary
+
+
+_SUMMARY_TABLE_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("cache_hits", "Cache hits"),
+    ("cache_misses", "Cache misses"),
+    ("cache_hit_rate", "Cache hit rate"),
+    ("errors", "Errors"),
+    ("cache_size_gb", "Cache size"),
+    ("cache_max_size_gb", "Cache max size"),
+    ("cache_saturation", "Cache saturation"),
+)
 
 
 def format_step_summary_markdown(report: dict[str, Any]) -> str:
@@ -409,15 +438,22 @@ def format_step_summary_markdown(report: dict[str, Any]) -> str:
             return "—"
         return str(value)
 
+    columns = [
+        (key, label)
+        for key, label in _SUMMARY_TABLE_COLUMNS
+        if key in ("cache_hits", "cache_misses", "cache_hit_rate", "errors")
+        or values.get(key) is not None
+    ]
+    header = "| " + " | ".join(label for _, label in columns) + " |"
+    separator = "| " + " | ".join("---:" for _ in columns) + " |"
+    row = "| " + " | ".join(cell(values.get(key)) for key, _ in columns) + " |"
+
     lines = [
         f"## {title}",
         "",
-        "| Cache hits | Cache misses | Cache hit rate | Errors |",
-        "| ---: | ---: | ---: | ---: |",
-        (
-            f"| {cell(values['cache_hits'])} | {cell(values['cache_misses'])} | "
-            f"{cell(values['cache_hit_rate'])} | {cell(values['errors'])} |"
-        ),
+        header,
+        separator,
+        row,
         "",
     ]
     return "\n".join(lines)
