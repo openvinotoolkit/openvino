@@ -4,6 +4,7 @@
 
 #include "convert_batched_nms_to_multiclass_nms.hpp"
 
+#include <cmath>
 #include <limits>
 #include <memory>
 #include <string>
@@ -62,6 +63,20 @@ bool is_integral_to_fp_convert(const std::shared_ptr<ov::Node>& node) {
     const auto input_type = convert->input_value(0).get_element_type();
     const auto output_type = convert->get_output_element_type(0);
     return input_type.is_integral_number() && output_type.is_real();
+}
+
+bool has_supported_nms_semantics(const std::shared_ptr<ov::Node>& node) {
+    if (const auto nms = ov::as_type_ptr<ov::op::v9::NonMaxSuppression>(node)) {
+        return nms->get_box_encoding() == ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER &&
+               nms->get_sort_result_descending();
+    }
+
+    if (const auto nms = ov::as_type_ptr<ov::op::internal::NonMaxSuppressionIEInternal>(node)) {
+        return nms->m_center_point_box == 0 && nms->m_sort_result_descending &&
+               nms->m_rotation == ov::op::internal::NonMaxSuppressionIEInternal::Rotation_None;
+    }
+
+    return false;
 }
 
 template <typename T>
@@ -220,6 +235,9 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         if (max_output_boxes < 0 || max_output_boxes > std::numeric_limits<int>::max()) {
             return false;
         }
+        if (!has_supported_nms_semantics(nms) || !std::isfinite(score_threshold)) {
+            return false;
+        }
 
         const auto& class_ids_rt_info = class_ids_source.get_node_shared_ptr()->get_rt_info();
         const auto class_count_it = class_ids_rt_info.find(static_class_count_key);
@@ -265,9 +283,9 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         attrs.sort_result_across_batch = false;
         attrs.output_type = nms->get_output_element_type(0);
         attrs.iou_threshold = iou_threshold;
-        attrs.score_threshold = score_threshold;
+        attrs.score_threshold = std::nextafter(score_threshold, std::numeric_limits<float>::infinity());
         attrs.nms_top_k = static_cast<int>(max_output_boxes);
-        attrs.keep_top_k = static_cast<int>(prefix_limit);
+        attrs.keep_top_k = static_cast<int>(std::min(prefix_limit, max_output_boxes));
         attrs.background_class = -1;
         attrs.nms_eta = 1.0f;
         attrs.normalized = true;

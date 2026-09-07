@@ -28,7 +28,12 @@ using namespace ov::intel_gpu;
 
 namespace {
 
-std::shared_ptr<ov::Model> make_batched_nms_output_model(int64_t gather_column = 2) {
+std::shared_ptr<ov::Model> make_batched_nms_output_model(
+    int64_t gather_column = 2,
+    int32_t max_output_boxes = 2000,
+    int64_t prefix_limit = 100,
+    ov::op::v9::NonMaxSuppression::BoxEncodingType box_encoding = ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER,
+    bool sort_result_descending = true) {
     auto boxes = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
     auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1});
     auto class_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1});
@@ -49,11 +54,11 @@ std::shared_ptr<ov::Model> make_batched_nms_output_model(int64_t gather_column =
     auto nms = std::make_shared<ov::op::v9::NonMaxSuppression>(
         boxes_reshape,
         scores_unsqueeze,
-        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {2000}),
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {max_output_boxes}),
         ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {0.5f}),
         std::make_shared<ov::op::v0::Convert>(ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {0.7f}), ov::element::f32),
-        ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER,
-        true,
+        box_encoding,
+        sort_result_descending,
         ov::element::i64);
 
     auto gather = std::make_shared<ov::op::v8::Gather>(nms,
@@ -61,9 +66,19 @@ std::shared_ptr<ov::Model> make_batched_nms_output_model(int64_t gather_column =
                                                        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1}));
     auto squeeze = std::make_shared<ov::op::v0::Squeeze>(gather, ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {1}));
     class_ids->get_rt_info()["intel_gpu_batched_nms_static_class_count"] = int64_t{80};
-    squeeze->get_rt_info()["intel_gpu_batched_nms_prefix_limit"] = int64_t{100};
+    squeeze->get_rt_info()["intel_gpu_batched_nms_prefix_limit"] = prefix_limit;
 
     return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(squeeze)}, ov::ParameterVector{boxes, scores, class_ids});
+}
+
+size_t get_op_count(const std::shared_ptr<ov::Model>& model, const ov::DiscreteTypeInfo& type_info) {
+    size_t count = 0;
+    for (const auto& node : model->get_ops()) {
+        if (node->get_type_info() == type_info) {
+            ++count;
+        }
+    }
+    return count;
 }
 
 }  // namespace
@@ -113,6 +128,44 @@ TEST(ConvertBatchedNmsToMulticlassNmsTest, ReplacesLoweredBatchedNmsOutputChain)
     EXPECT_EQ(multiclass_nms->get_output_shape(1), ov::Shape({100, 1}));
     EXPECT_EQ(multiclass_nms->get_output_shape(2), ov::Shape({1}));
     EXPECT_EQ(valid_selected_indices->input_value(2), multiclass_nms->output(2));
+}
+
+TEST(ConvertBatchedNmsToMulticlassNmsTest, PreservesOriginalMaxOutputBoxesLimit) {
+    auto model = make_batched_nms_output_model(2, 20, 100);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ConvertBatchedNmsToMulticlassNms>();
+    manager.run_passes(model);
+
+    std::shared_ptr<ov::op::internal::MulticlassNmsIEInternal> multiclass_nms;
+    for (const auto& node : model->get_ops()) {
+        if (const auto nms = ov::as_type_ptr<ov::op::internal::MulticlassNmsIEInternal>(node)) {
+            multiclass_nms = nms;
+            break;
+        }
+    }
+
+    ASSERT_NE(multiclass_nms, nullptr);
+    EXPECT_EQ(multiclass_nms->get_attrs().nms_top_k, 20);
+    EXPECT_EQ(multiclass_nms->get_attrs().keep_top_k, 20);
+    EXPECT_EQ(multiclass_nms->get_output_shape(0), ov::Shape({20, 6}));
+    EXPECT_EQ(multiclass_nms->get_output_shape(1), ov::Shape({20, 1}));
+}
+
+TEST(ConvertBatchedNmsToMulticlassNmsTest, KeepsUnsupportedNmsSemanticsUntouched) {
+    std::vector<std::shared_ptr<ov::Model>> models = {
+        make_batched_nms_output_model(2, 2000, 100, ov::op::v9::NonMaxSuppression::BoxEncodingType::CENTER),
+        make_batched_nms_output_model(2, 2000, 100, ov::op::v9::NonMaxSuppression::BoxEncodingType::CORNER, false),
+    };
+
+    for (const auto& model : models) {
+        ov::pass::Manager manager;
+        manager.register_pass<ConvertBatchedNmsToMulticlassNms>();
+        manager.run_passes(model);
+
+        EXPECT_EQ(get_op_count(model, ov::op::internal::MulticlassNmsIEInternal::get_type_info_static()), 0);
+        EXPECT_EQ(get_op_count(model, ov::op::v9::NonMaxSuppression::get_type_info_static()), 1);
+    }
 }
 
 TEST(ConvertBatchedNmsToMulticlassNmsTest, KeepsGenericNmsGatherChainUntouched) {
