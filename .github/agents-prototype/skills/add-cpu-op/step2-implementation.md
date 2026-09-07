@@ -87,11 +87,13 @@ automatically picked up by CMake. No CMakeLists.txt edits needed for source file
 
 ## Step-by-Step Implementation
 
-See [`src/nodes/README.md`](../../../../src/plugins/intel_cpu/src/nodes/README.md)
-for the node lifecycle, factory registration (`Type` enum, `cpu_types.cpp`
-mapping, `nodes_factory.cpp`), shape inference factories, dynamic shapes, the
-node header/source skeleton, and the mandatory
-[OV_SWITCH type-dispatch pattern](../../../../src/plugins/intel_cpu/src/nodes/README.md#type-dispatch-with-ov_switch).
+1. Read [`src/nodes/README.md`](../../../../src/plugins/intel_cpu/src/nodes/README.md) —
+   it covers the node lifecycle, factory registration (`Type` enum,
+   `cpu_types.cpp` mapping, `nodes_factory.cpp`), shape inference factories,
+   dynamic shapes, the node header/source skeleton, and the mandatory
+   `OV_SWITCH` type-dispatch pattern.
+2. Create/update the files listed in [File Structure](#file-structure) above,
+   following that guide's patterns.
 
 ### Build Verification
 
