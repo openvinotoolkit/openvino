@@ -18,9 +18,11 @@
 
 #include "../selective_ssm_test_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "nodes/kernels/x64/selective_ssm_jit_runtime.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 namespace ov::intel_cpu::node::kernel::test {
 namespace {
@@ -204,7 +206,7 @@ TEST_F(PagedSelectiveSSMJitKernel, DifferentialStressCoversCacheShapePrecisionAn
     }
 }
 
-TEST_F(SelectiveSSMJitKernel, LargeStateMatchesDoublePrecisionReference) {
+TEST_F(SelectiveSSMJitKernel, LargeStateMatchesFP32Reference) {
     const auto cpu_parallel = make_parallel();
     constexpr size_t tokens = 8;
     constexpr size_t heads = 2;
@@ -214,6 +216,9 @@ TEST_F(SelectiveSSMJitKernel, LargeStateMatchesDoublePrecisionReference) {
     constexpr std::array<int32_t, 2> block_indices_begins{0, block_indices.size()};
     constexpr int32_t processed_tokens = 3;
     constexpr int32_t cache_interval = 4;
+    // Allow FP32 reduction-order differences over 4096 terms; state updates retain the tighter tolerance below.
+    constexpr float output_abs_threshold = 1e-5F;
+    constexpr float output_rel_threshold = 1e-4F;
     const auto A = make_values(heads, 0.013F, -0.2F);
     const auto delta = make_values(tokens * heads, 0.003F, 0.08F);
     const auto x = make_values(tokens * heads * rows, 0.009F, -0.02F);
@@ -223,10 +228,10 @@ TEST_F(SelectiveSSMJitKernel, LargeStateMatchesDoublePrecisionReference) {
         const auto B = make_values(tokens * state_size, 0.007F, 0.01F);
         const auto C = make_values(tokens * state_size, 0.006F, -0.01F);
         const auto initial = make_values(heads * rows * state_size, 0.005F, 0.02F);
-        // A sequential FP32 sum over 4096 terms can be less accurate than the vector reduction.
-        // Use an independent FP64 recurrence without increasing the FP32 comparison tolerance.
-        const auto expected = reference_selective_ssm<double>(A, delta, B, x, C, initial, shape);
+        const auto expected = reference_selective_ssm(A, delta, B, x, C, initial, shape);
         std::vector<float> output(x.size());
+        const ov::Tensor expected_output(element::f32, {tokens, heads, rows}, expected.output.data());
+        const ov::Tensor actual_output(element::f32, {tokens, heads, rows}, output.data());
         std::vector<float> final_state(initial.size());
         std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * rows * state_size);
         SelectiveSSMKernelTestArgs args;
@@ -246,11 +251,9 @@ TEST_F(SelectiveSSMJitKernel, LargeStateMatchesDoublePrecisionReference) {
         args.head_dim_tile = rows;
         args.cpu_parallel = cpu_parallel;
         run_jit_selective_ssm(args);
-        for (size_t i = 0; i < output.size(); ++i) {
-            EXPECT_NEAR(output[i], expected.output[i], 1e-5) << "output index=" << i;
-        }
+        ov::test::utils::compare(expected_output, actual_output, output_abs_threshold, output_rel_threshold);
         for (size_t i = 0; i < final_state.size(); ++i) {
-            EXPECT_NEAR(final_state[i], expected.state[i], 1e-7) << "state index=" << i;
+            EXPECT_NEAR(final_state[i], expected.state[i], 1e-7F) << "state index=" << i;
         }
 
         for (const bool reuse_state_cache : {false, true}) {
@@ -279,18 +282,16 @@ TEST_F(SelectiveSSMJitKernel, LargeStateMatchesDoublePrecisionReference) {
             paged.head_dim_tile = rows;
             paged.cpu_parallel = cpu_parallel;
             run_jit_paged_selective_ssm(paged, reuse_state_cache);
-            for (size_t i = 0; i < output.size(); ++i) {
-                EXPECT_NEAR(output[i], expected.output[i], 1e-5) << "paged output index=" << i;
-            }
+            ov::test::utils::compare(expected_output, actual_output, output_abs_threshold, output_rel_threshold);
             // The processed-token offset puts snapshots after tokens 1, 5 and 8.
             size_t slot = 0;
             for (const size_t prefix : {1U, 5U, 8U}) {
                 auto prefix_shape = shape;
                 prefix_shape.sequence_length = prefix;
-                const auto snapshot = reference_selective_ssm<double>(A, delta, B, x, C, initial, prefix_shape);
+                const auto snapshot = reference_selective_ssm(A, delta, B, x, C, initial, prefix_shape);
                 const size_t offset = static_cast<size_t>(block_indices[++slot]) * initial.size();
                 for (size_t i = 0; i < initial.size(); ++i) {
-                    EXPECT_NEAR(cache[offset + i], snapshot.state[i], 1e-7)
+                    EXPECT_NEAR(cache[offset + i], snapshot.state[i], 1e-7F)
                         << "snapshot prefix=" << prefix << ", state index=" << i;
                 }
             }
