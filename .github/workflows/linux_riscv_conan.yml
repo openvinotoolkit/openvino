@@ -1,7 +1,8 @@
 name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
 on:
   workflow_dispatch:
-    inputs:      target-branch:
+    inputs:
+      target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false

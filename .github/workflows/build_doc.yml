@@ -1,7 +1,7 @@
 name: Documentation
 on:
   workflow_dispatch:
-    inputs:  pull_request:
+  pull_request:
     types:
       - opened
       - synchronize

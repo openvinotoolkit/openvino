@@ -1,7 +1,8 @@
 name: Windows (VS 2022, Python 3.11, Release)
 on:
   workflow_dispatch:
-    inputs:      target-branch:
+    inputs:
+      target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
