@@ -6,9 +6,12 @@
 #include "include/batch_headers/bf16_utils.cl"
 
 // Clamp f16 INF to prevent NaN in RMS (INF * rsqrt(INF) = INF*0 = NaN).
-#if INPUT0_TYPE_SIZE == 2
+// BF16 has the same TYPE_SIZE (2 bytes) as F16 but a much wider dynamic range, so it must be excluded.
+#if INPUT0_TYPE_SIZE == 2 && !INPUT0_IS_BF16
 #define FP16_MAX_FINITE 65504.0f
-#define RMS_CLAMP(val) clamp((val), (ACCUMULATOR_TYPE)(-FP16_MAX_FINITE), (ACCUMULATOR_TYPE)(FP16_MAX_FINITE))
+// OpenCL clamp()/fmin()/fmax() silently turn NaN into a finite bound; only substitute the clamped
+// value where isinf() is true so NaN (isinf == false) passes through untouched.
+#define RMS_CLAMP(val) (isinf(val) ? clamp((val), (ACCUMULATOR_TYPE)(-FP16_MAX_FINITE), (ACCUMULATOR_TYPE)(FP16_MAX_FINITE)) : (val))
 #else
 #define RMS_CLAMP(val) (val)
 #endif
