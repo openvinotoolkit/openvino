@@ -1,12 +1,7 @@
 name: Webassembly
 on:
   workflow_dispatch:
-    inputs:
-      enable-compile-cache:
-        description: 'Use sccache/ccache for compilation (workflow_dispatch default applies to other triggers)'
-        type: boolean
-        default: true
-      target-branch:
+    inputs:      target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
@@ -110,8 +105,8 @@ jobs:
       options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'sccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache != false && 'sccache' || '' }}
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       OPENVINO_REPO: /__w/openvino/openvino/openvino
@@ -119,7 +114,6 @@ jobs:
       SCCACHE_AZURE_KEY_PREFIX: webassembly_Release
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
-        if: ${{ inputs.enable-compile-cache != false }}
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -158,7 +152,6 @@ jobs:
         run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel 15
 
       - name: Compile cache statistics (hello_query_device)
-        if: ${{ inputs.enable-compile-cache != false }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: hello-query-device

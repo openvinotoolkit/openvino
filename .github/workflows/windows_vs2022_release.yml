@@ -1,12 +1,7 @@
 name: Windows (VS 2022, Python 3.11, Release)
 on:
   workflow_dispatch:
-    inputs:
-      enable-compile-cache:
-        description: 'Use sccache/ccache for compilation (workflow_dispatch default applies to other triggers)'
-        type: boolean
-        default: true
-      target-branch:
+    inputs:      target-branch:
         description: 'Target branch for the build; taken from event context by default'
         type: string
         required: false
@@ -70,7 +65,6 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      enable-compile-cache: ${{ inputs.enable-compile-cache != false }}
       runner: 'aks-win-16-cores-32gb-build-ab'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
