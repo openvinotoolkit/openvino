@@ -382,8 +382,8 @@ static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
  * @ingroup ov_runtime_cpp_prop_api
  */
 enum class AttnKernelMode {
-    AUTO = 0,  //!< Plugin chooses attention kernel backend automatically
-    PA_CM = 1, //!< Prefer CM PagedAttention kernel backend
+    AUTO = 0,   //!< Plugin chooses attention kernel backend automatically
+    PA_CM = 1,  //!< Prefer CM PagedAttention kernel backend
 };
 
 /** @cond INTERNAL */
