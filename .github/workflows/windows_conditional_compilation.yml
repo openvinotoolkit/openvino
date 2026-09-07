@@ -329,7 +329,7 @@ jobs:
 
   Build_And_Run_On_Mode:
     name: Conditional Compilation
-    timeout-minutes: 40
+    timeout-minutes: 60
     needs: [Build_And_Run_Collect_Mode, Smart_CI]
     defaults:
       run:
