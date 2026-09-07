@@ -172,6 +172,15 @@ private:
 }  // namespace ov::intel_cpu::node
 ```
 
+**Key decisions for the header:**
+
+| Question | If yes | If no |
+|----------|--------|-------|
+| Does the op need ISA-specific or multi-backend paths? | Use the Executor framework (`ExecutorFactory` + `ExecutorPtr`) — see [Executor Pattern](../../../../../.github/agents-prototype/skills/add-cpu-op/step2-implementation.md#executor-pattern-standard-architecture-for-non-trivial-ops) | Use direct `execute()` with `OV_SWITCH` type dispatch |
+| Does the op need custom shape inference? | Add custom `ShapeInferFactory` | Use `NgraphShapeInferFactory` |
+| Does the op need `prepareParams()`? | Override `needPrepareParams` → `true` | Override → `false` |
+| Does the op have a data-dependent output shape? | Override `needShapeInfer()` | Don't override |
+
 ```cpp
 // <op_name>.cpp
 // Copyright (C) 2018-2026 Intel Corporation
