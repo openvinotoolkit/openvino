@@ -14,10 +14,18 @@ ParamsKey ReorderWeightsOpt::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F16);
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::INT32);
+    k.EnableInputWeightsType(WeightsType::F8E4M3);
+    k.EnableInputWeightsType(WeightsType::F8E5M2);
+    k.EnableInputWeightsType(WeightsType::F4E2M1);
+    k.EnableInputWeightsType(WeightsType::F8E8M0);
     k.EnableOutputWeightsType(WeightsType::INT8);
     k.EnableOutputWeightsType(WeightsType::F16);
     k.EnableOutputWeightsType(WeightsType::F32);
     k.EnableOutputWeightsType(WeightsType::INT32);
+    k.EnableOutputWeightsType(WeightsType::F8E4M3);
+    k.EnableOutputWeightsType(WeightsType::F8E5M2);
+    k.EnableOutputWeightsType(WeightsType::F4E2M1);
+    k.EnableOutputWeightsType(WeightsType::F8E8M0);
     k.EnableInputWeightsLayout(WeightsLayout::oiyx);
     k.EnableInputWeightsLayout(WeightsLayout::ioyx);
     k.EnableInputWeightsLayout(WeightsLayout::oyxi);
@@ -212,6 +220,15 @@ JitConstants ReorderWeightsOpt::GetJitConstants(const reorder_weights_params& pa
             jit.AddConstant(MakeJitConstant("IFM_PADDED_NUM", Align(output.IFM().v, isv_size)));
         }
     }
+
+    jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", params.input.GetDType() == WeightsType::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", params.input.GetDType() == WeightsType::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F4E2M1_INPUT", params.input.GetDType() == WeightsType::F4E2M1 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E8M0_INPUT", params.input.GetDType() == WeightsType::F8E8M0 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.output.GetDType() == WeightsType::F8E5M2 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.output.GetDType() == WeightsType::F8E4M3 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.output.GetDType() == WeightsType::F4E2M1 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F8E8M0_OUTPUT", params.output.GetDType() == WeightsType::F8E8M0 ? 1 : 0));
 
     return jit;
 }

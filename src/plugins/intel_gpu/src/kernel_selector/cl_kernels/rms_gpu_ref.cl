@@ -3,6 +3,7 @@
 //
 
 #include "include/fetch_utils.cl"
+#include "include/batch_headers/bf16_utils.cl"
 
 // Clamp f16 INF to prevent NaN in RMS (INF * rsqrt(INF) = INF*0 = NaN).
 #if INPUT0_TYPE_SIZE == 2
@@ -63,7 +64,7 @@ KERNEL(rms_gpu_ref)(
             }
 
             rms /= NORM_SIZE;
-            rms = pow(sqrt(rms + TO_ACCUMULATOR_TYPE(EPSILON)), -1);
+            rms = pow(sqrt(rms + EPSILON), -1);
 
             for (uint n = 0; n < NORM_SIZE; n++) {
                 NORM_INDEX = n;
@@ -72,9 +73,9 @@ KERNEL(rms_gpu_ref)(
                 const ACCUMULATOR_TYPE input_val = RMS_CLAMP(TO_ACCUMULATOR_TYPE(input[input_idx]));
 #if ELEMENTWISE_AFFINE
                 const uint gamma_idx = INPUT1_OFFSET + (INPUT1_LENGTH == 1 ? 0 : n);
-                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input_val) * TO_OUTPUT_TYPE(gamma[gamma_idx]);
+                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms * input_val * TO_ACCUMULATOR_TYPE(gamma[gamma_idx]));
 #else
-                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input_val);
+                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms * input_val);
 #endif
                 #if HAS_FUSED_OPS
                     FUSED_OPS;

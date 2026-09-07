@@ -21,8 +21,10 @@
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
+#include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/stft.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -68,7 +70,8 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
         return true;
 
-    if (ov::is_type<ov::op::internal::GatedDeltaNet>(op))
+    if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) || ov::is_type<ov::op::internal::SelectiveSSM>(op) ||
+        ov::is_type<ov::op::internal::PagedSelectiveSSM>(op))
         return true;
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {

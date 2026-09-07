@@ -221,8 +221,14 @@ dnnl::memory gpu_buffer::get_onednn_grouped_memory(dnnl::memory::desc desc, cons
 #endif
 
 gpu_buffer_from_handle::~gpu_buffer_from_handle() {
-    const auto* cl_engine = downcast<const ocl_engine>(_engine);
-    cl_engine->release_external_memory(static_cast<cl_mem>(_buffer.get()));
+    try {
+        const auto* cl_engine = downcast<const ocl_engine>(_engine);
+        cl_engine->release_external_memory(static_cast<cl_mem>(_buffer.get()));
+    } catch (const std::exception& ex) {
+        GPU_DEBUG_LOG << "[GPU] ~gpu_buffer_from_handle: release_external_memory failed: " << ex.what() << std::endl;
+    } catch (...) {
+        GPU_DEBUG_LOG << "[GPU] ~gpu_buffer_from_handle: release_external_memory failed: unknown exception" << std::endl;
+    }
 }
 
 gpu_image2d::gpu_image2d(ocl_engine* engine, const layout& layout)

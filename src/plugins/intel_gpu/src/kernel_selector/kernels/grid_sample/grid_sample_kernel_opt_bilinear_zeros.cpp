@@ -71,6 +71,8 @@ ParamsKey GridSampleKernelOpt_BilinearZeros::GetSupportedKey() const {
     key.EnableDifferentTypes();
     key.EnableInputLayout(DataLayout::bfyx);
     key.EnableOutputLayout(DataLayout::bfyx);
+    key.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    key.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     key.EnableTensorOffset();
     key.EnableTensorPitches();
     key.EnableBatching();

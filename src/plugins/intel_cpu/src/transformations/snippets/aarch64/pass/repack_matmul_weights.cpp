@@ -10,7 +10,6 @@
 #include <functional>
 #include <memory>
 #include <numeric>
-#include <optional>
 #include <vector>
 
 #include "cpu_memory.h"
@@ -213,7 +212,7 @@ MemoryPtr prepare_weights_memory(const GraphContext::CPtr& context,
 
 }  // namespace
 
-std::optional<RepackMatMulWeights::RepackedMatMulWeights> RepackMatMulWeights::repack(
+RepackMatMulWeights::RepackedMatMulWeights RepackMatMulWeights::repack(
     const std::shared_ptr<ov::Node>& consumer,
     const RepackMatMulWeights::MatMulWeightsSource& source,
     const MemoryPtr& orig_src_mem_ptr) {

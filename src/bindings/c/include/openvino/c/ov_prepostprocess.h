@@ -342,6 +342,25 @@ ov_preprocess_input_tensor_info_set_color_format_with_subname(
     ...);
 
 /**
+ * @brief Set ov_preprocess_input_tensor_info_t color format with sub-plane names using an array.
+ * Non-variadic alternative to ov_preprocess_input_tensor_info_set_color_format_with_subname(),
+ * compatible with all FFI callers.
+ * @ingroup ov_prepostprocess_c_api
+ * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.
+ * @param colorFormat    The color format enumeration value.
+ * @param sub_names_size Number of entries in the sub_names array.
+ * @param sub_names      Array of null-terminated sub-plane name strings (e.g. "Y", "UV").
+ *                       May be NULL when sub_names_size is 0.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_preprocess_input_tensor_info_set_color_format_with_subnames(
+    ov_preprocess_input_tensor_info_t* preprocess_input_tensor_info,
+    const ov_color_format_e colorFormat,
+    const size_t sub_names_size,
+    const char** sub_names);
+
+/**
  * @brief Set ov_preprocess_input_tensor_info_t spatial_static_shape.
  * @ingroup ov_prepostprocess_c_api
  * @param preprocess_input_tensor_info A pointer to the ov_preprocess_input_tensor_info_t.

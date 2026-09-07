@@ -144,7 +144,7 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
             y_no_padding >= 0 && y_no_padding < INPUT0_SIZE_Y &&
             x_no_padding >= 0 && x_no_padding < INPUT0_SIZE_X) {
             int in_idx = INPUT0_GET_INDEX(b_no_padding, f_no_padding, y_no_padding, x_no_padding);
-            ss += input[in_idx] * k[horizontal_dim];
+            ss += DECODE_INPUT0_COMPUTE_TYPE(input[in_idx]) * k[horizontal_dim];
         }
     }
 #if ENABLE_VERTICAL_PASS
@@ -154,7 +154,7 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
 #endif
     #if HAS_FUSED_OPS
         FUSED_OPS;
-        output[out_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
+        output[out_idx] = FUSED_OPS_RESULT;
     #else
         #if ENABLE_VERTICAL_PASS
             output[out_idx] = TO_INTERMEDIATE_BUF_TYPE(ACTIVATION(ss, ACTIVATION_PARAMS));
@@ -165,6 +165,12 @@ KERNEL (resample_horizontal_gpu_ref)(  __global INPUT0_TYPE* input
 }
 
 #else // RESAMPLE_PILLOW_STAGE == STAGE_RESAMPLE_VERTICAL
+
+#if ENABLE_HORIZONTAL_PASS
+#define DECODE_INPUT(x) DECODE_INTERMEDIATE_BUF_COMPUTE_TYPE(x)
+#else
+#define DECODE_INPUT(x) DECODE_INPUT0_COMPUTE_TYPE(x)
+#endif
 
 KERNEL (resample_vertical_gpu_ref)(  __global RESAMPLE_VERTICAL_INPUT_TYPE* input
                                      , __global float* coefficients
@@ -216,7 +222,7 @@ KERNEL (resample_vertical_gpu_ref)(  __global RESAMPLE_VERTICAL_INPUT_TYPE* inpu
 #elif X_IS_VERTICAL_AXIS == 1
         int in_idx = INTERMEDIATE_BUF_GET_INDEX(b, f, y, vertical_dim + vertical_min);
 #endif
-        ss += input[in_idx] * k[vertical_dim];
+        ss += DECODE_INPUT(input[in_idx]) * k[vertical_dim];
 #else // ENABLE_HORIZONTAL_PASS
 
 #if BATCH_IS_VERTICAL_AXIS == 1
@@ -247,19 +253,20 @@ KERNEL (resample_vertical_gpu_ref)(  __global RESAMPLE_VERTICAL_INPUT_TYPE* inpu
             y_no_padding >= 0 && y_no_padding < INPUT0_SIZE_Y &&
             x_no_padding >= 0 && x_no_padding < INPUT0_SIZE_X) {
             int in_idx = INPUT0_GET_INDEX(b_no_padding, f_no_padding, y_no_padding, x_no_padding);
-            ss += input[in_idx] * k[vertical_dim];
+            ss += DECODE_INPUT(input[in_idx]) * k[vertical_dim];
         }
 #endif // ENABLE_HORIZONTAL_PASS
     }
     int out_idx = OUTPUT_GET_INDEX(b, f, y, x);
     #if HAS_FUSED_OPS
         FUSED_OPS;
-        output[out_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
+        output[out_idx] = FUSED_OPS_RESULT;
     #else
         output[out_idx] = TO_OUTPUT_TYPE(ACTIVATION(ss, ACTIVATION_PARAMS));
     #endif
 }
 
+#undef DECODE_INPUT
 #endif
 
 #undef PILLOW_SUPPORT

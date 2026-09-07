@@ -98,7 +98,8 @@ std::shared_ptr<IGraph> Parser::parse(
                                              initBlobs,
                                              std::move(weightsSource),
                                              config,
-                                             blobIsPersistent);
+                                             blobIsPersistent,
+                                             compatibilityDescriptor);
 }
 
 }  // namespace intel_npu

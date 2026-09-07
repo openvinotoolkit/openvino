@@ -43,6 +43,13 @@ public:
 
 protected:
     void SetUp() override;
+    void validate() override;
+
+private:
+    void validateOriginalLayersNamesByType(const std::string& layerType, const std::string& originalLayersNames);
+
+    std::string expected_layer_type;
+    std::string expected_original_layers_names;
 };
 }  // namespace snippets
 }  // namespace test

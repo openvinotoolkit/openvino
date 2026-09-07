@@ -8,9 +8,7 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-SetRows::SetRows(const ov::Output<ov::Node>& data,
-                 const ov::Output<ov::Node>& indices,
-                 const ov::Output<ov::Node>& dst)
+SetRows::SetRows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices, const ov::Output<ov::Node>& dst)
     : ov::op::Op({data, indices, dst}) {
     constructor_validate_and_infer_types();
 }

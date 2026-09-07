@@ -10,7 +10,10 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
 
+#include "impls/ocl_v2/sdpa/sdpa_opt.hpp"
 #include "openvino/util/file_util.hpp"
+#include "program_wrapper.h"
+#include <array>
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -40,21 +43,22 @@ struct sdpa_test_params {
     float scale_val;
     bool use_scalar_attn_mask;
     float attn_mask_val;
+    data_types dt;
 
     // Constructor for basic tests (backward compatibility)
     sdpa_test_params(int h_size, int n_heads, int seq_q, int seq_kv, int b,
-                     bool dynamic_shape)
+                     bool dynamic_shape, data_types dt = data_types::f16)
         : head_size(h_size), num_heads(n_heads), sequence_length_q(seq_q),
           sequence_length_kv(seq_kv), batch(b), dynamic(dynamic_shape),
           use_scalar_scale_val(false), scale_val(1.0f), use_scalar_attn_mask(false),
-          attn_mask_val(0.0f) {}
+          attn_mask_val(0.0f), dt(dt) {}
 
     // Constructor for advanced caching tests
     sdpa_test_params(int h_size, int n_heads, int seq_q, int seq_kv, int b,
-                     bool use_scale, float scale, bool use_mask, float mask)
+                     bool use_scale, float scale, bool use_mask, float mask, data_types dt = data_types::f16)
         : head_size(h_size), num_heads(n_heads), sequence_length_q(seq_q), sequence_length_kv(seq_kv),
           batch(b), dynamic(true), use_scalar_scale_val(use_scale),
-          scale_val(scale), use_scalar_attn_mask(use_mask), attn_mask_val(mask) {}
+          scale_val(scale), use_scalar_attn_mask(use_mask), attn_mask_val(mask), dt(dt) {}
 };
 
 struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
@@ -64,11 +68,16 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         rg.set_seed(GET_SUITE_NAME);
     }
 
-    void load_input(cldnn::memory::ptr mem, size_t idx) {
+    void load_input(cldnn::memory::ptr mem, size_t idx, data_types dt = data_types::f16) {
         auto shapes = mem->get_layout().get_shape();
         size_t size = ov::shape_size(shapes);
-        auto input_data = rg.generate_random_1d<ov::float16>(size, -1.0f, 1.0f);
-        set_values(mem, input_data);
+        if (dt == data_types::bf16) {
+            auto input_data = rg.generate_random_1d<ov::bfloat16>(size, -1.0f, 1.0f);
+            set_values(mem, input_data);
+        } else {
+            auto input_data = rg.generate_random_1d<ov::float16>(size, -1.0f, 1.0f);
+            set_values(mem, input_data);
+        }
     }
 
     std::tuple<cldnn::memory::ptr, cldnn::network::ptr> run_network(bool is_caching_test, bool use_optimized_sdpa,
@@ -83,7 +92,8 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
             bool use_scalar_scale_val = false,
             float scale_val = 1.0f,
             bool use_scalar_attn_mask = false,
-            float attn_mask_val = 0.0f) {
+            float attn_mask_val = 0.0f,
+            data_types dt = data_types::f16) {
         auto& engine = get_test_engine();
         topology topo;
         topo.add(input_layout("input0", input0_layout));
@@ -103,7 +113,7 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         }
 
         topo.add(sdpa_prim);
-        topo.add(reorder("result",input_info("sdpa"), format::bfyx, data_types::f16));
+        topo.add(reorder("result",input_info("sdpa"), format::bfyx, dt));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -152,33 +162,33 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         cldnn::layout input0_static_layout, input1_static_layout, input2_static_layout, input3_static_layout;
 
         if (p.dynamic) {
-            input0_layout = cldnn::layout({-1, -1, num_heads, head_size}, data_types::f16, format::bfyx);
-            input1_layout = cldnn::layout({-1, -1, num_heads, head_size}, data_types::f16, format::bfyx);
-            input2_layout = cldnn::layout({-1, -1, num_heads, head_size}, data_types::f16, format::bfyx);
+            input0_layout = cldnn::layout({-1, -1, num_heads, head_size}, p.dt, format::bfyx);
+            input1_layout = cldnn::layout({-1, -1, num_heads, head_size}, p.dt, format::bfyx);
+            input2_layout = cldnn::layout({-1, -1, num_heads, head_size}, p.dt, format::bfyx);
 
             if (test_two_rank_mask) {
-                input3_layout = cldnn::layout({ -1, -1}, data_types::f16, format::bfyx);
+                input3_layout = cldnn::layout({ -1, -1}, p.dt, format::bfyx);
             } else {
-                input3_layout = cldnn::layout({-1, num_heads, -1, -1}, data_types::f16, format::bfyx);
+                input3_layout = cldnn::layout({-1, num_heads, -1, -1}, p.dt, format::bfyx);
             }
 
-            input0_static_layout = cldnn::layout({batch, seq_length_q,  num_heads, head_size}, data_types::f16, format::bfyx);
-            input1_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
-            input2_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+            input0_static_layout = cldnn::layout({batch, seq_length_q,  num_heads, head_size}, p.dt, format::bfyx);
+            input1_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, p.dt, format::bfyx);
+            input2_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, p.dt, format::bfyx);
             if (test_two_rank_mask) {
-                input3_static_layout = cldnn::layout({seq_length_q, seq_length_kv}, data_types::f32, format::bfyx);
+                input3_static_layout = cldnn::layout({seq_length_q, seq_length_kv}, p.dt, format::bfyx);
             } else {
-                input3_static_layout = cldnn::layout({batch, num_heads,     1,     seq_length_kv}, data_types::f16, format::bfyx);
+                input3_static_layout = cldnn::layout({batch, num_heads,     1,     seq_length_kv}, p.dt, format::bfyx);
             }
         } else {
-            input0_static_layout = cldnn::layout({batch, seq_length_q,  num_heads, head_size}, data_types::f16, format::bfyx);
-            input1_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
-            input2_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+            input0_static_layout = cldnn::layout({batch, seq_length_q,  num_heads, head_size}, p.dt, format::bfyx);
+            input1_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, p.dt, format::bfyx);
+            input2_static_layout = cldnn::layout({batch, seq_length_kv, num_heads, head_size}, p.dt, format::bfyx);
 
             if (test_two_rank_mask) {
-                input3_static_layout = cldnn::layout({seq_length_q, seq_length_kv}, data_types::f16, format::bfyx);
+                input3_static_layout = cldnn::layout({seq_length_q, seq_length_kv}, p.dt, format::bfyx);
             } else {
-                input3_static_layout = cldnn::layout({batch, num_heads,     1,     seq_length_kv}, data_types::f16, format::bfyx);
+                input3_static_layout = cldnn::layout({batch, num_heads,     1,     seq_length_kv}, p.dt, format::bfyx);
             }
 
             input0_layout = input0_static_layout;
@@ -192,19 +202,19 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
         auto input2 = engine.allocate_memory(input2_static_layout);
         auto input3 = engine.allocate_memory(input3_static_layout);
 
-        load_input(input0, 0);
-        load_input(input1, 1);
-        load_input(input2, 2);
-        load_input(input3, 3);
+        load_input(input0, 0, p.dt);
+        load_input(input1, 1, p.dt);
+        load_input(input2, 2, p.dt);
+        load_input(input3, 3, input3_static_layout.data_type);
 
         auto [mem_ref_ptr, net_ref_ptr] = run_network(is_caching_test, false,
                                         input0_layout, input1_layout, input2_layout, input3_layout,
                                         input0, input1, input2, input3,
-                                        use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val);
+                                        use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val, p.dt);
         auto [mem_opt_ptr, net_opt_ptr] = run_network(is_caching_test, true,
                                         input0_layout, input1_layout, input2_layout, input3_layout,
                                         input0, input1, input2, input3,
-                                        use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val);
+                                        use_scalar_scale_val, scale_val, use_scalar_attn_mask, attn_mask_val, p.dt);
 
         if (is_caching_test) {
             auto inst = net_opt_ptr->get_primitive("sdpa");
@@ -221,9 +231,17 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
             }
         }
 
-        cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(mem_ref_ptr, get_test_stream());
-        cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_data(mem_opt_ptr, get_test_stream());
-        {
+        if (p.dt == data_types::bf16) {
+            cldnn::mem_lock<ov::bfloat16, mem_lock_type::read> ref_data(mem_ref_ptr, get_test_stream());
+            cldnn::mem_lock<ov::bfloat16, mem_lock_type::read> opt_data(mem_opt_ptr, get_test_stream());
+            for (size_t idx = 0; idx < ref_data.size(); idx++) {
+                ASSERT_FALSE(std::isnan(static_cast<float>(opt_data[idx])) || std::isnan(static_cast<float>(ref_data[idx]))) << "NaN found at index " << idx;
+            }
+            auto ret = cosineSimilarity(ref_data, opt_data);
+            ASSERT_GE(ret, 0.95f);
+        } else {
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(mem_ref_ptr, get_test_stream());
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_data(mem_opt_ptr, get_test_stream());
             for (size_t idx = 0; idx < ref_data.size(); idx++) {
                 ASSERT_FALSE(std::isnan(opt_data[idx]) || std::isnan(ref_data[idx])) << "NaN found at index " << idx;
             }
@@ -252,6 +270,10 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
             result += "_static";
         }
 
+        if (info.param.dt == data_types::bf16) {
+            result += "_bf16";
+        }
+
         return result;
     }
 };
@@ -268,7 +290,10 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_test_params{64, 10, 77, 77, 1, false}, // two ranks mask
         sdpa_test_params{64, 32, 128, 128, 2, true, 0.125f, false, 0.0f},  // scale_val only
         sdpa_test_params{64, 32, 128, 128, 2, false, 1.0f, true, 0.5f},     // attn_mask only
-        sdpa_test_params{512, 8, 1, 1024, 2, true}
+        sdpa_test_params{512, 8, 1, 1024, 2, true},
+        sdpa_test_params{64, 32, 128, 128, 2, true, data_types::bf16},   // bf16 dynamic
+        sdpa_test_params{64, 32, 128, 128, 2, false, data_types::bf16},  // bf16 static
+        sdpa_test_params{64, 10, 77, 77, 1, true, data_types::bf16}      // bf16 two ranks mask
     ),
     sdpa_gpu_test::PrintToStringParamName
 );
@@ -282,7 +307,343 @@ TEST_P(sdpa_gpu_test, basic_caching) {
     auto p = GetParam();
     execute(p, true);
 }
+
+// Test that an explicit causal attention mask produces the same result as is_causal=true.
+static void run_sdpa_causal_mask(int batch, int q_num_heads, int kv_num_heads,
+                                 int seq_q, int seq_kv, int head_size, bool causal_lower_right = true) {
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto q_data = rg.generate_random_1d<ov::float16>(
+        static_cast<size_t>(batch) * q_num_heads * seq_q * head_size, -1.0f, 1.0f);
+    auto k_data = rg.generate_random_1d<ov::float16>(
+        static_cast<size_t>(batch) * kv_num_heads * seq_kv * head_size, -1.0f, 1.0f);
+    auto v_data = rg.generate_random_1d<ov::float16>(
+        static_cast<size_t>(batch) * kv_num_heads * seq_kv * head_size, -1.0f, 1.0f);
+
+    // Build causal attention mask with the requested alignment: shape [1, 1, seq_q, seq_kv]
+    // 0 for valid positions (row >= col offset), -inf for masked positions.
+    const size_t mask_size = static_cast<size_t>(seq_q) * seq_kv;
+    std::vector<ov::float16> mask_data(mask_size);
+    const int col_offset = causal_lower_right ? seq_kv - seq_q : 0;
+    for (int r = 0; r < seq_q; ++r) {
+        for (int c = 0; c < seq_kv; ++c) {
+            if (c <= r + col_offset) {
+                mask_data[r * seq_kv + c] = ov::float16(0.0f);
+            } else {
+                mask_data[r * seq_kv + c] = ov::float16(-INFINITY);
+            }
+        }
+    }
+
+    const layout q_layout({batch, q_num_heads, seq_q, head_size}, data_types::f16, format::bfyx);
+    const layout kv_layout({batch, kv_num_heads, seq_kv, head_size}, data_types::f16, format::bfyx);
+    const layout mask_layout({1, 1, seq_q, seq_kv}, data_types::f16, format::bfyx);
+
+    const layout q_dyn_layout({batch, q_num_heads, -1, head_size}, data_types::f16, format::bfyx);
+    const layout kv_dyn_layout({batch, kv_num_heads, -1, head_size}, data_types::f16, format::bfyx);
+    const layout mask_dyn_layout({1, 1, -1, -1}, data_types::f16, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(kv_layout);
+    auto v_mem = engine.allocate_memory(kv_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+    set_values(mask_mem, mask_data);
+
+    // --- Golden reference: is_causal=false, explicit mask as 4th input, static shapes ---
+    auto make_ref_output = [&]() {
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", kv_layout));
+        topo.add(input_layout("v", kv_layout));
+        topo.add(input_layout("mask", mask_layout));
+        auto prim = scaled_dot_product_attention("sdpa",
+                                                 {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+                                                 false, -1,
+                                                 {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3},
+                                                 {}, false);
+        topo.add(prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        net->set_input_data("mask", mask_mem);
+        return net->execute().at("result").get_memory();
+    };
+
+    // --- Optimized path: is_causal=true, no mask input, dynamic shapes ---
+    auto make_opt_output = [&]() {
+        topology topo;
+        topo.add(input_layout("q", q_dyn_layout));
+        topo.add(input_layout("k", kv_dyn_layout));
+        topo.add(input_layout("v", kv_dyn_layout));
+        auto prim = causal_lower_right
+                        ? scaled_dot_product_attention("sdpa",
+                                                       {input_info("q"), input_info("k"), input_info("v")},
+                                                       true,
+                                                       -1,
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {},
+                                                       false,
+                                                       true)
+                        : scaled_dot_product_attention("sdpa",
+                                                       {input_info("q"), input_info("k"), input_info("v")},
+                                                       true,
+                                                       -1,
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {0, 1, 2, 3},
+                                                       {},
+                                                       false);
+        topo.add(prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig cfg = get_test_default_config(engine);
+        cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        return net->execute().at("result").get_memory();
+    };
+
+    auto ref_mem = make_ref_output();
+    auto opt_mem = make_opt_output();
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> opt_ptr(opt_mem, get_test_stream());
+
+    ASSERT_EQ(ref_ptr.size(), opt_ptr.size());
+    for (size_t i = 0; i < ref_ptr.size(); ++i) {
+        ASSERT_FALSE(std::isnan(static_cast<float>(ref_ptr[i]))) << "NaN in explicit mask output at index " << i;
+        ASSERT_FALSE(std::isnan(static_cast<float>(opt_ptr[i]))) << "NaN in is_causal output at index " << i;
+    }
+
+    const float sim = cosineSimilarity(ref_ptr, opt_ptr);
+    ASSERT_GE(sim, 0.99f) << "explicit mask vs is_causal cosine similarity too low: " << sim;
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_40q_40kv_512seq) {
+    run_sdpa_causal_mask(1, 40, 40, 512, 512, 128);
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_upper_left_default_40q_40kv_512seq) {
+    run_sdpa_causal_mask(1, 40, 40, 512, 512, 128, false);
+}
+
+TEST(sdpa_gpu_causal_mask, decode_40q_40kv_512seq) {
+    run_sdpa_causal_mask(1, 40, 40, 1, 512, 128);
+}
+
+TEST(sdpa_gpu_causal_mask, prefill_40q_10kv_512seq) {
+    run_sdpa_causal_mask(1, 40, 10, 512, 512, 128);
+}
+
+TEST(sdpa_gpu_causal_mask, decode_40q_10kv_444seq) {
+    run_sdpa_causal_mask(1, 40, 10, 1, 444, 128);
+}
+
+TEST(sdpa_gpu_causal_mask, decode_32q_8kv_1024seq) {
+    run_sdpa_causal_mask(1, 32, 8, 1, 1024, 128);
+}
 #endif
+
+TEST(sdpa_gpu_custom, dynamic_mismatched_v_head_size) {
+    auto& engine = get_test_engine();
+
+    const ov::PartialShape qk_shape{-1, 1, -1, 384};
+    const ov::PartialShape v_shape{-1, 1, -1, -1};
+    const ov::Shape qk_static_shape{1, 1, 16, 384};
+    const ov::Shape v_static_shape{1, 1, 16, 256};
+
+    const layout q_layout(qk_shape, data_types::f16, format::bfyx);
+    const layout k_layout(qk_shape, data_types::f16, format::bfyx);
+    const layout v_layout(v_shape, data_types::f16, format::bfyx);
+    const layout qk_static_layout(qk_static_shape, data_types::f16, format::bfyx);
+    const layout v_static_layout(v_static_shape, data_types::f16, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(qk_static_layout);
+    auto k_mem = engine.allocate_memory(qk_static_layout);
+    auto v_mem = engine.allocate_memory(v_static_layout);
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto fill_random = [&](const memory::ptr& mem) {
+        auto data = rg.generate_random_1d<ov::float16>(mem->get_layout().count(), -1.0f, 1.0f);
+        set_values(mem, data);
+    };
+    fill_random(q_mem);
+    fill_random(k_mem);
+    fill_random(v_mem);
+
+    topology topology;
+    topology.add(input_layout("q", q_layout));
+    topology.add(input_layout("k", k_layout));
+    topology.add(input_layout("v", v_layout));
+    topology.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v")},
+                                              false,
+                                              -1,
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false));
+    topology.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+    auto run_network = [&](bool force_ref) {
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        if (force_ref) {
+            config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+                {"sdpa", {format::type::bfyx, "sdpa_ref"}}
+            }));
+        }
+
+        auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", v_mem);
+        auto output = network->execute().at("result").get_memory();
+        return std::make_pair(network, output);
+    };
+
+    auto [network, output] = run_network(false);
+    auto [ref_network, ref_output] = run_network(true);
+
+    ASSERT_NE(network->get_primitive_info("sdpa").find("sdpa_ref"), std::string::npos);
+    ASSERT_EQ(output->get_layout().get_shape(), v_static_shape);
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_data(output, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_output_data(ref_output, get_test_stream());
+    ASSERT_EQ(output_data.size(), ref_output_data.size());
+    for (size_t i = 0; i < output_data.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(output_data[i]), static_cast<float>(ref_output_data[i]), 1e-3f)
+            << "Mismatch at index " << i;
+    }
+}
+
+TEST(sdpa_gpu_custom, different_rank_orders_dynamic_v_head_size_rejects_opt) {
+    auto& engine = get_test_engine();
+
+    auto q_prim = std::make_shared<input_layout>("q", layout(ov::PartialShape{-1, -1, 384}, data_types::f16, format::bfyx));
+    auto k_prim = std::make_shared<input_layout>("k", layout(ov::PartialShape{-1, -1, 384}, data_types::f16, format::bfyx));
+    auto v_prim = std::make_shared<input_layout>("v", layout(ov::PartialShape{-1, 1, 16, -1}, data_types::f16, format::bfyx));
+    auto sdpa_prim = std::make_shared<scaled_dot_product_attention>("sdpa",
+                                                                   std::vector{input_info("q"), input_info("k"), input_info("v")},
+                                                                   false,
+                                                                   -1,
+                                                                   std::vector<int64_t>{0, 1, 2},
+                                                                   std::vector<int64_t>{0, 1, 2},
+                                                                   std::vector<int64_t>{0, 1, 2, 3},
+                                                                   std::vector<int64_t>{0, 1, 2, 3},
+                                                                   scaled_dot_product_attention::QuantizationAttributes{},
+                                                                   false);
+
+    program prog(engine);
+    auto& q_node = prog.get_or_create(q_prim);
+    auto& k_node = prog.get_or_create(k_prim);
+    auto& v_node = prog.get_or_create(v_prim);
+    auto& sdpa_node = prog.get_or_create(sdpa_prim);
+    program_wrapper::add_connection(prog, q_node, sdpa_node);
+    program_wrapper::add_connection(prog, k_node, sdpa_node);
+    program_wrapper::add_connection(prog, v_node, sdpa_node);
+    sdpa_node.recalc_output_layout();
+
+    ov::intel_gpu::ocl::SDPAOpt sdpa_opt(shape_types::dynamic_shape);
+    EXPECT_FALSE(sdpa_opt.validate_impl(sdpa_node));
+}
+
+TEST(sdpa_gpu_custom, static_zero_dimension_throws) {
+    auto& engine = get_test_engine();
+
+    const std::vector<std::array<ov::Shape, 3>> input_shapes = {
+        {{{1, 0, 16, 32}, {1, 0, 16, 32}, {1, 0, 16, 32}}},
+        {{{1, 1, 16, 32}, {1, 1, 16, 32}, {1, 1, 16, 0}}},
+    };
+
+    for (const auto& shapes : input_shapes) {
+        topology topology;
+        topology.add(input_layout("q", layout(shapes[0], data_types::f16, format::bfyx)));
+        topology.add(input_layout("k", layout(shapes[1], data_types::f16, format::bfyx)));
+        topology.add(input_layout("v", layout(shapes[2], data_types::f16, format::bfyx)));
+        topology.add(scaled_dot_product_attention("sdpa",
+                                                  {input_info("q"), input_info("k"), input_info("v")},
+                                                  false,
+                                                  -1,
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3},
+                                                  {0, 1, 2, 3},
+                                                  {},
+                                                  false));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+            {"sdpa", {format::type::bfyx, "sdpa_ref"}}
+        }));
+
+        EXPECT_ANY_THROW(get_network(engine, topology, config, get_test_stream_ptr(), false));
+    }
+}
+
+TEST(sdpa_gpu_custom, dynamic_zero_head_size_throws) {
+    auto& engine = get_test_engine();
+
+    const ov::PartialShape dynamic_shape{-1, 1, -1, -1};
+    const layout dynamic_layout(dynamic_shape, data_types::f16, format::bfyx);
+    auto q_mem = engine.allocate_memory(layout({1, 1, 16, 0}, data_types::f16, format::bfyx));
+    auto k_mem = engine.allocate_memory(layout({1, 1, 16, 0}, data_types::f16, format::bfyx));
+    auto v_mem = engine.allocate_memory(layout({1, 1, 16, 32}, data_types::f16, format::bfyx));
+
+    topology topology;
+    topology.add(input_layout("q", dynamic_layout));
+    topology.add(input_layout("k", dynamic_layout));
+    topology.add(input_layout("v", dynamic_layout));
+    topology.add(scaled_dot_product_attention("sdpa",
+                                              {input_info("q"), input_info("k"), input_info("v")},
+                                              false,
+                                              -1,
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {0, 1, 2, 3},
+                                              {},
+                                              false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"sdpa", {format::type::bfyx, "sdpa_ref"}}
+    }));
+
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    network->set_input_data("q", q_mem);
+    network->set_input_data("k", k_mem);
+    network->set_input_data("v", v_mem);
+    try {
+        network->execute();
+        FAIL() << "Expected runtime SDPA dimension validation to throw";
+    } catch (const ov::Exception& e) {
+        EXPECT_NE(std::string(e.what()).find("invalid non-positive q_head_size for runtime dispatch"), std::string::npos)
+            << "Unexpected exception message: " << e.what();
+    }
+}
 
 TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
     tests::random_generator rg; rg.set_seed(GET_SUITE_NAME);

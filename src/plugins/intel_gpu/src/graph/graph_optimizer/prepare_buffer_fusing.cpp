@@ -27,10 +27,12 @@
 #include "border_inst.h"
 #include "lora_inst.h"
 #include "mvn_inst.h"
+#include "scaled_dot_product_attention_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
 
+#include <algorithm>
 #include <utility>
 #include <list>
 #include <vector>
@@ -409,6 +411,14 @@ static bool is_optimizable_padding_for_crop(const crop_node& node,
     return true;
 }
 
+// Denylist, not allowlist: eltwise/reorder/rope/vl_sdpa already read padded/strided
+// input correctly via the standard pitch-aware layout addressing; sdpa's 4 kernels
+// (ref/opt/gen_opt/gen_micro) are the only ones known to assume contiguous memory.
+// If another kernel is found to make the same assumption, add it here too.
+static bool requires_contiguous_input(const program_node& node) {
+    return node.is_type<scaled_dot_product_attention>();
+}
+
 bool crop_in_place_optimization::can_crop_be_optimized_along_feature(const layout& crop_layout,
                                                                      const layout& input_layout) {
     auto format = crop_layout.format;
@@ -555,12 +565,17 @@ bool crop_in_place_optimization::match(const program_node& node,
     if (node.is_constant())
         return false;
 
-    // do not optimize variadic_split crop when either input1 or input2 is not constant.
-    // VariadicSplit ngraph shape infer requires value of axis(input1) and split_lengths(input2).
-    // And non_constant input1/input2 makes risky execution of runtime buffer fusing.
+    // Dynamic VariadicSplit sub-views feeding another crop can form chained
+    // padded views that are unsafe for the current in-place optimization.
+    // VariadicSplit shape inference also requires constant axis and split lengths.
     const auto& crop_node = node.as<crop>();
+    const bool has_crop_user =
+        std::any_of(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
+            return user->is_type<crop>();
+        });
     if ((crop_node.get_primitive()->op_mode == cldnn::crop_ngraph_op_mode::variadic_split) &&
-        (!crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
+        ((dyn_aware && has_crop_user) ||
+         !crop_node.get_dependency(1).is_constant() || !crop_node.get_dependency(2).is_constant()))
         return false;
 
     if (!node.get_users().empty()) {
@@ -729,6 +744,12 @@ bool crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
             // scaling cannot be represented on the L (batch) axis.
             const bool is_axis1_size1_squeeze = reshape_mode == reshape::reshape_mode::base && crop_axis == 1 && crop_dim_val == 1 &&
                                                 reshape_ps.size() + 1 == crop_ps.size() && reshape_ps.size() >= 2 && reshape_ps[1].is_static();
+
+            const auto& reshape_users = user_info.first->get_users();
+            const bool feeds_unsafe_consumer = std::any_of(reshape_users.begin(), reshape_users.end(),
+                [](const program_node* user) { return requires_contiguous_input(*user); });
+            if (feeds_unsafe_consumer)
+                return false;
 
             if (is_axis1_size1_squeeze) {
                 const auto h_size = reshape_ps[1].get_length();

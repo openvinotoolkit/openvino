@@ -1382,11 +1382,15 @@ public:
         return false;
     }
 
+    // MIXED may use micro SDPA regardless of token_type_ids: bidirectional masking is implemented
+    // only in the PREFILL kernels, and in MIXED neither micro SDPA nor paged_attention_opt.cl consumes token_type_ids.
+    // TODO: implement bidirectional attention for MIXED with token_type_ids
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
-        if (!supports_micro_sdpa(params) || !valid_micro_stage(stage))
-            return false;
-        const auto desc = params.typed_desc<paged_attention>();
-        return !desc->has_token_type_ids || stage == PagedAttentionStage::PREFILL;
+        const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage);
+        GPU_DEBUG_TRACE_DETAIL << "can_use_micro_sdpa_for: stage = " << static_cast<size_t>(stage)
+                               << ", token_type_ids = " << params.get_input_layout(PagedAttentionInputIdx::TOKEN_TYPE_IDS).to_short_string()
+                               << ", can_use_micro_sdpa = " << can_use_micro_sdpa << std::endl;
+        return can_use_micro_sdpa;
     }
 
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
@@ -1421,7 +1425,7 @@ public:
             return false;
         }
 
-        if (desc->k_head_size > 256 || desc->v_head_size > 256) {
+        if (desc->k_head_size > 512 || desc->v_head_size > 512) {
             return false;
         }
 

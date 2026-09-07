@@ -288,6 +288,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "fully_connected", "FullyConnected" },
                 { "gated_delta_net", "GatedDeltaNet" },
                 { "paged_causal_conv1d", "PagedCausalConv1D" },
+                { "paged_selective_ssm", "PagedSelectiveSSM" },
                 { "gather", "Gather" },
                 { "gemm", "Gemm" },
                 { "gru_seq", "GRU_Seq" },
@@ -310,6 +311,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "reverse_sequence", "ReverseSequence" },
                 { "roi_pooling", "ROIPooling" },
                 { "scale", "ScaleShift" },
+                { "selective_ssm", "SelectiveSSM" },
                 { "shuffle_channels", "ShuffleChannels" },
                 { "softmax", "SoftMax" },
                 { "strided_slice", "StridedSlice" },
@@ -466,35 +468,39 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
 
         // Expose per-primitive extra attributes in rt_info for debugging / testing.
         if (prim_info.type_id != "input_layout" && prim_info.type_id != "data") {
-            const auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
+            // The primitive may have been removed from the program during graph optimization
+            // (e.g. when dumping intermediate transformation steps), so skip missing nodes.
+            if (get_network()->get_program()->has_node(prim_info.original_id)) {
+                const auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
 
-            if (node.is_type<cldnn::dynamic_quantize>()) {
-                auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
-                info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
-                if (dyn_quan->attrs.precomputed_reduction) {
-                    info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
-                }
-            } else if (node.is_type<cldnn::grouped_matmul>()) {
-                auto gm_prim = node.as<cldnn::grouped_matmul>().get_primitive();
-                if (gm_prim->compressed_weights) {
-                    auto wei_layout = node.get_input_layout(cldnn::grouped_matmul::GroupedMatmulInputIdx::WEIGHT);
-                    info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
-                    if (gm_prim->decompression_zero_point.is_valid()) {
-                        auto zp_layout = node.get_input_layout(gm_prim->input.size() + 1);
-                        info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                if (node.is_type<cldnn::dynamic_quantize>()) {
+                    auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
+                    info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
+                    if (dyn_quan->attrs.precomputed_reduction) {
+                        info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
                     }
-                }
-            } else if (node.is_type<cldnn::fully_connected>()) {
-                auto fc_prim = node.as<cldnn::fully_connected>().get_primitive();
-                if (fc_prim->decompression_scale.is_valid()) {
-                    auto wei_layout = node.get_input_layout(1);
-                    info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
-                    if (fc_prim->decompression_zero_point.is_valid()) {
-                        size_t zp_idx = fc_prim->input.size() + 1 /*weights*/
-                                        + (fc_prim->bias.is_valid() ? 1 : 0)
-                                        + 1 /*scale*/;
-                        auto zp_layout = node.get_input_layout(zp_idx);
-                        info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                } else if (node.is_type<cldnn::grouped_matmul>()) {
+                    auto gm_prim = node.as<cldnn::grouped_matmul>().get_primitive();
+                    if (gm_prim->compressed_weights) {
+                        auto wei_layout = node.get_input_layout(cldnn::grouped_matmul::GroupedMatmulInputIdx::WEIGHT);
+                        info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
+                        if (gm_prim->decompression_zero_point.is_valid()) {
+                            auto zp_layout = node.get_input_layout(gm_prim->input.size() + 1);
+                            info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                        }
+                    }
+                } else if (node.is_type<cldnn::fully_connected>()) {
+                    auto fc_prim = node.as<cldnn::fully_connected>().get_primitive();
+                    if (fc_prim->decompression_scale.is_valid()) {
+                        auto wei_layout = node.get_input_layout(1);
+                        info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
+                        if (fc_prim->decompression_zero_point.is_valid()) {
+                            size_t zp_idx = fc_prim->input.size() + 1 /*weights*/
+                                            + (fc_prim->bias.is_valid() ? 1 : 0)
+                                            + 1 /*scale*/;
+                            auto zp_layout = node.get_input_layout(zp_idx);
+                            info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                        }
                     }
                 }
             }

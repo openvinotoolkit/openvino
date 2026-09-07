@@ -93,12 +93,11 @@ struct stages_helper {
         return {};
     }
 
-    size_t get_index(kv_stage stage) const noexcept {
+    size_t get_index(kv_stage stage) const {
         const auto idx = try_get_index(stage);
         OPENVINO_ASSERT(idx.has_value(), "expect stage ", static_cast<uint8_t>(stage), " exist");
         return *idx;
     }
-
 };
 
 struct kv_cache_impl : multi_stage_primitive<kv_cache> {
@@ -698,7 +697,7 @@ struct kv_cache_impl : multi_stage_primitive<kv_cache> {
 namespace detail {
 
 attach_kv_cache_impl::attach_kv_cache_impl() {
-    auto types = { data_types::i8, data_types::f16, data_types::f32 };
+    auto types = { data_types::i8, data_types::f16, data_types::f32, data_types::bf16 };
     auto formats = { format::bfyx };
     implementation_map<kv_cache>::add(impl_types::ocl,
                                            shape_types::dynamic_shape,
