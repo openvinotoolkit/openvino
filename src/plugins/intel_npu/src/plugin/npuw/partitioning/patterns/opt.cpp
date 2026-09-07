@@ -244,6 +244,13 @@ DQMatMulCWi::DQMatMulCWi(Context::Ref ctx) {
                 return false;  // root hasn't changed
             }
 
+            // The rewrite repurposes the scale Multiply and optional output Convert in place.
+            // Both outputs must be exclusive to this dequantization chain.
+            if (matched_node_muls->output(0).get_target_inputs().size() != 1 ||
+                matched_node_muls_out.get_target_inputs().size() != 1) {
+                return false;  // root hasn't changed
+            }
+
             // Reconnect MatMul to read from Convert(W) directly.
             // Note: ACT has to be converted too.
             auto cvt_prec = matched_node_cvtw->output(0).get_element_type();

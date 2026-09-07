@@ -207,6 +207,32 @@ inline std::shared_ptr<ov::Model> build_qwen3_moe_llm_test_model() {
     return mb.build_llm(cfg);
 }
 
+/// Gemma4 26B A4B MoE model: inputs_embeds + token_type_ids + Gemma4-style MoE FFN
+/// (separate gate/up MatMuls with GeLU activation, Softmax->TopK router with
+/// ReduceSum->Divide renormalization plus per-expert learned scale Gather and an extra
+/// Slice before scatter, matching NPUW's Gemma4Expert + Gemma4Router patterns) + dangling
+/// per_layer_inputs (proj_dim=0) matching the real Gemma4-26B-A4B input structure.
+/// per_layer_inputs is a graph parameter with shape [1,-1,0,0]: it exists by name so the
+/// compilation pipeline can find it, but carries no data (proj_dim=0).
+inline std::shared_ptr<ov::Model> build_gemma4_moe_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.use_inputs_embeds = true;
+    cfg.use_token_type_ids = true;
+    cfg.num_experts = 8;
+    cfg.num_experts_per_tok = 2;
+    cfg.moe_factory = make_gemma4_moe_ffn;
+    ModelBuilder mb;
+    auto model = mb.build_llm(cfg);
+
+    // Append a dangling per_layer_inputs with zero proj_dim (MoE unused-PLE pattern).
+    // add_parameters() registers the node in the existing model graph without requiring
+    // a corresponding Result, matching how reshape_to_static handles unused PLE inputs.
+    auto ple = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 0, 0});
+    ple->output(0).set_names({"per_layer_inputs"});
+    model->add_parameters({ple});
+    return model;
+}
+
 inline std::shared_ptr<ov::Model> build_sliding_window_test_model(size_t window_size = 512,
                                                                   size_t sliding_to_full_ratio = 0,
                                                                   const SlidingMaskFn& sliding_mask_fn = {},
@@ -216,6 +242,18 @@ inline std::shared_ptr<ov::Model> build_sliding_window_test_model(size_t window_
     cfg.sliding_window_size = window_size;
     cfg.sliding_to_full_ratio = sliding_to_full_ratio;
     cfg.sliding_mask_fn = sliding_mask_fn;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
+}
+
+inline std::shared_ptr<ov::Model> build_lora_adapter_test_model() {
+    ModelBuilder mb;
+    return mb.build_lora_adapter(make_test_model_config<LoRAConfig>());
+}
+
+inline std::shared_ptr<ov::Model> build_lora_llm_test_model() {
+    auto cfg = make_test_model_config();
+    cfg.lora_rank = 8;
     ModelBuilder mb;
     return mb.build_llm(cfg);
 }

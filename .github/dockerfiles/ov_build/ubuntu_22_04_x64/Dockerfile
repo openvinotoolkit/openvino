@@ -100,7 +100,6 @@ ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 # Install newer ninja (apt ships 1.10.1 on 22.04 which lacks --quiet)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
 # ONNX Runtime, see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
@@ -115,7 +114,7 @@ ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 
 # Install doxygen
 ENV DOXYGEN_HOME="/opt/doxygen"
-ENV DOXYGEN_VERSION='1.9.6'
+ENV DOXYGEN_VERSION='1.18.0'
 RUN mkdir -p ${DOXYGEN_HOME} && cd ${DOXYGEN_HOME} && wget https://www.doxygen.nl/files/doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
     tar -I pigz -xf doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
     rm -f doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz

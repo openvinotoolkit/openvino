@@ -63,7 +63,7 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     std::function<bool(const std::shared_ptr<ov::Node>&)> has_surface_input =
         [](const std::shared_ptr<ov::Node> &node) -> bool {
         bool surface_input_found = false;
-        if (node->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
+        if (node->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static()) != 0u) {
             std::string mem_type = node->output(0).get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
                                                                 .as<ov::preprocess::TensorInfoMemoryType>().value;
             if (mem_type.find(ov::intel_gpu::memory_type::surface) != std::string::npos) {
@@ -95,7 +95,7 @@ static void CreateParameterOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
             p.inputLayouts.insert({ port_index, input_layout });
         }
 
-        std::string suffix = "";
+        std::string suffix;
         std::vector<cldnn::input_info> surfaces_inputs;
         for (size_t i = 0; i < batch; ++i) {
             if (batch > 1)

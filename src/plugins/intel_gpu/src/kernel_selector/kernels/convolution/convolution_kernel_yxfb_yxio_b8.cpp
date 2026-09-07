@@ -34,9 +34,8 @@ namespace {
 size_t GetOfmPerWorkitem(size_t filterOfmNum, size_t batchSize, size_t local_work_size) {
     if (((filterOfmNum * batchSize) / 16) % local_work_size) {
         return 8;
-    } else {
-        return 16;
     }
+    return 16;
 }
 }  // namespace
 

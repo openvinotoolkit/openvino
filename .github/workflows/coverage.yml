@@ -24,7 +24,6 @@ concurrency:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
   ENABLE_BRANCH_COVERAGE: 'false'
   LCOV_CAPTURE_TIMEOUT_SECONDS: '3600'
   NODE_VERSION: '21'
@@ -64,6 +63,7 @@ jobs:
           images: |
             ov_build/ubuntu_22_04_x64
             ov_test/ubuntu_22_04_x64
+            ov_test/ubuntu_22_04_x64_igpu
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: '{"docker_env":false,"dockerfiles":false}'
@@ -139,19 +139,19 @@ jobs:
           submodules: 'true'
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download coverage build notes
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: coverage_build_notes
           path: ${{ github.workspace }}/coverage_notes
@@ -180,8 +180,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -215,7 +215,7 @@ jobs:
 
       - name: Upload C++ CPU artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: ${{ steps.cpu_artifact.outputs['artifact-name'] }}
           path: ${{ steps.cpu_artifact.outputs.dir }}
@@ -226,11 +226,11 @@ jobs:
 
   CoverageCppGpu:
     name: Coverage C++ (${{ matrix.gpu.name }}, ${{ matrix.lane.name }})
-    needs: Build
+    needs: [ Build, Docker ]
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
-      image: ubuntu:22.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - /mount:/mount
@@ -272,10 +272,12 @@ jobs:
       BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
       PYTHONDONTWRITEBYTECODE: '1'
+      PIP_CERT: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      REQUESTS_CA_BUNDLE: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
       - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
-          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
+          apt-get update && update-ca-certificates
         env:
           DEBIAN_FRONTEND: noninteractive
           TZ: "Europe/London"
@@ -287,19 +289,19 @@ jobs:
           submodules: 'true'
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download coverage build notes
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: coverage_build_notes
           path: ${{ github.workspace }}/coverage_notes
@@ -339,6 +341,7 @@ jobs:
           popd
 
       - name: Verify GPU device availability
+        timeout-minutes: 5
         run: clinfo
 
       - name: Restore coverage notes
@@ -354,6 +357,19 @@ jobs:
           if [[ -d "${notes_root}/js-build" ]]; then
             cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
           fi
+
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          use-pip-proxy: 'false'
+          set-pip-install-path: 'true'
+          self-hosted-runner: 'true'
+
+      - name: Install coverage Python dependencies
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: install-requirements
 
       - name: Run ${{ matrix.gpu.name }} ${{ matrix.lane.name }} C++ coverage tests
         uses: ./.github/actions/coverage_toolkit
@@ -383,7 +399,7 @@ jobs:
 
       - name: Upload C++ ${{ matrix.gpu.name }} ${{ matrix.lane.name }} artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: ${{ steps.lane_artifact.outputs['artifact-name'] }}
           path: ${{ steps.lane_artifact.outputs.dir }}
@@ -424,25 +440,25 @@ jobs:
           submodules: 'true'
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO wheels
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download coverage build notes
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: coverage_build_notes
           path: ${{ github.workspace }}/coverage_notes
@@ -471,8 +487,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -522,7 +538,7 @@ jobs:
 
       - name: Upload Python CPU artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: ${{ steps.cpu_artifact.outputs['artifact-name'] }}
           path: ${{ steps.cpu_artifact.outputs.dir }}
@@ -533,11 +549,11 @@ jobs:
 
   CoveragePythonGpu:
     name: Coverage Python (${{ matrix.gpu.name }})
-    needs: Build
+    needs: [ Build, Docker ]
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
-      image: ubuntu:22.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - /mount:/mount
@@ -570,10 +586,11 @@ jobs:
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
       PYTHONDONTWRITEBYTECODE: '1'
       REQUESTS_CA_BUNDLE: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      PIP_CERT: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
       - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
-          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
+          apt-get update && update-ca-certificates
         env:
           DEBIAN_FRONTEND: noninteractive
           TZ: "Europe/London"
@@ -585,25 +602,25 @@ jobs:
           submodules: 'true'
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO wheels
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download coverage build notes
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: coverage_build_notes
           path: ${{ github.workspace }}/coverage_notes
@@ -663,8 +680,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'false'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -714,7 +731,7 @@ jobs:
 
       - name: Upload Python ${{ matrix.gpu.name }} artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: ${{ steps.gpu_artifact.outputs['artifact-name'] }}
           path: ${{ steps.gpu_artifact.outputs.dir }}
@@ -756,20 +773,20 @@ jobs:
           submodules: 'true'
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO Node package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_node_npm_package
           path: ${{ env.OPENVINO_JS_DIR }}
           merge-multiple: true
 
       - name: Download coverage build notes
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: coverage_build_notes
           path: ${{ github.workspace }}/coverage_notes
@@ -801,8 +818,8 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
-          should-setup-pip-paths: 'true'
+          use-pip-proxy: 'true'
+          set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 
       - name: Install coverage Python dependencies
@@ -855,7 +872,7 @@ jobs:
 
       - name: Upload JS CPU artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: ${{ steps.cpu_artifact.outputs['artifact-name'] }}
           path: ${{ steps.cpu_artifact.outputs.dir }}
@@ -879,19 +896,19 @@ jobs:
           submodules: 'false'
 
       - name: Download C++ artifacts
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           pattern: coverage-cpp-*
           path: ${{ github.workspace }}/artifacts/cpp
 
       - name: Download Python artifacts
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           pattern: coverage-python-*
           path: ${{ github.workspace }}/artifacts/python
 
       - name: Download JS artifacts
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           pattern: coverage-js-*
           path: ${{ github.workspace }}/artifacts/js
@@ -937,7 +954,7 @@ jobs:
 
       - name: Upload merged duration artifact
         if: ${{ always() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 We are not using newest version v6.0.0 due to very frequent issues with 'Error: Unable to make request: ECONNRESET'
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: coverage-test-durations
           path: coverage-test-durations-all.csv
@@ -970,7 +987,7 @@ jobs:
           submodules: 'false'
 
       - name: Download coverage artifacts
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           pattern: ${{ matrix.upload.artifact_pattern }}
           path: ${{ github.workspace }}/artifacts/${{ matrix.upload.artifact_group }}

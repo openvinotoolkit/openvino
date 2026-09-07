@@ -14,11 +14,13 @@ ParamsKey ActivationKernelOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
@@ -162,7 +164,7 @@ JitConstants ActivationKernelOpt::GetJitConstants(const activation_params& param
                                              IndexType::TENSOR_COORD};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vector, conf_scalar}));
     }
-    jit.Merge(MakeActivationJitConstants(params.activations, input_dt, "_KERNEL"));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetComputeDatatype(input_dt), "_KERNEL"));
 
     return jit;
 }

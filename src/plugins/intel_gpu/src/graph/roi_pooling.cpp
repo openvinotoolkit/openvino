@@ -77,12 +77,11 @@ template std::vector<layout> roi_pooling_inst::calc_output_layouts<ov::PartialSh
 
 std::string roi_pooling_inst::to_string(roi_pooling_node const& node) {
     auto desc = node.get_primitive();
-    auto mode = desc->mode == pooling_mode::max
-                    ? "max"
-                    : desc->mode == pooling_mode::bilinear
-                          ? "bilinear"
-                          : desc->mode == pooling_mode::deformable_bilinear ? "deformable_bilinear" : "average";
-    auto is_ps = desc->position_sensitive ? "true" : "false";
+    const auto* mode = desc->mode == pooling_mode::max                   ? "max"
+                       : desc->mode == pooling_mode::bilinear            ? "bilinear"
+                       : desc->mode == pooling_mode::deformable_bilinear ? "deformable_bilinear"
+                                                                         : "average";
+    const auto* is_ps = desc->position_sensitive ? "true" : "false";
     auto node_info = node.desc_to_json();
 
     std::stringstream primitive_description;

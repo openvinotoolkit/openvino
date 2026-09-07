@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include <memory>
 #include <filesystem>
+#include <memory>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/deprecated.hpp"
@@ -193,7 +193,8 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model, const ov::AnyMap& properties) const = 0;
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                             const ov::AnyMap& properties) const = 0;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -235,7 +236,6 @@ public:
      */
     const std::shared_ptr<ov::threading::ExecutorManager>& get_executor_manager() const;
 
-
     virtual ~IPlugin() = default;
 
     /**
@@ -244,7 +244,7 @@ public:
      * @param name Name of the property.
      * @param arguments Optional map of arguments for the property.
      * @return true if the property is supported, otherwise false.
-    */
+     */
     virtual bool is_property_supported(const std::string& name, const ov::AnyMap& arguments = {}) const;
 
 protected:

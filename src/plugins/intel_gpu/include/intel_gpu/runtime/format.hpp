@@ -402,7 +402,7 @@ struct format {
 
     type value;
 
-    std::optional<format_traits> custom_traits = {};
+    std::optional<format_traits> custom_traits;
 
     /// @brief Implicit conversion from format::type.
     format(type t) : value(t) {}

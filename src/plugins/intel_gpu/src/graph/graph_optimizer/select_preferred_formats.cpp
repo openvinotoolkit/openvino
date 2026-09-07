@@ -128,7 +128,7 @@ void select_preferred_formats::run(program& p) {
 
     auto forcing_map = p.get_config().get_force_implementations();
 
-    for (auto n : p.get_processing_order()) {
+    for (auto* n : p.get_processing_order()) {
         n->recalc_output_layout();
         if (n->is_input() || !n->is_in_data_flow()) {
             continue;

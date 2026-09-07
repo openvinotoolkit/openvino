@@ -31,8 +31,8 @@ Napi::Function ModelWrap::get_class(Napi::Env env) {
                         InstanceMethod("getOutputElementType", &ModelWrap::get_output_element_type),
                         InstanceMethod("clone", &ModelWrap::clone),
                         InstanceMethod("reshape", &ModelWrap::reshape),
-                        InstanceAccessor<&ModelWrap::get_inputs>("inputs"),
-                        InstanceAccessor<&ModelWrap::get_outputs>("outputs")});
+                        InstanceAccessor("inputs", &ModelWrap::get_inputs, nullptr),
+                        InstanceAccessor("outputs", &ModelWrap::get_outputs, nullptr)});
 }
 
 void ModelWrap::set_model(const std::shared_ptr<ov::Model>& model) {

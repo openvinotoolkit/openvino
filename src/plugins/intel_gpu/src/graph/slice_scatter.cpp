@@ -72,7 +72,7 @@ void slice_scatter_inst::update_output_memory() {
     if (input_memory_ptr() == nullptr)
         return;
 
-    if (_outputs.size() > 0 && static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (!_outputs.empty() && static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
         return;
 
     if (static_cast<bool>(_outputs[0]) && get_node().get_program().get_config().get_enable_memory_pool()) {

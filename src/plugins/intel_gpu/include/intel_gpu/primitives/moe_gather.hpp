@@ -57,4 +57,4 @@ struct moe_gather : public primitive_base<moe_gather> {
         ib >> has_batch_dim;
     }
 };
-}
+}  // namespace cldnn

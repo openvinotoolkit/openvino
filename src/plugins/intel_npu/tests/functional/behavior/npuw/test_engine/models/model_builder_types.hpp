@@ -6,14 +6,17 @@
 
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/sink.hpp"
 #include "openvino/op/util/variable.hpp"
 
 namespace ov {
@@ -41,6 +44,34 @@ using LayerFn = std::function<ov::Output<ov::Node>(const ov::Output<ov::Node>&, 
 using KVCacheFn =
     std::function<std::pair<ov::Output<ov::Node>,
                             ov::Output<ov::Node>>(const ov::Output<ov::Node>&, const ov::Output<ov::Node>&, size_t)>;
+
+/// LoRA injection state: when passed (non-null) to make_linear, the projection
+/// gets three extra A/B/alpha tensors wired as
+///   output = base_linear_out + (input @ A^T * alpha) @ B^T
+/// Names follow the NPUW lora_state_* convention.
+struct LoRAInjector {
+    size_t max_rank = 0;
+    std::vector<std::string> targets;
+    ov::element::Type precision = ov::element::f32;
+    bool stateful = false;
+    ov::SinkVector* sinks = nullptr;
+
+    static const std::vector<std::string>& default_targets() {
+        static const std::vector<std::string> defaults =
+            {"q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"};
+        return defaults;
+    }
+
+    bool should_adapt(const std::string& name) const {
+        if (max_rank == 0) {
+            return false;
+        }
+        const auto& list = targets.empty() ? default_targets() : targets;
+        return std::any_of(list.begin(), list.end(), [&name](const std::string& t) {
+            return name.find(t) != std::string::npos;
+        });
+    }
+};
 
 }  // namespace npuw
 }  // namespace test

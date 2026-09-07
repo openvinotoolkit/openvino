@@ -39,7 +39,7 @@ static size_t get_shape_data_size(const layout& l) {
     size_t size = layout::max_rank(); // all dimensions are stored
     const auto& dynamic_pad = l.data_padding._dynamic_dims_mask;
     for (size_t j = 0; j < layout::max_rank(); ++j) {
-        if (dynamic_pad[j] == 1) {
+        if (static_cast<int>(dynamic_pad[j]) == 1) {
             size += 2; // lower + upper
         }
     }
@@ -50,7 +50,7 @@ static size_t get_shape_data_size(const layout& l) {
 thread_local size_t program_node::cur_id = 0;
 
 program_node::program_node(std::shared_ptr<primitive> prim, program& prog)
-    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : 0) {
+    : desc(prim), myprog(prog), preferred_input_fmts({}), preferred_output_fmts({}), org_id(prim ? (prim->id) : std::string()) {
     if (prim) {
         num_outputs = prim->num_outputs;
         for (size_t i = 0 ; i < num_outputs; ++i) {
@@ -182,7 +182,8 @@ void program_node::replace_dependency(program_node const& old_dep, program_node&
 
 std::vector<primitive_id> program_node::get_dependencies_ids() const {
     std::vector<primitive_id> dep_ids;
-    for (auto& dependency : dependencies) dep_ids.push_back(dependency.first->get_primitive()->id);
+    for (const auto& dependency : dependencies)
+        dep_ids.push_back(dependency.first->get_primitive()->id);
     return dep_ids;
 }
 
@@ -195,17 +196,27 @@ void program_node::remove_dependency(size_t idx) {
     dependencies.erase(dependencies.begin() + idx);
 }
 
-const std::unordered_set<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
+const std::vector<uint32_t>& program_node::get_memory_dependencies() const { return memory_dependencies; }
 
 void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     for (size_t val : prim_list) {
-        memory_dependencies.insert(static_cast<uint32_t>(val));
+        OPENVINO_ASSERT(val <= std::numeric_limits<uint32_t>::max(),
+            "[GPU] Memory dependency id is out of uint32_t range: ", std::to_string(val));
+        const auto v32 = static_cast<uint32_t>(val);
+        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), v32);
+        if (it == memory_dependencies.end() || *it != v32) {
+            memory_dependencies.insert(it, v32);
+        }
     }
 }
 
 void program_node::add_memory_dependency(const program_node& dep) {
-    if (dep.may_use_mempool() && may_use_mempool())
-        memory_dependencies.insert(static_cast<uint32_t>(dep.get_unique_id()));
+    if (dep.may_use_mempool() && may_use_mempool()) {
+        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), static_cast<uint32_t>(dep.get_unique_id()));
+        if (it == memory_dependencies.end() || *it != static_cast<uint32_t>(dep.get_unique_id())) {
+            memory_dependencies.insert(it, static_cast<uint32_t>(dep.get_unique_id()));
+        }
+    }
 }
 
 std::unique_ptr<json_composite> program_node::desc_to_json() const {
@@ -231,7 +242,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
 
     json_composite fused_nodes_info;
     size_t index = 0;
-    for (auto& fused_desc : get_fused_primitives()) {
+    for (const auto& fused_desc : get_fused_primitives()) {
         json_composite fused_node_info;
         fused_node_info.add("id", fused_desc.desc->id);
         std::vector<primitive_id> dep_ids;
@@ -250,11 +261,11 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("fused primitives", fused_nodes_info);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    auto& onednn_post_ops = get_fused_primitives_onednn();
-    if (onednn_post_ops.size()) {
+    const auto& onednn_post_ops = get_fused_primitives_onednn();
+    if (!onednn_post_ops.empty()) {
         size_t post_op_index = 0;
         json_composite post_ops_info;
-        for (auto& fused_prim_desc : onednn_post_ops) {
+        for (const auto& fused_prim_desc : onednn_post_ops) {
             json_composite post_op_info;
             post_op_info.add("post op", onednn_post_op_type_to_str(fused_prim_desc.op_type));
             post_op_info.add("memory dependency", fused_prim_desc.mem_dep);
@@ -324,7 +335,7 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
     node_info->add("implementation", impls);
 
     std::vector<std::string> dependant_shape_of_nodes_ids;
-    for (auto shape_of : dependant_shape_of_nodes) {
+    for (const auto* shape_of : dependant_shape_of_nodes) {
         dependant_shape_of_nodes_ids.push_back(shape_of->id());
     }
     node_info->add("dependant_shape_of_nodes_ids", dependant_shape_of_nodes_ids);
@@ -340,11 +351,10 @@ void program_node::remove_dependency(program_node& node) {
 
 size_t program_node::get_user_index(const program_node& node) const {
     size_t idx = 0;
-    for (auto& user : users) {
+    for (const auto& user : users) {
         if (user == &node)
             return idx;
-        else
-            idx++;
+        idx++;
     }
 
     OPENVINO_THROW("[GPU] Search invalid user node" + node.id() + " node");
@@ -368,9 +378,7 @@ size_t program_node::get_dependency_index(const program_node& node) const {
 bool program_node::is_detached(bool whole_branch) {
     if (!users.empty())
         return false;
-    if (!whole_branch && !dependencies.empty())
-        return false;
-    return true;
+    return whole_branch || dependencies.empty();
 }
 
 layout program_node::calc_output_layout() const {
@@ -489,7 +497,7 @@ bool program_node::is_dynamic() const {
 }
 
 bool program_node::is_dynamic() {
-    for (auto& input : get_dependencies()) {
+    for (const auto& input : get_dependencies()) {
         if (input.first->is_dynamic_output_layout(input.second))
             return true;
     }
@@ -532,17 +540,16 @@ bool program_node::is_fused_dep(size_t dep_idx) const {
 }
 
 std::set<size_t> program_node::get_lockable_input_ids() const {
-    const auto impl = get_selected_impl();
-    const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || (impl && impl->is_cpu());
+    auto* const impl = get_selected_impl();
+    const bool has_cpu_impl = get_preferred_impl_type() == impl_types::cpu || ((impl != nullptr) && impl->is_cpu());
     if (has_cpu_impl && !is_type<shape_of>()) {
         std::set<size_t> dependencies_indexes;
         for (size_t i = 0; i < get_dependencies().size(); i++)
             dependencies_indexes.insert(i);
 
         return dependencies_indexes;
-    } else {
-        return {};
     }
+    return {};
 }
 
 std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
@@ -567,7 +574,7 @@ std::map<size_t, memory::ptr> program_node::get_const_memory_deps() const {
 }
 
 void program_node::invalidate_users() const {
-    for (auto& user : users) {
+    for (const auto& user : users) {
         for (size_t i = 0; i < user->valid_output_layouts.size(); ++i) {
             if (user->valid_output_layouts[i]) {
                 if (user->get_preferred_output_fmt() != format::any)
@@ -614,7 +621,7 @@ bool program_node::is_padding_supported(int axis, int padding) const {
 }
 
 bool program_node::is_padded_spatial(size_t idx) const {
-    auto& layout = get_output_layout(idx);
+    const auto& layout = get_output_layout(idx);
     const auto& lower_size = layout.data_padding._lower_size;
     const auto& upper_size = layout.data_padding._upper_size;
     return std::any_of(std::begin(lower_size) + 2, std::begin(lower_size) + 2 + layout.get_spatial_rank(),
@@ -629,9 +636,9 @@ void program_node::set_selected_impl(std::unique_ptr<primitive_impl> impl) {
 
 bool program_node::need_lockable_memory() const {
     bool need_lockable_mem = get_users().empty() || std::any_of(get_users().begin(), get_users().end(), [](const program_node* n) {
-        auto impl = n->get_selected_impl();
-        return impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
-    });
+                                 auto* impl = n->get_selected_impl();
+                                 return impl ? impl->is_cpu() : n->get_preferred_impl_type() == impl_types::cpu;
+                             });
 
     return need_lockable_mem;
 }
@@ -664,7 +671,8 @@ void program_node::select_preferred_formats(impl_types impl_type) {
 }
 
 void program_node::add_dependant_shape_of_node(const program_node* node) {
-    OPENVINO_ASSERT(node->is_type<shape_of>() || node->is_type<input_layout>(), "[GPU] Expected node type is shape_of");
+    OPENVINO_ASSERT(node->is_type<shape_of>() || node->is_type<input_layout>() || node->get_primitive()->is_shape_of_subgraph_root,
+                    "[GPU] Expected node type is shape_of");
     dependant_shape_of_nodes.insert(node);
 }
 
@@ -718,7 +726,7 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     // fused_prims;
     {
         ob << fused_prims.size();
-        for (auto& f_desc : fused_prims) {
+        for (const auto& f_desc : fused_prims) {
             if (get_program().has_node(f_desc.desc->id)) {
                 ob << true;
                 ob << f_desc.desc->id;
@@ -787,12 +795,12 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
             }
 
             ob << f_desc.deps.size();
-            for (auto& dep : f_desc.deps) {
+            for (const auto& dep : f_desc.deps) {
                 ob << dep.first;
                 ob << dep.second;
             }
             ob << f_desc.fused_deps.size();
-            for (auto& f_dep : f_desc.fused_deps) {
+            for (const auto& f_dep : f_desc.fused_deps) {
                 ob << f_dep.first;
                 ob << f_dep.second;
             }
@@ -917,7 +925,7 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
 
             std::string f_param_type_str;
             ib >> f_param_type_str;
-            auto f_param_type = cldnn::prim_map_storage::instance().get_type_id(f_param_type_str);
+            auto* f_param_type = cldnn::prim_map_storage::instance().get_type_id(f_param_type_str);
             if (f_param_type == activation::type_id()) {
                 ib >> exist_prim;
                 std::shared_ptr<activation> param_desc;
@@ -1533,17 +1541,17 @@ void program_node::create_onednn_primitive_attributes(
     const auto& get_input_layout = [&](int32_t idx) -> cldnn::layout {
         if (impl_params != nullptr) {
             return impl_params->get_input_layout(idx);
-        } else {
-            return get_dependency(idx).get_output_layout();
         }
+        return get_dependency(idx).get_output_layout();
+
     };
 
     const auto& get_output_layout = [&]() -> cldnn::layout {
         if (impl_params != nullptr) {
             return impl_params->get_output_layout();
-        } else {
-            return this->get_output_layout();
         }
+        return this->get_output_layout();
+
     };
 
     // Add information about post-operation into the list, update indices
@@ -1580,7 +1588,7 @@ void program_node::create_onednn_primitive_attributes(
 
     int32_t num_sum_post_ops = 0;
     for (size_t idx = 0; idx < cldnn_post_ops.size(); idx++) {
-        auto& desc = cldnn_post_ops[idx];
+        const auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
             auto fused_desc = desc.typed_desc<activation>();
             if (fused_desc->activation_function == cldnn::activation_func::relu_negative_slope

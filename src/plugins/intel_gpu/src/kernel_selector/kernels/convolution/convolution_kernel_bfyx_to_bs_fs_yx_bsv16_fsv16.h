@@ -14,7 +14,7 @@ namespace kernel_selector {
 class ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16 : public ConvolutionKernel_bfyx_to_bfyx_f16 {
 public:
     ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16();
-    virtual ~ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16() {}
+    ~ConvolutionKernel_bfyx_to_bfyx_bsv16_fsv16() override = default;
 
     ParamsKey GetSupportedKey() const override;
     DeviceFeaturesKey get_required_device_features_key(const Params& params) const override;

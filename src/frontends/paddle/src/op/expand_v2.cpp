@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <numeric>
+
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
@@ -55,7 +57,25 @@ NamedOutputs expand_v2(const NodeContext& node) {
     // if -1 in shape we will copy the original value from input
     auto zero_node = Constant::create(ov::element::i32, {1}, {0});
     auto mask_node = std::make_shared<Greater>(shape_expected_node, zero_node);
-    auto fixed_shape_node = std::make_shared<Select>(mask_node, shape_expected_node, fixed_input_shape_node);
+    Output<Node> fixed_shape_node = std::make_shared<Select>(mask_node, shape_expected_node, fixed_input_shape_node);
+
+    // The target shape vector can end up with a dynamic length (e.g. when it is assembled from a
+    // dynamic-length Slice inside a control-flow body). That would make the Broadcast output rank
+    // dynamic, which some plugins (e.g. CPU) do not support. The expand output rank is statically
+    // known from the Paddle op output var descriptor, so pin the target shape length to that static
+    // rank to keep the Broadcast output rank static without constraining the (possibly dynamic) dims.
+    // A Gather with constant indices [0, out_rank) is used (rather than a Reshape) so the static
+    // length survives offline shape-of subgraph simplification / nop elimination: the gathered axis
+    // length is dynamic, so GatherNopElimination cannot fold it away.
+    const auto output_info = node.get_output_port_infos("Out");
+    if (!output_info.empty() && output_info[0].second.rank().is_static()) {
+        const auto out_rank = static_cast<size_t>(output_info[0].second.rank().get_length());
+        std::vector<int32_t> indices(out_rank);
+        std::iota(indices.begin(), indices.end(), 0);
+        const auto gather_indices = Constant::create(element::i32, {out_rank}, indices);
+        const auto gather_axis = Constant::create(element::i32, {}, {0});
+        fixed_shape_node = std::make_shared<Gather>(fixed_shape_node, gather_indices, gather_axis);
+    }
     return node.default_single_output_mapping({std::make_shared<Broadcast>(x, fixed_shape_node)}, {"Out"});
 }
 

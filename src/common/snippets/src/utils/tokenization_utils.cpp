@@ -38,6 +38,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -49,7 +50,26 @@
 
 namespace ov::snippets::utils {
 
+bool is_numpy_broadcast(const std::shared_ptr<const ov::Node>& node) {
+    const auto broadcast = ov::as_type_ptr<const ov::op::util::BroadcastBase>(node);
+    return broadcast && broadcast->get_broadcast_spec().m_type == ov::op::BroadcastType::NUMPY;
+}
+
 namespace {
+// copy_runtime_info drops the non-copyable DisablePrecisionConversion attribute; propagate it
+// explicitly from the tokenized nodes to the Subgraph so precision markup (e.g. kept-in-fp32 sin/cos
+// inputs) survives tokenization. Copied by rt_info key because snippets cannot depend on the
+// transformations library.
+void propagate_precision_conversion_disable(const ov::NodeVector& from, const std::shared_ptr<ov::Node>& to) {
+    for (const auto& node : from) {
+        for (const auto& item : node->get_rt_info()) {
+            if (item.first.rfind("DisablePrecisionConversion", 0) == 0) {
+                to->get_rt_info()[item.first] = item.second;
+            }
+        }
+    }
+}
+
 auto has_result_child(const std::shared_ptr<const Node>& node) -> bool {
     const auto& users = node->get_users();
     return std::any_of(users.begin(), users.end(), [](const std::shared_ptr<Node>& child) {
@@ -446,6 +466,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const ov::snippets::pa
     }
     auto subgraph = op::build_subgraph(node, external_inputs, body, subgraph_name);
     copy_runtime_info(replaced_nodes, subgraph);
+    propagate_precision_conversion_disable(replaced_nodes, subgraph);
     const auto& act_body = subgraph->body();
     for (size_t i = 0; i < act_body.get_parameters().size(); i++) {
         act_body.get_parameters()[i]->set_friendly_name(body_parameters[i]->get_friendly_name());
@@ -556,6 +577,7 @@ std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::Nod
     auto body = op::create_body(last_node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = std::make_shared<op::Subgraph>(subgraph_inputs, body);
     copy_runtime_info(last_node, subgraph);
+    propagate_precision_conversion_disable({last_node}, subgraph);
     subgraph->set_friendly_name(last_node->get_friendly_name());
 
     for (size_t i = 0; i < subgraph->get_output_size(); ++i) {

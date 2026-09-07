@@ -184,11 +184,7 @@ struct non_max_suppression_gather : primitive_base<non_max_suppression_gather> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs)) {
-            return false;
-        }
-
-        return true;
+        return compare_common_params(rhs);
     }
 };
 }  // namespace cldnn

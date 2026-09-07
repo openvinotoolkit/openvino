@@ -36,6 +36,7 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
         seed = hash_combine(seed, adjusted_v_head_size);
         seed = hash_combine(seed, static_cast<size_t>(cache_dt));
         seed = hash_combine(seed, is_kv_compressed);
+        seed = hash_combine(seed, has_xattention);
         return seed;
     }
 
@@ -47,7 +48,8 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
         return is_key_by_channel == rhs_casted.is_key_by_channel && scales_zp_size == rhs_casted.scales_zp_size && kv_heads_num == rhs_casted.kv_heads_num &&
                adjusted_k_head_size == rhs_casted.adjusted_k_head_size &&
                adjusted_paged_attention_block_size == rhs_casted.adjusted_paged_attention_block_size &&
-               adjusted_v_head_size == rhs_casted.adjusted_v_head_size && cache_dt == rhs_casted.cache_dt && is_kv_compressed == rhs_casted.is_kv_compressed;
+               adjusted_v_head_size == rhs_casted.adjusted_v_head_size && cache_dt == rhs_casted.cache_dt && is_kv_compressed == rhs_casted.is_kv_compressed &&
+               has_xattention == rhs_casted.has_xattention;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -60,6 +62,7 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
         ob << adjusted_v_head_size;
         ob << static_cast<int64_t>(cache_dt);
         ob << is_kv_compressed;
+        ob << has_xattention;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -74,6 +77,7 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
         ib >> cache_dt_val;
         cache_dt = static_cast<data_types>(cache_dt_val);
         ib >> is_kv_compressed;
+        ib >> has_xattention;
     }
 
     bool is_key_by_channel = false;
@@ -84,6 +88,8 @@ struct pa_kv_reorder : public primitive_base<pa_kv_reorder> {
     size_t adjusted_v_head_size = 0;
     data_types cache_dt = data_types::f16;
     bool is_kv_compressed = false;
+    // Align with paged_attention::has_xattention
+    bool has_xattention = false;
 };
 
 }  // namespace cldnn

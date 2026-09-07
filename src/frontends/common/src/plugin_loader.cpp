@@ -20,6 +20,7 @@
 #include <string_view>
 #include <vector>
 
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/log.hpp"
 #include "openvino/util/shared_object.hpp"

@@ -666,3 +666,36 @@ TEST_F(ov_preprocess_test, ov_preprocess_preprocess_steps_pad_edge) {
     OV_EXPECT_OK(ov_preprocess_prepostprocessor_build(preprocess, &ppp_model));
     EXPECT_NE(nullptr, ppp_model);
 }
+
+TEST_F(ov_preprocess_test, ov_preprocess_input_tensor_info_set_color_format_with_subnames) {
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_create(model, &preprocess));
+    EXPECT_NE(nullptr, preprocess);
+
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_get_input_info_by_index(preprocess, 0, &input_info));
+    EXPECT_NE(nullptr, input_info);
+
+    OV_EXPECT_OK(ov_preprocess_input_info_get_preprocess_steps(input_info, &input_process));
+    EXPECT_NE(nullptr, input_process);
+
+    OV_EXPECT_OK(ov_preprocess_input_info_get_tensor_info(input_info, &input_tensor_info));
+    EXPECT_NE(nullptr, input_tensor_info);
+
+    const char* sub_names[] = {"y", "uv"};
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_color_format_with_subnames(input_tensor_info,
+                                                                                ov_color_format_e::NV12_TWO_PLANES,
+                                                                                2,
+                                                                                sub_names));
+    OV_EXPECT_OK(ov_preprocess_input_tensor_info_set_spatial_static_shape(input_tensor_info, 320, 320));
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_convert_color(input_process, ov_color_format_e::BGR));
+    OV_EXPECT_OK(ov_preprocess_preprocess_steps_resize(input_process, RESIZE_LINEAR));
+
+    ov_layout_t* layout = nullptr;
+    const char* layout_desc = "NCHW";
+    OV_EXPECT_OK(ov_layout_create(layout_desc, &layout));
+    OV_EXPECT_OK(ov_preprocess_input_info_get_model_info(input_info, &input_model));
+    OV_EXPECT_OK(ov_preprocess_input_model_info_set_layout(input_model, layout));
+    ov_layout_free(layout);
+
+    OV_EXPECT_OK(ov_preprocess_prepostprocessor_build(preprocess, &ppp_model));
+    EXPECT_NE(nullptr, ppp_model);
+}

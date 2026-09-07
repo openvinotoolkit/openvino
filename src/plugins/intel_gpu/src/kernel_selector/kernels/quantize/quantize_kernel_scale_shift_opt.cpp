@@ -16,8 +16,10 @@ ParamsKey QuantizeKernelScaleShift::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
@@ -86,7 +88,7 @@ JitConstants QuantizeKernelScaleShift::GetJitConstants(const quantize_params& pa
     }
 
     auto can_use_output_range = params.per_tensor_output_range && params.out_lo < params.out_hi;
-    auto has_output_range_round = !(params.outputs[0].GetDType() == Datatype::INT8 || params.outputs[0].GetDType() == Datatype::UINT8);
+    auto has_output_range_round = params.outputs[0].GetDType() != Datatype::INT8 && params.outputs[0].GetDType() != Datatype::UINT8;
 
     jit.AddConstant(MakeJitConstant("HAS_POST_SCALE", params.has_post_scale));
     jit.AddConstant(MakeJitConstant("HAS_POST_SHIFT", params.has_post_shift));

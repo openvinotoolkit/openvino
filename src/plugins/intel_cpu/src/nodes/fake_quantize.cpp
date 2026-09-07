@@ -14,7 +14,6 @@
 #include <common/c_types_map.hpp>
 #include <common/nstl.hpp>
 #include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -47,6 +46,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
@@ -54,6 +54,7 @@
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #endif
 
@@ -66,9 +67,11 @@
 using namespace dnnl;
 using namespace ov;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1419,7 +1422,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 
                 isFakeQuantization = isFakeQuantization && il == ol && ih == oh;
                 isFakeQuantizationWithScale = isFakeQuantizationWithScale && il != ih && ol != oh &&
-                                              (abs(ol / (oh - ol) - il / (ih - il)) < 0.001F);
+                                              (std::abs(ol / (oh - ol) - il / (ih - il)) < 0.001F);
             }
 
             if (isFakeQuantizationWithScale) {
@@ -1454,7 +1457,7 @@ std::vector<LayoutType> FakeQuantize::getDataFormats() const {
     }
     if (any_of(dims.size(), 4U, 5U)) {
         if (getAxis() == 1) {
-            auto blkFormat = mayiuse(cpu::x64::avx512_core) ? LayoutType::nCsp16c : LayoutType::nCsp8c;
+            auto blkFormat = ov::with_cpu_x86_avx512_core() ? LayoutType::nCsp16c : LayoutType::nCsp8c;
             return {blkFormat, LayoutType::nspc, LayoutType::ncsp};
         }
         return {LayoutType::ncsp};
@@ -1503,18 +1506,18 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type = []() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;
     }();
-    if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
+    if (!ov::with_cpu_x86_sse42() || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
 
         if (!isBinarization()) {
@@ -1724,6 +1727,10 @@ void FakeQuantize::executeReference() {
         W = srcDims[srcDims.size() - 1];
     }
 
+    if (N <= 0 || C <= 0 || D <= 0 || H <= 0 || W <= 0) {
+        return;
+    }
+
     if (isBinarization()) {
         size_t tmp = s_str[s_str.size() - 1];
         for (int i = s_str.size() - 1; i > 1; i--) {
@@ -1741,6 +1748,9 @@ void FakeQuantize::executeReference() {
 
         const int nbits = 8;
         const int CB = impl::utils::div_up(C, nbits);
+        if (CB <= 0) {
+            return;
+        }
 
         const auto* thresholds = internalBlobMemory[0]->getDataAs<const float>();
         const auto* output_mask = internalBlobMemory[1]->getDataAs<const uint32_t>();
@@ -1851,6 +1861,10 @@ void FakeQuantize::executeBinarization(const std::unique_ptr<jit_uni_quantize_ke
     const int H = src_dims[2];
     const int W = src_dims[3];
 
+    if (N <= 0 || C <= 0 || H <= 0 || W <= 0) {
+        return;
+    }
+
     int nbits = 8;
 
     cpu_parallel->parallel_for3d(N, H, W, [&](dim_t n, dim_t h, dim_t w) {
@@ -1923,6 +1937,10 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     }
     if (srcDims.size() > 3) {
         W = srcDims[srcDims.size() - 1];
+    }
+
+    if (N <= 0 || CB <= 0 || D <= 0 || H <= 0 || W <= 0) {
+        return;
     }
 
     if (srcDesc.hasLayoutType(LayoutType::ncsp) && srcDesc.getShape().getRank() == 3) {
@@ -2241,7 +2259,7 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
     auto isPerTensor =
         [](const std::vector<float>& v, float ref, const float zero_thr = std::numeric_limits<float>::min()) {
             return std::all_of(v.cbegin(), v.cend(), [&](float val) {
-                return abs(val - ref) < zero_thr;
+                return std::abs(val - ref) < zero_thr;
             });
         };
     size_t OC = std::max({inputScale.size(),
@@ -2350,7 +2368,7 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
     // we can save an additional eltwise linear for negligible shift
     if (all_of(1U, f.ish.size(), f.clo.size(), f.chi.size())) {
         auto range = (f.chi[0] - f.clo[0]);
-        if (abs(f.ish[0]) < range * 0.00001F) {
+        if (std::abs(f.ish[0]) < range * 0.00001F) {
             f.ish[0] = 0.0F;
         }
     }

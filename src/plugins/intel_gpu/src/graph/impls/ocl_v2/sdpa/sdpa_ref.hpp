@@ -21,10 +21,12 @@ struct SDPARef : public ImplementationManager {
         static constexpr std::array supported_q_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
         };
         static constexpr std::array supported_kv_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
             ov::element::i8,
         };
 
@@ -38,10 +40,7 @@ struct SDPARef : public ImplementationManager {
         if (!one_of(k_layout.data_type, supported_kv_types) || !one_of(v_layout.data_type, supported_kv_types))
             return false;
 
-        if (!one_of(q_layout.data_type, supported_q_types) || !one_of(out_layout.data_type, supported_q_types))
-            return false;
-
-        return true;
+        return one_of(q_layout.data_type, supported_q_types) && one_of(out_layout.data_type, supported_q_types);
     }
 };
 

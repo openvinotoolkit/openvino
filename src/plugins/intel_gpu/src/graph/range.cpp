@@ -35,7 +35,7 @@ std::vector<layout> range_inst::calc_output_layouts(range_node const& /*node*/, 
     std::vector<ShapeType> input_shapes = {ov::Shape(), ov::Shape(), ov::Shape()};
 
     std::unordered_map<size_t, ov::Tensor> const_data;
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
 
     if (memory_deps.count(0) > 0 && memory_deps.count(1) > 0 && memory_deps.count(2) > 0) {
         auto start_mem = memory_deps.at(0);

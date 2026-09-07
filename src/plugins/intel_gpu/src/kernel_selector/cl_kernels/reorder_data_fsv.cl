@@ -9,10 +9,12 @@
 
 #ifdef FSV_VECTORIZED
     #define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
+	#define INPUT_VEC_COMPUTE_TYPE  MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, VEC_SIZE)
     #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
-    #define CONVERT_OUT_VEC CAT(convert_, OUTPUT_VEC_TYPE)
+    #define CONVERT_OUT_VEC(v) TO_OUTPUT_VECTOR_TYPE(v, VEC_SIZE)
     #define VLOAD_VEC       CAT(vload, VEC_SIZE)
     #define VSTORE_VEC      CAT(vstore, VEC_SIZE)
+	#define DECODE_VEC(v) DECODE_INPUT0_COMPUTE_VECTOR_TYPE(v, VEC_SIZE)
 #endif
 
 KERNEL (reorder_data_fsv)(
@@ -64,7 +66,7 @@ KERNEL (reorder_data_fsv)(
             const uint fs_in = fs_out * RATIO + r;
             const uint f_chunk = f_base + r * VEC_SIZE;
             if (f_chunk < INPUT0_FEATURE_NUM) {
-                INPUT_VEC_TYPE v = VLOAD_VEC(0, input + in_spatial_base + fs_in * in_fs_pitch);
+                INPUT_VEC_COMPUTE_TYPE v = DECODE_VEC(VLOAD_VEC(0, input + in_spatial_base + fs_in * in_fs_pitch));
                 VSTORE_VEC(CONVERT_OUT_VEC(v), 0, output + OUT_INDEX(f_chunk));
             } else {
                 OUTPUT_VEC_TYPE zero = (OUTPUT_VEC_TYPE)(0);
@@ -76,7 +78,7 @@ KERNEL (reorder_data_fsv)(
         const uint fs_in = fs_out / RATIO;
         const uint sub = fs_out % RATIO;
         if (f_base < INPUT0_FEATURE_NUM) {
-            INPUT_VEC_TYPE v = VLOAD_VEC(0, input + in_spatial_base + fs_in * in_fs_pitch + sub * VEC_SIZE);
+            INPUT_VEC_COMPUTE_TYPE v = DECODE_VEC(VLOAD_VEC(0, input + in_spatial_base + fs_in * in_fs_pitch + sub * VEC_SIZE));
             VSTORE_VEC(CONVERT_OUT_VEC(v), 0, output + OUT_INDEX(f_base));
         } else {
             OUTPUT_VEC_TYPE zero = (OUTPUT_VEC_TYPE)(0);
@@ -91,7 +93,7 @@ KERNEL (reorder_data_fsv)(
             const uint fs_in = f / IN_FSV;
             const uint fsv_in = f % IN_FSV;
             const uint in_offset = in_spatial_base + fs_in * in_fs_pitch + fsv_in;
-            output[OUT_INDEX(f)] = ACTIVATION(TO_OUTPUT_TYPE(input[in_offset]), ACTIVATION_PARAMS);
+            output[OUT_INDEX(f)] = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[in_offset])), ACTIVATION_PARAMS));
         } else {
             output[OUT_INDEX(f)] = TO_OUTPUT_TYPE(0);
         }

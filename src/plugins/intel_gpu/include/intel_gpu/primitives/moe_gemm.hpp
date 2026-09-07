@@ -80,4 +80,4 @@ struct moe_gemm : public primitive_base<moe_gemm> {
         ib >> has_batch_dim;
     }
 };
-}
+}  // namespace cldnn

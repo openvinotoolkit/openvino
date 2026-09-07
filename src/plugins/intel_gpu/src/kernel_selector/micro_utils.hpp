@@ -54,7 +54,7 @@ struct MicroKernelPackage {
     // other struct fields are not initializer properly and can't be used
     void save(cldnn::BinaryOutputBuffer& ob) const {
         ob << p.settings.size();
-        for (auto& s : p.settings) {
+        for (const auto& s : p.settings) {
             ob << s.name;
             ob << s.value;
         }

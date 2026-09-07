@@ -36,7 +36,7 @@ public:
     using IndexType = FusedOpsConfiguration::IndexType;
 
     explicit KernelBase(const std::string name) : kernelName(name) {}
-    virtual ~KernelBase() {}
+    virtual ~KernelBase() = default;
 
     virtual KernelsData GetKernelsData(const Params& params) const = 0;
     virtual KernelsData GetKernelsDataForAutoTune(const Params& params) const {

@@ -115,12 +115,12 @@ static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, b
 
         auto get_additional_output_node_idx = [&] (bool is_third) {
             size_t offset = 2;
-            offset += arg.has_num_select_per_class();
-            offset += arg.has_iou_threshold();
-            offset += arg.has_score_threshold();
-            offset += arg.has_soft_nms_sigma();
+            offset += static_cast<size_t>(arg.has_num_select_per_class());
+            offset += static_cast<size_t>(arg.has_iou_threshold());
+            offset += static_cast<size_t>(arg.has_score_threshold());
+            offset += static_cast<size_t>(arg.has_soft_nms_sigma());
             if (is_third)
-                offset += arg.has_second_output();
+                offset += static_cast<size_t>(arg.has_second_output());
             return offset;
         };
 
@@ -168,22 +168,22 @@ private:
         switch (mem->get_layout().data_type) {
         case data_types::f16: {
             mem_lock<ov::float16, mem_lock_type::read> lock(mem, stream);
-            auto mem_value = static_cast<ov::float16*>(lock.data());
+            auto* mem_value = static_cast<ov::float16*>(lock.data());
             retValue = static_cast<T>(*mem_value);
         } break;
         case data_types::f32: {
             mem_lock<float, mem_lock_type::read> lock(mem, stream);
-            auto mem_value = static_cast<float*>(lock.data());
+            auto* mem_value = static_cast<float*>(lock.data());
             retValue = static_cast<T>(*mem_value);
         } break;
         case data_types::i32: {
             mem_lock<int32_t, mem_lock_type::read> lock(mem, stream);
-            auto mem_value = static_cast<int32_t*>(lock.data());
+            auto* mem_value = static_cast<int32_t*>(lock.data());
             retValue = static_cast<T>(*mem_value);
         } break;
         case data_types::i64: {
             mem_lock<int64_t, mem_lock_type::read> lock(mem, stream);
-            auto mem_value = static_cast<int64_t*>(lock.data());
+            auto* mem_value = static_cast<int64_t*>(lock.data());
             retValue = static_cast<T>(*mem_value);
         } break;
         default:

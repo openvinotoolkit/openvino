@@ -13,172 +13,223 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vm/mem_ref_type.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_types.hpp"
-
-namespace {
-std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes, size_t element_size) {
-    std::vector<size_t> element_strides(strides_in_bytes.size());
-    std::transform(strides_in_bytes.begin(),
-                   strides_in_bytes.end(),
-                   element_strides.begin(),
-                   [element_size](size_t byte_stride) {
-                       OPENVINO_ASSERT(byte_stride % element_size == 0,
-                                       "Stride ",
-                                       byte_stride,
-                                       " bytes is not aligned to element size ",
-                                       element_size,
-                                       " bytes. Strides must be multiples of element size.");
-
-                       return byte_stride / element_size;
-                   });
-
-    return element_strides;
-};
-
-}  // namespace
+#include "zero_infer_request.hpp"
 
 namespace intel_npu {
+struct MemRefTypeImpl {
+    npu_vm_runtime_mem_ref_handle_t _memRef;
+    bool _ptrUpdated = false;
+    bool _shapeUpdated = false;
+    bool _strideUpdated = false;
+
+    MemRefTypeImpl() : _memRef(nullptr) {}
+
+    ~MemRefTypeImpl() {
+        destroyMemRef();
+    }
+
+    void alignWithHandle(MemRefType& memref) {
+        if (_memRef == nullptr) {
+            return;
+        }
+
+        if (npuVMRuntimeParseMemRef(_memRef,
+                                    &memref._basePtr,
+                                    &memref._data,
+                                    &memref._offset,
+                                    memref._sizes.data(),
+                                    memref._strides.data(),
+                                    &memref._dimsCount) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to parse MemRef handle");
+        }
+    }
+
+    void UpdateMemRefHandleStatus(MemRefType& memref) {
+        // Update current MemRef handle to use latest metadata
+        if (_memRef == nullptr) {
+            createMemRef(memref._dimsCount);
+        } else {
+            // Create a temporary MemRefType based on current handle and compare, use arg to create right size
+            MemRefType tempMemRef(memref._basePtr,
+                                  memref._data,
+                                  memref._offset,
+                                  memref._sizes,
+                                  memref._strides,
+                                  memref._dimsCount);
+            alignWithHandle(tempMemRef);
+            // Check ptr
+            if (memref._basePtr != tempMemRef._basePtr || memref._data != tempMemRef._data ||
+                memref._offset != tempMemRef._offset) {
+                _ptrUpdated = true;
+            } else {
+                _ptrUpdated = false;
+            }
+
+            // Check shape
+            if (memref._sizes != tempMemRef._sizes) {
+                _shapeUpdated = true;
+            } else {
+                _shapeUpdated = false;
+            }
+
+            // Check strides
+            if (memref._strides != tempMemRef._strides) {
+                _strideUpdated = true;
+            } else {
+                _strideUpdated = false;
+            }
+        }
+        auto result = npuVMRuntimeSetMemRef(_memRef,
+                                            memref._basePtr,
+                                            memref._data,
+                                            memref._offset,
+                                            memref._sizes.data(),
+                                            memref._strides.data(),
+                                            memref._dimsCount);
+        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to update MemRef handle");
+        }
+    }
+
+private:
+    void createMemRef(int64_t dimsCount) {
+        if (_memRef == nullptr) {
+            auto result = npuVMRuntimeCreateMemRef(dimsCount, &_memRef);
+            if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+                OPENVINO_THROW("Failed to create MemRef handle");
+            }
+        }
+    }
+
+    void destroyMemRef() {
+        if (_memRef != nullptr) {
+            npuVMRuntimeDestroyMemRef(_memRef);
+            _memRef = nullptr;
+        }
+    }
+};
+
+VMExecutionContext::~VMExecutionContext() {
+    if (_handle != nullptr) {
+        npuVMRuntimeDestroyExecutionContext(_handle);
+        _handle = nullptr;
+    }
+}
+
+npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensure(npu_vm_runtime_handle_t vmRuntime) {
+    if (_handle == nullptr) {
+        if (npuVMRuntimeCreateExecutionContext(vmRuntime, &_handle) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to create a VM execution context");
+        }
+    }
+    return _handle;
+}
+
+// Init _inputsMemRef and _outputsMemRef vectors
+void DynamicArguments::setArgumentProperties(uint32_t argi,
+                                             const void* argv,
+                                             const ov::Shape& sizes,
+                                             const std::vector<size_t>& strides) {
+    auto assign_slot = [&](MemRefType& slot) {
+        slot._basePtr = slot._data = const_cast<void*>(argv);
+        if (slot._dimsCount == 0) {
+            slot._dimsCount = static_cast<int64_t>(sizes.size());
+            slot._sizes.resize(sizes.size());
+            slot._strides.resize(strides.size());
+        } else if (slot._dimsCount != static_cast<int64_t>(sizes.size())) {
+            OPENVINO_THROW("Dimension count mismatch. Current dimension count: ",
+                           slot._dimsCount,
+                           ", new dimension count: ",
+                           sizes.size());
+        } else if (strides.size() != static_cast<size_t>(sizes.size())) {
+            OPENVINO_THROW("Updated shape and stride count mismatch: shape rank and stride count differ. Shape rank: ",
+                           sizes.size(),
+                           ", stride count: ",
+                           strides.size());
+        }
+        for (int64_t i = 0; i < slot._dimsCount; i++) {
+            slot._sizes[i] = static_cast<int64_t>(sizes[i]);
+            slot._strides[i] = static_cast<int64_t>(strides[i]);
+        }
+    };
+
+    if (argi < _inputsMemRef.size()) {
+        assign_slot(_inputsMemRef[argi]);
+    } else {
+        auto idx = argi - _inputsMemRef.size();
+        if (idx < _outputsMemRef.size()) {
+            assign_slot(_outputsMemRef[idx]);
+        }
+    }
+}
+
 DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                  const std::shared_ptr<IGraph>& graph,
                                  const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
-                                 const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                                 std::shared_ptr<IDynamicGraph::GraphArguments> requestBinding,
-                                 size_t batch_size)
-    : IPipeline(init_structs, graph, batch_size, config, "DynamicPipeline") {
+                                 const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors)
+    : IPipeline(init_structs, graph, utils::DEFAULT_BATCH_SIZE, config, "DynamicPipeline") {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
 
     OPENVINO_ASSERT(!_run_inferences_sequentially, "In-order execution doesn't work for dynamic pipeline");
 
-    _logger.debug("Initialization started, batch size: %zu", _batch_size);
-
-    intel_npu::IDynamicGraph* dynamicGraph = dynamic_cast<intel_npu::IDynamicGraph*>(graph.get());
-    OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
+    _logger.debug("Initialization started");
 
     if (!_sync_output_with_fences) {
-        _event_pool = std::make_shared<EventPool>(_init_structs, _batch_size ? static_cast<uint32_t>(_batch_size) : 1);
-
-        _events.reserve(_batch_size);
-        for (size_t i = 0; i < _batch_size; i++) {
-            _events.emplace_back(std::make_shared<Event>(_event_pool, static_cast<uint32_t>(i)));
-        }
+        _event_pool = std::make_shared<EventPool>(_init_structs, 1);
+        _events.emplace_back(std::make_shared<Event>(_event_pool, 0));
     }
     _logger.debug("Event pool and command queue setup completed");
 
-    uint64_t num_of_subgraphs = dynamicGraph->get_num_subgraphs();
-    _command_lists.reserve(_batch_size);
-    if (batch_size > 1) {
-        _logger.debug("Batch size %zu greater than 1, use new graph arguments for each batch", batch_size);
-        for (size_t i = 0; i < _batch_size; i++) {
-            _command_lists.emplace_back(
-                std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, nullptr));
-        }
-    } else if (batch_size == 1) {
-        _logger.debug("Batch size is 1, use the same graph arguments for all command lists");
-        _command_lists.emplace_back(
-            std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, requestBinding));
-    } else {
-        OPENVINO_THROW("Batch size must be greater than 0, but got ", batch_size);
-    }
+    const uint64_t num_of_subgraphs = _graph->get_metadata().numberOfSubgraphs;
+
+    _command_list_group = std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs);
 
     if (_sync_output_with_fences) {
-        _fences.reserve(_batch_size);
-        for (size_t i = 0; i < _batch_size; i++) {
-            _fences.emplace_back(std::make_unique<Fence>(_command_queue));
-        }
+        _fences.emplace_back(std::make_unique<Fence>(_command_queue));
     }
 
-    for (size_t i = 0; i < _batch_size; i++) {
-        _logger.debug("Set args for command list number: %zu", i);
+    auto& commandLists = _command_list_group;
+    commandLists->initArguments(_graph->get_metadata());
+    auto& dynamicArguments = commandLists->getArguments();
 
-        _command_lists.at(i)->bind(dynamicGraph);
-        auto& graphArguments = _command_lists.at(i)->getBinding();
+    size_t io_index = 0;
+    for (const auto& desc : _graph->get_metadata().inputs) {
+        // DynamicPipeline does not currently support weightless model, just thrown exception.
+        OPENVINO_ASSERT(!desc.isMainInputWeights,
+                        "DynamicPipeline does not support weightless graphs (input '",
+                        desc.nameFromCompiler,
+                        "' is a main-input weight)");
+        OPENVINO_ASSERT(input_tensors.at(io_index).size() == 1,
+                        "DynamicPipeline requires one full-batch tensor per input");
 
-        size_t io_index = 0;
-        for (const auto& desc : _graph->get_metadata().inputs) {
-            if (desc.isMainInputWeights) {
-                // These values were set while running the "WeightlessGraph::init" method
-                continue;
-            }
+        _logger.debug("Update tensor property for input desc index: %u", desc.indexUsedByDriver);
+        const auto& tensor = input_tensors.at(io_index).at(SINGLE_TENSOR);
+        size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
+        dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
+                                               tensor->data(),
+                                               tensor->get_shape(),
+                                               get_strides(tensor->get_strides(), elementSize));
+        ++io_index;
+    }
 
-            if (input_tensors.at(io_index).size() > 1) {
-                _logger.debug("Set args for input index: %zu", io_index);
-                const auto& tensor = input_tensors.at(io_index).at(i);
-                if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() ||
-                    tensor->get_strides().empty()) {
-                    dynamicGraph->set_argument_value(desc.indexUsedByDriver, tensor->data());
-                } else {
-                    dynamicGraph->set_argument_value_with_strides(
-                        desc.indexUsedByDriver,
-                        tensor->data(),
-                        get_strides(tensor->get_strides(), tensor->get_element_type().size()));
-                }
-                size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-                graphArguments.setArgumentProperties(desc.indexUsedByDriver,
-                                                     tensor->data(),
-                                                     tensor->get_shape(),
-                                                     get_strides(tensor->get_strides(), elementSize));
-                ++io_index;
-                continue;
-            }
-
-            _logger.debug("Update tensor property for input desc index: %u", desc.indexUsedByDriver);
-            const auto& tensor = input_tensors.at(io_index).at(0);
-            size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-            if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                dynamicGraph->set_argument_value(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size);
-                graphArguments.setArgumentProperties(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
-                    tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
-            } else {
-                dynamicGraph->set_argument_value_with_strides(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), tensor->get_element_type().size()));
-                graphArguments.setArgumentProperties(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
-            }
-            ++io_index;
-        }
-
-        io_index = 0;
-        for (const auto& desc : _graph->get_metadata().outputs) {
-            _logger.debug("Update tensor property for output desc index: %u", desc.indexUsedByDriver);
-            const auto& tensor = output_tensors.at(io_index);
-            size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-            if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-                dynamicGraph->set_argument_value(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size);
-                graphArguments.setArgumentProperties(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_byte_size()) / _batch_size,
-                    tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
-            } else {
-                dynamicGraph->set_argument_value_with_strides(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    get_strides(tensor->get_strides(), elementSize));
-
-                graphArguments.setArgumentProperties(
-                    desc.indexUsedByDriver,
-                    static_cast<unsigned char*>(tensor->data()) + (i * tensor->get_strides()[0]),
-                    tensor->get_shape(),
-                    get_strides(tensor->get_strides(), elementSize));
-            }
-            ++io_index;
-        }
+    io_index = 0;
+    for (const auto& desc : _graph->get_metadata().outputs) {
+        _logger.debug("Update tensor property for output desc index: %u", desc.indexUsedByDriver);
+        const auto& tensor = output_tensors.at(io_index);
+        size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
+        dynamicArguments.setArgumentProperties(desc.indexUsedByDriver,
+                                               tensor->data(),
+                                               tensor->get_shape(),
+                                               get_strides(tensor->get_strides(), elementSize));
+        ++io_index;
     }
     _logger.debug("Initialization completed");
 }
@@ -186,8 +237,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 void DynamicPipeline::push() {
     _logger.debug("push - started");
 
-    auto* dynamicGraph = dynamic_cast<IDynamicGraph*>(_graph.get());
-    OPENVINO_ASSERT(dynamicGraph != nullptr, "Failed to cast graph to IDynamicGraph");
+    const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
+    OPENVINO_ASSERT(vmRuntime != nullptr, "DynamicPipeline requires a valid VM runtime engine");
 
     const auto command_queue_desc = _graph->get_command_queue_desc();
     const bool command_queue_version_changed = (command_queue_desc.key() != _command_queue->desc().key());
@@ -201,55 +252,264 @@ void DynamicPipeline::push() {
         }
     }
 
-    auto commandQueueHandle = _command_queue->handle();
-    for (size_t i = 0; i < _command_lists.size(); ++i) {
-        OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
-
-        ze_fence_handle_t fence = nullptr;
-        ze_event_handle_t event = nullptr;
-        if (_sync_output_with_fences) {
-            fence = _fences.at(i)->handle();
+    OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
+    const ze_fence_handle_t fence = _sync_output_with_fences ? _fences.front()->handle() : nullptr;
+    auto& commandLists = _command_list_group;
+    auto& dynamicArguments = commandLists->getArguments();
+    if (_logger.level() >= ov::log::Level::DEBUG) {
+        _logger.debug("push - inputs info for dynamic graph:");
+        for (auto& memType : dynamicArguments._inputsMemRef) {
+            _logger.debug("push - input: %s", memType.toString().c_str());
         }
-
-        auto& command_lists = _command_lists.at(i);
-        auto& graphArguments = command_lists->getBinding();
-        if (_logger.level() >= ov::log::Level::DEBUG) {
-            _logger.debug("push - inputs info for dynamic graph:");
-            for (auto& memType : graphArguments._inputs) {
-                _logger.debug("push - input: %s", memType.toString().c_str());
-            }
-            _logger.debug("push - outputs info for dynamic graph:");
-            for (auto& memType : graphArguments._outputs) {
-                _logger.debug("push - output: %s", memType.toString().c_str());
-            }
+        _logger.debug("push - outputs info for dynamic graph:");
+        for (auto& memType : dynamicArguments._outputsMemRef) {
+            _logger.debug("push - output: %s", memType.toString().c_str());
         }
-
-        dynamicGraph->execute(_init_structs,
-                              graphArguments,
-                              command_lists->getHandles(),
-                              commandQueueHandle,
-                              fence,
-                              event,
-                              nullptr);
     }
 
+    execute_vm_runtime(vmRuntime,
+                       dynamicArguments,
+                       commandLists->getHandles(),
+                       _command_queue->handle(),
+                       fence,
+                       nullptr);
+
     _logger.debug("push - completed");
+}
+
+void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
+                                         DynamicArguments& args,
+                                         std::vector<ze_command_list_handle_t>& commandLists,
+                                         ze_command_queue_handle_t commandQueue,
+                                         ze_fence_handle_t fence,
+                                         ze_event_handle_t event) {
+    _logger.debug("Start to execute graph with runtime engine");
+
+    const bool firstInference = !args._commandListsRecorded;
+    bool noTensorChange = true;
+
+    // These vectors only stage the memref handle pointers for the npuVMRuntimeExecute call below. The handle objects
+    // themselves are owned by the persistent DynamicArguments (args._inputsMemRef[i]._impl), so keeping these vectors
+    // local is safe even though device execution is async.
+    std::vector<npu_vm_runtime_mem_ref_handle_t> inputMemRefHandles, outputMemRefHandles;
+
+    auto processMemRefs = [&](auto& memRefs, auto& targetMemRefHandles) {
+        targetMemRefHandles.clear();
+        targetMemRefHandles.reserve(memRefs.size());
+
+        for (auto& memref : memRefs) {
+            std::shared_ptr<MemRefTypeImpl> impl = std::static_pointer_cast<MemRefTypeImpl>(memref._impl);
+            if (impl == nullptr) {
+                impl = std::make_shared<MemRefTypeImpl>();
+                memref._impl = impl;
+            }
+            impl->UpdateMemRefHandleStatus(memref);
+
+            // VM runtime execute path always needs current memref handles.
+            targetMemRefHandles.push_back(impl->_memRef);
+
+            if (impl->_ptrUpdated || impl->_shapeUpdated || impl->_strideUpdated) {
+                noTensorChange = false;
+            }
+        }
+    };
+
+    processMemRefs(args._inputsMemRef, inputMemRefHandles);
+    processMemRefs(args._outputsMemRef, outputMemRefHandles);
+
+    if (!firstInference && noTensorChange) {
+        _logger.debug("Reuse command list without update since no tensor change detected");
+        auto result = zeCommandQueueExecuteCommandLists(commandQueue,
+                                                        static_cast<uint32_t>(commandLists.size()),
+                                                        commandLists.data(),
+                                                        fence);
+        if (result != ZE_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to submit command lists");
+        }
+        return;
+    }
+
+    _logger.debug("Reset command list to run with runtime");
+    // Reset commandLists since there are tensor with new shapes or it is the first execution, can not reuse command
+    // list with update
+    for (auto& cmdList : commandLists) {
+        const auto result = zeCommandListReset(cmdList);
+        if (result != ZE_RESULT_SUCCESS) {
+            OPENVINO_THROW("Failed to reset command list");
+        }
+    }
+
+    npu_vm_runtime_execute_params_t params = {};
+    params.executionContext = _executionContext.ensure(vmRuntime);
+    params.pInputs = inputMemRefHandles.data();
+    params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
+    params.pOutputs = outputMemRefHandles.data();
+    params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
+    params.ctx = _init_structs->getContext();
+    params.device = _init_structs->getDevice();
+    params.graphDdiTableExt = _init_structs->getGraphDdiTable().getImpl();
+    params.commandLists = commandLists.data();
+    params.numCommandLists = static_cast<uint64_t>(commandLists.size());
+    params.commandQueue = commandQueue;
+    params.inferenceFence = fence;
+    params.event = event;
+
+    _logger.debug("Execute graph with runtime engine");
+    if (npuVMRuntimeExecute(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to execute VM runtime engine");
+    }
+    _logger.debug("Execution runtime engine is created successfully.");
+
+    args._commandListsRecorded = true;
+    _logger.debug("Completed to execute graph with runtime engine");
+}
+
+std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
+    const std::vector<std::shared_ptr<ov::ITensor>>& inputTensors,
+    const std::vector<std::shared_ptr<ov::ITensor>>& outputTensors) {
+    _logger.debug("predict_output_shapes - started");
+
+    const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
+    OPENVINO_ASSERT(vmRuntime != nullptr, "predict_output_shapes requires a valid VM runtime engine");
+
+    // Convert OV tensors/metadata into MemRef descriptors. A nullptr tensor falls back to the graph metadata
+    // max shape. This keeps MemRef/DynamicArguments knowledge confined to the pipeline layer.
+    const auto& metadata = _graph->get_metadata();
+    auto buildMemRefs = [](const std::vector<std::shared_ptr<ov::ITensor>>& tensors,
+                           const std::vector<IODescriptor>& descriptors) {
+        OPENVINO_ASSERT(tensors.size() == descriptors.size(),
+                        "Tensor count does not match descriptor count: ",
+                        tensors.size(),
+                        " vs ",
+                        descriptors.size());
+        std::vector<MemRefType> memRefs(descriptors.size());
+        for (size_t i = 0; i < memRefs.size(); ++i) {
+            const auto& tensor = tensors.at(i);
+            if (tensor != nullptr) {
+                // Use userTensor or levelzero Tensor to update memref handle
+                memRefs[i].set(get_tensor_data_ptr(tensor), 0, tensor);
+            } else {
+                // If all tensors are not set, use metadata
+                memRefs[i].setArg(nullptr);
+                memRefs[i]._offset = 0;
+                // TODO : BatchSize not checked here
+                memRefs[i].setSize(descriptors.at(i).shapeFromCompiler.get_max_shape());
+                memRefs[i].updateStride();
+            }
+        }
+        return memRefs;
+    };
+
+    std::vector<MemRefType> inputsMemRefs = buildMemRefs(inputTensors, metadata.inputs);
+    std::vector<MemRefType> outputsMemRefs = buildMemRefs(outputTensors, metadata.outputs);
+
+    // Snapshot the pre-prediction (input-derived) output shapes to detect shape changes after prediction.
+    const std::vector<MemRefType> originalOutputMemRefs(outputsMemRefs);
+
+    std::vector<npu_vm_runtime_mem_ref_handle_t> inputMemRefHandles, outputMemRefHandles;
+
+    auto processMemRefs = [&](auto& memRefs, auto& destMemRefHandles) {
+        destMemRefHandles.clear();
+        destMemRefHandles.reserve(memRefs.size());
+
+        for (auto& memref : memRefs) {
+            auto impl = std::static_pointer_cast<MemRefTypeImpl>(memref._impl);
+            if (impl == nullptr) {
+                impl = std::make_shared<MemRefTypeImpl>();
+                memref._impl = impl;
+            }
+            impl->UpdateMemRefHandleStatus(memref);
+            destMemRefHandles.push_back(impl->_memRef);
+        }
+    };
+
+    processMemRefs(inputsMemRefs, inputMemRefHandles);
+    processMemRefs(outputsMemRefs, outputMemRefHandles);
+
+    npu_vm_runtime_result_t result = NPU_VM_RUNTIME_RESULT_SUCCESS;
+    npu_vm_runtime_version_t version{};
+    if ((result = npuVMRuntimeGetAPIVersion(&version)) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to get VM runtime version, error code: ", result);
+    }
+    _logger.debug("VM runtime version: %u.%u", ZE_MAJOR_VERSION(version), ZE_MINOR_VERSION(version));
+
+    if (version == NPU_VM_RUNTIME_VERSION_1_0) {
+        npu_vm_runtime_predict_output_shape_params_t params{};
+        params.pInputs = inputMemRefHandles.data();
+        params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
+        params.pOutputs = outputMemRefHandles.data();
+        params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
+
+        result = npuVMRuntimePredictOutputShape(vmRuntime, &params);
+    } else {
+        npu_vm_runtime_predict_output_shape_params_t2 params{};
+        params.pInputs = inputMemRefHandles.data();
+        params.numOfInputs = static_cast<uint32_t>(inputMemRefHandles.size());
+        params.pOutputs = outputMemRefHandles.data();
+        params.numOfOutputs = static_cast<uint32_t>(outputMemRefHandles.size());
+        params.executionContext = _executionContext.ensure(vmRuntime);
+
+        result = npuVMRuntimePredictOutputShape2(vmRuntime, &params);
+    }
+
+    if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to predict output shape with VM runtime engine, error code: ", result);
+    } else {
+        for (size_t i = 0; i < outputsMemRefs.size(); ++i) {
+            auto& out = outputsMemRefs[i];
+            auto outImpl = std::static_pointer_cast<MemRefTypeImpl>(out._impl);
+
+            if (outImpl == nullptr) {
+                OPENVINO_THROW("MemRefType implementation is broken, unknown error happens in shape prediction.");
+            }
+            outImpl->alignWithHandle(out);
+        }
+        _logger.debug("Output shape prediction is done successfully.");
+    }
+
+    // Build predicted output shapes (OV shapes) and detect whether prediction changed any
+    // output shape vs the pre-prediction (input-derived) shapes. MemRef stays internal to the pipeline layer.
+    std::vector<ov::Shape> predictedShapes(outputsMemRefs.size());
+    bool outputShapeChanged = false;
+    for (size_t i = 0; i < outputsMemRefs.size(); ++i) {
+        ov::Shape shape;
+        shape.reserve(static_cast<size_t>(outputsMemRefs[i]._dimsCount));
+        for (int64_t j = 0; j < outputsMemRefs[i]._dimsCount; ++j) {
+            shape.push_back(static_cast<size_t>(outputsMemRefs[i]._sizes[j]));
+        }
+
+        predictedShapes[i] = std::move(shape);
+
+        if (!outputShapeChanged && !outputsMemRefs[i].compare(originalOutputMemRefs[i])) {
+            outputShapeChanged = true;
+        }
+    }
+    if (outputShapeChanged) {
+        _logger.debug("predict_output_shapes - output shape change detected");
+    }
+
+    if (_logger.level() >= ov::log::Level::DEBUG) {
+        for (size_t i = 0; i < predictedShapes.size(); ++i) {
+            _logger.debug("predict_output_shapes - output %zu predicted shape: %s",
+                          i,
+                          predictedShapes[i].to_string().c_str());
+        }
+    }
+    return predictedShapes;
 }
 
 void DynamicPipeline::pull() {
     _logger.debug("pull - started");
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "DynamicPipeline", "pull");
 
-    for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (_sync_output_with_fences) {
-            _fences.at(i)->hostSynchronize();
-        } else {
-            _events.at(i)->hostSynchronize();
-        }
-        /// sample npu timestamps if feature was activated
-        if (_npu_profiling != nullptr) {
-            _npu_profiling->sampleNpuTimestamps();
-        }
+    if (_sync_output_with_fences) {
+        _fences.front()->hostSynchronize();
+    } else {
+        _events.front()->hostSynchronize();
+    }
+    /// sample npu timestamps if feature was activated
+    if (_npu_profiling != nullptr) {
+        _npu_profiling->sampleNpuTimestamps();
     }
 
     _logger.debug("pull - completed");
@@ -257,12 +517,10 @@ void DynamicPipeline::pull() {
 
 void DynamicPipeline::reset() const {
     _logger.debug("reset - started");
-    for (size_t i = 0; i < _command_lists.size(); ++i) {
-        if (_sync_output_with_fences) {
-            _fences.at(i)->reset();
-        } else {
-            _events.at(i)->reset();
-        }
+    if (_sync_output_with_fences) {
+        _fences.front()->reset();
+    } else {
+        _events.front()->reset();
     }
     _logger.debug("reset - completed");
 }
@@ -273,26 +531,13 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "DynamicPipeline", "updateCommandList");
     _logger.debug("update_graph_arguments - started");
     // This is the tensor with right shape and strides
-    // The required check is alredy done in inferRequest
+    // The required check is already done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    const size_t number_of_command_lists = _command_lists.size();
-
-    for (size_t i = 0; i < number_of_command_lists; i++) {
-        if (tensor->get_element_type().bitwidth() < 8 || tensor->is_continuous() || tensor->get_strides().empty()) {
-            _command_lists.at(i)->updateMutableCommandList(index,
-                                                           static_cast<const unsigned char*>(zeroTensor->data()) +
-                                                               (i * tensor->get_byte_size()) / number_of_command_lists,
-                                                           get_strides(tensor->get_strides(), elementSize),
-                                                           tensor->get_shape());
-        } else {
-            _command_lists.at(i)->updateMutableCommandList(
-                index,
-                static_cast<const unsigned char*>(zeroTensor->data()) + (i * tensor->get_strides()[0]),
-                get_strides(tensor->get_strides(), elementSize),
-                tensor->get_shape());
-        }
-    }
+    _command_list_group->updateMutableCommandList(index,
+                                                  zeroTensor->data(),
+                                                  get_strides(tensor->get_strides(), elementSize),
+                                                  tensor->get_shape());
     _logger.debug("update_graph_arguments - completed");
 }
 
@@ -306,20 +551,15 @@ void DynamicPipeline::update_graph_arguments(uint32_t index,
                       "updateCommandListIndex");
     _logger.debug("update_graph_arguments - update command list by index");
     // This is the tensor with right shape and strides
-    // The required check is alredy done in inferRequest
+    // The required check is already done in inferRequest
     const std::shared_ptr<ov::ITensor>& tensor = userTensor ? userTensor : zeroTensor;
     size_t elementSize = tensor->get_element_type().bitwidth() < 8 ? 1 : tensor->get_element_type().size();
-    const size_t number_of_command_lists = _command_lists.size();
+    OPENVINO_ASSERT(batch_index == 0, "DynamicPipeline owns only one command-list group");
 
-    OPENVINO_ASSERT(batch_index < number_of_command_lists,
-                    "Command list index is higher than the number of Command lists ",
-                    batch_index);
-
-    _command_lists.at(batch_index)
-        ->updateMutableCommandList(index,
-                                   zeroTensor->data(),
-                                   get_strides(tensor->get_strides(), elementSize),
-                                   tensor->get_shape());
+    _command_list_group->updateMutableCommandList(index,
+                                                  zeroTensor->data(),
+                                                  get_strides(tensor->get_strides(), elementSize),
+                                                  tensor->get_shape());
 }
 
 }  // namespace intel_npu

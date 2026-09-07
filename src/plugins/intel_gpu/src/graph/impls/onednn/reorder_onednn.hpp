@@ -85,10 +85,7 @@ struct ReorderImplementationManager : public ImplementationManager {
             return false;
         if (output_fmt == format::b_fs_yx_fsv16 && data_type_traits::is_i8_u8(in_dt))
             return false;
-        if (output_fmt == format::bfyx && out_dt == data_types::f32)
-            return false;
-
-        return true;
+        return output_fmt != format::bfyx || out_dt != data_types::f32;
     }
 
     static bool is_supported_pad_for_reorder(const layout& layout) {

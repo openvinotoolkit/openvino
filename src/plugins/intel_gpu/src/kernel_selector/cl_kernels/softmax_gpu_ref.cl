@@ -83,7 +83,7 @@ KERNEL(softmax)(
 #endif
 
     const size_t class_num = INPUT0_CLASS_NUM;
-    ACCUMULATOR_TYPE max_value = UNIT_VAL_MIN;
+    ACCUMULATOR_TYPE max_value = TO_ACCUMULATOR_TYPE(INPUT0_VAL_MIN);
 #if IS_DYNAMIC
     #define TMP_CLASS_PITCH INPUT0_CLASS_PITCH
     __global ACCUMULATOR_TYPE* data = tmp_buffer + in_depth_offset;
@@ -102,7 +102,7 @@ KERNEL(softmax)(
         const uint index = INPUT0_GET_INDEX(b + *b_offset, f + *f_offset, y + *y_offset, x + *x_offset);
 #endif
 #endif
-        ACCUMULATOR_TYPE in = input[index];
+        ACCUMULATOR_TYPE in = DECODE_INPUT0_COMPUTE_TYPE(input[index]);
         max_value = max(max_value, in);
         data[cls*TMP_CLASS_PITCH] = in;
     }
@@ -130,7 +130,7 @@ KERNEL(softmax)(
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
 #else
-        output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
+        output[output_idx] = TO_OUTPUT_TYPE(ACTIVATION(res, ACTIVATION_PARAMS));
 #endif
     }
 }

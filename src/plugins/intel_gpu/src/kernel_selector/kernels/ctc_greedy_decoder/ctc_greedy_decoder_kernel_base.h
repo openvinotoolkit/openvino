@@ -26,7 +26,7 @@ struct ctc_greedy_decoder_params : public base_params {
 class CTCGreedyDecoderKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~CTCGreedyDecoderKernelBase() {}
+    ~CTCGreedyDecoderKernelBase() override = default;
     using DispatchData = CommonDispatchData;
 
 protected:

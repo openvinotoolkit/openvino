@@ -80,19 +80,14 @@ OpenVINO test instantiations using NPU Plugin's own arguments.
 
 ### File naming
 
-Test files do not need the `_test` suffix, their location is self explanatory. The only exception is when the test header shares the same name as a production header.
+Test files do not need the `_test` suffix, their location is self explanatory.
 
 ### File layout
 
-Tests that use `INSTANTIATE_TEST_SUITE_P` (parameterised tests) are split across two files:
+Functional tests are defined in a single `*.cpp` file.
 
-| File | Namespace | Contents |
-|------|----------|-----------|
-| `*.hpp` | `ov::test::behavior` | class declarations, method/function definitions, test definitions, aliases |
-| `*.cpp` | anonymous namespace | `INSTANTIATE_TEST_SUITE_P` calls, and the arguments passed to them |
+For parameterized tests, keep class declarations/definitions and `INSTANTIATE_TEST_SUITE_P` calls in the same `*.cpp` file.
 
-The `.hpp` file must be placed in the same directory as its `.cpp` file.
+Do not introduce paired `*.hpp` files for new functional tests unless the header is shared by multiple translation units as a utility/header-only helper.
 
-Tests that use only `TEST_F` or `TEST` (no instantiation step) live entirely in a single `.cpp` file, no paired `.hpp` is needed.
-
-Tests from `shared_tests_instances` also do not need to use `.hpp` files.
+Tests from `shared_tests_instances` also do not need paired `*.hpp` files.

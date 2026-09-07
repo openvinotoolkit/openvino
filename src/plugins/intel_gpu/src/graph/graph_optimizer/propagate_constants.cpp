@@ -32,11 +32,11 @@ namespace {
 // Refreshes stale output layouts before building kernel params to avoid
 // incorrect shape_type classification.
 void try_reselect_impl_for_node(program_node* node) {
-    bool can_select_impl = !node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty());
+    bool can_select_impl = !node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty());
     if (!can_select_impl)
         return;
 
-    auto selected_impl = node->get_selected_impl();
+    auto* selected_impl = node->get_selected_impl();
     bool has_selected_impl = selected_impl != nullptr;
     bool need_new_impl_selection = !has_selected_impl;
 
@@ -91,7 +91,7 @@ void try_reselect_impl_for_node(program_node* node) {
 // ToDo remove friendship relation from  program_node and program
 void propagate_constants::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::PropagateConstants");
-    for (auto& node : p.get_processing_order()) {
+    for (const auto& node : p.get_processing_order()) {
         if (node->is_constant())
             handle_constant(p, *node);
     }
@@ -106,7 +106,7 @@ void propagate_constants::run(program& p) {
     // than removed (see next loop)
     auto proc_itr = p.get_processing_order().begin();
     while (proc_itr != p.get_processing_order().end()) {
-        auto& node = (*proc_itr++);
+        const auto& node = (*proc_itr++);
         if (!node->is_constant())
             continue;
         if (has_non_const_user(*node) || (node->is_output() && !node->is_type<data>()))
@@ -184,7 +184,7 @@ void propagate_constants::run(program& p) {
         // Only users of constants that transitioned from dynamic to static need impl reselection.
         if (was_dynamic && !new_node.get_output_layout(false).is_dynamic()) {
             std::queue<program_node*> queue;
-            for (auto& user : new_node.get_users()) {
+            for (const auto& user : new_node.get_users()) {
                 queue.push(user);
             }
             while (!queue.empty()) {
@@ -194,7 +194,7 @@ void propagate_constants::run(program& p) {
                     continue;
                 reselection_targets.insert(n);
                 if (!n->is_all_valid_output_layouts()) {
-                    for (auto& user : n->get_users()) {
+                    for (const auto& user : n->get_users()) {
                         queue.push(user);
                     }
                 }
@@ -213,7 +213,7 @@ void propagate_constants::run(program& p) {
 bool propagate_constants::has_non_const_user(program_node& node) const {
     if (!node.is_constant())
         return true;
-    for (auto& user : node.get_users()) {
+    for (const auto& user : node.get_users()) {
         if (!user->is_constant())
             return true;
     }
@@ -322,7 +322,7 @@ void propagate_constants::add_deps_to_tpl(program& prog, const std::vector<std::
     /   \
     A     B
     */
-    for (auto& dep : deps) {
+    for (const auto& dep : deps) {
         if (dep.first->is_type<data>()) {
             auto dep_ptr = prog.get_node_ptr(dep.first->get_primitive()->id);
             if (nodes.find(dep_ptr) == nodes.end()) {

@@ -52,6 +52,22 @@ public:
     SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
+class QuantizedSDPAWithGlobalMask : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::QuantizedSDPAWithGlobalMask");
+    static constexpr const char* pattern_name() {
+        return "QuantizedSDPAWithGlobalMask";
+    }
+    static constexpr const char* isolation_tag() {
+        return "attn";
+    }
+    static constexpr const char* group_name() {
+        return "attn";
+    }
+    QuantizedSDPAWithGlobalMask(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                                const std::string& isol_tag);
+};
+
 // Matches decomposed SDPA pattern where past KV cache inputs have been converted
 // to integer precision (i8/u8) with dynamic dequantization nodes inserted by
 // ConvertKVCacheToPrecision. The dequantization chain is:
@@ -93,6 +109,18 @@ class AttentionBroadcast3 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::AttentionBroadcast3");
     AttentionBroadcast3();
+};
+
+class AttentionBroadcast4 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::regularize::AttentionBroadcast4");
+    AttentionBroadcast4();
+};
+
+class SeparateKVCache : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::regularize::SeparateKVCache");
+    SeparateKVCache();
 };
 
 class ShapeOfParameter : public ov::pass::MatcherPass {

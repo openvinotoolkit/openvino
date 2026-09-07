@@ -100,9 +100,8 @@ public:
             float bbox1_size = bbox1.area();
             float bbox2_size = bbox2.area();
             return intersect_size / (bbox1_size + bbox2_size - intersect_size);
-        } else {
-            return 0.0f;
         }
+        return 0.0f;
     }
 
     static void decode_bounding_box(const bounding_box& prior_bbox,
@@ -221,7 +220,7 @@ public:
         if (top_k != -1)
             if (scoreIndexPairs.size() > static_cast<size_t>(top_k))
                 scoreIndexPairs.resize(top_k);
-        while (scoreIndexPairs.size() != 0) {
+        while (!scoreIndexPairs.empty()) {
             const int cls = scoreIndexPairs.front().second.first;
             const int prior = scoreIndexPairs.front().second.second;
             std::vector<int>& currInd = indices[cls];

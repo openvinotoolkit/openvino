@@ -85,7 +85,7 @@ std::vector<layout> arg_max_min_inst::calc_output_layouts(arg_max_min_node const
         ShapeType{}
     };
 
-    auto& constant_mem = impl_param.memory_deps;
+    const auto& constant_mem = impl_param.memory_deps;
     if (desc->top_k > 0) {
         std::unordered_map<size_t, ov::Tensor> const_data;
         auto topk = desc->top_k;

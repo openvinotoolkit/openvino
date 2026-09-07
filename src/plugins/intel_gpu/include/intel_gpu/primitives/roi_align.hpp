@@ -64,7 +64,7 @@ struct roi_align : public primitive_base<roi_align> {
     int sampling_ratio = 0;
     /// @brief multiplicative spatial scale factor to translate ROI coordinates
     /// from their input spatial scale to the scale used when pooling.
-    float spatial_scale = false;
+    float spatial_scale = 0.0f;
     /// @brief Method to perform pooling to produce output feature map elements.
     PoolingMode pooling_mode = PoolingMode::max;
     /// @brief Method to coordinate alignment.

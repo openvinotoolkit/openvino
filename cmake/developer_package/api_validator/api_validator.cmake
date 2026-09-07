@@ -86,6 +86,8 @@ function(_ov_add_api_validator_post_build_step_recursive)
     endforeach()
 
     set(API_VALIDATOR_TARGETS ${API_VALIDATOR_TARGETS} PARENT_SCOPE)
+    # Propagate targets visited for dependency graph introspection upwards
+    set(checked_targets "${checked_targets}" PARENT_SCOPE)
 endfunction()
 
 set(VALIDATED_TARGETS "" CACHE INTERNAL "")

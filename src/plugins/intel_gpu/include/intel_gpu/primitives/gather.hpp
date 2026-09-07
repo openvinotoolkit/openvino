@@ -90,7 +90,7 @@ struct gather : public primitive_base<gather> {
     ov::element::Type decompressed_type;
     input_info decompression_scale;
     input_info decompression_zero_point;
-    std::optional<float> decompression_zero_point_scalar = std::optional<float>();
+    std::optional<float> decompression_zero_point_scalar;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

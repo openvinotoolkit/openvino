@@ -58,8 +58,8 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                 if (!valid_ps(input_ps) || !valid_ps(output_ps) || input_ps.rank().get_length() != output_ps.rank().get_length())
                     return false;
 
-                auto& total_length = input_ps[input_ps.rank().get_length() - 1];
-                auto& split_length = output_ps[output_ps.rank().get_length() - 1];
+                const auto& total_length = input_ps[input_ps.rank().get_length() - 1];
+                const auto& split_length = output_ps[output_ps.rank().get_length() - 1];
                 if (total_length.get_length() / 3 != split_length.get_length())
                     return false;
 
@@ -110,7 +110,7 @@ ConvertStridedSlicesToVariadicSplit::ConvertStridedSlicesToVariadicSplit() {
                         return false;
                     if (!check_mask(end_mask))
                         return false;
-                    if (!((values.back() == end_offset) || (values.back() == max_value)))
+                    if ((values.back() != end_offset) && (values.back() != max_value))
                         return false;
                 } else {
                     return false;

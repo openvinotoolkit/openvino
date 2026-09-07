@@ -98,6 +98,11 @@ tests:
     mode: gtest_single
     profiles: [cpu]
 
+  - name: ov_gguf_frontend_tests
+    binary: ov_gguf_frontend_tests
+    mode: gtest_single
+    profiles: [cpu]
+
   - name: ov_inference_functional_tests
     binary: ov_inference_functional_tests
     mode: gtest_single

@@ -11,9 +11,9 @@ bool PoolingKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    auto& params = dynamic_cast<const pooling_params&>(p);
+    const auto& params = dynamic_cast<const pooling_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
@@ -30,22 +30,25 @@ Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) con
 
     if (pool_type == PoolType::MAX) {
         return input_dt;
-    } else {
-        switch (input_dt) {
-            case Datatype::F32: return Datatype::F32;
-            case Datatype::F16: return Datatype::F32;
-            case Datatype::INT8: return Datatype::INT32;
-            case Datatype::UINT8: return Datatype::INT32;
-            default: return Datatype::F32;
-        }
+    }
+    switch (input_dt) {
+    case Datatype::F32:
+        return Datatype::F32;
+    case Datatype::F16:
+        return Datatype::F32;
+    case Datatype::INT8:
+        return Datatype::INT32;
+    case Datatype::UINT8:
+        return Datatype::INT32;
+    default:
+        return Datatype::F32;
     }
 }
 
 Datatype PoolingKernelBase::GetActivationType(const pooling_params& params) const {
     if (params.outputs[0].GetDType() == Datatype::F16)
         return Datatype::F16;
-    else
-        return Datatype::F32;
+    return Datatype::F32;
 }
 
 
@@ -94,11 +97,12 @@ bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
 
     if (pp.poolPad.x != 0 || pp.poolPad.y != 0 || pp.poolPad.z != 0) {
         return true;
-    } else if (pp.poolDilation.x > 1 || pp.poolDilation.y > 1 || pp.poolDilation.z > 1) {
+    }
+    if (pp.poolDilation.x > 1 || pp.poolDilation.y > 1 || pp.poolDilation.z > 1) {
         return true;
-    } else if ((((input.X().v - pp.poolSize.x) / pp.poolStride.x) + 1) < output.X().v ||
-               (((input.Y().v - pp.poolSize.y) / pp.poolStride.y) + 1) < output.Y().v ||
-               (((input.Z().v - pp.poolSize.z) / pp.poolStride.z) + 1) < output.Z().v) {
+    }
+    if ((((input.X().v - pp.poolSize.x) / pp.poolStride.x) + 1) < output.X().v || (((input.Y().v - pp.poolSize.y) / pp.poolStride.y) + 1) < output.Y().v ||
+        (((input.Z().v - pp.poolSize.z) / pp.poolStride.z) + 1) < output.Z().v) {
         return true;
     }
 
@@ -114,25 +118,21 @@ bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
     auto mod_y = (input.Y().v - pp.poolSize.y) % pp.poolStride.y;
     auto mod_z = (input.Z().v - pp.poolSize.z) % pp.poolStride.z;
 
-    return mod_x || mod_y || mod_z;
+    return (mod_x != 0u) || (mod_y != 0u) || (mod_z != 0u);
 }
 
 bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params& params) const {
     bool has_fused_quantize_to_int8 = false;
-    for (auto& op : params.fused_ops) {
+    for (const auto& op : params.fused_ops) {
         if (op.GetType() == FusedOpType::QUANTIZE &&
             (op.output_tensor.GetDType() == Datatype::INT8 || op.output_tensor.GetDType() == Datatype::UINT8)) {
             has_fused_quantize_to_int8 = true;
         }
     }
 
-    if (!has_fused_quantize_to_int8 &&
+    return !has_fused_quantize_to_int8 &&
         (params.outputs[0].GetDType() == Datatype::INT8 || params.outputs[0].GetDType() == Datatype::UINT8) &&
-        params.poolType == PoolType::AVG) {
-        return true;
-    }
-
-    return false;
+        params.poolType == PoolType::AVG;
 }
 
 PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_params& params) const {

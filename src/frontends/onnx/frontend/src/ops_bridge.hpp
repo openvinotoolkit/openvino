@@ -10,6 +10,8 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "core/operator_set.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
@@ -89,7 +91,9 @@ private:
     std::unordered_map<std::string, DomainOpset> m_map;
 };
 
-const std::vector<std::string> get_supported_ops_via_tokenizers();
+// Returns operations convertible via the openvino-tokenizers extension as (op_type, domain) pairs.
+// An empty domain denotes the default ONNX opset ("ai.onnx").
+const std::vector<std::pair<std::string, std::string>>& get_supported_ops_via_tokenizers();
 
 }  // namespace onnx
 }  // namespace frontend

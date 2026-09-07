@@ -95,7 +95,7 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
                     reordered_inputs[0],
                     reordered_inputs[1],
                     0,
-                    op->m_center_point_box,
+                    op->m_center_point_box != 0,
                     op->m_sort_result_descending,
                     "", "", "", "", "", "", num_outputs);
 
@@ -157,7 +157,7 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
                     reordered_inputs[0],
                     reordered_inputs[1],
                     static_cast<int>(outputIndices),
-                    op->m_center_point_box,
+                    op->m_center_point_box != 0,
                     op->m_sort_result_descending,
                     "", "", "", "", "", "");
 

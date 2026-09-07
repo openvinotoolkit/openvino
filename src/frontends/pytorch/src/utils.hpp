@@ -55,6 +55,22 @@ std::tuple<Output<Node>, Output<Node>> get_shape_rank(const NodeContext& context
 
 Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<Node>& kernel, int64_t groups);
 
+/// \brief Ensures the trailing two axes of `x` form an n x n matrix.
+///
+/// Static trailing dims that are not n x n are rejected at conversion (`op_label` names the op).
+/// When they are dynamic (the common TorchScript case) a runtime guard pins each trailing axis to
+/// n with its own Reshape -- the per-axis check catches e.g. [1, 9] that a single [n, n] reshape
+/// would accept as 3x3. A genuine n x n is an identity; any other size fails loudly at runtime.
+/// \param context Node context for marking nodes.
+/// \param x Batched matrix whose trailing two axes are validated/guarded.
+/// \param n Expected square matrix size.
+/// \param op_label Op name used in the error message.
+/// \return `x` unchanged when statically validated, otherwise the runtime reshape-guarded matrix.
+Output<Node> ensure_trailing_square(const NodeContext& context,
+                                    const Output<Node>& x,
+                                    int64_t n,
+                                    const std::string& op_label);
+
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id);
 
 std::shared_ptr<Node> get_node_axes_range(const NodeContext& context, const Output<Node>& x);
@@ -132,7 +148,61 @@ Output<Node> masked_fill(ov::pass::NodeRegistry& rg,
                          const Output<Node>& mask,
                          const Output<Node>& value);
 
+// Build the static-kernel max pool (v14::MaxPool) for an already-resolved kernel/strides/pads/
+// dilations. Shared by the translator (constant kernel) and the deferred resolver (kernel that
+// became constant after shape propagation). Nodes go into `rg`; returns the pool result (2 outputs
+// when `return_indices`).
+OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
+                                   Output<Node> input,
+                                   int dims,
+                                   bool return_indices,
+                                   const ov::Shape& kernel,
+                                   const ov::Strides& strides,
+                                   const ov::Shape& pads,
+                                   const ov::Strides& dilations,
+                                   ov::op::RoundingType rounding_type);
+
 Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask);
+
+/// \brief Builds a multi-head attention subgraph with packed query/key/value projection weights.
+///
+/// Shared by `aten::_native_multi_head_attention` and `aten::_transformer_encoder_layer_fwd`.
+/// When the attention weights are not requested, the attention itself is expressed with a single
+/// `v13::ScaledDotProductAttention`, otherwise it is decomposed so that the weights can be returned.
+///
+/// \param context Node context used to mark the created nodes.
+/// \param query Query tensor of shape [batch, sequence, embed_dim].
+/// \param key Key tensor of shape [batch, sequence, embed_dim].
+/// \param value Value tensor of shape [batch, sequence, embed_dim].
+/// \param embed_dim Scalar embedding dimension.
+/// \param num_heads Scalar number of attention heads.
+/// \param qkv_weight Packed query/key/value projection weight of shape [3 * embed_dim, embed_dim].
+/// \param qkv_bias Packed query/key/value projection bias of shape [3 * embed_dim].
+/// \param proj_weight Output projection weight.
+/// \param proj_bias Output projection bias.
+/// \param attn_mask Optional attention mask. A boolean mask excludes the positions marked with
+///        `true`, any other mask is additive. Pass an empty output to skip masking.
+/// \param mask_type PyTorch mask type: 0 - source mask of shape [sequence, sequence], 1 - key
+///        padding mask of shape [batch, sequence], 2 - mask already broadcast to the attention
+///        weights shape. Ignored when `attn_mask` is empty.
+/// \param need_weights When true, the attention weights are computed and returned as the second
+///        element of the result, otherwise the second element is empty.
+/// \param average_weights When true, the returned attention weights are averaged over the heads.
+/// \return Pair of the attention output and the attention weights.
+std::pair<Output<Node>, Output<Node>> build_multi_head_attention(const NodeContext& context,
+                                                                 const Output<Node>& query,
+                                                                 const Output<Node>& key,
+                                                                 const Output<Node>& value,
+                                                                 const Output<Node>& embed_dim,
+                                                                 const Output<Node>& num_heads,
+                                                                 const Output<Node>& qkv_weight,
+                                                                 const Output<Node>& qkv_bias,
+                                                                 const Output<Node>& proj_weight,
+                                                                 const Output<Node>& proj_bias,
+                                                                 const Output<Node>& attn_mask,
+                                                                 int64_t mask_type,
+                                                                 bool need_weights,
+                                                                 bool average_weights);
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
 

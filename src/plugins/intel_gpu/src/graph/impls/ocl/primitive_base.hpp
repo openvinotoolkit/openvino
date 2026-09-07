@@ -33,6 +33,17 @@
 namespace cldnn {
 namespace ocl {
 
+inline void validate_f4e2m1_packed_output(const layout& output_layout, const char* primitive_name) {
+    if (output_layout.data_type != ov::element::f4e2m1 || output_layout.is_dynamic()) {
+        return;
+    }
+
+    OPENVINO_ASSERT(output_layout.get_linear_size() % 8 == 0,
+                    "[GPU] ", primitive_name, ": f4e2m1 output size must be a multiple of 8 elements "
+                    "(32-bit atomic write granularity), but got: ",
+                    output_layout.get_linear_size());
+}
+
 /*
 Base class for all GPU implementation of specified primitive type.
 For example, all gpu convolution implementations should derive from typed_primitive_impl_ocl<convolution>.
@@ -90,9 +101,9 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
     static std::unique_ptr<primitive_impl> create(const typed_program_node<PType>& arg, const kernel_impl_params& impl_param) {
         // concat buffer fusing for dynamic shape is adaptively applied at runtime. So we need to build dynamic impl at build time.
         if (impl_param.can_be_optimized() &&
-            !((impl_param.is_type<concatenation>() ||
-               impl_param.is_type<crop>() ||
-               impl_param.runtime_skippable()) && impl_param.is_dynamic())) {
+            ((!impl_param.is_type<concatenation>() &&
+               !impl_param.is_type<crop>() &&
+               !impl_param.runtime_skippable()) || !impl_param.is_dynamic())) {
             return std::make_unique<ImplType>(kernel_selector::kernel_data{});
         }
         auto kernel_params = ImplType::get_kernel_params(ImplType::static_canonicalize_shapes(impl_param));
@@ -277,7 +288,7 @@ protected:
             kernel_dump_info.add_entry_point(_kernels[kd_idx]->get_id());
         }
 
-        if ((all_events.size() == 0) && (tmp_events.size() > 0))
+        if ((all_events.empty()) && (!tmp_events.empty()))
             return stream.aggregate_events(tmp_events);
 
         bool group_events = (all_events.size() > 1);

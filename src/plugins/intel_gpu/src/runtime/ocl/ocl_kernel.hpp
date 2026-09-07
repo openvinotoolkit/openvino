@@ -34,7 +34,7 @@ public:
         return std::make_shared<ocl_kernel>(get_handle().clone(), _kernel_id);
     }
     bool is_same(const kernel &other) const override {
-        auto other_ptr = dynamic_cast<const ocl_kernel*>(&other);
+        const auto* other_ptr = dynamic_cast<const ocl_kernel*>(&other);
         if (other_ptr == nullptr) {
             return false;
         }

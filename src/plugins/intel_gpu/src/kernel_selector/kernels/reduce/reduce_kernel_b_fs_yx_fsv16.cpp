@@ -172,7 +172,7 @@ JitConstants ReduceKernel_b_fs_yx_fsv16::GetJitConstants(const reduce_params& pa
         std::vector<std::string> idx_order = {"b", "f", "y", "x"};
         std::string var_name = "reduce_result";
 
-        bool cant_handle_vec16 = read_offset > 8 ? true : false;
+        bool cant_handle_vec16 = read_offset > 8;
         size_t vec_size = cant_handle_vec16 ? 8 : read_offset;
 
         FusedOpsConfiguration conf_scalar = {"_SCALAR",

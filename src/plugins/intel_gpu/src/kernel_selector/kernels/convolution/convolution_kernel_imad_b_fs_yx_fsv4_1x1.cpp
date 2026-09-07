@@ -108,11 +108,7 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Validate(const Params& params) con
 
 bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const {
     auto sel_lwg_d = tune_params.lwg_depth;
-    if (CeilDiv(params.weights.IFM().v, fsv) % sel_lwg_d != 0) {
-        return false;
-    }
-
-    return true;
+    return CeilDiv(params.weights.IFM().v, fsv) % sel_lwg_d == 0;
 }
 
 ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::AutoTuneParams ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetAutoTuneParams(const convolution_params& params,
@@ -173,7 +169,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetJitConstants(const conv
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::SetDefault(const convolution_params& params,
                                                                                         int autoTuneIndex) const {
     DispatchData dispatchData;
-    auto& out = params.outputs[0];
+    const auto& out = params.outputs[0];
 
     auto autoTuneParam = GetAutoTuneParams(params, autoTuneIndex);
     auto lwg_depth = autoTuneParam.lwg_depth;
@@ -211,7 +207,7 @@ KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetKernelsDataForAutoTune(c
     if (!Validate(params)) {
         return {};
     }
-    auto& conv_params = static_cast<const convolution_params&>(params);
+    const auto& conv_params = static_cast<const convolution_params&>(params);
 
     KernelsData res = {};
 

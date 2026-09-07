@@ -16,7 +16,7 @@ public:
 
     lrn_kernel_selector();
 
-    virtual ~lrn_kernel_selector() {}
+    ~lrn_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

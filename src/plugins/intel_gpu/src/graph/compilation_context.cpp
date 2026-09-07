@@ -48,7 +48,7 @@ public:
         }
     }
 
-    ~CompilationContext() noexcept {
+    ~CompilationContext() noexcept override {
         cancel();
     }
 

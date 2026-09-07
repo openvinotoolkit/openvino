@@ -478,3 +478,109 @@ TEST(TransposeVTSharedConcatTest, smoke_SharedConcat_MHA_MultipleUsers) {
     ASSERT_TRUE(ov::as_type_ptr<ov::op::v0::MatMul>(matmul1)->get_transpose_b());
     ASSERT_TRUE(ov::as_type_ptr<ov::op::v0::MatMul>(matmul2)->get_transpose_b());
 }
+
+// Regression test for MQA (Multi-Query Attention, num_kv_heads=1).
+//
+// When num_kv_heads=1 the PyTorch frontend lowers aten::transpose(dim1, dim2) to a
+// plain Reshape (swapping a dim of size 1 is data-free and requires no actual
+// permutation).  The GQA matcher must detect and handle this case by replacing the
+// Reshape with a real Transpose before applying the standard optimization.
+//
+// Model topology (GQA pattern, kv_heads=1, q_heads=8):
+//
+//   past_value[1,1,S,D]          new_v[1,Snew,1,D]
+//        |                              |
+//        |              Reshape[1,Snew,1,D→1,1,Snew,D]  ← fake aten::transpose
+//        +--------Concat(axis=2)[1,1,S+Snew,D]---------+
+//                         |
+//                    Unsqueeze[1,1,1,S+Snew,D]
+//                         |
+//             Broadcast[1,1,8,S+Snew,D]  (kv_heads 1→8)
+//                         |
+//               Reshape[1,8,S+Snew,D]
+//                         |
+//        attn[1,8,1,S+Snew] → Softmax → MatMul
+//
+TEST(TransposeVTMQATest, smoke_GQA_ReshapeAsTranspose_MQA) {
+    const int64_t B = 1, kv_heads = 1, q_heads = 8;
+    const int64_t S = 8;     // seq_cache length
+    const int64_t Snew = 4;  // new tokens (> 1 to expose dim-swap issue)
+    const int64_t D = 64;    // head_dim
+
+    // KV cache parameter: [B, kv_heads, S, D]
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                         ov::Shape{(size_t)B, (size_t)kv_heads, (size_t)S, (size_t)D});
+    param->set_friendly_name("past_value");
+
+    // New V tokens: [B, Snew, kv_heads, D]  (output of V-proj + reshape)
+    auto new_v =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                ov::Shape{(size_t)B, (size_t)Snew, (size_t)kv_heads, (size_t)D});
+    new_v->set_friendly_name("new_v");
+
+    // aten::transpose(dim1=1, dim2=2) on [B, Snew, 1, D] → [B, 1, Snew, D].
+    // Because dim[2]==1, data layout is unchanged → frontend lowers this to Reshape.
+    auto reshape_shape_cst =
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{B, kv_heads, Snew, D});
+    auto fake_transpose = std::make_shared<ov::op::v1::Reshape>(new_v, reshape_shape_cst, false);
+    fake_transpose->set_friendly_name("fake_transpose_as_reshape");
+
+    // Concat along seq dim (axis=2): [B, 1, S+Snew, D]
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::NodeVector{param, fake_transpose}, 2);
+    concat->set_friendly_name("v_concat");
+
+    // Unsqueeze at axis 2: [B, 1, 1, S+Snew, D]
+    auto unsqueeze_cst = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, std::vector<int64_t>{2});
+    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(concat, unsqueeze_cst);
+    unsqueeze->set_friendly_name("unsqueeze");
+
+    // Broadcast kv_heads 1→q_heads: [B, 1, q_heads, S+Snew, D]
+    auto broadcast_shape_cst = ov::op::v0::Constant::create(ov::element::i64,
+                                                            ov::Shape{5},
+                                                            std::vector<int64_t>{B, kv_heads, q_heads, S + Snew, D});
+    auto broadcast =
+        std::make_shared<ov::op::v3::Broadcast>(unsqueeze, broadcast_shape_cst, ov::op::BroadcastType::BIDIRECTIONAL);
+    broadcast->set_friendly_name("broadcast");
+
+    // Reshape [B, 1, q_heads, S+Snew, D] → [B, q_heads, S+Snew, D]
+    auto reshape2_shape_cst =
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{B, q_heads, S + Snew, D});
+    auto reshape2 = std::make_shared<ov::op::v1::Reshape>(broadcast, reshape2_shape_cst, false);
+    reshape2->set_friendly_name("reshape2");
+
+    // Attention scores + Softmax: [B, q_heads, 1, S+Snew]
+    auto attn = std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                        ov::Shape{(size_t)B, (size_t)q_heads, 1, (size_t)(S + Snew)});
+    attn->set_friendly_name("attn_scores");
+    auto softmax = std::make_shared<ov::op::v8::Softmax>(attn, -1);
+
+    // MatMul: [B,q_heads,1,S+Snew] × [B,q_heads,S+Snew,D] → [B,q_heads,1,D]
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(softmax, reshape2);
+    matmul->set_friendly_name("matmul");
+
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(matmul)},
+                                             ov::ParameterVector{param, new_v, attn});
+
+    // --- Run the pass ---
+    bool transposed = false;
+    ASSERT_NO_THROW(transposed = ov::npuw::util::OptimizeValueTensors(false).run_on_model(model));
+    ASSERT_TRUE(transposed) << "OptimizeValueTensors should fire on MQA GQA pattern with Reshape-as-transpose";
+
+    // param shape should be swapped: [B, kv_heads, S, D] → [B, kv_heads, D, S]
+    const auto& ps = param->get_partial_shape();
+    ASSERT_EQ(ps[2].get_length(), D) << "param dim[2] should become head_dim after optimization";
+    ASSERT_EQ(ps[3].get_length(), S) << "param dim[3] should become seq_cache after optimization";
+
+    // concat axis must move from 2 to 3
+    ASSERT_EQ(concat->get_axis(), 3) << "concat axis should be 3 after GQA optimization";
+
+    // matmul must have transpose_b=true
+    ASSERT_TRUE(ov::as_type_ptr<ov::op::v0::MatMul>(matmul)->get_transpose_b())
+        << "matmul should have transpose_b=true after GQA optimization";
+
+    // The fake Reshape should have been replaced by a real Transpose node:
+    // verify via concat's port-1 producer.
+    auto concat_v_input = concat->input(1).get_source_output().get_node_shared_ptr();
+    ASSERT_TRUE(ov::is_type<ov::op::v1::Transpose>(concat_v_input))
+        << "concat port 1 should now be fed by a real Transpose; got: " << concat_v_input->get_type_name();
+}

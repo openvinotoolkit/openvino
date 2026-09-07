@@ -54,6 +54,14 @@ struct PagedAttentionOpt : public ImplementationManager {
             return false;
         }
 
+        // OCL PA kernel requires head_size >= 16 (SUBGROUPS_PER_WG = head_size / SUBGROUP_SIZE)
+        OPENVINO_ASSERT(desc->k_head_size >= 16 && desc->v_head_size >= 16,
+                        "[GPU] OCL PagedAttention kernel does not support head_size < 16."
+                        " k_head_size=",
+                        desc->k_head_size,
+                        ", v_head_size=",
+                        desc->v_head_size);
+
         const auto& q_layout = node.get_input_layout(0);
         const auto& k_layout = node.get_input_layout(1);
         const auto& v_layout = node.get_input_layout(2);
@@ -66,11 +74,7 @@ struct PagedAttentionOpt : public ImplementationManager {
             return false;
         }
 
-        if (!one_of(q_layout.data_type, supported_q_types) || !one_of(out_layout.data_type, supported_q_types)) {
-            return false;
-        }
-
-        return true;
+        return one_of(q_layout.data_type, supported_q_types) && one_of(out_layout.data_type, supported_q_types);
     }
 };
 

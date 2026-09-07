@@ -78,10 +78,7 @@ bool engine::use_unified_shared_memory() const {
     GPU_DEBUG_IF(ExecutionConfig::get_disable_usm()) {
         return false;
     }
-    if (_device->get_mem_caps().supports_usm()) {
-        return true;
-    }
-    return false;
+    return _device->get_mem_caps().supports_usm();
 }
 
 uint64_t engine::get_max_memory_size() const {
@@ -103,6 +100,11 @@ bool engine::supports_allocation(allocation_type type) const {
     if (allocation_type::usm_shared == type)
         return false;
     return _device->get_mem_caps().support_allocation_type(type);
+}
+
+bool engine::can_use_host_usm_zero_copy() const {
+    const auto& info = get_device_info();
+    return info.dev_type == cldnn::device_type::integrated_gpu && info.arch >= cldnn::gpu_arch::xe2 && supports_allocation(cldnn::allocation_type::usm_host);
 }
 
 allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {

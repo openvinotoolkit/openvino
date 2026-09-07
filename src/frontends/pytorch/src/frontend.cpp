@@ -30,6 +30,7 @@
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
+#include "transforms/max_pool_dynamic_kernel_resolver.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
 #include "transforms/prim_list_unpack_replacer.hpp"
@@ -265,6 +266,10 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexToSelect>();
     manager.register_pass<ov::frontend::pytorch::pass::AtenIndexPutReplacer>();
     manager.register_pass<ov::frontend::pytorch::pass::IndexLoopGetitemReplacer>();
+    // Resolve the deferred max_pool placeholder: after the preceding manager validated shapes, and
+    // before SequenceMarkReplacer collapses the kernel_size SequenceMark to a Concat. A kernel that
+    // became static (e.g. convert_model(input=...)) lowers to a plain MaxPool, else to ReduceMax.
+    manager.register_pass<ov::frontend::pytorch::pass::MaxPoolDynamicKernelResolver>();
     manager.register_pass<ov::frontend::pytorch::pass::SequenceMarkReplacer>();
 
     // Check if model is symmetrically quantized

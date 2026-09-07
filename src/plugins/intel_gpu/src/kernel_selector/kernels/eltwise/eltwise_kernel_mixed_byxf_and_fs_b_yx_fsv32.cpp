@@ -14,8 +14,10 @@ namespace kernel_selector {
 ParamsKey EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableInputLayout(DataLayout::byxf);
@@ -149,8 +151,7 @@ KernelsPriority EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetKernelsPriority(c
         (p.outputs[0].GetLayout() ==
          p.inputs[1].GetLayout())) {  // There is no need for reordering kernel, better use something more optimal
         return FORCE_PRIORITY_9;
-    } else {  // There is need for byxf/fsv32 reordering kernel use this one
+    }  // There is need for byxf/fsv32 reordering kernel use this one
         return FORCE_PRIORITY_2;
-    }
 }
 }  // namespace kernel_selector
