@@ -8,7 +8,9 @@
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
+#include <exception>
 #include <initializer_list>
+#include <iostream>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -59,10 +61,22 @@ public:
             initialize(regPool, requestedIdx);
         }
         ~Reg() {
-            release();
+            try {
+                release();
+            } catch (const std::exception& e) {
+                std::cerr << "RegistersPool::Reg::~Reg() caught exception: " << e.what() << '\n';
+            } catch (...) {
+                std::cerr << "RegistersPool::Reg::~Reg() caught unknown exception" << '\n';
+            }
         }
         Reg& operator=(Reg&& other) noexcept {
-            release();
+            try {
+                release();
+            } catch (const std::exception& e) {
+                std::cerr << "RegistersPool::Reg::operator=(Reg&&) caught exception: " << e.what() << '\n';
+            } catch (...) {
+                std::cerr << "RegistersPool::Reg::operator=(Reg&&) caught unknown exception" << '\n';
+            }
             reg = other.reg;
             regPool = std::move(other.regPool);
             return *this;
@@ -131,7 +145,13 @@ public:
     };
 
     virtual ~RegistersPool() {
-        checkUniqueAndUpdate(false);
+        try {
+            checkUniqueAndUpdate(false);
+        } catch (const std::exception& e) {
+            std::cerr << "RegistersPool::~RegistersPool() caught exception: " << e.what() << '\n';
+        } catch (...) {
+            std::cerr << "RegistersPool::~RegistersPool() caught unknown exception" << '\n';
+        }
     }
 
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>

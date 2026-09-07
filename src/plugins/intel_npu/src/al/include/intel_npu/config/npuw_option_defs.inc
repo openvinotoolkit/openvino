@@ -48,6 +48,7 @@ INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ACC_THRESH, double, 0.01, ov::intel_npu::npuw::ac
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_ACC_DEVICE, std::string, "", ov::intel_npu::npuw::accuracy, reference_device, "NPUW_ACC_DEVICE", ROOT, HIDDEN, UNCACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_FLUX2, bool, false, ov::intel_npu::npuw::flux2, enabled, "NPUW_FLUX2", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_GQA, bool, false, ov::intel_npu::npuw::gqa, enabled, "NPUW_GQA", ROOT, EXPOSED, CACHED, ALL)
+INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_PA, bool, false, ov::intel_npu::npuw::pa, enabled, "NPUW_PA", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_UNQDQ, bool, false, ov::intel_npu::npuw, unqdq, "NPUW_UNQDQ", ROOT, EXPOSED, CACHED, ALL)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DUMP_FULL, bool, false, ov::intel_npu::npuw::dump, full, "NPUW_DUMP_FULL", ROOT, HIDDEN, UNCACHED, DEV)
 INTEL_NPU_NPUW_SIMPLE_OPT(NPUW_DUMP_SUBS, std::string, "", ov::intel_npu::npuw::dump, subgraphs, "NPUW_DUMP_SUBS", ROOT, HIDDEN, UNCACHED, DEV)

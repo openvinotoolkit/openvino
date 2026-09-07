@@ -211,7 +211,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
 
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
 
-    if (output.GetDType() != Datatype::F16 && output.GetDType() != Datatype::F32) {
+    if (output.GetDType() != Datatype::F16 && output.GetDType() != Datatype::BF16 && output.GetDType() != Datatype::F32) {
         jit.AddConstant(MakeJitConstant("RTE_OUTPUT", 1));
     }
 

@@ -54,11 +54,29 @@ TEST_P(GGUFBinaryElementwise, MatchesReference) {
 
 INSTANTIATE_TEST_SUITE_P(GGUFOps,
                          GGUFBinaryElementwise,
-                         ::testing::Values(BinaryCase{"add", "GGML_OP_ADD", [](float x, float y) { return x + y; }},
-                                           BinaryCase{"mul", "GGML_OP_MUL", [](float x, float y) { return x * y; }},
-                                           BinaryCase{"sub", "GGML_OP_SUB", [](float x, float y) { return x - y; }},
-                                           BinaryCase{"div", "GGML_OP_DIV", [](float x, float y) { return x / y; }}),
-                         [](const ::testing::TestParamInfo<BinaryCase>& i) { return std::string(i.param.name); });
+                         ::testing::Values(BinaryCase{"add",
+                                                      "GGML_OP_ADD",
+                                                      [](float x, float y) {
+                                                          return x + y;
+                                                      }},
+                                           BinaryCase{"mul",
+                                                      "GGML_OP_MUL",
+                                                      [](float x, float y) {
+                                                          return x * y;
+                                                      }},
+                                           BinaryCase{"sub",
+                                                      "GGML_OP_SUB",
+                                                      [](float x, float y) {
+                                                          return x - y;
+                                                      }},
+                                           BinaryCase{"div",
+                                                      "GGML_OP_DIV",
+                                                      [](float x, float y) {
+                                                          return x / y;
+                                                      }}),
+                         [](const ::testing::TestParamInfo<BinaryCase>& i) {
+                             return std::string(i.param.name);
+                         });
 
 // ── Elementwise unary ops (single f32 input) ────────────────────────────────────
 // Every registered GGML_UNARY_OP_* plus the elementwise GGML_OP_{LOG,SIN,COS} share the same
@@ -100,37 +118,75 @@ TEST_P(GGUFUnaryElementwise, MatchesReference) {
 // frontend maps it to v7::Gelu(TANH), which agrees with ggml's tanh kernel and with erf to 1e-3.
 // Softplus uses 1e-3 to cover ARM CPU fp16 execution (small outputs where fp16 spacing ~1e-3
 // dominates); on x86 fp32 the exact reference still matches comfortably within that bound.
-INSTANTIATE_TEST_SUITE_P(
-    GGUFOps,
-    GGUFUnaryElementwise,
-    ::testing::Values(
-        UnaryCase{"silu", "GGML_UNARY_OP_SILU", [](float x) { return x / (1.0f + std::exp(-x)); }, 1e-4f},
-        UnaryCase{"gelu",
-                  "GGML_UNARY_OP_GELU",
-                  [](float x) { return 0.5f * x * (1.0f + std::erf(x / std::sqrt(2.0f))); },
-                  1e-3f},
-        // ggml_gelu_quick_f32: x*(1/(1+expf(-1.702f*x))) -- NOT the tanh GELU above.
-        UnaryCase{"gelu_quick",
-                  "GGML_UNARY_OP_GELU_QUICK",
-                  [](float x) { return x / (1.0f + std::exp(-1.702f * x)); },
-                  1e-4f},
-        UnaryCase{"tanh", "GGML_UNARY_OP_TANH", [](float x) { return std::tanh(x); }, 1e-4f},
-        UnaryCase{"relu", "GGML_UNARY_OP_RELU", [](float x) { return x > 0.0f ? x : 0.0f; }, 1e-4f},
-        // ggml_vec_elu_f32: (x > 0) ? x : expm1f(x), i.e. ELU with alpha == 1.
-        UnaryCase{"elu", "GGML_UNARY_OP_ELU", [](float x) { return x > 0.0f ? x : std::expm1(x); }, 1e-4f},
-        UnaryCase{"sin", "GGML_OP_SIN", [](float x) { return std::sin(x); }, 1e-4f},
-        UnaryCase{"cos", "GGML_OP_COS", [](float x) { return std::cos(x); }, 1e-4f},
-        UnaryCase{"softplus",
-                  "GGML_UNARY_OP_SOFTPLUS",
-                  [](float x) { return std::log1p(std::exp(-std::abs(x))) + std::max(x, 0.0f); },
-                  1e-3f},
-        // Log's domain is x > 0, so this case overrides the default ramp.
-        UnaryCase{"log",
-                  "GGML_OP_LOG",
-                  [](float x) { return std::log(x); },
-                  1e-4f,
-                  {0.25f, 0.5f, 1.0f, 2.0f, 3.0f, 10.0f, 100.0f, 1e-3f}}),
-    [](const ::testing::TestParamInfo<UnaryCase>& i) { return std::string(i.param.name); });
+INSTANTIATE_TEST_SUITE_P(GGUFOps,
+                         GGUFUnaryElementwise,
+                         ::testing::Values(UnaryCase{"silu",
+                                                     "GGML_UNARY_OP_SILU",
+                                                     [](float x) {
+                                                         return x / (1.0f + std::exp(-x));
+                                                     },
+                                                     1e-4f},
+                                           UnaryCase{"gelu",
+                                                     "GGML_UNARY_OP_GELU",
+                                                     [](float x) {
+                                                         return 0.5f * x * (1.0f + std::erf(x / std::sqrt(2.0f)));
+                                                     },
+                                                     1e-3f},
+                                           // ggml_gelu_quick_f32: x*(1/(1+expf(-1.702f*x))) -- NOT the tanh GELU above.
+                                           UnaryCase{"gelu_quick",
+                                                     "GGML_UNARY_OP_GELU_QUICK",
+                                                     [](float x) {
+                                                         return x / (1.0f + std::exp(-1.702f * x));
+                                                     },
+                                                     1e-4f},
+                                           UnaryCase{"tanh",
+                                                     "GGML_UNARY_OP_TANH",
+                                                     [](float x) {
+                                                         return std::tanh(x);
+                                                     },
+                                                     1e-4f},
+                                           UnaryCase{"relu",
+                                                     "GGML_UNARY_OP_RELU",
+                                                     [](float x) {
+                                                         return x > 0.0f ? x : 0.0f;
+                                                     },
+                                                     1e-4f},
+                                           // ggml_vec_elu_f32: (x > 0) ? x : expm1f(x), i.e. ELU with alpha == 1.
+                                           UnaryCase{"elu",
+                                                     "GGML_UNARY_OP_ELU",
+                                                     [](float x) {
+                                                         return x > 0.0f ? x : std::expm1(x);
+                                                     },
+                                                     1e-4f},
+                                           UnaryCase{"sin",
+                                                     "GGML_OP_SIN",
+                                                     [](float x) {
+                                                         return std::sin(x);
+                                                     },
+                                                     1e-4f},
+                                           UnaryCase{"cos",
+                                                     "GGML_OP_COS",
+                                                     [](float x) {
+                                                         return std::cos(x);
+                                                     },
+                                                     1e-4f},
+                                           UnaryCase{"softplus",
+                                                     "GGML_UNARY_OP_SOFTPLUS",
+                                                     [](float x) {
+                                                         return std::log1p(std::exp(-std::abs(x))) + std::max(x, 0.0f);
+                                                     },
+                                                     1e-3f},
+                                           // Log's domain is x > 0, so this case overrides the default ramp.
+                                           UnaryCase{"log",
+                                                     "GGML_OP_LOG",
+                                                     [](float x) {
+                                                         return std::log(x);
+                                                     },
+                                                     1e-4f,
+                                                     {0.25f, 0.5f, 1.0f, 2.0f, 3.0f, 10.0f, 100.0f, 1e-3f}}),
+                         [](const ::testing::TestParamInfo<UnaryCase>& i) {
+                             return std::string(i.param.name);
+                         });
 
 // Log is only defined for x > 0, so it gets its own inputs rather than the shared range above.
 TEST(GGUFOps, Log) {
@@ -179,7 +235,7 @@ TEST(GGUFOps, GetDimensionsKeepsOutputPort) {
 // through an fp16 lookup table (GGML_GELU_FP16), which costs ~2e-3 / ~3.3e-3 against the exact
 // fp32 form; SILU runs in fp32 in the reference build and needs only 1e-5.
 struct GgmlRefCase {
-    const char* name;   // also the test_data/<name>_ggml_{input,expected}.npy stem prefix
+    const char* name;  // also the test_data/<name>_ggml_{input,expected}.npy stem prefix
     const char* op_type;
     float atol;
 };
@@ -211,7 +267,9 @@ INSTANTIATE_TEST_SUITE_P(GGUFOps,
                          ::testing::Values(GgmlRefCase{"silu", "GGML_UNARY_OP_SILU", 1e-5f},
                                            GgmlRefCase{"gelu", "GGML_UNARY_OP_GELU", 2.5e-3f},
                                            GgmlRefCase{"gelu_quick", "GGML_UNARY_OP_GELU_QUICK", 4e-3f}),
-                         [](const ::testing::TestParamInfo<GgmlRefCase>& i) { return std::string(i.param.name); });
+                         [](const ::testing::TestParamInfo<GgmlRefCase>& i) {
+                             return std::string(i.param.name);
+                         });
 
 // Scale: out = in * scale + bias (scale/bias in op-params slots 0,1).
 TEST(GGUFOps, Scale) {
@@ -334,8 +392,8 @@ TEST(GGUFOps, SoftMaxAlibi) {
     for (size_t i = 0; i < x.size(); ++i)
         x[i] = 0.1f * static_cast<float>(i) - 2.0f;
     std::vector<float> mask{0, 0, -1e9f, -1e9f, 0, 0, 0, -1e9f};
-    auto out = run_on_cpu(model,
-                          {{"x", make_f32_tensor({n_head, T, Kd}, x)}, {"mask", make_f32_tensor({1, T, Kd}, mask)}});
+    auto out =
+        run_on_cpu(model, {{"x", make_f32_tensor({n_head, T, Kd}, x)}, {"mask", make_f32_tensor({1, T, Kd}, mask)}});
 
     const uint32_t n_head_log2 = 1u << static_cast<uint32_t>(std::floor(std::log2(n_head)));
     const float m0 = std::pow(2.0f, -max_bias / n_head_log2);
@@ -343,7 +401,7 @@ TEST(GGUFOps, SoftMaxAlibi) {
     std::vector<float> expected(x.size());
     for (uint32_t h = 0; h < n_head; ++h) {
         float slope = h < n_head_log2 ? static_cast<float>(std::pow(m0, h + 1))
-                                       : static_cast<float>(std::pow(m1, 2 * (h - n_head_log2) + 1));
+                                      : static_cast<float>(std::pow(m1, 2 * (h - n_head_log2) + 1));
         for (size_t t = 0; t < T; ++t) {
             float mx = -1e30f;
             std::vector<float> z(Kd);
@@ -781,10 +839,9 @@ TEST(GGUFOps, AddId) {
 
     ov::Tensor ids_t(ov::element::i32, ov::Shape{1, 1, 2, 1});
     std::copy(ids.begin(), ids.end(), ids_t.data<int32_t>());
-    auto out = run_on_cpu(model,
-                          {{"x", make_f32_tensor({1, 2, 1, 3}, x)},
-                           {"bias", make_f32_tensor({1, 1, 3, 3}, bias)},
-                           {"ids", ids_t}});
+    auto out = run_on_cpu(
+        model,
+        {{"x", make_f32_tensor({1, 2, 1, 3}, x)}, {"bias", make_f32_tensor({1, 1, 3, 3}, bias)}, {"ids", ids_t}});
 
     // token0 += expert2 (70,80,90); token1 += expert0 (10,20,30)
     std::vector<float> expected{1 + 70, 2 + 80, 3 + 90, 4 + 10, 5 + 20, 6 + 30};
@@ -857,7 +914,7 @@ TEST(GGUFOps, MulMatId) {
     // expert 0 rows: [1,2,3],[4,5,6]; expert 1 rows: [7,8,9],[10,11,12]
     std::vector<float> w{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     std::vector<float> a{1, 0, 1, 0, 1, 0};  // token0 act=[1,0,1], token1 act=[0,1,0]
-    std::vector<int32_t> ids{1, 0};           // token0 -> expert1, token1 -> expert0
+    std::vector<int32_t> ids{1, 0};          // token0 -> expert1, token1 -> expert0
 
     ov::Tensor ids_t(ov::element::i32, ov::Shape{1, 1, (size_t)n_tokens, 1});
     std::copy(ids.begin(), ids.end(), ids_t.data<int32_t>());
@@ -885,8 +942,8 @@ TEST(GGUFOps, MulMatIdNused2) {
 
     // experts: e0 rows [1,0],[0,1]; e1 rows [2,0],[0,2]; e2 rows [3,0],[0,3]
     std::vector<float> w{1, 0, 0, 1, 2, 0, 0, 2, 3, 0, 0, 3};
-    std::vector<float> a{1, 2, 3, 4};       // token0 act=[1,2], token1 act=[3,4]
-    std::vector<int32_t> ids{0, 1, 2, 0};    // tok0 uses experts {0,1}; tok1 uses {2,0}
+    std::vector<float> a{1, 2, 3, 4};      // token0 act=[1,2], token1 act=[3,4]
+    std::vector<int32_t> ids{0, 1, 2, 0};  // tok0 uses experts {0,1}; tok1 uses {2,0}
 
     ov::Tensor ids_t(ov::element::i32, ov::Shape{1, 1, (size_t)n_tokens, (size_t)n_used});
     std::copy(ids.begin(), ids.end(), ids_t.data<int32_t>());
@@ -975,9 +1032,8 @@ TEST(GGUFOps, GetRowsMoeWeights) {
 
     ov::Tensor ids_t(ov::element::i32, ov::Shape{1, 1, (size_t)n_tok, (size_t)n_used});
     std::copy(ids.begin(), ids.end(), ids_t.data<int32_t>());
-    auto out = run_on_cpu(model,
-                          {{"probs", make_f32_tensor({1, (size_t)n_tok, (size_t)n_expert, 1}, probs)},
-                           {"ids", ids_t}});
+    auto out =
+        run_on_cpu(model, {{"probs", make_f32_tensor({1, (size_t)n_tok, (size_t)n_expert, 1}, probs)}, {"ids", ids_t}});
 
     // tok0: probs[3],probs[1] = 0.4,0.2 ; tok1: probs[0],probs[2] = 0.5,0.7
     std::vector<float> expected{0.4f, 0.2f, 0.5f, 0.7f};
@@ -1029,14 +1085,13 @@ TEST(GGUFOps, SsmConvRealDims) {
             sx[ch * ncs + j] = static_cast<float>(ch * 10 + j + 1);
     // c per-channel [d_inner][d_conv]: ch0 weighted, ch1 picks window-start, ch2 picks window-end
     std::vector<float> c{0.5f, 0.25f, 0.125f, 0.0625f, 1, 0, 0, 0, 0, 0, 0, 1};
-    auto out = run_on_cpu(model,
-                          {{"sx", make_f32_tensor({1, 1, d_inner, ncs}, sx)},
-                           {"c", make_f32_tensor({1, 1, d_inner, d_conv}, c)}});
+    auto out = run_on_cpu(
+        model,
+        {{"sx", make_f32_tensor({1, 1, d_inner, ncs}, sx)}, {"c", make_f32_tensor({1, 1, d_inner, d_conv}, c)}});
 
     // ggml-CPU oracle (ssm_conv_oracle.c) flat output, layout [n_t][d_inner]:
     //   row t = [ch0_t, ch1_t, ch2_t]. ch1 = sx window-start (11..15), ch2 = window-end (24..28).
-    std::vector<float> expected{
-        1.625f, 11, 24, 2.5625f, 12, 25, 3.5f, 13, 26, 4.4375f, 14, 27, 5.375f, 15, 28};
+    std::vector<float> expected{1.625f, 11, 24, 2.5625f, 12, 25, 3.5f, 13, 26, 4.4375f, 14, 27, 5.375f, 15, 28};
     expect_near(out, expected, 1e-4f);
 }
 
@@ -1056,11 +1111,10 @@ TEST(GGUFOps, SoftMaxSinks) {
                      .build();
 
     std::vector<float> x{1, 2, 3, 3, 2, 1};  // head0 row [1,2,3], head1 row [3,2,1]
-    std::vector<float> sinks{0.5f, -0.5f};    // one sink logit per head
+    std::vector<float> sinks{0.5f, -0.5f};   // one sink logit per head
     ov::Tensor sinks_t(ov::element::f32, ov::Shape{1, 1, 1, n_head});
     std::copy(sinks.begin(), sinks.end(), sinks_t.data<float>());
-    auto out =
-        run_on_cpu(model, {{"x", make_f32_tensor({1, n_head, T, Kd}, x)}, {"sinks", sinks_t}});
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, n_head, T, Kd}, x)}, {"sinks", sinks_t}});
 
     // Reference: softmax over [logits..., sink] then drop the sink column.
     std::vector<float> expected(n_head * T * Kd);
@@ -1279,9 +1333,9 @@ TEST(GGUFOps, RopeNeoxPartialRotary) {
     std::vector<float> data{1, 2, 3, 4, 100, 200};  // [d0,d1, d2,d3, p0,p1]; only d0..d3 rotate.
     ov::Tensor pos_t(ov::element::i32, ov::Shape{1, 1, 1, (size_t)T});
     pos_t.data<int32_t>()[0] = pos;
-    auto out = run_on_cpu(model,
-                          {{"data", make_f32_tensor({1, (size_t)T, (size_t)n_head, (size_t)head_dim}, data)},
-                           {"pos", pos_t}});
+    auto out =
+        run_on_cpu(model,
+                   {{"data", make_f32_tensor({1, (size_t)T, (size_t)n_head, (size_t)head_dim}, data)}, {"pos", pos_t}});
 
     std::vector<float> cos_v, sin_v;
     neox_ref_cos_sin(static_cast<int>(n_rot), cfg.freq_base, cfg.freq_scale, cfg.attn_factor, pos, cos_v, sin_v);
@@ -1322,9 +1376,9 @@ TEST(GGUFOps, RopeNeoxFullRotary) {
     std::vector<float> data{1, 2, 3, 4};
     ov::Tensor pos_t(ov::element::i32, ov::Shape{1, 1, 1, (size_t)T});
     pos_t.data<int32_t>()[0] = pos;
-    auto out = run_on_cpu(model,
-                          {{"data", make_f32_tensor({1, (size_t)T, (size_t)n_head, (size_t)head_dim}, data)},
-                           {"pos", pos_t}});
+    auto out =
+        run_on_cpu(model,
+                   {{"data", make_f32_tensor({1, (size_t)T, (size_t)n_head, (size_t)head_dim}, data)}, {"pos", pos_t}});
 
     std::vector<float> cos_v, sin_v;
     neox_ref_cos_sin(static_cast<int>(head_dim), cfg.freq_base, cfg.freq_scale, cfg.attn_factor, pos, cos_v, sin_v);
@@ -1375,30 +1429,141 @@ TEST(GGUFOps, ImropeTextRealDims) {
     int32_t pos_vals[8] = {0, 1, 0, 1, 0, 1, 0, 1};
     std::copy(pos_vals, pos_vals + 8, pos_t.data<int32_t>());
 
-    auto out = run_on_cpu(model,
-                          {{"data", make_f32_tensor({1, (size_t)T, (size_t)n_head, (size_t)head_dim}, data)},
-                           {"pos", pos_t}});
+    auto out =
+        run_on_cpu(model,
+                   {{"data", make_f32_tensor({1, (size_t)T, (size_t)n_head, (size_t)head_dim}, data)}, {"pos", pos_t}});
 
     // From imrope_oracle.c (ggml-CPU IMROPE), layout [T][head_dim].
-    std::vector<float> expected{
-        // token 0 (pos 0) — identity
-        1.000000f, 1.010000f, 1.020000f, 1.030000f, 1.040000f, 1.050000f, 1.060000f, 1.070000f,
-        1.080000f, 1.090000f, 1.100000f, 1.110000f, 1.120000f, 1.130000f, 1.140000f, 1.150000f,
-        1.160000f, 1.170000f, 1.180000f, 1.190000f, 1.200000f, 1.210000f, 1.220000f, 1.230000f,
-        1.240000f, 1.250000f, 1.260000f, 1.270000f, 1.280000f, 1.290000f, 1.300000f, 1.310000f,
-        1.320000f, 1.330000f, 1.340000f, 1.350000f, 1.360000f, 1.370000f, 1.380000f, 1.390000f,
-        1.400000f, 1.410000f, 1.420000f, 1.430000f, 1.440000f, 1.450000f, 1.460000f, 1.470000f,
-        1.480000f, 1.490000f, 1.500000f, 1.510000f, 1.520000f, 1.530000f, 1.540000f, 1.550000f,
-        1.560000f, 1.570000f, 1.580000f, 1.590000f, 1.600000f, 1.610000f, 1.620000f, 1.630000f,
-        // token 1 (pos 1)
-        -0.871608f, 0.330166f, 1.051162f, 1.466389f, 1.708109f, 1.852569f, 1.941705f, 1.998783f,
-        2.036994f, 2.063982f, 2.084241f, 2.100448f, 2.114208f, 2.126487f, 2.137869f, 2.148707f,
-        2.159216f, 2.169524f, 2.179711f, 2.189825f, 2.199894f, 2.209936f, 2.219961f, 2.229976f,
-        2.239986f, 2.249991f, 2.259995f, 2.269997f, 2.279998f, 2.289999f, 2.299999f, 2.309999f,
-        2.936443f, 3.059410f, 2.907070f, 2.737353f, 2.610280f, 2.527328f, 2.477454f, 2.449871f,
-        2.436607f, 2.432320f, 2.433586f, 2.438262f, 2.445020f, 2.453050f, 2.461852f, 2.471125f,
-        2.480683f, 2.490415f, 2.500252f, 2.510153f, 2.520093f, 2.530056f, 2.540034f, 2.550021f,
-        2.560013f, 2.570008f, 2.580004f, 2.590003f, 2.600002f, 2.610001f, 2.620001f, 2.630001f};
+    std::vector<float> expected{// token 0 (pos 0) — identity
+                                1.000000f,
+                                1.010000f,
+                                1.020000f,
+                                1.030000f,
+                                1.040000f,
+                                1.050000f,
+                                1.060000f,
+                                1.070000f,
+                                1.080000f,
+                                1.090000f,
+                                1.100000f,
+                                1.110000f,
+                                1.120000f,
+                                1.130000f,
+                                1.140000f,
+                                1.150000f,
+                                1.160000f,
+                                1.170000f,
+                                1.180000f,
+                                1.190000f,
+                                1.200000f,
+                                1.210000f,
+                                1.220000f,
+                                1.230000f,
+                                1.240000f,
+                                1.250000f,
+                                1.260000f,
+                                1.270000f,
+                                1.280000f,
+                                1.290000f,
+                                1.300000f,
+                                1.310000f,
+                                1.320000f,
+                                1.330000f,
+                                1.340000f,
+                                1.350000f,
+                                1.360000f,
+                                1.370000f,
+                                1.380000f,
+                                1.390000f,
+                                1.400000f,
+                                1.410000f,
+                                1.420000f,
+                                1.430000f,
+                                1.440000f,
+                                1.450000f,
+                                1.460000f,
+                                1.470000f,
+                                1.480000f,
+                                1.490000f,
+                                1.500000f,
+                                1.510000f,
+                                1.520000f,
+                                1.530000f,
+                                1.540000f,
+                                1.550000f,
+                                1.560000f,
+                                1.570000f,
+                                1.580000f,
+                                1.590000f,
+                                1.600000f,
+                                1.610000f,
+                                1.620000f,
+                                1.630000f,
+                                // token 1 (pos 1)
+                                -0.871608f,
+                                0.330166f,
+                                1.051162f,
+                                1.466389f,
+                                1.708109f,
+                                1.852569f,
+                                1.941705f,
+                                1.998783f,
+                                2.036994f,
+                                2.063982f,
+                                2.084241f,
+                                2.100448f,
+                                2.114208f,
+                                2.126487f,
+                                2.137869f,
+                                2.148707f,
+                                2.159216f,
+                                2.169524f,
+                                2.179711f,
+                                2.189825f,
+                                2.199894f,
+                                2.209936f,
+                                2.219961f,
+                                2.229976f,
+                                2.239986f,
+                                2.249991f,
+                                2.259995f,
+                                2.269997f,
+                                2.279998f,
+                                2.289999f,
+                                2.299999f,
+                                2.309999f,
+                                2.936443f,
+                                3.059410f,
+                                2.907070f,
+                                2.737353f,
+                                2.610280f,
+                                2.527328f,
+                                2.477454f,
+                                2.449871f,
+                                2.436607f,
+                                2.432320f,
+                                2.433586f,
+                                2.438262f,
+                                2.445020f,
+                                2.453050f,
+                                2.461852f,
+                                2.471125f,
+                                2.480683f,
+                                2.490415f,
+                                2.500252f,
+                                2.510153f,
+                                2.520093f,
+                                2.530056f,
+                                2.540034f,
+                                2.550021f,
+                                2.560013f,
+                                2.570008f,
+                                2.580004f,
+                                2.590003f,
+                                2.600002f,
+                                2.610001f,
+                                2.620001f,
+                                2.630001f};
 
     expect_near(out, expected, 1e-4f);
 }
@@ -1442,20 +1607,19 @@ TEST(GGUFOps, ImropePartialRotary) {
     int32_t pos_vals[8] = {0, 1, 0, 1, 0, 1, 0, 1};
     std::copy(pos_vals, pos_vals + 8, pos_t.data<int32_t>());
 
-    auto out = run_on_cpu(model,
-                          {{"data", make_f32_tensor({1, (size_t)T, (size_t)n_head, (size_t)head_dim}, data)},
-                           {"pos", pos_t}});
+    auto out =
+        run_on_cpu(model,
+                   {{"data", make_f32_tensor({1, (size_t)T, (size_t)n_head, (size_t)head_dim}, data)}, {"pos", pos_t}});
 
     // token 1's first 64 rotated dims (from imrope_partial_oracle.c; identical to ImropeTextRealDims).
-    const float rot1[64] = {
-        -0.871608f, 0.330166f, 1.051162f, 1.466389f, 1.708109f, 1.852569f, 1.941705f, 1.998783f,
-        2.036994f, 2.063982f, 2.084241f, 2.100448f, 2.114208f, 2.126487f, 2.137869f, 2.148707f,
-        2.159216f, 2.169524f, 2.179711f, 2.189825f, 2.199894f, 2.209936f, 2.219961f, 2.229976f,
-        2.239986f, 2.249991f, 2.259995f, 2.269997f, 2.279998f, 2.289999f, 2.299999f, 2.309999f,
-        2.936443f, 3.059410f, 2.907070f, 2.737353f, 2.610280f, 2.527328f, 2.477454f, 2.449871f,
-        2.436607f, 2.432320f, 2.433586f, 2.438262f, 2.445020f, 2.453050f, 2.461852f, 2.471125f,
-        2.480683f, 2.490415f, 2.500252f, 2.510153f, 2.520093f, 2.530056f, 2.540034f, 2.550021f,
-        2.560013f, 2.570008f, 2.580004f, 2.590003f, 2.600002f, 2.610001f, 2.620001f, 2.630001f};
+    const float rot1[64] = {-0.871608f, 0.330166f, 1.051162f, 1.466389f, 1.708109f, 1.852569f, 1.941705f, 1.998783f,
+                            2.036994f,  2.063982f, 2.084241f, 2.100448f, 2.114208f, 2.126487f, 2.137869f, 2.148707f,
+                            2.159216f,  2.169524f, 2.179711f, 2.189825f, 2.199894f, 2.209936f, 2.219961f, 2.229976f,
+                            2.239986f,  2.249991f, 2.259995f, 2.269997f, 2.279998f, 2.289999f, 2.299999f, 2.309999f,
+                            2.936443f,  3.059410f, 2.907070f, 2.737353f, 2.610280f, 2.527328f, 2.477454f, 2.449871f,
+                            2.436607f,  2.432320f, 2.433586f, 2.438262f, 2.445020f, 2.453050f, 2.461852f, 2.471125f,
+                            2.480683f,  2.490415f, 2.500252f, 2.510153f, 2.520093f, 2.530056f, 2.540034f, 2.550021f,
+                            2.560013f,  2.570008f, 2.580004f, 2.590003f, 2.600002f, 2.610001f, 2.620001f, 2.630001f};
 
     std::vector<float> expected(T * head_dim);
     for (int e = 0; e < head_dim; ++e)
@@ -1467,8 +1631,8 @@ TEST(GGUFOps, ImropePartialRotary) {
 }
 
 // The f4e2m1 nibble -> value lookup used by the packed MXFP4 dequant (mirrors mul_mat_id.cpp).
-static const float kF4E2M1[16] = {0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 6.0f,
-                                  -0.0f, -0.5f, -1.0f, -1.5f, -2.0f, -3.0f, -4.0f, -6.0f};
+static const float kF4E2M1[16] =
+    {0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 6.0f, -0.0f, -0.5f, -1.0f, -1.5f, -2.0f, -3.0f, -4.0f, -6.0f};
 
 // MUL_MAT_ID over PACKED MXFP4 experts (gpt-oss MoE): expert weights are raw u8 rank-5 blocks
 // [1, n_expert, m, k_blocks, 17] (byte0 = e8m0 scale exponent, bytes1..16 = 32 nibble-packed
@@ -1517,18 +1681,17 @@ TEST(GGUFOps, MulMatIdMxfp4Packed) {
 
     // activations: token0 = e0 pattern, token1 = e1 pattern; only lane 0 is nonzero.
     std::vector<float> a(n_tokens * cols, 0.0f);
-    a[0 * cols + 0] = 1.0f;  // token0 act lane0 = 1
-    a[1 * cols + 0] = 1.0f;  // token1 act lane0 = 1
+    a[0 * cols + 0] = 1.0f;          // token0 act lane0 = 1
+    a[1 * cols + 0] = 1.0f;          // token1 act lane0 = 1
     std::vector<int32_t> ids{1, 0};  // token0 -> expert1, token1 -> expert0
 
     ov::Tensor w_t(ov::element::u8, ov::Shape{1, (size_t)n_expert, (size_t)m, (size_t)k_blocks, block_bytes});
     std::memcpy(w_t.data<uint8_t>(), packed.data(), packed.size());
     ov::Tensor ids_t(ov::element::i32, ov::Shape{1, 1, (size_t)n_tokens, 1});
     std::copy(ids.begin(), ids.end(), ids_t.data<int32_t>());
-    auto out = run_on_cpu(model,
-                          {{"w", w_t},
-                           {"a", make_f32_tensor({1, (size_t)n_tokens, 1, (size_t)cols}, a)},
-                           {"ids", ids_t}});
+    auto out =
+        run_on_cpu(model,
+                   {{"w", w_t}, {"a", make_f32_tensor({1, (size_t)n_tokens, 1, (size_t)cols}, a)}, {"ids", ids_t}});
 
     // Reference: out[token][row] = sum_col dequant(expert=ids[token], row, col) * act[token][col].
     auto dequant = [&](int e, int row, int col) -> float {
@@ -1774,8 +1937,8 @@ TEST(GGUFOps, GatedDeltaNetMultipleSnapshotSlotsRejected) {
 TEST(GGUFOps, GatedDeltaNetFused) {
     const int64_t B = 1, T = 2, H = 1, D = 2;  // head size D = Dv = 2, scalar gate
     auto qkv_shp = ov::PartialShape{B, T, H, D};
-    auto gate_shp = ov::PartialShape{B, T, H, 1};    // scalar gate -> fused path
-    auto state_shp = ov::PartialShape{B, H, D, D};   // ggml [B, H_v, value_dim, key_dim]
+    auto gate_shp = ov::PartialShape{B, T, H, 1};   // scalar gate -> fused path
+    auto state_shp = ov::PartialShape{B, H, D, D};  // ggml [B, H_v, value_dim, key_dim]
     auto model = SingleOpBuilder()
                      .op("GGML_OP_GATED_DELTA_NET")
                      .input("q", ov::element::f32, qkv_shp)
@@ -1812,7 +1975,7 @@ TEST(GGUFOps, GatedDeltaNetFused) {
     // update state[d][dv] += k[d]*(v[dv]-h_k[dv])*beta; attn[dv] = sum_d state[d][dv]*q_scaled[d].
     const float scale = 1.0f / std::sqrt((float)D);
     std::vector<std::vector<float>> st(D, std::vector<float>(D, 0.0f));  // st[d][dv]
-    std::vector<float> attn;  // [T*D]
+    std::vector<float> attn;                                             // [T*D]
     for (int t = 0; t < T; ++t) {
         std::vector<float> qs(D), kv(D);
         for (int d = 0; d < D; ++d) {
@@ -1880,11 +2043,15 @@ TEST(GGUFOps, GatedDeltaNetFusedMultiHead) {
     std::vector<float> q{1, 0, 0, 1, /*t1*/ 0, 1, 1, 0};
     std::vector<float> k{1, 0, 0, 1, /*t1*/ 1, 1, 0, 1};
     std::vector<float> v{1, 2, 3, 4, /*t1*/ 5, 6, 7, 8};
-    std::vector<float> g{0.0f, 0.0f, 0.0f, 0.0f};    // exp(g)=1
+    std::vector<float> g{0.0f, 0.0f, 0.0f, 0.0f};     // exp(g)=1
     std::vector<float> beta{1.0f, 1.0f, 1.0f, 1.0f};  // full update
     std::vector<float> state0(H * D * D, 0.0f);
-    auto idx = [&](int t, int h, int d) { return (t * H + h) * D + d; };  // [T,H,D]
-    auto gidx = [&](int t, int h) { return t * H + h; };                  // [T,H]
+    auto idx = [&](int t, int h, int d) {
+        return (t * H + h) * D + d;
+    };  // [T,H,D]
+    auto gidx = [&](int t, int h) {
+        return t * H + h;
+    };  // [T,H]
 
     auto out = run_on_cpu(model,
                           {{"q", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, (size_t)D}, q)},
@@ -1894,8 +2061,8 @@ TEST(GGUFOps, GatedDeltaNetFusedMultiHead) {
                            {"beta", make_f32_tensor({(size_t)B, (size_t)T, (size_t)H, 1}, beta)},
                            {"state", make_f32_tensor({(size_t)B, (size_t)H, (size_t)D, (size_t)D}, state0)}});
 
-    (void) idx;
-    (void) gidx;
+    (void)idx;
+    (void)gidx;
     // Authoritative reference: the flat output of ggml's own CPU GGML_OP_GATED_DELTA_NET kernel for
     // these exact inputs (generated by the standalone oracle in
     // src/frontends/gguf/tests/gdn_oracle.c, run against llama.cpp's libggml-cpu). Using ggml's
@@ -1903,13 +2070,24 @@ TEST(GGUFOps, GatedDeltaNetFusedMultiHead) {
     // assumptions into the expectation. The packed layout is [S_v*H, T + K*S_v] flattened: T=2
     // attention rows (width S_v*H, head-outer/value-inner) then K*S_v=2 final-state rows. Note the
     // state is packed head-outer/value-dim/key-dim -- a multi-head order the H=1 tests can't probe.
-    std::vector<float> expected{
-        // attention, token 0 and token 1 (each row: head0[sv0,sv1], head1[sv0,sv1])
-        0.707107f, 1.414214f, 2.121320f, 2.828427f,
-        2.828427f, 2.828427f, 0.000000f, 0.000000f,
-        // final state, two rows (head-outer): head0 [dv0(d0,d1), dv1(d0,d1)], head1 [...]
-        5.000000f, 4.000000f, 6.000000f, 4.000000f,
-        0.000000f, 7.000000f, 0.000000f, 8.000000f};
+    std::vector<float> expected{// attention, token 0 and token 1 (each row: head0[sv0,sv1], head1[sv0,sv1])
+                                0.707107f,
+                                1.414214f,
+                                2.121320f,
+                                2.828427f,
+                                2.828427f,
+                                2.828427f,
+                                0.000000f,
+                                0.000000f,
+                                // final state, two rows (head-outer): head0 [dv0(d0,d1), dv1(d0,d1)], head1 [...]
+                                5.000000f,
+                                4.000000f,
+                                6.000000f,
+                                4.000000f,
+                                0.000000f,
+                                7.000000f,
+                                0.000000f,
+                                8.000000f};
     expect_near(out, expected, 1e-4f);
 }
 
@@ -1965,11 +2143,22 @@ TEST(GGUFOps, GatedDeltaNetRefMultiHead) {
                            {"state", make_f32_tensor({(size_t)B, (size_t)H, (size_t)D, (size_t)D}, state0)}});
 
     // Same ggml-CPU oracle values as the fused multi-head test.
-    std::vector<float> expected{
-        0.707107f, 1.414214f, 2.121320f, 2.828427f,
-        2.828427f, 2.828427f, 0.000000f, 0.000000f,
-        5.000000f, 4.000000f, 6.000000f, 4.000000f,
-        0.000000f, 7.000000f, 0.000000f, 8.000000f};
+    std::vector<float> expected{0.707107f,
+                                1.414214f,
+                                2.121320f,
+                                2.828427f,
+                                2.828427f,
+                                2.828427f,
+                                0.000000f,
+                                0.000000f,
+                                5.000000f,
+                                4.000000f,
+                                6.000000f,
+                                4.000000f,
+                                0.000000f,
+                                7.000000f,
+                                0.000000f,
+                                8.000000f};
     expect_near(out, expected, 1e-4f);
 }
 
@@ -1982,11 +2171,39 @@ TEST(GGUFOps, GatedDeltaNetRefMultiHead) {
 // distinct per-head inputs; expected = ggml-CPU oracle gdn_gqa_oracle.c.
 static const std::vector<float> kGdnGqaExpected{
     // attention rows (T=2), each row = 4 v-heads x D=2, head-outer/value-inner
-    0.707107f, 1.414214f, 2.121320f, 2.828427f, 3.535534f, 4.242640f, 4.949748f, 5.656854f,
-    5.656854f, 5.656854f, 0.000000f, 0.000000f, 5.656854f, 5.656854f, 0.000000f, 0.000000f,
+    0.707107f,
+    1.414214f,
+    2.121320f,
+    2.828427f,
+    3.535534f,
+    4.242640f,
+    4.949748f,
+    5.656854f,
+    5.656854f,
+    5.656854f,
+    0.000000f,
+    0.000000f,
+    5.656854f,
+    5.656854f,
+    0.000000f,
+    0.000000f,
     // final-state rows (D=2), head-outer: each head [dv0(d0,d1), dv1(d0,d1)]
-    9.000000f, 8.000000f, 10.000000f, 8.000000f, 0.000000f, 11.000000f, 0.000000f, 12.000000f,
-    13.000000f, 8.000000f, 14.000000f, 8.000000f, 0.000000f, 15.000000f, 0.000000f, 16.000000f};
+    9.000000f,
+    8.000000f,
+    10.000000f,
+    8.000000f,
+    0.000000f,
+    11.000000f,
+    0.000000f,
+    12.000000f,
+    13.000000f,
+    8.000000f,
+    14.000000f,
+    8.000000f,
+    0.000000f,
+    15.000000f,
+    0.000000f,
+    16.000000f};
 
 static void run_gdn_gqa(bool force_ref) {
     const int64_t B = 1, T = 2, H_v = 4, H_k = 2, D = 2;
@@ -2044,24 +2261,21 @@ TEST(GGUFOps, GatedDeltaNetRefGQA) {
 namespace {
 // ggml-CPU oracle output for the T=3,H=2,D=4 inputs below (row-major, 7 rows x 8 cols).
 const std::vector<float> kGdnTneqDExpected{
-    0.037500f, 0.075000f, 0.112500f, 0.150000f, 0.885000f, 1.062000f, 1.239000f, 1.416000f,
-    2.495686f, 2.863373f, 3.231059f, 3.598745f, 7.552056f, 8.348866f, 9.145678f, 9.942489f,
+    0.037500f,  0.075000f,  0.112500f,  0.150000f,  0.885000f,  1.062000f,  1.239000f,  1.416000f,
+    2.495686f,  2.863373f,  3.231059f,  3.598745f,  7.552056f,  8.348866f,  9.145678f,  9.942489f,
     10.676509f, 11.612682f, 12.548857f, 13.485029f, 18.103098f, 19.490808f, 20.878521f, 22.266232f,
-    1.785152f, 2.487126f, 3.189099f, 3.891073f, 1.928201f, 2.700328f, 3.472456f, 4.244583f,
-    2.071249f, 2.913531f, 3.755813f, 4.598094f, 2.214298f, 3.126734f, 4.039169f, 4.951605f,
-    7.141428f, 4.162388f, 2.434744f, 2.688347f, 7.614682f, 4.536554f, 2.686254f, 2.846659f,
-    8.087935f, 4.910720f, 2.937764f, 3.004971f, 8.561190f, 5.284886f, 3.189275f, 3.163283f};
+    1.785152f,  2.487126f,  3.189099f,  3.891073f,  1.928201f,  2.700328f,  3.472456f,  4.244583f,
+    2.071249f,  2.913531f,  3.755813f,  4.598094f,  2.214298f,  3.126734f,  4.039169f,  4.951605f,
+    7.141428f,  4.162388f,  2.434744f,  2.688347f,  7.614682f,  4.536554f,  2.686254f,  2.846659f,
+    8.087935f,  4.910720f,  2.937764f,  3.004971f,  8.561190f,  5.284886f,  3.189275f,  3.163283f};
 
 // Inputs (row-major [T,H,D] for q/k/v, [T,H] for g/beta), matching gdn_oracle2.c.
-const std::vector<float> kGdnTneqDq{
-    0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.2f,
-    1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f, 1.9f, 2.0f, 2.1f, 2.2f, 2.3f, 2.4f};
-const std::vector<float> kGdnTneqDk{
-    0.05f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.35f, 0.05f, 0.10f, 0.15f, 0.20f, 0.25f,
-    0.30f, 0.35f, 0.05f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.35f, 0.05f, 0.10f, 0.15f};
-const std::vector<float> kGdnTneqDv{
-    1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f,
-    13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f};
+const std::vector<float> kGdnTneqDq{0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f, 1.1f, 1.2f,
+                                    1.3f, 1.4f, 1.5f, 1.6f, 1.7f, 1.8f, 1.9f, 2.0f, 2.1f, 2.2f, 2.3f, 2.4f};
+const std::vector<float> kGdnTneqDk{0.05f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.35f, 0.05f, 0.10f, 0.15f, 0.20f, 0.25f,
+                                    0.30f, 0.35f, 0.05f, 0.10f, 0.15f, 0.20f, 0.25f, 0.30f, 0.35f, 0.05f, 0.10f, 0.15f};
+const std::vector<float> kGdnTneqDv{1.0f,  2.0f,  3.0f,  4.0f,  5.0f,  6.0f,  7.0f,  8.0f,  9.0f,  10.0f, 11.0f, 12.0f,
+                                    13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f};
 const std::vector<float> kGdnTneqDg{0.0f, -0.1f, -0.2f, 0.0f, -0.1f, -0.2f};
 const std::vector<float> kGdnTneqDbeta{0.5f, 0.6f, 0.7f, 0.8f, 0.5f, 0.6f};
 
@@ -2437,8 +2651,9 @@ TEST(GGUFOps, DivEmptyTokens) {
                      .output("out", ov::element::f32, {ov::Dimension::dynamic(), 4})
                      .build();
 
-    auto out = run_on_cpu(model, {{"a", ov::Tensor(ov::element::f32, ov::Shape{0, 4})},
-                                  {"b", ov::Tensor(ov::element::f32, ov::Shape{0, 4})}});
+    auto out = run_on_cpu(
+        model,
+        {{"a", ov::Tensor(ov::element::f32, ov::Shape{0, 4})}, {"b", ov::Tensor(ov::element::f32, ov::Shape{0, 4})}});
 
     EXPECT_EQ(out.get_shape(), (ov::Shape{0, 4}));
 }

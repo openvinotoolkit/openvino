@@ -20,6 +20,10 @@ std::vector<std::string> InputModel::get_model_output_names() const {
     return m_decoder->get_model_output_names();
 }
 
+const std::vector<std::pair<std::string, std::string>>& InputModel::get_recurrent_states() const {
+    return m_decoder->get_recurrent_states();
+}
+
 RopeConfig InputModel::get_rope_config() const {
     // A decoder bound to a full LLM graph exposes "rope_config"; a decoder wrapping a bare op /
     // small cgraph (the former "naive" path) has no such attribute. Return a default config

@@ -6,6 +6,8 @@
 #include <memory>
 #include <vector>
 
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -15,9 +17,6 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -89,7 +88,10 @@ ov::Output<ov::Node> repeat_input_to_match(const NodeContext& context,
             }
 
             FRONT_END_OP_CONVERSION_CHECK(input_dim > 0 && target_dim > 0 && target_dim % input_dim == 0,
-                                          "DIV input shape ", input_shape, " cannot repeat to match ", target_shape);
+                                          "DIV input shape ",
+                                          input_shape,
+                                          " cannot repeat to match ",
+                                          target_shape);
 
             repeats[axis] = target_dim / input_dim;
             needs_repeat = needs_repeat || repeats[axis] != 1;
@@ -124,7 +126,7 @@ OutputVector translate_div(const NodeContext& context) {
         if (res.get_element_type() != output_type) {
             res = std::make_shared<ov::op::v0::Convert>(res, output_type);
         }
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     input_1 = repeat_input_to_match(context, input_1, input_0, 1);
@@ -147,7 +149,7 @@ OutputVector translate_div(const NodeContext& context) {
         ov::mark_as_precision_sensitive(output_convert->input(0));
         res = output_convert;
     }
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

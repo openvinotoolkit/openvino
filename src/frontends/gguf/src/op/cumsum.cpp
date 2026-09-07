@@ -4,11 +4,10 @@
 
 #include <memory>
 
-#include "openvino/op/constant.hpp"
-#include "openvino/op/cum_sum.hpp"
-
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/cum_sum.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -26,7 +25,7 @@ OutputVector translate_cumsum(const NodeContext& context) {
     auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {-1LL});
     auto res = std::make_shared<ov::op::v0::CumSum>(x, axis);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

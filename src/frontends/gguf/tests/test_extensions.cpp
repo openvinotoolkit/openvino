@@ -34,6 +34,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/read_value.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scatter_update.hpp"
 
 using namespace ov_gguf_test;
@@ -286,8 +287,7 @@ private:
 TEST(GGUFExtensions, GetModelInputsToleratesNonParameterEntries) {
     auto base = kv_cache_write_builder();
     FrontEnd fe;
-    auto mixed =
-        std::make_shared<MixedMainInputDecoder>(*std::dynamic_pointer_cast<SingleOpDecoder>(base.decoder()));
+    auto mixed = std::make_shared<MixedMainInputDecoder>(*std::dynamic_pointer_cast<SingleOpDecoder>(base.decoder()));
     EXPECT_NO_THROW(fe.convert(fe.load(std::static_pointer_cast<GgufDecoder>(mixed))));
 }
 
@@ -354,4 +354,101 @@ TEST(GGUFExtensions, ArbitraryTransformationExtensionRuns) {
                          })});
 
     EXPECT_EQ(model->get_friendly_name(), "touched_by_extension");
+}
+
+// ── GGUFMakeStateful: recurrent (non-appending) state rewrite ───────────────────────────────────
+//
+// qwen35's Gated-DeltaNet layers carry a conv window and a delta matrix per layer: unlike a KV
+// cache these have no token axis and are overwritten wholesale each step, so nothing in the graph
+// marks them the way a SetRows write marks a cache -- the decoder pairs a state's Parameter and
+// Result explicitly via get_recurrent_states(), and TranslateSession records that pairing in
+// rt_info (gguf_recurrent_states_key) before any DecoderTransformationExtension runs (see
+// translate_session.cpp). SingleOpDecoder models exactly one ggml op, which cannot also carry a
+// separate KV-cache SetRows, so these tests build the rt_info directly on a hand-built model and
+// run GGUFMakeStateful as an ov::pass::ModelPass, bypassing FrontEnd::convert entirely.
+namespace {
+
+// A model with one static-shape Parameter/Result recurrent-state pair, optionally alongside a KV
+// cache SetRows write (kv_cache_write_builder's shape) to model a hybrid stack. state_out is an
+// arbitrary op fed by the state Parameter; its friendly name is what
+// make_recurrent_states_stateful matches a Result's producer against (see make_stateful.cpp).
+std::shared_ptr<ov::Model> recurrent_state_model(bool with_kv_cache) {
+    auto state_in = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 2, 4});
+    state_in->set_friendly_name("state_in");
+    auto state_out = std::make_shared<ov::op::v0::Abs>(state_in);
+    state_out->set_friendly_name("state_out");
+    auto state_result = std::make_shared<ov::op::v0::Result>(state_out);
+
+    ov::ParameterVector params{state_in};
+    ov::ResultVector results{state_result};
+
+    if (with_kv_cache) {
+        // Matches translate_set_rows's own invariant: it Converts `data` to the destination's
+        // element type before constructing SetRows, so data and cache always agree here too.
+        auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, -1, 2, 4});
+        auto idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{1, 1, 1, -1});
+        auto cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, -1, 2, 4});
+        cache->set_friendly_name("cache");
+        auto set_rows = std::make_shared<SetRows>(data, idx, cache);
+        auto cache_result = std::make_shared<ov::op::v0::Result>(set_rows);
+        params.insert(params.end(), {data, idx, cache});
+        results.push_back(cache_result);
+    }
+
+    auto model = std::make_shared<ov::Model>(results, params);
+    std::vector<std::string> flat{"state_in", "state_out"};
+    model->get_rt_info()[pass::gguf_recurrent_states_key()] = flat;
+    return model;
+}
+
+}  // namespace
+
+// A recurrent-only model (no KV cache at all -- an all-linear-attention stack) still gets its
+// state rewritten: the early "cache_writes.empty()" return in run_on_model must not skip it.
+TEST(GGUFExtensions, GGUFMakeStatefulRewritesRecurrentOnlyState) {
+    auto model = recurrent_state_model(/*with_kv_cache=*/false);
+
+    pass::GGUFMakeStateful pass;
+    EXPECT_TRUE(pass.run_on_model(model));
+
+    ASSERT_EQ(model->get_variables().size(), 1);
+    EXPECT_EQ(model->get_sinks().size(), 1);
+    for (const auto& p : model->get_parameters()) {
+        EXPECT_NE(p->get_friendly_name(), "state_in");
+    }
+    for (const auto& r : model->get_results()) {
+        EXPECT_EQ(r->get_input_node_shared_ptr(0)->get_friendly_name().find("state_out"), std::string::npos);
+    }
+}
+
+// qwen35 is exactly this: a hybrid stack with both a KV cache (full-attention layers) and a
+// recurrent state (Gated-DeltaNet layers). Both must be rewritten by the same pass invocation.
+TEST(GGUFExtensions, GGUFMakeStatefulRewritesHybridKvAndRecurrentState) {
+    auto model = recurrent_state_model(/*with_kv_cache=*/true);
+
+    pass::GGUFMakeStateful pass;
+    EXPECT_TRUE(pass.run_on_model(model));
+
+    ASSERT_EQ(model->get_variables().size(), 2);
+    EXPECT_EQ(model->get_sinks().size(), 2);
+    for (const auto& p : model->get_parameters()) {
+        EXPECT_NE(p->get_friendly_name(), "state_in");
+        EXPECT_NE(p->get_friendly_name(), "cache");
+    }
+}
+
+// Running the pass twice (e.g. a caller that registers it on an already-stateful model, or a
+// re-entrant conversion) must not duplicate the rewrite: the state Parameter is already gone, so
+// the second run's rt_info-guided lookup must find nothing left to rewrite rather than throwing or
+// creating a second Variable for the same state.
+TEST(GGUFExtensions, GGUFMakeStatefulRecurrentRewriteIsIdempotent) {
+    auto model = recurrent_state_model(/*with_kv_cache=*/false);
+
+    pass::GGUFMakeStateful pass;
+    ASSERT_TRUE(pass.run_on_model(model));
+    ASSERT_EQ(model->get_variables().size(), 1);
+
+    EXPECT_FALSE(pass.run_on_model(model));
+    EXPECT_EQ(model->get_variables().size(), 1);
+    EXPECT_EQ(model->get_sinks().size(), 1);
 }

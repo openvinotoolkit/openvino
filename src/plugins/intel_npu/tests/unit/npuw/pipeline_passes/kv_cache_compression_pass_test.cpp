@@ -704,6 +704,17 @@ TEST_P(KVCacheMultiStepDecodeTest, TransformedModelIoTypesMatchQuantConfig) {
             << "Result '" << name << "' has unexpected type";
     };
 
+    auto expect_result_shape = [&](const std::string& name, const Shape& expected) {
+        const auto it = std::find_if(xform_model->get_results().begin(),
+                                     xform_model->get_results().end(),
+                                     [&](const auto& res) {
+                                         return res->get_friendly_name() == name;
+                                     });
+        ASSERT_NE(it, xform_model->get_results().end()) << "Missing result: " << name;
+        EXPECT_EQ((*it)->get_input_shape(0), expected)
+            << "Result '" << name << "' has unexpected shape";
+    };
+
     auto expect_result_absent = [&](const std::string& name) {
         const auto it = std::find_if(xform_model->get_results().begin(),
                                      xform_model->get_results().end(),
@@ -733,6 +744,12 @@ TEST_P(KVCacheMultiStepDecodeTest, TransformedModelIoTypesMatchQuantConfig) {
     expect_result_type("present.0.value", p.val_dt);
     expect_result_type("DynamicQuantize/0/present/key/scale", element::f32);
     expect_result_type("DynamicQuantize/0/present/value/scale", element::f32);
+
+    // KV-cache DynamicQuantize reduces key over axis 3 and value over axis 2.
+    // The resulting scale shapes verify the corresponding WHOLE_DIM group-size
+    // entries {1, 1, 1, UINT64_MAX} and {1, 1, UINT64_MAX, 1}.
+    expect_result_shape("DynamicQuantize/0/present/key/scale", Shape{1, 1, WINDOW + 1, 1});
+    expect_result_shape("DynamicQuantize/0/present/value/scale", Shape{1, 1, 1, WINDOW + 1});
 
     if (key_asym) {
         expect_result_type("DynamicQuantize/0/present/key/zp", p.key_dt);
