@@ -60,6 +60,7 @@ def build_single_token_inputs(
     position: int = 0,
     state: dict[str, np.ndarray] | None = None,
     is_imrope: bool = False,
+    kv_cache_length: int = 1,
 ):
     """Build a minimal, single-new-token input feed for the GGUF frontend's stateless IO
     contract (inp_tokens / inp_pos / inp_out_ids / self_kq_mask[_swa] / token_len_per_seq /
@@ -67,22 +68,17 @@ def build_single_token_inputs(
     KV caches and, for hybrid/recurrent architectures such as qwen35, the fully-static conv /
     delta state Parameters).
 
-    This deliberately does not model real multi-token generation or attend to any real
-    prompt/tokenizer: with T=1 (one new token, no prior context) every KV cache write covers
-    the cache in full, so the frontend's default (caller-extension-free) SetRows lowering
-    -- a plain ScatterUpdate over the whole cache -- is well-defined without requiring the
-    caller to also register the MakeStateful extension. That keeps this check to exactly
-    what "verify basic correctness" needs: the model converts, compiles, and produces a
-    finite, correctly shaped output for one forward pass.
-
     state contains cache outputs from a preceding inference step. Passing them back as the
-    matching inputs exercises the frontend's stateless state contract on decode.
+    matching inputs exercises the frontend's stateless state contract on decode. For a decode
+    step, kv_cache_length grows the K/V inputs and targets their last slot, preserving every
+    earlier slot so attention reads both the history and the new token.
 
     is_imrope selects the interleaved M-RoPE position layout (qwen35 / qwen3vl), read from
     the model's "gguf_is_imrope" rt_info by the caller (CompiledModel does not expose
     rt_info, so this must be read from the ov.Model before compiling): such a model expects
     inp_pos to carry 4 position sections per token instead of 1.
     """
+    assert kv_cache_length >= 1
     n_head_kv = _kv_cache_head_count(compiled_model)
     n_pos_sections = 4 if is_imrope else 1
     feed = {}
@@ -97,7 +93,7 @@ def build_single_token_inputs(
         elif name == "inp_out_ids":
             feed[name] = ov.Tensor(np.array([[[[0]]]], dtype=np.int32))
         elif name in ("self_kq_mask", "self_kq_mask_swa"):
-            feed[name] = ov.Tensor(np.zeros((1, 1, 1, 1), dtype=np.float32))
+            feed[name] = ov.Tensor(np.zeros((1, 1, 1, kv_cache_length), dtype=np.float32))
         elif name == "token_len_per_seq":
             feed[name] = ov.Tensor(np.array([1], dtype=np.int64))
         elif name == "beam_idx":
@@ -105,10 +101,19 @@ def build_single_token_inputs(
         elif name == "inp_kv_idx":
             # One write index per (new token, kv head): translate_set_rows flattens the new
             # rows to [.., 1, tokens * n_head_kv, row_size] before the default ScatterUpdate
-            # lowering, so indices must cover that same flattened extent.
-            feed[name] = ov.Tensor(np.arange(n_head_kv, dtype=np.int32).reshape(1, 1, 1, n_head_kv))
+            # lowering. Target the final context slot while leaving earlier cache rows intact.
+            first_index = (kv_cache_length - 1) * n_head_kv
+            indices = np.arange(first_index, first_index + n_head_kv, dtype=np.int32)
+            feed[name] = ov.Tensor(indices.reshape(1, 1, 1, n_head_kv))
         elif state is not None and name in state:
-            feed[name] = ov.Tensor(state[name])
+            value = state[name]
+            if name.startswith(("cache_k_", "cache_v_")) and value.shape[1] < kv_cache_length:
+                shape = list(value.shape)
+                shape[1] = kv_cache_length
+                extended = np.zeros(shape, dtype=value.dtype)
+                extended[:, : value.shape[1], ...] = value
+                value = extended
+            feed[name] = ov.Tensor(value)
         else:
             # Any other input (a per-layer KV cache, or a recurrent/linear-attention state
             # such as qwen35's Gated-DeltaNet conv window and delta matrix): zero-fill,
@@ -187,15 +192,19 @@ def _run_two_steps(compiled_model, is_imrope: bool) -> np.ndarray:
         position=1,
         state=first_state,
         is_imrope=is_imrope,
+        kv_cache_length=2,
     )
     second_outputs = request.infer(second_feed)
     second_state = _state_outputs(compiled_model, second_outputs)
     _assert_valid_kv_cache(second_state)
 
     kv_names = [name for name in first_state if name.startswith(("cache_k_", "cache_v_"))]
-    assert all(not np.array_equal(first_state[name], second_state[name]) for name in kv_names), (
-        "K/V cache values did not change on the second inference step"
-    )
+    for name in kv_names:
+        assert second_state[name].shape[1] == 2, f"{name} did not grow to two context slots"
+        assert np.array_equal(first_state[name][:, 0, ...], second_state[name][:, 0, ...]), (
+            f"{name} did not preserve the first-step cache slot"
+        )
+        assert np.any(second_state[name][:, 1, ...] != 0), f"{name} did not populate the second cache slot"
 
     return second_outputs[compiled_model.output(0)]
 

@@ -157,6 +157,18 @@ TEST(DequantVsGGML, Q4KRequantizationImprovesWithoutOutliers) {
     EXPECT_LE(max_abs_diff(ours, ref), kTolU4Requant);
 }
 
+TEST(DequantVsGGML, Q4KRejectsNonFiniteScaleMetadata) {
+    const auto valid = load_npy<uint8_t>("q4_k_qbytes");
+    constexpr uint16_t inf_f16 = 0x7c00;
+    constexpr uint16_t nan_f16 = 0x7e00;
+
+    for (const auto& [offset, bits] : {std::pair<size_t, uint16_t>{0, inf_f16}, {2, nan_f16}}) {
+        auto malformed = valid;
+        std::memcpy(malformed.data() + offset, &bits, sizeof(bits));
+        EXPECT_ANY_THROW(frontend_dequant(GGUF_TYPE_Q4_K, malformed, kRows, kCols));
+    }
+}
+
 // The faithful per-row K-quant dequant used as the Q8_0_C requant source must match ggml's
 // to_float almost exactly (f16 super-scale widening only): assert tight agreement with the ggml
 // reference. A loose result here means a byte-layout/index bug (which would silently corrupt the

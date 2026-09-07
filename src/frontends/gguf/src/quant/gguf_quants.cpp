@@ -29,6 +29,7 @@ static constexpr uint64_t kQ6K_BLOCK_BYTES = 128 + 64 + 16 + 2;      // ql + qh 
 
 // Round a fractional zero-point to u8, clamping to avoid a modulo-256 wrap when min/scale > 255.
 static inline uint8_t quantize_zp_u8(float zpval) {
+    OPENVINO_ASSERT(std::isfinite(zpval), "[GGUF] cannot quantize a non-finite zero-point");
     long r = std::lround(zpval);
     return static_cast<uint8_t>(std::min<long>(255, std::max<long>(0, r)));
 }
@@ -158,6 +159,10 @@ void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
         const uint8_t* block_data = data + i * bytes_per_block;
         const float d = static_cast<float>(ov::float16::from_bits(*((uint16_t*)block_data)));
         const float dmin = static_cast<float>(ov::float16::from_bits(*((uint16_t*)block_data + 1)));
+        OPENVINO_ASSERT(std::isfinite(d) && std::isfinite(dmin),
+                        "[GGUF] Q4_K block ",
+                        i,
+                        " has non-finite scale metadata");
         const uint8_t* qs1 = block_data + 4;
 
         // 8 sub-blocks: 6-bit scale and 6-bit min packed in 12 bytes.
