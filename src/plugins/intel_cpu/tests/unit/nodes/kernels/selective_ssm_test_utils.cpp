@@ -38,6 +38,12 @@ void run_selective_ssm_differential_stress_typed(const element::Type& precision,
         {{1, 2, 2, 5, 1, 17}, 4, true},
         {{1, 2, 2, 5, 1, 128}, 5, false},
         {{1, 2, 2, 5, 1, 129}, 3, true},
+        {{1, 7, 2, 17, 1, 127}, 17, false},
+        {{1, 8, 2, 17, 1, 128}, 17, true},
+        {{2, 9, 4, 33, 2, 129}, 16, false},
+        {{1, 17, 2, 32, 1, 128}, 32, true},
+        {{1, 8, 2, 33, 1, 1}, 33, false},
+        {{1, 9, 2, 65, 1, 3}, 65, true},
     };
     const auto cpu_parallel = make_parallel();
 
@@ -140,6 +146,11 @@ void run_paged_selective_ssm_differential_stress_typed(const element::Type& prec
         {2, 1, 5, 17, {2}, {1}, {3}, 4, false},
         {2, 1, 5, 128, {2}, {0}, {2}, 5, false},
         {2, 1, 5, 129, {2}, {3}, {4}, 3, false},
+        {2, 1, 17, 127, {7, 8, 9}, {0, 3, 7}, {3, 4, 0}, 17, false},
+        {4, 2, 33, 129, {8, 1, 17}, {1, 0, 4}, {1, 3, 5}, 16, false},
+        {2, 1, 32, 128, {17, 8}, {3, 9}, {0, -3}, 32, true},
+        {2, 1, 33, 1, {8, 9}, {0, 1}, {2, 3}, 33, false},
+        {2, 1, 65, 3, {8, 9, 17}, {1, 0, 3}, {4, 1, 5}, 65, false},
     };
     if (index_precision == element::i64) {
         cases.push_back(

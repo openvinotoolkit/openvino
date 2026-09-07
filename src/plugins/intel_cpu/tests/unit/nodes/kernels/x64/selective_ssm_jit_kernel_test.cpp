@@ -204,6 +204,101 @@ TEST_F(PagedSelectiveSSMJitKernel, DifferentialStressCoversCacheShapePrecisionAn
     }
 }
 
+TEST_F(SelectiveSSMJitKernel, LargeStateMatchesDoublePrecisionReference) {
+    const auto cpu_parallel = make_parallel();
+    constexpr size_t tokens = 8;
+    constexpr size_t heads = 2;
+    constexpr size_t rows = 9;
+    constexpr std::array<int32_t, 2> subsequence_begins{0, tokens};
+    constexpr std::array<int32_t, 4> block_indices{0, 1, 2, 3};
+    constexpr std::array<int32_t, 2> block_indices_begins{0, block_indices.size()};
+    constexpr int32_t processed_tokens = 3;
+    constexpr int32_t cache_interval = 4;
+    const auto A = make_values(heads, 0.013F, -0.2F);
+    const auto delta = make_values(tokens * heads, 0.003F, 0.08F);
+    const auto x = make_values(tokens * heads * rows, 0.009F, -0.02F);
+    for (const size_t state_size : {4095U, 4096U}) {
+        SCOPED_TRACE(testing::Message() << "state_size=" << state_size);
+        const SelectiveSSMShape shape{1, tokens, heads, rows, 1, state_size};
+        const auto B = make_values(tokens * state_size, 0.007F, 0.01F);
+        const auto C = make_values(tokens * state_size, 0.006F, -0.01F);
+        const auto initial = make_values(heads * rows * state_size, 0.005F, 0.02F);
+        // A sequential FP32 sum over 4096 terms can be less accurate than the vector reduction.
+        // Use an independent FP64 recurrence without increasing the FP32 comparison tolerance.
+        const auto expected = reference_selective_ssm<double>(A, delta, B, x, C, initial, shape);
+        std::vector<float> output(x.size());
+        std::vector<float> final_state(initial.size());
+        std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * rows * state_size);
+        SelectiveSSMKernelTestArgs args;
+        args.state_decay_rates = A.data();
+        args.time_steps = delta.data();
+        args.input_projections = B.data();
+        args.output_projections = C.data();
+        args.fp32_input_projections = B.data();
+        args.fp32_output_projections = C.data();
+        args.input = x.data();
+        args.initial_state = initial.data();
+        args.output = output.data();
+        args.final_state = final_state.data();
+        args.shape = shape;
+        args.data_precision = element::f32;
+        args.state_scratch = scratch.data();
+        args.head_dim_tile = rows;
+        args.cpu_parallel = cpu_parallel;
+        run_jit_selective_ssm(args);
+        for (size_t i = 0; i < output.size(); ++i) {
+            EXPECT_NEAR(output[i], expected.output[i], 1e-5) << "output index=" << i;
+        }
+        for (size_t i = 0; i < final_state.size(); ++i) {
+            EXPECT_NEAR(final_state[i], expected.state[i], 1e-7) << "state index=" << i;
+        }
+
+        for (const bool reuse_state_cache : {false, true}) {
+            SCOPED_TRACE(testing::Message() << "reuse_state_cache=" << reuse_state_cache);
+            std::vector<float> cache(block_indices.size() * initial.size(), 17.F);
+            std::copy(initial.begin(), initial.end(), cache.begin());
+            PagedSelectiveSSMKernelTestArgs paged;
+            paged.state_decay_rates = A.data();
+            paged.time_steps = delta.data();
+            paged.input_projections = B.data();
+            paged.output_projections = C.data();
+            paged.fp32_input_projections = B.data();
+            paged.fp32_output_projections = C.data();
+            paged.input = x.data();
+            paged.state_cache = cache.data();
+            paged.subsequence_begins = subsequence_begins.data();
+            paged.block_indices = block_indices.data();
+            paged.block_indices_begins = block_indices_begins.data();
+            paged.num_processed_tokens = &processed_tokens;
+            paged.cache_intervals = &cache_interval;
+            paged.output = output.data();
+            paged.shape = {tokens, heads, rows, 1, state_size, block_indices.size(), block_indices.size(), 1};
+            paged.data_precision = element::f32;
+            paged.index_precision = element::i32;
+            paged.state_scratch = scratch.data();
+            paged.head_dim_tile = rows;
+            paged.cpu_parallel = cpu_parallel;
+            run_jit_paged_selective_ssm(paged, reuse_state_cache);
+            for (size_t i = 0; i < output.size(); ++i) {
+                EXPECT_NEAR(output[i], expected.output[i], 1e-5) << "paged output index=" << i;
+            }
+            // The processed-token offset puts snapshots after tokens 1, 5 and 8.
+            size_t slot = 0;
+            for (const size_t prefix : {1U, 5U, 8U}) {
+                auto prefix_shape = shape;
+                prefix_shape.sequence_length = prefix;
+                const auto snapshot = reference_selective_ssm<double>(A, delta, B, x, C, initial, prefix_shape);
+                const size_t offset = static_cast<size_t>(block_indices[++slot]) * initial.size();
+                for (size_t i = 0; i < initial.size(); ++i) {
+                    EXPECT_NEAR(cache[offset + i], snapshot.state[i], 1e-7)
+                        << "snapshot prefix=" << prefix << ", state index=" << i;
+                }
+            }
+            EXPECT_TRUE(std::equal(initial.begin(), initial.end(), cache.begin()));
+        }
+    }
+}
+
 TEST_F(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
     for (const bool paged : {false, true}) {
         std::thread worker([paged] {
@@ -395,12 +490,13 @@ void verify_large_state_recurrence(const element::Type& precision) {
     using ov::intel_cpu::kernel::create_selective_ssm_jit_kernel;
     using ov::intel_cpu::kernel::jit_selective_ssm_call_args;
     using ov::intel_cpu::kernel::jit_selective_ssm_state_mode;
-    constexpr std::array state_sizes{127U, 128U, 129U, 135U, 255U, 256U, 257U, 263U, 4095U, 4096U};
+    constexpr std::array
+        state_sizes{1U, 2U, 3U, 4U, 5U, 7U, 8U, 127U, 128U, 129U, 135U, 255U, 256U, 257U, 263U, 4095U, 4096U};
     constexpr std::array state_modes{jit_selective_ssm_state_mode::in_place,
                                      jit_selective_ssm_state_mode::separate,
                                      jit_selective_ssm_state_mode::no_store};
     for (const size_t state_size : state_sizes) {
-        for (const size_t rows : {1U, 4U, 5U}) {
+        for (const size_t rows : {1U, 4U, 5U, 8U, 9U, 16U, 17U, 32U, 33U, 64U, 65U}) {
             for (const auto mode : state_modes) {
                 SCOPED_TRACE(testing::Message() << "precision=" << precision << ", state_size=" << state_size
                                                 << ", rows=" << rows << ", mode=" << static_cast<int>(mode));
