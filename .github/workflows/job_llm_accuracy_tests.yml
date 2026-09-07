@@ -37,7 +37,6 @@ permissions: read-all
 
 env:
 
-
 jobs:
   LLM_Accuracy_Tests:
     name: LLM accuracy ${{ inputs.device }} tests

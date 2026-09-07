@@ -16,7 +16,6 @@ concurrency:
 permissions: read-all
 
 env:
-  OPENVINO_CI_REF: '10364dc5360713192e3d348d965a8cfe7a342368'
 
 jobs:
   Smart_CI:
@@ -110,7 +109,6 @@ jobs:
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          ref: ${{ env.OPENVINO_CI_REF }}
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
           lfs: 'true'

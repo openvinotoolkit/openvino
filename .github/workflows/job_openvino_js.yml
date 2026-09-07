@@ -22,7 +22,6 @@ permissions: read-all
 
 env:
 
-
 jobs:
   JS_API:
     name: OpenVINO JS API

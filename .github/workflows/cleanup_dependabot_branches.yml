@@ -28,7 +28,6 @@ permissions: read-all
 
 env:
 
-
 jobs:
   Cleanup_Dependabot_Branches:
     name: Cleanup stale dependabot branches
