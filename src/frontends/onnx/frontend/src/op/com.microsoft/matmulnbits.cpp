@@ -106,8 +106,8 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         b_shape);
     CHECK_VALID_NODE(node,
                      a.get_element_type() == ov::element::f16 || a.get_element_type() == ov::element::f32 ||
-                         a.get_element_type() == ov::element::dynamic,
-                     "Unsupported input A type, accepted dynamic, FP16, FP32, got: ",
+                         a.get_element_type() == ov::element::bf16 || a.get_element_type() == ov::element::dynamic,
+                     "Unsupported input A type, accepted dynamic, FP16, FP32, BF16, got: ",
                      a.get_element_type());
     CHECK_VALID_NODE(
         node,
@@ -121,8 +121,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                          zero_points.get_element_type() == ov::element::u8 ||
                              zero_points.get_element_type() == ov::element::i32 ||
                              zero_points.get_element_type() == ov::element::f32 ||
-                             zero_points.get_element_type() == ov::element::f16,
-                         "Unsupported input zero_points type, accepted U8, I32, FP16, FP32, got: ",
+                             zero_points.get_element_type() == ov::element::f16 ||
+                             zero_points.get_element_type() == ov::element::bf16,
+                         "Unsupported input zero_points type, accepted U8, I32, FP16, FP32, BF16, got: ",
                          zero_points.get_element_type());
     }
 
@@ -289,12 +290,13 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         // Comments: in this latest code, the const folding is gone; it triggers the oneDNN kernel
         //           and use u2/u4/u8 weights as the kernel's input, won't do const folding anymore.
 
-        // use fp16 for compute
+        // compute in input A's precision (FP32/FP16/BF16)
 
         // sub and scale via the shared low-precision dequantization helper
-        const auto scales_fp16 = std::make_shared<v0::Convert>(scales, a.get_element_type());
+        const auto scales_converted = std::make_shared<v0::Convert>(scales, a.get_element_type());
         const auto scales_reshaped =
-            op::util::reshape(scales_fp16, ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
+            op::util::reshape(scales_converted,
+                              ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
 
         auto scaled_b = ov::decomposition::low_precision_dequantize(casted_b, scales_reshaped, converted_zero_points);
 

@@ -2478,6 +2478,18 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_no_zp_block_size) 
     test_case.run_with_tolerance_as_fp(0.1f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_bf16) {
+    // bfloat16 A/scales/zero_points/output (spec parity: T1/T3 allow bfloat16). Values are chosen
+    // to be exactly representable in bf16 so the comparison can be bit-exact.
+    const auto model = convert_model("com.microsoft/matmulnbits_bf16.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<ov::bfloat16>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<ov::bfloat16>(Shape{1, 1}, {80.f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
     const auto model = convert_model("com.microsoft/quick_gelu.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
