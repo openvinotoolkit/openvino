@@ -144,15 +144,17 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         if (override_dir) {
             // Real quantized checkpoints use lossy weight conversions. Check the first prediction
             // and continuation agreement; keep their full-logit metrics in the XML report.
-            if (step == 1)
+            if (step == 1) {
                 EXPECT_EQ(predicted, wanted);
+            }
         } else {
             EXPECT_LT(error / norm, 1e-5) << "Normalized MSE against llama.cpp CPU";
         }
         past += count;
     }
-    if (override_dir)
+    if (override_dir) {
         EXPECT_GE(matching_tokens * 10, schedule.size() * 9) << "Fewer than 90% of greedy choices match";
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(Architectures,
