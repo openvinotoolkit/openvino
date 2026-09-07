@@ -25,6 +25,18 @@
 namespace ov::intel_cpu::node::kernel::test {
 namespace {
 
+class SelectiveSSMJitKernel : public testing::Test {
+protected:
+    void SetUp() override {
+        using namespace dnnl::impl::cpu::x64;
+        if (!mayiuse(avx2)) {
+            GTEST_SKIP() << "SelectiveSSM JIT requires AVX2 or AVX-512.";
+        }
+    }
+};
+
+using PagedSelectiveSSMJitKernel = SelectiveSSMJitKernel;
+
 void run_jit_selective_ssm(const SelectiveSSMKernelTestArgs& args) {
     ASSERT_TRUE(args.data_precision == element::f32 || args.use_fp32_projections);
 
@@ -171,13 +183,13 @@ void verify_low_precision_encoding_semantics(const element::Type& precision) {
     }
 }
 
-TEST(SelectiveSSMJitKernel, DifferentialStressCoversShapeTilingPrecisionAndAliasingMatrix) {
+TEST_F(SelectiveSSMJitKernel, DifferentialStressCoversShapeTilingPrecisionAndAliasingMatrix) {
     run_selective_ssm_differential_stress(element::f32, 1e-5F, false, run_jit_selective_ssm);
     run_selective_ssm_differential_stress(element::f16, 3e-3F, true, run_jit_selective_ssm);
     run_selective_ssm_differential_stress(element::bf16, 3e-2F, true, run_jit_selective_ssm);
 }
 
-TEST(PagedSelectiveSSMJitKernel, DifferentialStressCoversCacheShapePrecisionAndIndexMatrix) {
+TEST_F(PagedSelectiveSSMJitKernel, DifferentialStressCoversCacheShapePrecisionAndIndexMatrix) {
     for (const bool reuse_state_cache : {false, true}) {
         SCOPED_TRACE(testing::Message() << "reuse_state_cache=" << reuse_state_cache);
         const auto run = [reuse_state_cache](const PagedSelectiveSSMKernelTestArgs& args) {
@@ -192,7 +204,7 @@ TEST(PagedSelectiveSSMJitKernel, DifferentialStressCoversCacheShapePrecisionAndI
     }
 }
 
-TEST(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
+TEST_F(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
     for (const bool paged : {false, true}) {
         std::thread worker([paged] {
             SCOPED_TRACE(testing::Message() << "paged=" << paged);
@@ -274,12 +286,12 @@ TEST(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
     }
 }
 
-TEST(SelectiveSSMJitKernel, LowPrecisionScalarEncodingSemanticsCoverEveryEncoding) {
+TEST_F(SelectiveSSMJitKernel, LowPrecisionScalarEncodingSemanticsCoverEveryEncoding) {
     verify_low_precision_encoding_semantics<float16>(element::f16);
     verify_low_precision_encoding_semantics<bfloat16>(element::bf16);
 }
 
-TEST(SelectiveSSMJitKernel, BF16DecodeMatchesPortableConversion) {
+TEST_F(SelectiveSSMJitKernel, BF16DecodeMatchesPortableConversion) {
     const SelectiveSSMShape shape{1, 1, 4, 8, 2, 16};
     std::vector<bfloat16> state_decay_rates(shape.num_heads);
     std::vector<bfloat16> time_steps(shape.num_heads);
@@ -352,7 +364,7 @@ TEST(SelectiveSSMJitKernel, BF16DecodeMatchesPortableConversion) {
     }
 }
 
-TEST(SelectiveSSMJitKernel, FactoryRejectsUnsupportedConfigurations) {
+TEST(SelectiveSSMJitFactory, FactoryRejectsUnsupportedConfigurations) {
     EXPECT_EQ(ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(element::i8, 1), nullptr);
     EXPECT_EQ(ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(element::f32, 0), nullptr);
     EXPECT_EQ(ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(element::f16, 1, element::bf16), nullptr);
@@ -363,7 +375,7 @@ TEST(SelectiveSSMJitKernel, FactoryRejectsUnsupportedConfigurations) {
               nullptr);
 }
 
-TEST(PagedSelectiveSSMJitKernel, CacheScheduleTracksSnapshots) {
+TEST(PagedSelectiveSSMJitSchedule, CacheScheduleTracksSnapshots) {
     const auto disabled = ov::intel_cpu::kernel::PagedCacheSchedule::make(0, 7);
     EXPECT_EQ(disabled.snapshot_count(4), 0);
     EXPECT_FALSE(disabled.should_store(8, true));
@@ -438,7 +450,7 @@ void verify_large_state_recurrence(const element::Type& precision) {
     }
 }
 
-TEST(SelectiveSSMJitKernel, RuntimeVectorLoopCoversBoundariesRowsAndStateModes) {
+TEST_F(SelectiveSSMJitKernel, RuntimeVectorLoopCoversBoundariesRowsAndStateModes) {
     verify_large_state_recurrence<float>(element::f32);
     verify_large_state_recurrence<float16>(element::f16);
     verify_large_state_recurrence<bfloat16>(element::bf16);
@@ -467,19 +479,17 @@ void verify_bounded_generated_code_size() {
     }
 }
 
-TEST(SelectiveSSMJitKernel, RuntimeVectorLoopBoundsGeneratedCodeSize) {
+TEST_F(SelectiveSSMJitKernel, RuntimeVectorLoopBoundsGeneratedCodeSize) {
     // Match the factory dispatch: shared conversion emitters also use the active host ISA.
     using namespace dnnl::impl::cpu::x64;
     if (mayiuse(avx512_core)) {
         verify_bounded_generated_code_size<avx512_core>();
-    } else if (mayiuse(avx2)) {
-        verify_bounded_generated_code_size<avx2>();
     } else {
-        GTEST_SKIP() << "SelectiveSSM JIT requires AVX2 or AVX-512.";
+        verify_bounded_generated_code_size<avx2>();
     }
 }
 
-TEST(SelectiveSSMJitKernel, BF16OutputPreservesRoundingBoundariesAndSubnormals) {
+TEST_F(SelectiveSSMJitKernel, BF16OutputPreservesRoundingBoundariesAndSubnormals) {
     // Low FP32 bits distinguish OpenVINO's BF16 conversion from native RNE.
     constexpr std::array low_bits{0U, 0x3FFFU, 0x7FFFU, 0x8000U, 0x8001U, 0xFFFFU};
     std::vector<float> state;
@@ -512,7 +522,7 @@ TEST(SelectiveSSMJitKernel, BF16OutputPreservesRoundingBoundariesAndSubnormals) 
     }
 }
 
-TEST(PagedSelectiveSSMJitKernel, SingleSnapshotWorkspaceCoversAliasedAndSeparateCache) {
+TEST_F(PagedSelectiveSSMJitKernel, SingleSnapshotWorkspaceCoversAliasedAndSeparateCache) {
     constexpr size_t state_elements = 5 * 17;
     const auto cpu_parallel = make_parallel();
     const float A = -0.2F;
@@ -575,7 +585,7 @@ TEST(PagedSelectiveSSMJitKernel, SingleSnapshotWorkspaceCoversAliasedAndSeparate
     }
 }
 
-TEST(SelectiveSSMJitKernel, FactoryCreatesLargestAdvertisedState) {
+TEST(SelectiveSSMJitFactory, FactoryCreatesLargestAdvertisedState) {
     using namespace dnnl::impl::cpu::x64;
     const auto expected_isa = mayiuse(avx512_core) ? avx512_core : avx2;
     const std::array precisions{element::f32, element::f16, element::bf16};
@@ -594,6 +604,10 @@ TEST(SelectiveSSMJitKernel, FactoryCreatesLargestAdvertisedState) {
                 ov::intel_cpu::kernel::max_selective_ssm_jit_state_size,
                 state_precision,
                 state_mode);
+            if (!mayiuse(avx2)) {
+                EXPECT_EQ(kernel, nullptr);
+                continue;
+            }
             ASSERT_NE(kernel, nullptr);
             EXPECT_EQ(kernel->getIsa(), expected_isa);
         }
