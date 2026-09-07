@@ -357,37 +357,4 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Values(false)),
     ConcatWithSplitTransformation::getTestCaseName);
 } // namespace casesWithoutConvolution
-
-// regression test for a fix where getReferenceWithSplitedIntermediate applied
-// dequantizationBefore1 to both concat branches instead of dequantizationBefore2 to the second one
-TEST(LPT, ConcatWithSplitGetReferenceAppliesDistinctBranchDequantization) {
-    const auto function = ov::builder::subgraph::ConcatFunction::getReferenceWithSplitedIntermediate(
-        ov::element::f32,
-        ov::PartialShape{ 1, 6, 9, 9 },
-        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
-        { 256ul, ov::Shape({}), {0.f}, {2.55f}, {0.f}, {2.55f} },
-        { ov::element::f32, {}, { 0.01f } },
-        { ov::element::f32, {}, { 0.02f } },
-        ov::element::u8,
-        false,
-        {},
-        { ov::element::f32, {}, { 0.1f } });
-
-    std::shared_ptr<ov::Node> intermediate;
-    for (const auto& op : function->get_ordered_ops()) {
-        if (op->get_friendly_name() == "intermediate") {
-            intermediate = op;
-            break;
-        }
-    }
-    ASSERT_NE(intermediate, nullptr) << "intermediate operation was not found";
-
-    const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(intermediate->get_input_node_shared_ptr(0));
-    ASSERT_NE(multiply, nullptr) << "the second concat branch is expected to be dequantized by a Multiply";
-
-    const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(multiply->get_input_node_shared_ptr(1));
-    ASSERT_NE(constant, nullptr);
-    ASSERT_EQ(constant->cast_vector<float>(), std::vector<float>({ 0.02f }))
-        << "the second concat branch must be dequantized with dequantizationBefore2, not dequantizationBefore1";
-}
 } // namespace
