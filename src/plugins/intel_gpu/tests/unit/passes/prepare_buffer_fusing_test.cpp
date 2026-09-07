@@ -10,6 +10,7 @@
 #include <intel_gpu/primitives/vl_sdpa.hpp>
 #include "vl_sdpa_inst.h"
 #include "graph/impls/ocl/kernel_selector_helper.h"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 
 #include "intel_gpu/runtime/engine.hpp"
 
@@ -3156,6 +3157,65 @@ TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_eltwise_consum
     ASSERT_TRUE(net.get_primitive("crop0")->can_be_optimized()) << "crop0 should be in-place";
     ASSERT_TRUE(net.get_primitive("crop1")->can_be_optimized()) << "crop1 should be in-place";
     ASSERT_TRUE(net.get_primitive("crop2")->can_be_optimized()) << "crop2 should be in-place";
+}
+
+TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_sdpa_consumer) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int64_t H = 4, S = 8;
+    const int64_t L = 16;  // batch (sequence length)
+
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f16, format::bfyx};
+    auto input_mem      = engine.allocate_memory({{L, 3, H, S}, data_types::f16, format::bfyx});
+    auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<ov::float16>(L * 3 * H * S, -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+
+    auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    const int64_t axis = 1;
+
+    const std::vector<int64_t> rs_pattern{-1, H, S};
+    auto rs_shape_dyn = ov::PartialShape{-1, H, S};
+    const std::vector<int64_t> identity_order{0, 1, 2};
+
+    topology topo_dyn(
+        input_layout("input", in_layout_dyn),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape2", input_info("crop2"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        scaled_dot_product_attention("sdpa",
+            {input_info("reshape0"), input_info("reshape1"), input_info("reshape2")},
+            true /*is_causal, avoids needing an attn_mask input*/, -1,
+            identity_order, identity_order, identity_order, identity_order),
+        reorder("output", input_info("sdpa"), format::bfyx, data_types::f16)
+    );
+    ExecutionConfig config_dyn = get_test_default_config(engine);
+    config_dyn.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config_dyn.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, topo_dyn, config_dyn);
+    net.set_input_data("input", input_mem);
+    net.execute();
+
+    ASSERT_FALSE(net.get_primitive("crop0")->can_be_optimized())
+        << "crop0 (Q->generic sdpa) must NOT be in-place: sdpa kernels don't honor propagated padding";
+    ASSERT_FALSE(net.get_primitive("crop1")->can_be_optimized())
+        << "crop1 (K->generic sdpa) must NOT be in-place";
+    ASSERT_FALSE(net.get_primitive("crop2")->can_be_optimized())
+        << "crop2 (V->generic sdpa) must NOT be in-place";
 }
 
 // =============================================================================
