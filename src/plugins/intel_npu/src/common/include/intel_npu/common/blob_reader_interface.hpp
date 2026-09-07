@@ -16,14 +16,22 @@ namespace intel_npu {
 class BlobReaderInterface final {
 public:
     /**
-     * @brief Constructs a BlobReader, associating it with the given compiled model source.
+     * @brief Constructs an interface that allows the section readers to read data from the blob in a restricted manner.
+     * @details By using an instantiation of this class, reading can only happen within the given boundaries.
+     *
+     * @param source The data will be read from here
+     * @param npu_region_start The offset within the source where the NPU specific data begins
+     * @param npu_region_size The size of the NPU specific region within the source
+     * @param section_start The offset within the source where the section begins
+     * @param section_length The size of the current section within the source
+     * @param config An optional configuration that may be queried by the section readers leveraging this interface
      */
     BlobReaderInterface(BlobSource& source,
                         const size_t npu_region_start,
                         const size_t npu_region_size,
                         const size_t section_start,
                         const size_t section_length,
-                        const FilteredConfig& config);
+                        const std::optional<FilteredConfig>& config = std::nullopt);
 
     /**
      * @brief Reads data from the compiled model source and copies it to the given destination. Also the read cursor is
@@ -56,7 +64,7 @@ public:
 
     size_t get_section_length() const;
 
-    FilteredConfig get_config() const;
+    std::optional<FilteredConfig> get_config() const;
 
     ov::log::Level get_log_level() const;
 
@@ -67,7 +75,7 @@ private:
     size_t m_section_start;
     size_t m_section_end;
 
-    FilteredConfig m_config;
+    std::optional<FilteredConfig> m_config;
     Logger m_logger;
 };
 

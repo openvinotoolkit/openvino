@@ -55,10 +55,13 @@ void decrypt_payload(ov::Tensor& payload, const ov::EncryptionCallbacks& encrypt
     }
 }  // -1x blob size when deallocating decrypted blob string
 
-std::optional<ov::EncryptionCallbacks> get_encryption_callbacks_from_config(const FilteredConfig& config) {
-    if (config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
-        config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        return config.get<CACHE_ENCRYPTION_CALLBACKS>();
+std::optional<ov::EncryptionCallbacks> get_encryption_callbacks_from_config(
+    const std::optional<FilteredConfig>& config) {
+    OPENVINO_ASSERT(config.has_value(), "A config object is required to query the encryption callbacks");
+
+    if (config->has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
+        config->get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
+        return config->get<CACHE_ENCRYPTION_CALLBACKS>();
     }
     return std::nullopt;
 }

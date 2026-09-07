@@ -185,7 +185,7 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
         logger.level());
 }
 
-bool is_runtime_requirements_format_v3(std::string_view runtime_requirements) {
+bool is_runtime_requirements_format_v2(std::string_view runtime_requirements) {
     try {
         compat::Parser parser(runtime_requirements, std::vector<int>());
         return parser.getAttributes().count(VERSION_KEY.data());

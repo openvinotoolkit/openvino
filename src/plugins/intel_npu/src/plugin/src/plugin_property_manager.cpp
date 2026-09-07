@@ -15,6 +15,7 @@
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/runtime_requirements.hpp"
+#include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
@@ -157,13 +158,49 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
     }
 }
 
-ov::CompatibilityCheck validateCompatibilityDescriptorFormatV3(std::string_view runtimeRequirements,
+// TODO consider refactoring this
+ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(std::string_view runtimeRequirements,
                                                                const ov::SoPtr<intel_npu::IEngineBackend>& backend,
                                                                CompilerOptionSupportHelper& optionSupportHelper) {
-    return false;
+    // Need to create a few object to connect to the API used within the import path
+    BlobSource source(
+        ov::Tensor(ov::element::Type_t::u8, ov::Shape({runtimeRequirements.size()}), runtimeRequirements.data()));
+    BlobReaderInterface readerInterface(source, 0, runtimeRequirements.size(), 0, runtimeRequirements.size());
+
+    std::shared_ptr<RuntimeRequirementsSection> runtimeRequirementsSection;
+    try {
+        runtimeRequirementsSection =
+            std::dynamic_pointer_cast<RuntimeRequirementsSection>(RuntimeRequirementsSection::read(readerInterface));
+    } catch (...) {
+        // E.g. unsupported version
+        return ov::CompatibilityCheck::UNSUPPORTED;
+    }
+
+    // Build the section type & instance evaluators
+    std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators;
+    std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators;
+
+    for (const SectionType type : DEFAULT_SUPPORTED_SECTION_TYPES) {
+        type_evaluators[type] = std::make_shared<SupportedSectionTypeEvaluator>(type);
+    }
+
+    const auto compiler_schedules_instance_evaluator = std::make_shared<CompilerScheduleInstanceEvaluator>(
+        backend,
+        std::make_shared<CompilerOptionSupportHelper>(optionSupportHelper));
+    instance_evaluators[PredefinedSectionType::ELF_MAIN_SCHEDULE] = compiler_schedules_instance_evaluator;
+    instance_evaluators[PredefinedSectionType::DYNAMIC_SCHEDULE] = compiler_schedules_instance_evaluator;
+
+    try {
+        return runtimeRequirementsSection->get_runtime_requirements().get_compatibility_check_result(
+            type_evaluators,
+            instance_evaluators);
+    } catch (...) {
+        // TODO why?
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
 }
 
-ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(std::string_view runtimeRequirements,
+ov::CompatibilityCheck validateCompatibilityDescriptorFormatV1(std::string_view runtimeRequirements,
                                                                const ov::SoPtr<intel_npu::IEngineBackend>& backend,
                                                                CompilerOptionSupportHelper& optionSupportHelper) {
     std::unique_ptr<MetadataBase> metadata = nullptr;
@@ -179,11 +216,9 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(std::string_view 
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
     try {
-        const bool supported =
-            CompilerScheduleInstanceEvaluator(backend,
-                                              std::make_shared<CompilerOptionSupportHelper>(optionSupportHelper))
-                .evaluate(compilerRuntimeRequirements.value());
-        return supported ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
+        return CompilerScheduleInstanceEvaluator(backend,
+                                                 std::make_shared<CompilerOptionSupportHelper>(optionSupportHelper))
+            .evaluate(compilerRuntimeRequirements.value());
     } catch (...) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
@@ -201,16 +236,16 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<IEngineBa
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 
-    bool is_v3 = false;
+    bool is_v2 = false;
     try {
-        is_v3 = is_runtime_requirements_format_v3(runtimeRequirements);
+        is_v2 = is_runtime_requirements_format_v2(runtimeRequirements);
     } catch (...) {
         // Failed to parse the string
         return ov::CompatibilityCheck::UNSUPPORTED;
     }
 
-    return is_v3 ? validateCompatibilityDescriptorFormatV3(runtimeRequirements, backend, optionSupportHelper)
-                 : validateCompatibilityDescriptorFormatV2(runtimeRequirements, backend, optionSupportHelper);
+    return is_v2 ? validateCompatibilityDescriptorFormatV2(runtimeRequirements, backend, optionSupportHelper)
+                 : validateCompatibilityDescriptorFormatV1(runtimeRequirements, backend, optionSupportHelper);
 }
 
 }  // namespace
