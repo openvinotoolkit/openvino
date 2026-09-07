@@ -28,8 +28,8 @@ using namespace intel_npu;
 
 bool blob_contains_only_main_schedule(const BlobWriter& writer) {
     // TODO expand with dynamic model type
-    return (writer.count_registered_sections_of_type(KnownSectionType::ELF_MAIN_SCHEDULE) == 1) &&
-           !writer.count_registered_sections_of_type(KnownSectionType::ELF_INIT_SCHEDULES);
+    return (writer.count_registered_sections_of_type(ValidSectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
+           !writer.count_registered_sections_of_type(ValidSectionTypeCode::ELF_INIT_SCHEDULES);
 }
 
 }  // namespace

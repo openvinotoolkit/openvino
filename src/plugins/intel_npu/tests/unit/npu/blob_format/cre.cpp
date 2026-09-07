@@ -9,27 +9,27 @@
 
 const std::vector<CREToken> expression_1 = {};
 
-const std::vector<CREToken> expression_3 = {KnownSectionType::ELF_MAIN_SCHEDULE};
+const std::vector<CREToken> expression_3 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE};
 
 /*
            AND
           /   \
        *ELF*  *BT*
 */
-const std::vector<CREToken> expression_4 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> expression_4 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                             CRE::AND,
-                                            KnownSectionType::BATCH_SIZE};
+                                            ValidSectionTypeCode::BATCH_SIZE};
 
 /*
               AND
            /   |   \
         *ELF* *BT* *WS*
 */
-const std::vector<CREToken> expression_5 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> expression_5 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                             CRE::AND,
-                                            KnownSectionType::BATCH_SIZE,
+                                            ValidSectionTypeCode::BATCH_SIZE,
                                             CRE::AND,
-                                            KnownSectionType::ELF_INIT_SCHEDULES};
+                                            ValidSectionTypeCode::ELF_INIT_SCHEDULES};
 
 /*
             AND
@@ -38,12 +38,12 @@ const std::vector<CREToken> expression_5 = {KnownSectionType::ELF_MAIN_SCHEDULE,
               /  \
            *BT*  *WS*
 */
-const std::vector<CREToken> expression_6 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> expression_6 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                             CRE::AND,
                                             CRE::OPEN,
-                                            KnownSectionType::BATCH_SIZE,
+                                            ValidSectionTypeCode::BATCH_SIZE,
                                             CRE::OR,
-                                            KnownSectionType::ELF_INIT_SCHEDULES,
+                                            ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                             CRE::CLOSE};
 
 /*
@@ -53,12 +53,12 @@ const std::vector<CREToken> expression_6 = {KnownSectionType::ELF_MAIN_SCHEDULE,
               /   \
            *BT*   *WS*
 */
-const std::vector<CREToken> expression_7 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> expression_7 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                             CRE::OR,
                                             CRE::OPEN,
-                                            KnownSectionType::BATCH_SIZE,
+                                            ValidSectionTypeCode::BATCH_SIZE,
                                             CRE::AND,
-                                            KnownSectionType::ELF_INIT_SCHEDULES,
+                                            ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                             CRE::CLOSE};
 
 /*
@@ -68,18 +68,18 @@ const std::vector<CREToken> expression_7 = {KnownSectionType::ELF_MAIN_SCHEDULE,
                     /  \    /  \
                  *BT* *WS* *WS* *BT*
 */
-const std::vector<CREToken> expression_8 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> expression_8 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                             CRE::AND,
                                             CRE::OPEN,
-                                            KnownSectionType::BATCH_SIZE,
+                                            ValidSectionTypeCode::BATCH_SIZE,
                                             CRE::OR,
-                                            KnownSectionType::ELF_INIT_SCHEDULES,
+                                            ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                             CRE::CLOSE,
                                             CRE::AND,
                                             CRE::OPEN,
-                                            KnownSectionType::ELF_INIT_SCHEDULES,
+                                            ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                             CRE::OR,
-                                            KnownSectionType::BATCH_SIZE,
+                                            ValidSectionTypeCode::BATCH_SIZE,
                                             CRE::CLOSE};
 
 /*
@@ -94,22 +94,22 @@ const std::vector<CREToken> expression_8 = {KnownSectionType::ELF_MAIN_SCHEDULE,
                                    *ELF* *BT*
 */
 const std::vector<CREToken> expression_9 = {CRE::OPEN,
-                                            KnownSectionType::ELF_MAIN_SCHEDULE,
+                                            ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                             CRE::AND,
-                                            KnownSectionType::ELF_INIT_SCHEDULES,
+                                            ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                             CRE::AND,
-                                            KnownSectionType::BATCH_SIZE,
+                                            ValidSectionTypeCode::BATCH_SIZE,
                                             CRE::CLOSE,
                                             CRE::OR,
                                             CRE::OPEN,
-                                            KnownSectionType::ELF_MAIN_SCHEDULE,
+                                            ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                             CRE::OR,
-                                            KnownSectionType::ELF_INIT_SCHEDULES,
+                                            ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                             CRE::OR,
                                             CRE::OPEN,
-                                            KnownSectionType::ELF_MAIN_SCHEDULE,
+                                            ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                             CRE::AND,
-                                            KnownSectionType::BATCH_SIZE,
+                                            ValidSectionTypeCode::BATCH_SIZE,
                                             CRE::CLOSE,
                                             CRE::CLOSE};
 
@@ -127,22 +127,22 @@ const std::vector<CREToken> expression_9 = {CRE::OPEN,
 // expression_9 but with reversed leaves
 const std::vector<CREToken> expression_10 = {CRE::OPEN,
                                              CRE::OPEN,
-                                             KnownSectionType::BATCH_SIZE,
+                                             ValidSectionTypeCode::BATCH_SIZE,
                                              CRE::AND,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::CLOSE,
                                              CRE::OR,
-                                             KnownSectionType::ELF_INIT_SCHEDULES,
+                                             ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                              CRE::OR,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::CLOSE,
                                              CRE::OR,
                                              CRE::OPEN,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::AND,
-                                             KnownSectionType::ELF_INIT_SCHEDULES,
+                                             ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                              CRE::AND,
-                                             KnownSectionType::BATCH_SIZE,
+                                             ValidSectionTypeCode::BATCH_SIZE,
                                              CRE::CLOSE};
 
 /*
@@ -156,19 +156,19 @@ const std::vector<CREToken> expression_10 = {CRE::OPEN,
                  /  \
              *ELF* *WS*
 */
-const std::vector<CREToken> expression_12 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> expression_12 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::AND,
                                              CRE::OPEN,
-                                             KnownSectionType::ELF_INIT_SCHEDULES,
+                                             ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                              CRE::OR,
                                              CRE::OPEN,
                                              CRE::OPEN,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::AND,
-                                             KnownSectionType::ELF_INIT_SCHEDULES,
+                                             ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                              CRE::CLOSE,
                                              CRE::OR,
-                                             KnownSectionType::BATCH_SIZE,
+                                             ValidSectionTypeCode::BATCH_SIZE,
                                              CRE::CLOSE,
                                              CRE::CLOSE};
 
@@ -177,18 +177,18 @@ const std::vector<CREToken> expression_12 = {KnownSectionType::ELF_MAIN_SCHEDULE
            /   |   \
         *ELF* *BT* *ELF*
 */
-const std::vector<CREToken> expression_13 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> expression_13 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::AND,
-                                             KnownSectionType::BATCH_SIZE,
+                                             ValidSectionTypeCode::BATCH_SIZE,
                                              CRE::AND,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE};
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE};
 
 /*
     NOT
      |
    *ELF*
 */
-const std::vector<CREToken> expression_14 = {CRE::NOT, KnownSectionType::ELF_MAIN_SCHEDULE};
+const std::vector<CREToken> expression_14 = {CRE::NOT, ValidSectionTypeCode::ELF_MAIN_SCHEDULE};
 
 /*
               AND
@@ -196,12 +196,12 @@ const std::vector<CREToken> expression_14 = {CRE::NOT, KnownSectionType::ELF_MAI
         ~ELF  ~BT  *WS*
 */
 const std::vector<CREToken> expression_16 = {CRE::NOT,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::AND,
                                              CRE::NOT,
-                                             KnownSectionType::BATCH_SIZE,
+                                             ValidSectionTypeCode::BATCH_SIZE,
                                              CRE::AND,
-                                             KnownSectionType::ELF_INIT_SCHEDULES};
+                                             ValidSectionTypeCode::ELF_INIT_SCHEDULES};
 
 /*
             AND
@@ -211,14 +211,14 @@ const std::vector<CREToken> expression_16 = {CRE::NOT,
            *BT*  ~WS
 */
 const std::vector<CREToken> expression_17 = {CRE::NOT,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::AND,
                                              CRE::NOT,
                                              CRE::OPEN,
-                                             KnownSectionType::BATCH_SIZE,
+                                             ValidSectionTypeCode::BATCH_SIZE,
                                              CRE::OR,
                                              CRE::NOT,
-                                             KnownSectionType::ELF_INIT_SCHEDULES,
+                                             ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                              CRE::CLOSE};
 
 /*
@@ -228,8 +228,12 @@ const std::vector<CREToken> expression_17 = {CRE::NOT,
      /   \
   *ELF*  *BT*
 */
-const std::vector<CREToken> expression_18 =
-    {CRE::NOT, CRE::OPEN, KnownSectionType::ELF_MAIN_SCHEDULE, CRE::AND, KnownSectionType::BATCH_SIZE, CRE::CLOSE};
+const std::vector<CREToken> expression_18 = {CRE::NOT,
+                                             CRE::OPEN,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+                                             CRE::AND,
+                                             ValidSectionTypeCode::BATCH_SIZE,
+                                             CRE::CLOSE};
 
 /*
     AND
@@ -237,9 +241,9 @@ const std::vector<CREToken> expression_18 =
 ~ELF  *BT*
 */
 const std::vector<CREToken> expression_15 = {CRE::NOT,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::AND,
-                                             KnownSectionType::BATCH_SIZE};
+                                             ValidSectionTypeCode::BATCH_SIZE};
 
 /*
                     NOT
@@ -252,20 +256,20 @@ const std::vector<CREToken> expression_15 = {CRE::NOT,
 */
 const std::vector<CREToken> expression_19 = {CRE::NOT,
                                              CRE::OPEN,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::AND,
                                              CRE::OPEN,
                                              CRE::NOT,
-                                             KnownSectionType::BATCH_SIZE,
+                                             ValidSectionTypeCode::BATCH_SIZE,
                                              CRE::OR,
-                                             KnownSectionType::ELF_INIT_SCHEDULES,
+                                             ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                              CRE::CLOSE,
                                              CRE::AND,
                                              CRE::OPEN,
-                                             KnownSectionType::ELF_INIT_SCHEDULES,
+                                             ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                              CRE::OR,
                                              CRE::NOT,
-                                             KnownSectionType::BATCH_SIZE,
+                                             ValidSectionTypeCode::BATCH_SIZE,
                                              CRE::CLOSE,
                                              CRE::CLOSE};
 
@@ -281,15 +285,15 @@ const std::vector<CREToken> expression_19 = {CRE::NOT,
 */
 const std::vector<CREToken> expression_20 = {CRE::NOT,
                                              CRE::OPEN,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::OR,
-                                             KnownSectionType::BATCH_SIZE,
+                                             ValidSectionTypeCode::BATCH_SIZE,
                                              CRE::CLOSE,
                                              CRE::OR,
                                              CRE::OPEN,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::OR,
-                                             KnownSectionType::ELF_INIT_SCHEDULES,
+                                             ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                              CRE::CLOSE};
 
 /*
@@ -311,59 +315,59 @@ const std::vector<CREToken> expression_21 = {CRE::NOT,
                                              CRE::NOT,
                                              CRE::OPEN,
                                              CRE::NOT,
-                                             KnownSectionType::ELF_MAIN_SCHEDULE,
+                                             ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                              CRE::AND,
                                              CRE::OPEN,
                                              CRE::NOT,
-                                             KnownSectionType::BATCH_SIZE,
+                                             ValidSectionTypeCode::BATCH_SIZE,
                                              CRE::OR,
                                              CRE::NOT,
-                                             KnownSectionType::ELF_INIT_SCHEDULES,
+                                             ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                              CRE::CLOSE,
                                              CRE::CLOSE};
 
-const std::vector<CREToken> expression_22 = {CRE::OPEN, KnownSectionType::ELF_MAIN_SCHEDULE, CRE::CLOSE};
+const std::vector<CREToken> expression_22 = {CRE::OPEN, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, CRE::CLOSE};
 
 const std::vector<CREToken> expression_23 =
-    {CRE::OPEN, CRE::OPEN, CRE::NOT, KnownSectionType::ELF_MAIN_SCHEDULE, CRE::CLOSE, CRE::CLOSE};
+    {CRE::OPEN, CRE::OPEN, CRE::NOT, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, CRE::CLOSE, CRE::CLOSE};
 
 // missing both operands for the OR operator
-const std::vector<CREToken> invalid_expression_1 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> invalid_expression_1 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                     CRE::AND,
                                                     CRE::OPEN,
                                                     CRE::OR,
                                                     CRE::CLOSE};
 
 // Missing only the first operand for the OR operator
-const std::vector<CREToken> invalid_expression_15 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> invalid_expression_15 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::AND,
                                                      CRE::OPEN,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE,
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::OR,
                                                      CRE::CLOSE};
 
 // Missing only the second operand for the OR operator
-const std::vector<CREToken> invalid_expression_16 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> invalid_expression_16 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::AND,
                                                      CRE::OPEN,
                                                      CRE::OR,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE,
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::CLOSE};
 
 // missing closed parenthesis
-const std::vector<CREToken> invalid_expression_2 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> invalid_expression_2 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                     CRE::AND,
                                                     CRE::OPEN,
-                                                    KnownSectionType::BATCH_SIZE,
+                                                    ValidSectionTypeCode::BATCH_SIZE,
                                                     CRE::OR,
-                                                    KnownSectionType::ELF_INIT_SCHEDULES};
+                                                    ValidSectionTypeCode::ELF_INIT_SCHEDULES};
 
 // missing open parenthesis
-const std::vector<CREToken> invalid_expression_3 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> invalid_expression_3 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                     CRE::AND,
-                                                    KnownSectionType::BATCH_SIZE,
+                                                    ValidSectionTypeCode::BATCH_SIZE,
                                                     CRE::OR,
-                                                    KnownSectionType::ELF_INIT_SCHEDULES,
+                                                    ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                                     CRE::CLOSE};
 
 /*
@@ -374,15 +378,15 @@ const std::vector<CREToken> invalid_expression_3 = {KnownSectionType::ELF_MAIN_S
                      0    *WS* *BT*
 */
 // missing operand for the first OR operator
-const std::vector<CREToken> invalid_expression_4 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> invalid_expression_4 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                     CRE::AND,
                                                     CRE::OPEN,
                                                     CRE::OR,
                                                     CRE::CLOSE,
                                                     CRE::OPEN,
-                                                    KnownSectionType::ELF_INIT_SCHEDULES,
+                                                    ValidSectionTypeCode::ELF_INIT_SCHEDULES,
                                                     CRE::OR,
-                                                    KnownSectionType::BATCH_SIZE,
+                                                    ValidSectionTypeCode::BATCH_SIZE,
                                                     CRE::CLOSE};
 
 // missing operands for nested operators
@@ -390,7 +394,7 @@ const std::vector<CREToken> invalid_expression_5 =
     {CRE::OPEN, CRE::OR, CRE::OPEN, CRE::OR, CRE::CLOSE, CRE::CLOSE, CRE::AND};
 
 // NOT missing operand
-const std::vector<CREToken> invalid_expression_6 = {KnownSectionType::ELF_MAIN_SCHEDULE, CRE::AND, CRE::NOT};
+const std::vector<CREToken> invalid_expression_6 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE, CRE::AND, CRE::NOT};
 
 // chained NOTs with no operand
 const std::vector<CREToken> invalid_expression_7 = {CRE::NOT, CRE::NOT};
@@ -403,25 +407,25 @@ const std::vector<CREToken> invalid_expression_9 = {CRE::AND};
 
 // too many operands
 const std::vector<CREToken> invalid_expression_10 = {CRE::NOT,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE,
-                                                     KnownSectionType::BATCH_SIZE};
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+                                                     ValidSectionTypeCode::BATCH_SIZE};
 
 // missing CLOSE
 const std::vector<CREToken> invalid_expression_11 = {CRE::OPEN,
                                                      CRE::OPEN,
                                                      CRE::NOT,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE,
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::CLOSE};
 
 // missing OPEN
 const std::vector<CREToken> invalid_expression_12 = {CRE::OPEN,
                                                      CRE::NOT,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE,
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::CLOSE,
                                                      CRE::CLOSE};
 
 // Empty parrentheses cannot play the role of an operand
-const std::vector<CREToken> invalid_expression_13 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> invalid_expression_13 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::AND,
                                                      CRE::OPEN,
                                                      CRE::CLOSE};
@@ -430,177 +434,177 @@ const std::vector<CREToken> invalid_expression_13 = {KnownSectionType::ELF_MAIN_
 const std::vector<CREToken> invalid_expression_14 = {CRE::OPEN,
                                                      CRE::NOT,
                                                      CRE::CLOSE,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE};
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE};
 
 // AND has too many operands
-const std::vector<CREToken> invalid_expression_17 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> invalid_expression_17 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::AND,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE};
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE};
 
 // OR has too many operands
-const std::vector<CREToken> invalid_expression_18 = {KnownSectionType::ELF_MAIN_SCHEDULE,
+const std::vector<CREToken> invalid_expression_18 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::OR,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE};
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE};
 
 // No operator to tie the two tokens
-const std::vector<CREToken> invalid_expression_19 = {KnownSectionType::ELF_MAIN_SCHEDULE,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE};
+const std::vector<CREToken> invalid_expression_19 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE};
 
 // No operator to tie the two subexpressions
 const std::vector<CREToken> invalid_expression_20 = {CRE::OPEN,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE,
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::CLOSE,
                                                      CRE::OPEN,
-                                                     KnownSectionType::ELF_MAIN_SCHEDULE,
+                                                     ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
                                                      CRE::CLOSE};
 
 // "OR" cannot replace an operand
-const std::vector<CREToken> invalid_expression_21 = {KnownSectionType::ELF_MAIN_SCHEDULE, CRE::OR, CRE::OR};
+const std::vector<CREToken> invalid_expression_21 = {ValidSectionTypeCode::ELF_MAIN_SCHEDULE, CRE::OR, CRE::OR};
 
 std::vector<CREParams> valid_test_cases = {
     MAKE_PARAM(expression_1, true),
 
-    MAKE_PARAM(expression_3, true, KnownSectionType::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_3, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
     MAKE_PARAM(expression_3, false),
 
-    MAKE_PARAM(expression_4, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::BATCH_SIZE),
-    MAKE_PARAM(expression_4, false, KnownSectionType::ELF_MAIN_SCHEDULE),
-    MAKE_PARAM(expression_4, false, KnownSectionType::BATCH_SIZE),
+    MAKE_PARAM(expression_4, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::BATCH_SIZE),
+    MAKE_PARAM(expression_4, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_4, false, ValidSectionTypeCode::BATCH_SIZE),
 
     MAKE_PARAM(expression_5,
                true,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_5, false, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_5, false, KnownSectionType::ELF_MAIN_SCHEDULE),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_5, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_5, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
 
     MAKE_PARAM(expression_6,
                true,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_6, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_6, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::BATCH_SIZE),
-    MAKE_PARAM(expression_6, false, KnownSectionType::BATCH_SIZE, KnownSectionType::ELF_INIT_SCHEDULES),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_6, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_6, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::BATCH_SIZE),
+    MAKE_PARAM(expression_6, false, ValidSectionTypeCode::BATCH_SIZE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
     MAKE_PARAM(expression_6, false),
 
     MAKE_PARAM(expression_7,
                true,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_7, true, KnownSectionType::BATCH_SIZE, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_7, true, KnownSectionType::ELF_MAIN_SCHEDULE),
-    MAKE_PARAM(expression_7, false, KnownSectionType::ELF_INIT_SCHEDULES),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_7, true, ValidSectionTypeCode::BATCH_SIZE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_7, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_7, false, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
 
     MAKE_PARAM(expression_8,
                true,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_8, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_8, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::BATCH_SIZE),
-    MAKE_PARAM(expression_8, false, KnownSectionType::BATCH_SIZE, KnownSectionType::ELF_INIT_SCHEDULES),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_8, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_8, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::BATCH_SIZE),
+    MAKE_PARAM(expression_8, false, ValidSectionTypeCode::BATCH_SIZE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
 
     MAKE_PARAM(expression_9,
                true,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_9, true, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_9, true, KnownSectionType::ELF_MAIN_SCHEDULE),
-    MAKE_PARAM(expression_9, false, KnownSectionType::BATCH_SIZE),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_9, true, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_9, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_9, false, ValidSectionTypeCode::BATCH_SIZE),
     MAKE_PARAM(expression_9, false),
 
     // should have the same behavior as expression_9
     MAKE_PARAM(expression_10,
                true,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_10, true, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_10, true, KnownSectionType::ELF_MAIN_SCHEDULE),
-    MAKE_PARAM(expression_10, false, KnownSectionType::BATCH_SIZE),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_10, true, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_10, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_10, false, ValidSectionTypeCode::BATCH_SIZE),
     MAKE_PARAM(expression_10, false),
 
     MAKE_PARAM(expression_12,
                true,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_12, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_12, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::BATCH_SIZE),
-    MAKE_PARAM(expression_12, false, KnownSectionType::BATCH_SIZE, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_12, false, KnownSectionType::ELF_MAIN_SCHEDULE),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_12, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_12, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::BATCH_SIZE),
+    MAKE_PARAM(expression_12, false, ValidSectionTypeCode::BATCH_SIZE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_12, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
 
-    MAKE_PARAM(expression_13, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::BATCH_SIZE),
+    MAKE_PARAM(expression_13, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::BATCH_SIZE),
 
-    MAKE_PARAM(expression_14, true, KnownSectionType::ELF_INIT_SCHEDULES, KnownSectionType::BATCH_SIZE),
+    MAKE_PARAM(expression_14, true, ValidSectionTypeCode::ELF_INIT_SCHEDULES, ValidSectionTypeCode::BATCH_SIZE),
     MAKE_PARAM(expression_14, true),
-    MAKE_PARAM(expression_14, false, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::BATCH_SIZE),
-    MAKE_PARAM(expression_14, false, KnownSectionType::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_14, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::BATCH_SIZE),
+    MAKE_PARAM(expression_14, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
 
-    MAKE_PARAM(expression_15, false, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::BATCH_SIZE),
-    MAKE_PARAM(expression_15, false, KnownSectionType::ELF_MAIN_SCHEDULE),
-    MAKE_PARAM(expression_15, true, KnownSectionType::BATCH_SIZE),
+    MAKE_PARAM(expression_15, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::BATCH_SIZE),
+    MAKE_PARAM(expression_15, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_15, true, ValidSectionTypeCode::BATCH_SIZE),
     MAKE_PARAM(expression_15, false),
 
-    MAKE_PARAM(expression_16, true, KnownSectionType::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_16, true, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
     MAKE_PARAM(expression_16,
                false,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_16, false, KnownSectionType::BATCH_SIZE, KnownSectionType::ELF_INIT_SCHEDULES),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_16, false, ValidSectionTypeCode::BATCH_SIZE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
     MAKE_PARAM(expression_16, false),
 
-    MAKE_PARAM(expression_17, true, KnownSectionType::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_17, true, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
     MAKE_PARAM(expression_17,
                false,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_17, false, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_17, false, KnownSectionType::BATCH_SIZE, KnownSectionType::ELF_INIT_SCHEDULES),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_17, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_17, false, ValidSectionTypeCode::BATCH_SIZE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
 
-    MAKE_PARAM(expression_18, false, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::BATCH_SIZE),
-    MAKE_PARAM(expression_18, true, KnownSectionType::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_18, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::BATCH_SIZE),
+    MAKE_PARAM(expression_18, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
     MAKE_PARAM(expression_18, true),
 
-    MAKE_PARAM(expression_19, true, KnownSectionType::BATCH_SIZE, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_19, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::BATCH_SIZE),
-    MAKE_PARAM(expression_19, true, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_19, true, KnownSectionType::BATCH_SIZE),
+    MAKE_PARAM(expression_19, true, ValidSectionTypeCode::BATCH_SIZE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_19, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::BATCH_SIZE),
+    MAKE_PARAM(expression_19, true, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_19, true, ValidSectionTypeCode::BATCH_SIZE),
     MAKE_PARAM(expression_19, true),
-    MAKE_PARAM(expression_19, false, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_19, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
 
     MAKE_PARAM(expression_20,
                true,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_20, true, KnownSectionType::ELF_INIT_SCHEDULES),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_20, true, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
     MAKE_PARAM(expression_20, true),
-    MAKE_PARAM(expression_20, false, KnownSectionType::BATCH_SIZE),
+    MAKE_PARAM(expression_20, false, ValidSectionTypeCode::BATCH_SIZE),
 
     MAKE_PARAM(expression_21,
                true,
-               KnownSectionType::ELF_MAIN_SCHEDULE,
-               KnownSectionType::BATCH_SIZE,
-               KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_21, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_21, true, KnownSectionType::BATCH_SIZE, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_21, true, KnownSectionType::ELF_MAIN_SCHEDULE, KnownSectionType::BATCH_SIZE),
-    MAKE_PARAM(expression_21, true, KnownSectionType::ELF_MAIN_SCHEDULE),
-    MAKE_PARAM(expression_21, false, KnownSectionType::ELF_INIT_SCHEDULES),
-    MAKE_PARAM(expression_21, false, KnownSectionType::BATCH_SIZE),
+               ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+               ValidSectionTypeCode::BATCH_SIZE,
+               ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_21, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_21, true, ValidSectionTypeCode::BATCH_SIZE, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_21, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ValidSectionTypeCode::BATCH_SIZE),
+    MAKE_PARAM(expression_21, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_21, false, ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    MAKE_PARAM(expression_21, false, ValidSectionTypeCode::BATCH_SIZE),
     MAKE_PARAM(expression_21, false),
 
-    MAKE_PARAM(expression_22, true, KnownSectionType::ELF_MAIN_SCHEDULE),
-    MAKE_PARAM(expression_23, false, KnownSectionType::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_22, true, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
+    MAKE_PARAM(expression_23, false, ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
 };
 
 INSTANTIATE_TEST_SUITE_P(CRE, ValidExpression, ::testing::ValuesIn(valid_test_cases), CREUnitTests::getTestCaseName);

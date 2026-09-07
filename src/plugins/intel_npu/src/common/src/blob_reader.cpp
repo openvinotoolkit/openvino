@@ -40,8 +40,8 @@ BlobReader::BlobReader(const FilteredConfig& config)
     : m_config(config),
       m_logger("BlobReader", config.get<LOG_LEVEL>()) {
     // Register the core sections
-    register_reader(KnownSectionType::RUNTIME_REQUIREMENTS, RuntimeRequirementsSection::read);
-    register_reader(KnownSectionType::MANIFEST, ManifestSection::read);
+    register_reader(ValidSectionTypeCode::RUNTIME_REQUIREMENTS, RuntimeRequirementsSection::read);
+    register_reader(ValidSectionTypeCode::MANIFEST, ManifestSection::read);
 }
 
 void BlobReader::register_reader(const SectionType type,
@@ -116,7 +116,7 @@ void BlobReader::parse_next_section(BlobSource& source,
 
     m_id_to_parsed_sections[id] = m_readers.at(type)(interface);
     m_id_to_parsed_sections[id]->set_id(id);
-    m_type_to_parsed_sections[id].insert(m_id_to_parsed_sections.at(id));
+    m_type_to_parsed_sections[type].insert(m_id_to_parsed_sections.at(id));
 
     // TODO can include_in_sections_order be avoided?
     if (include_in_sections_order) {
@@ -156,9 +156,9 @@ void BlobReader::read(BlobSource& source) {
 
     seekg_with_bound_checking(source, manifest_location, npu_region_start, npu_region_size);
 
-    OPENVINO_ASSERT(m_readers.count(KnownSectionType::MANIFEST), "No reader found for the manifest");
+    OPENVINO_ASSERT(m_readers.count(ValidSectionTypeCode::MANIFEST), "No reader found for the manifest");
     parse_next_section(source,
-                       KnownSectionType::MANIFEST,
+                       ValidSectionTypeCode::MANIFEST,
                        MANIFEST_SECTION_ID,
                        manifest_size,
                        npu_region_start,
@@ -180,9 +180,10 @@ void BlobReader::read(BlobSource& source) {
     if (requirements_location.has_value()) {
         seekg_with_bound_checking(source, requirements_location.value(), npu_region_start, npu_region_size);
 
-        OPENVINO_ASSERT(m_readers.count(KnownSectionType::RUNTIME_REQUIREMENTS), "No reader found for the manifest");
+        OPENVINO_ASSERT(m_readers.count(ValidSectionTypeCode::RUNTIME_REQUIREMENTS),
+                        "No reader found for the manifest");
         parse_next_section(source,
-                           KnownSectionType::RUNTIME_REQUIREMENTS,
+                           ValidSectionTypeCode::RUNTIME_REQUIREMENTS,
                            RUNTIME_REQUIREMENTS_SECTION_ID,
                            requirements_length.value(),
                            npu_region_start,

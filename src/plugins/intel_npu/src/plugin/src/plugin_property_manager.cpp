@@ -180,15 +180,17 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(std::string_view 
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators;
     std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators;
 
-    for (const SectionType type : DEFAULT_SUPPORTED_SECTION_TYPES) {
-        type_evaluators[type] = std::make_shared<SupportedSectionTypeEvaluator>(type);
+    // This evaluator can be shared, since all it does is to return "true"
+    const auto supported_section_type_evaluator = std::make_shared<SupportedSectionTypeEvaluator>();
+    for (const SectionType type : ALREADY_SUPPORTED_SECTION_TYPES) {
+        type_evaluators[type] = supported_section_type_evaluator;
     }
 
     const auto compiler_schedules_instance_evaluator = std::make_shared<CompilerScheduleInstanceEvaluator>(
         backend,
         std::make_shared<CompilerOptionSupportHelper>(optionSupportHelper));
-    instance_evaluators[KnownSectionType::ELF_MAIN_SCHEDULE] = compiler_schedules_instance_evaluator;
-    instance_evaluators[KnownSectionType::DYNAMIC_SCHEDULE] = compiler_schedules_instance_evaluator;
+    instance_evaluators[ValidSectionTypeCode::ELF_MAIN_SCHEDULE] = compiler_schedules_instance_evaluator;
+    instance_evaluators[ValidSectionTypeCode::DYNAMIC_SCHEDULE] = compiler_schedules_instance_evaluator;
 
     try {
         return runtimeRequirementsSection->get_runtime_requirements().get_compatibility_check_result(

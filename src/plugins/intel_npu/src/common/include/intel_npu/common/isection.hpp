@@ -11,6 +11,9 @@
 #include <unordered_set>
 #include <vector>
 
+#include "intel_npu/common/cre_token.hpp"
+#include "intel_npu/common/section_id.hpp"
+#include "intel_npu/common/section_type.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -19,71 +22,12 @@ namespace intel_npu {
 // TODOs: fix the circular dependencies
 // Consider moving the secion files in dedicated directories
 
-using CREToken = uint16_t;
-
-/**
- * @brief Identifies the type of the section, along with its corresponding read & write handlers.
- */
-using SectionType = uint16_t;
-/**
- * @brief Used to distinguish multiple sections of the same type within the same compiled model.
- */
-using SectionID = uint16_t;
-
-constexpr SectionID MANIFEST_SECTION_ID = 0;
-constexpr SectionID RUNTIME_REQUIREMENTS_SECTION_ID = 1;
-
-std::string section_type_to_string(const SectionType type);
-
-SectionType section_type_from_string(std::string_view type);
-
 std::string section_type_and_id_to_string(const SectionType type, const SectionID id);
 
 std::pair<SectionType, SectionID> section_type_and_id_from_string(std::string_view type_and_id);
 
 class BlobWriterInterface;
 class BlobReaderInterface;
-
-// TODO rename to "all known"
-// TODO move supported to "blob reader"?
-// TODO consider disallowing registering unknown section types
-/**
- * @brief Section types already known by the NPU plugin. These section type IDs are reserved.
- */
-namespace KnownSectionType {
-enum : SectionType {
-    RUNTIME_REQUIREMENTS = 100,
-    MANIFEST = 101,
-    ELF_MAIN_SCHEDULE = 102,
-    ELF_INIT_SCHEDULES = 103,
-    DYNAMIC_SCHEDULE = 104,
-    IO_LAYOUTS = 105,
-    BATCH_SIZE = 106,
-    ENCRYPTED_SCHEDULES_FLAG = 107,
-    COMPILER_VERSION = 108,
-};
-};
-
-static inline const std::unordered_set<SectionType> PREDEFINED_SECTION_TYPES{KnownSectionType::RUNTIME_REQUIREMENTS,
-                                                                             KnownSectionType::MANIFEST,
-                                                                             KnownSectionType::ELF_MAIN_SCHEDULE,
-                                                                             KnownSectionType::ELF_INIT_SCHEDULES,
-                                                                             KnownSectionType::DYNAMIC_SCHEDULE,
-                                                                             KnownSectionType::IO_LAYOUTS,
-                                                                             KnownSectionType::BATCH_SIZE,
-                                                                             KnownSectionType::ENCRYPTED_SCHEDULES_FLAG,
-                                                                             KnownSectionType::COMPILER_VERSION};
-
-static inline const std::unordered_set<SectionType> DEFAULT_SUPPORTED_SECTION_TYPES{
-    KnownSectionType::RUNTIME_REQUIREMENTS,
-    KnownSectionType::MANIFEST,
-    KnownSectionType::ELF_MAIN_SCHEDULE,
-    KnownSectionType::ELF_INIT_SCHEDULES,
-    KnownSectionType::DYNAMIC_SCHEDULE,
-    KnownSectionType::IO_LAYOUTS,
-    KnownSectionType::BATCH_SIZE,
-    KnownSectionType::ENCRYPTED_SCHEDULES_FLAG,
-    KnownSectionType::COMPILER_VERSION};
 
 /**
  * @brief Interface that should be implemented by all blob section handlers. Its role is to standardize the

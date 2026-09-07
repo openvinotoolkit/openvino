@@ -12,7 +12,7 @@ namespace intel_npu {
 
 EncryptedSchedulesFlagSection::EncryptedSchedulesFlagSection(const bool applied_encryption,
                                                              const ov::log::Level log_level)
-    : ISection(KnownSectionType::ENCRYPTED_SCHEDULES_FLAG),
+    : ISection(ValidSectionTypeCode::ENCRYPTED_SCHEDULES_FLAG),
       m_flag(applied_encryption),
       m_logger("EncryptedSchedulesFlagSection", log_level) {
     m_logger.trace("Section created");
