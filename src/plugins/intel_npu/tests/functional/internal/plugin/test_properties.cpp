@@ -612,7 +612,7 @@ TEST_P(CompatibilityCheckTests, CheckDummyPropertyWithGetMergedConfigAndUnknownP
             "Property 'Dummy_Property' is unknown to the plugin property manager, will be sent to the compiled model."),
         std::string::npos);
     ASSERT_EQ(logs.find("initialize DriverCompilerAdapter start"), std::string::npos);
-    ASSERT_NE(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
+    ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 }
 
 TEST_P(CompatibilityCheckTests, CheckDummyPropertyWithGetMergedConfigAndUnknownPropertiesOnQuery) {

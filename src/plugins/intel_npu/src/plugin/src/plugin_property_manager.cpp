@@ -280,8 +280,14 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
 std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownProperties(
     const ov::AnyMap& properties,
     ConfigMergeMode mergeMode) {
-    const auto loadedFromCacheIt = properties.find(std::string(ov::loaded_from_cache.name()));
-    auto loadedFromCache = loadedFromCacheIt == properties.end() ? false : loadedFromCacheIt->second.as<bool>();
+    bool loadedFromCache = false;
+    if (mergeMode == ConfigMergeMode::Import) {
+        // In case of importing a model, the loaded_from_cache property is used to determine whether the model was
+        // loaded from cache or not. If the model was loaded from cache, we must check for internal compiler configs and
+        // not send them to compiled model
+        const auto loadedFromCacheIt = properties.find(std::string(ov::loaded_from_cache.name()));
+        loadedFromCache = loadedFromCacheIt == properties.end() ? false : loadedFromCacheIt->second.as<bool>();
+    }
 
     std::lock_guard<std::mutex> lock(_mutex);
 
@@ -316,9 +322,11 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
         const auto propertyDescriptorIt = _properties.find(key);
 
         if (propertyDescriptorIt == _properties.end()) {
-            // Property doesn't exist - check whether the compiler supports it as an internal option.
-
+            // Property doesn't exist.
             if (mergeMode != ConfigMergeMode::Import || loadedFromCache) {
+                // Check whether the compiler supports it as an internal option. Don't check it when user is importing a
+                // model and the model was not loaded from cache, as compile-time-only options are not relevant in that
+                // case.
                 bool isSupportedByCompiler = false;
                 const auto resolvedCompilerType = resolveCompilerType(normalizedArguments.compilerType,
                                                                       normalizedArguments.deviceId,
