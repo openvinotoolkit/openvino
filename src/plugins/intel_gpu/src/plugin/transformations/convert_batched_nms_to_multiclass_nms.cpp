@@ -135,12 +135,11 @@ bool MarkBatchedNmsStaticClassCount::run_on_model(const std::shared_ptr<ov::Mode
         }
 
         const auto& bodies = subgraph->get_functions();
-        OPENVINO_ASSERT(bodies.size() <= static_cast<size_t>(std::numeric_limits<int>::max()), "Unexpected number of subgraph bodies: ", bodies.size());
-        for (int body_index = 0; body_index < static_cast<int>(bodies.size()); ++body_index) {
-            const auto body_index_us = static_cast<size_t>(body_index);
-            const auto& body = bodies[body_index_us];
+        for (size_t body_index = 0; body_index < bodies.size(); ++body_index) {
+            const auto body_index_i = static_cast<int>(body_index);
+            const auto& body = bodies[body_index];
             const auto& parameters = body->get_parameters();
-            for (const auto& input_desc : subgraph->get_input_descriptions(body_index)) {
+            for (const auto& input_desc : subgraph->get_input_descriptions(body_index_i)) {
                 int64_t class_count = 0;
                 const auto source = subgraph->input(input_desc->m_input_index).get_source_output();
                 if (infer_class_count_from_nonzero_indices(source, class_count)) {
@@ -149,7 +148,7 @@ bool MarkBatchedNmsStaticClassCount::run_on_model(const std::shared_ptr<ov::Mode
                 }
             }
 
-            for (const auto& output_desc : subgraph->get_output_descriptions(body_index)) {
+            for (const auto& output_desc : subgraph->get_output_descriptions(body_index_i)) {
                 int64_t prefix_limit = 0;
                 if (infer_prefix_limit(subgraph->output(output_desc->m_output_index), prefix_limit)) {
                     const auto& result = body->get_results()[output_desc->m_body_value_index];
