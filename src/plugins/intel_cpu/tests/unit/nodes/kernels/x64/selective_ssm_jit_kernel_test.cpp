@@ -12,6 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <thread>
 #include <type_traits>
 #include <vector>
 
@@ -188,6 +189,88 @@ TEST(PagedSelectiveSSMJitKernel, DifferentialStressCoversCacheShapePrecisionAndI
         run_paged_selective_ssm_differential_stress(element::f16, element::i64, 3e-3F, run);
         run_paged_selective_ssm_differential_stress(element::bf16, element::i32, 3e-2F, run);
         run_paged_selective_ssm_differential_stress(element::bf16, element::i64, 3e-2F, run);
+    }
+}
+
+TEST(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
+    for (const bool paged : {false, true}) {
+        std::thread worker([paged] {
+            SCOPED_TRACE(testing::Message() << "paged=" << paged);
+            constexpr size_t tokens = 2;
+            constexpr size_t rows = 3;
+            constexpr size_t state_size = 5;
+            constexpr size_t state_elements = rows * state_size;
+            constexpr size_t guard_elements = 2 * state_elements;
+            const auto cpu_parallel = make_parallel();
+            const auto workers = static_cast<size_t>(cpu_parallel->get_num_worker_threads());
+            // Guard two slots: TBB's uninitialized thread index is -2.
+            std::vector<float> scratch(workers * state_elements + guard_elements, 17.F);
+            const float16 A(0.F);
+            const std::vector<float16> dt(tokens, float16(1.F));
+            const std::vector<float> projection(tokens * state_size, 1.F);
+            const std::vector<float16> input(tokens * rows, float16(1.F));
+            std::vector<float16> state((paged ? 2 : 1) * state_elements, float16(1.F));
+            std::vector<float16> final_state(state_elements);
+            std::vector<float16> output(input.size());
+            if (paged) {
+                const std::array<int32_t, 2> subsequences{0, tokens};
+                const std::array<int32_t, 2> blocks{0, 1};
+                const std::array<int32_t, 2> block_begins{0, blocks.size()};
+                const int32_t processed = 0;
+                const int32_t interval = tokens;
+                PagedSelectiveSSMKernelTestArgs args;
+                args.state_decay_rates = &A;
+                args.time_steps = dt.data();
+                args.fp32_input_projections = projection.data();
+                args.fp32_output_projections = projection.data();
+                args.input = input.data();
+                args.state_cache = state.data();
+                args.subsequence_begins = subsequences.data();
+                args.block_indices = blocks.data();
+                args.block_indices_begins = block_begins.data();
+                args.num_processed_tokens = &processed;
+                args.cache_intervals = &interval;
+                args.output = output.data();
+                args.shape = {tokens, 1, rows, 1, state_size, 2, blocks.size(), 1};
+                args.data_precision = element::f16;
+                args.index_precision = element::i32;
+                args.state_scratch = scratch.data() + guard_elements;
+                args.head_dim_tile = rows;
+                args.cpu_parallel = cpu_parallel;
+                EXPECT_NO_THROW(run_jit_paged_selective_ssm(args, false));
+                std::copy_n(state.data() + state_elements, state_elements, final_state.data());
+                EXPECT_TRUE(std::all_of(state.begin(), state.begin() + state_elements, [](float16 value) {
+                    return value == float16(1.F);
+                }));
+            } else {
+                SelectiveSSMKernelTestArgs args;
+                args.state_decay_rates = &A;
+                args.time_steps = dt.data();
+                args.fp32_input_projections = projection.data();
+                args.fp32_output_projections = projection.data();
+                args.input = input.data();
+                args.initial_state = state.data();
+                args.output = output.data();
+                args.final_state = final_state.data();
+                args.shape = {1, tokens, 1, rows, 1, state_size};
+                args.data_precision = element::f16;
+                args.state_scratch = scratch.data() + guard_elements;
+                args.head_dim_tile = rows;
+                args.cpu_parallel = cpu_parallel;
+                args.use_fp32_projections = true;
+                EXPECT_NO_THROW(run_jit_selective_ssm(args));
+            }
+            EXPECT_TRUE(std::all_of(scratch.begin(), scratch.begin() + guard_elements, [](float value) {
+                return value == 17.F;
+            }));
+            for (size_t i = 0; i < output.size(); ++i) {
+                EXPECT_EQ(output[i], float16(static_cast<float>((i / rows + 2) * state_size)));
+            }
+            EXPECT_TRUE(std::all_of(final_state.begin(), final_state.end(), [](float16 value) {
+                return value == float16(3.F);
+            }));
+        });
+        worker.join();
     }
 }
 
