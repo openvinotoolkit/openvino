@@ -4,6 +4,7 @@
 
 #include "attn_subgraph.hpp"
 
+#include <algorithm>
 #include <array>
 #include <limits>
 #include <sstream>
@@ -347,10 +348,13 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         const auto tile_input = hfa->_compiled_tile_model->inputs()[input_idx];
         const auto final_tile_input = hfa->_compiled_final_tile_model->inputs()[input_idx];
 
-        // Regular tile KV inputs (f16) differ from final tile KV inputs (f32).
-        // Skip sharing for mismatched dtypes — those ports will be set per-tile
-        // in process_tile at runtime.
-        if (tile_input.get_element_type() != final_tile_input.get_element_type()) {
+        // Regular tile KV inputs (f16) differ from final tile KV inputs (f32), and now also
+        // possibly differ in shape from final tile inputs whenever past_tile_size !=
+        // final_tile_size (e.g. block-mode chunking, or a merged KV remainder). Skip sharing
+        // for mismatched dtype or shape — those ports will be set per-tile in process_tile (or
+        // via the merge path) at runtime instead.
+        if (tile_input.get_element_type() != final_tile_input.get_element_type() ||
+            tile_input.get_partial_shape() != final_tile_input.get_partial_shape()) {
             continue;
         }
 
@@ -897,11 +901,32 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                    hfa_desc->_compiled_final_tile_model->outputs().size());
 
                         OPENVINO_ASSERT(hfa_desc->is_valid(), "HFA configuration must be valid");
-                        const int64_t tile_size = hfa_desc->_tile_size;
+                        // GENERATE (decoding) is not supported yet: the past-tile math below
+                        // assumes past_total_length always divides evenly by past_tile_size --
+                        // true for PREFILL chunking (the KV cache is always filled in exact
+                        // past_tile_size increments), but not for GENERATE, where the actual past
+                        // length grows one token at a time and can land in the middle of a block.
+                        NPUW_ASSERT(state.hfa_selector->this_case() ==
+                                        runtime::host_flash_attention::Selector::Case::PREFILL &&
+                                    "HFA does not support GENERATE (decoding) yet — use Pyramid or Dynamic attention "
+                                    "for the generate stage.");
+                        // past_tile_size ("C"): chunk size for REGULAR tiles.
+                        // final_tile_size: K/V length processed by the single FINAL tile call —
+                        // always equal to present (query) size (PREFILL never leaves a KV
+                        // "remainder" -- see analyze_past_tiling in host_flash_attention.cpp).
+                        const int64_t past_tile_size = hfa_desc->_past_tile_size;
+                        const int64_t final_tile_size = hfa_desc->_final_tile_size;
+                        const int64_t present_tile_size =
+                            static_cast<int64_t>(hfa_desc->_sdpa_attention_info._query_size);
+                        OPENVINO_ASSERT(final_tile_size == present_tile_size,
+                                        "HFA: final tile size must equal the query size (PREFILL-only)");
+
                         const int64_t total_kv_length = state.hfa_selector->context_length();
-                        const int64_t num_tiles = total_kv_length / tile_size;
-                        OPENVINO_ASSERT(total_kv_length % tile_size == 0,
-                                        "HFA total KV length must be multiple of tile size for now");
+                        const int64_t past_total_length = total_kv_length - present_tile_size;
+                        OPENVINO_ASSERT(
+                            past_tile_size > 0 ? (past_total_length % past_tile_size == 0) : (past_total_length == 0),
+                            "HFA: past length must be a multiple of the past tile size");
+                        const int64_t past_full_tiles = (past_tile_size > 0) ? (past_total_length / past_tile_size) : 0;
 
                         const auto& hfa_inputs = io.inputs;
                         const auto& sdpa_info = hfa_desc->_sdpa_attention_info;
@@ -992,7 +1017,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                 int64_t mask_offset,
                                                 int64_t tile_length,
                                                 bool async = false,
-                                                bool process_with_mask = true) {
+                                                bool process_with_mask = true,
+                                                bool is_final_tile = false) {
                             auto k_tile_buffer = request->get_tensor(model->inputs()[tile_in.k]);
                             auto v_tile_buffer = request->get_tensor(model->inputs()[tile_in.v]);
                             ov::SoPtr<ov::ITensor> mask_tile_buffer;
@@ -1051,10 +1077,20 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                                                      mask_offset,
                                                                                      tile_length);
                                     if (cached_tile) {
+                                        LOG_WARN("HFA mask cache HIT: tensor="
+                                                 << attention_mask_tensor->data() << " offset=" << mask_offset
+                                                 << " len=" << tile_length
+                                                 << (is_final_tile ? " (final tile)" : " (regular tile)"));
                                         request->set_tensor(model->inputs()[tile_in.mask], cached_tile);
                                     } else {
+                                        LOG_WARN("HFA mask cache MISS: tensor="
+                                                 << attention_mask_tensor->data() << " offset=" << mask_offset
+                                                 << " len=" << tile_length
+                                                 << (is_final_tile ? " (final tile)" : " (regular tile)"));
                                         ov::SoPtr<ov::ITensor> cached_mask_tile =
-                                            state.hfa_runtime_ctx->get_mask_tile_buffer(next_available_mask_buffer_idx);
+                                            is_final_tile ? state.hfa_runtime_ctx->get_final_mask_tile_buffer()
+                                                          : state.hfa_runtime_ctx->get_mask_tile_buffer(
+                                                                next_available_mask_buffer_idx);
                                         extract_and_copy_tile(attention_mask_tensor,
                                                               cached_mask_tile,
                                                               MASK_KV_SEQ_DIM,
@@ -1066,7 +1102,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                                                tile_length,
                                                                                cached_mask_tile);
                                         request->set_tensor(model->inputs()[tile_in.mask], cached_mask_tile);
-                                        next_available_mask_buffer_idx++;
+                                        if (!is_final_tile) {
+                                            next_available_mask_buffer_idx++;
+                                        }
                                     }
                                 } else {
                                     extract_and_copy_tile(attention_mask_tensor,
@@ -1090,55 +1128,58 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         };
 
                         int64_t mask_tile_offset = 0;
-                        int64_t past_kv_tiles = num_tiles - 1;  // tiles driven from past blocks
+                        int64_t remaining_full_tiles = past_full_tiles;  // tiles driven from past blocks
 
                         // For the fused hfa, the regular tile model has no mask input (6 inputs)
                         const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
 
-                        // Iterate through KV blocks; each block contributes block_size/tile_size tiles.
-                        for (size_t block_idx = 0; block_idx < past_key_blocks.size() && past_kv_tiles > 0;
+                        // Iterate through KV blocks; each block contributes block_size/past_tile_size
+                        // tiles (one-to-one per block in block-split mode, or several chunks out of a
+                        // single continuous past tensor). PREFILL always fills the KV cache in exact
+                        // past_tile_size increments, so this always divides evenly.
+                        for (size_t block_idx = 0; block_idx < past_key_blocks.size() && remaining_full_tiles > 0;
                              ++block_idx) {
                             const auto& k_block = past_key_blocks[block_idx];
                             const auto& v_block = past_value_blocks[block_idx];
-                            const int64_t block_size = static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
-                            NPUW_ASSERT(block_size % tile_size == 0 &&
-                                        "HFA block size must be a multiple of tile size");
-                            const int64_t tiles_in_block = block_size / tile_size;
+                            const int64_t block_len = static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
+                            NPUW_ASSERT(block_len % past_tile_size == 0 &&
+                                        "HFA: KV block length must be a multiple of the past tile size");
+                            const int64_t tiles_in_block = block_len / past_tile_size;
 
-                            for (int64_t t = 0; t < tiles_in_block && past_kv_tiles > 0; ++t) {
+                            for (int64_t t = 0; t < tiles_in_block && remaining_full_tiles > 0; ++t) {
                                 process_tile(regular_tile_request,
                                              hfa_desc->_compiled_tile_model,
                                              k_block,
                                              v_block,
-                                             t * tile_size,
+                                             t * past_tile_size,
                                              mask_tile_offset,
-                                             tile_size,
+                                             past_tile_size,
                                              false,       // async
                                              uses_mask);  // process_with_mask
-                                mask_tile_offset += tile_size;
-                                past_kv_tiles--;
+                                mask_tile_offset += past_tile_size;
+                                remaining_full_tiles--;
                             }
                         }
-                        NPUW_ASSERT(past_kv_tiles == 0 &&
-                                    "HFA: All past KV blocks should contain exactly (num_tiles - 1) tiles");
+                        NPUW_ASSERT(remaining_full_tiles == 0 &&
+                                    "HFA: All past KV blocks should together contain exactly past_full_tiles tiles");
 
-                        if (num_tiles > 0) {
-                            const size_t present_seq_length = present_key_tensor->get_shape()[K_SEQ_DIM];
-                            const int64_t final_tile_length = static_cast<int64_t>(present_seq_length);
-                            OPENVINO_ASSERT(
-                                final_tile_length == tile_size,
-                                "Final tile must process entire present KV sequence in a single inference. "
-                                "This is guaranteed during compilation (tile_size = query_size = present_seq_length).");
+                        if (final_tile_size > 0) {
+                            const int64_t present_seq_length =
+                                static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
+                            OPENVINO_ASSERT(present_seq_length == present_tile_size,
+                                            "HFA: present KV length must equal the compiled query/present tile size");
                             const int64_t mask_total_length = attention_mask_tensor->get_shape()[MASK_KV_SEQ_DIM];
-                            const int64_t final_mask_offset = mask_total_length - final_tile_length;
+                            const int64_t final_mask_offset = mask_total_length - final_tile_size;
                             process_tile(final_tile_request,
                                          hfa_desc->_compiled_final_tile_model,
                                          present_key_tensor,
                                          present_value_tensor,
                                          0,
                                          final_mask_offset,
-                                         final_tile_length,
-                                         true);
+                                         final_tile_size,
+                                         true,   // async
+                                         true,   // process_with_mask
+                                         true);  // is_final_tile: use the dedicated final mask buffer
                         }
 
                         if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
