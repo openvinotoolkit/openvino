@@ -182,46 +182,49 @@ ov::CompatibilityCheck bool_to_compatibility_check(const bool a) {
     return a ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
 }
 
-std::string reserved_token_to_string(const CREToken token) {
-    switch (token) {
-    case CRE::ReservedToken::AND: {
+std::string reserved_token_to_string(const std::shared_ptr<CREToken> token) {
+    const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(token);
+    OPENVINO_ASSERT(special_token);
+
+    switch (special_token->get_code()) {
+    case CRESpecialTokenCode::AND: {
         return AND_TOKEN_NAME.data();
     }
-    case CRE::ReservedToken::OR: {
+    case CRESpecialTokenCode::OR: {
         return OR_TOKEN_NAME.data();
     }
-    case CRE::ReservedToken::OPEN: {
+    case CRESpecialTokenCode::OPEN: {
         return OPEN_TOKEN_NAME.data();
     }
-    case CRE::ReservedToken::CLOSE: {
+    case CRESpecialTokenCode::CLOSE: {
         return CLOSE_TOKEN_NAME.data();
     }
-    case CRE::ReservedToken::NOT: {
+    case CRESpecialTokenCode::NOT: {
         return NOT_TOKEN_NAME.data();
     }
     default: {
-        OPENVINO_THROW("The given token is not a reserved one");
+        OPENVINO_THROW("The given token is not a special one");
     }
     }
 }
 
-std::optional<CREToken> reserved_token_from_string(std::string_view token) {
+std::shared_ptr<CREToken> reserved_token_from_string(std::string_view token) {
     if (token == AND_TOKEN_NAME) {
-        return CRE::ReservedToken::AND;
+        return CRE::AND;
     }
     if (token == OR_TOKEN_NAME) {
-        return CRE::ReservedToken::OR;
+        return CRE::OR;
     }
     if (token == OPEN_TOKEN_NAME) {
-        return CRE::ReservedToken::OPEN;
+        return CRE::OPEN;
     }
     if (token == CLOSE_TOKEN_NAME) {
-        return CRE::ReservedToken::CLOSE;
+        return CRE::CLOSE;
     }
     if (token == NOT_TOKEN_NAME) {
-        return CRE::ReservedToken::NOT;
+        return CRE::NOT;
     }
-    return std::nullopt;
+    return nullptr;
 }
 
 }  // namespace
@@ -236,17 +239,32 @@ void InvalidCRE::create(const char* file,
     throw InvalidCRE(make_what(file, line, check_string, context_info, explanation));
 }
 
+CRESpecialToken::CRESpecialToken(const CRESpecialTokenCode code) : m_code(code) {}
+
+CRESpecialTokenCode CRESpecialToken::get_code() const {
+    return m_code;
+}
+
+bool CRESpecialToken::operator==(const CRESpecialToken& other) const {
+    return m_code == other.get_code();
+}
+
+bool is_cre_special_token(const std::shared_ptr<CREToken>& candidate) {
+    return std::dynamic_pointer_cast<CRESpecialToken>(candidate) != nullptr;
+}
+
 CRE::CRE(const ov::log::Level log_level) : m_logger("CRE", log_level) {}
 
 // TODO validation check inside ctor? or actually validation function, called in multiple other methods
-CRE::CRE(const std::vector<CREToken>& subexpression, const ov::log::Level log_level) : m_logger("CRE", log_level) {
+CRE::CRE(const std::vector<std::shared_ptr<CREToken>>& subexpression, const ov::log::Level log_level)
+    : m_logger("CRE", log_level) {
     if (!subexpression.empty()) {
         m_subexpressions.push_back(subexpression);
     }
 }
 
-bool CRE::subexpression_already_registered(const std::vector<CREToken>& subexpression) const {
-    for (const std::vector<CREToken>& registered_subexpression : m_subexpressions) {
+bool CRE::subexpression_already_registered(const std::vector<std::shared_ptr<CREToken>>& subexpression) const {
+    for (const std::vector<std::shared_ptr<CREToken>>& registered_subexpression : m_subexpressions) {
         if (subexpression == registered_subexpression) {
             return true;
         }
@@ -255,11 +273,11 @@ bool CRE::subexpression_already_registered(const std::vector<CREToken>& subexpre
     return false;
 }
 
-void CRE::append_to_expression(const CREToken requirement_token) {
+void CRE::append_to_expression(const std::shared_ptr<CREToken> requirement_token) {
     OPENVINO_ASSERT(!RESERVED_TOKENS.count(requirement_token),
                     "Appending subexpressions should be done through the \"vector\" API");
 
-    const std::vector<CREToken> subexpression{requirement_token};
+    const std::vector<std::shared_ptr<CREToken>> subexpression{requirement_token};
     if (subexpression_already_registered(subexpression)) {
         m_logger.trace("CREToken %u was already registered", requirement_token);
         return;
@@ -269,19 +287,19 @@ void CRE::append_to_expression(const CREToken requirement_token) {
     m_logger.trace("Appended token %u", requirement_token);
 }
 
-void CRE::append_to_expression(const std::vector<CREToken>& subexpression) {
+void CRE::append_to_expression(const std::vector<std::shared_ptr<CREToken>>& subexpression) {
     const size_t subexpression_size = subexpression.size();
     if (!subexpression_size) {
         return;
     }
 
     OPENVINO_ASSERT(!BINARY_OPERATORS.count(subexpression.at(0)), "Subexpressions cannot start with a binary operator");
-    const CREToken last_token = subexpression.at(subexpression_size - 1);
+    const std::shared_ptr<CREToken> last_token = subexpression.at(subexpression_size - 1);
     OPENVINO_ASSERT(!OPERATORS.count(last_token) && last_token != OPEN,
                     "The last token within a subexpression cannot be an operator nor open parrenthesis");
 
     const bool subexpression_enclosed = subexpression.at(0) == CRE::OPEN && last_token == CRE::CLOSE;
-    std::vector<CREToken> maybe_enclosed_subexpression;
+    std::vector<std::shared_ptr<CREToken>> maybe_enclosed_subexpression;
 
     // At least three tokens are required for a binary operator and its operands. In this case, parrenthesis are
     // required to ensure the correct operator precedence
@@ -309,7 +327,7 @@ size_t CRE::get_expression_length() const {
     }
 
     size_t result = 0;
-    for (const std::vector<CREToken>& subexpression : m_subexpressions) {
+    for (const std::vector<std::shared_ptr<CREToken>>& subexpression : m_subexpressions) {
         result += subexpression.size();
     }
 
@@ -318,14 +336,14 @@ size_t CRE::get_expression_length() const {
     return result;
 }
 
-std::vector<CREToken> CRE::get_expression() const {
+std::vector<std::shared_ptr<CREToken>> CRE::get_expression() const {
     if (m_subexpressions.empty()) {
         return {};
     }
 
-    std::vector<CREToken> expression;
+    std::vector<std::shared_ptr<CREToken>> expression;
     size_t index = 0;
-    for (const std::vector<CREToken>& subexpression : m_subexpressions) {
+    for (const std::vector<std::shared_ptr<CREToken>>& subexpression : m_subexpressions) {
         if (index++ != 0) {
             // All subexpressions at depth level 0 are stitched together using ANDs by convention
             expression.push_back(CRE::AND);
@@ -340,14 +358,14 @@ bool CRE::empty() const {
     return m_subexpressions.empty();
 }
 
-void CRE::advance_iterator(std::vector<CREToken>::const_iterator& expression_iterator,
-                           const std::vector<CREToken>::const_iterator& expression_end) const {
+void CRE::advance_iterator(std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
+                           const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end) const {
     CRE_EVAL_ASSERT(expression_iterator != expression_end, "The CRE ended unexpectedly");
     expression_iterator++;
 }
 
-bool CRE::end_condition(const std::vector<CREToken>::const_iterator& expression_iterator,
-                        const std::vector<CREToken>::const_iterator& expression_end,
+bool CRE::end_condition(const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
+                        const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end,
                         const Delimiter end_delimiter) const {
     switch (end_delimiter) {
     case Delimiter::PARRENTHESIS:
@@ -361,8 +379,8 @@ bool CRE::end_condition(const std::vector<CREToken>::const_iterator& expression_
 }
 
 ov::CompatibilityCheck CRE::evaluate(
-    std::vector<CREToken>::const_iterator& expression_iterator,
-    const std::vector<CREToken>::const_iterator& expression_end,
+    std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
+    const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
     const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators,
     const Delimiter end_delimiter,
@@ -485,9 +503,9 @@ ov::CompatibilityCheck CRE::check_compatibility(
         return ov::CompatibilityCheck::SUPPORTED;
     }
 
-    const std::vector<CREToken> expression = get_expression();
-    std::vector<CREToken>::const_iterator expression_iterator = expression.begin();
-    const std::vector<CREToken>::const_iterator expression_end = expression.end();
+    const std::vector<std::shared_ptr<CREToken>> expression = get_expression();
+    std::vector<std::shared_ptr<CREToken>>::const_iterator expression_iterator = expression.begin();
+    const std::vector<std::shared_ptr<CREToken>>::const_iterator expression_end = expression.end();
     const ov::CompatibilityCheck result = evaluate(expression_iterator,
                                                    expression_end,
                                                    section_type_evaluators,
@@ -502,11 +520,11 @@ ov::CompatibilityCheck CRE::check_compatibility(
 
 std::string cre_to_string(const CRE cre) {
     // TODO validate the CRE
-    const std::vector<CREToken> expression = cre.get_expression();
+    const std::vector<std::shared_ptr<CREToken>> expression = cre.get_expression();
     std::string result("");
 
     bool is_first_token = true;
-    for (const CREToken token : expression) {
+    for (const std::shared_ptr<CREToken> token : expression) {
         if (PREDEFINED_SECTION_TYPES.count(token)) {
             if (!is_first_token) {
                 result += OPERAND_AND_RESERVED_TOKEN_SEPARATOR;
@@ -534,15 +552,15 @@ std::string cre_to_string(const CRE cre) {
 }
 
 CRE cre_from_string(std::string_view cre) {
-    std::vector<CREToken> expression;
+    std::vector<std::shared_ptr<CREToken>> expression;
     std::string_view remaining = cre;
 
     while (true) {
         const size_t dot_location = remaining.find(OPERAND_AND_RESERVED_TOKEN_SEPARATOR);
         const std::string_view token_string = remaining.substr(0, dot_location);
 
-        const std::optional<CREToken> reserved_token = reserved_token_from_string(token_string);
-        if (reserved_token.has_value()) {
+        const std::shared_ptr<CREToken> reserved_token = reserved_token_from_string(token_string);
+        if (reserved_token) {
             expression.push_back(reserved_token.value());
         } else {
             // The current substring should have the form "<section type name>_<id>"

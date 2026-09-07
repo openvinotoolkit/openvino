@@ -45,7 +45,7 @@ static inline const std::unordered_set<SectionType> ALL_VALID_SECTION_TYPE_CODES
 /**
  * @brief Identifies the type of the section, along with its corresponding read & write handlers.
  */
-class SectionType : public CREToken {
+class SectionType final : public CREToken {
 public:
     SectionType(const ValidSectionTypeCode section_type_code);
 

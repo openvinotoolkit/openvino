@@ -14,7 +14,7 @@ namespace intel_npu {
 /**
  * @brief Used to distinguish multiple sections of the same type within the same compiled model.
  */
-class SectionID : public CREToken {
+class SectionID final : public CREToken {
 public:
     SectionID(const uint16_t section_id);
 

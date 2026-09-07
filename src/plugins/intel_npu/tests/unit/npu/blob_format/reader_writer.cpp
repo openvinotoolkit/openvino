@@ -6,14 +6,14 @@
 
 INSTANTIATE_TEST_SUITE_P(WriterReaderUnitTests,
                          AllSections,
-                         ::testing::Values(std::vector<uint16_t>{ValidSectionTypeCode::RUNTIME_REQUIREMENTS,
-                                                                 ValidSectionTypeCode::BATCH_SIZE},
-                                           std::vector<uint16_t>{ValidSectionTypeCode::RUNTIME_REQUIREMENTS,
-                                                                 ValidSectionTypeCode::BATCH_SIZE,
-                                                                 ValidSectionTypeCode::ELF_INIT_SCHEDULES}));
+                         ::testing::Values(std::vector<uint16_t>{SectionTypeCode::RUNTIME_REQUIREMENTS,
+                                                                 SectionTypeCode::BATCH_SIZE},
+                                           std::vector<uint16_t>{SectionTypeCode::RUNTIME_REQUIREMENTS,
+                                                                 SectionTypeCode::BATCH_SIZE,
+                                                                 SectionTypeCode::ELF_INIT_SCHEDULES}));
 
 INSTANTIATE_TEST_SUITE_P(WriterReaderUnitTests,
                          IncompatibleCRE,
                          ::testing::Values(std::vector<uint16_t>(),
-                                           std::vector<uint16_t>{ValidSectionTypeCode::RUNTIME_REQUIREMENTS},
-                                           std::vector<uint16_t>{ValidSectionTypeCode::BATCH_SIZE}));
+                                           std::vector<uint16_t>{SectionTypeCode::RUNTIME_REQUIREMENTS},
+                                           std::vector<uint16_t>{SectionTypeCode::BATCH_SIZE}));

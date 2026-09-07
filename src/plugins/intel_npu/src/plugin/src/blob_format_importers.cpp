@@ -483,11 +483,11 @@ public:
     std::shared_ptr<BlobWriter> create_blob_writer() override {
         // Moving forward, the "Graph" object will manage the ownership of the compiler schedules
         auto elfMainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
 
         if (elfMainScheduleSection) {
             auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-                m_blob_reader.retrieve_first_section(ValidSectionTypeCode::ELF_INIT_SCHEDULES));
+                m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_INIT_SCHEDULES));
 
             elfMainScheduleSection->set_graph(std::dynamic_pointer_cast<Graph>(m_graph));
             if (initSchedulesSection) {
@@ -495,7 +495,7 @@ public:
             }
         } else {
             auto dynamicScheduleSection = std::dynamic_pointer_cast<DynamicScheduleSection>(
-                m_blob_reader.retrieve_first_section(ValidSectionTypeCode::DYNAMIC_SCHEDULE));
+                m_blob_reader.retrieve_first_section(SectionTypeCode::DYNAMIC_SCHEDULE));
             dynamicScheduleSection->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
         }
 
@@ -510,13 +510,13 @@ private:
      */
     void register_known_sections_and_evaluators(const std::shared_ptr<CompilerOptionSupportHelper>& option_helper) {
         // TODO shotgun surgery? should these correspond to the "supported" section types?
-        m_blob_reader.register_reader(ValidSectionTypeCode::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
-        m_blob_reader.register_reader(ValidSectionTypeCode::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
-        m_blob_reader.register_reader(ValidSectionTypeCode::DYNAMIC_SCHEDULE, ELFInitSchedulesSection::read);
-        m_blob_reader.register_reader(ValidSectionTypeCode::BATCH_SIZE, BatchSizeSection::read);
-        m_blob_reader.register_reader(ValidSectionTypeCode::IO_LAYOUTS, IOLayoutsSection::read);
-        m_blob_reader.register_reader(ValidSectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, IOLayoutsSection::read);
-        m_blob_reader.register_reader(ValidSectionTypeCode::COMPILER_VERSION, IOLayoutsSection::read);
+        m_blob_reader.register_reader(SectionTypeCode::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
+        m_blob_reader.register_reader(SectionTypeCode::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
+        m_blob_reader.register_reader(SectionTypeCode::DYNAMIC_SCHEDULE, ELFInitSchedulesSection::read);
+        m_blob_reader.register_reader(SectionTypeCode::BATCH_SIZE, BatchSizeSection::read);
+        m_blob_reader.register_reader(SectionTypeCode::IO_LAYOUTS, IOLayoutsSection::read);
+        m_blob_reader.register_reader(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, IOLayoutsSection::read);
+        m_blob_reader.register_reader(SectionTypeCode::COMPILER_VERSION, IOLayoutsSection::read);
 
         // This evaluator can be shared, since all it does is to return "true"
         const auto supported_section_type_evaluator = std::make_shared<SupportedSectionTypeEvaluator>();
@@ -526,9 +526,9 @@ private:
 
         const auto compiler_schedules_instance_evaluator =
             std::make_shared<CompilerScheduleInstanceEvaluator>(m_backend, option_helper);
-        m_blob_reader.register_section_instance_evaluator(ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
+        m_blob_reader.register_section_instance_evaluator(SectionTypeCode::ELF_MAIN_SCHEDULE,
                                                           compiler_schedules_instance_evaluator);
-        m_blob_reader.register_section_instance_evaluator(ValidSectionTypeCode::DYNAMIC_SCHEDULE,
+        m_blob_reader.register_section_instance_evaluator(SectionTypeCode::DYNAMIC_SCHEDULE,
                                                           compiler_schedules_instance_evaluator);
     }
 
@@ -540,9 +540,9 @@ private:
      * schedule) exists
      */
     void verify_valid_sections() {
-        const bool has_elf_main_schedule = m_blob_reader.has_section_of_type(ValidSectionTypeCode::ELF_MAIN_SCHEDULE);
-        const bool has_init_schedules = m_blob_reader.has_section_of_type(ValidSectionTypeCode::ELF_INIT_SCHEDULES);
-        const bool has_dynamic_schedule = m_blob_reader.has_section_of_type(ValidSectionTypeCode::DYNAMIC_SCHEDULE);
+        const bool has_elf_main_schedule = m_blob_reader.has_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE);
+        const bool has_init_schedules = m_blob_reader.has_section_of_type(SectionTypeCode::ELF_INIT_SCHEDULES);
+        const bool has_dynamic_schedule = m_blob_reader.has_section_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
 
         OPENVINO_ASSERT(has_elf_main_schedule || has_dynamic_schedule, MISSING_MAIN_SCHEDULE_MESSAGE);
         OPENVINO_ASSERT((has_elf_main_schedule && !has_dynamic_schedule) ||
@@ -564,7 +564,7 @@ private:
      */
     void decrypt_schedules() override {
         const auto encrypted_schedules_flag_section = std::dynamic_pointer_cast<EncryptedSchedulesFlagSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::ENCRYPTED_SCHEDULES_FLAG));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG));
         const bool is_payload_encrypted =
             encrypted_schedules_flag_section ? encrypted_schedules_flag_section->get_flag() : false;
         if (!is_payload_encrypted) {
@@ -579,7 +579,7 @@ private:
         const ov::EncryptionCallbacks encryption_callbacks = m_config.get<CACHE_ENCRYPTION_CALLBACKS>();
 
         auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::DYNAMIC_SCHEDULE));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::DYNAMIC_SCHEDULE));
         if (dynamic_schedule_section) {
             m_logger.debug("Decrypting the dynamic compiler schedule");
             dynamic_schedule_section->decrypt(encryption_callbacks);
@@ -587,14 +587,14 @@ private:
         }
 
         auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
         OPENVINO_ASSERT(main_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
 
         m_logger.debug("Decrypting the compiler main schedule");
         main_schedule_section->decrypt(encryption_callbacks);
 
         auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::ELF_INIT_SCHEDULES));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_INIT_SCHEDULES));
         if (init_schedules_section) {
             m_logger.debug("Decrypting the compiler init schedules");
             init_schedules_section->decrypt(encryption_callbacks);
@@ -603,34 +603,34 @@ private:
 
     ov::Tensor extract_main_schedule() const override {
         const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
         if (main_schedule_section) {
             return main_schedule_section->get_schedule();
         }
 
         const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::DYNAMIC_SCHEDULE));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::DYNAMIC_SCHEDULE));
         OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
         return dynamic_schedule_section->get_schedule();
     }
 
     std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override {
         const auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::ELF_INIT_SCHEDULES));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_INIT_SCHEDULES));
 
         return init_schedules_section ? std::make_optional<>(init_schedules_section->get_schedules()) : std::nullopt;
     }
 
     std::optional<int> extract_batch_size() const override {
         const auto batch_size_section = std::dynamic_pointer_cast<BatchSizeSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::BATCH_SIZE));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::BATCH_SIZE));
 
         return batch_size_section ? std::make_optional<>(batch_size_section->get_batch_size()) : std::nullopt;
     }
 
     std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override {
         const auto io_layouts_section = std::dynamic_pointer_cast<IOLayoutsSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::IO_LAYOUTS));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::IO_LAYOUTS));
 
         return io_layouts_section ? std::make_optional<>(std::make_pair<>(io_layouts_section->get_input_layouts(),
                                                                           io_layouts_section->get_output_layouts()))
@@ -639,7 +639,7 @@ private:
 
     std::optional<uint32_t> extract_compiler_version() const override {
         const auto compiler_version_section = std::dynamic_pointer_cast<CompilerVersionSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::COMPILER_VERSION));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::COMPILER_VERSION));
 
         return compiler_version_section ? std::make_optional<>(compiler_version_section->get_compiler_version())
                                         : std::nullopt;
@@ -647,24 +647,24 @@ private:
 
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
         const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
         if (main_schedule_section) {
             return main_schedule_section->get_inidividual_compatibility_requirements();
         }
 
         const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::DYNAMIC_SCHEDULE));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::DYNAMIC_SCHEDULE));
         OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
         return dynamic_schedule_section->get_inidividual_compatibility_requirements();
     }
 
     std::optional<BlobType> extract_blob_type() const override {
-        if (m_blob_reader.has_section_of_type(ValidSectionTypeCode::ELF_MAIN_SCHEDULE)) {
+        if (m_blob_reader.has_section_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE)) {
             return BlobType::ELF;
         }
 
         const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_reader.retrieve_first_section(ValidSectionTypeCode::DYNAMIC_SCHEDULE));
+            m_blob_reader.retrieve_first_section(SectionTypeCode::DYNAMIC_SCHEDULE));
         OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
         return dynamic_schedule_section->get_blob_type();
     }

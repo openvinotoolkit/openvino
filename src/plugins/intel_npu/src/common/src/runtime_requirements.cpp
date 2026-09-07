@@ -105,7 +105,7 @@ std::optional<bool> RuntimeRequirements::get_instance_evaluation_result(const Se
 
 RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements,
                                                        const ov::log::Level log_level)
-    : ISection(ValidSectionTypeCode::RUNTIME_REQUIREMENTS),
+    : ISection(SectionTypeCode::RUNTIME_REQUIREMENTS),
       m_runtime_requirements(runtime_requirements),
       m_logger("RuntimeRequirementsSection", log_level) {}
 

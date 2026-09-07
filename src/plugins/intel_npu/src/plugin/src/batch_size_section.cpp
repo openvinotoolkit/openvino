@@ -11,13 +11,13 @@
 namespace intel_npu {
 
 BatchSizeSection::BatchSizeSection(const int64_t batch_size, const ov::log::Level log_level)
-    : ISection(ValidSectionTypeCode::BATCH_SIZE),
+    : ISection(SectionTypeCode::BATCH_SIZE),
       m_batch_size(batch_size),
       m_logger("BatchSizeSection", log_level) {
     m_logger.trace("Section created");
 }
 
-std::vector<CREToken> BatchSizeSection::get_compatibility_requirements_subexpression(
+std::vector<std::shared_ptr<CREToken>> BatchSizeSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the BATCH_SIZE section type to the CRE");

@@ -13,7 +13,7 @@ namespace intel_npu {
 IOLayoutsSection::IOLayoutsSection(const std::vector<ov::Layout>& input_layouts,
                                    const std::vector<ov::Layout>& output_layouts,
                                    const ov::log::Level log_level)
-    : ISection(ValidSectionTypeCode::IO_LAYOUTS),
+    : ISection(SectionTypeCode::IO_LAYOUTS),
       m_input_layouts(std::move(input_layouts)),
       m_output_layouts(std::move(output_layouts)),
       m_logger("IOLayoutsSection", log_level) {}

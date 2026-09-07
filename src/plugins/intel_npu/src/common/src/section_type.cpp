@@ -22,9 +22,9 @@ constexpr std::string_view COMPILER_VERSION_SECTION_NAME = "COMPILER_VERSION";
 
 namespace intel_npu {
 
-SectionType::SectionType(const ValidSectionTypeCode section_type_code) : CREToken(), m_code(section_type_code) {}
+SectionType::SectionType(const SectionTypeCode section_type_code) : CREToken(), m_code(section_type_code) {}
 
-ValidSectionTypeCode SectionType::get_code() const {
+SectionTypeCode SectionType::get_code() const {
     return m_code;
 }
 
@@ -35,23 +35,23 @@ bool SectionType::operator==(const SectionType& other) const {
 // TODO test these
 std::string section_type_to_string(const SectionType type) {
     switch (type.get_code()) {
-    case ValidSectionTypeCode::RUNTIME_REQUIREMENTS:
+    case SectionTypeCode::RUNTIME_REQUIREMENTS:
         return RUNTIME_REQUIREMENTS_SECTION_NAME.data();
-    case ValidSectionTypeCode::MANIFEST:
+    case SectionTypeCode::MANIFEST:
         return MANIFEST_SECTION_NAME.data();
-    case ValidSectionTypeCode::ELF_MAIN_SCHEDULE:
+    case SectionTypeCode::ELF_MAIN_SCHEDULE:
         return ELF_MAIN_SCHEDULE_SECTION_NAME.data();
-    case ValidSectionTypeCode::ELF_INIT_SCHEDULES:
+    case SectionTypeCode::ELF_INIT_SCHEDULES:
         return ELF_INIT_SCHEDULES_SECTION_NAME.data();
-    case ValidSectionTypeCode::DYNAMIC_SCHEDULE:
+    case SectionTypeCode::DYNAMIC_SCHEDULE:
         return DYNAMIC_SCHEDULE_SECTION_NAME.data();
-    case ValidSectionTypeCode::IO_LAYOUTS:
+    case SectionTypeCode::IO_LAYOUTS:
         return IO_LAYOUTS_SECTION_NAME.data();
-    case ValidSectionTypeCode::BATCH_SIZE:
+    case SectionTypeCode::BATCH_SIZE:
         return BATCH_SIZE_SECTION_NAME.data();
-    case ValidSectionTypeCode::ENCRYPTED_SCHEDULES_FLAG:
+    case SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG:
         return ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME.data();
-    case ValidSectionTypeCode::COMPILER_VERSION:
+    case SectionTypeCode::COMPILER_VERSION:
         return COMPILER_VERSION_SECTION_NAME.data();
     default:
         OPENVINO_THROW("Attempted to convert an unkown section type to string");
@@ -60,34 +60,34 @@ std::string section_type_to_string(const SectionType type) {
 
 SectionType section_type_from_string(std::string_view type) {
     if (type == RUNTIME_REQUIREMENTS_SECTION_NAME) {
-        return ValidSectionTypeCode::RUNTIME_REQUIREMENTS;
+        return SectionTypeCode::RUNTIME_REQUIREMENTS;
     }
     if (type == MANIFEST_SECTION_NAME) {
-        return ValidSectionTypeCode::MANIFEST;
+        return SectionTypeCode::MANIFEST;
     }
     if (type == ELF_MAIN_SCHEDULE_SECTION_NAME) {
-        return ValidSectionTypeCode::ELF_MAIN_SCHEDULE;
+        return SectionTypeCode::ELF_MAIN_SCHEDULE;
     }
     if (type == ELF_INIT_SCHEDULES_SECTION_NAME) {
-        return ValidSectionTypeCode::ELF_INIT_SCHEDULES;
+        return SectionTypeCode::ELF_INIT_SCHEDULES;
     }
     if (type == DYNAMIC_SCHEDULE_SECTION_NAME) {
-        return ValidSectionTypeCode::DYNAMIC_SCHEDULE;
+        return SectionTypeCode::DYNAMIC_SCHEDULE;
     }
     if (type == IO_LAYOUTS_SECTION_NAME) {
-        return ValidSectionTypeCode::IO_LAYOUTS;
+        return SectionTypeCode::IO_LAYOUTS;
     }
     if (type == BATCH_SIZE_SECTION_NAME) {
-        return ValidSectionTypeCode::BATCH_SIZE;
+        return SectionTypeCode::BATCH_SIZE;
     }
     if (type == ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME) {
-        return ValidSectionTypeCode::ENCRYPTED_SCHEDULES_FLAG;
+        return SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG;
     }
     if (type == COMPILER_VERSION_SECTION_NAME) {
-        return ValidSectionTypeCode::COMPILER_VERSION;
+        return SectionTypeCode::COMPILER_VERSION;
     }
 
-    return ValidSectionTypeCode::UNKNOWN;
+    return SectionTypeCode::UNKNOWN;
 }
 
 std::ostream& operator<<(std::ostream& os, const SectionType& type) {

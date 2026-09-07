@@ -73,7 +73,7 @@ namespace intel_npu {
 ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph,
                                                const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                const ov::log::Level log_level)
-    : ISection(ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
+    : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE),
       m_graph_or_schedule(graph),
       m_encryption_callbacks(encryption_callbacks),
       m_logger("ELFMainScheduleSection", log_level) {}
@@ -81,12 +81,12 @@ ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& gra
 ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor&& main_schedule,
                                                const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                const ov::log::Level log_level)
-    : ISection(ValidSectionTypeCode::ELF_MAIN_SCHEDULE),
+    : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE),
       m_graph_or_schedule(std::move(main_schedule)),
       m_encryption_callbacks(encryption_callbacks),
       m_logger("ELFMainScheduleSection", log_level) {}
 
-std::vector<CREToken> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
+std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ELF_MAIN_SCHEDULE section type to the CRE");
@@ -188,7 +188,7 @@ std::optional<std::string> ELFMainScheduleSection::get_inidividual_compatibility
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
                                                  const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                  const ov::log::Level log_level)
-    : ISection(ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    : ISection(SectionTypeCode::ELF_INIT_SCHEDULES),
       m_graph_or_schedules(weightless_graph),
       m_encryption_callbacks(encryption_callbacks),
       m_logger("ELFInitSchedulesSection", log_level) {}
@@ -196,12 +196,12 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<Weightles
 ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>&& init_schedules,
                                                  const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                  const ov::log::Level log_level)
-    : ISection(ValidSectionTypeCode::ELF_INIT_SCHEDULES),
+    : ISection(SectionTypeCode::ELF_INIT_SCHEDULES),
       m_graph_or_schedules(std::move(init_schedules)),
       m_encryption_callbacks(encryption_callbacks),
       m_logger("ELFInitSchedulesSection", log_level) {}
 
-std::vector<CREToken> ELFInitSchedulesSection::get_compatibility_requirements_subexpression(
+std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ELF_INIT_SCHEDULES section type to the CRE");
@@ -346,7 +346,7 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
 DynamicScheduleSection::DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
                                                const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                const ov::log::Level log_level)
-    : ISection(ValidSectionTypeCode::DYNAMIC_SCHEDULE),
+    : ISection(SectionTypeCode::DYNAMIC_SCHEDULE),
       m_impl(std::dynamic_pointer_cast<Graph>(graph), encryption_callbacks, log_level),
       m_blob_type(graph->get_blob_type()),
       m_logger("DynamicScheduleSection", log_level) {}
@@ -355,12 +355,12 @@ DynamicScheduleSection::DynamicScheduleSection(ov::Tensor&& main_schedule,
                                                const BlobType blob_type,
                                                const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
                                                const ov::log::Level log_level)
-    : ISection(ValidSectionTypeCode::DYNAMIC_SCHEDULE),
+    : ISection(SectionTypeCode::DYNAMIC_SCHEDULE),
       m_impl(std::move(main_schedule), encryption_callbacks, log_level),
       m_blob_type(blob_type),
       m_logger("DynamicScheduleSection", log_level) {}
 
-std::vector<CREToken> DynamicScheduleSection::get_compatibility_requirements_subexpression(
+std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the DYNAMIC_SCHEDULE section type to the CRE");

@@ -12,13 +12,13 @@ namespace intel_npu {
 
 EncryptedSchedulesFlagSection::EncryptedSchedulesFlagSection(const bool applied_encryption,
                                                              const ov::log::Level log_level)
-    : ISection(ValidSectionTypeCode::ENCRYPTED_SCHEDULES_FLAG),
+    : ISection(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG),
       m_flag(applied_encryption),
       m_logger("EncryptedSchedulesFlagSection", log_level) {
     m_logger.trace("Section created");
 }
 
-std::vector<CREToken> EncryptedSchedulesFlagSection::get_compatibility_requirements_subexpression(
+std::vector<std::shared_ptr<CREToken>> EncryptedSchedulesFlagSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ENCRYPTED_SCHEDULES_FLAG section type to the CRE");

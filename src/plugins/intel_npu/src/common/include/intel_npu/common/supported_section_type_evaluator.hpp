@@ -9,15 +9,15 @@
 namespace intel_npu {
 
 static inline const std::unordered_set<SectionType> ALREADY_SUPPORTED_SECTION_TYPES{
-    ValidSectionTypeCode::RUNTIME_REQUIREMENTS,
-    ValidSectionTypeCode::MANIFEST,
-    ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
-    ValidSectionTypeCode::ELF_INIT_SCHEDULES,
-    ValidSectionTypeCode::DYNAMIC_SCHEDULE,
-    ValidSectionTypeCode::IO_LAYOUTS,
-    ValidSectionTypeCode::BATCH_SIZE,
-    ValidSectionTypeCode::ENCRYPTED_SCHEDULES_FLAG,
-    ValidSectionTypeCode::COMPILER_VERSION};
+    SectionTypeCode::RUNTIME_REQUIREMENTS,
+    SectionTypeCode::MANIFEST,
+    SectionTypeCode::ELF_MAIN_SCHEDULE,
+    SectionTypeCode::ELF_INIT_SCHEDULES,
+    SectionTypeCode::DYNAMIC_SCHEDULE,
+    SectionTypeCode::IO_LAYOUTS,
+    SectionTypeCode::BATCH_SIZE,
+    SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG,
+    SectionTypeCode::COMPILER_VERSION};
 
 class SupportedSectionTypeEvaluator final : public ISectionTypeEvaluator {
 public:
