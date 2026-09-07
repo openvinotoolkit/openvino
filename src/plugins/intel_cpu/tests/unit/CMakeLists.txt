@@ -27,6 +27,7 @@ endif()
 if(NOT X86_64)
     list(APPEND EXCLUDED_SOURCE_PATHS_FOR_UNIT_TEST
       ${CMAKE_CURRENT_SOURCE_DIR}/jit_kernel_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/jit_exp_emitter_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/registers_pool.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/transformations/x64
       ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations/x64
