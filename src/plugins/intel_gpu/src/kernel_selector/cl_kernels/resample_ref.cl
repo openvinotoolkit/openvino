@@ -256,14 +256,22 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     unroll_for (int i = 0; i < 5; ++i) {
         float orig_coord = FUNC_CALL(get_original_coordinate)(out_coords[i], SCALES[i], out_size[i], in_size[i] + PADS_BEGIN[i] + PADS_END[i]) - PADS_BEGIN[i];
     #if SHAPE_CALC_MODE_SIZES && PADDING_USED == 1 && defined(COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN)
-        if ((PADS_BEGIN[i] == 0) != (PADS_END[i] == 0))
-            orig_coord = ((float)out_coords[i] + 0.5f) / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]) - PADS_BEGIN[i];
-        else if (PADS_BEGIN[i] != 0 && PADS_END[i] != 0) {
-            volatile float inv_scale = 1.0f / SCALES[i];
-            orig_coord = ((float)out_coords[i] + 0.5f) * inv_scale - PADS_BEGIN[i];
+        // Only re-derive the coordinate when the axis is actually being resized
+        // (SCALES[i] != 1.0f). get_original_coordinate() has its own early-out
+        // for unit scale (returns "num" as-is); axes that are only padded but not
+        // resized (e.g. explicit sizes matching the padded input size) must keep
+        // that behavior, otherwise an incorrect half-pixel shift would be applied.
+        if (SCALES[i] != 1.0f) {
+            if ((PADS_BEGIN[i] == 0) != (PADS_END[i] == 0))
+                orig_coord = ((float)out_coords[i] + 0.5f) / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]) - PADS_BEGIN[i];
+            else if (PADS_BEGIN[i] != 0 && PADS_END[i] != 0) {
+                volatile float inv_scale = 1.0f / SCALES[i];
+                orig_coord = ((float)out_coords[i] + 0.5f) * inv_scale - PADS_BEGIN[i];
+            }
         }
     #elif SHAPE_CALC_MODE_SIZES && PADDING_USED == 1 && defined(COORD_TRANS_MODE_ASYMMETRIC)
-        orig_coord = (float)out_coords[i] / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]) - PADS_BEGIN[i];
+        if (SCALES[i] != 1.0f)
+            orig_coord = (float)out_coords[i] / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]) - PADS_BEGIN[i];
     #endif
         in_coords[i] = floor(orig_coord);
         orig_coord = (orig_coord - in_coords[i]) * AXES_USED[i];
@@ -586,11 +594,11 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     ACCUMULATOR_TYPE sum[fp_max] = {0};
     ACCUMULATOR_TYPE wsum[fp_max] = {0};
 
-    unroll_for(int b = b_init; b < b_max; b++) {
-        unroll_for(int f = f_init; f < f_max; f++) {
-            unroll_for(int z = z_init; z < z_max; z++) {
-                unroll_for(int y = y_init; y < y_max; y++) {
-                    unroll_for(int x = x_init; x < x_max; x++) {
+    for (int b = b_init; b < b_max; b++) {
+        for (int f = f_init; f < f_max; f++) {
+            for (int z = z_init; z < z_max; z++) {
+                for (int y = y_init; y < y_max; y++) {
+                    for (int x = x_init; x < x_max; x++) {
                         unroll_for(int fp = 0; fp < fp_max; fp++) {
 #if PADDING_USED == 1
                             bool isOutOfBounds = b < 0 || f < 0 || z < 0 || y < 0 || x < 0 ||

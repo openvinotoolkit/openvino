@@ -75,8 +75,9 @@ bool ResampleKernelBfyxCubicOpt::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (ResampleKernelBase::has_padding(params))
+    if (ResampleKernelBase::has_padding(params)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Explicit axes may include B/F with unit scale. The optimized kernel is still valid
     // as long as only spatial dimensions actually change.
