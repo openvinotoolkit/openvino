@@ -6,6 +6,8 @@
 
 #include <cstring>
 
+#include "openvino/core/except.hpp"
+
 namespace ov {
 namespace reference {
 namespace {
@@ -50,14 +52,25 @@ void concat(const std::vector<const char*>& args,
     const auto& shape_sizes = calculate_shape_sizes(in_shapes);
 
     const auto copy_func = elem_type == ov::element::string ? copy_string_elements : copy_elements;
+    const auto bitwidth = elem_type.bitwidth();
 
     size_t out_offset = 0;
     for (size_t step = 0; step < steps; ++step) {
         for (size_t in_index = 0; in_index < args.size(); ++in_index) {
             size_t size = shape_sizes[in_index] / steps;
+            // Sub-byte packed types (e.g. u1/u2/u3/u4/i4/u6) store several elements per byte, so the
+            // element count must be converted to the actual occupied byte count before it is used to
+            // index into `args`/`out` (elem_size is 1 byte for these types). `bitwidth == 0` is the
+            // "unknown/dynamic" element type used by some callers that pre-compute `elem_size`
+            // themselves (e.g. reference::concat() called with the default element type argument);
+            // leave it untouched.
+            if (bitwidth > 0 && bitwidth < 8) {
+                OPENVINO_ASSERT((size * bitwidth) % 8 == 0,
+                                "concat: sub-byte packed data is not byte-aligned for element type ",
+                                elem_type);
+                size = size * bitwidth / 8;
+            }
             const size_t in_offset = step * size;
-            if (elem_type == ov::element::u4 || elem_type == ov::element::i4)
-                size /= 2;
             copy_func(args[in_index], out, in_offset, out_offset, size, elem_size);
 
             out_offset += size;

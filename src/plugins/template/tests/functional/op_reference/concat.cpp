@@ -146,6 +146,54 @@ std::vector<ConcatParams> generateParams() {
     return params;
 }
 
+// Sub-byte packed types (u1/u2/u3/u4/u6/i4) store several elements per byte, so unlike
+// generateParams<ET>() above these tensors must be built from raw packed bytes rather than
+// per-element values.
+//
+// Reproduces a heap-buffer overflow in ov::reference::concat for `u3`: the implementation only
+// special-cased sub-byte size conversion for u4/i4 (`size /= 2`), so for u3 the per-step element
+// count was copied unscaled with elem_size==1, writing ~2.67x the destination size. Each input here
+// packs to a whole number of bytes (element count is a multiple of 8, so N*3 bits is byte-aligned),
+// which is exactly the layout FullyConnectedHorizontalFusion produces when concatenating u3
+// compressed FC weights. With the bug, the first input's oversized copy also corrupts the output
+// offset used for subsequent inputs, so any mismatch between actual and expected bytes below would
+// be caught even without a sanitizer.
+std::vector<ConcatParams> generateParamsForSubByte() {
+    std::vector<ConcatParams> params{
+        ConcatParams(
+            {},
+            reference_tests::Tensor(element::u3, {8}, std::vector<uint8_t>{0x11, 0x22, 0x33}),
+            reference_tests::Tensor(element::u3, {8}, std::vector<uint8_t>{0x44, 0x55, 0x66}),
+            reference_tests::Tensor(element::u3, {8}, std::vector<uint8_t>{0x77, 0x88, 0x99}),
+            0,
+            reference_tests::Tensor(element::u3,
+                                    {24},
+                                    std::vector<uint8_t>{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99}),
+            "concat_u3_1d_axis0_byte_aligned"),
+        ConcatParams(
+            {},
+            reference_tests::Tensor(element::u3, {2, 8}, std::vector<uint8_t>{0x11, 0x22, 0x33, 0xAA, 0xBB, 0xCC}),
+            reference_tests::Tensor(element::u3, {2, 8}, std::vector<uint8_t>{0x44, 0x55, 0x66, 0xDD, 0xEE, 0xFF}),
+            reference_tests::Tensor(element::u3, {2, 8}, std::vector<uint8_t>{0x77, 0x88, 0x99, 0x01, 0x02, 0x03}),
+            1,
+            reference_tests::Tensor(element::u3,
+                                    {2, 24},
+                                    std::vector<uint8_t>{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
+                                                          0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x01, 0x02, 0x03}),
+            "concat_u3_2d_axis1_byte_aligned"),
+        // u4 regression coverage: already-fixed sub-byte type, kept to guard against regressions.
+        ConcatParams(
+            {},
+            reference_tests::Tensor(element::u4, {2}, std::vector<uint8_t>{0x21}),
+            reference_tests::Tensor(element::u4, {2}, std::vector<uint8_t>{0x43}),
+            reference_tests::Tensor(element::u4, {2}, std::vector<uint8_t>{0x65}),
+            0,
+            reference_tests::Tensor(element::u4, {6}, std::vector<uint8_t>{0x21, 0x43, 0x65}),
+            "concat_u4_1d_axis0_byte_aligned"),
+    };
+    return params;
+}
+
 std::vector<ConcatParams> generateStringParams() {
     const auto ET = ov::element::string;
     using T = typename element_type_traits<ov::element::string>::value_type;
@@ -224,6 +272,7 @@ std::vector<ConcatParams> generateCombinedParams() {
         generateParams<element::Type_t::f32>(),
         generateParams<element::Type_t::f64>(),
         generateStringParams(),
+        generateParamsForSubByte(),
     };
     std::vector<ConcatParams> combinedParams;
 
