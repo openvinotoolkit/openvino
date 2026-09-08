@@ -371,8 +371,10 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     try {
         for (int i = 0; i < num_collectives; ++i) {
             auto rdz = std::make_unique<Rendezvous>();
-            rdz->in_ptrs.assign(world_size, nullptr);
-            rdz->out_ptrs.assign(world_size, nullptr);
+            rdz->in_ptrs[0].assign(world_size, nullptr);
+            rdz->in_ptrs[1].assign(world_size, nullptr);
+            rdz->out_ptrs[0].assign(world_size, nullptr);
+            rdz->out_ptrs[1].assign(world_size, nullptr);
             m_rendezvous[i] = std::move(rdz);
 
             // Command lists are cheap to keep but not to create: making them
@@ -2250,8 +2252,8 @@ void TPDeviceCoordinator::run_gather(int collective_id,
     // everyone writes into.
     {
         std::unique_lock<std::mutex> lk(rdz.mtx);
-        rdz.in_ptrs[rank]  = in_dev;
-        rdz.out_ptrs[rank] = out_dev;
+        rdz.in_ptrs[0][rank]  = in_dev;
+        rdz.out_ptrs[0][rank] = out_dev;
         const uint64_t my_gen = rdz.enter_gen;
         if (++rdz.arrived == m_world_size) {
             rdz.arrived = 0;
@@ -2285,17 +2287,17 @@ void TPDeviceCoordinator::run_gather(int collective_id,
     // Rank 0 records for everyone, because a recording needs the root's
     // destination pointer, which only the barrier above has made visible.
     if (rank == 0) {
-        OPENVINO_ASSERT(rdz.out_ptrs[0] != nullptr,
+        OPENVINO_ASSERT(rdz.out_ptrs[0][0] != nullptr,
                         "[TP][L0] gather ", collective_id, " has no destination on the root");
         const bool recorded_matches =
-            slot->matches_gather(rdz.in_ptrs, rdz.out_ptrs, rows, slice_elems, dtype) &&
+            slot->matches_gather(rdz.in_ptrs[0], rdz.out_ptrs[0], rows, slice_elems, dtype) &&
             std::all_of(slot->recorded.begin(), slot->recorded.end(),
                         [](uint8_t v) { return v != 0; });
         if (!recorded_matches) {
             ensure_gather_events(*slot);
             slot->kind = Plan::Kind::gather;
-            slot->in_ptrs = rdz.in_ptrs;
-            slot->out_ptrs = rdz.out_ptrs;
+            slot->in_ptrs = rdz.in_ptrs[0];
+            slot->out_ptrs = rdz.out_ptrs[0];
             slot->rows = rows;
             slot->slice_elems = slice_elems;
             slot->n = checked_multiply(rows, slice_elems, "gather slice");
@@ -2358,8 +2360,8 @@ void TPDeviceCoordinator::run_gather(int collective_id,
         if (++rdz.departed == m_world_size) {
             rdz.departed = 0;
             rdz.done = false;
-            std::fill(rdz.in_ptrs.begin(), rdz.in_ptrs.end(), nullptr);
-            std::fill(rdz.out_ptrs.begin(), rdz.out_ptrs.end(), nullptr);
+            std::fill(rdz.in_ptrs[0].begin(), rdz.in_ptrs[0].end(), nullptr);
+            std::fill(rdz.out_ptrs[0].begin(), rdz.out_ptrs[0].end(), nullptr);
             rdz.exit_gen++;
             rdz.cv.notify_all();
         } else {
@@ -2483,10 +2485,19 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count());
     };
     uint64_t entry_gen = 0;
+    int rdz_set = 0;
+    uint64_t rec_gen_at_entry = 0;
     {
         std::unique_lock<std::mutex> lk(rdz.mtx);
-        rdz.in_ptrs[rank]  = in_dev;
-        rdz.out_ptrs[rank] = out_dev;
+        // Read the generation before publishing: it selects which of the two
+        // pointer sets this instance owns, and every rank of one instance
+        // reads the same value because only the last arrival bumps it.
+        const uint64_t my_gen = rdz.enter_gen;
+        entry_gen = my_gen;
+        rdz_set = static_cast<int>(my_gen & 1ull);
+        rec_gen_at_entry = rdz.record_gen;
+        rdz.in_ptrs[rdz_set][rank]  = in_dev;
+        rdz.out_ptrs[rdz_set][rank] = out_dev;
         if (rank == 0) {
             rdz.n     = n;
             rdz.dtype = dtype;
@@ -2511,8 +2522,6 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                 ++m_skew.seg_count[rank];
             }
         }
-        const uint64_t my_gen = rdz.enter_gen;
-        entry_gen = my_gen;
         if (++rdz.arrived == m_world_size) {
             rdz.arrived = 0;
             rdz.enter_gen++;
@@ -2574,7 +2583,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                         "[TP][L0] inconsistent (n,dtype) across ranks for collective ",
                         collective_id);
         for (int i = 0; i < m_world_size; ++i) {
-            OPENVINO_ASSERT(rdz.in_ptrs[i] && rdz.out_ptrs[i],
+            OPENVINO_ASSERT(rdz.in_ptrs[rdz_set][i] && rdz.out_ptrs[rdz_set][i],
                             "[TP][L0] collective ", collective_id, " has no buffers for rank ", i,
                             "; the barrier was released by ", m_world_size,
                             " arrivals that did not cover every rank");
@@ -2582,7 +2591,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
 
         const auto payload_bytes = collective_payload_bytes(n, dtype);
         const bool scratch_grew = ensure_scratch_capacity(payload_bytes);
-        const bool signature_matches = slot->matches(rdz.in_ptrs, rdz.out_ptrs, n, dtype);
+        const bool signature_matches = slot->matches(rdz.in_ptrs[rdz_set], rdz.out_ptrs[rdz_set], n, dtype);
         // Every rank has to be recorded against the current signature and the
         // current staging arena.  They move together today, but they are kept
         // per rank because that is what lets a rank re-record on its own.
@@ -2614,8 +2623,8 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
         }
 
         if (!signature_matches) {
-            slot->in_ptrs = rdz.in_ptrs;
-            slot->out_ptrs = rdz.out_ptrs;
+            slot->in_ptrs = rdz.in_ptrs[rdz_set];
+            slot->out_ptrs = rdz.out_ptrs[rdz_set];
             slot->n = n;
             slot->dtype = dtype;
         }
@@ -2650,16 +2659,29 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
 
         if (per_rank_exec) {
             std::unique_lock<std::mutex> lk(rdz.mtx);
-            rdz.done = true;
+            rdz.record_gen++;
             rdz.cv.notify_all();
         }
     } else if (per_rank_exec) {
-        std::unique_lock<std::mutex> lk(rdz.mtx);
-        const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
-                                                [&] { return rdz.done; });
-        if (outcome != WaitOutcome::ready) {
-            lk.unlock();
-            fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank, "record phase");
+        // The gate exists so that nobody records against a signature or an
+        // arena rank 0 is still settling.  When this rank can see for itself
+        // that neither moved -- the published pointers are the ones its own
+        // recording was built from, and the arena generation still matches --
+        // there is nothing to settle and nothing to wait for.  That is the
+        // common case by a wide margin: 768 recordings across 130944 calls.
+        const bool nothing_to_settle =
+            slot->matches(rdz.in_ptrs[rdz_set], rdz.out_ptrs[rdz_set], n, dtype) &&
+            slot->recorded[rank] != 0 &&
+            slot->recorded_scratch_generation[rank] == m_scratch.generation &&
+            !scratch_needs_growth(collective_payload_bytes(n, dtype));
+        if (!nothing_to_settle) {
+            std::unique_lock<std::mutex> lk(rdz.mtx);
+            const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
+                                                    [&] { return rdz.record_gen != rec_gen_at_entry; });
+            if (outcome != WaitOutcome::ready) {
+                lk.unlock();
+                fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank, "record phase");
+            }
         }
         tr1 = clk::now();
     }
@@ -2802,29 +2824,15 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
     trace("phase2: passed");
     auto t2 = clk::now();
 
-    // Phase 3 (exit barrier): wait until all ranks have left, then the
-    // last-out clears state for the next epoch.
-    {
-        std::unique_lock<std::mutex> lk(rdz.mtx);
-        const uint64_t my_gen = rdz.exit_gen;
-        if (++rdz.departed == m_world_size) {
-            rdz.departed = 0;
-            rdz.done = false;
-            std::fill(rdz.in_ptrs.begin(), rdz.in_ptrs.end(), nullptr);
-            std::fill(rdz.out_ptrs.begin(), rdz.out_ptrs.end(), nullptr);
-            rdz.exit_gen++;
-            rdz.cv.notify_all();
-        } else {
-            const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
-                                                    [&] { return rdz.exit_gen != my_gen; });
-            if (outcome != WaitOutcome::ready) {
-                lk.unlock();
-                fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank, "exit barrier");
-            }
-        }
-    }
-    trace("phase3: passed (return)");
-
+    // Phase 3 used to be an exit barrier here.  It guarded one thing: a rank
+    // that had already left could reach this collective again and overwrite
+    // the published pointers a slower peer was still reading.  The two
+    // pointer sets, picked by the parity of the entry generation, guard that
+    // directly -- reaching the same set again means passing the enter barrier
+    // twice, which the slow peer has to take part in.  Everything else the
+    // barrier appeared to protect is already device-side: a rank does not
+    // re-splice a recording before its previous splice signalled completion,
+    // and the order between ranks is held by the ring's own events.
     auto t3 = clk::now();
     // Only rank 0's phases are accumulated, to match record/exec/prep/tail and
     // the call counter below.  Adding every rank here would double the phase
