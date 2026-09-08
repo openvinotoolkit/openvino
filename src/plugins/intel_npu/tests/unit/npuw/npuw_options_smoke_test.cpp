@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "intel_npu/config/config.hpp"
@@ -213,6 +214,49 @@ TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
 
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>(), "PYRAMID");
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
+}
+
+TEST(NPUWConfigOptionsSmokeTest, UpdateAnyKnownIgnoresUnregisteredKeys) {
+    auto cfg = make_config();
+
+    ov::AnyMap mixed;
+    mixed[std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key())] = uint32_t{7};
+    mixed["COMPLETELY_UNKNOWN_KEY"] = std::string("value");
+
+    ASSERT_NO_THROW(cfg.updateAnyKnown(mixed));
+    EXPECT_EQ(cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>(), 7);
+}
+
+TEST(NPUWConfigOptionsSmokeTest, UpdateAnyKnownEmptyMapIsNoop) {
+    auto cfg = make_config({{std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key()), "3"}});
+
+    ASSERT_NO_THROW(cfg.updateAnyKnown(ov::AnyMap{}));
+    EXPECT_EQ(cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>(), 3);
+}
+
+TEST(NPUWConfigOptionsSmokeTest, ExtractReturnsOnlyMatchingKeys) {
+    auto cfg = make_config({
+        {std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key()), "5"},
+        {std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
+    });
+
+    std::unordered_set<std::string> wanted{std::string(::intel_npu::NPUW_FOLD::key()), "NO_SUCH_KEY"};
+    auto result = cfg.extract(wanted);
+
+    EXPECT_EQ(result.size(), 1);
+    EXPECT_EQ(result.count(std::string(::intel_npu::NPUW_FOLD::key())), 1);
+}
+
+TEST(NPUWConfigOptionsSmokeTest, ExtractEmptyKeysReturnsEmpty) {
+    auto cfg = make_config({{std::string(::intel_npu::NPUW_LLM_BATCH_DIM::key()), "1"}});
+
+    auto result = cfg.extract({});
+    EXPECT_TRUE(result.empty());
+}
+
+TEST(NPUWConfigOptionsSmokeTest, CachedNPUWOptionKeys) {
+    const auto& keys = ::intel_npu::cachedNPUWOptionKeys();
+    EXPECT_FALSE(keys.empty());
 }
 
 }  // namespace
