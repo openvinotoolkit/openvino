@@ -66,8 +66,7 @@ MLIREvaluateGcGPU::MLIREvaluateGcGPU(OwningOpRef<::mlir::ModuleOp> _module, cons
 }
 
 bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs, ov::TensorVector& outputs, const ov::EvaluationContext& evaluationContext) {
-    std::vector<void*> waitList;
-    gc::gpu::OclContext ctx = build_ocl_context(evaluationContext, waitList);
+    gc::gpu::OclContext ctx = build_ocl_context(evaluationContext);
     gc::gpu::StaticExecutor<> exec(*module);
 
     auto it = evaluationContext.find(ov::internal::mlir_meta::is_kernel_arg_usm.name());
@@ -85,13 +84,14 @@ bool MLIREvaluateGcGPU::invoke(const ov::TensorVector& inputs, ov::TensorVector&
 
     exec(ctx);
 
+    // Hands the completion events over via the mlir_meta::result_events vector, from which
+    // cldnn::mlir_primitive builds the event returned by the primitive
     maybe_set_result_events(evaluationContext, ctx);
     return true;
 }
 
 bool MLIREvaluateGcGPU::invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) {
-    std::vector<void*> waitList;
-    gc::gpu::OclContext ctx = build_ocl_context(evaluationContext, waitList);
+    gc::gpu::OclContext ctx = build_ocl_context(evaluationContext);
     gc::gpu::DynamicExecutor<> exec(*module);
 
     // Layout (5 pointers per memref, see MemRefDescriptor::append_to_packed_args
@@ -108,6 +108,8 @@ bool MLIREvaluateGcGPU::invoke_packed(std::vector<void*>& args, const ov::Evalua
             /*isUsm=*/reinterpret_cast<uintptr_t>(args[i + 4]) != 0);
     }
     exec(ctx);
+    // Hands the completion events over via the mlir_meta::result_events vector, from which
+    // cldnn::mlir_primitive builds the event returned by the primitive
     maybe_set_result_events(evaluationContext, ctx);
     return true;
 }
@@ -133,13 +135,21 @@ void MLIREvaluateGcGPU::maybe_set_result_events(const ov::EvaluationContext& eva
     }
 }
 
-gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationContext& evaluationContext, std::vector<void*>& waitList) {
+// Builds the gc::gpu::OclContext describing a single execution: the queue to enqueue to, the events
+// to wait for and whether Graph Compiler has to produce completion events.
+//
+// The wait-list is stored in the EvaluationContext as a std::vector<void*> owned by an
+// ov::Any, while OclContext takes a plain cl_event* + length, so they are copied into a local vector
+// first. The OclContext constructor clRetainEvent()s them and copies them into its own storage, so
+// that vector is no longer needed once the context is built.
+gc::gpu::OclContext MLIREvaluateGcGPU::build_ocl_context(const ov::EvaluationContext& evaluationContext) {
     auto it = evaluationContext.find(ov::intel_gpu::ocl_queue.name());
     if (it == evaluationContext.end()) {
         OPENVINO_THROW("No queue provided for OpenCL execution");
     }
     auto* queue = reinterpret_cast<cl_command_queue>(it->second.as<void*>());
 
+    std::vector<void*> waitList;
     uint32_t waitListLen = 0;
 
     it = evaluationContext.find(ov::internal::mlir_meta::wait_list.name());

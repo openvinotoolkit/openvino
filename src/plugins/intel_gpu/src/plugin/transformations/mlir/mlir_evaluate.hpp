@@ -34,7 +34,7 @@ public:
     bool invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) override;
 
 private:
-    ::mlir::gc::gpu::OclContext build_ocl_context(const ov::EvaluationContext& evaluationContext, std::vector<void*>& waitList);
+    ::mlir::gc::gpu::OclContext build_ocl_context(const ov::EvaluationContext& evaluationContext);
     static void maybe_set_result_events(const ov::EvaluationContext& evaluationContext, ::mlir::gc::gpu::OclContext& ctx);
 };
 
