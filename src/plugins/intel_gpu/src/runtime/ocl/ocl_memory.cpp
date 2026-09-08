@@ -186,13 +186,16 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
     // Fallback host-staging branch for cross-engine transfers or usm_device -> cl_mem copies.
     // D2H copy must execute on the source engine's own service stream to prevent the destination GPU queue
     // from attempting to access foreign VRAM or mismatched OpenCL contexts.
-    std::vector<char> tmp_buf(size);
+    auto tmp_buf = std::make_shared<std::vector<char>>(size);
     auto& src_stream = src_mem.get_engine()->get_service_stream();
-    src_mem.copy_to(src_stream, tmp_buf.data(), src_offset, 0, size, true);
+    src_mem.copy_to(src_stream, tmp_buf->data(), src_offset, 0, size, true);
 
     GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
-    // H2D copy into this memory must be synchronous (blocking=true) so tmp_buf is not destroyed while DMA is in flight.
-    return copy_from(stream, tmp_buf.data(), 0, dst_offset, size, true);
+    auto res_event = copy_from(stream, tmp_buf->data(), 0, dst_offset, size, blocking);
+    if (!blocking && res_event) {
+        res_event->add_event_handler([tmp_buf](void*) {}, nullptr);
+    }
+    return res_event;
 }
 
 event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {
@@ -656,13 +659,16 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
     // Fallback host-staging branch for cross-engine transfers or cl_mem -> usm_device copies.
     // D2H copy must execute on the source engine's own service stream to prevent the destination GPU queue
     // from attempting to access foreign VRAM or mismatched OpenCL contexts.
-    std::vector<char> tmp_buf(size);
+    auto tmp_buf = std::make_shared<std::vector<char>>(size);
     auto& src_stream = src_mem.get_engine()->get_service_stream();
-    src_mem.copy_to(src_stream, tmp_buf.data(), src_offset, 0, size, true);
+    src_mem.copy_to(src_stream, tmp_buf->data(), src_offset, 0, size, true);
 
     GPU_DEBUG_TRACE_DETAIL << "Suboptimal copy call from " << src_mem.get_allocation_type() << " to " << get_allocation_type() << "\n";
-    // H2D copy into this memory must be synchronous (blocking=true) so tmp_buf is not destroyed while DMA is in flight.
-    return copy_from(stream, tmp_buf.data(), 0, dst_offset, size, true);
+    auto res_event = copy_from(stream, tmp_buf->data(), 0, dst_offset, size, blocking);
+    if (!blocking && res_event) {
+        res_event->add_event_handler([tmp_buf](void*) {}, nullptr);
+    }
+    return res_event;
 }
 
 event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const {

@@ -195,15 +195,10 @@ TEST_F(HeteroTests, multi_gpu_pipeline_parallel_inference_regression) {
     const auto model = create_model_with_multi_add();
 
     std::set<ov::hint::ModelDistributionPolicy> model_policy = {ov::hint::ModelDistributionPolicy::PIPELINE_PARALLEL};
-    ov::AnyMap config = {
-        ov::device::priorities(dev0 + "," + dev1),
-        ov::hint::model_distribution_policy(model_policy)
-    };
+    ov::AnyMap config = {ov::device::priorities(dev0 + "," + dev1), ov::hint::model_distribution_policy(model_policy)};
 
     ov::CompiledModel compiled_model;
-    EXPECT_NO_THROW({
-        compiled_model = core.compile_model(model, "HETERO", config);
-    });
+    EXPECT_NO_THROW({ compiled_model = core.compile_model(model, "HETERO", config); });
 
     auto infer_request = compiled_model.create_infer_request();
     auto input_tensor = ov::Tensor(ov::element::f32, ov::Shape{1, 3, 1, 1});
@@ -214,9 +209,7 @@ TEST_F(HeteroTests, multi_gpu_pipeline_parallel_inference_regression) {
     infer_request.set_input_tensor(input_tensor);
 
     for (int iter = 0; iter < 3; ++iter) {
-        EXPECT_NO_THROW({
-            infer_request.infer();
-        }) << "Inference iteration failed at iter " << iter;
+        EXPECT_NO_THROW({ infer_request.infer(); }) << "Inference iteration failed at iter " << iter;
         auto output_tensor = infer_request.get_output_tensor();
         ASSERT_EQ(output_tensor.get_shape(), (ov::Shape{1, 3, 1, 1}));
         const float* output_ptr = output_tensor.data<float>();
