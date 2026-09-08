@@ -349,7 +349,12 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
         return true;
     };
 
-    if (!is_rotating_except_batch(params.order) && !IsSwappingFX(params.order)) {
+    const bool is_swapping_fx = IsSwappingFX(params.order);
+    if (!is_rotating_except_batch(params.order) && !is_swapping_fx) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    if (is_swapping_fx && params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
