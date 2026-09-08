@@ -4,6 +4,7 @@
 
 #include "openvino/xml_util/weights_provider.hpp"
 
+#include <istream>
 #include <limits>
 
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -12,6 +13,7 @@
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/parallel_io.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
 
 namespace ov::util {
 
@@ -79,7 +81,10 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offse
     } else {
         auto file_region = std::make_shared<ov::AlignedBuffer>(size);
         if (size > 0) {
-            OPENVINO_ASSERT(ov::util::positional_read(m_weights_handle, file_region->get_ptr<char>(), size, offset),
+            ov::util::ParallelReadStreamBuf stream_buf(m_weights_path, static_cast<std::streamoff>(offset));
+            std::istream weights_stream(&stream_buf);
+            weights_stream.read(file_region->get_ptr<char>(), static_cast<std::streamsize>(size));
+            OPENVINO_ASSERT(weights_stream && static_cast<size_t>(weights_stream.gcount()) == size,
                             "Failed to read weights from ",
                             m_weights_path);
         }
