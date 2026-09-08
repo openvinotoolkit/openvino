@@ -250,16 +250,14 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 uint64_t num_elements_aligned = num_byte * num_per_byte;
                 ov::Shape casted_zp_shape =
                     ov::Shape{static_cast<size_t>(N), static_cast<size_t>(num_elements_aligned), 1};
-                // The Constant below memcpy's a destination-shape-derived byte count from the source data
-                // pointer. Reject undersized/oversized packed zero_points before that copy, otherwise a
-                // too-small initializer causes an out-of-bounds read (CWE-125). The required size is computed
-                // with overflow checking.
+                // The Constant below copies required_zp_bytes from the source pointer; reject an
+                // undersized initializer to avoid reading past it (a larger source is fine).
                 const auto required_zp_bytes = ov::util::get_memory_size_safe(zp_element_type, casted_zp_shape);
                 CHECK_VALID_NODE(
                     node,
-                    required_zp_bytes.has_value() && *required_zp_bytes == zero_points_const->get_byte_size(),
-                    "MatMulNBits limitation: packed uint8 zero_points byte count is incompatible with "
-                    "shape [N][CeilDiv(n_blocks_per_col * bits, 8)], expected ",
+                    required_zp_bytes.has_value() && zero_points_const->get_byte_size() >= *required_zp_bytes,
+                    "MatMulNBits limitation: packed uint8 zero_points is too small for shape "
+                    "[N][CeilDiv(n_blocks_per_col * bits, 8)], need at least ",
                     required_zp_bytes.value_or(0),
                     " bytes, got: ",
                     zero_points_const->get_byte_size());
