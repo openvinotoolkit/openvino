@@ -1233,9 +1233,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
         network->unregister_output_memory_block(internal_name);
 
         auto& engine = m_graph->get_engine();
-        // Reject zero-copy when the caller buffer is also fed back as an input: binding it as the
-        // output would let a tiled kernel overwrite the input before it is fully read.
-        const bool aliases_input = output_ptr_aliases_input(user_tensor->data());
+        // Don't zero-copy when the caller buf is also fed back as an input (and is not a remote tensor, so it has data() impl):
+        // binding it as the output would let a tiled kernel overwrite the input before it is fully read.
+        const bool aliases_input = !is_remote_tensor_impl && !is_generic_remote && output_ptr_aliases_input(user_tensor->data());
         // Import a caller USM-host pointer as a shared remote tensor so the graph writes into it directly.
         const bool can_share_user_usm_host =
             !is_remote_tensor_impl && !is_generic_remote && !convert_needed &&
