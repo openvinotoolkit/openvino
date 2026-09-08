@@ -66,7 +66,7 @@ void PagedSelectiveSSM::validate_and_infer_types() {
                               state_type == ov::element::bf16,
                           "PagedSelectiveSSM recurrent_state_table must have f32, f16, or bf16 element type.");
 
-    for (size_t input = 7; input < 11; ++input) {
+    for (size_t input = 6; input < 11; ++input) {
         const auto& et = get_input_element_type(input);
         NODE_VALIDATION_CHECK(this,
                               et.is_dynamic() || et == ov::element::i32,
