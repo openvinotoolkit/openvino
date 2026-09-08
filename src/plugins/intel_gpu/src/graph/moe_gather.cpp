@@ -48,8 +48,9 @@ std::string moe_gather_inst::to_string(moe_gather_node const& node) {
     std::stringstream primitive_description;
 
     json_composite moe_gather_info;
-    if (desc->output_data_types[0].has_value())
+    if (desc->output_data_types[0].has_value()) {
         moe_gather_info.add("out dt: ", dt_to_str(*desc->output_data_types[0]));
+    }
     node_info->add("moe_gather info", moe_gather_info);
     node_info->dump(primitive_description);
 

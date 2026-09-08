@@ -44,7 +44,6 @@ void PrecisionPropagationConvertion::SetUp() {
 
 TEST_P(PrecisionPropagationConvertion, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

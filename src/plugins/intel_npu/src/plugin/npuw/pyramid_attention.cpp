@@ -145,6 +145,40 @@ std::optional<ov::npuw::function::Attention> create_attention_from_model(
     return attention;
 }
 
+// Node identity -> global (original model) parameter index, captured right after
+// Model::clone() and before any Parameters are removed from the clone. ov::Model::clone()
+// preserves parameter order 1:1 with the source model, so at that point
+// snapshot->get_parameters()[i] is exactly the clone of original_model->get_parameters()[i].
+using ClonedParamGlobalIdx = std::unordered_map<ov::Node*, size_t>;
+
+static ClonedParamGlobalIdx snapshot_cloned_param_global_idx(const std::shared_ptr<ov::Model>& freshly_cloned_model) {
+    ClonedParamGlobalIdx result;
+    const auto& params = freshly_cloned_model->get_parameters();
+    result.reserve(params.size());
+    for (size_t i = 0; i < params.size(); ++i) {
+        result[params[i].get()] = i;
+    }
+    return result;
+}
+
+// Build global (original model) parameter index -> this variant's LOCAL parameter index, for
+// every parameter this variant retained. Matches by node identity (via the snapshot taken right
+// after cloning) rather than friendly_name, since a variant may have dropped some Parameters
+// (shifting LOCAL indices) and friendly_name is not guaranteed unique.
+static std::unordered_map<size_t, size_t> build_global_to_local_param_idx(
+    const std::shared_ptr<ov::Model>& cloned_model,
+    const ClonedParamGlobalIdx& cloned_param_global_idx) {
+    std::unordered_map<size_t, size_t> global_to_local;
+    const auto& local_params = cloned_model->get_parameters();
+    for (size_t local_idx = 0; local_idx < local_params.size(); ++local_idx) {
+        auto it = cloned_param_global_idx.find(local_params[local_idx].get());
+        if (it != cloned_param_global_idx.end()) {
+            global_to_local[it->second] = local_idx;
+        }
+    }
+    return global_to_local;
+}
+
 // Collect past KV block parameter indices from a Concat node in Concat input order.
 // All inputs except the last (present_key/value) are past block params.
 // SplitKVCacheIntoBlocks may insert a Convert between each block Parameter and the Concat.
@@ -229,9 +263,6 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                                                         const std::map<std::string, size_t>& past_key_sequence_dims,
                                                         const std::map<std::string, size_t>& past_value_sequence_dims,
                                                         bool is_block_split) {
-    // Clone the original model for modification
-    auto cloned_model = original_model->clone();
-
     // Calculate dimensions for this model
     size_t current_context_length = 0u;
     size_t current_past_length = 0u;
@@ -267,7 +298,14 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
     //   model[1]  -> Concat([block_0, present_key])  (1 past block)
     //   model[idx]-> Concat([block_0..block_{idx-1}, present_key])
     // -------------------------------------------------------------------------
+    // Clone once up front: both the block-split and non-block paths below need their own
+    // modifiable copy of the original model. Model::clone() preserves parameter order 1:1 with
+    // the source model, so snapshot the identity -> global-index correspondence right away,
+    // before shrink_concat_inputs() below removes any surplus block Parameters.
+    auto cloned_model = original_model->clone();
     if (is_block_split) {
+        const auto cloned_param_global_idx = snapshot_cloned_param_global_idx(cloned_model);
+
         const size_t num_blocks_needed = model_idx;  // model[idx] needs exactly idx past blocks
 
         // Lambda: shrink one Concat (key or value) to keep only num_blocks_needed past inputs.
@@ -383,10 +421,11 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
         ov::npuw::function::Attention block_attention;
         block_attention._mask = mask_param;
         block_attention._mask_shape = mask_param->get_shape();
-        collect_concat_block_indices(cloned_model, shrunk_key, block_attention.past_key_block_variant_param_indices);
-        collect_concat_block_indices(cloned_model,
-                                     shrunk_value,
-                                     block_attention.past_value_block_variant_param_indices);
+        collect_concat_block_indices(cloned_model, shrunk_key, block_attention.past_key_block_local_param_indices);
+        collect_concat_block_indices(cloned_model, shrunk_value, block_attention.past_value_block_local_param_indices);
+
+        block_attention.global_to_local_param_idx =
+            build_global_to_local_param_idx(cloned_model, cloned_param_global_idx);
 
         LOG_INFO("Block-mode pyramid model[" << model_idx << "] ready: " << num_blocks_needed
                                              << " past block(s), context=" << current_context_length);
@@ -564,10 +603,52 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         std::vector<size_t> full_key_indices, full_val_indices;
         collect_concat_block_indices(model, pattern_nodes.past_key_concat_node, full_key_indices);
         collect_concat_block_indices(model, pattern_nodes.past_value_concat_node, full_val_indices);
+
+        // Total past KV length already cached = sum of each block's sequence-axis size.
+        // Needed by process_pyramid_model's GENERATE-case formula
+        // (output_len = full_context_length - query_length - full_past_kv_length); leaving
+        // this at 0 makes output_len (and thus current_context_length) too large for every
+        // pyramid model, mis-sizing the tile models fed to the device.
+        auto sum_block_kv_length = [&](const std::shared_ptr<ov::Node>& concat_node,
+                                       const std::vector<size_t>& block_indices) -> size_t {
+            auto concat_op = std::dynamic_pointer_cast<ov::op::v0::Concat>(concat_node);
+            if (!concat_op) {
+                return 0u;
+            }
+            const auto& out_shape = concat_op->get_output_partial_shape(0);
+            const auto axis = ov::util::try_normalize_axis(concat_op->get_axis(), out_shape.rank(), *concat_op);
+            const auto& params = model->get_parameters();
+            size_t total = 0u;
+            for (auto idx : block_indices) {
+                total += params[idx]->get_shape()[static_cast<size_t>(axis)];
+            }
+            return total;
+        };
+        const size_t key_past_kv_length = sum_block_kv_length(pattern_nodes.past_key_concat_node, full_key_indices);
+        const size_t value_past_kv_length = sum_block_kv_length(pattern_nodes.past_value_concat_node, full_val_indices);
+        if (key_past_kv_length != value_past_kv_length) {
+            LOG_WARN("Inconsistent past KV lengths across blocks: key=" << key_past_kv_length
+                                                                        << ", value=" << value_past_kv_length);
+            return std::nullopt;
+        }
+
+        // Global (original/full model) index of the mask parameter. Needed because pyramid
+        // variant models may drop surplus block parameters, shifting all subsequent parameter
+        // indices — the mask's LOCAL index within a variant model is generally NOT the same as
+        // its GLOBAL index here, so callers must compare against this global index instead.
+        auto mask_param = ov::npuw::util::find_mask_parameter(pattern_nodes.add_node);
+        if (!mask_param) {
+            LOG_WARN("Could not find mask parameter in original model for block-split pyramid attention");
+            return std::nullopt;
+        }
+        const size_t global_mask_idx = static_cast<size_t>(model->get_parameter_index(mask_param));
+
         return PyramidValidationBlockResult{query_length,
                                             full_context_length,
+                                            key_past_kv_length,
                                             std::move(full_key_indices),
-                                            std::move(full_val_indices)};
+                                            std::move(full_val_indices),
+                                            global_mask_idx};
     }
 
     // Pre-analyze original model to find sequence dimensions for past key/value parameters
@@ -668,6 +749,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     bool is_block_split = false;
     std::vector<size_t> block_key_global_indices;
     std::vector<size_t> block_val_global_indices;
+    size_t global_mask_idx = 0;
 
     std::visit(
         [&](auto&& result) {
@@ -681,9 +763,11 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
                 is_left_aligned = result.data_left_aligned;
             } else {
                 static_assert(std::is_same_v<T, PyramidValidationBlockResult>);
+                full_past_kv_length = result.past_kv_length;
                 is_block_split = true;
                 block_key_global_indices = result.past_key_block_global_param_indices;
                 block_val_global_indices = result.past_value_block_global_param_indices;
+                global_mask_idx = result.global_mask_idx;
             }
         },
         *validation_result);
@@ -722,8 +806,14 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
             // The info structs (PyramidAttentionContiguousInfo / PyramidAttentionBlockInfo) can copy them without
             // re-scanning the graph.
             if (is_block_split) {
-                last_attention->past_key_block_variant_param_indices = block_key_global_indices;
-                last_attention->past_value_block_variant_param_indices = block_val_global_indices;
+                last_attention->past_key_block_local_param_indices = block_key_global_indices;
+                last_attention->past_value_block_local_param_indices = block_val_global_indices;
+                // The last model IS the original model: every global parameter index maps to
+                // itself (no parameters were ever dropped for this variant).
+                const auto& params = model->get_parameters();
+                for (size_t i = 0; i < params.size(); ++i) {
+                    last_attention->global_to_local_param_idx[i] = i;
+                }
             }
 
             pyramid_attentions.push_back(std::move(*last_attention));
@@ -760,6 +850,7 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     // Block indices are empty in contiguous mode; assigned unconditionally for simplicity.
     pyramid_attention.past_key_block_global_param_indices = std::move(block_key_global_indices);
     pyramid_attention.past_value_block_global_param_indices = std::move(block_val_global_indices);
+    pyramid_attention.global_mask_idx = global_mask_idx;
 
     LOG_INFO("Returning pyramid attention with " << pyramid_models.size() << " models");
     LOG_INFO("  Query length: " << pyramid_attention._query_length);
@@ -784,10 +875,10 @@ const std::unordered_set<size_t>& PyramidAttentionContiguous::key_block_port_set
 const std::unordered_set<size_t>& PyramidAttentionContiguous::val_block_port_set_at(size_t) const {
     return s_empty_port_set;
 }
-const std::unordered_map<size_t, size_t>& PyramidAttentionContiguous::key_block_port_map_at(size_t) const {
-    return s_empty_port_map;
-}
-const std::unordered_map<size_t, size_t>& PyramidAttentionContiguous::val_block_port_map_at(size_t) const {
+
+const std::unordered_map<size_t, size_t>& PyramidAttentionContiguous::param_port_map_at(size_t) const {
+    // Contiguous variants share the exact same parameter set/order as the main model, so no
+    // global->local remapping is ever needed.
     return s_empty_port_map;
 }
 
@@ -811,6 +902,107 @@ void PyramidAttentionContiguous::collect_strided_input_names(const ov::Model& mo
             out += ",";
         }
         out += model.inputs()[param.idx].get_any_name();
+    }
+}
+
+void PyramidAttentionContiguous::validate_port_indices() const {
+    if (_attention_infos.size() != _compiled_models.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
+                       _attention_infos.size(),
+                       ") does not match compiled model count (",
+                       _compiled_models.size(),
+                       ")");
+    }
+    for (size_t i = 0; i < _compiled_models.size(); ++i) {
+        if (!_compiled_models[i]) {
+            continue;
+        }
+        const auto inputs_size = _compiled_models[i]->inputs().size();
+        const auto& info = _attention_infos[i];
+        if (info.mask_idx_local >= inputs_size) {
+            OPENVINO_THROW("NPU NPUW: pyramid attention mask_idx_local (",
+                           info.mask_idx_local,
+                           ") out of bounds for model ",
+                           i,
+                           " with ",
+                           inputs_size,
+                           " inputs");
+        }
+        for (const auto& param : info.params) {
+            if (param.idx >= inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention param idx (",
+                               param.idx,
+                               ") out of bounds for model ",
+                               i,
+                               " with ",
+                               inputs_size,
+                               " inputs");
+            }
+        }
+    }
+}
+
+void PyramidAttentionBlock::validate_port_indices() const {
+    if (_attention_infos.size() != _compiled_models.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
+                       _attention_infos.size(),
+                       ") does not match compiled model count (",
+                       _compiled_models.size(),
+                       ")");
+    }
+
+    if (past_key_block_global_param_indices.size() != past_value_block_global_param_indices.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention block global metadata mismatch: key indices count (",
+                       past_key_block_global_param_indices.size(),
+                       ") does not match value indices count (",
+                       past_value_block_global_param_indices.size(),
+                       ")");
+    }
+
+    if (!_compiled_models.empty()) {
+        const auto main_model_idx = _compiled_models.size() - 1;
+        if (!_compiled_models[main_model_idx]) {
+            OPENVINO_THROW("NPU NPUW: main compiled model at index ",
+                           main_model_idx,
+                           " is null while validating pyramid attention block metadata");
+        }
+
+        const auto main_inputs_size = _compiled_models[main_model_idx]->inputs().size();
+        for (const auto global_idx : past_key_block_global_param_indices) {
+            if (global_idx >= main_inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention key block global param idx (",
+                               global_idx,
+                               ") out of bounds for main compiled model with ",
+                               main_inputs_size,
+                               " inputs");
+            }
+        }
+        for (const auto global_idx : past_value_block_global_param_indices) {
+            if (global_idx >= main_inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention value block global param idx (",
+                               global_idx,
+                               ") out of bounds for main compiled model with ",
+                               main_inputs_size,
+                               " inputs");
+            }
+        }
+    }
+
+    for (size_t i = 0; i < _compiled_models.size(); ++i) {
+        if (!_compiled_models[i]) {
+            continue;
+        }
+        const auto inputs_size = _compiled_models[i]->inputs().size();
+        const auto& info = _attention_infos[i];
+        if (info.mask_idx_local >= inputs_size) {
+            OPENVINO_THROW("NPU NPUW: pyramid attention mask_idx_local (",
+                           info.mask_idx_local,
+                           ") out of bounds for model ",
+                           i,
+                           " with ",
+                           inputs_size,
+                           " inputs");
+        }
     }
 }
 
@@ -844,12 +1036,16 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
             for (const auto& input : func_attn._inputs) {
                 info.params.push_back({static_cast<std::size_t>(model->get_parameter_index(input.param)), input.dim});
             }
-            info.mask_idx = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
+            info.mask_idx_local = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
             info.query_size = func_attn.query_len();
             info.context_length = func_attn.context_len();
             obj->_context_lengths.push_back(info.context_length);
             obj->_attention_infos.push_back(std::move(info));
         }
+        // Contiguous mode never drops parameters, so LOCAL index == GLOBAL index; any
+        // variant's mask_idx_local is valid as the shared global_mask_idx.
+        NPUW_ASSERT(!obj->_attention_infos.empty());
+        obj->global_mask_idx = obj->_attention_infos.back().mask_idx_local;
         LOG_INFO("compiled::PyramidAttentionContiguous metadata extracted");
         return obj;
     } else {
@@ -859,34 +1055,32 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
         obj->_models_to_compile = func_pyramid._models;
         obj->past_key_block_global_param_indices = gk;
         obj->past_value_block_global_param_indices = gv;
+        obj->_key_block_global_set = std::unordered_set<size_t>(gk.begin(), gk.end());
+        obj->_value_block_global_set = std::unordered_set<size_t>(gv.begin(), gv.end());
+        obj->global_mask_idx = func_pyramid.global_mask_idx;
         obj->_attention_infos.reserve(num_models);
         obj->_context_lengths.reserve(num_models);
 
-        constexpr size_t NO_PORT = std::numeric_limits<size_t>::max();
         for (size_t i = 0; i < num_models; ++i) {
             const auto& func_attn = func_pyramid._attentions[i];
             const auto& model = func_pyramid._models[i];
             PyramidAttentionBlockInfo info;
-            info.mask_idx = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
+            info.mask_idx_local = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
             info.query_size = func_attn.query_len();
             info.context_length = func_attn.context_len();
+            // Covers every retained parameter (mask, retained KV blocks, everything else).
+            // A dropped KV block simply has no entry here; see
+            // PyramidAttention::is_key_block_global_idx()/is_value_block_global_idx().
+            info.param_port_map = func_attn.global_to_local_param_idx;
+            const auto& vk = func_attn.past_key_block_local_param_indices;
+            const auto& vv = func_attn.past_value_block_local_param_indices;
+            for (size_t m = 0; m < vk.size(); ++m) {
+                info.past_key_block_port_set.insert(vk[m]);
+            }
+            for (size_t m = 0; m < vv.size(); ++m) {
+                info.past_value_block_port_set.insert(vv[m]);
+            }
 
-            const auto& vk = func_attn.past_key_block_variant_param_indices;
-            const auto& vv = func_attn.past_value_block_variant_param_indices;
-            for (size_t m = 0; m < gk.size(); ++m) {
-                const size_t port = (m < vk.size()) ? vk[m] : NO_PORT;
-                info.past_key_block_port_map[gk[m]] = port;
-                if (port != NO_PORT) {
-                    info.past_key_block_port_set.insert(port);
-                }
-            }
-            for (size_t m = 0; m < gv.size(); ++m) {
-                const size_t port = (m < vv.size()) ? vv[m] : NO_PORT;
-                info.past_value_block_port_map[gv[m]] = port;
-                if (port != NO_PORT) {
-                    info.past_value_block_port_set.insert(port);
-                }
-            }
             obj->_context_lengths.push_back(info.context_length);
             obj->_attention_infos.push_back(std::move(info));
         }
