@@ -42,6 +42,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
+#include "openvino/util/env_util.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
 #include "ov_ops/fully_connected_quantized.hpp"
@@ -100,7 +101,8 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
     // dynamic-quant kernels. On AMX-capable HW, AMX BF16 TMUL outperforms
     // VNNI int8 on prefill, so keep f32 here and let the existing AMX BF16
     // path handle bf16 inference precision.
-    if (ov::with_cpu_x86_avx512_core_amx()) {
+    static const bool bf16_act_override = ov::util::getenv_bool("OV_CPU_FC_COMPRESSED_BF16_ACT");
+    if (ov::with_cpu_x86_avx512_core_amx() && !bf16_act_override) {
         return {Type_t::f32};
     }
     return {Type_t::f32, Type_t::bf16};

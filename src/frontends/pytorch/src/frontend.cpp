@@ -30,6 +30,7 @@
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
+#include "transforms/mark_compressed_weights_cast.hpp"
 #include "transforms/max_pool_dynamic_kernel_resolver.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
@@ -280,6 +281,12 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     }
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
     manager.register_pass<ov::frontend::pytorch::pass::U4ConvertReshape>();
+    // Mark the trailing precision cast of a weight-decompression subgraph, which
+    // MarkCompressedFloatConstants cannot see: it only marks Converts sitting directly on a
+    // Constant. Must run after U4BlockRepack/U4ConvertReshape -- until those collapse the packed
+    // uint8 plus bitwise unpack into a u4/i4 Constant, there is no Constant->Convert head for the
+    // pattern to anchor on and the mark is silently skipped.
+    manager.register_pass<ov::frontend::pytorch::pass::MarkCompressedWeightsCast>();
 
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.run_passes(model);
