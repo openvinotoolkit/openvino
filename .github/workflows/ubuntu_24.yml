@@ -142,7 +142,7 @@ jobs:
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
       shard-count: 5
       shard-index: ${{ matrix.SHARD }}
-    if: ${{ github.event_name == 'schedule' }}
+    if: ${{ github.event_name != 'schedule' }}
 
   dGPU_B580_Nightly:
       name: dGPU Arc-B580 Tests Nightly
@@ -163,5 +163,5 @@ jobs:
         options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
         shard-count: 5
         shard-index: ${{ matrix.SHARD }}
-      if: ${{ github.event_name == 'schedule' }}
+      if: ${{ github.event_name != 'schedule' }}
 
