@@ -13,6 +13,7 @@ namespace ov::test {
 namespace {
 
 std::shared_ptr<op::internal::PagedSelectiveSSM> make_paged_selective_ssm(const element::Type& et,
+                                                                          const element::Type& state_et,
                                                                           const element::Type& ind_et,
                                                                           const PartialShape& A,
                                                                           const PartialShape& dt,
@@ -25,7 +26,7 @@ std::shared_ptr<op::internal::PagedSelectiveSSM> make_paged_selective_ssm(const 
     auto B_p = std::make_shared<op::v0::Parameter>(et, B);
     auto x_p = std::make_shared<op::v0::Parameter>(et, x);
     auto C_p = std::make_shared<op::v0::Parameter>(et, C);
-    auto state_p = std::make_shared<op::v0::Parameter>(et, state);
+    auto state_p = std::make_shared<op::v0::Parameter>(state_et, state);
     auto subseq = std::make_shared<op::v0::Parameter>(ind_et, PartialShape{-1});
     auto block_idx = std::make_shared<op::v0::Parameter>(ind_et, PartialShape{-1});
     auto block_idx_begins = std::make_shared<op::v0::Parameter>(ind_et, PartialShape{-1});
@@ -43,6 +44,17 @@ std::shared_ptr<op::internal::PagedSelectiveSSM> make_paged_selective_ssm(const 
                                                                           block_idx_begins,
                                                                           processed,
                                                                           cache_interval});
+}
+
+std::shared_ptr<op::internal::PagedSelectiveSSM> make_paged_selective_ssm(const element::Type& et,
+                                                                          const element::Type& ind_et,
+                                                                          const PartialShape& A,
+                                                                          const PartialShape& dt,
+                                                                          const PartialShape& B,
+                                                                          const PartialShape& x,
+                                                                          const PartialShape& C,
+                                                                          const PartialShape& state) {
+    return make_paged_selective_ssm(et, et, ind_et, A, dt, B, x, C, state);
 }
 
 }  // namespace
@@ -75,32 +87,44 @@ TEST(type_prop, paged_selective_ssm_partial_shape_infer) {
     EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{6, 4, 8}));
 }
 
-TEST(type_prop, paged_selective_ssm_state_type_must_match) {
-    auto A_p = std::make_shared<op::v0::Parameter>(element::f16, Shape{4});
-    auto dt_p = std::make_shared<op::v0::Parameter>(element::f16, Shape{6, 4});
-    auto B_p = std::make_shared<op::v0::Parameter>(element::f16, Shape{6, 2, 16});
-    auto x_p = std::make_shared<op::v0::Parameter>(element::f16, Shape{6, 4, 8});
-    auto C_p = std::make_shared<op::v0::Parameter>(element::f16, Shape{6, 2, 16});
-    auto state_p = std::make_shared<op::v0::Parameter>(element::bf16, Shape{3, 4, 8, 16});
-    auto subseq = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{-1});
-    auto block_idx = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{-1});
-    auto block_idx_begins = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{-1});
-    auto processed = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{-1});
-    auto cache_interval = std::make_shared<op::v0::Parameter>(element::i64, PartialShape{-1});
+TEST(type_prop, paged_selective_ssm_state_type_is_independent) {
+    const auto check_types =
+        [](const element::Type& data_type, const element::Type& state_type, const element::Type& index_type) {
+            const auto op = make_paged_selective_ssm(data_type,
+                                                     state_type,
+                                                     index_type,
+                                                     Shape{4},
+                                                     Shape{6, 4},
+                                                     Shape{6, 2, 16},
+                                                     Shape{6, 4, 8},
+                                                     Shape{6, 2, 16},
+                                                     Shape{3, 4, 8, 16});
+            EXPECT_EQ(op->get_output_element_type(0), data_type);
+        };
 
-    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::PagedSelectiveSSM>(OutputVector{A_p,
-                                                                                                 dt_p,
-                                                                                                 B_p,
-                                                                                                 x_p,
-                                                                                                 C_p,
-                                                                                                 state_p,
-                                                                                                 subseq,
-                                                                                                 block_idx,
-                                                                                                 block_idx_begins,
-                                                                                                 processed,
-                                                                                                 cache_interval}),
-                    NodeValidationFailure,
-                    testing::HasSubstr("recurrent_state_table to have the same element type."));
+    check_types(element::f16, element::bf16, element::i64);
+    check_types(element::f32, element::f16, element::i32);
+    check_types(element::f16, element::f32, element::i32);
+    check_types(element::f32, element::dynamic, element::i32);
+}
+
+TEST(type_prop, paged_selective_ssm_merges_dynamic_computation_input_type) {
+    auto A = std::make_shared<op::v0::Parameter>(element::dynamic, Shape{4});
+    auto dt = std::make_shared<op::v0::Parameter>(element::f32, Shape{6, 4});
+    auto B = std::make_shared<op::v0::Parameter>(element::f32, Shape{6, 2, 16});
+    auto x = std::make_shared<op::v0::Parameter>(element::f32, Shape{6, 4, 8});
+    auto C = std::make_shared<op::v0::Parameter>(element::f32, Shape{6, 2, 16});
+    auto state = std::make_shared<op::v0::Parameter>(element::f16, Shape{3, 4, 8, 16});
+    auto subseq = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_idx = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_idx_begins = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto processed = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+    auto cache_interval = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{-1});
+
+    const auto op = std::make_shared<op::internal::PagedSelectiveSSM>(
+        OutputVector{A, dt, B, x, C, state, subseq, block_idx, block_idx_begins, processed, cache_interval});
+
+    EXPECT_EQ(op->get_output_element_type(0), element::f32);
 }
 
 TEST(type_prop, paged_selective_ssm_bad_index_type) {
@@ -512,8 +536,7 @@ TEST(type_prop, paged_selective_ssm_type_mismatch) {
         std::ignore = std::make_shared<op::internal::PagedSelectiveSSM>(
             OutputVector{A, dt, B, x, C, state, subseq, block_idx, block_idx_begins, processed, cache_interval}),
         NodeValidationFailure,
-        testing::HasSubstr("PagedSelectiveSSM expects inputs A, dt, B, x, C and recurrent_state_table to have the same "
-                           "element type."));
+        testing::HasSubstr("PagedSelectiveSSM expects inputs A, dt, B, x, and C to have the same element type."));
 }
 
 TEST(type_prop, paged_selective_ssm_state_float_type_invalid) {
@@ -533,7 +556,7 @@ TEST(type_prop, paged_selective_ssm_state_float_type_invalid) {
         std::ignore = std::make_shared<op::internal::PagedSelectiveSSM>(
             OutputVector{A, dt, B, x, C, state, subseq, block_idx, block_idx_begins, processed, cache_interval}),
         NodeValidationFailure,
-        testing::HasSubstr("recurrent_state_table to have the same element type."));
+        testing::HasSubstr("PagedSelectiveSSM recurrent_state_table must have f32, f16, or bf16 element type."));
 }
 
 TEST(type_prop, paged_selective_ssm_index_type_mixed) {

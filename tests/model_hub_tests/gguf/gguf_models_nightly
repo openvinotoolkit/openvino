@@ -1,6 +1,6 @@
 # List of larger models (roughly 7B-30B parameters) used to verify the GGUF frontend converts,
-# compiles, and runs a single forward step correctly for each supported architecture that has
-# no small (<=4B) checkpoint available.
+# compiles, and runs two state-carrying forward steps correctly for each supported architecture
+# that has no small (<=4B) checkpoint available.
 #
 # Format: arch,repo_id,filename[,mark,reason]
 #   arch     - architecture name (matches src/frontends/gguf/docs/supported_models.md)
