@@ -34,6 +34,16 @@ on:
         type: string
         required: false
         default: ''
+      shard-count:
+        description: 'Total number of test shards'
+        type: number
+        required: false
+        default: -1
+      shard-index:
+        description: 'Zero-based index of this test shard'
+        type: number
+        required: false
+        default: -1
 
 permissions: read-all
 
@@ -131,6 +141,8 @@ jobs:
           TEST_TYPE: ${{ inputs.test_type }}
           DEVICE: ${{ inputs.device }}
           CUSTOM_TEST_FILTER: ${{ inputs.test_filter }}
+          SHARD_COUNT: ${{ inputs.shard-count }}
+          SHARD_INDEX: ${{ inputs.shard-index }}
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           TEST_RESULTS_DIR="${DEVICE}"_"${TEST_TYPE}"_tests
@@ -146,12 +158,17 @@ jobs:
           else
             test_filter='*smoke*'
           fi
-          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter 
+
+          shard_args=()
+          if [[ "${SHARD_COUNT}" -gt 0 && "${SHARD_INDEX}" -ge 0 ]]; then
+            shard_args+=("--shard_count=${SHARD_COUNT}" "--shard_index=${SHARD_INDEX}")
+          fi
+          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests "${shard_args[@]}" --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter 
 
       - name: Upload Test Results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
         with:
-          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}
+          name: test-results-${{ inputs.test_type }}-${{ inputs.device }}${{ inputs.shard-index >= 0 && format('-shard-{0}', inputs.shard-index) || '' }}
           path: ${{ env.INSTALL_TEST_DIR }}/${{ steps.run_tests.outputs.test_results_dir }}
           if-no-files-found: 'error'
