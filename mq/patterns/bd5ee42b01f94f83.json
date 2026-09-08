@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "timeout reached blob storage chunk did not respond in 30000ms artifact download failed after 5 retries|Infrastructure",
+  "signature_hash": "bd5ee42b01f94f83",
+  "title": "Merge-queue jobs fail downloading OpenVINO artifacts - blob storage chunk timeout",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-08T10:02:37Z",
+  "last_seen": "2026-09-08T10:02:37Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34205188404"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38007"
+  ],
+  "recent_timestamps": [
+    "2026-09-08T10:02:37Z"
+  ],
+  "rerun_search_string": "Timeout reached: Blob storage chunk did not respond in 30000ms"
+}

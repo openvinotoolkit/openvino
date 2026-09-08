@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-08-10-02-37-000-34205188404",
+  "timestamp": "2026-09-08T10:02:37Z",
+  "run_id": "34205188404",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34205188404",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38007",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38007",
+  "author": "sungeunk",
+  "category": "Infrastructure",
+  "title": "Merge-queue jobs fail downloading OpenVINO artifacts - blob storage chunk timeout",
+  "signature": "timeout reached blob storage chunk did not respond in 30000ms artifact download failed after 5 retries|Infrastructure",
+  "signature_hash": "bd5ee42b01f94f83",
+  "confidence": "High",
+  "failed_jobs": [
+    {"name": "Pytorch Layer Tests / PyTorch Layer Tests", "conclusion": "failure", "symptom": "Download OpenVINO artifacts (wheels) step timed out"},
+    {"name": "C++ unit tests / C++ unit tests", "conclusion": "failure", "symptom": "Download OpenVINO artifacts (tests) step timed out"},
+    {"name": "JAX Layer Tests / JAX Layer Tests", "conclusion": "failure", "symptom": "Download OpenVINO artifacts (wheels) step timed out"},
+    {"name": "TensorFlow Layer Tests / TensorFlow Layer Tests", "conclusion": "failure", "symptom": "Download OpenVINO artifacts (wheels) step timed out"},
+    {"name": "Keras 3 OpenVINO Backend Tests / Keras 3 OpenVINO Backend", "conclusion": "failure", "symptom": "Download OpenVINO artifacts (wheels) step timed out"},
+    {"name": "PyTorch Models tests / PyTorch Models tests", "conclusion": "failure", "symptom": "Download OpenVINO artifacts (wheels) step timed out; Upload Test Results also failed"},
+    {"name": "TensorFlow Models tests / TensorFlow Models tests", "conclusion": "failure", "symptom": "Download OpenVINO artifacts (wheels) step timed out; Upload Test Results also failed"},
+    {"name": "JAX/Flax Models tests / JAX/Flax Models tests", "conclusion": "failure", "symptom": "Download OpenVINO artifacts (wheels) step timed out; Upload Test Results also failed"},
+    {"name": "ci/gha_overall_status", "conclusion": "failure", "symptom": "Overall status check failed because upstream jobs failed"}
+  ],
+  "key_errors": [
+    "Received 14330 data chunks (chunk size: 16384 bytes), time passed: 13252ms\nTimeout reached: Blob storage chunk did not respond in 30000ms\n##[warning]Failed to download artifact after 5 retries due to undefined. Retrying in 5 seconds...\n##[error]Artifact download failed after 5 retries.\n##[error]Unable to download and extract artifact: Artifact download failed after 5 retries.\n##[error]Download failed for artifact 'openvino_wheels': Unable to download and extract artifact: Artifact download failed after 5 retries."
+  ],
+  "root_cause": "Eight independent merge-queue jobs (PyTorch/TensorFlow/JAX Layer and Models tests, Keras 3, C++ unit tests) all failed at the same 'Download OpenVINO artifacts' step with an identical error: the GitHub Actions blob storage backend stopped responding to a data chunk mid-download, tripping a 30-second per-chunk timeout after 5 retries. This is not caused by the PR's code changes (which only touch GPU unit test random-number generation helpers); it is a GitHub-hosted Actions/Azure Blob Storage transient outage affecting artifact download across many concurrent jobs in the same run.",
+  "reproduction_steps": "N/A - not reproducible locally; transient GitHub Actions artifact storage backend issue.",
+  "recommended_actions": [
+    "Re-run the failed jobs; a plain retry is expected to succeed once the blob storage backend recovers.",
+    "If retries continue to fail, check the GitHub Status page (githubstatus.com) for ongoing Actions/Artifacts incidents.",
+    "No code changes are required in PR #38007."
+  ],
+  "prevention_strategies": "Consider adding retry/backoff wrapping around the artifact download action, or splitting very large artifacts (openvino_wheels) into smaller pieces to reduce the chance of a single chunk stalling past the timeout window.",
+  "historical_context": "A related but distinct pattern (upload to blob storage returning an HTML error page during finalizeArtifact) was recorded on 2026-09-04 for PR #37898 (pattern 841a57c639e28d01). This is the first recorded occurrence of the download-side chunk timeout signature."
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 225,
+  "total": 226,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2212,6 +2212,15 @@
       "title": "GPU unit tests CMake glob removal missing two test source files",
       "category": "Code Issue",
       "signature_hash": "424833cadb6f935d",
+      "pr_number": "38007"
+    },
+    {
+      "investigation_id": "2026-09-08-10-02-37-000-34205188404",
+      "run_id": "34205188404",
+      "timestamp": "2026-09-08T10:02:37Z",
+      "title": "Merge-queue jobs fail downloading OpenVINO artifacts - blob storage chunk timeout",
+      "category": "Infrastructure",
+      "signature_hash": "bd5ee42b01f94f83",
       "pr_number": "38007"
     }
   ]
