@@ -52,10 +52,12 @@ protected:
             args.outputs.push_back(instance.output_memory_ptr(i));
         }
         // // Legacy multi-output
-        if (instance.has_second_output())
+        if (instance.has_second_output()) {
             args.outputs.push_back(instance.second_output_mem());
-        if (instance.has_third_output())
+        }
+        if (instance.has_third_output()) {
             args.outputs.push_back(instance.third_output_mem());
+        }
 
         return args;
     }
@@ -119,8 +121,9 @@ static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, b
             offset += static_cast<size_t>(arg.has_iou_threshold());
             offset += static_cast<size_t>(arg.has_score_threshold());
             offset += static_cast<size_t>(arg.has_soft_nms_sigma());
-            if (is_third)
+            if (is_third) {
                 offset += static_cast<size_t>(arg.has_second_output());
+            }
             return offset;
         };
 

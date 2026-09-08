@@ -1284,6 +1284,33 @@ TEST(GGUFOps, SetRowsFlattenedCache) {
     expect_near(out, expected, 0.0f);
 }
 
+// Real KV layout is [batch, context, heads, head_size], while SET_ROWS indices address the
+// flattened context/head rows. Append one token's two heads at context slot 1 and preserve slot 0.
+TEST(GGUFOps, SetRowsAppendsToKvCache) {
+    constexpr size_t context = 2, heads = 2, head_size = 2;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SET_ROWS")
+                     .input("data", ov::element::f32, {1, 1, heads, head_size})
+                     .input("ind", ov::element::i64, {1, 1, 1, heads})
+                     .input("dst", ov::element::f32, {1, context, heads, head_size})
+                     .output("out", ov::element::f32, {1, context, heads, head_size})
+                     .build();
+
+    std::vector<float> data{10, 11, 20, 21};
+    std::vector<int64_t> ind{2, 3};
+    std::vector<float> dst{1, 2, 3, 4, -1, -1, -1, -1};
+
+    ov::Tensor ind_t(ov::element::i64, ov::Shape{1, 1, 1, heads});
+    std::copy(ind.begin(), ind.end(), ind_t.data<int64_t>());
+    auto out = run_on_cpu(model,
+                          {{"data", make_f32_tensor({1, 1, heads, head_size}, data)},
+                           {"ind", ind_t},
+                           {"dst", make_f32_tensor({1, context, heads, head_size}, dst)}});
+
+    std::vector<float> expected{1, 2, 3, 4, 10, 11, 20, 21};
+    expect_near(out, expected, 0.0f);
+}
+
 // Reference for the frontend's make_sin_cos on the NEOX (non-imrope) path: for a single position p,
 // theta[j] = p * freq_scale * factor[j], factor[0]=1, factor[j]=theta_scale^j,
 // theta_scale = freq_base^(-2/n_dims); cos/sin scaled by attn_factor. ext_factor is 0 here.
