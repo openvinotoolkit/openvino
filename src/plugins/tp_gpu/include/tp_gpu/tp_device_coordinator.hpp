@@ -380,11 +380,22 @@ private:
     struct Rendezvous {
         std::mutex                  mtx;
         std::condition_variable     cv;
-        std::vector<void*>          in_ptrs;        // [N], filled by ranks
-        std::vector<void*>          out_ptrs;       // [N], filled by ranks
+        // Two sets, picked by the parity of the entry generation.  Without the
+        // exit barrier a rank that has already left can reach this collective
+        // again and publish its pointers while a slower peer is still reading
+        // the ones from the instance it is in; alternating the sets keeps the
+        // two apart.  Reaching the set again means passing the enter barrier
+        // twice, which the slow peer itself has to take part in, so a set is
+        // never rewritten while anyone still needs it.
+        std::vector<void*>          in_ptrs[2];     // [2][N], filled by ranks
+        std::vector<void*>          out_ptrs[2];    // [2][N], filled by ranks
         int                         arrived{0};
         int                         departed{0};
         bool                        done{false};
+        // Bumped by rank 0 once a collective's recording decision is settled.
+        // A counter rather than the `done` flag because nothing clears it any
+        // more: the exit barrier that used to reset the flag is gone.
+        uint64_t                    record_gen{0};
         uint64_t                    enter_gen{0};
         uint64_t                    exit_gen{0};
         std::size_t                 n{0};
@@ -560,6 +571,13 @@ private:
     }
 
     bool ensure_scratch_capacity(std::size_t payload_bytes);
+
+    /// Whether ensure_scratch_capacity() would have to allocate.  A plain
+    /// read, so a rank can decide on its own whether the arena is about to
+    /// move under it without taking part in the gate that settles it.
+    bool scratch_needs_growth(std::size_t payload_bytes) const {
+        return payload_bytes > m_scratch.payload_capacity_bytes;
+    }
     void destroy_scratch();
     void* scratch_buffer(int index, int buffer) const;
 
