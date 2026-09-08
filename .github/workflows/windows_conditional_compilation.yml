@@ -385,6 +385,8 @@ jobs:
             -DENABLE_OV_JAX_FRONTEND=OFF `
             -DENABLE_OV_ONNX_FRONTEND=OFF `
             -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
+            -DCMAKE_CXX_FLAGS="/cgthreads1" `
+            -DCMAKE_C_FLAGS="/cgthreads1" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
@@ -396,7 +398,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /cgthreads1
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:detailed
 
       - name: Compile cache statistics (cc on benchmark_app)
         uses: ./openvino/.github/actions/compile_cache_stats
