@@ -25,37 +25,22 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     ov::intel_npu::CompilerType& compilerType,
     std::string_view platform,
     const std::shared_ptr<OptionSupportCache>& optionSupportCache) const {
-    const auto device = engineBackend != nullptr ? engineBackend->getDevice() : nullptr;
+    const auto device = engineBackend ? engineBackend->getDevice() : nullptr;
 
     if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
-        if (device != nullptr) {
-            auto [pluginCompiler, resolvedCompilerType] =
-                resolvePluginCompiler(engineBackend, optionSupportCache, device->getDeviceProperties(), platform);
-            compilerType = resolvedCompilerType;
-
-            if (resolvedCompilerType == ov::intel_npu::CompilerType::PLUGIN) {
-                if (pluginCompiler) {
-                    return std::move(pluginCompiler);
-                }
-
-                return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(),
-                                                               optionSupportCache,
-                                                               device->getDeviceProperties());
-            }
-        } else {
-            // device isn't available, offline compilation only
-            compilerType = ov::intel_npu::CompilerType::PLUGIN;
+        auto [pluginCompiler, resolvedCompilerType] =
+            resolvePreferPluginCompiler(engineBackend, optionSupportCache, device, platform);
+        compilerType = resolvedCompilerType;
+        if (pluginCompiler) {
+            return std::move(pluginCompiler);
         }
     }
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-        if (device == nullptr) {
-            return std::make_unique<PluginCompilerAdapter>(nullptr, optionSupportCache);
-        }
-
-        return std::make_unique<PluginCompilerAdapter>(engineBackend->getInitStructs(),
-                                                       optionSupportCache,
-                                                       device->getDeviceProperties());
+        return std::make_unique<PluginCompilerAdapter>(
+            engineBackend ? engineBackend->getInitStructs() : nullptr,
+            optionSupportCache,
+            device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt);
     }
 
     if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
@@ -77,19 +62,25 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     OPENVINO_THROW("Invalid NPU_COMPILER_TYPE");
 }
 
-void CompilerAdapterFactory::decideCompilerType(ov::intel_npu::CompilerType& compilerType, std::string_view platform) {
+void CompilerAdapterFactory::decideCompilerType(ov::intel_npu::CompilerType& compilerType,
+                                                const std::shared_ptr<intel_npu::IDevice>& device,
+                                                std::string_view platform) {
     if (compilerType != ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         return;
     }
 
-    compilerType = resolvePluginCompiler({}, nullptr, std::nullopt, platform).second;
+    compilerType = resolvePreferPluginCompiler({}, nullptr, device, platform).second;
 }
 
-std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType> CompilerAdapterFactory::resolvePluginCompiler(
-    const ov::SoPtr<IEngineBackend>& engineBackend,
-    const std::shared_ptr<OptionSupportCache>& optionSupportCache,
-    const std::optional<IDevice::DeviceProperties>& deviceProperties,
-    std::string_view platform) const {
+std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType>
+CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                                    const std::shared_ptr<OptionSupportCache>& optionSupportCache,
+                                                    const std::shared_ptr<intel_npu::IDevice>& device,
+                                                    std::string_view platform) const {
+    if (!device) {
+        return {nullptr, ov::intel_npu::CompilerType::PLUGIN};
+    }
+
     if (determineAppropriateCompilerTypeBasedOnPlatform(platform) == ov::intel_npu::CompilerType::DRIVER) {
         return {nullptr, ov::intel_npu::CompilerType::DRIVER};
     }
@@ -107,10 +98,10 @@ std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType> Compil
 
     if (pluginCompilerPresence == PluginCompilerPresence::UNKNOWN) {
         try {
-            auto pluginCompiler =
-                std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
-                                                        optionSupportCache,
-                                                        deviceProperties);
+            auto pluginCompiler = std::make_unique<PluginCompilerAdapter>(
+                engineBackend ? engineBackend->getInitStructs() : nullptr,
+                optionSupportCache,
+                device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt);
             _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
             return {std::move(pluginCompiler), ov::intel_npu::CompilerType::PLUGIN};
         } catch (...) {
@@ -119,8 +110,8 @@ std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType> Compil
         }
     }
 
-    // Should not reach here, but return DRIVER as a fallback
-    return {nullptr, ov::intel_npu::CompilerType::DRIVER};
+    // Should not reach here, but throw in case of unexpected state.
+    OPENVINO_THROW("Unexpected state in resolvePreferPluginCompiler");
 }
 
 const std::vector<ov::intel_npu::CompilerType>& CompilerAdapterFactory::getKnownCompilerTypes() {

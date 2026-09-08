@@ -29,15 +29,17 @@ public:
         std::string_view platform,
         const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr) const;
 
-    void decideCompilerType(ov::intel_npu::CompilerType& compilerType, std::string_view platform);
+    void decideCompilerType(ov::intel_npu::CompilerType& compilerType,
+                            const std::shared_ptr<intel_npu::IDevice>& device,
+                            std::string_view platform);
 
     static const std::vector<ov::intel_npu::CompilerType>& getKnownCompilerTypes();
 
 private:
-    std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType> resolvePluginCompiler(
+    std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType> resolvePreferPluginCompiler(
         const ov::SoPtr<IEngineBackend>& engineBackend,
         const std::shared_ptr<OptionSupportCache>& optionSupportCache,
-        const std::optional<IDevice::DeviceProperties>& deviceProperties,
+        const std::shared_ptr<intel_npu::IDevice>& device,
         std::string_view platform) const;
 
     enum class PluginCompilerPresence : std::uint8_t {
