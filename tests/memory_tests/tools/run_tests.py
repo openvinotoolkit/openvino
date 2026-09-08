@@ -7,7 +7,6 @@ import argparse
 import glob
 import os
 import re
-import itertools
 import subprocess
 import json
 import time
@@ -16,6 +15,7 @@ import sys
 from typing import Any
 from pathlib import Path
 from dataclasses import dataclass, asdict
+from collections import defaultdict
 
 try:
     import requests
@@ -137,6 +137,32 @@ def attempt(func, *args, **kwargs):
     print("No more attempts will be made")
 
 
+def aggregate_results(results: list[dict]):
+    if len(results) == 0:
+        raise ValueError("Aggregation of 0 values")
+    check_keys = set(results[0].keys()) - {"samples"}
+    check_values = {k: results[0][k] for k in check_keys}
+    sample_names = results[0]["samples"].keys()
+    samples = defaultdict(list)
+    for result in results:
+        assert check_values == {k: result[k] for k in check_keys}
+        for sname in sample_names:
+            samples[sname].append(result["samples"][sname])
+    check_values.update({
+        "samples": {
+            sname: MemSample.aggregate(svalues)
+            for sname, svalues in samples.items()
+        }
+    })
+    return check_values
+
+
+def aggregate_numbers(numbers: list):
+    if len(numbers) == 0:
+        raise ValueError("Aggregation of 0 values")
+    return sum(numbers) / len(numbers)
+
+
 @dataclass
 class MemSample:
     system_size: int
@@ -161,12 +187,24 @@ class MemSample:
 
     @classmethod
     def from_dict(cls, values: dict):
-        class_fields = MemSample.__dataclass_fields__.keys()
+        class_fields = cls.__dataclass_fields__.keys()
         selected_values = {
             k: int(values[k])
             for k in class_fields
         }
-        return MemSample(**selected_values)
+        return cls(**selected_values)
+
+    @classmethod
+    def aggregate(cls, items: list["MemSample"]):
+        class_fields = cls.__dataclass_fields__.keys()
+        result = {}
+        for field_name in class_fields:
+            numbers = [
+                getattr(item, field_name, None)
+                for item in items
+            ]
+            result[field_name] = int(aggregate_numbers(numbers))
+        return cls.from_dict(result)
 
     def __repr__(self):
         return "; ".join(f"{k} {v:>10}" for k, v in self.as_dict().items())
@@ -295,8 +333,6 @@ class TestSession:
     def detect_report_metadata(self):
         try:
             build_number = os.environ["TT_PRODUCT_BUILD_NUMBER"]
-            if self.report_reference:
-                build_number = f"reference-{build_number}"
             self.report_metadata = {
                 "build_url": os.environ["BUILD_URL"],
                 "os": os.environ.get("os", "unknown"),
@@ -374,8 +410,16 @@ class TestSession:
 
     def run_test_case(self, test_case: TestCase):
         try:
-            return run_test_executable_extract_result([
-                str(self.executable), test_case.model_path, test_case.device])
+            if self.report_reference:
+                run_num = 3
+            else:
+                run_num = 1
+            results = [
+                run_test_executable_extract_result([
+                    str(self.executable), test_case.model_path, test_case.device])
+                for _ in range(run_num)
+            ]
+            return aggregate_results(results)
         except Exception as ex:
             print(f"  When running test an unexpected error happened: {ex}")
             return {"error": "unexpected error", "exception": ex}
@@ -433,14 +477,10 @@ if __name__ == "__main__":
     parser.add_argument("--devices", default="CPU")
 
     parser.add_argument("--api", help="API endpoint for results to upload")
-    parser.add_argument("--upload-reference", "--upload_reference",
-                        "--upload-references", "--upload_references", action="store_true",
+    parser.add_argument("--upload-reference", "--reference", action="store_true",
                         help="This run will make new reference values")
 
     args = parser.parse_args()
-
-    if args.upload_reference and args.api is None:
-        raise Exception("To upload reference values --api must be specified")
 
     TestSession(
         args.test_executable,
