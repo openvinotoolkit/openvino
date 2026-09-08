@@ -6,6 +6,7 @@
 
 #include <vector>
 
+#include "../kv_cache_sliding_window_manager.hpp"
 #include "../logging.hpp"
 #include "../util.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -87,6 +88,12 @@ bool SplitKVCacheIntoBlocks::run_on_model(const std::shared_ptr<ov::Model>& mode
         const bool is_value = ov::npuw::util::isPastKeyValuesValueContiguous(name).has_value();
         if (!is_key && !is_value) {
             continue;  // not a contiguous KV cache parameter
+        }
+
+        // SWA layers are handled by a separate KV-cache path.
+        // ShrinkSlidingWindowKVCache tags resized SWA past KV params with this rt_info key.
+        if (param->get_rt_info().count(ov::npuw::util::NPUW_KV_CACHE_SLIDING_RT_KEY) > 0) {
+            continue;
         }
 
         // Shape must be 4D and fully static before we can proceed.

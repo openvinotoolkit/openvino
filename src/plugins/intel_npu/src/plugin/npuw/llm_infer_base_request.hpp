@@ -26,6 +26,8 @@ public:
         static constexpr const char* per_layer_inputs = "per_layer_inputs";
         static constexpr const char* visual_pos_masks = ov::npuw::util::kVisualPosMasksParamName;
         static constexpr const char* deepstack_visual_embeds = ov::npuw::util::kDeepstackVisualEmbedsParamName;
+        static constexpr const char* sliding_window_attention_mask =
+            ov::npuw::util::kSlidingWindowAttentionMaskParamName;
     };
 
     struct layer_ids {

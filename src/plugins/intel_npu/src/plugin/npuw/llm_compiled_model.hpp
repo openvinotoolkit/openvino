@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "compiled_model.hpp"
+#include "kv_cache_sliding_window_manager.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 
@@ -167,6 +168,16 @@ private:
     // True when the embedding model is a non-autoregressive bidirectional encoder (e.g. BERT):
     // routed to the dedicated KV/RoPE-free encoder embedding path.
     bool m_is_encoder_embedding = false;
+
+    // Sliding Window Attention (SWA) support: per-layer KV-cache window capping for hybrid
+    // sliding/full-attention models (e.g. Gemma4).
+    ov::npuw::util::SwaLayout m_swa_layout;
+
+    // True if SWA is enabled and layer_idx is configured as a sliding-window layer.
+    bool is_swa_layer(size_t layer_idx) const;
+
+    // True if `name` is a contiguous (non-block-split) past-KV parameter belonging to an SWA layer.
+    bool is_swa_past_key_values_name(const std::string& name) const;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
