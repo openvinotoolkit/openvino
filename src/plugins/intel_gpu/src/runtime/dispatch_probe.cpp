@@ -4,14 +4,17 @@
 
 #include "intel_gpu/runtime/dispatch_probe.hpp"
 
+#include <type_traits>
+
 #include "intel_gpu/runtime/device.hpp"
 
 namespace cldnn {
 namespace {
 
-// Append the raw bytes of a trivially-copyable value to a byte buffer.
+// Append the raw bytes of a value to a byte buffer.
 template <typename T>
 void append_bytes(std::vector<uint8_t>& out, const T& value) {
+    static_assert(std::is_trivially_copyable_v<T>, "a fingerprint field must be trivially copyable to be read as bytes");
     const auto* bytes = reinterpret_cast<const uint8_t*>(&value);
     out.insert(out.end(), bytes, bytes + sizeof(T));
 }
