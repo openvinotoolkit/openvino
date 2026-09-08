@@ -320,6 +320,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_router_scale_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_router_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fuse_moe_shared_expert_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/group_query_attention_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/horizontal_fc_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/increase_precision_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/indirect_kv_cache_test.cpp
@@ -332,6 +333,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/optimize_subsequent_reshapes_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/preserve_single_selective_ssm_output_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/reduce_fc_dimensions_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/remove_fq_before_dw_conv_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sdpa_opt_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sdpa_transpose_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sink_reshape_test.cpp
@@ -404,6 +406,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_router_scale.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_shared_expert.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/fuse_moe_shared_expert.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/group_query_attention_decomposition.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/group_query_attention_decomposition.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/increase_position_ids_precision.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/increase_position_ids_precision.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/increase_rms_input_precision.cpp
@@ -434,6 +438,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/print_model_statistics.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/reduce_fc_dimensions.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/reduce_fc_dimensions.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/remove_fq_before_dw_conv.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/remove_fq_before_dw_conv.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sdpa_transpose_fusion.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sdpa_transpose_fusion.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sink_reshape.cpp
