@@ -149,7 +149,6 @@ struct HostFlashAttention {
     static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model,
                                                   bool fused_flash_attention = true,
                                                   bool enable_mask_skipping = false);
-
 };
 
 }  // namespace function
