@@ -76,11 +76,7 @@ std::shared_ptr<ov::Model> make_selective_ssm_model(const ov::element::Type& pre
 
 class SelectiveSSMJitIntegrationTest : public testing::TestWithParam<SelectiveSSMJitParams> {};
 
-TEST_P(SelectiveSSMJitIntegrationTest, SelectsJitWithoutWideningDataPrecision) {
-    if (!ov::with_cpu_x86_avx2()) {
-        GTEST_SKIP() << "SelectiveSSM JIT requires AVX2 or newer";
-    }
-
+TEST_P(SelectiveSSMJitIntegrationTest, SelectsExecutorWithoutWideningDataPrecision) {
     const auto& [paged, precision] = GetParam();
     if (!ov::intel_cpu::hasHardwareSupport(precision)) {
         GTEST_SKIP() << "CPU precision policy does not preserve " << precision << " on this system";
@@ -92,8 +88,12 @@ TEST_P(SelectiveSSMJitIntegrationTest, SelectsJitWithoutWideningDataPrecision) {
     const auto runtime_model = compiled_model.get_runtime_model();
 
     const auto expected_layer = paged ? std::string{"PagedSelectiveSSM"} : std::string{"SelectiveSSM"};
+    const bool native = precision == ov::element::f32 ? ov::with_cpu_x86_avx2()
+                        : precision == ov::element::f16
+                            ? ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx2_vnni_2()
+                            : ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx2_vnni_2();
     const auto expected_implementation =
-        std::string{ov::with_cpu_x86_avx512f() ? "jit_avx512_" : "jit_avx2_"} + precision.get_type_name();
+        std::string{ov::with_cpu_x86_avx512_core() ? "jit_avx512_" : "jit_avx2_"} + precision.get_type_name();
     size_t matching_nodes = 0;
     for (const auto& node : runtime_model->get_ops()) {
         const auto& rt_info = node->get_rt_info();
@@ -105,7 +105,12 @@ TEST_P(SelectiveSSMJitIntegrationTest, SelectsJitWithoutWideningDataPrecision) {
         ++matching_nodes;
         const auto implementation = rt_info.find(ov::exec_model_info::IMPL_TYPE);
         ASSERT_NE(implementation, rt_info.end());
-        EXPECT_EQ(implementation->second.as<std::string>(), expected_implementation);
+        const auto actual_implementation = implementation->second.as<std::string>();
+        if (native) {
+            EXPECT_EQ(actual_implementation, expected_implementation);
+        } else {
+            EXPECT_EQ(actual_implementation.find("ref"), 0U) << actual_implementation;
+        }
         EXPECT_EQ(node->get_output_element_type(0), precision);
     }
     EXPECT_EQ(matching_nodes, 1U);
@@ -118,7 +123,8 @@ std::string selective_ssm_jit_test_name(const testing::TestParamInfo<SelectiveSS
 
 INSTANTIATE_TEST_SUITE_P(smoke_SelectiveSSMJit,
                          SelectiveSSMJitIntegrationTest,
-                         testing::Combine(testing::Bool(), testing::Values(ov::element::f16, ov::element::bf16)),
+                         testing::Combine(testing::Bool(),
+                                          testing::Values(ov::element::f32, ov::element::f16, ov::element::bf16)),
                          selective_ssm_jit_test_name);
 
 }  // namespace
