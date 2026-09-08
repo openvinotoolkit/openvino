@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-08-07-00-30-000-34195807146",
+  "timestamp": "2026-09-08T07:00:30Z",
+  "run_id": "34195807146",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34195807146",
+  "workflow_name": "Build",
+  "pr_number": "37208",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37208",
+  "author": "allnes",
+  "category": "Code Issue",
+  "title": "GPU unit tests CMake glob removal missing two test source files",
+  "signature": "cmake error at add_target_helpers.cmake message exists on disk but is not listed in target sources and will not be compiled add it to the appropriate cmakelists txt or sources cmake|Code Issue",
+  "signature_hash": "424833cadb6f935d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure step fails with add_target_helpers.cmake:635 error: source files exist on disk but are not listed in ov_gpu_unit_tests target sources."
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/add_target_helpers.cmake:635 (message):\n  [ov_gpu_unit_tests]\n  '/home/runner/_work/openvino/openvino/src/src/plugins/intel_gpu/tests/unit/transformations/group_query_attention_decomposition_test.cpp'\n  exists on disk but is not listed in target sources and will not be\n  compiled.  Add it to the appropriate CMakeLists.txt or sources.cmake.\nCall Stack (most recent call first):\n  cmake/developer_package/add_target_helpers.cmake:490:EVAL:2 (_ov_check_all_sources_listed)\n  src/plugins/intel_gpu/tests/unit/CMakeLists.txt:DEFERRED",
+    "CMake Error at cmake/developer_package/add_target_helpers.cmake:635 (message):\n  [ov_gpu_unit_tests]\n  '/home/runner/_work/openvino/openvino/src/src/plugins/intel_gpu/tests/unit/transformations/remove_fq_before_dw_conv_test.cpp'\n  exists on disk but is not listed in target sources and will not be\n  compiled.  Add it to the appropriate CMakeLists.txt or sources.cmake."
+  ],
+  "root_cause": "CMake's strict source-listing check (_ov_check_all_sources_listed) for the ov_gpu_unit_tests target fails because two test .cpp files under src/plugins/intel_gpu/tests/unit/transformations/ exist on disk but are not enumerated in the target's sources (glob/list in CMakeLists.txt or sources.cmake). This is unrelated to the current PR's changes (a clang-tidy brace-style pass over intel_gpu headers/primitives) and stems from a separate, earlier change to the GPU unit test file list/CMakeLists that did not add the new/renamed test files. The identical signature was previously observed twice on PR #37914 (a different PR), confirming this is a base-branch (master) issue that any merge-queue run building the GPU unit tests will hit, not something introduced by PR 37208.",
+  "reproduction_steps": "cd build && cmake -DENABLE_TESTS=ON <other GPU-enabling flags> ../src && re-run configure; observe CMake Error at cmake/developer_package/add_target_helpers.cmake:635 for group_query_attention_decomposition_test.cpp and remove_fq_before_dw_conv_test.cpp under src/plugins/intel_gpu/tests/unit/transformations/.",
+  "recommended_actions": [
+    "Add group_query_attention_decomposition_test.cpp and remove_fq_before_dw_conv_test.cpp to src/plugins/intel_gpu/tests/unit/CMakeLists.txt (or the sources.cmake/glob list it includes) so they are compiled into ov_gpu_unit_tests.",
+    "Since this is unrelated to PR 37208's own changes, rebase/merge master once the fix lands, or ask maintainers to land the CMakeLists.txt fix on master directly.",
+    "Consider re-running the merge-queue check once master is fixed rather than modifying PR 37208 itself."
+  ],
+  "prevention_strategies": "Enable the _ov_check_all_sources_listed check locally (or in a pre-commit/pre-push hook) whenever new test files are added under src/plugins/intel_gpu/tests/unit/, and require CI on the introducing PR to build the GPU unit tests target before merge so this class of omission is caught before entering the merge queue.",
+  "historical_context": "Identical signature previously recorded twice for PR #37914 (runs 34188369195 and 34194664069), also unrelated to that PR's own changes. This is the third occurrence within the tracking window, confirming a persistent unresolved issue on master's GPU unit test CMakeLists."
+}
