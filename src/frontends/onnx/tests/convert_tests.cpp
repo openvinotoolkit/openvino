@@ -84,6 +84,12 @@ TEST(ONNXFeConvertException, exception_if_matmulnbits_weight_prepacked_unsupport
                     testing::HasSubstr("weight_prepacked != 0"));
 }
 
+TEST(ONNXFeConvertException, exception_if_matmulnbits_group_idx_out_of_range) {
+    OV_EXPECT_THROW(convert_model("com.microsoft/matmulnbits_group_idx_out_of_range.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("group_idx values must be within"));
+}
+
 TEST(ONNXFeConvertException, exception_if_scan_num_scan_inputs_exceeds_body_inputs) {
     OV_EXPECT_THROW(convert_model("scan15_num_scan_inputs_exceeds_body_inputs.onnx"),
                     ov::frontend::OpConversionFailure,

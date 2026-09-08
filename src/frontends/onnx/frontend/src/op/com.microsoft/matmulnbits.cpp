@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cmath>
 #include <numeric>
 
@@ -152,6 +153,25 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                          k_padded,
                          "), got: ",
                          g_idx_size);
+        // group_idx is consumed as a Gather index below; OV's Gather silently normalizes negative
+        // indices and zero-fills out-of-range ones instead of throwing, so an invalid model would
+        // otherwise import and dequantize with the wrong scale/zero-point. Require it constant (same
+        // convention as B/zero_points above) and validate every value is in [0, n_blocks_per_col).
+        CHECK_VALID_NODE(node,
+                         ov::as_type<v0::Constant>(group_idx.get_node()) != nullptr,
+                         "MatMulNBits limitation: accepting only a constant as a group_idx");
+        const auto group_idx_const = ov::as_type_ptr<v0::Constant>(group_idx.get_node_shared_ptr());
+        const auto group_idx_values = group_idx_const->cast_vector<int32_t>();
+        const auto minmax = std::minmax_element(group_idx_values.begin(), group_idx_values.end());
+        CHECK_VALID_NODE(node,
+                         *minmax.first >= 0 && *minmax.second < static_cast<int32_t>(n_blocks_per_col),
+                         "group_idx values must be within [0, n_blocks_per_col=",
+                         n_blocks_per_col,
+                         "), got range [",
+                         *minmax.first,
+                         ", ",
+                         *minmax.second,
+                         "]");
     }
 
     if (common::is_input_valid(node, 5)) {
