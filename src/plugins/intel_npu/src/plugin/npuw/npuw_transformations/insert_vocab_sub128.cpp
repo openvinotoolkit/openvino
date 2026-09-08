@@ -27,6 +27,12 @@ namespace opp = ov::pass::pattern;
 
 namespace {
 
+// diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
+#ifdef __GNUC__
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wattributes"
+#endif
+
 class InsertVocabSub128Matcher final : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::InsertVocabSub128Matcher");
@@ -105,6 +111,10 @@ public:
         register_matcher(std::make_shared<opp::Matcher>(result, "InsertVocabSub128"), std::move(callback));
     }
 };
+
+#ifdef __GNUC__
+#    pragma GCC diagnostic pop
+#endif
 
 }  // namespace
 
