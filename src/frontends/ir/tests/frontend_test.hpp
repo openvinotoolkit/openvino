@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <optional>
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
@@ -21,16 +22,23 @@ protected:
     std::filesystem::path xmlFileName = std::filesystem::path(prefix).concat("_IrFrontendTestModel.xml");
     std::filesystem::path binFileName = std::filesystem::path(prefix).concat("_IrFrontendTestModel.bin");
 
+    /**
+     * Creates temporary XML and BIN files for the IR model.
+     * @param xmlFileContent Content of the XML file.
+     * @param binFileContent Optional content of the BIN file. If not provided, the BIN file is not created.
+     */
     void createTemporalModelFile(std::string xmlFileContent,
-                                 std::vector<unsigned char> binFileContent = std::vector<unsigned char>()) {
+                                 std::optional<std::vector<unsigned char>> binFileContent = std::nullopt) {
         ASSERT_TRUE(xmlFileContent.size() > 0);
 
         if (std::ofstream xml_file(xmlFileName); xml_file.is_open()) {
             xml_file << xmlFileContent;
         }
 
-        if (std::ofstream bin_file(binFileName, std::ios::binary); bin_file.is_open()) {
-            bin_file.write(reinterpret_cast<const char*>(binFileContent.data()), binFileContent.size());
+        if (binFileContent) {
+            if (std::ofstream bin_file(binFileName, std::ios::binary); bin_file.is_open()) {
+                bin_file.write(reinterpret_cast<const char*>(binFileContent->data()), binFileContent->size());
+            }
         }
     }
 

@@ -814,15 +814,17 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                 )V0G0N";
                 this->macroName = MacroName(tensor_name, layout_name, macroNameArgs);
                 this->calcFunction = FuncBody(layout_name, funcArgs, body);
-                if (l == WeightsLayout::os_is_yx_osv16_isv16)
+                if (l == WeightsLayout::os_is_yx_osv16_isv16) {
                     this->macroBody = FuncCall(layout_name, {"o", "i", "0", "y", "x",
                                                Cat("_SIZE_X"), Cat("_SIZE_Y"), "1", Cat("_IFM_NUM"), Cat("_OFM_NUM"), "16", "16"});
-                else if (l == WeightsLayout::os_is_zyx_osv32_isv16)
+                } else if (l == WeightsLayout::os_is_zyx_osv32_isv16) {
                     this->macroBody = FuncCall(layout_name, {"o", "i", "z", "y", "x",
                                                Cat("_SIZE_X"), Cat("_SIZE_Y"), Cat("_SIZE_Z"), Cat("_IFM_NUM"), Cat("_OFM_NUM"), "32", "16"});
-                else if (l == WeightsLayout::os_is_zyx_osv64_isv16)
-                    this->macroBody = FuncCall(layout_name, {"o", "i", "z", "y", "x",
-                                               Cat("_SIZE_X"), Cat("_SIZE_Y"), Cat("_SIZE_Z"), Cat("_IFM_NUM"), Cat("_OFM_NUM"), "64", "16"});
+                } else if (l == WeightsLayout::os_is_zyx_osv64_isv16) {
+                    this->macroBody =
+                        FuncCall(layout_name,
+                                 {"o", "i", "z", "y", "x", Cat("_SIZE_X"), Cat("_SIZE_Y"), Cat("_SIZE_Z"), Cat("_IFM_NUM"), Cat("_OFM_NUM"), "64", "16"});
+                }
             } else if (l == WeightsLayout::g_os_zyx_is_osv16_isv16 || l == WeightsLayout::g_os_zyx_is_osv16_isv32 ||
                        l == WeightsLayout::g_os_zyx_is_osv32_isv16 || l == WeightsLayout::g_os_zyx_is_osv32_isv32) {
                 args macroNameArgs = {"prefix", "g", "o", "i", "z", "y", "x"};
@@ -900,10 +902,11 @@ class WeightTensorJitConstant : public TensorBaseTJitConstant<WeightsType, Weigh
                 )V0G0N";
                 this->macroName = MacroName(tensor_name, layout_name, macroNameArgs);
                 this->calcFunction = FuncBody(layout_name, funcArgs, body);
-                if (l == WeightsLayout::os_is_yx_osv16_isv4)
+                if (l == WeightsLayout::os_is_yx_osv16_isv4) {
                     this->macroBody = FuncCall(layout_name, {"o", "i", "y", "x", Cat("_IFM_PITCH"), Cat("_OFM_PITCH"), Cat("_SIZE_X"), "16"});
-                else if (l == WeightsLayout::os_is_yx_osv32_isv4)
+                } else if (l == WeightsLayout::os_is_yx_osv32_isv4) {
                     this->macroBody = FuncCall(layout_name, {"o", "i", "y", "x", Cat("_IFM_PITCH"), Cat("_OFM_PITCH"), Cat("_SIZE_X"), "32"});
+                }
             } else {
                 // throw error?
             }
@@ -997,16 +1000,17 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_grouped_4d_layout = is_common_nd_layout(grouped_4d_channels, layout);
             if (is_grouped_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(g, o, i, y, x)";
-                if (layout == WeightsLayout::goiyx || layout == WeightsLayout::gioyx)
+                if (layout == WeightsLayout::goiyx || layout == WeightsLayout::gioyx) {
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x)";
-                else if (layout == WeightsLayout::g_os_is_yx_isv16_osv16)
+                } else if (layout == WeightsLayout::g_os_is_yx_isv16_osv16) {
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x, 16)";
-                else if (layout == WeightsLayout::g_os_iyx_osv8)
+                } else if (layout == WeightsLayout::g_os_iyx_osv8) {
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, y, x, 8)";
-                else if (layout == WeightsLayout::g_os_iyx_osv16)
+                } else if (layout == WeightsLayout::g_os_iyx_osv16) {
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, y, x, 16)";
-                else if (layout == WeightsLayout::g_is_os_yx_isv16_osv16)
+                } else if (layout == WeightsLayout::g_is_os_yx_isv16_osv16) {
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, 0, y, x, 16)";
+                }
             } else {
                 assert(0);
             }
@@ -1022,12 +1026,13 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_grouped_5d_layout = is_common_nd_layout(grouped_5d_channels, layout);
             if (is_grouped_5d_layout) {
                 index_macro_name = _name + "_GET_INDEX(g, o, i, z, y, x)";
-                if (layout == WeightsLayout::goizyx || layout == WeightsLayout::giozyx)
+                if (layout == WeightsLayout::goizyx || layout == WeightsLayout::giozyx) {
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, z, y, x)";
-                else if (layout == WeightsLayout::g_os_is_zyx_isv16_osv16)
+                } else if (layout == WeightsLayout::g_os_is_zyx_isv16_osv16) {
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, z, y, x, 16)";
-                else if (layout == WeightsLayout::g_is_os_zyx_isv16_osv16)
+                } else if (layout == WeightsLayout::g_is_os_zyx_isv16_osv16) {
                     index_func_val = called_func_name + "(" + _name + ", g, o, i, z, y, x, 16)";
+                }
             } else {
                 assert(0);
             }
@@ -1043,21 +1048,20 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_common_4d_layout = is_common_nd_layout(base_4d_channels, layout);
             if (is_common_4d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, y, x)";
-                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx ||
-                    layout == WeightsLayout::oyxi || layout == WeightsLayout::oyix ||
-                    layout == WeightsLayout::oxiy || layout == WeightsLayout::iyxo ||
-                    layout == WeightsLayout::yxio)
+                if (layout == WeightsLayout::oiyx || layout == WeightsLayout::ioyx || layout == WeightsLayout::oyxi || layout == WeightsLayout::oyix ||
+                    layout == WeightsLayout::oxiy || layout == WeightsLayout::iyxo || layout == WeightsLayout::yxio) {
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x)";
-                else if (layout == WeightsLayout::os_is_yx_isv16_osv16)
+                } else if (layout == WeightsLayout::os_is_yx_isv16_osv16) {
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x, 16)";
-                else if (layout == WeightsLayout::os_iyx_osv16)
+                } else if (layout == WeightsLayout::os_iyx_osv16) {
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, y, x, 16)";
-                else if (layout == WeightsLayout::os_iyx_osv32 || layout == WeightsLayout::os_iyx_osv32__ai32)
+                } else if (layout == WeightsLayout::os_iyx_osv32 || layout == WeightsLayout::os_iyx_osv32__ai32) {
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, y, x, 32)";
-                else if (layout == WeightsLayout::is_os_yx_isv16_osv16)
+                } else if (layout == WeightsLayout::is_os_yx_isv16_osv16) {
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, 0, y, x, 16)";
-                else if (layout == WeightsLayout::os_is_yx_osv16_isv16)
+                } else if (layout == WeightsLayout::os_is_yx_osv16_isv16) {
                     index_func_val = called_func_name + "(" + _name + ", o, i, 0, y, x)";
+                }
             } else {
                 assert(0);
             }
@@ -1072,14 +1076,15 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
             bool is_common_5d_layout = is_common_nd_layout(base_5d_channels, layout);
             if (is_common_5d_layout) {
                 index_macro_name = _name + "_GET_INDEX(o, i, z, y, x)";
-                if (layout == WeightsLayout::oizyx || layout == WeightsLayout::iozyx)
+                if (layout == WeightsLayout::oizyx || layout == WeightsLayout::iozyx) {
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, z, y, x)";
-                else if (layout == WeightsLayout::os_is_zyx_isv16_osv16)
+                } else if (layout == WeightsLayout::os_is_zyx_isv16_osv16) {
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, z, y, x, 16)";
-                else if (layout == WeightsLayout::is_os_zyx_isv16_osv16)
+                } else if (layout == WeightsLayout::is_os_zyx_isv16_osv16) {
                     index_func_val = called_func_name + "(" + _name + ", 0, o, i, z, y, x, 16)";
-                else if (layout == WeightsLayout::os_is_zyx_osv32_isv16 || layout == WeightsLayout::os_is_zyx_osv64_isv16)
+                } else if (layout == WeightsLayout::os_is_zyx_osv32_isv16 || layout == WeightsLayout::os_is_zyx_osv64_isv16) {
                     index_func_val = called_func_name + "(" + _name + ", o, i, z, y, x)";
+                }
             } else {
                 assert(0);
             }
@@ -1199,10 +1204,11 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(macro_def, log(one + exp(input)).str()));
             break;
         case ActivationFunction::ABS:
-            if (out_dt == Datatype::F32 || out_dt == Datatype::F16)
+            if (out_dt == Datatype::F32 || out_dt == Datatype::F16) {
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(fabs(input))"));
-            else
+            } else {
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(abs(input))"));
+            }
             break;
         case ActivationFunction::LINEAR: {
             const JitTerm m = disable_type_conversion ? "m"_jit : to_type("m"_jit);
@@ -1264,16 +1270,18 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(atanh(input))"));
             break;
         case ActivationFunction::FLOOR:
-            if (out_dt == Datatype::F32 || out_dt == Datatype::F16)
+            if (out_dt == Datatype::F32 || out_dt == Datatype::F16) {
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(floor(input))"));
-            else
+            } else {
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(input)"));
+            }
             break;
         case ActivationFunction::CEIL:
-            if (out_dt == Datatype::F32 || out_dt == Datatype::F16)
+            if (out_dt == Datatype::F32 || out_dt == Datatype::F16) {
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(ceil(input))"));
-            else
+            } else {
                 jitConstants.AddConstant(MakeJitConstant(macro_def, "(input)"));
+            }
             break;
         case ActivationFunction::NEGATIVE:
             jitConstants.AddConstant(MakeJitConstant(macro_def, "(-input)"));
@@ -1460,6 +1468,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
     std::string to_vector_type = "undefined";
     std::string to_vector_type_sat = "undefined";
     bool is_fp;
+    bool is_bf16 = false;
     switch (dataType) {
         case Datatype::INT8:
             type = "char";
@@ -1641,6 +1650,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             abs_func = "fabs";
             type_size = "2";
             is_fp = true;
+            is_bf16 = true;
             break;
         case Datatype::F4E2M1:
             type = "fp4e2m1_t";
@@ -1734,6 +1744,7 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
         MakeJitConstant(macroName + "_ABS_FUNC", abs_func),
         MakeJitConstant(macroName + "_TYPE_SIZE", type_size),
         MakeJitConstant(macroName + "_IS_FP", is_fp),
+        MakeJitConstant(macroName + "_IS_BF16", is_bf16),
         MakeJitConstant(macroName + "_COMPUTE_TYPE", compute_type),
         MakeJitConstant("TO_" + macroName + "_COMPUTE_TYPE(v)", to_compute_type),
         MakeJitConstant("DECODE_" + macroName + "_COMPUTE_TYPE(v)", decode_compute_type),
@@ -2181,12 +2192,13 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
                 // Output clamp
                 if (p->has_clamp) {
-                    if (p->has_min_clamp && p->has_max_clamp)
+                    if (p->has_min_clamp && p->has_max_clamp) {
                         op_decls += "\\\n\t" + tmp_var + " = clamp(" + tmp_var + ", " + out_lo + ", " + out_hi + ");";
-                    else if (p->has_min_clamp)
+                    } else if (p->has_min_clamp) {
                         op_decls += "\\\n\t" + tmp_var + " = max(" + tmp_var + ", " + out_lo + ");";
-                    else
+                    } else {
                         op_decls += "\\\n\t" + tmp_var + " = min(" + tmp_var + ", " + out_hi + ");";
+                    }
                 }
 
                 // Output conversion with rounding and saturation
@@ -2200,12 +2212,13 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
                 // Input clamp
                 if (p->has_clamp) {
-                    if (p->has_min_clamp && p->has_max_clamp)
+                    if (p->has_min_clamp && p->has_max_clamp) {
                         op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = clamp(" + in_converted + ", " + in_lo + ", " + in_hi + ");";
-                    else if (p->has_min_clamp)
+                    } else if (p->has_min_clamp) {
                         op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = max(" + in_converted + ", " + in_lo + ");";
-                    else
+                    } else {
                         op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = min(" + in_converted + ", " + in_hi + ");";
+                    }
                 } else {
                     op_decls += "\\\n\t" + tmp_type_str + " " + tmp_var + " = " + in_converted + ";";
                 }
@@ -2398,9 +2411,9 @@ std::string FusedOpsCodeGenerator::GetJitLoad(const FusedOpsConfiguration& conf,
         std::string offset = conf.bfzyx_idx_order[0];
         if (safe_load)
             offset = "(" + offset + " % " + toCodeString(input_tensor.LogicalSize()) + ")";
-        if (vec_size > 1)
-            return "((const __global " + toCLType(input_dt) + toCodeString(vec_size) + "*)(" +
-                   GetInputPtrName(input_id) + " + " + offset + "))[0]";
+        if (vec_size > 1) {
+            return "((const __global " + toCLType(input_dt) + toCodeString(vec_size) + "*)(" + GetInputPtrName(input_id) + " + " + offset + "))[0]";
+        }
         return GetInputPtrName(input_id) + "[" + offset + "]";
     }  // TODO: Need to add smarter vectors handling:
         // 1. Boundary checks for safe load
@@ -2457,9 +2470,9 @@ std::string FusedOpsCodeGenerator::GetInputPtrName(size_t input_id) const {
 }
 
 std::string FusedOpsCodeGenerator::GetInputVarName(size_t input_id, bool is_shuffled, std::string shuffle_var) const {
-    if (is_shuffled)
-        return "_sub_group_shuffle(" + GetTypeStr() + toCodeString(desc.op_id) + "_data" +
-               toCodeString(input_id) + ", " + shuffle_var + ")";
+    if (is_shuffled) {
+        return "_sub_group_shuffle(" + GetTypeStr() + toCodeString(desc.op_id) + "_data" + toCodeString(input_id) + ", " + shuffle_var + ")";
+    }
     return GetTypeStr() + toCodeString(desc.op_id) + "_data" + toCodeString(input_id);
 }
 

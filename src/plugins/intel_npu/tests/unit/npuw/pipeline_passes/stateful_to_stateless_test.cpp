@@ -267,6 +267,41 @@ std::shared_ptr<ov::Model> build_model_with_qwen35_like_cache(size_t num_layers 
                                        "model_with_qwen35_like_cache");
 }
 
+// Builds a model matching the updated LFM2-1.2B IR (scaled down to 2 layers):
+//   - 2 KV-cache layers: past_key_values.<idx>.key/value (f32, {?,8,?,64}) via beam_idx
+//   - 2 Gated Short Convolution (conv) layers: cache_params.past.conv.<idx> (f32, {?,2048,3})
+// The distinction vs. the v1 builder is that the conv cache is now connected via
+// beam_idx Gather (matching the updated exporter behavior).
+std::shared_ptr<ov::Model> build_model_with_lfm2_v2_like_cache(size_t num_layers = 2) {
+    auto stub_input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 64});
+    stub_input->output(0).set_names({"stub_input"});
+
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+    beam_idx->output(0).set_names({"beam_idx"});
+
+    ov::SinkVector sinks;
+    for (size_t layer = 0; layer < num_layers; ++layer) {
+        // Standard KV cache (via beam_idx Gather)
+        auto key_block = make_past_key_values_kv_state(
+            beam_idx, layer, "key", ov::element::f32, ov::PartialShape{-1, 8, -1, 64}, {1, 8, 0, 64});
+        auto value_block = make_past_key_values_kv_state(
+            beam_idx, layer, "value", ov::element::f32, ov::PartialShape{-1, 8, -1, 64}, {1, 8, 0, 64});
+        sinks.push_back(key_block.assign);
+        sinks.push_back(value_block.assign);
+
+        // Conv cache now connected via beam_idx Gather (updated IR behavior).
+        auto conv_block = make_cache_params_lin_state(
+            beam_idx, layer, "conv", ov::element::f32, ov::PartialShape{-1, 2048, 3}, {1, 2048, 3});
+        sinks.push_back(conv_block.assign);
+    }
+
+    auto result = std::make_shared<ov::op::v0::Result>(stub_input);
+    return std::make_shared<ov::Model>(ov::ResultVector{result},
+                                       sinks,
+                                       ov::ParameterVector{stub_input, beam_idx},
+                                       "model_with_lfm2_v2_like_cache");
+}
+
 bool has_input_with_name(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     for (const auto& input : model->inputs()) {
         for (const auto& input_name : input.get_names()) {
@@ -626,5 +661,60 @@ TEST(StatefulToStatelessTest, Qwen35_ShapesAndElementTypesPreserved) {
             EXPECT_EQ(input.get_element_type(), ov::element::f32) << "Element type mismatch for " << name;
         }
     }
+}
+
+// ===================== LFM2 v2 (updated IR) tests =====================
+// The updated LFM2 IR now connects the Conv cache via beam_idx Gather (the v1
+// LFM2 IR connected it directly to ReadValue). For StatefulToStateless this is
+// the only structural change that matters -- the pass must pick up the new conv
+// cache through the same beam_idx traversal as the KV caches, remove the sinks
+// and variables, and produce stateless inputs/outputs with the expected names.
+
+TEST(StatefulToStatelessTest, LFM2v2_ConvertsToStateless) {
+    auto model = build_model_with_lfm2_v2_like_cache();
+
+    // 2 layers * (key + value + conv) = 6 sinks / variables
+    ASSERT_EQ(model->get_sinks().size(), 6u);
+    ASSERT_EQ(model->get_variables().size(), 6u);
+
+    ASSERT_NO_THROW(ov::pass::StatefulToStateless().run_on_model(model));
+
+    EXPECT_EQ(model->get_sinks().size(), 0u);
+    EXPECT_EQ(model->get_variables().size(), 0u);
+    EXPECT_FALSE(has_input_with_name(model, "beam_idx"));
+
+    for (size_t layer = 0; layer < 2; ++layer) {
+        const auto idx = std::to_string(layer);
+        EXPECT_TRUE(has_input_with_name(model, "past_key_values." + idx + ".key"));
+        EXPECT_TRUE(has_input_with_name(model, "past_key_values." + idx + ".value"));
+        EXPECT_TRUE(has_output_with_name(model, "present." + idx + ".key"));
+        EXPECT_TRUE(has_output_with_name(model, "present." + idx + ".value"));
+
+        EXPECT_TRUE(has_input_with_name(model, "cache_params.past.conv." + idx));
+        EXPECT_TRUE(has_output_with_name(model, "cache_params.present.conv." + idx));
+    }
+}
+
+// Shapes and element type of the new past.conv Parameter must be preserved from
+// the original variable info: {?, 2048, 3}, f32.
+TEST(StatefulToStatelessTest, LFM2v2_ConvCacheShapeAndTypePreserved) {
+    auto model = build_model_with_lfm2_v2_like_cache(1);
+    ASSERT_NO_THROW(ov::pass::StatefulToStateless().run_on_model(model));
+
+    bool checked = false;
+    for (const auto& input : model->inputs()) {
+        const auto& name = input.get_any_name();
+        if (name.find("cache_params.past.conv") == std::string::npos) {
+            continue;
+        }
+        const auto& shape = input.get_partial_shape();
+        ASSERT_EQ(shape.rank().get_length(), 3) << "Conv input " << name << " should be rank 3";
+        EXPECT_TRUE(shape[0].is_dynamic()) << "Batch dim should be dynamic";
+        EXPECT_EQ(shape[1].get_length(), 2048) << "Conv 1st dim mismatch";
+        EXPECT_EQ(shape[2].get_length(), 3) << "Conv kernel size mismatch";
+        EXPECT_EQ(input.get_element_type(), ov::element::f32) << "Element type mismatch";
+        checked = true;
+    }
+    EXPECT_TRUE(checked) << "cache_params.past.conv.0 input not found";
 }
 }  // namespace

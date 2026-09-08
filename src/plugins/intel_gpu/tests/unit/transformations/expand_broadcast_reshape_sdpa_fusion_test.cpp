@@ -565,6 +565,82 @@ TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion10) {
     }
 }
 
+TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion11) {
+    std::vector<int64_t> in0_order = {0, 2, 1, 3};
+    std::vector<int64_t> in1_order = {0, 2, 1, 3};
+    std::vector<int64_t> in2_order = {0, 2, 1, 3};
+    std::vector<int64_t> out_order = {0, 1, 2, 3};
+    const bool is_causal = false;
+
+    auto build_model = [&]() {
+        auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 8, 256});
+        auto input_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8, 256});
+        auto input_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 8, 256});
+        auto k_5d_pat = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {1, 1, 1, 8, 256});
+        auto v_5d_pat = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {1, 1, 1, 8, 256});
+        auto k_5d = std::make_shared<ov::op::v1::Reshape>(input_k, k_5d_pat, false);
+        auto v_5d = std::make_shared<ov::op::v1::Reshape>(input_v, v_5d_pat, false);
+        auto concat_k = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{k_5d, k_5d, k_5d, k_5d}, 2);
+        auto concat_v = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{v_5d, v_5d, v_5d, v_5d}, 2);
+        auto k_4d_pat = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 4, 8, 256});
+        auto v_4d_pat = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 4, 8, 256});
+        auto k_4d = std::make_shared<ov::op::v1::Reshape>(concat_k, k_4d_pat, false);
+        auto v_4d = std::make_shared<ov::op::v1::Reshape>(concat_v, v_4d_pat, false);
+
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
+            ov::OutputVector{input_q, k_4d, v_4d}, is_causal, in0_order, in1_order, in2_order, out_order);
+        return std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, input_k, input_v});
+    };
+
+    {
+        model = build_model();
+        manager.register_pass<ExpandBroadcastReshapeSDPAFusion>();
+    }
+    {
+        model_ref = build_model();
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
+TEST_F(TransformationTestsF, ExpandBroadReshapeSDPAFusion12) {
+    // Dynamic-rank K/V sources: the rank guard must decline the Pattern B rewire
+    // (rank.is_static() == false), leaving the broadcast/concat expand chain in place.
+    std::vector<int64_t> in0_order = {0, 2, 1, 3};
+    std::vector<int64_t> in1_order = {0, 2, 1, 3};
+    std::vector<int64_t> in2_order = {0, 2, 1, 3};
+    std::vector<int64_t> out_order = {0, 1, 2, 3};
+    const bool is_causal = false;
+
+    auto build_model = [&]() {
+        auto input_q = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 8, 256});
+        auto input_k = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic());
+        auto input_v = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape::dynamic());
+        auto k_5d_pat = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {1, 1, 1, 8, 256});
+        auto v_5d_pat = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {1, 1, 1, 8, 256});
+        auto k_5d = std::make_shared<ov::op::v1::Reshape>(input_k, k_5d_pat, false);
+        auto v_5d = std::make_shared<ov::op::v1::Reshape>(input_v, v_5d_pat, false);
+        auto concat_k = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{k_5d, k_5d, k_5d, k_5d}, 2);
+        auto concat_v = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{v_5d, v_5d, v_5d, v_5d}, 2);
+        auto k_4d_pat = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 4, 8, 256});
+        auto v_4d_pat = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, 4, 8, 256});
+        auto k_4d = std::make_shared<ov::op::v1::Reshape>(concat_k, k_4d_pat, false);
+        auto v_4d = std::make_shared<ov::op::v1::Reshape>(concat_v, v_4d_pat, false);
+
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(
+            ov::OutputVector{input_q, k_4d, v_4d}, is_causal, in0_order, in1_order, in2_order, out_order);
+        return std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_q, input_k, input_v});
+    };
+
+    {
+        model = build_model();
+        manager.register_pass<ExpandBroadcastReshapeSDPAFusion>();
+    }
+    {
+        model_ref = build_model();
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov
