@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-08-06-41-39-000-34194664069",
+  "timestamp": "2026-09-08T06:41:39Z",
+  "run_id": "34194664069",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34194664069",
+  "workflow_name": "Build x64",
+  "pr_number": "37914",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37914",
+  "author": "praasz",
+  "category": "Code Issue",
+  "title": "GPU unit tests CMake glob removal missing two test source files",
+  "signature": "cmake error at add_target_helpers.cmake message exists on disk but is not listed in target sources and will not be compiled add it to the appropriate cmakelists txt or sources cmake|Code Issue",
+  "signature_hash": "424833cadb6f935d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build x64",
+      "conclusion": "failure",
+      "symptom": "CMake configure step fails: two GPU unit test source files exist on disk but are not listed in target sources"
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/add_target_helpers.cmake:635 (message):\n  [ov_gpu_unit_tests]\n  '/__w/openvino/openvino/openvino/src/plugins/intel_gpu/tests/unit/transformations/group_query_attention_decomposition_test.cpp'\n  exists on disk but is not listed in target sources and will not be\n  compiled.  Add it to the appropriate CMakeLists.txt or sources.cmake.",
+    "CMake Error at cmake/developer_package/add_target_helpers.cmake:635 (message):\n  [ov_gpu_unit_tests]\n  '/__w/openvino/openvino/openvino/src/plugins/intel_gpu/tests/unit/transformations/remove_fq_before_dw_conv_test.cpp'\n  exists on disk but is not listed in target sources and will not be\n  compiled.  Add it to the appropriate CMakeLists.txt or sources.cmake."
+  ],
+  "root_cause": "PR #37914 replaced a CMake glob-based file collection in src/plugins/intel_gpu/tests/unit with an explicit source list in sources.cmake/CMakeLists.txt. The new explicit list omits two existing test files (group_query_attention_decomposition_test.cpp and remove_fq_before_dw_conv_test.cpp), which the developer_package's _ov_check_all_sources_listed() consistency check (add_target_helpers.cmake:635) detects and fails CMake configure on, exactly the risk an explicit-list migration is prone to.",
+  "reproduction_steps": "cmake -S . -B build -DENABLE_TESTS=ON (with GPU plugin enabled) after checking out PR #37914's branch; configure fails with the two CMake Error messages above.",
+  "recommended_actions": [
+    "Add 'transformations/group_query_attention_decomposition_test.cpp' and 'transformations/remove_fq_before_dw_conv_test.cpp' to src/plugins/intel_gpu/tests/unit/sources.cmake (or CMakeLists.txt) in PR #37914",
+    "Re-run the _ov_check_all_sources_listed consistency check locally (cmake configure) before pushing to confirm no other files were missed"
+  ],
+  "prevention_strategies": "When migrating a CMakeLists.txt/sources.cmake away from file(GLOB ...) to an explicit list, diff the glob's output against the new explicit list (e.g., via `file(GLOB_RECURSE ...)` in a scratch script) to guarantee 1:1 parity before submitting the PR.",
+  "historical_context": "Identical failure previously recorded for this same PR #37914 in investigation 2026-09-08-05-13-38-000-34188369195.json (run 34188369195, ~1.5 hours earlier) \u2014 same two missing files, same signature. This is the second occurrence of the same unresolved code issue on the same PR."
+}

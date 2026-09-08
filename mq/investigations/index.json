@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 221,
+  "total": 222,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2171,6 +2171,17 @@
       "investigation_id": "2026-09-08-05-13-38-000-34188369195",
       "run_id": "34188369195",
       "timestamp": "2026-09-08T05:13:38Z",
+      "title": "GPU unit tests CMake glob removal missing two test source files",
+      "category": "Code Issue",
+      "signature_hash": "424833cadb6f935d",
+      "pr_number": "37914"
+    },
+    {
+      "investigation_id": "2026-09-08-06-41-39-000-34194664069",
+      "run_id": "34194664069",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34194664069",
+      "workflow_name": "Build x64",
+      "timestamp": "2026-09-08T06:41:39Z",
       "title": "GPU unit tests CMake glob removal missing two test source files",
       "category": "Code Issue",
       "signature_hash": "424833cadb6f935d",

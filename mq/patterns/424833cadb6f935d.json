@@ -4,11 +4,19 @@
   "signature_hash": "424833cadb6f935d",
   "title": "GPU unit tests CMake glob removal missing two test source files",
   "category": "Code Issue",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-09-08T05:13:38Z",
-  "last_seen": "2026-09-08T05:13:38Z",
-  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/34188369195"],
-  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37914"],
-  "recent_timestamps": ["2026-09-08T05:13:38Z"],
+  "last_seen": "2026-09-08T06:41:39Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34194664069",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34188369195"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37914"
+  ],
+  "recent_timestamps": [
+    "2026-09-08T06:41:39Z",
+    "2026-09-08T05:13:38Z"
+  ],
   "rerun_search_string": null
 }
