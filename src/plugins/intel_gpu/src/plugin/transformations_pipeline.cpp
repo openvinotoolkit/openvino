@@ -894,10 +894,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             if (use_xattention) {
                 // Throw exception if xattn is not supported by either GPU archieture or compiler.
-                if (!check_xattn_gpu_compatibility())
+                if (!check_xattn_gpu_compatibility()) {
                     OPENVINO_THROW("[GPU] XAttention is not supported by your current GPU architecture or IGC version. "
-                                "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
-                                "architecture and ensure the latest IGC is installed.");
+                                   "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
+                                   "architecture and ensure the latest IGC is installed.");
+                }
             }
 
             // KVCache layout with default attention -
