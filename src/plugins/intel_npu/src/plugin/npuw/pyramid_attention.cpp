@@ -269,6 +269,8 @@ static void patch_attention_sink_slice_end(const std::shared_ptr<ov::Model>& mod
         return;
     }
 
+    OPENVINO_ASSERT(end->get_element_type() == ov::element::i32 || end->get_element_type() == ov::element::i64,
+                    "Attention sink Slice end must use i32 or i64");
     if (end->get_element_type() == ov::element::i32) {
         sink_slice->input(2).replace_source_output(
             ov::op::v0::Constant::create(ov::element::i32, end->get_shape(), std::vector<int32_t>{-1}));

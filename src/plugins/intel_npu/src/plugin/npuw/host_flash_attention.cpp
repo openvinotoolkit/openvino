@@ -58,6 +58,18 @@ struct FlashAttentionResults {
     ov::Output<ov::Node> d;
 };
 
+static std::shared_ptr<ov::Node> skip_convert_nodes(const std::shared_ptr<ov::Node>& node) {
+    auto current = node;
+    while (current && ov::is_type<ov::op::v0::Convert>(current.get())) {
+        if (current->get_input_size() > 0) {
+            current = current->get_input_node_shared_ptr(0);
+        } else {
+            break;
+        }
+    }
+    return current;
+}
+
 // ============================================================================
 // Helper function: Create input parameters for HFA tile model
 // ============================================================================
@@ -137,10 +149,7 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
     set_param_name(inputs.mask_tile, HFATileInputId::MASK_TILE);
 
     if (attention_scale) {
-        auto scale_source = attention_scale;
-        while (ov::is_type<ov::op::v0::Convert>(scale_source)) {
-            scale_source = scale_source->get_input_node_shared_ptr(0);
-        }
+        const auto scale_source = skip_convert_nodes(attention_scale);
 
         if (auto scale_param = ov::as_type_ptr<ov::op::v0::Parameter>(scale_source)) {
             inputs.scale = std::make_shared<ov::op::v0::Parameter>(scale_param->get_output_element_type(0),
@@ -811,21 +820,6 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
 }
 
 // ============================================================================
-// Helper function: Extract actual Parameter by skipping Convert nodes
-// ============================================================================
-static std::shared_ptr<ov::Node> skip_convert_nodes(const std::shared_ptr<ov::Node>& node) {
-    auto current = node;
-    while (current && ov::is_type<ov::op::v0::Convert>(current.get())) {
-        if (current->get_input_size() > 0) {
-            current = current->get_input_node_shared_ptr(0);
-        } else {
-            break;
-        }
-    }
-    return current;
-}
-
-// ============================================================================
 // Helper function: Build SDPA parameter index mapping
 // ============================================================================
 static void build_sdpa_param_mapping(HostFlashAttention& hfa,
@@ -916,42 +910,6 @@ static void build_sdpa_param_mapping(HostFlashAttention& hfa,
     }
 
     LOG_DEBUG("=============================================");
-}
-
-bool HostFlashAttention::resolve_attention_parameters(const std::shared_ptr<ov::Model>& model) {
-    const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(model);
-    if (!pattern_nodes.is_valid()) {
-        LOG_WARN("Could not re-find SDPA pattern while resolving attention parameters");
-        return false;
-    }
-    auto resolve_parameter =
-        [&](const std::shared_ptr<ov::Node>& node, std::optional<std::size_t>& parameter_idx, const char* name) {
-            if (!node) {
-                parameter_idx.reset();
-                return true;
-            }
-            const auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(skip_convert_nodes(node));
-            if (!parameter) {
-                if (ov::is_type<ov::op::v0::Constant>(skip_convert_nodes(node))) {
-                    parameter_idx.reset();
-                    return true;
-                }
-                LOG_WARN("Attention " << name << " was not promoted to a function parameter");
-                return false;
-            }
-            parameter_idx = model->get_parameter_index(parameter);
-            LOG_DEBUG("Resolved attention " << name << " at parameter index " << *parameter_idx);
-            return true;
-        };
-
-    if (!resolve_parameter(pattern_nodes.attention_scale_node, _attention_scale_param_idx, "scale") ||
-        !resolve_parameter(pattern_nodes.attention_sink_node, _attention_sink_param_idx, "sink")) {
-        return false;
-    }
-    if (_tile_param_index_map.find(HFATileInputId::SCALE) == _tile_param_index_map.end()) {
-        _attention_scale_param_idx.reset();
-    }
-    return true;
 }
 
 // ============================================================================

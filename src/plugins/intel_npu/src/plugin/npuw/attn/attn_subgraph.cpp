@@ -344,30 +344,51 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
 
     const auto& tile_inputs = hfa->_compiled_tile_model->inputs();
     const auto& final_tile_inputs = hfa->_compiled_final_tile_model->inputs();
-    for (const auto& tile_input : tile_inputs) {
-        if (tile_input.get_names().empty()) {
+    const auto& regular_indices = hfa->_sdpa_attention_info._tile_input_indices;
+    const auto& final_indices = hfa->_sdpa_attention_info._final_tile_input_indices;
+
+    const auto get_tile_index = [](const auto& indices, HFATileInputId input_id) -> std::optional<std::size_t> {
+        switch (input_id) {
+        case HFATileInputId::PAST_ACC:
+            return indices.acc;
+        case HFATileInputId::PAST_MAX:
+            return indices.max;
+        case HFATileInputId::PAST_D:
+            return indices.d;
+        case HFATileInputId::Q:
+            return indices.q;
+        case HFATileInputId::SCALE:
+            return indices.scale;
+        default:
+            return std::nullopt;
+        }
+    };
+
+    constexpr std::array<HFATileInputId, 5> shareable_inputs = {HFATileInputId::Q,
+                                                                HFATileInputId::PAST_ACC,
+                                                                HFATileInputId::PAST_MAX,
+                                                                HFATileInputId::PAST_D,
+                                                                HFATileInputId::SCALE};
+    for (const auto input_id : shareable_inputs) {
+        const auto regular_index = get_tile_index(regular_indices, input_id);
+        const auto final_index = get_tile_index(final_indices, input_id);
+        if (!regular_index || !final_index) {
             continue;
         }
-        const auto final_tile_input =
-            std::find_if(final_tile_inputs.begin(), final_tile_inputs.end(), [&](const auto& input) {
-                return input.get_names().count(tile_input.get_any_name()) != 0;
-            });
-        if (final_tile_input == final_tile_inputs.end()) {
+        OPENVINO_ASSERT(*regular_index < tile_inputs.size() && *final_index < final_tile_inputs.size(),
+                        "HFA shared tile input index out of range");
+
+        const auto& tile_input = tile_inputs[*regular_index];
+        const auto& final_tile_input = final_tile_inputs[*final_index];
+        if (tile_input.get_element_type() != final_tile_input.get_element_type()) {
             continue;
         }
 
-        // Regular tile KV inputs (f16) differ from final tile KV inputs (f32).
-        // Skip sharing for mismatched dtypes — those ports will be set per-tile
-        // in process_tile at runtime.
-        if (tile_input.get_element_type() != final_tile_input->get_element_type()) {
-            continue;
-        }
-
-        auto main_tensor = state.base_request->get_tensor(*final_tile_input);
+        auto main_tensor = state.base_request->get_tensor(final_tile_input);
         state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->set_tensor(tile_input, main_tensor);
 
         if (is_piped) {
-            auto pipeline_tensor = state.base_pipeline_request->get_tensor(*final_tile_input);
+            auto pipeline_tensor = state.base_pipeline_request->get_tensor(final_tile_input);
             state.hfa_requests.pipeline_requests[HFARequestSet::REGULAR_TILE]->set_tensor(tile_input, pipeline_tensor);
         }
     }

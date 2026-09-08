@@ -150,8 +150,6 @@ struct HostFlashAttention {
                                                   bool fused_flash_attention = true,
                                                   bool enable_mask_skipping = false);
 
-    // Resolve attention scale and sink after function construction promotes Const inputs to closure Parameters.
-    bool resolve_attention_parameters(const std::shared_ptr<ov::Model>& model);
 };
 
 }  // namespace function

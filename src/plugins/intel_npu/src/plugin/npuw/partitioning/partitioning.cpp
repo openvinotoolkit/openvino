@@ -1850,23 +1850,6 @@ void Partitioner::createFunction(FunctionPipeline& func_ggg) {
     funcall._is_lazy_unpack.resize(funcall._lazy_closure.size(), false);
     function._num_params_total = new_param_idx;
     function._model->validate_nodes_and_infer_types();
-    if (function._host_flash_attention &&
-        !function._host_flash_attention->resolve_attention_parameters(function._model)) {
-        LOG_WARN("HFA attention parameters could not be resolved after closure parameterization");
-        function._host_flash_attention.reset();
-    }
-    if (function._pyramid_attention) {
-        const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(function._model);
-        if (pattern_nodes.attention_sink_node) {
-            auto refreshed_pyramid = ov::npuw::function::PyramidAttention::from(function._model);
-            if (!refreshed_pyramid) {
-                LOG_WARN("Pyramid attention sink variants could not be rebuilt after closure parameterization");
-                function._pyramid_attention.reset();
-            } else {
-                function._pyramid_attention = std::move(refreshed_pyramid);
-            }
-        }
-    }
     P.functions.insert({func_name, std::move(function)});
 
     // Write down the funcall to the list of subgraphs
@@ -2872,6 +2855,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTinyConstants(func_group);
                 p.saveScaleFactors(func_group);
                 p.createFunction(func_group);
+                p.attention(func_group);
                 p.decompressionCutOff(func_group);
             }
         };
