@@ -67,6 +67,13 @@ static void CreateMatMulOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::
         if (shapes[0].size() < 2 || shapes[1].size() < 2)
             return false;
 
+        // oneDNN matmul applies transpose_a/transpose_b by swapping the operand strides
+        // (see get_gemm_primitive_descriptor in impls/onednn/gemm_onednn.cpp), so a materialized
+        // permute is pure data movement. The heuristics below target the OCL gemm_tiled_opt
+        // kernel, which is not selected when oneDNN is available.
+        if (p.get_engine().get_device_info().supports_immad && type != ov::element::f32)
+            return false;
+
         // don't transpose inputs if they're aligned to 16
         bool inputsAligned = std::all_of(shapes[0].rbegin(), shapes[0].rbegin() + 2,
                                             [] (const ov::Dimension& dim) { return dim.is_static() && dim.get_length() % 16 == 0; }) &&
