@@ -23,6 +23,7 @@
 #include "openvino/pass/manager.hpp"
 
 #include <transformations/utils/utils.hpp>
+#include "openvino/pass/constant_folding.hpp"
 #include "plugin/transformations/fc_horizontal_fusion.hpp"
 #include "intel_gpu/op/placeholder.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
@@ -526,6 +527,73 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_transpose_b_false) {
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result1, result2, result3}, ov::ParameterVector{input});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
+}
+
+// Reproduces the ov::reference::concat heap-buffer overflow / data corruption for u3-compressed
+// FC weights (CVS-...): FullyConnectedHorizontalFusion builds a Concat over the u3 weights of the
+// fused FCs, and the ConstantFolding pass immediately after it evaluates that Concat. Before the
+// fix, reference::concat only special-cased sub-byte size conversion for u4/i4, so the u3 weight
+// bytes ended up corrupted/overflowing rather than being a clean byte-level concatenation.
+// K=8 keeps every input's packed weight buffer byte-aligned (8 elems * 3 bits == 3 bytes) for any
+// N, matching the layout real u3-compressed FC weights (K a multiple of 8) produce in practice.
+TEST(FullyConnectedHorizontalFusionU3Test, weight_concat_fold_preserves_byte_packed_data) {
+    const ov::Shape weight1_shape{2, 8};
+    const ov::Shape weight2_shape{3, 8};
+    const ov::Shape weight3_shape{1, 8};
+    const std::vector<uint8_t> weight1_bytes{0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+    const std::vector<uint8_t> weight2_bytes{0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
+    const std::vector<uint8_t> weight3_bytes{0x01, 0x02, 0x03};
+
+    auto make_weight = [](const ov::Shape& shape, const std::vector<uint8_t>& bytes) {
+        return std::make_shared<ov::op::v0::Constant>(ov::element::u3, shape, bytes.data());
+    };
+    auto make_scale = [](size_t n) {
+        return std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{n, 1});
+    };
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 8});
+    auto weight1 = make_weight(weight1_shape, weight1_bytes);
+    auto weight2 = make_weight(weight2_shape, weight2_bytes);
+    auto weight3 = make_weight(weight3_shape, weight3_bytes);
+    auto fc1 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                             weight1,
+                                                                             std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                             make_scale(2));
+    auto fc2 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                             weight2,
+                                                                             std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                             make_scale(3));
+    auto fc3 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                             weight3,
+                                                                             std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                             make_scale(1));
+    auto result1 = std::make_shared<ov::op::v0::Result>(fc1);
+    auto result2 = std::make_shared<ov::op::v0::Result>(fc2);
+    auto result3 = std::make_shared<ov::op::v0::Result>(fc3);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2, result3}, ov::ParameterVector{input});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
+    manager.register_pass<ov::pass::ConstantFolding>();
+    manager.run_passes(model);
+
+    std::shared_ptr<ov::op::v0::Constant> fused_weight;
+    for (const auto& op : model->get_ordered_ops()) {
+        auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
+        if (constant && constant->get_element_type() == ov::element::u3) {
+            ASSERT_EQ(fused_weight, nullptr) << "expected exactly one folded u3 weight constant";
+            fused_weight = constant;
+        }
+    }
+    ASSERT_NE(fused_weight, nullptr) << "horizontal fusion + constant folding did not produce a u3 weight constant";
+    EXPECT_EQ(fused_weight->get_shape(), (ov::Shape{6, 8}));
+
+    std::vector<uint8_t> expected_bytes = weight1_bytes;
+    expected_bytes.insert(expected_bytes.end(), weight2_bytes.begin(), weight2_bytes.end());
+    expected_bytes.insert(expected_bytes.end(), weight3_bytes.begin(), weight3_bytes.end());
+    const auto* actual_data = static_cast<const uint8_t*>(fused_weight->get_data_ptr());
+    const std::vector<uint8_t> actual_bytes(actual_data, actual_data + fused_weight->get_byte_size());
+    EXPECT_EQ(expected_bytes, actual_bytes);
 }
 
 }  // namespace intel_gpu
