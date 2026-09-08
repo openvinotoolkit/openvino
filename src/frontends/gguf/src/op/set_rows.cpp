@@ -55,7 +55,7 @@ OutputVector translate_set_rows(const NodeContext& context) {
         true);
 
     auto set_rows = std::make_shared<SetRows>(data_reshaped, ind_squeezed, dst);
-    return rename_outputs_with_suffix({set_rows}, context.get_name());
+    return rename_outputs_with_suffix({std::move(set_rows)}, context.get_name());
 }
 
 }  // namespace op
