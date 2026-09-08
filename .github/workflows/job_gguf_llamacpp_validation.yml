@@ -101,7 +101,7 @@ jobs:
           mode: zero-stats
 
       - name: Build llama.cpp
-        run: cmake --build llama.cpp/build --parallel 16
+        run: cmake --build llama.cpp/build --parallel 15
 
       - name: Compile cache statistics (llama.cpp build)
         if: ${{ inputs.enable-compile-cache }}
