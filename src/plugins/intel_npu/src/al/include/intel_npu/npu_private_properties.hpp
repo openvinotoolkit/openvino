@@ -456,6 +456,18 @@ static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 /**
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
+ * Allows importing blobs that declare a host-executable payload (LLVM IR or bytecode, produced by the "HostCompile"
+ * compilation modes). Such a payload is not parsed by the NPU driver: it is handed to the host VM runtime, which
+ * compiles it for the host CPU and runs it inside the calling process, at import time and before any inference.
+ * @note The payload format is declared by the blob itself, in metadata that carries no integrity or origin
+ * information. Importing a blob that declares a host-executable payload is therefore equivalent to loading a shared
+ * library: keep this option disabled unless the application trusts the origin of every blob it imports.
+ */
+static constexpr ov::Property<bool> allow_dynamic_blob_import{"NPU_ALLOW_DYNAMIC_BLOB_IMPORT"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is false.
  * This option allows to enable/disable the usage of a shared common queue for all compiled models. If set to false,
  * each compiled model will have its own common queue. This option is added for enabling the isolation of compiled
  * models from each other, which can be required for some use cases.

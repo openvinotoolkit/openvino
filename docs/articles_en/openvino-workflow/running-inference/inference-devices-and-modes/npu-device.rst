@@ -375,6 +375,12 @@ or
 
    compiled_model.export_model(custom_encrypted_blob_stream);
 
+**ov::intel_npu::allow_dynamic_blob_import**
+
+Type: boolean, ``false`` by default. Allows importing blobs that declare a host-executable payload
+(LLVM IR or bytecode, produced by the ``HostCompile`` compilation modes). See
+:ref:`importing a blob executes code <npu-blob-import-security>` below.
+
 **ov::runtime_requirements**
 
 This property returns a plugin-specific requirements string from a compiled model.
@@ -411,6 +417,33 @@ Limitations
 Offline compilation and blob import is supported only for development purposes.
 Pre-compiled models (blobs) are not recommended to be used in production.
 Blob compatibility across different OpenVINO versions is not guaranteed.
+
+.. _npu-blob-import-security:
+
+Importing a blob executes code
+###############################
+
+``ov::Core::import_model`` is documented as importing a compiled model. On NPU, a blob declares its own
+payload format in its metadata, and one of the supported formats is host-executable code (LLVM IR or
+bytecode produced by the ``HostCompile`` compilation modes). Such a payload is not handed to the NPU
+driver: it is compiled for the host CPU and executed inside the calling process, at import time and
+before any inference is run.
+
+**Importing a blob is therefore equivalent to loading a shared library.** The format is declared by the
+blob itself, in metadata that carries no integrity or origin information, so an attacker who can supply
+the blob controls which path is taken. This applies to every way a blob reaches the plugin, including the
+``ov::cache_dir`` hit path, where the blob is read from disk without any user-visible import call.
+
+One property bounds this exposure:
+
+* ``ov::intel_npu::allow_dynamic_blob_import`` — ``false`` by default. While it is disabled, a blob that
+  declares a host-executable payload is rejected, and an application that only ever produces and consumes
+  ELF device blobs cannot be re-routed into the host compiler by a modified blob. Enable it only if the
+  application deliberately uses the ``HostCompile`` modes and trusts the origin of every blob it imports.
+
+The property bounds which execution path a blob may select; it does not authenticate the blob. Importing
+a blob from outside the application's trust boundary is unsafe regardless of the format it declares, so
+treat blob provenance the same way you would treat the provenance of a shared library you load.
 
 Additional Resources
 #############################

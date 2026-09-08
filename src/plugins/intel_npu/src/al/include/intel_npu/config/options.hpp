@@ -1291,6 +1291,20 @@ struct IMPORT_RAW_BLOB final : OptionBase<IMPORT_RAW_BLOB, bool> {
     }
 };
 
+struct ALLOW_DYNAMIC_BLOB_IMPORT final : OptionBase<ALLOW_DYNAMIC_BLOB_IMPORT, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::allow_dynamic_blob_import.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTINGS, std::string> {
     static std::string_view key() {
         return ov::intel_npu::batch_compiler_mode_settings.name();
