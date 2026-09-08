@@ -5,10 +5,9 @@ logit vectors (`logits`, float32). `gen_arch_accuracy.py` creates the weights;
 `architecture_oracle.cpp` evaluates them with the real llama.cpp CPU backend.
 OpenVINO does not participate in reference generation.
 
-Reference revisions:
-
-- ggml-org/llama.cpp `476c01efe88aad7880a8132d5d3a415f2ca75139`: all except Muse Glimmer.
-- mvafin/llama.cpp `3d677aadec0487430ad59bd3d4a9fc7211721f0f`: Muse Glimmer support.
+All 23 fixtures, including Muse Glimmer, reproduce byte-for-byte with upstream
+[ggml-org/llama.cpp `03fa73cb27f5c251b9528489b18d303b1366aca4`](https://github.com/ggml-org/llama.cpp/commit/03fa73cb27f5c251b9528489b18d303b1366aca4)
+(2026-09-08). Muse Glimmer support is included upstream; no fork is needed.
 
 The cases use distinct nonzero weights and nonuniform norm scales, four query heads,
 grouped-query attention (single KV head for Gemma), and token batches `[1,2,3]`, `[4]`,
@@ -27,7 +26,9 @@ F16 KV state and dynamic activation quantization disabled. It checks every logit
 normalized MSE below `1e-5`. Missing references fail the test. These fixtures run in the
 regular frontend suite, including offline CI; llama.cpp is only needed to regenerate them.
 
-To regenerate, check out the revision above and build it with `GGML_OPENVINO=OFF`:
+To regenerate all fixtures, check out the revision above and build it with
+`GGML_OPENVINO=OFF`. Run from `src/frontends/gguf/tests`, with `LLAMA_SRC` and
+`LLAMA_BUILD` pointing to that checkout and its build directory:
 
 ```sh
 c++ -std=c++17 architecture_oracle.cpp \
@@ -35,10 +36,7 @@ c++ -std=c++17 architecture_oracle.cpp \
     -L "$LLAMA_BUILD/bin" -Wl,-rpath,"$LLAMA_BUILD/bin" \
     -lllama -lggml -lggml-base -o architecture_oracle
 PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_arch_accuracy.py \
-    --oracle ./architecture_oracle --architectures llama qwen2 qwen3 phi3 minicpm olmoe \
-    hunyuan-dense hunyuan-moe qwen3moe gemma gemma2 exaone4 ernie4_5-moe bailingmoe2 \
-    maincoder mistral3 smollm3 mellum deepseek2-ocr devstral-small devstral-small2 devstral2
-# Use the Muse-capable revision for --architectures muse-glimmer.
+    --oracle ./architecture_oracle
 ```
 
 For an additional real-checkpoint check, create `<arch>.gguf` in a separate directory,
