@@ -25,8 +25,9 @@ namespace cldnn {
         }
 
         bool operator==(const WeightsReorderParams& rhs) const {
-            if (typeid(*this) != typeid(rhs))
+            if (typeid(*this) != typeid(rhs)) {
                 return false;
+            }
 
             return _in_layout == rhs._in_layout &&
                    _out_layout == rhs._out_layout &&
