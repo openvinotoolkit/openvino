@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -11,13 +12,76 @@
 #include "backends_registry.hpp"
 #include "blob_source.hpp"
 #include "compiler_option_support_helper.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/core/layout.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "plugin_property_manager.hpp"
 
 namespace intel_npu {
+
+inline void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model,
+                                          FilteredConfig& config,
+                                          const Logger& logger) {
+    if (model == nullptr || config.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::PLUGIN ||
+        config.has<COMPILATION_MODE>() || config.get<DYNAMIC_SHAPE_TO_STATIC>()) {
+        return;
+    }
+
+    // HostCompile allocates dynamic buffers from I/O upper bounds, so every dynamic dimension must be bounded.
+    const auto hasFiniteUpperBounds = [](const auto& port) {
+        const auto& shape = port.get_partial_shape();
+        const auto rank = shape.rank();
+        return rank.is_static() && std::all_of(shape.begin(), shape.end(), [](const ov::Dimension& dimension) {
+                   return dimension.get_interval().has_upper_bound();
+               });
+    };
+
+    // Detect a bounded dynamic 4D I/O port that makes the model a HostCompile candidate.
+    const auto isDynamicHostCompilePort = [&hasFiniteUpperBounds](const auto& port) {
+        const auto& shape = port.get_partial_shape();
+        const auto rank = shape.rank();
+
+        if (!(shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && hasFiniteUpperBounds(port))) {
+            return false;
+        }
+
+        // Assume N,C,H,W order for each spatial dimension absent from the layout. Explicit layout dimensions (e.g.
+        // set by compile_tool's -il/-iol/-iml/-ioml options or model preprocessing) take precedence.
+        const auto layout = ov::layout::get_layout(port);
+        const int64_t heightIdx = ov::layout::has_height(layout) ? ov::layout::height_idx(layout) : 2;
+        const int64_t widthIdx = ov::layout::has_width(layout) ? ov::layout::width_idx(layout) : 3;
+
+        // Only height (H) and width (W) determine candidacy; channel (C) and batch (N) do not. Considering N/H/W,
+        // accepted dynamic patterns are H, W, HW, NH, NW and NHW, while N alone is rejected.
+        // Note: When the batch size is greater than 1, using "compiler batch + host compiler interpreter" may cause
+        // ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv to fail on certain models (e.g., maxpool models)
+        // because their internal reshape operations do not support dynamic batch shapes. Alternatively, when the
+        // batch size is greater than 1, combining "plugin batch + host compiler interpreter" may work but result in an
+        // inference output shape that does not match the input shape on certain models (e.g., maxpool models).
+        return shape[heightIdx].is_dynamic() || shape[widthIdx].is_dynamic();
+    };
+
+    const auto& modelInputs = model->inputs();
+    const auto& modelOutputs = model->outputs();
+    const bool inputsDynamic = std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort);
+    const bool outputsDynamic = std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
+
+    // Candidate detection above uses any_of; validate every I/O separately because one unrelated unbounded port
+    // still prevents HostCompile from allocating all dynamic buffers.
+    const bool allPortsHaveFiniteUpperBounds =
+        std::all_of(modelInputs.begin(), modelInputs.end(), hasFiniteUpperBounds) &&
+        std::all_of(modelOutputs.begin(), modelOutputs.end(), hasFiniteUpperBounds);
+
+    if (inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds) {
+        logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' for a bounded dynamic 4D "
+                    "model with dynamic spatial input and output dimensions");
+        config.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
+    }
+}
 
 class Plugin : public ov::IPlugin {
 public:
