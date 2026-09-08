@@ -438,6 +438,10 @@ protected:
     void SetUp() override {
         // 31 Concats + the other branch's Add exhaust the budget before MatMul is visited.
         set_up_model(true, 31, ov::element::f16);
+        // When the budget is exhausted, MatMul executes in FP16 without quantization.
+        // Summing 47 FP16 products accumulates minor ULP differences (~0.26% / 4 ULPs)
+        // between CPU reference (accumulated in FP32) and discrete GPU (accumulated in FP16).
+        rel_threshold = 0.01;
     }
 };
 
