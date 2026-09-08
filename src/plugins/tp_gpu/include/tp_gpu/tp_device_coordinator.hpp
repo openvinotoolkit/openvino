@@ -519,6 +519,29 @@ private:
                     ov::element::Type dtype,
                     ze_command_list_handle_t model_queue);
 
+    /// Records the recursive halving/doubling exchange for one rank.
+    ///
+    /// Only for world sizes that are a power of two.  Where the ring needs
+    /// 2*(N-1) equal-sized steps, this needs 2*log2(N) steps of halving size:
+    /// S/2, S/4 ... and back.  The link traffic is identical -- 1.5*S per
+    /// rank, the optimum -- so what it buys is fewer commands and fewer
+    /// round trips, which is what a decode collective is actually made of.
+    ///
+    /// Every step still talks to exactly one partner (r XOR (1<<d)), which is
+    /// the property that matters: schemes needing all ranks to meet at once
+    /// pay the arrival skew twice over and lose to the ring despite issuing
+    /// fewer commands.
+    void record_halving_rank(Plan& plan, int rank);
+
+    /// The element range this rank owns after `level` halvings of the payload.
+    void halving_range(std::size_t n, int rank, int level,
+                       std::size_t& lo, std::size_t& hi) const;
+
+    /// Where the partner of step `step` deposits its half on this rank.  One
+    /// region per step, because a partner may deliver step j+1 while this
+    /// rank's kernel is still reading what arrived at step j.
+    void* halving_stage(int rank, int step, int buffer) const;
+
     /// Records the direct two-rank exchange for one rank: push our input into
     /// the peer's staging, then reduce our input with what the peer pushed
     /// into ours.
