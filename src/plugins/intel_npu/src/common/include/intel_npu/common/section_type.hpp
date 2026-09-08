@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <cstdint>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -17,7 +16,7 @@ namespace intel_npu {
  * @brief TODO
  * @note The size needs to be fixed (2 bytes) since this value is written inside the blob manifest
  */
-enum class ValidSectionTypeCode : uint16_t {
+enum class SectionTypeCode : uint16_t {
     UNKNOWN = 100,
     RUNTIME_REQUIREMENTS = 101,
     MANIFEST = 102,
@@ -32,29 +31,29 @@ enum class ValidSectionTypeCode : uint16_t {
 
 // TODO do we need this?
 static inline const std::unordered_set<SectionType> ALL_VALID_SECTION_TYPE_CODES{
-    ValidSectionTypeCode::RUNTIME_REQUIREMENTS,
-    ValidSectionTypeCode::MANIFEST,
-    ValidSectionTypeCode::ELF_MAIN_SCHEDULE,
-    ValidSectionTypeCode::ELF_INIT_SCHEDULES,
-    ValidSectionTypeCode::DYNAMIC_SCHEDULE,
-    ValidSectionTypeCode::IO_LAYOUTS,
-    ValidSectionTypeCode::BATCH_SIZE,
-    ValidSectionTypeCode::ENCRYPTED_SCHEDULES_FLAG,
-    ValidSectionTypeCode::COMPILER_VERSION};
+    SectionTypeCode::RUNTIME_REQUIREMENTS,
+    SectionTypeCode::MANIFEST,
+    SectionTypeCode::ELF_MAIN_SCHEDULE,
+    SectionTypeCode::ELF_INIT_SCHEDULES,
+    SectionTypeCode::DYNAMIC_SCHEDULE,
+    SectionTypeCode::IO_LAYOUTS,
+    SectionTypeCode::BATCH_SIZE,
+    SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG,
+    SectionTypeCode::COMPILER_VERSION};
 
 /**
  * @brief Identifies the type of the section, along with its corresponding read & write handlers.
  */
 class SectionType final : public CREToken {
 public:
-    SectionType(const ValidSectionTypeCode section_type_code);
+    SectionType(const SectionTypeCode section_type_code);
 
-    ValidSectionTypeCode get_code() const;
+    SectionTypeCode get_code() const;
 
     bool operator==(const SectionType& other) const;
 
 private:
-    ValidSectionTypeCode m_code;
+    SectionTypeCode m_code;
 };
 
 std::ostream& operator<<(std::ostream& os, const SectionType& type);
@@ -65,4 +64,13 @@ std::string section_type_to_string(const SectionType type);
 
 SectionType section_type_from_string(std::string_view type);
 
+bool is_section_type(const std::shared_ptr<CREToken>& token);
+
 }  // namespace intel_npu
+
+template <>
+struct std::hash<intel_npu::SectionType> {
+    std::size_t operator()(const intel_npu::SectionType& type) const noexcept {
+        return std::hash<uint16_t>()(static_cast<uint16_t>(type.get_code()));
+    }
+};

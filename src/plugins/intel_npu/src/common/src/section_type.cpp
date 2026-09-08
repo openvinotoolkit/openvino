@@ -101,4 +101,8 @@ std::istream& operator>>(std::istream& is, SectionType& type) {
     return is;
 }
 
+bool is_section_type(const std::shared_ptr<CREToken>& token) {
+    return std::dynamic_pointer_cast<SectionType>(token) != nullptr;
+}
+
 }  // namespace intel_npu

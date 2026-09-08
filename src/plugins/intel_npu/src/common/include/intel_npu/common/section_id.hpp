@@ -37,8 +37,17 @@ std::string section_id_to_string(const SectionID id);
 
 SectionID section_id_from_string(std::string_view id);
 
+bool is_section_id(const std::shared_ptr<CREToken>& token);
+
 // TODO discard this, rely on type instead and populate the proper ID within the reader later
 const SectionID MANIFEST_SECTION_ID(0);
 const SectionID RUNTIME_REQUIREMENTS_SECTION_ID(1);
 
 }  // namespace intel_npu
+
+template <>
+struct std::hash<intel_npu::SectionID> {
+    std::size_t operator()(const intel_npu::SectionID& type) const noexcept {
+        return std::hash<uint16_t>()(static_cast<uint16_t>(type.get_code()));
+    }
+};

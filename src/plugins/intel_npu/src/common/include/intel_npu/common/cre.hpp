@@ -84,14 +84,27 @@ public:
 
     // TODO reconsider these
     // Some "globals" for convenience
-    static inline const auto AND = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND);
-    static inline const auto OR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR);
-    static inline const auto NOT = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::NOT);
-    static inline const auto OPEN = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OPEN);
-    static inline const auto CLOSE = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::CLOSE);
+    static inline const auto AND_PTR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND);
+    static inline const auto OR_PTR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OR);
+    static inline const auto NOT_PTR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::NOT);
+    static inline const auto OPEN_PTR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::OPEN);
+    static inline const auto CLOSE_PTR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::CLOSE);
+
+    static inline const CRESpecialToken AND = *AND_PTR;
+    static inline const CRESpecialToken OR = *OR_PTR;
+    static inline const CRESpecialToken NOT = *NOT_PTR;
+    static inline const CRESpecialToken OPEN = *OPEN_PTR;
+    static inline const CRESpecialToken CLOSE = *CLOSE_PTR;
 
 private:
     enum class Delimiter { PARRENTHESIS, SIZE };
+
+    /**
+     * @brief Checks if the given expression forms a valid CRE.
+     * @details The easiest way to verify this is to check if the expression can be evaluated successfully, regardless
+     * of result. This is what this function does.
+     */
+    bool is_expression_valid(const std::vector<std::shared_ptr<CREToken>>& expression) const;
 
     bool subexpression_already_registered(const std::vector<std::shared_ptr<CREToken>>& subexpression) const;
 
@@ -125,7 +138,8 @@ private:
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
         const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators,
         const Delimiter end_delimiter,
-        const bool skip_all_evaluations = false) const;
+        const bool skip_all_evaluations = false,
+        const bool force_all_evaluations = false) const;
 
     std::vector<std::vector<std::shared_ptr<CREToken>>> m_subexpressions;
 

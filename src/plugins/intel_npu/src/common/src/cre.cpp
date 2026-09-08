@@ -13,10 +13,7 @@ namespace {
 
 using namespace intel_npu;
 
-const std::unordered_set<CREToken> BINARY_OPERATORS{CRE::AND, CRE::OR};
-const std::unordered_set<CREToken> OPERATORS{CRE::AND, CRE::OR, CRE::NOT};
-
-constexpr char OPERAND_AND_RESERVED_TOKEN_SEPARATOR = '.';
+constexpr char OPERAND_AND_SPECIAL_TOKEN_SEPARATOR = '.';
 constexpr char SECTION_TYPE_AND_INSTANCE_SEPARATOR = '_';
 
 constexpr std::string_view AND_TOKEN_NAME = "AND";
@@ -26,6 +23,23 @@ constexpr std::string_view OPEN_TOKEN_NAME = "OPEN";
 constexpr std::string_view CLOSE_TOKEN_NAME = "CLOSE";
 
 constexpr std::string_view UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE = "Unsupported \"ov::CompatibilityCheck\" value";
+
+bool is_binary_operator(const std::shared_ptr<CREToken>& token) {
+    const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(token);
+    return special_token == nullptr ? false : (*special_token == CRE::AND || *special_token == CRE::OR);
+}
+
+bool is_operator(const std::shared_ptr<CREToken>& token) {
+    const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(token);
+    return special_token == nullptr
+               ? false
+               : (*special_token == CRE::AND || *special_token == CRE::OR || *special_token == CRE::NOT);
+}
+
+bool is_close_special_token(const std::shared_ptr<CREToken>& candidate) {
+    const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(candidate);
+    return special_token != nullptr && *special_token == CRE::CLOSE;
+}
 
 /**
  * @brief Logical AND function between two "compatibility check" data types
@@ -182,11 +196,8 @@ ov::CompatibilityCheck bool_to_compatibility_check(const bool a) {
     return a ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
 }
 
-std::string reserved_token_to_string(const std::shared_ptr<CREToken> token) {
-    const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(token);
-    OPENVINO_ASSERT(special_token);
-
-    switch (special_token->get_code()) {
+std::string cre_special_token_to_string(const CRESpecialToken token) {
+    switch (token.get_code()) {
     case CRESpecialTokenCode::AND: {
         return AND_TOKEN_NAME.data();
     }
@@ -203,14 +214,14 @@ std::string reserved_token_to_string(const std::shared_ptr<CREToken> token) {
         return NOT_TOKEN_NAME.data();
     }
     default: {
-        OPENVINO_THROW("The given token is not a special one");
+        OPENVINO_THROW("Unknown CRE special token");
     }
     }
 }
 
-std::shared_ptr<CREToken> reserved_token_from_string(std::string_view token) {
+std::shared_ptr<CREToken> cre_special_token_from_string(std::string_view token) {
     if (token == AND_TOKEN_NAME) {
-        return CRE::AND;
+        return CRE::AND_PTR;
     }
     if (token == OR_TOKEN_NAME) {
         return CRE::OR;
@@ -274,8 +285,8 @@ bool CRE::subexpression_already_registered(const std::vector<std::shared_ptr<CRE
 }
 
 void CRE::append_to_expression(const std::shared_ptr<CREToken> requirement_token) {
-    OPENVINO_ASSERT(!RESERVED_TOKENS.count(requirement_token),
-                    "Appending subexpressions should be done through the \"vector\" API");
+    // TODO use InvalidCRE?
+    OPENVINO_ASSERT(is_section_type(requirement_token), "Invalid subexpression");
 
     const std::vector<std::shared_ptr<CREToken>> subexpression{requirement_token};
     if (subexpression_already_registered(subexpression)) {
@@ -293,23 +304,15 @@ void CRE::append_to_expression(const std::vector<std::shared_ptr<CREToken>>& sub
         return;
     }
 
-    OPENVINO_ASSERT(!BINARY_OPERATORS.count(subexpression.at(0)), "Subexpressions cannot start with a binary operator");
-    const std::shared_ptr<CREToken> last_token = subexpression.at(subexpression_size - 1);
-    OPENVINO_ASSERT(!OPERATORS.count(last_token) && last_token != OPEN,
-                    "The last token within a subexpression cannot be an operator nor open parrenthesis");
-
-    const bool subexpression_enclosed = subexpression.at(0) == CRE::OPEN && last_token == CRE::CLOSE;
-    std::vector<std::shared_ptr<CREToken>> maybe_enclosed_subexpression;
-
-    // At least three tokens are required for a binary operator and its operands. In this case, parrenthesis are
-    // required to ensure the correct operator precedence
-    if (subexpression_size > 2 && !subexpression_enclosed) {
-        maybe_enclosed_subexpression.push_back(CRE::OPEN);
+    // Add brackets to ensure the correct order of evaluation. Required only if the current subexpression is not the
+    // first one
+    std::vector<std::shared_ptr<CREToken>> enclosed_subexpression;
+    if (!m_subexpressions.empty()) {
+        enclosed_subexpression.push_back(CRE::OPEN_PTR);
     }
-    maybe_enclosed_subexpression.insert(maybe_enclosed_subexpression.end(), subexpression.begin(), subexpression.end());
-
-    if (subexpression_size > 2 && !subexpression_enclosed) {
-        maybe_enclosed_subexpression.push_back(CRE::CLOSE);
+    enclosed_subexpression.insert(enclosed_subexpression.end(), subexpression.begin(), subexpression.end());
+    if (!m_subexpressions.empty()) {
+        enclosed_subexpression.push_back(CRE::CLOSE_PTR);
     }
 
     if (subexpression_already_registered(subexpression)) {
@@ -317,8 +320,8 @@ void CRE::append_to_expression(const std::vector<std::shared_ptr<CREToken>>& sub
         return;
     }
 
-    m_subexpressions.push_back(maybe_enclosed_subexpression);
-    m_logger.trace("Appended subexpression");
+    m_subexpressions.push_back(enclosed_subexpression);
+    m_logger.trace("Appended a subexpression");
 }
 
 size_t CRE::get_expression_length() const {
@@ -346,7 +349,7 @@ std::vector<std::shared_ptr<CREToken>> CRE::get_expression() const {
     for (const std::vector<std::shared_ptr<CREToken>>& subexpression : m_subexpressions) {
         if (index++ != 0) {
             // All subexpressions at depth level 0 are stitched together using ANDs by convention
-            expression.push_back(CRE::AND);
+            expression.push_back(CRE::AND_PTR);
         }
         expression.insert(expression.end(), subexpression.begin(), subexpression.end());
     }
@@ -356,6 +359,24 @@ std::vector<std::shared_ptr<CREToken>> CRE::get_expression() const {
 
 bool CRE::empty() const {
     return m_subexpressions.empty();
+}
+
+bool CRE::is_expression_valid(const std::vector<std::shared_ptr<CREToken>>& expression) const {
+    if (expression.empty()) {
+        return true;
+    }
+
+    try {
+        std::vector<std::shared_ptr<CREToken>>::const_iterator expression_iterator = expression.begin();
+        const std::vector<std::shared_ptr<CREToken>>::const_iterator expression_end = expression.end();
+
+        // Force all evaluations to thorougly check the expression
+        evaluate(expression_iterator, expression_end, {}, {}, Delimiter::SIZE, false, true);
+        CRE_EVAL_ASSERT(expression_iterator == expression.end());
+        return true;
+    } catch (const InvalidCRE&) {
+        return false;
+    }
 }
 
 void CRE::advance_iterator(std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
@@ -368,8 +389,9 @@ bool CRE::end_condition(const std::vector<std::shared_ptr<CREToken>>::const_iter
                         const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end,
                         const Delimiter end_delimiter) const {
     switch (end_delimiter) {
-    case Delimiter::PARRENTHESIS:
-        return *expression_iterator == CLOSE;
+    case Delimiter::PARRENTHESIS: {
+        return is_close_special_token(*expression_iterator);
+    }
     case Delimiter::SIZE:
         return expression_iterator == expression_end;
     default:
@@ -384,7 +406,8 @@ ov::CompatibilityCheck CRE::evaluate(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
     const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators,
     const Delimiter end_delimiter,
-    const bool skip_all_evaluations) const {
+    const bool skip_all_evaluations,
+    const bool force_all_evaluations) const {
     std::function<ov::CompatibilityCheck(ov::CompatibilityCheck, ov::CompatibilityCheck)> logical_function =
         first_operand_function;
     ov::CompatibilityCheck result(ov::CompatibilityCheck::SUPPORTED);
@@ -395,17 +418,68 @@ ov::CompatibilityCheck CRE::evaluate(
     ov::CompatibilityCheck subexpression_result;
 
     while (!end_condition(expression_iterator, expression_end, end_delimiter)) {
-        CRE_EVAL_ASSERT(*expression_iterator != CLOSE, "Found a closed parrenthesis without any matching open token");
+        CRE_EVAL_ASSERT(!is_section_id(*expression_iterator), "Unexpected section ID token");
+        CRE_EVAL_ASSERT(!is_close_special_token(*expression_iterator),
+                        "Found a closed parrenthesis without any matching open token");
+
         at_least_one_iteration = true;
 
+        if (is_section_type(*expression_iterator)) {
+            CRE_EVAL_ASSERT(!expect_binary_operator, "An operand was found when a binary operator was expected");
+            expect_binary_operator = true;  // An operand should be followed by a binary operator
+
+            if (force_all_evaluations || (!skip_all_evaluations && !skip_next_evaluation)) {
+                const auto section_type = std::dynamic_pointer_cast<SectionType>(*expression_iterator);
+
+                ov::CompatibilityCheck operand =
+                    bool_to_compatibility_check(section_type_evaluators.count(*section_type)
+                                                    ? section_type_evaluators.at(*section_type)->get_result()
+                                                    : false);
+                m_logger.trace("Section type %lu evaluated to %d", section_type, operand);
+
+                // Look for a section ID after the section type token
+                // Do not use "advance_iterator" since we are allowed to hit the end here
+                expression_iterator++;
+
+                if (expression_iterator != expression_end && !is_cre_special_token(*expression_iterator)) {
+                    // Found a section ID; there's no point in evaluating it if its section type is unsupported
+                    if (operand != ov::CompatibilityCheck::UNSUPPORTED) {
+                        const auto section_id = std::dynamic_pointer_cast<SectionID>(*expression_iterator);
+                        CRE_EVAL_ASSERT(section_id,
+                                        "Expected a section ID token to follow the section type",
+                                        *section_type);
+
+                        operand = section_instance_evaluators.count(*section_id)
+                                      ? section_instance_evaluators.at(*section_id).get_result()
+                                      : ov::CompatibilityCheck::SUPPORTED;
+
+                        m_logger.trace("Section ID %s evaluated to %d", section_id, operand);
+                    }
+                } else {
+                    expression_iterator--;
+                }
+
+                operand = negate ? not_function(operand) : operand;
+
+                result = logical_function(result, operand);
+            }
+
+            negate = false;
+            advance_iterator(expression_iterator, expression_end);
+            continue;
+        }
+
+        // The only remaining case is the "CRE special token" one
+        const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(*expression_iterator);
+        OPENVINO_ASSERT(special_token, "Unexpected token; expected a CRE special one");  // Logic error
+
         // TODO comments
-        switch (*expression_iterator) {
-        case NOT:
+        switch (special_token->get_code()) {
+        case CRESpecialTokenCode::NOT:
             CRE_EVAL_ASSERT(!expect_binary_operator, "A \"NOT\" token was found when a binary operator was expected");
             negate = !negate;
-
             break;
-        case OPEN:
+        case CRESpecialTokenCode::OPEN:
             CRE_EVAL_ASSERT(!expect_binary_operator,
                             "An open parrenthesis was found when a binary operator was expected");
             // A subexpression is also an operand, and it should be followed by an operator
@@ -419,8 +493,9 @@ ov::CompatibilityCheck CRE::evaluate(
                                             section_type_evaluators,
                                             section_instance_evaluators,
                                             Delimiter::PARRENTHESIS,
-                                            skip_all_evaluations || skip_next_evaluation);
-            CRE_EVAL_ASSERT(*expression_iterator == CLOSE,
+                                            skip_all_evaluations || skip_next_evaluation,
+                                            force_all_evaluations);
+            CRE_EVAL_ASSERT(is_close_special_token(*expression_iterator),
                             "Expected a closed parrenthesis token during CRE evaluation. Received: ",
                             *expression_iterator);
 
@@ -429,60 +504,24 @@ ov::CompatibilityCheck CRE::evaluate(
 
             result = logical_function(result, subexpression_result);
             break;
-        case AND:
+        case CRESpecialTokenCode::AND:
             CRE_EVAL_ASSERT(expect_binary_operator, "A binary operator was found when an operand was expected");
-            expect_binary_operator = false;  // A binary operator should be followed by an operand
+            expect_binary_operator = false;  // A binary operator should not be followed by another binary op
 
             logical_function = and_function;
             // No point in evaluating the next operand if the previous one yielded "false"
             skip_next_evaluation = result == ov::CompatibilityCheck::UNSUPPORTED ? true : false;
             break;
-        case OR:
+        case CRESpecialTokenCode::OR:
             CRE_EVAL_ASSERT(expect_binary_operator, "A binary operator was found when an operand was expected");
-            expect_binary_operator = false;  // A binary operator should be followed by an operand
+            expect_binary_operator = false;  // A binary operator should not be followed by another binary op
 
             logical_function = or_function;
             // No point in evaluating the next operand if the previous one yielded "true"
             skip_next_evaluation = result == ov::CompatibilityCheck::SUPPORTED ? true : false;
             break;
         default:
-            // A section type (instance) token was found
-            CRE_EVAL_ASSERT(!expect_binary_operator,
-                            "A capability token was found when a binary operator was expected");
-            expect_binary_operator = true;  // An operand should be followed by an operator
-
-            if (!skip_all_evaluations && !skip_next_evaluation) {
-                const SectionType section_type = *expression_iterator;
-                ov::CompatibilityCheck operand = bool_to_compatibility_check(
-                    section_type_evaluators.count(section_type) ? section_type_evaluators.at(section_type)->get_result()
-                                                                : false);
-
-                m_logger.trace("Section type %lu evaluated to %d", section_type, operand);
-
-                if (operand != ov::CompatibilityCheck::UNSUPPORTED) {
-                    // Only if the section type evaluation succeeded, proceed to evaluate the section type instance if
-                    // an instance ID is also found
-                    expression_iterator++;
-
-                    if (expression_iterator != expression_end && !RESERVED_TOKENS.count(*expression_iterator)) {
-                        // Found a section type instance ID. The current section ID is supported only if the instance is
-                        // supported
-                        const SectionID section_id = *expression_iterator;
-                        operand = section_instance_evaluators.count(section_id)
-                                      ? section_instance_evaluators.at(section_id).get_result()
-                                      : ov::CompatibilityCheck::SUPPORTED;
-
-                        m_logger.trace("Section ID %s evaluated to %d", section_id, operand);
-                    }
-                    expression_iterator--;
-                }
-
-                operand = negate ? not_function(operand) : operand;
-
-                result = logical_function(result, operand);
-            }
-
-            negate = false;
+            OPENVINO_THROW("Unexpected CRE special token");  // Logic error
             break;
         }
 
@@ -525,29 +564,29 @@ std::string cre_to_string(const CRE cre) {
 
     bool is_first_token = true;
     for (const std::shared_ptr<CREToken> token : expression) {
-        if (PREDEFINED_SECTION_TYPES.count(token)) {
+        if (is_section_type(token)) {
             if (!is_first_token) {
-                result += OPERAND_AND_RESERVED_TOKEN_SEPARATOR;
+                result += OPERAND_AND_SPECIAL_TOKEN_SEPARATOR;
             }
             is_first_token = false;
 
-            result += section_type_to_string(token);
+            result += section_type_to_string(*std::dynamic_pointer_cast<SectionType>(token));
             continue;
         }
-        if (CRE::RESERVED_TOKENS.count(token)) {
+        if (is_cre_special_token(token)) {
             if (!is_first_token) {
-                result += OPERAND_AND_RESERVED_TOKEN_SEPARATOR;
+                result += OPERAND_AND_SPECIAL_TOKEN_SEPARATOR;
             }
             is_first_token = false;
 
-            result += reserved_token_to_string(token);
+            result += cre_special_token_to_string(*std::dynamic_pointer_cast<CRESpecialToken>(token));
             continue;
         }
 
         // Last case remaining: the token is a section ID following a section type
         OPENVINO_ASSERT(!is_first_token);
         result += SECTION_TYPE_AND_INSTANCE_SEPARATOR;
-        result += std::to_string(token);
+        result += section_id_to_string(*std::dynamic_pointer_cast<SectionID>(token));
     }
 }
 
@@ -556,17 +595,17 @@ CRE cre_from_string(std::string_view cre) {
     std::string_view remaining = cre;
 
     while (true) {
-        const size_t dot_location = remaining.find(OPERAND_AND_RESERVED_TOKEN_SEPARATOR);
+        const size_t dot_location = remaining.find(OPERAND_AND_SPECIAL_TOKEN_SEPARATOR);
         const std::string_view token_string = remaining.substr(0, dot_location);
 
-        const std::shared_ptr<CREToken> reserved_token = reserved_token_from_string(token_string);
-        if (reserved_token) {
-            expression.push_back(reserved_token.value());
+        const std::shared_ptr<CREToken> special_token = cre_special_token_from_string(token_string);
+        if (special_token) {
+            expression.push_back(special_token);
         } else {
             // The current substring should have the form "<section type name>_<id>"
             const auto [section_type, section_id] = section_type_and_id_from_string(token_string);
-            expression.push_back(section_type);
-            expression.push_back(section_id);
+            expression.push_back(std::make_shared<SectionType>(section_type));
+            expression.push_back(std::make_shared<SectionID>(section_id));
         }
 
         if (dot_location == std::string_view::npos) {

@@ -58,4 +58,8 @@ std::istream& operator>>(std::istream& is, SectionID& id) {
     return is;
 }
 
+bool is_section_id(const std::shared_ptr<CREToken>& token) {
+    return std::dynamic_pointer_cast<SectionID>(token) != nullptr;
+}
+
 }  // namespace intel_npu
