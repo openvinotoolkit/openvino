@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -192,6 +193,14 @@ std::size_t count_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
     return count;
 }
 
+void clear_sub128_shift_markers(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::opset10::Subtract>(node)) {
+            node->get_rt_info().erase(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO);
+        }
+    }
+}
+
 bool contains_node(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     const auto nodes = model->get_ordered_ops();
     return std::any_of(nodes.begin(), nodes.end(), [&](const auto& node) {
@@ -215,6 +224,14 @@ TEST(DQLiftGatherAsymCWTest, RejectsNon128Subtractions) {
     EXPECT_EQ(count_gathers(model), 1);
 }
 
+TEST(DQLiftGatherAsymCWTest, RejectsUnmarked128Subtractions) {
+    const auto model = make_gather_model(128.0f);
+    clear_sub128_shift_markers(model);
+
+    EXPECT_FALSE(run_lift(model));
+    EXPECT_EQ(count_gathers(model), 1);
+}
+
 TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
     ov::npuw::patterns::opt::Context context;
     EXPECT_TRUE(run_host_gather(make_parameter_gather_model(128.0f), context));
@@ -225,6 +242,16 @@ TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
 TEST(HostGatherQuantAsymmTest, RejectsNon128Subtractions) {
     ov::npuw::patterns::opt::Context context;
     EXPECT_FALSE(run_host_gather(make_parameter_gather_model(127.0f), context));
+}
+
+TEST(HostGatherQuantAsymmTest, RejectsUnmarked128Subtractions) {
+    const auto model = make_parameter_gather_model(128.0f);
+    clear_sub128_shift_markers(model);
+    ov::npuw::patterns::opt::Context context;
+
+    EXPECT_FALSE(run_host_gather(model, context));
+    EXPECT_FALSE(context.params_to_quant_gather_unpack.has_value());
+    EXPECT_EQ(count_subtracts(model), 3);
 }
 
 using VocabSub128TestParams = std::tuple<bool, bool>;
