@@ -13,13 +13,58 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "kernel_selector/kernels/reorder/reorder_kernel.h"
 #include "openvino/core/except.hpp"
+#include "storage_type_jit.hpp"
+#include "vulkan/vulkan_device.hpp"
 
 namespace cldnn::vulkan {
 namespace {
 
+// Preserve the I64 tensor's two-word storage at the boundary of the common I32
+// precision path. Reuse the reference kernel's indexing and conversion hooks;
+// this adapter does not implement I64 Eltwise arithmetic.
+class I64BoundaryReorderKernel : public kernel_selector::ReorderKernelRef {
+public:
+    kernel_selector::JitConstants GetJitConstants(const kernel_selector::reorder_params& params) const override {
+        auto jit = ReorderKernelRef::GetJitConstants(params);
+        const auto replace = [&](const std::string& name, const std::string& value) {
+            jit.RemoveConstant(name);
+            jit.AddConstant(kernel_selector::MakeJitConstant(name, value));
+        };
+        for (const auto* prefix : {"CALC", "INPUT_REORDER", "OUTPUT_REORDER"}) {
+            for (const auto& definition :
+                 kernel_selector::MakeTypeJitConstants(kernel_selector::Datatype::INT32, prefix).GetDefinitions()) {
+                replace(definition.first, definition.second);
+            }
+        }
+        if (params.inputs[0].GetDType() == kernel_selector::Datatype::INT64) {
+            replace("INPUT_REORDER_TYPE", "int2");
+            replace("INPUT_REORDER_TYPE_SIZE", std::to_string(sizeof(int64_t)));
+            replace("DECODE_INPUT_REORDER_COMPUTE_TYPE(v)", "((v).s0)");
+        } else {
+            replace("OUTPUT_REORDER_TYPE", "int2");
+            replace("OUTPUT_REORDER_TYPE_SIZE", std::to_string(sizeof(int64_t)));
+            // Vector select uses the mask's sign bit: the high word is zero or
+            // minus one, exactly the sign extension of the existing I32 result.
+            replace("TO_OUTPUT_REORDER_TYPE(v)", "select((int2)((v), 0), (int2)((v), -1), (int2)(v))");
+        }
+        return jit;
+    }
+};
+
 const kernel_selector::KernelBase& get_reference_kernel() {
     static const kernel_selector::ReorderKernelRef kernel;
     return kernel;
+}
+
+bool needs_i64_boundary(const kernel_impl_params& params) {
+    const auto input_type = params.get_input_layout(0).data_type;
+    const auto output_type = params.get_output_layout(0).data_type;
+    if ((input_type == data_types::i64 && output_type == data_types::i32) ||
+        (input_type == data_types::i32 && output_type == data_types::i64)) {
+        const auto& device = static_cast<const vulkan_device&>(*params.get_program().get_engine().get_device());
+        return !device.supports_arithmetic_type(data_types::i64);
+    }
+    return false;
 }
 
 bool is_supported_type(data_types type) {
@@ -156,9 +201,14 @@ std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const 
     if (is_structural_copy(node.get_input_layout(0), node.get_output_layout(0))) {
         return std::make_unique<reorder_copy_impl>(params.is_dynamic());
     }
-    auto candidates = get_reference_kernel().GetKernelsData(make_reference_params(params, params.is_dynamic()));
+    const auto& device = static_cast<const vulkan_device&>(*params.get_program().get_engine().get_device());
+    const auto kernel_params = make_reference_params(params, params.is_dynamic());
+    auto candidates = needs_i64_boundary(params)
+                          ? StorageTypeKernel<I64BoundaryReorderKernel, kernel_selector::reorder_params>(device).GetKernelsData(kernel_params)
+                          : StorageTypeKernel<kernel_selector::ReorderKernelRef, kernel_selector::reorder_params>(device).GetKernelsData(kernel_params);
     OPENVINO_ASSERT(candidates.size() == 1, "[GPU][Vulkan] Kernel selector did not produce the generic reference Reorder kernel");
     candidates.front().kernelName = get_reference_kernel().GetName();
+    get_reference_kernel().GetUpdateDispatchDataFunc(candidates.front());
     return std::make_unique<reorder_impl>(std::move(candidates.front()), params.is_dynamic());
 }
 

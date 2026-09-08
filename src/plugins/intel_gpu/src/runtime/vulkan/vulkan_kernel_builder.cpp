@@ -39,7 +39,7 @@ void vulkan_kernel_builder::build_kernels(const kernel_artifact& artifact, std::
     std::string build_log;
     if (artifact.format == KernelFormat::SOURCE) {
         const std::string source(static_cast<const char*>(artifact.payload), artifact.payload_size);
-        auto compilation = vulkan_clspv_compiler{}.compile(source, artifact.build_options, artifact.entry_point);
+        auto compilation = vulkan_clspv_compiler{}.compile(source, artifact.build_options, artifact.entry_point, *_engine.get_vulkan_device_object());
         binary = std::move(compilation.spirv);
         build_log = std::move(compilation.diagnostics);
     } else {

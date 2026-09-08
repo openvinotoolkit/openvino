@@ -81,6 +81,24 @@ vulkan_device::~vulkan_device() {
     }
 }
 
+bool vulkan_device::supports_arithmetic_type(data_types type) const {
+    switch (type) {
+    case data_types::i8:
+    case data_types::u8:
+        return _narrow_arithmetic_features.shaderInt8 == VK_TRUE;
+    case data_types::i16:
+    case data_types::u16:
+    case data_types::bf16:
+        return _arithmetic_features.shaderInt16 == VK_TRUE;
+    case data_types::f16:
+        return _narrow_arithmetic_features.shaderFloat16 == VK_TRUE;
+    case data_types::i64:
+        return _arithmetic_features.shaderInt64 == VK_TRUE;
+    default:
+        return true;
+    }
+}
+
 void vulkan_device::initialize_info() {
     VkPhysicalDeviceIDProperties id_properties{};
     id_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
@@ -97,11 +115,17 @@ void vulkan_device::initialize_info() {
 
     VkPhysicalDeviceShaderFloat16Int8Features arithmetic{};
     arithmetic.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES;
+    VkPhysicalDevice16BitStorageFeatures storage16{};
+    storage16.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES;
+    storage16.pNext = &arithmetic;
     VkPhysicalDeviceFeatures2 features2{};
     features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    features2.pNext = &arithmetic;
+    features2.pNext = &storage16;
     vkGetPhysicalDeviceFeatures2(_physical_device, &features2);
     const auto& features = features2.features;
+    _arithmetic_features = features;
+    _narrow_arithmetic_features = arithmetic;
+    _supports_16bit_storage = storage16.storageBuffer16BitAccess == VK_TRUE;
 
     VkPhysicalDeviceMemoryProperties memory_properties{};
     vkGetPhysicalDeviceMemoryProperties(_physical_device, &memory_properties);
@@ -129,7 +153,9 @@ void vulkan_device::initialize_info() {
     _max_memory_allocation_count = std::max(properties.limits.maxMemoryAllocationCount, 1U);
     _non_coherent_atom_size = std::max<VkDeviceSize>(properties.limits.nonCoherentAtomSize, 1);
 
-    _info.supports_fp16 = arithmetic.shaderFloat16 == VK_TRUE;
+    // Plugin type support includes storage-preserving FP32 computation through
+    // the reference-kernel JIT adapter. Native Vulkan arithmetic stays separate.
+    _info.supports_fp16 = supports_arithmetic_type(data_types::f16) || _supports_16bit_storage;
     _info.supports_fp64 = features.shaderFloat64 == VK_TRUE;
     _info.supports_fp16_denorms = false;
     _info.supports_khr_subgroups = subgroup_properties.subgroupSize > 0 && (subgroup_properties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT) != 0;

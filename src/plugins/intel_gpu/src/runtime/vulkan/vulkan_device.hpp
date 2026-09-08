@@ -65,6 +65,12 @@ public:
         return _physical_device;
     }
 
+    bool supports_arithmetic_type(data_types type) const;
+
+    bool supports_16bit_storage() const {
+        return _supports_16bit_storage;
+    }
+
     VkDevice get_device() const {
         return _device;
     }
@@ -111,6 +117,9 @@ private:
     uint32_t _max_memory_allocation_count = 1;
     VkDeviceSize _non_coherent_atom_size = 1;
     vulkan_external_memory_capabilities _external_memory_capabilities{};
+    VkPhysicalDeviceFeatures _arithmetic_features{};
+    VkPhysicalDeviceShaderFloat16Int8Features _narrow_arithmetic_features{};
+    bool _supports_16bit_storage = false;
 
     device_info _info{};
     memory_capabilities _mem_caps{{allocation_type::device_buffer}};

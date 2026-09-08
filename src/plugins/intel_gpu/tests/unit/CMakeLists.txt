@@ -157,6 +157,9 @@ target_include_directories(${TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
                                                   ${TEST_COMMON_INCLUDE_DIR})
 
 if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    # Restrict the device-capability query to this test source, not shared GPU code.
+    set_property(SOURCE test_cases/eltwise_gpu_test.cpp APPEND PROPERTY
+        COMPILE_DEFINITIONS OV_GPU_TESTS_WITH_VULKAN=1)
     get_property(OV_GPU_VULKAN_GENERATED_INCLUDE_DIR GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_INCLUDE_DIR)
     target_include_directories(${TARGET_NAME} PRIVATE "${OV_GPU_VULKAN_GENERATED_INCLUDE_DIR}")
     add_dependencies(${TARGET_NAME} openvino_intel_gpu_vulkan_shaders${OV_GPU_SUFFIX})

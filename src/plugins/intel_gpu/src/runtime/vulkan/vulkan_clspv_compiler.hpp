@@ -10,6 +10,8 @@
 
 namespace cldnn::vulkan {
 
+class vulkan_device;
+
 struct vulkan_clspv_compilation final {
     std::vector<uint8_t> spirv;
     std::string diagnostics;
@@ -21,7 +23,8 @@ public:
     static std::string identity();
     static std::string canonical_options(const std::string& source_options);
 
-    vulkan_clspv_compilation compile(const std::string& source, const std::string& source_options, const std::string& entry_point) const;
+    vulkan_clspv_compilation compile(const std::string& source, const std::string& source_options, const std::string& entry_point,
+                                    const vulkan_device& device) const;
 };
 
 }  // namespace cldnn::vulkan
