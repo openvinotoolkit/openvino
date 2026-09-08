@@ -16,14 +16,14 @@ namespace frontend {
 namespace gguf {
 
 int64_t GgufValue::ne(size_t i) const {
-    if (m_empty || m_shape.rank().is_dynamic()) {
+    if (empty() || shape().rank().is_dynamic()) {
         return -1;
     }
-    const size_t rank = m_shape.size();
+    const size_t rank = shape().size();
     if (i >= rank) {
         return 1;
     }
-    const auto& d = m_shape[rank - 1 - i];
+    const auto& d = shape()[rank - 1 - i];
     return d.is_static() ? d.get_length() : -1;
 }
 
@@ -47,12 +47,7 @@ GgufValue GgufTensors::operator()(const std::string& gguf_name) const {
             e.add_named_weight(gguf_name);
         }
     }
-    // Override decoder-oriented weight metadata with the full logical shape, including expert axes.
-    auto shape = e.weight_tensor(gguf_name).get_shape();
-    OPENVINO_ASSERT(shape.size() <= 4, "[GGUF] weight rank exceeds GGML's four dimensions");
-    shape.insert(shape.begin(), 4 - shape.size(), 1);
-    e.set_tensor_meta(gguf_name, shape, e.type_of_tensor(gguf_name));
-    return GgufValue(gguf_name, shape, e.type_of_tensor(gguf_name));
+    return GgufValue(gguf_name, e.value(gguf_name));
 }
 
 GgufValue GgufTensors::require(const std::string& gguf_name) const {

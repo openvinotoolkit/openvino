@@ -99,7 +99,7 @@ OutputVector translate_soft_max(const NodeContext& context) {
     // Disambiguate a 2nd input: it is either the additive mask or (gpt-oss) the attention sinks.
     const bool second_input_is_sinks =
         context.get_input_size() == 2 &&
-        is_attention_sinks_input_shape(context.get_input_shape(1), context.get_output_shape());
+        is_attention_sinks_input_shape(context.get_input_shape(1), context.get_input_shape(0));
     const bool has_mask = context.get_input_size() > 1 && !second_input_is_sinks;
     const bool has_sinks = second_input_is_sinks || context.get_input_size() > 2;
     const int sinks_input_idx = second_input_is_sinks ? 1 : 2;

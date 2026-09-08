@@ -11,7 +11,7 @@ translators (`src/op/*.cpp`) run for both the native path and the llama.cpp cgra
 
 | File | Responsibility | Knows about |
 |---|---|---|
-| [`graph_emitter.hpp`](../src/builder/graph_emitter.hpp) | `add_op` / `add_input` / `add_weight` + shape & type bookkeeping | nothing about transformers |
+| [`graph_emitter.hpp`](../src/builder/graph_emitter.hpp) | `add_op` / `add_input` / `add_weight`, using shared converters and OpenVINO shape inference | nothing about transformers |
 | [`blocks/`](../src/builder/blocks) | reusable graph fragments: `common` (norm/scale/bias), `ffn` (dense/GeGLU/MoE), `attention`, `gated_delta_net`, `qkv_repack` | a decoder layer |
 | [`decoder_config.hpp`](../src/builder/decoder_config.hpp) | all per-architecture detection + per-layer accessors | one model's hyperparameters |
 | [`arch/decoder_builder.cpp`](../src/builder/arch/decoder_builder.cpp) | the order a decoder is assembled in | the whole decoder family |

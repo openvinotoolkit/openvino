@@ -86,7 +86,12 @@ std::shared_ptr<Model> FrontEnd::convert(const InputModel::Ptr& model) const {
     std::shared_ptr<Model> converted_model;
     {
         auto ops = merged_ops(m_impl->op_extension_translators);
-        TranslateSession translate_session(model, ops, m_impl->transformation_extensions);
+        auto conversion_input = gguf_model;
+        if (gguf_model->m_builder) {
+            auto graph = gguf_model->m_builder(ops);
+            conversion_input = std::make_shared<gguf::InputModel>(std::make_shared<GgufBuilderDecoder>(graph));
+        }
+        TranslateSession translate_session(conversion_input, ops, m_impl->transformation_extensions);
         converted_model = translate_session.get_converted_model();
     }
     return converted_model;
@@ -155,9 +160,8 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
         FRONT_END_GENERAL_CHECK(model_path.extension() == ".gguf",
                                 "GGUF Frontend file loading expects a .gguf file, got: ",
                                 model_path.string());
-        auto graph = build_ggml_graph_from_gguf(model_path.string(), m_impl->arch_registry);
-        auto decoder = std::make_shared<GgufBuilderDecoder>(graph);
-        return std::make_shared<InputModel>(decoder);
+        return std::make_shared<InputModel>(load_gguf_builder(model_path.string(), m_impl->arch_registry),
+                                            m_extensions);
     }
 
     FRONT_END_GENERAL_CHECK(false,

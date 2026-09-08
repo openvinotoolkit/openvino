@@ -70,7 +70,9 @@ the graph-fingerprint gate rely on.
 | `get_input(idx)` / `get_input(name)` | Operand as `Output<Node>` |
 | `has_input(name)` | Test an optional operand first |
 | `get_input_size()` | Actual operand count |
-| `get_input_shape(idx)` / `get_output_shape()` | **Static ggml** shape — use when the live OV shape is dynamic (KV-cache path) |
+| `get_input(idx).get_partial_shape()` | Shape inferred by OpenVINO, including dynamic dimensions |
+| `get_input_shape(idx)` | Source layout when supplied by a cgraph decoder; otherwise the inferred input shape padded to GGML rank four |
+| `get_output_shape()` | Legacy cgraph destination layout; unavailable for native builder operations |
 | `get_input_view_element_offset(idx)` | Element (not byte) offset for a ggml VIEW operand |
 | `get_op_case()` | Structural variant (convenience wrapper, defaults to 0) |
 | `get_output_type()` | Declared output element type |
@@ -83,6 +85,13 @@ Helpers in [`src/utils.hpp`](../src/utils.hpp): `num_inputs_check`, `get_dimensi
 and this parameter. For compatibility, decoders that omit `k` must supply a static last
 output dimension, where ggml stores `k`. An unknown `k` is rejected, never inferred from
 the input width.
+
+Converters must infer intermediate shapes from their OpenVINO operands, reading only the axes
+needed for the operation. A dynamic token axis does not prevent reading a static head width.
+Use explicit attributes for operation parameters: `reshape_target` / `special_zero`, `view_slice`,
+`repeats`, and TopK `k`. Source destination shapes may provide compatibility defaults for existing
+cgraph importers; native builders never manufacture them. A new converter also serves `raw_op`
+without a separate shape implementation in the builder.
 
 Insert a `Convert` to `get_output_type()` when the op may change element type (`CONCAT`, `CPY`,
 `SET_ROWS`, `GET_ROWS`) rather than assuming the input type. Prefer `ov::op::vX::OpName` over

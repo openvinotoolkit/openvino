@@ -53,7 +53,8 @@ OutputVector translate_get_rows(const NodeContext& context) {
         // explicit [1,-1,K,1] reshape (K is static, read via PartialShape to avoid .to_shape()
         // throwing when T is dynamic) instead of Squeeze+Unsqueeze, which the CPU plugin
         // implements as a Reshape internally and mis-infers the static pattern when T=1.
-        const int64_t K = context.get_output_shape()[2].get_length();
+        const auto ids_shape = indices.get_partial_shape();
+        const int64_t K = ids_shape[ids_shape.size() - 1].get_length();
         auto idx = std::make_shared<ov::op::v0::Convert>(indices, ov::element::i32);
         auto ge = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);  // [1,1,T,K]
         auto col = std::make_shared<ov::op::v1::Reshape>(

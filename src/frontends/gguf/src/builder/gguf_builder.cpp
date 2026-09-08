@@ -53,12 +53,12 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
 
 }  // namespace
 
-std::shared_ptr<GgufGraph> build_ggml_graph_from_gguf(const std::string& file, const ArchRegistry& registry) {
-    auto [metadata, weights, qtypes, mmap, quant_buf] = get_gguf_data(file);
+GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& registry) {
+    auto data = std::make_shared<decltype(get_gguf_data(file))>(get_gguf_data(file));
+    auto& [metadata, weights, qtypes, mmap, quant_buf] = *data;
 
     const detail::MetadataStore meta_store{metadata};
     const GgufMetadata meta_view(meta_store);
-    detail::WeightStore weight_store{weights, qtypes};
 
     // Built-in and external definitions share selection, construction and postprocessing.
     // Family detection is only a diagnostic fallback; it must not reject a registered family.
@@ -80,13 +80,21 @@ std::shared_ptr<GgufGraph> build_ggml_graph_from_gguf(const std::string& file, c
                       definition->id,
                       "' is experimental; validate accuracy before relying on it.");
     }
-    BuildContext ctx{meta_view, meta_view.architecture(), &weight_store};
-    auto builder = definition->factory(ctx);
-    OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition->id, "' returned no builder");
-    auto graph = builder->build();
-    OPENVINO_ASSERT(graph, "[GGUF] architecture handler '", definition->id, "' returned no graph");
-    graph->tokenizer_config = extract_tokenizer_config(metadata);
-    return graph;
+    return [data, definition = *definition](const std::unordered_map<std::string, CreatorFunction>& translators) {
+        const auto& [metadata, source_weights, source_qtypes, mmap, quant_buf] = *data;
+        auto weights = source_weights;
+        auto qtypes = source_qtypes;
+        const detail::MetadataStore meta_store{metadata};
+        const GgufMetadata meta_view(meta_store);
+        detail::WeightStore weight_store{weights, qtypes, &translators};
+        BuildContext ctx{meta_view, meta_view.architecture(), &weight_store};
+        auto builder = definition.factory(ctx);
+        OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition.id, "' returned no builder");
+        auto graph = builder->build();
+        OPENVINO_ASSERT(graph, "[GGUF] architecture handler '", definition.id, "' returned no graph");
+        graph->tokenizer_config = extract_tokenizer_config(metadata);
+        return graph;
+    };
 }
 
 }  // namespace gguf

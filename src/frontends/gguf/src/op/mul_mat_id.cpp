@@ -322,11 +322,12 @@ ov::Output<ov::Node> translate_mul_mat_id_generic(const NodeContext& context,
     auto activations_expanded = std::make_shared<ov::op::v0::Unsqueeze>(acts_broadcasted, unsqueeze_axes);
 
     auto batch_dim = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-    auto output_shape = context.get_output_shape();
-    FRONT_END_OP_CONVERSION_CHECK(output_shape.rank().is_static() && output_shape.rank().get_length() == 4,
-                                  "Unexpected MUL_MAT_ID output rank");
-    FRONT_END_OP_CONVERSION_CHECK(output_shape[3].is_static(), "Expected static row dimension for MUL_MAT_ID output");
-    auto row_dim = ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[3].get_length()});
+    const auto weights_shape = selected_weights.get_partial_shape();
+    FRONT_END_OP_CONVERSION_CHECK(weights_shape.rank().is_static() && weights_shape.size() >= 2,
+                                  "MUL_MAT_ID requires a known weight rank");
+    const auto rows = weights_shape[weights_shape.size() - 2];
+    FRONT_END_OP_CONVERSION_CHECK(rows.is_static(), "MUL_MAT_ID requires a static row dimension");
+    auto row_dim = ov::op::v0::Constant::create(ov::element::i64, {1}, {rows.get_length()});
 
     ov::Output<ov::Node> result =
         std::make_shared<ov::op::v0::MatMul>(activations_expanded, selected_weights, false, true);

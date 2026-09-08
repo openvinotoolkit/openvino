@@ -92,10 +92,9 @@ public:
                        const RopeConfig& cfg,
                        int rope_op_case);
 
-    // Emit a GGML operation with explicit output metadata and translator-specific attributes.
+    // Call any registered converter; OpenVINO infers the returned value's shape.
     GgufValue raw_op(const std::string& op_type,
                      const std::vector<GgufValue>& inputs,
-                     const ov::PartialShape& out_shape,
                      ov::element::Type out_type,
                      int op_case = 0,
                      const std::map<std::string, ov::Any>& attrs = {});

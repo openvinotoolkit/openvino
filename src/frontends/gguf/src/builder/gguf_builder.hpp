@@ -4,8 +4,11 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
+
+#include "node_context.hpp"
 
 namespace ov {
 namespace frontend {
@@ -14,9 +17,9 @@ namespace gguf {
 struct GgufGraph;  // defined in gguf_graph.hpp; only used here as a shared_ptr return type
 class ArchRegistry;
 
-// Parse a .gguf file and invoke its registered builder without a llama.cpp dependency.
-// Built-in and external definitions share dispatch; throws if no definition matches.
-std::shared_ptr<GgufGraph> build_ggml_graph_from_gguf(const std::string& file, const ArchRegistry& registry);
+using GraphBuilder = std::function<std::shared_ptr<GgufGraph>(const std::unordered_map<std::string, CreatorFunction>&)>;
+// Parse the file and select a definition; invoke the builder with the converters active at conversion.
+GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& registry);
 
 }  // namespace gguf
 }  // namespace frontend

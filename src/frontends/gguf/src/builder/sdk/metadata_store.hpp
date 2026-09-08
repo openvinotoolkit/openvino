@@ -9,6 +9,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "node_context.hpp"
 #include "openvino/frontend/gguf/builder/metadata.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "quant/gguf.hpp"
@@ -36,6 +37,7 @@ struct MetadataAccess {
 struct WeightStore {
     std::unordered_map<std::string, ov::Tensor>& weights;
     std::unordered_map<std::string, GgufTensorType>& qtypes;
+    const std::unordered_map<std::string, CreatorFunction>* translators = nullptr;
 };
 
 }  // namespace detail

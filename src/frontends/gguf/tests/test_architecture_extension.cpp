@@ -10,6 +10,7 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -19,12 +20,14 @@
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/so_extension.hpp"
+#include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/extension/architecture.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/util/file_util.hpp"
 
@@ -571,5 +574,67 @@ TEST(GGUFArchitectureExtension, SharedDecoderBlocksMatchNumericallyAcrossPrefill
                 EXPECT_EQ(state.second->get_state().get_size(), (past + tokens) * 4);
         }
         past += tokens;
+    }
+}
+
+namespace {
+class CustomOpBuilder : public ModelBuilder {
+public:
+    explicit CustomOpBuilder(const BuildContext& context) : m_context(context) {}
+
+    std::shared_ptr<GgufGraph> build() override {
+        GgufGraphContext graph(m_context);
+        auto input = graph.add_input("features", ov::element::f32, {1, 1, -1, 4});
+        auto expanded = graph.raw_op("TEST_EXPAND_FEATURES", {input}, ov::element::f32);
+        // The following operation can query the converter's inferred width immediately.
+        graph.set_output(graph.reshape(expanded, {expanded.ne(0), -1}));
+        return graph.finish();
+    }
+
+private:
+    BuildContext m_context;
+};
+}  // namespace
+
+TEST(GGUFArchitectureExtension, ConverterRegisteredAfterLoadInfersBuilderValues) {
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), kUnknownArch);
+    ASSERT_FALSE(path.empty());
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ArchitectureExtension>(
+        ArchitectureDefinition{kUnknownArch, kUnknownArch, [](const BuildContext& context) {
+                                   return std::make_shared<CustomOpBuilder>(context);
+                               }}));
+    auto input_model = frontend.load(path);
+    size_t calls = 0;
+    const auto register_converter = [&](size_t copies) {
+        frontend.add_extension(std::make_shared<ov::frontend::ConversionExtension>(
+            "TEST_EXPAND_FEATURES",
+            [&, copies](const ov::frontend::NodeContext& context) {
+                ++calls;
+                return ov::OutputVector{
+                    std::make_shared<ov::op::v0::Concat>(ov::OutputVector(copies, context.get_input(0)), 3)};
+            }));
+    };
+    register_converter(2);
+    auto first = frontend.convert(input_model);
+    EXPECT_EQ(calls, 1);
+    EXPECT_EQ(first->output().get_partial_shape(), (ov::PartialShape{1, 1, -1, 8}));
+    register_converter(3);
+    auto second = frontend.convert(input_model);
+    EXPECT_EQ(calls, 2);
+    EXPECT_EQ(second->output().get_partial_shape(), (ov::PartialShape{1, 1, -1, 12}));
+    EXPECT_EQ(first->output().get_partial_shape(), (ov::PartialShape{1, 1, -1, 8}));
+    for (size_t tokens : {1u, 3u}) {
+        ov::Tensor data(ov::element::f32, {1, 1, tokens, 4});
+        std::iota(data.data<float>(), data.data<float>() + data.get_size(), 0.f);
+        ov::TensorVector result{ov::Tensor(ov::element::f32, {1, 1, tokens, 12})};
+        ASSERT_TRUE(second->evaluate(result, {data}));
+        EXPECT_EQ(result[0].get_shape(), (ov::Shape{1, 1, tokens, 12}));
+        for (size_t t = 0; t < tokens; ++t) {
+            for (size_t i = 0; i < 12; ++i) {
+                EXPECT_EQ(result[0].data<float>()[12 * t + i], data.data<float>()[4 * t + i % 4]);
+            }
+        }
     }
 }

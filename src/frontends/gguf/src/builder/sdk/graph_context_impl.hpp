@@ -22,7 +22,7 @@ namespace gguf {
 struct GgufGraphContext::Impl {
     explicit Impl(const BuildContext& ctx)
         : build_ctx(ctx),
-          emitter(ctx.weights->weights, ctx.weights->qtypes, ctx.arch) {}
+          emitter(ctx.weights->weights, ctx.weights->qtypes, ctx.arch, ctx.weights->translators) {}
 
     BuildContext build_ctx;
     std::unique_ptr<DecoderConfig> decoder;
@@ -38,9 +38,6 @@ struct GgufGraphContext::Impl {
     }
     GraphEmitter emitter;
 
-    // Representative token length for static translator metadata.
-    static constexpr int64_t T = 1;
-
     // Generate unique names for SDK operations. Shared decoder blocks use layer prefixes.
     int seq = 0;
     std::string fresh(const std::string& op) {
@@ -49,7 +46,6 @@ struct GgufGraphContext::Impl {
 
     GgufValue emit(const std::string& op_type,
                    const std::vector<GgufValue>& inputs,
-                   const ov::PartialShape& out_shape,
                    ov::element::Type out_type,
                    int op_case = 0,
                    std::map<std::string, ov::Any> attrs = {}) {
@@ -61,13 +57,8 @@ struct GgufGraphContext::Impl {
             in_names.push_back(v.name());
         }
         const auto name = fresh(op_type);
-        auto metadata_shape = out_shape;
-        OPENVINO_ASSERT(metadata_shape.rank().is_static(), "[GGUF] SDK values require a known rank");
-        for (auto& dim : metadata_shape)
-            if (dim.is_dynamic())
-                dim = T;
-        emitter.add_op(op_type, name, in_names, metadata_shape, out_type, op_case, std::move(attrs));
-        return GgufValue(name, out_shape, out_type);
+        emitter.add_op(op_type, name, in_names, out_type, op_case, std::move(attrs));
+        return GgufValue(name, emitter.value(name));
     }
 };
 

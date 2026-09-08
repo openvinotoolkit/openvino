@@ -22,8 +22,8 @@ namespace op {
 OutputVector translate_concat(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
 
-    const auto output_shape = context.get_output_shape();
-    FRONT_END_OP_CONVERSION_CHECK(output_shape.rank().is_static(), "CONCAT requires static output rank");
+    const auto output_shape = context.get_input(0).get_partial_shape();
+    FRONT_END_OP_CONVERSION_CHECK(output_shape.rank().is_static(), "CONCAT requires static input rank");
     const auto rank = output_shape.rank().get_length();
 
     const int ggml_dim = context.get_attribute<int>("concat_axis");

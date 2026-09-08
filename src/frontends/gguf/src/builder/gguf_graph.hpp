@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "node_context.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -29,16 +30,8 @@ struct GgufOp {
     std::string name;                      // unique node/op name
     std::vector<std::string> input_names;  // producer tensor names (weights / inputs / other nodes)
     std::string output_name;               // this node's output tensor name
-    ov::PartialShape output_shape;
     ov::element::Type output_type = ov::element::dynamic;
     int op_case = 0;
-
-    // Per-input shape/stride/type and view-offset, keyed by input name. Populated for the
-    // inputs that translators query (shapes for MUL_MAT/RESHAPE, view offsets for VIEW).
-    std::map<std::string, ov::PartialShape> input_shapes;
-    std::map<std::string, std::vector<size_t>> input_strides;
-    std::map<std::string, ov::element::Type> input_types;
-    std::map<std::string, int64_t> input_view_offsets;
 
     // Typed scalar/struct op attributes consumed by translators via get_attribute<T>
     // (e.g. "eps", "scale", "bias", "max_bias", "swapped", "rope_config").
@@ -50,6 +43,7 @@ struct GgufOp {
 // a parsed GGUF file; consumed by GgufBuilderDecoder.
 struct GgufGraph {
     std::vector<GgufOp> nodes;
+    std::shared_ptr<TensorMap> values = std::make_shared<TensorMap>();
 
     // Model inputs (Parameters) and extra inputs (e.g. attention_size; Parameter or Constant).
     // Same semantics as the corresponding GgufDecoder getters. Weights are not here: they are

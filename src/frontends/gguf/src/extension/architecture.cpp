@@ -25,7 +25,12 @@ ArchitectureDefinition make_decoder_architecture(std::string architecture,
         OPENVINO_ASSERT(ctx.weights, "[GGUF] decoder builder requires a weight table");
         const auto overrides = options ? options(ctx.metadata) : DecoderOptions{};
         auto config = decoder_config_from_meta(detail::MetadataAccess::get(ctx.metadata).map);
-        return std::make_shared<DecoderBuilder>(config, ctx.weights->weights, ctx.weights->qtypes, rope, overrides);
+        return std::make_shared<DecoderBuilder>(config,
+                                                ctx.weights->weights,
+                                                ctx.weights->qtypes,
+                                                rope,
+                                                overrides,
+                                                ctx.weights->translators);
     };
     return definition;
 }

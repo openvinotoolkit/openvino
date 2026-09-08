@@ -99,8 +99,11 @@ reshape with at most one inferred dimension. It does not infer an attention oper
 number of requested dimensions. Use `split_heads(value, heads, width)` and `merge_heads(value)`
 for decoder attention layouts that must preserve the leading batch and dynamic token axis.
 
-Use `-1` for a variable extent. SDK values retain dynamic dimensions; representative static
-metadata is internal bookkeeping for existing GGML translators, not a token-count API.
+Use `-1` for a variable extent. Each builder operation calls the shared frontend converter and
+returns a `GgufValue` backed by an `ov::Output`. OpenVINO infers its shape and type immediately;
+`value.shape()` and `value.ne(i)` read that result. The builder has no intermediate shape formulas
+or representative token count. Input/weight dimensions, reshape targets, slice bounds, and other
+parameters that define an operation remain explicit.
 `permute` uses OpenVINO axis numbering and requires each of the four axes exactly once.
 
 The SDK is not a drop-in implementation of llama.cpp's `llm_graph_context`. When porting a model,
@@ -108,10 +111,22 @@ map its sublayers onto existing blocks first, and use generic operations for new
 removed `GgufHparams`, `LayerTensors`, and `build_lora_mm` facades should not be recreated in each
 architecture. Tensor names can be kept in a model-specific helper when that improves readability.
 
-`raw_op` supports operations outside the convenience vocabulary. It describes an existing GGML
-translator's shape, case, and attribute contract; a new operation can be supplied with a
-`ConversionExtension`. It does not make every ggml memory-view or stride operation interchangeable
-with an OpenVINO tensor operation.
+`raw_op` supports operations outside the convenience vocabulary, using the same converter dispatch:
+
+```cpp
+auto experts = graph.raw_op("GGML_OP_TOP_K", {scores}, ov::element::i32, 0,
+                            {{"k", int64_t{2}}});
+```
+
+No output shape is supplied. A `ConversionExtension` can provide a new operation; its OpenVINO
+outputs supply shape inference without a second builder registration. `RESHAPE` accepts
+`reshape_target` (OpenVINO order) and `special_zero`; `REPEAT` accepts integer `repeats`.
+GGML view/stride semantics still need explicit slice/layout parameters.
+
+`load()` parses the file and selects the architecture. `convert()` invokes the selected builder
+with the frontend's current converters, then normalizes the constructed OpenVINO graph. Operation
+extensions may therefore be registered between loading and conversion. Each conversion builds a
+fresh graph; external libraries implementing the selected builder stay alive with the loaded input.
 
 ## Declare model contracts
 

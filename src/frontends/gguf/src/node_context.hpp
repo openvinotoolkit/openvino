@@ -33,7 +33,16 @@ public:
     }
 
     PartialShape get_input_shape(size_t input_index) const {
-        return m_decoder->get_input_shape(m_input_names[input_index]);
+        auto shape = m_decoder->get_input_shape(m_input_names[input_index]);
+        if (shape.rank().is_dynamic()) {
+            shape = get_input(static_cast<int>(input_index)).get_partial_shape();
+            if (shape.rank().is_static() && shape.size() < 4) {
+                std::vector<ov::Dimension> dims(4 - shape.size(), 1);
+                dims.insert(dims.end(), shape.begin(), shape.end());
+                shape = ov::PartialShape(dims);
+            }
+        }
+        return shape;
     }
 
     // Element offset of a VIEW input into a larger tensor (0 when not a view). The decoder

@@ -50,13 +50,10 @@ OutputVector translate_mulmat(const NodeContext& context) {
         B = std::make_shared<ov::op::v0::Convert>(B, A.get_element_type());
     }
 
-    // Use the static ggml input shapes (get_input_shape), not the live OV node shapes: on the
-    // stateful KV-cache path the OV node's batch/seq dims are dynamic, but the batch/head/feature
-    // dims MUL_MAT needs are static ggml facts the decoder knows by construction.
-    auto B_shape = context.get_input_shape(0).to_shape();
-    auto A_shape = context.get_input_shape(1).to_shape();
-    int64_t A_batch = A_shape[1];
-    int64_t B_batch = B_shape[1];
+    auto B_shape = context.get_input_shape(0);
+    auto A_shape = context.get_input_shape(1);
+    int64_t A_batch = A_shape[1].get_length();
+    int64_t B_batch = B_shape[1].get_length();
 
     auto A_batch_larger = A_batch > B_batch;
     auto batch_large = A_batch_larger ? A_batch : B_batch;
@@ -75,9 +72,10 @@ OutputVector translate_mulmat(const NodeContext& context) {
         auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i64,
                                                             {5},
                                                             {(int64_t)1, (int64_t)1, factor, (int64_t)1, (int64_t)1});
-        auto new_Z_shape = ov::op::v0::Constant::create(ov::element::i64,
-                                                        {4},
-                                                        {(int64_t)0, batch_large, (int64_t)-1, (int64_t)A_shape[3]});
+        auto new_Z_shape =
+            ov::op::v0::Constant::create(ov::element::i64,
+                                         {4},
+                                         {(int64_t)0, batch_large, (int64_t)-1, (int64_t)A_shape[3].get_length()});
 
         auto Z_broadcasted = std::make_shared<ov::op::v3::Broadcast>(Z_unsqueezed,
                                                                      broadcast_shape,

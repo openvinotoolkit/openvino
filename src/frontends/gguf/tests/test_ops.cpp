@@ -1246,6 +1246,7 @@ TEST(GGUFOps, ReshapeCase1SplitHeadsIsLayoutPolymorphic) {
                     .op("GGML_OP_RESHAPE")
                     .input("x", ov::element::f32, {1, 1, tokens, heads * head_size})
                     .output("out", ov::element::f32, {1, tokens, heads, head_size})
+                    .attr<std::vector<int64_t>>("reshape_target", {1, tokens, heads, head_size})
                     .op_case(1)
                     .build();
     auto sdpa_out = run_on_cpu(sdpa, {{"x", make_f32_tensor({1, 1, (size_t)tokens, (size_t)(heads * head_size)}, x)}});
@@ -1257,6 +1258,7 @@ TEST(GGUFOps, ReshapeCase1SplitHeadsIsLayoutPolymorphic) {
                   .op("GGML_OP_RESHAPE")
                   .input("x", ov::element::f32, {tokens, 1, 1, heads * head_size})
                   .output("out", ov::element::f32, {1, tokens, heads, head_size})
+                  .attr<std::vector<int64_t>>("reshape_target", {1, tokens, heads, head_size})
                   .op_case(1)
                   .build();
     auto pa_out = run_on_cpu(pa, {{"x", make_f32_tensor({(size_t)tokens, 1, 1, (size_t)(heads * head_size)}, x)}});
@@ -1276,6 +1278,7 @@ TEST(GGUFOps, ReshapeCase2MergeHeadsIsLayoutPolymorphic) {
                     .op("GGML_OP_RESHAPE")
                     .input("x", ov::element::f32, {1, tokens, heads, head_size})
                     .output("out", ov::element::f32, {1, 1, tokens, heads * head_size})
+                    .attr<std::vector<int64_t>>("reshape_target", {1, 1, tokens, heads * head_size})
                     .op_case(2)
                     .build();
     auto sdpa_out =
@@ -1287,6 +1290,7 @@ TEST(GGUFOps, ReshapeCase2MergeHeadsIsLayoutPolymorphic) {
                   .op("GGML_OP_RESHAPE")
                   .input("x", ov::element::f32, {tokens, 1, heads, head_size})
                   .output("out", ov::element::f32, {1, 1, tokens, heads * head_size})
+                  .attr<std::vector<int64_t>>("reshape_target", {1, 1, tokens, heads * head_size})
                   .op_case(2)
                   .build();
     auto pa_out = run_on_cpu(pa, {{"x", make_f32_tensor({(size_t)tokens, 1, (size_t)heads, (size_t)head_size}, x)}});

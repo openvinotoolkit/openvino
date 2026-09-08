@@ -39,7 +39,8 @@ public:
                    std::unordered_map<std::string, ov::Tensor>& weights,
                    std::unordered_map<std::string, GgufTensorType>& qtypes,
                    std::optional<RopeMode> rope = {},
-                   const DecoderOptions& options = {});
+                   const DecoderOptions& options = {},
+                   const std::unordered_map<std::string, CreatorFunction>* translators = nullptr);
 
     std::shared_ptr<GgufGraph> build() override;
 
@@ -65,12 +66,6 @@ private:
     DecoderConfig m_cfg;
     GraphEmitter m_emit;
     blocks::KvCachePlan m_kv;
-
-    // Per-node output shapes are STATIC, like the cgraph decoder (which builds the graph for a
-    // concrete token length). We use a representative token length T; the translators emit dynamic
-    // reshapes (-1 / 0) where needed, and MakeStateful + the dynamic input Parameters carry the
-    // real dynamic-ness. T affects only the per-node shape metadata.
-    static constexpr int64_t T = 1;
 };
 
 }  // namespace gguf

@@ -141,6 +141,10 @@ TEST(GGUFBuilderSDK, MetadataMissingAndIncompatibleValuesRemainOptional) {
 }
 
 TEST(GGUFBuilderSDK, LogicalWeightDimensionsPreserveVectorsAndExpertAxes) {
+    GgufValue empty;
+    EXPECT_TRUE(empty.shape().rank().is_dynamic());
+    EXPECT_EQ(empty.type(), ov::element::dynamic);
+    EXPECT_EQ(empty.ne(0), -1);
     Environment env;
     env.weights["norm.weight"] = ov::Tensor(ov::element::f32, {32});
     env.weights["experts.weight"] = ov::Tensor(ov::element::f32, {2, 3, 4});
@@ -152,6 +156,7 @@ TEST(GGUFBuilderSDK, LogicalWeightDimensionsPreserveVectorsAndExpertAxes) {
     EXPECT_EQ(experts.ne(0), 4);
     EXPECT_EQ(experts.ne(1), 3);
     EXPECT_EQ(experts.ne(2), 2);
+    EXPECT_THROW(graph.add(empty, vector), ov::Exception);
 }
 
 TEST(GGUFBuilderSDK, GeneralReshapeDoesNotCopyTheAttentionBatchAxis) {
@@ -292,7 +297,8 @@ TEST(GGUFArchitectureRegistry, PromotedDefinitionUsesTheSameBuilderAndDispatch) 
     EXPECT_EQ(first->model_output_names, second->model_output_names);
     for (size_t i = 0; i < first->nodes.size(); ++i) {
         EXPECT_EQ(first->nodes[i].op_type, second->nodes[i].op_type);
-        EXPECT_EQ(first->nodes[i].output_shape, second->nodes[i].output_shape);
+        EXPECT_EQ(first->values->at(first->nodes[i].output_name).get_partial_shape(),
+                  second->values->at(second->nodes[i].output_name).get_partial_shape());
     }
 }
 
@@ -435,4 +441,66 @@ TEST(GGUFBuilderSDK, DevstralReadsYarnAndAttentionTemperatureMetadata) {
     EXPECT_FLOAT_EQ(config.attention_temperature_scale, 0.1f);
     env.integer("mistral3.rope.scaling.original_context_length", 0);
     EXPECT_THROW(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights), ov::Exception);
+}
+
+TEST(GGUFBuilderSDK, BroadcastAndConcatShapesComeFromOpenVINO) {
+    Environment env;
+    GgufGraphContext graph(env.context);
+    auto a = graph.add_input("a", ov::element::f32, {2, 1, -1, 4});
+    auto b = graph.add_input("b", ov::element::f32, {1, 3, 1, 4});
+    auto sum = graph.add(a, b);
+    EXPECT_EQ(sum.shape(), (ov::PartialShape{2, 3, -1, 4}));
+    auto joined = graph.concat(sum, sum, 0);
+    EXPECT_EQ(joined.shape(), (ov::PartialShape{2, 3, -1, 8}));
+    auto output = graph.transpose(joined);
+    EXPECT_EQ(output.shape(), (ov::PartialShape{2, 3, 8, -1}));
+    graph.set_output(output);
+    auto model = convert(graph.finish());
+    for (size_t tokens : {1u, 3u}) {
+        ov::Tensor input_a(ov::element::f32, {2, 1, tokens, 4});
+        ov::Tensor input_b(ov::element::f32, {1, 3, 1, 4});
+        std::fill_n(input_a.data<float>(), input_a.get_size(), 2.f);
+        std::fill_n(input_b.data<float>(), input_b.get_size(), 3.f);
+        ov::TensorVector results{ov::Tensor(ov::element::f32, {2, 3, 8, tokens})};
+        ASSERT_TRUE(model->evaluate(results, {input_a, input_b}));
+        EXPECT_EQ(results[0].get_shape(), (ov::Shape{2, 3, 8, tokens}));
+        for (size_t i = 0; i < results[0].get_size(); ++i) {
+            EXPECT_EQ(results[0].data<float>()[i], 5.f);
+        }
+    }
+}
+
+TEST(GGUFBuilderSDK, RawOperationsNeedOnlySemanticAttributes) {
+    Environment env;
+    GgufGraphContext graph(env.context);
+    auto input = graph.add_input("x", ov::element::f32, {1, 1, -1, 5});
+    auto selected = graph.raw_op("GGML_OP_TOP_K", {input}, ov::element::i32, 0, {{"k", int64_t{2}}});
+    EXPECT_EQ(selected.shape(), (ov::PartialShape{1, 1, -1, 2}));
+    EXPECT_EQ(selected.type(), ov::element::i32);
+    auto repeated =
+        graph.raw_op("GGML_OP_REPEAT", {selected}, selected.type(), 0, {{"repeats", std::vector<int64_t>{1, 2, 1, 3}}});
+    EXPECT_EQ(repeated.shape(), (ov::PartialShape{1, 2, -1, 6}));
+    graph.set_output(repeated);
+    auto model = convert(graph.finish());
+    EXPECT_EQ(model->output().get_partial_shape(), repeated.shape());
+}
+
+TEST(GGUFBuilderSDK, MergeHeadsAcceptsRuntimeTokenAndHeadDimensions) {
+    Environment env;
+    GgufGraphContext graph(env.context);
+    auto input = graph.add_input("x", ov::element::f32, {2, -1, 3, -1});
+    auto merged = graph.merge_heads(input);
+    EXPECT_EQ(merged.shape(), (ov::PartialShape{2, 1, -1, -1}));
+    graph.set_output(merged);
+    auto model = convert(graph.finish());
+    for (const ov::Shape& shape : {ov::Shape{2, 1, 3, 4}, ov::Shape{2, 5, 3, 2}}) {
+        ov::Tensor input_data(ov::element::f32, shape);
+        std::iota(input_data.data<float>(), input_data.data<float>() + input_data.get_size(), 0.f);
+        ov::TensorVector result{ov::Tensor(ov::element::f32, {2, 1, shape[1], 3 * shape[3]})};
+        ASSERT_TRUE(model->evaluate(result, {input_data}));
+        EXPECT_EQ(result[0].get_shape(), (ov::Shape{2, 1, shape[1], 3 * shape[3]}));
+        for (size_t i = 0; i < input_data.get_size(); ++i) {
+            EXPECT_EQ(result[0].data<float>()[i], input_data.data<float>()[i]);
+        }
+    }
 }

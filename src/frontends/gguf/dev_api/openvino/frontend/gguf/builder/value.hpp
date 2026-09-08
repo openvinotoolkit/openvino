@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 
+#include "openvino/core/node.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
@@ -15,17 +16,13 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-// Named tensor handle carrying shape and type for graph construction.
+// Named OpenVINO output; shape and type come from OpenVINO inference.
 // Default construction yields an empty handle, also used for absent optional weights.
 class GGUF_FRONTEND_API GgufValue {
 public:
     GgufValue() = default;
 
-    GgufValue(std::string name, ov::PartialShape shape, ov::element::Type type)
-        : m_name(std::move(name)),
-          m_shape(std::move(shape)),
-          m_type(type),
-          m_empty(false) {}
+    GgufValue(std::string name, ov::Output<ov::Node> value) : m_name(std::move(name)), m_value(std::move(value)) {}
 
     const std::string& name() const {
         return m_name;
@@ -33,11 +30,12 @@ public:
 
     // Logical shape in OpenVINO order: [ne3, ne2, ne1, ne0] for a rank-4 value.
     const ov::PartialShape& shape() const {
-        return m_shape;
+        static const ov::PartialShape unknown = ov::PartialShape::dynamic();
+        return empty() ? unknown : m_value.get_partial_shape();
     }
 
     ov::element::Type type() const {
-        return m_type;
+        return empty() ? ov::element::dynamic : m_value.get_element_type();
     }
 
     // GGML dimension i, counted from the last shape axis. Returns -1 for an empty value
@@ -46,18 +44,16 @@ public:
 
     // False for an empty handle.
     explicit operator bool() const {
-        return !m_empty;
+        return m_value.get_node() != nullptr;
     }
 
     bool empty() const {
-        return m_empty;
+        return m_value.get_node() == nullptr;
     }
 
 private:
     std::string m_name;
-    ov::PartialShape m_shape;
-    ov::element::Type m_type = ov::element::dynamic;
-    bool m_empty = true;
+    ov::Output<ov::Node> m_value;
 };
 
 }  // namespace gguf
