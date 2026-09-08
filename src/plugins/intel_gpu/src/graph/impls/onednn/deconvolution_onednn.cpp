@@ -235,8 +235,9 @@ in_out_fmts_t DeconvolutionImplementationManager::query_formats(const program_no
     auto prim_desc = onednn::get_deconvolution_primitive_descriptor(*node.get_kernel_impl_params(), dnnl::primitive_attr(), dnnl::memory::format_tag::any);
 
     for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-        if (node.get_dependency(idx).is_constant())
+        if (node.get_dependency(idx).is_constant()) {
             continue;
+        }
 
         // Conv or deconv gets a preferred format for its data input based on source memory description
         // But an input format for fused post-ops should be same with an output format of conv/deconv
@@ -254,8 +255,9 @@ in_out_fmts_t DeconvolutionImplementationManager::query_formats(const program_no
         }
 
         // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
-        if (src_fmt == format::b_fs_yx_fsv2)
+        if (src_fmt == format::b_fs_yx_fsv2) {
             src_fmt = format::byxf;
+        }
 
         in_fmts[idx] = src_fmt;
     }
@@ -263,8 +265,9 @@ in_out_fmts_t DeconvolutionImplementationManager::query_formats(const program_no
     out_fmts[0] = onednn::find_data_format(prim_desc->dst_desc());
 
     // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
-    if (out_fmts[0] == format::b_fs_yx_fsv2)
+    if (out_fmts[0] == format::b_fs_yx_fsv2) {
         out_fmts[0] = format::byxf;
+    }
 
     return {in_fmts, out_fmts};
 }

@@ -1,11 +1,13 @@
 {
     "windows10": {
-        "MTL": "windows/unified/integration/ci_tag_driver_rc_config1_20260810_1903/npu-driver-ci-master-13416-RelWithDebInfo.zip",
-        "LNL": "windows/unified/integration/ci_tag_driver_rc_config1_20260810_1903/npu-driver-ci-master-13416-RelWithDebInfo.zip",
-        "PTL": "windows/unified/integration/ci_tag_driver_rc_config1_20260810_1903/npu-driver-ci-master-13416-RelWithDebInfo.zip",
-        "MTL_release": "windows/unified/UD202628/ci_tag_driver_rc_ud202628_20260731_1901/npu-driver-ci-releases_26ww25-ci-master-12471-647-RelWithDebInfo.zip",
-        "LNL_release": "windows/unified/UD202628/ci_tag_driver_rc_ud202628_20260731_1901/npu-driver-ci-releases_26ww25-ci-master-12471-647-RelWithDebInfo.zip",
-        "PTL_release": "windows/unified/UD202628/ci_tag_driver_rc_ud202628_20260731_1901/npu-driver-ci-releases_26ww25-ci-master-12471-647-RelWithDebInfo.zip",
+        "MTL": "windows/unified/integration/ci_tag_driver_rc_config1_20260817_1901/npu-driver-ci-master-13516-RelWithDebInfo.zip",
+        "LNL": "windows/unified/integration/ci_tag_driver_rc_config1_20260817_1901/npu-driver-ci-master-13516-RelWithDebInfo.zip",
+        "PTL": "windows/unified/integration/ci_tag_driver_rc_config1_20260817_1901/npu-driver-ci-master-13516-RelWithDebInfo.zip",
+        "NVL": "windows/unified/integration/ci_tag_driver_rc_config1_20260817_1901/npu-driver-ci-master-13516-RelWithDebInfo.zip",
+        "MTL_release": "windows/unified/UD202638/ci_tag_driver_rc_ud202638_20260820_1901/npu-driver-ci-releases_26ww32-ci-master-13301-700-RelWithDebInfo.zip",
+        "LNL_release": "windows/unified/UD202638/ci_tag_driver_rc_ud202638_20260820_1901/npu-driver-ci-releases_26ww32-ci-master-13301-700-RelWithDebInfo.zip",
+        "PTL_release": "windows/unified/UD202638/ci_tag_driver_rc_ud202638_20260820_1901/npu-driver-ci-releases_26ww32-ci-master-13301-700-RelWithDebInfo.zip",
+        "NVL_release": "windows/unified/UD202638/ci_tag_driver_rc_ud202638_20260820_1901/npu-driver-ci-releases_26ww32-ci-master-13301-700-RelWithDebInfo.zip",
         "MTL_PV": "windows/MTL/PV2/ci_tag_mtl_pv2_driver_rc_20231031_2101/npu_win_31.0.100.1688.zip"
     },
     "ubuntu24": {
