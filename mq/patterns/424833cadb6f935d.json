@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "cmake error at add_target_helpers.cmake message exists on disk but is not listed in target sources and will not be compiled add it to the appropriate cmakelists txt or sources cmake|Code Issue",
+  "signature_hash": "424833cadb6f935d",
+  "title": "GPU unit tests CMake glob removal missing two test source files",
+  "category": "Code Issue",
+  "count": 1,
+  "first_seen": "2026-09-08T05:13:38Z",
+  "last_seen": "2026-09-08T05:13:38Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/34188369195"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37914"],
+  "recent_timestamps": ["2026-09-08T05:13:38Z"],
+  "rerun_search_string": null
+}
