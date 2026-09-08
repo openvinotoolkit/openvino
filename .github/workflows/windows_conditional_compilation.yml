@@ -387,6 +387,9 @@ jobs:
             -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
             -DCMAKE_CXX_FLAGS="/cgthreads2 /MP2" `
             -DCMAKE_C_FLAGS="/cgthreads2 /MP2" `
+            -DCMAKE_EXE_LINKER_FLAGS="/CGTHREADS:2" `
+            -DCMAKE_SHARED_LINKER_FLAGS="/CGTHREADS:2" `
+            -DCMAKE_MODULE_LINKER_FLAGS="/CGTHREADS:2" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
