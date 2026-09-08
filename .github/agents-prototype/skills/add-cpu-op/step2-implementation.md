@@ -392,13 +392,7 @@ Verify no compilation errors before proceeding.
 
 ## Type Dispatch Pattern (OV_SWITCH — Mandatory for Conditional Compilation)
 
-For ops that need to handle multiple element types, **always** use the `OV_SWITCH`
-macro for precision dispatch. This is **required** for the CPU plugin's
-conditional compilation feature — `OV_SWITCH` allows the build system to
-eliminate unused type specialisations at compile time, reducing binary size.
-
-**Do NOT** use manual `if/else` or `switch` chains on element type — they break
-conditional compilation.
+See [In-code conditional compilation](../../../../src/plugins/intel_cpu/docs/selective_build.md#in-code-conditional-compilation) for why `OV_SWITCH` is mandatory instead of a manual `if/else`/`switch` chain.
 
 ```cpp
 namespace {

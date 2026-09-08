@@ -5,6 +5,7 @@
 #include "pass/lower_set_rows_stateless.hpp"
 
 #include <memory>
+#include <vector>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -12,6 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov {
@@ -31,22 +33,26 @@ LowerSetRowsStateless::LowerSetRowsStateless() {
         auto indices = set_rows->input_value(1);  // squeezed row indices
         auto dst = set_rows->input_value(2);      // destination tensor (Parameter for a KV cache)
 
+        // SET_ROWS indices address the flattened context/head row axis. Flatten the destination
+        // the same way translate_set_rows flattened the updates; with a one-token cache the two
+        // layouts happen to coincide, which previously hid this mismatch until the second step.
+        const auto dst_shape = dst.get_partial_shape();
+        OPENVINO_ASSERT(dst_shape.rank().is_static() && dst_shape[dst_shape.rank().get_length() - 1].is_static(),
+                        "SET_ROWS requires a static destination row size");
+        const auto row_size = dst_shape[dst_shape.rank().get_length() - 1].get_length();
+        auto flat_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 1, -1, row_size});
+        auto flat_dst = std::make_shared<ov::op::v1::Reshape>(dst, flat_shape, true);
         auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
-        std::shared_ptr<ov::Node> res = std::make_shared<ov::op::v3::ScatterUpdate>(dst, indices, data, axes);
+        std::shared_ptr<ov::Node> res = std::make_shared<ov::op::v3::ScatterUpdate>(flat_dst, indices, data, axes);
+
+        ov::Output<ov::Node> output_shape = std::make_shared<ov::op::v3::ShapeOf>(dst, ov::element::i64);
 
         // Multi-sequence: if the destination is a Reshape, reshape the scatter result back to the
         // original [1, n_seq, ctx_per_seq, emb] layout (ctx_per_seq stays dynamic for llama-bench).
         if (auto dst_reshape = ov::as_type_ptr<ov::op::v1::Reshape>(dst.get_node_shared_ptr())) {
-            auto dst_ps = dst_reshape->get_input_partial_shape(0);
-            // -1 for any dynamic dim; get_length() throws on dynamic.
-            auto dim_or_dynamic = [&](size_t i) -> int64_t {
-                return dst_ps[i].is_static() ? dst_ps[i].get_length() : -1;
-            };
-            std::vector<int64_t> shape = {dim_or_dynamic(0), dim_or_dynamic(1), dim_or_dynamic(2), dim_or_dynamic(3)};
-            res = std::make_shared<ov::op::v1::Reshape>(res,
-                                                        ov::op::v0::Constant::create(ov::element::i64, {4}, shape),
-                                                        false);
+            output_shape = std::make_shared<ov::op::v3::ShapeOf>(dst_reshape->input_value(0), ov::element::i64);
         }
+        res = std::make_shared<ov::op::v1::Reshape>(res, output_shape, false);
 
         res->set_friendly_name(set_rows->get_friendly_name());
         ov::copy_runtime_info(set_rows, res);
