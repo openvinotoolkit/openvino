@@ -690,7 +690,7 @@ class TestLLMModel(TestTorchConvertModel):
         ]
         if platform.machine() not in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             models.extend([
-                ("opt_gptq", "katuni4ka/opt-125m-gptq"),
+                ("opt_gptq", "optimum-intel-internal-testing/opt-125m-gptq-4bit"),
                 ("llama", "TinyLlama/TinyLlama-1.1B-Chat-v1.0"),
                 ("llama_awq", "casperhansen/tinyllama-1b-awq"),
                 ("llama_compressed_tensors",
@@ -756,7 +756,7 @@ class TestLLMModel(TestTorchConvertModel):
             return []
         return [
             ("llama_awq", "casperhansen/tinyllama-1b-awq"),
-            ("opt_gptq", "katuni4ka/opt-125m-gptq"),
+            ("opt_gptq", "optimum-intel-internal-testing/opt-125m-gptq-4bit"),
         ]
 
     @pytest.mark.parametrize("type,name", get_supported_export_precommit_models())
