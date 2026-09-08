@@ -5,6 +5,7 @@
 #include "include/batch_headers/common.cl"
 
 KERNEL(activation)(
+    OPTIONAL_SHAPE_INFO_ARG
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS

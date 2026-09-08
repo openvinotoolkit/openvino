@@ -15,6 +15,21 @@
 
 namespace kernel_selector {
 
+// Detect cldnn order [0,2,1,3] (4D) / [0,2,1,3,4] (5D) / [0,2,1,3,4,5] (6D):
+// swaps f (cldnn dim 1) with x (cldnn dim 2 = OV innermost spatial), keeping b and all
+// remaining spatial dims fixed.  Corresponds to ONNX perm [0,3,2,1] for 4D, etc.
+// The same tiled-transpose kernel handles this case with a swapped OUTPUT_TILED_ORDER
+// (args 2 and 3 of OUTPUT_GET_INDEX exchanged): reads are identical (coalesced along x),
+// writes are still coalesced (f_tile indexes the innermost x_out dimension of the output).
+static inline bool IsSwappingFX(const std::vector<uint16_t>& order) {
+    if (order.size() < 4) return false;
+    if (order[0] != 0 || order[1] != 2 || order[2] != 1) return false;
+    for (int32_t i = 3; i < (int32_t)order.size(); ++i) {
+        if ((int32_t)order[i] != i) return false;
+    }
+    return true;
+}
+
 ParamsKey PermuteKernel_tile_8x8_4x4::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -58,19 +73,34 @@ static inline size_t GetTileSize(const permute_params& params) {
     return DEFAULT_TILE_SIZE;
 }
 
-static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
+static inline std::vector<std::string> GetFusedOpOrderVector(size_t size, bool swap_f_x) {
     std::vector<std::string> res;
-    switch (size) {
-        case 4 :
-            res = {"b", "y", "(x * TILE_SIZE + i)", "(f * TILE_SIZE + lh)"};
-            break;
-        case 5 :
-            res = {"b", "z", "y", "(x * TILE_SIZE + i)", "(f * TILE_SIZE + lh)"};
-            break;
-        case 6 :
-            res = {"b", "w", "z", "y", "(x * TILE_SIZE + i)", "(f * TILE_SIZE + lh)"};
-            break;
-        default : throw std::runtime_error("Unsupported combination\n");
+    if (swap_f_x) {
+        switch (size) {
+            case 4 :
+                res = {"b", "(x * TILE_SIZE + i)", "y", "(f * TILE_SIZE + lh)"};
+                break;
+            case 5 :
+                res = {"b", "z", "(x * TILE_SIZE + i)", "y", "(f * TILE_SIZE + lh)"};
+                break;
+            case 6 :
+                res = {"b", "w", "z", "(x * TILE_SIZE + i)", "y", "(f * TILE_SIZE + lh)"};
+                break;
+            default : throw std::runtime_error("Unsupported combination\n");
+        }
+    } else {
+        switch (size) {
+            case 4 :
+                res = {"b", "y", "(x * TILE_SIZE + i)", "(f * TILE_SIZE + lh)"};
+                break;
+            case 5 :
+                res = {"b", "z", "y", "(x * TILE_SIZE + i)", "(f * TILE_SIZE + lh)"};
+                break;
+            case 6 :
+                res = {"b", "w", "z", "y", "(x * TILE_SIZE + i)", "(f * TILE_SIZE + lh)"};
+                break;
+            default : throw std::runtime_error("Unsupported combination\n");
+        }
     }
     return res;
 }
@@ -81,18 +111,37 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
     std::string order_str;
     int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
 
+    const bool swap_f_x = IsSwappingFX(params.order);
+
     if (dim_diff == 0) {
-        switch (dim_change.first) {
-            case 4 :
-                order_str = "b, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
-                break;
-            case 5 :
-                order_str = "b, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
-                break;
-            case 6 :
-                order_str = "b, w, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
-                break;
-            default : throw std::runtime_error("Unsupported combination\n");
+        if (swap_f_x) {
+            // cldnn [0,2,1,3] / [0,2,1,3,4] / ...: output.f ← input.x, output.y ← input.y
+            // Args 2 and 3 of OUTPUT_GET_INDEX are exchanged vs the is_rotating_except_batch case.
+            switch (dim_change.first) {
+                case 4 :
+                    order_str = "b, (x * TILE_SIZE + lh), y, (f * TILE_SIZE)";
+                    break;
+                case 5 :
+                    order_str = "b, z, (x * TILE_SIZE + lh), y, (f * TILE_SIZE)";
+                    break;
+                case 6 :
+                    order_str = "b, w, z, (x * TILE_SIZE + lh), y, (f * TILE_SIZE)";
+                    break;
+                default : throw std::runtime_error("Unsupported combination\n");
+            }
+        } else {
+            switch (dim_change.first) {
+                case 4 :
+                    order_str = "b, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
+                    break;
+                case 5 :
+                    order_str = "b, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
+                    break;
+                case 6 :
+                    order_str = "b, w, z, y, (x * TILE_SIZE + lh), (f * TILE_SIZE)";
+                    break;
+                default : throw std::runtime_error("Unsupported combination\n");
+            }
         }
     } else if (dim_diff > 0) {
         // dim is shrinked
@@ -209,7 +258,8 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
     jit.AddConstant(MakeJitConstant("LOCAL_BUF_STRIDE", (tile_size / vector_width) * tile_size));
 
     if (!params.fused_ops.empty()) {
-        std::vector<std::string> output_order = GetFusedOpOrderVector(params.inputs[0].GetDims().size());
+        std::vector<std::string> output_order = GetFusedOpOrderVector(params.inputs[0].GetDims().size(),
+                                                                      IsSwappingFX(params.order));
         FusedOpsConfiguration conf = {"", output_order, "input_var", params.inputs[0].GetDType(), 1};
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
@@ -278,19 +328,28 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
+    // Accepted cldnn permutation orders (using cldnn bfxy dim numbering: 0=b,1=f,2=x,3=y):
+    //
+    // is_rotating_except_batch: cldnn [0,3,1,2] (4D) / [0,4,1,2,3] (5D) / ...
+    //   Feature (dim 1) is pushed to the cldnn-y (last spatial) position; spatial dims rotate
+    //   left.  Corresponds to ONNX perm [0,2,3,1] (NCHW→NHWC).
+    //
+    // is_swapping_f_x: cldnn [0,2,1,3] (4D) / [0,2,1,3,4] (5D) / ...
+    //   Swaps feature (dim 1) and cldnn-x (dim 2 = OV innermost spatial); b and remaining
+    //   spatials (y, z, ...) stay fixed.  Corresponds to ONNX perm [0,3,2,1] (NCHW→NWHC).
+    //   Uses the same tiled read pattern but with output args 2 and 3 exchanged in
+    //   OUTPUT_TILED_ORDER so that writes remain coalesced.
+
     std::function<bool(const std::vector<uint16_t>&)> is_rotating_except_batch = [](const std::vector<uint16_t>& order) {
-        // Target transform: Rotate feature dim to back to be taken as inner-most axis
-        // ex) 0(b), 4(f), 1(z), 2(y), 3(x)
-        // ex) 0(b), 3(f), 1(y), 2(x)
-        if ((int32_t) order[1] != order.size() - 1) return false;
+        if ((int32_t) order[1] != (int32_t)order.size() - 1) return false;
         if ((int32_t) order[0] != 0) return false;
         for (int32_t i = 2; i < (int32_t) order.size(); ++i) {
-            if ((int32_t)order[i] !=  (i - 1)) return false;
+            if ((int32_t)order[i] != (i - 1)) return false;
         }
         return true;
     };
 
-    if (!is_rotating_except_batch(params.order)) {
+    if (!is_rotating_except_batch(params.order) && !IsSwappingFX(params.order)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
