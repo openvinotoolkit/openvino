@@ -45,10 +45,11 @@ KernelsData ArgMaxMinKernelOpt::GetKernelsData(const Params& params) const {
     KernelData kd = KernelData::Default<arg_max_min_params>(params, kernelAmount);
     for (int i = 0; i < kernelAmount; i++) {
         DataTensor input;
-        if (i == 0)
+        if (i == 0) {
             input = orgParams.inputs[0];
-        else
+        } else {
             input = orgParams.outputs[0];
+        }
 
         auto newParams = orgParams;
         newParams.inputs.resize(1);

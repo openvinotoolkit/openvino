@@ -44,8 +44,9 @@ struct ctc_loss : primitive_base<ctc_loss> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const ctc_loss>(rhs);
 
