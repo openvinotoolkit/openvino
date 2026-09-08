@@ -221,7 +221,8 @@ protected:
         auto attrs = impl_params.attrs_onednn;
 
         // accumulation_mode::any allows oneDNN to use f16 as the accumulation type.
-        if (impl_params.get_input_layout(0).data_type == data_types::f16) {
+        if ((impl_params.get_input_layout(0).data_type == data_types::f16) &&
+            (impl_params.prog->get_config().get_execution_mode() != ov::hint::ExecutionMode::ACCURACY)) {
             attrs->set_accumulation_mode(dnnl::accumulation_mode::any);
         }
 
