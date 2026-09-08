@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-08-10-25-30-000-34205186921",
+  "timestamp": "2026-09-08T10:25:30Z",
+  "run_id": "34205186921",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34205186921",
+  "workflow_name": "TensorFlow Layer Tests / NPU Models Tests / Windows",
+  "pr_number": "37208",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37208",
+  "author": "allnes",
+  "category": "Infrastructure",
+  "title": "Merge-queue jobs fail downloading OpenVINO artifacts - blob storage chunk timeout",
+  "signature": "timeout reached blob storage chunk did not respond in 30000ms artifact download failed after 5 retries|Infrastructure",
+  "signature_hash": "bd5ee42b01f94f83",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 4000",
+      "conclusion": "failure",
+      "symptom": "Download OpenVINO artifacts (wheels) step failed, cascading to all downstream test steps"
+    },
+    {
+      "name": "NPU Models Tests / 6010",
+      "conclusion": "failure",
+      "symptom": "Download OpenVINO artifacts (wheels) step failed, cascading to all downstream test steps"
+    },
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "Download OpenVINO artifacts (wheels) step failed with blob storage chunk timeout"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because upstream jobs failed"
+    }
+  ],
+  "key_errors": [
+    "Received 22520 data chunks (chunk size: 16384 bytes), time passed: 19304ms\nTimeout reached: Blob storage chunk did not respond in 30000ms\n##[warning]Failed to download artifact after 5 retries due to undefined. Retrying in 5 seconds...\n##[error]Artifact download failed after 5 retries.\n##[error]Unable to download and extract artifact: Artifact download failed after 5 retries.\n##[error]Download failed for artifact 'openvino_wheels': Unable to download and extract artifact: Artifact download failed after 5 retries."
+  ],
+  "root_cause": "Multiple independent merge-queue jobs (NPU Models Tests for platforms 4000/6010, TensorFlow Layer Tests) all failed at the 'Download OpenVINO artifacts (wheels)' step with an identical error: the GitHub Actions blob storage backend stopped responding mid-download, tripping a 30-second per-chunk timeout after 5 retries. This is the same signature recorded ~21 minutes earlier for run 34205188404 (PR #38007), indicating an ongoing GitHub Actions/Azure Blob Storage transient degradation rather than an issue caused by PR #37208's GPU clang-tidy brace changes (which touch only .hpp header formatting, unrelated to artifact storage).",
+  "reproduction_steps": "N/A - not reproducible locally; transient GitHub Actions artifact storage backend issue.",
+  "recommended_actions": [
+    "Re-run the failed jobs; a plain retry is expected to succeed once the blob storage backend recovers.",
+    "If retries continue to fail across multiple merge-queue runs, check the GitHub Status page (githubstatus.com) for an ongoing Actions/Artifacts incident and consider pausing merge-queue processing until resolved.",
+    "No code changes are required in PR #37208."
+  ],
+  "prevention_strategies": "Add retry/backoff wrapping around the artifact download action, or split large artifacts (openvino_wheels) into smaller pieces to reduce the chance of a single chunk stalling past the 30s timeout window.",
+  "historical_context": "Identical signature (bd5ee42b01f94f83) first recorded 2026-09-08T10:02:37Z for run 34205188404 (PR #38007), only ~21 minutes before this run. This is the 2nd occurrence; a related but distinct upload-side blob storage error was recorded 2026-09-04 (pattern 841a57c639e28d01, PR #37898)."
+}

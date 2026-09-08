@@ -4,16 +4,19 @@
   "signature_hash": "bd5ee42b01f94f83",
   "title": "Merge-queue jobs fail downloading OpenVINO artifacts - blob storage chunk timeout",
   "category": "Infrastructure",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-09-08T10:02:37Z",
-  "last_seen": "2026-09-08T10:02:37Z",
+  "last_seen": "2026-09-08T10:25:30Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34205186921",
     "https://github.com/openvinotoolkit/openvino/actions/runs/34205188404"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37208",
     "https://github.com/openvinotoolkit/openvino/pull/38007"
   ],
   "recent_timestamps": [
+    "2026-09-08T10:25:30Z",
     "2026-09-08T10:02:37Z"
   ],
   "rerun_search_string": "Timeout reached: Blob storage chunk did not respond in 30000ms"
