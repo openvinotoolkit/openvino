@@ -396,4 +396,38 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- C#191823 -->
+    <skip_config>
+        <message>HostCompile cannot compile the dynamic Add model because AdjustScaleShiftForDWConv requires static Reshape shapes.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*DynamicBatchingTests.DynamicCheckMultipleBatchingRun0.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchingTests.DynamicCheckMultipleBatchingRunsSeq.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsMultipleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsDynamicBatchInflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsDynamicBatchDeflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorSingleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorSingleInferWithExportImport.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchInflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchInflationWithExportImport.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchDeflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputDifferentTensorsMultipleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*RoiTensorsTestsRun.RunStridedTensorWithDynamicBoundedBatching.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>HostCompile cannot compile the dynamic MaxPool model because ConvertBatchedLayerTo1N requires static AffineReshape shapes.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferWithDefaultHostCompileTests.CompileDynamicModelWithNoHostCompileMode.*model=MaxPool_NCHW_DynBatch.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
