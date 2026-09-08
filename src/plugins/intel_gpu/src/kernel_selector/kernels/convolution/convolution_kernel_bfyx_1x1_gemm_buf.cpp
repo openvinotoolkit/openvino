@@ -70,8 +70,9 @@ bool ConvolutionKernel_bfyx_1x1_gemm_buf::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (!params.engineInfo.supports_image)
+    if (!params.engineInfo.supports_image) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
