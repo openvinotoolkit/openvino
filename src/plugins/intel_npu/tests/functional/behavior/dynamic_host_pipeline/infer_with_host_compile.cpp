@@ -1587,11 +1587,11 @@ TEST_P(InferWithHostCompileTests, SetProperty_Priority_BetweenTwoRequests_NonSha
 
 // ── V2 MemRef reuse: same-pointer / same-shape input ──────────────────────────
 //
-// Verifies that execute_vm_runtime_v2 emits "execute_vm_runtime_v2 - recording"
-// on the first inference (or when a tensor changes) and
-// "execute_vm_runtime_v2 - reuse, no tensor change detected" when neither the
-// pointer nor the shape has changed since the previous execution.
-//
+// Exercises the v2 execution path across repeated inferences with:
+//  - same tensor pointer / same shape
+//  - different tensor pointer / same shape
+//  - different shape
+// Validates output correctness for all cases (this test does not assert on specific log messages).
 // The test is skipped when the v2 code path is not active (i.e., when
 // "execute_vm_runtime_v2 - started" is absent from the first-inference logs).
 TEST_P(InferWithHostCompileTests, MemRefReuse_SamePtrSameShape) {
