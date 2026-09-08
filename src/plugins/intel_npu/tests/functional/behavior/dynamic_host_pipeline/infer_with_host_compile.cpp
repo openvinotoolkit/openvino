@@ -165,6 +165,78 @@ inline std::shared_ptr<ov::Model> createCustomNetModel(bool dynamicBatch = false
     return model;
 }
 
+inline std::shared_ptr<ov::Model> createESPCNX2Model() {
+    const ov::PartialShape inputShape{ov::Dimension(1, 2),
+                                      ov::Dimension(32, 64),
+                                      ov::Dimension(32, 64),
+                                      1};
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape);
+    input->set_friendly_name("IteratorGetNext:0");
+    input->get_output_tensor(0).set_names({"IteratorGetNext:0"});
+
+    auto transposeOrder = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+    auto nchwInput = std::make_shared<ov::op::v1::Transpose>(input, transposeOrder);
+
+    const auto makeConvAdd = [](const ov::Output<ov::Node>& data,
+                                size_t inputChannels,
+                                size_t outputChannels,
+                                size_t kernelSize,
+                                float weightValue,
+                                float biasValue) -> ov::Output<ov::Node> {
+        auto weights = ov::op::v0::Constant::create(ov::element::f32,
+                                                    ov::Shape{outputChannels,
+                                                              inputChannels,
+                                                              kernelSize,
+                                                              kernelSize},
+                                                    {weightValue});
+        auto convolution = std::make_shared<ov::op::v1::Convolution>(data,
+                                                                     weights,
+                                                                     ov::Strides{1, 1},
+                                                                     ov::CoordinateDiff{0, 0},
+                                                                     ov::CoordinateDiff{0, 0},
+                                                                     ov::Strides{1, 1},
+                                                                     ov::op::PadType::SAME_UPPER);
+        auto bias = ov::op::v0::Constant::create(ov::element::f32,
+                                                 ov::Shape{1, outputChannels, 1, 1},
+                                                 {biasValue});
+        return std::make_shared<ov::op::v1::Add>(convolution, bias);
+    };
+
+    auto firstConv = makeConvAdd(nchwInput, 1, 64, 5, 0.01f, 0.001f);
+    auto firstRelu = std::make_shared<ov::op::v0::Relu>(firstConv);
+    auto secondConv = makeConvAdd(firstRelu, 64, 32, 3, 0.011f, 0.001f);
+    auto secondRelu = std::make_shared<ov::op::v0::Relu>(secondConv);
+    auto thirdConv = makeConvAdd(secondRelu, 32, 4, 3, 0.012f, 0.001f);
+    auto depthToSpace = std::make_shared<ov::op::v0::DepthToSpace>(
+        thirdConv,
+        ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+        2);
+    auto output = std::make_shared<ov::op::v0::Tanh>(depthToSpace);
+    output->set_friendly_name("NCHW_output");
+    output->get_output_tensor(0).set_names({"NCHW_output:0"});
+
+    return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input}, "ESPCN_x2_gh");
+}
+
+inline bool isESPCNX2Model(const std::string& modelName) {
+    return modelName == "ESPCN_x2_gh";
+}
+
+inline ov::Shape dynamicNHWInputShape(const std::string& modelName, size_t batch, bool useLargeShape = false) {
+    if (isESPCNX2Model(modelName)) {
+        const size_t spatialDimension = useLargeShape ? 64 : 32;
+        return {batch, spatialDimension, spatialDimension, 1};
+    }
+    return useLargeShape ? ov::Shape{batch, 1080, 1920, 16} : ov::Shape{batch, 720, 1280, 16};
+}
+
+inline ov::Shape dynamicNHWOutputShape(const std::string& modelName, const ov::Shape& inputShape) {
+    if (isESPCNX2Model(modelName)) {
+        return {inputShape[0], 1, inputShape[1] * 2, inputShape[2] * 2};
+    }
+    return inputShape;
+}
+
 using InferWithHostCompileParams = std::tuple<std::string,  // Device name
                                               ov::AnyMap,   // Config
                                               std::string   // Model name
@@ -354,6 +426,9 @@ std::shared_ptr<ov::Model> InferWithHostCompileTests::createModelByName(const st
     if (modelName == "MaxPool_NCHW_DynBatch") {
         return createMaxPoolModel(true, false);
     }
+    if (isESPCNX2Model(modelName)) {
+        return createESPCNX2Model();
+    }
 
     OPENVINO_THROW("Unknown model name for InferWithHostCompileTests: ", modelName);
 }
@@ -403,6 +478,9 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
+    if (isESPCNX2Model(selectedModelName)) {
+        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
+    }
     auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
@@ -426,6 +504,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
+    }
+    if (isESPCNX2Model(selectedModelName)) {
+        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
     }
 
     auto model = createModelByName(selectedModelName);
@@ -491,6 +572,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
+    if (isESPCNX2Model(selectedModelName)) {
+        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
+    }
 
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
@@ -554,6 +638,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
+    }
+    if (isESPCNX2Model(selectedModelName)) {
+        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
     }
 
     auto model = createModelByName(selectedModelName);
@@ -672,14 +759,14 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << logCapture.str();
 }
 
-TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
+TEST_P(InferWithHostCompileTests, DynamicNHWUsesOneVMExecution) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
     // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
     // CustomNet_DynBatch is used to verify aggregation of N=1 tensors into one N=2 VM execution.
-    if (selectedModelName != "CustomNet_DynBatch") {
+    if (selectedModelName != "CustomNet_DynBatch" && !isESPCNX2Model(selectedModelName)) {
         GTEST_SKIP() << "Only applies to the dynamic-batch model";
     }
 
@@ -700,7 +787,7 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     ov::InferRequest reqReference1 = testContext.referenceCompiledModel.create_infer_request();
 
     // A single N=2 tensor must execute as one dynamic VM inference.
-    const ov::Shape batchShape = {2, 720, 1280, 16};
+    const ov::Shape batchShape = dynamicNHWInputShape(selectedModelName, 2);
     auto fullBatchTensor =
         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), batchShape, 100, 0);
     setInputInferAndCompare(model,
@@ -708,7 +795,8 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
                             reqReference1,
                             fullBatchTensor,
                             "DynamicBatchUsesOneVMExecution_full_batch");
-    ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), batchShape);
+    ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(),
+              dynamicNHWOutputShape(selectedModelName, batchShape));
 
     const auto countVMExecutions = [](const std::string& log) {
         constexpr std::string_view marker = "Start to execute graph with runtime engine";
@@ -724,7 +812,7 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
 
     logCapture.clear();
     // Two N=1 tensors must be aggregated into one N=2 inference rather than executed separately.
-    const ov::Shape singleBatchShape = {1, 720, 1280, 16};
+    const ov::Shape singleBatchShape = dynamicNHWInputShape(selectedModelName, 1);
     std::vector<ov::Tensor> tensorBatch;
     tensorBatch.push_back(
         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), singleBatchShape, 100, 0));
@@ -734,12 +822,122 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
     OV_ASSERT_NO_THROW(reqReference1.set_tensors(testContext.referenceCompiledModel.input(), tensorBatch));
     OV_ASSERT_NO_THROW(reqDynamic1.infer());
     OV_ASSERT_NO_THROW(reqReference1.infer());
-    ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), batchShape);
+    ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(),
+              dynamicNHWOutputShape(selectedModelName, batchShape));
     ov::test::utils::compare(reqReference1.get_tensor(model->output()),
                              reqDynamic1.get_tensor(model->output()),
                              model->output().get_element_type());
 
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
+}
+
+// Grow N, H and W simultaneously (still within the model's declared bounds: N in [1,10], H in [1,1080], W in
+// [10,1920]) and verify both output correctness and command-list reconfiguration behavior.
+TEST_P(InferWithHostCompileTests, DynamicNHWIncreasedSize) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+    // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
+    if (selectedModelName != "CustomNet_DynBatch" && !isESPCNX2Model(selectedModelName)) {
+        GTEST_SKIP() << "Only applies to the dynamic-batch model";
+    }
+
+    auto model = createModelByName(selectedModelName);
+    ScopedLogCapture logCapture;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& testContext = setupResult.context;
+
+    // Start with a small valid N/H/W combination.
+    ov::Shape smallShape = dynamicNHWInputShape(selectedModelName, 1);
+    ov::Tensor smallTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), smallShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            smallTensor,
+                            "DynamicNHWIncreasedSize_small");
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
+
+    logCapture.clear();
+    // Grow N, H and W at once.
+    ov::Shape largeShape = dynamicNHWInputShape(selectedModelName, 2, true);
+    ov::Tensor largeTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), largeShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            largeTensor,
+                            "DynamicNHWIncreasedSize_large");
+    ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(),
+              dynamicNHWOutputShape(selectedModelName, largeShape));
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime' after growing N/H/W simultaneously, but "
+           "got: "
+        << logCapture.str();
+}
+
+// Shrink N, H and W simultaneously and verify both output correctness and command-list reconfiguration behavior.
+TEST_P(InferWithHostCompileTests, DynamicNHWDecreasedSize) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    if (!isTargetDevice) {
+        GTEST_SKIP() << "Skip test for current device";
+    }
+    // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
+    if (selectedModelName != "CustomNet_DynBatch" && !isESPCNX2Model(selectedModelName)) {
+        GTEST_SKIP() << "Only applies to the dynamic-batch model";
+    }
+
+    auto model = createModelByName(selectedModelName);
+    ScopedLogCapture logCapture;
+
+    core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
+    auto setupResult = prepareRuntimeCompareContext(model);
+    if (setupResult.status == RuntimeCompareStatus::fail) {
+        FAIL() << setupResult.message;
+    }
+    if (setupResult.status == RuntimeCompareStatus::skip) {
+        GTEST_SKIP() << setupResult.message;
+    }
+    auto& testContext = setupResult.context;
+
+    // Start with the larger N/H/W combination.
+    ov::Shape largeShape = dynamicNHWInputShape(selectedModelName, 2, true);
+    ov::Tensor largeTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), largeShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            largeTensor,
+                            "DynamicNHWDecreasedSize_large");
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
+
+    logCapture.clear();
+    // Shrink N, H and W at once.
+    ov::Shape smallShape = dynamicNHWInputShape(selectedModelName, 1);
+    ov::Tensor smallTensor =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), smallShape, 100, 0);
+    setInputInferAndCompare(model,
+                            testContext.reqDynamic,
+                            testContext.reqReference,
+                            smallTensor,
+                            "DynamicNHWDecreasedSize_small");
+    ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(),
+              dynamicNHWOutputShape(selectedModelName, smallShape));
+    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
+        << "Expected log to contain 'Reset command list to run with runtime' after shrinking N/H/W simultaneously, "
+           "but got: "
+        << logCapture.str();
 }
 
 using InferWithDefaultHostCompileTests = InferWithHostCompileTests;
@@ -828,7 +1026,7 @@ const std::vector<ov::AnyMap> configs = {
 
 // Ensure the added test model's input and output shapes are identical and accept concrete NHWC shapes for reuse shape
 // in tests.
-const std::vector<std::string> modelNames = {"CustomNet", "CustomNet_DynBatch", "MaxPool"};
+const std::vector<std::string> modelNames = {"CustomNet", "CustomNet_DynBatch", "MaxPool", "ESPCN_x2_gh"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileTests,
