@@ -589,7 +589,7 @@ TEST(type_prop, paged_selective_ssm_index_type_mixed) {
         std::ignore = std::make_shared<op::internal::PagedSelectiveSSM>(
             OutputVector{A, dt, B, x, C, state, subseq, block_idx, block_idx_begins, processed, cache_interval}),
         NodeValidationFailure,
-        testing::HasSubstr("expects all metadata inputs to have the same element type."));
+        testing::HasSubstr("metadata inputs must have i32 element type."));
 }
 
 }  // namespace ov::test
