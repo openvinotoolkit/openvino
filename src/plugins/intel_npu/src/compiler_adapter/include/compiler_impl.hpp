@@ -20,7 +20,7 @@ namespace intel_npu {
 
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
-    VCLCompilerImpl(const std::string& libraryDir,
+    VCLCompilerImpl(std::shared_ptr<const VCLApi> api,
                     const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
     ~VCLCompilerImpl();
 
@@ -85,7 +85,7 @@ public:
     /**
      * @brief Returns the compiler supported options list
      */
-    void get_supported_options(std::vector<char>& options) const;
+    std::vector<std::string> get_supported_options() const;
 
     /**
      * @brief Checks whether the given option and value are supported by the compiler
@@ -108,6 +108,7 @@ private:
                                                               const FilteredConfig& config,
                                                               const bool storeWeightlessCacheAttributeFlag) const;
 
+    std::shared_ptr<const VCLApi> _api;
     vcl_log_handle_t _logHandle = nullptr;
     vcl_compiler_handle_t _compilerHandle = nullptr;
     vcl_compiler_properties_t _compilerProperties;

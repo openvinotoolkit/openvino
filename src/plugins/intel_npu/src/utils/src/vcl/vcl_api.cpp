@@ -48,6 +48,15 @@ VCLApi::VCLApi(const std::string& library_dir) : _logger("VCLApi", Logger::globa
 #undef vcl_symbol_statement
 }
 
+VCLApi::VCLApi(NoLoad) : _logger("VCLApi", Logger::global().level()) {
+    // `lib` stays null; null every entry point so an unassigned one fails loudly rather than
+    // dispatching through uninitialised memory.
+#define vcl_symbol_statement(vcl_symbol) this->vcl_symbol = nullptr;
+    vcl_symbols_list();
+    vcl_weak_symbols_list();
+#undef vcl_symbol_statement
+}
+
 const std::shared_ptr<VCLApi> VCLApi::getInstance(const std::string& library_dir) {
     static std::mutex mtx;
     std::lock_guard<std::mutex> lock(mtx);

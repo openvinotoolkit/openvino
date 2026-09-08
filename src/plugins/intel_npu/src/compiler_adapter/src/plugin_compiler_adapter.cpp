@@ -44,7 +44,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _logger.info("Loading PLUGIN compiler");
     try {
         auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
-        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(ovLibPath, deviceProperties);
+        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(VCLApi::getInstance(ovLibPath), deviceProperties);
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         auto vclLib = vclCompilerPtr->getLinkedLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
@@ -287,25 +287,7 @@ uint32_t PluginCompilerAdapter::get_version() const {
 }
 
 std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
-    std::vector<char> options;
-    _compiler->get_supported_options(options);
-    size_t optionsSize = options.size();
-    while (optionsSize > 0 && options[optionsSize - 1] == '\0') {
-        --optionsSize;
-    }
-    if (optionsSize == 0) {
-        return {};
-    }
-
-    std::string compilerOptionsStr(options.data(), optionsSize);
-    _logger.debug("VCLCompilerImpl return supported_options: %s", compilerOptionsStr.c_str());
-    // vectorize string
-    std::istringstream suppstream(compilerOptionsStr);
-    std::vector<std::string> compilerOpts = {};
-    std::string option;
-    while (suppstream >> option) {
-        compilerOpts.push_back(option);
-    }
+    const std::vector<std::string> compilerOpts = _compiler->get_supported_options();
 
     if (_optionSupportCache) {
         _optionSupportCache->setSupportedOptions(pluginOptionSupportKey, compilerOpts);
