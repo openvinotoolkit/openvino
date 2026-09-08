@@ -10,8 +10,8 @@
 #include <exception>
 #include <memory>
 #include <mutex>
-#include <ostream>
 #include <optional>
+#include <ostream>
 #include <utility>
 #include <vector>
 
