@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <sstream>
-#include <string>
+#ifdef ENABLE_MLIR_FOR_GPU
 
-#include "json_object.h"
-#include "mlir_primitive_inst.h"
-#include "openvino/core/partial_shape.hpp"
-#include "primitive_type_base.h"
+#    include <sstream>
+#    include <string>
+
+#    include "json_object.h"
+#    include "mlir_primitive_inst.h"
+#    include "openvino/core/partial_shape.hpp"
+#    include "primitive_type_base.h"
 
 namespace cldnn {
 
@@ -65,3 +67,5 @@ std::string mlir_primitive_inst::to_string(const mlir_primitive_node& node) {
 typed_primitive_inst<mlir_primitive>::typed_primitive_inst(network& network, const mlir_primitive_node& node) : parent(network, node), node(&node) {}
 
 }  // namespace cldnn
+
+#endif  // ENABLE_MLIR_FOR_GPU

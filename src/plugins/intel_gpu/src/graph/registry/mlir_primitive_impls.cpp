@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/primitives/mlir_primitive.hpp"
-#include "primitive_inst.h"
-#include "registry.hpp"
+#ifdef ENABLE_MLIR_FOR_GPU
+
+#    include "intel_gpu/primitives/mlir_primitive.hpp"
+#    include "primitive_inst.h"
+#    include "registry.hpp"
 
 #if OV_GPU_WITH_COMMON
 #    include "impls/common/mlir_primitive.hpp"
@@ -22,3 +24,5 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<mlir_
 }
 
 }  // namespace ov::intel_gpu
+
+#endif  // ENABLE_MLIR_FOR_GPU

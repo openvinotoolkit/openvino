@@ -2,20 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "mlir_primitive.hpp"
+#ifdef ENABLE_MLIR_FOR_GPU
 
-#include <memory>
-#include <vector>
+#    include "mlir_primitive.hpp"
 
-#include "intel_gpu/primitives/mlir_primitive.hpp"
-#include "intel_gpu/runtime/stream.hpp"
-#include "intel_gpu/runtime/tensor_accessor.hpp"  // cldnn::make_tensor
-#include "mlir_primitive_inst.h"
-#include "openvino/core/node.hpp"
-#include "openvino/runtime/intel_gpu/remote_properties.hpp"
-#include "plugin/transformations/mlir/interface/properties.hpp"
-#include "register.hpp"
-#include "registry/implementation_map.hpp"
+#    include <memory>
+#    include <vector>
+
+#    include "intel_gpu/primitives/mlir_primitive.hpp"
+#    include "intel_gpu/runtime/stream.hpp"
+#    include "intel_gpu/runtime/tensor_accessor.hpp"  // cldnn::make_tensor
+#    include "mlir_primitive_inst.h"
+#    include "openvino/core/node.hpp"
+#    include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#    include "plugin/transformations/mlir/interface/properties.hpp"
+#    include "register.hpp"
+#    include "registry/implementation_map.hpp"
 
 namespace cldnn::common {
 
@@ -185,3 +187,5 @@ attach_mlir_primitive_common::attach_mlir_primitive_common() {
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::common::mlir_primitive_impl)
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::mlir_primitive)
+
+#endif  // ENABLE_MLIR_FOR_GPU

@@ -128,6 +128,13 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Werror)
 endif()
 
+# Directory-wide on purpuse: the macro guards virtual methods in
+# include/intel_gpu/runtime, so ENABLE_MLIR_FOR_GPU must be defined consistently in all targets
+# sharing those headers.
+if(ENABLE_MLIR_FOR_GPU)
+    add_compile_definitions(ENABLE_MLIR_FOR_GPU)
+endif()
+
 add_subdirectory(src/runtime)
 add_subdirectory(src/kernel_selector)
 add_subdirectory(src/graph)
@@ -147,7 +154,6 @@ if(ENABLE_MLIR_FOR_GPU)
 
     set(mlir_lib openvino_intel_gpu_mlir_obj)
     add_library(${mlir_lib} OBJECT ${GPU_MLIR_SOURCES})
-    target_compile_definitions(${mlir_lib} PRIVATE ENABLE_MLIR_FOR_GPU)
     target_link_libraries(${mlir_lib} PRIVATE openvino::runtime openvino_intel_gpu_graph GraphCompiler)
     target_include_directories(${mlir_lib} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/include/
@@ -190,7 +196,6 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 if(ENABLE_MLIR_FOR_GPU)
     target_link_libraries(${TARGET_NAME} PRIVATE GraphCompiler)
-    target_compile_definitions(${TARGET_NAME} PRIVATE ENABLE_MLIR_FOR_GPU)
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
