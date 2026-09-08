@@ -129,53 +129,5 @@ void transpose_4bit(const uint8_t* data,
     }
 }
 
-namespace {
-template <element::Type_t ET>
-void transpose_by_iterator(const uint8_t* data,
-                           uint8_t* out,
-                           const Shape& data_shape,
-                           const std::vector<int64_t>& axes_order,
-                           const Shape& out_shape) {
-    const size_t ndim = data_shape.size();
-    auto in_it = ov::element::iterator<ET>(reinterpret_cast<const int8_t*>(data));
-    auto out_it = ov::element::iterator<ET>(reinterpret_cast<int8_t*>(out));
-
-    ov::Coordinate src_coord(ndim);
-    const ov::CoordinateTransformBasic dst_transform{out_shape};
-    for (const auto& dst_coord : dst_transform) {
-        for (size_t j = 0; j < ndim; ++j)
-            src_coord[axes_order[j]] = dst_coord[j];
-
-        const size_t dst_idx = ov::coordinate_index(dst_coord, out_shape);
-        const size_t src_idx = ov::coordinate_index(src_coord, data_shape);
-        *(out_it + dst_idx) = *(in_it + src_idx);
-    }
-}
-}  // namespace
-
-void transpose_2bit(const uint8_t* data,
-                    uint8_t* out,
-                    const Shape& data_shape,
-                    const std::vector<int64_t>& axes_order,
-                    const Shape& out_shape) {
-    transpose_by_iterator<ov::element::u2>(data, out, data_shape, axes_order, out_shape);
-}
-
-void transpose_3bit(const uint8_t* data,
-                    uint8_t* out,
-                    const Shape& data_shape,
-                    const std::vector<int64_t>& axes_order,
-                    const Shape& out_shape) {
-    transpose_by_iterator<ov::element::u3>(data, out, data_shape, axes_order, out_shape);
-}
-
-void transpose_6bit(const uint8_t* data,
-                    uint8_t* out,
-                    const Shape& data_shape,
-                    const std::vector<int64_t>& axes_order,
-                    const Shape& out_shape) {
-    transpose_by_iterator<ov::element::u6>(data, out, data_shape, axes_order, out_shape);
-}
-
 }  // namespace reference
 }  // namespace ov
