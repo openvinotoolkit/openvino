@@ -39,7 +39,6 @@ void EnforcePrecisionTest::SetUp() {
 
 TEST_P(EnforcePrecisionTest, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

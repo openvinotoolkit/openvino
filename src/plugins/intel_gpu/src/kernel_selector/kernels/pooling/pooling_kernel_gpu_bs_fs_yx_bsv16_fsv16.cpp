@@ -87,11 +87,13 @@ bool Pooling_kernel_gpu_bs_fs_yx_bsv_16_fsv16::Validate(const Params& params) co
     }
     auto p = dynamic_cast<const pooling_params&>(params);
 
-    if (p.inputs[0].Feature().v % 16 != 0)
+    if (p.inputs[0].Feature().v % 16 != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (p.inputs[0].Batch().v % 16 != 0)
+    if (p.inputs[0].Batch().v % 16 != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }
