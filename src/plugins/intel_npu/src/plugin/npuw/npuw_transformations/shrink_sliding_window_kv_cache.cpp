@@ -136,7 +136,8 @@ std::shared_ptr<ov::op::v0::Concat> scan_kv_path(const std::shared_ptr<SDPA>& sd
     auto cur = sdpa->input_value(kv_port).get_node_shared_ptr();
 
     while (cur && !ov::is_type<ov::op::v0::Concat>(cur)) {
-        const bool has_target_shape = ov::is_type<ov::op::v1::Reshape>(cur) || ov::is_type<ov::op::v3::Broadcast>(cur);
+        const bool has_target_shape =
+            ov::is_type<ov::op::v1::Reshape>(cur) || ov::is_type<ov::op::util::BroadcastBase>(cur);
         OPENVINO_ASSERT(has_target_shape || ov::is_type<ov::op::v0::Unsqueeze>(cur),
                         "[SWA] Unexpected op '",
                         cur->get_type_name(),
@@ -196,7 +197,7 @@ void freeze_shapeof_consumers(const ov::Output<ov::Node>& producer_output,
             continue;
         }
 
-        auto shapeof = ov::as_type_ptr<ov::op::v3::ShapeOf>(consumer);
+        auto shapeof = ov::as_type_ptr<ov::op::util::ShapeOfBase>(consumer);
         OPENVINO_ASSERT(shapeof,
                         "[SWA] past_kv has unsupported consumer '",
                         consumer->get_type_name(),
@@ -353,6 +354,13 @@ bool ShrinkSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& 
         LOG_DEBUG("[SWA] Sliding Window Attention is not configured, skipping " << model->get_friendly_name());
         return false;
     }
+
+    OPENVINO_ASSERT(m_input_size <= m_kvcache_size,
+                    "[SWA] input_size (",
+                    m_input_size,
+                    ") exceeds kvcache_size (",
+                    m_kvcache_size,
+                    ").");
 
     // available_past == 0 means prefill consumes the whole KV budget in one shot.
     // Typical cases:
