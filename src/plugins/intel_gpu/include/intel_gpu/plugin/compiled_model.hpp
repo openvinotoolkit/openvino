@@ -15,6 +15,7 @@
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 
 namespace ov::intel_gpu {
@@ -26,12 +27,14 @@ public:
     CompiledModel(std::shared_ptr<ov::Model> model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
-                  const ExecutionConfig& config);
+                  const ExecutionConfig& config,
+                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr);
     CompiledModel(cldnn::BinaryInputBuffer& ib,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
-                  const bool loaded_from_cache);
+                  const bool loaded_from_cache,
+                  ov::internal::WeightSharingCtxPtr weightSharingContext = nullptr);
     ~CompiledModel() override {
         auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
         streams_executor->cpu_reset();
@@ -107,6 +110,7 @@ private:
     bool m_loaded_from_cache;
     std::string m_runtime_requirements;
     std::shared_ptr<ov::Tensor> _backing_tensor;
+    ov::internal::WeightSharingCtxPtr m_weight_sharing_context;
 };
 
 }  // namespace ov::intel_gpu

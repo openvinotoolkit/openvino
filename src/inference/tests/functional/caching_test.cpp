@@ -3550,6 +3550,183 @@ TEST_P(CachingTest, test_share_weight_create_ctx_multiple_compilation) {
     }
 }
 
+TEST_P(CachingTest, test_single_file_storage_shared_ctx_between_two_plugins) {
+    if (m_type != TestLoadType::EModel || m_remoteContext) {
+        // This test validates shared context handoff for compile_model(model, device) only
+        GTEST_SKIP();
+    }
+
+    const std::string writer_device = "mock_gpu";
+    const std::string reader_device = "mock_npu";
+    const auto cache_path = ov::test::utils::generateTestFilePrefix() + ".bin";
+
+    auto writer_plugin = std::make_shared<MockCachingIPlugin>();
+    auto reader_plugin = std::make_shared<MockCachingIPlugin>();
+
+    std::map<std::string, std::shared_ptr<ov::Model>> models_db;
+    std::vector<std::shared_ptr<MockICompiledModelImpl>> local_comp_models;
+
+    auto mock_weight = std::make_shared<ov::AlignedBuffer>(256);
+    ov::wsh::Context expected_ctx;
+    expected_ctx.m_weight_registry[100][1] = {0, 256, ov::element::u8};
+    expected_ctx.m_runtime_sources[100] = ov::wsh::WeightSource{"", mock_weight};
+
+    bool reader_validated_ctx = false;
+    const auto validate_ctx = [&](const ov::AnyMap& config) {
+        const auto it = config.find(ov::internal::model_sharing_context.name());
+        ASSERT_NE(it, config.end());
+        const auto ctx = it->second.as<ov::internal::WeightSharingCtxPtr>();
+        ASSERT_TRUE(ctx);
+        EXPECT_TRUE(are_weight_registries_equal(ctx->m_weight_registry, expected_ctx.m_weight_registry));
+        EXPECT_TRUE(are_weight_source_registries_equal(ctx->m_runtime_sources, expected_ctx.m_runtime_sources));
+        reader_validated_ctx = true;
+    };
+
+    const auto setup_plugin_common = [&](const std::shared_ptr<MockCachingIPlugin>& plugin,
+                                         const std::string& device_for_query) {
+        ON_CALL(*plugin, get_property(_, _))
+            .WillByDefault(Invoke([&](const std::string& name, const ov::AnyMap&) -> ov::Any {
+                OPENVINO_THROW("Unexpected ", name);
+            }));
+        ON_CALL(*plugin, get_property(ov::supported_properties.name(), _))
+            .WillByDefault(Return(std::vector<ov::PropertyName>{ov::supported_properties.name(),
+                                                                ov::device::capabilities.name(),
+                                                                ov::device::architecture.name()}));
+        ON_CALL(*plugin, get_property(ov::internal::supported_properties.name(), _))
+            .WillByDefault(Return(std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
+                                                                ov::internal::model_sharing_context.name()}));
+        ON_CALL(*plugin, get_property(ov::internal::caching_properties.name(), _))
+            .WillByDefault(
+                Return(decltype(ov::internal::caching_properties)::value_type{ov::device::architecture.name()}));
+        ON_CALL(*plugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).WillByDefault(Return(true));
+        ON_CALL(*plugin, get_property(ov::device::capabilities.name(), _))
+            .WillByDefault(
+                Return(decltype(ov::device::capabilities)::value_type{ov::device::capability::EXPORT_IMPORT}));
+        ON_CALL(*plugin, get_property(ov::device::architecture.name(), _)).WillByDefault(Return("mock"));
+
+        ON_CALL(*plugin, query_model(_, _))
+            .WillByDefault(Invoke([&](const std::shared_ptr<const ov::Model>& model, const ov::AnyMap&) {
+                ov::SupportedOpsMap res;
+                for (const auto& node : model->get_ops()) {
+                    res.emplace(node->get_friendly_name(), device_for_query);
+                }
+                return res;
+            }));
+
+        ON_CALL(*plugin, import_model(A<std::istream&>(), _))
+            .WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap&) {
+                std::string name;
+                istr >> name;
+                char space;
+                istr.read(&space, 1);
+                auto comp_model = create_mock_compiled_model(models_db.at(name), plugin);
+                local_comp_models.push_back(comp_model);
+                return comp_model;
+            }));
+
+        ON_CALL(*plugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+            .WillByDefault(Invoke([&](const std::shared_ptr<const ov::Model>& model, const ov::AnyMap&) {
+                models_db[model->get_friendly_name()] = model->clone();
+                auto comp_model = create_mock_compiled_model(models_db.at(model->get_friendly_name()), plugin);
+                local_comp_models.push_back(comp_model);
+                return comp_model;
+            }));
+
+        ON_CALL(*plugin, get_default_context(_)).WillByDefault(Invoke([&](const ov::AnyMap&) {
+            return std::make_shared<MockRemoteContext>(device_for_query);
+        }));
+
+        EXPECT_CALL(*plugin, set_property(_)).Times(AnyNumber());
+        EXPECT_CALL(*plugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
+        EXPECT_CALL(*plugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
+        EXPECT_CALL(*plugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+        EXPECT_CALL(*plugin, get_property(ov::internal::supported_properties.name(), _)).Times(AnyNumber());
+        EXPECT_CALL(*plugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
+        EXPECT_CALL(*plugin, get_property(ov::device::capabilities.name(), _)).Times(AnyNumber());
+        EXPECT_CALL(*plugin, query_model(_, _)).Times(AnyNumber());
+    };
+
+    setup_plugin_common(writer_plugin, writer_device);
+    setup_plugin_common(reader_plugin, reader_device);
+
+    EXPECT_CALL(*writer_plugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(1);
+    EXPECT_CALL(*writer_plugin, import_model(A<std::istream&>(), _)).Times(0);
+
+    ON_CALL(*writer_plugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+        .WillByDefault(Invoke([&](const std::shared_ptr<const ov::Model>& model, const ov::AnyMap&) {
+            models_db[model->get_friendly_name()] = model->clone();
+            auto comp_model = create_mock_compiled_model(models_db.at(model->get_friendly_name()), writer_plugin);
+            // Writer side: the compiled model reports its own shared context, and Core
+            // stores that into the active cache file as part of the global cache state.
+            EXPECT_CALL(*comp_model, export_model(_)).Times(1);
+            EXPECT_CALL(*comp_model, get_property(ov::internal::model_sharing_context.name()))
+                .WillRepeatedly(Return(ov::Any(std::make_shared<const ov::wsh::Context>(expected_ctx))));
+            local_comp_models.push_back(comp_model);
+            return comp_model;
+        }));
+
+    EXPECT_CALL(*reader_plugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _)).Times(AnyNumber());
+    EXPECT_CALL(*reader_plugin, import_model(A<std::istream&>(), _)).Times(AnyNumber());
+
+    ON_CALL(*reader_plugin, compile_model(A<const std::shared_ptr<const ov::Model>&>(), _))
+        .WillByDefault(Invoke([&](const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) {
+            // Reader side: Core passes the global cache scope back into the plugin config,
+            // and the reader validates that it sees the same shared context.
+            validate_ctx(config);
+            models_db[model->get_friendly_name()] = model->clone();
+            auto comp_model = create_mock_compiled_model(models_db.at(model->get_friendly_name()), reader_plugin);
+            local_comp_models.push_back(comp_model);
+            return comp_model;
+        }));
+
+    ON_CALL(*reader_plugin, import_model(A<std::istream&>(), _))
+        .WillByDefault(Invoke([&](std::istream& istr, const ov::AnyMap& config) {
+            validate_ctx(config);
+            std::string name;
+            istr >> name;
+            char space;
+            istr.read(&space, 1);
+            auto comp_model = create_mock_compiled_model(models_db.at(name), reader_plugin);
+            local_comp_models.push_back(comp_model);
+            return comp_model;
+        }));
+
+    ov::Core core;
+    injectPlugin(writer_plugin.get());
+    core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                            std::string("mock_engine") + OV_BUILD_POSTFIX),
+                         writer_device);
+    injectPlugin(reader_plugin.get());
+    core.register_plugin(ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                            std::string("mock_engine") + OV_BUILD_POSTFIX),
+                         reader_device);
+
+    // Enable Core-managed cache storage so the writer plugin can publish its
+    // shared context and Core can persist it in the global cache file.
+    core.set_property(ov::cache_path(cache_path));
+
+    auto model = core.read_model(modelName);
+    // Writer path: the first plugin produces the shared context that Core reads
+    // back from the compiled model and merges into the cache storage.
+    OV_ASSERT_NO_THROW(core.compile_model(model, writer_device));
+    // Reader path: the second plugin consumes the same global cache scope and
+    // reconstructs its local config from the shared context stored by Core.
+    OV_ASSERT_NO_THROW(core.compile_model(model, reader_device));
+
+    EXPECT_TRUE(reader_validated_ctx);
+
+    core.unload_plugin(writer_device);
+    core.unload_plugin(reader_device);
+
+    for (const auto& model_ptr : local_comp_models) {
+        EXPECT_TRUE(Mock::VerifyAndClearExpectations(model_ptr.get()));
+    }
+    EXPECT_TRUE(Mock::VerifyAndClearExpectations(writer_plugin.get()));
+    EXPECT_TRUE(Mock::VerifyAndClearExpectations(reader_plugin.get()));
+
+    std::filesystem::remove(cache_path);
+}
+
 #if defined(ENABLE_OV_IR_FRONTEND)
 
 static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<TestParam, std::string>>& obj) {
