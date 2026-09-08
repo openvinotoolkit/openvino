@@ -54,7 +54,7 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
 
     // Pad to this type's own alignment, measured from the absolute stream position
     const auto written_type = compress_to_fp16 ? element::f16 : src_type;
-    const size_t alignment = written_type.is_dynamic() ? 8 : written_type.size();
+    const size_t alignment = written_type.size();
     const FilePosition write_pos = m_binary_output.get().tellp();
     if (write_pos >= 0) {  // negative: stream can't report its position (e.g. pass::Hash's sink)
         const auto pad = ov::util::align_padding_size(alignment, static_cast<size_t>(write_pos));
