@@ -9,7 +9,6 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <list>
 #include <memory>
 #include <type_traits>
 #include <unordered_map>
@@ -33,16 +32,23 @@ struct jit_selective_ssm_compile_params {
     jit_selective_ssm_state_mode state_mode = jit_selective_ssm_state_mode::in_place;
 };
 
+struct jit_selective_ssm_step {
+    float decay = 0.F;
+    float delta = 0.F;
+};
+
 struct jit_selective_ssm_call_args {
     const void* input_state = nullptr;
     const float* input_projection = nullptr;
     const float* output_projection = nullptr;
     const void* x = nullptr;
     void* output = nullptr;
-    float decay = 0.F;
-    float delta = 0.F;
+    const jit_selective_ssm_step* steps = nullptr;
     size_t row_count = 0;
     void* output_state = nullptr;
+    size_t token_count = 1;
+    size_t input_stride = 0;       // Bytes between consecutive tokens in x/output.
+    size_t projection_stride = 0;  // Bytes between consecutive FP32 B/C projections.
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -59,6 +65,7 @@ private:
     static constexpr size_t max_row_tile = 4;
     // Keep the common 128-element state fully unrolled on AVX2 and AVX-512.
     static constexpr size_t max_unrolled_vectors = 16;
+    static_assert(max_unrolled_vectors % 2 == 0);
 
     void generate() override;
     void emit_row_tile(size_t rows);
@@ -70,13 +77,7 @@ private:
     void store_output(const Vmm& source, int element_count, size_t offset = 0);
     void prepare_row_scales();
     void store_row_tile();
-    void store_avx2_bf16(const Xbyak::Reg64& destination, const Vmm& source, int element_count, size_t offset);
     void store_state(const Vmm& source, int element_count, size_t offset);
-    void store_bf16(const Xbyak::Reg64& destination, const Vmm& source, int element_count, size_t offset);
-    void emit_bf16_subnormal_store(const Xbyak::Reg64& destination,
-                                   const Vmm& source,
-                                   int element_count,
-                                   size_t offset);
     void load(const Vmm& destination,
               const Xbyak::Reg64& source,
               const ov::element::Type& source_precision,
@@ -87,33 +88,23 @@ private:
                const Vmm& source,
                const ov::element::Type& destination_precision,
                int element_count,
-               size_t offset = 0,
-               const ov::element::Type& source_precision = ov::element::f32);
+               size_t offset = 0);
 
     static Vmm state_vmm(size_t row) {
         return Vmm(row);
     }
-    static Vmm accumulator_vmm(size_t row) {
+    static Vmm accumulator_vmm(size_t row, size_t vector = 0) {
+        if constexpr ((isa & dnnl::impl::cpu::x64::zmm_bit) != 0) {
+            // Registers 20-25 belong to conversion emitters.
+            if (vector % 2 != 0) {
+                return Vmm(26 + row);
+            }
+        }
         return Vmm(max_row_tile + row);
     }
     static Vmm input_scale_vmm(size_t row) {
         return Vmm(2 * max_row_tile + row);
     }
-
-    struct DeferredBf16SubnormalStore {
-        DeferredBf16SubnormalStore(const Xbyak::Reg64& destination, const Vmm& source, int element_count, size_t offset)
-            : destination(destination),
-              source(source),
-              element_count(element_count),
-              offset(offset) {}
-
-        Xbyak::Label entry;
-        Xbyak::Label continuation;
-        Xbyak::Reg64 destination;
-        Vmm source;
-        int element_count;
-        size_t offset;
-    };
 
     const Xbyak::Reg64 reg_args = rbx;
     const Xbyak::Reg64 reg_input_state = r8;
@@ -124,18 +115,16 @@ private:
     const Xbyak::Reg64 reg_output = r12;
     const Xbyak::Reg64 reg_rows = r13;
     const Xbyak::Reg64 reg_vector_chunks = rdx;
+    const Xbyak::Reg64 reg_steps = rsi;
+    const Xbyak::Reg64 reg_tokens = rdi;
 
     const Vmm vmm_decay = Vmm(3 * max_row_tile);
     const Vmm vmm_input_projection = Vmm(3 * max_row_tile + 1);
     const Vmm vmm_output_projection = Vmm(3 * max_row_tile + 2);
     const Vmm vmm_reduce_tmp0 = Vmm(3 * max_row_tile + 3);
     const Vmm vmm_reduce_tmp1 = Vmm(3 * max_row_tile + 4);
-    const Vmm vmm_bf16_round_mask = Vmm(3 * max_row_tile + 5);
 
-    // Stable addresses are required because branches bind these labels while the hot path is being generated.
-    std::list<DeferredBf16SubnormalStore> deferred_bf16_subnormal_stores;
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
-    std::unique_ptr<jit_emitter> bf16_output_converter;
     const std::vector<size_t> pool_aux_gpr_idxs = {static_cast<size_t>(rax.getIdx()),
                                                    static_cast<size_t>(r14.getIdx()),
                                                    static_cast<size_t>(r15.getIdx())};
@@ -143,6 +132,8 @@ private:
                                                       ? std::vector<size_t>{15}
                                                       : std::vector<size_t>{20, 21, 22, 23, 24, 25};
 };
+
+bool is_selective_ssm_jit_precision_supported(const ov::element::Type& precision);
 
 std::shared_ptr<JitKernelBase> create_selective_ssm_jit_kernel(
     const ov::element::Type& data_precision,

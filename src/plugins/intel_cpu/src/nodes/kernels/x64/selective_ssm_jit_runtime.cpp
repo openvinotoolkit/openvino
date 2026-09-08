@@ -5,6 +5,7 @@
 #include "selective_ssm_jit_runtime.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -26,6 +27,9 @@
 namespace ov::intel_cpu::kernel {
 namespace {
 
+// Bound stack storage while amortizing the JIT call over several timesteps.
+constexpr size_t max_token_batch = 64;
+
 template <typename Destination, typename Source>
 void copy_convert(Destination* destination, const Source* source, size_t count) {
     if constexpr (std::is_same_v<Destination, Source>) {
@@ -46,17 +50,24 @@ void run_recurrence_kernel(const JitKernelBase& kernel,
                            void* output,
                            float decay,
                            float time_step,
-                           size_t row_count) {
+                           size_t row_count,
+                           const jit_selective_ssm_step* steps = nullptr,
+                           size_t token_count = 1,
+                           size_t input_stride = 0,
+                           size_t projection_stride = 0) {
+    const jit_selective_ssm_step single_step{decay, time_step};
     const jit_selective_ssm_call_args args{
         input_state,
         input_projection,
         output_projection,
         input,
         output,
-        decay,
-        time_step,
+        steps != nullptr ? steps : &single_step,
         row_count,
         output_state,
+        token_count,
+        input_stride,
+        projection_stride,
     };
     kernel(&args);
 }
@@ -162,8 +173,13 @@ void run_selective_ssm(const Data* state_decay_rates,
             }
             copy_convert(local_state, initial_state + state_offset, state_elements);
 
-            for (size_t token = 0; token < shape.sequence_length; ++token) {
-                const auto time_step = static_cast<float>(time_steps[token_head_offset]);
+            std::array<jit_selective_ssm_step, max_token_batch> steps{};
+            for (size_t token = 0; token < shape.sequence_length;) {
+                const auto count = std::min(max_token_batch, shape.sequence_length - token);
+                for (size_t i = 0; i < count; ++i) {
+                    const auto delta = static_cast<float>(time_steps[token_head_offset + i * shape.num_heads]);
+                    steps[i] = {std::exp(state_decay_rate * delta), delta};
+                }
                 run_recurrence_kernel(fp32_state_kernel,
                                       local_state,
                                       local_state,
@@ -171,12 +187,17 @@ void run_selective_ssm(const Data* state_decay_rates,
                                       output_projections + projection_offset,
                                       input + input_offset,
                                       output + input_offset,
-                                      std::exp(state_decay_rate * time_step),
-                                      time_step,
-                                      head_dim_count);
-                token_head_offset += shape.num_heads;
-                projection_offset += projection_stride;
-                input_offset += input_stride;
+                                      steps[0].decay,
+                                      steps[0].delta,
+                                      head_dim_count,
+                                      steps.data(),
+                                      count,
+                                      input_stride * sizeof(Data),
+                                      projection_stride * sizeof(float));
+                token += count;
+                token_head_offset += count * shape.num_heads;
+                projection_offset += count * projection_stride;
+                input_offset += count * input_stride;
             }
 
             if constexpr (!std::is_same_v<Data, float>) {
@@ -308,8 +329,18 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
             }
             copy_convert(local_state, initial_state, state_elements);
 
-            for (size_t token = token_begin; token < token_end; ++token) {
-                const auto time_step = static_cast<float>(time_steps[cursor.token_head]);
+            std::array<jit_selective_ssm_step, max_token_batch> steps{};
+            for (size_t token = token_begin; token < token_end;) {
+                auto count = std::min(max_token_batch, token_end - token);
+                if (cache.enabled) {
+                    const auto processed = cache.absolute_token_count(token - token_begin);
+                    const auto until_snapshot = cache.interval - processed % cache.interval;
+                    count = std::min(count, static_cast<size_t>(until_snapshot));
+                }
+                for (size_t i = 0; i < count; ++i) {
+                    const auto delta = static_cast<float>(time_steps[cursor.token_head + i * shape.num_heads]);
+                    steps[i] = {std::exp(state_decay_rate * delta), delta};
+                }
                 run_recurrence_kernel(*fp32_state_kernel,
                                       local_state,
                                       local_state,
@@ -317,21 +348,22 @@ void run_paged_selective_ssm(const PagedSelectiveSSMJitRuntimeArgs& args) {
                                       output_projections + cursor.projection,
                                       input + cursor.input,
                                       output + cursor.input,
-                                      std::exp(state_decay_rate * time_step),
-                                      time_step,
-                                      head_dim_count);
-
-                const auto processed_tokens = (token - token_begin) + 1;
-                const auto token_count = cache.absolute_token_count(processed_tokens);
-                const bool is_last = token + 1 == token_end;
-                if (cache.should_store(token_count, is_last)) {
+                                      steps[0].decay,
+                                      steps[0].delta,
+                                      head_dim_count,
+                                      steps.data(),
+                                      count,
+                                      input_stride * sizeof(Data),
+                                      projection_stride * sizeof(float));
+                token += count;
+                const auto token_count = cache.absolute_token_count(token - token_begin);
+                if (cache.should_store(token_count, token == token_end)) {
                     const auto write_block =
                         static_cast<size_t>(block_indices[logical_block_begin + cache.snapshot_slot(token_count)]);
                     auto* snapshot = state_cache + write_block * layout.container_stride + state_offset;
                     copy_convert(snapshot, local_state, state_elements);
                 }
-
-                cursor.advance(shape.num_heads, projection_stride, input_stride);
+                cursor.advance(count * shape.num_heads, count * projection_stride, count * input_stride);
             }
         });
 }

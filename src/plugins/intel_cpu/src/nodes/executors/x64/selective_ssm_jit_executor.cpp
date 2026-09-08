@@ -53,14 +53,6 @@ struct SelectiveSSMJitKey {
     }
 };
 
-bool has_jit_isa() {
-    return mayiuse(dnnl::impl::cpu::x64::avx512_core) || mayiuse(dnnl::impl::cpu::x64::avx2);
-}
-
-bool is_supported_data_precision(const ov::element::Type& precision) {
-    return any_of(precision, ov::element::f32, ov::element::f16, ov::element::bf16);
-}
-
 bool is_supported_index_precision(const ov::element::Type& precision) {
     return any_of(precision, ov::element::i32, ov::element::i64);
 }
@@ -192,11 +184,8 @@ impl_desc_type SelectiveSSMJitExecutorBase::implType() const {
 }
 
 bool SelectiveSSMJitExecutor::supports(const SelectiveSSMConfig& config) {
-    if (!has_jit_isa()) {
-        return false;
-    }
     const auto precision = config.descs.at(ARG_SSM_A)->getPrecision();
-    if (!is_supported_data_precision(precision)) {
+    if (!kernel::is_selective_ssm_jit_precision_supported(precision)) {
         return false;
     }
     constexpr std::array arguments{
@@ -283,11 +272,8 @@ void SelectiveSSMJitExecutor::execute(const MemoryArgs& memory) {
 }
 
 bool PagedSelectiveSSMJitExecutor::supports(const PagedSelectiveSSMConfig& config) {
-    if (!has_jit_isa()) {
-        return false;
-    }
     const auto data_precision = config.descs.at(ARG_PAGED_SSM_A)->getPrecision();
-    if (!is_supported_data_precision(data_precision)) {
+    if (!kernel::is_selective_ssm_jit_precision_supported(data_precision)) {
         return false;
     }
     constexpr std::array data_arguments{

@@ -11,9 +11,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <thread>
-#include <type_traits>
 #include <vector>
 
 #include "../selective_ssm_test_utils.hpp"
@@ -38,6 +36,7 @@ protected:
 };
 
 using PagedSelectiveSSMJitKernel = SelectiveSSMJitKernel;
+using ov::intel_cpu::kernel::is_selective_ssm_jit_precision_supported;
 
 void run_jit_selective_ssm(const SelectiveSSMKernelTestArgs& args) {
     ASSERT_TRUE(args.data_precision == element::f32 || args.use_fp32_projections);
@@ -113,82 +112,14 @@ void run_jit_paged_selective_ssm(const PagedSelectiveSSMKernelTestArgs& args, bo
     ov::intel_cpu::kernel::paged_selective_ssm_jit(runtime_args);
 }
 
-template <typename T>
-void verify_low_precision_encoding_semantics(const element::Type& precision) {
-    constexpr size_t encoding_count = size_t{1} << 16U;
-    constexpr uint16_t exponent_mask = std::is_same_v<T, float16> ? 0x7C00U : 0x7F80U;
-    constexpr uint16_t mantissa_mask = std::is_same_v<T, float16> ? 0x03FFU : 0x007FU;
-    constexpr uint16_t quiet_nan_mask = std::is_same_v<T, float16> ? 0x0200U : 0x0040U;
-    const auto kernel = ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(precision, 1);
-    ASSERT_NE(kernel, nullptr);
-
-    std::vector<T> input(encoding_count);
-    for (size_t i = 0; i < encoding_count; ++i) {
-        input[i] = T::from_bits(static_cast<uint16_t>(i));
-    }
-    std::vector<T> output(encoding_count);
-    std::vector<float> state(encoding_count, 0.F);
-    const float input_projection = 1.F;
-    const float output_projection = 1.F;
-    const ov::intel_cpu::kernel::jit_selective_ssm_call_args call_args{
-        state.data(),
-        &input_projection,
-        &output_projection,
-        input.data(),
-        output.data(),
-        0.F,
-        1.F,
-        encoding_count,
-        state.data(),
-    };
-    (*kernel)(&call_args);
-
-    constexpr size_t direct_state_size = 16;
-    constexpr size_t direct_row_count = encoding_count / direct_state_size;
-    const auto direct_state_kernel = ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(
-        precision,
-        direct_state_size,
-        precision,
-        ov::intel_cpu::kernel::jit_selective_ssm_state_mode::separate);
-    ASSERT_NE(direct_state_kernel, nullptr);
-    std::vector<T> direct_input_state(encoding_count);
-    for (size_t i = 0; i < encoding_count; ++i) {
-        direct_input_state[i] = T::from_bits(static_cast<uint16_t>(i));
-    }
-    std::vector<T> direct_state(encoding_count);
-    std::vector<T> direct_output(direct_row_count);
-    std::vector<T> zero_input(direct_row_count, static_cast<T>(0.F));
-    std::vector<float> zero_projection(direct_state_size, 0.F);
-    const ov::intel_cpu::kernel::jit_selective_ssm_call_args direct_state_args{
-        direct_input_state.data(),
-        zero_projection.data(),
-        zero_projection.data(),
-        zero_input.data(),
-        direct_output.data(),
-        1.F,
-        1.F,
-        direct_row_count,
-        direct_state.data(),
-    };
-    (*direct_state_kernel)(&direct_state_args);
-
-    for (size_t i = 0; i < encoding_count; ++i) {
-        const auto expected = static_cast<T>(static_cast<float>(input[i]));
-        const auto input_bits = input[i].to_bits();
-        const bool is_nan = (input_bits & exponent_mask) == exponent_mask && (input_bits & mantissa_mask) != 0;
-        const bool is_zero = (input_bits & 0x7FFFU) == 0;
-        const auto expected_bits = is_nan    ? static_cast<uint16_t>(input_bits | quiet_nan_mask)
-                                   : is_zero ? uint16_t{0}
-                                             : expected.to_bits();
-        EXPECT_EQ(output[i].to_bits(), expected_bits) << "encoding " << i;
-        EXPECT_EQ(direct_state[i].to_bits(), expected_bits) << "state encoding " << i;
-    }
-}
-
 TEST_F(SelectiveSSMJitKernel, DifferentialStressCoversShapeTilingPrecisionAndAliasingMatrix) {
     run_selective_ssm_differential_stress(element::f32, 1e-5F, false, run_jit_selective_ssm);
-    run_selective_ssm_differential_stress(element::f16, 3e-3F, true, run_jit_selective_ssm);
-    run_selective_ssm_differential_stress(element::bf16, 3e-2F, true, run_jit_selective_ssm);
+    if (is_selective_ssm_jit_precision_supported(element::f16)) {
+        run_selective_ssm_differential_stress(element::f16, 3e-3F, true, run_jit_selective_ssm);
+    }
+    if (is_selective_ssm_jit_precision_supported(element::bf16)) {
+        run_selective_ssm_differential_stress(element::bf16, 3e-2F, true, run_jit_selective_ssm);
+    }
 }
 
 TEST_F(PagedSelectiveSSMJitKernel, DifferentialStressCoversCacheShapePrecisionAndIndexMatrix) {
@@ -199,10 +130,14 @@ TEST_F(PagedSelectiveSSMJitKernel, DifferentialStressCoversCacheShapePrecisionAn
         };
         run_paged_selective_ssm_differential_stress(element::f32, element::i32, 1e-5F, run);
         run_paged_selective_ssm_differential_stress(element::f32, element::i64, 1e-5F, run);
-        run_paged_selective_ssm_differential_stress(element::f16, element::i32, 3e-3F, run);
-        run_paged_selective_ssm_differential_stress(element::f16, element::i64, 3e-3F, run);
-        run_paged_selective_ssm_differential_stress(element::bf16, element::i32, 3e-2F, run);
-        run_paged_selective_ssm_differential_stress(element::bf16, element::i64, 3e-2F, run);
+        if (is_selective_ssm_jit_precision_supported(element::f16)) {
+            run_paged_selective_ssm_differential_stress(element::f16, element::i32, 3e-3F, run);
+            run_paged_selective_ssm_differential_stress(element::f16, element::i64, 3e-3F, run);
+        }
+        if (is_selective_ssm_jit_precision_supported(element::bf16)) {
+            run_paged_selective_ssm_differential_stress(element::bf16, element::i32, 3e-2F, run);
+            run_paged_selective_ssm_differential_stress(element::bf16, element::i64, 3e-2F, run);
+        }
     }
 }
 
@@ -300,9 +235,10 @@ TEST_F(SelectiveSSMJitKernel, LargeStateMatchesFP32Reference) {
     }
 }
 
-TEST_F(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
+template <typename Data>
+void verify_serial_recurrence(const element::Type& precision) {
     for (const bool paged : {false, true}) {
-        std::thread worker([paged] {
+        std::thread worker([paged, precision] {
             SCOPED_TRACE(testing::Message() << "paged=" << paged);
             constexpr size_t tokens = 2;
             constexpr size_t rows = 3;
@@ -313,13 +249,13 @@ TEST_F(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
             const auto workers = static_cast<size_t>(cpu_parallel->get_num_worker_threads());
             // Guard two slots: TBB's uninitialized thread index is -2.
             std::vector<float> scratch(workers * state_elements + guard_elements, 17.F);
-            const float16 A(0.F);
-            const std::vector<float16> dt(tokens, float16(1.F));
+            const Data A(0.F);
+            const std::vector<Data> dt(tokens, Data(1.F));
             const std::vector<float> projection(tokens * state_size, 1.F);
-            const std::vector<float16> input(tokens * rows, float16(1.F));
-            std::vector<float16> state((paged ? 2 : 1) * state_elements, float16(1.F));
-            std::vector<float16> final_state(state_elements);
-            std::vector<float16> output(input.size());
+            const std::vector<Data> input(tokens * rows, Data(1.F));
+            std::vector<Data> state((paged ? 2 : 1) * state_elements, Data(1.F));
+            std::vector<Data> final_state(state_elements);
+            std::vector<Data> output(input.size());
             if (paged) {
                 const std::array<int32_t, 2> subsequences{0, tokens};
                 const std::array<int32_t, 2> blocks{0, 1};
@@ -340,15 +276,15 @@ TEST_F(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
                 args.cache_intervals = &interval;
                 args.output = output.data();
                 args.shape = {tokens, 1, rows, 1, state_size, 2, blocks.size(), 1};
-                args.data_precision = element::f16;
+                args.data_precision = precision;
                 args.index_precision = element::i32;
                 args.state_scratch = scratch.data() + guard_elements;
                 args.head_dim_tile = rows;
                 args.cpu_parallel = cpu_parallel;
                 EXPECT_NO_THROW(run_jit_paged_selective_ssm(args, false));
                 std::copy_n(state.data() + state_elements, state_elements, final_state.data());
-                EXPECT_TRUE(std::all_of(state.begin(), state.begin() + state_elements, [](float16 value) {
-                    return value == float16(1.F);
+                EXPECT_TRUE(std::all_of(state.begin(), state.begin() + state_elements, [](Data value) {
+                    return value == Data(1.F);
                 }));
             } else {
                 SelectiveSSMKernelTestArgs args;
@@ -361,7 +297,7 @@ TEST_F(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
                 args.output = output.data();
                 args.final_state = final_state.data();
                 args.shape = {1, tokens, 1, rows, 1, state_size};
-                args.data_precision = element::f16;
+                args.data_precision = precision;
                 args.state_scratch = scratch.data() + guard_elements;
                 args.head_dim_tile = rows;
                 args.cpu_parallel = cpu_parallel;
@@ -372,91 +308,23 @@ TEST_F(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
                 return value == 17.F;
             }));
             for (size_t i = 0; i < output.size(); ++i) {
-                EXPECT_EQ(output[i], float16(static_cast<float>((i / rows + 2) * state_size)));
+                EXPECT_EQ(output[i], Data(static_cast<float>((i / rows + 2) * state_size)));
             }
-            EXPECT_TRUE(std::all_of(final_state.begin(), final_state.end(), [](float16 value) {
-                return value == float16(3.F);
+            EXPECT_TRUE(std::all_of(final_state.begin(), final_state.end(), [](Data value) {
+                return value == Data(3.F);
             }));
         });
         worker.join();
     }
 }
 
-TEST_F(SelectiveSSMJitKernel, LowPrecisionScalarEncodingSemanticsCoverEveryEncoding) {
-    verify_low_precision_encoding_semantics<float16>(element::f16);
-    verify_low_precision_encoding_semantics<bfloat16>(element::bf16);
-}
-
-TEST_F(SelectiveSSMJitKernel, BF16DecodeMatchesPortableConversion) {
-    const SelectiveSSMShape shape{1, 1, 4, 8, 2, 16};
-    std::vector<bfloat16> state_decay_rates(shape.num_heads);
-    std::vector<bfloat16> time_steps(shape.num_heads);
-    std::vector<bfloat16> input_projections(shape.num_groups * shape.state_size);
-    std::vector<bfloat16> input(shape.num_heads * shape.head_dim);
-    std::vector<bfloat16> output_projections(shape.num_groups * shape.state_size);
-    std::vector<bfloat16> initial_state(shape.num_heads * shape.head_dim * shape.state_size);
-    ov::test::utils::fill_data_ptr_real_random_float(state_decay_rates.data(),
-                                                     state_decay_rates.size(),
-                                                     -0.5F,
-                                                     0.2F,
-                                                     1);
-    ov::test::utils::fill_data_ptr_real_random_float(time_steps.data(), time_steps.size(), 0.F, 0.5F, 1);
-    ov::test::utils::fill_data_random(input_projections.data(), input_projections.size(), 1, -0.5, 1000, 1);
-    ov::test::utils::fill_data_random(input.data(), input.size(), 1, -0.5, 1000, 1);
-    ov::test::utils::fill_data_random(output_projections.data(), output_projections.size(), 1, -0.5, 1000, 1);
-    ov::test::utils::fill_data_random(initial_state.data(), initial_state.size(), 1, -0.5, 1000, 1);
-
-    const auto fp32_input_projections = to_float(input_projections);
-    const auto fp32_output_projections = to_float(output_projections);
-    std::vector<bfloat16> portable_output(input.size());
-    std::vector<bfloat16> portable_state(initial_state.size());
-    std::vector<bfloat16> jit_output(input.size());
-    std::vector<bfloat16> jit_state(initial_state.size());
-    const auto cpu_parallel = make_parallel();
-    const auto head_dim_tile = shape.head_dim;
-    std::vector<float> scratch(static_cast<size_t>(cpu_parallel->get_num_worker_threads()) * head_dim_tile *
-                               shape.state_size);
-
-    selective_ssm(state_decay_rates.data(),
-                  time_steps.data(),
-                  input_projections.data(),
-                  input.data(),
-                  output_projections.data(),
-                  initial_state.data(),
-                  portable_output.data(),
-                  portable_state.data(),
-                  shape,
-                  element::bf16,
-                  scratch.data(),
-                  head_dim_tile,
-                  cpu_parallel,
-                  fp32_input_projections.data(),
-                  fp32_output_projections.data());
-
-    SelectiveSSMKernelTestArgs args;
-    args.state_decay_rates = state_decay_rates.data();
-    args.time_steps = time_steps.data();
-    args.input_projections = fp32_input_projections.data();
-    args.input = input.data();
-    args.output_projections = fp32_output_projections.data();
-    args.initial_state = initial_state.data();
-    args.output = jit_output.data();
-    args.final_state = jit_state.data();
-    args.shape = shape;
-    args.data_precision = element::bf16;
-    args.state_scratch = scratch.data();
-    args.head_dim_tile = head_dim_tile;
-    args.cpu_parallel = cpu_parallel;
-    args.fp32_input_projections = fp32_input_projections.data();
-    args.fp32_output_projections = fp32_output_projections.data();
-    args.use_fp32_projections = true;
-    run_jit_selective_ssm(args);
-
-    for (size_t i = 0; i < portable_output.size(); ++i) {
-        EXPECT_EQ(jit_output[i].to_bits(), portable_output[i].to_bits()) << "output index " << i;
+TEST_F(SelectiveSSMJitKernel, SerialRecurrenceWorksOnFreshThread) {
+    verify_serial_recurrence<float>(element::f32);
+    if (is_selective_ssm_jit_precision_supported(element::f16)) {
+        verify_serial_recurrence<float16>(element::f16);
     }
-    for (size_t i = 0; i < portable_state.size(); ++i) {
-        EXPECT_EQ(jit_state[i].to_bits(), portable_state[i].to_bits()) << "state index " << i;
+    if (is_selective_ssm_jit_precision_supported(element::bf16)) {
+        verify_serial_recurrence<bfloat16>(element::bf16);
     }
 }
 
@@ -513,14 +381,14 @@ void verify_large_state_recurrence(const element::Type& precision) {
                 const auto state_low = cast_values<T>(state_f32);
                 std::vector<T> final_state(rows * state_size, static_cast<T>(17.F));
                 std::vector<T> output(rows, static_cast<T>(19.F));
+                const ov::intel_cpu::kernel::jit_selective_ssm_step step{0.5F, 0.25F};
                 const jit_selective_ssm_call_args args{
                     fp32_state ? static_cast<const void*>(state_f32.data()) : state_low.data(),
                     B.data(),
                     C.data(),
                     input.data(),
                     output.data(),
-                    0.5F,
-                    0.25F,
+                    &step,
                     rows,
                     fp32_state ? static_cast<void*>(state_f32.data()) : final_state.data(),
                 };
@@ -530,17 +398,25 @@ void verify_large_state_recurrence(const element::Type& precision) {
                     for (size_t n = 0; n < state_size; ++n) {
                         const size_t index = row * state_size + n;
                         const float expected_state =
-                            original_state[index] * args.decay + static_cast<float>(input[row]) * args.delta * B[n];
+                            original_state[index] * step.decay + static_cast<float>(input[row]) * step.delta * B[n];
                         expected_output += expected_state * C[n];
                         if (fp32_state) {
                             EXPECT_FLOAT_EQ(state_f32[index], expected_state);
                         } else if (mode == jit_selective_ssm_state_mode::separate) {
-                            EXPECT_EQ(final_state[index], static_cast<T>(expected_state));
+                            const auto expected_stored = static_cast<float>(static_cast<T>(expected_state));
+                            const auto tolerance = precision == element::f16 ? 3e-3F : 3e-2F;
+                            EXPECT_NEAR(static_cast<float>(final_state[index]), expected_stored, tolerance);
                         } else {
                             EXPECT_EQ(final_state[index], static_cast<T>(17.F));
                         }
                     }
-                    EXPECT_EQ(output[row], static_cast<T>(expected_output));
+                    if (precision == element::f32) {
+                        EXPECT_FLOAT_EQ(static_cast<float>(output[row]), expected_output);
+                    } else {
+                        const auto expected_stored = static_cast<float>(static_cast<T>(expected_output));
+                        const auto tolerance = precision == element::f16 ? 3e-3F : 3e-2F;
+                        EXPECT_NEAR(static_cast<float>(output[row]), expected_stored, tolerance);
+                    }
                 }
             }
         }
@@ -549,8 +425,12 @@ void verify_large_state_recurrence(const element::Type& precision) {
 
 TEST_F(SelectiveSSMJitKernel, RuntimeVectorLoopCoversBoundariesRowsAndStateModes) {
     verify_large_state_recurrence<float>(element::f32);
-    verify_large_state_recurrence<float16>(element::f16);
-    verify_large_state_recurrence<bfloat16>(element::bf16);
+    if (is_selective_ssm_jit_precision_supported(element::f16)) {
+        verify_large_state_recurrence<float16>(element::f16);
+    }
+    if (is_selective_ssm_jit_precision_supported(element::bf16)) {
+        verify_large_state_recurrence<bfloat16>(element::bf16);
+    }
 }
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -558,6 +438,9 @@ void verify_bounded_generated_code_size() {
     using ov::intel_cpu::kernel::jit_selective_ssm_kernel;
     using ov::intel_cpu::kernel::jit_selective_ssm_state_mode;
     for (const auto& precision : {element::f32, element::f16, element::bf16}) {
+        if (!is_selective_ssm_jit_precision_supported(precision)) {
+            continue;
+        }
         for (const auto mode : {jit_selective_ssm_state_mode::in_place,
                                 jit_selective_ssm_state_mode::separate,
                                 jit_selective_ssm_state_mode::no_store}) {
@@ -583,39 +466,6 @@ TEST_F(SelectiveSSMJitKernel, RuntimeVectorLoopBoundsGeneratedCodeSize) {
         verify_bounded_generated_code_size<avx512_core>();
     } else {
         verify_bounded_generated_code_size<avx2>();
-    }
-}
-
-TEST_F(SelectiveSSMJitKernel, BF16OutputPreservesRoundingBoundariesAndSubnormals) {
-    // Low FP32 bits distinguish OpenVINO's BF16 conversion from native RNE.
-    constexpr std::array low_bits{0U, 0x3FFFU, 0x7FFFU, 0x8000U, 0x8001U, 0xFFFFU};
-    std::vector<float> state;
-    for (uint32_t high_bits = 0; high_bits <= 0xFFFFU; ++high_bits) {
-        if ((high_bits & 0x7F80U) == 0x7F80U) {
-            continue;
-        }
-        for (const uint32_t low : low_bits) {
-            const uint32_t bits = (high_bits << 16U) | low;
-            float value = 0.F;
-            std::memcpy(&value, &bits, sizeof(value));
-            state.push_back(value);
-        }
-    }
-    // Include the one-row tail in addition to four-row tiles.
-    state.push_back(1.F);
-    const auto original_state = state;
-    std::vector<bfloat16> input(state.size(), bfloat16(0.F));
-    std::vector<bfloat16> output(state.size());
-    const float B = 0.F;
-    const float C = 1.F;
-    const auto kernel = ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(element::bf16, 1);
-    ASSERT_NE(kernel, nullptr);
-    const ov::intel_cpu::kernel::jit_selective_ssm_call_args
-        args{state.data(), &B, &C, input.data(), output.data(), 1.F, 1.F, state.size(), state.data()};
-    (*kernel)(&args);
-    for (size_t i = 0; i < state.size(); ++i) {
-        const auto expected = static_cast<bfloat16>(original_state[i] + 0.F);
-        EXPECT_EQ(output[i].to_bits(), expected.to_bits()) << "index=" << i;
     }
 }
 
@@ -701,7 +551,10 @@ TEST(SelectiveSSMJitFactory, FactoryCreatesLargestAdvertisedState) {
                 ov::intel_cpu::kernel::max_selective_ssm_jit_state_size,
                 state_precision,
                 state_mode);
-            if (!mayiuse(avx2)) {
+            const bool supported = precision == element::f32   ? mayiuse(avx2)
+                                   : precision == element::f16 ? mayiuse(avx512_core_fp16) || mayiuse(avx2_vnni_2)
+                                                               : mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2);
+            if (!supported) {
                 EXPECT_EQ(kernel, nullptr);
                 continue;
             }

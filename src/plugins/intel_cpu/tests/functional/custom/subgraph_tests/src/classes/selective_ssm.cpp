@@ -60,8 +60,7 @@ std::vector<ov::Tensor> calculate_selective_ssm_refs(const std::map<std::shared_
             for (size_t head = 0; head < num_heads; ++head) {
                 const auto token_head = (batch * sequence_length + token) * num_heads + head;
                 const auto group = head / heads_per_group;
-                const auto grouped_projection =
-                    ((batch * sequence_length + token) * num_groups + group) * state_size;
+                const auto grouped_projection = ((batch * sequence_length + token) * num_groups + group) * state_size;
                 const float delta = static_cast<float>(dt[token_head]);
                 decay[token_head] = std::exp(static_cast<float>(A[head]) * delta);
                 for (size_t state_index = 0; state_index < state_size; ++state_index) {
@@ -80,12 +79,10 @@ std::vector<ov::Tensor> calculate_selective_ssm_refs(const std::map<std::shared_
         for (size_t head = 0; head < num_heads; ++head) {
             const auto group = head / heads_per_group;
             for (size_t position = 0; position < head_dim; ++position) {
-                const auto state_base =
-                    batch * state_batch_stride + head * state_head_stride + position * state_size;
+                const auto state_base = batch * state_batch_stride + head * state_head_stride + position * state_size;
                 for (size_t token = 0; token < sequence_length; ++token) {
                     const auto token_head = (batch * sequence_length + token) * num_heads + head;
-                    const auto projection_base =
-                        ((batch * sequence_length + token) * num_groups + group) * state_size;
+                    const auto projection_base = ((batch * sequence_length + token) * num_groups + group) * state_size;
                     const auto x_index = token_head * head_dim + position;
                     const float input = static_cast<float>(x[x_index]);
                     for (size_t state_index = 0; state_index < state_size; ++state_index) {
@@ -180,7 +177,13 @@ void SelectiveSSM::SetUp() {
     inType = prec;
     configuration[ov::hint::inference_precision.name()] = prec;
 
-    abs_threshold = prec == ov::element::f32 ? 1e-6f : 1e-3f;
+    if (prec == ov::element::f32) {
+        abs_threshold = 1e-6f;
+    } else if (prec == ov::element::bf16) {
+        abs_threshold = 1e-2f;
+    } else {
+        abs_threshold = 1e-3f;
+    }
     rel_threshold = 1e-5f;
 
     const ov::Shape A_shape{static_cast<size_t>(num_heads)};

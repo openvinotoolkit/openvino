@@ -12,7 +12,6 @@
 #include <memory>
 
 #include "cpu/x64/jit_generator.hpp"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "nodes/kernels/x64/jit_kernel_base.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -55,15 +54,14 @@ void jit_selective_ssm_kernel<isa>::store(const Xbyak::Reg64& destination,
                                           const Vmm& source,
                                           const ov::element::Type& destination_precision,
                                           int element_count,
-                                          size_t offset,
-                                          const ov::element::Type& source_precision) {
-    const auto seed = store_emitter_params(source_precision, destination_precision, element_count).hash();
+                                          size_t offset) {
+    const auto seed = store_emitter_params(ov::element::f32, destination_precision, element_count).hash();
     auto& emitter = emitters[seed];
     if (!emitter) {
         constexpr cpu_isa_t emitter_isa = (isa & zmm_bit) != 0 ? avx512_core : isa;
         emitter = std::make_unique<jit_store_emitter>(this,
                                                       emitter_isa,
-                                                      source_precision,
+                                                      ov::element::f32,
                                                       destination_precision,
                                                       element_count);
     }
@@ -116,26 +114,7 @@ void jit_selective_ssm_kernel<isa>::clear_inactive_lanes(const Vmm& value, size_
 
 template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::store_output(const Vmm& source, int element_count, size_t offset) {
-    if (m_jcp.data_precision == ov::element::bf16) {
-        if constexpr (isa == avx2) {
-            if (!mayiuse(avx2_vnni_2)) {
-                // State registers are dead here. Pass them to the conversion emitter to avoid spills.
-                if (!bf16_output_converter) {
-                    bf16_output_converter = std::make_unique<jit_uni_vcvtneps2bf16>(this, avx2);
-                }
-                const auto source_idx = static_cast<size_t>(source.getIdx());
-                bf16_output_converter->emit_code({source_idx},
-                                                 {source_idx},
-                                                 {static_cast<size_t>(state_vmm(2).getIdx())},
-                                                 pool_aux_gpr_idxs);
-                store(reg_output, source, ov::element::bf16, element_count, offset, ov::element::bf16);
-                return;
-            }
-        }
-        store_bf16(reg_output, source, element_count, offset);
-    } else {
-        store(reg_output, source, m_jcp.data_precision, element_count, offset);
-    }
+    store(reg_output, source, m_jcp.data_precision, element_count, offset);
 }
 
 template <cpu_isa_t isa>
@@ -143,7 +122,7 @@ void jit_selective_ssm_kernel<isa>::prepare_row_scales() {
     const Xbyak::Xmm packed_scales(vmm_input_projection.getIdx());
     const Xbyak::Xmm delta(accumulator_vmm(0).getIdx());
     load(vmm_input_projection, reg_x, m_jcp.data_precision, max_row_tile, 0, false);
-    vbroadcastss(delta, ptr[reg_args + GET_OFF(delta)]);
+    vbroadcastss(delta, ptr[reg_steps + offsetof(jit_selective_ssm_step, delta)]);
     vmulps(packed_scales, packed_scales, delta);
 
     for (size_t row = 0; row < max_row_tile; ++row) {
@@ -163,137 +142,10 @@ void jit_selective_ssm_kernel<isa>::store_row_tile() {
 }
 
 template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::emit_bf16_subnormal_store(const Xbyak::Reg64& destination,
-                                                              const Vmm& source,
-                                                              int element_count,
-                                                              size_t offset) {
-    if constexpr (isa == avx2) {
-        store_avx2_bf16(destination, source, element_count, offset);
-        return;
-    }
-    uni_vmovups(vmm_reduce_tmp0, source);
-    uni_vmovups(vmm_reduce_tmp1, source);
-    uni_vpsrld(vmm_reduce_tmp1, vmm_reduce_tmp1, 16);
-    vpsllw(vmm_reduce_tmp1, vmm_reduce_tmp1, 15);
-    uni_vpaddd(vmm_reduce_tmp0, vmm_reduce_tmp0, vmm_reduce_tmp1);
-    uni_vpsrld(vmm_reduce_tmp0, vmm_reduce_tmp0, 16);
-
-    const Xbyak::Zmm packed(vmm_reduce_tmp0.getIdx());
-    if (static_cast<size_t>(element_count) == vector_size) {
-        vpmovdw(ptr[destination + offset], packed);
-    } else {
-        const auto active_mask = static_cast<uint16_t>((uint32_t{1} << element_count) - 1U);
-        mov(r14.cvt32(), active_mask);
-        kmovw(k1, r14.cvt32());
-        vpmovdw(ptr[destination + offset], packed | k1);
-    }
-}
-
-template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::store_avx2_bf16(const Xbyak::Reg64& destination,
-                                                    const Vmm& source,
-                                                    int element_count,
-                                                    size_t offset) {
-    if constexpr (isa == avx2) {
-        const Xbyak::Ymm rounded(vmm_reduce_tmp0.getIdx());
-        const Xbyak::Ymm rounding_bit(source.getIdx());
-        uni_vmovups(rounded, source);
-        // Compute ((bits >> 16) & 1) << 15. The word shift discards every bit except the retained BF16 LSB.
-        uni_vpsrld(rounding_bit, rounding_bit, 16);
-        vpsllw(rounding_bit, rounding_bit, 15);
-        uni_vpaddd(rounded, rounded, rounding_bit);
-        uni_vpsrld(rounded, rounded, 16);
-
-        const Xbyak::Xmm rounded_low(rounded.getIdx());
-        const Xbyak::Xmm rounded_high(rounding_bit.getIdx());
-        vextracti128(rounded_high, rounded, 1);
-        vpackusdw(rounded_low, rounded_low, rounded_high);
-        if (static_cast<size_t>(element_count) == vector_size) {
-            vmovups(ptr[destination + offset], rounded_low);
-        } else {
-            for (int lane = 0; lane < element_count; ++lane) {
-                vpextrw(word[destination + offset + lane * sizeof(uint16_t)], rounded_low, lane);
-            }
-        }
-    }
-}
-
-template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::store_state(const Vmm& source, int element_count, size_t offset) {
-    if (m_jcp.state_precision == ov::element::f32) {
-        const auto& destination =
-            m_jcp.state_mode == jit_selective_ssm_state_mode::separate ? reg_output_state : reg_input_state;
-        store(destination, source, m_jcp.state_precision, element_count, offset);
-        return;
-    }
-    if (m_jcp.state_precision != ov::element::bf16) {
-        store(reg_output_state, source, m_jcp.state_precision, element_count, offset);
-        return;
-    }
-
-    if constexpr (isa == avx2) {
-        if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate &&
-            static_cast<size_t>(element_count) == vector_size) {
-            // The caller has already accumulated the output, so the state register is dead and can hold the rounding
-            // bit. This avoids the spills and constant-table setup required by the generic BF16 store emitter.
-            store_avx2_bf16(reg_output_state, source, element_count, offset);
-        } else {
-            store_bf16(reg_output_state, source, element_count, offset);
-        }
-        return;
-    }
-
-    store_bf16(reg_output_state, source, element_count, offset);
-}
-
-template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::store_bf16(const Xbyak::Reg64& destination,
-                                               const Vmm& source,
-                                               int element_count,
-                                               size_t offset) {
-    if constexpr (isa == avx2) {
-        if (!mayiuse(avx2_vnni_2)) {
-            store(destination, source, ov::element::bf16, element_count, offset);
-            return;
-        }
-    }
-
-    const auto emit_regular_store = [&]() {
-        // OpenVINO bfloat16 conversion depends only on the retained LSB and the highest discarded bit. Clearing the
-        // lower 15 bits before the native round-to-nearest-even conversion preserves that behavior.
-        if constexpr (isa == avx2) {
-            vpsrld(vmm_reduce_tmp0, source, 15);
-            vpslld(vmm_reduce_tmp0, vmm_reduce_tmp0, 15);
-        } else {
-            vpandd(vmm_reduce_tmp0, source, vmm_bf16_round_mask);
-        }
-        store(destination, vmm_reduce_tmp0, ov::element::bf16, element_count, offset);
-    };
-
-    if (mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2)) {
-        // Keep the uncommon conversion block out of the generated hot path.
-        auto& fallback = deferred_bf16_subnormal_stores.emplace_back(destination, source, element_count, offset);
-        if constexpr (isa == avx2) {
-            // A state register is free after its output contribution has been accumulated.
-            const auto zero = source.getIdx() == 0 ? state_vmm(1) : state_vmm(0);
-            uni_vpxor(zero, zero, zero);
-            vpsrld(vmm_reduce_tmp0, source, 23);
-            vpslld(vmm_reduce_tmp0, vmm_reduce_tmp0, 24);
-            vpcmpeqd(vmm_reduce_tmp0, vmm_reduce_tmp0, zero);
-            vpmovmskb(r14.cvt32(), vmm_reduce_tmp0);
-            const auto active_bytes = static_cast<uint32_t>((uint64_t{1} << (4 * element_count)) - 1U);
-            test(r14.cvt32(), active_bytes);
-        } else {
-            constexpr uint8_t fpclass_subnormal = 1U << 5;
-            vfpclassps(k1, source, fpclass_subnormal);
-            kortestw(k1, k1);
-        }
-        jnz(fallback.entry, T_NEAR);
-        emit_regular_store();
-        L(fallback.continuation);
-    } else {
-        emit_regular_store();
-    }
+    const auto& destination =
+        m_jcp.state_mode == jit_selective_ssm_state_mode::separate ? reg_output_state : reg_input_state;
+    store(destination, source, m_jcp.state_precision, element_count, offset);
 }
 
 template <cpu_isa_t isa>
@@ -353,7 +205,8 @@ void jit_selective_ssm_kernel<isa>::emit_state_vector(size_t rows,
             emit_store(row);
         }
         // output[p] = sum_n(state[p, n] * C[n])
-        vfmadd231ps(accumulator_vmm(row), state, vmm_output_projection);
+        const auto vector = projection_offset / (vector_size * sizeof(float));
+        vfmadd231ps(accumulator_vmm(row, vector), state, vmm_output_projection);
         if constexpr (isa == avx2) {
             if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate) {
                 emit_store(row);
@@ -386,10 +239,16 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
         const auto accumulator = accumulator_vmm(row);
         if (!use_packed_rows) {
             load(scale, reg_x, m_jcp.data_precision, 1, row * data_size, false);
-            vmulss(Xbyak::Xmm(scale.getIdx()), Xbyak::Xmm(scale.getIdx()), ptr[reg_args + GET_OFF(delta)]);
+            vmulss(Xbyak::Xmm(scale.getIdx()),
+                   Xbyak::Xmm(scale.getIdx()),
+                   ptr[reg_steps + offsetof(jit_selective_ssm_step, delta)]);
         }
         vbroadcastss(scale, Xbyak::Xmm(scale.getIdx()));
         uni_vpxor(accumulator, accumulator, accumulator);
+        if constexpr ((isa & zmm_bit) != 0) {
+            const auto second = accumulator_vmm(row, 1);
+            uni_vpxor(second, second, second);
+        }
     }
 
     const auto loop_chunks = full_vectors > max_unrolled_vectors ? full_vectors / max_unrolled_vectors : 0;
@@ -428,6 +287,9 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
 
     for (size_t row = 0; row < rows; ++row) {
         const auto accumulator = accumulator_vmm(row);
+        if constexpr ((isa & zmm_bit) != 0) {
+            vaddps(accumulator, accumulator, accumulator_vmm(row, 1));
+        }
         reduce_to_scalar(accumulator);
         if (!use_packed_rows) {
             store_output(accumulator, 1, row * data_size);
@@ -474,15 +336,17 @@ void jit_selective_ssm_kernel<isa>::generate() {
     mov(reg_output_projection, ptr[reg_args + GET_OFF(output_projection)]);
     mov(reg_x, ptr[reg_args + GET_OFF(x)]);
     mov(reg_output, ptr[reg_args + GET_OFF(output)]);
-    mov(reg_rows, ptr[reg_args + GET_OFF(row_count)]);
-    vbroadcastss(vmm_decay, ptr[reg_args + GET_OFF(decay)]);
-    if constexpr ((isa & zmm_bit) != 0) {
-        if (m_jcp.state_precision == ov::element::bf16 || m_jcp.data_precision == ov::element::bf16) {
-            mov(r14.cvt32(), 0xFFFF8000);
-            vmovd(Xbyak::Xmm(vmm_bf16_round_mask.getIdx()), r14.cvt32());
-            vpbroadcastd(vmm_bf16_round_mask, Xbyak::Xmm(vmm_bf16_round_mask.getIdx()));
-        }
+    mov(reg_steps, ptr[reg_args + GET_OFF(steps)]);
+    Xbyak::Label token_loop;
+    Xbyak::Label kernel_exit;
+    if (m_jcp.state_mode == jit_selective_ssm_state_mode::in_place) {
+        mov(reg_tokens, ptr[reg_args + GET_OFF(token_count)]);
+        test(reg_tokens, reg_tokens);
+        jz(kernel_exit, T_NEAR);
     }
+    L(token_loop);
+    mov(reg_rows, ptr[reg_args + GET_OFF(row_count)]);
+    vbroadcastss(vmm_decay, ptr[reg_steps + offsetof(jit_selective_ssm_step, decay)]);
 
     Xbyak::Label main_loop;
     Xbyak::Label tail_loop;
@@ -507,21 +371,25 @@ void jit_selective_ssm_kernel<isa>::generate() {
     dec(reg_rows);
     jnz(tail_loop, T_NEAR);
 
-    Xbyak::Label kernel_exit;
     L(end);
-    if (!deferred_bf16_subnormal_stores.empty()) {
-        jmp(kernel_exit, T_NEAR);
-        for (auto& fallback : deferred_bf16_subnormal_stores) {
-            L(fallback.entry);
-            emit_bf16_subnormal_store(fallback.destination, fallback.source, fallback.element_count, fallback.offset);
-            jmp(fallback.continuation, T_NEAR);
-        }
+    if (m_jcp.state_mode == jit_selective_ssm_state_mode::in_place) {
+        dec(reg_tokens);
+        jz(kernel_exit, T_NEAR);
+        // Row traversal advances x/output; restore their token bases before applying the token stride.
+        mov(rax, ptr[reg_args + GET_OFF(row_count)]);
+        imul(rax, rax, static_cast<int>(m_jcp.data_precision.size()));
+        sub(reg_x, rax);
+        sub(reg_output, rax);
+        add(reg_x, ptr[reg_args + GET_OFF(input_stride)]);
+        add(reg_output, ptr[reg_args + GET_OFF(input_stride)]);
+        add(reg_input_projection, ptr[reg_args + GET_OFF(projection_stride)]);
+        add(reg_output_projection, ptr[reg_args + GET_OFF(projection_stride)]);
+        mov(reg_input_state, ptr[reg_args + GET_OFF(input_state)]);
+        add(reg_steps, sizeof(jit_selective_ssm_step));
+        jmp(token_loop, T_NEAR);
     }
     L(kernel_exit);
     this->postamble();
-    if (bf16_output_converter) {
-        bf16_output_converter->emit_data();
-    }
     for (const auto& emitter : emitters) {
         if (emitter.second) {
             emitter.second->emit_data();
@@ -529,12 +397,24 @@ void jit_selective_ssm_kernel<isa>::generate() {
     }
 }
 
+bool is_selective_ssm_jit_precision_supported(const ov::element::Type& precision) {
+    if (precision == ov::element::f32) {
+        return mayiuse(avx2);
+    }
+    if (precision == ov::element::f16) {
+        return mayiuse(avx512_core_fp16) || mayiuse(avx2_vnni_2);
+    }
+    if (precision == ov::element::bf16) {
+        return mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2);
+    }
+    return false;
+}
+
 std::shared_ptr<JitKernelBase> create_selective_ssm_jit_kernel(const ov::element::Type& data_precision,
                                                                size_t state_size,
                                                                const ov::element::Type& state_precision,
                                                                jit_selective_ssm_state_mode state_mode) {
-    if (data_precision != ov::element::f32 && data_precision != ov::element::f16 &&
-        data_precision != ov::element::bf16) {
+    if (!is_selective_ssm_jit_precision_supported(data_precision)) {
         return nullptr;
     }
     if (state_size == 0 || state_size > max_selective_ssm_jit_state_size) {
