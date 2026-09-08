@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <limits>
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_iterator.hpp"
@@ -34,8 +35,24 @@ constexpr bool is_nf4_iterator() {
 namespace reference {
 namespace detail {
 
+// float16/bfloat16 are class types, not std::is_floating_point. char is handled separately.
+template <typename TI, typename TO>
+constexpr bool is_float_to_int =
+    (std::is_floating_point<TI>::value || std::is_same<TI, float16>::value || std::is_same<TI, bfloat16>::value) &&
+    std::is_integral<TO>::value && !std::is_same<TO, bool>::value;
+
 template <typename TI, typename TO>
 constexpr typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+    // NaN/+-Inf -> integral cast is UB ([conv.fpint]): NaN -> 0, +-Inf -> max/min.
+    // Finite values keep the plain cast so existing results are unchanged.
+    if constexpr (is_float_to_int<TI, TO>) {
+        if (v != v)  // NaN
+            return static_cast<TO>(0);
+        if (v == std::numeric_limits<TI>::infinity())
+            return std::numeric_limits<TO>::max();
+        if (v == -std::numeric_limits<TI>::infinity())
+            return std::numeric_limits<TO>::lowest();
+    }
     return static_cast<TO>(v);
 }
 

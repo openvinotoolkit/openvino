@@ -111,6 +111,35 @@ TEST(eval, evaluate_shape_of) {
     ASSERT_EQ(result_shape, arg_shape);
 }
 
+TEST(eval, evaluate_convert_f32_nan_inf_to_i32_no_ub) {
+    auto p = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{4});
+    auto convert = make_shared<op::v0::Convert>(p, element::i32);
+    auto model = make_shared<Model>(OutputVector{convert}, ParameterVector{p});
+
+    const float nan_v = std::numeric_limits<float>::quiet_NaN();
+    const float pos_inf = std::numeric_limits<float>::infinity();
+    const float neg_inf = -std::numeric_limits<float>::infinity();
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{4}, {nan_v, pos_inf, neg_inf, 7.0f})};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+    EXPECT_EQ(result.get_element_type(), element::i32);
+    EXPECT_EQ(result.get_shape(), (Shape{4}));
+
+    auto result_val = read_vector<int32_t>(result);
+    // NaN -> 0
+    EXPECT_EQ(result_val[0], 0);
+    // +Inf -> max
+    EXPECT_EQ(result_val[1], std::numeric_limits<int32_t>::max());
+    // -Inf -> min
+    EXPECT_EQ(result_val[2], std::numeric_limits<int32_t>::min());
+    // finite in-range value converts normally
+    EXPECT_EQ(result_val[3], 7);
+}
+
 TEST(eval, evaluate_dynamic_range_sum) {
     auto p_start = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{});
     auto p_stop = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{});
