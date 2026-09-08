@@ -3179,34 +3179,59 @@ def test_compressed_tensors_missing_format_still_converts():
         _restore_ct_modules(prior)
 
 
-class _CompressedWeightCast(torch.nn.Module):
-    """int-quantized weights dequantized in f16, then cast to the model dtype.
+def _pack_int4(values):
+    """Pack a flat int8 tensor of [-8, 7] two-per-byte, low nibble first."""
+    shifted = (values + 8).to(torch.uint8)
+    return torch.bitwise_or(
+        shifted[0::2], torch.bitwise_left_shift(shifted[1::2], 4)).reshape(-1, 1)
 
-    This is how a bf16 torch model with weight-only quantization reaches the
-    frontend. The trailing f16->bf16 Convert is the node under test:
-    ``MarkCompressedFloatConstants`` cannot see it (it only marks Converts that
-    target f32 and sit directly on a Constant) and ``MarkDequantization`` uses
-    the separate dequantization attribute, so without
-    ``MarkCompressedWeightsCast`` nothing marks it and consumers gating on
-    ``ov::is_decompression`` -- notably the CPU plugin's ConvertMatMulToFC --
-    reject the weights.
+
+class _PackedInt4WeightCast(torch.nn.Module):
+    """Group-wise int4 weights, dequantized in f16, then cast to the model dtype.
+
+    This mirrors NNCF's ``INT4*WeightsDecompressor.forward``, which is how a
+    bf16 torch model with weight-only int4 quantization reaches the frontend.
+    Two properties matter and both are load-bearing:
+
+    1. The weights arrive as a *packed uint8* buffer unpacked by bitwise ops --
+       int4 has no torch dtype. Only ``U4BlockRepack`` / ``U4ConvertReshape``
+       collapse that into a u4/i4 Constant, so any pass that wants to match on
+       ``Constant -> Convert`` must be registered after them. Storing an int8
+       buffer instead skips the repack entirely and silently stops testing this.
+
+    2. The dequantization happens in f16 (the scale's dtype) and the chain ends
+       with an f16->bf16 cast. That trailing Convert is the node under test:
+       ``MarkCompressedFloatConstants`` cannot see it (it only marks Converts
+       that target f32 and sit directly on a Constant) and ``MarkDequantization``
+       uses the separate dequantization attribute, so without
+       ``MarkCompressedWeightsCast`` nothing marks it and consumers gating on
+       ``ov::is_decompression`` -- notably the CPU plugin's ConvertMatMulToFC --
+       reject the weights.
     """
 
-    def __init__(self, weight_dtype, zero_point):
+    def __init__(self, zero_point, out_features=8, in_features=16, group_size=8):
         super().__init__()
-        info = torch.iinfo(weight_dtype)
-        self.register_buffer("qweight", torch.randint(
-            info.min // 2, info.max // 2, (4, 4), dtype=weight_dtype))
-        self.register_buffer("scale", torch.ones(4, 1, dtype=torch.float16))
+        weights = torch.randint(-8, 8, (out_features * in_features,), dtype=torch.int8)
+        groups = in_features // group_size
+        self.register_buffer("qweight", _pack_int4(weights))
+        self.register_buffer(
+            "scale", torch.rand(out_features, groups, 1, dtype=torch.float16) + 0.5)
         self.zero_point = zero_point
         if zero_point:
-            self.register_buffer("zp", torch.full((4, 1), 4.0, dtype=torch.float16))
+            self.register_buffer(
+                "zp", torch.full((out_features, groups, 1), 4.0, dtype=torch.float16))
+        self.compressed_weight_shape = (out_features, groups, group_size)
+        self.result_shape = (out_features, in_features)
 
     def forward(self, x):
-        w = self.qweight.to(torch.float16)
+        low = torch.bitwise_and(self.qweight, 15)
+        high = torch.bitwise_right_shift(self.qweight, 4)
+        w = torch.stack((low, high), dim=-1).type(torch.int8) - 8
+        w = w.reshape(self.compressed_weight_shape).type(torch.float16)
         if self.zero_point:
             w = w - self.zp
-        return torch.matmul(x, (w * self.scale).to(torch.bfloat16).t())
+        w = (w * self.scale).reshape(self.result_shape)
+        return torch.matmul(x, w.type(torch.bfloat16).t())
 
 
 class _PlainWeightCast(torch.nn.Module):
@@ -3228,17 +3253,22 @@ def _decompression_marked_converts(ov_model):
             if op.get_type_name() == "Convert" and "decompression_0" in op.get_rt_info()]
 
 
-@pytest.mark.parametrize("weight_dtype", [torch.int8, torch.uint8])
 @pytest.mark.parametrize("zero_point", [False, True], ids=["sym", "asym"])
-def test_compressed_weights_trailing_cast_is_marked(weight_dtype, zero_point):
+def test_compressed_weights_trailing_cast_is_marked(zero_point):
     """The trailing dtype cast of a weight-decompression subgraph must be marked
-    as decompression. i4/u4 weights take the same path; i8/u8 are used here
-    because torch can express them without a packing/patching layer."""
+    as decompression."""
     from openvino import convert_model
 
     ov_model = convert_model(
-        _CompressedWeightCast(weight_dtype, zero_point).eval(),
-        example_input=torch.randn(2, 4, dtype=torch.bfloat16))
+        _PackedInt4WeightCast(zero_point).eval(),
+        example_input=torch.randn(2, 16, dtype=torch.bfloat16))
+
+    # Guard the precondition rather than assuming it: if the packed uint8 buffer
+    # were not repacked into an int4 Constant, the chain below has no
+    # Constant -> Convert head and the assertions after it would be vacuous.
+    assert any(op.get_element_type() == Type.i4
+               for op in ov_model.get_ops() if op.get_type_name() == "Constant"), \
+        "Expected U4BlockRepack to have produced an i4 weights Constant"
 
     marked = _decompression_marked_converts(ov_model)
     assert len(marked) == 1, \
