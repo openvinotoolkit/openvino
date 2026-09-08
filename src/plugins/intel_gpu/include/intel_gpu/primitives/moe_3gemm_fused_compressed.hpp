@@ -145,8 +145,9 @@ struct moe_3gemm_fused_compressed : public primitive_base<moe_3gemm_fused_compre
     moe_otd_descriptor _otd;
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const moe_3gemm_fused_compressed>(rhs);
 

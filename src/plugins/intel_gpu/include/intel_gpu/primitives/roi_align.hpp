@@ -86,8 +86,9 @@ struct roi_align : public primitive_base<roi_align> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const roi_align>(rhs);
 

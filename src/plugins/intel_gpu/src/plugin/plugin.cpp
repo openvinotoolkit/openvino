@@ -98,8 +98,9 @@ bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::
             auto& rtInfo = node->get_rt_info();
             const auto& it = rtInfo.find(type_info);
 
-            if (it != rtInfo.end())
+            if (it != rtInfo.end()) {
                 return true;
+            }
         }
     }
 
@@ -187,8 +188,9 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     if (config_copy.get_enable_weightless()) {
         const auto weight_path = ov::util::make_path(config.get_weights_path());
 
-        if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model))
+        if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model)) {
             set_weightless_cache_attributes(cloned_model);
+        }
     }
     transform_model(cloned_model, config_copy, context);
 
@@ -312,8 +314,9 @@ std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string
     OPENVINO_ASSERT(contexts.count(device_id), "[GPU] Context was not initialized for ", device_id, " device");
 
     auto context = contexts.at(device_id);
-    if (initialize)
+    if (initialize) {
         context->initialize();
+    }
 
     return context;
 }
@@ -321,8 +324,9 @@ std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) const {
     std::string device_id = m_default_device_id;
 
-    if (params.find(ov::device::id.name()) != params.end())
+    if (params.find(ov::device::id.name()) != params.end()) {
         device_id = params.at(ov::device::id.name()).as<std::string>();
+    }
 
     return get_default_context(device_id);
 }
@@ -504,8 +508,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::available_devices) {
         std::vector<std::string> available_devices = { };
-        for (const auto& dev : m_device_map)
+        for (const auto& dev : m_device_map) {
             available_devices.push_back(dev.first);
+        }
         return decltype(ov::available_devices)::value_type {available_devices};
     }
     if (name == ov::internal::caching_properties) {
@@ -607,10 +612,12 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     auto device_id = get_property(ov::device::id.name(), options).as<std::string>();
 
     auto iter = m_device_map.find(std::to_string(cldnn::device_query::device_id));
-    if (iter == m_device_map.end())
+    if (iter == m_device_map.end()) {
         iter = m_device_map.find(device_id);
-    if (iter == m_device_map.end())
+    }
+    if (iter == m_device_map.end()) {
         iter = m_device_map.begin();
+    }
     auto device = iter->second;
     auto device_info = device->get_info();
 
@@ -834,14 +841,18 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 
     capabilities.emplace_back(ov::device::capability::FP32);
     capabilities.emplace_back(ov::device::capability::BIN);
-    if (info.supports_fp16)
+    if (info.supports_fp16) {
         capabilities.emplace_back(ov::device::capability::FP16);
-    if (info.supports_imad || info.supports_immad)
+    }
+    if (info.supports_imad || info.supports_immad) {
         capabilities.emplace_back(ov::device::capability::INT8);
-    if (info.supports_immad)
+    }
+    if (info.supports_immad) {
         capabilities.emplace_back(ov::intel_gpu::capability::HW_MATMUL);
-    if (info.supports_usm)
+    }
+    if (info.supports_usm) {
         capabilities.emplace_back(ov::intel_gpu::capability::USM_MEMORY);
+    }
     capabilities.emplace_back(ov::device::capability::EXPORT_IMPORT);
 
     return capabilities;
@@ -963,8 +974,9 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
                 const auto& param = params[input_id];
                 shapes[input_id] = param->get_output_partial_shape(0);
             }
-            for (const auto& input : batched_inputs)
+            for (const auto& input : batched_inputs) {
                 shapes[input.first][input.second] = base_batch_size;
+            }
             cloned_model->reshape(shapes);
         } catch (...) {
             GPU_DEBUG_INFO << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
@@ -1038,8 +1050,9 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     auto cloned_model = clone_and_transform_model(model, config, context);
     ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
     uint32_t batch = 1;
-    if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
+    if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN) {
         batch = static_cast<uint32_t>(std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance)));
+    }
     ov::AnyMap options_for_max_batch;
     options_for_max_batch[ov::hint::model.name()] = model;
     options_for_max_batch[ov::num_streams.name()] = ov::streams::AUTO;

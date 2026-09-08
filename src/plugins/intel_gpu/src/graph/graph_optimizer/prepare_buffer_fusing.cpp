@@ -169,9 +169,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return false;
 
         size_t concat_users = 0;
-        for (const auto& user : pred.first->get_users())
+        for (const auto& user : pred.first->get_users()) {
             if (user->is_type<concatenation>())
                 concat_users += 1;
+        }
 
         // If input is used by more than one concatenation then they may require different paddings.
         if (concat_users != 1)
@@ -334,10 +335,11 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
         upper_padd[concat_axis] -= input_length;
 
         // set new padding for input
-        if (is_runtime)
+        if (is_runtime) {
             pred_layout.data_padding = padding(lower_padd, upper_padd, dyn_pad_dims);
-        else
+        } else {
             pred_layout.data_padding = padding(lower_padd, upper_padd);
+        }
         // move lower padd further
         //
         //   |-------------- lower padd -------------|---------- upper padd -----------|

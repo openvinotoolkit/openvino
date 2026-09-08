@@ -58,8 +58,9 @@ bool EyeKernelRef::Validate(const Params& p) const {
     }
 
     const eye_params& params = dynamic_cast<const eye_params&>(p);
-    if (params.inputs.empty())
+    if (params.inputs.empty()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

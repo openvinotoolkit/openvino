@@ -112,6 +112,10 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ob << _apply_to_int;
             }
             {
+                dnnl::accumulation_mode _acc_mode = _attrs->get_accumulation_mode();
+                ob << make_data(&_acc_mode, sizeof(dnnl::accumulation_mode));
+            }
+            {
                 const dnnl::post_ops _post_ops = _attrs->get_post_ops();
 
                 ob << _post_ops.len();
@@ -214,6 +218,11 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 ib >> make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
                 ib >> _apply_to_int;
                 _attrs->set_fpmath_mode(_fmath_mode, _apply_to_int);
+            }
+            {
+                dnnl::accumulation_mode _acc_mode = dnnl::accumulation_mode::strict;
+                ib >> make_data(&_acc_mode, sizeof(dnnl::accumulation_mode));
+                _attrs->set_accumulation_mode(_acc_mode);
             }
             {
                 const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
@@ -515,8 +524,9 @@ protected:
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
-        if (instance.can_be_optimized())
+        if (instance.can_be_optimized()) {
             return;
+        }
         uint32_t net_id = instance.get_network().get_id();
         _args[net_id] = get_arguments(instance);
     }
@@ -576,8 +586,9 @@ protected:
                 // If oneDNN primitive is the output primitive or it's user is CPU implementation, then enqueue marker
                 // with empty events wait list (which will trigger wait for all previously enqueued tasks) and
                 // return it as oneDNN primitive's event as it is a single option for proper synchronization
-                if (instance.needs_completion_event())
+                if (instance.needs_completion_event()) {
                     event = stream.enqueue_marker({});
+                }
             }
         }
 
@@ -585,8 +596,9 @@ protected:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
-        if (_scratchpad_md.get_size() == 0)
+        if (_scratchpad_md.get_size() == 0) {
             return {};
+        }
         return {BufferDescriptor(_scratchpad_md.get_size(), cldnn::data_types::u8)};
     }
 };
