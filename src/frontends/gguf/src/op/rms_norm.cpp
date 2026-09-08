@@ -31,7 +31,7 @@ OutputVector translate_rms_norm(const NodeContext& context) {
     ov::pass::NodeRegistry reg;
     auto res = ov::decomposition::rms_norm(reg, input_node, axes, eps);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op
