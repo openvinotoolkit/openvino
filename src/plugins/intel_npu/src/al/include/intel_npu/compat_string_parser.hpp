@@ -156,6 +156,10 @@ private:
     std::string_view::iterator _captureEnd;
     int _nesting = 0;   // Nesting level for current capture mode
     int _optional = 0;  // Tracks top-level optional attributes
+    int _depth = 0;     // parseString recursion depth, capped by kMaxNestingDepth
+
+    // Legitimate nesting is only a few SW layers deep; far below any stack limit.
+    static constexpr int kMaxNestingDepth = 32;
 
     attr_map_type _attributes;
     attr_map_type _optional_attributes;
@@ -230,6 +234,7 @@ inline void Parser::reset(std::string_view input, CaptureMode mode) {
     _end = input.end();
     _optional = 0;
     _nesting = 0;
+    _depth = 0;
     _captureMode = mode;
     _captureStart = _end;
     _captureEnd = _end;
@@ -257,13 +262,20 @@ inline std::string_view Parser::stopCapture(CaptureMode mode) {
 
 // string ::= expr (';' expr)*
 inline std::string_view Parser::parseString() {
+    // '{' and '[' both re-enter parseString; without a bound, deep nesting
+    // exhausts the stack, which no try/catch can intercept.
+    if (++_depth > kMaxNestingDepth) {
+        throw errorAt("maximum nesting depth exceeded");
+    }
     startCapture(CaptureMode::STRING);
     parseExpr();
     while (peek() == ';') {
         nextc();  // ';'
         parseExpr();
     }
-    return stopCapture(CaptureMode::STRING);
+    auto result = stopCapture(CaptureMode::STRING);
+    --_depth;
+    return result;
 }
 
 // expr ::= attr | '{' string '}'
