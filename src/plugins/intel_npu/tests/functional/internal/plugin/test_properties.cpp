@@ -567,6 +567,7 @@ TEST_P(CompatibilityCheckTests, CheckDummyPropertyWithGetMergedConfigAndUnknownP
     ASSERT_EQ(filteredConfig.get<::intel_npu::COMPILER_TYPE>(), ov::intel_npu::CompilerType::PLUGIN);
     ASSERT_FALSE(unknownProperties.empty());
     ASSERT_EQ(unknownProperties.size(), 1);
+    ASSERT_TRUE(unknownProperties.count("Dummy_Property"));
 
     ASSERT_EQ(
         logs.find("Property 'NPU_COMPILER_TYPE' is used to specify the compiler type, will not be used for current "
@@ -602,6 +603,7 @@ TEST_P(CompatibilityCheckTests, CheckDummyPropertyWithGetMergedConfigAndUnknownP
     ASSERT_FALSE(filteredConfig.has<::intel_npu::COMPILER_TYPE>());
     ASSERT_FALSE(unknownProperties.empty());
     ASSERT_EQ(unknownProperties.size(), 1);
+    ASSERT_TRUE(unknownProperties.count("Dummy_Property"));
 
     ASSERT_NE(
         logs.find("Property 'NPU_COMPILER_TYPE' is used to specify the compiler type, will not be used for current "
@@ -734,6 +736,79 @@ TEST_P(CompatibilityCheckTests, CheckCacheEncryptionCallbacksWithGetMergedConfig
 
     ASSERT_TRUE(filteredConfig.has<::intel_npu::CACHE_ENCRYPTION_CALLBACKS>());
     ASSERT_TRUE(unknownProperties.empty());
+}
+
+TEST_P(CompatibilityCheckTests, CheckInternalCompilerOptionWithGetMergedConfigAndUnknownPropertiesOnCompile) {
+    auto [filteredConfig, unknownProperties] = [&]() {
+        return propertiesManager->getMergedConfigAndUnknownProperties(
+            {{{"WS_COMPILE_CALL_NUMBER", ov::Any(1)},
+              ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+            ::intel_npu::ConfigMergeMode::Compile);
+    }();
+
+    ASSERT_TRUE(filteredConfig.hasInternal("WS_COMPILE_CALL_NUMBER"));
+    ASSERT_TRUE(unknownProperties.empty());
+}
+
+TEST_P(CompatibilityCheckTests,
+       CheckInternalCompilerOptionWithGetMergedConfigAndUnknownPropertiesOnImportLoadedFromCache) {
+    std::string logs;
+    std::mutex logs_mutex;
+
+    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
+        std::lock_guard<std::mutex> lock(logs_mutex);
+        logs.append(msg);
+        logs.push_back('\n');
+    };
+
+    auto [filteredConfig, unknownProperties] = [&]() {
+        utils::LogCallbackGuard log_callback_guard(log_cb);
+        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
+        return propertiesManager->getMergedConfigAndUnknownProperties(
+            {{{"WS_COMPILE_CALL_NUMBER", ov::Any(1)},
+              ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
+              {ov::loaded_from_cache.name(), ov::Any(true)}}},
+            ::intel_npu::ConfigMergeMode::Import);
+    }();
+
+    ASSERT_FALSE(filteredConfig.hasInternal("WS_COMPILE_CALL_NUMBER"));
+    ASSERT_TRUE(unknownProperties.empty());
+    ASSERT_NE(logs.find("Property 'WS_COMPILE_CALL_NUMBER' is recognized as a compiler option, will not be used for "
+                        "current configuration."),
+              std::string::npos);
+}
+
+TEST_P(CompatibilityCheckTests, CheckInternalCompilerOptionWithGetMergedConfigAndUnknownPropertiesOnImport) {
+    auto [filteredConfig, unknownProperties] = [&]() {
+        return propertiesManager->getMergedConfigAndUnknownProperties(
+            {{{"WS_COMPILE_CALL_NUMBER", ov::Any(1)},
+              ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+            ::intel_npu::ConfigMergeMode::Import);
+    }();
+
+    ASSERT_FALSE(filteredConfig.hasInternal("WS_COMPILE_CALL_NUMBER"));
+    ASSERT_EQ(unknownProperties.size(), 1);
+    ASSERT_TRUE(unknownProperties.count("WS_COMPILE_CALL_NUMBER"));
+}
+
+TEST_P(CompatibilityCheckTests, CheckInternalCompilerOptionWithSetPropertyAndGetProperty) {
+    OV_ASSERT_NO_THROW(
+        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}}));
+    ov::intel_npu::CompilerType compilerType;
+    OV_ASSERT_NO_THROW(
+        compilerType =
+            propertiesManager->getProperty(ov::intel_npu::compiler_type.name()).as<ov::intel_npu::CompilerType>());
+    ASSERT_EQ(compilerType, ov::intel_npu::CompilerType::PLUGIN);  // make sure plugin compiler is set
+
+    OV_EXPECT_THROW(propertiesManager->getProperty("WS_COMPILE_CALL_NUMBER"),
+                    ov::Exception,
+                    testing::HasSubstr("Unsupported configuration key: WS_COMPILE_CALL_NUMBER"));
+
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{"WS_COMPILE_CALL_NUMBER", ov::Any(5)}}));
+    uint32_t ws_compile_call_number;
+    OV_ASSERT_NO_THROW(ws_compile_call_number =
+                           propertiesManager->getProperty("WS_COMPILE_CALL_NUMBER").as<uint32_t>());
+    ASSERT_EQ(ws_compile_call_number, 5);
 }
 
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;
