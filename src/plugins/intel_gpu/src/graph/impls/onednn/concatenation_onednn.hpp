@@ -23,6 +23,16 @@ struct ConcatenationImplementationManager : public ImplementationManager {
         if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
             return false;
 
+        // oneDNN classifies DNNL_ARG_MULTIPLE_SRC + i as an attribute argument once i sets the
+        // DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS bit, so a concat with more sources than that bit's
+        // value fails oneDNN's argument count check at execution time.
+        constexpr size_t max_onednn_inputs = DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS;
+        static_assert(DNNL_ARG_MULTIPLE_SRC % (2 * max_onednn_inputs) == 0,
+                      "the first colliding source index equals the flag value only while the "
+                      "DNNL_ARG_MULTIPLE_SRC base leaves that bit and all lower bits clear");
+        if (node.get_inputs_count() > max_onednn_inputs)
+            return false;
+
         static const std::vector<ov::element::Type_t> supported_types = { ov::element::f16, ov::element::bf16, ov::element::u8, ov::element::i8 };
         static const std::vector<format::type> supported_in_fmts = {
             format::any,
