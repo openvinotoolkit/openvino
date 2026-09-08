@@ -99,7 +99,7 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         // f32 convolution is enabled on Xe3 only
         bool f32_conv = info.arch == gpu_arch::xe3 && everyone_is(data_types::f32, in_dt, wei_dt);
 
-        if (!f16_conv && !bf16_conv && !int8_conv && !f32_conv)
+        if (!f16_conv && !bf16_conv && !int8_conv && !f32_conv) {
             return false;
         }
 
