@@ -115,6 +115,32 @@ struct Moe3GemmReference {
         return {q_data, scales, zps};
     }
 
+    // Quantized-then-dequantized weights differ from the original ones by ~7% RMS for u4 (~0.3% for u8),
+    // enough to exceed the tolerance on its own.
+    std::vector<float> dequantize(const std::vector<uint8_t>& q_data,
+                                  const std::vector<ov::float16>& scales,
+                                  const std::vector<uint8_t>& zps,
+                                  size_t expert_num,
+                                  size_t rows,
+                                  size_t cols,
+                                  size_t group_size) {
+        std::vector<float> out(expert_num * rows * cols);
+        size_t num_groups_per_row = rows / group_size;
+        size_t num_groups = cols * num_groups_per_row;
+        for (size_t e = 0; e < expert_num; ++e) {
+            size_t offset = e * rows * cols;
+            for (size_t c = 0; c < cols; ++c) {
+                for (size_t r = 0; r < rows; ++r) {
+                    size_t g = r / group_size;
+                    float s = static_cast<float>(scales[e * num_groups + g * cols + c]);
+                    float z = static_cast<float>(zps[e * num_groups + g * cols + c]);
+                    out[offset + r * cols + c] = (static_cast<float>(q_data[offset + c * rows + r]) - z) * s;
+                }
+            }
+        }
+        return out;
+    }
+
     std::tuple<std::vector<uint8_t>, std::vector<ov::float16>> quantize_symmetric(const std::vector<float>& data,
                                                                                   size_t expert_num,
                                                                                   size_t rows,
@@ -431,6 +457,10 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     auto [w1_q, w1_scale, w1_zp] = ref.quantize(w1_data, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
     auto [w2_q, w2_scale, w2_zp] = ref.quantize(w2_data, config.num_experts, config.inter_size, config.hidden_size, config.group_size);
 
+    auto w0_qdq = ref.dequantize(w0_q, w0_scale, w0_zp, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto w1_qdq = ref.dequantize(w1_q, w1_scale, w1_zp, config.num_experts, config.hidden_size, config.inter_size, config.group_size);
+    auto w2_qdq = ref.dequantize(w2_q, w2_scale, w2_zp, config.num_experts, config.inter_size, config.hidden_size, config.group_size);
+
     auto w0_q_packed = ref.pack(w0_q);
     auto w0_zp_packed = ref.pack(w0_zp);
     auto w1_q_packed = ref.pack(w1_q);
@@ -570,8 +600,8 @@ TEST_P(moe_3gemm_compressed_gpu_random, moe_accuracy_test_random) {
     cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
 
     auto ref_output = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS
-                          ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_data, w1_data, w2_data)
-                          : ref.run_reference_softmax(hidden_states, routing_weights, w0_data, w1_data, w2_data);
+                          ? ref.run_reference_sigmoid(hidden_states, routing_weights, routing_bias_data, routing_eps_val, w0_qdq, w1_qdq, w2_qdq)
+                          : ref.run_reference_softmax(hidden_states, routing_weights, w0_qdq, w1_qdq, w2_qdq);
     // SigmoidBias routing performs all routing math (sigmoid, bias, normalization) in f16 on the kernel side,
     // while the reference uses f32, leading to slightly larger numerical divergence than Softmax.
     const float base_tolerance = routing_type == cldnn::MoERouterFused::RoutingType::SIGMOID_BIAS ? 0.3f : 0.15f;
@@ -592,7 +622,11 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                                               Moe3GemmTestParams{1, true, 256, 512, 4, 2, 256},
                                                               Moe3GemmTestParams{1, false, 256, 512, 4, 2, 256},
                                                               Moe3GemmTestParams{1, true, 512, 512, 4, 2, 512},
-                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512})));
+                                                              Moe3GemmTestParams{1, false, 512, 512, 4, 2, 512},
+                                                              Moe3GemmTestParams{33, true, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{33, false, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{48, true, 128, 256, 4, 2, 128},
+                                                              Moe3GemmTestParams{48, false, 128, 256, 4, 2, 128})));
 
 // Sub-128 weight quantization group size (e.g. trinity-mini afmoe uses group_size=64
 // with SIGMOID_BIAS routing). Limited to SIGMOID_BIAS to mirror real model usage and
