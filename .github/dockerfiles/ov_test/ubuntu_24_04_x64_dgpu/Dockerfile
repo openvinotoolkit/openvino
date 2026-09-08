@@ -38,8 +38,6 @@ RUN apt-get update && \
         # Python
         python3-full \
         libhdf5-dev \
-        # GPU functional tests
-        libva-drm2 \
         && \
     rm -rf /var/lib/apt/lists/*
 
