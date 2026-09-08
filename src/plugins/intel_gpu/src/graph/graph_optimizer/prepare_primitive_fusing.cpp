@@ -1382,9 +1382,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 merge_allowed = fused_node->get_users().size() == 1;
             } else {
                 merge_allowed = fused_node->get_users().size() == 1;
-                for (const auto& parent : fused_node->get_dependencies())
+                for (const auto& parent : fused_node->get_dependencies()) {
                     if (parent.first->id() == peer_node->id())
                         merge_allowed = false;
+                }
             }
 
             if (!merge_allowed)
