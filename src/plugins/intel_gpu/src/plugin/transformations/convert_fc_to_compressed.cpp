@@ -95,7 +95,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             // Convert ZP to u8
             if (constant->get_element_type() == ov::element::u8)
                 result = constant;
-            else if (constant->get_element_type() == ov::element::u4 || constant->get_element_type() == ov::element::u2)
+            else if (constant->get_element_type() == ov::element::u4 || constant->get_element_type() == ov::element::u3 ||
+                     constant->get_element_type() == ov::element::u2)
                 result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
             // Only unsigned ZP types can be converted to u8.
             else if (weight_u8 && sub_with_convert && !constant->get_element_type().is_signed())

@@ -266,7 +266,7 @@ TEST_P(MatmulWeightsDecompression, Inference) {
 }
 
 const std::vector<ov::element::Type> activations_precisions = {ov::element::f32, ov::element::f16};
-const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4, ov::element::u2};
+const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4, ov::element::u3, ov::element::u2};
 const std::vector<bool> transpose_weights = {true, false};
 const std::vector<bool> param_weights = {true, false};
 const std::vector<ShapeParams> input_shapes_basic = {
