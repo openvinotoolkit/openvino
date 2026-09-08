@@ -12,11 +12,11 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/layout.hpp"
+#include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/preprocess/pre_post_process.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 using namespace intel_npu;
