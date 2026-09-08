@@ -17,7 +17,7 @@ namespace kernel_selector {
 
 // Detect the permute pattern where the feature (cldnn dim 1) exchanges places with a
 // spatial dimension while the remaining axes keep their order:
-//   4D: cldnn order [0,2,1,3]   - from ONNX/OV perm [0,3,2,1] (NCHW -> NHWC)
+//   4D: cldnn order [0,2,1,3]   - from ONNX/OV perm [0,3,2,1] (NCHW -> NWHC)
 //   5D: cldnn order [0,4,1,3,2] - from ONNX/OV perm [0,2,4,3,1]
 //   6D: cldnn order [0,5,1,3,2,4] - from ONNX/OV perm [0,2,3,5,4,1]
 // cldnn orders are derived from OV orders by convert_permute_order() (bfyx -> bfxy
@@ -332,11 +332,11 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
     //
     // is_rotating_except_batch: cldnn [0,3,1,2] (4D) / [0,4,1,2,3] (5D) / ...
     //   Feature (dim 1) is pushed to the cldnn-y (last spatial) position; spatial dims rotate
-    //   left.  Corresponds to ONNX perm [0,2,3,1] (4D: NCHW -> NWCH).
+    //   left.  Corresponds to ONNX perm [0,2,3,1] (4D: NCHW -> NHWC).
     //
     // IsSwappingFX: cldnn [0,2,1,3] (4D) / [0,4,1,3,2] (5D) / [0,5,1,3,2,4] (6D)
     //   Feature (dim 1) exchanges places with a spatial dimension; the remaining axes
-    //   keep their order. For 4D this is ONNX perm [0,3,2,1] (NCHW -> NHWC).
+    //   keep their order. For 4D this is ONNX perm [0,3,2,1] (NCHW -> NWHC).
     //   Uses the same tiled read pattern but with output args 2 and 3 exchanged in
     //   OUTPUT_TILED_ORDER so that writes remain coalesced.
 

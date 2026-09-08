@@ -2414,7 +2414,7 @@ TEST_P(permute_f_y_axes_tile, combined) {
 }
 
 // IsSwappingFX branch of the tiled kernel (cldnn order [0,2,1,3], i.e. ONNX
-// [0,3,2,1] / NCHW -> NHWC). Note: permute_f_y_axes_tile above forces the
+// [0,3,2,1] / NCHW -> NWHC). Note: permute_f_y_axes_tile above forces the
 // separate pre-existing permute_f_y_axes kernel, which accepts cldnn [0,3,2,1]
 // (ONNX [0,2,1,3] / NCHW -> NHCW in bfyx terms) instead.
 class permute_tile_swap_fx_4d : public TiledPermuteTest {};
@@ -2432,6 +2432,25 @@ TEST_P(permute_tile_swap_fx_4d, combined) {
     run_test<cldnn::data_types::f32>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 3, 2, 1});
     run_test<cldnn::data_types::f16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 3, 2, 1});
     run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 3, 2, 1});
+}
+
+// TEMP PROBE: unforced kernel selection for the model's permute (NCHW -> NWHC 4D).
+TEST(permute_tile_swap_fx_probe, unforced_selection) {
+    auto& engine = get_test_engine();
+    const std::vector<ov::Dimension::value_type> sizes{1, 128, 200, 200};
+    cldnn::tensor tensor(sizes);
+    auto input = engine.allocate_memory(cldnn::layout(cldnn::data_types::f16, cldnn::format::bfyx, tensor));
+    topology topology_probe = topology(
+        input_layout("input", input->get_layout()),
+        reorder("reorder", input_info("input"), {cldnn::data_types::f16, format::bfyx, tensor}),
+        permute("output", input_info("reorder"), std::vector<uint16_t>{0, 3, 2, 1}));
+    auto net = get_network(engine, topology_probe, get_test_default_config(engine), get_test_stream_ptr(), false);
+    net->set_input_data("input", input);
+    auto res = net->execute();
+    EXPECT_FALSE(res.empty());
+    const auto selected = net->get_primitive_info("output");
+    fprintf(stderr, "PROBE selected kernel: %s\n", selected.c_str());
+    EXPECT_EQ(selected, "permute_tile_8x8_4x4");
 }
 
 // IsSwappingFX branch of the tiled kernel extended to 5D (cldnn order
