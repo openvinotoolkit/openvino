@@ -142,7 +142,7 @@ bool is_virtual_device(const std::string& device_name);
 struct DispatchEntry {
     // How one candidate library sees this device: its own internal id and its score.
     struct CandidateView {
-        std::string internal_id;              // the id THIS library uses (may differ across libs)
+        std::string internal_id;  // the id THIS library uses (may differ across libs)
         DeviceCompatibilityScore score = PROBE_SCORE_INCOMPATIBLE;
     };
     std::string canonical_id;                 // ".N" shown to the user (core assigns)
