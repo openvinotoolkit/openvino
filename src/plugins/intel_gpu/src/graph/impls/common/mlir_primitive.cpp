@@ -133,7 +133,8 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
             }
         }
 
-        OPENVINO_ASSERT(op->evaluate(output_gpu_tensors, input_gpu_tensors, meta), "[GPU] Couldn't execute MLIROp ", op->get_friendly_name());
+        const bool evaluated = op->evaluate(output_gpu_tensors, input_gpu_tensors, meta);
+        OPENVINO_ASSERT(evaluated, "[GPU] Couldn't execute MLIROp ", op->get_friendly_name());
 
         if (!result_events.empty()) {
             std::vector<event::ptr> events;
