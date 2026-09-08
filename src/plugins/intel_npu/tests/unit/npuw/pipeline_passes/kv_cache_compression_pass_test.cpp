@@ -36,7 +36,7 @@
 #include <unordered_map>
 
 #include "npuw_transformations/kv_cache_compressed.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -98,12 +98,12 @@ std::shared_ptr<Model> build_sdpa_model(size_t num_sdpa) {
     for (size_t n = 0; n < num_sdpa; ++n) {
         const std::string idx = std::to_string(n);
 
-        auto past_key = ov::test::utils::create_param(element::f32, past_shape,      "past_key_values." + idx + ".key");
-        auto past_val = ov::test::utils::create_param(element::f32, past_shape,      "past_key_values." + idx + ".value");
-        auto query    = ov::test::utils::create_param(element::f32, new_token_shape, "query."     + idx);
-        auto new_key  = ov::test::utils::create_param(element::f32, new_token_shape, "new_key."   + idx);
-        auto new_val  = ov::test::utils::create_param(element::f32, new_token_shape, "new_value." + idx);
-        auto mask     = ov::test::utils::create_param(element::f32, mask_shape,      "mask."      + idx);
+        auto past_key = ov::test::utils::make_param(element::f32, past_shape,      "past_key_values." + idx + ".key");
+        auto past_val = ov::test::utils::make_param(element::f32, past_shape,      "past_key_values." + idx + ".value");
+        auto query    = ov::test::utils::make_param(element::f32, new_token_shape, "query."     + idx);
+        auto new_key  = ov::test::utils::make_param(element::f32, new_token_shape, "new_key."   + idx);
+        auto new_val  = ov::test::utils::make_param(element::f32, new_token_shape, "new_value." + idx);
+        auto mask     = ov::test::utils::make_param(element::f32, mask_shape,      "mask."      + idx);
         params.insert(params.end(), {past_key, past_val, query, new_key, new_val, mask});
 
         // Build SDPA: Q @ K^T -> Add(mask) -> Softmax -> @ V
@@ -147,12 +147,12 @@ std::shared_ptr<Model> build_sdpa_model_with_hanging_past_consumers() {
         results.push_back(r);
     };
 
-    auto past_key = ov::test::utils::create_param(element::f32, past_shape, "past_key_values.0.key");
-    auto past_val = ov::test::utils::create_param(element::f32, past_shape, "past_key_values.0.value");
-    auto query = ov::test::utils::create_param(element::f32, new_token_shape, "query.0");
-    auto new_key = ov::test::utils::create_param(element::f32, new_token_shape, "new_key.0");
-    auto new_val = ov::test::utils::create_param(element::f32, new_token_shape, "new_value.0");
-    auto mask = ov::test::utils::create_param(element::f32, mask_shape, "mask.0");
+    auto past_key = ov::test::utils::make_param(element::f32, past_shape, "past_key_values.0.key");
+    auto past_val = ov::test::utils::make_param(element::f32, past_shape, "past_key_values.0.value");
+    auto query = ov::test::utils::make_param(element::f32, new_token_shape, "query.0");
+    auto new_key = ov::test::utils::make_param(element::f32, new_token_shape, "new_key.0");
+    auto new_val = ov::test::utils::make_param(element::f32, new_token_shape, "new_value.0");
+    auto mask = ov::test::utils::make_param(element::f32, mask_shape, "mask.0");
     ParameterVector params = {past_key, past_val, query, new_key, new_val, mask};
 
     auto concat_key = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
@@ -494,12 +494,12 @@ std::shared_ptr<Model> build_decode_step_model(size_t window) {
         results.push_back(r);
     };
 
-    auto past_key = ov::test::utils::create_param(element::f32, past_key_shape,  "past_key_values.0.key");
-    auto past_val = ov::test::utils::create_param(element::f32, past_val_shape,  "past_key_values.0.value");
-    auto query    = ov::test::utils::create_param(element::f32, new_key_shape,   "query.0");
-    auto new_key  = ov::test::utils::create_param(element::f32, new_key_shape,   "new_key.0");
-    auto new_val  = ov::test::utils::create_param(element::f32, new_value_shape, "new_value.0");
-    auto mask     = ov::test::utils::create_param(element::f32, mask_shape,      "mask.0");
+    auto past_key = ov::test::utils::make_param(element::f32, past_key_shape,  "past_key_values.0.key");
+    auto past_val = ov::test::utils::make_param(element::f32, past_val_shape,  "past_key_values.0.value");
+    auto query    = ov::test::utils::make_param(element::f32, new_key_shape,   "query.0");
+    auto new_key  = ov::test::utils::make_param(element::f32, new_key_shape,   "new_key.0");
+    auto new_val  = ov::test::utils::make_param(element::f32, new_value_shape, "new_value.0");
+    auto mask     = ov::test::utils::make_param(element::f32, mask_shape,      "mask.0");
     ParameterVector params = {past_key, past_val, query, new_key, new_val, mask};
 
     auto concat_key = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);

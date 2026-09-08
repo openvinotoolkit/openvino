@@ -10,7 +10,7 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/ops.hpp"
 #include "partitioning/online/compiler.hpp"
 #include "partitioning/patterns/sdpa.hpp"
@@ -60,12 +60,12 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
 
     for (size_t n = 0; n < num_layers; ++n) {
         const std::string idx = std::to_string(n);
-        auto query = ov::test::utils::create_param(element::f32, query_shape, "query." + idx);
-        auto past_key = ov::test::utils::create_param(element::f16, past_shape, "past_key_values." + idx + ".key");
-        auto past_value = ov::test::utils::create_param(element::f16, past_shape, "past_key_values." + idx + ".value");
-        auto new_key = ov::test::utils::create_param(element::f32, new_token_shape, "new_key." + idx);
-        auto new_value = ov::test::utils::create_param(element::f32, new_token_shape, "new_value." + idx);
-        auto mask = ov::test::utils::create_param(element::f32, mask_shape, "mask." + idx);
+        auto query = ov::test::utils::make_param(element::f32, query_shape, "query." + idx);
+        auto past_key = ov::test::utils::make_param(element::f16, past_shape, "past_key_values." + idx + ".key");
+        auto past_value = ov::test::utils::make_param(element::f16, past_shape, "past_key_values." + idx + ".value");
+        auto new_key = ov::test::utils::make_param(element::f32, new_token_shape, "new_key." + idx);
+        auto new_value = ov::test::utils::make_param(element::f32, new_token_shape, "new_value." + idx);
+        auto mask = ov::test::utils::make_param(element::f32, mask_shape, "mask." + idx);
         params.insert(params.end(), {query, past_key, past_value, new_key, new_value, mask});
 
         // Convert(f16 → f32) before Concat — this is what PPP inserts and the pattern matches
@@ -179,19 +179,19 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_dq_model(size_t num_layers = 1,
 
     for (size_t n = 0; n < num_layers; ++n) {
         const std::string idx = std::to_string(n);
-        auto query = ov::test::utils::create_param(element::f32, query_shape, "query." + idx);
-        auto past_key = ov::test::utils::create_param(element::i8, past_shape, "past_key_values." + idx + ".key");
-        auto past_value = ov::test::utils::create_param(element::i8, past_shape, "past_key_values." + idx + ".value");
-        auto new_key = ov::test::utils::create_param(element::f32, new_token_shape, "new_key." + idx);
-        auto new_value = ov::test::utils::create_param(element::f32, new_token_shape, "new_value." + idx);
-        auto mask = ov::test::utils::create_param(element::f32, mask_shape, "mask." + idx);
+        auto query = ov::test::utils::make_param(element::f32, query_shape, "query." + idx);
+        auto past_key = ov::test::utils::make_param(element::i8, past_shape, "past_key_values." + idx + ".key");
+        auto past_value = ov::test::utils::make_param(element::i8, past_shape, "past_key_values." + idx + ".value");
+        auto new_key = ov::test::utils::make_param(element::f32, new_token_shape, "new_key." + idx);
+        auto new_value = ov::test::utils::make_param(element::f32, new_token_shape, "new_value." + idx);
+        auto mask = ov::test::utils::make_param(element::f32, mask_shape, "mask." + idx);
 
         // DQ scale and zp parameters
-        auto key_scale = ov::test::utils::create_param(element::f32, key_scale_shape,
+        auto key_scale = ov::test::utils::make_param(element::f32, key_scale_shape,
                                                        "DynamicQuantize/" + idx + "/past_key_values/key/scale");
         auto key_zp =
-            ov::test::utils::create_param(element::i8, key_scale_shape, "DynamicQuantize/" + idx + "/past_key_values/key/zp");
-        auto value_scale = ov::test::utils::create_param(element::f32, value_scale_shape,
+            ov::test::utils::make_param(element::i8, key_scale_shape, "DynamicQuantize/" + idx + "/past_key_values/key/zp");
+        auto value_scale = ov::test::utils::make_param(element::f32, value_scale_shape,
                                                          "DynamicQuantize/" + idx + "/past_key_values/value/scale");
         params.insert(params.end(), {query, past_key, past_value, new_key, new_value, mask, key_scale, key_zp, value_scale});
 

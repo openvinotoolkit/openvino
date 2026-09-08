@@ -10,7 +10,7 @@
 #include <string>
 
 #include "npuw_transformations/detect_causal_mask.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -41,12 +41,12 @@ std::shared_ptr<ov::Model> build_sdpa_model(size_t query_size = QUERY_SIZE,
 
     ResultVector results;
 
-    auto query = ov::test::utils::create_param(element::f32, new_shape, "query.0");
-    auto past_key = ov::test::utils::create_param(element::f32, past_shape, "past_key_values.0.key");
-    auto past_val = ov::test::utils::create_param(element::f32, past_shape, "past_key_values.0.value");
-    auto new_key = ov::test::utils::create_param(element::f32, new_shape, "new_key.0");
-    auto new_val = ov::test::utils::create_param(element::f32, new_shape, "new_value.0");
-    auto mask = ov::test::utils::create_param(element::f32, mask_shape, "mask.0");
+    auto query = ov::test::utils::make_param(element::f32, new_shape, "query.0");
+    auto past_key = ov::test::utils::make_param(element::f32, past_shape, "past_key_values.0.key");
+    auto past_val = ov::test::utils::make_param(element::f32, past_shape, "past_key_values.0.value");
+    auto new_key = ov::test::utils::make_param(element::f32, new_shape, "new_key.0");
+    auto new_val = ov::test::utils::make_param(element::f32, new_shape, "new_value.0");
+    auto mask = ov::test::utils::make_param(element::f32, mask_shape, "mask.0");
     ParameterVector params = {query, past_key, past_val, new_key, new_val, mask};
 
     auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
@@ -95,12 +95,12 @@ std::shared_ptr<ov::Model> build_sdpa_model_mixed_dtype(size_t query_size = QUER
     // This mirrors the real Gemma-4 pattern:
     //   Convert(f16 past_block) ─┐
     //   f32 present_kv           ┴→ Concat(f32) → MatMul
-    auto query = ov::test::utils::create_param(element::f32, q_shape_s, "query.0");
-    auto past_key = ov::test::utils::create_param(element::f16, kv_shape, "past_key_values.0.key");
-    auto past_val = ov::test::utils::create_param(element::f16, kv_shape, "past_key_values.0.value");
-    auto new_key = ov::test::utils::create_param(element::f32, new_kv_shape, "new_key.0");
-    auto new_val = ov::test::utils::create_param(element::f32, new_kv_shape, "new_value.0");
-    auto mask = ov::test::utils::create_param(element::f32, mask_shape, "mask.0");
+    auto query = ov::test::utils::make_param(element::f32, q_shape_s, "query.0");
+    auto past_key = ov::test::utils::make_param(element::f16, kv_shape, "past_key_values.0.key");
+    auto past_val = ov::test::utils::make_param(element::f16, kv_shape, "past_key_values.0.value");
+    auto new_key = ov::test::utils::make_param(element::f32, new_kv_shape, "new_key.0");
+    auto new_val = ov::test::utils::make_param(element::f32, new_kv_shape, "new_value.0");
+    auto mask = ov::test::utils::make_param(element::f32, mask_shape, "mask.0");
     ParameterVector params = {query, past_key, past_val, new_key, new_val, mask};
 
     // Upcast stored f16 KV blocks before Concat (matches block_kv_dtype derivation).
@@ -436,12 +436,12 @@ std::shared_ptr<ov::Model> build_sdpa_model_transposed_v(size_t query_size = QUE
     const Shape mask_shape = {BATCH, 1, query_size, past_len + query_size};
 
     ResultVector results;
-    auto query = ov::test::utils::create_param(element::f32, q_shape, "query.0");
-    auto past_key = ov::test::utils::create_param(element::f32, past_k_shape, "past_key_values.0.key");
-    auto past_val = ov::test::utils::create_param(element::f32, past_v_shape, "past_key_values.0.value");
-    auto new_key = ov::test::utils::create_param(element::f32, new_k_shape, "new_key.0");
-    auto new_val = ov::test::utils::create_param(element::f32, new_v_shape, "new_value.0");
-    auto mask = ov::test::utils::create_param(element::f32, mask_shape, "mask.0");
+    auto query = ov::test::utils::make_param(element::f32, q_shape, "query.0");
+    auto past_key = ov::test::utils::make_param(element::f32, past_k_shape, "past_key_values.0.key");
+    auto past_val = ov::test::utils::make_param(element::f32, past_v_shape, "past_key_values.0.value");
+    auto new_key = ov::test::utils::make_param(element::f32, new_k_shape, "new_key.0");
+    auto new_val = ov::test::utils::make_param(element::f32, new_v_shape, "new_value.0");
+    auto mask = ov::test::utils::make_param(element::f32, mask_shape, "mask.0");
     ParameterVector params = {query, past_key, past_val, new_key, new_val, mask};
 
     auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);

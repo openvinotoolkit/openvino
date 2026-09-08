@@ -47,21 +47,21 @@ public:
                                             ov::Dimension::value_type head_size,
                                             ov::Dimension::value_type head_num,
                                             bool enable_qq_bias) {
-        auto q = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, "q");
-        auto k = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "k");
-        auto v = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "v");
-        auto key_cache = utils::create_param(ov::element::dynamic,
+        auto q = utils::make_param(data_type, PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, "q");
+        auto k = utils::make_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "k");
+        auto v = utils::make_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "v");
+        auto key_cache = utils::make_param(ov::element::dynamic,
                                              PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
                                              "key_cache.0");
-        auto value_cache = utils::create_param(ov::element::dynamic,
+        auto value_cache = utils::make_param(ov::element::dynamic,
                                                PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
                                                "value_cache.0");
-        auto past_lens = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "past_lens");
+        auto past_lens = utils::make_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "past_lens");
         auto subsequence_begins =
-            utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "subsequence_begins");
-        auto block_indices = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices");
+            utils::make_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "subsequence_begins");
+        auto block_indices = utils::make_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices");
         auto block_indices_begins =
-            utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices_begins");
+            utils::make_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices_begins");
 
         float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
         auto scale = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
@@ -121,9 +121,9 @@ public:
 
         // Create qq_bias and qq_bias_begins as Parameters when enabled
         if (enable_qq_bias) {
-            auto qq_bias_param = utils::create_param(ov::element::u8, PartialShape{ov::Dimension::dynamic()}, "qq_bias");
+            auto qq_bias_param = utils::make_param(ov::element::u8, PartialShape{ov::Dimension::dynamic()}, "qq_bias");
             auto qq_bias_begins_param =
-                utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "qq_bias_begins");
+                utils::make_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "qq_bias_begins");
             params.push_back(qq_bias_param);
             params.push_back(qq_bias_begins_param);
             pa_inputs.push_back(qq_bias_param);

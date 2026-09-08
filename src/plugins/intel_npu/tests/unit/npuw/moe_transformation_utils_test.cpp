@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/op/ops.hpp"
 
 /*
@@ -74,26 +74,26 @@ TEST(IsconstantDerivedTest, NullInput) {
 }
 
 TEST(IsconstantDerivedTest, BareParameter) {
-    auto p = ov::test::utils::create_param(ov::element::f32, {1, 16});
+    auto p = ov::test::utils::make_param(ov::element::f32, {1, 16});
     EXPECT_FALSE(is_constant_derived(p));
 }
 
 TEST(IsconstantDerivedTest, ConvertOfParameter) {
-    auto p = ov::test::utils::create_param(ov::element::f32, {1, 16});
+    auto p = ov::test::utils::make_param(ov::element::f32, {1, 16});
     auto conv = std::make_shared<ov::op::v0::Convert>(p, ov::element::f16);
     EXPECT_FALSE(is_constant_derived(conv));
 }
 
 TEST(IsconstantDerivedTest, MultiplyConstantAndParameter) {
     auto c = make_const_f32({4, 1});
-    auto p = ov::test::utils::create_param(ov::element::f32, {4, 16});
+    auto p = ov::test::utils::make_param(ov::element::f32, {4, 16});
     auto mul = std::make_shared<ov::op::v1::Multiply>(c, p);
     EXPECT_FALSE(is_constant_derived(mul));
 }
 
 TEST(IsconstantDerivedTest, MultiplyParameterAndConstant) {
     // Symmetric: swapped operand order must also return false
-    auto p = ov::test::utils::create_param(ov::element::f32, {4, 16});
+    auto p = ov::test::utils::make_param(ov::element::f32, {4, 16});
     auto c = make_const_f32({4, 1});
     auto mul = std::make_shared<ov::op::v1::Multiply>(p, c);
     EXPECT_FALSE(is_constant_derived(mul));

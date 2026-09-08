@@ -119,15 +119,15 @@ public:
         const auto bs = static_cast<int64_t>(kBlockSize);
         const auto nb = static_cast<int64_t>(kNumBlocks);
 
-        auto q = utils::create_param(ov::element::f32, PartialShape{1, hs * hn}, "q");
-        auto k = utils::create_param(ov::element::f32, PartialShape{1, hs * hn}, "k");
-        auto v = utils::create_param(ov::element::f32, PartialShape{1, hs * hn}, "v");
-        auto key_cache = utils::create_param(ov::element::f32, PartialShape{nb, hn, bs, hs}, "key_cache.0");
-        auto value_cache = utils::create_param(ov::element::f32, PartialShape{nb, hn, bs, hs}, "value_cache.0");
-        auto past_lens = utils::create_param(ov::element::i32, PartialShape{1}, "past_lens");
-        auto subsequence_begins = utils::create_param(ov::element::i32, PartialShape{2}, "subsequence_begins");
-        auto block_indices = utils::create_param(ov::element::i32, PartialShape{nb}, "block_indices");
-        auto block_indices_begins = utils::create_param(ov::element::i32, PartialShape{2}, "block_indices_begins");
+        auto q = utils::make_param(ov::element::f32, PartialShape{1, hs * hn}, "q");
+        auto k = utils::make_param(ov::element::f32, PartialShape{1, hs * hn}, "k");
+        auto v = utils::make_param(ov::element::f32, PartialShape{1, hs * hn}, "v");
+        auto key_cache = utils::make_param(ov::element::f32, PartialShape{nb, hn, bs, hs}, "key_cache.0");
+        auto value_cache = utils::make_param(ov::element::f32, PartialShape{nb, hn, bs, hs}, "value_cache.0");
+        auto past_lens = utils::make_param(ov::element::i32, PartialShape{1}, "past_lens");
+        auto subsequence_begins = utils::make_param(ov::element::i32, PartialShape{2}, "subsequence_begins");
+        auto block_indices = utils::make_param(ov::element::i32, PartialShape{nb}, "block_indices");
+        auto block_indices_begins = utils::make_param(ov::element::i32, PartialShape{2}, "block_indices_begins");
 
         auto scale = std::make_shared<v0::Constant>(ov::element::f32, Shape{}, std::vector<float>{0.5f});
         auto sliding_window = std::make_shared<v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});

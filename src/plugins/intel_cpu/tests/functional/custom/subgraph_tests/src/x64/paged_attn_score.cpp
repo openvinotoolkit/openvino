@@ -8,7 +8,7 @@
 #include <numeric>
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -84,21 +84,21 @@ public:
         // q [batch_in_tokens, head_num * head_size]
         // k [batch_in_tokens, head_num * head_size]
         // v [batch_in_tokens, head_num * head_size]
-        auto q = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, "q");
-        auto k = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "k");
-        auto v = utils::create_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "v");
-        auto key_cache = utils::create_param(ov::element::dynamic,
+        auto q = utils::make_param(data_type, PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic()}, "q");
+        auto k = utils::make_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "k");
+        auto v = utils::make_param(data_type, PartialShape{ov::Dimension::dynamic(), head_num * head_size}, "v");
+        auto key_cache = utils::make_param(ov::element::dynamic,
                                              PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
                                              "key_cache.0");
-        auto value_cache = utils::create_param(ov::element::dynamic,
+        auto value_cache = utils::make_param(ov::element::dynamic,
                                                PartialShape{ov::Dimension::dynamic(), 32, ov::Dimension::dynamic()},
                                                "value_cache.0");
-        auto past_lens = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "past_lens");
+        auto past_lens = utils::make_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "past_lens");
         auto subsequence_begins =
-            utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "subsequence_begins");
-        auto block_indices = utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices");
+            utils::make_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "subsequence_begins");
+        auto block_indices = utils::make_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices");
         auto block_indices_begins =
-            utils::create_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices_begins");
+            utils::make_param(ov::element::i32, PartialShape{ov::Dimension::dynamic()}, "block_indices_begins");
         float scale_value = 1.0 / std::sqrt(head_size);
         auto scale =
             std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
@@ -303,11 +303,11 @@ public:
         past_shape = {-1, 1, head_num, head_size};
         q_shape = {-1, 1, static_cast<int64_t>(head_num), head_size};
         kv_shape = {-1, 1, head_num, head_size};
-        auto q = utils::create_param(data_type, q_shape, "q");
-        auto k = utils::create_param(data_type, kv_shape, "k");
-        auto v = utils::create_param(data_type, kv_shape, "v");
-        auto past_kv = utils::create_param(data_type, past_shape, "past_kv");
-        auto beam_idx = utils::create_param(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
+        auto q = utils::make_param(data_type, q_shape, "q");
+        auto k = utils::make_param(data_type, kv_shape, "k");
+        auto v = utils::make_param(data_type, kv_shape, "v");
+        auto past_kv = utils::make_param(data_type, past_shape, "past_kv");
+        auto beam_idx = utils::make_param(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
         inputParams.push_back(q);
         inputParams.push_back(k);
         inputParams.push_back(v);

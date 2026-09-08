@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/strides.hpp"
@@ -108,10 +109,10 @@ public:
             const int64_t head_size = 32;
 
             // Create Q, K, V parameters
-            auto q = ov::test::utils::create_param(element::f16, PartialShape{1, num_head, head_size}, "q");
-            auto k = ov::test::utils::create_param(element::f16, PartialShape{1, num_head, head_size}, "k");
-            auto v = ov::test::utils::create_param(element::f16, PartialShape{1, num_head, head_size}, "v");
-            auto attention_mask = ov::test::utils::create_param(element::f16, PartialShape{1, 1, 1}, "attention_mask");
+            auto q = ov::test::utils::make_param(element::f16, PartialShape{1, num_head, head_size}, "q");
+            auto k = ov::test::utils::make_param(element::f16, PartialShape{1, num_head, head_size}, "k");
+            auto v = ov::test::utils::make_param(element::f16, PartialShape{1, num_head, head_size}, "v");
+            auto attention_mask = ov::test::utils::make_param(element::f16, PartialShape{1, 1, 1}, "attention_mask");
 
             auto sdpa_output = create_sdpa_with_transpose(q, k, v, attention_mask);
             auto model = std::make_shared<Model>(sdpa_output, ParameterVector{q, k, v, attention_mask});
@@ -193,7 +194,7 @@ protected:
                                             ov::Dimension::value_type head_size,
                                             AttentionType attn_type) {
         // Parameter with shape [-1, 3, num_head, head_size]
-        auto qkv = ov::test::utils::create_param(inType, PartialShape{ov::Dimension::dynamic(), 3, num_head, head_size}, "qkv");
+        auto qkv = ov::test::utils::make_param(inType, PartialShape{ov::Dimension::dynamic(), 3, num_head, head_size}, "qkv");
 
         // Transpose: [-1, 3, H, S] -> [3, -1, H, S]
         auto transpose_order = Constant::create(element::i64, Shape{4}, std::vector<int64_t>{1, 0, 2, 3});
@@ -223,8 +224,8 @@ protected:
         //
         //   rope(input) = input * cos + rotate_half(input) * sin
         //   rotate_half: [-x_right, x_left]  (split along head_size dim)
-        auto cos_param = ov::test::utils::create_param(inType, PartialShape{ov::Dimension::dynamic(), 1, head_size}, "cos");
-        auto sin_param = ov::test::utils::create_param(inType, PartialShape{ov::Dimension::dynamic(), 1, head_size}, "sin");
+        auto cos_param = ov::test::utils::make_param(inType, PartialShape{ov::Dimension::dynamic(), 1, head_size}, "cos");
+        auto sin_param = ov::test::utils::make_param(inType, PartialShape{ov::Dimension::dynamic(), 1, head_size}, "sin");
 
         auto apply_rope = [&](const std::shared_ptr<ov::Node>& x, const std::string& prefix) {
             // rotate_half: split at head_size/2, negate right half, concat [-right, left]
@@ -267,7 +268,7 @@ protected:
 
             return std::make_shared<Model>(OutputVector{vlsdpa}, ParameterVector{qkv, cos_param, sin_param, cu_seq_lens});
         } else {
-            auto attention_mask = ov::test::utils::create_param(ov::element::f16, PartialShape{1, ov::Dimension::dynamic(), ov::Dimension::dynamic()}, "attention_mask");
+            auto attention_mask = ov::test::utils::make_param(ov::element::f16, PartialShape{1, ov::Dimension::dynamic(), ov::Dimension::dynamic()}, "attention_mask");
 
             auto sdpa_output = create_sdpa_with_transpose(rope_q, rope_k, reshape_v, attention_mask);
 

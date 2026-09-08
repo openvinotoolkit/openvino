@@ -79,23 +79,23 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
                                                ov::Dimension::value_type head_size,
                                                ov::Dimension::value_type head_num,
                                                int32_t sliding_window_size) {
-    auto q = ov::test::utils::create_param(data_type, PartialShape{-1, head_num * head_size}, "q");
-    auto k = ov::test::utils::create_param(data_type, PartialShape{-1, head_num * head_size}, "k");
-    auto v = ov::test::utils::create_param(data_type, PartialShape{-1, head_num * head_size}, "v");
+    auto q = ov::test::utils::make_param(data_type, PartialShape{-1, head_num * head_size}, "q");
+    auto k = ov::test::utils::make_param(data_type, PartialShape{-1, head_num * head_size}, "k");
+    auto v = ov::test::utils::make_param(data_type, PartialShape{-1, head_num * head_size}, "v");
 
     // GPU plugin expects 4-dim cache with concrete element type
     // key_cache: [num_blocks, num_kv_heads, head_size, block_size]
     // value_cache: [num_blocks, num_kv_heads, block_size, head_size]
     const int64_t block_size = helpers::BLOCK_SIZE;
     auto key_cache =
-        ov::test::utils::create_param(data_type, PartialShape{-1, head_num, head_size, block_size}, "key_cache.0");
+        ov::test::utils::make_param(data_type, PartialShape{-1, head_num, head_size, block_size}, "key_cache.0");
     auto value_cache =
-        ov::test::utils::create_param(data_type, PartialShape{-1, head_num, block_size, head_size}, "value_cache.0");
-    auto past_lens = ov::test::utils::create_param(ov::element::i32, PartialShape{-1}, "past_lens");
-    auto subsequence_begins = ov::test::utils::create_param(ov::element::i32, PartialShape{-1}, "subsequence_begins");
-    auto block_indices = ov::test::utils::create_param(ov::element::i32, PartialShape{-1}, "block_indices");
+        ov::test::utils::make_param(data_type, PartialShape{-1, head_num, block_size, head_size}, "value_cache.0");
+    auto past_lens = ov::test::utils::make_param(ov::element::i32, PartialShape{-1}, "past_lens");
+    auto subsequence_begins = ov::test::utils::make_param(ov::element::i32, PartialShape{-1}, "subsequence_begins");
+    auto block_indices = ov::test::utils::make_param(ov::element::i32, PartialShape{-1}, "block_indices");
     auto block_indices_begins =
-        ov::test::utils::create_param(ov::element::i32, PartialShape{-1}, "block_indices_begins");
+        ov::test::utils::make_param(ov::element::i32, PartialShape{-1}, "block_indices_begins");
 
     float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
     auto scale = std::make_shared<v0::Constant>(ov::element::f32, ov::Shape{}, std::vector<float>{scale_value});
@@ -120,7 +120,7 @@ static std::shared_ptr<ov::Model> PrepareModel(ov::element::Type data_type,
     auto adaptive_rkv_diversity_block_set_indices_begins =
         std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
 
-    auto token_type_ids = ov::test::utils::create_param(ov::element::i32, PartialShape{-1}, "token_type_ids");
+    auto token_type_ids = ov::test::utils::make_param(ov::element::i32, PartialShape{-1}, "token_type_ids");
     auto qq_bias = std::make_shared<v0::Constant>(ov::element::u8, Shape{0}, std::vector<uint8_t>{0});
     auto qq_bias_begins = std::make_shared<v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
 

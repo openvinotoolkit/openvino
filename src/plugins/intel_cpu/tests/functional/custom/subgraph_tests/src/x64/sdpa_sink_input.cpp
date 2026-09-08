@@ -8,7 +8,7 @@
 #include <numeric>
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "internal_properties.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -88,13 +88,13 @@ public:
         scale_shape = {1};
         sink_shape = {1, head_num, 1, 1};
 
-        auto q = utils::create_param(data_type, q_shape, "q");
-        auto k = utils::create_param(data_type, kv_shape, "k");
-        auto v = utils::create_param(data_type, kv_shape, "v");
-        auto past_kv = utils::create_param(data_type, past_shape, "past_kv");
-        auto atten_mask = utils::create_param(data_type, atten_mask_shape, "atten_mask");
-        auto scale = utils::create_param(data_type, scale_shape, "scale");
-        auto sink = utils::create_param(data_type, sink_shape, "sink");
+        auto q = utils::make_param(data_type, q_shape, "q");
+        auto k = utils::make_param(data_type, kv_shape, "k");
+        auto v = utils::make_param(data_type, kv_shape, "v");
+        auto past_kv = utils::make_param(data_type, past_shape, "past_kv");
+        auto atten_mask = utils::make_param(data_type, atten_mask_shape, "atten_mask");
+        auto scale = utils::make_param(data_type, scale_shape, "scale");
+        auto sink = utils::make_param(data_type, sink_shape, "sink");
         inputParams.push_back(q);
         inputParams.push_back(k);
         inputParams.push_back(v);
@@ -115,7 +115,7 @@ public:
         std::shared_ptr<ov::Node> q_in = std::make_shared<ov::op::v1::Transpose>(inputParams[0], preOrder);
 
         auto concat_axis = transposeOrder[2];
-        auto beam_idx = ov::test::utils::create_param(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
+        auto beam_idx = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
         inputParams.push_back(beam_idx);
         auto gatherK =
             std::make_shared<ov::op::v8::Gather>(pastk,

@@ -8,6 +8,7 @@
 
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -42,7 +43,7 @@ std::shared_ptr<ov::Model> build_model(const Output<Node>& shape_source,
     auto four = v0::Constant::create(element::i64, Shape{1}, {4});
     auto target_shape = std::make_shared<v0::Concat>(OutputVector{gather, one, four}, 0);
 
-    auto broadcast_data = ov::test::utils::create_param(element::f32, PartialShape{-1, 1, 4}, "broadcast_data");
+    auto broadcast_data = ov::test::utils::make_param(element::f32, PartialShape{-1, 1, 4}, "broadcast_data");
     auto broadcast = std::make_shared<v3::Broadcast>(broadcast_data, target_shape);
 
     auto matmul = std::make_shared<v0::MatMul>(broadcast, position_ids, false, false);
@@ -56,59 +57,59 @@ std::shared_ptr<ov::Model> build_model(const Output<Node>& shape_source,
 class AttentionMaskShapeReplacerTest : public ::TransformationTestsF {};
 
 TEST_F(AttentionMaskShapeReplacerTest, ReplacesWithInputIdsBatchDim) {
-    auto attention_mask = ov::test::utils::create_param(element::i64, PartialShape{-1, -1}, "attention_mask");
-    auto input_ids = ov::test::utils::create_param(element::i32, PartialShape{-1, -1}, "input_ids");
-    auto position_ids = ov::test::utils::create_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
+    auto attention_mask = ov::test::utils::make_param(element::i64, PartialShape{-1, -1}, "attention_mask");
+    auto input_ids = ov::test::utils::make_param(element::i32, PartialShape{-1, -1}, "input_ids");
+    auto position_ids = ov::test::utils::make_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
     model = build_model(attention_mask, attention_mask, input_ids, position_ids, {0});
 
     manager.register_pass<ov::pass::AttentionMaskShapeReplacer>(input_ids);
 
-    auto attention_mask_ref = ov::test::utils::create_param(element::i64, PartialShape{-1, -1}, "attention_mask");
-    auto input_ids_ref = ov::test::utils::create_param(element::i32, PartialShape{-1, -1}, "input_ids");
-    auto position_ids_ref = ov::test::utils::create_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
+    auto attention_mask_ref = ov::test::utils::make_param(element::i64, PartialShape{-1, -1}, "attention_mask");
+    auto input_ids_ref = ov::test::utils::make_param(element::i32, PartialShape{-1, -1}, "input_ids");
+    auto position_ids_ref = ov::test::utils::make_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
     model_ref = build_model(input_ids_ref, attention_mask_ref, input_ids_ref, position_ids_ref, {0});
 }
 
 TEST_F(AttentionMaskShapeReplacerTest, ReplacesWithInputsEmbedsBatchDim) {
-    auto attention_mask = ov::test::utils::create_param(element::i64, PartialShape{-1, -1}, "attention_mask");
-    auto inputs_embeds = ov::test::utils::create_param(element::f32, PartialShape{-1, -1, 2048}, "inputs_embeds");
-    auto position_ids = ov::test::utils::create_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
+    auto attention_mask = ov::test::utils::make_param(element::i64, PartialShape{-1, -1}, "attention_mask");
+    auto inputs_embeds = ov::test::utils::make_param(element::f32, PartialShape{-1, -1, 2048}, "inputs_embeds");
+    auto position_ids = ov::test::utils::make_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
     model = build_model(attention_mask, attention_mask, inputs_embeds, position_ids, {0});
 
     manager.register_pass<ov::pass::AttentionMaskShapeReplacer>(inputs_embeds);
 
-    auto attention_mask_ref = ov::test::utils::create_param(element::i64, PartialShape{-1, -1}, "attention_mask");
-    auto inputs_embeds_ref = ov::test::utils::create_param(element::f32, PartialShape{-1, -1, 2048}, "inputs_embeds");
-    auto position_ids_ref = ov::test::utils::create_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
+    auto attention_mask_ref = ov::test::utils::make_param(element::i64, PartialShape{-1, -1}, "attention_mask");
+    auto inputs_embeds_ref = ov::test::utils::make_param(element::f32, PartialShape{-1, -1, 2048}, "inputs_embeds");
+    auto position_ids_ref = ov::test::utils::make_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
     model_ref = build_model(inputs_embeds_ref, attention_mask_ref, inputs_embeds_ref, position_ids_ref, {0});
 }
 
 TEST_F(AttentionMaskShapeReplacerTest, DoesNotReplaceNonBatchDim) {
-    auto attention_mask = ov::test::utils::create_param(element::i64, PartialShape{-1, -1}, "attention_mask");
-    auto input_ids = ov::test::utils::create_param(element::i32, PartialShape{-1, -1}, "input_ids");
-    auto position_ids = ov::test::utils::create_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
+    auto attention_mask = ov::test::utils::make_param(element::i64, PartialShape{-1, -1}, "attention_mask");
+    auto input_ids = ov::test::utils::make_param(element::i32, PartialShape{-1, -1}, "input_ids");
+    auto position_ids = ov::test::utils::make_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
     // Only the batch dimension (index 0) is rewired; the sequence dimension is left untouched.
     model = build_model(attention_mask, attention_mask, input_ids, position_ids, {1});
 
     manager.register_pass<ov::pass::AttentionMaskShapeReplacer>(input_ids);
 
-    auto attention_mask_ref = ov::test::utils::create_param(element::i64, PartialShape{-1, -1}, "attention_mask");
-    auto input_ids_ref = ov::test::utils::create_param(element::i32, PartialShape{-1, -1}, "input_ids");
-    auto position_ids_ref = ov::test::utils::create_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
+    auto attention_mask_ref = ov::test::utils::make_param(element::i64, PartialShape{-1, -1}, "attention_mask");
+    auto input_ids_ref = ov::test::utils::make_param(element::i32, PartialShape{-1, -1}, "input_ids");
+    auto position_ids_ref = ov::test::utils::make_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
     model_ref = build_model(attention_mask_ref, attention_mask_ref, input_ids_ref, position_ids_ref, {1});
 }
 
 TEST_F(AttentionMaskShapeReplacerTest, DoesNotReplaceNegativeIndex) {
-    auto attention_mask = ov::test::utils::create_param(element::i64, PartialShape{-1, -1}, "attention_mask");
+    auto attention_mask = ov::test::utils::make_param(element::i64, PartialShape{-1, -1}, "attention_mask");
     // A negative index would select a different dimension against the higher-rank source, so it is skipped.
-    auto inputs_embeds = ov::test::utils::create_param(element::f32, PartialShape{-1, -1, 2048}, "inputs_embeds");
-    auto position_ids = ov::test::utils::create_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
+    auto inputs_embeds = ov::test::utils::make_param(element::f32, PartialShape{-1, -1, 2048}, "inputs_embeds");
+    auto position_ids = ov::test::utils::make_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
     model = build_model(attention_mask, attention_mask, inputs_embeds, position_ids, {-2});
 
     manager.register_pass<ov::pass::AttentionMaskShapeReplacer>(inputs_embeds);
 
-    auto attention_mask_ref = ov::test::utils::create_param(element::i64, PartialShape{-1, -1}, "attention_mask");
-    auto inputs_embeds_ref = ov::test::utils::create_param(element::f32, PartialShape{-1, -1, 2048}, "inputs_embeds");
-    auto position_ids_ref = ov::test::utils::create_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
+    auto attention_mask_ref = ov::test::utils::make_param(element::i64, PartialShape{-1, -1}, "attention_mask");
+    auto inputs_embeds_ref = ov::test::utils::make_param(element::f32, PartialShape{-1, -1, 2048}, "inputs_embeds");
+    auto position_ids_ref = ov::test::utils::make_param(element::f32, PartialShape{-1, 4, 1}, "position_ids");
     model_ref = build_model(attention_mask_ref, attention_mask_ref, inputs_embeds_ref, position_ids_ref, {-2});
 }

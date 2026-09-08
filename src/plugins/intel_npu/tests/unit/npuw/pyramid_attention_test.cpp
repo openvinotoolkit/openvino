@@ -13,7 +13,7 @@
 #include <vector>
 
 #include "attn/attn_subgraph.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/add.hpp"
@@ -65,12 +65,12 @@ std::shared_ptr<ov::Model> build_isolated_attention_model(const AttentionModelCo
     for (size_t n = 0; n < cfg.num_layers; ++n) {
         const std::string idx = std::to_string(n);
 
-        auto query = ov::test::utils::create_param(element::f32, new_token_shape, "query." + idx);
-        auto past_key = ov::test::utils::create_param(element::f32, past_shape, "past_key_values." + idx + ".key");
-        auto past_value = ov::test::utils::create_param(element::f32, past_shape, "past_key_values." + idx + ".value");
-        auto new_key = ov::test::utils::create_param(element::f32, new_token_shape, "new_key." + idx);
-        auto new_value = ov::test::utils::create_param(element::f32, new_token_shape, "new_value." + idx);
-        auto mask = ov::test::utils::create_param(element::f32, mask_shape, "mask." + idx);
+        auto query = ov::test::utils::make_param(element::f32, new_token_shape, "query." + idx);
+        auto past_key = ov::test::utils::make_param(element::f32, past_shape, "past_key_values." + idx + ".key");
+        auto past_value = ov::test::utils::make_param(element::f32, past_shape, "past_key_values." + idx + ".value");
+        auto new_key = ov::test::utils::make_param(element::f32, new_token_shape, "new_key." + idx);
+        auto new_value = ov::test::utils::make_param(element::f32, new_token_shape, "new_value." + idx);
+        auto mask = ov::test::utils::make_param(element::f32, mask_shape, "mask." + idx);
         params.insert(params.end(), {query, past_key, past_value, new_key, new_value, mask});
 
         auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);

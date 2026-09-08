@@ -10,6 +10,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -36,16 +37,16 @@ namespace v8 = ov::op::v8;
 namespace internal = ov::op::internal;
 
 std::shared_ptr<ov::Model> build_fusable_model() {
-    auto query = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "query");
-    auto key = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "key");
-    auto value = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 6}, "value");
+    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "query");
+    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "key");
+    auto value = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 6}, "value");
 
-    auto recurrent_state = ov::test::utils::create_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
+    auto recurrent_state = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
     recurrent_state->get_output_tensor(0).set_names({"cache_params.past.recurrent_state.0"});
     auto read_value = std::make_shared<ov::op::v3::ReadValue>(recurrent_state->output(0), "cache_param_0");
 
-    auto gate = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "gate");
-    auto beta = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "beta");
+    auto gate = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "gate");
+    auto beta = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "beta");
 
     auto gdn = std::make_shared<internal::GatedDeltaNet>(query, key, value, read_value, gate, beta);
 
@@ -59,19 +60,19 @@ std::shared_ptr<ov::Model> build_fusable_model() {
 }
 
 std::shared_ptr<ov::Model> build_non_fusable_model() {
-    auto query = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "query");
-    auto key = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "key");
-    auto value = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 6}, "value");
+    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "query");
+    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "key");
+    auto value = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 6}, "value");
 
-    auto recurrent_state = ov::test::utils::create_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
+    auto recurrent_state = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
     recurrent_state->get_output_tensor(0).set_names({"cache_params.past.recurrent_state.0"});
     auto read_value = std::make_shared<ov::op::v3::ReadValue>(recurrent_state->output(0), "cache_param_0");
 
-    auto gate = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "gate");
-    auto beta = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "beta");
+    auto gate = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "gate");
+    auto beta = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "beta");
 
     auto gdn = std::make_shared<internal::GatedDeltaNet>(query, key, value, read_value, gate, beta);
-    auto add_rhs = ov::test::utils::create_param(element::f32, Shape{2, 4, 8, 6}, "state_add_rhs");
+    auto add_rhs = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "state_add_rhs");
     auto state_add = std::make_shared<v1::Add>(gdn->output(1), add_rhs);
 
     auto out = std::make_shared<v0::Result>(gdn->output(0));
@@ -83,19 +84,19 @@ std::shared_ptr<ov::Model> build_non_fusable_model() {
 }
 
 std::shared_ptr<ov::Model> build_fusable_model_with_gathered_state() {
-    auto query = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "query");
-    auto key = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "key");
-    auto value = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 6}, "value");
+    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "query");
+    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "key");
+    auto value = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 6}, "value");
 
-    auto recurrent_state = ov::test::utils::create_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
+    auto recurrent_state = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
     recurrent_state->get_output_tensor(0).set_names({"cache_params.past.recurrent_state.0"});
     auto read_value = std::make_shared<ov::op::v3::ReadValue>(recurrent_state->output(0), "cache_param_0");
-    auto beam_idx = ov::test::utils::create_param(element::i32, PartialShape{-1}, "beam_idx");
+    auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{-1}, "beam_idx");
     auto gather_axis = v0::Constant::create(element::i64, Shape{}, {0});
     auto gathered_state = std::make_shared<ov::op::v8::Gather>(read_value, beam_idx, gather_axis);
 
-    auto gate = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "gate");
-    auto beta = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "beta");
+    auto gate = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "gate");
+    auto beta = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "beta");
 
     auto gdn = std::make_shared<internal::GatedDeltaNet>(query, key, value, gathered_state, gate, beta);
 
@@ -178,26 +179,27 @@ ov::Output<ov::Node> build_paged_gdn_block(const std::shared_ptr<v0::Parameter>&
 // Reference graph for build_fusable_model() after PagedGatedDeltaNetFusion.
 // GDN is replaced by PagedGDN; state Result reconnected to ReadValue.
 std::shared_ptr<ov::Model> build_reference_fused_model() {
-    auto query = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "query");
-    auto key = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "key");
-    auto value = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 6}, "value");
-    auto recurrent_state = ov::test::utils::create_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
+    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "query");
+    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "key");
+    auto value = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 6}, "value");
+    auto recurrent_state = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
     recurrent_state->get_output_tensor(0).set_names({"cache_params.past.recurrent_state.0"});
-    auto gate = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "gate");
-    auto beta = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "beta");
+    auto gate = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "gate");
+    auto beta = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "beta");
 
     // ReadValue remains as the reconnected source for the state Result (dead branch).
     const auto read_value = std::make_shared<v3::ReadValue>(recurrent_state->output(0), "cache_param_0");
 
     // New PA params added by the pass (in creation order).
     // State input shape [2,4,8,6] = [B,H,D_k,D_v] → table shape [?,H,D_v,D_k] = [?,4,6,8].
-    auto subseq_begins = ov::test::utils::create_param(element::i32, PartialShape{-1}, "subsequence_begins");
-    auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.block_indices");
-    auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.block_indices_begins");
-    auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.past_lens");
-    auto cache_interval = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.cache_interval");
-    auto state_table =
-        ov::test::utils::create_param(element::f32, PartialShape{Dimension::dynamic(), 4, 6, 8}, "gated_delta_state_table.0");
+    auto subseq_begins = ov::test::utils::make_param(element::i32, PartialShape{-1}, "subsequence_begins");
+    auto block_indices = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.block_indices");
+    auto block_indices_begins = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.block_indices_begins");
+    auto past_lens = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.past_lens");
+    auto cache_interval = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.cache_interval");
+    auto state_table = ov::test::utils::make_param(element::f32,
+                                                   PartialShape{Dimension::dynamic(), 4, 6, 8},
+                                                   "gated_delta_state_table.0");
 
     const auto paged_gdn_out = build_paged_gdn_block(query,
                                                      key,
@@ -234,24 +236,25 @@ std::shared_ptr<ov::Model> build_reference_fused_model() {
 // Reference graph for build_non_fusable_model() after PagedGatedDeltaNetFusion.
 // GDN is replaced by PagedGDN; the Add consumer of the state output is reconnected to ReadValue.
 std::shared_ptr<ov::Model> build_reference_fused_non_fusable_model() {
-    auto query = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "query");
-    auto key = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "key");
-    auto value = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 6}, "value");
-    auto recurrent_state = ov::test::utils::create_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
+    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "query");
+    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "key");
+    auto value = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 6}, "value");
+    auto recurrent_state = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
     recurrent_state->get_output_tensor(0).set_names({"cache_params.past.recurrent_state.0"});
-    auto gate = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "gate");
-    auto beta = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "beta");
-    auto add_rhs = ov::test::utils::create_param(element::f32, Shape{2, 4, 8, 6}, "state_add_rhs");
+    auto gate = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "gate");
+    auto beta = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "beta");
+    auto add_rhs = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "state_add_rhs");
 
     const auto read_value = std::make_shared<v3::ReadValue>(recurrent_state->output(0), "cache_param_0");
 
-    auto subseq_begins = ov::test::utils::create_param(element::i32, PartialShape{-1}, "subsequence_begins");
-    auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.block_indices");
-    auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.block_indices_begins");
-    auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.past_lens");
-    auto cache_interval = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.cache_interval");
-    auto state_table =
-        ov::test::utils::create_param(element::dynamic, PartialShape{Dimension::dynamic(), 4, 6, 8}, "gated_delta_state_table.0");
+    auto subseq_begins = ov::test::utils::make_param(element::i32, PartialShape{-1}, "subsequence_begins");
+    auto block_indices = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.block_indices");
+    auto block_indices_begins = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.block_indices_begins");
+    auto past_lens = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.past_lens");
+    auto cache_interval = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.cache_interval");
+    auto state_table = ov::test::utils::make_param(element::dynamic,
+                                                   PartialShape{Dimension::dynamic(), 4, 6, 8},
+                                                   "gated_delta_state_table.0");
 
     const auto paged_gdn_out = build_paged_gdn_block(query,
                                                      key,
@@ -291,27 +294,28 @@ std::shared_ptr<ov::Model> build_reference_fused_non_fusable_model() {
 // Reference graph for build_fusable_model_with_gathered_state() after PagedGatedDeltaNetFusion.
 // GDN is replaced by PagedGDN; state Result reconnected to Gather(ReadValue, beam_idx, axis).
 std::shared_ptr<ov::Model> build_reference_fused_model_with_gathered_state() {
-    auto query = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "query");
-    auto key = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 8}, "key");
-    auto value = ov::test::utils::create_param(element::f32, Shape{2, 3, 4, 6}, "value");
-    auto recurrent_state = ov::test::utils::create_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
+    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "query");
+    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "key");
+    auto value = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 6}, "value");
+    auto recurrent_state = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
     recurrent_state->get_output_tensor(0).set_names({"cache_params.past.recurrent_state.0"});
-    auto beam_idx = ov::test::utils::create_param(element::i32, PartialShape{-1}, "beam_idx");
-    auto gate = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "gate");
-    auto beta = ov::test::utils::create_param(element::f32, Shape{2, 3, 4}, "beta");
+    auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{-1}, "beam_idx");
+    auto gate = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "gate");
+    auto beta = ov::test::utils::make_param(element::f32, Shape{2, 3, 4}, "beta");
 
     const auto read_value = std::make_shared<v3::ReadValue>(recurrent_state->output(0), "cache_param_0");
     const auto gather_axis = v0::Constant::create(element::i64, Shape{}, {0});
     const auto gathered_state = std::make_shared<v8::Gather>(read_value, beam_idx, gather_axis);
 
-    auto subseq_begins = ov::test::utils::create_param(element::i32, PartialShape{-1}, "subsequence_begins");
-    auto block_indices = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.block_indices");
-    auto block_indices_begins = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.block_indices_begins");
-    auto past_lens = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.past_lens");
-    auto cache_interval = ov::test::utils::create_param(element::i32, PartialShape{-1}, "la.cache_interval");
+    auto subseq_begins = ov::test::utils::make_param(element::i32, PartialShape{-1}, "subsequence_begins");
+    auto block_indices = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.block_indices");
+    auto block_indices_begins = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.block_indices_begins");
+    auto past_lens = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.past_lens");
+    auto cache_interval = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.cache_interval");
     // The pattern matches on read_value (not gathered_state), so state shape comes from ReadValue output: [2,4,8,6].
-    auto state_table =
-        ov::test::utils::create_param(element::dynamic, PartialShape{Dimension::dynamic(), 4, 6, 8}, "gated_delta_state_table.0");
+    auto state_table = ov::test::utils::make_param(element::dynamic,
+                                                   PartialShape{Dimension::dynamic(), 4, 6, 8},
+                                                   "gated_delta_state_table.0");
 
     const auto paged_gdn_out = build_paged_gdn_block(query,
                                                      key,

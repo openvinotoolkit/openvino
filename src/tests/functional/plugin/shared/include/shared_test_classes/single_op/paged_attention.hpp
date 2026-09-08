@@ -11,7 +11,7 @@
 #include <set>
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/test_enums.hpp"
 
 #include "openvino/op/paged_attention.hpp"
@@ -84,23 +84,23 @@ protected:
                                                      int32_t adaptive_rkv_eviction_size = 0,
                                                      int32_t score_window_val = -1) {
         // PA expects q/k/v as [tokens, features]
-        auto q = ov::test::utils::create_param(data_type, {ov::Dimension::dynamic(), ov::Dimension::dynamic()}, "q");
-        auto k = ov::test::utils::create_param(data_type, {ov::Dimension::dynamic(), head_num * head_size}, "k");
-        auto v = ov::test::utils::create_param(data_type, {ov::Dimension::dynamic(), head_num * head_size}, "v");
+        auto q = ov::test::utils::make_param(data_type, {ov::Dimension::dynamic(), ov::Dimension::dynamic()}, "q");
+        auto k = ov::test::utils::make_param(data_type, {ov::Dimension::dynamic(), head_num * head_size}, "k");
+        auto v = ov::test::utils::make_param(data_type, {ov::Dimension::dynamic(), head_num * head_size}, "v");
 
         // Cache layout: [num_blocks, num_kv_heads, block_size, head_size]
         // Use data_type directly so TEMPLATE can allocate real tensors without running ConvertPagedAttnInputs.
         // Mark with keep_const_precision so the CPU's ConvertPrecision pass doesn't insert
         // Convert nodes around them — the PA kernel modifies caches in-place across steps.
-        auto key_cache   = ov::test::utils::create_param(data_type, {ov::Dimension::dynamic(), head_num, block_size, head_size}, "key_cache.0");
-        auto value_cache = ov::test::utils::create_param(data_type, {ov::Dimension::dynamic(), head_num, block_size, head_size}, "value_cache.0");
+        auto key_cache   = ov::test::utils::make_param(data_type, {ov::Dimension::dynamic(), head_num, block_size, head_size}, "key_cache.0");
+        auto value_cache = ov::test::utils::make_param(data_type, {ov::Dimension::dynamic(), head_num, block_size, head_size}, "value_cache.0");
         ov::enable_keep_const_precision(key_cache);
         ov::enable_keep_const_precision(value_cache);
 
-        auto past_lens = ov::test::utils::create_param(ov::element::i32, {ov::Dimension::dynamic()}, "past_lens");
-        auto subseq_begins = ov::test::utils::create_param(ov::element::i32, {ov::Dimension::dynamic()}, "subsequence_begins");
-        auto block_indices = ov::test::utils::create_param(ov::element::i32, {ov::Dimension::dynamic()}, "block_indices");
-        auto block_indices_begins = ov::test::utils::create_param(ov::element::i32, {ov::Dimension::dynamic()}, "block_indices_begins");
+        auto past_lens = ov::test::utils::make_param(ov::element::i32, {ov::Dimension::dynamic()}, "past_lens");
+        auto subseq_begins = ov::test::utils::make_param(ov::element::i32, {ov::Dimension::dynamic()}, "subsequence_begins");
+        auto block_indices = ov::test::utils::make_param(ov::element::i32, {ov::Dimension::dynamic()}, "block_indices");
+        auto block_indices_begins = ov::test::utils::make_param(ov::element::i32, {ov::Dimension::dynamic()}, "block_indices_begins");
 
         // Use typed empty vectors to avoid Constant::create overload ambiguity
         const float scale_value = 1.0f / std::sqrt(static_cast<float>(head_size));
