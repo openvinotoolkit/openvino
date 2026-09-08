@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "json.decoder.jsondecodeerror: expecting value: line 1 column 1 char 0|Network",
+  "signature_hash": "95106a8f6494e907",
+  "title": "pip install fails - internal pip-proxy returns empty/invalid JSON for package index page",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-09-08T11:02:56Z",
+  "last_seen": "2026-09-08T11:02:56Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34205186921"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37208"
+  ],
+  "recent_timestamps": [
+    "2026-09-08T11:02:56Z"
+  ],
+  "rerun_search_string": "json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)"
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-08-11-02-56-000-34205186921",
+  "timestamp": "2026-09-08T11:02:56Z",
+  "run_id": "34205186921",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34205186921",
+  "workflow_name": "TensorFlow Layer Tests / NPU Models Tests / Windows",
+  "pr_number": "37208",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37208",
+  "author": "allnes",
+  "category": "Network",
+  "title": "pip install fails - internal pip-proxy returns empty/invalid JSON for package index page",
+  "signature": "json.decoder.jsondecodeerror: expecting value: line 1 column 1 char 0|Network",
+  "signature_hash": "95106a8f6494e907",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 4000",
+      "conclusion": "failure",
+      "symptom": "Install TF Models tests requirements step failed: pip install crashed with JSONDecodeError while parsing the internal pip-proxy index page for a TensorFlow/transformers dependency"
+    }
+  ],
+  "key_errors": [
+    "ERROR: Exception:\nTraceback (most recent call last):\n  File \"pip\\_internal\\index\\collector.py\", line 228, in parse_links\n    data = json.loads(page.content)\n  File \"json\\decoder.py\", line 355, in raw_decode\n    raise JSONDecodeError(\"Expecting value\", s, err.value) from None\njson.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)",
+    "PIP_INDEX_URL: http://pip-proxy.pip-proxy.svc.cluster.local/simple/\nPIP_TRUSTED_HOST: pip-proxy.pip-proxy.svc.cluster.local"
+  ],
+  "root_cause": "The 'Install TF Models tests requirements' step runs `pip install -r requirements_tensorflow` through the runner's internal pip-proxy (PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/). While resolving a dependency of transformers==4.45.1 (immediately after collecting h5py for keras), pip's JSON-based simple-index API v2 client tried to parse the proxy's response body as JSON and got an empty/non-JSON body ('Expecting value: line 1 column 1 (char 0)'), which pip's resolver treats as a fatal error rather than retrying. This subsequently cascaded: because the requirements install failed, pytest was never installed, so the downstream 'TensorFlow Models Tests - NPU compile-only (read_model)' step also failed with 'No module named pytest'. This is an internal package-proxy infrastructure hiccup, not caused by PR #37208 (which only reformats GPU plugin header braces via clang-tidy and touches no Python test/requirements files).",
+  "reproduction_steps": "N/A - not reliably reproducible locally; requires hitting the internal pip-proxy (pip-proxy.pip-proxy.svc.cluster.local) at the exact moment it returns a truncated/empty index page for one of the requirements_tensorflow dependencies.",
+  "recommended_actions": [
+    "Re-run the failed 'NPU Models Tests / 4000' job; a plain retry is expected to succeed once the pip-proxy serves a valid index page.",
+    "If this recurs frequently, add retry/backoff around `pip install` steps for Windows TF/NPU test jobs (e.g., `--retries` or a wrapping retry action) to absorb transient proxy hiccups.",
+    "No code changes are required in PR #37208."
+  ],
+  "prevention_strategies": "Consider pinning a stable pip resolver mode or adding `pip install --retries 5` with exponential backoff for requirements installs that go through pip-proxy, since a single truncated JSON response from the proxy currently fails the whole step immediately.",
+  "historical_context": "No prior investigation with this exact signature was found in the CI Doctor MQ pattern database; this is the first recorded occurrence. A related but distinct pip/PyPI JSON error (pattern eb85200a77e84af0, 'Unterminated string' on grpcio) was recorded 2026-06-29 for a Linux Build job; and a different pip-proxy DNS-resolution failure (pattern 4af26ac5e3256c5f) was recorded 2026-08-26 for GPU RoPE tests. Both are separate infrastructure/network hiccups, consistent with intermittent pip-proxy reliability issues rather than a recurring single root cause."
+}
