@@ -206,4 +206,4 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          remote_output_lifecycle,
                          testing::Values(cldnn::allocation_type::cl_mem, cldnn::allocation_type::usm_host));
 
-}
+}  // namespace
