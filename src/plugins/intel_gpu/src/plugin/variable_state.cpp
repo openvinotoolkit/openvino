@@ -54,8 +54,9 @@ void VariableState::set_memory(const cldnn::memory::ptr& new_mem, const cldnn::l
 }
 
 void VariableState::set_layout(const cldnn::layout& new_layout) {
-    if (m_layout == new_layout)
+    if (m_layout == new_layout) {
         return;
+    }
     m_layout = new_layout;
     GPU_DEBUG_TRACE_DETAIL << m_name << " : " << "Update state layout to " << new_layout.to_short_string() << std::endl;
     update_device_buffer();
@@ -88,8 +89,9 @@ void VariableState::set_state(const ov::SoPtr<ov::ITensor>& state) {
     std::vector<ov::Dimension::value_type> upper_pad(src_rank, 0);
     std::vector<ov::Dimension::value_type> lower_pad(src_rank, 0);
     for (int32_t i = static_cast<int32_t>(src_stride.size()) - 1; i >= 0; --i) {
-        if (i <= static_cast<int32_t>(src_stride.size()) - 2)
+        if (i <= static_cast<int32_t>(src_stride.size()) - 2) {
             src_stride_no_pad[i] = src_stride_no_pad[i + 1] * src_shape[i + 1];
+        }
         if (src_stride[i] != src_stride_no_pad[i]) {
             OPENVINO_ASSERT(src_stride[i] > src_stride_no_pad[i]);
             size_t padded_size = src_stride[i] / src_stride[i + 1];

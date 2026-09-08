@@ -27,7 +27,7 @@ namespace {
 ov::Output<ov::Node> reshape_add_id_input_to_2d(const ov::Output<ov::Node>& input,
                                                 const ov::PartialShape& input_shape,
                                                 const std::vector<int>& dims) {
-    const auto actual_shape = input.get_partial_shape();
+    const auto& actual_shape = input.get_partial_shape();
     if (actual_shape.rank().is_static() && actual_shape.rank().get_length() == 2) {
         return input;
     }
@@ -75,7 +75,7 @@ OutputVector translate_add_id(const NodeContext& context) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

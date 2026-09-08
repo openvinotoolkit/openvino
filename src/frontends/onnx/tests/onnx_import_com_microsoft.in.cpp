@@ -4720,13 +4720,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_sliding_window_cache) {
 // last 2 f8 rows + the new token, tail zeroed. Runs on CPU and GPU (both now have an f8e4m3 Gather
 // kernel for the windowed present assembly).
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_sliding_window_cache) {
-    // TEMPLATE hits a pre-existing shape-inference quirk on this fully-static graph ("to_shape was
-    // called on a dynamic shape"), the same class of INTERPRETER-only issue documented on
-    // onnx_model_gqa_sliding_window_cache_static_staging below; verified correct on CPU/GPU.
-    if (s_device == ov::test::utils::DEVICE_TEMPLATE) {
-        GTEST_SKIP() << "TEMPLATE hits a pre-existing dynamic-shape quirk on this fully-static "
-                        "f8e4m3 windowed-cache graph; verified correct on CPU/GPU. Needs follow-up.";
-    }
     auto model = convert_model("com.microsoft/gqa_f8e4m3fnkv_swc.onnx");
     model->reshape({{"query", ov::PartialShape{1, 1, 64}},
                     {"past_key", ov::PartialShape{1, 1, 4, 16}},
@@ -6111,14 +6104,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging) {
 // the FE conversion-time path directly. The decomposition picks the staging vs. in-place branch from the
 // runtime past/total length, not static-ness of S, so results must be byte-identical to the dynamic version.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_static_staging) {
-    // INTERPRETER returns present_key/present_value with shape [0] instead of [1,1,4,16] on this fully-static
-    // staging graph, while CPU matches expected values exactly - a template-backend constant-folding quirk in
-    // this backend, not a decomposition bug. Needs follow-up; not blocking.
-    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
-        GTEST_SKIP() << "INTERPRETER computes present_key/present_value as shape [0] on this fully-static "
-                        "staging graph; verified correct on CPU (exact expected-value match). Likely a "
-                        "template-backend constant-folding quirk, not a decomposition bug. Needs follow-up.";
-    }
     auto model = convert_model("com.microsoft/gqa_sliding_window_cache_static_staging.onnx");
     model->reshape({{"past_key", ov::PartialShape{1, 1, 4, 16}},
                     {"past_value", ov::PartialShape{1, 1, 4, 16}},
