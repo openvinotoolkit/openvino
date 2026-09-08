@@ -4,6 +4,18 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
+// bf16 inputs are decoded to float and the final normalization is computed in float
+// (ACTIVATION_TYPE is ushort for bf16 and would perform integer math).
+// For all other dtypes keep the legacy ACTIVATION_TYPE arithmetic so the f16 rounding
+// behavior stays identical to the historical implementation.
+#if MVN_BF16_COMPUTE
+    #define MVN_FINAL_TYPE      float
+    #define TO_MVN_FINAL_TYPE(v)    (v)
+#else
+    #define MVN_FINAL_TYPE      ACTIVATION_TYPE
+    #define TO_MVN_FINAL_TYPE(v)    TO_ACTIVATION_TYPE(v)
+#endif
+
 #if !IS_DYNAMIC
 __attribute__((reqd_work_group_size(LWS, 1, 1)))
 #endif
@@ -35,7 +47,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
     //each WI reads items_num consecutive items from batch*feature
     for (uint i=0; i<iters_num; ++i)
     {
-        my_sum += (float)input[my_data_offset + i * workers_per_data_set];
+        my_sum += DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + i * workers_per_data_set]);
     }
 
     my_sum = work_group_reduce_add(my_sum) / data_set_size;
@@ -43,7 +55,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
 #if NORMALIZE_VARIANCE == 0
     for (uint i=0; i<iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
-        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum);
+        MVN_FINAL_TYPE result = TO_MVN_FINAL_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + iteration_in_data_set_offset])) - TO_MVN_FINAL_TYPE(my_sum);
 #   if HAS_FUSED_OPS
         FUSED_OPS;
         output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
@@ -57,7 +69,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
     //each WI reads items_num consecutive items from batch*feature
     for (uint i=0; i<iters_num; ++i)
     {
-        tmp = (float)input[my_data_offset + i * workers_per_data_set];
+        tmp = DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + i * workers_per_data_set]);
         tmp -= my_sum;
         my_variance = fma(tmp, tmp, my_variance);
     }
@@ -79,7 +91,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
 
     for (uint i=0; i<iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
-        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum)) * TO_ACTIVATION_TYPE(my_variance);
+        MVN_FINAL_TYPE result = (TO_MVN_FINAL_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + iteration_in_data_set_offset])) - TO_MVN_FINAL_TYPE(my_sum)) * TO_MVN_FINAL_TYPE(my_variance);
 #   if HAS_FUSED_OPS
         FUSED_OPS;
         output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
