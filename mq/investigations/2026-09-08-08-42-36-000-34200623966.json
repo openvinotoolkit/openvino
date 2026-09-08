@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-08-08-42-36-000-34200623966",
+  "timestamp": "2026-09-08T08:42:36Z",
+  "run_id": "34200623966",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34200623966",
+  "workflow_name": "Build",
+  "pr_number": "38007",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38007",
+  "author": "sungeunk",
+  "category": "Code Issue",
+  "title": "GPU unit tests CMake glob removal missing two test source files",
+  "signature": "cmake error at add_target_helpers.cmake message exists on disk but is not listed in target sources and will not be compiled add it to the appropriate cmakelists txt or sources cmake|Code Issue",
+  "signature_hash": "424833cadb6f935d",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure fails: two GPU unit test .cpp files exist on disk but are not listed in src/plugins/intel_gpu/tests/unit/CMakeLists.txt sources."
+    }
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/add_target_helpers.cmake:635 (message):\n  [ov_gpu_unit_tests]\n  '/home/runner/_work/openvino/openvino/src/src/plugins/intel_gpu/tests/unit/transformations/group_query_attention_decomposition_test.cpp'\n  exists on disk but is not listed in target sources and will not be\n  compiled.  Add it to the appropriate CMakeLists.txt or sources.cmake.",
+    "CMake Error at cmake/developer_package/add_target_helpers.cmake:635 (message):\n  [ov_gpu_unit_tests]\n  '/home/runner/_work/openvino/openvino/src/src/plugins/intel_gpu/tests/unit/transformations/remove_fq_before_dw_conv_test.cpp'\n  exists on disk but is not listed in target sources and will not be\n  compiled.  Add it to the appropriate CMakeLists.txt or sources.cmake."
+  ],
+  "root_cause": "The intel_gpu unit tests CMakeLists.txt uses an explicit source list guarded by _ov_check_all_sources_listed, which fails the CMake configure step whenever a .cpp file exists under src/plugins/intel_gpu/tests/unit/transformations/ that is not enumerated in the target's source list. Two test files (group_query_attention_decomposition_test.cpp, remove_fq_before_dw_conv_test.cpp) were added to the tree on master without being registered in the CMakeLists.txt/sources.cmake, so every merge-queue build since their introduction fails at configure time regardless of what the merging PR changes. PR #38007's changed files (random_generator.hpp and other GPU unit test files) do not touch the CMakeLists or these two files, confirming this is a pre-existing master-branch defect unrelated to the PR being merged.",
+  "reproduction_steps": "Locally: cmake -S . -B build -DENABLE_TESTS=ON (with intel_gpu unit tests enabled) and observe the same 'exists on disk but is not listed in target sources' errors for the two files under src/plugins/intel_gpu/tests/unit/transformations/.",
+  "recommended_actions": [
+    "Add 'transformations/group_query_attention_decomposition_test.cpp' and 'transformations/remove_fq_before_dw_conv_test.cpp' to the explicit source list in src/plugins/intel_gpu/tests/unit/CMakeLists.txt (or the relevant sources.cmake include).",
+    "This is the 4th occurrence in ~3.5 hours affecting multiple unrelated PRs (#37208, #37914, and now #38007) — escalate to GPU plugin maintainers for an immediate follow-up fix on master.",
+    "Once fixed on master, no PR-specific action is needed; PRs merely need the merge queue to pick up a green master."
+  ],
+  "prevention_strategies": "Add a pre-commit/CI check (or make _ov_check_all_sources_listed run in PR CI, not only at full configure) that fails fast on newly added test files that aren't registered in CMakeLists.txt, and require any PR adding a new *_test.cpp under intel_gpu/tests/unit to also update the CMakeLists.txt in the same commit.",
+  "historical_context": "Same signature (signature_hash 424833cadb6f935d) previously recorded 3 times between 2026-09-08T05:13:38Z and 2026-09-08T07:00:30Z, affecting PRs #37208 and #37914. This is now the 4th occurrence within the same 12-hour window, confirming the underlying CMakeLists.txt gap on master has not yet been fixed."
+}
