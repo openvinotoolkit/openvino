@@ -10,6 +10,7 @@
 #include "common_test_utils/ov_plugin_cache.hpp"
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/op/tensor_iterator.hpp"
+#include "openvino/op/util/node_util.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
