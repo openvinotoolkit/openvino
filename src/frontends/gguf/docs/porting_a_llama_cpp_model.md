@@ -18,7 +18,7 @@ external-library wrapper and validation needed for models using existing archite
 | Existing decoder topology, new architecture name | `make_decoder_architecture(name, rope)` |
 | Decoder needs different architecture facts | Supply a callback returning `DecoderOptions` |
 | Custom layer order using existing decoder sublayers | `ModelBuilder` using `configure_decoder`, `decoder_attention`, `decoder_ffn` |
-| Different model family | `ModelBuilder` using generic graph operations and its own metadata |
+| Different model family | `ModelBuilder` using generic graph operations and its own metadata; follow the [full porting walkthrough](#port-a-fully-new-architecture-from-llamacpp) |
 
 Prefer structural detection to overriding an option. Tensor presence, metadata, and the native
 configuration resolver already handle the supported decoder features. A custom topology owns its
@@ -86,6 +86,284 @@ FFN implementations. Configuration chooses the applicable sublayer. There is no 
 implementation of those blocks. Decoder dimensions are returned as a value snapshot; modifying it
 does not mutate the resolved model. See the custom decoder in
 [`test_architecture_extension.cpp`](../tests/test_architecture_extension.cpp).
+
+## Port a fully new architecture from llama.cpp
+
+Use this route when the model's computation cannot be expressed by the shared decoder blocks:
+for example, a new encoder, a different recurrent network, or an encoder-decoder family. Implement
+its whole graph in a `ModelBuilder`. The native frontend reads the GGUF file; your builder describes
+the computation using `node` and any applicable shared blocks. llama.cpp supplies the reference
+implementation and numerical oracle, but is not a dependency of the resulting extension.
+
+### 1. Trace the reference from the file format to the outputs
+
+Start with a llama.cpp revision that loads the target checkpoint correctly. Record its commit,
+checkpoint, quantization, input preprocessing and runtime options so comparisons are reproducible.
+The source locations below are relative to that llama.cpp checkout; older revisions may combine
+these implementations in larger files.
+
+| Source to inspect | What to extract |
+|---|---|
+| `src/models/<architecture>.cpp`: `load_arch_hparams` | Required metadata, defaults, architectural variants and constraints |
+| The same file: `load_arch_tensors` | Tensor names and dimensions; required/optional weights; aliases and tied weights |
+| The same file: `build_arch_graph` and its graph constructor | Inputs, layer order, branches, residuals, final projection and output selection |
+| `src/llama-model.cpp`, `src/llama-arch.cpp` and `src/llama-hparams.h` | Common metadata loading, expansion of `LLM_KV_*` / `LLM_TENSOR_*` names and derived dimensions |
+| `src/llama-graph.cpp` and the relevant memory implementation | Bodies of called helpers, attention masks, cache reads/writes and recurrent updates |
+| `tools/mtmd/models/` and their shared helpers | Vision/audio graph construction, patch processing, pooling and projection, when outside the language model |
+| GGUF conversion code and `gguf-py/gguf/` | Actual exported names, tensor packing, transpositions and weight transformations |
+
+For example, in a checkout with separate model files:
+
+```sh
+rg -n 'load_arch_hparams|load_arch_tensors|build_arch_graph|::graph' src/models/<architecture>.cpp
+rg -n 'build_lora_mm|build_norm|build_ffn|build_attn' src/llama-graph.cpp
+rg -n 'LLM_KV_<KEY>|LLM_TENSOR_<TENSOR>' src/llama-arch.cpp
+```
+
+Follow every helper used by the architecture. `build_lora_mm`, for example, can include an
+additional weight scale and active LoRA updates after the base matrix multiplication. Replacing
+it with `MUL_MAT` reproduces the base path only when those additions are absent. Likewise,
+`build_norm` selects RMS, layer or group normalization and may apply both a weight and a bias.
+A helper's name alone does not establish its semantics.
+
+Write down the complete input-to-output sequence before coding. Include operations outside the
+layer loop: embedding scales, learned positions, final normalization, pooling, output-row selection
+and logit transforms. A GGUF model name or matching tensor names do not imply the same computation.
+For multimodal models, identify which file holds each graph and which preprocessing steps happen
+on the host; supporting a projection graph does not automatically support the whole pipeline.
+
+### 2. Define the file and model interface
+
+Create a small contract alongside the port:
+
+- The literal `general.architecture`, plus metadata predicates needed to distinguish variants.
+- Required metadata and its types, source-defined defaults, and per-layer arrays or schedules.
+- Required tensors, optional tensors and their fallback behavior, with **logical** GGML dimensions.
+- Each model input's name, element type, axis meanings and variable dimensions.
+- Outputs and how the consumer interprets them: logits, embeddings, encoded features or state.
+- Cache/state inputs, their updates, position indices and masks, if applicable.
+
+Read a new family's own keys with `graph.metadata()`. Reject missing mandatory fields rather than
+silently inventing dimensions; use `value_or` only for defaults present in the reference. Derive
+weight-dependent dimensions from `GgufValue::ne` or its inferred shape, not from packed byte sizes.
+`tensors.require(name)` loads a mandatory weight, `tensors(name)` returns an empty value when an
+optional weight is absent, and `tensors.has(name)` checks presence without emitting a node.
+Implement tied-weight fallbacks explicitly where the reference does so.
+
+The SDK accepts named model inputs with a known rank of at most four; dimensions may be dynamic.
+Use the layouts expected by the selected converters. For example, GGML `[width, items, 1, 1]`
+corresponds to OpenVINO `[1, 1, items, width]`. This is not an implicit batch-capability guarantee:
+the model's operations, state and consumer must all support the batch layout you expose.
+
+A new encoder need not call `configure_decoder`, create token/position inputs, or emit logits.
+An encoder-decoder port must describe both its encoding and decoding computations and their
+connection, including cross-attention and state where needed; registration does not generate them.
+
+### 3. Translate graph construction, preserving operation semantics
+
+Port one reference fragment at a time, retaining its operand order and branches. Use shared
+attention/FFN blocks only where their semantics match. Otherwise express the fragment with generic
+nodes. Local functions can name repeated architectural fragments without adding methods to the SDK.
+
+| llama.cpp construction | Builder equivalent or porting action |
+|---|---|
+| `create_tensor(tn(...), ...)` / a layer weight pointer | Look up the actual GGUF name through `GgufTensors`; parsing and dequantization are already handled |
+| `ggml_new_tensor_*` for runtime data | `add_input(name, type, shape)`; supply values at inference time |
+| `ggml_add`, `ggml_sub`, `ggml_mul` | `node("GGML_OP_ADD" / "GGML_OP_SUB" / "GGML_OP_MUL", {a, b}, type)` |
+| `ggml_mul_mat(ctx, weight, x)` | `node("GGML_OP_MUL_MAT", {weight, x}, ov::element::f32)` |
+| `ggml_silu(ctx, x)` | `node("GGML_UNARY_OP_SILU", {x}, x.type())` |
+| `ggml_rms_norm(ctx, x, eps)` | `node("GGML_OP_RMS_NORM", {x}, x.type(), 0, {{"eps", eps}})`; learned scaling remains a separate multiply |
+| `ggml_reshape_*` | `GGML_OP_RESHAPE`, case 6, with an OpenVINO-order `reshape_target`; use `special_zero` when copying an input dimension |
+| `ggml_permute` | `GGML_OP_PERMUTE`, case 1, with an OpenVINO-order `perm`; translate the axis mapping |
+| `ggml_view_*` | Describe the logical slice/layout with the converter's attributes; do not reproduce a ggml pointer or allocator |
+| `ggml_top_k(ctx, scores, k)` | `GGML_OP_TOP_K` with integer output type and explicit `int64_t` attribute `k` |
+| `ggml_cpy`, `ggml_set*` used for state | Preserve the updated tensor and its consumer/state relationship, not an in-place memory side effect |
+| `cb(...)`, graph expansion and backend scheduling | Reference diagnostics and execution infrastructure; no corresponding model computation to emit |
+
+Inspect [`src/op_table.cpp`](../src/op_table.cpp) and the selected converter in
+[`src/op/`](../src/op) for the accepted attributes and `op_case`. The case is a semantic variant,
+not a llama.cpp operation enum or an arbitrary tag. The generic builder forwards it without
+interpreting the operation. See [Tensor operations and shapes](#tensor-operations-and-shapes).
+
+Pay particular attention to layouts:
+
+- `ggml_permute` specifies the destination of each source axis, while OpenVINO's `perm` lists
+  source axes in output order. With four GGML axes `axes[i]`, the corresponding mapping is
+  `perm[3 - axes[i]] = 3 - i`. Derive it from axis meanings instead of copying four integers.
+- A ggml view's byte offset and strides describe a logical selection. For a simple contiguous
+  subrange, VIEW case 3 accepts `view_slice = {ov_axis, start, length}` and optional
+  `view_reshape`. More complex strided views need an appropriate converter or an explicit
+  composition of layout operations; a slice alone is not a general replacement.
+- OpenVINO has no ggml contiguity requirement. CONT case 1 is a passthrough; a combined
+  `ggml_cont_2d/3d/4d` call still has a reshape to preserve. Do not remove real transposes.
+- Preserve dynamic sequence/item dimensions. A successful one-token graph does not validate the
+  layout: incorrect broadcasting can appear only with several tokens, heads or experts.
+
+### 4. Implement a whole-model builder
+
+The example below is a complete builder for an **illustrative** `example-encoder` file contract,
+not a claim of support for a named llama.cpp model. It shows the mechanics for a family with its
+own metadata and inputs, without using the decoder configuration or attention blocks.
+
+Assume the reference reads `example-encoder.block_count`, `example-encoder.embedding_length`
+and RMS epsilon (default `1e-5`), consumes feature vectors, and applies this per-layer computation:
+
+```cpp
+// Reference computation after resolving the layer's weights (optional biases omitted here).
+auto norm = ggml_rms_norm(ctx0, cur, eps);
+norm = ggml_mul(ctx0, norm, layer.norm);
+auto gate = ggml_silu(ctx0, ggml_mul_mat(ctx0, layer.gate, norm));
+auto up = ggml_mul_mat(ctx0, layer.up, norm);
+auto down = ggml_mul_mat(ctx0, layer.down, ggml_mul(ctx0, gate, up));
+cur = ggml_add(ctx0, cur, down);
+```
+
+Its GGUF tensors are `blk.N.norm.weight`, `blk.N.gate.weight`, `blk.N.up.weight`,
+`blk.N.down.weight`, optional projection `.bias` tensors, and `output_norm.weight`.
+Gate/up project the embedding width into the hidden width; down projects back. The output is the
+full feature sequence after final RMS normalization. The port, saved as `new_family.cpp`, is:
+
+```cpp
+#include "openvino/core/except.hpp"
+#include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "openvino/frontend/gguf/extension/architecture.hpp"
+
+namespace example {
+using namespace ov::frontend::gguf;
+
+class FeatureEncoder : public ModelBuilder {
+public:
+    explicit FeatureEncoder(const BuildContext& context) : m_context(context) {}
+
+    std::shared_ptr<GgufGraph> build() override {
+        GgufGraphContext graph(m_context);
+        const auto& metadata = graph.metadata();
+        const auto count = metadata.get_int("example-encoder.block_count");
+        const auto width = metadata.get_int("example-encoder.embedding_length");
+        OPENVINO_ASSERT(count && *count > 0, "Missing or invalid block_count");
+        OPENVINO_ASSERT(width && *width > 0, "Missing or invalid embedding_length");
+        const auto eps = static_cast<float>(
+            metadata.get_float("example-encoder.attention.layer_norm_rms_epsilon").value_or(1e-5));
+        OPENVINO_ASSERT(eps > 0, "RMS epsilon must be positive");
+        auto tensors = graph.tensors();
+        auto cur = graph.add_input("features", ov::element::f32, {1, 1, -1, *width});
+
+        const auto linear = [&](const std::string& base, const GgufValue& input) {
+            auto out = graph.node("GGML_OP_MUL_MAT", {tensors.require(base + ".weight"), input},
+                                  ov::element::f32);
+            if (auto bias = tensors(base + ".bias")) {
+                out = graph.node("GGML_OP_ADD", {out, bias}, out.type());
+            }
+            return out;
+        };
+
+        for (int64_t layer = 0; layer < *count; ++layer) {
+            const auto prefix = "blk." + std::to_string(layer) + ".";
+            const auto residual = cur;
+            auto norm = graph.build_norm(cur, tensors.require(prefix + "norm.weight"), eps);
+            auto gate = linear(prefix + "gate", norm);
+            gate = graph.node("GGML_UNARY_OP_SILU", {gate}, gate.type());
+            auto up = linear(prefix + "up", norm);
+            auto hidden = graph.node("GGML_OP_MUL", {gate, up}, gate.type());
+            auto down = linear(prefix + "down", hidden);
+            cur = graph.node("GGML_OP_ADD", {residual, down}, residual.type());
+        }
+
+        graph.set_output(graph.build_norm(cur, tensors.require("output_norm.weight"), eps));
+        return graph.finish();
+    }
+
+private:
+    BuildContext m_context;
+};
+
+ArchitectureDefinition new_family_architecture() {
+    return {"example.feature-encoder", "example-encoder", [](const BuildContext& context) {
+                return std::make_shared<FeatureEncoder>(context);
+            }};
+}
+}  // namespace example
+```
+
+`BuildContext` is copied here only for the synchronous factory/build lifecycle. The built graph
+retains its weights, but the builder must not keep using the borrowed context after that call.
+The definition defaults to experimental maturity. Its id identifies the handler; its architecture
+string must match the file. Add a metadata predicate if multiple implementations share that string.
+
+For your target, replace this example's contract and layer body with the traced reference graph,
+including its embedding/patch frontend and output processing. Do not keep the example's names,
+activation, normalization or residual ordering merely because the dimensions match. The existing
+`VisionEncoderBuilder` in [`test_architecture_extension.cpp`](../tests/test_architecture_extension.cpp)
+shows a larger custom family with Q/K/V projections, non-causal attention, an FFN and a projector.
+
+### 5. Handle missing operations and state explicitly
+
+Inventory the operations in the **expanded** reference helpers against the converter table before
+iterating on the whole model. A new architecture built entirely from supported operations needs
+no new converters. If an operation is missing, either express its exact semantics using existing
+nodes or implement a converter:
+
+- An external plugin can register an `ov::frontend::ConversionExtension` along with its
+  `ArchitectureExtension`. The converter receives a frontend `NodeContext` and returns OpenVINO
+  outputs. Register it on the same frontend before `convert()`; the builder calls it through `node`.
+  `ConverterRegisteredAfterLoadInfersBuilderValues` in the architecture tests is a working example.
+- For built-in support, follow [how_to_add_op.md](how_to_add_op.md): register the shared converter
+  and add its tests and test-build source entry. Reuse an existing semantic case where applicable.
+  If a legacy case requires cgraph output shapes, make its operation parameters explicit in the
+  shared converter; do not add intermediate shape calculations to the builder.
+
+This is the only operation-support layer. Do not add a builder-specific enum, switch, shape rule,
+or `GgufGraphContext` method for the operation. OpenVINO shape inference happens when its converter
+constructs the output nodes. GGUF weight-format support is separate: an unsupported quantization
+format requires work in the weight loader, not a graph operation or architecture-name workaround.
+
+For stateful models, first make state flow explicit. Identify the previous-state inputs, the
+mathematical update and every output the consumer must retain. `add_recurrent_state` describes an
+overwritten state; it is not the declaration for an append-only attention KV cache. Reuse the
+shared decoder attention/cache blocks when they fit. A different cache algorithm needs its own
+correct graph and consumer contract. Declare RoPE, multimodal positions and sliding windows as
+explained in [Declare model contracts](#declare-model-contracts). Do not apply decoder-specific
+`AdaptToGenAI` conventions to encoder outputs automatically.
+
+### 6. Build and validate the port in increasing scope
+
+Wrap `new_family_architecture()` in the plugin entry point and build it against installed SDK
+headers using [Build and load an external plugin](#build-and-load-an-external-plugin). For this
+example, replace `projector.cpp` with `new_family.cpp` in the CMake target and declare the factory
+in a header included by the entry point. No llama.cpp objects or internal frontend headers are
+needed. If the plugin adds converters, include them in the same extension list.
+
+Validate more than graph construction:
+
+1. **File/interface:** load a small nonzero fixture through the actual plugin. Check required-field
+   errors, optional/tied weights, inputs and outputs, then compile the converted model on CPU.
+2. **Fragments:** compare nontrivial layouts and new operations against real ggml CPU outputs.
+   Use distinct dimensions and nonuniform values to expose swapped axes or misplaced scaling.
+   llama.cpp's `cb` labels help locate corresponding intermediates when tracing the first mismatch.
+3. **Whole graph:** compare the same preprocessed inputs through llama.cpp and the native frontend.
+   For encoders compare features, pooled outputs or projections directly. For decoders compare
+   complete logits on identical token histories, then prefill and several cached decode steps.
+   Test multiple sequence lengths, nonzero positions, state resets and relevant window boundaries.
+4. **Real checkpoint:** repeat with the actual model and quantization. Keep tokenizer, preprocessing,
+   masks and precision settings aligned. Coherent text alone does not verify an encoder, pooling
+   path or multimodal projector. Document any untested variants rather than marking them verified.
+5. **Regression:** retain a small reproducible numerical fixture. For decoder fixtures, reuse
+   [`tests/gen_arch_accuracy.py`](../tests/gen_arch_accuracy.py) and the
+   [reference-generation instructions](../tests/test_data/arch_accuracy/README.md). A new family's
+   fixture needs an oracle for its own inputs/outputs rather than forcing it into a logits harness.
+   Run the full frontend and external-library suites; changes to shared converters also need the
+   existing architecture fingerprints and numerical regressions.
+
+See [debugging_accuracy.md](debugging_accuracy.md) for comparing intermediates. A static shape
+match or successful one-token run is a useful initial check, not evidence of numerical correctness.
+
+### 7. Integrate the verified implementation into the frontend
+
+Keep the architecture definition separate from the plugin entry point throughout development.
+Then follow [Promote the same implementation into OpenVINO](#promote-the-same-implementation-into-openvino):
+move the source, register the same definition and retain its tests. The `ModelBuilder` and its
+`node` calls do not change. If the plugin supplied converters, upstream those into the shared
+converter table as well. Update supported-model documentation with the actual validation scope.
 
 ## Tensor operations and shapes
 
@@ -233,5 +511,5 @@ this migration path.
 - Compare numerical results against a reference, including multiple token lengths and subsequent
   decoding with previously generated state. Check SWA beyond its window and non-default RoPE scaling.
 - Run `ov_gguf_frontend_tests` architecture fixtures to check built-in graph fingerprints.
-- For a real architecture, also compare generation to llama.cpp on the same checkpoint before
-  marking it verified.
+- For a real architecture, compare its outputs to llama.cpp on the same checkpoint before marking
+  it verified: logits/generation for decoders, and features or pooled/projected outputs for encoders.
