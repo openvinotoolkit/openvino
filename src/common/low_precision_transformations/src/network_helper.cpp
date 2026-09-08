@@ -1578,10 +1578,18 @@ NetworkHelper::InsertDequantizationResult NetworkHelper::moveDequantizationBefor
             const auto rank = concatNode->get_output_partial_shape(0).rank().get_length();
             axis = ov::util::normalize(concatNode->get_axis(), rank);
         }
-        if (dequantization.multiply && dequantization.multiplyConstant->get_shape().size() > 1 && dequantization.multiplyConstant->get_shape()[axis] != 1) {
+        // axis is normalized against the Concat output rank, not the dequantization constant's own
+        // rank, so it can exceed the constant's shape (e.g. rank-2 constant + rank-4 Concat). Guard
+        // both the negative sentinel (dynamic-rank Concat leaves axis == -1) and the upper bound
+        // before indexing get_shape()[axis].
+        if (dequantization.multiply && axis >= 0 &&
+            dequantization.multiplyConstant->get_shape().size() > static_cast<size_t>(axis) &&
+            dequantization.multiplyConstant->get_shape()[axis] != 1) {
             multiplyConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.multiplyConstant });
         }
-        if (dequantization.subtract && dequantization.subtractConstant->get_shape().size() > 1 && dequantization.subtractConstant->get_shape()[axis] != 1) {
+        if (dequantization.subtract && axis >= 0 &&
+            dequantization.subtractConstant->get_shape().size() > static_cast<size_t>(axis) &&
+            dequantization.subtractConstant->get_shape()[axis] != 1) {
             subtractConstants = NetworkHelper::splitConstantsBeforeConcat(operation, { dequantization.subtractConstant });
         }
     } else {

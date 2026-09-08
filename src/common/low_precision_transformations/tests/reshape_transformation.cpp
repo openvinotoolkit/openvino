@@ -272,6 +272,18 @@ const std::vector<ReshapeTransformationTestValues> testValues = {
       {{ov::element::f32}, {{0.f, 128.f, 255.f}, ov::element::f32}, {{0.1f, 0.2f, 0.3f}}},
       ov::element::f32,
       {{}, {}, {}}}},
+    // U8: rank-1 (per-channel) dequantization constant: left-pad it up to the Reshape input rank
+    // instead of indexing the constant out of bounds. A model-declared rank-1 constant {C} reaches
+    // LPT unpadded here (AlignEltwiseInputRanks does not run in this isolated harness), so the
+    // transform must normalize the rank itself.
+    {{1, 3},
+     {1, 3, 1, 1},
+     LayerTransformation::createParamsU8I8(),
+     {ov::element::u8, {{ov::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ov::element::f32, ov::Shape{3}}}},
+     {ov::element::u8,
+      {{}, {}, {}},
+      ov::element::u8,
+      {{ov::element::f32}, {}, {{0.1f, 0.2f, 0.3f}, ov::element::f32, {1, 3, 1, 1}}}}},
     // empty: FP32
     {{1, 3, 4, 8},
      {12, -1},
