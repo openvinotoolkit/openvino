@@ -98,6 +98,7 @@ jobs:
         if: ${{ inputs.enable-compile-cache }}
         uses: ./openvino-ci-actions/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Build llama.cpp
@@ -107,6 +108,7 @@ jobs:
         if: ${{ inputs.enable-compile-cache }}
         uses: ./openvino-ci-actions/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: llama-cpp-build
           artifact-name: compile-cache-stats-gguf-llamacpp-llama-cpp-build
 

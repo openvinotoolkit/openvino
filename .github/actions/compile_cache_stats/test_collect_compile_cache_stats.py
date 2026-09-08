@@ -9,6 +9,7 @@ from collect_compile_cache_stats import (
     format_step_summary_markdown,
     parse_ccache_stats,
     parse_sccache_stats,
+    resolve_compile_cache_tool,
 )
 
 
@@ -162,6 +163,31 @@ Local storage:
         markdown = format_step_summary_markdown(report)
         self.assertNotIn("Cache size", markdown)
         self.assertNotIn("Cache saturation", markdown)
+
+
+class TestResolveCompileCacheTool(unittest.TestCase):
+    def test_requires_valid_tool_name(self):
+        with self.assertRaises(ValueError):
+            resolve_compile_cache_tool("distcc")
+
+    def test_sccache_missing_raises(self):
+        with unittest.mock.patch("collect_compile_cache_stats.resolve_sccache", return_value=None):
+            with self.assertRaises(FileNotFoundError):
+                resolve_compile_cache_tool("sccache")
+
+    def test_ccache_missing_raises(self):
+        with unittest.mock.patch("collect_compile_cache_stats.resolve_ccache", return_value=None):
+            with self.assertRaises(FileNotFoundError):
+                resolve_compile_cache_tool("ccache")
+
+    def test_resolves_sccache_executable(self):
+        with unittest.mock.patch(
+            "collect_compile_cache_stats.resolve_sccache",
+            return_value="/usr/bin/sccache",
+        ):
+            executable, tool = resolve_compile_cache_tool("sccache")
+        self.assertEqual(executable, "/usr/bin/sccache")
+        self.assertEqual(tool, "sccache")
 
 
 if __name__ == "__main__":

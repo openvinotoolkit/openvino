@@ -219,6 +219,7 @@ jobs:
       - name: Zero compile cache stats (onetbb)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Build OneTBB project
@@ -227,6 +228,7 @@ jobs:
       - name: Compile cache statistics (onetbb)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: onetbb-${{ matrix.arch }}
           artifact-name: compile-cache-stats-android-${{ matrix.arch }}-onetbb
 
@@ -268,6 +270,7 @@ jobs:
       - name: Zero compile cache stats (openvino)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: CMake - build OpenVINO
@@ -276,6 +279,7 @@ jobs:
       - name: Compile cache statistics (openvino)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: openvino-${{ matrix.arch }}
           artifact-name: compile-cache-stats-android-${{ matrix.arch }}-openvino
 

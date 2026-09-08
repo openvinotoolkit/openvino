@@ -208,6 +208,7 @@ jobs:
         if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           mode: zero-stats
 
       - name: Cmake build - OpenVINO
@@ -217,6 +218,7 @@ jobs:
         if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           build-label: openvino-main
           artifact-name: compile-cache-stats-windows-${{ inputs.build-type }}-${{ inputs.build-variant }}-openvino-main
 
@@ -284,6 +286,7 @@ jobs:
         if: ${{ inputs.build-additional-python-wheels && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           mode: zero-stats
 
       - name: Build additional Python wheels
@@ -337,6 +340,7 @@ jobs:
         if: ${{ inputs.build-additional-python-wheels && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           build-label: python-wheels-additional
           artifact-name: compile-cache-stats-windows-${{ inputs.build-type }}-${{ inputs.build-variant }}-python-wheels-additional
 
@@ -355,6 +359,7 @@ jobs:
         if: ${{ inputs.build-additional-python-wheels && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           mode: zero-stats
 
       - name: Build additional Python wheels - Python 3.14t
@@ -402,6 +407,7 @@ jobs:
         if: ${{ inputs.build-additional-python-wheels && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           build-label: python-wheels-3-14t
           artifact-name: compile-cache-stats-windows-${{ inputs.build-type }}-${{ inputs.build-variant }}-python-wheels-3-14t
 
@@ -460,6 +466,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           mode: zero-stats
 
       - name: Cmake build - OpenVINO JS API
@@ -470,6 +477,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           build-label: openvino-js-api
           artifact-name: compile-cache-stats-windows-${{ inputs.build-type }}-${{ inputs.build-variant }}-openvino-js-api
 
@@ -521,6 +529,7 @@ jobs:
         if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           mode: zero-stats
 
       - name: Cmake build - OpenVINO Contrib
@@ -530,6 +539,7 @@ jobs:
         if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           build-label: openvino-contrib
           artifact-name: compile-cache-stats-windows-${{ inputs.build-type }}-${{ inputs.build-variant }}-openvino-contrib
 

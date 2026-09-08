@@ -145,6 +145,7 @@ jobs:
       - name: Zero compile cache stats (hello_query_device)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: cmake --build - build
@@ -153,6 +154,7 @@ jobs:
       - name: Compile cache statistics (hello_query_device)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: hello-query-device
           artifact-name: compile-cache-stats-webassembly-hello-query-device
 

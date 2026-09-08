@@ -186,6 +186,7 @@ jobs:
       - name: Zero compile cache stats (openvino main build)
         uses: ./src/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Build OpenVINO
@@ -197,12 +198,14 @@ jobs:
       - name: Compile cache statistics (openvino main build)
         uses: ./src/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: openvino-main
           artifact-name: compile-cache-stats-manylinux-openvino-main
 
       - name: Zero compile cache stats (python api wheels)
         uses: ./src/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Build Python API (Python 3.10-3.14t)
@@ -236,6 +239,7 @@ jobs:
       - name: Compile cache statistics (python api wheels)
         uses: ./src/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: python-api-wheels
           artifact-name: compile-cache-stats-manylinux-python-api-wheels
 
@@ -249,6 +253,7 @@ jobs:
       - name: Zero compile cache stats (openvino js api)
         uses: ./src/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Build OpenVINO JS API
@@ -259,6 +264,7 @@ jobs:
       - name: Compile cache statistics (openvino js api)
         uses: ./src/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: openvino-js-api
           artifact-name: compile-cache-stats-manylinux-openvino-js-api
 

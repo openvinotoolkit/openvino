@@ -114,6 +114,7 @@ jobs:
         if: ${{ inputs.enable-compile-cache }}
         uses: ./.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Build Lin ONNX Runtime
@@ -136,6 +137,7 @@ jobs:
         if: ${{ inputs.enable-compile-cache }}
         uses: ./.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: onnx-runtime-build
           artifact-name: compile-cache-stats-onnx-runtime-build
 

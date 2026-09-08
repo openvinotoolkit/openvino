@@ -159,6 +159,7 @@ jobs:
       - name: Zero compile cache stats (openvino main build)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Cmake build - OpenVINO
@@ -167,6 +168,7 @@ jobs:
       - name: Compile cache statistics (openvino main build)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: openvino-main
           artifact-name: compile-cache-stats-snippets-libxsmm-openvino-main
 

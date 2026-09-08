@@ -265,6 +265,7 @@ jobs:
         if: ${{ inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Cmake build - OpenVINO
@@ -274,6 +275,7 @@ jobs:
         if: ${{ inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: openvino-main
           artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-openvino-main
 
@@ -319,6 +321,7 @@ jobs:
         if: ${{ inputs.build-additional-python-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Build Python API and wheels
@@ -362,6 +365,7 @@ jobs:
         if: ${{ inputs.build-additional-python-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: python-api-wheels
           artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-python-api-wheels
 
@@ -413,6 +417,7 @@ jobs:
         if: ${{ inputs.build-debian-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Build Debian packages
@@ -423,6 +428,7 @@ jobs:
         if: ${{ inputs.build-debian-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: debian-packages
           artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-debian-packages
 
@@ -444,6 +450,7 @@ jobs:
         if: ${{ inputs.build-contrib && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Cmake build - OpenVINO Contrib
@@ -454,6 +461,7 @@ jobs:
         if: ${{ inputs.build-contrib && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: openvino-contrib
           artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-openvino-contrib
 
@@ -473,6 +481,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Cmake build - OpenVINO JS API
@@ -483,6 +492,7 @@ jobs:
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: openvino-js-api
           artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-openvino-js-api
 
@@ -533,6 +543,7 @@ jobs:
         if: ${{ inputs.build-rpm-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Build RPM packages
@@ -543,6 +554,7 @@ jobs:
         if: ${{ inputs.build-rpm-packages && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: rpm-packages
           artifact-name: compile-cache-stats-${{ inputs.os }}-${{ inputs.arch }}-rpm-packages
 

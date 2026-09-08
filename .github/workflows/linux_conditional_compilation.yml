@@ -188,6 +188,7 @@ jobs:
       - name: Zero compile cache stats (openvino cc collect main)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (openvino)
@@ -196,12 +197,14 @@ jobs:
       - name: Compile cache statistics (openvino cc collect main)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: cc-collect-openvino-main
           artifact-name: compile-cache-stats-linux-cc-collect-openvino-main
 
       - name: Zero compile cache stats (sea_itt_lib)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (sea_itt_lib)
@@ -210,6 +213,7 @@ jobs:
       - name: Compile cache statistics (sea_itt_lib)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: cc-collect-sea-itt-lib
           artifact-name: compile-cache-stats-linux-cc-collect-sea-itt-lib
 
@@ -223,6 +227,7 @@ jobs:
       - name: Zero compile cache stats (cpp samples)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Build C++ samples - OpenVINO build tree
@@ -231,6 +236,7 @@ jobs:
       - name: Compile cache statistics (cpp samples)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: cc-collect-cpp-samples
           artifact-name: compile-cache-stats-linux-cc-collect-cpp-samples
 
@@ -382,6 +388,7 @@ jobs:
       - name: Zero compile cache stats (cc on benchmark_app)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Cmake build - CC ON
@@ -390,6 +397,7 @@ jobs:
       - name: Compile cache statistics (cc on benchmark_app)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: cc-on-benchmark-app
           artifact-name: compile-cache-stats-linux-cc-on-benchmark-app
 

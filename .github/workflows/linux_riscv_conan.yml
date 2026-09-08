@@ -240,6 +240,7 @@ jobs:
       - name: Zero compile cache stats (openvino main build)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           mode: zero-stats
 
       - name: Cmake - Build
@@ -248,12 +249,14 @@ jobs:
       - name: Compile cache statistics (openvino main build)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           build-label: openvino-main
           artifact-name: compile-cache-stats-linux-riscv-conan-openvino-main
 
       - name: Zero compile cache stats (cmake install target)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           mode: zero-stats
 
       - name: Cmake - Install
@@ -262,6 +265,7 @@ jobs:
       - name: Compile cache statistics (cmake install target)
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: ccache
           build-label: cmake-install-target
           artifact-name: compile-cache-stats-linux-riscv-conan-cmake-install-target
 

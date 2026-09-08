@@ -474,22 +474,42 @@ def _ci_context() -> dict[str, Any]:
     return {key.lower(): os.environ.get(key) for key in keys if os.environ.get(key)}
 
 
-def resolve_compile_cache_tool() -> tuple[str, str]:
-    sccache = resolve_sccache()
-    if sccache:
-        return sccache, "sccache"
-    ccache = resolve_ccache()
-    if ccache:
-        return ccache, "ccache"
-    raise FileNotFoundError(
-        "Neither sccache nor ccache was found (checked SCCACHE_PATH, PATH for sccache, then PATH for ccache)."
-    )
+_VALID_TOOLS = frozenset({"sccache", "ccache"})
 
 
-def zero_compile_cache_stats() -> int:
+def resolve_compile_cache_tool(tool: str) -> tuple[str, str]:
+    normalized = tool.strip().lower()
+    if normalized not in _VALID_TOOLS:
+        raise ValueError(f"Invalid compile cache tool '{tool}' (expected one of: {', '.join(sorted(_VALID_TOOLS))}).")
+
+    if normalized == "sccache":
+        executable = resolve_sccache()
+        if not executable:
+            raise FileNotFoundError(
+                "sccache was not found (checked SCCACHE_PATH and PATH)."
+            )
+        return executable, "sccache"
+
+    executable = resolve_ccache()
+    if not executable:
+        raise FileNotFoundError("ccache was not found on PATH.")
+    return executable, "ccache"
+
+
+def requested_compile_cache_tool() -> str:
+    tool = os.environ.get("COMPILE_CACHE_TOOL", "").strip()
+    if not tool:
+        raise ValueError(
+            "Compile cache tool is required (set COMPILE_CACHE_TOOL to 'sccache' or 'ccache', "
+            "or pass --tool)."
+        )
+    return tool
+
+
+def zero_compile_cache_stats(tool: str) -> int:
     try:
-        executable, tool = resolve_compile_cache_tool()
-    except FileNotFoundError as exc:
+        executable, resolved_tool = resolve_compile_cache_tool(tool)
+    except (FileNotFoundError, ValueError) as exc:
         print(f"::error::{exc}")
         return 1
 
@@ -507,14 +527,14 @@ def zero_compile_cache_stats() -> int:
         )
         return 1
 
-    print(f"Reset {tool} statistics ({executable})")
+    print(f"Reset {resolved_tool} statistics ({executable})")
     if result.stdout.strip():
         print(result.stdout)
     return 0
 
 
-def collect() -> dict[str, Any]:
-    executable, tool = resolve_compile_cache_tool()
+def collect(tool: str) -> dict[str, Any]:
+    executable, tool = resolve_compile_cache_tool(tool)
     stdout = run_show_stats(executable)
     if tool == "sccache":
         report = parse_sccache_stats(stdout)
@@ -538,10 +558,10 @@ def write_stats_json(report: dict[str, Any], path: str) -> str:
     return path
 
 
-def main() -> int:
+def main(tool: str) -> int:
     try:
-        report = collect()
-    except FileNotFoundError as exc:
+        report = collect(tool)
+    except (FileNotFoundError, ValueError) as exc:
         print(f"::error::{exc}")
         return 1
     except RuntimeError as exc:
@@ -577,5 +597,16 @@ if __name__ == "__main__":
         action="store_true",
         help="Reset compile cache statistics (sccache/ccache --zero-stats).",
     )
+    parser.add_argument(
+        "--tool",
+        choices=sorted(_VALID_TOOLS),
+        default=None,
+        help="Compile cache utility to query (sccache or ccache). Defaults to COMPILE_CACHE_TOOL.",
+    )
     args = parser.parse_args()
-    sys.exit(zero_compile_cache_stats() if args.zero_stats else main())
+    try:
+        tool = args.tool or requested_compile_cache_tool()
+    except ValueError as exc:
+        print(f"::error::{exc}")
+        sys.exit(1)
+    sys.exit(zero_compile_cache_stats(tool) if args.zero_stats else main(tool))

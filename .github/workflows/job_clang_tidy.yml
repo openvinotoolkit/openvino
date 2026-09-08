@@ -124,6 +124,7 @@ jobs:
         if: ${{ inputs.enable-compile-cache && inputs.show-sccache-stats }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           mode: zero-stats
 
       - name: Cmake build with clang-tidy enabled
@@ -142,6 +143,7 @@ jobs:
         if: ${{ inputs.show-sccache-stats && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
+          tool: sccache
           build-label: clang-tidy-${{ inputs.build-target }}
           artifact-name: compile-cache-stats-clang-tidy-${{ inputs.compile-commands-artifact }}-${{ inputs.build-target }}
 
