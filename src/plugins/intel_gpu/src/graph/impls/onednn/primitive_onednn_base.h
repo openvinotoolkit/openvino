@@ -390,9 +390,8 @@ protected:
     PrimType make_primitive_from_blob(const std::vector<uint8_t>& cache_blob) const {
         if (cache_blob.empty()) {
             return PrimType(_pd);
-        } else {
-            return PrimType(_pd, cache_blob);
         }
+        return PrimType(_pd, cache_blob);
     }
 
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
