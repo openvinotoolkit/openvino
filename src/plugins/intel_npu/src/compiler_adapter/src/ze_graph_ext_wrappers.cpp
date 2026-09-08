@@ -4,6 +4,7 @@
 
 #include "ze_graph_ext_wrappers.hpp"
 
+#include <cstring>
 #include <string_view>
 
 #include "intel_npu/prefix.hpp"
@@ -16,6 +17,27 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
 
+namespace {
+// Level Zero fixed-width name buffers are not guaranteed to be NUL-terminated by a malicious/compromised
+// driver or compiler; scanning them as C strings (e.g. via std::string's implicit constructor) can read
+// past the end of the buffer. Require an in-array terminator before building the string.
+std::string safeStringFromFixedBuffer(const char* buffer,
+                                      size_t bufferSize,
+                                      const char* fieldName,
+                                      uint32_t indexUsedByDriver) {
+    if (std::memchr(buffer, '\0', bufferSize) == nullptr) {
+        OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
+                       indexUsedByDriver,
+                       ": ",
+                       fieldName,
+                       " is not NUL-terminated within its ",
+                       bufferSize,
+                       "-byte buffer");
+    }
+    return std::string(buffer);
+}
+}  // namespace
+
 namespace intel_npu {
 
 IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
@@ -27,8 +49,19 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
     ov::PartialShape shapeFromIRModel;
     std::unordered_set<std::string> outputTensorNames;
 
+    if (arg.associated_tensor_names_count > ZE_MAX_GRAPH_TENSOR_NAMES_SIZE) {
+        OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
+                       indexUsedByDriver,
+                       ": associated_tensor_names_count ",
+                       arg.associated_tensor_names_count,
+                       " exceeds ABI limit ",
+                       ZE_MAX_GRAPH_TENSOR_NAMES_SIZE);
+    }
     for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
-        outputTensorNames.insert(arg.associated_tensor_names[id]);
+        outputTensorNames.insert(safeStringFromFixedBuffer(arg.associated_tensor_names[id],
+                                                           ZE_MAX_GRAPH_ARGUMENT_NAME,
+                                                           "associated_tensor_names",
+                                                           indexUsedByDriver));
     }
     if (arg.dims_count > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
         OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
@@ -62,6 +95,18 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
         shapeFromIRModel.reserve(metadata->shape_size);
         for (uint32_t id = 0; id < metadata->shape_size; id++) {
             if (metadata->shape[id] != dynamicDim) {
+                // static metadata dimension must match the driver's true argument span; otherwise the
+                // tensor could be undersized relative to what Level Zero actually reads/writes
+                if (metadata->shape[id] != shapeFromCompiler[id]) {
+                    OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
+                                   indexUsedByDriver,
+                                   ": static metadata dimension ",
+                                   id,
+                                   " value ",
+                                   metadata->shape[id],
+                                   " does not match driver argument dimension ",
+                                   shapeFromCompiler[id]);
+                }
                 shapeFromIRModel.push_back(metadata->shape[id]);
             } else {
                 // lower bound is ignored, so we set it to 1 just to satisfy the Dimension constructor,
@@ -80,7 +125,8 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
     }
 
     // Flags will be used instead of indices for informing the type of the current entry
-    std::string nameFromCompiler = arg.name;
+    std::string nameFromCompiler =
+        safeStringFromFixedBuffer(arg.name, ZE_MAX_GRAPH_ARGUMENT_NAME, "name", indexUsedByDriver);
     const bool isInput = (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT);
     bool isStateInput = false;
     bool isStateOutput = false;
@@ -117,6 +163,11 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
         }
     }
 
+    std::string debugFriendlyName = safeStringFromFixedBuffer(arg.debug_friendly_name,
+                                                              ZE_MAX_GRAPH_ARGUMENT_NAME,
+                                                              "debug_friendly_name",
+                                                              indexUsedByDriver);
+
     return {std::move(nameFromCompiler),
             precision,
             shapeFromCompiler,
@@ -127,7 +178,7 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
             isInitOutputWeights,
             isMainInputWeights,
             std::nullopt,
-            arg.debug_friendly_name,
+            std::move(debugFriendlyName),
             std::move(outputTensorNames),
             metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt,
             indexUsedByDriver,
@@ -540,6 +591,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
         std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
+
+        // arg.name is scanned as a string_view by the prefix predicates below, ahead of the
+        // NUL-termination check that createIODescriptorFromLevelZero performs further down.
+        safeStringFromFixedBuffer(arg.name, ZE_MAX_GRAPH_ARGUMENT_NAME, "name", indexUsedByDriver);
 
         if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name) &&
             !isInitInputWeightsName(arg.name) && !isInitOutputWeightsName(arg.name) &&
