@@ -327,14 +327,44 @@ TEST(GGUFBuilderSDK, Gemma2DefaultsIncludeSlidingWindowAnd27BAttentionScale) {
     EXPECT_FLOAT_EQ(config.layer_kq_scale(0), 1.f / 12.f);
 }
 
+TEST(GGUFBuilderSDK, Gemma2RejectsZeroAttentionHeadsWithOrWithoutKeyLength) {
+    for (bool explicit_key_length : {false, true}) {
+        SCOPED_TRACE(explicit_key_length);
+        Environment env;
+        env.decoder();
+        env.integer("test.block_count", 46);
+        env.integer("test.attention.head_count", 0);
+        if (explicit_key_length) {
+            env.integer("test.attention.key_length", 128);
+        }
+        env.architecture("gemma2");
+        EXPECT_THROW(decoder_config_from_meta(env.metadata), ov::Exception);
+    }
+}
+
 TEST(GGUFBuilderSDK, ErnieInterleavesDenseAndExpertLayers) {
     Environment env;
     env.decoder();
     env.integer("test.block_count", 4);
     env.integer("test.interleave_moe_layer_step", 2);
-    env.weights["blk.1.ffn_gate_exps.weight"] = ov::Tensor(ov::element::f32, {4, 48, 32});
+    env.integer("test.expert_count", 4);
+    env.integer("test.expert_used_count", 2);
+    for (int layer = 0; layer < 4; ++layer) {
+        const auto prefix = "blk." + std::to_string(layer) + ".";
+        if (layer % 2 == 0) {
+            env.weights[prefix + "ffn_gate.weight"] = ov::Tensor(ov::element::f32, {48, 32});
+            env.weights[prefix + "ffn_up.weight"] = ov::Tensor(ov::element::f32, {48, 32});
+            env.weights[prefix + "ffn_down.weight"] = ov::Tensor(ov::element::f32, {32, 48});
+        } else {
+            env.weights[prefix + "ffn_gate_inp.weight"] = ov::Tensor(ov::element::f32, {4, 32});
+            env.weights[prefix + "ffn_gate_exps.weight"] = ov::Tensor(ov::element::f32, {4, 48, 32});
+            env.weights[prefix + "ffn_up_exps.weight"] = ov::Tensor(ov::element::f32, {4, 48, 32});
+            env.weights[prefix + "ffn_down_exps.weight"] = ov::Tensor(ov::element::f32, {4, 32, 48});
+        }
+    }
     env.architecture("ernie4_5-moe");
     for (uint32_t dense_lead : {0u, 1u}) {
+        SCOPED_TRACE(dense_lead);
         env.integer("ernie4_5-moe.leading_dense_block_count", dense_lead);
         DecoderConfig config(decoder_config_from_meta(env.metadata), env.weights);
         EXPECT_FALSE(config.layer_is_moe(0));
@@ -342,6 +372,15 @@ TEST(GGUFBuilderSDK, ErnieInterleavesDenseAndExpertLayers) {
         EXPECT_FALSE(config.layer_is_moe(2));
         EXPECT_TRUE(config.layer_is_moe(3));
         EXPECT_TRUE(config.expert_weights_norm);
+        GgufGraphContext graph(env.context);
+        graph.configure_decoder(RopeMode::Neox);
+        auto value = graph.add_input("x", ov::element::f32, {1, 1, -1, 32});
+        for (int layer = 0; layer < 4; ++layer) {
+            value = graph.decoder_ffn(layer, value);
+        }
+        graph.set_output(value);
+        auto model = convert(graph.finish());
+        EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{1, 1, -1, 32}));
     }
 }
 

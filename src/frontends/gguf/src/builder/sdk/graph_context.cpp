@@ -97,10 +97,9 @@ GgufValue GgufGraphContext::decoder_ffn(int layer, const GgufValue& input) {
     const auto& cfg = *m_impl->decoder;
     auto& emitter = m_impl->emitter;
     const auto prefix = "blk." + std::to_string(layer) + ".";
-    const auto output = cfg.is_moe && layer >= cfg.n_dense_lead
-                            ? blocks::moe_ffn(emitter, cfg, prefix, input.name(), Impl::T)
-                        : cfg.is_geglu ? blocks::geglu_ffn(emitter, cfg, prefix, input.name(), Impl::T)
-                                       : blocks::dense_ffn(emitter, cfg, prefix, input.name(), Impl::T);
+    const auto output = cfg.layer_is_moe(layer) ? blocks::moe_ffn(emitter, cfg, prefix, input.name(), Impl::T)
+                        : cfg.is_geglu          ? blocks::geglu_ffn(emitter, cfg, prefix, input.name(), Impl::T)
+                                                : blocks::dense_ffn(emitter, cfg, prefix, input.name(), Impl::T);
     return GgufValue(output, input.shape(), emitter.type_of_tensor(output));
 }
 
