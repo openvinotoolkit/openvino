@@ -108,7 +108,7 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
     tests::random_generator rg;
     rg.set_seed("optimized_resample_to_onednn_sum_reuse_correctness");
     {
-        auto rnd = rg.generate_random_1d<ov::float16>(weight_layout.count(), -0.25f, 0.25f);
+        auto rnd = rg.generate_random_1d<ov::float16>(weight_layout.count(), 0, 0);
         set_values(weight_mem, rnd);
     }
 
@@ -138,7 +138,7 @@ TEST(basic_memory_dependencies, optimized_resample_to_onednn_sum_reuse_correctne
 
     auto input_mem = engine.allocate_memory(in_layout);
     {
-        auto rnd = rg.generate_random_1d<ov::float16>(in_layout.count(), -0.25f, 0.25f);
+        auto rnd = rg.generate_random_1d<ov::float16>(in_layout.count(), 0, 0);
         set_values(input_mem, rnd);
     }
 

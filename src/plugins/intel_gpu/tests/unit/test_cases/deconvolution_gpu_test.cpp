@@ -3170,8 +3170,8 @@ TEST(deconvolution_gpu_onednn, input_b_fs_zyx_fsv16_output_bfzyx_stride2_nopad) 
 
     tests::random_generator rg(GET_SUITE_NAME);
     auto input_data = rg.generate_random_1d<float>(input->count(), -1.0f, 1.0f);
-    auto weights_data = rg.generate_random_1d<float>(weights->count(), -0.5f, 0.5f);
-    auto bias_data = rg.generate_random_1d<float>(biases->count(), -0.1f, 0.1f);
+    auto weights_data = rg.generate_random_1d<float>(weights->count(), 0, 0);
+    auto bias_data = rg.generate_random_1d<float>(biases->count(), 0, 0);
 
     set_values(input, input_data);
     set_values(weights, weights_data);

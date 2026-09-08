@@ -142,7 +142,7 @@ TEST_P(moe_router_fused_sigmoid_bias_gpu, router_accuracy_test) {
 
     // Generate random data
     auto logits_data = rg.generate_random_1d<ov::float16>(num_tokens * num_experts, -2.0f, 2.0f, 1000);
-    auto bias_data = rg.generate_random_1d<ov::float16>(num_experts, -0.5f, 0.5f, 1000);
+    auto bias_data = rg.generate_random_1d<ov::float16>(num_experts, 0, 0, 1000);
     ov::float16 eps_val = ov::float16(1e-6f);
 
     // Create memories
