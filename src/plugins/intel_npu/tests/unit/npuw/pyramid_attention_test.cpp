@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "pyramid_attention.hpp"
+
 #include <gtest/gtest.h>
 
 #include <map>
@@ -10,6 +12,9 @@
 #include <variant>
 #include <vector>
 
+#include "attn/attn_subgraph.hpp"
+#include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -18,10 +23,9 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/openvino.hpp"
-#include "npuw_transformations/convert_kvcache_to_precision.hpp"
-#include "npuw_transformations/split_kvcache_into_blocks.hpp"
-#include "pyramid_attention.hpp"
+#include "serialization.hpp"
 #include "util.hpp"
+#include "v1/subgraph_pipeline.hpp"
 
 namespace {
 
@@ -122,9 +126,8 @@ const ov::npuw::function::PyramidValidationBlockResult& get_block_result(
     return std::get<ov::npuw::function::PyramidValidationBlockResult>(validation);
 }
 // Helper function to apply SplitKVCacheIntoBlocks transformation
-std::shared_ptr<ov::Model> apply_split_kvcache_into_blocks(
-    const std::shared_ptr<ov::Model>& model,
-    uint32_t block_size = 32) {
+std::shared_ptr<ov::Model> apply_split_kvcache_into_blocks(const std::shared_ptr<ov::Model>& model,
+                                                           uint32_t block_size = 32) {
     auto cloned = model->clone();
     // Use v_transposed=false to match test model structure where both key and value use axis 2
     ov::npuw::pass::SplitKVCacheIntoBlocks(block_size, false).run_on_model(cloned);
@@ -140,7 +143,7 @@ TEST(PyramidAttentionTest, ValidateSucceedsOnValidAttentionModel) {
 
     auto result = ov::npuw::function::validate_and_setup_pyramid_attention(model);
     ASSERT_TRUE(result.has_value());
-    
+
     const auto& contiguous = get_contiguous_result(*result);
     EXPECT_TRUE(contiguous.is_valid());
     EXPECT_EQ(contiguous.query_length, 1u);
@@ -160,18 +163,19 @@ TEST(PyramidAttentionTest, ValidateExtractsCorrectSequenceDimForSingleLayer) {
 
     ASSERT_TRUE(result.has_value()) << "Validation failed for single-layer model";
     const auto& contiguous = get_contiguous_result(*result);
-    
+
     // Concat axis is 2 (sequence dim)
     auto key_it = contiguous.past_key_sequence_dims.find("past_key_values.0.key");
-    EXPECT_NE(key_it, contiguous.past_key_sequence_dims.end()) 
+    EXPECT_NE(key_it, contiguous.past_key_sequence_dims.end())
         << "Key 'past_key_values.0.key' not found. Map has " << contiguous.past_key_sequence_dims.size() << " entries.";
     if (key_it != contiguous.past_key_sequence_dims.end()) {
         EXPECT_EQ(key_it->second, 2u);
     }
-    
+
     auto val_it = contiguous.past_value_sequence_dims.find("past_key_values.0.value");
     EXPECT_NE(val_it, contiguous.past_value_sequence_dims.end())
-        << "Key 'past_key_values.0.value' not found. Map has " << contiguous.past_value_sequence_dims.size() << " entries.";
+        << "Key 'past_key_values.0.value' not found. Map has " << contiguous.past_value_sequence_dims.size()
+        << " entries.";
     if (val_it != contiguous.past_value_sequence_dims.end()) {
         EXPECT_EQ(val_it->second, 2u);
     }
@@ -181,16 +185,16 @@ TEST(PyramidAttentionTest, DebugRegexPatternMatching) {
     // Verify that our regex patterns match expected parameter names
     EXPECT_TRUE(ov::npuw::util::isPastKeyValuesKeyContiguous("past_key_values.0.key").has_value());
     EXPECT_EQ(ov::npuw::util::isPastKeyValuesKeyContiguous("past_key_values.0.key").value(), 0);
-    
+
     EXPECT_TRUE(ov::npuw::util::isPastKeyValuesKeyContiguous("past_key_values.1.key").has_value());
     EXPECT_EQ(ov::npuw::util::isPastKeyValuesKeyContiguous("past_key_values.1.key").value(), 1);
-    
+
     EXPECT_TRUE(ov::npuw::util::isPastKeyValuesValueContiguous("past_key_values.0.value").has_value());
     EXPECT_EQ(ov::npuw::util::isPastKeyValuesValueContiguous("past_key_values.0.value").value(), 0);
-    
+
     EXPECT_TRUE(ov::npuw::util::isPastKeyValuesValueContiguous("past_key_values.1.value").has_value());
     EXPECT_EQ(ov::npuw::util::isPastKeyValuesValueContiguous("past_key_values.1.value").value(), 1);
-    
+
     // Should NOT match
     EXPECT_FALSE(ov::npuw::util::isPastKeyValuesKeyContiguous("query.0").has_value());
     EXPECT_FALSE(ov::npuw::util::isPastKeyValuesKeyContiguous("past_key_values.0.key_block_0").has_value());
@@ -555,8 +559,7 @@ TEST(PyramidAttentionTest, ProcessPyramidModelAfterI8KVCacheConversion) {
                                                             contiguous.past_key_sequence_dims,
                                                             contiguous.past_value_sequence_dims);
 
-    ASSERT_TRUE(result.has_value())
-        << "process_pyramid_model should succeed after i8 KV cache conversion";
+    ASSERT_TRUE(result.has_value()) << "process_pyramid_model should succeed after i8 KV cache conversion";
 }
 
 TEST(PyramidAttentionTest, ProcessPyramidModelI8IncludesDQParamsInAttentionInputs) {
@@ -667,15 +670,17 @@ TEST(PyramidAttentionTest, DebugBlockModeTransformation) {
         const auto& name = param->get_friendly_name();
         if (name.find("_block_") != std::string::npos) {
             block_params++;
-            if (name.find("_block_0") != std::string::npos) found_block_0 = true;
-            if (name.find("_block_tail") != std::string::npos) found_block_tail = true;
+            if (name.find("_block_0") != std::string::npos)
+                found_block_0 = true;
+            if (name.find("_block_tail") != std::string::npos)
+                found_block_tail = true;
         }
     }
-    
+
     EXPECT_TRUE(found_block_0) << "Block 0 parameters not found after split";
     EXPECT_TRUE(found_block_tail) << "Block tail parameters not found after split";
     EXPECT_GE(block_params, 4u) << "Expected at least 4 block params (2 keys + 2 values), got " << block_params;
-    
+
     // Verify that original contiguous parameters were removed
     for (const auto& param : block_model->get_parameters()) {
         const auto& name = param->get_friendly_name();
@@ -696,7 +701,7 @@ TEST(PyramidAttentionTest, ValidateSucceedsOnBlockModeModel) {
 
     // After block split, model should validate and return PyramidValidationBlockResult
     auto result = ov::npuw::function::validate_and_setup_pyramid_attention(block_model);
-    
+
     ASSERT_TRUE(result.has_value());
     const auto& block_result = get_block_result(*result);
     EXPECT_TRUE(block_result.is_valid());
@@ -716,6 +721,58 @@ TEST(PyramidAttentionTest, ValidateExtractsCorrectBlockIndicesForSingleLayer) {
     const auto& block_result = get_block_result(*result);
     EXPECT_EQ(block_result.past_key_block_global_param_indices.size(), 1u);
     EXPECT_EQ(block_result.past_value_block_global_param_indices.size(), 1u);
+}
+
+// Regression test using real production values (query=1024, past_kv=3072, step=1024,
+// 4 models): a regression to full_past_kv_length=0 would make every context length below
+// wrong (too large), mis-sizing the tile models fed to the device.
+TEST(PyramidAttentionTest, ProcessBlockModeMatchesReportedProductionScenario) {
+    AttentionModelConfig cfg;
+    cfg.query_len = 1024;
+    cfg.past_len = 3072;
+    auto model = build_isolated_attention_model(cfg);
+
+    const uint32_t kv_step = 1024;
+    auto block_model = apply_split_kvcache_into_blocks(model, kv_step);
+
+    auto validation = ov::npuw::function::validate_and_setup_pyramid_attention(block_model);
+    ASSERT_TRUE(validation.has_value());
+    const auto& block_result = get_block_result(*validation);
+    ASSERT_EQ(block_result.past_key_block_global_param_indices.size(), 3u);
+    ASSERT_EQ(block_result.past_value_block_global_param_indices.size(), 3u);
+    EXPECT_EQ(block_result.query_length, 1024u);
+    EXPECT_EQ(block_result.full_context_length, 4096u);
+    EXPECT_EQ(block_result.past_kv_length, 3072u);
+
+    const size_t pyramid_step = 1024;
+    const size_t num_models = block_result.full_context_length / pyramid_step;
+    ASSERT_EQ(num_models, 4u);
+
+    const std::vector<size_t> expected_context_lengths = {1024u, 2048u, 3072u};
+    for (size_t model_idx = 0; model_idx < num_models - 1; ++model_idx) {
+        auto result = ov::npuw::function::process_pyramid_model(block_model,
+                                                                model_idx,
+                                                                pyramid_step,
+                                                                block_result.query_length,
+                                                                block_result.past_kv_length,
+                                                                block_result.full_context_length,
+                                                                {},
+                                                                {},
+                                                                true);
+        ASSERT_TRUE(result.has_value()) << "Failed to process pyramid model " << model_idx;
+        EXPECT_EQ(result->attention.context_len(), expected_context_lengths[model_idx])
+            << "Unexpected context length for model " << model_idx;
+    }
+
+    // End-to-end check: PyramidAttention::from() must reproduce the same context lengths.
+    auto pyramid = ov::npuw::function::PyramidAttention::from(block_model);
+    ASSERT_TRUE(pyramid.has_value());
+    ASSERT_EQ(pyramid->num_models(), num_models);
+    for (size_t model_idx = 0; model_idx < num_models - 1; ++model_idx) {
+        EXPECT_EQ(pyramid->_attentions[model_idx].context_len(), expected_context_lengths[model_idx])
+            << "Unexpected context length for model " << model_idx;
+    }
+    EXPECT_EQ(pyramid->_attentions.back().context_len(), block_result.full_context_length);
 }
 
 TEST(PyramidAttentionTest, ProcessPyramidModelSucceedsForBlockModePrefillCase) {
@@ -820,6 +877,350 @@ TEST(PyramidAttentionTest, ProcessBlockModePyramidModelsProducesGrowingContextLe
     for (size_t i = 1; i < context_lengths.size(); ++i) {
         EXPECT_GT(context_lengths[i], context_lengths[i - 1])
             << "Context length at index " << i << " should be greater than at " << (i - 1);
+    }
+}
+
+// --- Security regression tests: CWE-125 OOB read via attacker-controlled mask_idx ---
+// Regression for: deserialized pyramid attention port indices must be validated against
+// the compiled model's inputs().size() before use as vector subscripts.
+//
+// Each test below goes through the same production code path used in attn_subgraph.cpp:
+//   export: orc::serialize(Stream::writer, PyramidAttentionContiguous)
+//   import: make_pyramid_from_stream(Stream::reader, tag)  <- same call as attn_subgraph.cpp:1185
+//   attach models, then call validate_port_indices() <- same call added to attn_subgraph.cpp
+
+namespace {
+
+// Minimal IPlugin stub needed to construct an ICompiledModel.
+class NullPluginStub final : public ov::IPlugin {
+public:
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
+        return {};
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&, const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override {
+        return {};
+    }
+};
+
+// Minimal ICompiledModel stub that exposes the inputs of the wrapped ov::Model.
+class StubCompiledModel final : public ov::ICompiledModel {
+public:
+    StubCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::ICompiledModel(model, plugin) {}
+
+    void export_model(std::ostream&) const override {}
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        return nullptr;
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        return nullptr;
+    }
+};
+
+// Build a simple model with n_inputs parameters and return a compiled stub.
+ov::SoPtr<ov::ICompiledModel> make_stub_model(size_t n_inputs, const std::shared_ptr<const ov::IPlugin>& plugin) {
+    ov::ParameterVector params;
+    for (size_t i = 0; i < n_inputs; ++i) {
+        auto p = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        p->set_friendly_name("input_" + std::to_string(i));
+        p->output(0).get_tensor().set_names({"input_" + std::to_string(i)});
+        params.push_back(p);
+    }
+    auto result = std::make_shared<ov::op::v0::Result>(params[0]);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, params);
+    return {std::make_shared<StubCompiledModel>(model, plugin), {}};
+}
+
+template <typename Pyramid>
+std::shared_ptr<ov::npuw::compiled::PyramidAttention> import_pyramid_from_stream(Pyramid& src, uint8_t tag) {
+    std::stringstream ss(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        auto wstream = ov::npuw::orc::Stream::writer(ss);
+        wstream & tag;
+        ov::npuw::orc::serialize(wstream, src);
+    }
+    ss.seekg(0);
+    auto rstream = ov::npuw::orc::Stream::reader(ss);
+    uint8_t read_tag = 0u;
+    rstream & read_tag;
+    return ov::npuw::orc::make_pyramid_from_stream(rstream, read_tag);
+}
+
+void attach_compiled_models(std::shared_ptr<ov::npuw::compiled::PyramidAttention> pyramid,
+                            std::initializer_list<size_t> model_input_sizes,
+                            const std::shared_ptr<const ov::IPlugin>& plugin) {
+    pyramid->_compiled_models.clear();
+    for (const auto input_size : model_input_sizes) {
+        pyramid->_compiled_models.push_back(make_stub_model(input_size, plugin));
+    }
+}
+
+template <typename Pyramid>
+void expect_invalid_port_indices_rejected(Pyramid& src,
+                                          uint8_t tag,
+                                          std::initializer_list<size_t> model_input_sizes,
+                                          const std::string& case_name) {
+    SCOPED_TRACE(case_name);
+    auto pyramid = import_pyramid_from_stream(src, tag);
+    ASSERT_NE(pyramid, nullptr);
+
+    auto plugin = std::make_shared<NullPluginStub>();
+    attach_compiled_models(pyramid, model_input_sizes, plugin);
+    EXPECT_THROW(pyramid->validate_port_indices(), ov::Exception);
+}
+
+}  // namespace
+
+TEST(PyramidAttentionTest, ValidPortIndicesPassValidation) {
+    ov::npuw::compiled::PyramidAttentionContiguous src;
+    src.query_size = 1;
+    src.full_context_size = 64;
+    src._context_lengths = {64};
+    ov::npuw::compiled::PyramidAttentionContiguousInfo info;
+    info.mask_idx_local = 2;
+    info.params = {{1, 0}};
+    src._attention_infos = {info};
+
+    auto pyramid = import_pyramid_from_stream(src, 0u);
+    ASSERT_NE(pyramid, nullptr);
+
+    auto plugin = std::make_shared<NullPluginStub>();
+    pyramid->_compiled_models = {make_stub_model(5, plugin)};
+
+    EXPECT_NO_THROW(pyramid->validate_port_indices());
+}
+
+TEST(PyramidAttentionTest, MalformedSerializedPyramidStateIsRejectedOnDeserialize) {
+    using ContigInfo = ov::npuw::compiled::PyramidAttentionContiguousInfo;
+
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto stub_model = make_stub_model(3, plugin);
+
+    auto src = std::make_shared<ov::npuw::compiled::PyramidAttentionContiguous>();
+    src->query_size = 1;
+    src->full_context_size = 64;
+    src->_context_lengths = {64};
+    ContigInfo info;
+    info.mask_idx_local = 0xFF;
+    src->_attention_infos = {info};
+    src->_compiled_models = {stub_model};
+
+    ov::npuw::v1::subgraphs::Context serialized_context;
+    ov::npuw::attn::put_compiled_pyramid(serialized_context, src);
+
+    std::stringstream ss(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        auto stream = ov::npuw::s11n::Stream::writer(ss);
+        ov::npuw::attn::serialize_compiled_state(serialized_context, stream, nullptr);
+    }
+
+    ss.seekg(0);
+    ov::npuw::v1::subgraphs::Context restored_context;
+    auto imported_model = make_stub_model(3, plugin);
+    ov::npuw::s11n::SubmodelDeserializeCtx submodel_ctx(plugin, "CPU", imported_model);
+
+    {
+        auto stream = ov::npuw::s11n::Stream::reader(ss);
+        EXPECT_THROW(ov::npuw::attn::serialize_compiled_state(restored_context, stream, &submodel_ctx), ov::Exception)
+            << "Malformed serialized pyramid attention metadata must be rejected during deserialization";
+    }
+}
+
+TEST(PyramidAttentionTest, ZeroModelPyramidStateIsRejectedOnDeserialize) {
+    using ContigInfo = ov::npuw::compiled::PyramidAttentionContiguousInfo;
+
+    // Craft a malformed serialized state directly so we test only deserialize-time
+    // validation (num_models == 0 with non-empty attention metadata).
+    ov::npuw::compiled::PyramidAttentionContiguous src;
+    src.query_size = 1;
+    src.full_context_size = 64;
+    src._context_lengths = {64};
+    ContigInfo info;
+    info.mask_idx_local = 0;
+    src._attention_infos = {info};
+
+    std::stringstream ss(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        auto stream = ov::npuw::s11n::Stream::writer(ss);
+
+        std::optional<ov::npuw::compiled::Attention> dynamic;
+        stream & dynamic;
+
+        bool has_pyramid = true;
+        stream & has_pyramid;
+        uint8_t tag = 0u;
+        stream & tag;
+        ov::npuw::orc::serialize(stream, src);
+
+        size_t num_models = 0;
+        stream & num_models;
+
+        std::optional<ov::npuw::compiled::HostFlashAttention> hfa;
+        stream & hfa;
+    }
+
+    ss.seekg(0);
+    ov::npuw::v1::subgraphs::Context restored_context;
+    {
+        auto stream = ov::npuw::s11n::Stream::reader(ss);
+        try {
+            ov::npuw::attn::serialize_compiled_state(restored_context, stream, nullptr);
+            FAIL() << "Pyramid metadata with num_models == 0 must be rejected during deserialization";
+        } catch (const ov::Exception& ex) {
+            const std::string msg = ex.what();
+            EXPECT_NE(msg.find("pyramid attention info count"), std::string::npos)
+                << "Expected validate_port_indices info-count mismatch, got: " << msg;
+        }
+    }
+}
+
+TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
+    using ContigInfo = ov::npuw::compiled::PyramidAttentionContiguousInfo;
+    using BlockInfo = ov::npuw::compiled::PyramidAttentionBlockInfo;
+
+    {
+        ov::npuw::compiled::PyramidAttentionContiguous src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        ContigInfo info;
+        info.mask_idx_local = 0xFF;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 0u, {3}, "mask_idx out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionContiguous src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        ContigInfo info;
+        info.mask_idx_local = 0;
+        info.params = {{0xFFFFFFFF, 0}};
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 0u, {3}, "param idx out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        BlockInfo info;
+        info.mask_idx_local = 0xFF;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block mask idx out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0, 1};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block global key/value length mismatch");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {7};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block key global idx out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {7};
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block value global idx out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+
+        auto pyramid = import_pyramid_from_stream(src, 1u);
+        ASSERT_NE(pyramid, nullptr);
+
+        // Keep model count aligned with _attention_infos, but make the main model null.
+        pyramid->_compiled_models = {ov::SoPtr<ov::ICompiledModel>{}};
+        EXPECT_THROW(pyramid->validate_port_indices(), ov::Exception);
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionContiguous src;
+        src.query_size = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        ContigInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+        // Model count mismatches the serialized attention info count.
+        auto pyramid = import_pyramid_from_stream(src, 0u);
+        ASSERT_NE(pyramid, nullptr);
+
+        auto plugin = std::make_shared<NullPluginStub>();
+        pyramid->_compiled_models = {make_stub_model(3, plugin), make_stub_model(3, plugin)};
+        EXPECT_THROW(pyramid->validate_port_indices(), ov::Exception);
     }
 }
 

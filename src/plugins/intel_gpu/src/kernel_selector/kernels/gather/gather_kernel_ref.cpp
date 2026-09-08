@@ -43,6 +43,7 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT4);
     k.EnableInputDataType(Datatype::INT4);
+    k.EnableInputDataType(Datatype::F8E4M3);
 
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::BF16);
@@ -50,6 +51,7 @@ ParamsKey GatherKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
+    k.EnableOutputDataType(Datatype::F8E4M3);
 
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
@@ -249,6 +251,10 @@ CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) cons
 
 JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
+
+    // Flag fp8 input so the kernel copies the byte instead of running ACTIVATION on the fp8 struct
+    // (see gather_ref.cl).
+    jit.AddConstant(MakeJitConstant("INPUT0_IS_F8E4M3", params.inputs[0].GetDType() == Datatype::F8E4M3));
 
     jit.AddConstant(MakeJitConstant("DICTIONARY_INDEX_ORDER", GetDictionaryIndexOrder(params, GetGatherChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("INDICES_INDEX_ORDER", GetIndicesIdxOrder(params, GetGatherChannelIndex(params), GetGatherBatchDim(params))));
