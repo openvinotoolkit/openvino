@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_GPU_MLIR
+#ifdef ENABLE_MLIR_FOR_GPU
 
 #    include "intel_gpu/op/mlir_op.hpp"
 
@@ -39,4 +39,4 @@ REGISTER_FACTORY_IMPL(internal, MLIR);
 
 }  // namespace ov::intel_gpu
 
-#endif  // ENABLE_GPU_MLIR
+#endif  // ENABLE_MLIR_FOR_GPU

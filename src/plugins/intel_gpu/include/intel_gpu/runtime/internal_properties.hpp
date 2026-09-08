@@ -141,7 +141,7 @@ static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_l
  * @brief Enables MLIR-based Graph Compiler execution for supported subgraphs.
  * When on, matching subgraphs (matmul, elementwise, SDPA, reduction, etc.) are compiled through the
  * MLIR/Graph-Compiler pipeline and executed as a single fused GPU kernel via cldnn::mlir_primitive.
- * Requires the plugin to be built with -DENABLE_GPU_MLIR=ON; setting this to true on a plugin built
+ * Requires the plugin to be built with -DENABLE_MLIR_FOR_GPU=ON; setting this to true on a plugin built
  * without Graph Compiler support raises an exception at compile_model() time.
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_mlir{"GPU_ENABLE_MLIR"};

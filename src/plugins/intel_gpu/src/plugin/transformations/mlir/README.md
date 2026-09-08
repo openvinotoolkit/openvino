@@ -1,7 +1,7 @@
 # MLIR execution path: sources layout
 
 This folder holds every MLIR / Graph-Compiler dependent source of the GPU plugin. It is compiled into a
-dedicated `openvino_intel_gpu_mlir_obj` OBJECT library (only when `-DENABLE_GPU_MLIR=ON`), which is the single
+dedicated `openvino_intel_gpu_mlir_obj` OBJECT library (only when `-DENABLE_MLIR_FOR_GPU=ON`), which is the single
 place in the plugin allowed to include `mlir/*.h` and `gc/*.h`; the library is then linked into the plugin.
 
 For *what* this path does and how it fits the plugin, see
@@ -26,7 +26,7 @@ the GPU transformation pipeline.
    [common/README.md](common/README.md).
 2. Add a matcher pattern under `conversion/` that binds the new converter to the matched node, and register that
    pattern in the pass list built by `transformMLIR()`.
-3. Add a functional test under `tests/functional/mlir_op/` (built only with `ENABLE_GPU_MLIR=ON`).
+3. Add a functional test under `tests/functional/mlir_op/` (built only with `ENABLE_MLIR_FOR_GPU=ON`).
 
 Note that being *supported* and being *enabled by default* are different things: the set of patterns applied by
 default is narrow and can be overridden with the `OV_MLIR_PATTERNS` env variable
