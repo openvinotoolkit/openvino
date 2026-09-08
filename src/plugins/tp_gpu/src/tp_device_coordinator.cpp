@@ -123,6 +123,41 @@ const std::shared_ptr<ov::ZeroApi>& ze_api() {
 // the reduce kernel.
 constexpr std::size_t kRingAlignElems = 128;
 
+// Payload ceiling for recursive halving, in bytes (TP_HALVING_MAX_BYTES).
+//
+// Halving and the ring move the same 1.5*S per rank, but they place it
+// differently: the ring sends one way around the loop, so every link carries
+// one transfer, while halving has both partners of a pair pushing at each
+// other across the same link at once.  At decode sizes that costs nothing and
+// the two saved round trips dominate; at prompt sizes it measured 128 ms to
+// first token against the ring's 90.  So the schedule is chosen by payload,
+// which is also where the two algorithms genuinely differ: latency-bound
+// versus bandwidth-bound.
+std::size_t tp_halving_max_bytes() {
+    static const std::size_t n = [] {
+        if (const char* v = std::getenv("TP_HALVING_MAX_BYTES")) {
+            const long long x = std::atoll(v);
+            if (x >= 0) {
+                return static_cast<std::size_t>(x);
+            }
+        }
+        return static_cast<std::size_t>(256 * 1024);
+    }();
+    return n;
+}
+
+// Whether a power-of-two world uses recursive halving/doubling instead of the
+// ring (TP_HALVING=0 falls back to the ring).  On by default: at decode sizes
+// it holds the queue for 17.9 us against the ring's 26.0, and the payload
+// ceiling above keeps it away from the sizes where the ring wins.
+bool tp_halving() {
+    static const bool on = [] {
+        const char* v = std::getenv("TP_HALVING");
+        return v == nullptr || std::atoi(v) != 0;
+    }();
+    return on;
+}
+
 // Elements folded by one work item of the reduce kernel; must match TP_VEC in
 // kernels/allreduce_sum.cl.
 constexpr std::size_t kElemsPerItem = 8;
@@ -801,6 +836,60 @@ void* TPDeviceCoordinator::ring_slot(int rank, int chunk, int buffer) const {
     return base + slot * m_scratch.chunk_capacity_bytes;
 }
 
+// Where the payload splits at one level of the recursion.  Both partners
+// compute this from the same range, so they always agree on who keeps which
+// half.  The boundary is snapped down to the kernel's alignment for the same
+// reason ring_chunk snaps: a source pointer that is not naturally aligned
+// corrupts a handful of elements at the head of the range.  A range shorter
+// than one alignment unit collapses to an empty half, which the schedule
+// handles by signalling the step without moving anything.
+std::size_t halving_mid(std::size_t lo, std::size_t hi) {
+    const std::size_t align = kRingAlignElems;
+    if (hi <= lo) {
+        return lo;
+    }
+    std::size_t mid = lo + (hi - lo) / 2;
+    mid = (mid / align) * align;
+    if (mid < lo) {
+        mid = lo;
+    }
+    if (mid > hi) {
+        mid = hi;
+    }
+    return mid;
+}
+
+void TPDeviceCoordinator::halving_range(std::size_t n, int rank, int level,
+                                        std::size_t& lo, std::size_t& hi) const {
+    lo = 0;
+    hi = n;
+    for (int j = 0; j < level; ++j) {
+        const std::size_t mid = halving_mid(lo, hi);
+        if (((static_cast<unsigned>(rank) >> j) & 1u) != 0u) {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+}
+
+void* TPDeviceCoordinator::halving_stage(int rank, int step, int buffer) const {
+    // The steps take half as much as the one before, so laying them end to
+    // end costs less than one payload -- which is what the ring arena already
+    // reserves per buffer.
+    std::size_t offset = 0;
+    std::size_t size = m_scratch.payload_capacity_bytes;
+    for (int j = 0; j < step; ++j) {
+        size = (size + 1) / 2;
+        offset += align_up(size, 256);
+    }
+    const std::size_t region =
+        static_cast<std::size_t>(m_world_size) * m_scratch.chunk_capacity_bytes;
+    OPENVINO_ASSERT(offset + align_up((size + 1) / 2, 256) <= region,
+                    "[TP][L0] halving staging does not fit the ring arena");
+    return static_cast<uint8_t*>(ring_slot(rank, 0, buffer)) + offset;
+}
+
 void TPDeviceCoordinator::create_plan_events(Plan& plan) {
     auto ctx = m_shared->context;
     const int N = m_world_size;
@@ -1177,6 +1266,136 @@ void TPDeviceCoordinator::record_ring_rank(Plan& plan, int r) {
     close_list(list);
 }
 
+void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
+    constexpr uint32_t kGroupSize = 256;
+    const int N = m_world_size;
+    const std::size_t n = plan.n;
+    const std::size_t elem = plan.dtype.size();
+    OPENVINO_ASSERT(n > 0, "[TP][L0] halving requires a non-empty payload");
+
+    int levels = 0;
+    while ((1 << levels) < N) {
+        ++levels;
+    }
+    OPENVINO_ASSERT((1 << levels) == N, "[TP][L0] halving requires a power-of-two world size");
+
+    // Steps are numbered 0..2*levels-1: the first half scatters, the second
+    // gathers.  ev(step, who) is signalled by `who` and waited on by its
+    // partner at that step, so every event has exactly one waiter.
+    auto ev = [&](int step, int who) -> ze_event_handle_t {
+        return plan.ev_ring[static_cast<std::size_t>(step) * static_cast<std::size_t>(N) +
+                            static_cast<std::size_t>(who)];
+    };
+    auto byte_at = [elem](void* base, std::size_t offset_elems) -> void* {
+        return static_cast<uint8_t*>(base) + offset_elems * elem;
+    };
+    auto order = [&](ze_command_list_handle_t list) {
+        if (!m_ring_in_order) {
+            ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
+        }
+    };
+
+    auto& self = m_ranks[r];
+    ze_command_list_handle_t list = plan.compute_lists[r];
+    ze_kernel_handle_t kernel =
+        (plan.dtype == ov::element::f16) ? self.kernel_f16 : self.kernel_f32;
+    ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, kGroupSize, 1, 1));
+
+    // ---- Scatter: levels steps, each moving half of what is left ----
+    for (int j = 0; j < levels; ++j) {
+        const int partner = r ^ (1 << j);
+        std::size_t lo = 0, hi = 0;
+        halving_range(n, r, j, lo, hi);
+        const std::size_t mid = halving_mid(lo, hi);
+        const bool keep_upper = ((static_cast<unsigned>(r) >> j) & 1u) != 0u;
+        const std::size_t keep_lo = keep_upper ? mid : lo;
+        const std::size_t keep_hi = keep_upper ? hi : mid;
+        const std::size_t send_lo = keep_upper ? lo : mid;
+        const std::size_t send_hi = keep_upper ? mid : hi;
+
+        // At the first step our contribution is still the untouched input;
+        // afterwards it is the partial sum the previous step left behind.
+        void* mine = (j == 0) ? plan.in_ptrs[r] : plan.out_ptrs[r];
+
+        if (send_hi > send_lo) {
+            // The partner keeps this half, so it lands in the partner's
+            // staging for this step.  It goes at the start of that region,
+            // not at the offset it occupies in the payload: the region is
+            // only as large as one half, and the receiving kernel reads it
+            // from the start too.  Starting at the region base also keeps
+            // the source naturally aligned, which the vectorized kernel
+            // needs.
+            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
+                list,
+                halving_stage(partner, j, plan.buffer),
+                byte_at(mine, send_lo),
+                (send_hi - send_lo) * elem,
+                ev(j, r),
+                0, nullptr));
+        } else {
+            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(j, r)));
+        }
+
+        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &plan.ev_ring[
+            static_cast<std::size_t>(j) * static_cast<std::size_t>(N) +
+            static_cast<std::size_t>(partner)]));
+
+        if (keep_hi > keep_lo) {
+            void* dst  = byte_at(plan.out_ptrs[r], keep_lo);
+            void* src0 = byte_at(mine, keep_lo);
+            void* src1 = halving_stage(r, j, plan.buffer);
+            uint64_t cnt = keep_hi - keep_lo;
+            ze_group_count_t gc{launch_groups(keep_hi - keep_lo, kGroupSize), 1, 1};
+            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
+            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
+            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
+            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(cnt), &cnt));
+            ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(list, kernel, &gc, nullptr, 0, nullptr));
+        }
+        // Nothing but a barrier orders a kernel before the copy that reads
+        // what it wrote; the waits order everything else.
+        order(list);
+    }
+
+    // ---- Gather: the same partners in reverse, writing into their output ----
+    // Each rank owns a distinct range, so the writers never overlap and no
+    // staging -- and no local delivery copy -- is needed at all.
+    for (int j = levels - 1; j >= 0; --j) {
+        const int partner = r ^ (1 << j);
+        const int step = 2 * levels - 1 - j;
+        std::size_t lo = 0, hi = 0;
+        halving_range(n, r, j + 1, lo, hi);
+
+        if (hi > lo) {
+            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
+                list,
+                byte_at(plan.out_ptrs[partner], lo),
+                byte_at(plan.out_ptrs[r], lo),
+                (hi - lo) * elem,
+                ev(step, r),
+                0, nullptr));
+        } else {
+            ZE_THROW(ze_api()->zeCommandListAppendSignalEvent(list, ev(step, r)));
+        }
+
+        // Waiting here also orders the next step's send, which reads the
+        // range the partner has just filled in.
+        ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(list, 1, &plan.ev_ring[
+            static_cast<std::size_t>(step) * static_cast<std::size_t>(N) +
+            static_cast<std::size_t>(partner)]));
+    }
+
+    if (use_device_event_reset()) {
+        order(list);
+        for (int step = 0; step < 2 * levels; ++step) {
+            const int j = (step < levels) ? step : (2 * levels - 1 - step);
+            ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(step, r ^ (1 << j))));
+        }
+    }
+
+    close_list(list);
+}
+
 void TPDeviceCoordinator::close_list(ze_command_list_handle_t list) {
     const auto t0 = std::chrono::steady_clock::now();
     ZE_THROW(ze_api()->zeCommandListClose(list));
@@ -1252,7 +1471,16 @@ void TPDeviceCoordinator::record_rank(Plan& plan, int rank) {
     const auto t2 = rec_clk::now();
 
     if (m_use_ring) {
-        record_ring_rank(plan, rank);
+        // Halving needs the world to be a power of two; anything else stays
+        // on the ring, which has no such requirement.  Large payloads stay on
+        // the ring too -- see tp_halving_max_bytes().
+        const bool power_of_two = (m_world_size & (m_world_size - 1)) == 0;
+        const std::size_t payload = plan.n * plan.dtype.size();
+        if (tp_halving() && power_of_two && payload <= tp_halving_max_bytes()) {
+            record_halving_rank(plan, rank);
+        } else {
+            record_ring_rank(plan, rank);
+        }
     } else {
         record_pair_rank(plan, rank);
     }
