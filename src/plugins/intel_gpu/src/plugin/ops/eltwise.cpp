@@ -170,8 +170,9 @@ static void CreatePowerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::P
         if (ov::shape_size(power_node->get_output_shape(0)) == 1 &&
             op->get_input_partial_shape(0).same_scheme(op->get_output_partial_shape(0))) {
             float pow;
-            if (!ov::op::util::get_single_value(power_node, pow))
+            if (!ov::op::util::get_single_value(power_node, pow)) {
                 OPENVINO_THROW("Invalid parameter size in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
+            }
             CreateUnaryEltwiseOp(p, op, cldnn::activation_func::pow, {pow});
             return;
         }

@@ -32,20 +32,25 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
         int32_t batch_a = batch_axis;
         int32_t seq_a = seq_axis;
 
-        if (batch_a < 0)
+        if (batch_a < 0) {
             batch_a += number_of_dims;
+        }
 
-        if (seq_a < 0)
+        if (seq_a < 0) {
             seq_a += number_of_dims;
+        }
 
-        if (batch_a == seq_a)
+        if (batch_a == seq_a) {
             throw std::runtime_error("Batch axis and sequence axis should not be equal\n");
+        }
 
-        if (batch_a < 0 || batch_a >= number_of_dims)
+        if (batch_a < 0 || batch_a >= number_of_dims) {
             throw std::runtime_error("Incorrect batch axis value! Actual axis is" + std::to_string(batch_a));
+        }
 
-        if (seq_a < 0 || seq_a >= number_of_dims)
+        if (seq_a < 0 || seq_a >= number_of_dims) {
             throw std::runtime_error("Incorrect sequence axis value! Actual axis is" + std::to_string(seq_a));
+        }
     }
 
     /// @brief The axis which is partially reversed.
@@ -61,8 +66,9 @@ struct reverse_sequence : public primitive_base<reverse_sequence> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const reverse_sequence>(rhs);
 
