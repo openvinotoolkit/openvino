@@ -4720,13 +4720,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_i4kv_sliding_window_cache) {
 // last 2 f8 rows + the new token, tail zeroed. Runs on CPU and GPU (both now have an f8e4m3 Gather
 // kernel for the windowed present assembly).
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_f8e4m3fnkv_sliding_window_cache) {
-    // TEMPLATE hits a pre-existing shape-inference quirk on this fully-static graph ("to_shape was
-    // called on a dynamic shape"), the same class of INTERPRETER-only issue documented on
-    // onnx_model_gqa_sliding_window_cache_static_staging below; verified correct on CPU/GPU.
-    if (s_device == ov::test::utils::DEVICE_TEMPLATE) {
-        GTEST_SKIP() << "TEMPLATE hits a pre-existing dynamic-shape quirk on this fully-static "
-                        "f8e4m3 windowed-cache graph; verified correct on CPU/GPU. Needs follow-up.";
-    }
     auto model = convert_model("com.microsoft/gqa_f8e4m3fnkv_swc.onnx");
     model->reshape({{"query", ov::PartialShape{1, 1, 64}},
                     {"past_key", ov::PartialShape{1, 1, 4, 16}},
@@ -5998,20 +5991,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache) {
 // so end_after=3 and the in-place kept=end_after-S=-3 is invalid. Dynamic query seqlen routes into the
 // staging branch (a static S>1 is rejected at import). Reference is a NumPy port of the ORT windowed attention.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging) {
-    // On GPU the present cache comes back zeroed (attention output is correct); verified numerically exact on
-    // CPU/INTERPRETER. The failure only reproduces in the full staging graph - the isolated present-write
-    // subgraph (windowed_cache_end + Range + Slice + ScatterUpdate) lowers correctly on GPU on its own - so it
-    // is a GPU-plugin issue in the assembled dynamic graph, not a decomposition bug. Because the staging branch
-    // is chosen from the query's declared shape rather than its runtime length, a DYNAMIC-shape decode step
-    // (S==1 every call - see onnx_model_gqa_sliding_window_cache_bias below) hits this too, not only a genuine
-    // multi-token overflow: this regresses vs. the pre-staging in-place path, which GPU lowered correctly even
-    // under a dynamic shape (onnx_model_gqa_sliding_window_cache_bias_static exercises that same math via the
-    // statically-shaped decode path and passes on GPU). Parking this for the GPU plugin team / a follow-up PR.
-    if (s_device == ov::test::utils::DEVICE_GPU) {
-        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph (incl. plain dynamic-shape "
-                        "decode, not just multi-token overflow); verified correct on CPU/INTERPRETER. Parking "
-                        "this for the GPU plugin team / a follow-up PR.";
-    }
     auto model = convert_model("com.microsoft/gqa_sliding_window_cache.onnx");
     // Query seqlen stays dynamic (static S>1 is rejected); the concrete S=6 is supplied at inference.
     model->reshape({{"query", ov::PartialShape{1, -1, 64}},
@@ -6125,21 +6104,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging) {
 // the FE conversion-time path directly. The decomposition picks the staging vs. in-place branch from the
 // runtime past/total length, not static-ness of S, so results must be byte-identical to the dynamic version.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_static_staging) {
-    // Same pre-existing GPU present-cache-zeroing bug as onnx_model_gqa_sliding_window_cache_staging above
-    // (this takes the identical staging branch) - fixed on the gqa_fixes branch / GPU PR #37659, not yet
-    // present here. Drop this skip once that fix lands on this branch.
-    if (s_device == ov::test::utils::DEVICE_GPU) {
-        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph; verified correct on "
-                        "CPU/INTERPRETER. Fixed on gqa_fixes / GPU PR #37659, not yet on this branch.";
-    }
-    // INTERPRETER returns present_key/present_value with shape [0] instead of [1,1,4,16] on this fully-static
-    // staging graph, while CPU matches expected values exactly - a template-backend constant-folding quirk in
-    // this backend, not a decomposition bug. Needs follow-up; not blocking.
-    if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
-        GTEST_SKIP() << "INTERPRETER computes present_key/present_value as shape [0] on this fully-static "
-                        "staging graph; verified correct on CPU (exact expected-value match). Likely a "
-                        "template-backend constant-folding quirk, not a decomposition bug. Needs follow-up.";
-    }
     auto model = convert_model("com.microsoft/gqa_sliding_window_cache_static_staging.onnx");
     model->reshape({{"past_key", ov::PartialShape{1, 1, 4, 16}},
                     {"past_value", ov::PartialShape{1, 1, 4, 16}},
@@ -6251,10 +6215,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_static_stagin
 // C=4 / W=2 crossing-eviction step as above; verifies the quant round-trip is preserved through staging.
 // Reference from a NumPy port of the ORT windowed attention with matching symmetric i8 quant (scale 0.05).
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging_i8) {
-    if (s_device == ov::test::utils::DEVICE_GPU) {
-        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph; verified correct on "
-                        "CPU/INTERPRETER. Parking this for the GPU plugin team / a follow-up PR.";
-    }
     auto model = convert_model("com.microsoft/gqa_i8kv_swc.onnx");
     model->reshape({{"query", ov::PartialShape{1, -1, 64}},
                     {"past_key", ov::PartialShape{1, 1, 4, 16}},
@@ -6360,12 +6320,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_staging_i8) {
 // evicted, resident=2, so the bias column offset is 3 (nonzero) - the case that would misalign without the
 // fix. Reference from a NumPy port of the ORT windowed attention with the bias added on top of the mask.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_bias) {
-    if (s_device == ov::test::utils::DEVICE_GPU) {
-        GTEST_SKIP() << "GPU zeroes the staging present cache for this dynamic-shape decode step (S==1, not "
-                        "an overflow - see onnx_model_gqa_sliding_window_cache_bias_static for the equivalent "
-                        "statically-shaped decode, which passes on GPU); verified correct on CPU/INTERPRETER. "
-                        "Parking this for the GPU plugin team / a follow-up PR.";
-    }
     auto model = convert_model("com.microsoft/gqa_swc_bias.onnx");
     model->reshape({{"query", ov::PartialShape{1, -1, 64}},
                     {"past_key", ov::PartialShape{1, 1, 4, 16}},
@@ -6550,10 +6504,6 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_bias_static) 
 // bias is sliced from offset 3. Covers the bias-alignment offset on the staging branch (distinct from the
 // decode branch above). Reference from a NumPy port of the ORT windowed attention.
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_sliding_window_cache_bias_staging) {
-    if (s_device == ov::test::utils::DEVICE_GPU) {
-        GTEST_SKIP() << "GPU zeroes the staging present cache in the full graph; verified correct on "
-                        "CPU/INTERPRETER. Parking this for the GPU plugin team / a follow-up PR.";
-    }
     auto model = convert_model("com.microsoft/gqa_swc_bias.onnx");
     model->reshape({{"query", ov::PartialShape{1, -1, 64}},
                     {"past_key", ov::PartialShape{1, 1, 4, 16}},

@@ -43,18 +43,21 @@ enum class LossyWeightApproximation {
 // the approximation is actually PERFORMED, not where its parameters are queried.
 void notify_lossy_weight_approximation(LossyWeightApproximation kind);
 
-// Build the OpenVINO node for a GGUF weight with base name `base` (the tensor name without
-// the trailing ".weight", e.g. "blk.0.attn_q" or "token_embd"). Quantized weights become a
+// The tensors extracted from one GGUF weight. `scales` and `zero_point` are empty for formats
+// that do not use them.
+struct WeightTensors {
+    ov::Tensor weight;
+    ov::Tensor scales;
+    ov::Tensor zero_point;
+};
+
+// Build the OpenVINO node for one extracted GGUF weight. Quantized weights become a
 // low-bitness compressed subgraph (u4/u8 weights + zero-point + f16 scale, Convert ->
 // Subtract -> Multiply -> Reshape), matching what the cgraph path produces; F16/F32 weights
 // become a plain Constant. The returned node's output is f32 and feeds the translators.
-//
-// `weights` holds the parser output (tensors by gguf name; quantized tensors expanded to
-// "<base>.weight" + "<base>.scales" + "<base>.biases"). `qtypes` maps "<base>.qtype" ->
-// GgufTensorType.
-std::shared_ptr<ov::Node> make_weight_node(const std::string& base,
-                                           const std::unordered_map<std::string, ov::Tensor>& weights,
-                                           const std::unordered_map<std::string, GgufTensorType>& qtypes);
+std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
+                                           GgufTensorType qtype,
+                                           const std::string& name = "weight");
 
 // Build the OpenVINO weight node directly from the raw GGUF weight bytes, as provided by a
 // decoder (e.g. wrapping llama.cpp's tensor->data). `data` holds the bytes exactly as ggml
@@ -75,18 +78,16 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
 // Map a ggml quant type name (e.g. "Q4_K") to its GgufTensorType id. Throws if unknown.
 GgufTensorType gguf_type_from_name(const std::string& quant_type);
 
-// One split part of a fused attn_qkv weight: the extracted tensors keyed as "<part>.weight"
-// [+ ".scales" [+ ".zp"]] plus the shared quant type. Used by the GGUF builder to emit a
+// One split part of a fused attn_qkv weight: its extracted tensors and shared quant type.
+// Used by the GGUF builder to emit a
 // GGML_OP_NONE weight leaf per q/k/v part (routing them through translate_weight like any other
 // weight) instead of building the decompression nodes eagerly.
 struct FusedQkvPart {
-    std::unordered_map<std::string, ov::Tensor> extracted;
+    WeightTensors tensors;
     GgufTensorType qtype = GGUF_TYPE_F16;
 };
 
-// Row-slice a fused `<base>` attn_qkv weight into q/k/v extracted-tensor sub-maps (no OV nodes).
-// The returned parts' tensors are keyed "<base>.q.weight"/".scales"/".zp" etc. Same slicing as
-// make_fused_qkv_weights, but returns the extracted payload for GGML_OP_NONE emission.
+// Row-slice a fused `<base>` attn_qkv weight into q/k/v tensor payloads (no OV nodes).
 std::array<FusedQkvPart, 3> split_fused_qkv_extracted(const std::string& base,
                                                       const std::unordered_map<std::string, ov::Tensor>& weights,
                                                       const std::unordered_map<std::string, GgufTensorType>& qtypes,
@@ -105,7 +106,7 @@ std::array<ov::Tensor, 3> split_fused_qkv_bias(const std::string& base,
 
 // De-interleave a qwen35 `<base>` attn_q weight, which packs the query and the attention output
 // gate per head as [q_h0 | gate_h0 | q_h1 | gate_h1 | ...], into two plain projections.
-// Returns {query, gate}, keyed "<base>.q.*" and "<base>.gate.*".
+// Returns {query, gate}.
 std::array<FusedQkvPart, 2> split_interleaved_q_gate(const std::string& base,
                                                      const std::unordered_map<std::string, ov::Tensor>& weights,
                                                      const std::unordered_map<std::string, GgufTensorType>& qtypes,
