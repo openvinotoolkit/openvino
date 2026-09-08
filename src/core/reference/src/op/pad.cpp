@@ -161,6 +161,22 @@ struct SymmetricAndReflectPad : PadBase {
     int axis_correction{};
 };
 
+struct WrapPad : PadBase {
+    using PadBase::PadBase;
+
+    const Coordinate* transform_to_input_data_coord(const Coordinate& out_coord) const override {
+        assert(out_coord.size() == coord.size());
+        for (size_t i = 0; i != coord.size(); ++i) {
+            const auto shape_dim = static_cast<std::ptrdiff_t>(data_shape[i]);
+            const auto sc = static_cast<std::ptrdiff_t>(out_coord[i]);
+            const auto cc = sc - padding_begin.at(i);
+            // Python-style modulo: always yields a non-negative result
+            coord[i] = static_cast<size_t>(((cc % shape_dim) + shape_dim) % shape_dim);
+        }
+        return std::addressof(coord);
+    }
+};
+
 void pad(const char* data,
          const char* pad_value,
          char* out,
@@ -184,6 +200,11 @@ void pad(const char* data,
     case op::PadMode::REFLECT:
     case op::PadMode::SYMMETRIC: {
         impl::SymmetricAndReflectPad
+            pad{data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode};
+        pad.run();
+    } break;
+    case op::PadMode::WRAP: {
+        impl::WrapPad
             pad{data, pad_value, out, elem_size, data_shape, out_shape, padding_below, padding_above, pad_mode};
         pad.run();
     } break;

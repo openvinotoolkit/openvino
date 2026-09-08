@@ -1,0 +1,60 @@
+ir_version: 9
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    input: "pads"
+    output: "y"
+    op_type: "Pad"
+    attribute {
+      name: "mode"
+      s: "wrap"
+      type: STRING
+    }
+  }
+  name: "test_wrap_pad"
+  initializer {
+    dims: 8
+    data_type: 7
+    int64_data: 0
+    int64_data: 0
+    int64_data: 1
+    int64_data: 1
+    int64_data: 0
+    int64_data: 0
+    int64_data: 1
+    int64_data: 1
+    name: "pads"
+  }
+  input {
+    name: "x"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 3 }
+          dim { dim_value: 3 }
+        }
+      }
+    }
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 1 }
+          dim { dim_value: 5 }
+          dim { dim_value: 5 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 19
+}

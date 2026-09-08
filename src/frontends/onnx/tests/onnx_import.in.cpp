@@ -4155,6 +4155,34 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_pad_constant_negative_begin_end) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_pad_wrap) {
+    // Regression test for GitHub issue #37772:
+    // ONNX Pad with mode="wrap" (opset 19+) was rejected by the ONNX frontend.
+    // Circular/toroidal padding: values wrap around from the opposite edge.
+    const auto model = convert_model("pad_wrap.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    // Input: arange(9, dtype=float32).reshape(1, 1, 3, 3)
+    // [[[[0, 1, 2],
+    //    [3, 4, 5],
+    //    [6, 7, 8]]]]
+    test_case.add_input<float>({0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f});
+
+    // Expected output matches onnxruntime with pads=[0,0,1,1, 0,0,1,1]:
+    // [[[[8, 6, 7, 8, 6],
+    //    [2, 0, 1, 2, 0],
+    //    [5, 3, 4, 5, 3],
+    //    [8, 6, 7, 8, 6],
+    //    [2, 0, 1, 2, 0]]]]
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5},
+                                         {8.f, 6.f, 7.f, 8.f, 6.f,
+                                          2.f, 0.f, 1.f, 2.f, 0.f,
+                                          5.f, 3.f, 4.f, 5.f, 3.f,
+                                          8.f, 6.f, 7.f, 8.f, 6.f,
+                                          2.f, 0.f, 1.f, 2.f, 0.f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_pow_float32_float32) {
     const auto model = convert_model("pow_float32_float32.onnx");
     auto test_case = ov::test::TestCase(model, s_device);

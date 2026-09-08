@@ -27,6 +27,8 @@ ov::op::PadMode get_pad_mode(std::string mode) {
         pad_mode = ov::op::PadMode::REFLECT;
     } else if (mode == "edge") {
         pad_mode = ov::op::PadMode::EDGE;
+    } else if (mode == "wrap") {
+        pad_mode = ov::op::PadMode::WRAP;
     } else {
         OPENVINO_THROW("Unsupported padding mode: [" + mode + "]");
     }
