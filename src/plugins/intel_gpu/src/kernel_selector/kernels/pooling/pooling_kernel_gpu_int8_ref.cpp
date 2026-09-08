@@ -93,8 +93,9 @@ bool PoolingKernelGPUInt8Ref::Validate(const Params& params) const {
     if (p.inputs[0].GetDType() == Datatype::INT8 || p.inputs[0].GetDType() == Datatype::UINT8) {
         // Max pooling doesn't change quantization ranges, so output data type should be the same as input
         if (p.poolType == PoolType::MAX && p.outputs[0].GetDType() != p.inputs[0].GetDType() &&
-            p.quantization == QuantizationType::NONE)
+            p.quantization == QuantizationType::NONE) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
 //         Average pooling should produce FP by default. (u)int8 is possible when quantize op is fused.
 //        if (p.poolType == PoolType::AVG &&
 //            !((p.outputs[0].GetDType() == p.inputs[0].GetDType() && !p.fused_ops.empty()) ||

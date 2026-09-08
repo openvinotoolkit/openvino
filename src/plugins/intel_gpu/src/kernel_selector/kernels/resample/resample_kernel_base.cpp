@@ -3,12 +3,14 @@
 //
 
 #include "resample_kernel_base.h"
-#include "kernel_selector_utils.h"
-#include <string>
+
 #include <algorithm>
-#include <vector>
-#include <unordered_map>
 #include <iostream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace {
 int getAxisIndex(kernel_selector::InterpolateAxis axis) {
@@ -35,19 +37,24 @@ size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) co
     const size_t max_size = 32;
     const size_t min_size = 4;
     size_t feature_block_size = 1;
-    std::vector<size_t> preferred_sizes = { 32, 16, 8 };
-    for (auto& s : preferred_sizes)
-        if (params.outputs[0].Feature().v % s == 0)
+    std::vector<size_t> preferred_sizes = {32, 16, 8};
+    for (auto& s : preferred_sizes) {
+        if (params.outputs[0].Feature().v % s == 0) {
             return s;
-    if (params.outputs[0].Feature().v < max_size)
+        }
+    }
+    if (params.outputs[0].Feature().v < max_size) {
         return params.outputs[0].Feature().v;
-    for (size_t f = 1; f <= params.outputs[0].Feature().v && f <= max_size; f++)
-        if (params.outputs[0].Feature().v % f == 0)
+    }
+    for (size_t f = 1; f <= params.outputs[0].Feature().v && f <= max_size; f++) {
+        if (params.outputs[0].Feature().v % f == 0) {
             feature_block_size = f;
+        }
+    }
     return std::max(feature_block_size, min_size);
 }
 
-ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_selector::resample_params &arg) const {
+ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_selector::resample_params& arg) const {
     DispatchData dispatchData;
     auto in_layout = arg.inputs[0].GetLayout();
     auto out_layout = arg.outputs[0].GetLayout();
@@ -56,32 +63,28 @@ ResampleKernelBase::DispatchData ResampleKernelBase::SetDefault(const kernel_sel
     const auto& out = arg.outputs[0];
 
     if (arg.resampleType == ResampleType::NEAREST_NEIGHBOR) {
-        dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
-        dims_by_gws = {{ Tensor::DataChannelName::X },
-                       { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
-                       { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
-    } else if ( (arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) &&
-                out.Dimentions() <= 4 ) {
-        dispatchData.gws = { Align(out.X().v, 32), out.Y().v, out.Batch().v };
-        dims_by_gws = {{ Tensor::DataChannelName::X },
-                       { Tensor::DataChannelName::Y },
-                       { Tensor::DataChannelName::BATCH }};
+        dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+    } else if ((arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) && out.Dimentions() <= 4) {
+        dispatchData.gws = {Align(out.X().v, 32), out.Y().v, out.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X}, {Tensor::DataChannelName::Y}, {Tensor::DataChannelName::BATCH}};
     } else if (arg.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
-        dispatchData.gws = { out.X().v * out.Y().v, CeilDiv(out.Feature().v, GetFeatureBlockSize(arg)), out.Batch().v * out.Z().v };
-        dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
-                       { Tensor::DataChannelName::FEATURE },
-                       { Tensor::DataChannelName::Z, Tensor::DataChannelName::BATCH }};
+        dispatchData.gws = {out.X().v * out.Y().v, CeilDiv(out.Feature().v, GetFeatureBlockSize(arg)), out.Batch().v * out.Z().v};
+        dims_by_gws = {{Tensor::DataChannelName::X, Tensor::DataChannelName::Y},
+                       {Tensor::DataChannelName::FEATURE},
+                       {Tensor::DataChannelName::Z, Tensor::DataChannelName::BATCH}};
     } else {
-        dispatchData.gws = { out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v };
-        dims_by_gws = {{ Tensor::DataChannelName::X },
-                       { Tensor::DataChannelName::Y, Tensor::DataChannelName::Z },
-                       { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
+        dispatchData.gws = {out.X().v, out.Y().v * out.Z().v, out.Feature().v * out.Batch().v};
+        dims_by_gws = {{Tensor::DataChannelName::X},
+                       {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
+                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
     }
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, arg.engineInfo, in_layout, out_layout, dims_by_gws);
 
-    if ((arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) &&
-        out.Dimentions() <= 4) {
+    if ((arg.resampleType == ResampleType::BILINEAR_INTERP || arg.resampleType == ResampleType::LINEAR_ONNX) && out.Dimentions() <= 4) {
         dispatchData.lws[0] = 32;
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
@@ -98,8 +101,9 @@ bool ResampleKernelBase::Validate(const Params& p) const {
     const resample_params& params = static_cast<const resample_params&>(p);
 
     for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     if (params.inputs.empty()) {
@@ -107,12 +111,11 @@ bool ResampleKernelBase::Validate(const Params& p) const {
     }
 
     const auto& input = params.inputs[0];
-    if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
-        params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
-        params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP &&
-        params.resampleType != ResampleType::BILINEAR_INTERP &&
-        params.resampleType != ResampleType::LINEAR_ONNX)
+    if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) && params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
+        params.resampleType != ResampleType::CAFFE_BILINEAR_INTERP && params.resampleType != ResampleType::BILINEAR_INTERP &&
+        params.resampleType != ResampleType::LINEAR_ONNX) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -124,10 +127,12 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     const auto& output = params.outputs[0];
     auto pads_begin = params.pads_begin;
     auto pads_end = params.pads_end;
-    if (pads_begin.size() == 4)
+    if (pads_begin.size() == 4) {
         pads_begin.insert(std::next(pads_begin.begin(), 2), 0);
-    if (pads_end.size() == 4)
+    }
+    if (pads_end.size() == 4) {
         pads_end.insert(std::next(pads_end.begin(), 2), 0);
+    }
 
     const auto b_size_padded = pads_begin[0] + input.Batch().v + pads_end[0];
     const auto f_size_padded = pads_begin[1] + input.Feature().v + pads_end[1];
@@ -155,12 +160,14 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     for (std::size_t i = 0; i < params.axes.size(); i++) {
         int idx = getAxisIndex(params.axes[i]);
         axesUsed[idx] = 1;
-        if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES)
+        if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES) {
             scales[idx] = 1.f / params.scales[i];
+        }
     }
     for (size_t i = 0; i < scales.size(); ++i) {
-        if (scales[i] != 1.f)
+        if (scales[i] != 1.f) {
             axesUsed[i] = 1;
+        }
     }
 
     jit.AddConstants({
@@ -178,11 +185,16 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     });
 
     if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
-        if (axesUsed[0] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_B", 1));
-        if (axesUsed[1] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_F", 1));
-        if (axesUsed[2] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_Z", 1));
-        if (axesUsed[3] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_Y", 1));
-        if (axesUsed[4] == 1) jit.AddConstant(MakeJitConstant("AXES_USED_X", 1));
+        if (axesUsed[0] == 1)
+            jit.AddConstant(MakeJitConstant("AXES_USED_B", 1));
+        if (axesUsed[1] == 1)
+            jit.AddConstant(MakeJitConstant("AXES_USED_F", 1));
+        if (axesUsed[2] == 1)
+            jit.AddConstant(MakeJitConstant("AXES_USED_Z", 1));
+        if (axesUsed[3] == 1)
+            jit.AddConstant(MakeJitConstant("AXES_USED_Y", 1));
+        if (axesUsed[4] == 1)
+            jit.AddConstant(MakeJitConstant("AXES_USED_X", 1));
 
         jit.AddConstants({
             MakeJitConstant("PADDED_B", b_size_padded),
@@ -232,8 +244,17 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params) const
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     EXE_MODE_DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     1,
+                     GetFusedPrimitiveInputsCount(params));
 
     return {kd};
 }
@@ -241,8 +262,9 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params) const
 Datatype ResampleKernelBase::GetAccumulatorType(const resample_params& params) const {
     auto in_dt = params.inputs[0].GetDType();
 
-    if (params.resampleType == ResampleType::NEAREST_NEIGHBOR)
+    if (params.resampleType == ResampleType::NEAREST_NEIGHBOR) {
         return in_dt;
+    }
 
     return Datatype::F32;
 }
