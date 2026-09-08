@@ -18,46 +18,15 @@
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
+#include "vcl_version_utils.hpp"
 #include "weightless_utils.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
-namespace {
-
-struct UsedVersion {
-    int Major;
-    int Minor;
-    UsedVersion(int major, int minor) : Major(major), Minor(minor) {}
-};
-
-UsedVersion getUsedVclVersion(uint16_t pluginMajor, uint16_t pluginMinor, const vcl_version_info_t& loadedVersion) {
-    uint16_t usedMajor = pluginMajor, usedMinor = pluginMinor;
-    if (pluginMajor == loadedVersion.major) {
-        usedMinor = std::min(pluginMinor, loadedVersion.minor);
-    } else if (pluginMajor > loadedVersion.major) {
-        usedMajor = loadedVersion.major;
-        usedMinor = loadedVersion.minor;
-    }
-    return {usedMajor, usedMinor};
-}
-
-void checkVclVersion(const UsedVersion& usedVersion, const vcl_version_info_t& loadedVersion) {
-    if (usedVersion.Major < VCL_COMPILER_VERSION_MAJOR ||
-        (usedVersion.Major == VCL_COMPILER_VERSION_MAJOR && usedVersion.Minor < VCL_COMPILER_VERSION_MINOR)) {
-        OPENVINO_THROW("Unsupported VCL version: ",
-                       loadedVersion.major,
-                       ".",
-                       loadedVersion.minor,
-                       ", please use VCL ",
-                       VCL_COMPILER_VERSION_MAJOR,
-                       ".",
-                       VCL_COMPILER_VERSION_MINOR,
-                       " or later");
-    }
-}
-
-}  // namespace
-
 namespace intel_npu {
+
+using vcl_version_utils::checkVclVersion;
+using vcl_version_utils::getUsedVclVersion;
+using vcl_version_utils::UsedVersion;
 
 static inline std::string getLatestVCLLog(vcl_log_handle_t logHandle) {
     Logger _logger("VCLAPI", Logger::global().level());
@@ -254,9 +223,14 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     _logger.debug("compile start");
 
     /// Check the linked vcl version whether supported in plugin
-    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    UsedVersion usedVersion =
+        getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion.major, _vclVersion.minor);
     _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
-    checkVclVersion(usedVersion, _vclVersion);
+    checkVclVersion(usedVersion,
+                    _vclVersion.major,
+                    _vclVersion.minor,
+                    VCL_COMPILER_VERSION_MAJOR,
+                    VCL_COMPILER_VERSION_MINOR);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -378,9 +352,14 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
     _logger.debug("compileWsOneShot start");
 
     /// Check the linked vcl version whether supported in plugin
-    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    UsedVersion usedVersion =
+        getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion.major, _vclVersion.minor);
     _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
-    checkVclVersion(usedVersion, _vclVersion);
+    checkVclVersion(usedVersion,
+                    _vclVersion.major,
+                    _vclVersion.minor,
+                    VCL_COMPILER_VERSION_MAJOR,
+                    VCL_COMPILER_VERSION_MINOR);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
@@ -546,7 +525,8 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     _logger.debug("query start");
 
     /// Check the linked vcl version whether supported in plugin
-    UsedVersion usedVersion = getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion);
+    UsedVersion usedVersion =
+        getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion.major, _vclVersion.minor);
     _logger.debug("the finally used vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
