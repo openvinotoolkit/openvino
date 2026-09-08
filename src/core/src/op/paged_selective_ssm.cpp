@@ -76,9 +76,8 @@ void PagedSelectiveSSM::validate_and_infer_types() {
                           index_types_merge,
                           "PagedSelectiveSSM expects all metadata inputs to have the same element type.");
     NODE_VALIDATION_CHECK(this,
-                          common_index_type.is_dynamic() || common_index_type == ov::element::i32 ||
-                              common_index_type == ov::element::i64,
-                          "PagedSelectiveSSM metadata inputs must have i32 or i64 element type.");
+                          common_index_type.is_dynamic() || common_index_type == ov::element::i32,
+                          "PagedSelectiveSSM metadata inputs must have i32 element type.");
 
     const auto output_shapes = shape_infer(this, ov::util::get_node_input_partial_shapes(*this));
     set_output_type(0, common_float_type, output_shapes[0]);
