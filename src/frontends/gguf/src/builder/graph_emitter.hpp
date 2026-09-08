@@ -77,11 +77,6 @@ public:
                        int op_case = 0,
                        std::map<std::string, ov::Any> attrs = {});
 
-    std::string reshape(const std::string& name,
-                        const std::string& input,
-                        const std::vector<int64_t>& pattern,
-                        bool special_zero = false);
-
     std::shared_ptr<ov::op::v0::Parameter> add_input(const std::string& name,
                                                      ov::element::Type type,
                                                      const ov::PartialShape& shape);

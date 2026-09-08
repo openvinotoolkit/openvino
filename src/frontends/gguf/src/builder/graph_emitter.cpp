@@ -100,18 +100,6 @@ std::string GraphEmitter::add_op(const std::string& op_type,
     return name;
 }
 
-std::string GraphEmitter::reshape(const std::string& name,
-                                  const std::string& input,
-                                  const std::vector<int64_t>& pattern,
-                                  bool special_zero) {
-    return add_op("GGML_OP_RESHAPE",
-                  name,
-                  {input},
-                  value(input).get_element_type(),
-                  6,
-                  {{"reshape_target", pattern}, {"special_zero", special_zero}});
-}
-
 std::shared_ptr<ov::op::v0::Parameter> GraphEmitter::add_input(const std::string& name,
                                                                ov::element::Type type,
                                                                const ov::PartialShape& shape) {

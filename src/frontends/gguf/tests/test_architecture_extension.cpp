@@ -214,15 +214,15 @@ public:
         ctx.build_attn_inp_kv();
         for (int layer = 0; layer < dimensions.layers; ++layer) {
             auto norm = ctx.build_norm(cur, tensors.layer(layer, "attn_norm.weight"), dimensions.norm_epsilon);
-            cur = ctx.add(ctx.decoder_attention(layer, norm), cur);
+            cur = ctx.node("GGML_OP_ADD", {ctx.decoder_attention(layer, norm), cur}, ov::element::f32);
             norm = ctx.build_norm(cur, tensors.layer(layer, "ffn_norm.weight"), dimensions.norm_epsilon);
-            cur = ctx.add(ctx.decoder_ffn(layer, norm), cur);
+            cur = ctx.node("GGML_OP_ADD", {ctx.decoder_ffn(layer, norm), cur}, ov::element::f32);
         }
         cur = ctx.build_norm(cur, tensors.require("output_norm.weight"), dimensions.norm_epsilon);
         auto output = tensors("output.weight");
         if (!output)
             output = tensors.require("token_embd.weight");
-        ctx.set_output(ctx.mul_mat(output, cur));
+        ctx.set_output(ctx.node("GGML_OP_MUL_MAT", {output, cur}, ov::element::f32));
         return ctx.finish();
     }
 
@@ -333,7 +333,7 @@ public:
 
         // One embedding per image patch.
         auto cur = ctx.add_input("inp_patches", ov::element::f32, ov::PartialShape({1, 1, n_patches, n_embd}));
-        cur = ctx.add(cur, tensors.require("v.position_embd.weight"));
+        cur = ctx.node("GGML_OP_ADD", {cur, tensors.require("v.position_embd.weight")}, cur.type());
 
         for (int il = 0; il < n_layer; ++il) {
             const std::string p = "v.blk." + std::to_string(il) + ".";
@@ -342,36 +342,50 @@ public:
             cur = ctx.build_norm(cur, tensors.require(p + "ln1.weight"), eps);
 
             // Non-causal attention: softmax(Q @ K^T / sqrt(head_size)) @ V.
-            auto q = ctx.mul_mat(tensors.require(p + "attn_q.weight"), cur);
-            auto k = ctx.mul_mat(tensors.require(p + "attn_k.weight"), cur);
-            auto v = ctx.mul_mat(tensors.require(p + "attn_v.weight"), cur);
+            auto q = ctx.node("GGML_OP_MUL_MAT", {tensors.require(p + "attn_q.weight"), cur}, ov::element::f32);
+            auto k = ctx.node("GGML_OP_MUL_MAT", {tensors.require(p + "attn_k.weight"), cur}, ov::element::f32);
+            auto v = ctx.node("GGML_OP_MUL_MAT", {tensors.require(p + "attn_v.weight"), cur}, ov::element::f32);
 
-            // Q/K: [1, heads, patches, head_size], contracting over head_size.
-            q = ctx.permute(ctx.reshape(q, {head_size, n_head, n_patches}), {0, 2, 1, 3});
-            k = ctx.permute(ctx.reshape(k, {head_size, n_head, n_patches}), {0, 2, 1, 3});
-            // V: [1, heads, head_size, patches], contracting over patches.
-            v = ctx.permute(ctx.reshape(v, {head_size, n_head, n_patches}), {0, 2, 3, 1});
+            for (auto* value : {&q, &k, &v}) {
+                *value = ctx.node("GGML_OP_RESHAPE",
+                                  {*value},
+                                  value->type(),
+                                  6,
+                                  {{"reshape_target", std::vector<int64_t>{1, n_patches, n_head, head_size}}});
+            }
+            // Q/K contract over head_size; V contracts over patches.
+            q = ctx.node("GGML_OP_PERMUTE", {q}, q.type(), 1, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
+            k = ctx.node("GGML_OP_PERMUTE", {k}, k.type(), 1, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
+            v = ctx.node("GGML_OP_PERMUTE", {v}, v.type(), 1, {{"perm", std::vector<int64_t>{0, 2, 3, 1}}});
 
-            auto kq = ctx.mul_mat(k, q);
-            kq = ctx.scale(kq, 1.0f / std::sqrt(static_cast<float>(head_size)));
-            kq = ctx.soft_max(kq);
-            auto kqv = ctx.mul_mat(v, kq);
+            auto kq = ctx.node("GGML_OP_MUL_MAT", {k, q}, ov::element::f32);
+            kq = ctx.node("GGML_OP_SCALE",
+                          {kq},
+                          kq.type(),
+                          0,
+                          {{"scale", 1.0f / std::sqrt(static_cast<float>(head_size))}, {"bias", 0.0f}});
+            kq = ctx.node("GGML_OP_SOFT_MAX", {kq}, kq.type());
+            auto kqv = ctx.node("GGML_OP_MUL_MAT", {v, kq}, ov::element::f32);
 
-            cur = ctx.permute(kqv, {0, 2, 1, 3});
-            cur = ctx.reshape(ctx.cont(cur), {n_embd, n_patches});
-            cur = ctx.mul_mat(tensors.require(p + "attn_out.weight"), cur);
-            cur = ctx.add(cur, residual);
+            cur = ctx.node("GGML_OP_PERMUTE", {kqv}, kqv.type(), 1, {{"perm", std::vector<int64_t>{0, 2, 1, 3}}});
+            cur = ctx.node("GGML_OP_RESHAPE",
+                           {ctx.node("GGML_OP_CONT", {cur}, cur.type(), 1)},
+                           ov::element::f32,
+                           6,
+                           {{"reshape_target", std::vector<int64_t>{1, 1, n_patches, n_embd}}});
+            cur = ctx.node("GGML_OP_MUL_MAT", {tensors.require(p + "attn_out.weight"), cur}, ov::element::f32);
+            cur = ctx.node("GGML_OP_ADD", {cur, residual}, cur.type());
 
             residual = cur;
             cur = ctx.build_norm(cur, tensors.require(p + "ln2.weight"), eps);
-            cur = ctx.mul_mat(tensors.require(p + "ffn_up.weight"), cur);
-            cur = ctx.gelu(cur);
-            cur = ctx.mul_mat(tensors.require(p + "ffn_down.weight"), cur);
-            cur = ctx.add(cur, residual);
+            cur = ctx.node("GGML_OP_MUL_MAT", {tensors.require(p + "ffn_up.weight"), cur}, ov::element::f32);
+            cur = ctx.node("GGML_UNARY_OP_GELU", {cur}, cur.type());
+            cur = ctx.node("GGML_OP_MUL_MAT", {tensors.require(p + "ffn_down.weight"), cur}, ov::element::f32);
+            cur = ctx.node("GGML_OP_ADD", {cur, residual}, cur.type());
         }
 
         cur = ctx.build_norm(cur, tensors.require("v.post_ln.weight"), eps);
-        cur = ctx.mul_mat(tensors.require("mm.0.weight"), cur);
+        cur = ctx.node("GGML_OP_MUL_MAT", {tensors.require("mm.0.weight"), cur}, ov::element::f32);
         ctx.set_output(cur);
         return ctx.finish();
     }
@@ -585,9 +599,13 @@ public:
     std::shared_ptr<GgufGraph> build() override {
         GgufGraphContext graph(m_context);
         auto input = graph.add_input("features", ov::element::f32, {1, 1, -1, 4});
-        auto expanded = graph.raw_op("TEST_EXPAND_FEATURES", {input}, ov::element::f32);
+        auto expanded = graph.node("TEST_EXPAND_FEATURES", {input}, ov::element::f32);
         // The following operation can query the converter's inferred width immediately.
-        graph.set_output(graph.reshape(expanded, {expanded.ne(0), -1}));
+        graph.set_output(graph.node("GGML_OP_RESHAPE",
+                                    {expanded},
+                                    expanded.type(),
+                                    6,
+                                    {{"reshape_target", std::vector<int64_t>{1, 1, -1, expanded.ne(0)}}}));
         return graph.finish();
     }
 

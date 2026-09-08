@@ -90,7 +90,7 @@ Converters must infer intermediate shapes from their OpenVINO operands, reading 
 needed for the operation. A dynamic token axis does not prevent reading a static head width.
 Use explicit attributes for operation parameters: `reshape_target` / `special_zero`, `view_slice`,
 `repeats`, and TopK `k`. Source destination shapes may provide compatibility defaults for existing
-cgraph importers; native builders never manufacture them. A new converter also serves `raw_op`
+cgraph importers; native builders never manufacture them. A new converter also serves `GgufGraphContext::node`
 without a separate shape implementation in the builder.
 
 Insert a `Convert` to `get_output_type()` when the op may change element type (`CONCAT`, `CPY`,

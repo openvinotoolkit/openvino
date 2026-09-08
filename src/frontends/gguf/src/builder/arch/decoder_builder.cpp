@@ -123,7 +123,13 @@ void DecoderBuilder::build_per_layer_embeddings(const std::string& embd) {
     // CONT node: translate_cont's PERMUTE case is a pass-through, since translate_permute already
     // emitted a real Transpose, so ggml's ggml_cont would convert to nothing here.
     auto reshape_to_layer_major = [&](const std::string& flat, const std::string& name) {
-        auto split = m_emit.reshape(name + "_split", flat, {0, -1, n_layer, pe}, true);
+        auto split =
+            m_emit.add_op("GGML_OP_RESHAPE",
+                          name + "_split",
+                          {flat},
+                          m_emit.value(flat).get_element_type(),
+                          6,
+                          {{"reshape_target", std::vector<int64_t>{0, -1, n_layer, pe}}, {"special_zero", true}});
         return m_emit.add_op("GGML_OP_PERMUTE", name, {split}, f32, 1);
     };
 

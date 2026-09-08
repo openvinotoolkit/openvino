@@ -156,14 +156,18 @@ TEST(GGUFBuilderSDK, LogicalWeightDimensionsPreserveVectorsAndExpertAxes) {
     EXPECT_EQ(experts.ne(0), 4);
     EXPECT_EQ(experts.ne(1), 3);
     EXPECT_EQ(experts.ne(2), 2);
-    EXPECT_THROW(graph.add(empty, vector), ov::Exception);
+    EXPECT_THROW(graph.node("GGML_OP_ADD", {empty, vector}, empty.type()), ov::Exception);
 }
 
 TEST(GGUFBuilderSDK, GeneralReshapeDoesNotCopyTheAttentionBatchAxis) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {2, 3, 4, 5});
-    graph.set_output(graph.reshape(input, {10, 3, 4}));
+    graph.set_output(graph.node("GGML_OP_RESHAPE",
+                                {input},
+                                input.type(),
+                                6,
+                                {{"reshape_target", std::vector<int64_t>{1, 4, 3, 10}}}));
     auto model = convert(graph.finish());
     EXPECT_EQ(model->output().get_shape(), (ov::Shape{1, 4, 3, 10}));
     ov::Tensor data(ov::element::f32, {2, 3, 4, 5});
@@ -178,7 +182,11 @@ TEST(GGUFBuilderSDK, ExplicitInferredReshapeRemainsDynamicAcrossTokenCounts) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {1, 1, -1, 8});
-    graph.set_output(graph.reshape(input, {4, 2, -1}));
+    graph.set_output(graph.node("GGML_OP_RESHAPE",
+                                {input},
+                                input.type(),
+                                6,
+                                {{"reshape_target", std::vector<int64_t>{1, -1, 2, 4}}}));
     auto model = convert(graph.finish());
     for (size_t tokens : {1u, 3u, 7u}) {
         ov::Tensor data(ov::element::f32, {1, 1, tokens, 8});
@@ -223,9 +231,9 @@ TEST(GGUFBuilderSDK, RecurrentStateDeclarationReachesMakeStateful) {
     GgufGraphContext graph(env.context);
     auto state = graph.add_input("state", ov::element::f32, {1, 1, 1, 4});
     auto input = graph.add_input("x", ov::element::f32, {1, 1, 1, 4});
-    auto update = graph.add(state, input);
+    auto update = graph.node("GGML_OP_ADD", {state, input}, state.type());
     graph.add_recurrent_state(state, update);
-    graph.set_output(graph.scale(update, 2));
+    graph.set_output(graph.node("GGML_OP_SCALE", {update}, update.type(), 0, {{"scale", float{2}}, {"bias", 0.0f}}));
     auto model = convert(graph.finish());
     ASSERT_TRUE(model->get_rt_info().count(pass::gguf_recurrent_states_key()));
     ov::pass::Manager passes;
@@ -306,9 +314,13 @@ TEST(GGUFBuilderSDK, SingleHeadSplitPreservesDynamicTokens) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {1, 1, -1, 8});
-    auto heads = graph.split_heads(input, 1, 8);
+    auto heads = graph.node("GGML_OP_RESHAPE",
+                            {input},
+                            input.type(),
+                            6,
+                            {{"reshape_target", std::vector<int64_t>{0, -1, 1, 8}}, {"special_zero", true}});
     graph.set_output(heads);
-    graph.set_output(graph.merge_heads(heads));
+    graph.set_output(graph.node("GGML_OP_RESHAPE", {heads}, heads.type(), 2, {{"merge_heads", true}}));
     auto model = convert(graph.finish());
     ov::Tensor data(ov::element::f32, {1, 1, 3, 8});
     std::iota(data.data<float>(), data.data<float>() + data.get_size(), 1.0f);
@@ -448,11 +460,11 @@ TEST(GGUFBuilderSDK, BroadcastAndConcatShapesComeFromOpenVINO) {
     GgufGraphContext graph(env.context);
     auto a = graph.add_input("a", ov::element::f32, {2, 1, -1, 4});
     auto b = graph.add_input("b", ov::element::f32, {1, 3, 1, 4});
-    auto sum = graph.add(a, b);
+    auto sum = graph.node("GGML_OP_ADD", {a, b}, a.type());
     EXPECT_EQ(sum.shape(), (ov::PartialShape{2, 3, -1, 4}));
-    auto joined = graph.concat(sum, sum, 0);
+    auto joined = graph.node("GGML_OP_CONCAT", {sum, sum}, sum.type(), 0, {{"concat_axis", 0}});
     EXPECT_EQ(joined.shape(), (ov::PartialShape{2, 3, -1, 8}));
-    auto output = graph.transpose(joined);
+    auto output = graph.node("GGML_OP_TRANSPOSE", {joined}, joined.type());
     EXPECT_EQ(output.shape(), (ov::PartialShape{2, 3, 8, -1}));
     graph.set_output(output);
     auto model = convert(graph.finish());
@@ -470,15 +482,15 @@ TEST(GGUFBuilderSDK, BroadcastAndConcatShapesComeFromOpenVINO) {
     }
 }
 
-TEST(GGUFBuilderSDK, RawOperationsNeedOnlySemanticAttributes) {
+TEST(GGUFBuilderSDK, GenericNodesNeedOnlySemanticAttributes) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {1, 1, -1, 5});
-    auto selected = graph.raw_op("GGML_OP_TOP_K", {input}, ov::element::i32, 0, {{"k", int64_t{2}}});
+    auto selected = graph.node("GGML_OP_TOP_K", {input}, ov::element::i32, 0, {{"k", int64_t{2}}});
     EXPECT_EQ(selected.shape(), (ov::PartialShape{1, 1, -1, 2}));
     EXPECT_EQ(selected.type(), ov::element::i32);
     auto repeated =
-        graph.raw_op("GGML_OP_REPEAT", {selected}, selected.type(), 0, {{"repeats", std::vector<int64_t>{1, 2, 1, 3}}});
+        graph.node("GGML_OP_REPEAT", {selected}, selected.type(), 0, {{"repeats", std::vector<int64_t>{1, 2, 1, 3}}});
     EXPECT_EQ(repeated.shape(), (ov::PartialShape{1, 2, -1, 6}));
     graph.set_output(repeated);
     auto model = convert(graph.finish());
@@ -489,7 +501,7 @@ TEST(GGUFBuilderSDK, MergeHeadsAcceptsRuntimeTokenAndHeadDimensions) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {2, -1, 3, -1});
-    auto merged = graph.merge_heads(input);
+    auto merged = graph.node("GGML_OP_RESHAPE", {input}, input.type(), 2, {{"merge_heads", true}});
     EXPECT_EQ(merged.shape(), (ov::PartialShape{2, 1, -1, -1}));
     graph.set_output(merged);
     auto model = convert(graph.finish());
@@ -501,6 +513,57 @@ TEST(GGUFBuilderSDK, MergeHeadsAcceptsRuntimeTokenAndHeadDimensions) {
         EXPECT_EQ(result[0].get_shape(), (ov::Shape{2, 1, shape[1], 3 * shape[3]}));
         for (size_t i = 0; i < input_data.get_size(); ++i) {
             EXPECT_EQ(result[0].data<float>()[i], input_data.data<float>()[i]);
+        }
+    }
+}
+
+TEST(GGUFBuilderSDK, GenericNodesValidateAttributesThroughConverters) {
+    for (const auto& invalid : std::vector<std::pair<std::string, std::map<std::string, ov::Any>>>{
+             {"GGML_OP_RESHAPE", {{"reshape_target", std::vector<int64_t>{1, -1, -1, 4}}}},
+             {"GGML_OP_PERMUTE", {{"perm", std::vector<int64_t>{0, 1, 1, 3}}}},
+             {"GGML_OP_CONCAT", {{"concat_axis", 4}}}}) {
+        SCOPED_TRACE(invalid.first);
+        Environment env;
+        GgufGraphContext graph(env.context);
+        auto input = graph.add_input("x", ov::element::f32, {1, 1, 2, 4});
+        const auto inputs =
+            invalid.first == "GGML_OP_CONCAT" ? std::vector<GgufValue>{input, input} : std::vector<GgufValue>{input};
+        const int op_case = invalid.first == "GGML_OP_PERMUTE" ? 1 : 0;
+        EXPECT_THROW(graph.node(invalid.first, inputs, input.type(), op_case, invalid.second), ov::Exception);
+    }
+}
+
+TEST(GGUFBuilderSDK, GenericRopeNodesPreserveModelPositionContract) {
+    for (bool multimodal : {false, true}) {
+        for (bool per_op : {false, true}) {
+            SCOPED_TRACE(testing::Message() << "multimodal=" << multimodal << ", per_op=" << per_op);
+            Environment env;
+            GgufGraphContext graph(env.context);
+            RopeConfig config;
+            config.n_dims = 4;
+            config.n_ctx_orig = 128;
+            config.freq_base = 10000.f;
+            config.freq_scale = config.attn_factor = 1.f;
+            config.beta_fast = 32.f;
+            config.beta_slow = 1.f;
+            config.per_op = per_op;
+            config.is_imrope = multimodal;
+            graph.configure_rope(config);
+            auto input = graph.add_input("x", ov::element::f32, {1, -1, 2, 4});
+            auto positions = graph.build_inp_pos();
+            auto rotated = graph.node("GGML_OP_ROPE",
+                                      {input, positions},
+                                      input.type(),
+                                      (multimodal ? 2 : 1) << 16,
+                                      {{"rope_config", config}});
+            EXPECT_EQ(rotated.shape(), input.shape());
+            graph.set_output(rotated);
+            auto built = graph.finish();
+            EXPECT_EQ(built->values->count("rope_cos"), per_op ? 0u : 1u);
+            auto model = convert(built);
+            EXPECT_EQ(model->get_rt_info().count(pass::gguf_imrope_key()), multimodal ? 1u : 0u);
+            EXPECT_EQ(model->inputs().size(), 2u);
+            EXPECT_EQ(model->output().get_partial_shape(), input.shape());
         }
     }
 }

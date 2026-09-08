@@ -5,9 +5,7 @@
 
 #pragma once
 
-#include <map>
 #include <string>
-#include <vector>
 
 #include "builder/blocks/attention.hpp"
 #include "builder/graph_emitter.hpp"
@@ -42,23 +40,6 @@ struct GgufGraphContext::Impl {
     int seq = 0;
     std::string fresh(const std::string& op) {
         return op + "_" + std::to_string(seq++);
-    }
-
-    GgufValue emit(const std::string& op_type,
-                   const std::vector<GgufValue>& inputs,
-                   ov::element::Type out_type,
-                   int op_case = 0,
-                   std::map<std::string, ov::Any> attrs = {}) {
-        check_open();
-        std::vector<std::string> in_names;
-        in_names.reserve(inputs.size());
-        for (const auto& v : inputs) {
-            OPENVINO_ASSERT(v, "[GGUF] builder SDK: op '", op_type, "' was given an empty input value");
-            in_names.push_back(v.name());
-        }
-        const auto name = fresh(op_type);
-        emitter.add_op(op_type, name, in_names, out_type, op_case, std::move(attrs));
-        return GgufValue(name, emitter.value(name));
     }
 };
 

@@ -6,7 +6,6 @@
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <limits>
 #include <set>
 
@@ -19,7 +18,6 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-using ov::element::f16;
 using ov::element::f32;
 using ov::element::i32;
 using ov::element::i64;
@@ -122,7 +120,7 @@ GgufValue GgufGraphContext::add_input(const std::string& name, ov::element::Type
 GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
     OPENVINO_ASSERT(tok_embd, "[GGUF] build_inp_embd: the token embedding weight is missing");
     auto tokens = add_input("inp_tokens", i32, ov::PartialShape({1, 1, 1, D}));
-    return get_rows(tok_embd, tokens);
+    return node("GGML_OP_GET_ROWS", {tok_embd, tokens}, f32);
 }
 
 GgufValue GgufGraphContext::build_inp_pos() {
@@ -142,154 +140,29 @@ void GgufGraphContext::build_attn_inp_kv(bool swa) {
     add_input("token_len_per_seq", i64, ov::PartialShape({1}));
 }
 
-// ---- ggml op vocabulary ----
-
-GgufValue GgufGraphContext::add(const GgufValue& a, const GgufValue& b) {
-    return m_impl->emit("GGML_OP_ADD", {a, b}, a.type());
-}
-
-GgufValue GgufGraphContext::sub(const GgufValue& a, const GgufValue& b) {
-    return m_impl->emit("GGML_OP_SUB", {a, b}, a.type());
-}
-
-GgufValue GgufGraphContext::mul(const GgufValue& a, const GgufValue& b) {
-    return m_impl->emit("GGML_OP_MUL", {a, b}, a.type());
-}
-
-GgufValue GgufGraphContext::div(const GgufValue& a, const GgufValue& b) {
-    return m_impl->emit("GGML_OP_DIV", {a, b}, a.type());
-}
-
-GgufValue GgufGraphContext::scale(const GgufValue& x, float factor) {
-    return m_impl->emit("GGML_OP_SCALE", {x}, x.type(), 0, {{"scale", factor}, {"bias", 0.0f}});
-}
-
-GgufValue GgufGraphContext::mul_mat(const GgufValue& a, const GgufValue& b) {
-    return m_impl->emit("GGML_OP_MUL_MAT", {a, b}, f32);
-}
-
-GgufValue GgufGraphContext::get_rows(const GgufValue& a, const GgufValue& b) {
-    return m_impl->emit("GGML_OP_GET_ROWS", {a, b}, f32);
-}
-
-GgufValue GgufGraphContext::rms_norm(const GgufValue& x, float eps) {
-    return m_impl->emit("GGML_OP_RMS_NORM", {x}, x.type(), 0, {{"eps", eps}});
-}
-
-GgufValue GgufGraphContext::norm(const GgufValue& x, float eps) {
-    return m_impl->emit("GGML_OP_NORM", {x}, x.type(), 0, {{"eps", eps}});
-}
-
-GgufValue GgufGraphContext::soft_max(const GgufValue& x) {
-    return m_impl->emit("GGML_OP_SOFT_MAX", {x}, x.type());
-}
-
-GgufValue GgufGraphContext::silu(const GgufValue& x) {
-    return m_impl->emit("GGML_UNARY_OP_SILU", {x}, x.type());
-}
-
-GgufValue GgufGraphContext::gelu(const GgufValue& x) {
-    return m_impl->emit("GGML_UNARY_OP_GELU", {x}, x.type());
-}
-
-GgufValue GgufGraphContext::gelu_quick(const GgufValue& x) {
-    return m_impl->emit("GGML_UNARY_OP_GELU_QUICK", {x}, x.type());
-}
-
-GgufValue GgufGraphContext::sigmoid(const GgufValue& x) {
-    return m_impl->emit("GGML_UNARY_OP_SIGMOID", {x}, x.type());
-}
-
-GgufValue GgufGraphContext::tanh(const GgufValue& x) {
-    return m_impl->emit("GGML_UNARY_OP_TANH", {x}, x.type());
-}
-
-GgufValue GgufGraphContext::relu(const GgufValue& x) {
-    return m_impl->emit("GGML_UNARY_OP_RELU", {x}, x.type());
-}
-
-GgufValue GgufGraphContext::sqr(const GgufValue& x) {
-    return m_impl->emit("GGML_OP_SQR", {x}, x.type());
-}
-
-GgufValue GgufGraphContext::sqrt(const GgufValue& x) {
-    return m_impl->emit("GGML_OP_SQRT", {x}, x.type());
-}
-
-GgufValue GgufGraphContext::reshape(const GgufValue& x, const std::vector<int64_t>& ne) {
-    OPENVINO_ASSERT(!ne.empty() && ne.size() <= 4, "[GGUF] reshape: expected 1..4 ggml dimensions");
-    // `ne` arrives in ggml order (fastest-varying first); shapes are stored reversed.
-    std::vector<int64_t> dims(ne.rbegin(), ne.rend());
-
-    OPENVINO_ASSERT(std::count(ne.begin(), ne.end(), -1) <= 1 && std::all_of(ne.begin(),
-                                                                             ne.end(),
-                                                                             [](int64_t d) {
-                                                                                 return d > 0 || d == -1;
-                                                                             }),
-                    "[GGUF] reshape dimensions must be positive, with at most one inferred dimension");
-    dims.insert(dims.begin(), 4 - dims.size(), 1);
-    return m_impl->emit("GGML_OP_RESHAPE", {x}, x.type(), 6, {{"reshape_target", dims}});
-}
-
-GgufValue GgufGraphContext::split_heads(const GgufValue& x, int64_t heads, int64_t head_size) {
-    OPENVINO_ASSERT(heads > 0 && head_size > 0, "[GGUF] head dimensions must be positive");
-    return m_impl->emit("GGML_OP_RESHAPE",
-                        {x},
-                        x.type(),
-                        6,
-                        {{"reshape_target", std::vector<int64_t>{0, -1, heads, head_size}}, {"special_zero", true}});
-}
-
-GgufValue GgufGraphContext::merge_heads(const GgufValue& x) {
-    return m_impl->emit("GGML_OP_RESHAPE", {x}, x.type(), 2, {{"merge_heads", true}});
-}
-
-GgufValue GgufGraphContext::cont(const GgufValue& x) {
-    // OpenVINO handles tensor layout; GGML CONT case 1 is a pass-through.
-    return m_impl->emit("GGML_OP_CONT", {x}, x.type(), 1);
-}
-
-GgufValue GgufGraphContext::permute(const GgufValue& x, const std::vector<int64_t>& perm) {
-    OPENVINO_ASSERT(perm.size() == 4, "[GGUF] permute: expected 4 axes");
-    OPENVINO_ASSERT(std::set<int64_t>(perm.begin(), perm.end()).size() == 4, "[GGUF] permute axes must be unique");
-    for (auto axis : perm) {
-        OPENVINO_ASSERT(axis >= 0 && axis < 4, "[GGUF] permute: axis out of range");
+GgufValue GgufGraphContext::node(const std::string& op_type,
+                                 const std::vector<GgufValue>& inputs,
+                                 ov::element::Type out_type,
+                                 int op_case,
+                                 const std::map<std::string, ov::Any>& attrs) {
+    m_impl->check_open();
+    std::vector<std::string> names;
+    names.reserve(inputs.size());
+    for (const auto& input : inputs) {
+        OPENVINO_ASSERT(input, "[GGUF] builder SDK: op '", op_type, "' was given an empty input value");
+        names.push_back(input.name());
     }
-    return m_impl->emit("GGML_OP_PERMUTE", {x}, x.type(), 1, {{"perm", perm}});
+    const auto name = m_impl->fresh(op_type);
+    m_impl->emitter.add_op(op_type, name, names, out_type, op_case, attrs);
+    return GgufValue(name, m_impl->emitter.value(name));
 }
 
-GgufValue GgufGraphContext::transpose(const GgufValue& x) {
-    return m_impl->emit("GGML_OP_TRANSPOSE", {x}, x.type());
-}
-
-GgufValue GgufGraphContext::concat(const GgufValue& a, const GgufValue& b, int ggml_dim) {
-    OPENVINO_ASSERT(ggml_dim >= 0 && ggml_dim < 4, "[GGUF] concat: ggml dimension must be 0..3");
-    return m_impl->emit("GGML_OP_CONCAT", {a, b}, a.type(), ggml_dim, {{"concat_axis", ggml_dim}});
-}
-
-GgufValue GgufGraphContext::rope_ext(const GgufValue& x,
-                                     const GgufValue& positions,
-                                     const GgufValue& freq_factors,
-                                     const RopeConfig& cfg,
-                                     int rope_op_case) {
+void GgufGraphContext::configure_rope(const RopeConfig& config) {
     m_impl->check_open();
     auto& graph = *m_impl->emitter.graph();
     graph.has_rope = true;
-    graph.use_per_op_rope = true;
-    graph.rope_config.is_imrope |= ((rope_op_case >> 16) == 2);
-    std::vector<GgufValue> inputs{x, positions};
-    if (freq_factors) {
-        inputs.push_back(freq_factors);
-    }
-    return m_impl->emit("GGML_OP_ROPE", inputs, x.type(), rope_op_case, {{"rope_config", cfg}});
-}
-
-GgufValue GgufGraphContext::raw_op(const std::string& op_type,
-                                   const std::vector<GgufValue>& inputs,
-                                   ov::element::Type out_type,
-                                   int op_case,
-                                   const std::map<std::string, ov::Any>& attrs) {
-    return m_impl->emit(op_type, inputs, out_type, op_case, attrs);
+    graph.rope_config = config;
+    graph.use_per_op_rope = config.per_op;
 }
 
 // Normalization blocks
@@ -298,18 +171,18 @@ GgufValue GgufGraphContext::build_norm(const GgufValue& cur, const GgufValue& w,
     m_impl->check_open();
     OPENVINO_ASSERT(cur, "[GGUF] normalization requires an input");
     if (!w)
-        return rms_norm(cur, eps);
+        return node("GGML_OP_RMS_NORM", {cur}, cur.type(), 0, {{"eps", eps}});
     const auto out = blocks::rms_norm(m_impl->emitter, cur.name(), w.name(), m_impl->fresh("norm"), eps);
     return GgufValue(out, m_impl->emitter.value(out));
 }
 
 GgufValue GgufGraphContext::build_norm_ln(const GgufValue& cur, const GgufValue& w, const GgufValue& b, float eps) {
-    auto out = norm(cur, eps);
+    auto out = node("GGML_OP_NORM", {cur}, cur.type(), 0, {{"eps", eps}});
     if (w) {
-        out = mul(out, w);
+        out = node("GGML_OP_MUL", {out, w}, out.type());
     }
     if (b) {
-        out = add(out, b);
+        out = node("GGML_OP_ADD", {out, b}, out.type());
     }
     return out;
 }

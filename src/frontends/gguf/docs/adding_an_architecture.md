@@ -131,8 +131,9 @@ audio encoder is added without touching anything here; see
 [porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md). The steps below are for a family that
 should ship in-tree; the builder itself is written the same way either way.
 
-1. Implement a `ModelBuilder` with the generic `GgufGraphContext` SDK. A non-decoder reads its
-   own metadata and does not call `configure_decoder`.
+1. Implement a `ModelBuilder` with the generic `GgufGraphContext::node` API. It invokes the
+   registered frontend converter directly; new operations need no builder-side support.
+   A non-decoder reads its own metadata and does not call `configure_decoder`.
 2. Return an `ArchitectureDefinition` with a unique handler id, GGUF architecture name, factory,
    and optional metadata predicate. Predicates distinguish, for example, vision and audio files
    that both name themselves `clip`.

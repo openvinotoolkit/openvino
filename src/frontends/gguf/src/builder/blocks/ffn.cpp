@@ -196,7 +196,12 @@ std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string
     auto weighted = e.add_op("GGML_OP_MUL", p + "moe_weighted", {experts, weights}, f32);
     auto tr = e.add_op("GGML_OP_TRANSPOSE", p + "moe_tr", {weighted}, f32);
     auto summed = e.add_op("GGML_OP_SUM_ROWS", p + "moe_sum", {tr}, f32);
-    auto moe_out = e.reshape(p + "moe_out", summed, {1, 1, -1, cfg.n_embd});
+    auto moe_out = e.add_op("GGML_OP_RESHAPE",
+                            p + "moe_out",
+                            {summed},
+                            e.value(summed).get_element_type(),
+                            6,
+                            {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
 
     // Shared experts are always active; some checkpoints omit expert_shared_count.
     if (e.has_weight(p + "ffn_gate_shexp.weight")) {

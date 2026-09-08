@@ -89,39 +89,50 @@ does not mutate the resolved model. See the custom decoder in
 
 ## Tensor operations and shapes
 
-The SDK uses GGML operand order, e.g. `mul_mat(weight, activation)`. Value shapes use OpenVINO order;
-`value.ne(i)` accesses the reversed, GGML dimension order. Weight values preserve all logical
-axes, including vectors and expert dimensions. Looking up a missing optional weight returns an
-empty value; `tensors.require(name)` reports missing mandatory weights.
-
-`reshape(value, {width, heads, -1})` takes a target in GGML dimension order. It is an explicit
-reshape with at most one inferred dimension. It does not infer an attention operation from the
-number of requested dimensions. Use `split_heads(value, heads, width)` and `merge_heads(value)`
-for decoder attention layouts that must preserve the leading batch and dynamic token axis.
-
-Use `-1` for a variable extent. Each builder operation calls the shared frontend converter and
-returns a `GgufValue` backed by an `ov::Output`. OpenVINO infers its shape and type immediately;
-`value.shape()` and `value.ne(i)` read that result. The builder has no intermediate shape formulas
-or representative token count. Input/weight dimensions, reshape targets, slice bounds, and other
-parameters that define an operation remain explicit.
-`permute` uses OpenVINO axis numbering and requires each of the four axes exactly once.
-
-The SDK is not a drop-in implementation of llama.cpp's `llm_graph_context`. When porting a model,
-map its sublayers onto existing blocks first, and use generic operations for new structure. The
-removed `GgufHparams`, `LayerTensors`, and `build_lora_mm` facades should not be recreated in each
-architecture. Tensor names can be kept in a model-specific helper when that improves readability.
-
-`raw_op` supports operations outside the convenience vocabulary, using the same converter dispatch:
+`node` is the single operation API. It looks up the operation's registered converter, which
+constructs OpenVINO nodes immediately. `GgufValue` holds the resulting `ov::Output`;
+`value.shape()`, `value.type()` and `value.ne(i)` read OpenVINO's inferred result. There is no
+builder operation registry, per-operation method or separate shape implementation to maintain.
 
 ```cpp
-auto experts = graph.raw_op("GGML_OP_TOP_K", {scores}, ov::element::i32, 0,
-                            {{"k", int64_t{2}}});
+auto sum = graph.node("GGML_OP_ADD", {a, b}, a.type());
+auto projected = graph.node("GGML_OP_MUL_MAT", {weight, sum}, ov::element::f32);
+auto experts = graph.node("GGML_OP_TOP_K", {scores}, ov::element::i32, 0,
+                          {{"k", int64_t{2}}});
 ```
 
-No output shape is supplied. A `ConversionExtension` can provide a new operation; its OpenVINO
-outputs supply shape inference without a second builder registration. `RESHAPE` accepts
-`reshape_target` (OpenVINO order) and `special_zero`; `REPEAT` accepts integer `repeats`.
-GGML view/stride semantics still need explicit slice/layout parameters.
+Operands follow GGML order (weight before activation for matrix multiplication). `out_type` is
+the operation's requested GGML result type, such as TopK's integer index type. It is passed to
+the converter; the returned value's type comes from the actual OpenVINO output. `op_case` selects
+a converter's existing semantic variant. Attributes supply operation parameters, not inferred
+output shapes. A `ConversionExtension` adds a new operation through this same API without
+changing the builder. Missing converters report a conversion error.
+
+Value shapes use OpenVINO order; `value.ne(i)` accesses reversed GGML dimensions. Weight values
+preserve logical vector and expert axes. Missing optional weights return an empty value;
+`tensors.require(name)` reports missing mandatory weights.
+
+Input dimensions and operation-defining parameters remain explicit. For example, a reshape
+specifies an OpenVINO-order pattern; `-1` requests an inferred dimension and `special_zero` copies
+input dimensions at zero entries. Splitting attention heads while preserving a dynamic token
+axis and the leading batch is:
+
+```cpp
+auto heads = graph.node("GGML_OP_RESHAPE", {projected}, projected.type(), 6,
+                        {{"reshape_target", std::vector<int64_t>{0, -1, n_heads, head_size}},
+                         {"special_zero", true}});
+auto merged = graph.node("GGML_OP_RESHAPE", {heads}, heads.type(), 2,
+                         {{"merge_heads", true}});
+```
+
+`PERMUTE` case 1 takes `perm` in OpenVINO axis order. `CONCAT` takes `concat_axis` in GGML order;
+`REPEAT` takes integer `repeats`. Converters and OpenVINO validate these parameters. GGML
+view/stride semantics need explicit slice/layout parameters. No representative token count or
+intermediate output-shape metadata is supplied.
+
+The SDK is not a drop-in implementation of llama.cpp's `llm_graph_context`. Map sublayers onto
+shared blocks where applicable, then use `node` for new structure. Model-specific helpers may
+name repeated fragments without extending the SDK's operation vocabulary.
 
 `load()` parses the file and selects the architecture. `convert()` invokes the selected builder
 with the frontend's current converters, then normalizes the constructed OpenVINO graph. Operation
@@ -133,7 +144,9 @@ fresh graph; external libraries implementing the selected builder stay alive wit
 Graph nodes alone do not describe how consumers should maintain state or form masks:
 
 - `configure_decoder` records the resolved RoPE and sliding-window metadata automatically.
-- `rope_ext` records per-operation RoPE use and the multimodal position contract.
+- For custom RoPE, call `configure_rope(config)` before emitting nodes. Set `config.per_op`
+  for per-node tables and `config.is_imrope` for the multimodal position contract, then emit
+  `node("GGML_OP_ROPE", ...)` with the matching mode and per-node `rope_config` attribute.
 - `set_sliding_window(tokens)` records the window for a custom attention implementation.
 - `add_recurrent_state(input, update)` declares an overwritten state and marks the update as an
   output. `GGUFMakeStateful` consumes this relationship. Its existing batch/beam restrictions still

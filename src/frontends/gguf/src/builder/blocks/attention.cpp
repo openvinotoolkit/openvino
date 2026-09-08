@@ -99,9 +99,24 @@ std::string attention(GraphEmitter& e,
     }
 
     // reshape Q/K/V to [1, n_tokens, n_head(_kv), head_size]
-    q = e.reshape(p + "Qcur_r", q, {0, -1, cfg.n_head, head_size_l}, true);
-    k = e.reshape(p + "Kcur_r", k, {0, -1, n_head_kv_l, head_size_l}, true);
-    v = e.reshape(p + "Vcur_r", v, {0, -1, n_head_kv_l, head_size_l}, true);
+    q = e.add_op("GGML_OP_RESHAPE",
+                 p + "Qcur_r",
+                 {q},
+                 e.value(q).get_element_type(),
+                 6,
+                 {{"reshape_target", std::vector<int64_t>{0, -1, cfg.n_head, head_size_l}}, {"special_zero", true}});
+    k = e.add_op("GGML_OP_RESHAPE",
+                 p + "Kcur_r",
+                 {k},
+                 e.value(k).get_element_type(),
+                 6,
+                 {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
+    v = e.add_op("GGML_OP_RESHAPE",
+                 p + "Vcur_r",
+                 {v},
+                 e.value(v).get_element_type(),
+                 6,
+                 {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
 
     // per-head q_norm / k_norm (qwen3, hunyuan, gemma4)
     if (cfg.has_qk_norm && !cfg.qk_norm_full && !cfg.qk_norm_after_rope) {
@@ -160,7 +175,12 @@ std::string attention(GraphEmitter& e,
                         f32,
                         0,
                         {{"scale", cfg.attention_temperature_scale}, {"bias", 1.0f}});
-        temp = e.reshape(p + "temp_broadcast", temp, {0, -1, 1, 1}, true);
+        temp = e.add_op("GGML_OP_RESHAPE",
+                        p + "temp_broadcast",
+                        {temp},
+                        e.value(temp).get_element_type(),
+                        6,
+                        {{"reshape_target", std::vector<int64_t>{0, -1, 1, 1}}, {"special_zero", true}});
         q = e.add_op("GGML_OP_MUL", p + "Qcur_temp_scaled", {q, temp}, f32);
     }
 
@@ -243,7 +263,12 @@ std::string attention(GraphEmitter& e,
                          std::move(attn_attrs));
 
     // reshape back to [1, 1, n_tokens, n_head*head_size]
-    auto attn_2d = e.reshape(p + "kqv_merged", attn, {0, 1, -1, q_width}, true);
+    auto attn_2d = e.add_op("GGML_OP_RESHAPE",
+                            p + "kqv_merged",
+                            {attn},
+                            e.value(attn).get_element_type(),
+                            6,
+                            {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}});
 
     // muse-glimmer: sigmoid output gate. The gate is a projection of the PRE-attention
     // normed hidden (the same `attn_norm` tensor Q/K/V come from), squashed by sigmoid and
