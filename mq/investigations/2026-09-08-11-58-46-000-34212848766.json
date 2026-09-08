@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-08-11-58-46-000-34212848766",
+  "timestamp": "2026-09-08T11:58:46Z",
+  "run_id": "34212848766",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34212848766",
+  "workflow_name": "NPU Models Tests",
+  "pr_number": "37290",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37290",
+  "author": "AshutoshSinghIntel",
+  "category": "Infrastructure",
+  "title": "NPU Models Tests fail to download openvino_wheels artifact after 5 retries",
+  "signature": "artifact download failed after 5 retries|Infrastructure",
+  "signature_hash": "f976d98a24b8000d",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {"name": "NPU Models Tests / 5010", "conclusion": "failure", "symptom": "Download OpenVINO artifacts (wheels) step failed: 'Artifact download failed after 5 retries', causing all downstream test steps to fail from missing install directory"},
+    {"name": "NPU Models Tests / 5020", "conclusion": "failure", "symptom": "Same artifact download failure as 5010, all downstream test steps fail"},
+    {"name": "ci/gha_overall_status_windows", "conclusion": "failure", "symptom": "Aggregate status check failed because dependent NPU jobs failed"}
+  ],
+  "key_errors": [
+    "2026-09-08T11:30:22.3418683Z Starting download of artifact to: C:\\actions-runner\\_work\\openvino\\openvino\\install\\wheels",
+    "2026-09-08T11:34:34.2239336Z ##[error]Unable to download artifact(s): Unable to download and extract artifact: Artifact download failed after 5 retries.",
+    "'python3' is not recognized as an internal or external command (downstream cascade caused by missing install dir)"
+  ],
+  "root_cause": "The 'openvino_wheels' artifact download (via actions/download-artifact) stalled for ~4 minutes then failed after exhausting 5 retries against GitHub's Azure Blob Storage backend (productionresultssa0.blob.core.windows.net). This is a transient GitHub Actions artifact-service/blob-storage issue unrelated to the PR's GPU convolution code changes; it affected both NPU platform matrix jobs (5010, 5020) identically and in the same time window, consistent with a shared runner-pool or storage backend hiccup rather than a code-induced failure.",
+  "reproduction_steps": "N/A - transient infrastructure failure not reproducible locally; re-running the job typically succeeds.",
+  "recommended_actions": [
+    "Re-run the failed NPU Models Tests jobs (5010, 5020) via remediate_transient_failure / rerun-failed-jobs; the artifact download almost certainly succeeds on retry.",
+    "If failures persist across multiple reruns, check GitHub Actions status page for Azure Blob Storage / actions-results backend incidents.",
+    "No code change required for this PR - the failure is unrelated to the GPU accumulation_mode changes in convolution_onednn.cpp / primitive_onednn_base.h."
+  ],
+  "prevention_strategies": "Consider increasing download-artifact retry/backoff settings for large wheel artifacts (~480MB) on Windows/AKS runners, and add a retry step at the workflow level for artifact download failures to reduce merge-queue churn.",
+  "historical_context": "Similar transient artifact-download failures have been recorded previously in the pattern database (e.g., bd5ee42b01f94f83: 'Timeout reached: Blob storage chunk did not respond in 30000ms... Artifact download failed after 5 retries', seen twice on 2026-09-08 for PR #37208 and #38007), and other Network/Infrastructure artifact-service patterns (1808e665f1f70825, c903843ea6da862b) show ECONNREFUSED/ENOTFOUND errors against the actions artifact service. This confirms recurring instability in the GitHub Actions artifact backend on this date."
+}

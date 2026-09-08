@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "artifact download failed after 5 retries|Infrastructure",
+  "signature_hash": "f976d98a24b8000d",
+  "title": "NPU Models Tests fail to download openvino_wheels artifact after 5 retries",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-08T11:58:46Z",
+  "last_seen": "2026-09-08T11:58:46Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34212848766"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37290"
+  ],
+  "recent_timestamps": [
+    "2026-09-08T11:58:46Z"
+  ],
+  "rerun_search_string": "Artifact download failed after 5 retries"
+}

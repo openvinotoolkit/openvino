@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 228,
+  "total": 229,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2240,6 +2240,17 @@
       "category": "Network",
       "signature_hash": "95106a8f6494e907",
       "pr_number": "37208"
+    },
+    {
+      "investigation_id": "2026-09-08-11-58-46-000-34212848766",
+      "run_id": "34212848766",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34212848766",
+      "workflow_name": "NPU Models Tests",
+      "timestamp": "2026-09-08T11:58:46Z",
+      "title": "NPU Models Tests fail to download openvino_wheels artifact after 5 retries",
+      "category": "Infrastructure",
+      "signature_hash": "f976d98a24b8000d",
+      "pr_number": "37290"
     }
   ]
 }
