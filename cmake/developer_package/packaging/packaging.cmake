@@ -167,46 +167,6 @@ macro(ov_install_static_deps _ov_isd_targets_var _ov_isd_comp)
 endmacro()
 
 #
-# ov_register_static_deps_in_export(<targets-list-variable> <export-set-name>)
-#
-# Registers every target in <targets-list-variable> and all of their
-# non-imported transitive link dependencies into a NAMED export set without
-# the BUILD_SHARED_LIBS guard that ov_install_static_deps has.
-#
-macro(ov_register_static_deps_in_export _ov_rsde_targets_var _ov_rsde_export)
-    _ov_static_deps_new_epoch()
-    set_property(GLOBAL PROPERTY _OV_STATIC_DEP_RESULT "")
-    foreach(_ov_rsde_root IN LISTS ${_ov_rsde_targets_var})
-        if(TARGET "${_ov_rsde_root}")
-            _ov_collect_static_deps_impl("${_ov_rsde_root}")
-        endif()
-    endforeach()
-    get_property(_ov_rsde_all GLOBAL PROPERTY _OV_STATIC_DEP_RESULT)
-    foreach(_ov_rsde_dep IN LISTS _ov_rsde_all)
-        get_target_property(_ov_rsde_alias "${_ov_rsde_dep}" ALIASED_TARGET)
-        if(_ov_rsde_alias)
-            set(_ov_rsde_real "${_ov_rsde_alias}")
-        else()
-            set(_ov_rsde_real "${_ov_rsde_dep}")
-        endif()
-        get_target_property(_ov_rsde_imp "${_ov_rsde_real}" IMPORTED)
-        if(NOT _ov_rsde_imp)
-            install(TARGETS "${_ov_rsde_real}"
-                    EXPORT "${_ov_rsde_export}"
-                    ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                    COMPONENT ${OV_CPACK_COMP_INTERNAL_EXPORT_DEPS}
-                    EXCLUDE_FROM_ALL)
-        endif()
-    endforeach()
-    unset(_ov_rsde_root)
-    unset(_ov_rsde_dep)
-    unset(_ov_rsde_real)
-    unset(_ov_rsde_alias)
-    unset(_ov_rsde_imp)
-    unset(_ov_rsde_all)
-endmacro()
-
-#
 # ov_install_static_lib(<target> <comp>)
 #
 macro(ov_install_static_lib target comp)
@@ -377,8 +337,6 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_CORE_C "core_c")
     set(OV_CPACK_COMP_CORE_DEV "core_dev")
     set(OV_CPACK_COMP_CORE_C_DEV "core_c_dev")
-    # internal component used only to keep CMake export sets valid; never packaged
-    set(OV_CPACK_COMP_INTERNAL_EXPORT_DEPS "internal_export_deps")
     # licensing
     set(OV_CPACK_COMP_LICENSING "licensing")
     # samples
