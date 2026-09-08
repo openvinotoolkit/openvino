@@ -3,7 +3,8 @@
 MLIR and Graph Compiler are not added as third-party submodules to the project, so a developer has to manually
 build a suitable LLVM & Graph Compiler and then provide cmake-configs during the OpenVINO build.
 
-The pinned Graph Compiler revision can be found in [`cmake/graph-compiler.cmake`](../../../../../cmake/graph-compiler.cmake).
+The pinned Graph Compiler revision can be found in
+[`thirdparty/cmake/graph-compiler.cmake`](../../thirdparty/cmake/graph-compiler.cmake).
 
 ## 1. Clone a suitable graph-compiler and build gc + llvm
 

@@ -143,7 +143,7 @@ file(GLOB_RECURSE GPU_MLIR_SOURCES ${OV_GPU_MLIR_DIR}/*.cpp)
 list(REMOVE_ITEM PLUGIN_SOURCES ${GPU_MLIR_SOURCES})
 
 if(ENABLE_MLIR_FOR_GPU)
-    include(${CMAKE_SOURCE_DIR}/cmake/graph-compiler.cmake)
+    include(thirdparty/cmake/graph-compiler.cmake)
 
     set(mlir_lib openvino_intel_gpu_mlir_obj)
     add_library(${mlir_lib} OBJECT ${GPU_MLIR_SOURCES})
