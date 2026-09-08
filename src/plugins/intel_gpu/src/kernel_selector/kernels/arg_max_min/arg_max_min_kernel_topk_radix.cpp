@@ -78,7 +78,7 @@ bool ArgMaxMinKernelTopKRadix::Validate(const Params& p) const {
     const auto& params = static_cast<const arg_max_min_params&>(p);
 
     // Radix approach relies on bit manipulation of the IEEE-754 representation
-    if (params.inputs[0].GetDType() != Datatype::F16 && params.inputs[0].GetDType() != Datatype::F32)
+    if (params.inputs[0].GetDType() != Datatype::F16 && params.inputs[0].GetDType() != Datatype::F32) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
