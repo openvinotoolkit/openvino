@@ -807,6 +807,46 @@ TEST(GGUFOps, TopK) {
     EXPECT_EQ(row1, (std::vector<int32_t>{0, 2, 4}));
 }
 
+TEST(GGUFOps, TopKExplicitKInfersOutputShape) {
+    const std::vector<float> values{1, 9, 3, 7, 5, 50, 10, 40, 20, 30};
+    // Sorted index sets from ggml_top_k on llama.cpp CPU, revision 03fa73cb27.
+    const std::vector<std::vector<int32_t>> expected_one{{1}, {0}};
+    const std::vector<std::vector<int32_t>> expected_three{{1, 3, 4}, {0, 2, 4}};
+    for (int64_t k : {1, 3}) {
+        SCOPED_TRACE(k);
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_TOP_K")
+                         .input("x", ov::element::f32, {1, 1, -1, 5})
+                         .output("out", ov::element::i32, ov::PartialShape::dynamic())
+                         .attr<int64_t>("k", k)
+                         .build();
+        EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{1, 1, -1, k}));
+        const auto& expected = k == 1 ? expected_one : expected_three;
+        for (size_t rows : {1u, 2u}) {
+            SCOPED_TRACE(rows);
+            const std::vector<float> data(values.begin(), values.begin() + rows * 5);
+            auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, rows, 5}, data)}});
+            ASSERT_EQ(out.get_shape(), (ov::Shape{1, 1, rows, static_cast<size_t>(k)}));
+            const auto* indices = out.data<int32_t>();
+            for (size_t row = 0; row < rows; ++row) {
+                std::vector<int32_t> selected(indices + row * k, indices + (row + 1) * k);
+                std::sort(selected.begin(), selected.end());
+                EXPECT_EQ(selected, expected[row]);
+            }
+        }
+    }
+}
+
+TEST(GGUFOps, TopKRejectsUnknownK) {
+    for (const auto& shape : {ov::PartialShape::dynamic(), ov::PartialShape{1, 1, 2, -1}}) {
+        auto builder = SingleOpBuilder()
+                           .op("GGML_OP_TOP_K")
+                           .input("x", ov::element::f32, {1, 1, 2, 5})
+                           .output("out", ov::element::i32, shape);
+        EXPECT_THROW(builder.build(), ov::Exception);
+    }
+}
+
 // Repeat: tile src to fill the output shape (integer multiples per axis).
 TEST(GGUFOps, Repeat) {
     auto model = SingleOpBuilder()

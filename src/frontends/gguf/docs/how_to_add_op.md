@@ -79,6 +79,11 @@ the graph-fingerprint gate rely on.
 Helpers in [`src/utils.hpp`](../src/utils.hpp): `num_inputs_check`, `get_dimensions`,
 `rename_outputs_with_suffix`, `make_sin_cos` (RoPE), `process_view_input`.
 
+`TOP_K` accepts an `int64_t` attribute `k`; OpenVINO infers the output shape from the input
+and this parameter. For compatibility, decoders that omit `k` must supply a static last
+output dimension, where ggml stores `k`. An unknown `k` is rejected, never inferred from
+the input width.
+
 Insert a `Convert` to `get_output_type()` when the op may change element type (`CONCAT`, `CPY`,
 `SET_ROWS`, `GET_ROWS`) rather than assuming the input type. Prefer `ov::op::vX::OpName` over
 `opsetX::OpName`, per the repository convention.

@@ -145,13 +145,14 @@ std::string moe_ffn(GraphEmitter& e,
     auto selection_probs = probs;
     if (e.has_weight(p + "exp_probs_b.bias"))
         selection_probs = add_bias(e, probs, p + "exp_probs_b.bias", p + "moe_selection_probs");
-    auto selected = e.add_op("GGML_OP_TOP_K",
-                             p + "moe_topk",
-                             {selection_probs},
-                             ps({1, 1, T, K}),
-                             ov::element::i32,
-                             0,
-                             {{"expert_groups", cfg.expert_groups}, {"expert_groups_used", cfg.expert_groups_used}});
+    auto selected = e.add_op(
+        "GGML_OP_TOP_K",
+        p + "moe_topk",
+        {selection_probs},
+        ps({1, 1, T, K}),
+        ov::element::i32,
+        0,
+        {{"k", int64_t{K}}, {"expert_groups", cfg.expert_groups}, {"expert_groups_used", cfg.expert_groups_used}});
 
     // weights = gather probs by selected; op_case 10 returns a per-expert column
     // [1,T,K,1] (robust to dynamic T). gpt-oss softmaxes over the K (expert) axis.

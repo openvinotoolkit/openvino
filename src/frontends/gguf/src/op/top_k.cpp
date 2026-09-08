@@ -24,8 +24,8 @@ namespace frontend {
 namespace gguf {
 namespace op {
 
-// ggml_top_k(a, k): the indices of the k largest values along ne[0] (the OV last axis),
-// ordered by descending value, as i32. k is the extent of that axis on the output.
+// ggml_top_k(a, k): the indices of the k largest values along ne[0] (the OV last axis).
+// The caller supplies k; legacy decoders encode it in the output's last dimension.
 OutputVector translate_top_k(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
@@ -34,7 +34,7 @@ OutputVector translate_top_k(const NodeContext& context) {
     if (groups > 1) {
         using namespace ov::op;
         const int used = context.get_attribute<int>("expert_groups_used");
-        const auto shape = context.get_input_shape(0);
+        const auto shape = input.get_partial_shape();
         const auto experts = shape[shape.rank().get_length() - 1].get_length();
         FRONT_END_GENERAL_CHECK(experts % groups == 0 && experts / groups >= 2 && used > 0 && used <= groups,
                                 "Invalid grouped expert selection dimensions");
@@ -63,25 +63,23 @@ OutputVector translate_top_k(const NodeContext& context) {
         input = std::make_shared<v1::Reshape>(filtered, std::make_shared<v3::ShapeOf>(input), false);
     }
 
-    // k is the output's last-axis extent. Prefer the static value, but fall back to reading it off
-    // the output shape at runtime so a dynamic extent converts instead of throwing (ARGSORT derives
-    // its k dynamically for the same reason).
-    const auto& out_ps = context.get_output_shape();
-    const auto rank = out_ps.rank();
-    const int64_t axis = rank.is_static() ? rank.get_length() - 1 : -1;
-    ov::Output<ov::Node> k_node;
-    if (rank.is_static() && out_ps[rank.get_length() - 1].is_static()) {
-        k_node =
-            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {out_ps[rank.get_length() - 1].get_length()});
+    const auto k_attribute = context.get_attribute_as_any("k");
+    int64_t k;
+    if (!k_attribute.empty()) {
+        k = k_attribute.as<int64_t>();
     } else {
-        k_node = std::make_shared<ov::op::v0::Squeeze>(
-            get_dimensions(input, {static_cast<int>(rank.is_static() ? rank.get_length() - 1 : 3)}),
-            ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
+        const auto shape = context.get_output_shape();
+        const auto rank = shape.rank();
+        FRONT_END_OP_CONVERSION_CHECK(
+            rank.is_static() && rank.get_length() > 0 && shape[rank.get_length() - 1].is_static(),
+            "TOP_K requires 'k' or a static last output dimension");
+        k = shape[rank.get_length() - 1].get_length();
     }
 
+    auto k_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {k});
     auto indices = make_topk_indices(input,
                                      k_node,
-                                     axis,
+                                     -1,
                                      ov::op::v11::TopK::Mode::MAX,
                                      context.get_attribute<ov::element::Type>("output_type"));
 
