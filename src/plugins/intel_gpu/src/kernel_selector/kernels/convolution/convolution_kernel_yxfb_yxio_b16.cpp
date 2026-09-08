@@ -61,8 +61,9 @@ size_t GetBatchesPerWorkItem(size_t batch_size, Datatype dataType) {
 }
 
 size_t GetOfmPerWorkitem(Datatype dataType) {
-    if (dataType == Datatype::F16)
+    if (dataType == Datatype::F16) {
         return 16;
+    }
     return 8;
 }
 }  // namespace

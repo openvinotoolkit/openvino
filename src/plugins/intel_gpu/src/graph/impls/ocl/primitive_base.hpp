@@ -190,8 +190,9 @@ protected:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
-        if (_kernel_data.internalBuffers.empty())
+        if (_kernel_data.internalBuffers.empty()) {
             return {};
+        }
 
         std::vector<BufferDescriptor> internal_buffers;
         auto dtype = from_data_type(_kernel_data.internalBufferDataType);
@@ -238,8 +239,9 @@ protected:
         stream& stream = instance.get_network().get_stream();
 
         for (size_t k = 0; k < _kernels.size(); ++k) {
-            if (_kernel_data.kernels[k].skip_execution)
+            if (_kernel_data.kernels[k].skip_execution) {
                 continue;
+            }
 
             stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
         }
@@ -259,8 +261,9 @@ protected:
                                                                         "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
                                                                         "[GPU] Likely some issue with empty tensor handling happened");
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
-            if (_kernel_data.kernels[kd_idx].skip_execution)
+            if (_kernel_data.kernels[kd_idx].skip_execution) {
                 continue;
+            }
             // If any user of the prim's users is CPU implementation or network's output, set prim as a output event (event won't be nullptr)
             bool needs_completion_event = instance.needs_completion_event();
 
@@ -288,8 +291,9 @@ protected:
             kernel_dump_info.add_entry_point(_kernels[kd_idx]->get_id());
         }
 
-        if ((all_events.empty()) && (!tmp_events.empty()))
+        if ((all_events.empty()) && (!tmp_events.empty())) {
             return stream.aggregate_events(tmp_events);
+        }
 
         bool group_events = (all_events.size() > 1);
         return stream.aggregate_events(all_events, group_events);
@@ -310,8 +314,9 @@ protected:
     }
 
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
-        if (is_cpu())
+        if (is_cpu()) {
             return;
+        }
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
         _kernels.clear();
