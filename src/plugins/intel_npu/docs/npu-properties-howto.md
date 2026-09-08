@@ -7,10 +7,11 @@ Practical manual for NPU plugin properties
 - [Glossary](#glossary)
 - [Structure of a property (Class hierarchy)](#structure-of-a-property-class-hierarchy)
   - [Properties With Option vs Properties Without Option](#properties-with-option-vs-properties-without-option)
+    - [Property resolution flow](#property-resolution-flow)
+    - [Plugin-to-compiled-model property flow](#plugin-to-compiled-model-property-flow)
   - [OptionBase<T>](#optionbaset)
   - [OptionDesc](#optiondesc)
   - [Config](#config)
-  - [FilteredConfig](#filteredconfig)
   - [Properties](#properties)
 - [How to add a new public (option-backed) property](#how-to-add-a-new-public-option-backed-property)
   - [Step 1. Define the new property](#step-1-define-the-new-property)
@@ -57,6 +58,81 @@ To summarize:
 A property can be implemented in **one** of the 2 ways:
 - Option-backed property: has an entry in internal Config and is managed through Option descriptors/helpers.
 - Property without option: implemented through callback logic (typically read-only runtime/backend information).
+
+### Property resolution flow
+
+The following diagram shows how the two property implementations are initialized and exposed. Compiler type,
+backend availability, option mode, and whether a value was stored can affect the final supported property set.
+
+```mermaid
+flowchart TD
+    A[Application] --> B[PluginPropertyManager]
+
+    B --> C[getProperty]
+    B --> D[setProperty]
+    B --> E[isPropertySupported]
+    C --> F[Registered properties and callbacks]
+    D --> F
+    E --> F
+
+    B --> G[getMergedConfigAndUnknownProperties]
+    G --> H[Config plus unknownProperties]
+    H --> I[Config]
+    H --> J[unknownProperties: ov::AnyMap]
+
+    I --> K[Compiler]
+    I --> L[Import path]
+    I --> M[Other runtime components]
+
+    I --> N[CompiledModel]
+    J --> N
+    N --> O[CompiledModelPropertyManager]
+    O --> P[Compiled-model properties]
+```
+
+### Plugin-to-compiled-model property flow
+
+`PluginPropertyManager` exposes two different kinds of APIs:
+
+- `getProperty`, `setProperty`, and `isPropertySupported` resolve individual properties through the registered property
+    descriptors, support predicates, getters, and setters.
+- `getMergedConfigAndUnknownProperties` prepares the configuration for a larger operation and returns both the merged
+    configuration and properties that the plugin does not consume.
+
+`Config` is the shared configuration used by the compiler, import path, and other runtime components.
+
+`PluginPropertyManager::getMergedConfigAndUnknownProperties` returns:
+
+```cpp
+std::pair<Config, ov::AnyMap>
+```
+
+- The returned `Config` is the merged `Config` view after property support, compiler type, option mode, and
+    operation rules have been applied. It is consumed by the compiler, import path, other runtime components, and the
+    compiled model.
+- `unknownProperties` is an `ov::AnyMap` containing keys that the plugin does not consume. During compilation and import,
+    this map is passed together with the merged `Config` to `CompiledModel`, which constructs
+    `CompiledModelPropertyManager` with both values.
+
+Compiler options are represented by the same option descriptors as other options. Their `OptionMode` determines where
+they are used:
+
+- `CompileTime`: used by the compiler and removed or skipped on import.
+- `Runtime`: used by plugin/runtime components and not sent to the compiler.
+- `Both`: available to the compiler during compilation and to applicable runtime components.
+
+The `mergeMode` controls how the pair is produced:
+
+| Mode | Behavior |
+|:-----|:---------|
+| `Compile` | Compiler-supported unknown keys are stored as internal configuration. Other unknown keys are returned in `unknownProperties` for the compiled model. |
+| `Import` | Compile-time-only options are removed or skipped because the model is already compiled. If `LOADED_FROM_CACHE` is true, compiler options are checked and skipped with a warning; otherwise they are not relevant to the import path. |
+| `Query` | Unsupported unknown keys cause an exception instead of being forwarded. |
+
+For registered properties, the manager validates mutability and support before updating `Config`. For compiler-only
+properties skipped during import, `unknownProperties` remains empty and the manager logs that the property will not be used
+for the current configuration. In `Query` mode, only the merged `Config` view is used; the `unknownProperties` map is not
+forwarded to a compiled model. Compiled-model properties are normally registered as read-only.
 
 ### OptionBase\<T\> 
 Implements the option descriptor. This class contains all the details of a config option: name, datatype, default value, parser, public/private, mutability, compiler version (for legacy support), etc. This serves as the key in our configuration map. 
@@ -128,16 +204,17 @@ The plugin creates it once and reuses it during constructor bootstrap: first wit
 then with the full plugin and backend options before property-manager initialization.
 
 ### Config
-is the high-level configuration "database" which implements the mapping between OptionBase and templatized OptionValue.
-Maps and stores the user-defined values for each entry in OptionsDesc layer.
-Implements the top level configuration manipulation functions:
+`Config` is the high-level configuration database that maps `OptionBase` descriptors to typed option values. It maps and
+stores user-defined values from the `OptionsDesc` layer and implements the top-level configuration functions:
 get/update/updateAny/has/getString/toString/fromString and handles typecasts, type verification, parsing and conversions.
-```` Note: In Plugin bootstrap, this layer is created early from a minimal descriptor (LOG_LEVEL), then expanded in place as the shared OptionsDesc is populated and environment variables are reparsed. ````
+It also applies availability and support filtering based on the current system configuration and compiler type.
 
-### FilteredConfig
-is a derivative class of Config, used only by NPU Plugin, which implements additional filtering layers atop of the base config,
-such as enabling/disabling keys based on their availability/support on the current system configuration.
-```` Note: This layer dynamically changes based on system configuration and compiler_type. ````
+The target design is one unified `Config` class that combines the current `Config` and `FilteredConfig` responsibilities.
+Today, `FilteredConfig` is still a derived implementation used by the NPU plugin; it is not a separate conceptual
+configuration layer in the target design.
+
+In plugin bootstrap, `Config` is created early from a minimal descriptor (`LOG_LEVEL`), then expanded in place as the
+shared `OptionsDesc` is populated and environment variables are reparsed.
 
 The initialization order is:
 1. `Plugin` creates and populates `OptionsDesc` with all plugin options (`register_options(...)`) and then registers backend options (`backend->registerOptions(*options)` when a backend exists).
@@ -280,7 +357,7 @@ register_property(
 **Explanation:**
 `register_property` stores the property name, visibility, mutability, support predicate, getter, and setter in one
 descriptor. The support predicate determines whether the property is exposed. The getter reads the typed option from
-`FilteredConfig`, and the setter validates and stores the supplied value through `updateAny`.
+`Config`, and the setter validates and stores the supplied value through `updateAny`.
 ### For compiled-model (if required)
 src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp

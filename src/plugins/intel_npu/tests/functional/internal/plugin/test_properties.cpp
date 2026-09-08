@@ -794,7 +794,7 @@ TEST_P(CompatibilityCheckTests, CheckInternalCompilerOptionWithGetMergedConfigAn
 TEST_P(CompatibilityCheckTests, CheckInternalCompilerOptionWithSetPropertyAndGetProperty) {
     OV_ASSERT_NO_THROW(
         propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}}));
-    ov::intel_npu::CompilerType compilerType;
+    ov::intel_npu::CompilerType compilerType = ov::intel_npu::CompilerType::DRIVER;
     OV_ASSERT_NO_THROW(
         compilerType =
             propertiesManager->getProperty(ov::intel_npu::compiler_type.name()).as<ov::intel_npu::CompilerType>());
@@ -805,7 +805,7 @@ TEST_P(CompatibilityCheckTests, CheckInternalCompilerOptionWithSetPropertyAndGet
                     testing::HasSubstr("Unsupported configuration key: WS_COMPILE_CALL_NUMBER"));
 
     OV_ASSERT_NO_THROW(propertiesManager->setProperty({{"WS_COMPILE_CALL_NUMBER", ov::Any(5)}}));
-    uint32_t ws_compile_call_number;
+    uint32_t ws_compile_call_number = 0;
     OV_ASSERT_NO_THROW(ws_compile_call_number =
                            propertiesManager->getProperty("WS_COMPILE_CALL_NUMBER").as<uint32_t>());
     ASSERT_EQ(ws_compile_call_number, 5);
