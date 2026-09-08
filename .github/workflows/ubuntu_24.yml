@@ -303,6 +303,7 @@ jobs:
       fail-fast: false
       matrix:
         TEST_TYPE: ['unit', 'func']
+        SHARD: [0, 1, 2, 3, 4]
     with:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
@@ -310,6 +311,8 @@ jobs:
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+      shard-count: 5
+      shard-index: ${{ matrix.SHARD }}
     if: ${{ github.event_name == 'schedule' }}
 
   dGPU_B580_Nightly:
@@ -321,6 +324,7 @@ jobs:
         fail-fast: false
         matrix:
           TEST_TYPE: ['unit', 'func']
+          SHARD: [0, 1, 2, 3, 4]
       with:
         device: 'dgpu'
         test_type: ${{ matrix.TEST_TYPE }}
@@ -328,6 +332,8 @@ jobs:
         runner-group: 'Intel-GPU'
         image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
         options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
+        shard-count: 5
+        shard-index: ${{ matrix.SHARD }}
       if: ${{ github.event_name == 'schedule' }}
 
   Overall_Status:
