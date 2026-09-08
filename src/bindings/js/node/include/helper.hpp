@@ -196,3 +196,5 @@ ov::AnyMap to_anyMap(const Napi::Env&, const Napi::Value&);
 std::string buffer_to_string(const Napi::Value& value);
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
+
+void release_tsfn_after_blocking_call(const Napi::ThreadSafeFunction& tsfn, napi_status call_status) noexcept;
