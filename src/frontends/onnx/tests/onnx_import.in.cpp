@@ -1133,6 +1133,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_2_opset11) {
     auto model = convert_model("softmax_axis_2_opset11.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
+
+    // clang-format off
     test_case.add_input<float>(
         Shape{2, 2, 3, 4},
         {1.749455f,  -0.286073f, -0.484565f, -2.653319f, -0.008285f, -0.319631f,
@@ -1143,6 +1145,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_2_opset11) {
          -0.204375f, -0.486495f, -0.185775f, -0.380536f, 0.088978f,  0.063672f,
          0.296347f,  1.402771f,  -1.546863f, 1.295619f,  -0.237250f, -1.232346f,
          -0.172420f, 0.091838f,  1.067558f,  -1.061634f, 0.217348f,  0.117820f});
+    // clang-format on
 
     // clang-format off
     test_case.add_expected_output<float>(
