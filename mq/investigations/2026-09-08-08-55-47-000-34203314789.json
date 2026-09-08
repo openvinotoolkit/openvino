@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-08-08-55-47-000-34203314789",
+  "timestamp": "2026-09-08T08:55:47Z",
+  "run_id": "34203314789",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34203314789",
+  "workflow_name": "Android ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38007",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38007",
+  "author": "sungeunk",
+  "category": "Code Issue",
+  "title": "GPU unit tests CMake glob removal missing two test source files",
+  "signature": "cmake error at add_target_helpers.cmake message exists on disk but is not listed in target sources and will not be compiled add it to the appropriate cmakelists txt or sources cmake|Code Issue",
+  "signature_hash": "424833cadb6f935d",
+  "confidence": "High",
+  "failed_jobs": [
+    {"name": "Build x64", "conclusion": "failure", "symptom": "CMake configure fails: source files exist on disk but not listed in ov_gpu_unit_tests target sources"},
+    {"name": "Build arm64", "conclusion": "failure", "symptom": "CMake configure fails: identical missing-sources error as Build x64"},
+    {"name": "ci/gha_overall_status_android", "conclusion": "failure", "symptom": "Overall status check fails because Build x64/arm64 failed"}
+  ],
+  "key_errors": [
+    "CMake Error at cmake/developer_package/add_target_helpers.cmake:635 (message): [ov_gpu_unit_tests] '/__w/openvino/openvino/openvino/src/plugins/intel_gpu/tests/unit/transformations/group_query_attention_decomposition_test.cpp' exists on disk but is not listed in target sources and will not be compiled. Add it to the appropriate CMakeLists.txt or sources.cmake.",
+    "CMake Error at cmake/developer_package/add_target_helpers.cmake:635 (message): [ov_gpu_unit_tests] '/__w/openvino/openvino/openvino/src/plugins/intel_gpu/tests/unit/transformations/remove_fq_before_dw_conv_test.cpp' exists on disk but is not listed in target sources and will not be compiled. Add it to the appropriate CMakeLists.txt or sources.cmake."
+  ],
+  "root_cause": "The intel_gpu unit tests CMakeLists.txt uses file(GLOB_RECURSE ...) to collect test sources, and OpenVINO's _ov_check_all_sources_listed guard cross-checks the glob result against files physically present on disk at configure time. Two test source files (group_query_attention_decomposition_test.cpp and remove_fq_before_dw_conv_test.cpp) exist in the tree but are not currently discoverable by the glob/listing mechanism used at configure time, likely because a stale CMake cache/build directory reused across merge-queue runs did not re-glob after these files were added by a prior merged PR, or the files were added without regenerating the sources list this CI validates. This failure is unrelated to the current PR #38007, which only touches random_generator.hpp/test files in intel_gpu; it has recurred 4 times already today across unrelated PRs, confirming it is a pre-existing repository-wide CMake source-listing issue rather than something introduced by this PR.",
+  "reproduction_steps": "Run CMake configure for the Android ARM64 build target locally: `cmake -S . -B build -DENABLE_TESTS=ON ...` (matching the CI's Android toolchain flags) and observe the _ov_check_all_sources_listed failure for src/plugins/intel_gpu/tests/unit/CMakeLists.txt when group_query_attention_decomposition_test.cpp / remove_fq_before_dw_conv_test.cpp are present on disk.",
+  "recommended_actions": [
+    "Locate the PR/commit that introduced group_query_attention_decomposition_test.cpp and remove_fq_before_dw_conv_test.cpp under src/plugins/intel_gpu/tests/unit/transformations/ and verify these files are properly tracked so file(GLOB_RECURSE) in src/plugins/intel_gpu/tests/unit/CMakeLists.txt picks them up at fresh configure time.",
+    "Check whether merge-queue Android runners reuse a stale CMake build cache that predates these files being added; if so, ensure the cache key includes source-tree hash or force a clean configure.",
+    "Since this is unrelated to PR #38007, re-run the failed jobs once the root fix lands, or await the underlying fix from the PR that added these test files."
+  ],
+  "prevention_strategies": "Add a pre-merge CI check that runs CMake configure with a clean build directory (no cache) at least once per day, or on any change touching src/plugins/intel_gpu/tests/unit/, to catch glob/source-listing mismatches before they reach the merge queue repeatedly.",
+  "historical_context": "This exact signature has now recurred 4 times within roughly 3.5 hours (05:13, 06:41, 07:00, 08:42 UTC) across unrelated PRs (#38007, #37208, #37914), confirming a persistent, pre-existing repository issue rather than a one-off. See pattern 424833cadb6f935d in repo-memory."
+}
