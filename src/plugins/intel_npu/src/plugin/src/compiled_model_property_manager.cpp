@@ -137,79 +137,80 @@ void CompiledModelPropertyManager::registerProperties() {
         OPENVINO_THROW("READ-ONLY configuration key");
     };
 
-    const auto registerConfigProperty =
-        [this,
-         hasPropertyValue](const auto optionTag, bool isPublic, ov::PropertyMutability mutability, bool requireValue) {
-            using OptionType = std::decay_t<decltype(optionTag)>;
-            const auto propertyName = std::string(OptionType::key());
-            const auto isSupported = [this, propertyName, hasPropertyValue, requireValue](const ov::AnyMap&) {
-                return requireValue ? hasPropertyValue(propertyName) : _config.hasOpt(propertyName);
-            };
-            const auto setter = mutability == ov::PropertyMutability::RO
-                                    ? std::function<void(const ov::Any&)>([](const ov::Any&) {
-                                          OPENVINO_THROW("READ-ONLY configuration key");
-                                      })
-                                    : std::function<void(const ov::Any&)>([this, propertyName](const ov::Any& value) {
-                                          _config.update(propertyName, value.as<std::string>());
-                                      });
-            register_property(
-                propertyName,
-                isPublic,
-                mutability,
-                isSupported,
-                [this](const ov::AnyMap&) {
-                    return _config.get<OptionType>();
-                },
-                setter);
+    const auto registerConfigProperty = [this, hasPropertyValue](const auto optionTag, bool requireValue) {
+        using OptionType = std::decay_t<decltype(optionTag)>;
+        const auto propertyName = std::string(OptionType::key());
+        const auto isSupported = [this, propertyName, hasPropertyValue, requireValue](const ov::AnyMap&) {
+            return requireValue ? hasPropertyValue(propertyName) : _config.hasOpt(propertyName);
         };
+        register_property(
+            propertyName,
+            true,
+            ov::PropertyMutability::RO,
+            isSupported,
+            [this](const ov::AnyMap&) {
+                return _config.get<OptionType>();
+            },
+            [](const ov::Any&) {
+                OPENVINO_THROW("READ-ONLY configuration key");
+            });
+    };
 
-    registerConfigProperty(CACHE_MODE{}, true, ov::PropertyMutability::RO, false);
-    registerConfigProperty(COMPILATION_NUM_THREADS{}, true, ov::PropertyMutability::RO, false);
-    registerConfigProperty(EXECUTION_MODE_HINT{}, true, ov::PropertyMutability::RO, false);
-    registerConfigProperty(INFERENCE_PRECISION_HINT{}, true, ov::PropertyMutability::RO, false);
-    registerConfigProperty(LOADED_FROM_CACHE{}, true, ov::PropertyMutability::RO, false);
-    registerConfigProperty(LOG_LEVEL{}, true, ov::PropertyMutability::RO, false);
-    registerConfigProperty(PERFORMANCE_HINT{}, true, ov::PropertyMutability::RO, false);
-    registerConfigProperty(PERFORMANCE_HINT_NUM_REQUESTS{}, true, ov::PropertyMutability::RO, false);
+    registerConfigProperty(LOADED_FROM_CACHE{}, false);
+    registerConfigProperty(LOG_LEVEL{}, false);
+    registerConfigProperty(PERFORMANCE_HINT{}, false);
+    registerConfigProperty(PERFORMANCE_HINT_NUM_REQUESTS{}, false);
+    registerConfigProperty(NUM_STREAMS{}, false);
 
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    registerConfigProperty(ENABLE_CPU_PINNING{}, false, ov::PropertyMutability::RO, false);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-
-    registerConfigProperty(BYPASS_UMD_CACHING{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(CACHE_DIR{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(COMPILATION_MODE_PARAMS{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(COMPILER_DYNAMIC_QUANTIZATION{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(COMPILER_TYPE{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(COMPILER_VERSION{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(ENABLE_STRIDES_FOR{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(NUM_STREAMS{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(PERF_COUNT{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(PLATFORM{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(QDQ_OPTIMIZATION{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(QDQ_OPTIMIZATION_AGGRESSIVE{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(RUN_INFERENCES_SEQUENTIALLY{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(TILES{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(TURBO{}, true, ov::PropertyMutability::RO, true);
-    registerConfigProperty(WEIGHTS_PATH{}, true, ov::PropertyMutability::RO, true);
-
-    registerConfigProperty(BACKEND_COMPILATION_PARAMS{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(BATCH_COMPILER_MODE_SETTINGS{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(BATCH_MODE{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(COMPILATION_MODE{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(COMPILE_LOG_LEVEL{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(DISABLE_VERSION_CHECK{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(DMA_ENGINES{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(DYNAMIC_SHAPE_TO_STATIC{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(ENABLE_WEIGHTLESS{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(EXPORT_RAW_BLOB{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(IMPORT_RAW_BLOB{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(PROFILING_TYPE{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(SEPARATE_WEIGHTS_VERSION{}, false, ov::PropertyMutability::RO, true);
-    registerConfigProperty(SHARED_COMMON_QUEUE{}, false, ov::PropertyMutability::RO, true);
+    registerConfigProperty(BYPASS_UMD_CACHING{}, true);
+    registerConfigProperty(CACHE_DIR{}, true);
+    registerConfigProperty(CACHE_MODE{}, true);
+    registerConfigProperty(COMPILATION_MODE_PARAMS{}, true);
+    registerConfigProperty(COMPILATION_NUM_THREADS{}, true);
+    registerConfigProperty(COMPILER_DYNAMIC_QUANTIZATION{}, true);
+    registerConfigProperty(COMPILER_TYPE{}, true);
+    registerConfigProperty(COMPILER_VERSION{}, true);
+    registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true);
+    registerConfigProperty(ENABLE_STRIDES_FOR{}, true);
+    registerConfigProperty(EXECUTION_MODE_HINT{}, true);
+    registerConfigProperty(PERF_COUNT{}, true);
+    registerConfigProperty(PLATFORM{}, true);
+    registerConfigProperty(QDQ_OPTIMIZATION{}, true);
+    registerConfigProperty(QDQ_OPTIMIZATION_AGGRESSIVE{}, true);
+    registerConfigProperty(RUN_INFERENCES_SEQUENTIALLY{}, true);
+    registerConfigProperty(TILES{}, true);
+    registerConfigProperty(TURBO{}, true);
+    registerConfigProperty(WEIGHTS_PATH{}, true);
+    registerConfigProperty(BACKEND_COMPILATION_PARAMS{}, true);
+    registerConfigProperty(BATCH_COMPILER_MODE_SETTINGS{}, true);
+    registerConfigProperty(BATCH_MODE{}, true);
+    registerConfigProperty(COMPILATION_MODE{}, true);
+    registerConfigProperty(COMPILE_LOG_LEVEL{}, true);
+    registerConfigProperty(DISABLE_VERSION_CHECK{}, true);
+    registerConfigProperty(DMA_ENGINES{}, true);
+    registerConfigProperty(DYNAMIC_SHAPE_TO_STATIC{}, true);
+    registerConfigProperty(ENABLE_WEIGHTLESS{}, true);
+    registerConfigProperty(EXPORT_RAW_BLOB{}, true);
+    registerConfigProperty(IMPORT_RAW_BLOB{}, true);
+    registerConfigProperty(INFERENCE_PRECISION_HINT{}, true);
+    registerConfigProperty(PROFILING_TYPE{}, true);
+    registerConfigProperty(SEPARATE_WEIGHTS_VERSION{}, true);
+    registerConfigProperty(SHARED_COMMON_QUEUE{}, true);
 
     // clang-format off
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    register_property(ov::hint::enable_cpu_pinning.name(), false, ov::PropertyMutability::RO,
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::hint::enable_cpu_pinning.name());
+        },
+        [this](const ov::AnyMap&) {
+            return _config.get<ENABLE_CPU_PINNING>();
+        },
+        [](const ov::Any&) {
+            OPENVINO_THROW("READ-ONLY configuration key");
+        }
+    );
+    OPENVINO_SUPPRESS_DEPRECATED_END
     register_property(ov::hint::model_priority.name(), true, ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::hint::model_priority.name());

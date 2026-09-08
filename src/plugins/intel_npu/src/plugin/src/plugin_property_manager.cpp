@@ -836,8 +836,8 @@ void PluginPropertyManager::registerProperties() {
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::hint::model.name());
         },
-        [](const ov::AnyMap&) -> ov::Any {
-            OPENVINO_THROW("Property '", ov::hint::model.name(),"' can only be provided when importing a compiled model, and read from compiled model");
+        [this](const ov::AnyMap&) -> ov::Any {
+            return _config.get<MODEL_PTR>().lock();
         },
         [](const ov::Any&) {
             OPENVINO_THROW("Property '", ov::hint::model.name(),"' can only be provided when importing a compiled model, it cannot be set otherwise");
