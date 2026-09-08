@@ -29,10 +29,8 @@ constexpr size_t kRows = 4;
 constexpr size_t kCols = 256;
 constexpr float kTolFaithful = 3e-3f;
 constexpr float kTolRequant = 1.5e-2f;
-// Q4_K uses an INTEGER (u8) zero-point so the CPU plugin fuses the dequant into the MatMul
-// (matching the original ggml-openvino backend); the integer zp diverges from ggml's faithful
-// to_float by up to ~0.045 per weight.
-constexpr float kTolIntZp = 5e-2f;
+// Native Q4_K group-wise requantization improves on the former 5e-2 integer-zp tolerance.
+constexpr float kTolU4Requant = 4e-2f;
 
 struct WeightCase {
     const char* stem;        // test_data prefix
@@ -85,7 +83,7 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            WeightCase{"q8_0", "Q8_0", kTolFaithful},
                                            WeightCase{"q2_k", "Q2_K", kTolFaithful},
                                            WeightCase{"q3_k", "Q3_K", kTolFaithful},
-                                           WeightCase{"q4_k", "Q4_K", kTolIntZp},
+                                           WeightCase{"q4_k", "Q4_K", kTolU4Requant},
                                            WeightCase{"q5_k", "Q5_K", kTolRequant},
                                            WeightCase{"q6_k", "Q6_K", kTolRequant},
                                            WeightCase{"q2_0", "Q2_0", kTolFaithful}),
@@ -255,4 +253,52 @@ TEST(GGUFFusedQkvBias, SplitsIntoExpectedRanges) {
     for (size_t i = 0; i < n_v; ++i) {
         EXPECT_FLOAT_EQ(parts[2].data<float>()[i], static_cast<float>(n_q + n_k + i));
     }
+}
+
+TEST(GGUFFusedQkvWeight, PreservesScalesForMxfp4AndQ8K) {
+    const auto check = [](ov::frontend::gguf::GgufTensorType qtype,
+                          const ov::element::Type& weight_type,
+                          const ov::element::Type& scale_type,
+                          size_t groups) {
+        constexpr size_t rows = 6;
+        constexpr size_t cols = 256;
+        std::unordered_map<std::string, ov::Tensor> weights{
+            {"fused.weight", ov::Tensor(weight_type, {rows, cols})},
+            {"fused.scales", ov::Tensor(scale_type, {rows, groups})},
+        };
+        std::unordered_map<std::string, ov::frontend::gguf::GgufTensorType> qtypes{{"fused.qtype", qtype}};
+
+        auto qkv = ov::frontend::gguf::split_fused_qkv_extracted("fused", weights, qtypes, 2, 2, 2);
+        for (const auto& part : qkv) {
+            ASSERT_TRUE(part.tensors.scales);
+            EXPECT_EQ(part.tensors.scales.get_shape(), (ov::Shape{2, groups}));
+        }
+
+        auto q_gate = ov::frontend::gguf::split_interleaved_q_gate("fused", weights, qtypes, 1);
+        for (const auto& part : q_gate) {
+            ASSERT_TRUE(part.tensors.scales);
+            EXPECT_EQ(part.tensors.scales.get_shape(), (ov::Shape{3, groups}));
+        }
+    };
+
+    check(ov::frontend::gguf::GGUF_TYPE_MXFP4, ov::element::f4e2m1, ov::element::f8e8m0, 8);
+    check(ov::frontend::gguf::GGUF_TYPE_Q8_K, ov::element::i8, ov::element::f32, 1);
+}
+
+TEST(GGUFWeight, RejectsMissingAuxiliaryTensors) {
+    using namespace ov::frontend::gguf;
+
+    WeightTensors without_scales{ov::Tensor(ov::element::i4, {1, 32}), {}, {}};
+    EXPECT_THROW(make_weight_node(without_scales, GGUF_TYPE_Q4_0), ov::Exception);
+
+    WeightTensors without_zero_point{ov::Tensor(ov::element::u32, {1, 4}), ov::Tensor(ov::element::f16, {1, 1}), {}};
+    EXPECT_THROW(make_weight_node(without_zero_point, GGUF_TYPE_Q4_K), ov::Exception);
+}
+
+TEST(GGUFWeight, UsesIntegerZeroPointForQ4KMatmulWeights) {
+    using namespace ov::frontend::gguf;
+
+    EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q4_K), ov::element::u8);
+    EXPECT_EQ(gguf_zero_point_type("token_embd.weight", GGUF_TYPE_Q4_K), ov::element::f16);
+    EXPECT_EQ(gguf_zero_point_type("blk.0.attn_q.weight", GGUF_TYPE_Q2_0), ov::element::u8);
 }
