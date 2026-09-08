@@ -653,7 +653,8 @@ TEST_P(OVGetMetricPropsTest_CACHING_PROPERTIES, smoke_GetMetricAndPrintNoThrow) 
         ov::hint::execution_mode.name(),
         ov::hint::performance_mode.name(),
         ov::hint::dynamic_quantization_group_size.name(),
-        ov::hint::activations_scale_factor.name()
+        ov::hint::activations_scale_factor.name(),
+        ov::hint::attn_kernel_mode.name()
     };
 
     OV_ASSERT_NO_THROW(caching_properties = ie.get_property(target_device, ov::internal::caching_properties));
