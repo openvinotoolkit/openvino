@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <new>
 #include <utility>
 
 #include "openvino/util/memory.hpp"
@@ -17,6 +18,8 @@ AlignedBuffer::AlignedBuffer() : m_aligned_buffer(nullptr), m_byte_size(0) {}
 
 AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(std::max<size_t>(1, byte_size)) {
     m_aligned_buffer = static_cast<char*>(util::aligned_alloc(m_byte_size, alignment));
+    if (!m_aligned_buffer)
+        throw std::bad_alloc{};
 }
 
 AlignedBuffer::AlignedBuffer(AlignedBuffer&& other)

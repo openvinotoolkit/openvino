@@ -4,9 +4,20 @@
 
 #include "openvino/runtime/aligned_buffer.hpp"
 
+#include <limits>
+
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 
 namespace ov::test {
+
+TEST(aligned_buffer, alloc_failure_throws_bad_alloc) {
+    // A request this large cannot be satisfied by aligned_alloc but does not overflow size_t,
+    // so the allocator returns nullptr instead of throwing. The constructor must convert that
+    // into a catchable std::bad_alloc rather than storing a null buffer.
+    constexpr size_t huge = std::numeric_limits<size_t>::max() / 2;
+    OV_EXPECT_THROW({ ov::AlignedBuffer buffer(huge, 64); }, std::bad_alloc, testing::_);
+}
 
 TEST(aligned_buffer, alignment) {
     AlignedBuffer buffer(100, 64);
