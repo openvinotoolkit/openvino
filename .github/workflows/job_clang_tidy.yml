@@ -133,7 +133,7 @@ jobs:
         run: |
           cmake \
             --build "${BUILD_DIR}" \
-            --parallel 15 \
+            --parallel 16 \
             --config "${CMAKE_BUILD_TYPE}" \
             --target "${BUILD_TARGET}" \
             -- ${BUILD_EXTRA_ARGS}
