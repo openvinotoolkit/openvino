@@ -2434,23 +2434,50 @@ TEST_P(permute_tile_swap_fx_4d, combined) {
     run_test<cldnn::data_types::bf16>(p.sizes, p.format_fsv, "permute_tile_8x8_4x4", {0, 3, 2, 1});
 }
 
-// TEMP PROBE: unforced kernel selection for the model's permute (NCHW -> NWHC 4D).
-TEST(permute_tile_swap_fx_probe, unforced_selection) {
+// Unforced kernel selection for the model's permute (NCHW -> NWHC 4D, f16).
+// No implementation is forced: this asserts that the default selector picks the
+// tiled kernel instead of falling back to permute_ref, which is the behavioral
+// regression this change targets.
+TEST(permute_tile_swap_fx_selection, unforced_uses_tiled_kernel) {
     auto& engine = get_test_engine();
     const std::vector<ov::Dimension::value_type> sizes{1, 128, 200, 200};
     cldnn::tensor tensor(sizes);
     auto input = engine.allocate_memory(cldnn::layout(cldnn::data_types::f16, cldnn::format::bfyx, tensor));
-    topology topology_probe = topology(
+    tests::set_random_values<ov::float16>(input);
+
+    topology topology_selection = topology(
         input_layout("input", input->get_layout()),
         reorder("reorder", input_info("input"), {cldnn::data_types::f16, format::bfyx, tensor}),
         permute("output", input_info("reorder"), std::vector<uint16_t>{0, 3, 2, 1}));
-    auto net = get_network(engine, topology_probe, get_test_default_config(engine), get_test_stream_ptr(), false);
+    auto net = get_network(engine, topology_selection, get_test_default_config(engine), get_test_stream_ptr(), false);
     net->set_input_data("input", input);
     auto res = net->execute();
-    EXPECT_FALSE(res.empty());
-    const auto selected = net->get_primitive_info("output");
-    fprintf(stderr, "PROBE selected kernel: %s\n", selected.c_str());
-    EXPECT_EQ(selected, "permute_tile_8x8_4x4");
+    ASSERT_FALSE(res.empty());
+
+    // The default selection must pick the tiled kernel, not the permute_ref fallback.
+    EXPECT_NE(net->get_primitive_info("output").find("permute_tile_8x8_4x4"), std::string::npos);
+
+    // Numerical sanity: ONNX perm {0,3,2,1} (NCHW -> NWHC) maps
+    // out[b][W][H][C] == in[b][C][H][W]. In cldnn bfyx terms the input is
+    // (b, f=C, y=H, x=W) and the output is (b, f=W, y=H, x=C), so
+    // out[b][fo=W][yo=H][xo=C] == in[b][fi=C][yi=H][xi=W].
+    auto output = res.at("output").get_memory();
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+    const auto in_t = input->get_layout().get_tensor();
+    const auto out_t = output->get_layout().get_tensor();
+    const int32_t IF = in_t.feature[0], IY = in_t.spatial[1], IX = in_t.spatial[0];
+    const int32_t OB = out_t.batch[0], OF = out_t.feature[0], OY = out_t.spatial[1], OX = out_t.spatial[0];
+    cldnn::mem_lock<ov::float16> out_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::float16> in_ptr(input, get_test_stream());
+    for (int32_t b = 0; b < OB; ++b)
+        for (int32_t fo = 0; fo < OF; ++fo)
+            for (int32_t yo = 0; yo < OY; ++yo)
+                for (int32_t xo = 0; xo < OX; ++xo) {
+                    size_t out_off = ((size_t)(b * OF + fo) * OY + yo) * OX + xo;
+                    size_t in_off = ((size_t)(b * IF + xo) * IY + yo) * IX + fo;
+                    EXPECT_EQ(static_cast<float>(in_ptr[in_off]), static_cast<float>(out_ptr[out_off]))
+                        << "mismatch at b=" << b << " fo=" << fo << " yo=" << yo << " xo=" << xo;
+                }
 }
 
 // IsSwappingFX branch of the tiled kernel extended to 5D (cldnn order
