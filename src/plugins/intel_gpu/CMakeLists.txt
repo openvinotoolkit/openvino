@@ -196,6 +196,13 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 if(ENABLE_MLIR_FOR_GPU)
     target_link_libraries(${TARGET_NAME} PRIVATE GraphCompiler)
+    # Per target, unlike ENABLE_MLIR_FOR_GPU: must be defined by everyone linking
+    # openvino_intel_gpu_mlir_obj, since only it provides mlir::transformMLIR().
+    # Workaround to fix tests build: ov_gpu_unit_tests '#includes transformations_pipeline.cpp'
+    # (xattention_kv_cache_transform_test.cpp) but links neither the MLIR objects nor the plugin's
+    # hidden symbols, so guarding the call with ENABLE_MLIR_FOR_GPU alone breaks that link with an
+    # undefined reference to transformMLIR().
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_MLIR_BACKEND_LINKED)
 endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})

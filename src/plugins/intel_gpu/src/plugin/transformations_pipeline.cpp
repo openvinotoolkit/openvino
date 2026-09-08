@@ -169,9 +169,9 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
-#ifdef ENABLE_MLIR_FOR_GPU
+#ifdef OV_GPU_MLIR_BACKEND_LINKED
 #    include "transformations/mlir/interface/convert.hpp"
-#endif  // ENABLE_MLIR_FOR_GPU
+#endif  // OV_GPU_MLIR_BACKEND_LINKED
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
@@ -1705,7 +1705,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     }
 
     if (config.get_enable_mlir()) {
-#ifdef ENABLE_MLIR_FOR_GPU
+        // Guarded by OV_GPU_MLIR_BACKEND_LINKED rather than ENABLE_MLIR_FOR_GPU: this file is also
+        // compiled into ov_gpu_unit_tests, which does not link the MLIR objects providing transformMLIR().
+#ifdef OV_GPU_MLIR_BACKEND_LINKED
         auto loweringContext = std::make_shared<ov::EvaluationContext>();
         auto it = m_context->get_property().find(ov::intel_gpu::ocl_context.name());
         if (it != m_context->get_property().end()) {
@@ -1716,9 +1718,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::intel_gpu::mlir::transformMLIR(func, loweringContext);
 #else
         OPENVINO_THROW("[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
-                        "but the plugin was built without Graph Compiler support. "
+                        "but this binary was built without Graph Compiler support. "
                         "Rebuild OpenVINO with -DENABLE_MLIR_FOR_GPU=ON to enable MLIR execution.");
-#endif
+#endif  // OV_GPU_MLIR_BACKEND_LINKED
     }
 
     {
