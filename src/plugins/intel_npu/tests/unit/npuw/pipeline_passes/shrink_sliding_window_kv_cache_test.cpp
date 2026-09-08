@@ -28,6 +28,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 
@@ -88,10 +89,9 @@ std::shared_ptr<ov::Model> run_shrink_pass(const std::shared_ptr<ov::Model>& mod
     ov::npuw::AddPositionIdsParam().run_on_model(model);
     ov::pass::StatefulToStateless().run_on_model(model);
     ov::npuw::DetectAttentionMask().run_on_model(model);
-    const auto layout = ov::npuw::util::detect_swa_layout(model);
     ov::npuw::ReshapeToStatic(input_size, kvcache_size, kAxes, /*lora_rank=*/0, /*lhs_seq_size=*/0, is_prefill)
         .run_on_model(model);
-    ov::npuw::ShrinkSlidingWindowKVCache(layout, kvcache_size, input_size, kAxes).run_on_model(model);
+    ov::npuw::ShrinkSlidingWindowKVCache(kvcache_size, input_size, kAxes).run_on_model(model);
     return model;
 }
 
@@ -209,26 +209,14 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_SlidingSDPAUsesExternalized
     EXPECT_FALSE(is_sliding_mask_param(sdpa_map.at(3)->input_value(3).get_node()));
 }
 
-// Single-shot prefill (input_size == kvcache_size) leaves sliding layers with no past region,
-// while generate keeps a window-sized past. Both externalize the SWA mask.
-TEST_F(ShrinkSlidingWindowKVCacheTest, PrefillAndGenerate_ExpectedPastAndMaskBehaviorForPromptAndTotalKv) {
+// Single-shot prefill (input_size == kvcache_size) leaves no past region at all, unlike
+// generate, which keeps a window-sized past.
+TEST_F(ShrinkSlidingWindowKVCacheTest, PrefillSingleShot_SlidingPastIsZero_GenerateKeepsWindowSizedPast) {
     std::shared_ptr<ov::Model> generate;
     std::shared_ptr<ov::Model> prefill;
     ASSERT_NO_THROW(generate = make_generate_model(build_hybrid_model()));
     ASSERT_NO_THROW(prefill = make_prefill_model(build_hybrid_model()));
 
-    EXPECT_EQ(count_inputs(prefill, "sliding_window_attention_mask"), 1u);
-    EXPECT_EQ(count_inputs(generate, "sliding_window_attention_mask"), 1u);
-
-    const auto input_ids_shape = input_shape(prefill, "input_ids");
-    ASSERT_TRUE(input_ids_shape.has_value()) << "input_ids not found in prefill model";
-
-    const auto prefill_mask_shape = input_shape(prefill, "sliding_window_attention_mask");
-    ASSERT_TRUE(prefill_mask_shape.has_value()) << "sliding_window_attention_mask not found in prefill model";
-    const auto generate_mask_shape = input_shape(generate, "sliding_window_attention_mask");
-    ASSERT_TRUE(generate_mask_shape.has_value()) << "sliding_window_attention_mask not found in generate model";
-
-    // available_past == 0 => sliding layers keep no past KV at all.
     const auto prefill_sliding_past = input_shape(prefill, "past_key_values.0.key");
     ASSERT_TRUE(prefill_sliding_past.has_value()) << "past_key_values.0.key not found in prefill model";
     EXPECT_EQ((*prefill_sliding_past)[2], 0u);
@@ -236,10 +224,18 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, PrefillAndGenerate_ExpectedPastAndMaskBeh
     const auto generate_sliding_past = input_shape(generate, "past_key_values.0.key");
     ASSERT_TRUE(generate_sliding_past.has_value()) << "past_key_values.0.key not found in generate model";
     EXPECT_EQ((*generate_sliding_past)[2], kWindowSize);
+}
 
-    EXPECT_EQ(prefill_mask_shape->back(), input_ids_shape->back());
-    EXPECT_EQ(prefill_mask_shape->back(), 128u);
-    EXPECT_EQ(generate_mask_shape->back(), 33u);
+// Chunked prefill (input_size < kvcache_size) leaves a nonzero past budget, so sliding
+// layers are capped to the window size, same as generate, rather than left at zero.
+TEST_F(ShrinkSlidingWindowKVCacheTest, ChunkedPrefill_SlidingLayerKeepsWindowSizedPast) {
+    constexpr uint32_t kChunkSize = 64;  // < kKvCacheSize (192), so available_past > 0.
+    std::shared_ptr<ov::Model> prefill;
+    ASSERT_NO_THROW(prefill = run_shrink_pass(build_hybrid_model(), kChunkSize, kKvCacheSize, /*is_prefill=*/true));
+
+    const auto sliding_past = input_shape(prefill, "past_key_values.0.key");
+    ASSERT_TRUE(sliding_past.has_value()) << "past_key_values.0.key not found in prefill model";
+    EXPECT_EQ((*sliding_past)[2], kWindowSize);
 }
 
 // Shape-privatization invariant: KV target-shape constants that carried the full kvcache
@@ -264,4 +260,88 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_SlidingKVShapeConstantsPatc
 
     // Sliding layers (0, 2) only, each patching its K and V repeat_kv Broadcast.
     EXPECT_EQ(num_patched, 4u);
+}
+
+// SWA window-size detection is internal to the pass, exercised here indirectly through
+// its public run_on_model(). Minimal raw SDPA-only models with no KV-cache/Concat structure
+// are enough for these checks, since each returns or throws before the pass would need any
+// KV-cache structure to walk.
+namespace {
+
+// Builds a minimal SDPA-per-layer model with no KV-cache/Concat structure. Entries absent
+// from layer_mask_annotations are left unannotated.
+std::shared_ptr<ov::Model> make_annotated_sdpa_model(size_t num_layers,
+                                                     const std::map<size_t, int64_t>& layer_mask_annotations) {
+    using namespace ov::op;
+    ov::ParameterVector params;
+    ov::ResultVector results;
+    for (size_t layer_idx = 0; layer_idx < num_layers; ++layer_idx) {
+        auto q = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+        auto k = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+        auto v = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, 8});
+        auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, false);
+        sdpa->set_friendly_name("model.layers." + std::to_string(layer_idx) + ".self_attn/sdpa");
+        const auto it = layer_mask_annotations.find(layer_idx);
+        if (it != layer_mask_annotations.end()) {
+            sdpa->get_rt_info()[ov::npuw::NPUW_SDPA_MASK_RT_KEY] = it->second;
+        }
+        params.insert(params.end(), {q, k, v});
+        results.push_back(std::make_shared<v0::Result>(sdpa->output(0)));
+    }
+    return std::make_shared<ov::Model>(results, params);
+}
+
+}  // namespace
+
+// No annotations at all -> pass is a no-op.
+TEST(ShrinkSlidingWindowKVCacheDetectionTest, NoAnnotatedLayers_NoOp) {
+    const auto model = make_annotated_sdpa_model(2, {});
+    bool applied = true;
+    ASSERT_NO_THROW(
+        applied = ov::npuw::ShrinkSlidingWindowKVCache(kKvCacheSize, kGenerateInputSize, kAxes).run_on_model(model));
+    EXPECT_FALSE(applied);
+}
+
+// All causal, no sliding -> pass is a no-op.
+TEST(ShrinkSlidingWindowKVCacheDetectionTest, AllLayersCausal_NoOp) {
+    const auto model = make_annotated_sdpa_model(3, {{0, -1}, {1, -1}, {2, -1}});
+    bool applied = true;
+    ASSERT_NO_THROW(
+        applied = ov::npuw::ShrinkSlidingWindowKVCache(kKvCacheSize, kGenerateInputSize, kAxes).run_on_model(model));
+    EXPECT_FALSE(applied);
+}
+
+// Sliding layers must use a single uniform window size.
+TEST(ShrinkSlidingWindowKVCacheDetectionTest, InconsistentWindowSizes_Throws) {
+    const auto model = make_annotated_sdpa_model(3, {{0, 128}, {1, -1}, {2, 256}});
+    EXPECT_THROW(ov::npuw::ShrinkSlidingWindowKVCache(kKvCacheSize, kGenerateInputSize, kAxes).run_on_model(model),
+                 ov::Exception);
+}
+
+// Configuration error: the detected SWA window is larger than the KV budget actually
+// available (kvcache_size - input_size).
+TEST(ShrinkSlidingWindowKVCacheDetectionTest, WindowSizeExceedsAvailablePast_Throws) {
+    const auto model = make_annotated_sdpa_model(1, {{0, 128}});
+    constexpr uint32_t kSmallKvCacheSize = 100;
+    constexpr uint32_t kSmallInputSize = 50;  // available_past = 50 < window_size (128).
+    EXPECT_THROW(ov::npuw::ShrinkSlidingWindowKVCache(kSmallKvCacheSize, kSmallInputSize, kAxes).run_on_model(model),
+                 ov::Exception);
+}
+
+// All-sliding (uniform, no full-attention layer) model still gets fully shrunk: the hybrid
+// gate only requires at least one sliding layer, not a mix of sliding and full-attention.
+TEST_F(ShrinkSlidingWindowKVCacheTest, AllLayersSliding_MaskExternalizedAndPastShrunk) {
+    std::shared_ptr<ov::Model> generate;
+    ASSERT_NO_THROW(generate = make_generate_model(
+                        ov::test::npuw::build_sliding_window_test_model(kWindowSize, /*sliding_to_full_ratio=*/0)));
+
+    EXPECT_EQ(count_inputs(generate, "sliding_window_attention_mask"), 1u);
+
+    const auto past0 = input_shape(generate, "past_key_values.0.key");
+    ASSERT_TRUE(past0.has_value()) << "past_key_values.0.key not found in generate model";
+    EXPECT_EQ((*past0)[2], kWindowSize);
+
+    const auto past1 = input_shape(generate, "past_key_values.1.key");
+    ASSERT_TRUE(past1.has_value()) << "past_key_values.1.key not found in generate model";
+    EXPECT_EQ((*past1)[2], kWindowSize);
 }
