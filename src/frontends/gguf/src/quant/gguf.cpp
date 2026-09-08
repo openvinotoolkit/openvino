@@ -45,6 +45,8 @@ TypeTraits type_traits(uint32_t type) {
         return {1, 2};
     case GGUF_TYPE_Q4_0:
         return {32, 18};
+    case GGUF_TYPE_Q1_0:
+        return {128, 18};  // f16 scale + 128x 1-bit codes (16 bytes)
     case GGUF_TYPE_Q4_1:
         return {32, 20};
     case GGUF_TYPE_Q5_0:
@@ -499,6 +501,15 @@ GGUFLoad get_gguf_data(const std::string& file) {
             return {w_bytes, s_nelems * sizeof(uint16_t), 0};  // symmetric: no zp
         }
 
+        // Q1_0: i4 packed (2 per byte, code 0/1 -> -1/+1), one f16 scale per 128 weights.
+        if (ti.type == GGUF_TYPE_Q1_0) {
+            const size_t w_bytes = (w_nelems + 1) / 2;  // i4: 2 values per byte
+            auto scale_shape = shape;
+            scale_shape.back() /= 128;
+            const size_t s_nelems = size_prod(scale_shape);
+            return {w_bytes, s_nelems * sizeof(uint16_t), 0};  // symmetric: no zp
+        }
+
         // Weights: i8 or u8 stored in byte arrays (u32 only for asymmetric 4-bit).
         // 4-bit types: Q4_0(i4), Q4_1(u4 in u32), Q4_K(u4 in u32).
         // 8-bit types: Q8_0(i8), Q5_0(i8), Q5_1(i8), Q5_K(i8), Q6_K(i8).
@@ -542,7 +553,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
                               ti.type == GGUF_TYPE_Q5_1 || ti.type == GGUF_TYPE_Q8_0 || ti.type == GGUF_TYPE_Q2_K ||
                               ti.type == GGUF_TYPE_Q3_K || ti.type == GGUF_TYPE_Q4_K || ti.type == GGUF_TYPE_Q5_K ||
                               ti.type == GGUF_TYPE_Q6_K || ti.type == GGUF_TYPE_Q8_K || ti.type == GGUF_TYPE_MXFP4 ||
-                              ti.type == GGUF_TYPE_Q2_0;
+                              ti.type == GGUF_TYPE_Q2_0 || ti.type == GGUF_TYPE_Q1_0;
         if (!is_quant)
             continue;
         auto [wb, sb, bb] = quant_sizes(ti);
@@ -628,6 +639,28 @@ GGUFLoad get_gguf_data(const std::string& file) {
             arrays.emplace(name, std::move(weights));
             arrays.emplace(name_prefix + ".scales", std::move(scales));
             qtype.emplace(name_prefix + ".qtype", GGUF_TYPE_Q4_0);
+        } else if (ti.type == GGUF_TYPE_Q1_0) {
+            // Symmetric: i4 weights (code 0/1 -> -1/+1) + f16 scales, no bias tensor.
+            auto [wb, sb, bb] = quant_sizes(ti);
+            char* buf_ptr = quant_buf->get_ptr<char>();
+            auto shape = get_shape(tensor);
+            auto scale_shape = shape;
+            scale_shape.back() /= 128;
+
+            std::shared_ptr<void> so_buf(quant_buf);
+            ov::Tensor w_view(ov::element::i4, shape, static_cast<void*>(buf_ptr + quant_offset));
+            ov::Tensor weights(w_view, so_buf);
+            quant_offset += wb;
+            ov::Tensor s_view(ov::element::f16, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
+            ov::Tensor scales(s_view, so_buf);
+            quant_offset += sb;
+
+            gguf_fill_sym(tensor, weights, scales);
+            mapped->hint_evict(abs_off, tensor.bsize);
+
+            arrays.emplace(name, std::move(weights));
+            arrays.emplace(name_prefix + ".scales", std::move(scales));
+            qtype.emplace(name_prefix + ".qtype", GGUF_TYPE_Q1_0);
         } else if (ti.type == GGUF_TYPE_Q3_K) {
             // Symmetric: i4 weights (2 per byte) + f16 scales. No zero-point.
             auto [wb, sb, zb] = quant_sizes(ti);
