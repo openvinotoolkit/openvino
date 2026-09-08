@@ -20,6 +20,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
@@ -135,5 +136,19 @@ private:
 
     Logger _logger;
 };
+
+/**
+ * @brief Loads the VCL compiler library and returns a compiler paired with it.
+ *
+ * Keeps the load + SoPtr pairing in one place: the returned SoPtr owns the shared library, so the
+ * compiler cannot outlive the code it dispatches into.
+ *
+ * @param optionSupportCache Bound here to the compiler-in-plugin's own cache key. Callers hand over
+ *        the shared cache rather than a pre-bound one, so a compiler can never be paired with a key
+ *        that belongs to a different compiler's answers.
+ */
+ov::SoPtr<IVCLCompiler> makeVCLCompiler(const std::string& libraryDir,
+                                        const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
+                                        const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr);
 
 }  // namespace intel_npu
