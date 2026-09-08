@@ -52,10 +52,10 @@ public:
         const auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
         const auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
         const auto lm_head_output = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
-                                                 matmul_add->output(0),
-                                                 matmul_transpose->output(0),
-                                                 matmul_convert->output(0),
-                                                 matmul_multiply->output(0)});
+                                                                                   matmul_add->output(0),
+                                                                                   matmul_transpose->output(0),
+                                                                                   matmul_convert->output(0),
+                                                                                   matmul_multiply->output(0)});
         const auto result = opp::wrap_type<ov::op::v0::Result>({lm_head_output->output(0)});
 
         auto callback = [=](opp::Matcher& matcher) {
@@ -66,7 +66,8 @@ public:
             const auto subtract = values.at(qsub).get_node_shared_ptr();
             const auto matched_matmul =
                 std::static_pointer_cast<ov::op::v0::MatMul>(values.at(matmul).get_node_shared_ptr());
-            const auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(values.at(result).get_node_shared_ptr());
+            const auto matched_result =
+                std::static_pointer_cast<ov::op::v0::Result>(values.at(result).get_node_shared_ptr());
 
             if (matched_result->get_rt_info().count("manually_added_output")) {
                 return false;
@@ -76,8 +77,7 @@ public:
             const bool standard_layout = scale_shape.size() == 2 && scale_shape[1] == 1 &&
                                          !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b();
             const bool pretransposed_layout = scale_shape.size() == 2 && scale_shape[0] == 1 &&
-                                              !matched_matmul->get_transpose_a() &&
-                                              !matched_matmul->get_transpose_b();
+                                              !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b();
 
             if (weight->get_element_type() != ov::element::u8 || zerop->get_element_type() != ov::element::u8 ||
                 weight->get_shape().size() != 2 || (!standard_layout && !pretransposed_layout)) {

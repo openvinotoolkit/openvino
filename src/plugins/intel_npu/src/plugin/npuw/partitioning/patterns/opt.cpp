@@ -5,8 +5,8 @@
 #include "opt.hpp"
 
 #include "../../logging.hpp"
-#include "../../util.hpp"
 #include "../../npuw_transformations/insert_vocab_sub128.hpp"
+#include "../../util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
@@ -1114,7 +1114,7 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
             return false;
         }
         if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+                                              !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
             return false;
         }
 
@@ -1419,7 +1419,7 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
         // host path replaces that graph with direct u8 dequantization, where the
         // equal shifts cancel: (W - 128) - (Z - 128) == W - Z.
         if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+                                              !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
             return false;
         }
 
@@ -2010,7 +2010,7 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
             return false;
         }
         if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-                                             !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
+                                              !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
             return false;
         }
 
