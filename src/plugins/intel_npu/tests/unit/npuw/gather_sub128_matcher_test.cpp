@@ -181,6 +181,17 @@ std::size_t count_subtracts(const std::shared_ptr<ov::Model>& model) {
     return count;
 }
 
+std::size_t count_sub128_shifts(const std::shared_ptr<ov::Model>& model) {
+    std::size_t count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::opset10::Subtract>(node) &&
+            node->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO) > 0) {
+            ++count;
+        }
+    }
+    return count;
+}
+
 bool contains_node(const std::shared_ptr<ov::Model>& model, const std::string& name) {
     const auto nodes = model->get_ordered_ops();
     return std::any_of(nodes.begin(), nodes.end(), [&](const auto& node) {
@@ -233,6 +244,7 @@ TEST_P(InsertVocabSub128PrePostProcessingTest, PreservesVocabularyConverts) {
                                               make_vocab_matmul_model(convert_before_matmul);
     EXPECT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
     EXPECT_EQ(count_subtracts(model), 3u);
+    EXPECT_EQ(count_sub128_shifts(model), 2u);
 
     const auto nodes = model->get_ordered_ops();
     const auto weight_convert = std::find_if(nodes.begin(), nodes.end(), [](const auto& node) {
@@ -283,6 +295,7 @@ TEST_P(InsertVocabSub128LmHeadTerminalTest, InsertsSub128BeforeLmHeadTerminal) {
 
     EXPECT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
     EXPECT_EQ(count_subtracts(model), 3u);
+    EXPECT_EQ(count_sub128_shifts(model), 2u);
 }
 
 INSTANTIATE_TEST_SUITE_P(LmHeadTerminal,
@@ -299,5 +312,6 @@ TEST(InsertVocabSub128LmHeadTerminalTest, SkipsManuallyAddedOutput) {
 
     EXPECT_FALSE(ov::npuw::InsertVocabSub128().run_on_model(model));
     EXPECT_EQ(count_subtracts(model), 1u);
+    EXPECT_EQ(count_sub128_shifts(model), 0u);
 }
 
