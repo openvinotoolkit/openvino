@@ -118,6 +118,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/collapse_unqdq.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/insert_vocab_sub128.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/insert_vocab_sub128.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/conv_to_matmul.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/conv_to_matmul.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/detect_causal_mask.cpp
