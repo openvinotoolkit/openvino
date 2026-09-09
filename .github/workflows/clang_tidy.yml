@@ -141,6 +141,7 @@ jobs:
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_aarch64
       build-target: openvino_intel_cpu_plugin
       compile-commands-artifact: compile_commands_clang_tidy_aarch64
+      upload-ninja-log: false # Unix Makefiles — no .ninja_log
       # Unix Makefiles generator; keep going on errors (no --quiet until Ubuntu 24.04+).
       cmake-extra-args: '-DCMAKE_RULE_MESSAGES=OFF'
       build-extra-args: '-k'
@@ -156,6 +157,7 @@ jobs:
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_riscv64
       build-target: openvino_intel_cpu_plugin
       compile-commands-artifact: compile_commands_clang_tidy_riscv64
+      upload-ninja-log: false # Unix Makefiles — no .ninja_log
       # RISC-V cross toolchain, sequential threading, Unix Makefiles generator.
       cmake-extra-args: '-DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -DCMAKE_RULE_MESSAGES=OFF -DTHREADING=SEQ'
       build-extra-args: '-k'

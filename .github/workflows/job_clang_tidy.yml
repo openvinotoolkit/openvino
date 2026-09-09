@@ -49,6 +49,11 @@ on:
         type: boolean
         required: false
         default: true
+      upload-ninja-log:
+        description: 'Whether to upload Ninja .ninja_log from the OpenVINO build directory'
+        type: boolean
+        required: false
+        default: true
 
 permissions: read-all
 
@@ -82,6 +87,7 @@ jobs:
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build
+      NINJA_LOGS_ARCHIVE_DIR: /__w/openvino/openvino/ninja_logs_archive
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-prefix }}
 
     steps:
@@ -120,6 +126,10 @@ jobs:
             -S "${OPENVINO_REPO}" \
             -B "${BUILD_DIR}"
 
+      - name: Prepare Ninja log collection directory
+        if: ${{ inputs.upload-ninja-log }}
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
       - name: Zero compile cache stats (clang-tidy build)
         if: ${{ inputs.enable-compile-cache && inputs.show-sccache-stats }}
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -139,6 +149,10 @@ jobs:
             --target "${BUILD_TARGET}" \
             -- ${BUILD_EXTRA_ARGS}
 
+      - name: Snapshot Ninja logs after clang-tidy build
+        if: ${{ inputs.upload-ninja-log }}
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" clang_tidy_build "${BUILD_DIR}"
+
       - name: Compile cache statistics (clang-tidy build)
         if: ${{ inputs.show-sccache-stats && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -154,3 +168,20 @@ jobs:
           name: ${{ inputs.compile-commands-artifact }}
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
+
+      - name: Archive collected Ninja logs
+        if: ${{ always() && inputs.upload-ninja-log }}
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            echo "No Ninja log snapshots to archive"
+            exit 0
+          fi
+          tar -czf "${BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
+      - name: Upload Ninja build logs
+        if: ${{ always() && inputs.upload-ninja-log }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: ninja_log_clang-tidy-${{ inputs.compile-commands-artifact }}-${{ inputs.build-target }}
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn
