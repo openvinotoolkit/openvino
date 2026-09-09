@@ -185,7 +185,8 @@ void post_optimize_weights::add_gru_weights_reorder(primitive_id input_id,
                                                     cldnn::program_node& prev,
                                                     cldnn::program_node& node,
                                                     size_t i) {
-    std::string permute_id = input_id + "_permute" + to_string(i);
+    // Id is consumer specific so two sequences sharing one weight node do not reuse a connected permute.
+    std::string permute_id = input_id + "_" + node.id() + "_permute" + to_string(i);
     std::vector<uint16_t> ord{0, 2, 1};
     auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{input_id}, ord);
     auto& permute_node = p.get_or_create(permute);

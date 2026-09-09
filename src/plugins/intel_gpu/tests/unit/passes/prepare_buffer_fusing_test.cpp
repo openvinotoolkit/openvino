@@ -1740,6 +1740,52 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
+TEST(prepare_buffer_fusing, in_place_concat_bfyx_to_fsv16_reorder_feature_padding) {
+    // The second concat input owns a feature-padded slice of the shared buffer, so the tiled
+    // bfyx->blocked reorder must honor that offset instead of overwriting the first input.
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    auto in_layout = layout{ov::PartialShape{1, 16, 4, 8}, data_types::f32, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("input1", in_layout));
+    topology.add(input_layout("input2", in_layout));
+    topology.add(reorder("input1_fsv16", input_info("input1"), format::b_fs_yx_fsv16, data_types::f32));
+    topology.add(reorder("input2_fsv16", input_info("input2"), format::b_fs_yx_fsv16, data_types::f32));
+    topology.add(concatenation("concat", {input_info("input1_fsv16"), input_info("input2_fsv16")}, 1));
+    topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+
+    network net(engine, topology, config);
+
+    auto input_memory1 = engine.allocate_memory(in_layout);
+    auto input_memory2 = engine.allocate_memory(in_layout);
+    auto input1_vals = rg.generate_random_1d<float>(in_layout.count(), -10, 10);
+    auto input2_vals = rg.generate_random_1d<float>(in_layout.count(), -10, 10);
+    set_values(input_memory1, input1_vals);
+    set_values(input_memory2, input2_vals);
+
+    net.set_input_data("input1", input_memory1);
+    net.set_input_data("input2", input_memory2);
+
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = net.execute());
+    ASSERT_TRUE(net.get_primitive("concat")->can_be_optimized());
+
+    auto out_mem = output.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_mem->count(), input1_vals.size() + input2_vals.size());
+
+    for (size_t i = 0; i < input1_vals.size(); ++i) {
+        ASSERT_EQ(output_ptr[i], input1_vals[i]) << "input1 at " << i;
+        ASSERT_EQ(output_ptr[input1_vals.size() + i], input2_vals[i]) << "input2 at " << i;
+    }
+}
+
 TEST(prepare_buffer_fusing, in_place_concat_with_fsv32_to_fsv16_reorder_regression) {
     // Regression test for fsv32->fsv16 reorder + in-place concat path.
     // Keep in-place enabled, then verify buffer sharing and output channel order.

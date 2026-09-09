@@ -46,7 +46,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     const data_types input_data_type, const data_types output_data_type,
     cldnn::format input_format, cldnn::format output_format,
     int32_t b_in, int32_t f_in, int32_t x_in, int32_t y_in, int32_t z_in, int32_t w_in,
-    bool is_caching_test, const padding& output_padding = padding()) {
+    bool is_caching_test) {
     auto& engine = get_test_engine();
     ExecutionConfig cfg = get_test_default_config(engine);
     cfg.set_property(ov::intel_gpu::queue_type(QueueTypes::out_of_order));
@@ -69,7 +69,7 @@ static void compare_bfyx2blocked_with_ref(const std::string& kernel_name,
     }
 
     auto input = engine.allocate_memory({ input_data_type, input_format, ts });
-    layout output_layout(output_data_type, output_format, ts, output_padding);
+    layout output_layout(output_data_type, output_format, ts);
 
     if (input_data_type == data_types::i8) {
         mem_lock<uint8_t> input_ptr{input, *stream};
@@ -190,22 +190,6 @@ TEST(reorder_gpu_optimization, compare_with_ref__b_fs_yx_fsv16_to_bfyx_different
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::bf16, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
     compare_bfyx2blocked_with_ref("reorder_data_b_fs_yx_fsv16_fsv32_to_bfyx", data_types::i32, data_types::f32, format::b_fs_yx_fsv16, format::bfyx, 2, 32, 16 + 7, 2, 0, 0, false);
-}
-
-TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_output_feature_padding) {
-    compare_bfyx2blocked_with_ref("reorder_data_bfyx_to_blocked_format",
-                                  data_types::f32,
-                                  data_types::f32,
-                                  format::bfyx,
-                                  format::b_fs_yx_fsv16,
-                                  1,
-                                  16,
-                                  8,
-                                  4,
-                                  0,
-                                  0,
-                                  false,
-                                  padding({0, 16, 0, 0}, {0, 0, 0, 0}));
 }
 
 TEST(reorder_gpu_optimization, compare_with_ref__bfyx_to_blocked_f32) {
