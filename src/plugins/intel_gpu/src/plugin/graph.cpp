@@ -154,7 +154,8 @@ Graph::Graph(std::shared_ptr<Graph> graph, uint16_t stream_id)
         , prevPrimitiveIDs(graph->prevPrimitiveIDs)
         , perfMap(graph->perfMap)
         , profilingIDs(graph->profilingIDs)
-        , m_input_layouts(graph->m_input_layouts) {
+        , m_input_layouts(graph->m_input_layouts)
+        , m_paged_attention_block_size(graph->m_paged_attention_block_size) {
     build(graph->get_network()->get_program());
 }
 
@@ -222,8 +223,10 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
     for (const auto& node : program->get_processing_order()) {
         if (node->is_type<cldnn::paged_attention>()) {
             auto pa_prim = node->as<cldnn::paged_attention>().get_primitive();
-            m_paged_attention_block_size = pa_prim->has_xattention ? cldnn::paged_attention::block_size_xattn : cldnn::paged_attention::block_size;
-            break;
+            if (pa_prim) {
+                m_paged_attention_block_size = pa_prim->has_xattention ? cldnn::paged_attention::block_size_xattn : cldnn::paged_attention::block_size;
+                break;
+            }
         }
     }
 
@@ -521,8 +524,10 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                     }
                 } else if (node.is_type<cldnn::paged_attention>()) {
                     auto pa_prim = node.as<cldnn::paged_attention>().get_primitive();
-                    size_t block_size = pa_prim->has_xattention ? cldnn::paged_attention::block_size_xattn : cldnn::paged_attention::block_size;
-                    info["block_size"] = std::to_string(block_size);
+                    if (pa_prim) {
+                        size_t block_size = pa_prim->has_xattention ? cldnn::paged_attention::block_size_xattn : cldnn::paged_attention::block_size;
+                        info["block_size"] = std::to_string(block_size);
+                    }
                 }
             }
         }
