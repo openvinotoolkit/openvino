@@ -168,7 +168,6 @@ std::shared_ptr<ov::Model> PrecisionPropagationFunction::getReferenceWithNeighbo
     const FakeQuantizeOnData& fqOnData3,
     const ov::element::Type precisionBeforeOp,
     const DequantizationOperations& dequantizationBefore,
-    const ov::element::Type precisionAfterOperation,
     const DequantizationOperations& dequantizationOperations1,
     const DequantizationOperations& dequantizationOperations2) {
     const auto input1 = std::make_shared<ov::opset1::Parameter>(precision, inputShape);

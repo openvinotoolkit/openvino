@@ -15,15 +15,18 @@ KeepGQAKVScalePrecision::KeepGQAKVScalePrecision() {
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto gqa = ov::as_type_ptr<ov::op::internal::GroupQueryAttention>(m.get_match_root());
-        if (!gqa)
+        if (!gqa) {
             return false;
+        }
 
-        if (transformation_callback(gqa))
+        if (transformation_callback(gqa)) {
             return false;
+        }
 
         // Only a quantized KV cache has scales at inputs 12 (k_scale) / 13 (v_scale).
-        if (!gqa->is_kv_quantized())
+        if (!gqa->is_kv_quantized()) {
             return false;
+        }
 
         constexpr size_t k_scale_idx = 12;
         constexpr size_t v_scale_idx = 13;

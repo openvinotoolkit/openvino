@@ -548,8 +548,9 @@ JitConstants PagedAttentionGeneratorSingleTokenFinalization::get_jit_constants(c
 Arguments PagedAttentionGeneratorSingleTokenFinalization::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
     const auto has_scores_output = params.output_layouts.size() > 1;
-    if (has_scores_output)
+    if (has_scores_output) {
         OPENVINO_THROW("[GPU][CM] PagedAttentionGeneratorSingleTokenFinalization with scores output is not supported yet");
+    }
 
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::DECODE_PARTITIONOUT});            // partition data
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                                                    // output
@@ -727,8 +728,9 @@ JitConstants PagedAttentionGeneratorSmallQFinalization::get_jit_constants(const 
 Arguments PagedAttentionGeneratorSmallQFinalization::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
     const auto has_scores_output = params.output_layouts.size() > 1;
-    if (has_scores_output)
+    if (has_scores_output) {
         OPENVINO_THROW("[GPU][CM] PagedAttentionGeneratorSmallQFinalization with scores output is not supported yet");
+    }
 
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, PagedAttentionInternBuffIdx::SMALL_Q_PARTITIONOUT});
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
