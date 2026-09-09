@@ -10,7 +10,7 @@ the ones that exist today. New agentic workflows are expected to be added over t
 `.github/workflows/*.md` file with `gh-aw` frontmatter (`on:`, `engine:`, `safe-outputs:`, etc.) as in
 scope for this skill.
 
-**Read [docs/dev/ci/github_actions/agentic_workflows.md](../../../docs/dev/ci/github_actions/agentic_workflows.md) first** — it documents the workflows that exist today (`ci-doctor`, `ci-doctor-mq`) in
+**Read [docs/dev/ci/github_actions/agentic_workflows.md](../../../docs/dev/ci/github_actions/agentic_workflows.md) first** — it documents the workflows that exist today (`ci-doctor`, `ci-doctor-mq`, `ci-doctor-post-commit`) in
 detail: what they are, how they are built, their algorithms, and the shared jobs. Treat it as the
 worked example of the concepts in this skill, and keep it up to date (see the **Skill
 self-improvement** section below) whenever a new agentic workflow is added or an existing one changes
@@ -30,9 +30,10 @@ keys, `imports`, `safe-outputs`, tools, and the `gh aw compile` workflow.
   wiring* (inputs, `permissions:`, steps); the actual logic lives in standalone Python scripts under
   `.github/scripts/agentic-workflows/*.py` (one per job, plus a shared `common.py`). A shared job step
   sparse-checks-out that scripts directory and runs its script.
-* **Known examples today**: `ci-doctor.md` (on-demand PR investigator) and `ci-doctor-mq.md` (automatic
-  merge-queue investigator). Do not assume this is the complete list — check `.github/workflows/*.md`
-  for the current set of `gh-aw` sources, since more will be added over time.
+* **Known examples today**: `ci-doctor.md` (on-demand PR investigator), `ci-doctor-mq.md` (automatic
+  merge-queue investigator), and `ci-doctor-post-commit.md` (automatic post-commit investigator,
+  report-only — never re-runs/re-queues). Do not assume this is the complete list — check
+  `.github/workflows/*.md` for the current set of `gh-aw` sources, since more will be added over time.
 
 ## Golden rules
 
@@ -124,7 +125,11 @@ them — see below):
 - **Signature hashing** (`ci-doctor-mq`) — the pattern hash must stay job-agnostic (normalized error +
   category, no job name), or recurrence counting breaks.
 - **Read-only knowledge base** (`ci-doctor`) — must never write under `/tmp/gh-aw/repo-memory/default/`;
-  only `ci-doctor-mq` writes to it.
+  only `ci-doctor-mq` (branch `memory/ci-doctor-mq`) and `ci-doctor-post-commit` (branch
+  `memory/ci-doctor-post-commit`) write to their own memory branches.
+- **Teams source badge** (`notify-teams.md`) — the shared Teams job is used by both `ci-doctor-mq` and
+  `ci-doctor-post-commit`; each must pass the `source` input (`merge_queue` / `post_commit`) so the
+  card shows the right `[MQ]` / `[PC]` badge and uploads the correctly-named statistics artifact.
 - **Secrets** — new Teams/queue-style behavior may need dedicated secrets (e.g. `TEAMS_WEBHOOK_URL`,
   `MERGE_QUEUE_TOKEN`); the default `GITHUB_TOKEN` cannot re-trigger `merge_group` runs.
 

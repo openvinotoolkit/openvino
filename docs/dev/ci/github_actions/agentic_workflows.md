@@ -2,12 +2,15 @@
 
 OpenVINO CI includes a set of **agentic workflows** — GitHub Actions workflows that hand control to
 an AI agent to perform an investigative or maintenance task, rather than running a fixed sequence of
-shell commands. At the moment there are two of them, both dedicated to diagnosing CI failures:
+shell commands. At the moment there are three of them, all dedicated to diagnosing CI failures:
 
 * [`ci-doctor.md`](../../../../.github/workflows/ci-doctor.md) — **CI Doctor**, an on-demand
   investigator for a pull request.
 * [`ci-doctor-mq.md`](../../../../.github/workflows/ci-doctor-mq.md) — **CI Doctor (Merge Queue)**,
   an automatic investigator for merge-queue failures.
+* [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md) — **CI Doctor
+  (Post-Commit)**, an automatic investigator for post-commit (push) failures that only collects and
+  reports (it never re-runs or re-queues pipelines).
 
 This document explains what they are, how they are built and invoked, the algorithm each one follows,
 and the reusable jobs from [`.github/workflows/shared`](../../../../.github/workflows/shared/agentic-workflows)
@@ -39,7 +42,7 @@ delegates the execution to an AI agent. The agent decides which tools to call �
 reading logs, searching the repository, querying the GitHub API — to accomplish the task, subject to
 the guardrails written into the workflow.
 
-In OpenVINO both agentic workflows are **CI failure doctors**: they read the logs of a failed pipeline,
+In OpenVINO all agentic workflows are **CI failure doctors**: they read the logs of a failed pipeline,
 localise the root cause, classify the failure, and produce an actionable report (a PR comment or a
 Microsoft Teams notification).
 
@@ -71,6 +74,7 @@ workflow with the `.lock.yml` extension:
 | --- | --- |
 | [`ci-doctor.md`](../../../../.github/workflows/ci-doctor.md) | [`ci-doctor.lock.yml`](../../../../.github/workflows/ci-doctor.lock.yml) |
 | [`ci-doctor-mq.md`](../../../../.github/workflows/ci-doctor-mq.md) | [`ci-doctor-mq.lock.yml`](../../../../.github/workflows/ci-doctor-mq.lock.yml) |
+| [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md) | [`ci-doctor-post-commit.lock.yml`](../../../../.github/workflows/ci-doctor-post-commit.lock.yml) |
 
 The `.lock.yml` file is what GitHub Actions actually executes. It is **auto-generated — do not edit it
 by hand**. After changing a `.md` source (or any imported shared file), regenerate the lock file:
@@ -83,15 +87,15 @@ See [Maintaining the workflows](#maintaining-the-workflows) for details.
 
 ## Workflows at a glance
 
-| | **CI Doctor** | **CI Doctor — Merge Queue** |
-| --- | --- | --- |
-| Source | [`ci-doctor.md`](../../../../.github/workflows/ci-doctor.md) | [`ci-doctor-mq.md`](../../../../.github/workflows/ci-doctor-mq.md) |
-| Trigger | On demand: `/ci-doctor` comment on a PR | Automatic: a monitored workflow finishes a `merge_group` run with `failure` |
-| Scope | **Every** failed pipeline on the PR head commit | A **single** failed merge-queue run |
-| Knowledge base | Reads the MQ pattern database (read-only) | **Writes** the pattern database (investigations + patterns) |
-| Output | One consolidated PR comment | Microsoft Teams notification (+ optional PR comment, re-run, re-queue) |
-| Remediation | Report only | Can re-run failed jobs, re-add the PR to the merge queue, escalate recurring failures |
-| Engine / model | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` |
+| | **CI Doctor** | **CI Doctor — Merge Queue** | **CI Doctor — Post-Commit** |
+| --- | --- | --- | --- |
+| Source | [`ci-doctor.md`](../../../../.github/workflows/ci-doctor.md) | [`ci-doctor-mq.md`](../../../../.github/workflows/ci-doctor-mq.md) | [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md) |
+| Trigger | On demand: `/ci-doctor` comment on a PR | Automatic: a monitored workflow finishes a `merge_group` run with `failure` | Automatic: a monitored workflow finishes a `push` run with `failure` |
+| Scope | **Every** failed pipeline on the PR head commit | A **single** failed merge-queue run | A **single** failed post-commit run |
+| Knowledge base | Reads the MQ pattern database (read-only) | **Writes** the MQ pattern database (investigations + patterns) | **Writes** its own post-commit pattern database (investigations + patterns) |
+| Output | One consolidated PR comment | Microsoft Teams notification (+ optional PR comment, re-run, re-queue) | Microsoft Teams notification only |
+| Remediation | Report only | Can re-run failed jobs, re-add the PR to the merge queue, escalate recurring failures | Report only (never re-runs or re-queues) |
+| Engine / model | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` |
 
 ## CI Doctor (pull request, on-demand)
 
@@ -187,6 +191,47 @@ The run always ends by calling exactly one (or a valid combination) of the safe 
 `notify_teams_recurring`, `add_comment`, `remediate_transient_failure`, `noop`, or
 `missing_data`.
 
+## CI Doctor — Post-Commit (automatic)
+
+**What it is** An automatic, always-on investigator that reacts to **post-commit** (push) CI failures,
+builds its own persistent knowledge base of failure patterns, and reports each failure to Microsoft
+Teams. Unlike the Merge Queue doctor, it **never re-runs or re-queues** any pipeline — its sole purpose
+is to collect problems and report them.
+
+**How it is triggered** It runs on the `workflow_run: completed` event of the same fixed list of
+monitored workflows as the Merge Queue doctor, and only proceeds when the run was a **push**
+(post-commit) run that **failed**:
+
+```yaml
+on:
+  workflow_run:
+    workflows: ["Linux (Ubuntu 22.04, Python 3.11)", "Windows (VS 2022, Python 3.11, Release)", ...]
+    types: [completed]
+
+if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'push') }}
+```
+
+A `workflow_dispatch` entry (with `run_id` or `link` inputs) is also provided for manual testing.
+
+**What it does / benefits**
+
+* **Root-cause analysis** of a single failed post-commit run: category, failed jobs, key errors,
+  explanation, confidence — identical to the Merge Queue analysis.
+* **Knowledge building**: every investigation is written to its own persistent, cross-run knowledge base
+  (on the `memory/ci-doctor-post-commit` branch, under the `post-commit/` subdirectory) so recurring
+  post-commit failures accumulate statistics (`count`, `first_seen`, `last_seen`) over time, kept
+  separate from the merge-queue data.
+* **Report only**: it emits a single `notify_teams` safe output with `source: "post_commit"` and nothing
+  else — no PR comment, no re-run, no re-queue, no recurrence escalation.
+
+**Algorithm** The body follows the same phases as the Merge Queue doctor, minus remediation and
+recurrence escalation: trigger detection & triage (verify a failed `push` run), hint-first log analysis,
+historical context, root-cause investigation within the source-inspection safeguards, pattern storage
+(investigation record + append-only index + per-signature pattern file, all schema-validated), reporting,
+and output validation. Its pattern schema drops the `rerun_search_string` field (there is no re-run
+integration) and tracks `affected_commits` instead of `affected_prs`. The run always ends by calling
+exactly one of `notify_teams` (with `source: "post_commit"`), `noop`, or `missing_data`.
+
 ## Shared reusable jobs
 
 Common steps and safe-output jobs are factored into
@@ -219,8 +264,8 @@ inputs, permissions, or step wiring, edit the shared `.md` and recompile.
 
 | Shared file | Kind | Used by | Purpose |
 | --- | --- | --- | --- |
-| [`download-failure-logs.md`](../../../../.github/workflows/shared/agentic-workflows/download-failure-logs.md) | Pre-agent step | both | Pre-download failed logs and pre-locate error hints before the agent starts. |
-| [`notify-teams.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams.md) | Safe-output job | MQ | Send the investigation summary to Microsoft Teams; upload the statistics artifact. |
+| [`download-failure-logs.md`](../../../../.github/workflows/shared/agentic-workflows/download-failure-logs.md) | Pre-agent step | all | Pre-download failed logs and pre-locate error hints before the agent starts. |
+| [`notify-teams.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams.md) | Safe-output job | MQ, Post-Commit | Send the investigation summary to Microsoft Teams; upload the statistics artifact. A `source` input selects the `[MQ]` / `[PC]` badge and the artifact name. |
 | [`notify-teams-recurring.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams-recurring.md) | Safe-output job | MQ | Send a recurring-failure escalation alert to Teams. |
 | [`remediate-transient-failure.md`](../../../../.github/workflows/shared/agentic-workflows/remediate-transient-failure.md) | Safe-output job | MQ | Remediate a transient failure: the job resolves the PR's live merge-queue status and either re-runs the failed jobs (still queued) or re-adds the dropped PR (dropped). |
 
@@ -231,9 +276,11 @@ files, and a `summary.txt` under `/tmp/gh-aw/agent/ci-doctor/` so the agent can 
 summary instead of downloading logs itself.
 
 **`notify-teams.md`** defines the `notify-teams` safe-output job. It reads the agent's `notify_teams`
-item, renders an Adaptive Card (title, facts, description, and a pattern-database statistics table),
-POSTs it to the `TEAMS_WEBHOOK_URL`, and uploads the full statistics JSON/Markdown as the
-`ci-doctor-mq-statistics` artifact.
+item, renders an Adaptive Card (title with an `[MQ]` / `[PC]` badge, a `Source` fact, facts,
+description, and a pattern-database statistics table), POSTs it to the `TEAMS_WEBHOOK_URL`, and uploads
+the full statistics JSON/Markdown as a workflow artifact. The agent-supplied `source` input
+(`merge_queue` / `post_commit`) selects the badge and the artifact name (`ci-doctor-mq-statistics` /
+`ci-doctor-post-commit-statistics`).
 
 **`notify-teams-recurring.md`** defines the `notify-teams-recurring` job, used only when a failure has
 recurred ≥ 3 times in 12 hours. It renders a condensed escalation card listing the affected PRs and the
@@ -279,16 +326,23 @@ workflow uses the `mq/` subdirectory to isolate merge-queue data:
 * `mq/patterns/<signature-hash>.json` — one record per failure signature, with `count`, `first_seen`,
   `last_seen`, `recent_timestamps`, and the affected runs/PRs.
 
+CI Doctor — Post-Commit persists its knowledge the same way, on a **separate** dedicated branch
+(`memory/ci-doctor-post-commit`) under the `post-commit/` subdirectory, so post-commit failure patterns
+never mix with the merge-queue ones. Its records mirror the merge-queue layout but its pattern schema
+drops `rerun_search_string` (no re-run integration) and tracks `affected_commits` instead of
+`affected_prs`. Its schemas live under
+[`.github/ci-doctor-post-commit/schemas`](../../../../.github/ci-doctor-post-commit/schemas).
+
 Every artifact conforms to a committed JSON Schema and is validated immediately after being written:
 
-| Artifact | Schema |
-| --- | --- |
-| Investigation record | [`investigation.schema.json`](../../../../.github/ci-doctor-mq/schemas/investigation.schema.json) |
-| Pattern record | [`pattern.schema.json`](../../../../.github/ci-doctor-mq/schemas/pattern.schema.json) |
-| Investigations index | [`index.schema.json`](../../../../.github/ci-doctor-mq/schemas/index.schema.json) |
+| Artifact | MQ schema | Post-Commit schema |
+| --- | --- | --- |
+| Investigation record | [`investigation.schema.json`](../../../../.github/ci-doctor-mq/schemas/investigation.schema.json) | [`investigation.schema.json`](../../../../.github/ci-doctor-post-commit/schemas/investigation.schema.json) |
+| Pattern record | [`pattern.schema.json`](../../../../.github/ci-doctor-mq/schemas/pattern.schema.json) | [`pattern.schema.json`](../../../../.github/ci-doctor-post-commit/schemas/pattern.schema.json) |
+| Investigations index | [`index.schema.json`](../../../../.github/ci-doctor-mq/schemas/index.schema.json) | [`index.schema.json`](../../../../.github/ci-doctor-post-commit/schemas/index.schema.json) |
 
-CI Doctor (the PR workflow) mounts the same branch **read-only** to detect known recurring issues, and
-never writes to it.
+CI Doctor (the PR workflow) mounts the merge-queue branch **read-only** to detect known recurring issues,
+and never writes to it.
 
 ### Pattern matching and recurrence detection
 
@@ -321,12 +375,12 @@ backs the static entries in
 
 ### Secrets and permissions
 
-Both workflows run with `permissions: read-all` for the agent itself; each *safe-output* job requests
+All workflows run with `permissions: read-all` for the agent itself; each *safe-output* job requests
 only the narrow permission it needs. The workflows rely on the following secrets:
 
 | Secret | Used by | Purpose |
 | --- | --- | --- |
-| `TEAMS_WEBHOOK_URL` | `notify-teams`, `notify-teams-recurring` | Microsoft Teams incoming webhook. |
+| `TEAMS_WEBHOOK_URL` | `notify-teams` (MQ + Post-Commit), `notify-teams-recurring` | Microsoft Teams incoming webhook. |
 | `MERGE_QUEUE_TOKEN` | `remediate-transient-failure` | PAT / App token with `contents: write` + `pull_requests: write` to re-queue a PR (the default token cannot re-trigger `merge_group` runs). |
 | `GITHUB_TOKEN` | log download, `remediate-transient-failure` | Standard GitHub API access (re-run failed jobs, read live merge-queue status). |
 
@@ -347,7 +401,8 @@ only the narrow permission it needs. The workflows rely on the following secrets
 
 When changing the merge-queue knowledge-base format, update the matching schema under
 [`.github/ci-doctor-mq/schemas`](../../../../.github/ci-doctor-mq/schemas) so the in-workflow validation
-stays in sync.
+stays in sync. Likewise, when changing the post-commit knowledge-base format, update the matching schema
+under [`.github/ci-doctor-post-commit/schemas`](../../../../.github/ci-doctor-post-commit/schemas).
 
 The repository ships an `ov-agentic-workflows` [agent skill](../../../../.agents/skills/ov-agentic-workflows/SKILL.md)
 that captures these editing rules and common tasks. When you work on these workflows with an AI coding

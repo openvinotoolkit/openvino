@@ -468,6 +468,7 @@ MUST be passed as a JSON string, not a JSON number.** Wrap the value in quotes.
    (quoted), never a bare number, boolean, null, or object:
 
    For `notify_teams`:
+   - `source` — the string `"merge_queue"` (MANDATORY, so the Teams card shows the `[MQ]` badge and states the failure is a Merge Queue one)
    - `title` — non-empty string
    - `failed_workflow` — non-empty string
    - `pipeline_url` — non-empty string (a valid URL)
@@ -549,6 +550,8 @@ Do not duplicate the full Teams description in the comment — keep it to the pi
 ### `notify_teams` field guidance
 
 Provide all required fields and include the optional PR-related fields whenever the failure is associated with a PR in the merge queue.
+
+- **`source`** (required) — Always pass the string `"merge_queue"`. This makes the Teams card render the `[MQ]` badge and a "Source: Merge Queue" fact so readers can immediately tell a merge-queue failure apart from a post-commit one.
 
 - **`title`** (required) — Short, searchable description of the failure. **Do not** include PR number or run number. Examples:
   * iGPU tests fail with incorrect input argument
