@@ -11,6 +11,8 @@
 
 namespace {
 
+using namespace intel_npu;
+
 constexpr std::string_view MAGIC_BYTES = "OVNPU";
 constexpr size_t FORMAT_VERSION_SIZE = 2 * sizeof(uint16_t);
 
@@ -30,6 +32,15 @@ void seekg_with_bound_checking(intel_npu::BlobSource& source,
                     npu_region_size,
                     "]");
     source.seekg(destination, std::ios::beg);
+}
+
+std::optional<SectionID> get_runtime_requirements_id(const Manifest& manifest) {
+    const std::vector<SectionID> ids = manifest.lookup_section_ids(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS));
+    if (ids.empty()) {
+        return std::nullopt;
+    }
+    OPENVINO_ASSERT(ids.size() == 1, "Found multiple runtime requirements sections within the manifest");
+    return ids.at(0);
 }
 
 }  // namespace
@@ -105,23 +116,28 @@ std::optional<std::unordered_set<std::shared_ptr<ISection>>> BlobReader::retriev
     return std::nullopt;
 }
 
-void BlobReader::parse_next_section(BlobSource& source,
-                                    const SectionType type,
-                                    const SectionID id,
-                                    const size_t length,
-                                    const size_t npu_region_start,
-                                    const size_t npu_region_size,
-                                    const bool include_in_sections_order) {
+std::shared_ptr<ISection> BlobReader::parse_next_section(BlobSource& source,
+                                                         const SectionType& type,
+                                                         const std::optional<SectionID>& id,
+                                                         const size_t length,
+                                                         const size_t npu_region_start,
+                                                         const size_t npu_region_size) {
     BlobReaderInterface interface(source, npu_region_start, npu_region_size, source.tellg(), length, m_config);
+    const std::shared_ptr<ISection> parsed_section = m_readers.at(type)(interface);
+    m_type_to_parsed_sections[type].insert(parsed_section);
 
-    m_id_to_parsed_sections[id] = m_readers.at(type)(interface);
-    m_id_to_parsed_sections[id]->set_id(id);
-    m_type_to_parsed_sections[type].insert(m_id_to_parsed_sections.at(id));
-
-    // TODO can include_in_sections_order be avoided?
-    if (include_in_sections_order) {
-        m_parsed_sections_order.push_back(id);
+    if (type == SectionType(SectionTypeCode::MANIFEST) || type == SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS)) {
+        // The manifest and runtime requirements sections don't need ids; these section are unique and do not persist at
+        // runtime beyond the blob read/write scope
+        return parsed_section;
     }
+
+    OPENVINO_ASSERT(id.has_value());
+    parsed_section->set_id(id.value());
+    m_id_to_parsed_sections[id.value()] = parsed_section;
+
+    m_parsed_sections_order.push_back(id.value());
+    return parsed_section;
 }
 
 // TODO break into more functions, e.g. one for header
@@ -157,40 +173,41 @@ void BlobReader::read(BlobSource& source) {
     seekg_with_bound_checking(source, manifest_location, npu_region_start, npu_region_size);
 
     OPENVINO_ASSERT(m_readers.count(SectionTypeCode::MANIFEST), "No reader found for the manifest");
-    parse_next_section(source,
-                       SectionTypeCode::MANIFEST,
-                       MANIFEST_SECTION_ID,
-                       manifest_size,
-                       npu_region_start,
-                       npu_region_size,
-                       /*include_in_sections_order*/ false);
+    const auto manifest_section = parse_next_section(source,
+                                                     SectionTypeCode::MANIFEST,
+                                                     std::nullopt,
+                                                     manifest_size,
+                                                     npu_region_start,
+                                                     npu_region_size);
 
     // The offset table is required only within the scope of the read method
-    Manifest manifest =
-        std::dynamic_pointer_cast<ManifestSection>(m_id_to_parsed_sections.at(MANIFEST_SECTION_ID))->get_table();
+    const Manifest manifest = std::dynamic_pointer_cast<ManifestSection>(manifest_section)->get_manifest();
     m_logger.debug("Parsed the manifest");
 
     // Step 2: Look for the runtime requirements and evaluate them
-    std::optional<uint64_t> requirements_location = manifest.lookup_offset(RUNTIME_REQUIREMENTS_SECTION_ID);
-    std::optional<uint64_t> requirements_length = manifest.lookup_length(RUNTIME_REQUIREMENTS_SECTION_ID);
-    std::optional<RuntimeRequirements> runtime_requirements = std::nullopt;
+    std::optional<RuntimeRequirements> runtime_requirements;
+    std::optional<uint64_t> requirements_location;
+    std::optional<uint64_t> requirements_length;
+    std::optional<SectionID> runtime_requirements_id = get_runtime_requirements_id(manifest);
 
     // TODO test the negative branch as well
     // TODO safeguards for multiple manifests/CREs?
-    if (requirements_location.has_value()) {
+    if (runtime_requirements_id.has_value()) {
+        requirements_location = manifest.lookup_offset(runtime_requirements_id.value());
+        requirements_length = manifest.lookup_length(runtime_requirements_id.value());
+        OPENVINO_ASSERT(requirements_location.has_value() && requirements_length.has_value(), "Invalid manifest");
+
         seekg_with_bound_checking(source, requirements_location.value(), npu_region_start, npu_region_size);
 
         OPENVINO_ASSERT(m_readers.count(SectionTypeCode::RUNTIME_REQUIREMENTS), "No reader found for the manifest");
-        parse_next_section(source,
-                           SectionTypeCode::RUNTIME_REQUIREMENTS,
-                           RUNTIME_REQUIREMENTS_SECTION_ID,
-                           requirements_length.value(),
-                           npu_region_start,
-                           npu_region_size,
-                           /*include_in_sections_order*/ false);
+        const auto runtime_requirements_section = parse_next_section(source,
+                                                                     SectionTypeCode::RUNTIME_REQUIREMENTS,
+                                                                     std::nullopt,
+                                                                     requirements_length.value(),
+                                                                     npu_region_start,
+                                                                     npu_region_size);
 
-        runtime_requirements = std::dynamic_pointer_cast<RuntimeRequirementsSection>(
-                                   m_id_to_parsed_sections.at(RUNTIME_REQUIREMENTS_SECTION_ID))
+        runtime_requirements = std::dynamic_pointer_cast<RuntimeRequirementsSection>(runtime_requirements_section)
                                    ->get_runtime_requirements();
         OPENVINO_ASSERT(runtime_requirements->get_compatibility_check_result(m_section_type_evaluators,
                                                                              m_section_instance_evaluators),

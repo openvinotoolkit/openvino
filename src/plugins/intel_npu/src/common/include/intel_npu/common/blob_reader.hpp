@@ -109,13 +109,22 @@ public:
 private:
     friend class BlobWriter;
 
-    void parse_next_section(BlobSource& source,
-                            const SectionType type,
-                            const SectionID id,
-                            const size_t length,
-                            const size_t npu_region_start,
-                            const size_t npu_region_size,
-                            const bool include_in_sections_order = true);
+    /**
+     * @brief TODO
+     *
+     * @param source
+     * @param type
+     * @param id
+     * @param length
+     * @param npu_region_start
+     * @param npu_region_size
+     */
+    std::shared_ptr<ISection> parse_next_section(BlobSource& source,
+                                                 const SectionType& type,
+                                                 const std::optional<SectionID>& id,
+                                                 const size_t length,
+                                                 const size_t npu_region_start,
+                                                 const size_t npu_region_size);
 
     /**
      * @brief All sections obtained after parsing the compiled model.

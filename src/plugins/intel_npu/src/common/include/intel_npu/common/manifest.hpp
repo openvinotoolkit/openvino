@@ -31,6 +31,8 @@ public:
 
     std::optional<SectionID> lookup_section_id(const uint64_t offset) const;
 
+    std::vector<SectionID> lookup_section_ids(const SectionType type) const;
+
     size_t get_number_of_entries() const;
 
     std::unordered_set<SectionID> get_all_registered_section_ids() const;
@@ -43,11 +45,11 @@ private:
     /**
      * @brief From section IDs to section types, offsets & lengths.
      */
-    std::unordered_map<SectionID, std::tuple<SectionType, uint64_t, uint64_t>> m_table;
-    /**
-     * @brief From offsets to section IDs.
-     */
-    std::unordered_map<uint64_t, SectionID> m_reversed_table;
+    std::unordered_map<SectionID, std::tuple<SectionType, uint64_t, uint64_t>> m_id_to_attributes;
+
+    std::unordered_map<SectionType, std::vector<SectionID>> m_type_to_ids;
+
+    std::unordered_map<uint64_t, SectionID> m_offset_to_id;
 
     Logger m_logger;
 };
@@ -58,7 +60,7 @@ public:
 
     void write(BlobWriterInterface& writer) override;
 
-    Manifest get_table() const;
+    Manifest get_manifest() const;
 
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 

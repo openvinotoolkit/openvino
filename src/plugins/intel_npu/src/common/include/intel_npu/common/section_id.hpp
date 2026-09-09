@@ -41,10 +41,6 @@ SectionID section_id_from_string(std::string_view id);
 
 bool is_section_id(const std::shared_ptr<CREToken>& token);
 
-// TODO discard this, rely on type instead and populate the proper ID within the reader later
-static const SectionID MANIFEST_SECTION_ID(0);
-static const SectionID RUNTIME_REQUIREMENTS_SECTION_ID(1);
-
 }  // namespace intel_npu
 
 template <>

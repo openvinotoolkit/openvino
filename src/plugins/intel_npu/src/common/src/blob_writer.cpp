@@ -96,14 +96,10 @@ BlobWriter::BlobWriter(const std::shared_ptr<BlobReader>& blob_reader, const ov:
       m_logger("BlobWriter", log_level) {
     m_logger.debug("Building the BlobWriter using the contents of a BlobReader");
 
+    // TODO checks that check that the manifest & RR are missing?
     for (const SectionID section_id : blob_reader->m_parsed_sections_order) {
         // The CRE & manifest sections are added by the write() method after writing all registered sections
         // (jic the registered sections will alter the CRE/table). Therefore, these sections should be omitted here.
-        // TODO implement seciont type/id as classes, to restrict comparisons?
-        OPENVINO_ASSERT(
-            section_id != MANIFEST_SECTION_ID && section_id != RUNTIME_REQUIREMENTS_SECTION_ID,
-            "By convention, the manifest and CRE sections should not be found within the parsed sections order "
-            "attribute");
         const std::shared_ptr<ISection> section = blob_reader->retrieve_section(section_id);
         register_section_from_blob_reader(section);
         m_logger.debug("Registered section %s", section_type_and_id_to_string(section->get_type(), section_id));

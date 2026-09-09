@@ -142,7 +142,7 @@ TEST(MockSections, GetROITensors) {
     auto manifest_section =
         std::dynamic_pointer_cast<ManifestSection>(reader.retrieve_first_section(SectionTypeCode::MANIFEST));
     ASSERT_TRUE(manifest_section);
-    auto table = manifest_section->get_table();
+    auto table = manifest_section->get_manifest();
 
     auto offset_1 = table.lookup_offset(SectionID(MockTypes::MOCK_1, 0)).value();
     auto length_1 = table.lookup_length(SectionID(MockTypes::MOCK_1, 0)).value();

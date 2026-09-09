@@ -13,20 +13,26 @@ namespace intel_npu {
 Manifest::Manifest(const ov::log::Level log_level) : m_logger("Manifest", log_level) {}
 
 void Manifest::add_entry(const SectionID id, const SectionType type, const uint64_t offset, const uint64_t length) {
-    OPENVINO_ASSERT(!m_table.count(id), "The section ID already exists within the manifest. ID: ", id);
-    OPENVINO_ASSERT(!m_reversed_table.count(offset),
+    OPENVINO_ASSERT(!m_id_to_attributes.count(id), "The section ID already exists within the manifest. ID: ", id);
+    OPENVINO_ASSERT(!m_offset_to_id.count(offset),
                     "The offset is already in-use within the manifest. Offset: ",
                     offset,
                     ". ID: ",
                     id);
 
     m_logger.debug("New entry added: section %s, offset %zu, length %zu",
-                   section_type_and_id_to_string(id, type),
+                   section_type_and_id_to_string(type, id),
                    offset,
                    length);
 
-    m_table[id] = std::make_tuple<>(type, offset, length);
-    m_reversed_table[offset] = id;
+    m_id_to_attributes[id] = std::make_tuple<>(type, offset, length);
+    m_offset_to_id[offset] = id;
+
+    if (m_type_to_ids.count(type)) {
+        m_type_to_ids.at(type).push_back(id);
+        return;
+    }
+    m_type_to_ids[type] = {id};
 }
 
 size_t Manifest::get_entry_size() {
@@ -36,43 +42,53 @@ size_t Manifest::get_entry_size() {
 
 // TODO minor refactor?
 std::optional<SectionType> Manifest::lookup_type(const SectionID id) const {
-    const auto search_result = m_table.find(id);
-    return search_result != m_table.end() ? std::make_optional<>(std::get<0>(search_result->second)) : std::nullopt;
+    const auto search_result = m_id_to_attributes.find(id);
+    return search_result != m_id_to_attributes.end() ? std::make_optional<>(std::get<0>(search_result->second))
+                                                     : std::nullopt;
 }
 
 std::optional<uint64_t> Manifest::lookup_offset(const SectionID id) const {
-    const auto search_result = m_table.find(id);
-    return search_result != m_table.end() ? std::make_optional<>(std::get<1>(search_result->second)) : std::nullopt;
+    const auto search_result = m_id_to_attributes.find(id);
+    return search_result != m_id_to_attributes.end() ? std::make_optional<>(std::get<1>(search_result->second))
+                                                     : std::nullopt;
 }
 
 std::optional<uint64_t> Manifest::lookup_length(const SectionID id) const {
-    const auto search_result = m_table.find(id);
-    return search_result != m_table.end() ? std::make_optional<>(std::get<2>(search_result->second)) : std::nullopt;
+    const auto search_result = m_id_to_attributes.find(id);
+    return search_result != m_id_to_attributes.end() ? std::make_optional<>(std::get<2>(search_result->second))
+                                                     : std::nullopt;
 }
 
 std::optional<SectionID> Manifest::lookup_section_id(const uint64_t offset) const {
-    const auto search_result = m_reversed_table.find(offset);
-    if (search_result != m_reversed_table.end()) {
+    const auto search_result = m_offset_to_id.find(offset);
+    if (search_result != m_offset_to_id.end()) {
         return search_result->second;
     }
     return std::nullopt;
 }
 
+std::vector<SectionID> Manifest::lookup_section_ids(const SectionType type) const {
+    if (!m_type_to_ids.count(type)) {
+        return std::vector<SectionID>();
+    }
+    return m_type_to_ids.at(type);
+}
+
 size_t Manifest::get_number_of_entries() const {
-    return m_table.size();
+    return m_id_to_attributes.size();
 }
 
 std::unordered_set<SectionID> Manifest::get_all_registered_section_ids() const {
     std::unordered_set<SectionID> ids;
 
-    for (const auto& [key, value] : m_table) {
+    for (const auto& [key, value] : m_id_to_attributes) {
         ids.insert(key);
     }
     return ids;
 }
 
 bool Manifest::empty() const {
-    return m_table.empty();
+    return m_id_to_attributes.empty();
 }
 
 ManifestSection::ManifestSection(const Manifest& manifest, const ov::log::Level log_level)
@@ -85,7 +101,7 @@ void ManifestSection::write(BlobWriterInterface& writer) {
 
     m_logger.debug("Writting %lu entries", m_manifest.get_number_of_entries());
 
-    for (const auto& [id, values] : m_manifest.m_table) {
+    for (const auto& [id, values] : m_manifest.m_id_to_attributes) {
         const auto [type, offset, length] = values;
 
         // ID, type, offset, length
@@ -95,13 +111,13 @@ void ManifestSection::write(BlobWriterInterface& writer) {
         writer.write_from(&length, sizeof(length));
 
         m_logger.trace("Entry written: section %s, offset %lu, length %lu",
-                       section_type_and_id_to_string(id, type),
+                       section_type_and_id_to_string(type, id),
                        offset,
                        length);
     }
 }
 
-Manifest ManifestSection::get_table() const {
+Manifest ManifestSection::get_manifest() const {
     return m_manifest;
 }
 
