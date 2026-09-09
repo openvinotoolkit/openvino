@@ -160,15 +160,18 @@ bool DeconvolutionKernel_b_fs_zyx_fsv16_dw::Validate(const Params& p) const {
 
     const auto& params = static_cast<const deconvolution_params&>(p);
 
-    if (params.groups == 1)
+    if (params.groups == 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (params.weights.IFM().v != 1 || params.weights.OFM().v != 1)
+    if (params.weights.IFM().v != 1 || params.weights.OFM().v != 1) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Check that padding features doesn't miss-align the blocks
-    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0)
+    if (params.inputs[0].Feature().pad.before % feature_block_size != 0 || params.outputs[0].Feature().pad.before % feature_block_size != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
