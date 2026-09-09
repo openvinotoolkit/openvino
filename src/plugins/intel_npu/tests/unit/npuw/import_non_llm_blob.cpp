@@ -113,7 +113,7 @@ TEST_P(ImportNonLLMBlobTestNPUW, CacheModeOptimizeSpeed) {
     });
 }
 
-TEST_P(ImportNonLLMBlobTestNPUW, UntrustedSourceRejectsNPUWBlob) {
+TEST_P(ImportNonLLMBlobTestNPUW, EnforceNativeBlobRejectsNPUWBlob) {
     ov::AnyMap wai_props = GetParam();
     m_props.insert(wai_props.begin(), wai_props.end());
     m_props["CACHE_MODE"] = "OPTIMIZE_SPEED";
@@ -125,17 +125,17 @@ TEST_P(ImportNonLLMBlobTestNPUW, UntrustedSourceRejectsNPUWBlob) {
     EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
     const std::string blob_bytes = blob.str();
 
-    // NPU_UNTRUSTED_SOURCE refuses the NPUW blob before it reaches the deserializers.
+    // NPU_ENFORCE_NATIVE_BLOB refuses the NPUW blob before it reaches the deserializers.
     {
         std::stringstream reject_blob(blob_bytes);
         auto import_props = m_props;
-        import_props["NPU_UNTRUSTED_SOURCE"] = true;
+        import_props["NPU_ENFORCE_NATIVE_BLOB"] = true;
         try {
             auto imported = m_core.import_model(reject_blob, "NPU", import_props);
             (void)imported;
-            FAIL() << "Expected NPUW import to be refused when NPU_UNTRUSTED_SOURCE is set";
+            FAIL() << "Expected NPUW import to be refused when NPU_ENFORCE_NATIVE_BLOB is set";
         } catch (const ov::Exception& ex) {
-            EXPECT_NE(std::string(ex.what()).find("NPU_UNTRUSTED_SOURCE"), std::string::npos) << ex.what();
+            EXPECT_NE(std::string(ex.what()).find("NPU_ENFORCE_NATIVE_BLOB"), std::string::npos) << ex.what();
         }
     }
 
@@ -146,6 +146,30 @@ TEST_P(ImportNonLLMBlobTestNPUW, UntrustedSourceRejectsNPUWBlob) {
             auto imported = m_core.import_model(accept_blob, "NPU", m_props);
             (void)imported;
         });
+    }
+}
+
+// Same refusal, but the flag is set via set_property instead of a per-call import property. This exercises the config
+// fallback in the enforce check (and the plugin's property registration/merge), which the per-call test does not cover.
+TEST_P(ImportNonLLMBlobTestNPUW, EnforceNativeBlobViaSetPropertyRejectsNPUWBlob) {
+    ov::AnyMap wai_props = GetParam();
+    m_props.insert(wai_props.begin(), wai_props.end());
+    m_props["CACHE_MODE"] = "OPTIMIZE_SPEED";
+
+    auto compiled = m_core.compile_model(m_ov_model, "NPU", m_props);
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    EXPECT_TRUE(ov::npuw::orc::is_orc(blob).has_value());
+
+    m_core.set_property("NPU", {{"NPU_ENFORCE_NATIVE_BLOB", true}});
+    std::stringstream reject_blob(blob.str());
+    try {
+        auto imported = m_core.import_model(reject_blob, "NPU", m_props);
+        (void)imported;
+        FAIL() << "Expected NPUW import to be refused when NPU_ENFORCE_NATIVE_BLOB is set via set_property";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("NPU_ENFORCE_NATIVE_BLOB"), std::string::npos) << ex.what();
     }
 }
 

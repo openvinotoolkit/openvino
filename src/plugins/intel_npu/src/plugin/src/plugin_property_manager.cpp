@@ -583,6 +583,7 @@ void PluginPropertyManager::registerProperties() {
     registerConfigProperty(DISABLE_VERSION_CHECK{}, false);
     registerConfigProperty(EXPORT_RAW_BLOB{}, false);
     registerConfigProperty(IMPORT_RAW_BLOB{}, false);
+    registerConfigProperty(ENFORCE_NATIVE_BLOB{}, false);
     registerConfigProperty(PROFILING_TYPE{}, false);
     registerConfigProperty(SHARED_COMMON_QUEUE{}, false);
 

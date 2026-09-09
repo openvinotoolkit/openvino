@@ -73,8 +73,7 @@ using testing::_;
 
 struct BlobFormatImportersTest : public ::testing::Test {
     BlobFormatImportersTest() : options(std::make_shared<OptionsDesc>()), config(options) {
-        options->add<ALLOW_DYNAMIC_BLOB_IMPORT>();
-        config.enableAll();
+        options->add<ENFORCE_NATIVE_BLOB>();
     }
 
     std::shared_ptr<OptionsDesc> options;
@@ -190,11 +189,27 @@ TEST_F(BlobFormatImportersTest, FactoryAcceptsElfBlobType) {
 }
 
 /**
- * @brief The blob type is read from unauthenticated metadata, and the host-executable formats are handed to the host
- * VM runtime instead of the NPU driver. Importing a blob that declares such a format must be refused unless the
- * application explicitly asked for it.
+ * @brief Without NPU_ENFORCE_NATIVE_BLOB (the default) a host-executable blob type is imported like any other, so the
+ * plugin's behavior is unchanged unless the application opts in.
  */
-TEST_F(BlobFormatImportersTest, FactoryRejectsHostExecutableBlobTypeByDefault) {
+TEST_F(BlobFormatImportersTest, FactoryAcceptsHostExecutableBlobTypeByDefault) {
+    for (const BlobType blob_type : {BlobType::LLVM, BlobType::BYTECODE}) {
+        const std::string blob = build_blob_format_v1_with_blob_type(blob_type);
+        std::istringstream input_stream(blob);
+        BlobSource source(input_stream);
+
+        OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, false, nullptr, config));
+    }
+}
+
+/**
+ * @brief The blob type is read from unauthenticated metadata, and the host-executable formats are handed to the host
+ * VM runtime instead of the NPU driver. Once native-blob import is enforced, importing a blob that declares such a
+ * format must be refused.
+ */
+TEST_F(BlobFormatImportersTest, FactoryRejectsHostExecutableBlobTypeWhenEnforced) {
+    config.update({{std::string(ENFORCE_NATIVE_BLOB::key()), "YES"}});
+
     for (const BlobType blob_type : {BlobType::LLVM, BlobType::BYTECODE}) {
         const std::string blob = build_blob_format_v1_with_blob_type(blob_type);
         std::istringstream input_stream(blob);
@@ -205,16 +220,14 @@ TEST_F(BlobFormatImportersTest, FactoryRejectsHostExecutableBlobTypeByDefault) {
 }
 
 /**
- * @brief A host-executable blob type is accepted once the application opted in
+ * @brief A native ELF device blob is still accepted while native-blob import is enforced
  */
-TEST_F(BlobFormatImportersTest, FactoryAcceptsHostExecutableBlobTypeWhenAllowed) {
-    config.update({{std::string(ALLOW_DYNAMIC_BLOB_IMPORT::key()), "YES"}});
+TEST_F(BlobFormatImportersTest, FactoryAcceptsElfBlobTypeWhenEnforced) {
+    config.update({{std::string(ENFORCE_NATIVE_BLOB::key()), "YES"}});
 
-    for (const BlobType blob_type : {BlobType::LLVM, BlobType::BYTECODE}) {
-        const std::string blob = build_blob_format_v1_with_blob_type(blob_type);
-        std::istringstream input_stream(blob);
-        BlobSource source(input_stream);
+    const std::string blob = build_blob_format_v1_with_blob_type(BlobType::ELF);
+    std::istringstream input_stream(blob);
+    BlobSource source(input_stream);
 
-        OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, false, nullptr, config));
-    }
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, false, nullptr, config));
 }

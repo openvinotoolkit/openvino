@@ -47,26 +47,24 @@ constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 /**
- * @brief Refuses a blob whose metadata declares a payload that is executed on the host instead of being parsed by the
- * NPU driver, unless the application explicitly asked for that behavior.
+ * @brief When native-blob import is enforced, refuses a blob whose metadata declares a payload that is executed on the
+ * host instead of being parsed by the NPU driver.
  * @details The declared payload format comes from metadata that carries no integrity or origin information, so an
  * application that only ever produces ELF device blobs must not be re-routed into the host VM runtime by the content
- * of a blob it was given.
- * @throws ov::AssertFailure if a host-executable payload is declared but ov::intel_npu::allow_dynamic_blob_import is
- * not enabled.
+ * of a blob it was given. Enforcement is opt-in via ov::intel_npu::enforce_native_blob; left disabled (the default),
+ * any declared payload is imported and behavior is unchanged.
+ * @throws ov::AssertFailure if native-blob import is enforced but the blob declares a host-executable payload.
  */
 void check_declared_blob_type(const std::optional<BlobType>& blob_type, const FilteredConfig& config) {
     if (!blob_type.has_value() || !is_host_executed(blob_type.value())) {
         return;
     }
 
-    OPENVINO_ASSERT(config.get<ALLOW_DYNAMIC_BLOB_IMPORT>(),
+    OPENVINO_ASSERT(!config.get<ENFORCE_NATIVE_BLOB>(),
                     "The metadata of the blob provided for import declares a host-executable payload (LLVM IR or "
                     "bytecode). Such a payload is not parsed by the NPU driver: it is compiled and executed inside "
                     "this process by the host VM runtime, which makes importing the blob equivalent to loading a "
-                    "shared library. Import blobs only from a trusted origin and set ",
-                    ALLOW_DYNAMIC_BLOB_IMPORT::key(),
-                    " to allow this.");
+                    "shared library. NPU_ENFORCE_NATIVE_BLOB is set, so only native NPU device blobs are accepted.");
 }
 
 /**

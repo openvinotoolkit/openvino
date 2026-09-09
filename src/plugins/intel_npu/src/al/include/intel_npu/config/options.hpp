@@ -1317,32 +1317,19 @@ struct IMPORT_RAW_BLOB final : OptionBase<IMPORT_RAW_BLOB, bool> {
     }
 };
 
-struct UNTRUSTED_SOURCE final : OptionBase<UNTRUSTED_SOURCE, bool> {
+struct ENFORCE_NATIVE_BLOB final : OptionBase<ENFORCE_NATIVE_BLOB, bool> {
     static std::string_view key() {
-        return ov::intel_npu::untrusted_source.name();
+        return ov::intel_npu::enforce_native_blob.name();
     }
 
     static bool defaultValue() {
         return false;
     }
 
-    // Set by the caller on both compile and import; accepted (and ignored) unless a NPUW blob is imported.
+    // Accepted on both compile and import so the caller can set it uniformly; it only takes effect at import,
+    // where a NPUW-serialized or host-executable blob is refused.
     static OptionMode mode() {
         return OptionMode::Both;
-    }
-};
-
-struct ALLOW_DYNAMIC_BLOB_IMPORT final : OptionBase<ALLOW_DYNAMIC_BLOB_IMPORT, bool> {
-    static std::string_view key() {
-        return ov::intel_npu::allow_dynamic_blob_import.name();
-    }
-
-    static bool defaultValue() {
-        return false;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
     }
 };
 

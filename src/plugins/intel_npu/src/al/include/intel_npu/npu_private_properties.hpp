@@ -456,23 +456,13 @@ static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 /**
  * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
- * Marks the compiled-model source as untrusted. When set, importing a NPUW-serialized blob is
- * refused so a blob forged by a lower-privilege producer cannot reach the NPUW deserializers across
- * a trust boundary. Non-NPUW (native) blobs import normally.
+ * Restricts import to native NPU device (ELF) blobs. When set, a blob that is not a native device blob is refused:
+ * NPUW-serialized blobs and blobs that declare a host-executable payload (LLVM IR or bytecode, produced by the
+ * "HostCompile" compilation modes) are both rejected before their content is deserialized or executed. This guards a
+ * higher-privilege importer against a blob forged by a lower-privilege producer across a trust boundary. Left disabled
+ * (the default), import behavior is unchanged.
  */
-static constexpr ov::Property<bool> untrusted_source{"NPU_UNTRUSTED_SOURCE"};
-
-/**
- * @brief [Only for NPU Plugin]
- * Type: boolean, default is false.
- * Allows importing blobs that declare a host-executable payload (LLVM IR or bytecode, produced by the "HostCompile"
- * compilation modes). Such a payload is not parsed by the NPU driver: it is handed to the host VM runtime, which
- * compiles it for the host CPU and runs it inside the calling process, at import time and before any inference.
- * @note The payload format is declared by the blob itself, in metadata that carries no integrity or origin
- * information. Importing a blob that declares a host-executable payload is therefore equivalent to loading a shared
- * library: keep this option disabled unless the application trusts the origin of every blob it imports.
- */
-static constexpr ov::Property<bool> allow_dynamic_blob_import{"NPU_ALLOW_DYNAMIC_BLOB_IMPORT"};
+static constexpr ov::Property<bool> enforce_native_blob{"NPU_ENFORCE_NATIVE_BLOB"};
 
 /**
  * @brief [Only for NPU Plugin]
