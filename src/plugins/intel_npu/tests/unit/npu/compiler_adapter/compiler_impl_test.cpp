@@ -153,14 +153,22 @@ TEST_F(VCLCompilerImplTest, UnwiredFunctionTableIsRejected) {
 }
 
 TEST_F(VCLCompilerImplTest, MissingWeakSymbolsDoNotBlockConstruction) {
-    // The weak symbols are legitimately null against an older compiler library, so the required-
-    // symbol guard must ignore them. FakeVcl leaves vclAllocatedExecutableCreate2 null already;
-    // null the remaining one so the whole weak list is absent.
+    // Weak symbols are legitimately null against an older compiler library, so the required-symbol
+    // guard must ignore them. FakeVcl already leaves the whole weak list null.
     ASSERT_TRUE(fake.mutableFunctions()->vclAllocatedExecutableCreate2 == nullptr);
-    fake.mutableFunctions()->vclAllocatedExecutableCreateWSOneShot2 = nullptr;
 
     EXPECT_TRUE(fake.functions()->hasAllRequiredSymbols());
     EXPECT_NO_THROW(makeCompiler());
+}
+
+TEST_F(VCLCompilerImplTest, MissingRequiredSymbolIsRejected) {
+    // vclAllocatedExecutableCreateWSOneShot2 is required, not weak: compileWsOneShot calls it with
+    // no null guard, so a library lacking it must be refused at construction rather than crashing
+    // on the first weights-separation compile.
+    fake.mutableFunctions()->vclAllocatedExecutableCreateWSOneShot2 = nullptr;
+
+    EXPECT_FALSE(fake.functions()->hasAllRequiredSymbols());
+    EXPECT_THROW(makeCompiler(), ov::Exception);
 }
 
 TEST_F(VCLCompilerImplTest, GetVersionFailureThrows) {
@@ -555,6 +563,18 @@ TEST_F(VCLCompilerImplTest, CompileThrowsWhenTheLibraryIsBelowTheSupportedFloor)
     EXPECT_THROW(compiler->compile(makeModel(), config), ov::Exception);
     // The version gate fires before any executable is created.
     EXPECT_FALSE(fake.called("vclAllocatedExecutableCreate4"));
+}
+
+TEST_F(VCLCompilerImplTest, QueryThrowsWhenTheLibraryIsBelowTheSupportedFloor) {
+    // query() negotiates the version like compile() does, so it must apply the same floor: an
+    // unsupported library would otherwise be asked to parse an IR it cannot understand.
+    fake.reportedCompilerVersion = {VCL_COMPILER_VERSION_MAJOR - 1, 0};
+    auto compiler = makeCompiler();
+    auto config = makeConfig();
+
+    EXPECT_THROW(compiler->query(makeModel(), config), ov::Exception);
+    // The version gate fires before the query handle is created.
+    EXPECT_FALSE(fake.called("vclQueryNetworkCreate"));
 }
 
 //

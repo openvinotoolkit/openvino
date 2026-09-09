@@ -32,22 +32,19 @@ namespace intel_npu {
     vcl_symbol_statement(vclExecutableGetCompatibilityString) \
     vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
     vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
+    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot2) \
 
 
 // symbols that may not be supported in older versions of vcl
 #define vcl_weak_symbols_list()                             \
-    vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
-    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot2)  // clang-format on
+    vcl_symbol_statement(vclAllocatedExecutableCreate2)  // clang-format on
 
 /**
  * @brief The VCL entry points, as a plain aggregate.
  *
  * Deliberately holds no library handle and does no loading: it is data, not behaviour. Every entry
  * point defaults to null, so a default-constructed table is a legitimate value - an unpopulated
- * table - rather than a half-constructed object. That is what lets tests build one directly with no
- * test-only constructor, tag, or friend declaration. Each field keeps the exact
- * `decltype(&::vclXxx)` type from `vcl.h`, so whatever populates it - `dlsym` in `VCLLoader` or a
- * static function in a test double - is type-checked against the vendor header itself.
+ * table
  */
 struct VCLFunctionTable {
 #define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol = nullptr;
