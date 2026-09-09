@@ -9,7 +9,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/rt_info.hpp"
+#include "openvino/core/symbol.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
@@ -33,23 +33,31 @@ bool ov::snippets::pass::SoftmaxReshapeElimination::eliminate(const std::shared_
 
     const auto softmax_rank = softmax_shape.rank();
     const auto axis = ov::snippets::utils::get_softmax_axis(softmax);
+    // Supports only the last axis.
     if (!axis || *axis != static_cast<int64_t>(softmax_rank.get_length()) - 1) {
         return false;
     }
 
+    // Dimensions by reduction axis should be equal.
     const auto in_last_dim = *input_shape.crbegin();
     const auto out_last_dim = *output_shape.crbegin();
     const auto softmax_last_dim = *softmax_shape.crbegin();
-    if (in_last_dim.is_dynamic() || out_last_dim.is_dynamic() || in_last_dim != out_last_dim ||
-        (softmax_last_dim.is_static() && in_last_dim != softmax_last_dim)) {
+    if ((!in_last_dim.is_static() && !ov::symbol::are_equal(in_last_dim.get_symbol(), out_last_dim.get_symbol())) ||
+        (in_last_dim.is_static() && in_last_dim != out_last_dim) ||
+        (softmax_last_dim.is_static() &&
+         ((in_last_dim.is_static() && in_last_dim != softmax_last_dim) ||
+          (!in_last_dim.is_static() &&
+           !ov::symbol::are_equal(in_last_dim.get_symbol(), softmax_last_dim.get_symbol()))))) {
         return false;
     }
 
-    reshape0->output(0).replace(reshape0->input_value(0));
-    copy_runtime_info({reshape0->input_value(0).get_node_shared_ptr(), reshape0->output(0).get_node_shared_ptr()},
-                      reshape0->input_value(0).get_node_shared_ptr());
+    // Eliminate Reshape before Softmax.
+    replace_output_update_name(reshape0->output(0), reshape0->input_value(0));
+
+    // Eliminate Reshape after Softmax with name saving.
     replace_output_update_name(reshape1->output(0), reshape1->input_value(0));
 
+    // Update axis.
     const auto new_axis = input_shape.rank().get_length() - 1;
     if (auto softmax_v8 = ov::as_type_ptr<ov::op::v8::Softmax>(softmax)) {
         softmax_v8->set_axis(new_axis);

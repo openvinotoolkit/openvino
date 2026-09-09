@@ -21,6 +21,7 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::SoftmaxReshapeElimination");
     SoftmaxReshapeElimination();
 
+    /// Removes Reshape operations around Softmax when the transformation preserves the last dimension.
     static bool eliminate(const std::shared_ptr<ov::op::v1::Reshape>& reshape0,
                           const std::shared_ptr<ov::Node>& softmax,
                           const std::shared_ptr<ov::op::v1::Reshape>& reshape1);

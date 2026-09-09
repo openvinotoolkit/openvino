@@ -309,6 +309,9 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
             const auto pattern_rank = matmul0->get_output_partial_shape(0).size();
 
             auto interm_op = get_matmul0_data_consumer(matmul0);
+            if (!interm_op) {
+                return false;
+            }
             // Add supported operations which are between MatMul0 and Softmax to ordered_ops
             if (!update_intermediate_supported_ops(interm_op, ordered_ops, n_potential_body_params)) {
                 return false;
@@ -336,14 +339,6 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
 
             if ((reshape0 == nullptr) != (reshape1 == nullptr)) {
                 return false;
-            }
-
-            if (reshape0 && reshape1) {
-                if (!ov::snippets::pass::SoftmaxReshapeElimination::eliminate(reshape0, softmax, reshape1)) {
-                    return false;
-                }
-                ordered_ops.erase(std::find(ordered_ops.begin(), ordered_ops.end(), reshape0));
-                ordered_ops.erase(std::find(ordered_ops.begin(), ordered_ops.end(), reshape1));
             }
 
             // Add supported operations which are between Softmax and MatMul1 to ordered_ops
@@ -485,6 +480,14 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
             const auto io_count = n_potential_body_params + ordered_ops.back()->get_output_size();
             if (!config.is_gprs_count_sufficient(io_count, n_buffer_reg_groups, n_loops_depth, is_dynamic)) {
                 return false;
+            }
+
+            if (reshape0 && reshape1) {
+                if (!ov::snippets::pass::SoftmaxReshapeElimination::eliminate(reshape0, softmax, reshape1)) {
+                    return false;
+                }
+                ordered_ops.erase(std::find(ordered_ops.begin(), ordered_ops.end(), reshape0));
+                ordered_ops.erase(std::find(ordered_ops.begin(), ordered_ops.end(), reshape1));
             }
 
             const auto subgraph = tokenize_ordered_nodes(ordered_ops);

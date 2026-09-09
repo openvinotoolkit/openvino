@@ -277,18 +277,24 @@ std::shared_ptr<SnippetsFunctionBase> MHAWithBroadcast::get_subgraph() const {
                                                               is_with_reshape);
 }
 
-std::shared_ptr<SnippetsFunctionBase> MHAWithShapeOfReshape::get_subgraph() const {
+std::shared_ptr<SnippetsFunctionBase> MHAWithShapeOfBroadcast::get_subgraph() const {
     const auto with_mul = std::get<3>(this->GetParam());
-    const bool is_with_reshape =
-        std::all_of(inputDynamicShapes.begin(), inputDynamicShapes.end(), [](const ov::PartialShape& ps) {
-            return ps.is_static();
-        });
     return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes,
                                                               m_input_types,
                                                               with_mul,
-                                                              is_with_reshape,
                                                               false,
-                                                              is_with_reshape);
+                                                              true,
+                                                              true);
+}
+
+std::shared_ptr<SnippetsFunctionBase> MHAWithShapeOfReshape::get_subgraph() const {
+    const auto with_mul = std::get<3>(this->GetParam());
+    return std::make_shared<ov::test::snippets::MHAFunction>(inputDynamicShapes,
+                                                              m_input_types,
+                                                              with_mul,
+                                                              true,
+                                                              false,
+                                                              true);
 }
 
 void MHASelect::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -410,9 +416,12 @@ TEST_P(MHAWithBroadcast, CompareWithRefImpl) {
     validateNumSubgraphs();
 }
 
+TEST_P(MHAWithShapeOfBroadcast, CompareWithRefImpl) {
+    run();
+}
+
 TEST_P(MHAWithShapeOfReshape, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(MHASelect, CompareWithRefImpl) {
