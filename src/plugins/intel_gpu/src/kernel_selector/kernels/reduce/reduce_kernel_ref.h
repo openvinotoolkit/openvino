@@ -14,9 +14,13 @@ public:
     ~ReduceKernelRef() override = default;
     CommonDispatchData SetDefault(const reduce_params& params) const override;
     KernelsData GetKernelsData(const Params& params) const override;
+    bool Validate(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
     JitConstants GetJitConstants(const reduce_params& params) const override;
+    bool SupportsWeightedReduce() const override {
+        return true;
+    }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::ELTWISE,
