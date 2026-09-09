@@ -162,9 +162,10 @@ additional checkpoint/quantization combinations in precommit/nightly jobs.
 ### Devstral text models
 
 Devstral Small 2507 (`llama`) and Devstral Small 2 (`mistral3`) now have real 24B Q4_K_M
-checkpoint checks and numerical fixtures through both native and external registration.
-Both real models match all 13 reference choices on the tested prompt. Shared fixes handle
-YaRN metadata and position-dependent attention temperature. Devstral 2 has small-fixture
+checkpoint checks and numerical fixtures through both the native builder and an independent
+external `ModelBuilder`. Both real models match all 13 reference choices on the tested prompt.
+The native path uses shared YaRN and attention-temperature fixes; the external example reads
+the metadata and builds those behaviors itself. Devstral 2 has small-fixture
 coverage; its 123B checkpoint is not verified. Vision and tool orchestration are separate.
 See [Devstral support, validation and integration effort](devstral_support.md).
 

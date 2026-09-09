@@ -188,7 +188,9 @@ add_dependencies(ov_gguf_architecture_library_tests gguf_projector_extension)
 target_sources(${TARGET_NAME} PRIVATE "${ARCH_EXAMPLE_DIR}/projector.cpp")
 target_include_directories(${TARGET_NAME} PRIVATE "${ARCH_EXAMPLE_DIR}")
 
-add_library(gguf_devstral_extension MODULE "${CMAKE_CURRENT_SOURCE_DIR}/../examples/devstral_extension/extension.cpp")
+add_library(gguf_devstral_extension MODULE
+            "${CMAKE_CURRENT_SOURCE_DIR}/../examples/devstral_extension/devstral.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/../examples/devstral_extension/extension.cpp")
 target_link_libraries(gguf_devstral_extension PRIVATE openvino::frontend::gguf)
 target_compile_features(gguf_devstral_extension PRIVATE cxx_std_17)
 install(TARGETS gguf_devstral_extension LIBRARY DESTINATION tests RUNTIME DESTINATION tests

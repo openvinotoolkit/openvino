@@ -1,16 +1,42 @@
-# Devstral: the same decoder through an external library
+# Devstral behavior implemented in an external builder
 
-Devstral Small 2505/2507 uses the GGUF `llama` family. Devstral Small 2 and Devstral 2
-use `mistral3`. Both families already exist in the native catalog, so the updated frontend
-loads their text models without this plugin.
+This example implements the Devstral **text graph** in a loadable `ModelBuilder`, using only
+installed GGUF SDK headers. It reads the original GGUF metadata and builds YaRN and
+position-dependent attention scaling itself. It does not call `make_decoder_architecture`,
+`configure_decoder`, `decoder_attention` or `decoder_ffn`, and does not depend on the shared
+`DecoderConfig` resolver's Devstral fixes. No new operation converter is required.
 
-This example demonstrates equivalent external registration. `devstral_decoder` uses the
-same `make_decoder_architecture` factory as the native catalog; the entry point explicitly
-replaces the existing `llama` and `mistral3` handlers in one frontend instance. It replaces
-the whole family handlers, not only files with a Devstral model name. No artificial
-`devstral` architecture alias or separate decoder implementation is needed.
+The current frontend already supports these behaviors natively. This plugin demonstrates how
+to implement them externally when the shared decoder does not, rather than adding names to
+the supported-model list. It requires the generic-node SDK in this branch; it is not binary
+compatible with older SDKs.
 
-Build against an OpenVINO installation containing this branch's shared-builder fixes:
+## What the extension owns
+
+[`devstral.cpp`](devstral.cpp) contains the graph and its `ArchitectureDefinition` factory:
+
+- Read dimensions, RoPE parameters and attention temperature directly from `GgufMetadata`.
+- Configure YaRN correction and magnitude through `RopeConfig` and `configure_rope`.
+- Emit Q/K/V projections, RoPE and the query multiplier
+  `1 + temperature * log(1 + floor(position / original_context))`.
+- Describe KV updates with `GGML_OP_SET_ROWS` and attention with `GGML_OP_FLASH_ATTN_EXT`.
+- Assemble residuals, normalization, the dense SwiGLU FFN and the output projection.
+
+Weight loading, generic converters, OpenVINO shape/type inference, normalization helpers and
+input helpers are reused. The four-operation SwiGLU expression is local so the example does
+not need shared decoder configuration at all. This costs a complete small decoder recipe,
+not just the registration wrapper. There are no builder-side shape formulas.
+
+[`extension.cpp`](extension.cpp) wraps the same definition for external loading:
+
+```cpp
+std::make_shared<ArchitectureExtension>(
+    example::devstral_decoder("mistral3"), RegistrationMode::Replace)
+```
+
+## Build and load
+
+Build against an installation of this branch:
 
 ```sh
 cmake -S src/frontends/gguf/examples/devstral_extension -B /tmp/devstral-extension \
@@ -18,7 +44,7 @@ cmake -S src/frontends/gguf/examples/devstral_extension -B /tmp/devstral-extensi
 cmake --build /tmp/devstral-extension
 ```
 
-Load the library on the explicitly selected frontend:
+Load on the explicitly selected frontend:
 
 ```cpp
 ov::frontend::FrontEndManager manager;
@@ -27,14 +53,27 @@ frontend->add_extension("/tmp/devstral-extension/libgguf_devstral_extension.so")
 auto model = frontend->convert(frontend->load("Devstral-Small-2-Q4_K_M.gguf"));
 ```
 
-Consumers add `GGUFMakeStateful` and `AdaptToGenAI` when cached language-model decoding
-is needed. The numerical tests exercise those passes with both native and library routes.
+Devstral Small 2505/2507 uses `llama`; Small 2 and Devstral 2 use `mistral3`. The library explicitly
+replaces both existing family handlers in this frontend instance. **Use a dedicated frontend
+instance for the intended Devstral models**: this is a dense, full-attention text example, not a
+replacement supporting every Llama/Mistral variant. Vision, MoE, sliding-window variants and
+additional family-specific behavior are outside its scope.
 
-For built-in integration, the factory is already registered for these two family names.
-For a genuinely new architecture name, register the same definition in
-`builtin_architectures()` and omit the external entry point. The implementation does not
-need a rewrite.
+For cached GenAI decoding, the consumer selects `GGUFMakeStateful` followed by `AdaptToGenAI`.
+The latter must tolerate a pruned, unused `token_len_per_seq` input; this branch includes that
+consumer-adapter correction and its regression test. GenAI must forward the library to the
+GGUF frontend it creates. Registering on an unrelated `Core` or frontend does not forward it.
 
-The plugin requires the updated shared decoder. It does not retrofit missing YaRN or
-attention-temperature behavior into an older runtime. Rebuild developer-SDK extensions
-for the OpenVINO version they target. See [support and validation scope](../../docs/devstral_support.md).
+## Validation and built-in integration
+
+The three existing Devstral F32 fixtures run through the loaded library as well as the native
+builder. They compare complete logits to independent llama.cpp CPU references, including
+prefill, cached decode, nondefault YaRN correction and temperature boundaries. See
+[the case study](../../docs/devstral_support.md) for checkpoint scope and reproduction details.
+
+To include this implementation in the frontend, move `devstral.cpp` and its header into the
+builder sources and register the same `devstral_decoder` definition. Replace the intended
+handler or partition matching predicates; do not add a second handler claiming the same files.
+Keep the builder unchanged and omit the library entry point. For the current built-in catalog,
+the smaller shared fixes already provide the behavior, so duplicating this example in-tree is
+unnecessary.

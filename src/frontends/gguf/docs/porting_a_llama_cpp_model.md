@@ -10,8 +10,9 @@ rebuilding that OpenVINO release.
 
 ## Choose the smallest implementation
 
-The [Devstral case study](devstral_support.md) shows the actual shared-builder changes,
-external-library wrapper and validation needed for models using existing architecture names.
+The [Devstral case study](devstral_support.md) compares shared-builder fixes with a
+[standalone extension](../examples/devstral_extension) that implements YaRN and attention
+temperature directly from raw metadata, without using the shared decoder resolver or blocks.
 
 | Requirement | Implementation |
 |---|---|
