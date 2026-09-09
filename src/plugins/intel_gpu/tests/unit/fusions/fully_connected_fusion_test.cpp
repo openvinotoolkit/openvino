@@ -1348,3 +1348,77 @@ TEST_P(fc_fp16_fuse_bias_and_find_eltwise_4d, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_fuse_bias_and_find_eltwise_4d, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ DYN_CASE_FC_FP16_4D_1, 2, 4 },
 }));
+
+// Verify that a sum chain exceeding the 31 binary-post-op cap does not
+// over-fuse (which would make the oneDNN kernel uncompilable) and still
+// produces numerically identical output.
+class fc_fp16_eltwise_sum_post_op_cap : public FullyConnectedFusingTestOneDNN {
+public:
+    void run_test() {
+        auto p = GetParam();
+
+        if (!engine.get_device_info().supports_immad)
+            GTEST_SKIP();
+
+        // sum_0 → append_sum (free slot), sum_1..sum_31 → 31 binary_add slots
+        // (fills the cap), sum_32 → refused and left as a standalone primitive.
+        static constexpr int N_SUMS = 33;
+
+        auto w_mem = get_mem(get_weights_layout(p), -1, 1);
+        auto b_mem = get_mem(get_bias_layout(p), -2, 2);
+
+        for (auto* topo : {&topology_fused, &topology_non_fused}) {
+            topo->add(input_layout("input", get_input_layout(p)));
+            topo->add(data("weights", w_mem));
+            topo->add(data("bias", b_mem));
+            topo->add(fully_connected("fc_prim", input_info("input"), "weights", "bias", get_output_dim_size(p)));
+        }
+
+        std::string prev = "fc_prim";
+        for (int i = 0; i < N_SUMS; i++) {
+            auto dname = "sum_data_" + std::to_string(i);
+            auto ename = "sum_" + std::to_string(i);
+            auto d_mem = get_mem(get_per_channel_layout(p), 1, 9);
+            for (auto* topo : {&topology_fused, &topology_non_fused}) {
+                topo->add(data(dname, d_mem));
+                topo->add(eltwise(ename, {input_info(prev), input_info(dname)}, eltwise_mode::sum));
+            }
+            prev = ename;
+        }
+
+        for (auto* topo : {&topology_fused, &topology_non_fused})
+            topo->add(reorder("reorder_bfyx", input_info(prev), p.default_format, data_types::f32));
+
+        ov::intel_gpu::ImplementationDesc fc_impl = { p.input_format, "", impl_types::onednn };
+        cfg_fused.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{ { "fc_prim", fc_impl } }));
+
+        auto input_prim = get_mem(get_input_layout(p), -1, 1);
+        network network_not_fused(engine, topology_non_fused, cfg_not_fused);
+        network network_fused(engine, topology_fused, cfg_fused);
+        network_fused.set_input_data("input", input_prim);
+        network_not_fused.set_input_data("input", input_prim);
+
+        auto outputs_ref = network_not_fused.execute();
+        auto outputs_opt = network_fused.execute();
+
+        ASSERT_EQ(outputs_ref.size(), size_t(1));
+        ASSERT_EQ(outputs_opt.size(), size_t(1));
+        auto val_ref = get_output_values_to_float(network_not_fused, outputs_ref.begin()->second);
+        std::vector<float> val_opt;
+        ASSERT_NO_THROW(val_opt = get_output_values_to_float(network_fused, outputs_opt.begin()->second));
+        ASSERT_EQ(val_ref.size(), val_opt.size());
+        // f16 ULP at accumulated values ~160 is 0.125; fused and standalone
+        // paths round differently, so allow a few ULPs of headroom.
+        for (size_t i = 0; i < val_ref.size(); i++)
+            ASSERT_NEAR(val_ref[i], val_opt[i], 0.5f);
+    }
+};
+
+TEST_P(fc_fp16_eltwise_sum_post_op_cap, basic) {
+    run_test();
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_sum_post_op_cap, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_1, 0, 0 },
+}));
