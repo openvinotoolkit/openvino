@@ -80,7 +80,6 @@
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
-#include "openvino/pass/serialize.hpp"
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
 #include "ov_ops/gather_matmul_compressed.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
@@ -1651,8 +1650,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         };
         manager.register_pass<ov::pass::MoveEltwiseUpThroughDataMovScalar>(allowed_data_movement_ops);
 
-        if (const char* d = std::getenv("OV_GPU_DUMP_PRE_ROPE"))
-            manager.register_pass<ov::pass::Serialize>(std::string(d) + ".xml", std::string(d) + ".bin");
         manager.register_pass<ov::pass::RoPEFusion>(true);
         pass_config->disable<ov::pass::RoPEFusionGPTJ>();
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
