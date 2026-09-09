@@ -3014,6 +3014,68 @@ TEST(resample_gpu, opt_linear_onnx_4d_f16) {
     }
 }
 
+namespace {
+// Runs a single-node resample network without any forced implementation and returns the
+// selected kernel id (e.g. "resample_opt__f16") for the "resample" node. This exercises the
+// real kernel-selector path, so the assertions below fail if resample_opt is ever chosen for
+// an input it rejects (or never chosen for one it should handle).
+//
+// The input is created directly in b_fs_yx_fsv16 (a format both resample_opt and resample_onnx
+// support, unlike bfyx which only resample_ref handles) so that the selector actually has to
+// choose between resample_opt and resample_onnx. No force_implementations is used.
+std::string select_resample_kernel(const tensor& input_size,
+                                   const tensor& output_size,
+                                   std::vector<size_t> pads_begin,
+                                   std::vector<size_t> pads_end) {
+    auto& engine = get_test_engine();
+
+    auto in_layout = layout(data_types::f16, format::b_fs_yx_fsv16, input_size);
+    auto in_mem = engine.allocate_memory(in_layout);
+    std::vector<ov::float16> in_vals(input_size.count());
+    for (size_t i = 0; i < in_vals.size(); ++i)
+        in_vals[i] = ov::float16(0.1f * static_cast<float>(i % 17) - 0.8f);
+    set_values<ov::float16>(in_mem, in_vals);
+
+    auto resample_prim = resample("resample", input_info("in"), output_size, 8,
+                                  resample::InterpolateOp::InterpolateMode::LINEAR_ONNX);
+    resample_prim.pads_begin = std::move(pads_begin);
+    resample_prim.pads_end = std::move(pads_end);
+
+    topology topo(input_layout("in", in_layout), resample_prim);
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "resample" }));
+    network net(engine, topo, config);
+    net.set_input_data("in", in_mem);
+    net.execute();
+
+    for (const auto& info : net.get_primitives_info()) {
+        if (info.original_id == "resample")
+            return info.kernel_id;
+    }
+    return {};
+}
+}  // namespace
+
+// Selector-level coverage (no forced implementation): an unpadded 4-D LINEAR_ONNX resample
+// with unchanged batch/feature must select the higher-priority resample_opt kernel
+// (FORCE_PRIORITY_3), not fall back to resample_onnx (FORCE_PRIORITY_4) or resample_ref.
+TEST(resample_gpu, opt_linear_onnx_4d_selector) {
+    const std::string kernel_id = select_resample_kernel({ 1, 8, 13, 13 }, { 1, 8, 26, 26 }, {}, {});
+    EXPECT_EQ(kernel_id.rfind("resample_opt", 0), 0)
+        << "Expected resample_opt to be selected for an unpadded 4-D LINEAR_ONNX resample, got: " << kernel_id;
+}
+
+// Selector-level coverage (no forced implementation): a 4-D LINEAR_ONNX resample with
+// non-zero spatial padding must NOT select resample_opt (it does not implement OOB-to-zero
+// for padded coordinates), and must fall back to resample_onnx which does handle padding.
+TEST(resample_gpu, onnx_linear_onnx_4d_padding_selector) {
+    const std::string kernel_id = select_resample_kernel({ 1, 8, 13, 13 }, { 1, 8, 26, 26 },
+                                                         { 0, 0, 1, 1 }, { 0, 0, 1, 1 });
+    // Starts with "resample_onnx" implies resample_opt (which rejects padding) was not selected.
+    EXPECT_EQ(kernel_id.rfind("resample_onnx", 0), 0)
+        << "Expected resample_onnx to be selected for a padded 4-D LINEAR_ONNX resample, got: " << kernel_id;
+}
+
 // Regression: the resample_opt kernel previously defined FUSED_OPS twice in NEAREST mode
 // (a branch-local block plus the shared one), which failed the CL build with
 // CL_BUILD_PROGRAM_FAILURE as soon as an eltwise op fused into the node. This forces
