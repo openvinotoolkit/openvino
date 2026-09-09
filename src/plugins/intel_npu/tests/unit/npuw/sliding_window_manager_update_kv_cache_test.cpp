@@ -85,19 +85,44 @@ void expect_cross_layout_write(uint32_t src_kv_dim, uint32_t dst_kv_dim, bool ci
                                         src,
                                         dst_kv_dim,
                                         src_kv_dim,
-                                        /*num_stored_tokens_before=*/0u,
+                                        /*num_stored_tokens=*/0u,
                                         /*num_new_tokens=*/3u);
     } else {
         uu::write_swa_kv_slice_left_aligned(dst,
                                             src,
                                             dst_kv_dim,
                                             src_kv_dim,
-                                            /*num_stored_tokens_before=*/0u,
+                                            /*num_stored_tokens=*/0u,
                                             /*num_new_tokens=*/3u);
     }
 
     for (uint32_t i = 0; i < 3u; ++i) {
         expect_token_value(dst, dst_kv_dim, i, 10.f + static_cast<float>(i));
+    }
+}
+
+// Cross-layout write into an already-saturated (6/6) left-aligned buffer: forces the shift
+// path (needs_shift=true) while src_kv_dim != dst_kv_dim, covering both the generic partial-
+// slice shift and the dst_kv_dim==3 bulk round-trip shift together with layout conversion.
+void expect_cross_layout_shift_write(uint32_t src_kv_dim, uint32_t dst_kv_dim) {
+    const uint32_t capacity = 6u;
+    auto dst = make_cpu_tensor(kv_shape(dst_kv_dim, capacity));
+    for (uint32_t i = 0; i < capacity; ++i) {
+        write_token_value(dst, dst_kv_dim, i, 100.f + static_cast<float>(i));  // o1..o6
+    }
+    auto src = make_src_tokens(src_kv_dim, 3u, /*first_value=*/200.f);  // n1..n3
+
+    uu::write_swa_kv_slice_left_aligned(dst,
+                                        src,
+                                        dst_kv_dim,
+                                        src_kv_dim,
+                                        /*num_stored_tokens=*/6u,
+                                        /*num_new_tokens=*/3u);
+
+    // Surviving tail (o4,o5,o6) shifts to front, then n1,n2,n3 are appended.
+    const std::vector<float> expected = {103.f, 104.f, 105.f, 200.f, 201.f, 202.f};
+    for (uint32_t i = 0; i < capacity; ++i) {
+        expect_token_value(dst, dst_kv_dim, i, expected[i]);
     }
 }
 
@@ -120,13 +145,13 @@ TEST_P(WriteKvSliceSlidingWindowTest, CircularWarmupMatchesLeftAligned) {
                                         src,
                                         kv_dim,
                                         kv_dim,
-                                        /*num_stored_tokens_before=*/0u,
+                                        /*num_stored_tokens=*/0u,
                                         /*num_new_tokens=*/5u);
     uu::write_swa_kv_slice_circular(dst_circ,
                                     src,
                                     kv_dim,
                                     kv_dim,
-                                    /*num_stored_tokens_before=*/0u,
+                                    /*num_stored_tokens=*/0u,
                                     /*num_new_tokens=*/5u);
 
     for (uint32_t i = 0; i < 5u; ++i) {
@@ -151,7 +176,7 @@ TEST_P(WriteKvSliceSlidingWindowTest, CircularWrapsToStartWithoutSplit) {
                                     src,
                                     kv_dim,
                                     kv_dim,
-                                    /*num_stored_tokens_before=*/capacity,
+                                    /*num_stored_tokens=*/capacity,
                                     /*num_new_tokens=*/1u);
 
     expect_token_value(dst, kv_dim, 0u, 2000.f);
@@ -177,7 +202,7 @@ TEST_P(WriteKvSliceSlidingWindowTest, CircularWriteSplitsAcrossWrapBoundary) {
                                     src,
                                     kv_dim,
                                     kv_dim,
-                                    /*num_stored_tokens_before=*/13u,
+                                    /*num_stored_tokens=*/13u,
                                     /*num_new_tokens=*/6u);
 
     const std::vector<float> expected = {3016.f, 3017.f, 3018.f, 2003.f, 2004.f, 3013.f, 3014.f, 3015.f};
@@ -197,7 +222,7 @@ TEST_P(WriteKvSliceSlidingWindowTest, CircularChunkLargerThanCapacityKeepsOnlyNe
                                     src,
                                     kv_dim,
                                     kv_dim,
-                                    /*num_stored_tokens_before=*/0u,
+                                    /*num_stored_tokens=*/0u,
                                     /*num_new_tokens=*/10u);
 
     const std::vector<float> expected = {8.f, 9.f, 6.f, 7.f};
@@ -233,6 +258,207 @@ TEST_P(WriteKvSliceSlidingWindowTest, CircularAndLeftAlignedHoldSameLogicalConte
     }
 }
 
+TEST_P(WriteKvSliceSlidingWindowTest, LeftAlignedChunkEqualsCapacityFillsWholeWindow) {
+    // Case A: chunk == capacity, old_total == 0 -> single full-buffer overwrite.
+    const uint32_t kv_dim = GetParam();
+    const uint32_t capacity = 6u;
+
+    auto dst = make_cpu_tensor(kv_shape(kv_dim, capacity));
+    for (uint32_t i = 0; i < capacity; ++i) {
+        write_token_value(dst, kv_dim, i, -1.f);  // sentinel: must be fully overwritten
+    }
+    auto src = make_src_tokens(kv_dim, 6u, /*first_value=*/1.f);
+
+    uu::write_swa_kv_slice_left_aligned(dst,
+                                        src,
+                                        kv_dim,
+                                        kv_dim,
+                                        /*num_stored_tokens=*/0u,
+                                        /*num_new_tokens=*/6u);
+
+    for (uint32_t i = 0; i < capacity; ++i) {
+        expect_token_value(dst, kv_dim, i, 1.f + static_cast<float>(i));
+    }
+}
+
+TEST_P(WriteKvSliceSlidingWindowTest, LeftAlignedChunkLargerThanCapacityKeepsOnlyNewestTail) {
+    // Case C: chunk (8) > capacity (6), old_total == 0 -> only the newest `capacity` tokens
+    // of the input chunk are written; the chunk's own oldest tokens (n1,n2) are dropped.
+    const uint32_t kv_dim = GetParam();
+    const uint32_t capacity = 6u;
+
+    auto dst = make_cpu_tensor(kv_shape(kv_dim, capacity));
+    for (uint32_t i = 0; i < capacity; ++i) {
+        write_token_value(dst, kv_dim, i, -1.f);
+    }
+    auto src = make_src_tokens(kv_dim, 8u, /*first_value=*/1.f);  // n1..n8
+
+    uu::write_swa_kv_slice_left_aligned(dst,
+                                        src,
+                                        kv_dim,
+                                        kv_dim,
+                                        /*num_stored_tokens=*/0u,
+                                        /*num_new_tokens=*/8u);
+
+    for (uint32_t i = 0; i < capacity; ++i) {
+        expect_token_value(dst, kv_dim, i, 3.f + static_cast<float>(i));  // n3..n8
+    }
+}
+
+TEST_P(WriteKvSliceSlidingWindowTest, LeftAlignedSaturatedShiftsOldTailThenAppends) {
+    // Case B2: buffer already full (6/6); appending 3 new tokens shifts the surviving old
+    // tail (o4,o5,o6) to the front before appending. Matches the doc-comment example.
+    const uint32_t kv_dim = GetParam();
+    const uint32_t capacity = 6u;
+
+    auto dst = make_cpu_tensor(kv_shape(kv_dim, capacity));
+    for (uint32_t i = 0; i < capacity; ++i) {
+        write_token_value(dst, kv_dim, i, 1.f + static_cast<float>(i));  // o1..o6
+    }
+    auto src = make_src_tokens(kv_dim, 3u, /*first_value=*/11.f);  // n1..n3
+
+    uu::write_swa_kv_slice_left_aligned(dst,
+                                        src,
+                                        kv_dim,
+                                        kv_dim,
+                                        /*num_stored_tokens=*/6u,
+                                        /*num_new_tokens=*/3u);
+
+    const std::vector<float> expected = {4.f, 5.f, 6.f, 11.f, 12.f, 13.f};
+    for (uint32_t i = 0; i < capacity; ++i) {
+        expect_token_value(dst, kv_dim, i, expected[i]);
+    }
+}
+
+TEST_P(WriteKvSliceSlidingWindowTest, LeftAlignedClampsToShortSourceTensor) {
+    // num_new_tokens=5 but the source tensor itself only holds 3 tokens (it was
+    // capacity-limited upstream). keep=new_valid(5)-tokens_to_write(3)=2 slots are reserved
+    // by the arithmetic but never populated (old_valid=0, nothing to shift into them).
+    const uint32_t kv_dim = GetParam();
+    const uint32_t capacity = 8u;
+
+    auto dst = make_cpu_tensor(kv_shape(kv_dim, capacity));
+    for (uint32_t i = 0; i < capacity; ++i) {
+        write_token_value(dst, kv_dim, i, -1.f);  // sentinel: untouched slots stay -1
+    }
+    auto src = make_src_tokens(kv_dim, /*count=*/3u, /*first_value=*/50.f);
+
+    uu::write_swa_kv_slice_left_aligned(dst,
+                                        src,
+                                        kv_dim,
+                                        kv_dim,
+                                        /*num_stored_tokens=*/0u,
+                                        /*num_new_tokens=*/5u);
+
+    expect_token_value(dst, kv_dim, 0u, -1.f);
+    expect_token_value(dst, kv_dim, 1u, -1.f);
+    expect_token_value(dst, kv_dim, 2u, 50.f);
+    expect_token_value(dst, kv_dim, 3u, 51.f);
+    expect_token_value(dst, kv_dim, 4u, 52.f);
+    expect_token_value(dst, kv_dim, 5u, -1.f);
+    expect_token_value(dst, kv_dim, 6u, -1.f);
+    expect_token_value(dst, kv_dim, 7u, -1.f);
+}
+
+TEST_P(WriteKvSliceSlidingWindowTest, LeftAlignedZeroNewTokensIsNoOp) {
+    const uint32_t kv_dim = GetParam();
+    const uint32_t capacity = 6u;
+
+    auto dst = make_cpu_tensor(kv_shape(kv_dim, capacity));
+    for (uint32_t i = 0; i < capacity; ++i) {
+        write_token_value(dst, kv_dim, i, 9.f + static_cast<float>(i));
+    }
+    auto src = make_src_tokens(kv_dim, 1u, /*first_value=*/0.f);  // never read
+
+    uu::write_swa_kv_slice_left_aligned(dst,
+                                        src,
+                                        kv_dim,
+                                        kv_dim,
+                                        /*num_stored_tokens=*/3u,
+                                        /*num_new_tokens=*/0u);
+
+    for (uint32_t i = 0; i < capacity; ++i) {
+        expect_token_value(dst, kv_dim, i, 9.f + static_cast<float>(i));
+    }
+}
+
+TEST_P(WriteKvSliceSlidingWindowTest, CircularSingleLegWriteAtNonZeroOffset) {
+    // Non-wrapping, non-zero dst_start single-leg write: 3 tokens already "stored" at
+    // slots [0,3), 2 more appended at [3,5) without touching the rest of the buffer.
+    const uint32_t kv_dim = GetParam();
+    const uint32_t capacity = 8u;
+
+    auto dst = make_cpu_tensor(kv_shape(kv_dim, capacity));
+    for (uint32_t i = 0; i < capacity; ++i) {
+        write_token_value(dst, kv_dim, i, -1.f);
+    }
+    auto src = make_src_tokens(kv_dim, 2u, /*first_value=*/42.f);
+
+    uu::write_swa_kv_slice_circular(dst,
+                                    src,
+                                    kv_dim,
+                                    kv_dim,
+                                    /*num_stored_tokens=*/3u,
+                                    /*num_new_tokens=*/2u);
+
+    expect_token_value(dst, kv_dim, 3u, 42.f);
+    expect_token_value(dst, kv_dim, 4u, 43.f);
+    expect_token_value(dst, kv_dim, 0u, -1.f);
+    expect_token_value(dst, kv_dim, 5u, -1.f);
+}
+
+TEST_P(WriteKvSliceSlidingWindowTest, CircularClampsToShortSourceTensor) {
+    // Same short-source scenario as LeftAlignedClampsToShortSourceTensor, but for the
+    // circular writer: dst_start is computed from the nominal num_new_tokens (5), while
+    // only the 3 actually-available src tokens get copied.
+    const uint32_t kv_dim = GetParam();
+    const uint32_t capacity = 8u;
+
+    auto dst = make_cpu_tensor(kv_shape(kv_dim, capacity));
+    for (uint32_t i = 0; i < capacity; ++i) {
+        write_token_value(dst, kv_dim, i, -1.f);
+    }
+    auto src = make_src_tokens(kv_dim, /*count=*/3u, /*first_value=*/50.f);
+
+    uu::write_swa_kv_slice_circular(dst,
+                                    src,
+                                    kv_dim,
+                                    kv_dim,
+                                    /*num_stored_tokens=*/0u,
+                                    /*num_new_tokens=*/5u);
+
+    expect_token_value(dst, kv_dim, 0u, -1.f);
+    expect_token_value(dst, kv_dim, 1u, -1.f);
+    expect_token_value(dst, kv_dim, 2u, 50.f);
+    expect_token_value(dst, kv_dim, 3u, 51.f);
+    expect_token_value(dst, kv_dim, 4u, 52.f);
+    expect_token_value(dst, kv_dim, 5u, -1.f);
+    expect_token_value(dst, kv_dim, 6u, -1.f);
+    expect_token_value(dst, kv_dim, 7u, -1.f);
+}
+
+TEST_P(WriteKvSliceSlidingWindowTest, CircularZeroNewTokensIsNoOp) {
+    const uint32_t kv_dim = GetParam();
+    const uint32_t capacity = 6u;
+
+    auto dst = make_cpu_tensor(kv_shape(kv_dim, capacity));
+    for (uint32_t i = 0; i < capacity; ++i) {
+        write_token_value(dst, kv_dim, i, 9.f + static_cast<float>(i));
+    }
+    auto src = make_src_tokens(kv_dim, 1u, /*first_value=*/0.f);  // never read
+
+    uu::write_swa_kv_slice_circular(dst,
+                                    src,
+                                    kv_dim,
+                                    kv_dim,
+                                    /*num_stored_tokens=*/3u,
+                                    /*num_new_tokens=*/0u);
+
+    for (uint32_t i = 0; i < capacity; ++i) {
+        expect_token_value(dst, kv_dim, i, 9.f + static_cast<float>(i));
+    }
+}
+
 TEST(WriteKvSliceSlidingWindowCrossLayoutTest, CircularConvertsKvDim2To3) {
     expect_cross_layout_write(/*src_kv_dim=*/2u, /*dst_kv_dim=*/3u, /*circular_write=*/true);
 }
@@ -247,6 +473,17 @@ TEST(WriteKvSliceSlidingWindowCrossLayoutTest, LeftAlignedConvertsKvDim2To3) {
 
 TEST(WriteKvSliceSlidingWindowCrossLayoutTest, LeftAlignedConvertsKvDim3To2) {
     expect_cross_layout_write(/*src_kv_dim=*/3u, /*dst_kv_dim=*/2u, /*circular_write=*/false);
+}
+
+TEST(WriteKvSliceSlidingWindowCrossLayoutTest, LeftAlignedShiftConvertsKvDim2To3) {
+    // dst_kv_dim=3 exercises the bulk round-trip shift path together with layout conversion.
+    expect_cross_layout_shift_write(/*src_kv_dim=*/2u, /*dst_kv_dim=*/3u);
+}
+
+TEST(WriteKvSliceSlidingWindowCrossLayoutTest, LeftAlignedShiftConvertsKvDim3To2) {
+    // dst_kv_dim=2 exercises the generic partial-slice shift path together with layout
+    // conversion.
+    expect_cross_layout_shift_write(/*src_kv_dim=*/3u, /*dst_kv_dim=*/2u);
 }
 
 }  // namespace ov::test::npuw

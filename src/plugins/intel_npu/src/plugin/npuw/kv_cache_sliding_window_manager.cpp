@@ -22,14 +22,12 @@ struct MaskView {
     uint32_t row_dim = 0;            // Query axis length
     uint32_t col_dim = 0;            // Key axis length
     uint32_t past_width = 0;         // Past-region column count: col_dim - row_dim
-    uint32_t row_pad = 0;            // Unused leading rows in this call's chunk: row_dim - num_real_new_tokens
+    uint32_t row_pad = 0;            // Unused leading rows in this call's chunk: row_dim - num_new_tokens
     ov::element::Type element_type;  // Actual mask tensor element type: f32 or f16
     void* data = nullptr;            // Base pointer to the mask tensor's data
 };
 
-MaskView get_mask_view(const ov::SoPtr<ov::ITensor>& mask_tensor,
-                       uint32_t num_real_new_tokens,
-                       const char* caller_name) {
+MaskView get_mask_view(const ov::SoPtr<ov::ITensor>& mask_tensor, uint32_t num_new_tokens, const char* caller_name) {
     const auto element_type = mask_tensor->get_element_type();
     OPENVINO_ASSERT(element_type == ov::element::f32 || element_type == ov::element::f16,
                     caller_name,
@@ -55,10 +53,10 @@ MaskView get_mask_view(const ov::SoPtr<ov::ITensor>& mask_tensor,
                     ") must be >= query axis (",
                     row_dim,
                     ")");
-    OPENVINO_ASSERT(num_real_new_tokens <= row_dim,
+    OPENVINO_ASSERT(num_new_tokens <= row_dim,
                     caller_name,
-                    ": num_real_new_tokens (",
-                    num_real_new_tokens,
+                    ": num_new_tokens (",
+                    num_new_tokens,
                     ") exceeds query axis (",
                     row_dim,
                     ")");
@@ -67,7 +65,7 @@ MaskView get_mask_view(const ov::SoPtr<ov::ITensor>& mask_tensor,
     mv.row_dim = row_dim;
     mv.col_dim = col_dim;
     mv.past_width = col_dim - row_dim;
-    mv.row_pad = row_dim - num_real_new_tokens;
+    mv.row_pad = row_dim - num_new_tokens;
     mv.element_type = element_type;
     mv.data = mask_tensor->data();
     return mv;
@@ -75,48 +73,278 @@ MaskView get_mask_view(const ov::SoPtr<ov::ITensor>& mask_tensor,
 
 }  // namespace
 
-void ov::npuw::util::write_swa_kv_slice_circular(ov::SoPtr<ov::ITensor> dst_tensor,
-                                                 ov::SoPtr<ov::ITensor> src_new_kv,
-                                                 uint32_t dst_kv_dim,
-                                                 uint32_t src_kv_dim,
-                                                 uint32_t num_stored_tokens_before,
-                                                 uint32_t num_new_tokens) {
-    // Circular SWA policy: token at absolute position p is stored at physical
-    // slot (p % capacity), overwriting the oldest slot once the buffer is full.
-    const uint32_t capacity = static_cast<uint32_t>(dst_tensor->get_shape()[dst_kv_dim]);
-    const uint32_t old_total = num_stored_tokens_before;
-    const uint32_t new_total = old_total + num_new_tokens;
-    const uint32_t new_valid = std::min(new_total, capacity);
+namespace {
 
-    // Clamp by source length as well: source may already be capacity-limited.
-    const uint32_t src_len = static_cast<uint32_t>(src_new_kv->get_shape()[src_kv_dim]);
-    const uint32_t tokens_to_write = std::min({num_new_tokens, new_valid, src_len});
+template <typename T>
+void fill_causal_sliding_window_mask_typed(const MaskView& mask_view,
+                                           uint32_t num_stored_tokens,
+                                           uint32_t window_size) {
+    const uint32_t stored_tokens = num_stored_tokens;
+    const uint32_t past_width = mask_view.past_width;
+    const uint32_t row_dim = mask_view.row_dim;
+    const uint32_t row_pad = mask_view.row_pad;
+    const bool has_past_region = past_width > 0u;
+    const bool is_past_saturated = has_past_region && stored_tokens >= past_width;
+    const uint32_t wrap_slot = is_past_saturated ? (stored_tokens % past_width) : 0u;
+    const int64_t stored_tokens_i64 = static_cast<int64_t>(stored_tokens);
+    const int64_t past_width_i64 = static_cast<int64_t>(past_width);
+    const int64_t window_i64 = static_cast<int64_t>(window_size);
+    const int64_t row_pad_i64 = static_cast<int64_t>(row_pad);
 
-    if (tokens_to_write == 0) {
+    const T kAttend = T(0.0f);
+    const T kMasked = T(std::numeric_limits<ov::float16>::lowest());
+
+    // Row columns = [past circular slots][current-chunk columns]
+    //             = [0 .. past_width-1] [past_width .. past_width+row_dim-1].
+    // past_width == 0 degenerates to current-chunk-only masking.
+    //
+    // Past slot -> absolute token index:
+    //   unsaturated (stored_tokens < past_width): abs == slot, for slot < stored_tokens.
+    //   saturated (stored_tokens >= past_width), wrap_slot = stored_tokens % past_width:
+    //     [0, wrap_slot):          abs = (stored_tokens - wrap_slot) + slot
+    //     [wrap_slot, past_width): abs = (stored_tokens - wrap_slot) + slot - past_width
+    //
+    // Visibility: attend(abs) iff abs in [row_abs_pos - window_size + 1, row_abs_pos] (causal +
+    // window). Current-chunk equivalent: local_c in [max(row_pad, row-window_size+1), row].
+    //
+    // Example (past_width=4, row_dim=3, row_pad=0, stored_tokens=3, window_size=4):
+    //   Past slots hold real tokens for abs 0,1,2 (slot 3 unwritten: stored_tokens < past_width).
+    //   Row q's absolute position is stored_tokens + q.
+    //
+    //   cols ->              0 1 2 3 | 4 5 6
+    //   row 0(q=0,abs=3):    A A A . | A . .
+    //   row 1(q=1,abs=4):    . A A . | A A .
+    //   row 2(q=2,abs=5):    . . A . | A A A
+    //
+    //   A = attend (0.0f), . = masked (-inf). The past A-run slides one slot right per row
+    //   (window_size=4 tokens total, incl. the causal diagonal); slot 3 stays masked because
+    //   stored_tokens=3 hasn't written it yet. row_pad > 0 just adds unused rows above row 0.
+
+    // Inclusive [begin, end] slot interval; begin > end means "empty".
+    struct VisibleRange {
+        int64_t begin;
+        int64_t end;
+    };
+    constexpr VisibleRange kEmptyRange{1, 0};
+
+    // Step 1 helper: pure range arithmetic, no memory access. Clamps the visibility window
+    // [range_begin, range_end] against a region's own domain [domain_begin, domain_end].
+    auto compute_visible_range =
+        [](int64_t range_begin, int64_t range_end, int64_t domain_begin, int64_t domain_end) -> VisibleRange {
+        return {std::max(range_begin, domain_begin), std::min(range_end, domain_end)};
+    };
+
+    // Step 2 helper: pure memory write, no range math. Fills an already-clamped range.
+    auto fill_visible_range = [](T* ptr, VisibleRange range, T fill_value) {
+        if (range.begin <= range.end) {
+            std::fill_n(ptr + range.begin, static_cast<size_t>(range.end - range.begin + 1), fill_value);
+        }
+    };
+
+    // Visible slot ranges in the past region for one row. A saturated ring wraps into at most
+    // two contiguous ranges (returned as a fixed-size array to avoid a per-row allocation).
+    auto compute_visible_past_slots = [&](int64_t min_visible_abs_pos,
+                                          int64_t max_visible_abs_pos) -> std::array<VisibleRange, 2> {
+        if (!has_past_region) {
+            return {kEmptyRange, kEmptyRange};
+        }
+        if (is_past_saturated) {
+            // Saturated ring: at most two contiguous slot ranges can be visible,
+            // one in [wrap_slot, past_width) and one in [0, wrap_slot).
+            const int64_t ring_base_abs = stored_tokens_i64 - static_cast<int64_t>(wrap_slot);
+            const int64_t older_segment_bias = ring_base_abs - past_width_i64;  // abs = older_segment_bias + slot
+
+            // Segment 1: c in [wrap_slot, past_width-1].
+            const VisibleRange segment1 = compute_visible_range(min_visible_abs_pos - older_segment_bias,
+                                                                max_visible_abs_pos - older_segment_bias,
+                                                                static_cast<int64_t>(wrap_slot),
+                                                                past_width_i64 - 1);
+            // Segment 2: c in [0, wrap_slot-1], only when the ring actually wrapped.
+            const VisibleRange segment2 = (wrap_slot > 0u) ? compute_visible_range(min_visible_abs_pos - ring_base_abs,
+                                                                                   max_visible_abs_pos - ring_base_abs,
+                                                                                   0,
+                                                                                   static_cast<int64_t>(wrap_slot) - 1)
+                                                           : kEmptyRange;
+            return {segment1, segment2};
+        }
+        if (stored_tokens > 0u) {
+            // Unsaturated prefix: slot index equals absolute position for valid slots.
+            return {compute_visible_range(min_visible_abs_pos, max_visible_abs_pos, 0, stored_tokens_i64 - 1),
+                    kEmptyRange};
+        }
+        return {kEmptyRange, kEmptyRange};
+    };
+
+    T* base = static_cast<T*>(mask_view.data);
+    for (uint32_t row = 0; row < row_dim; ++row) {
+        T* row_ptr = base + static_cast<size_t>(row) * mask_view.col_dim;
+
+        const int64_t row_i64 = static_cast<int64_t>(row);
+        const int64_t row_abs_pos = stored_tokens_i64 + (row_i64 - row_pad_i64);
+        const int64_t min_visible_abs_pos = row_abs_pos - window_i64 + 1;
+        const int64_t max_visible_abs_pos = row_abs_pos;
+
+        // Step 1: compute which slots are visible in this row. Pure arithmetic only --
+        // nothing is written to the mask buffer yet.
+        const std::array<VisibleRange, 2> past_slots =
+            compute_visible_past_slots(min_visible_abs_pos, max_visible_abs_pos);
+
+        // Current chunk ("present") diagonal region [past_width, past_width + row_dim).
+        // local_c must satisfy all constraints below:
+        //   1) valid key in right-aligned chunk: local_c >= row_pad
+        //   2) causal:                         local_c <= row
+        //   3) window:                         row - local_c < window_size
+        // => local_c in [max(row_pad, row-window+1), row].
+        const VisibleRange present_segment = compute_visible_range(std::max(row_pad_i64, row_i64 - window_i64 + 1),
+                                                                   row_i64,
+                                                                   0,
+                                                                   static_cast<int64_t>(row_dim) - 1);
+
+        // Step 2: populate masked and attended values.
+        // 2.1 init row: all masked.
+        std::fill_n(row_ptr, mask_view.col_dim, kMasked);
+        // 2.2 attend past in ranges (from step 1).
+        fill_visible_range(row_ptr, past_slots[0], kAttend);
+        fill_visible_range(row_ptr, past_slots[1], kAttend);
+        // 2.3 attend present.
+        fill_visible_range(row_ptr + past_width, present_segment, kAttend);
+    }
+}
+
+}  // namespace
+
+void ov::npuw::util::fill_causal_sliding_window_mask(ov::SoPtr<ov::ITensor> mask_tensor,
+                                                     uint32_t num_stored_tokens,
+                                                     uint32_t num_new_tokens,
+                                                     uint32_t window_size) {
+    const auto mask_view = get_mask_view(mask_tensor, num_new_tokens, "fill_causal_sliding_window_mask");
+    OPENVINO_ASSERT(window_size > 0, "fill_causal_sliding_window_mask: window_size must be > 0");
+
+    switch (mask_view.element_type) {
+    case ov::element::f32:
+        fill_causal_sliding_window_mask_typed<float>(mask_view, num_stored_tokens, window_size);
+        break;
+    case ov::element::f16:
+        fill_causal_sliding_window_mask_typed<ov::float16>(mask_view, num_stored_tokens, window_size);
+        break;
+    default:
+        OPENVINO_THROW("fill_causal_sliding_window_mask: unsupported mask element type ", mask_view.element_type);
+    }
+}
+
+namespace {
+
+template <typename T>
+void overlay_vision_bidirectional_mask_typed(const MaskView& mask_view,
+                                             const int64_t* token_type_ids,
+                                             uint32_t num_new_tokens) {
+    const T kAttend = T(0.0f);
+    constexpr int64_t kVisionTokenTypeId = 1;
+
+    // This function makes vision-token runs bidirectional inside the current chunk.
+    // We scan token_type_ids and find contiguous runs where token_type_id == 1.
+    // For each run [run_start, run_end), we unmask a square block in the current-chunk
+    // submatrix: rows run_start..run_end-1 and cols run_start..run_end-1.
+    //
+    // Example (current chunk only, V=vision, T=text):
+    //   token_type_ids: [T, V, V, V, T, V, V]
+    //   runs: [1,4), [5,7)
+    //
+    //   local cols ->    0 1 2 3 4 5 6
+    //   local rows
+    //              0(T): . . . . . . .
+    //              1(V): . A A A . . .
+    //              2(V): . A A A . . .
+    //              3(V): . A A A . . .
+    //              4(T): . . . . . . .
+    //              5(V): . . . . . B B
+    //              6(V): . . . . . B B
+    //   A/B: cells forced to attend (0.0f) by this overlay.
+    T* base = static_cast<T*>(mask_view.data);
+    auto apply_vision_run = [&](uint32_t run_start, uint32_t run_end_exclusive) {
+        const uint32_t run_length = run_end_exclusive - run_start;
+        const uint32_t run_col_start = mask_view.past_width + mask_view.row_pad + run_start;
+        for (uint32_t row_index = run_start; row_index < run_end_exclusive; ++row_index) {
+            T* row_ptr = base + static_cast<size_t>(mask_view.row_pad + row_index) * mask_view.col_dim;
+            std::fill_n(row_ptr + run_col_start, run_length, kAttend);
+        }
+    };
+
+    uint32_t token_index = 0;
+    while (token_index < num_new_tokens) {
+        if (token_type_ids[token_index] != kVisionTokenTypeId) {
+            ++token_index;
+            continue;
+        }
+        const uint32_t run_start = token_index;
+        while (token_index < num_new_tokens && token_type_ids[token_index] == kVisionTokenTypeId) {
+            ++token_index;
+        }
+        apply_vision_run(run_start, token_index);
+    }
+}
+
+}  // namespace
+
+void ov::npuw::util::overlay_vision_bidirectional_mask(ov::SoPtr<ov::ITensor> mask_tensor,
+                                                       const int64_t* token_type_ids,
+                                                       uint32_t num_new_tokens) {
+    if (num_new_tokens == 0) {
         return;
     }
-    const uint32_t first_new_abs_pos = num_stored_tokens_before + (num_new_tokens - tokens_to_write);
-    const uint32_t dst_start = first_new_abs_pos % capacity;
+    OPENVINO_ASSERT(token_type_ids != nullptr, "overlay_vision_bidirectional_mask: token_type_ids must not be null");
 
-    auto src_slice = (src_len > tokens_to_write)
-                         ? ov::npuw::util::make_tensor_slice(src_new_kv, src_kv_dim, src_len - tokens_to_write, src_len)
-                         : src_new_kv;
+    const auto mask_view = get_mask_view(mask_tensor, num_new_tokens, "overlay_vision_bidirectional_mask");
 
-    if (dst_start + tokens_to_write <= capacity) {
-        auto dst_slice =
-            ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, dst_start, dst_start + tokens_to_write);
-        ov::npuw::util::copy_tensor_by_dim(src_slice, dst_slice, src_kv_dim, dst_kv_dim);
-    } else {
-        const uint32_t first_leg_len = capacity - dst_start;
-        const uint32_t second_leg_len = tokens_to_write - first_leg_len;
+    switch (mask_view.element_type) {
+    case ov::element::f32:
+        overlay_vision_bidirectional_mask_typed<float>(mask_view, token_type_ids, num_new_tokens);
+        break;
+    case ov::element::f16:
+        overlay_vision_bidirectional_mask_typed<ov::float16>(mask_view, token_type_ids, num_new_tokens);
+        break;
+    default:
+        OPENVINO_THROW("overlay_vision_bidirectional_mask: unsupported mask element type ", mask_view.element_type);
+    }
+}
 
-        auto src_first_leg = ov::npuw::util::make_tensor_slice(src_slice, src_kv_dim, 0u, first_leg_len);
-        auto dst_first_leg = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, dst_start, capacity);
-        ov::npuw::util::copy_tensor_by_dim(src_first_leg, dst_first_leg, src_kv_dim, dst_kv_dim);
+// Orchestrates the two mask passes above: causal sliding-window mask, then the
+// vision-bidirectional overlay on top (only adds attention, never removes).
+//
+// Example (past_width=4, row_dim=3, row_pad=0, stored_tokens=3, window_size=4,
+//          token_type_ids=[V,V,T] -> vision run over local rows/cols [0,2)):
+//
+//   causal only:                     causal + vision overlay:
+//   cols ->       0 1 2 3 | 4 5 6    cols ->       0 1 2 3 | 4 5 6
+//   row 0(abs=3): A A A . | A . .    row 0(abs=3): A A A . | A B .
+//   row 1(abs=4): . A A . | A A .    row 1(abs=4): . A A . | A A .
+//   row 2(abs=5): . . A . | A A A    row 2(abs=5): . . A . | A A A
+//
+void ov::npuw::util::fill_sliding_window_attention_mask(
+    const std::shared_ptr<ov::IAsyncInferRequest>& request,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
+    uint32_t num_stored_tokens,
+    uint32_t num_new_tokens,
+    uint32_t window_size) {
+    const auto mask_it = in_ports.find(ov::npuw::util::kSlidingWindowAttentionMaskParamName);
+    if (mask_it == in_ports.end()) {
+        return;
+    }
+    auto mask_tensor = request->get_tensor(mask_it->second);
+    fill_causal_sliding_window_mask(mask_tensor, num_stored_tokens, num_new_tokens, window_size);
 
-        auto src_second_leg = ov::npuw::util::make_tensor_slice(src_slice, src_kv_dim, first_leg_len, tokens_to_write);
-        auto dst_second_leg = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, 0u, second_leg_len);
-        ov::npuw::util::copy_tensor_by_dim(src_second_leg, dst_second_leg, src_kv_dim, dst_kv_dim);
+    const auto token_type_ids_it = in_ports.find(ov::npuw::util::kTokenTypeIdsParamName);
+    if (token_type_ids_it != in_ports.end()) {
+        auto token_type_ids_tensor = request->get_tensor(token_type_ids_it->second);
+        const size_t total_len = token_type_ids_tensor->get_size();
+        OPENVINO_ASSERT(num_new_tokens <= total_len,
+                        "fill_sliding_window_attention_mask: num_new_tokens (",
+                        num_new_tokens,
+                        ") exceeds token_type_ids size (",
+                        total_len,
+                        ")");
+        const int64_t* token_type_ids = token_type_ids_tensor->data<int64_t>() + total_len - num_new_tokens;
+        overlay_vision_bidirectional_mask(mask_tensor, token_type_ids, num_new_tokens);
     }
 }
 
@@ -124,13 +352,30 @@ void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_
                                                      ov::SoPtr<ov::ITensor> src_new_kv,
                                                      uint32_t dst_kv_dim,
                                                      uint32_t src_kv_dim,
-                                                     uint32_t num_stored_tokens_before,
+                                                     uint32_t num_stored_tokens,
                                                      uint32_t num_new_tokens) {
-    // Left-aligned SWA policy keeps valid tokens packed at the beginning
-    // After update, logical order to be preserved as:
-    //   [surviving old tail | newest appended tokens], truncated to capacity.
+    // Used in the prefill stage to write a chunk of num_new_tokens tokens into a fixed-
+    // capacity (window_size) left-aligned buffer: valid tokens stay packed at the front
+    // as [surviving old tail | newest tokens], truncated to capacity. Three cases:
+    //
+    // A) chunk == capacity: the new chunk alone fills the whole window -> single
+    //    full-buffer overwrite, all old tokens discarded (capacity=6):
+    //      before: o1 o2 o3 o4  _  _        after: n1 n2 n3 n4 n5 n6
+    //
+    // B) chunk < capacity: no old data is discarded until the buffer would overflow.
+    //    B1) not yet full -> plain append, no shift (capacity=6):
+    //      before: o1 o2  _  _  _  _        after: o1 o2 n1 n2 n3  _
+    //    B2) already full -> shift the surviving old tail to the front, then append
+    //        (capacity=6, oldest tokens o1-o3 evicted):
+    //      before: o1 o2 o3 o4 o5 o6        after: o4 o5 o6 n1 n2 n3
+    //
+    // C) chunk > capacity: even an empty buffer can't hold the whole chunk -> slice
+    //    off just the newest `capacity` tokens of the input and overwrite everything;
+    //    old data is discarded and the chunk's own oldest tokens (n1,n2) never get
+    //    written (chunk = n1..n8, capacity=6):
+    //      before: o1 o2  _  _  _  _        after: n3 n4 n5 n6 n7 n8
     const uint32_t capacity = static_cast<uint32_t>(dst_tensor->get_shape()[dst_kv_dim]);
-    const uint32_t old_total = num_stored_tokens_before;
+    const uint32_t old_total = num_stored_tokens;
     const uint32_t new_total = old_total + num_new_tokens;
     const uint32_t old_valid = std::min(old_total, capacity);
     const uint32_t new_valid = std::min(new_total, capacity);
@@ -202,244 +447,63 @@ void ov::npuw::util::write_swa_kv_slice_left_aligned(ov::SoPtr<ov::ITensor> dst_
     ov::npuw::util::copy_tensor_by_dim(src_slice, dst_back, src_kv_dim, dst_kv_dim);
 }
 
-namespace {
-
-template <typename T>
-void fill_causal_sliding_window_mask_typed(const MaskView& mask_view,
-                                           uint32_t num_stored_tokens_before,
-                                           uint32_t window_size) {
-    const uint32_t stored_tokens_before = num_stored_tokens_before;
-    const uint32_t past_width = mask_view.past_width;
-    const uint32_t row_dim = mask_view.row_dim;
-    const uint32_t row_pad = mask_view.row_pad;
-    const bool has_past_region = past_width > 0u;
-    const bool is_past_saturated = has_past_region && stored_tokens_before >= past_width;
-    const uint32_t wrap_slot = is_past_saturated ? (stored_tokens_before % past_width) : 0u;
-    const int64_t stored_tokens_before_i64 = static_cast<int64_t>(stored_tokens_before);
-    const int64_t past_width_i64 = static_cast<int64_t>(past_width);
-    const int64_t window_i64 = static_cast<int64_t>(window_size);
-    const int64_t row_pad_i64 = static_cast<int64_t>(row_pad);
-
-    const T kAttend = T(0.0f);
-    const T kMasked = T(std::numeric_limits<ov::float16>::lowest());
-
-    // Row columns = [past circular slots][current-chunk columns]
-    //             = [0 .. past_width-1] [past_width .. past_width+row_dim-1].
-    // past_width == 0 degenerates to current-chunk-only masking.
+void ov::npuw::util::write_swa_kv_slice_circular(ov::SoPtr<ov::ITensor> dst_tensor,
+                                                 ov::SoPtr<ov::ITensor> src_new_kv,
+                                                 uint32_t dst_kv_dim,
+                                                 uint32_t src_kv_dim,
+                                                 uint32_t num_stored_tokens,
+                                                 uint32_t num_new_tokens) {
+    // Used in the generate stage to append newly produced token(s) (usually num_new_tokens
+    // == 1) into a fixed-capacity ring buffer: token at absolute position p always lives at
+    // slot (p % capacity), and once full, appending overwrites the oldest slot in place --
+    // nothing shifts.
     //
-    // Past slot -> absolute token index:
-    //   unsaturated (stored_tokens_before < past_width): abs == slot, for slot < stored_tokens_before.
-    //   saturated (stored_tokens_before >= past_width), wrap_slot = stored_tokens_before % past_width:
-    //     [0, wrap_slot):          abs = (stored_tokens_before - wrap_slot) + slot
-    //     [wrap_slot, past_width): abs = (stored_tokens_before - wrap_slot) + slot - past_width
-    //   example: past_width=8, stored_tokens_before=11, wrap_slot=3 -> slot->abs: [8,9,10,3,4,5,6,7]
+    // Example A - single leg (capacity=6, num_stored_tokens=8, num_new_tokens=2):
+    //   dst_start = 8 % 6 = 2, and 2+2 <= 6 -> one contiguous write.
     //
-    // Visibility: attend(abs) iff abs <= row_abs_pos AND row_abs_pos - abs < window_size, i.e.
-    // abs in [row_abs_pos - window_size + 1, row_abs_pos]. The current-chunk area is the same
-    // window clipped to the causal diagonal: local_c in [max(row_pad, row-window_size+1), row].
+    //   slot:    0    1    2    3    4    5
+    //   before:  a6   a7   a2   a3   a4   a5
+    //   after:   a6   a7  [a8] [a9]  a4   a5
+    //
+    // Example B - wraps (capacity=6, num_stored_tokens=10, num_new_tokens=3):
+    //   dst_start = 10 % 6 = 4, and 4+3 > 6 -> splits into [4,6) then [0,1).
+    //
+    //   slot:     0     1    2    3     4      5
+    //   before:   a6    a7   a8   a9    a4     a5
+    //   after:  [a12]   a7   a8   a9   [a10]  [a11]
+    const uint32_t capacity = static_cast<uint32_t>(dst_tensor->get_shape()[dst_kv_dim]);
+    const uint32_t old_total = num_stored_tokens;
+    const uint32_t new_total = old_total + num_new_tokens;
+    const uint32_t new_valid = std::min(new_total, capacity);
 
-    // Inclusive [begin, end] slot interval; begin > end means "empty".
-    struct VisibleRange {
-        int64_t begin;
-        int64_t end;
-    };
-    constexpr VisibleRange kEmptyRange{1, 0};
+    // Clamp by source length as well: source may already be capacity-limited.
+    const uint32_t src_len = static_cast<uint32_t>(src_new_kv->get_shape()[src_kv_dim]);
+    const uint32_t tokens_to_write = std::min({num_new_tokens, new_valid, src_len});
 
-    // Step 1 helper: pure range arithmetic, no memory access. Clamps the visibility window
-    // [range_begin, range_end] against a region's own domain [domain_begin, domain_end].
-    auto compute_visible_range =
-        [](int64_t range_begin, int64_t range_end, int64_t domain_begin, int64_t domain_end) -> VisibleRange {
-        return {std::max(range_begin, domain_begin), std::min(range_end, domain_end)};
-    };
-
-    // Step 2 helper: pure memory write, no range math. Fills an already-clamped range.
-    auto fill_visible_range = [](T* ptr, VisibleRange range, T fill_value) {
-        if (range.begin <= range.end) {
-            std::fill_n(ptr + range.begin, static_cast<size_t>(range.end - range.begin + 1), fill_value);
-        }
-    };
-
-    // Visible slot ranges in the past region for one row. A saturated ring wraps into at most
-    // two contiguous ranges (returned as a fixed-size array to avoid a per-row allocation).
-    auto compute_visible_past_slots = [&](int64_t min_visible_abs_pos,
-                                          int64_t max_visible_abs_pos) -> std::array<VisibleRange, 2> {
-        if (!has_past_region) {
-            return {kEmptyRange, kEmptyRange};
-        }
-        if (is_past_saturated) {
-            // Saturated ring: at most two contiguous slot ranges can be visible,
-            // one in [wrap_slot, past_width) and one in [0, wrap_slot).
-            const int64_t ring_base_abs = stored_tokens_before_i64 - static_cast<int64_t>(wrap_slot);
-            const int64_t older_segment_bias = ring_base_abs - past_width_i64;  // abs = older_segment_bias + slot
-
-            // Segment 1: c in [wrap_slot, past_width-1].
-            const VisibleRange segment1 = compute_visible_range(min_visible_abs_pos - older_segment_bias,
-                                                                max_visible_abs_pos - older_segment_bias,
-                                                                static_cast<int64_t>(wrap_slot),
-                                                                past_width_i64 - 1);
-            // Segment 2: c in [0, wrap_slot-1], only when the ring actually wrapped.
-            const VisibleRange segment2 = (wrap_slot > 0u) ? compute_visible_range(min_visible_abs_pos - ring_base_abs,
-                                                                                   max_visible_abs_pos - ring_base_abs,
-                                                                                   0,
-                                                                                   static_cast<int64_t>(wrap_slot) - 1)
-                                                           : kEmptyRange;
-            return {segment1, segment2};
-        }
-        if (stored_tokens_before > 0u) {
-            // Unsaturated prefix: slot index equals absolute position for valid slots.
-            return {compute_visible_range(min_visible_abs_pos, max_visible_abs_pos, 0, stored_tokens_before_i64 - 1),
-                    kEmptyRange};
-        }
-        return {kEmptyRange, kEmptyRange};
-    };
-
-    T* base = static_cast<T*>(mask_view.data);
-    for (uint32_t row = 0; row < row_dim; ++row) {
-        T* row_ptr = base + static_cast<size_t>(row) * mask_view.col_dim;
-
-        const int64_t row_i64 = static_cast<int64_t>(row);
-        const int64_t row_abs_pos = stored_tokens_before_i64 + (row_i64 - row_pad_i64);
-        const int64_t min_visible_abs_pos = row_abs_pos - window_i64 + 1;
-        const int64_t max_visible_abs_pos = row_abs_pos;
-
-        // Step 1: compute which slots are visible in this row. Pure arithmetic only --
-        // nothing is written to the mask buffer yet.
-        const std::array<VisibleRange, 2> past_slots =
-            compute_visible_past_slots(min_visible_abs_pos, max_visible_abs_pos);
-
-        // Current chunk ("present") diagonal region [past_width, past_width + row_dim).
-        // local_c must satisfy all constraints below:
-        //   1) valid key in right-aligned chunk: local_c >= row_pad
-        //   2) causal:                         local_c <= row
-        //   3) window:                         row - local_c < window_size
-        // => local_c in [max(row_pad, row-window+1), row].
-        const VisibleRange present_segment = compute_visible_range(std::max(row_pad_i64, row_i64 - window_i64 + 1),
-                                                                   row_i64,
-                                                                   0,
-                                                                   static_cast<int64_t>(row_dim) - 1);
-
-        // Step 2: populate masked and attended values.
-        // 2.1 init row: all masked.
-        std::fill_n(row_ptr, mask_view.col_dim, kMasked);
-        // 2.2 attend past in ranges (from step 1).
-        fill_visible_range(row_ptr, past_slots[0], kAttend);
-        fill_visible_range(row_ptr, past_slots[1], kAttend);
-        // 2.3 attend present.
-        fill_visible_range(row_ptr + past_width, present_segment, kAttend);
-    }
-}
-
-}  // namespace
-
-void ov::npuw::util::fill_causal_sliding_window_mask(ov::SoPtr<ov::ITensor> mask_tensor,
-                                                     uint32_t num_stored_tokens_before,
-                                                     uint32_t num_real_new_tokens,
-                                                     uint32_t window_size) {
-    const auto mask_view = get_mask_view(mask_tensor, num_real_new_tokens, "fill_causal_sliding_window_mask");
-    OPENVINO_ASSERT(window_size > 0, "fill_causal_sliding_window_mask: window_size must be > 0");
-
-    switch (mask_view.element_type) {
-    case ov::element::f32:
-        fill_causal_sliding_window_mask_typed<float>(mask_view, num_stored_tokens_before, window_size);
-        break;
-    case ov::element::f16:
-        fill_causal_sliding_window_mask_typed<ov::float16>(mask_view, num_stored_tokens_before, window_size);
-        break;
-    default:
-        OPENVINO_THROW("fill_causal_sliding_window_mask: unsupported mask element type ", mask_view.element_type);
-    }
-}
-
-void ov::npuw::util::fill_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
-                                          const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
-                                          uint32_t num_stored_tokens_before,
-                                          uint32_t num_real_new_tokens,
-                                          uint32_t window_size,
-                                          const int64_t* token_type_ids_real) {
-    const auto it = in_ports.find(ov::npuw::util::kSlidingWindowAttentionMaskParamName);
-    if (it == in_ports.end()) {
+    if (tokens_to_write == 0) {
         return;
     }
-    auto mask_tensor = request->get_tensor(it->second);
-    fill_causal_sliding_window_mask(mask_tensor, num_stored_tokens_before, num_real_new_tokens, window_size);
-    if (token_type_ids_real != nullptr) {
-        overlay_vision_bidirectional_mask(mask_tensor, token_type_ids_real, num_real_new_tokens);
-    }
-}
+    const uint32_t first_new_abs_pos = num_stored_tokens + (num_new_tokens - tokens_to_write);
+    const uint32_t dst_start = first_new_abs_pos % capacity;
 
-namespace {
+    auto src_slice = (src_len > tokens_to_write)
+                         ? ov::npuw::util::make_tensor_slice(src_new_kv, src_kv_dim, src_len - tokens_to_write, src_len)
+                         : src_new_kv;
 
-template <typename T>
-void overlay_vision_bidirectional_mask_typed(const MaskView& mask_view,
-                                             const int64_t* token_type_ids_real,
-                                             uint32_t num_real_new_tokens) {
-    const T kAttend = T(0.0f);
-    constexpr int64_t kVisionTokenTypeId = 1;
+    if (dst_start + tokens_to_write <= capacity) {
+        auto dst_slice =
+            ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, dst_start, dst_start + tokens_to_write);
+        ov::npuw::util::copy_tensor_by_dim(src_slice, dst_slice, src_kv_dim, dst_kv_dim);
+    } else {
+        const uint32_t first_leg_len = capacity - dst_start;
+        const uint32_t second_leg_len = tokens_to_write - first_leg_len;
 
-    // This function makes vision-token runs bidirectional inside the current chunk.
-    // We scan token_type_ids_real and find contiguous runs where token_type_id == 1.
-    // For each run [run_start, run_end), we unmask a square block in the current-chunk
-    // submatrix: rows run_start..run_end-1 and cols run_start..run_end-1.
-    //
-    // Example (current chunk only, V=vision, T=text):
-    //   token_type_ids_real: [T, V, V, V, T, V, V]
-    //   runs: [1,4), [5,7)
-    //
-    //   local cols ->    0 1 2 3 4 5 6
-    //   local rows
-    //              0(T): . . . . . . .
-    //              1(V): . A A A . . .
-    //              2(V): . A A A . . .
-    //              3(V): . A A A . . .
-    //              4(T): . . . . . . .
-    //              5(V): . . . . . B B
-    //              6(V): . . . . . B B
-    //   A/B: cells forced to attend (0.0f) by this overlay.
-    T* base = static_cast<T*>(mask_view.data);
-    auto apply_vision_run = [&](uint32_t run_start, uint32_t run_end_exclusive) {
-        const uint32_t run_length = run_end_exclusive - run_start;
-        const uint32_t run_col_start = mask_view.past_width + mask_view.row_pad + run_start;
-        for (uint32_t row_index = run_start; row_index < run_end_exclusive; ++row_index) {
-            T* row_ptr = base + static_cast<size_t>(mask_view.row_pad + row_index) * mask_view.col_dim;
-            std::fill_n(row_ptr + run_col_start, run_length, kAttend);
-        }
-    };
+        auto src_first_leg = ov::npuw::util::make_tensor_slice(src_slice, src_kv_dim, 0u, first_leg_len);
+        auto dst_first_leg = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, dst_start, capacity);
+        ov::npuw::util::copy_tensor_by_dim(src_first_leg, dst_first_leg, src_kv_dim, dst_kv_dim);
 
-    uint32_t token_index = 0;
-    while (token_index < num_real_new_tokens) {
-        if (token_type_ids_real[token_index] != kVisionTokenTypeId) {
-            ++token_index;
-            continue;
-        }
-        const uint32_t run_start = token_index;
-        while (token_index < num_real_new_tokens && token_type_ids_real[token_index] == kVisionTokenTypeId) {
-            ++token_index;
-        }
-        apply_vision_run(run_start, token_index);
-    }
-}
-
-}  // namespace
-
-void ov::npuw::util::overlay_vision_bidirectional_mask(ov::SoPtr<ov::ITensor> mask_tensor,
-                                                       const int64_t* token_type_ids_real,
-                                                       uint32_t num_real_new_tokens) {
-    if (num_real_new_tokens == 0) {
-        return;
-    }
-    OPENVINO_ASSERT(token_type_ids_real != nullptr,
-                    "overlay_vision_bidirectional_mask: token_type_ids_real must not be null");
-
-    const auto mask_view = get_mask_view(mask_tensor, num_real_new_tokens, "overlay_vision_bidirectional_mask");
-
-    switch (mask_view.element_type) {
-    case ov::element::f32:
-        overlay_vision_bidirectional_mask_typed<float>(mask_view, token_type_ids_real, num_real_new_tokens);
-        break;
-    case ov::element::f16:
-        overlay_vision_bidirectional_mask_typed<ov::float16>(mask_view, token_type_ids_real, num_real_new_tokens);
-        break;
-    default:
-        OPENVINO_THROW("overlay_vision_bidirectional_mask: unsupported mask element type ", mask_view.element_type);
+        auto src_second_leg = ov::npuw::util::make_tensor_slice(src_slice, src_kv_dim, first_leg_len, tokens_to_write);
+        auto dst_second_leg = ov::npuw::util::make_tensor_slice(dst_tensor, dst_kv_dim, 0u, second_leg_len);
+        ov::npuw::util::copy_tensor_by_dim(src_second_leg, dst_second_leg, src_kv_dim, dst_kv_dim);
     }
 }
