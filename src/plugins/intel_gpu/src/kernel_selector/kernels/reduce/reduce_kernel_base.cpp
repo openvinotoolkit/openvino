@@ -25,6 +25,10 @@ bool ReduceKernelBase::Validate(const Params& p) const {
         }
     }
 
+    if (params.weighted && !SupportsWeightedReduce()) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
     return true;
 }
 
@@ -32,6 +36,7 @@ JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) cons
     JitConstants jit = MakeBaseParamsJitConstants(params);
     jit.AddConstant(MakeJitConstant("REDUCE_" + toString(params.reduceMode) + "_MODE", 1));
     jit.AddConstant(MakeJitConstant("KEEP_DIMS", params.keepDims));
+    jit.AddConstant(MakeJitConstant("WEIGHTED_REDUCE", params.weighted));
 
     auto inputDims = params.inputs[0].LogicalDims();
     std::reverse(inputDims.begin(), inputDims.end());
@@ -287,7 +292,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p) const {
                      EXE_MODE_DEFAULT,
                      false,
                      false,
-                     1,
+                     static_cast<int>(params.inputs.size()),
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      params.is_shape_agnostic);
