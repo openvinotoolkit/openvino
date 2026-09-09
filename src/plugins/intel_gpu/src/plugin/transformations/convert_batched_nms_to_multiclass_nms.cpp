@@ -141,14 +141,17 @@ bool infer_prefix_limit(const ov::Output<ov::Node>& output, int64_t& prefix_limi
 
 }  // namespace
 
-bool MarkBatchedNmsStaticClassCount::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    bool marked = false;
-    for (const auto& node : model->get_ordered_ops()) {
-        const auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node);
+MarkBatchedNmsStaticClassCount::MarkBatchedNmsStaticClassCount() {
+    MATCHER_SCOPE(MarkBatchedNmsStaticClassCount);
+    auto subgraph_m = ov::pass::pattern::wrap_type<ov::op::util::MultiSubGraphOp>();
+
+    ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
+        auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(m.get_match_root());
         if (!subgraph) {
-            continue;
+            return false;
         }
 
+        bool marked = false;
         const auto& bodies = subgraph->get_functions();
         for (size_t body_index = 0; body_index < bodies.size(); ++body_index) {
             const auto body_index_i = static_cast<int>(body_index);
@@ -171,10 +174,12 @@ bool MarkBatchedNmsStaticClassCount::run_on_model(const std::shared_ptr<ov::Mode
                     marked = true;
                 }
             }
-            marked |= run_on_model(body);
         }
-    }
-    return marked;
+        return marked;
+    };
+
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(subgraph_m, matcher_name);
+    register_matcher(matcher, callback);
 }
 
 ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
