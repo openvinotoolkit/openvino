@@ -93,6 +93,14 @@ JitTerm isnan(const JitTerm& arg) {
     return jit_term;
 }
 
+JitTerm select(const JitTerm& a, const JitTerm& b, const JitTerm& cond) {
+    // OpenCL select() is vector-safe, unlike the ternary operator with a
+    // vector condition: select(a, b, c) returns c ? b : a per component and
+    // works for both scalar and vector types.
+    JitTerm jit_term{"(select(" + a.str() + ", " + b.str() + ", " + cond.str() + "))"};
+    return jit_term;
+}
+
 JitTerm exp(const JitTerm& arg) {
     JitTerm jit_term{"(exp(" + arg.str() + "))"};
     return jit_term;
@@ -1183,15 +1191,13 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             const JitTerm slope = disable_type_conversion ? "m"_jit : to_type("m"_jit);
             // OpenCL fmax/fmin return the non-NaN operand, so the naive
             // fmax(x, 0) + slope * fmin(x, 0) form silently turns a NaN input
-            // into zero. Branch on the input explicitly to keep NaN propagating.
-            jitConstants.AddConstant(MakeJitConstant(
-                macro_def,
-                ternary(isnan(input),
-                        input,
-                        ternary(isinf(slope),
-                                ternary(input.ge(zero), input, neg(slope)),
-                                max_func(input, zero) + (slope * min_func(input, zero))))
-                    .str()));
+            // into zero. Select on the input explicitly to keep NaN propagating.
+            // select() is used instead of the ternary operator so the code stays
+            // valid when the activation is applied to a vector type.
+            const JitTerm prelu_body = ternary(isinf(slope),
+                                               ternary(input.ge(zero), input, neg(slope)),
+                                               max_func(input, zero) + (slope * min_func(input, zero)));
+            jitConstants.AddConstant(MakeJitConstant(macro_def, select(prelu_body, input, isnan(input)).str()));
             break;
         }
         case ActivationFunction::ELU: {

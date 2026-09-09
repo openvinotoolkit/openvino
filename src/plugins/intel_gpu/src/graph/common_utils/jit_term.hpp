@@ -251,6 +251,11 @@ inline JitTerm isinf(const JitTerm& arg) {
 inline JitTerm isnan(const JitTerm& arg) {
     return JitTerm{"isnan(" + arg.str() + ")"};
 }
+inline JitTerm select(const JitTerm& a, const JitTerm& b, const JitTerm& cond) {
+    // Vector-safe alternative to ternary with a vector condition:
+    // select(a, b, c) returns c ? b : a per component.
+    return JitTerm{"(select(" + a.str() + ", " + b.str() + ", " + cond.str() + "))"};
+}
 inline JitTerm exp(const JitTerm& arg) {
     return JitTerm{"exp(" + arg.str() + ")"};
 }

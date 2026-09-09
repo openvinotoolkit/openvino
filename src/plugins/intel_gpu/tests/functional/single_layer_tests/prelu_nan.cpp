@@ -129,6 +129,10 @@ const std::vector<PReluNaNPropagationParams> preluNaNParams = {
     {{6}, {1}, ov::element::f32},
     {{1, 8}, {8}, ov::element::f16},
     {{2, 3, 4}, {4}, ov::element::f16},
+    // Single-value slope goes through the separate CreateUnaryEltwiseOp lowering
+    // path, while the cases above use an activation primitive with a slope
+    // dependency - cover both for f16 as well.
+    {{6}, {1}, ov::element::f16},
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_PRelu_NaN_Propagation, PReluNaNPropagationTest, ::testing::ValuesIn(preluNaNParams), PReluNaNPropagationTest::getTestCaseName);

@@ -840,11 +840,12 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         break;
     case activation_func::relu_negative_slope: {
         const JitTerm slope = convert_to_type("m"_jit, calc_dt);
-        // OpenCL max/min may drop the NaN operand, so branch on the input
+        // OpenCL max/min may drop the NaN operand, so select on the input
         // explicitly to keep NaN propagating instead of turning into zero.
-        jit.add(make_jit_constant(
-            macro_def,
-            ternary(isnan(input), input, ternary(isinf(slope), ternary(input.ge(zero), input, neg(slope)), max(input, zero) + (slope * min(input, zero))))));
+        // select() stays valid when the fused activation operates on a vector.
+        const JitTerm prelu_body =
+            ternary(isinf(slope), ternary(input.ge(zero), input, neg(slope)), max(input, zero) + (slope * min(input, zero)));
+        jit.add(make_jit_constant(macro_def, select(prelu_body, input, isnan(input))));
         break;
     }
     case activation_func::elu: {

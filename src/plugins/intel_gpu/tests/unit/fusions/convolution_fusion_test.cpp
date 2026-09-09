@@ -1182,20 +1182,49 @@ TEST_P(conv_prelu_nan, basic) {
 
     // Fill the input so that the convolution output carries both NaN and finite
     // values: one spatial half of the input is NaN, the other half is finite.
+    // The fill is done by logical (b, f, y, x) coordinates via get_linear_offset,
+    // so it stays correct for blocked layouts such as b_fs_yx_fsv16 where a
+    // linear index does not correspond to the x coordinate.
     auto in_layout = get_input_layout(p);
     auto input_prim = engine.allocate_memory(in_layout);
-    const size_t width = static_cast<size_t>(in_layout.spatial(0));
-    const size_t size = in_layout.count();
+    const ov::Shape logical_shape = in_layout.get_shape();
+    const int64_t batch = static_cast<int64_t>(logical_shape[0]);
+    const int64_t feature = static_cast<int64_t>(logical_shape[1]);
+    const int64_t height = logical_shape.size() > 3 ? static_cast<int64_t>(logical_shape[2]) : 1;
+    const int64_t width = logical_shape.size() > 3 ? static_cast<int64_t>(logical_shape[3])
+                                                   : static_cast<int64_t>(logical_shape.back());
+    const size_t phys_size = in_layout.get_linear_size();
+    auto logical_value = [&](int64_t b, int64_t f, int64_t y, int64_t x) -> float {
+        const int64_t logical_idx = ((b * feature + f) * height + y) * width + x;
+        if (x < width / 2) {
+            return std::numeric_limits<float>::quiet_NaN();
+        }
+        return -1.0f - static_cast<float>(logical_idx % 7);
+    };
     if (in_layout.data_type == data_types::f16) {
-        std::vector<ov::float16> input_vals(size);
-        for (size_t i = 0; i < size; ++i) {
-            input_vals[i] = ov::float16((i % width < width / 2) ? std::numeric_limits<float>::quiet_NaN() : -1.0f - static_cast<float>(i % 7));
+        std::vector<ov::float16> input_vals(phys_size, ov::float16(0.0f));
+        for (int64_t b = 0; b < batch; ++b) {
+            for (int64_t f = 0; f < feature; ++f) {
+                for (int64_t y = 0; y < height; ++y) {
+                    for (int64_t x = 0; x < width; ++x) {
+                        const size_t offset = in_layout.get_linear_offset(tensor(b, f, x, y));
+                        input_vals[offset] = ov::float16(logical_value(b, f, y, x));
+                    }
+                }
+            }
         }
         set_values(input_prim, input_vals);
     } else {
-        std::vector<float> input_vals(size);
-        for (size_t i = 0; i < size; ++i) {
-            input_vals[i] = (i % width < width / 2) ? std::numeric_limits<float>::quiet_NaN() : -1.0f - static_cast<float>(i % 7);
+        std::vector<float> input_vals(phys_size, 0.0f);
+        for (int64_t b = 0; b < batch; ++b) {
+            for (int64_t f = 0; f < feature; ++f) {
+                for (int64_t y = 0; y < height; ++y) {
+                    for (int64_t x = 0; x < width; ++x) {
+                        const size_t offset = in_layout.get_linear_offset(tensor(b, f, x, y));
+                        input_vals[offset] = logical_value(b, f, y, x);
+                    }
+                }
+            }
         }
         set_values(input_prim, input_vals);
     }
