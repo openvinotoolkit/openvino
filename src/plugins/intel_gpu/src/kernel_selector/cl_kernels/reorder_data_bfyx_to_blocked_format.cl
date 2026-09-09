@@ -88,7 +88,7 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
         const uint bsv_pitch = FSV_ALIGNMENT;
         const uint fs_pitch = y_pitch * (OUTPUT_SIZE_Y);
         const uint bs_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        const uint output_idx_tile = (bs * bs_pitch) + (fs * fs_pitch) + (y * y_pitch) + (x * x_pitch) + (bsv * bsv_pitch) + (fsv);
+        const uint output_idx_tile = OUTPUT_OFFSET + (bs * bs_pitch) + (fs * fs_pitch) + (y * y_pitch) + (x * x_pitch) + (bsv * bsv_pitch) + (fsv);
     #else
         #if FS_B_YX_FSV
         const uint b_pitch = y_pitch * (OUTPUT_SIZE_Y);
@@ -97,7 +97,7 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
         const uint fs_pitch = y_pitch * (OUTPUT_SIZE_Y);
         const uint b_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
         #endif
-        const uint output_idx_tile = (b * b_pitch) + (fs * fs_pitch) + (y * y_pitch) + (x * x_pitch) + (fsv);
+        const uint output_idx_tile = OUTPUT_OFFSET + (b * b_pitch) + (fs * fs_pitch) + (y * y_pitch) + (x * x_pitch) + (fsv);
     #endif
 #elif INPUT0_DIMS == 5
      #if DOUBLE_BLOCKED_FORMAT
@@ -105,12 +105,12 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
         const uint z_pitch = y_pitch * (OUTPUT_SIZE_Y);
         const uint fs_pitch = z_pitch * (OUTPUT_SIZE_Z);
         const uint bs_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        const uint output_idx_tile = (bs * bs_pitch) + (fs * fs_pitch) + (z * z_pitch) + (y * y_pitch) + (x * x_pitch) + (bsv * bsv_pitch) + (fsv);
+        const uint output_idx_tile = OUTPUT_OFFSET + (bs * bs_pitch) + (fs * fs_pitch) + (z * z_pitch) + (y * y_pitch) + (x * x_pitch) + (bsv * bsv_pitch) + (fsv);
     #else
         const uint z_pitch = y_pitch * (OUTPUT_SIZE_Y);
         const uint fs_pitch = z_pitch * (OUTPUT_SIZE_Z);
         const uint b_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        const uint output_idx_tile = (b * b_pitch) + (fs * fs_pitch) + (z * z_pitch) + (y * y_pitch) + (x * x_pitch) + (fsv);
+        const uint output_idx_tile = OUTPUT_OFFSET + (b * b_pitch) + (fs * fs_pitch) + (z * z_pitch) + (y * y_pitch) + (x * x_pitch) + (fsv);
     #endif
 #endif
 

@@ -15,11 +15,45 @@
 #include "fully_connected_inst.h"
 #include "registry/registry.hpp"
 #include "graph/impls/ocl/register.hpp"
+#include "intel_gpu/graph/serialization/weights_reorder_params.hpp"
 
 #include <memory>
 
 using namespace cldnn;
 using namespace ::tests;
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(weights_factory, onednn_memory_descriptors_are_part_of_cache_identity) {
+    const auto weights_layout = layout{ov::PartialShape{2, 16, 3, 3}, data_types::f16, format::bfyx};
+    const auto plain_desc = dnnl::memory::desc({2, 16, 3, 3},
+                                               dnnl::memory::data_type::f16,
+                                               dnnl::memory::format_tag::abcd);
+    const auto transposed_desc = dnnl::memory::desc({2, 16, 3, 3},
+                                                    dnnl::memory::data_type::f16,
+                                                    dnnl::memory::format_tag::acdb);
+
+    const cldnn::onednn::WeightsReorderParamsOneDNN plain(weights_layout,
+                                                          weights_layout,
+                                                          plain_desc,
+                                                          plain_desc,
+                                                          false);
+    const cldnn::onednn::WeightsReorderParamsOneDNN same(weights_layout,
+                                                         weights_layout,
+                                                         plain_desc,
+                                                         plain_desc,
+                                                         false);
+    const cldnn::onednn::WeightsReorderParamsOneDNN different(weights_layout,
+                                                              weights_layout,
+                                                              plain_desc,
+                                                              transposed_desc,
+                                                              false);
+
+    EXPECT_TRUE(plain == same);
+    EXPECT_EQ(plain.hash(), same.hash());
+    EXPECT_FALSE(plain == different);
+    EXPECT_NE(plain.hash(), different.hash());
+}
+#endif
 
 TEST(weights_factory, reorder_test) {
     auto& engine = get_test_engine();
