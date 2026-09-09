@@ -137,6 +137,10 @@ if(OV_GPU_RUNTIME_VULKAN_ENABLED)
     target_link_libraries(${VULKAN_RUNTIME_TARGET} PRIVATE
         Vulkan::Vulkan
         openvino_intel_gpu_clspv_api)
+    # Vulkan SDK/sysroot include roots may also contain an older SPIRV-Tools API.
+    # Use headers from the selected library before those broad include roots.
+    target_include_directories(${VULKAN_RUNTIME_TARGET} SYSTEM BEFORE PRIVATE
+        $<TARGET_PROPERTY:openvino_intel_gpu_clspv_api,INTERFACE_INCLUDE_DIRECTORIES>)
     list(APPEND RUNTIME_BACKEND_OBJECTS $<TARGET_OBJECTS:${VULKAN_RUNTIME_TARGET}>)
 endif()
 

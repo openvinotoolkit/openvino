@@ -6,8 +6,11 @@
 
 #include <clspv/Compiler.h>
 #include <spirv-tools/libspirv.hpp>
+#include <spirv/unified1/NonSemanticClspvReflection.h>
+#include <spirv/unified1/spirv.hpp>
 
 #include <cstring>
+#include <map>
 #include <mutex>
 #include <set>
 #include <sstream>
@@ -29,6 +32,140 @@ std::mutex& get_clspv_mutex() {
     return mutex;
 }
 
+void validate_clspv_reflection(spvtools::SpirvTools& tools,
+                               const std::vector<uint32_t>& words,
+                               const vulkan_kernel_interface& interface,
+                               const std::string& entry_point) {
+    struct argument_layout {
+        bool is_buffer;
+        uint32_t binding = 0;
+        uint32_t offset = 0;
+        uint32_t size = 0;
+    };
+    std::map<uint32_t, uint32_t> constants;
+    std::map<uint32_t, std::string> strings;
+    std::map<uint32_t, argument_layout> arguments;
+    uint32_t uint_type = 0;
+    uint32_t kernel_declaration = 0;
+    uint32_t argument_count = 0;
+    bool has_workgroup_size = false;
+    std::string reflection_error;
+    const auto parse_header = [](spv_endianness_t, const spv_parsed_header_t&) {
+        return SPV_SUCCESS;
+    };
+    const auto parsed = tools.Parse(words, parse_header, [&](const spv_parsed_instruction_t& instruction) {
+        try {
+            const auto operand = [&](size_t index) {
+                return instruction.words[instruction.operands[index].offset];
+            };
+            if (instruction.opcode == spv::OpTypeInt && operand(1) == 32 && operand(2) == 0) {
+                uint_type = instruction.result_id;
+            } else if (instruction.opcode == spv::OpConstant && instruction.type_id == uint_type) {
+                constants.emplace(instruction.result_id, operand(2));
+            } else if (instruction.opcode == spv::OpString) {
+                strings.emplace(instruction.result_id,
+                                reinterpret_cast<const char*>(instruction.words + instruction.operands[1].offset));
+            } else if (instruction.opcode == spv::OpExtInst &&
+                       instruction.ext_inst_type == SPV_EXT_INST_TYPE_NONSEMANTIC_CLSPVREFLECTION) {
+                // Skip OpExtInst's type, result, instruction set and instruction number.
+                const auto argument = [&](size_t index) {
+                    return operand(4 + index);
+                };
+                const auto value = [&](size_t index) {
+                    return constants.at(argument(index));
+                };
+                switch (operand(3)) {
+                case NonSemanticClspvReflectionKernel:
+                    OPENVINO_ASSERT(kernel_declaration == 0 && strings.at(argument(1)) == entry_point,
+                                    "[GPU][Vulkan] CLSPV reflection must describe only entry point '",
+                                    entry_point,
+                                    "'");
+                    OPENVINO_ASSERT(instruction.num_operands >= 7,
+                                    "[GPU][Vulkan] CLSPV reflection lacks the argument count");
+                    kernel_declaration = instruction.result_id;
+                    argument_count = value(2);
+                    break;
+                case NonSemanticClspvReflectionArgumentStorageBuffer:
+                case NonSemanticClspvReflectionArgumentPodPushConstant: {
+                    OPENVINO_ASSERT(kernel_declaration != 0 && argument(0) == kernel_declaration,
+                                    "[GPU][Vulkan] CLSPV argument belongs to an unexpected kernel");
+                    argument_layout layout{operand(3) == NonSemanticClspvReflectionArgumentStorageBuffer};
+                    if (layout.is_buffer) {
+                        OPENVINO_ASSERT(value(2) == 0, "[GPU][Vulkan] CLSPV buffers must use descriptor set zero");
+                        layout.binding = value(3);
+                    } else {
+                        layout.offset = value(2);
+                        layout.size = value(3);
+                    }
+                    OPENVINO_ASSERT(arguments.emplace(value(1), layout).second,
+                                    "[GPU][Vulkan] CLSPV reflection repeats an argument ordinal");
+                    break;
+                }
+                case NonSemanticClspvReflectionSpecConstantWorkgroupSize:
+                    for (size_t dimension = 0; dimension < interface.local_size_specialization_ids.size();
+                         ++dimension) {
+                        OPENVINO_ASSERT(
+                            interface.local_size_specialization_ids[dimension] == value(dimension),
+                            "[GPU][Vulkan] CLSPV workgroup specialization does not match the SPIR-V interface");
+                    }
+                    has_workgroup_size = true;
+                    break;
+                case NonSemanticClspvReflectionPropertyRequiredWorkgroupSize:
+                    OPENVINO_ASSERT(argument(0) == kernel_declaration,
+                                    "[GPU][Vulkan] Unexpected CLSPV workgroup owner");
+                    for (size_t dimension = 0; dimension < interface.local_size_defaults.size(); ++dimension) {
+                        OPENVINO_ASSERT(
+                            !interface.local_size_specialization_ids[dimension].has_value() &&
+                                interface.local_size_defaults[dimension] == value(dimension + 1),
+                            "[GPU][Vulkan] CLSPV required workgroup size does not match the SPIR-V interface");
+                    }
+                    has_workgroup_size = true;
+                    break;
+                case NonSemanticClspvReflectionArgumentWorkgroup:
+                    OPENVINO_THROW(
+                        "[GPU][Vulkan] CLSPV local-memory arguments are outside the canonical ABI: argument ",
+                        value(1),
+                        ", specialization ",
+                        value(2),
+                        ", element bytes ",
+                        value(3));
+                case NonSemanticClspvReflectionArgumentInfo:
+                    break;  // Names and source-language qualifiers do not affect the runtime ABI.
+                default:
+                    OPENVINO_THROW("[GPU][Vulkan] CLSPV reflection requires an unsupported ABI feature: ", operand(3));
+                }
+            }
+            return SPV_SUCCESS;
+        } catch (const std::exception& error) {
+            // Do not unwind through the external parser, which may disable C++ exceptions.
+            reflection_error = error.what();
+            return SPV_ERROR_INVALID_DATA;
+        }
+    });
+    OPENVINO_ASSERT(parsed && kernel_declaration != 0 && has_workgroup_size,
+                    "[GPU][Vulkan] Invalid or incomplete CLSPV reflection for entry point '",
+                    entry_point,
+                    "': ",
+                    reflection_error);
+    OPENVINO_ASSERT(arguments.size() == argument_count, "[GPU][Vulkan] CLSPV argument reflection is incomplete");
+    uint32_t ordinal = 0;
+    uint32_t binding = 0;
+    uint32_t pod_size = 0;
+    for (const auto& [argument_ordinal, layout] : arguments) {
+        OPENVINO_ASSERT(argument_ordinal == ordinal++, "[GPU][Vulkan] CLSPV argument ordinals are not contiguous");
+        if (layout.is_buffer) {
+            OPENVINO_ASSERT(layout.binding == binding++,
+                            "[GPU][Vulkan] CLSPV bindings must follow buffer argument order");
+        } else {
+            OPENVINO_ASSERT(layout.size == sizeof(uint32_t) && layout.offset == pod_size,
+                            "[GPU][Vulkan] CLSPV POD arguments must be consecutive 32-bit scalars");
+            pod_size += layout.size;
+        }
+    }
+    OPENVINO_ASSERT(binding == interface.descriptor_bindings.size() && pod_size == interface.push_constant_size,
+                    "[GPU][Vulkan] CLSPV argument layout does not match the SPIR-V interface");
+}
+
 void validate_spirv(const std::vector<uint8_t>& spirv, const std::string& entry_point) {
     OPENVINO_ASSERT(spirv.size() % sizeof(uint32_t) == 0, "[GPU][Vulkan] Invalid SPIR-V word alignment");
     std::vector<uint32_t> words(spirv.size() / sizeof(uint32_t));
@@ -43,6 +180,9 @@ void validate_spirv(const std::vector<uint8_t>& spirv, const std::string& entry_
                     entry_point,
                     "':\n",
                     diagnostics);
+    const auto interface = vulkan_kernel_interface::reflect(spirv, entry_point);
+    interface.validate_canonical_compute_abi(entry_point);
+    validate_clspv_reflection(tools, words, interface, entry_point);
 }
 
 void normalize_storage_capabilities(std::vector<uint8_t>& spirv, const vulkan_device& device) {
@@ -167,8 +307,6 @@ vulkan_clspv_compilation vulkan_clspv_compiler::compile(const std::string& sourc
     // Reflection checks the buffer ABI; it is not an instruction validator.
     // Validate native-arithmetic modules as well as storage-normalized output.
     validate_spirv(spirv, entry_point);
-    const auto interface = vulkan_kernel_interface::reflect(spirv, entry_point);
-    interface.validate_canonical_compute_abi(entry_point);
     return {std::move(spirv), std::move(diagnostics)};
 }
 

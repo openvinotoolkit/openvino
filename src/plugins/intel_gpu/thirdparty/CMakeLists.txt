@@ -35,6 +35,10 @@ if(OV_GPU_RUNTIME_VULKAN_ENABLED)
     # Reuse the upstream validator for storage-only CLSPV capability declarations.
     # Do not maintain a second SPIR-V instruction validator in the plugin.
     find_package(SPIRV-Tools CONFIG REQUIRED)
+    find_path(SPIRV_HEADERS_INCLUDE_DIR NAMES spirv/unified1/NonSemanticClspvReflection.h REQUIRED)
+    get_target_property(spirv_tools_include_dirs SPIRV-Tools-static INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(openvino_intel_gpu_clspv_api SYSTEM INTERFACE
+        "${SPIRV_HEADERS_INCLUDE_DIR}" ${spirv_tools_include_dirs})
     target_link_libraries(openvino_intel_gpu_clspv_api INTERFACE SPIRV-Tools-static)
     target_compile_definitions(openvino_intel_gpu_clspv_api INTERFACE
         OV_GPU_CLSPV_COMPILER_ID="${CLSPV_COMPILER_ID}")

@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <utility>
 #include <vector>
 
 #include "clspv_bootstrap_spirv.hpp"
@@ -173,4 +174,104 @@ TEST(vulkan_clspv_bootstrap, preserves_semantic_options_without_intel_driver_fla
     EXPECT_NE(options.find("-DTYPE=float"), std::string::npos);
     EXPECT_EQ(options.find("-cl-intel-"), std::string::npos);
     EXPECT_EQ(options, vulkan_clspv_compiler::canonical_options("-cl-mad-enable -DTYPE=float"));
+}
+
+TEST(vulkan_clspv_bootstrap, executes_interleaved_buffer_and_pod_arguments) {
+    constexpr size_t element_count = 64;
+    constexpr char source[] = R"(
+        kernel void interleaved_pod(global const float* input, float increment,
+                                    global float* output, uint count, int bias) {
+            const size_t index = get_global_id(0);
+            if (index < count) output[index] = input[index] + increment + (float)bias;
+        }
+    )";
+    auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
+    auto command_stream = target_engine->create_stream(get_test_default_config(*target_engine));
+    const layout buffer_layout(ov::PartialShape{element_count}, ov::element::f32, format::bfyx);
+    auto input = target_engine->allocate_memory(buffer_layout);
+    auto output = target_engine->allocate_memory(buffer_layout);
+    const std::vector<float> input_values(element_count, 2.0f);
+    input->copy_from(*command_stream, input_values.data(), true);
+
+    kernel_artifact artifact;
+    artifact.payload = source;
+    artifact.payload_size = sizeof(source) - 1;
+    artifact.format = KernelFormat::SOURCE;
+    artifact.entry_point = "interleaved_pod";
+    std::vector<kernel::ptr> kernels;
+    target_engine->create_kernel_builder()->build_kernels(artifact, kernels);
+    ASSERT_EQ(kernels.size(), 1);
+
+    kernel_arguments_desc descriptor;
+    descriptor.workGroups.global = {element_count, 1, 1};
+    descriptor.workGroups.local = {element_count, 1, 1};
+    descriptor.arguments = {{argument_desc::Types::INPUT, 0},
+                            {argument_desc::Types::SCALAR, 0},
+                            {argument_desc::Types::OUTPUT, 0},
+                            {argument_desc::Types::SCALAR, 1},
+                            {argument_desc::Types::SCALAR, 2}};
+    descriptor.scalars.resize(3);
+    descriptor.scalars[0].t = scalar_desc::Types::FLOAT32;
+    descriptor.scalars[0].v.f32 = 1.25f;
+    descriptor.scalars[1].t = scalar_desc::Types::UINT32;
+    descriptor.scalars[1].v.u32 = element_count;
+    descriptor.scalars[2].t = scalar_desc::Types::INT32;
+    descriptor.scalars[2].v.s32 = -3;
+    kernel_arguments_data arguments;
+    arguments.inputs = {input};
+    arguments.outputs = {output};
+    const vulkan_specialization_constants specialization = {{workgroup_size_x_spec_id, element_count},
+                                                            {workgroup_size_y_spec_id, 1},
+                                                            {workgroup_size_z_spec_id, 1}};
+    auto& vulkan_command_stream = dynamic_cast<vulkan_stream&>(*command_stream);
+    const auto completion =
+        vulkan_command_stream.enqueue_kernel(*kernels.front(), descriptor, arguments, specialization, {}, true);
+    ASSERT_NE(completion, nullptr);
+    completion->wait();
+    std::vector<float> actual(element_count);
+    output->copy_to(*command_stream, actual.data(), true);
+    for (const auto value : actual) {
+        EXPECT_FLOAT_EQ(value, 0.25f);
+    }
+}
+
+TEST(vulkan_clspv_bootstrap, rejects_non_scalar_pod_and_local_memory_arguments) {
+    auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
+    const auto& device = dynamic_cast<const vulkan_device&>(*target_engine->get_device());
+    for (const auto& contract : std::array<std::pair<const char*, const char*>, 2>{
+             {{R"(kernel void unsupported_pod(global float* output, float2 value) {
+                    output[get_global_id(0)] = value.x + value.y;
+                })",
+               "POD arguments must be consecutive 32-bit scalars"},
+              {R"(kernel void unsupported_pod(global float* output, local float* scratch) {
+                    scratch[get_local_id(0)] = (float)get_local_id(0);
+                    barrier(CLK_LOCAL_MEM_FENCE);
+                    output[get_global_id(0)] = scratch[0];
+                })",
+               "local-memory arguments are outside the canonical ABI"}}}) {
+        SCOPED_TRACE(contract.second);
+        try {
+            (void)vulkan_clspv_compiler{}.compile(contract.first, {}, "unsupported_pod", device);
+            FAIL() << "Unsupported argument mapping must be rejected before pipeline creation";
+        } catch (const ov::Exception& exception) {
+            EXPECT_NE(std::string(exception.what()).find(contract.second), std::string::npos);
+        }
+    }
+}
+
+TEST(vulkan_clspv_bootstrap, reflects_required_workgroup_size) {
+    auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
+    const auto& device = dynamic_cast<const vulkan_device&>(*target_engine->get_device());
+    constexpr char source[] = R"(
+        __attribute__((reqd_work_group_size(8, 2, 1)))
+        kernel void fixed_workgroup(global float* output) {
+            output[get_global_id(0)] = 1.0f;
+        }
+    )";
+    const auto compilation = vulkan_clspv_compiler{}.compile(source, {}, "fixed_workgroup", device);
+    const auto interface = vulkan_kernel_interface::reflect(compilation.spirv, "fixed_workgroup");
+    EXPECT_EQ(interface.local_size_defaults, (std::array<uint32_t, 3>{8, 2, 1}));
+    for (const auto& specialization : interface.local_size_specialization_ids) {
+        EXPECT_FALSE(specialization.has_value());
+    }
 }
