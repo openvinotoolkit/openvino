@@ -1162,6 +1162,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             if (async) {
                                 request->start_async();
                                 if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
+                                    // The sink is a read-only request input and is not consumed by the running
+                                    // tile. Initialize the inactive state buffer from it while the tile executes;
+                                    // the buffer is consumed only after switch_buffers() on the next invocation.
                                     state.hfa_runtime_ctx->prepare_next_state_buffers(attention_sink_tensor);
                                 }
                                 request->wait();
