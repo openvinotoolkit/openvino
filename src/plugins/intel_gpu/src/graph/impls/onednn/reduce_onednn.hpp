@@ -56,6 +56,9 @@ struct ReduceImplementationManager : public ImplementationManager {
         const auto& reduce_node = node.as<reduce>();
 
         auto reduce_prim = reduce_node.get_primitive();
+        if (reduce_prim->weighted)
+            return false;
+
         const auto& in_layout = reduce_node.get_input_layout(0);
         const auto& out_layout = reduce_node.get_output_layout(0);
         auto in_dt = in_layout.data_type;

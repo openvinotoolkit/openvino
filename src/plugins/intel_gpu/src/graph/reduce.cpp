@@ -228,6 +228,7 @@ std::string reduce_inst::to_string(const reduce_node& node) {
     reduce_info.add("input id", node.input(0).id());
     reduce_info.add("axes", desc->axes);
     reduce_info.add("keep_dims", desc->keep_dims);
+    reduce_info.add("weighted", desc->weighted);
     reduce_info.add("mode", static_cast<uint16_t>(desc->mode));
 
     node_info->add("reduce info", reduce_info);

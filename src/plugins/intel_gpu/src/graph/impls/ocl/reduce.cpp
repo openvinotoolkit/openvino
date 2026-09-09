@@ -83,10 +83,13 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<reduce>();
         auto params = get_default_params<kernel_selector::reduce_params>(impl_param, is_shape_agnostic);
+        if (primitive->weighted)
+            params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(1)));
 
         params.reduceAxes = convert_axes(primitive->axes, impl_param.input_layouts[0].get_rank());
         params.keepDims = static_cast<int32_t>(primitive->keep_dims);
         params.reduceMode = cldnn_2_reduce_mode(primitive->mode);
+        params.weighted = primitive->weighted;
         return params;
     }
 

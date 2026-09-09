@@ -28,7 +28,37 @@ ParamsKey ReduceKernelRef::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
+    k.EnableEltwiseBroadcast();
     return k;
+}
+
+bool ReduceKernelRef::Validate(const Params& p) const {
+    if (!ReduceKernelBase::Validate(p)) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    const auto& params = static_cast<const reduce_params&>(p);
+    if (!params.weighted) {
+        return true;
+    }
+
+    if (params.is_shape_agnostic || params.inputs.size() != 2 || params.outputs.size() != 1 || params.reduceMode != ReduceMode::SUM ||
+        params.reduceAxes.size() != 1 || params.reduceAxes[0] != 2) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    const auto& values = params.inputs[0];
+    const auto& weights = params.inputs[1];
+    const auto& output = params.outputs[0];
+    if (values.Dimentions() != 4 || weights.Dimentions() != 4 || output.Dimentions() != 4 ||
+        (values.GetDType() != Datatype::F16 && values.GetDType() != Datatype::F32) || values.GetDType() != weights.GetDType() || values.X().v != 16 ||
+        weights.X().v != 16 || output.X().v != 1 || values.Y().v <= 1024 || values.Batch().v != weights.Batch().v || values.Batch().v != output.Batch().v ||
+        weights.Feature().v != 1 || values.Feature().v <= 1 || values.Feature().v != output.Feature().v || values.Y().v != weights.Y().v ||
+        values.Y().v != output.Y().v) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    return true;
 }
 
 CommonDispatchData ReduceKernelRef::SetDefault(const reduce_params& params) const {
