@@ -10,6 +10,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <tuple>
@@ -20,6 +21,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace {
 
@@ -143,8 +145,9 @@ std::pair<std::vector<float>, std::vector<float>> paged_reference(const std::vec
                     output[(token * num_heads + h) * head_dim + p] = sum;
 
                     const int64_t cached_tokens = previous + token - token_begin + 1;
-                    if (interval > 0 && (cached_tokens % interval == 0 || token + 1 == token_end)) {
-                        const int64_t slot = 1 + (cached_tokens - 1) / interval;
+                    const bool interval_hit = interval > 0 && cached_tokens % interval == 0;
+                    if (interval_hit || token + 1 == token_end) {
+                        const int64_t slot = interval > 0 ? 1 + (cached_tokens - 1) / interval : 1;
                         if (block_begin + slot < block_indices_begins[seq + 1]) {
                             const int64_t block = block_indices[block_begin + slot];
                             for (int32_t n = 0; n < state_size; n++)
@@ -189,7 +192,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMDynamicModel) {
     ov::Core core;
     for (const auto& device : get_gpu_devices(core)) {
         SCOPED_TRACE(device);
-        auto request = core.compile_model(model, device).create_infer_request();
+        auto request = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32)).create_infer_request();
         for (const auto& test_case : cases) {
             const auto [batch, seq_len, num_heads, num_groups, head_dim, state_size] = test_case;
             SCOPED_TRACE(testing::Message() << "batch=" << batch << ", seq_len=" << seq_len << ", heads=" << num_heads << ", groups=" << num_groups
@@ -224,7 +227,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
     constexpr size_t head_dim = 3;
     constexpr size_t state_size = 5;
 
-    const auto make_model = [batch, num_heads, num_groups, head_dim, state_size](size_t seq_len, size_t output_index, bool dynamic) {
+    const auto make_model = [=](size_t seq_len, size_t output_index, bool dynamic) {
         const auto shape = [dynamic](const ov::Shape& static_shape) {
             return dynamic ? ov::PartialShape::dynamic(static_shape.size()) : ov::PartialShape{static_shape};
         };
@@ -259,7 +262,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
     };
 
     const auto run = [&](ov::Core& core, const std::string& device, size_t seq_len, size_t output_index, bool dynamic) {
-        auto compiled_model = core.compile_model(make_model(seq_len, output_index, dynamic), device);
+        auto compiled_model = core.compile_model(make_model(seq_len, output_index, dynamic), device, ov::hint::inference_precision(ov::element::f32));
         auto request = compiled_model.create_infer_request();
         check(request, seq_len, output_index);
         std::stringstream blob;
@@ -270,7 +273,8 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
 
     const auto run_dynamic_sequence = [&](ov::Core& core, const std::string& device, size_t output_index) {
         static constexpr std::array<size_t, 5> sequence_lengths{0, 1, 9, 0, 3};
-        auto compiled_model = core.compile_model(make_model(sequence_lengths.front(), output_index, true), device);
+        auto compiled_model =
+            core.compile_model(make_model(sequence_lengths.front(), output_index, true), device, ov::hint::inference_precision(ov::element::f32));
         auto request = compiled_model.create_infer_request();
         for (const auto seq_len : sequence_lengths) {
             check(request, seq_len, output_index);
@@ -296,6 +300,8 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMIndividualOutputs) {
 }
 
 TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
+    constexpr int64_t max_plugin_metadata = std::numeric_limits<int32_t>::max();
+
     struct PagedCase {
         std::vector<int64_t> subsequences;
         std::vector<int64_t> blocks;
@@ -350,8 +356,9 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
     const std::vector<PagedCase> cases{
         {{0, 3, 5}, {0, 1, 2, 3, 4, 5}, {0, 3, 6}, {0, 1}, {2, 2}, 6, 4, 2, 3, 5},
         {{0, 1}, {1, 1}, {0, 2}, {4}, {2}, 2, 4, 2, 3, 5},
+        {{0, 1}, {0, 0}, {0, 2}, {0}, {0}, 1, 4, 2, 3, 5},
         {{0, 2, 7}, {5, 2, 1, 4, 0, 3}, {0, 2, 6}, {1, 7}, {3, 2}, 6, 6, 3, 5, 33},
-        {{0, 2}, {0, 1}, {0, 2}, {4294967297}, {4294967296}, 2, 2, 1, 1, 513},
+        {{0, 2}, {0, 1}, {0, 2}, {max_plugin_metadata - 1}, {max_plugin_metadata}, 2, 2, 1, 1, 513},
         {{0, 0}, {}, {0, 0}, {0}, {2}, 1, 2, 1, 4, 9},
         {{0, 1}, {0, 1}, {0, 2}, {0}, {1}, 2, 1, 1, 1, 8192},
         {{0, 3, 5}, {0, 1, 2, 3, 4, 5}, {0, 3, 6}, {0, 1}, {2, 2}, 6, 4, 2, 3, 5},
@@ -360,7 +367,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMDynamicModel) {
     ov::Core core;
     for (const auto& device : get_gpu_devices(core)) {
         SCOPED_TRACE(device);
-        auto compiled_model = core.compile_model(model, device);
+        auto compiled_model = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32));
         auto request = compiled_model.create_infer_request();
         const auto set_index_input = [&request](size_t index, const std::vector<int64_t>& values) {
             request.set_input_tensor(index, make_tensor<int64_t>(ov::element::i64, {values.size()}, values));
@@ -449,7 +456,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, SelectiveSSMChainedState) {
     ov::Core core;
     for (const auto& device : get_gpu_devices(core)) {
         SCOPED_TRACE(device);
-        auto request = core.compile_model(model, device).create_infer_request();
+        auto request = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32)).create_infer_request();
         request.set_input_tensor(0, make_tensor<float>(ov::element::f32, {num_heads}, A));
         request.set_input_tensor(1, make_tensor<float>(ov::element::f32, {batch, seq_len, num_heads}, dt));
         request.set_input_tensor(2, make_tensor<float>(ov::element::f32, {batch, seq_len, num_groups, state_size}, B));
@@ -552,7 +559,7 @@ TEST(smoke_GPUSelectiveSSMIntegration, PagedSelectiveSSMChainedStateMutation) {
     ov::Core core;
     for (const auto& device : get_gpu_devices(core)) {
         SCOPED_TRACE(device);
-        auto compiled_model = core.compile_model(model, device);
+        auto compiled_model = core.compile_model(model, device, ov::hint::inference_precision(ov::element::f32));
         auto state_tensor = compiled_model.get_context().create_tensor(ov::element::f32, {state_blocks, num_heads, head_dim, state_size});
         state_tensor.copy_from(make_tensor<float>(ov::element::f32, {state_blocks, num_heads, head_dim, state_size}, state));
         auto request = compiled_model.create_infer_request();
