@@ -378,7 +378,10 @@ public:
                 ++*this;
             }
         } else if constexpr (is_lsb_packed(ET)) {
-            advance_bits(n * static_cast<difference_type>(m_et_ptr.m_bits));
+            const auto advance =
+                static_cast<difference_type>(m_et_ptr.m_bit_shift) + n * static_cast<difference_type>(m_et_ptr.m_bits);
+            m_et_ptr.m_bit_shift = static_cast<size_t>(advance % 8);
+            m_et_ptr.m_ptr += advance / 8;
         } else {
             const auto advance = n + (m_et_ptr.m_shift_init - m_et_ptr.m_bit_shift) / m_et_ptr.m_bits;
             m_et_ptr.m_bit_shift = m_et_ptr.m_shift_init - (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
@@ -424,7 +427,10 @@ public:
                 --*this;
             }
         } else if constexpr (is_lsb_packed(ET)) {
-            advance_bits(-n * static_cast<difference_type>(m_et_ptr.m_bits));
+            const auto advance =
+                n * static_cast<difference_type>(m_et_ptr.m_bits) - static_cast<difference_type>(m_et_ptr.m_bit_shift);
+            m_et_ptr.m_bit_shift = static_cast<size_t>((8 - advance % 8) % 8);
+            m_et_ptr.m_ptr -= (advance + 7) / 8;
         } else {
             const auto advance = m_et_ptr.m_bit_shift / m_et_ptr.m_bits + n;
             m_et_ptr.m_bit_shift = (advance % m_et_ptr.m_num_values) * m_et_ptr.m_bits;
@@ -454,19 +460,6 @@ public:
     }
 
 private:
-    //! Move by n (can be negative) bits within the packed bit-stream.
-    void advance_bits(const difference_type n) {
-        const auto total_bits = static_cast<difference_type>(m_et_ptr.m_bit_shift) + n;
-        auto bytes = total_bits / 8;
-        auto bit_shift = total_bits % 8;
-        if (bit_shift < 0) {
-            bit_shift += 8;
-            --bytes;
-        }
-        m_et_ptr.m_bit_shift = static_cast<size_t>(bit_shift);
-        m_et_ptr.m_ptr += bytes;
-    }
-
     proxy_type m_et_ptr;
 };
 

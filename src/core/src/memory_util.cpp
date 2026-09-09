@@ -12,16 +12,16 @@ namespace ov::util {
 namespace {
 size_t get_bit_memory_size(const element::Type& type, const size_t elements_count) {
     const auto bit_width = type.bitwidth();
-    // ceil(elements_count * bit_width / 8) split to keep the intermediate from overflowing.
-    return (elements_count / 8) * bit_width + ((elements_count % 8) * bit_width + 7) / 8;
+    // Any 8 elements occupy exactly bit_width bytes, so ceil(elements_count * bit_width / 8) is taken in two steps
+    const auto full_bytes = (elements_count / 8) * bit_width;
+    const auto tail_bytes = ((elements_count % 8) * bit_width + 7) / 8;
+    return full_bytes + tail_bytes;
 }
 
 size_t get_bit_elements_count(const element::Type& type, const size_t memory_size) {
-    const auto bit_width = type.bitwidth();
-    // (memory_size * 8) / bit_width split to keep the intermediate from overflowing.
-    size_t elements_count;
-    OPENVINO_ASSERT(!mul_overflow<size_t>(memory_size / bit_width, 8, elements_count));
-    return elements_count + ((memory_size % bit_width) * 8) / bit_width;
+    size_t total_bits;
+    OPENVINO_ASSERT(!mul_overflow<size_t>(memory_size, 8, total_bits));
+    return total_bits / type.bitwidth();
 }
 }  // namespace
 
