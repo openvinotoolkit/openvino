@@ -224,7 +224,7 @@ INSTANTIATE_TEST_SUITE_P(DynamicShape3DWith4DRepeats, TileLayerGPUTest,
                              ::testing::ValuesIn(dynamic_input_shapes3D),
                              ::testing::Values(std::vector<int64_t>{4, 1, 1, 1}),
                              ::testing::ValuesIn(model_types),
-                             ::testing::Values(true),
+                             ::testing::Values(true, false),
                              ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          TileLayerGPUTest::getTestCaseName);
 

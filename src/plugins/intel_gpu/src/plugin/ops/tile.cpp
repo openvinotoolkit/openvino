@@ -5,8 +5,6 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/op/constant.hpp"
 
-#include <numeric>
-
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/primitives/tile.hpp"
@@ -20,41 +18,29 @@ static void CreateTileOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0::Ti
     std::string layerName = layer_type_name_ID(op);
     if (auto repeats_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1))) {
         std::vector<int64_t> repeats = repeats_const->cast_vector<int64_t>();
-        const auto input_pshape = op->get_input_partial_shape(0);
 
-        if (input_pshape.rank().is_static() && repeats.size() > input_pshape.size()) {
-            const auto rank_diff = repeats.size() - input_pshape.size();
-            std::string reshapeName = layerName + "_reshape";
-
-            if (op->is_dynamic() || p.use_new_shape_infer()) {
-                auto output_pshape = input_pshape;
-                output_pshape.insert(output_pshape.begin(), rank_diff, 1);
-
-                std::vector<int64_t> axes(rank_diff);
-                std::iota(axes.begin(), axes.end(), 0);
-
-                auto reshapePrim = cldnn::reshape(reshapeName,
-                                                  inputs[0],
-                                                  false,
-                                                  axes,
-                                                  output_pshape,
-                                                  cldnn::reshape::reshape_mode::unsqueeze);
-                p.add_primitive(*op, reshapePrim);
-            } else {
-                auto inputDims = op->get_input_shape(0);
-                inputDims.insert(inputDims.begin(), rank_diff, 1);
-
-                auto targetShape = tensor_from_dims(inputDims);
-                auto reshapePrim = cldnn::reshape(reshapeName, inputs[0], targetShape);
-                p.add_primitive(*op, reshapePrim);
-            }
-
-            inputs[0] = cldnn::input_info(reshapeName);
-        } else if (!op->is_dynamic() && !p.use_new_shape_infer()) {
+        // TODO: Remove code below once new shape infer is enabled
+        if (!op->is_dynamic() && !p.use_new_shape_infer()) {
             size_t rank = op->get_input_shape(0).size();
             int64_t defaultSize = 1;
             for (size_t i = repeats.size(); i < rank; ++i) {
                 repeats.insert(repeats.begin(), defaultSize);
+            }
+
+            if (repeats.size() > rank) {
+                std::string reshapeName = layerName + "_reshape";
+                auto inputDims = op->get_input_shape(0);
+
+                // Extend input dimensions to the same size as repeats dimensions by prepending ones
+                inputDims.insert(inputDims.begin(), repeats.size() - rank, defaultSize);
+
+                auto targetShape = tensor_from_dims(inputDims);
+
+                auto reshapePrim = cldnn::reshape(reshapeName, inputs[0], targetShape);
+
+                p.add_primitive(*op, reshapePrim);
+
+                inputs[0] = cldnn::input_info(reshapeName);
             }
         }
 
