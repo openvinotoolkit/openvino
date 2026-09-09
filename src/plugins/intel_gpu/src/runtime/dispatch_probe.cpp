@@ -42,21 +42,23 @@ ov::DeviceCompatibilityScore probe_score(runtime_types rt, const device_info& in
     if (rt == runtime_types::ze) {
         // Level Zero is Intel-only. ZE is PREFERRED only when perf-ideal (Xe2+) AND the real
         // ZE<->OCL interop capability is present (supports_leo, read without engine init).
-        if (!intel)
+        if (!intel) {
             score = ov::PROBE_SCORE_INCOMPATIBLE;
-        else if (xe2_plus && info.supports_leo)
+        } else if (xe2_plus && info.supports_leo) {
             score = ov::PROBE_SCORE_PREFERRED;
-        else
+        } else {
             score = ov::PROBE_SCORE_SERVABLE;
+        }
     } else if (rt == runtime_types::ocl) {
         // OCL serves interop natively (no LEO concept). CAPABLE on Xe2+ so it wins when ZE
         // lacks LEO (ZE=SERVABLE) but loses when ZE has it (ZE=PREFERRED).
-        if (!intel)
+        if (!intel) {
             score = ov::PROBE_SCORE_SERVABLE;
-        else if (!xe2_plus)
+        } else if (!xe2_plus) {
             score = ov::PROBE_SCORE_PREFERRED;
-        else
+        } else {
             score = ov::PROBE_SCORE_CAPABLE;
+        }
     }
 
     // The override names what a group ships, so anything else (e.g. SYCL) is ignored: honouring
