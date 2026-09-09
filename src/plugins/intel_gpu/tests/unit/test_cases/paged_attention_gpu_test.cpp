@@ -12,11 +12,13 @@ TEST_P(paged_attention_test, basic) {
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+// Keep the original suite name so existing PR #37377 repro filters remain valid. This branch selects
+// SDPA OCL by default; the assertion below prevents the test from silently exercising another kernel.
 class paged_attention_u4_mixed_micro_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
     if (!tests::get_test_engine().get_device_info().supports_immad)
-        GTEST_SKIP() << "Micro SDPA requires DPAS/XMX support";
+        GTEST_SKIP() << "SDPA OCL requires DPAS/XMX support";
 
     auto p = GetParam();
     ASSERT_TRUE(this->pam.has_value());
@@ -50,8 +52,8 @@ TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
     const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
-    // ASSERT_NE(dump_info.get_entries().find("sdpa_micro"), std::string::npos)
-    //     << "Regression must exercise micro SDPA: " << dump_info.get_entries();
+    ASSERT_NE(dump_info.get_entries().find("sdpa_ocl_mixed"), std::string::npos)
+        << "Regression must exercise SDPA OCL mixed: " << dump_info.get_entries();
 
     this->tolerance = 1e-2f;
     const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
@@ -62,7 +64,11 @@ INSTANTIATE_TEST_SUITE_P(
     regression_paged_attention_u4_mixed_micro,
     paged_attention_u4_mixed_micro_test,
     ::testing::Values(
+        // Keep past_len=34 first so the existing .../0 reproducer remains stable.
         paged_attention_test_params{{{25, 34}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        paged_attention_test_params{{{25, 33}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        paged_attention_test_params{{{25, 47}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
+        paged_attention_test_params{{{25, 48}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},
         paged_attention_test_params{{{25, 128}}, 32, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}));
 #endif
 
