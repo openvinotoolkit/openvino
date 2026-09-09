@@ -50,7 +50,9 @@ class FakeVcl {
 public:
     FakeVcl() {
         current() = this;
-        _api = std::make_shared<intel_npu::VCLApi>(intel_npu::VCLApi::NoLoad{});
+        // A default-constructed table is all-null, which is a legitimate value. No test-only
+        // constructor, tag, or friend declaration is needed to get one.
+        _functions = std::make_shared<intel_npu::VCLFunctionTable>();
         wire();
     }
 
@@ -61,12 +63,13 @@ public:
     FakeVcl(const FakeVcl&) = delete;
     FakeVcl& operator=(const FakeVcl&) = delete;
 
-    /// The dispatch table to inject into VCLCompilerImpl.
-    std::shared_ptr<const intel_npu::VCLApi> api() const {
-        return _api;
+    /// The function table to inject into VCLCompilerImpl.
+    std::shared_ptr<const intel_npu::VCLFunctionTable> functions() const {
+        return _functions;
     }
-    std::shared_ptr<intel_npu::VCLApi> mutableApi() const {
-        return _api;
+    /// Same table, writable, for tests that need to null an entry point out.
+    std::shared_ptr<intel_npu::VCLFunctionTable> mutableFunctions() const {
+        return _functions;
     }
 
     //
@@ -178,7 +181,7 @@ public:
 private:
     void wire();
 
-    std::shared_ptr<intel_npu::VCLApi> _api;
+    std::shared_ptr<intel_npu::VCLFunctionTable> _functions;
     std::map<std::string, vcl_result_t> _results;
 };
 
@@ -533,28 +536,28 @@ inline vcl_result_t VCL_APICALL fake_vclExecutableGetSerializableBlob(vcl_execut
 #undef FAKE_GUARD
 
 inline void FakeVcl::wire() {
-    _api->vclGetVersion = &fake_vclGetVersion;
-    _api->vclCompilerCreate = &fake_vclCompilerCreate;
-    _api->vclCompilerDestroy = &fake_vclCompilerDestroy;
-    _api->vclCompilerGetProperties = &fake_vclCompilerGetProperties;
-    _api->vclQueryNetworkCreate = &fake_vclQueryNetworkCreate;
-    _api->vclQueryNetwork = &fake_vclQueryNetwork;
-    _api->vclQueryNetworkDestroy = &fake_vclQueryNetworkDestroy;
-    _api->vclExecutableCreate = &fake_vclExecutableCreate;
-    _api->vclExecutableDestroy = &fake_vclExecutableDestroy;
-    _api->vclExecutableGetSerializableBlob = &fake_vclExecutableGetSerializableBlob;
-    _api->vclProfilingCreate = &fake_vclProfilingCreate;
-    _api->vclGetDecodedProfilingBuffer = &fake_vclGetDecodedProfilingBuffer;
-    _api->vclProfilingDestroy = &fake_vclProfilingDestroy;
-    _api->vclProfilingGetProperties = &fake_vclProfilingGetProperties;
-    _api->vclLogHandleGetString = &fake_vclLogHandleGetString;
-    _api->vclAllocatedExecutableCreate4 = &fake_vclAllocatedExecutableCreate4;
-    _api->vclExecutableGetCompatibilityString = &fake_vclExecutableGetCompatibilityString;
-    _api->vclGetCompilerSupportedOptions = &fake_vclGetCompilerSupportedOptions;
-    _api->vclGetCompilerIsOptionSupported = &fake_vclGetCompilerIsOptionSupported;
-    _api->vclAllocatedExecutableCreateWSOneShot2 = &fake_vclAllocatedExecutableCreateWSOneShot2;
+    _functions->vclGetVersion = &fake_vclGetVersion;
+    _functions->vclCompilerCreate = &fake_vclCompilerCreate;
+    _functions->vclCompilerDestroy = &fake_vclCompilerDestroy;
+    _functions->vclCompilerGetProperties = &fake_vclCompilerGetProperties;
+    _functions->vclQueryNetworkCreate = &fake_vclQueryNetworkCreate;
+    _functions->vclQueryNetwork = &fake_vclQueryNetwork;
+    _functions->vclQueryNetworkDestroy = &fake_vclQueryNetworkDestroy;
+    _functions->vclExecutableCreate = &fake_vclExecutableCreate;
+    _functions->vclExecutableDestroy = &fake_vclExecutableDestroy;
+    _functions->vclExecutableGetSerializableBlob = &fake_vclExecutableGetSerializableBlob;
+    _functions->vclProfilingCreate = &fake_vclProfilingCreate;
+    _functions->vclGetDecodedProfilingBuffer = &fake_vclGetDecodedProfilingBuffer;
+    _functions->vclProfilingDestroy = &fake_vclProfilingDestroy;
+    _functions->vclProfilingGetProperties = &fake_vclProfilingGetProperties;
+    _functions->vclLogHandleGetString = &fake_vclLogHandleGetString;
+    _functions->vclAllocatedExecutableCreate4 = &fake_vclAllocatedExecutableCreate4;
+    _functions->vclExecutableGetCompatibilityString = &fake_vclExecutableGetCompatibilityString;
+    _functions->vclGetCompilerSupportedOptions = &fake_vclGetCompilerSupportedOptions;
+    _functions->vclGetCompilerIsOptionSupported = &fake_vclGetCompilerIsOptionSupported;
+    _functions->vclAllocatedExecutableCreateWSOneShot2 = &fake_vclAllocatedExecutableCreateWSOneShot2;
     // Weak symbols the production path does not use stay null, matching an older library.
-    _api->vclAllocatedExecutableCreate2 = nullptr;
+    _functions->vclAllocatedExecutableCreate2 = nullptr;
 }
 
 }  // namespace fake_vcl

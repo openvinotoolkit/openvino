@@ -20,7 +20,7 @@ namespace intel_npu {
 
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
-    VCLCompilerImpl(std::shared_ptr<const VCLApi> api,
+    VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
                     const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
     ~VCLCompilerImpl();
 
@@ -96,8 +96,6 @@ public:
     bool is_option_supported(const std::string& option,
                              const std::optional<std::string>& optValue = std::nullopt) const;
 
-    std::shared_ptr<void> getLinkedLibrary() const;
-
 private:
     /**
      * @brief Compiles the given model according to the given configuration. During the model serialization step,
@@ -108,7 +106,7 @@ private:
                                                               const FilteredConfig& config,
                                                               const bool storeWeightlessCacheAttributeFlag) const;
 
-    std::shared_ptr<const VCLApi> _api;
+    std::shared_ptr<const VCLFunctionTable> _functions;
     vcl_log_handle_t _logHandle = nullptr;
     vcl_compiler_handle_t _compilerHandle = nullptr;
     vcl_compiler_properties_t _compilerProperties;

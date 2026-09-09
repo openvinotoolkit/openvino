@@ -38,7 +38,7 @@ protected:
     std::string targetDevice;
     std::shared_ptr<ov::Model> model;
     std::shared_ptr<::intel_npu::vcl_allocator_2> allocator;
-    std::shared_ptr<const ::intel_npu::VCLApi> api;
+    std::shared_ptr<const ::intel_npu::VCLFunctionTable> functions;
 
     void SetUp() override {
         targetDevice = GetParam();
@@ -47,7 +47,7 @@ protected:
 
         try {
             std::string ov_lib_dir = ov::test::utils::getOpenvinoLibDirectory();
-            api = ::intel_npu::VCLApi::getInstance(ov_lib_dir);
+            functions = ::intel_npu::VCLLoader::getInstance(ov_lib_dir)->sharedFunctions();
         } catch (const std::exception&) {
             GTEST_SKIP() << "Couldn't load compiler library";
         }
@@ -56,7 +56,7 @@ protected:
     // Helper struct and function to reduce code duplication
     struct CompilerSetupState {
         // Held so the destructor can reach vclCompilerDestroy, and so the loader outlives the handle.
-        std::shared_ptr<const ::intel_npu::VCLApi> api;
+        std::shared_ptr<const ::intel_npu::VCLFunctionTable> functions;
         std::string buildFlags;
         ::intel_npu::SerializedIR serializedIR;
         vcl_compiler_handle_t compiler = nullptr;
@@ -66,7 +66,7 @@ protected:
         CompilerSetupState(const CompilerSetupState&) = delete;
         CompilerSetupState& operator=(const CompilerSetupState&) = delete;
         CompilerSetupState(CompilerSetupState&& other) noexcept
-            : api(std::move(other.api)),
+            : functions(std::move(other.functions)),
               buildFlags(std::move(other.buildFlags)),
               serializedIR(std::move(other.serializedIR)),
               compiler(other.compiler),
@@ -77,7 +77,7 @@ protected:
         CompilerSetupState& operator=(CompilerSetupState&& other) noexcept {
             if (this != &other) {
                 release();
-                api = std::move(other.api);
+                functions = std::move(other.functions);
                 buildFlags = std::move(other.buildFlags);
                 serializedIR = std::move(other.serializedIR);
                 compiler = other.compiler;
@@ -95,7 +95,7 @@ protected:
     private:
         void release() {
             if (compiler != nullptr) {
-                api->vclCompilerDestroy(compiler);
+                functions->vclCompilerDestroy(compiler);
                 compiler = nullptr;
             }
         }
@@ -103,7 +103,7 @@ protected:
 
     CompilerSetupState createCompilerAndDescriptor() {
         CompilerSetupState state;
-        state.api = api;
+        state.functions = functions;
 
         state.buildFlags = ::intel_npu::compiler_utils::serializeIOInfo(model, true);
 
@@ -117,7 +117,7 @@ protected:
 
         vcl_version_info_t vclVersion = {};
         vcl_version_info_t vclProfilingVersion = {};
-        api->vclGetVersion(&vclVersion, &vclProfilingVersion);
+        functions->vclGetVersion(&vclVersion, &vclProfilingVersion);
 
         vcl_compiler_desc_t compilerDesc = {};
         compilerDesc.version = vclVersion;
@@ -134,7 +134,7 @@ protected:
                                         std::numeric_limits<uint16_t>::max(),
                                         defaultTileCount};
 
-        api->vclCompilerCreate(&compilerDesc, &deviceDesc, &state.compiler, &state.logHandle);
+        functions->vclCompilerCreate(&compilerDesc, &deviceDesc, &state.compiler, &state.logHandle);
 
         if (state.compiler == nullptr) {
             ADD_FAILURE() << "vclCompilerCreate failed";
@@ -143,7 +143,7 @@ protected:
 
         ze_graph_compiler_version_info_t vclVersionInfo = {0, 0};
         vcl_compiler_properties_t compilerProp = {};
-        api->vclCompilerGetProperties(state.compiler, &compilerProp);
+        functions->vclCompilerGetProperties(state.compiler, &compilerProp);
         vclVersionInfo.major = compilerProp.version.major;
         vclVersionInfo.minor = compilerProp.version.minor;
 
@@ -167,7 +167,7 @@ protected:
 
     std::string getCompatibilityString(vcl_executable_handle_t executable) {
         uint64_t compatibilityStringSize = 0;
-        auto result = api->vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
+        auto result = functions->vclExecutableGetCompatibilityString(executable, nullptr, &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS || compatibilityStringSize == 0) {
             ADD_FAILURE() << "Failed to get compatibility string size";
             return {};
@@ -178,9 +178,9 @@ protected:
             return {};
         }
         std::vector<char> compatibilityStringBuffer(static_cast<size_t>(compatibilityStringSize), '\0');
-        result = api->vclExecutableGetCompatibilityString(executable,
-                                                          compatibilityStringBuffer.data(),
-                                                          &compatibilityStringSize);
+        result = functions->vclExecutableGetCompatibilityString(executable,
+                                                                compatibilityStringBuffer.data(),
+                                                                &compatibilityStringSize);
         if (result != VCL_RESULT_SUCCESS) {
             ADD_FAILURE() << "Failed to get compatibility string";
             return {};
@@ -210,8 +210,12 @@ TEST_P(VclAllocatorFuncTests, VerifyAllocation) {
                                   setup.buildFlags.c_str(),
                                   setup.buildFlags.size()};
 
-    auto result =
-        api->vclAllocatedExecutableCreate4(setup.compiler, desc, allocator.get(), &blobBuffer, &blobSize, &executable);
+    auto result = functions->vclAllocatedExecutableCreate4(setup.compiler,
+                                                           desc,
+                                                           allocator.get(),
+                                                           &blobBuffer,
+                                                           &blobSize,
+                                                           &executable);
 
     EXPECT_EQ(result, VCL_RESULT_SUCCESS);
     EXPECT_NE(blobBuffer, nullptr);
@@ -229,7 +233,7 @@ TEST_P(VclAllocatorFuncTests, VerifyAllocation) {
                                });
     EXPECT_NE(blobIt, allocator->m_info.end());
 
-    EXPECT_EQ(api->vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
+    EXPECT_EQ(functions->vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
 }
 
 TEST_P(VclAllocatorFuncTests, VerifyDeallocation) {
@@ -245,8 +249,12 @@ TEST_P(VclAllocatorFuncTests, VerifyDeallocation) {
                                   setup.buildFlags.c_str(),
                                   setup.buildFlags.size()};
 
-    auto result =
-        api->vclAllocatedExecutableCreate4(setup.compiler, desc, allocator.get(), &blobBuffer, &blobSize, &executable);
+    auto result = functions->vclAllocatedExecutableCreate4(setup.compiler,
+                                                           desc,
+                                                           allocator.get(),
+                                                           &blobBuffer,
+                                                           &blobSize,
+                                                           &executable);
 
     EXPECT_EQ(result, VCL_RESULT_SUCCESS);
     ASSERT_NE(executable, nullptr);
@@ -267,7 +275,7 @@ TEST_P(VclAllocatorFuncTests, VerifyDeallocation) {
     EXPECT_EQ(blobIt, allocator->m_info.end());
     EXPECT_EQ(allocator->m_info.size(), 0);
 
-    EXPECT_EQ(api->vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
+    EXPECT_EQ(functions->vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
 }
 
 TEST_P(VclAllocatorFuncTests, VerifyOwnershipTransferToTensor) {
@@ -283,8 +291,12 @@ TEST_P(VclAllocatorFuncTests, VerifyOwnershipTransferToTensor) {
                                   setup.buildFlags.c_str(),
                                   setup.buildFlags.size()};
 
-    auto result =
-        api->vclAllocatedExecutableCreate4(setup.compiler, desc, allocator.get(), &blobBuffer, &blobSize, &executable);
+    auto result = functions->vclAllocatedExecutableCreate4(setup.compiler,
+                                                           desc,
+                                                           allocator.get(),
+                                                           &blobBuffer,
+                                                           &blobSize,
+                                                           &executable);
 
     EXPECT_EQ(result, VCL_RESULT_SUCCESS);
     ASSERT_NE(executable, nullptr);
@@ -315,7 +327,7 @@ TEST_P(VclAllocatorFuncTests, VerifyOwnershipTransferToTensor) {
     // the tracking info in the allocator should be empty.
     EXPECT_EQ(allocator->m_info.size(), 0);
 
-    EXPECT_EQ(api->vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
+    EXPECT_EQ(functions->vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
 }
 
 TEST_P(VclAllocatorFuncTests, VerifyOrphanMemoryCleanupOnDestruction) {
@@ -331,8 +343,12 @@ TEST_P(VclAllocatorFuncTests, VerifyOrphanMemoryCleanupOnDestruction) {
                                   setup.buildFlags.c_str(),
                                   setup.buildFlags.size()};
 
-    auto result =
-        api->vclAllocatedExecutableCreate4(setup.compiler, desc, allocator.get(), &blobBuffer, &blobSize, &executable);
+    auto result = functions->vclAllocatedExecutableCreate4(setup.compiler,
+                                                           desc,
+                                                           allocator.get(),
+                                                           &blobBuffer,
+                                                           &blobSize,
+                                                           &executable);
 
     EXPECT_EQ(result, VCL_RESULT_SUCCESS);
     ASSERT_NE(executable, nullptr);
@@ -340,7 +356,7 @@ TEST_P(VclAllocatorFuncTests, VerifyOrphanMemoryCleanupOnDestruction) {
     EXPECT_FALSE(compatibilityString.empty());
     EXPECT_EQ(allocator->m_info.size(), 1);  // 1 allocation: blob
 
-    EXPECT_EQ(api->vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
+    EXPECT_EQ(functions->vclExecutableDestroy(executable), VCL_RESULT_SUCCESS);
 
     // Purpose: Simulate VCL crash or early return where the memory is temporarily tracked as an orphan leak
     // When the allocator goes out of scope and gets destroyed, it should cleanly free all tracked memory

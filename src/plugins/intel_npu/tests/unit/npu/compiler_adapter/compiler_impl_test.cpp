@@ -61,7 +61,7 @@ struct VCLCompilerImplTest : public ::testing::Test {
 
     std::shared_ptr<VCLCompilerImpl> makeCompiler(
         const std::optional<IDevice::DeviceProperties>& props = std::nullopt) {
-        return std::make_shared<VCLCompilerImpl>(fake.api(), props);
+        return std::make_shared<VCLCompilerImpl>(fake.functions(), props);
     }
 };
 
@@ -140,10 +140,10 @@ TEST_F(VCLCompilerImplTest, NullApiTableIsRejected) {
         ov::Exception);
 }
 
-TEST_F(VCLCompilerImplTest, UnwiredApiTableIsRejected) {
-    // A NoLoad table nobody wired: every entry point is null. Without the hasAllRequiredSymbols
+TEST_F(VCLCompilerImplTest, UnwiredFunctionTableIsRejected) {
+    // A default-constructed table: every entry point is null. Without the hasAllRequiredSymbols
     // guard this would dispatch through a null vclGetVersion instead of throwing.
-    auto unwired = std::make_shared<const intel_npu::VCLApi>(intel_npu::VCLApi::NoLoad{});
+    auto unwired = std::make_shared<const intel_npu::VCLFunctionTable>();
     EXPECT_THROW(
         {
             auto compiler = std::make_shared<VCLCompilerImpl>(unwired);
@@ -156,10 +156,10 @@ TEST_F(VCLCompilerImplTest, MissingWeakSymbolsDoNotBlockConstruction) {
     // The weak symbols are legitimately null against an older compiler library, so the required-
     // symbol guard must ignore them. FakeVcl leaves vclAllocatedExecutableCreate2 null already;
     // null the remaining one so the whole weak list is absent.
-    ASSERT_TRUE(fake.mutableApi()->vclAllocatedExecutableCreate2 == nullptr);
-    fake.mutableApi()->vclAllocatedExecutableCreateWSOneShot2 = nullptr;
+    ASSERT_TRUE(fake.mutableFunctions()->vclAllocatedExecutableCreate2 == nullptr);
+    fake.mutableFunctions()->vclAllocatedExecutableCreateWSOneShot2 = nullptr;
 
-    EXPECT_TRUE(fake.api()->hasAllRequiredSymbols());
+    EXPECT_TRUE(fake.functions()->hasAllRequiredSymbols());
     EXPECT_NO_THROW(makeCompiler());
 }
 

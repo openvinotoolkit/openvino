@@ -39,37 +39,30 @@ namespace intel_npu {
     vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
     vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot2)  // clang-format on
 
-class VCLApi {
-public:
-    /**
-     * @brief Tag for the non-loading constructor.
-     */
-    struct NoLoad {};
-
-    VCLApi(const std::string& library_dir);
-    /**
-     * @brief Builds an instance without loading the compiler library: `lib` stays null and every
-     * entry point is null, so the caller can assign the entry points it needs directly.
-     */
-    explicit VCLApi(NoLoad);
-    VCLApi(const VCLApi& other) = delete;
-    VCLApi(VCLApi&& other) = delete;
-    void operator=(const VCLApi&) = delete;
-    void operator=(VCLApi&&) = delete;
-
-    static const std::shared_ptr<VCLApi> getInstance(const std::string& library_dir = std::string());
-    std::shared_ptr<void> getLibrary() const {
-        return lib;
-    }
+/**
+ * @brief The VCL entry points, as a plain aggregate.
+ *
+ * Deliberately holds no library handle and does no loading: it is data, not behaviour. Every entry
+ * point defaults to null, so a default-constructed table is a legitimate value - an unpopulated
+ * table - rather than a half-constructed object. That is what lets tests build one directly with no
+ * test-only constructor, tag, or friend declaration. Each field keeps the exact
+ * `decltype(&::vclXxx)` type from `vcl.h`, so whatever populates it - `dlsym` in `VCLLoader` or a
+ * static function in a test double - is type-checked against the vendor header itself.
+ */
+struct VCLFunctionTable {
+#define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol = nullptr;
+    vcl_symbols_list();
+    vcl_weak_symbols_list();
+#undef vcl_symbol_statement
 
     /**
-     * @brief True when every non-weak entry point resolved.
+     * @brief True when every non-weak entry point is populated.
      *
      * Weak symbols are excluded on purpose: they are legitimately null when the loaded library
-     * predates them. Consumers that need the full table assert on this at construction, so a
-     * `NoLoad` instance that was never wired fails with a diagnosable error instead of dispatching
-     * through a null function pointer at the first call. Generated from `vcl_symbols_list()`, so it
-     * cannot drift as the list grows.
+     * predates them. Consumers that need the full table assert on this at construction, so an
+     * unpopulated table fails with a diagnosable error instead of dispatching through a null
+     * function pointer at the first call. Generated from `vcl_symbols_list()`, so it cannot drift
+     * as the list grows.
      */
     bool hasAllRequiredSymbols() const {
 #define vcl_symbol_statement(vcl_symbol) \
@@ -80,13 +73,41 @@ public:
 #undef vcl_symbol_statement
         return true;
     }
+};
 
-#define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
-    vcl_symbols_list();
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
+/**
+ * @brief Owns the loaded VCL compiler library and the function table resolved out of it.
+ *
+ * The loading constructor is private: `getInstance` is the only way to load, so the process cannot
+ * end up with two independently dlopen'd copies of the compiler library.
+ */
+class VCLLoader final : public std::enable_shared_from_this<VCLLoader> {
+public:
+    VCLLoader(const VCLLoader& other) = delete;
+    VCLLoader(VCLLoader&& other) = delete;
+    void operator=(const VCLLoader&) = delete;
+    void operator=(VCLLoader&&) = delete;
+
+    static const std::shared_ptr<const VCLLoader> getInstance(const std::string& library_dir = std::string());
+
+    /**
+     * @brief The function table, sharing this loader's lifetime.
+     *
+     * An aliasing `shared_ptr`, so a holder of the returned table keeps the library loaded without
+     * having to know a library exists.
+     */
+    std::shared_ptr<const VCLFunctionTable> sharedFunctions() const {
+        return {shared_from_this(), &_functions};
+    }
+
+    std::shared_ptr<void> getLibrary() const {
+        return lib;
+    }
 
 private:
+    explicit VCLLoader(const std::string& library_dir);
+
+    VCLFunctionTable _functions;
     std::shared_ptr<void> lib;
     Logger _logger;
 };

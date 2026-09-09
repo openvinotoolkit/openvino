@@ -44,9 +44,13 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _logger.info("Loading PLUGIN compiler");
     try {
         auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
-        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(VCLApi::getInstance(ovLibPath), deviceProperties);
+        auto vclLoader = VCLLoader::getInstance(ovLibPath);
+        OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(), deviceProperties);
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
-        auto vclLib = vclCompilerPtr->getLinkedLibrary();
+        // Pair the compiler with the library so the .so cannot be unloaded while the compiler
+        // dispatches into it. The compiler itself no longer knows a library is involved.
+        auto vclLib = vclLoader->getLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
         OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
         _compiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);

@@ -156,7 +156,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
     auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
-    auto compiler = std::make_shared<VCLCompilerImpl>(VCLApi::getInstance(ov_lib_path));
+    auto compiler = std::make_shared<VCLCompilerImpl>(VCLLoader::getInstance(ov_lib_path)->sharedFunctions());
     OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
