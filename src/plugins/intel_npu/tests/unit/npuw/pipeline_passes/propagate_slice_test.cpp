@@ -293,7 +293,40 @@ TEST(PropagateSliceTest, PropagateSliceThroughTranspose) {
     EXPECT_TRUE(is_type<v8::Slice>(slice_node));
 }
 
-// Test R9: Merge duplicate Slices
+// Regression test: with a non-self-inverse permutation (unlike {0,2,1,3} used above, which
+// happens to be its own inverse), the propagated Slice must land on perm[output_slice_axis],
+// not on the index i where perm[i]==output_slice_axis (the inverse permutation).
+TEST(PropagateSliceTest, PropagateSliceThroughTranspose_NonSelfInversePermutation) {
+    // Build: Param[2,3,4] -> Transpose(order={1,2,0}) -> [3,4,2] -> Slice(axis=0: 3->1) -> [1,4,2]
+    // order={1,2,0} means output[0]=input[1], output[1]=input[2], output[2]=input[0].
+    // Slicing output axis=0 must propagate onto INPUT axis=1 (order[0]==1), not axis=2 (the index
+    // where order[i]==0).
+    auto param = std::make_shared<v0::Parameter>(element::f32, Shape{2, 3, 4});
+    auto order = v0::Constant::create(element::i64, Shape{3}, {1, 2, 0});
+    auto transpose = std::make_shared<v1::Transpose>(param, order);
+
+    auto slice = make_last_index_slice(transpose, 0);
+
+    auto result = std::make_shared<v0::Result>(slice);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param});
+
+    apply_propagate_slice_up(model);
+
+    auto result_node = model->get_results()[0];
+    auto transpose_node = result_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v1::Transpose>(transpose_node));
+
+    auto slice_node = std::dynamic_pointer_cast<v8::Slice>(transpose_node->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(slice_node != nullptr);
+
+    // The propagated Slice must be on input axis=1 (order[0]==1), not axis=2.
+    auto axes_const = std::dynamic_pointer_cast<v0::Constant>(slice_node->input_value(4).get_node_shared_ptr());
+    ASSERT_TRUE(axes_const != nullptr);
+    EXPECT_EQ(axes_const->cast_vector<int64_t>(), (std::vector<int64_t>{1}));
+
+    // Final output shape must be unchanged: [1,4,2]
+    EXPECT_EQ(result_node->get_input_shape(0), (Shape{1, 4, 2}));
+}
 TEST(PropagateSliceTest, MergeDuplicateSlices) {
     // Build: Param -> Gelu -> Split2 branches -> identical Slices on each branch
     auto param = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1024, 3072});
@@ -622,6 +655,32 @@ TEST(PropagateSliceTest, RemoveNoOpSlice) {
 
     auto gelu_input = out_gelu->input_value(0).get_node_shared_ptr();
     EXPECT_TRUE(is_type<v0::Parameter>(gelu_input));
+}
+
+// Regression test: a full-range Slice with a negative step reverses data while preserving
+// shape, so it must NOT be removed as a no-op even though input_shape == output_shape.
+TEST(PropagateSliceTest, RemoveNoOpSlice_ReversedStepNotRemoved) {
+    // Build: Param([1024,128]) -> Slice(axis=0, start=-1,stop=INT64_MIN,step=-1) [full reversal,
+    // same shape 1024] -> Gelu
+    auto param = std::make_shared<v0::Parameter>(element::f32, Shape{1024, 128});
+
+    auto reversed_slice = make_slice(param, 0, -1, INT64_MIN, -1);
+    ASSERT_EQ(reversed_slice->get_output_shape(0), (Shape{1024, 128}));
+
+    auto gelu = std::make_shared<v0::Gelu>(reversed_slice);
+
+    auto result = std::make_shared<v0::Result>(gelu);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param});
+
+    apply_propagate_slice_up(model);
+
+    // Expected: the reversing Slice must still be present between Param and Gelu.
+    auto result_node = model->get_results()[0];
+    auto out_gelu = result_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v0::Gelu>(out_gelu));
+
+    auto gelu_input = out_gelu->input_value(0).get_node_shared_ptr();
+    EXPECT_TRUE(is_type<v8::Slice>(gelu_input));
 }
 
 // Test R15: Slice(TopK(X)[values]), Slice(TopK(X)[indices]) -> TopK(Slice(X))
@@ -979,6 +1038,71 @@ TEST(PropagateSliceTest, PropagateSliceThroughSDPA) {
     // K and V should remain the original (unsliced) Parameters
     EXPECT_TRUE(is_type<v0::Parameter>(sdpa_node->input_value(1).get_node_shared_ptr()));
     EXPECT_TRUE(is_type<v0::Parameter>(sdpa_node->input_value(2).get_node_shared_ptr()));
+}
+
+// Regression test: a mask with a DIFFERENT rank than the SDPA output (e.g. [B,Sq,Sk] vs a
+// 4-D [B,H,Sq,D] output) must block propagation entirely rather than mapping the sequence
+// axis onto the wrong mask dimension.
+TEST(PropagateSliceTest, PropagateSliceThroughSDPA_RankMismatchedMaskBlocksPropagation) {
+    // Build: Q,K,V[1,8,1024,64], mask[1,1024,1024] (3-D, one rank lower than the 4-D output)
+    //        -> SDPA(causal=false) -> [1,8,1024,64] -> Slice(axis=2, seq: 1024->1) -> [1,8,1,64]
+    auto q = std::make_shared<v0::Parameter>(element::f32, Shape{1, 8, 1024, 64});
+    auto k = std::make_shared<v0::Parameter>(element::f32, Shape{1, 8, 1024, 64});
+    auto v = std::make_shared<v0::Parameter>(element::f32, Shape{1, 8, 1024, 64});
+    auto mask = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1024, 1024});
+    auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(q, k, v, mask, false);
+
+    auto slice = make_last_index_slice(sdpa, 2);
+
+    auto result = std::make_shared<v0::Result>(slice);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{q, k, v, mask});
+
+    apply_propagate_slice_up(model);
+
+    // Check: Slice must NOT have moved - Result's input is still the Slice, directly on the
+    // original (unsliced) SDPA node.
+    auto result_node = model->get_results()[0];
+    auto slice_node = result_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v8::Slice>(slice_node));
+
+    auto sdpa_node = slice_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v13::ScaledDotProductAttention>(sdpa_node));
+    EXPECT_TRUE(is_type<v0::Parameter>(sdpa_node->input_value(0).get_node_shared_ptr()));
+}
+
+// Regression test: Add(split->output(0), split->output(1)) must NOT be treated as
+// "both inputs are the same node" - the two operands are different output ports of the
+// same VariadicSplit, so they must each get their own Slice (not a shared one).
+TEST(PropagateSliceTest, PropagateSliceThroughBinary_SameNodeDifferentPortsNotShared) {
+    // Build: Param[1,1024,2048] -> VariadicSplit(axis=2, [1024,1024]) -> out0[1,1024,1024], out1[1,1024,1024]
+    //        -> Add(out0, out1) -> Slice(axis=1, 1024->1) -> [1,1,1024]
+    auto param = std::make_shared<v0::Parameter>(element::f32, Shape{1, 1024, 2048});
+    auto split_axis = v0::Constant::create(element::i64, Shape{}, {2});
+    auto split_lengths = v0::Constant::create(element::i64, Shape{2}, {1024, 1024});
+    auto vsplit = std::make_shared<v1::VariadicSplit>(param, split_axis, split_lengths);
+
+    auto add = std::make_shared<v1::Add>(vsplit->output(0), vsplit->output(1));
+    auto slice = make_last_index_slice(add, 1);
+
+    auto result = std::make_shared<v0::Result>(slice);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param});
+
+    apply_propagate_slice_up(model);
+
+    // Expected: Add(Slice(out0), Slice(out1)) - two DISTINCT Slice nodes, each consuming its
+    // own VariadicSplit output port (not a single Slice reused for both).
+    auto result_node = model->get_results()[0];
+    auto add_node = result_node->input_value(0).get_node_shared_ptr();
+    ASSERT_TRUE(is_type<v1::Add>(add_node));
+
+    auto add_input0 = add_node->input_value(0);
+    auto add_input1 = add_node->input_value(1);
+    ASSERT_TRUE(is_type<v8::Slice>(add_input0.get_node_shared_ptr()));
+    ASSERT_TRUE(is_type<v8::Slice>(add_input1.get_node_shared_ptr()));
+    EXPECT_NE(add_input0.get_node_shared_ptr(), add_input1.get_node_shared_ptr());
+
+    EXPECT_EQ(add_input0.get_node_shared_ptr()->input_value(0).get_index(), 0u);
+    EXPECT_EQ(add_input1.get_node_shared_ptr()->input_value(0).get_index(), 1u);
 }
 
 // Test R6 (non-squeeze-like): Slice(Reshape(X)) where Reshape genuinely splits a dimension

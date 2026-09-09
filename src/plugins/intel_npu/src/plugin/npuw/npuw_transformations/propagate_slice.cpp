@@ -12,6 +12,7 @@
 
 #include "../logging.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -75,8 +76,53 @@ static bool is_reducing_slice(const std::shared_ptr<ov::op::v8::Slice>& slice) {
     return false;
 }
 
-// Returns the single axis that is sliced (where output dim < input dim), or -1 if the
-// Slice is not a single-axis slice (zero or more than one axis reduced, or dynamic shapes).
+// Extract the full axis -> (start, stop, step) mapping of a (possibly multi-axis) Slice.
+// Returns false if the Slice's start/stop/step/axes inputs aren't foldable constants, or if
+// their sizes are inconsistent.
+static bool get_slice_all_axis_params(const std::shared_ptr<ov::op::v8::Slice>& slice,
+                                      std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>>& out_params) {
+    auto axes_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(4).get_node_shared_ptr());
+    auto start_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
+    auto stop_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
+    auto step_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
+    if (!axes_const || !start_const || !stop_const || !step_const) {
+        return false;
+    }
+
+    auto axes = axes_const->cast_vector<int64_t>();
+    auto starts = start_const->cast_vector<int64_t>();
+    auto stops = stop_const->cast_vector<int64_t>();
+    auto steps = step_const->cast_vector<int64_t>();
+    if (axes.size() != starts.size() || axes.size() != stops.size() || axes.size() != steps.size()) {
+        return false;
+    }
+
+    out_params.clear();
+    const size_t rank = slice->get_input_shape(0).size();
+    for (size_t i = 0; i < axes.size(); ++i) {
+        out_params[static_cast<int64_t>(ov::util::normalize_axis(axes[i], static_cast<int64_t>(rank)))] = {starts[i],
+                                                                                                           stops[i],
+                                                                                                           steps[i]};
+    }
+    return true;
+}
+
+// Returns true when (start, stop, step) is an identity range on an axis of size `dim`, i.e. it
+// keeps every element in its original order (step=1, effective start=0, effective stop>=dim). A
+// non-identity range on a same-size axis (e.g. a negative-step reversal, or a reordering) has a
+// real effect that single-axis rebuilding (get_slice_axis_params + create_slice_with_params)
+// would silently drop. `start` only resolves to 0 when it's literally 0 or negative enough to
+// wrap around to (or past) index 0 (start <= -dim); a small negative start like -1 wraps to
+// dim-1, which is NOT the beginning of the axis.
+static bool is_identity_range(int64_t start, int64_t stop, int64_t step, int64_t dim) {
+    bool start_is_zero = (start == 0) || (start <= -dim);
+    return step == 1 && start_is_zero && stop >= dim;
+}
+
+// Returns the single axis that is sliced (where output dim < input dim), or -1 if the Slice is
+// not safely treatable as single-axis: zero or more than one axis reduced, dynamic shapes, or any
+// *other* axis named in the Slice's own axes/start/stop/step constants has a non-identity range
+// (e.g. a same-size reversal) that would be silently dropped when a rule rebuilds only this axis.
 static int64_t get_single_sliced_axis(const std::shared_ptr<ov::op::v8::Slice>& slice) {
     const auto& in_shape = slice->get_input_partial_shape(0);
     const auto& out_shape = slice->get_output_partial_shape(0);
@@ -93,12 +139,25 @@ static int64_t get_single_sliced_axis(const std::shared_ptr<ov::op::v8::Slice>& 
             axis = static_cast<int64_t>(i);
         }
     }
-    return axis;
-}
+    if (axis == -1) {
+        return -1;
+    }
 
-// Returns true only when the Slice operates on a single axis.
-static bool is_single_axis_slice(const std::shared_ptr<ov::op::v8::Slice>& slice) {
-    return get_single_sliced_axis(slice) != -1;
+    std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> all_params;
+    if (!get_slice_all_axis_params(slice, all_params)) {
+        return -1;  // can't verify the other axes are identity -> reject conservatively
+    }
+    const auto& in_shape_static = slice->get_input_shape(0);
+    for (const auto& [other_axis, params] : all_params) {
+        if (other_axis == axis) {
+            continue;
+        }
+        auto [start, stop, step] = params;
+        if (!is_identity_range(start, stop, step, static_cast<int64_t>(in_shape_static[other_axis]))) {
+            return -1;  // non-identity op on a non-reducing axis - unsafe to treat as single-axis
+        }
+    }
+    return axis;
 }
 
 // Returns the consumers of a node's output, excluding ones that are themselves already
@@ -135,46 +194,15 @@ static bool single_consumer(const std::shared_ptr<ov::Node>& parent) {
     return true;
 }
 
-// Combines the three guard checks used by nearly every propagation rule below: the Slice
-// must actually reduce the tensor, operate on a single axis, and its parent must have no
-// other consumers (otherwise moving the Slice upstream would change other users' inputs).
-static bool can_propagate_through(const std::shared_ptr<ov::op::v8::Slice>& slice,
-                                  const std::shared_ptr<ov::Node>& parent) {
-    return is_reducing_slice(slice) && is_single_axis_slice(slice) && single_consumer(parent);
-}
-
-// Normalize axis to positive index
-static int64_t normalize_axis(int64_t axis, size_t rank) {
-    return axis < 0 ? static_cast<int64_t>(rank) + axis : axis;
-}
-
-// Extract the full axis -> (start, stop, step) mapping of a (possibly multi-axis) Slice.
-// Returns false if the Slice's start/stop/step/axes inputs aren't foldable constants, or if
-// their sizes are inconsistent.
-static bool get_slice_all_axis_params(const std::shared_ptr<ov::op::v8::Slice>& slice,
-                                      std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>>& out_params) {
-    auto axes_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(4).get_node_shared_ptr());
-    auto start_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(1).get_node_shared_ptr());
-    auto stop_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(2).get_node_shared_ptr());
-    auto step_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(slice->input_value(3).get_node_shared_ptr());
-    if (!axes_const || !start_const || !stop_const || !step_const) {
-        return false;
+// Returns the sliced axis when propagation through `parent` is safe (the Slice actually
+// reduces the tensor, operates on a single axis, and `parent` has no other consumers -
+// otherwise moving the Slice upstream would change other users' inputs), or -1 otherwise.
+static int64_t get_propagation_axis(const std::shared_ptr<ov::op::v8::Slice>& slice,
+                                    const std::shared_ptr<ov::Node>& parent) {
+    if (!single_consumer(parent)) {
+        return -1;
     }
-
-    auto axes = axes_const->cast_vector<int64_t>();
-    auto starts = start_const->cast_vector<int64_t>();
-    auto stops = stop_const->cast_vector<int64_t>();
-    auto steps = step_const->cast_vector<int64_t>();
-    if (axes.size() != starts.size() || axes.size() != stops.size() || axes.size() != steps.size()) {
-        return false;
-    }
-
-    out_params.clear();
-    const size_t rank = slice->get_input_shape(0).size();
-    for (size_t i = 0; i < axes.size(); ++i) {
-        out_params[normalize_axis(axes[i], rank)] = {starts[i], stops[i], steps[i]};
-    }
-    return true;
+    return get_single_sliced_axis(slice);
 }
 
 // Extract the start/stop/step params that a (possibly multi-axis) Slice applies to a specific
@@ -303,7 +331,7 @@ public:
             auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
             auto unary_node = map[unary].get_node_shared_ptr();
 
-            if (!can_propagate_through(slice_node, unary_node)) {
+            if (get_propagation_axis(slice_node, unary_node) == -1) {
                 return false;
             }
 
@@ -349,7 +377,8 @@ public:
             auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
             auto binary_node = map[binary].get_node_shared_ptr();
 
-            if (!can_propagate_through(slice_node, binary_node)) {
+            int64_t slice_axis = get_propagation_axis(slice_node, binary_node);
+            if (slice_axis == -1) {
                 return false;
             }
 
@@ -357,9 +386,6 @@ public:
             const auto& shape_b = binary_node->get_input_partial_shape(1);
             if (shape_a.is_dynamic() || shape_b.is_dynamic())
                 return false;
-
-            // Get the single sliced axis by comparing input/output shapes
-            int64_t slice_axis = get_single_sliced_axis(slice_node);
 
             // Determine which inputs need a Slice and which can stay as-is.
             // An input can stay if the sliced axis has size 1 in that input
@@ -386,8 +412,10 @@ public:
                 return false;
             }
 
-            // Check if both inputs come from the same node
-            bool same_input = (binary_node->get_input_node_shared_ptr(0) == binary_node->get_input_node_shared_ptr(1));
+            // Check if both inputs come from the same output (same node AND same output port -
+            // e.g. Add(split->output(0), split->output(1)) must NOT be treated as same_input,
+            // otherwise a Slice of output 0 would be wrongly reused for output 1 as well).
+            bool same_input = (binary_node->input_value(0) == binary_node->input_value(1));
 
             ov::Output<ov::Node> new_a, new_b;
 
@@ -431,18 +459,16 @@ public:
             auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
             auto sdpa_node = map[sdpa].get_node_shared_ptr();
 
-            if (!can_propagate_through(slice_node, sdpa_node)) {
-                return false;
-            }
-
             // SDPA output: [B, num_heads, seq_q, head_size]  (4-D after DecomposeGQA)
             // Q input:     [B, num_heads, seq_q, head_size]
             // The sequence axis for Q is typically dim 2 (after head split).
             // Before DecomposeGQA, output may be [B, seq_q, hidden] – seq axis is 1.
             const auto& out_shape = slice_node->get_input_shape(0);  // SDPA output shape
 
-            // Get the single sliced axis by comparing input/output shapes
-            int64_t seq_axis = get_single_sliced_axis(slice_node);
+            int64_t seq_axis = get_propagation_axis(slice_node, sdpa_node);
+            if (seq_axis == -1) {
+                return false;
+            }
 
             // Guard: seq_axis must be the canonical Q-sequence axis, i.e. the second-to-last
             // axis of the SDPA output ([B,H,Sq,D] -> axis=2, or [B,Sq,hidden] -> axis=1).
@@ -471,10 +497,13 @@ public:
             // Slice Q
             auto new_q = clone_slice(slice_node, sdpa_node->input_value(0));
 
-            // Validate that an input's (rank-aligned) sequence axis is either a broadcast dim or
-            // matches the sliced sequence length, then report whether it actually needs slicing.
-            // Returns nullopt when neither holds - the axis-alignment assumption is untrustworthy
-            // for this input, so the whole propagation must be aborted instead of guessing.
+            // Validate that the mask is either a broadcast dim on the sequence axis or matches the
+            // sliced sequence length, then report whether it actually needs slicing. Requires the
+            // mask to have the SAME rank as the SDPA output: rank-aligning a lower-rank mask (e.g.
+            // [B,Sq,Sk] vs a 4-D [B,H,Sq,D] output) would need to remap seq_axis onto the mask's own
+            // axes, and cloning the original (output-indexed) Slice unchanged onto such a mask would
+            // silently slice the wrong axis. Rejecting rank mismatches keeps the mapping trivial and
+            // correct instead of guessing; returns nullopt to abort propagation in that case.
             auto mask_needs_slice = [&](size_t input_idx) -> std::optional<bool> {
                 const auto& shape = sdpa_node->get_input_partial_shape(input_idx);
                 if (shape.is_dynamic()) {
@@ -482,13 +511,13 @@ public:
                 }
                 auto s = shape.to_shape();
 
-                // Rank-align: handle broadcasting for lower-rank tensors
-                int64_t rank_diff = static_cast<int64_t>(out_shape.size()) - static_cast<int64_t>(s.size());
-                int64_t local_ax = seq_axis - rank_diff;
-                if (local_ax < 0 || s[static_cast<size_t>(local_ax)] == 1) {
-                    return false;  // dimension doesn't exist, or is a broadcast dim -> no slice needed
+                if (s.size() != out_shape.size()) {
+                    return std::nullopt;  // rank mismatch -> axis mapping unreliable, don't propagate
                 }
-                if (s[static_cast<size_t>(local_ax)] != out_shape[static_cast<size_t>(seq_axis)]) {
+                if (s[static_cast<size_t>(seq_axis)] == 1) {
+                    return false;  // broadcast dim -> no slice needed
+                }
+                if (s[static_cast<size_t>(seq_axis)] != out_shape[static_cast<size_t>(seq_axis)]) {
                     return std::nullopt;  // neither broadcast nor a length match -> unsafe to propagate
                 }
                 return true;  // real data on this axis, must slice
@@ -562,7 +591,8 @@ public:
             auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
             auto reduce_node = map[reduce].get_node_shared_ptr();
 
-            if (!can_propagate_through(slice_node, reduce_node)) {
+            int64_t output_slice_axis = get_propagation_axis(slice_node, reduce_node);
+            if (output_slice_axis == -1) {
                 return false;
             }
 
@@ -580,11 +610,9 @@ public:
             // Normalize reduction axes to positive indices
             std::vector<int64_t> normalized_reduce_axes;
             for (int64_t ax : reduce_axes_vec) {
-                normalized_reduce_axes.push_back(normalize_axis(ax, input_shape.size()));
+                normalized_reduce_axes.push_back(
+                    static_cast<int64_t>(ov::util::normalize_axis(ax, static_cast<int64_t>(input_shape.size()))));
             }
-
-            // Get the single sliced axis on the output
-            int64_t output_slice_axis = get_single_sliced_axis(slice_node);
 
             // Map output slice axis to input axis, accounting for reduced dimensions
             // If keep_dims=False, reduced axes are removed, so we need to adjust
@@ -647,7 +675,8 @@ public:
             auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
             auto matmul_node = std::dynamic_pointer_cast<ov::op::v0::MatMul>(map[matmul].get_node_shared_ptr());
 
-            if (!can_propagate_through(slice_node, matmul_node)) {
+            int64_t slice_axis = get_propagation_axis(slice_node, matmul_node);
+            if (slice_axis == -1) {
                 return false;
             }
 
@@ -656,9 +685,6 @@ public:
                 return false;
             }
             const int64_t rank = static_cast<int64_t>(input_shape.size());
-
-            // Get the single sliced axis by comparing input/output shapes
-            int64_t slice_axis = get_single_sliced_axis(slice_node);
 
             // The MatMul output's last axis is the "column" dimension contributed by the weight
             // input (input 1) - it has no corresponding axis in the data input (input 0) at all,
@@ -713,14 +739,14 @@ public:
             auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
             auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(map[reshape].get_node_shared_ptr());
 
-            if (!can_propagate_through(slice_node, reshape_node)) {
+            int64_t output_slice_axis = get_propagation_axis(slice_node, reshape_node);
+            if (output_slice_axis == -1) {
                 return false;
             }
 
             const auto& input_shape = reshape_node->get_input_shape(0);
             const auto& output_shape = reshape_node->get_output_shape(0);
             const auto& sliced_output_shape = slice_node->get_output_shape(0);
-            int64_t output_slice_axis = get_single_sliced_axis(slice_node);
 
             // Check if Reshape is squeeze-like (only inserts/removes dims of size 1)
             // If so, we can use Unsqueeze/Squeeze after propagating Slice instead of updating pattern
@@ -879,7 +905,8 @@ public:
             auto transpose_node =
                 std::dynamic_pointer_cast<ov::op::v1::Transpose>(map[transpose].get_node_shared_ptr());
 
-            if (!can_propagate_through(slice_node, transpose_node)) {
+            int64_t output_slice_axis = get_propagation_axis(slice_node, transpose_node);
+            if (output_slice_axis == -1) {
                 return false;
             }
 
@@ -891,21 +918,13 @@ public:
             }
 
             auto perm = perm_const->cast_vector<int64_t>();
-            int64_t output_slice_axis = get_single_sliced_axis(slice_node);
 
-            // Find which input axis maps to the output slice axis
-            // perm[input_axis] = output_axis, so we need to find input_axis where perm[input_axis] = output_slice_axis
-            int64_t input_slice_axis = -1;
-            for (size_t i = 0; i < perm.size(); ++i) {
-                if (perm[i] == output_slice_axis) {
-                    input_slice_axis = static_cast<int64_t>(i);
-                    break;
-                }
-            }
-
-            if (input_slice_axis == -1) {
+            // OpenVINO Transpose semantics: output[i] = input[order[i]], so the input axis that
+            // ends up at output axis `output_slice_axis` is simply order[output_slice_axis]
+            if (output_slice_axis < 0 || static_cast<size_t>(output_slice_axis) >= perm.size()) {
                 return false;
             }
+            int64_t input_slice_axis = perm[static_cast<size_t>(output_slice_axis)];
 
             // Safe to propagate: Slice(Transpose(X)) -> Transpose(Slice(X))
             // We need to extract the slice parameters from output_slice_axis and apply them to input_slice_axis
@@ -974,11 +993,7 @@ public:
             auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
             auto vsplit_node = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(map[vsplit].get_node_shared_ptr());
 
-            if (!is_reducing_slice(slice_node) || !is_single_axis_slice(slice_node)) {
-                return false;
-            }
-
-            // Get the split axis
+            // Get the split axis first (cheap check before the more expensive consumer scan below)
             auto split_axis_const =
                 std::dynamic_pointer_cast<ov::op::v0::Constant>(vsplit_node->get_input_node_shared_ptr(1));
             if (!split_axis_const) {
@@ -986,18 +1001,17 @@ public:
             }
 
             int64_t split_axis = split_axis_const->cast_vector<int64_t>()[0];
-            split_axis = normalize_axis(split_axis, vsplit_node->get_input_shape(0).size());
+            split_axis = static_cast<int64_t>(
+                ov::util::normalize_axis(split_axis, static_cast<int64_t>(vsplit_node->get_input_shape(0).size())));
 
-            // Get the sliced axis
-            int64_t slice_axis = get_single_sliced_axis(slice_node);
-
-            // Cannot propagate if slicing the split axis
-            if (slice_axis == split_axis) {
+            // Get the sliced axis; also verifies vsplit_node has exactly one live consumer per output
+            int64_t slice_axis = get_propagation_axis(slice_node, vsplit_node);
+            if (slice_axis == -1) {
                 return false;
             }
 
-            // Check all outputs of VariadicSplit have exactly one consumer, and that consumer is a Slice
-            if (!single_consumer(vsplit_node)) {
+            // Cannot propagate if slicing the split axis
+            if (slice_axis == split_axis) {
                 return false;
             }
 
@@ -1021,7 +1035,8 @@ public:
             auto first_slice = slice_consumers[0];
             int64_t first_slice_axis = get_single_sliced_axis(first_slice);
             int64_t first_start = 0, first_stop = 0, first_step = 0;
-            if (!get_slice_axis_params(first_slice, first_slice_axis, first_start, first_stop, first_step)) {
+            if (first_slice_axis == -1 ||
+                !get_slice_axis_params(first_slice, first_slice_axis, first_start, first_stop, first_step)) {
                 return false;
             }
 
@@ -1029,7 +1044,7 @@ public:
                 auto other_slice = slice_consumers[i];
                 int64_t other_slice_axis = get_single_sliced_axis(other_slice);
 
-                if (first_slice_axis != other_slice_axis) {
+                if (other_slice_axis == -1 || first_slice_axis != other_slice_axis) {
                     return false;
                 }
 
@@ -1125,7 +1140,7 @@ public:
                     const ov::Shape& out_shape) -> std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> {
                 std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> result;
                 for (size_t i = 0; i < axes.size(); ++i) {
-                    int64_t axis = normalize_axis(axes[i], rank);
+                    int64_t axis = static_cast<int64_t>(ov::util::normalize_axis(axes[i], static_cast<int64_t>(rank)));
                     // Only include axes that actually reduce the dimension
                     if (out_shape[axis] < in_shape[axis]) {
                         result[axis] = {starts[i], stops[i], steps[i]};
@@ -1249,9 +1264,8 @@ public:
                 return false;
             }
 
-            // Basic checks
-            if (!is_reducing_slice(slice_node) || !is_single_axis_slice(slice_node) || !single_consumer(reshape_node) ||
-                !single_consumer(tile_node)) {
+            // Basic checks (reshape_node's single-consumer status is verified by get_propagation_axis below)
+            if (!single_consumer(tile_node)) {
                 return false;
             }
 
@@ -1260,7 +1274,10 @@ public:
             const auto& tile_output_shape = tile_node->get_output_shape(0);
             const auto& reshape_output_shape = reshape_node->get_output_shape(0);
             const auto& slice_output_shape = slice_node->get_output_shape(0);
-            int64_t output_slice_axis = get_single_sliced_axis(slice_node);
+            int64_t output_slice_axis = get_propagation_axis(slice_node, reshape_node);
+            if (output_slice_axis == -1) {
+                return false;
+            }
 
             // Get Tile repeats (must be constant)
             auto repeats_const =
@@ -1383,13 +1400,13 @@ public:
                 return false;
             }
 
-            if (!can_propagate_through(slice_node, unsqueeze_node)) {
+            int64_t output_slice_axis = get_propagation_axis(slice_node, unsqueeze_node);
+            if (output_slice_axis == -1) {
                 return false;
             }
 
             const auto& input_shape = unsqueeze_node->get_input_shape(0);
             const auto& output_shape = unsqueeze_node->get_output_shape(0);
-            int64_t output_slice_axis = get_single_sliced_axis(slice_node);
 
             // Get Unsqueeze axes (must be constant)
             auto unsqueeze_axes_const =
@@ -1402,7 +1419,8 @@ public:
             // Normalize unsqueeze axes to positive indices
             std::vector<int64_t> normalized_unsqueeze_axes;
             for (auto ax : unsqueeze_axes) {
-                normalized_unsqueeze_axes.push_back(normalize_axis(ax, output_shape.size()));
+                normalized_unsqueeze_axes.push_back(
+                    static_cast<int64_t>(ov::util::normalize_axis(ax, static_cast<int64_t>(output_shape.size()))));
             }
             std::sort(normalized_unsqueeze_axes.begin(), normalized_unsqueeze_axes.end());
 
@@ -1488,7 +1506,8 @@ public:
                     return false;
                 }
 
-                if (!can_propagate_through(slice_node, scatter_node)) {
+                int64_t slice_axis = get_propagation_axis(slice_node, scatter_node);
+                if (slice_axis == -1) {
                     return false;
                 }
 
@@ -1496,7 +1515,6 @@ public:
                 const auto& indices_shape = scatter_node->get_input_shape(1);
                 const auto& updates_shape = scatter_node->get_input_shape(2);
                 const auto& output_shape = scatter_node->get_output_shape(0);
-                int64_t slice_axis = get_single_sliced_axis(slice_node);
 
                 // Get scatter axis (must be constant)
                 auto scatter_axis_const =
@@ -1510,7 +1528,8 @@ public:
                     return false;
                 }
 
-                int64_t scatter_axis = normalize_axis(scatter_axis_vec[0], output_shape.size());
+                int64_t scatter_axis = static_cast<int64_t>(
+                    ov::util::normalize_axis(scatter_axis_vec[0], static_cast<int64_t>(output_shape.size())));
 
                 // Check if slice axis conflicts with scatter axis
                 if (slice_axis == scatter_axis) {
@@ -1583,14 +1602,13 @@ public:
                 return false;
             }
 
-            if (!can_propagate_through(slice_node, broadcast_node)) {
+            int64_t slice_axis = get_propagation_axis(slice_node, broadcast_node);
+            if (slice_axis == -1) {
                 return false;
             }
 
             const auto& input_shape = broadcast_node->get_input_shape(0);
             const auto& slice_shape = slice_node->get_output_shape(0);
-
-            int64_t slice_axis = get_single_sliced_axis(slice_node);
 
             // Check if input already matches the slice output shape on the slice axis
             // Broadcast may have expanded a scalar or added dimensions
@@ -1646,14 +1664,29 @@ public:
                 return false;
             }
 
-            // Check if slice is a no-op (input shape == output shape)
-            if (slice_node->get_input_shape(0) == slice_node->get_output_shape(0)) {
-                // Replace the no-op Slice with its input
-                ov::replace_node(slice_node, slice_node->input_value(0).get_node_shared_ptr());
-                return true;
+            // A Slice is only a no-op when every named axis is an identity range - matching
+            // input/output shape is not sufficient, e.g. a full-range step=-1 Slice reverses
+            // data while preserving shape.
+            if (slice_node->get_input_shape(0) != slice_node->get_output_shape(0)) {
+                return false;
             }
 
-            return false;
+            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> all_params;
+            if (!get_slice_all_axis_params(slice_node, all_params)) {
+                return false;  // can't verify identity -> don't remove
+            }
+
+            const auto& in_shape = slice_node->get_input_shape(0);
+            for (const auto& [axis, params] : all_params) {
+                auto [start, stop, step] = params;
+                if (!is_identity_range(start, stop, step, static_cast<int64_t>(in_shape[axis]))) {
+                    return false;
+                }
+            }
+
+            // Replace the no-op Slice with its input
+            ov::replace_node(slice_node, slice_node->input_value(0).get_node_shared_ptr());
+            return true;
         });
     }
 };
@@ -1733,14 +1766,12 @@ public:
                 return false;
             }
 
-            // Check if both slices are single-axis reducing slices
-            if (!is_single_axis_slice(values_slice) || !is_single_axis_slice(indices_slice)) {
-                return false;
-            }
-
             // Get slice axes
             int64_t values_slice_axis = get_single_sliced_axis(values_slice);
             int64_t indices_slice_axis = get_single_sliced_axis(indices_slice);
+            if (values_slice_axis == -1 || indices_slice_axis == -1) {
+                return false;
+            }
 
             // Check if both slices are on the same axis
             if (values_slice_axis != indices_slice_axis) {
@@ -1770,7 +1801,8 @@ public:
             int64_t topk_axis = static_cast<int64_t>(topk_base->get_axis());
 
             // Normalize TopK axis
-            topk_axis = normalize_axis(topk_axis, topk_node->get_input_shape(0).size());
+            topk_axis = static_cast<int64_t>(
+                ov::util::normalize_axis(topk_axis, static_cast<int64_t>(topk_node->get_input_shape(0).size())));
 
             // Check if slice axis == topk axis (would change TopK result, not safe)
             if (values_slice_axis == topk_axis) {
@@ -1822,11 +1854,10 @@ public:
                 return false;
             }
 
-            if (!can_propagate_through(slice_node, softmax_node)) {
+            int64_t slice_axis = get_propagation_axis(slice_node, softmax_node);
+            if (slice_axis == -1) {
                 return false;
             }
-
-            int64_t slice_axis = get_single_sliced_axis(slice_node);
 
             // Get Softmax axis
             int64_t softmax_axis = -1;
@@ -1837,7 +1868,8 @@ public:
             }
 
             // Normalize Softmax axis
-            softmax_axis = normalize_axis(softmax_axis, softmax_node->get_input_shape(0).size());
+            softmax_axis = static_cast<int64_t>(
+                ov::util::normalize_axis(softmax_axis, static_cast<int64_t>(softmax_node->get_input_shape(0).size())));
 
             // Check if slice axis == softmax axis (would change Softmax result)
             if (slice_axis == softmax_axis) {
@@ -1882,15 +1914,16 @@ public:
                 return false;
             }
 
-            if (!can_propagate_through(slice_node, concat_node)) {
+            int64_t slice_axis = get_propagation_axis(slice_node, concat_node);
+            if (slice_axis == -1) {
                 return false;
             }
 
-            int64_t slice_axis = get_single_sliced_axis(slice_node);
             int64_t concat_axis = concat_node->get_axis();
 
             // Normalize concat axis
-            concat_axis = normalize_axis(concat_axis, concat_node->get_input_shape(0).size());
+            concat_axis = static_cast<int64_t>(
+                ov::util::normalize_axis(concat_axis, static_cast<int64_t>(concat_node->get_input_shape(0).size())));
 
             // Check if slice axis == concat axis (would change Concat result)
             if (slice_axis == concat_axis) {
@@ -1964,7 +1997,8 @@ public:
             auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
             auto gather_node = map[gather].get_node_shared_ptr();
 
-            if (!can_propagate_through(slice_node, gather_node)) {
+            int64_t slice_axis = get_propagation_axis(slice_node, gather_node);
+            if (slice_axis == -1) {
                 return false;
             }
 
@@ -1976,13 +2010,12 @@ public:
             }
             int64_t gather_axis = gather_base->get_axis();
 
-            // Get Slice axis
-            int64_t slice_axis = get_single_sliced_axis(slice_node);
-
             // Normalize axes
             const auto& gather_input_shape = gather_node->get_input_shape(0);
-            gather_axis = normalize_axis(gather_axis, gather_input_shape.size());
-            slice_axis = normalize_axis(slice_axis, slice_node->get_input_shape(0).size());
+            gather_axis = static_cast<int64_t>(
+                ov::util::normalize_axis(gather_axis, static_cast<int64_t>(gather_input_shape.size())));
+            slice_axis = static_cast<int64_t>(
+                ov::util::normalize_axis(slice_axis, static_cast<int64_t>(slice_node->get_input_shape(0).size())));
 
             // Check if Slice and Gather operate on different axes. The Gather output has the
             // same rank as its input, so slice_axis on the Gather output maps to the same axis
