@@ -49,11 +49,13 @@ struct ScatterElementsUpdateImplementationManager : public ImplementationManager
         const auto& in0_layout = node.get_input_layout(0);
         const auto& in1_layout = node.get_input_layout(1);
         const auto& out_layout = node.get_output_layout(0);
-        if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts))
+        if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
             return false;
+        }
 
-        if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types))
+        if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types)) {
             return false;
+        }
 
         return one_of(out_layout.data_type, supported_out_types);
     }
