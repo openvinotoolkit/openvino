@@ -45,10 +45,11 @@ void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_s
                                      toString(dispatchData));
         }
 
-        if (dispatchData.gws[i] % dispatchData.lws[i] != 0)
+        if (dispatchData.gws[i] % dispatchData.lws[i] != 0) {
             throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
                                     ": GWS must be divisible by corresponding LWS. Actual: " +
                                     toString(dispatchData));
+        }
     }
 }
 
