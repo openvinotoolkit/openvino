@@ -56,3 +56,10 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
   
     * ``MALLOC_MMAP_THRESHOLD_=13107200`` sets the default value as a static threshold. Adjust this value to balance memory recovery and performance. Note that model compile time can be affected.
     * Try a different memory allocator, such as ``jemalloc``, for more careful memory management.
+
+.. note::
+
+   The recommendations above are device-agnostic. For GPU/iGPU- and LLM-specific
+   memory management, such as KV-cache precision, weight compression, and
+   ``GPU_ENABLE_LARGE_ALLOCATIONS``, see
+   :doc:`Managing iGPU Memory Allocation for OpenVINO Inference <managing-igpu-memory-usage>`.
