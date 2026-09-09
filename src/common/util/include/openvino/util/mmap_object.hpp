@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -52,13 +53,22 @@ inline constexpr uint64_t no_mapping_id = 0;
  * Instead of reading files, we can map the memory via mmap for Linux or MapViewOfFile for Windows.
  * The MappedMemory class is a abstraction to handle such memory with os-dependent details.
  */
-class MappedMemory {
+class MappedMemory : public util::IMutableBuffer {
 public:
-    virtual char* data() noexcept = 0;
-    virtual size_t size() const noexcept = 0;
-    virtual uint64_t get_id() const noexcept = 0;
-    virtual ~MappedMemory() = default;
+    using util::IMemoryHints::hint_prefetch;
+    using util::IMutableBuffer::data;
+
+    ~MappedMemory() override = default;
+
+    virtual const std::byte* data() const noexcept override = 0;
+    virtual std::byte* data() noexcept override = 0;
+
+    virtual size_t size() const noexcept override = 0;
+    const util::MemoryProperties& get_properties() const noexcept final;
+
     virtual void hint_evict(size_t offset = 0, size_t size = auto_size) noexcept = 0;
+    void hint_evict() noexcept final;
+
     /**
      * @brief Hint that the given region of the mapping will be accessed soon.
      *
@@ -67,9 +77,10 @@ public:
      *               mapping when set to auto_size.
      */
     virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size) = 0;
+    void hint_prefetch() const final;
 
     /**
-     * @brief Asynchronous variant of @ref hint_prefetch: starts populating the given region in the
+     * @brief Asynchronous variant of @ref hint_prefetch: starts populating the region in the
      * background and returns immediately. Any background work is joined before this object is
      * destroyed.
      *
