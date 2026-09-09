@@ -60,9 +60,9 @@ struct grouped_matmul : public primitive_base<grouped_matmul> {
     }
 
     bool compressed_weights = false;
-    input_info decompression_scale = {};
-    input_info decompression_zero_point = {};
-    std::optional<float> decompression_zero_point_scalar = std::optional<float>();
+    input_info decompression_scale;
+    input_info decompression_zero_point;
+    std::optional<float> decompression_zero_point_scalar;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
@@ -75,8 +75,9 @@ struct grouped_matmul : public primitive_base<grouped_matmul> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         auto rhs_casted = downcast<const grouped_matmul>(rhs);
         return compressed_weights == rhs_casted.compressed_weights &&
                decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
@@ -118,10 +119,12 @@ protected:
     std::map<size_t, const input_info*> get_dependencies_map() const override {
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
-        if (decompression_scale.is_valid())
+        if (decompression_scale.is_valid()) {
             ret[idx++] = &decompression_scale;
-        if (decompression_zero_point.is_valid())
+        }
+        if (decompression_zero_point.is_valid()) {
             ret[idx++] = &decompression_zero_point;
+        }
         return ret;
     }
 };

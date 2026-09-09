@@ -26,8 +26,9 @@ struct GroupedMatmulImplementationManager : public ImplementationManager {
         OPENVINO_ASSERT(node.is_type<grouped_matmul>());
         const auto& config = node.get_program().get_config();
         const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn())
+        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
             return false;
+        }
 
         static const std::vector<format> supported_fmts = {
             format::bfyx,
@@ -54,30 +55,32 @@ struct GroupedMatmulImplementationManager : public ImplementationManager {
         const auto& out = node.get_output_layout(0);
 
         const auto* desc = node.as<grouped_matmul>().get_primitive().get();
-        const bool compressed = desc && desc->compressed_weights;
+        const bool compressed = (desc != nullptr) && desc->compressed_weights;
 
-        if (!one_of(in0.format, supported_fmts) || !one_of(in0.data_type, supported_activation_types))
+        if (!one_of(in0.format, supported_fmts) || !one_of(in0.data_type, supported_activation_types)) {
             return false;
-        if (!one_of(in1.format, supported_fmts))
+        }
+        if (!one_of(in1.format, supported_fmts)) {
             return false;
+        }
         if (compressed) {
-            if (!one_of(in1.data_type, supported_compressed_weight_types))
+            if (!one_of(in1.data_type, supported_compressed_weight_types)) {
                 return false;
+            }
         } else if (!one_of(in1.data_type, supported_activation_types)) {
             return false;
         }
-        if (!one_of(off.format, supported_fmts) || !one_of(off.data_type, supported_offset_types))
+        if (!one_of(off.format, supported_fmts) || !one_of(off.data_type, supported_offset_types)) {
             return false;
-        if (!one_of(out.format, supported_fmts) || !one_of(out.data_type, supported_activation_types))
+        }
+        if (!one_of(out.format, supported_fmts) || !one_of(out.data_type, supported_activation_types)) {
             return false;
+        }
 
         // oneDNN does not support mixed fp16 x bf16 configurations
-        if (!compressed &&
-            ((in0.data_type == data_types::f16 && in1.data_type == data_types::bf16) ||
-             (in0.data_type == data_types::bf16 && in1.data_type == data_types::f16)))
-            return false;
-
-        return true;
+        return compressed ||
+            ((in0.data_type != data_types::f16 || in1.data_type != data_types::bf16) &&
+             (in0.data_type != data_types::bf16 || in1.data_type != data_types::f16));
     }
 
     in_out_fmts_t query_formats(const program_node& node) const override {

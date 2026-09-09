@@ -68,8 +68,8 @@ struct PerfCounter {
     uint64_t realTime_uSec = 0;
     uint64_t cpu_uSec = 0;
     uint32_t num = 0;
-    std::string layerType = "";
-    std::string parentPrimitive = "";
+    std::string layerType;
+    std::string parentPrimitive;
 
     PerfCounter() = default;
 
@@ -186,8 +186,9 @@ void CreateElementwiseOp(ProgramBuilder& p,
 void validate_inputs_count(const std::shared_ptr<ov::Node>& op, std::vector<size_t> possible_inputs_count);
 
 inline bool ends_with(const std::string& value, const std::string& suffix) {
-    if (suffix.size() > value.size())
+    if (suffix.size() > value.size()) {
         return false;
+    }
     return std::equal(suffix.rbegin(), suffix.rend(), value.rbegin());
 }
 

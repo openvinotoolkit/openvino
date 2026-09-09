@@ -38,45 +38,45 @@ public:
     bool has_iou_threshold() const { return get_primitive()->iou_threshold.is_valid(); }
     program_node& iou_threshold_node() const {
         size_t offset = 2;
-        offset += has_num_select_per_class();
+        offset += static_cast<size_t>(has_num_select_per_class());
         return get_dependency(offset);
     }
 
     bool has_score_threshold() const { return get_primitive()->score_threshold.is_valid(); }
     program_node& score_threshold_node() const {
         size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
+        offset += static_cast<size_t>(has_num_select_per_class());
+        offset += static_cast<size_t>(has_iou_threshold());
         return get_dependency(offset);
     }
 
     bool has_soft_nms_sigma() const { return get_primitive()->soft_nms_sigma.is_valid(); }
     program_node& soft_nms_sigma_node() const {
         size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
+        offset += static_cast<size_t>(has_num_select_per_class());
+        offset += static_cast<size_t>(has_iou_threshold());
+        offset += static_cast<size_t>(has_score_threshold());
         return get_dependency(offset);
     }
 
     bool has_second_output() const { return get_primitive()->second_output.is_valid(); }
     program_node& second_output_node() const {
         size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
-        offset += has_soft_nms_sigma();
+        offset += static_cast<size_t>(has_num_select_per_class());
+        offset += static_cast<size_t>(has_iou_threshold());
+        offset += static_cast<size_t>(has_score_threshold());
+        offset += static_cast<size_t>(has_soft_nms_sigma());
         return get_dependency(offset);
     }
 
     bool has_third_output() const { return get_primitive()->third_output.is_valid(); }
     program_node& third_output_node() const {
         size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
-        offset += has_soft_nms_sigma();
-        offset += has_second_output();
+        offset += static_cast<size_t>(has_num_select_per_class());
+        offset += static_cast<size_t>(has_iou_threshold());
+        offset += static_cast<size_t>(has_score_threshold());
+        offset += static_cast<size_t>(has_soft_nms_sigma());
+        offset += static_cast<size_t>(has_second_output());
         return get_dependency(offset);
     }
     bool use_multiple_outputs() const { return get_primitive()->output_size() == 3; }
@@ -93,22 +93,22 @@ class typed_primitive_inst<non_max_suppression> : public typed_primitive_inst_ba
 
     size_t get_iou_threshold_offset() const {
         size_t offset = 2;
-        offset += has_num_select_per_class();
+        offset += static_cast<size_t>(has_num_select_per_class());
         return offset;
     }
 
     size_t get_score_threshold_offset() const {
         size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
+        offset += static_cast<size_t>(has_num_select_per_class());
+        offset += static_cast<size_t>(has_iou_threshold());
         return offset;
     }
 
     size_t get_soft_nms_sigma_offset() const {
         size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
+        offset += static_cast<size_t>(has_num_select_per_class());
+        offset += static_cast<size_t>(has_iou_threshold());
+        offset += static_cast<size_t>(has_score_threshold());
         return offset;
     }
 
@@ -165,21 +165,21 @@ public:
     bool has_second_output() const { return get_typed_desc<non_max_suppression>()->second_output.is_valid(); }
     memory::ptr second_output_mem() const {
         size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
-        offset += has_soft_nms_sigma();
+        offset += static_cast<size_t>(has_num_select_per_class());
+        offset += static_cast<size_t>(has_iou_threshold());
+        offset += static_cast<size_t>(has_score_threshold());
+        offset += static_cast<size_t>(has_soft_nms_sigma());
         return dep_memory_ptr(offset);
     }
 
     bool has_third_output() const { return get_typed_desc<non_max_suppression>()->third_output.is_valid(); }
     memory::ptr third_output_mem() const {
         size_t offset = 2;
-        offset += has_num_select_per_class();
-        offset += has_iou_threshold();
-        offset += has_score_threshold();
-        offset += has_soft_nms_sigma();
-        offset += has_second_output();
+        offset += static_cast<size_t>(has_num_select_per_class());
+        offset += static_cast<size_t>(has_iou_threshold());
+        offset += static_cast<size_t>(has_score_threshold());
+        offset += static_cast<size_t>(has_soft_nms_sigma());
+        offset += static_cast<size_t>(has_second_output());
         return dep_memory_ptr(offset);
     }
 };

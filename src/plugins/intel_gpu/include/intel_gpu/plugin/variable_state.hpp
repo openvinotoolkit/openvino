@@ -22,8 +22,7 @@ struct VariableStateInfo {
         : m_id(id),
           m_layout(layout),
           m_user_specified_type(user_specified_type),
-          transpose_required(false),
-          m_primitives() {}
+          transpose_required(false) {}
 
     std::string m_id;
     cldnn::layout m_layout;

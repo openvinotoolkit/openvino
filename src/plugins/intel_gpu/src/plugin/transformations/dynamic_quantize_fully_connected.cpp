@@ -25,7 +25,7 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                                             bool precomputed_reduction,
                                                             bool use_gs128_for_int8_per_token,
                                                             bool use_gs128_for_linear_attention)
-    : ov::pass::MatcherPass() {
+ {
     using namespace ov::pass::pattern;
     using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
 
@@ -125,8 +125,9 @@ DynamicQuantizeFullyConnected::DynamicQuantizeFullyConnected(uint64_t group_size
                                  dyn_quan->output(dyn_quan_output_idx++) : std::make_shared<ov::intel_gpu::op::Placeholder>();
 
         auto output_type = m_fc->get_output_type();
-        if (output_type.is_dynamic())
+        if (output_type.is_dynamic()) {
             output_type = m_fc->get_input_element_type(0);
+        }
 
         auto new_fc = std::make_shared<op::FullyConnectedCompressed>(dyn_quan->output(0),
                                                                      m_fc->input_value(1),

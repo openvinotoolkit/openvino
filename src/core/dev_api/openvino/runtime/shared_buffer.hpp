@@ -7,7 +7,7 @@
 #include <type_traits>
 
 #include "openvino/runtime/aligned_buffer.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {

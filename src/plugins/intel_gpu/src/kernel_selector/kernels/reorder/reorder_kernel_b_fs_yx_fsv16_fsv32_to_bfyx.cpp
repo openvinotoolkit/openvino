@@ -49,7 +49,7 @@ DeviceFeaturesKey ReorderKernel_b_fs_yx_fsv16_fsv32_to_bfyx::get_required_device
 }
 
 static inline std::string GetTiledOutputOrder(size_t size) {
-    std::string order_str = "";
+    std::string order_str;
     switch (size) {
     case 4:
         order_str = "b, f, y, x";

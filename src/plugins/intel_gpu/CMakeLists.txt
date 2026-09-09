@@ -138,12 +138,25 @@ ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}
               DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
-              VERSION_DEFINES_FOR src/plugin/plugin.cpp)
+              VERSION_DEFINES_FOR src/plugin/plugin.cpp
+              # ADD_CLANG_TIDY makes ov_add_plugin apply clang-tidy to this target.
+              # Libraries not created via ov_add_plugin call ov_apply_clang_tidy() directly.
+              ADD_CLANG_TIDY)
 
 target_compile_options(${TARGET_NAME} PRIVATE
     $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph openvino::pugixml)
+
+# Unloading a .so with SYCL code is unsafe in two ways:
+#  1. libsycl.so drops the kernel name index on unregister, so kernels provided
+#     by another loaded module go missing.
+#  2. libsycl.so's static destructor touches vtables (e.g., SYCLMemObjAllocatorHolder)
+#     emitted in the unloaded module at process exit (observed on an NVIDIA backend).
+# Mark the plugin NODELETE so it is never unloaded.
+if(OV_GPU_WITH_SYCL AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_options(${TARGET_NAME} PRIVATE "LINKER:-z,nodelete")
+endif()
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/)

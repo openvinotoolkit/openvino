@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -35,11 +34,15 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/dft.hpp"
 #include "openvino/op/idft.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#endif
+
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
 
@@ -581,11 +584,11 @@ std::vector<int32_t> DFT::getAxes() const {
 void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (hasDFT && dftKernel == nullptr) {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::avx512_core>>();
-        } else if (mayiuse(cpu::x64::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::avx2>>();
-        } else if (mayiuse(cpu::x64::sse41)) {
+        } else if (ov::with_cpu_x86_sse42()) {
             dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::sse41>>();
         } else {
             CPU_NODE_THROW("Can't create jit DFT kernel");
@@ -597,11 +600,11 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
     }
 
     if (hasFFT && fftKernel == nullptr) {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::avx512_core>>();
-        } else if (mayiuse(cpu::x64::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::avx2>>();
-        } else if (mayiuse(cpu::x64::sse41)) {
+        } else if (ov::with_cpu_x86_sse42()) {
             fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::sse41>>();
         } else {
             CPU_NODE_THROW("Can't create jit FFT kernel");
@@ -637,7 +640,7 @@ void DFT::createPrimitive() {
             }
         }
     }
-    if (mayiuse(cpu::x64::sse41)) {
+    if (ov::with_cpu_x86_sse42()) {
         createJITKernels(hasDFT, hasFFT);
     }
     Node::createPrimitive();

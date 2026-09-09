@@ -25,7 +25,7 @@ struct swiglu_impl : typed_primitive_impl_ocl<swiglu> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -65,7 +65,8 @@ namespace detail {
 attach_swiglu_impl::attach_swiglu_impl() {
     auto types = {
         data_types::f32,
-        data_types::f16
+        data_types::f16,
+        data_types::bf16
     };
 
     auto formats = {

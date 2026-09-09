@@ -15,8 +15,11 @@ namespace test {
 namespace npuw {
 
 ov::Output<ov::Node> SwiGLU::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
-    auto gate = make_linear(input, hidden_size, intermediate_size, name + ".gate_proj", precision, weight_fn);
-    auto up = make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, weight_fn);
+    WeightFn no_bias;
+    auto gate =
+        make_linear(input, hidden_size, intermediate_size, name + ".gate_proj", precision, weight_fn, no_bias, lora);
+    auto up =
+        make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, weight_fn, no_bias, lora);
 
     auto sigmoid = std::make_shared<ov::opset11::Sigmoid>(gate);
 
@@ -26,18 +29,21 @@ ov::Output<ov::Node> SwiGLU::operator()(const ov::Output<ov::Node>& input, const
     auto gate_up = std::make_shared<ov::opset11::Multiply>(silu, up);
     gate_up->set_friendly_name(name + "_gate_up");
 
-    auto down = make_linear(gate_up, intermediate_size, hidden_size, name + ".down_proj", precision, weight_fn);
+    auto down =
+        make_linear(gate_up, intermediate_size, hidden_size, name + ".down_proj", precision, weight_fn, no_bias, lora);
 
     return down;
 }
 
 ov::Output<ov::Node> GELU::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
-    auto up = make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, weight_fn, bias_fn);
+    auto up =
+        make_linear(input, hidden_size, intermediate_size, name + ".up_proj", precision, weight_fn, bias_fn, lora);
 
     auto gelu = std::make_shared<ov::opset11::Gelu>(up);
     gelu->set_friendly_name(name + "_gelu");
 
-    auto down = make_linear(gelu, intermediate_size, hidden_size, name + ".down_proj", precision, weight_fn, bias_fn);
+    auto down =
+        make_linear(gelu, intermediate_size, hidden_size, name + ".down_proj", precision, weight_fn, bias_fn, lora);
 
     return down;
 }

@@ -25,11 +25,11 @@ namespace cldnn {
 struct gemm : public primitive_base<gemm> {
     CLDNN_DECLARE_PRIMITIVE(gemm)
 
-    typedef enum {
+    enum TransposeType {
         X_LAST = 0,
         Y_LAST,
         OTHER,
-    } TransposeType;
+    };
 
     gemm() : primitive_base("", {}) {}
 
@@ -64,8 +64,9 @@ struct gemm : public primitive_base<gemm> {
         auto get_transposed_order = [] (size_t rank, bool transposed) {
             std::vector<int64_t> order(rank);
             std::iota(order.begin(), order.end(), 0);
-            if (transposed && rank > 1)
+            if (transposed && rank > 1) {
                 std::swap(order[rank - 1], order[rank - 2]);
+            }
             return order;
         };
 
@@ -158,7 +159,7 @@ struct gemm : public primitive_base<gemm> {
     size_t weight_rank = 4;
 
     /// @brief Beam table input for indirect access for one of the inputs
-    input_info beam_table = {};
+    input_info beam_table;
     bool indirect_a = false;
     bool indirect_b = false;
     int64_t indirect_axis = 0;
@@ -179,8 +180,9 @@ struct gemm : public primitive_base<gemm> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const gemm>(rhs);
 
@@ -236,8 +238,9 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (beam_table.is_valid())
+        if (beam_table.is_valid()) {
             ret[idx++] = &beam_table;
+        }
 
         return ret;
     }
@@ -249,13 +252,12 @@ private:
         if (rank == order_idx[rank]) {
             // normal
             return TransposeType::X_LAST;
-        } else if (rank == order_idx[rank - 1]) {
+        }
+        if (rank == order_idx[rank - 1]) {
             // the second last dim is moved to the last
             return TransposeType::Y_LAST;
-        } else {
-            // other
+        }  // other
             return TransposeType::OTHER;
-        }
     }
 };
 

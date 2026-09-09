@@ -191,14 +191,15 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
                             "Template plugin: Unsupported ROI tensor with element type having ",
                             std::to_string(tensor->get_element_type().bitwidth()),
                             " bits size");
-            ov::Shape shape = tensor->get_shape();
             // Perform manual extraction of ROI tensor
             // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
             // Performance of manual extraction is not optimal, but it is ok for template implementation
             m_backend_input_tensors[i] =
                 get_template_model()->get_template_plugin()->m_backend->create_tensor(tensor->get_element_type(),
                                                                                       tensor->get_shape());
-            tensor->copy_to(ov::get_tensor_impl(m_backend_input_tensors[i])._ptr);
+            auto backend_tensor_impl = ov::get_tensor_impl(m_backend_input_tensors[i]);
+            OPENVINO_ASSERT(backend_tensor_impl, "Failed to create backend tensor");
+            tensor->copy_to(backend_tensor_impl._ptr);
         }
     }
     // Tensors can be dynamic, so in this case we need to allocate tensors with right shape
@@ -255,7 +256,10 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
         const auto& result = get_template_model()->m_model->get_results()[i];
         const auto& host_tensor = m_backend_output_tensors[i];
         auto tensor = get_tensor(get_outputs()[i]);
-        if (result->get_output_partial_shape(0).is_dynamic()) {
+        // The outer tensor may have been allocated earlier from a still-dynamic shape, before this
+        // plugin's post-transform model resolved it to static - so is_dynamic() alone can wrongly
+        // skip the copy below. Also copy whenever the shapes don't already match.
+        if (result->get_output_partial_shape(0).is_dynamic() || tensor->get_shape() != host_tensor.get_shape()) {
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
             allocate_tensor(output, [&host_tensor](ov::SoPtr<ov::ITensor>& tensor) {
                 allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
@@ -291,7 +295,7 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
     info.emplace_back(fill_profiling_info("execution time", m_durations[StartPipeline]));
     auto template_model = get_template_model();
     for (const auto& op : template_model->get_runtime_model()->get_ops()) {
-        auto rt_info = op->get_rt_info();
+        const auto& rt_info = op->get_rt_info();
         const auto& it = rt_info.find(ov::runtime::interpreter::PERF_COUNTER_NAME);
         OPENVINO_ASSERT(it != rt_info.end(), "Operation ", op, " doesn't contain performance counter");
         auto counter = it->second.as<std::shared_ptr<ov::runtime::interpreter::PerfCounter>>();

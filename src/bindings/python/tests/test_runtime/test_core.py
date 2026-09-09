@@ -169,7 +169,8 @@ def test_read_model_from_tensor(request, tmp_path):
     serialize(relu_model, xml_path, bin_path)
     arr = np.ones(shape=(10), dtype=np.int8)
     arr.tofile(bin_path)
-    model = open(xml_path).read()
+    with open(xml_path) as f:
+        model = f.read()
     tensor = tensor_from_file(bin_path)
     model = core.read_model(model=model, weights=tensor)
     assert isinstance(model, Model)

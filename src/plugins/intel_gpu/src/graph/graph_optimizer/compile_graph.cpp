@@ -18,7 +18,7 @@ void compile_graph::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::CompileGraph");
     const auto& forcing_map = p.get_config().get_force_implementations();
 
-    for (auto& node : p.get_processing_order()) {
+    for (const auto& node : p.get_processing_order()) {
         node->set_unique_id();
         if (!node->is_type<data>()) {
             node->get_output_layout();
@@ -33,7 +33,7 @@ void compile_graph::run(program& p) {
     for (size_t idx = 0; idx < proc_order.size(); idx++) {
         const auto& node = *(std::next(proc_order.begin(), idx));
 
-        bool can_select_impl = !node->is_type<data>() && !(node->is_type<mutable_data>() && node->get_dependencies().empty());
+        bool can_select_impl = !node->is_type<data>() && (!node->is_type<mutable_data>() || !node->get_dependencies().empty());
 
         if (can_select_impl) {
             tasks.emplace_back([node, &forcing_map, &exception] {

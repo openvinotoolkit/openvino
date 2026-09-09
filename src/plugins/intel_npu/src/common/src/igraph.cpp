@@ -46,8 +46,16 @@ const NetworkMetadata& IGraph::get_metadata() const {
     OPENVINO_THROW("get_metadata not implemented");
 }
 
-ze_graph_handle_t IGraph::get_handle() const {
+void* IGraph::get_handle() const {
     OPENVINO_THROW("get_handle not implemented");
+}
+
+GraphKind IGraph::get_kind() const {
+    return GraphKind::Weightful;
+}
+
+BlobType IGraph::get_blob_type() const {
+    return BlobType::ELF;
 }
 
 void IGraph::update_network_name(std::string_view) {

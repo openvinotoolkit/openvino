@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -26,7 +26,7 @@
 
 namespace ov::intel_gpu {
 
-IncreaseRMSInputPrecision::IncreaseRMSInputPrecision() {}
+IncreaseRMSInputPrecision::IncreaseRMSInputPrecision() = default;
 
 bool IncreaseRMSInputPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
     using namespace ov::pass;
@@ -83,17 +83,21 @@ IncreasePrecisionForQwenVLMerger::IncreasePrecisionForQwenVLMerger() {
 
         size_t input_idx = 0;
         bool is_changed = insert_converts_before_if_needed(matmul, desired_et, input_idx);
-        if (!is_changed)
+        if (!is_changed) {
             return false;
+        }
         is_changed = insert_converts_before_if_needed(add_1, desired_et, input_idx);
-        if (!is_changed)
+        if (!is_changed) {
             return false;
+        }
         is_changed = insert_converts_before_if_needed(add_2, desired_et, input_idx, {1});
-        if (!is_changed)
+        if (!is_changed) {
             return false;
+        }
         is_changed = insert_converts_before_if_needed(rms, desired_et, input_idx, {0});
-        if (!is_changed)
+        if (!is_changed) {
             return false;
+        }
 
         size_t output_idx = 0;
         insert_converts_after_if_needed(rms, original_et, output_idx);

@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <algorithm>
 #include <cstdio>
 
 #include "common_test_utils/common_utils.hpp"
@@ -16,14 +17,17 @@
 #include "common_test_utils/subgraph_builders/ti_with_lstm_cell.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/codec_xor.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_params.hpp"
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
@@ -273,6 +277,105 @@ TEST_P(CheckWeightlessCacheAccuracy, TiWithLstmCell) {
 }
 
 class CheckWeightlessCacheAccuracyLowPrecision : public CheckWeightlessCacheAccuracy {};
+
+class CheckModelCacheOnednnConvAZP : public ::testing::Test {
+protected:
+    std::string cache_dir;
+
+    void SetUp() override {
+        cache_dir = ov::test::utils::generateTestFilePrefix() + "_cache_dir";
+    }
+
+    void TearDown() override {
+        ov::test::utils::removeFilesWithExt(cache_dir, "blob");
+        ov::test::utils::removeFilesWithExt(cache_dir, "cl_cache");
+        ov::test::utils::removeDir(cache_dir);
+    }
+
+    static std::shared_ptr<ov::Model> make_model() {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, ov::Shape{1, 2, 5, 4});
+        auto azp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1, 2, 1, 1}, {2, 5});
+        auto activations = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Subtract>>(
+            ov::element::TypeVector{ov::element::u8, ov::element::u8},
+            ov::element::TypeVector{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(input, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(azp_const, ov::element::f32).get());
+
+        const std::vector<uint8_t> weights = {1, 2, 1, 2, 1, 2, 9, 7, 1,
+                                              9, 0, 4, 1, 3, 2, 0, 2, 5,
+                                              1, 2, 1, 2, 1, 2, 9, 7, 1,
+                                              9, 0, 4, 1, 3, 2, 0, 2, 5,
+                                              1, 2, 1, 2, 1, 2, 9, 7, 1,
+                                              9, 0, 4, 1, 3, 2, 0, 2, 5};
+        auto weights_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{3, 2, 3, 3}, weights);
+        auto wzp_const = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{1}, {2});
+        auto quantized_weights = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Subtract>>(
+            ov::element::TypeVector{ov::element::u8, ov::element::u8},
+            ov::element::TypeVector{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(weights_const, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(wzp_const, ov::element::f32).get());
+
+        auto conv = std::make_shared<ov::op::TypeRelaxed<ov::op::v1::Convolution>>(
+            ov::element::TypeVector{ov::element::u8, ov::element::u8},
+            ov::element::TypeVector{ov::element::f32},
+            ov::op::TemporaryReplaceOutputType(activations, ov::element::f32).get(),
+            ov::op::TemporaryReplaceOutputType(quantized_weights, ov::element::f32).get(),
+            ov::Strides{2, 2},
+            ov::CoordinateDiff{0, 0},
+            ov::CoordinateDiff{1, 2},
+            ov::Strides{1, 1},
+            ov::op::PadType::EXPLICIT);
+        conv->set_friendly_name("conv");
+        auto result = std::make_shared<ov::op::v0::Result>(conv);
+        return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "OnednnConvAZP");
+    }
+
+    static ov::Tensor make_input_tensor() {
+        const std::vector<uint8_t> input_data = {1, 2, 3, 4, 5,
+                                                 2, 2, 3, 4, 6,
+                                                 3, 3, 3, 5, 1,
+                                                 1, 1, 1, 1, 1,
+                                                 1, 2, 3, 4, 5,
+                                                 2, 2, 3, 4, 6,
+                                                 3, 3, 3, 5, 1,
+                                                 1, 1, 1, 1, 1};
+        ov::Tensor tensor{ov::element::u8, ov::Shape{1, 2, 5, 4}};
+        std::copy(input_data.begin(), input_data.end(), tensor.data<uint8_t>());
+        return tensor;
+    }
+};
+
+TEST_F(CheckModelCacheOnednnConvAZP, ActivationZeroPointRestoredFromCache) {
+    ov::AnyMap config = {ov::cache_dir(cache_dir)};
+
+    auto core = ov::test::utils::PluginCache::get().core();
+    auto compiled_model = core->compile_model(make_model(), ov::test::utils::DEVICE_GPU, config);
+
+    auto blobs = ov::test::utils::listFilesWithExt(cache_dir, "blob");
+    ASSERT_EQ(blobs.size(), 1);
+
+    struct stat result;
+    ASSERT_EQ(stat(blobs[0].c_str(), &result), 0);
+    const auto first_mod_time = result.st_mtime;
+
+    auto imported_model = core->compile_model(make_model(), ov::test::utils::DEVICE_GPU, config);
+
+    blobs = ov::test::utils::listFilesWithExt(cache_dir, "blob");
+    ASSERT_EQ(blobs.size(), 1);
+    ASSERT_EQ(stat(blobs[0].c_str(), &result), 0);
+    ASSERT_EQ(first_mod_time, result.st_mtime);
+
+    auto input_tensor = make_input_tensor();
+    auto orig_req = compiled_model.create_infer_request();
+    auto new_req = imported_model.create_infer_request();
+    orig_req.set_input_tensor(input_tensor);
+    new_req.set_input_tensor(input_tensor);
+
+    orig_req.infer();
+    new_req.infer();
+
+    ov::test::utils::compare(orig_req.get_output_tensor(), new_req.get_output_tensor(), compiled_model.output().get_element_type());
+}
 
 TEST_P(CheckWeightlessCacheAccuracyLowPrecision, MatmulWeightsDecompression) {
     ov::test::MatMulDecompressionShapeParams shape_params{{{}, {{1, 4, 16}}}, {1, 16, 32}};

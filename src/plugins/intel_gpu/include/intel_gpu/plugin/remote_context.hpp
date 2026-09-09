@@ -18,6 +18,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 
 #include <string>
+#include <filesystem>
 #include <map>
 #include <memory>
 
@@ -85,6 +86,7 @@ private:
     std::shared_ptr<ov::IRemoteTensor> reuse_memory(const ov::element::Type type, const ov::Shape& shape, cldnn::shared_handle mem, TensorType tensor_type);
     std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_cpu_va(const ov::element::Type type, const ov::Shape& shape, VirtualAddressMemory cpu_va, TensorType tensor_type);
     std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_handle(const ov::element::Type type, const ov::Shape& shape, SharedBufferHandle handle, TensorType tensor_type);
+    std::shared_ptr<ov::IRemoteTensor> reuse_memory_from_file(const ov::element::Type type, const ov::Shape& shape, const std::filesystem::path& file_path, size_t offset, ov::intel_gpu::AccessMode access);
     std::shared_ptr<ov::IRemoteTensor> create_buffer(const ov::element::Type type, const ov::Shape& shape);
     std::shared_ptr<ov::IRemoteTensor> create_usm(const ov::element::Type type, const ov::Shape& shape, TensorType alloc_type);
     void check_if_shared() const;
@@ -98,9 +100,10 @@ private:
 
 
     ContextType m_type;
-    std::string m_device_name = "";
+    std::string m_device_name;
     static const size_t cache_capacity = 100;
-    cldnn::LruCache<size_t, cldnn::memory::ptr> m_memory_cache = cldnn::LruCache<size_t, cldnn::memory::ptr>(cache_capacity);
+    cldnn::LruCache<size_t, std::weak_ptr<cldnn::memory>> m_memory_cache =
+        cldnn::LruCache<size_t, std::weak_ptr<cldnn::memory>>(cache_capacity);
     std::mutex m_cache_mutex;
 
     bool m_is_initialized = false;

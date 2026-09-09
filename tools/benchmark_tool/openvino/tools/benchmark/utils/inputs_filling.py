@@ -351,12 +351,30 @@ def get_random_4bit_tensor(shape, element_type, rs):
     rr = np.packbits(rand_data)
     return Tensor(rr, shape, element_type)
 
+
+def float_to_bf16_bits(values: np.ndarray) -> np.ndarray:
+    """
+    Convert float values to bf16 bit patterns using round-to-nearest-even.
+    Mirrors ov::bfloat16::round_to_nearest_even.
+    """
+    f32 = np.ascontiguousarray(values, dtype=np.float32)
+    bits = f32.view(np.uint32)
+    rounding_bias = (bits & np.uint32(0x00010000)) >> np.uint32(1)
+    return ((bits + rounding_bias) >> np.uint32(16)).astype(np.uint16)
+
+
+def get_random_bf16_tensor(shape, rand_min, rand_max, rs):
+    floats = rs.uniform(rand_min, rand_max, list(shape))
+    bf16_bits = float_to_bf16_bits(floats)
+    return Tensor(bf16_bits, list(shape), Type.bf16)
+
+
 def fill_tensors_with_random(layer):
     is_4bit = layer.element_type.bitwidth == 4
+    is_bf16 = layer.element_type == Type.bf16
     dtype = np.uint8 if is_4bit else get_dtype(layer.element_type)
     rand_min, rand_max = (0, 1) if dtype == bool else (np.iinfo(np.uint8).min, np.iinfo(np.uint8).max)
-    # np.random.uniform excludes high: add 1 to have it generated
-    if np.dtype(dtype).kind in ['i', 'u', 'b']:
+    if not is_bf16 and np.dtype(dtype).kind in ['i', 'u', 'b']:
         rand_max += 1
     rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))
     input_tensors = []
@@ -364,11 +382,15 @@ def fill_tensors_with_random(layer):
         if shape:
             if is_4bit:
                 ov_tensor = get_random_4bit_tensor(shape, layer.element_type, rs)
+            elif is_bf16:
+                ov_tensor = get_random_bf16_tensor(shape, rand_min, rand_max, rs)
             else:
                 ov_tensor = Tensor(rs.uniform(rand_min, rand_max, list(shape)).astype(dtype))
         else:
             if is_4bit:
                 ov_tensor = get_random_4bit_tensor([1], layer.element_type, rs)
+            elif is_bf16:
+                ov_tensor = get_random_bf16_tensor([1], rand_min, rand_max, rs)
             else:
                 ov_tensor = Tensor(np.ndarray([], dtype, np.array(rs.uniform(rand_min, rand_max)).astype(dtype)))
         input_tensors.append(ov_tensor)

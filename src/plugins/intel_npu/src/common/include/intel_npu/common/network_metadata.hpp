@@ -147,6 +147,12 @@ struct NetworkMetadata final {
     size_t numStreams = 1;
 
     /**
+     * @brief The number of subgraphs the compiled network is split into.
+     * @note The value is 1 for static graphs; dynamic graphs may be split into multiple subgraphs.
+     */
+    uint64_t numberOfSubgraphs = 1;
+
+    /**
      * @brief Binds the (state input, state output) and (dynamic tensor, shape tensor) pairs using the
      * "relatedDescriptorIndex" attribute.
      * @details For state inputs, the "relatedDescriptorIndex" value is set to the index of the output which bears the

@@ -19,6 +19,7 @@
 
 #include <vector>
 #include <utility>
+#include <mutex>
 
 #include <oneapi/dnnl/dnnl.hpp>
 
@@ -109,6 +110,10 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 _attrs->get_fpmath_mode(_fmath_mode, _apply_to_int);
                 ob << make_data(&_fmath_mode, sizeof(dnnl::fpmath_mode));
                 ob << _apply_to_int;
+            }
+            {
+                dnnl::accumulation_mode _acc_mode = _attrs->get_accumulation_mode();
+                ob << make_data(&_acc_mode, sizeof(dnnl::accumulation_mode));
             }
             {
                 const dnnl::post_ops _post_ops = _attrs->get_post_ops();
@@ -215,6 +220,11 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                 _attrs->set_fpmath_mode(_fmath_mode, _apply_to_int);
             }
             {
+                dnnl::accumulation_mode _acc_mode = dnnl::accumulation_mode::strict;
+                ib >> make_data(&_acc_mode, sizeof(dnnl::accumulation_mode));
+                _attrs->set_accumulation_mode(_acc_mode);
+            }
+            {
                 const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
                 const std::vector<cldnn::fused_primitive_desc_onednn>& fused_desc = impl_params->fused_desc_onednn;
                 dnnl::post_ops _post_ops;
@@ -264,7 +274,7 @@ struct typed_primitive_onednn_impl : public typed_primitive_impl<PType> {
                         dnnl::algorithm aalgorithm = dnnl::algorithm::undef;
                         ib >> make_data(&aalgorithm, sizeof(dnnl::algorithm));
 
-                        if (fused_desc.at(idx).dims.size() > 0) {
+                        if (!fused_desc.at(idx).dims.empty()) {
                             _post_ops.append_binary(aalgorithm,
                                 dnnl::memory::desc(fused_desc.at(idx).dims, fused_desc.at(idx).dt, fused_desc.at(idx).tag));
                         } else {
@@ -514,8 +524,9 @@ protected:
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override { }
 
     void set_arguments_impl(typed_primitive_inst<PType>& instance) override {
-        if (instance.can_be_optimized())
+        if (instance.can_be_optimized()) {
             return;
+        }
         uint32_t net_id = instance.get_network().get_id();
         _args[net_id] = get_arguments(instance);
     }
@@ -530,6 +541,9 @@ protected:
 
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
                             typed_primitive_inst<PType>& instance) override {
+#ifdef OV_GPU_WITH_ZE_RT
+        static std::mutex execute_mutex;
+#endif
         auto& network = instance.get_network();
         auto& stream = network.get_stream();
         auto net_id = network.get_id();
@@ -545,6 +559,11 @@ protected:
 
         if (!instance.can_be_optimized()) {
             try {
+#ifdef OV_GPU_WITH_ZE_RT
+                // Prevent race condition issue for Level Zero runtime
+                // To be removed once MFDNN-15356 is resolved
+                std::lock_guard<std::mutex> lock(execute_mutex);
+#endif
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
                 OPENVINO_THROW(err.what());
@@ -567,8 +586,9 @@ protected:
                 // If oneDNN primitive is the output primitive or it's user is CPU implementation, then enqueue marker
                 // with empty events wait list (which will trigger wait for all previously enqueued tasks) and
                 // return it as oneDNN primitive's event as it is a single option for proper synchronization
-                if (instance.needs_completion_event())
+                if (instance.needs_completion_event()) {
                     event = stream.enqueue_marker({});
+                }
             }
         }
 
@@ -576,8 +596,9 @@ protected:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
-        if (_scratchpad_md.get_size() == 0)
+        if (_scratchpad_md.get_size() == 0) {
             return {};
+        }
         return {BufferDescriptor(_scratchpad_md.get_size(), cldnn::data_types::u8)};
     }
 };

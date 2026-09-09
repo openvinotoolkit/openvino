@@ -5,7 +5,6 @@
 #include <cfloat>
 #include <cmath>
 #include <cpu/platform.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -42,6 +41,8 @@
 #include "utils/plain_tensor.hpp"
 #include "xattention.hpp"
 #if defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
 #elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
 #    include "arm_sve.h"
@@ -1970,7 +1971,7 @@ struct MHA {
                         score_output,
                         q_start_idx_score,
                         score_info_ptr,
-                        PlainTensor(),
+                        sinks,
                         0,
                         {},
                         static_cast<size_t>(batch_in_token),
@@ -2803,8 +2804,7 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
                                                          const CpuParallelPtr& cpu_parallel) {
     std::shared_ptr<PagedAttentionExecutor> executor;
     if (params.is_sage_attn) {
-        bool s8s8_available = (ov::with_cpu_x86_avx512_core_amx_int8() ||
-                               dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::cpu_isa_t::avx2_vnni_2));
+        bool s8s8_available = (ov::with_cpu_x86_avx512_core_amx_int8() || ov::with_cpu_x86_avx2_vnni_2());
         OPENVINO_ASSERT(s8s8_available, "make_pa_executor: sage_attn needs amx_int8/vnni2 to support");
     }
 #if defined(OPENVINO_ARCH_X86_64)
@@ -2951,8 +2951,12 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
         if (key_cache_type == ov::element::u8 && value_cache_type == ov::element::u8) {
             executor =
                 std::make_shared<AttentionExecutor<float, ov::element::u8, ov::element::u8>>(params, cpu_parallel);
+        } else if (key_cache_type == ov::element::f32 && value_cache_type == ov::element::f32) {
+            executor =
+                std::make_shared<AttentionExecutor<float, ov::element::f32, ov::element::f32>>(params, cpu_parallel);
         } else {
-            OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
+            OPENVINO_THROW(
+                "make_pa_executor: key_cache_type and value_cache_type of either f32 or u8 is only supported");
         }
     }
     if (data_type == ov::element::f16) {
@@ -2960,7 +2964,8 @@ std::shared_ptr<PagedAttentionExecutor> make_pa_executor(ov::element::Type data_
             executor = std::make_shared<AttentionExecutor<ov::float16, ov::element::u8, ov::element::u8>>(params,
                                                                                                           cpu_parallel);
         } else {
-            OPENVINO_THROW("make_pa_executor: key_cache_type and value_cache_type of u8 is only support");
+            OPENVINO_THROW(
+                "make_pa_executor: key_cache_type and value_cache_type of u8 is only supported for f16 datatype");
         }
     }
 

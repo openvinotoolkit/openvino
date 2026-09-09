@@ -29,6 +29,12 @@ file(GLOB LIBRARY_SOURCES_SYCL
     "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.cpp"
 )
 
+file(GLOB LIBRARY_SOURCES_SYCL_INTEL
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/intel/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/intel/*.cpp"
+)
+list(APPEND LIBRARY_SOURCES_SYCL ${LIBRARY_SOURCES_SYCL_INTEL})
+
 file(GLOB_RECURSE OCL_SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.[ch]pp")
 
 if(NOT OV_GPU_WITH_SYCL)
@@ -78,6 +84,11 @@ if(OV_GPU_WITH_SYCL)
     target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
 endif()
 
+if(GPU_RT_TYPE STREQUAL "SYCL")
+    find_path(OCLOC_API_INCLUDE_DIR NAMES ocloc_api.h REQUIRED)
+    target_include_directories(${TARGET_NAME} PRIVATE ${OCLOC_API_INCLUDE_DIR})
+endif()
+
 if(ENABLE_ONEDNN_FOR_GPU)
   ov_target_link_libraries_as_system(${TARGET_NAME} PUBLIC onednn_gpu_tgt)
 endif()
@@ -101,5 +112,9 @@ elseif((NOT ANDROID) AND (UNIX))
 endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+# Static library built via ov_add_target, so apply clang-tidy directly
+# (the ADD_CLANG_TIDY option only exists for plugins created via ov_add_plugin).
+ov_apply_clang_tidy(TARGET ${TARGET_NAME})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

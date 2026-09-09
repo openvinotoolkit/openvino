@@ -6,10 +6,10 @@
 #include "primitive.hpp"
 
 namespace cldnn {
-typedef enum { /*:int32_t*/
+enum lrn_norm_region { /*:int32_t*/
     lrn_norm_region_across_channel,
     lrn_norm_region_within_channel
-} lrn_norm_region;
+};
 
 /// @brief Local response normalization
 /// @details LRN layer as described in chapter 3.3 of "ImageNet Classification with Deep Convolutional
@@ -71,8 +71,9 @@ struct lrn : public primitive_base<lrn> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const lrn>(rhs);
 

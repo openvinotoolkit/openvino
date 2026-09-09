@@ -113,7 +113,7 @@ protected:
     public:
     static std::unique_ptr<primitive_impl> create(const gated_mlp_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
         auto prim = impl_params.typed_desc<gated_mlp>();
 

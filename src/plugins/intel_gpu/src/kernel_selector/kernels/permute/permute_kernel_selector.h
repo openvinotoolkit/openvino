@@ -16,7 +16,7 @@ public:
 
     permute_kernel_selector();
 
-    virtual ~permute_kernel_selector() {}
+    ~permute_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

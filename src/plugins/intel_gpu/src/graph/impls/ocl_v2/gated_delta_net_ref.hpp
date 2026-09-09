@@ -39,10 +39,7 @@ struct GatedDeltaNetRef : public ImplementationManager {
         }
 
         const auto& out_layout = node.get_output_layout(0);
-        if (!one_of(out_layout.format, supported_fmts) || !one_of(out_layout.data_type, supported_types)) {
-            return false;
-        }
-        return true;
+        return one_of(out_layout.format, supported_fmts) && one_of(out_layout.data_type, supported_types);
     }
 };
 

@@ -9,6 +9,8 @@
 
 #pragma once
 
+#include <assert.h>
+
 #include <atomic>
 #include <condition_variable>
 #include <memory>
@@ -17,17 +19,15 @@
 #include <set>
 #include <thread>
 #include <vector>
-#include <assert.h>
 
 #include "openvino/runtime/common.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "openvino/runtime/threading/itask_executor.hpp"
 
-
 namespace ov {
 
 namespace threading {
-enum MsgType {CALL_BACK};
+enum MsgType { CALL_BACK };
 
 struct MessageInfo {
     MsgType msg_type;
@@ -46,6 +46,7 @@ public:
     void set_num_sub_streams(int num_sub_streams);
 
     int get_num_sub_streams();
+
 private:
     int _num_sub_streams = 0;
     std::vector<MessageInfo> _messageQueue;

@@ -33,14 +33,15 @@ struct primitive_info;
 /// @brief Describes information of inputs.
 /// @details Contains infomation about id and output index of input primitive.
 struct input_info {
-    input_info() : pid(""), idx(0) {}
+    input_info() : idx(0) {}
     input_info(primitive_id pid) : pid(std::move(pid)), idx(0) {}
     input_info(primitive_id pid, int idx) : pid(std::move(pid)), idx(idx) {}
 
     /// @brief Copy assignment.
     input_info& operator=(const input_info& other) {
-        if (this == &other)
+        if (this == &other) {
             return *this;
+        }
         pid = other.pid;
         idx = other.idx;
         return *this;
@@ -57,11 +58,11 @@ struct input_info {
         bool operator() (const input_info a, const input_info b) {
             if (a.pid < b.pid) {
                 return true;
-            } else if (a.pid == b.pid) {
-                return a.idx < b.idx;
-            } else {
-                return false;
             }
+            if (a.pid == b.pid) {
+                return a.idx < b.idx;
+            }
+            return false;
         }
     };
 
@@ -145,8 +146,9 @@ public:
         auto result = input;
 
         auto dependencies_map = get_dependencies_map();
-        for (const auto& dep : dependencies_map)
+        for (const auto& dep : dependencies_map) {
             result.push_back(*dep.second);
+        }
 
         return result;
     }
@@ -171,30 +173,37 @@ public:
     }
 
     bool compare_common_params(const primitive& rhs) const {
-        if (type != rhs.type)
+        if (type != rhs.type) {
             return false;
+        }
 
-        if (num_outputs != rhs.num_outputs)
+        if (num_outputs != rhs.num_outputs) {
             return false;
+        }
 
-        if (dependencies().size() != rhs.dependencies().size())
+        if (dependencies().size() != rhs.dependencies().size()) {
             return false;
+        }
 
-        if (output_data_types.size() != rhs.output_data_types.size())
+        if (output_data_types.size() != rhs.output_data_types.size()) {
             return false;
+        }
 
         for (size_t i = 0; i < output_data_types.size(); ++i) {
             if (output_data_types[i].value_or(data_types::dynamic) !=
-                rhs.output_data_types[i].value_or(data_types::dynamic))
+                rhs.output_data_types[i].value_or(data_types::dynamic)) {
                 return false;
+            }
         }
 
-        if (output_paddings.size() != rhs.output_paddings.size())
+        if (output_paddings.size() != rhs.output_paddings.size()) {
             return false;
+        }
 
         for (size_t i = 0; i < output_paddings.size(); ++i) {
-            if (output_paddings[i] != rhs.output_paddings[i])
+            if (output_paddings[i] != rhs.output_paddings[i]) {
                 return false;
+            }
         }
 
         return true;
@@ -218,6 +227,9 @@ public:
 
     /// @brief Type name of original ov operation.
     std::string origin_op_type_name;
+
+    /// @brief Set via "gpu_shape_of_subgraph_root" rt_info; protected from fusion like shape_of.
+    bool is_shape_of_subgraph_root = false;
 
     /// @brief Requested output padding.
     std::vector<padding> output_paddings;
@@ -248,7 +260,7 @@ public:
         ob << origin_op_type_name;
         ob << output_paddings;
         ob << output_data_types.size();
-        for (auto& output_data_type : output_data_types) {
+        for (const auto& output_data_type : output_data_types) {
             if (output_data_type.has_value()) {
                 ob << true;
                 ob << make_data(&output_data_type.value(), sizeof(data_types));
@@ -258,6 +270,7 @@ public:
         }
         ob << input;
         ob << num_outputs;
+        ob << is_shape_of_subgraph_root;
     }
 
     virtual void load(BinaryInputBuffer& ib) {
@@ -284,28 +297,28 @@ public:
         }
         ib >> input;
         ib >> num_outputs;
+        ib >> is_shape_of_subgraph_root;
     }
 
     virtual padding get_output_padding(size_t idx) const {
         if (idx < output_paddings.size()) {
             return output_paddings[idx];
-        } else {
-            return padding();
         }
+        return padding();
     }
 
     virtual optional_data_type get_output_data_type(size_t idx) const {
         if (idx < output_data_types.size()) {
             return output_data_types[idx];
-        } else {
-            return optional_data_type();
         }
+        return optional_data_type();
     }
 
     /// @brief Returns mutable reference to input dependency at given index.
     input_info& get_dependency(size_t idx) {
-        if (idx < input.size())
+        if (idx < input.size()) {
             return input[idx];
+        }
 
         auto dependencies_map = get_dependencies_map();
         OPENVINO_ASSERT(dependencies_map.count(idx) > 0,
@@ -326,8 +339,9 @@ public:
 
     /// @brief Returns const reference to input dependency at given index.
     const input_info& get_dependency(size_t idx) const {
-        if (idx < input.size())
+        if (idx < input.size()) {
             return input[idx];
+        }
 
         auto dependencies_map = get_dependencies_map();
         OPENVINO_ASSERT(dependencies_map.count(idx) > 0,

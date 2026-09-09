@@ -24,8 +24,9 @@ JitConstants EmbeddingBagKernelRef::GetJitConstants(const embedding_bag_params& 
     default:
         break;
     }
-    if (params.default_index > -1)
+    if (params.default_index > -1) {
         jit.AddConstant(MakeJitConstant("DEFAULT_INDEX", params.default_index));
+    }
 
     return jit;
 }
@@ -107,17 +108,17 @@ bool EmbeddingBagKernelRef::Validate(const Params& p) const {
     const embedding_bag_params& params = static_cast<const embedding_bag_params&>(p);
 
     auto checkIntType = [](Datatype dt) {
-        if (dt != Datatype::INT32 && dt != Datatype::UINT32)
-            return false;
-        return true;
+        return dt == Datatype::INT32 || dt == Datatype::UINT32;
     };
 
-    if (!checkIntType(params.inputs[1].GetDType()))
+    if (!checkIntType(params.inputs[1].GetDType())) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     if (params.type == EmbeddingBagType::OFFSETS_SUM || params.type == EmbeddingBagType::SEGMENTS_SUM) {
-        if (!checkIntType(params.inputs[2].GetDType()))
+        if (!checkIntType(params.inputs[2].GetDType())) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;

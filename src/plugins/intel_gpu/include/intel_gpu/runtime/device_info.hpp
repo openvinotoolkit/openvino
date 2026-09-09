@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <optional>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -112,7 +113,6 @@ struct device_info {
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
     bool supports_intel_planar_yuv;             ///< Does engine support cl_intel_planar_yuv extension.
     bool supports_work_group_collective_functions; ///< Does engine support CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT.
-    bool supports_non_uniform_work_group;       ///< Does engine support non-uniform work-group sizes.
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
@@ -144,8 +144,8 @@ struct device_info {
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
     uint32_t num_ccs;                           ///< Number of compute command streamers
     uint32_t sub_device_idx;                    ///< Index of sub-device
-    int32_t cacheline_size;
-
+    std::optional<uint32_t> cacheline_size;     ///< Cache line size in bytes
+    std::optional<uint32_t> sub_buffer_base_alignment;  ///< Alignment requirement (in bytes) for sub-buffer offsets
     pci_bus_info pci_info;                      ///< PCI bus information for the device
 
     uint64_t timer_resolution;                  ///< [ZE] Resolution of device timer used for profiling in cycles/sec
@@ -160,32 +160,35 @@ struct device_info {
         // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
         // where the UUID may be missing or incorrectly generated
         // Therefore, we also validate other attributes
-        if (uuid.uuid != other.uuid.uuid)
+        if (uuid.uuid != other.uuid.uuid) {
             return false;
+        }
 
-        if (pci_info != other.pci_info)
+        if (pci_info != other.pci_info) {
             return false;
+        }
 
-        if (sub_device_idx != other.sub_device_idx)
+        if (sub_device_idx != other.sub_device_idx) {
             return false;
+        }
 
         if (vendor_id != other.vendor_id ||
             dev_name != other.dev_name ||
-            driver_version != other.driver_version)
+            driver_version != other.driver_version) {
             return false;
+        }
 
         if (dev_type != other.dev_type ||
             gfx_ver != other.gfx_ver ||
-            arch != other.arch)
+            arch != other.arch) {
             return false;
+        }
 
-        if (ip_version != other.ip_version || device_id != other.device_id)
+        if (ip_version != other.ip_version || device_id != other.device_id) {
             return false;
+        }
 
-        if (execution_units_count != other.execution_units_count || max_global_mem_size != other.max_global_mem_size)
-            return false;
-
-        return true;
+        return execution_units_count == other.execution_units_count && max_global_mem_size == other.max_global_mem_size;
     }
 };
 

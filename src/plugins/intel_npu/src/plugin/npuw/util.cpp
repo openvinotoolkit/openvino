@@ -19,10 +19,13 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
@@ -948,6 +951,11 @@ bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
     return ov::npuw::util::starts_with(input_name, past_lin_conv_cache) ||
            ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
 }
+
+bool ov::npuw::util::is_pa_kv_cache_name(const std::string& input_name) {
+    return ov::npuw::util::starts_with(input_name, "key_cache.") ||
+           ov::npuw::util::starts_with(input_name, "value_cache.");
+}
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
     const size_t byte_size = tensor->get_byte_size();
@@ -1068,7 +1076,8 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
 
             // Allow traversing through Reshape and Transpose
             if (ov::is_type<ov::op::v1::Reshape>(current_node) || ov::is_type<ov::op::v3::Broadcast>(current_node) ||
-                ov::is_type<ov::op::v0::Unsqueeze>(current_node)) {
+                ov::is_type<ov::op::v0::Unsqueeze>(current_node) || ov::is_type<ov::op::v1::Transpose>(current_node) ||
+                ov::is_type<ov::op::v1::Multiply>(current_node) || ov::is_type<ov::op::v0::Convert>(current_node)) {
                 if (current_node->get_input_size() > 0) {
                     current_node = current_node->input(0).get_source_output().get_node_shared_ptr();
                 } else {

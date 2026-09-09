@@ -81,12 +81,14 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention::Par
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguous& var) {
-    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos;
+    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
+        var.global_mask_idx & var._data_left_aligned;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlock& var) {
     stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
-        var.past_key_block_global_param_indices & var.past_value_block_global_param_indices;
+        var.past_key_block_global_param_indices & var.past_value_block_global_param_indices & var.global_mask_idx &
+        var._data_left_aligned;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var) {
@@ -108,12 +110,18 @@ std::shared_ptr<ov::npuw::compiled::PyramidAttention> ov::npuw::orc::make_pyrami
         NPUW_ASSERT(tag == 1u && "Unknown PyramidAttention serialization tag");
         auto obj = std::make_shared<ov::npuw::compiled::PyramidAttentionBlock>();
         serialize(stream, *obj);
+        // Rebuild the O(1) membership sets — not serialized directly, derived from the
+        // (serialized) ordered global block index vectors.
+        obj->_key_block_global_set = std::unordered_set<size_t>(obj->past_key_block_global_param_indices.begin(),
+                                                                obj->past_key_block_global_param_indices.end());
+        obj->_value_block_global_set = std::unordered_set<size_t>(obj->past_value_block_global_param_indices.begin(),
+                                                                  obj->past_value_block_global_param_indices.end());
         return obj;
     }
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo& var) {
-    stream & var.params & var.mask_idx & var.query_size & var.context_length;
+    stream & var.params & var.mask_idx_local & var.query_size & var.context_length;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo::Param& var) {
@@ -121,8 +129,8 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttenti
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var) {
-    stream & var.mask_idx & var.query_size & var.context_length & var.past_key_block_port_map &
-        var.past_value_block_port_map & var.past_key_block_port_set & var.past_value_block_port_set;
+    stream & var.mask_idx_local & var.query_size & var.context_length & var.param_port_map &
+        var.past_key_block_port_set & var.past_value_block_port_set;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
@@ -134,6 +142,20 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtten
         info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &
         info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d & var._tile_size &
         var._can_use_tensor_view;
+    if (stream.input()) {
+        // Port indices are model-specific but must fit in a sane range; SIZE_MAX indicates a corrupted blob.
+        constexpr std::size_t kMaxPortIndex = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());
+        OPENVINO_ASSERT(
+            info._tile_input_indices.q <= kMaxPortIndex && info._tile_input_indices.k <= kMaxPortIndex &&
+                info._tile_input_indices.v <= kMaxPortIndex && info._tile_input_indices.mask <= kMaxPortIndex &&
+                info._tile_input_indices.acc <= kMaxPortIndex && info._tile_input_indices.max <= kMaxPortIndex &&
+                info._tile_input_indices.d <= kMaxPortIndex,
+            "HFA tile input index out of range in deserialized blob");
+        OPENVINO_ASSERT(info._tile_output_indices.acc <= kMaxPortIndex &&
+                            info._tile_output_indices.max <= kMaxPortIndex &&
+                            info._tile_output_indices.d <= kMaxPortIndex,
+                        "HFA tile output index out of range in deserialized blob");
+    }
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var) {
@@ -361,7 +383,12 @@ void ov::npuw::orc::serialize_weightless(Stream& stream,
             serialize(stream, offset);
             ov::Tensor t(type, shape);
 
+            OPENVINO_ASSERT(byte_size == t.get_byte_size(), "[NPU] ORC weight byte_size does not match tensor shape");
+
             if (ctx.weights) {
+                const auto wsz = ctx.weights->size();
+                OPENVINO_ASSERT(offset <= wsz && byte_size <= wsz - offset,
+                                "[NPU] ORC weight offset/size out of range");
                 if (ctx.bf16_consts.find({offset, byte_size}) != ctx.bf16_consts.end()) {
                     NPUW_ASSERT(type == ov::element::f16);
                     // Read original bf16 weight

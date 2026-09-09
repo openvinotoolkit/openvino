@@ -18,8 +18,9 @@ layout quantize_inst::calc_output_layout(quantize_node const& node, kernel_impl_
     auto input_layout = impl_param.get_input_layout();
     auto output_format = input_layout.format;
     auto out_dt = input_layout.data_type;
-    if (desc->output_data_types[0])
+    if (desc->output_data_types[0]) {
         out_dt = *desc->output_data_types[0];
+    }
 
     return layout{out_dt, output_format, input_layout.get_tensor()};
 }
@@ -32,7 +33,7 @@ std::string quantize_inst::to_string(quantize_node const& node) {
     auto& input_high = node.input(2);
     auto& output_low = node.input(3);
     auto& output_high = node.input(4);
-    auto scale_shift_opt = node.get_scale_shift_opt() ? "true" : "false";
+    const auto* scale_shift_opt = node.get_scale_shift_opt() ? "true" : "false";
 
     std::stringstream primitive_description;
 

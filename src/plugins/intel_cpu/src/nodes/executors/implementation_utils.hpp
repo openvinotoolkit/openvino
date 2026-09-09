@@ -195,7 +195,7 @@ std::optional<executor::Config<Attrs>> createOptimalConfigCommon(const executor:
                 return true;
             }
 
-            const int i = notation.at(argId);
+            const size_t i = notation.at(argId);
             const auto type = typeConfig.at(argId);
 
             if (desc->empty()) {

@@ -39,6 +39,13 @@ protected:
             : ((timestamp_max_value - timestamp.kernelStart) + timestamp.kernelEnd + 1) * timestamp_freq;
         return std::chrono::nanoseconds(static_cast<uint64_t>(d));
     }
+
+    // Converts a single hardware timestamp tick to nanoseconds (absolute device time).
+    static std::chrono::nanoseconds tick_to_nanoseconds(const device_info& info, uint64_t tick) {
+        constexpr double NS_IN_SEC = 1000000000.0;
+        const double timestamp_freq = NS_IN_SEC / info.timer_resolution;
+        return std::chrono::nanoseconds(static_cast<uint64_t>(tick * timestamp_freq));
+    }
 };
 
 }  // namespace ze

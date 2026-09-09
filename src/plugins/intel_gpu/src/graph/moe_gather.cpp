@@ -34,10 +34,9 @@ std::vector<layout> moe_gather_inst::calc_output_layouts(const moe_gather_node& 
     if (desc->has_batch_dim) {
         const auto& out_shape = ov::PartialShape{ov::Dimension(1), ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(hidden_size)};
         return {layout{out_shape, in_layout.data_type, in_layout.format}};
-    } else {
-        const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(1), ov::Dimension(hidden_size)};
-        return {layout{out_shape, in_layout.data_type, in_layout.format}};
     }
+    const auto& out_shape = ov::PartialShape{ov::Dimension(num_tokens * num_experts_per_token), ov::Dimension(1), ov::Dimension(hidden_size)};
+    return {layout{out_shape, in_layout.data_type, in_layout.format}};
 }
 
 template std::vector<layout> moe_gather_inst::calc_output_layouts<ov::PartialShape>(moe_gather_node const& node, const kernel_impl_params& impl_param);
@@ -49,8 +48,9 @@ std::string moe_gather_inst::to_string(moe_gather_node const& node) {
     std::stringstream primitive_description;
 
     json_composite moe_gather_info;
-    if (desc->output_data_types[0].has_value())
+    if (desc->output_data_types[0].has_value()) {
         moe_gather_info.add("out dt: ", dt_to_str(*desc->output_data_types[0]));
+    }
     node_info->add("moe_gather info", moe_gather_info);
     node_info->dump(primitive_description);
 
