@@ -56,6 +56,8 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_f16::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     // Enable dynamic-batch models (e.g. FlashOCC image_encoder with batch=-1).
+    // Non-batch dynamic dimensions are rejected in Validate(): only batch is
+    // shape-agnostic for this kernel.
     k.EnableDynamicShapesSupport();
     return k;
 }
@@ -112,6 +114,14 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p) const {
 
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
+
+    // Only the batch axis may be dynamic. X/Y/feature values are baked into JIT
+    // constants (X_BLOCKS, INPUT_LINE_SIZE, INPUT_BLOCK_SIZE and the line_cache
+    // private array) and are not re-JITed at runtime, so unknown spatial or
+    // feature dimensions would compile an invalid kernel.
+    if (input.X().is_dynamic || input.Y().is_dynamic || input.Feature().is_dynamic) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Up to 4 input features allowed
     if (input.Feature().v > 4) {
