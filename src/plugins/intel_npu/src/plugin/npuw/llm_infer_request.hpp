@@ -15,6 +15,7 @@
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
 #include "llm_stored_tokens_state.hpp"
+#include "llm_swa_cache.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "perf.hpp"
 
@@ -60,6 +61,12 @@ protected:
     // that a variant switch requires no explicit lincache migration. Called once after
     // m_kvcache_strategy->on_initialize() and is strategy-independent.
     void share_lincache_across_generate_variants();
+
+    // Classifies each generate model input into m_kvcache_past_names / m_lincache_past_names /
+    // m_swa_past_names.
+    void init_past_name_lists();
+    // Zeroes the prefill model's inputs named in `past_names` on a new conversation.
+    void zero_prefill_past_tensors(const std::vector<std::string>& past_names);
     // Select appropriate generate request variant based on prompt length
     // Internally calculates expected total tokens (prompt + min_response_len) to ensure
     // sufficient capacity for both input prompt and minimum response generation
@@ -164,6 +171,7 @@ protected:
 
     std::vector<std::string> m_kvcache_past_names;
     std::vector<std::string> m_lincache_past_names;
+    std::vector<std::string> m_swa_past_names;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
@@ -208,6 +216,9 @@ protected:
     // Support prefix caching
     std::vector<std::unique_ptr<PrefixCachingHelper>> m_prefix_caching_helpers;
 
+    // Support Sliding Window Attention
+    std::unique_ptr<SwaKVCacheHelper> m_swa_cache;
+
     // LLM-level profiling for 1st token generation analysis
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
     ov::npuw::perf::Profile<MS> m_llm_profile;
@@ -215,10 +226,12 @@ protected:
     // KV cache management strategy (set once in the constructor, valid for the object's lifetime)
     std::unique_ptr<LLMKVCacheStrategy> m_kvcache_strategy;
 
-    // Friend declarations: strategies and PrefixCachingHelper need access to protected members
+    // Friend declarations: strategies, PrefixCachingHelper and SwaKVCacheHelper need access to
+    // protected members
     friend class LLMContinuousKVCacheStrategy;
     friend class LLMBlockKVCacheStrategy;
     friend class PrefixCachingHelper;
+    friend class SwaKVCacheHelper;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMPortNameRegistrationTestAccess;
