@@ -536,6 +536,11 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     UsedVersion usedVersion =
         getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion.major, _vclVersion.minor);
     _logger.debug("the finally used vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+    checkVclVersion(usedVersion,
+                    _vclVersion.major,
+                    _vclVersion.minor,
+                    VCL_COMPILER_VERSION_MAJOR,
+                    VCL_COMPILER_VERSION_MINOR);
 
     const auto maxOpsetVersion = _compilerProperties.supportedOpsets;
     _logger.info("getSupportedOpsetVersion Max supported version of opset in CiD: %d", maxOpsetVersion);
