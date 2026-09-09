@@ -330,28 +330,45 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                     preserve_initializer_name(casted_zp_const, zero_points_const);
                 }
             } else if (zero_points.get_element_type() == ov::element::u8) {
-                uint64_t num_per_byte = 8 / bits;
+                // Packed along whichever axis is innermost in the chosen layout: N for the documented
+                // [N][n_blocks_per_col][blob_size] layout, n_blocks_per_col for the reordered
+                // [n_blocks_per_col][N][blob_size] layout. outer_dim is the other axis, kept as the
+                // leading dim of the repacked Constant.
+                const uint64_t num_per_byte = 8 / bits;
+                const uint64_t outer_dim = b_is_reordered ? n_blocks_per_col : static_cast<uint64_t>(N);
+                const uint64_t pack_dim = b_is_reordered ? static_cast<uint64_t>(N) : n_blocks_per_col;
+                // for alignment, pack_dim might not be aligned to num_per_byte
+                const uint64_t num_byte = (pack_dim + (num_per_byte - 1)) / num_per_byte;
+                const uint64_t num_elements_aligned = num_byte * num_per_byte;
+
                 if (b_is_reordered) {
-                    // In the reordered layout the zero_point buffer is packed along N (not
-                    // n_blocks_per_col): the producer unpacks the standard
-                    // [N][ceil(n_blocks_per_col*bits/8)] buffer, transposes to [n_blocks_per_col][N], then
-                    // repacks along the new last axis (N). Validate the buffer's actual byte size before
-                    // constructing the Constant - the ONNX op itself does not guarantee N is a multiple of
-                    // 8/bits.
-                    uint64_t n_num_byte = (static_cast<uint64_t>(N) + (num_per_byte - 1)) / num_per_byte;
-                    uint64_t n_elements_aligned = n_num_byte * num_per_byte;
+                    // The producer unpacks the standard [N][ceil(n_blocks_per_col*bits/8)] buffer,
+                    // transposes to [n_blocks_per_col][N], then repacks along the new last axis (N).
+                    // Validate both the buffer's actual byte size and, when known, its per-axis shape
+                    // before constructing the Constant - the ONNX op itself does not guarantee N is a
+                    // multiple of 8/bits, and a same-byte-count buffer stored in the standard layout must
+                    // not be silently reinterpreted with the reordered layout's different row boundaries.
                     const auto& zp_shape_dyn = zero_points.get_partial_shape();
                     CHECK_VALID_NODE(node,
                                      zp_shape_dyn.is_static(),
                                      "Expected input Zero Point shape is static and compatible with the "
-                                     "reordered [n_blocks_per_col][N/num_per_byte] packed layout, got: ",
+                                     "reordered [n_blocks_per_col][ceil(N*bits/8)] packed layout, got: ",
                                      zp_shape_dyn);
-                    const auto zp_shape_static_reordered = zp_shape_dyn.get_shape();
-                    const uint64_t actual_zp_bytes = std::accumulate(zp_shape_static_reordered.begin(),
-                                                                     zp_shape_static_reordered.end(),
+                    const auto zp_shape_static = zp_shape_dyn.get_shape();
+                    if (zp_shape_static.size() == 2) {
+                        CHECK_VALID_NODE(node,
+                                         zp_shape_static[0] == outer_dim && zp_shape_static[1] == num_byte,
+                                         "MatMulNBits: B is stored in the reordered "
+                                         "[n_blocks_per_col][N][blob_size] layout, but zero_points shape does "
+                                         "not match the expected reordered [n_blocks_per_col][ceil(N*bits/8)] "
+                                         "packed layout, got: ",
+                                         zp_shape_dyn);
+                    }
+                    const uint64_t actual_zp_bytes = std::accumulate(zp_shape_static.begin(),
+                                                                     zp_shape_static.end(),
                                                                      uint64_t{1},
                                                                      std::multiplies<uint64_t>{});
-                    const uint64_t expected_zp_bytes = n_blocks_per_col * n_num_byte;
+                    const uint64_t expected_zp_bytes = outer_dim * num_byte;
                     CHECK_VALID_NODE(node,
                                      actual_zp_bytes == expected_zp_bytes,
                                      "MatMulNBits: reordered zero_points buffer size (",
@@ -360,46 +377,25 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                      "(",
                                      expected_zp_bytes,
                                      ")");
+                }
 
-                    ov::Shape casted_zp_shape =
-                        ov::Shape{static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(n_elements_aligned), 1};
-                    auto casted_zp_org = std::make_shared<v0::Constant>(zp_element_type,
-                                                                        casted_zp_shape,
-                                                                        zero_points_const->get_data_ptr());
-                    preserve_initializer_name(casted_zp_org, zero_points_const);
-                    converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
-                    if (static_cast<uint64_t>(N) != n_elements_aligned) {
-                        const auto num_elements =
-                            std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(N));
-                        converted_zero_points =
-                            std::make_shared<v8::Slice>(converted_zero_points, zero, num_elements, one, axis);
-                    }
-                } else {
-                    // for alignment, n_blocks_per_col might not aligned to num_per_byte
-                    uint64_t num_byte = (n_blocks_per_col + (num_per_byte - 1)) / num_per_byte;
-                    uint64_t num_elements_aligned = num_byte * num_per_byte;
-                    ov::Shape casted_zp_shape =
-                        ov::Shape{static_cast<size_t>(N), static_cast<size_t>(num_elements_aligned), 1};
-                    auto casted_zp_org = std::make_shared<v0::Constant>(zp_element_type,
-                                                                        casted_zp_shape,
-                                                                        zero_points_const->get_data_ptr());
-                    // Preserve the original zero_point name on the repacked Constant (as done for B) so
-                    // weight sharing can promote it. The packed Constant keeps the source uint8 byte count,
-                    // so the promoted input's tensor matches the external weight at runtime - true whether
-                    // or not the Slice below is inserted, so name it unconditionally.
-                    preserve_initializer_name(casted_zp_org, zero_points_const);
-                    converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
-                    if (n_blocks_per_col != num_elements_aligned) {
-                        // if not align
-                        // for example, n_blocks_per_col is 13, bits is 2, num_per_byte is 4, it will packed
-                        // into 4 bytes need to make a constant: uint2, {N, 16} then slice to: uint2, {N, 13}
-                        const auto num_elements =
-                            std::make_shared<v0::Constant>(ov::element::i32,
-                                                           Shape{1},
-                                                           static_cast<int32_t>(n_blocks_per_col));
-                        converted_zero_points =
-                            std::make_shared<v8::Slice>(converted_zero_points, zero, num_elements, one, axis);
-                    }
+                ov::Shape casted_zp_shape =
+                    ov::Shape{static_cast<size_t>(outer_dim), static_cast<size_t>(num_elements_aligned), 1};
+                auto casted_zp_org =
+                    std::make_shared<v0::Constant>(zp_element_type, casted_zp_shape, zero_points_const->get_data_ptr());
+                // Preserve the original zero_point name on the repacked Constant (as done for B) so
+                // weight sharing can promote it. The packed Constant keeps the source uint8 byte count, so
+                // the promoted input's tensor matches the external weight at runtime - true whether or not
+                // the Slice below is inserted, so name it unconditionally.
+                preserve_initializer_name(casted_zp_org, zero_points_const);
+                converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
+                if (pack_dim != num_elements_aligned) {
+                    // if not aligned, e.g. pack_dim is 13, bits is 2, num_per_byte is 4: packed into 4
+                    // bytes, so make a constant {outer_dim, 16} then slice to {outer_dim, 13}
+                    const auto num_elements =
+                        std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(pack_dim));
+                    converted_zero_points =
+                        std::make_shared<v8::Slice>(converted_zero_points, zero, num_elements, one, axis);
                 }
             } else {
                 FRONT_END_THROW("Unexpected zero point type");
