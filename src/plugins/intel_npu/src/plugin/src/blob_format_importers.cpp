@@ -385,6 +385,27 @@ private:
 
 namespace intel_npu {
 
+void validate_imported_batch_size(const NetworkMetadata& metadata, size_t batch_size) {
+    if (batch_size <= utils::DEFAULT_BATCH_SIZE) {
+        return;
+    }
+
+    const auto validate_descriptors = [batch_size](const std::vector<IODescriptor>& descriptors) {
+        for (const auto& descriptor : descriptors) {
+            const auto& shape = descriptor.shapeFromCompiler;
+            OPENVINO_ASSERT(shape.is_static() && shape.rank().get_length() > 0 &&
+                                shape[0].get_length() == utils::DEFAULT_BATCH_SIZE,
+                            "Imported batch size ",
+                            batch_size,
+                            " is incompatible with native I/O shape ",
+                            shape);
+        }
+    };
+
+    validate_descriptors(metadata.inputs);
+    validate_descriptors(metadata.outputs);
+}
+
 IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
                                          const Config& config,
                                          const Logger& logger)
@@ -438,6 +459,7 @@ std::shared_ptr<IGraph> IBlobFormatImporter::create_graph(const ov::SoPtr<IEngin
     blob_format_importer_utils::validate_main_schedule_descriptors(m_graph->get_metadata());
     if (m_batch_size.has_value() && m_batch_size.value() > 0) {
         // Initial batch setup for static cases
+        validate_imported_batch_size(m_graph->get_metadata(), m_batch_size.value());
         m_graph->set_batch_size(m_batch_size.value());
     }
 

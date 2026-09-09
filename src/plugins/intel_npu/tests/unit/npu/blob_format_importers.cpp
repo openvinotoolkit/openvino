@@ -192,3 +192,27 @@ TEST_F(BlobFormatImportersTest, MainScheduleRejectsInitWeightsDescriptors) {
     metadata.outputs.push_back(std::move(init_output));
     OV_EXPECT_THROW_HAS_SUBSTRING(validate_main_schedule_descriptors(metadata), ov::Exception, "init_output");
 }
+
+TEST_F(BlobFormatImportersTest, RejectsImportedBatchSizeForBatchedNativeOutput) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::PartialShape{1, 64}));
+    metadata.outputs.push_back(create_descriptor("output", ov::PartialShape{2, 64}));
+
+    OV_EXPECT_THROW(validate_imported_batch_size(metadata, 2), ov::Exception, _);
+}
+
+TEST_F(BlobFormatImportersTest, AcceptsImportedBatchSizeForUnbatchedNativeIO) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::PartialShape{1, 64}));
+    metadata.outputs.push_back(create_descriptor("output", ov::PartialShape{1, 64}));
+
+    OV_ASSERT_NO_THROW(validate_imported_batch_size(metadata, 2));
+}
+
+TEST_F(BlobFormatImportersTest, RejectsImportedBatchSizeForDynamicNativeShape) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(create_descriptor("input", ov::PartialShape{1, -1}));
+    metadata.outputs.push_back(create_descriptor("output", ov::PartialShape{1, 64}));
+
+    OV_EXPECT_THROW(validate_imported_batch_size(metadata, 2), ov::Exception, _);
+}
