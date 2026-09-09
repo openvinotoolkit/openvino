@@ -992,7 +992,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // zero-point operands a compressed KV cache carries, so nothing here can define the
             // mapping from codes to values. Decompose, and let the decomposition report it
             // against the node by name rather than dispatching a kernel that reads the codes.
-            if (ov::op::v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
+            // The exception is an i8 key or value: the micro-kernel SDPA path contracts those
+            // codes itself and applies the scale in the epilogue (sdpa_gen_micro.cpp).
+            const auto unsupported_quantized_kv = [](const ov::element::Type& t) {
+                return ov::op::v13::ScaledDotProductAttention::is_quantized_kv_type(t) && t != ov::element::i8;
+            };
+            if (unsupported_quantized_kv(sdpa->get_input_element_type(1)) ||
+                unsupported_quantized_kv(sdpa->get_input_element_type(2))) {
                 return false;
             }
 
