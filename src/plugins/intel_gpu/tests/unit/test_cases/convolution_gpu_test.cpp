@@ -8392,7 +8392,7 @@ TEST_P(convolution_general_gpu, conv_fp16_cases) {
                 }
 }
 
-TEST(convolution_depthwise_gpu_fsv16, regression_depthwise_conv_b_fs_yx_fsv16_112x240) {
+TEST(convolution_depthwise_gpu_fsv16, repro_depthwise_conv_b_fs_yx_fsv16_pf_gws112x240x1) {
     tests::random_generator rg(GET_SUITE_NAME);
     auto& engine = get_test_engine();
 
@@ -8401,9 +8401,9 @@ TEST(convolution_depthwise_gpu_fsv16, regression_depthwise_conv_b_fs_yx_fsv16_11
     }
 
     const int batch_num = 1;
-    const int input_x = 112;
-    const int input_y = 240;
-    const int groups = 16;
+    const int input_x = 9;
+    const int input_y = 56;
+    const int groups = 240;
     const int input_f = groups;
     const int output_f = groups;
     const int filter_x = 3;
@@ -8444,7 +8444,12 @@ TEST(convolution_depthwise_gpu_fsv16, regression_depthwise_conv_b_fs_yx_fsv16_11
         input_layout("input", input_mem->get_layout()),
         data("weights", weights_mem));
 
-    topology.add(reorder("input_fsv", input_info("input"), { data_types::f16, format::b_fs_yx_fsv16, input_size }));
+    // Explicit XY padding keeps this repro on the intended depthwise kernel path.
+    layout input_fsv_layout(data_types::f16,
+                            format::b_fs_yx_fsv16,
+                            input_size,
+                            padding({0, 0, pad_x, pad_y}, {0, 0, pad_x, pad_y}));
+    topology.add(reorder("input_fsv", input_info("input"), input_fsv_layout));
 
     auto conv = convolution("conv_fsv",
                             input_info("input_fsv"),
@@ -8466,8 +8471,8 @@ TEST(convolution_depthwise_gpu_fsv16, regression_depthwise_conv_b_fs_yx_fsv16_11
     config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"conv_fsv", "out"}));
     config.set_property(ov::intel_gpu::force_implementations(
         ov::intel_gpu::ImplForcingMap{{"conv_fsv", { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_f16_depthwise", impl_types::ocl }}}));
-    network network(engine, topology, config);
 
+    network network(engine, topology, config);
     network.set_input_data("input", input_mem);
     auto outputs = network.execute();
 
@@ -8482,8 +8487,10 @@ TEST(convolution_depthwise_gpu_fsv16, regression_depthwise_conv_b_fs_yx_fsv16_11
             forced_kernel_found = true;
         }
     }
-    ASSERT_TRUE(forced_kernel_found) << "Failed to select convolution_gpu_bfyx_f16_depthwise. Selected conv kernels:\n"
-                                     << selected_kernels.str();
+
+    ASSERT_TRUE(forced_kernel_found)
+        << "Failed to select convolution_gpu_bfyx_f16_depthwise for repro path. Selected conv kernels:\n"
+        << selected_kernels.str();
 
     auto out_mem = outputs.at("out").get_memory();
     cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
