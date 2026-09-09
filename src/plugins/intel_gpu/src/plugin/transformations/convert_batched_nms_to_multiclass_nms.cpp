@@ -7,6 +7,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -81,19 +82,18 @@ bool has_supported_nms_semantics(const std::shared_ptr<ov::Node>& node) {
 }
 
 template <typename T>
-bool get_scalar_from_const_source(const ov::Output<ov::Node>& output, T& value) {
+std::optional<T> get_scalar_from_const_source(const ov::Output<ov::Node>& output) {
     const auto constant = ov::util::get_constant_from_source(output);
     if (!constant || ov::shape_size(constant->get_shape()) != 1) {
-        return false;
+        return std::nullopt;
     }
 
-    value = constant->cast_vector<T>(1)[0];
-    return true;
+    return constant->cast_vector<T>(1)[0];
 }
 
 bool is_scalar_constant_value(const ov::Output<ov::Node>& output, int64_t expected) {
-    int64_t value = 0;
-    return get_scalar_from_const_source(output, value) && value == expected;
+    const auto value = get_scalar_from_const_source<int64_t>(output);
+    return value && *value == expected;
 }
 
 bool infer_class_count_from_nonzero_indices(const ov::Output<ov::Node>& output, int64_t& class_count) {
@@ -126,16 +126,14 @@ bool infer_prefix_limit(const ov::Output<ov::Node>& output, int64_t& prefix_limi
 
     for (const auto& consumer : consumers) {
         const auto slice = ov::as_type_ptr<ov::op::v8::Slice>(consumer.get_node()->shared_from_this());
-        int64_t start = 0;
-        int64_t stop = 0;
-        int64_t step = 0;
-        int64_t axis = 0;
-        if (!slice || !get_scalar_from_const_source(slice->input_value(1), start) || start != 0 || !get_scalar_from_const_source(slice->input_value(2), stop) ||
-            stop <= 0 || !get_scalar_from_const_source(slice->input_value(3), step) || step != 1 ||
-            !get_scalar_from_const_source(slice->input_value(4), axis) || axis != 0) {
+        const auto start = slice ? get_scalar_from_const_source<int64_t>(slice->input_value(1)) : std::nullopt;
+        const auto stop = slice ? get_scalar_from_const_source<int64_t>(slice->input_value(2)) : std::nullopt;
+        const auto step = slice ? get_scalar_from_const_source<int64_t>(slice->input_value(3)) : std::nullopt;
+        const auto axis = slice ? get_scalar_from_const_source<int64_t>(slice->input_value(4)) : std::nullopt;
+        if (!start || *start != 0 || !stop || *stop <= 0 || !step || *step != 1 || !axis || *axis != 0) {
             return false;
         }
-        prefix_limit = std::max(prefix_limit, stop);
+        prefix_limit = std::max(prefix_limit, *stop);
     }
     return true;
 }
@@ -262,18 +260,17 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         auto class_ids_source = pattern_map.at(class_ids_source_m);
         const auto raw_scores = pattern_map.at(raw_scores_m);
 
-        int64_t max_output_boxes = 0;
-        float iou_threshold = 0.0f;
-        float score_threshold = 0.0f;
-        if (!get_scalar_from_const_source(nms->input_value(2), max_output_boxes) || !get_scalar_from_const_source(nms->input_value(3), iou_threshold) ||
-            !get_scalar_from_const_source(nms->input_value(4), score_threshold)) {
+        const auto max_output_boxes = get_scalar_from_const_source<int64_t>(nms->input_value(2));
+        const auto iou_threshold = get_scalar_from_const_source<float>(nms->input_value(3));
+        const auto score_threshold = get_scalar_from_const_source<float>(nms->input_value(4));
+        if (!max_output_boxes || !iou_threshold || !score_threshold) {
             return false;
         }
 
-        if (max_output_boxes < 0 || max_output_boxes > std::numeric_limits<int>::max()) {
+        if (*max_output_boxes < 0 || *max_output_boxes > std::numeric_limits<int>::max()) {
             return false;
         }
-        if (!std::isfinite(score_threshold)) {
+        if (!std::isfinite(*score_threshold)) {
             return false;
         }
 
@@ -320,10 +317,10 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         attrs.sort_result_type = ov::op::util::MulticlassNmsBase::SortResultType::SCORE;
         attrs.sort_result_across_batch = false;
         attrs.output_type = nms->get_output_element_type(0);
-        attrs.iou_threshold = iou_threshold;
-        attrs.score_threshold = std::nextafter(score_threshold, std::numeric_limits<float>::infinity());
-        attrs.nms_top_k = static_cast<int>(max_output_boxes);
-        attrs.keep_top_k = static_cast<int>(std::min(prefix_limit, max_output_boxes));
+        attrs.iou_threshold = *iou_threshold;
+        attrs.score_threshold = std::nextafter(*score_threshold, std::numeric_limits<float>::infinity());
+        attrs.nms_top_k = static_cast<int>(*max_output_boxes);
+        attrs.keep_top_k = static_cast<int>(std::min(prefix_limit, *max_output_boxes));
         attrs.background_class = -1;
         attrs.nms_eta = 1.0f;
         attrs.normalized = true;
