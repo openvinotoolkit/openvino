@@ -18,6 +18,12 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/sqrt.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -135,4 +141,60 @@ TEST(TransformationTests, DisableFP16CompForRMS_Negative) {
         {name_rms_2, false}
     };
     run_test(model, expected_status);
+}
+
+TEST(TransformationTests, DisableFP16CompForDecomposedRMS_Positive) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 2, 2});
+    auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1.0f});
+    auto convolution = std::make_shared<ov::op::v1::Convolution>(input,
+                                                                 weights,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::CoordinateDiff{0, 0},
+                                                                 ov::Strides{1, 1});
+    auto power = std::make_shared<ov::op::v1::Power>(
+        convolution,
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.0f}));
+    auto reduce_mean = std::make_shared<ov::op::v1::ReduceMean>(
+        power,
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+        true);
+    auto add = std::make_shared<ov::op::v1::Add>(
+        reduce_mean,
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f}));
+    auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add);
+    auto divide = std::make_shared<ov::op::v1::Divide>(
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f}),
+        sqrt);
+    auto multiply = std::make_shared<ov::op::v1::Multiply>(convolution, divide);
+
+    const std::vector<std::shared_ptr<ov::Node>> protected_nodes = {
+        convolution, power, reduce_mean, add, sqrt, divide, multiply};
+    for (size_t index = 0; index < protected_nodes.size(); ++index) {
+        protected_nodes[index]->set_friendly_name("decomposed_rms_" + std::to_string(index));
+    }
+
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{multiply}, ov::ParameterVector{input});
+    ov::pass::Manager manager;
+    manager.register_pass<DisableFP16CompForDecomposedRMSPattern>();
+    manager.register_pass<ov::pass::ConvertPrecision>(precisions_map{{ov::element::f32, ov::element::f16}});
+    manager.run_passes(model);
+
+    for (const auto& node : protected_nodes) {
+        EXPECT_TRUE(ov::is_conversion_disabled(node, ov::element::f16)) << node->get_friendly_name();
+    }
+}
+
+TEST(TransformationTests, DisableFP16CompForDecomposedRMS_Negative) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 2, 2});
+    auto power = std::make_shared<ov::op::v1::Power>(
+        input,
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.0f}));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{power}, ov::ParameterVector{input});
+
+    ov::pass::Manager manager;
+    manager.register_pass<DisableFP16CompForDecomposedRMSPattern>();
+    manager.run_passes(model);
+
+    EXPECT_FALSE(ov::is_conversion_disabled(power, ov::element::f16));
 }
