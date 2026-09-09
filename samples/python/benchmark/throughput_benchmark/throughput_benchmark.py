@@ -106,7 +106,7 @@ def main():
 
     if not latencies:
         log.info('No completed iterations to report.')
-        return None
+        return 0
 
     # Report results
     fps = len(latencies) / duration
