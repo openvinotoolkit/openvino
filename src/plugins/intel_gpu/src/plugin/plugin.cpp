@@ -361,13 +361,12 @@ void Plugin::set_property(const ov::AnyMap &config) {
         }
     };
 
-    if (auto it = config.find(ov::internal::device_id_map.name()); it != config.end()) {
-        apply_device_id_map(it->second.as<std::map<std::string, std::string>>());
-        auto rest = config;
-        rest.erase(ov::internal::device_id_map.name());
-        if (rest.empty())
-            return;
-        set_property(rest);
+    auto rest = config;
+    if (auto id_map = rest.extract(ov::internal::device_id_map.name()); !id_map.empty()) {
+        apply_device_id_map(id_map.mapped().as<std::map<std::string, std::string>>());
+        if (!rest.empty()) {
+            set_property(rest);
+        }
         return;
     }
 
