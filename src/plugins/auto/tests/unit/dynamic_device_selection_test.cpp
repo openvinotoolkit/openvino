@@ -123,17 +123,45 @@ TEST_F(AutoDynamicDeviceSelectionTest, staying_on_the_same_device_does_not_recom
     run_inferences(compiled_model, 3);
 }
 
-TEST_F(AutoDynamicDeviceSelectionTest, each_device_is_compiled_only_once_when_switching_back_and_forth) {
+// Only the most recently activated device's compiled model is kept resident (m_dynamic_compiled_models holds at
+// most one entry) to keep the memory footprint of dynamic mode bounded for large models, so switching back and
+// forth between devices recompiles every time instead of reusing a previously-seen compiled model.
+TEST_F(AutoDynamicDeviceSelectionTest, switching_back_and_forth_recompiles_each_time) {
     config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
     expect_selected_devices({"GPU.0", "CPU"});
     EXPECT_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(_),
                               ::testing::Matcher<const ov::AnyMap&>(_)))
-        .Times(2);
+        .Times(5);
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
     run_inferences(compiled_model, 4);
+}
+
+// A device whose compile fails is dropped and AUTO falls back to the next candidate; when that candidate is the
+// currently cached device it must be reused as-is instead of being recompiled from scratch.
+TEST_F(AutoDynamicDeviceSelectionTest, compile_failure_falls_back_to_the_cached_device_without_recompiling) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+    expect_selected_devices({"GPU.0", "CPU"});
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq("GPU.0")),
+                              _))
+        .Times(2)
+        .WillOnce(Return(mockExeNetworkActual))
+        .WillOnce(ov::Throw("compile failed"));
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              _))
+        .Times(1)
+        .WillOnce(Return(mockExeNetwork));
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    // infer1 switches to CPU, infer2 tries to switch back to GPU.0 which fails to compile and falls back to
+    // the still-cached CPU model without triggering a second CPU compile
+    run_inferences(compiled_model, 2);
 }
 
 // A single worker per device used to be forbidden because the classic schedule could stall, the execution gate

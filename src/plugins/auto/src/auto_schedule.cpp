@@ -498,6 +498,18 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     } catch (const ov::Exception&) {
         return;
     }
+    if (m_context->m_dynamic_device_selection) {
+        // the fallback candidate may already be compiled and cached from a previous inference,
+        // reuse it instead of paying for a redundant compile_model() call
+        const auto cached_model = m_dynamic_compiled_models.find(context.m_device_info.device_name);
+        if (cached_model != m_dynamic_compiled_models.end()) {
+            context.m_compiled_model = cached_model->second;
+            context.m_is_load_success = true;
+            LOG_DEBUG_TAG("[dynamic] device:%s is already compiled, reuse it as fallback",
+                          context.m_device_info.device_name.c_str());
+            return;
+        }
+    }
     // if the select device is CPU, need to check the config of m_compile_context[CPU]
     // if they are same, do not need to compile again
     cur_dev_is_cpu = (context.m_device_info.device_name.find("CPU") != std::string::npos);
@@ -732,12 +744,30 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
         return false;
     }
     device = context.m_device_info;
-    m_dynamic_compiled_models[device.device_name] = context.m_compiled_model;
-    generate_workers(device.device_name, context.m_compiled_model);
+    // the resolved device (e.g. after a fallback) may already be the sole cached entry, in which
+    // case its workers are already in place and there is nothing to release or regenerate
+    if (m_dynamic_compiled_models.find(device.device_name) == m_dynamic_compiled_models.end()) {
+        release_dynamic_device_resources();
+        m_dynamic_compiled_models[device.device_name] = context.m_compiled_model;
+        generate_workers(device.device_name, context.m_compiled_model);
+    }
     LOG_INFO_TAG("[dynamic] device:%s is ready in %lf ms",
                  device.device_name.c_str(),
                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count());
     return true;
+}
+
+void AutoSchedule::release_dynamic_device_resources() {
+    // large models make it unrealistic to keep every previously visited device's compiled model
+    // (and its device-side infer-request buffers) resident at once; compile_for_all_other_devices_for_cache()
+    // already populated the on-disk cache blob for the other candidates, so recompiling on a switch is cheap
+    for (auto&& compiled : m_dynamic_compiled_models) {
+        LOG_DEBUG_TAG("[dynamic] releasing previously compiled model on device:%s to save memory",
+                      compiled.first.c_str());
+    }
+    m_dynamic_compiled_models.clear();
+    m_worker_requests.clear();
+    m_idle_worker_requests.clear();
 }
 
 void AutoSchedule::release_execution_slot() {
