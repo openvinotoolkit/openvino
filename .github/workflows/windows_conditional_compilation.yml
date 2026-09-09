@@ -71,13 +71,7 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-      CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
-      CCACHE_DIR: ${{ github.workspace }}\\ccache
-      CCACHE_MAXSIZE: 3G
-      CCACHE_SLOPPINESS: pch_defines,time_macros
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_PDB_DIR: "${{ github.workspace }}\\install_pdb"
@@ -133,17 +127,6 @@ jobs:
       # Build
       #
 
-      - name: Setup ccache
-        uses: ./openvino/.github/actions/cache
-        with:
-          save-always: 'true'
-          cleanup-always: 'true'
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
-
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
         with:
@@ -172,6 +155,7 @@ jobs:
             -B ${{ env.BUILD_DIR }}
 
       - name: Zero compile cache stats (openvino cc collect main)
+        if: false
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           tool: ccache
@@ -181,6 +165,7 @@ jobs:
         run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Compile cache statistics (openvino cc collect main)
+        if: false
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           tool: ccache
@@ -188,6 +173,7 @@ jobs:
           artifact-name: compile-cache-stats-windows-cc-collect-openvino-main
 
       - name: Zero compile cache stats (sea_itt_lib)
+        if: false
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           tool: ccache
@@ -197,6 +183,7 @@ jobs:
         run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
       - name: Compile cache statistics (sea_itt_lib)
+        if: false
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           tool: ccache
@@ -212,6 +199,7 @@ jobs:
         run: cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
 
       - name: Zero compile cache stats (cpp samples)
+        if: false
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           tool: ccache
@@ -221,6 +209,7 @@ jobs:
         run: cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
 
       - name: Compile cache statistics (cpp samples)
+        if: false
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           tool: ccache
@@ -398,6 +387,7 @@ jobs:
         # Number of threads is hardcoded due to OutOfMemory issues. Unless we switch CMake's generator to Ninja, we can't
         # set number of jobs separately for compilation and linking. The issue most likely occurs during linking.
       - name: Zero compile cache stats (cc on benchmark_app)
+        if: false
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           tool: ccache
@@ -407,6 +397,7 @@ jobs:
         run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
 
       - name: Compile cache statistics (cc on benchmark_app)
+        if: false
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           tool: ccache

@@ -41,7 +41,7 @@ on:
         description: 'Use compiler cache (sccache/ccache) for builds in this job'
         type: boolean
         required: false
-        default: true
+        default: false
       upload-ninja-log:
         description: 'Whether to upload Ninja .ninja_log from the OpenVINO build directory'
         type: boolean

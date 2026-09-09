@@ -21,7 +21,7 @@ on:
         description: 'Use compiler cache (sccache/ccache) for builds in this job'
         type: boolean
         required: false
-        default: true
+        default: false
 
 permissions: read-all
 
