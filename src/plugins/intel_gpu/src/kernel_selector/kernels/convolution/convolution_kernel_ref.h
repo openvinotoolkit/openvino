@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "convolution_kernel_base.h"
 #include <vector>
+
+#include "convolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -19,9 +20,10 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
-    WeightsLayout GetPreferredWeightsLayout(const convolution_params &params) const override {
-        if (params.inputs[0].Dimentions() == 4)
+    WeightsLayout GetPreferredWeightsLayout(const convolution_params& params) const override {
+        if (params.inputs[0].Dimentions() == 4) {
             return (params.groups > 1) ? WeightsLayout::goiyx : WeightsLayout::oiyx;
+        }
         return (params.groups > 1) ? WeightsLayout::goizyx : WeightsLayout::oizyx;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
@@ -29,10 +31,7 @@ protected:
         // only when fused_primitive_desc for reorder is added by optimization passes (e.g., remove_redundant_reorder) for corresponding primitive.
         // The typical usage for fused_primitive_desc for convolution is to get original output layout from jitter,
         // so that it can decide whether to fuse eltwise along with reorder.
-        return { FusedOpType::ELTWISE,
-                 FusedOpType::QUANTIZE,
-                 FusedOpType::ACTIVATION,
-                 FusedOpType::REORDER };
+        return {FusedOpType::ELTWISE, FusedOpType::QUANTIZE, FusedOpType::ACTIVATION, FusedOpType::REORDER};
     }
 
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;

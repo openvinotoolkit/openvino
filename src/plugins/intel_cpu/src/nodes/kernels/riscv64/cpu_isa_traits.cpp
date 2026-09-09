@@ -23,7 +23,7 @@ namespace {
 struct RVVGenerator : public CodeGenerator {
     RVVGenerator() : CodeGenerator(8) {
         // vsetivli is appeared in RVV 1.0
-        vsetivli(a0, 10, SEW::e32);
+        vsetivli(a0, 10, SEW::e32, LMUL::m1, VTA::tu, VMA::mu);
         ret();
     }
 };
@@ -31,7 +31,7 @@ struct RVVGenerator : public CodeGenerator {
 struct ZvfhGenerator : public CodeGenerator {
     ZvfhGenerator() : CodeGenerator(32) {
         // Probe Zvfh instructions used by Snippets Convert emitters.
-        vsetivli(a0, 1, SEW::e16, LMUL::mf2);
+        vsetivli(a0, 1, SEW::e16, LMUL::mf2, VTA::tu, VMA::mu);
         vfwcvt_f_f_v(v0, v0);
         vfncvt_f_f_w(v0, v0);
         li(a0, 1);
