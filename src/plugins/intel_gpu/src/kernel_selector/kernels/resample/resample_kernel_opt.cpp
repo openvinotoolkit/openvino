@@ -168,6 +168,10 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     // LINEAR_ONNX in resample_opt does not implement OOB-to-zero for padded
     // coordinates; let resample_onnx (which does) handle those cases.
     if (params.resampleType == ResampleType::LINEAR_ONNX) {
+        const auto& output = params.outputs[0];
+	if (input.Batch().v != output.Batch().v || input.Feature().v != output.Feature().v)
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
+
         for (size_t i = 0; i < params.pads_begin.size(); ++i) {
             if (params.pads_begin[i] != 0 || params.pads_end[i] != 0)
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
