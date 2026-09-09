@@ -141,14 +141,16 @@ bool is_virtual_device(const std::string& device_name);
 // Generic: holds only opaque tokens/ids/indices and integer scores, no vendor logic.
 struct DispatchEntry {
     // How one candidate library sees this device: its own internal id and its score.
-    struct CandidateView {
+    struct CandidateDevice {
         std::string internal_id;  // the id THIS library uses (may differ across libs)
         DeviceCompatibilityScore score = PROBE_SCORE_INCOMPATIBLE;
     };
-    std::string canonical_id;                 // ".N" shown to the user (core assigns)
-    std::vector<uint8_t> fingerprint;         // opaque cross-candidate identity (merge key)
-    std::map<size_t, CandidateView> per_lib;  // candidate idx -> how that candidate sees this device
-    std::optional<size_t> winner_idx;         // resolved candidate (lazy)
+    std::string canonical_id;          // ".N" shown to the user (core assigns)
+    std::vector<uint8_t> fingerprint;  // opaque cross-candidate identity (merge key)
+    // Indexed by candidate index, sized to the candidate count; nullopt where that candidate
+    // did not report this device (its library is absent, or its probe never listed it).
+    std::vector<std::optional<CandidateDevice>> per_lib;
+    std::optional<size_t> winner_idx;  // resolved candidate (lazy)
 };
 
 class CoreImpl : public ov::ICore, public std::enable_shared_from_this<ov::ICore> {
@@ -232,8 +234,14 @@ private:
         bool is_dispatch_group() const {
             return m_candidates.size() > 1;
         }
-        const std::filesystem::path& candidate_lib(size_t i) const {
-            return m_candidates[i].m_lib_location;
+        const std::filesystem::path& candidate_location(size_t candidate_idx) const {
+            OPENVINO_ASSERT(candidate_idx < m_candidates.size(),
+                            "Candidate index ",
+                            candidate_idx,
+                            " is out of range; the device has ",
+                            m_candidates.size(),
+                            " candidate librarie(s)");
+            return m_candidates[candidate_idx].m_lib_location;
         }
     };
 
@@ -269,6 +277,11 @@ private:
 
     bool is_hidden_device(const std::string& device_name) const;
     void register_plugin_in_registry_unsafe(const std::string& device_name, PluginDescriptor& desc);
+
+    // Merged device list of a dispatch group, probing the candidates on first use and caching it
+    // in m_dispatch_map. Caller holds the mutex.
+    std::vector<DispatchEntry>& get_or_build_dispatch_entries_unsafe(const std::string& device_name,
+                                                                     const PluginDescriptor& desc) const;
 
     // Candidate index serving device_id (empty = default): argmax(score), ties -> registry order.
     // Builds m_dispatch_map[device_name] on first use. nullopt if none serves it; caller holds mutex.

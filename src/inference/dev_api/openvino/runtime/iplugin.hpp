@@ -302,13 +302,13 @@ constexpr static const auto create_plugin_function = OV_PP_TOSTRING(OV_CREATE_PL
 using DeviceCompatibilityScore = int32_t;
 
 /// Vendor/tier mismatch: the library cannot serve this device. Never selected.
-constexpr DeviceCompatibilityScore PROBE_SCORE_INCOMPATIBLE = 0;
+inline constexpr DeviceCompatibilityScore PROBE_SCORE_INCOMPATIBLE = 0;
 /// Can run, but not preferred (fallback tier).
-constexpr DeviceCompatibilityScore PROBE_SCORE_SERVABLE = 1;
+inline constexpr DeviceCompatibilityScore PROBE_SCORE_SERVABLE = 1;
 /// Can run well and satisfies a hard requirement the peer library may not.
-constexpr DeviceCompatibilityScore PROBE_SCORE_CAPABLE = 50;
+inline constexpr DeviceCompatibilityScore PROBE_SCORE_CAPABLE = 50;
 /// Ideal runtime for this device.
-constexpr DeviceCompatibilityScore PROBE_SCORE_PREFERRED = 100;
+inline constexpr DeviceCompatibilityScore PROBE_SCORE_PREFERRED = 100;
 
 /**
  * @brief One physical device a plugin library reports it can serve, during
@@ -318,11 +318,11 @@ constexpr DeviceCompatibilityScore PROBE_SCORE_PREFERRED = 100;
  */
 struct EnumeratedDevice {
     /// The device id THIS library uses internally (".N"); may differ across libraries.
-    std::string internal_id;
+    std::string internal_id{};
     /// Opaque cross-library identity token. Core compares it by equality only, never
     /// interprets it. Two libraries that build it over the same fields yield equal
     /// bytes for the same physical device.
-    std::vector<uint8_t> fingerprint;
+    std::vector<uint8_t> fingerprint{};
     /// How well this library serves the device (see PROBE_SCORE_* constants).
     DeviceCompatibilityScore score = PROBE_SCORE_INCOMPATIBLE;
 };
@@ -383,7 +383,13 @@ constexpr static const auto enumerate_devices_function = OV_PP_TOSTRING(OV_ENUME
 #define OV_DEFINE_PLUGIN_ENUMERATE_FUNCTION(enumerate_fn)                                                   \
     OPENVINO_PLUGIN_API void OV_ENUMERATE_DEVICES(::std::vector<::ov::EnumeratedDevice>& devices) noexcept; \
     void OV_ENUMERATE_DEVICES(::std::vector<::ov::EnumeratedDevice>& devices) noexcept {                    \
-        (enumerate_fn)(devices);                                                                            \
+        try {                                                                                               \
+            (enumerate_fn)(devices);                                                                        \
+        } catch (...) {                                                                                     \
+            /* The probe is noexcept by contract; a throwing callable would terminate the process. */       \
+            /* Report no devices instead - the library is then simply not a candidate. */                   \
+            devices.clear();                                                                                \
+        }                                                                                                   \
     }
 
 /**

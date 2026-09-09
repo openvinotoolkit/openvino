@@ -55,8 +55,9 @@ std::vector<ov::DispatchEntry> build_dispatch_entries(const std::vector<std::fil
     for (size_t idx = 0; idx < candidate_libs.size(); ++idx) {
         const auto& lib = candidate_libs[idx];
         // Skip a candidate whose library is absent (missing-plugin fallback).
-        if (lib.empty() || !ov::util::file_exists(lib))
+        if (lib.empty() || !ov::util::file_exists(lib)) {
             continue;
+        }
 
         // Only called for a dispatch group (>1 candidate), so a present candidate MUST export the
         // probe; a missing symbol is a hard error (an unscoreable library can't share a name).
@@ -67,9 +68,9 @@ std::vector<ov::DispatchEntry> build_dispatch_entries(const std::vector<std::fil
             probe = reinterpret_cast<ov::EnumerateDevicesFunc*>(
                 ov::util::get_symbol(probe_so, ov::enumerate_devices_function));
         } catch (const std::exception& ex) {
-            OPENVINO_THROW("Library \"",
-                           lib.string(),
-                           "\" is registered as one of several candidates for a device but does not "
+            OPENVINO_THROW("Library ",
+                           lib,
+                           " is registered as one of several candidates for a device but does not "
                            "export the device-enumeration probe (",
                            ov::enumerate_devices_function,
                            "), so it cannot be scored: ",
@@ -84,32 +85,32 @@ std::vector<ov::DispatchEntry> build_dispatch_entries(const std::vector<std::fil
             // An empty fingerprint has no identity: it would merge unrelated devices into one
             // entry (wrong winner / lost devices). Reject it - dispatch members must fingerprint.
             OPENVINO_ASSERT(!dev.fingerprint.empty(),
-                            "Library \"",
-                            lib.string(),
-                            "\" enumerated a dispatch-group device with an empty fingerprint; a "
+                            "Library ",
+                            lib,
+                            " enumerated a dispatch-group device with an empty fingerprint; a "
                             "scoreable candidate must return a non-empty identity per device.");
             // Merge by fingerprint equality: a device several candidates see is listed once.
             auto it = std::find_if(entries.begin(), entries.end(), [&](const ov::DispatchEntry& e) {
                 return e.fingerprint == dev.fingerprint;
             });
             if (it == entries.end()) {
-                ov::DispatchEntry entry;
+                auto& entry = entries.emplace_back();
                 entry.fingerprint = dev.fingerprint;
-                entry.per_lib[idx] = {dev.internal_id, dev.score};
-                entries.push_back(std::move(entry));
+                entry.per_lib.resize(candidate_libs.size());
+                entry.per_lib[idx] = ov::DispatchEntry::CandidateDevice{dev.internal_id, dev.score};
             } else {
                 // One candidate reporting a fingerprint twice cannot be disambiguated: merging
                 // would drop a device and its id, silently hiding it. Fail loudly instead.
-                OPENVINO_ASSERT(it->per_lib.find(idx) == it->per_lib.end(),
-                                "Library \"",
-                                lib.string(),
-                                "\" enumerated devices \"",
-                                it->per_lib.at(idx).internal_id,
+                OPENVINO_ASSERT(!it->per_lib[idx].has_value(),
+                                "Library ",
+                                lib,
+                                " enumerated devices \"",
+                                it->per_lib[idx]->internal_id,
                                 "\" and \"",
                                 dev.internal_id,
                                 "\" with the same fingerprint, so they cannot be told apart. The "
                                 "driver may not report the PCI bus info the identity is built from.");
-                it->per_lib[idx] = {dev.internal_id, dev.score};
+                it->per_lib[idx] = ov::DispatchEntry::CandidateDevice{dev.internal_id, dev.score};
             }
         }
     }
@@ -742,19 +743,20 @@ void ov::CoreImpl::register_plugins_in_registry(const std::filesystem::path& xml
         // <location> children (a dispatch group; first = default). Order is preserved.
         std::vector<std::filesystem::path> locations;
         for (const auto& location_node : plugin_node.children("location")) {
-            const auto child_location = std::string{location_node.child_value()};
+            auto child_location = make_path(location_node.child_value());
             OPENVINO_ASSERT(!child_location.empty(),
                             "Empty <location> element for device \"",
                             device_name,
                             "\" in the plugins registry");
-            locations.push_back(get_plugin_path(make_path(child_location), xml_config_file, by_abs_path));
+            locations.push_back(get_plugin_path(std::move(child_location), xml_config_file, by_abs_path));
         }
-        if (const auto attr_location = pugixml::get_str_attr(plugin_node, "location", ""); !attr_location.empty()) {
+        if (const auto attr_location = pugixml::get_attribute_view(plugin_node, "location");
+            attr_location && !attr_location->empty()) {
             OPENVINO_ASSERT(locations.empty(),
                             "Device \"",
                             device_name,
                             "\" declares both a \"location\" attribute and <location> child elements; use one form");
-            locations.push_back(get_plugin_path(make_path(attr_location), xml_config_file, by_abs_path));
+            locations.push_back(get_plugin_path(make_path(*attr_location), xml_config_file, by_abs_path));
         }
         OPENVINO_ASSERT(!locations.empty(),
                         "Device \"",
@@ -793,44 +795,44 @@ void ov::CoreImpl::register_plugins_in_registry(const std::filesystem::path& xml
     }
 }
 
-std::optional<size_t> ov::CoreImpl::resolve_dispatch_winner_unsafe(const std::string& device_name,
-                                                                   const PluginDescriptor& desc,
-                                                                   const std::string& device_id) const {
-    // Lazily build the merged device list for this dispatch group on first use.
+std::vector<ov::DispatchEntry>& ov::CoreImpl::get_or_build_dispatch_entries_unsafe(const std::string& device_name,
+                                                                                   const PluginDescriptor& desc) const {
     auto map_it = m_dispatch_map.find(device_name);
     if (map_it == m_dispatch_map.end()) {
         std::vector<std::filesystem::path> candidate_libs;
-        for (size_t idx = 0; idx < desc.candidate_count(); ++idx)
-            candidate_libs.push_back(desc.candidate_lib(idx));
+        candidate_libs.reserve(desc.candidate_count());
+        for (size_t idx = 0; idx < desc.candidate_count(); ++idx) {
+            candidate_libs.push_back(desc.candidate_location(idx));
+        }
         map_it = m_dispatch_map.emplace(device_name, build_dispatch_entries(candidate_libs)).first;
     }
-    auto& entries = map_it->second;
-    if (entries.empty())
-        return std::nullopt;
+    return map_it->second;
+}
+
+std::optional<size_t> ov::CoreImpl::resolve_dispatch_winner_unsafe(const std::string& device_name,
+                                                                   const PluginDescriptor& desc,
+                                                                   const std::string& device_id) const {
+    auto& entries = get_or_build_dispatch_entries_unsafe(device_name, desc);
 
     // No id given -> the default device ("0"), mirroring the plugin's m_default_device_id rule.
     const std::string target_id = device_id.empty() ? std::string("0") : device_id;
-    DispatchEntry* entry = nullptr;
-    for (auto& e : entries) {
-        if (e.canonical_id == target_id) {
-            entry = &e;
-            break;
-        }
-    }
-
-    if (!entry)
+    const auto entry = std::find_if(entries.begin(), entries.end(), [&](const ov::DispatchEntry& e) {
+        return e.canonical_id == target_id;
+    });
+    if (entry == entries.end()) {
         return std::nullopt;
-
-    if (entry->winner_idx)
+    }
+    if (entry->winner_idx) {
         return entry->winner_idx;
+    }
 
     // Highest score wins; ties resolve to registry order (the lowest candidate index).
     // Any runtime override is already baked into the scores by the plugin, so core stays generic.
     std::optional<size_t> winner;
     ov::DeviceCompatibilityScore best = ov::PROBE_SCORE_INCOMPATIBLE;
-    for (const auto& [idx, view] : entry->per_lib) {
-        if (view.score > best) {
-            best = view.score;
+    for (size_t idx = 0; idx < entry->per_lib.size(); ++idx) {
+        if (const auto& view = entry->per_lib[idx]; view && view->score > best) {
+            best = view->score;
             winner = idx;
         }
     }
@@ -842,13 +844,17 @@ std::map<std::string, std::string> ov::CoreImpl::dispatch_device_id_map_unsafe(c
                                                                                size_t candidate_idx) const {
     std::map<std::string, std::string> id_map;
     const auto map_it = m_dispatch_map.find(device_name);
-    if (map_it == m_dispatch_map.end())
+    if (map_it == m_dispatch_map.end()) {
         return id_map;
+    }
     // Every device this candidate enumerated, not just the ones it won: it keeps addressing all of
     // them by the canonical ids, so its id set stays as dense as its own enumeration was.
     for (const auto& e : map_it->second) {
-        if (const auto v = e.per_lib.find(candidate_idx); v != e.per_lib.end())
-            id_map[v->second.internal_id] = e.canonical_id;
+        if (candidate_idx < e.per_lib.size()) {
+            if (const auto& view = e.per_lib[candidate_idx]; view) {
+                id_map[view->internal_id] = e.canonical_id;
+            }
+        }
     }
     return id_map;
 }
@@ -859,24 +865,18 @@ std::optional<std::vector<std::string>> ov::CoreImpl::dispatch_group_device_ids(
     if (reg_it == m_plugin_registry.end() || !reg_it->second.is_dispatch_group())
         return std::nullopt;
 
-    auto map_it = m_dispatch_map.find(device_name);
-    if (map_it == m_dispatch_map.end()) {
-        const auto& desc = reg_it->second;
-        std::vector<std::filesystem::path> candidate_libs;
-        for (size_t idx = 0; idx < desc.candidate_count(); ++idx)
-            candidate_libs.push_back(desc.candidate_lib(idx));
-        map_it = m_dispatch_map.emplace(device_name, build_dispatch_entries(candidate_libs)).first;
-    }
+    const auto& entries = get_or_build_dispatch_entries_unsafe(device_name, reg_it->second);
 
     // A device every candidate scored INCOMPATIBLE is not advertised, but its entry keeps its slot
     // so the canonical ids stay stable and every member's id map stays complete.
     std::vector<std::string> ids;
-    for (const auto& entry : map_it->second) {
-        const bool servable = std::any_of(entry.per_lib.begin(), entry.per_lib.end(), [](const auto& kv) {
-            return kv.second.score != ov::PROBE_SCORE_INCOMPATIBLE;
+    for (const auto& entry : entries) {
+        const bool servable = std::any_of(entry.per_lib.begin(), entry.per_lib.end(), [](const auto& view) {
+            return view && view->score != ov::PROBE_SCORE_INCOMPATIBLE;
         });
-        if (servable)
+        if (servable) {
             ids.push_back(entry.canonical_id);
+        }
     }
     return ids;
 }
@@ -1673,7 +1673,7 @@ void ov::CoreImpl::register_plugin(const std::filesystem::path& plugin,
         // A duplicated candidate enumerates the same devices with the same scores as the one
         // already registered, so it could only ever shadow itself: reject it.
         for (size_t i = 0; i < it->second.candidate_count(); ++i) {
-            if (it->second.candidate_lib(i) == lib_path)
+            if (it->second.candidate_location(i) == lib_path)
                 OPENVINO_THROW("Library \"",
                                lib_path.string(),
                                "\" is already registered as device \"",

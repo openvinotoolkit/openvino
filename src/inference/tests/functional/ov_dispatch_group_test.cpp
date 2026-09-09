@@ -19,6 +19,7 @@
 
 #ifndef OPENVINO_STATIC_LIBRARY
 
+namespace ov::test {
 namespace {
 
 // PROBE_SCORE_* values (kept literal here so the test states expectations explicitly).
@@ -463,5 +464,6 @@ TEST_F(DispatchGroupTest, register_plugin_append_invalidates_cached_dispatch_map
 }
 
 }  // namespace
+}  // namespace ov::test
 
 #endif  // OPENVINO_STATIC_LIBRARY
