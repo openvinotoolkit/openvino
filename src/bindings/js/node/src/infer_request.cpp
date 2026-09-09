@@ -13,7 +13,7 @@
 #include "node/include/helper.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/tensor.hpp"
-
+#include "node/include/type_validation.hpp"
 namespace {
 std::mutex infer_mutex;
 }
@@ -97,46 +97,65 @@ void InferRequestWrap::set_output_tensor(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value InferRequestWrap::get_tensor(const Napi::CallbackInfo& info) {
-    ov::Tensor tensor;
-    if (info.Length() != 1) {
-        reportError(info.Env(), "InferRequest.getTensor() invalid number of arguments.");
-    } else if (info[0].IsString()) {
-        std::string tensor_name = info[0].ToString();
-        tensor = _infer_request.get_tensor(tensor_name);
-    } else if (info[0].IsObject()) {
-        auto outputWrap = Napi::ObjectWrap<Output<const ov::Node>>::Unwrap(info[0].ToObject());
-        ov::Output<const ov::Node> output = outputWrap->get_output();
-        tensor = _infer_request.get_tensor(output);
-    } else {
-        reportError(info.Env(), "InferRequest.getTensor() invalid argument.");
+    try {
+        std::vector<std::string> allowed_signatures;
+        const auto are_arguments_valid = ov::js::validate<Napi::String>(info, allowed_signatures) ||
+                                         ov::js::validate<Napi::Object>(info, allowed_signatures);
+        OPENVINO_ASSERT(are_arguments_valid, "'getTensor'", ov::js::get_parameters_error_msg(info, allowed_signatures));
+        ov::Tensor tensor;
+        if (info[0].IsString()) {
+            tensor = _infer_request.get_tensor(info[0].ToString().Utf8Value());
+        } else {
+            auto outputWrap = Napi::ObjectWrap<Output<const ov::Node>>::Unwrap(info[0].ToObject());
+            tensor = _infer_request.get_tensor(outputWrap->get_output());
+        }
+        return TensorWrap::wrap(info.Env(), tensor);
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
     }
-    return TensorWrap::wrap(info.Env(), tensor);
 }
 
 Napi::Value InferRequestWrap::get_input_tensor(const Napi::CallbackInfo& info) {
-    ov::Tensor tensor;
-    if (info.Length() == 0) {
-        tensor = _infer_request.get_input_tensor();
-    } else if (info.Length() == 1 && info[0].IsNumber()) {
-        auto idx = info[0].ToNumber().Int32Value();
-        tensor = _infer_request.get_input_tensor(idx);
-    } else {
-        reportError(info.Env(), "InferRequest.getInputTensor() invalid argument.");
+    try {
+        std::vector<std::string> allowed_signatures;
+        const auto are_arguments_valid =
+            ov::js::validate(info, allowed_signatures) || ov::js::validate<int>(info, allowed_signatures);
+        OPENVINO_ASSERT(are_arguments_valid,
+                        "'getInputTensor'",
+                        ov::js::get_parameters_error_msg(info, allowed_signatures));
+        ov::Tensor tensor;
+        if (info.Length() == 0) {
+            tensor = _infer_request.get_input_tensor();
+        } else {
+            tensor = _infer_request.get_input_tensor(info[0].ToNumber().Int32Value());
+        }
+        return TensorWrap::wrap(info.Env(), tensor);
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
     }
-    return TensorWrap::wrap(info.Env(), tensor);
 }
 
 Napi::Value InferRequestWrap::get_output_tensor(const Napi::CallbackInfo& info) {
-    ov::Tensor tensor;
-    if (info.Length() == 0) {
-        tensor = _infer_request.get_output_tensor();
-    } else if (info.Length() == 1 && info[0].IsNumber()) {
-        auto idx = info[0].ToNumber().Int32Value();
-        tensor = _infer_request.get_output_tensor(idx);
-    } else {
-        reportError(info.Env(), "InferRequest.getInputTensor() invalid argument.");
+    try {
+        std::vector<std::string> allowed_signatures;
+        const auto are_arguments_valid =
+            ov::js::validate(info, allowed_signatures) || ov::js::validate<int>(info, allowed_signatures);
+        OPENVINO_ASSERT(are_arguments_valid,
+                        "'getOutputTensor'",
+                        ov::js::get_parameters_error_msg(info, allowed_signatures));
+        ov::Tensor tensor;
+        if (info.Length() == 0) {
+            tensor = _infer_request.get_output_tensor();
+        } else {
+            tensor = _infer_request.get_output_tensor(info[0].ToNumber().Int32Value());
+        }
+        return TensorWrap::wrap(info.Env(), tensor);
+    } catch (std::exception& e) {
+        reportError(info.Env(), e.what());
+        return info.Env().Undefined();
     }
-    return TensorWrap::wrap(info.Env(), tensor);
 }
 
 Napi::Value InferRequestWrap::get_output_tensors(const Napi::CallbackInfo& info) {
@@ -252,23 +271,29 @@ void perform_inference_thread(TsfnContext* context) {
 }  // namespace
 
 Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
-    if (info.Length() != 1) {
-        reportError(info.Env(), "InferAsync method takes as an argument an array or an object.");
-    }
     Napi::Env env = info.Env();
-
-    auto context = new TsfnContext(env);
-    context->_ir = &_infer_request;
+    TsfnContext* context = nullptr;
     try {
-        auto parsed_input = parse_input_data(info[0]);
-        context->_inputs = parsed_input;
-    } catch (std::exception& e) {
-        reportError(info.Env(), e.what());
+        OPENVINO_ASSERT(info.Length() == 1, "InferAsync method takes as an argument an array or an object.");
+
+        context = new TsfnContext(env);
+        context->_ir = &_infer_request;
+        context->_inputs = parse_input_data(info[0]);
+
+        context->tsfn = Napi::ThreadSafeFunction::New(env,
+                                                      Napi::Function(),
+                                                      "TSFN",
+                                                      0,
+                                                      1,
+                                                      context,
+                                                      FinalizerCallback,
+                                                      static_cast<void*>(nullptr));
+        auto promise = context->deferred.Promise();
+        context->native_thread = std::thread(perform_inference_thread, context);
+        return promise;
+    } catch (const std::exception& e) {
+        reportError(env, e.what());
+        delete context;
+        return env.Undefined();
     }
-
-    context->tsfn =
-        Napi::ThreadSafeFunction::New(env, Napi::Function(), "TSFN", 0, 1, context, FinalizerCallback, (void*)nullptr);
-
-    context->native_thread = std::thread(perform_inference_thread, context);
-    return context->deferred.Promise();
 }

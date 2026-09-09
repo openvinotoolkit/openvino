@@ -82,21 +82,25 @@ bool ActivationKernelOpt::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (params.outputs[0].GetDims().size() > 5)
+    if (params.outputs[0].GetDims().size() > 5) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (params.outputs[0].GetLayout() != params.inputs[0].GetLayout())
+    if (params.outputs[0].GetLayout() != params.inputs[0].GetLayout()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     if (!params.fused_ops.empty() &&
-        (params.outputs[0].GetLayout() != DataLayout::bfyx && params.outputs[0].GetLayout() != DataLayout::bfzyx))
+        (params.outputs[0].GetLayout() != DataLayout::bfyx && params.outputs[0].GetLayout() != DataLayout::bfzyx)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     auto input_dt = params.inputs[0].GetDType();
     if (input_dt == Datatype::INT8 || input_dt == Datatype::INT32) {
         for (auto act : params.activations) {
-            if (act.function == ActivationFunction::ABS)
+            if (act.function == ActivationFunction::ABS) {
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
+            }
         }
     }
 

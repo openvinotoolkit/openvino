@@ -36,7 +36,7 @@ OutputVector translate_l2_norm(const NodeContext& context) {
     auto clamped_norm = std::make_shared<ov::op::v1::Maximum>(l2_norm, eps_const);
     auto res = std::make_shared<ov::op::v1::Divide>(input_node, clamped_norm);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

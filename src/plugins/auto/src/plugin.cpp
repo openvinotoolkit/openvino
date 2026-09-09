@@ -496,6 +496,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
     if (!low_power_device.empty()) {
         auto_s_context->m_low_power_device = low_power_device;
+        LOG_INFO_TAG("low_power_device is set to %s", low_power_device.c_str());
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
@@ -729,11 +730,14 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
 
     if (!perf_curve_table.empty()) {
-        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %zu device curves", perf_curve_table.size());
+        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %s device curves",
+                      std::to_string(perf_curve_table.size()).c_str());
         for (const auto& [device_key, curve] : perf_curve_table) {
-            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %zu points", device_key.c_str(), curve.size());
+            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %s points",
+                          device_key.c_str(),
+                          std::to_string(curve.size()).c_str());
             for (const auto& [utilization, score] : curve) {
-                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%f",
+                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%lf",
                               device_key.c_str(),
                               utilization,
                               score);
@@ -791,12 +795,17 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     };
     // low_power_device (driven by IPF/DTT OnEpoGearChanged) takes precedence over
     // devices_utilization_threshold whenever the platform is in low power mode.
+    // Match by exact device name (e.g. "NPU.5010") first, then fall back to the
+    // base device name (e.g. "NPU"), mirroring find_utilization_threshold.
     auto find_low_power_device = [&]() -> DeviceInformation* {
         if (low_power_device.empty()) {
             return nullptr;
         }
         auto it = std::find_if(valid_devices.begin(), valid_devices.end(), [&](const DeviceInformation& device) {
-            return device.device_name == low_power_device;
+            if (device.device_name == low_power_device) {
+                return true;
+            }
+            return ov::DeviceIDParser(device.device_name).get_device_name() == low_power_device;
         });
         if (it == valid_devices.end() || !get_low_power_mode().value_or(false)) {
             return nullptr;
@@ -945,7 +954,7 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
         }
         try {
             scores[i] = interpolate_perf_score(curve_it->second, utilization.value());
-            LOG_DEBUG_TAG("[%s] perf_curve_table: key=%s, utilization=%f, performance_score=%f",
+            LOG_DEBUG_TAG("[%s] perf_curve_table: key=%s, utilization=%lf, performance_score=%lf",
                           device.device_name.c_str(),
                           device_key.logical_key.c_str(),
                           utilization.value(),

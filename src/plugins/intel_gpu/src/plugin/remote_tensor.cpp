@@ -457,6 +457,7 @@ void RemoteTensorImpl::allocate() {
     update_properties();
     update_strides();
 
+    // update_properties() already asserts that m_memory_object is allocated
     if (enable_caching)
         context->add_to_cache(m_hash, m_memory_object);
 }

@@ -132,16 +132,18 @@ public:
         // Get list of optimized prmitives
         std::vector<primitive_id> optimized_primitives;
         for (decltype(all_primitive_org_ids.size()) i = 0; i < all_primitive_org_ids.size(); i++) {
-            if (all_primitive_ids[i] == "_optimized_")
+            if (all_primitive_ids[i] == "_optimized_") {
                 optimized_primitives.push_back(all_primitive_org_ids[i]);
+            }
         }
         std::map<primitive_id, event::ptr> result;
         for (auto& id : primitive_ids) {
             if (std::find(optimized_primitives.begin(), optimized_primitives.end(), id) == optimized_primitives.end()) {
-                if (has_event(id))
+                if (has_event(id)) {
                     result.emplace(id, get_primitive_event(id));
-                else
+                } else {
                     result.emplace(id, nullptr);
+                }
             }
         }
         return result;

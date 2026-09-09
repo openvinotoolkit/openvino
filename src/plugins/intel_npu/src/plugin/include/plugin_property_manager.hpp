@@ -4,10 +4,12 @@
 
 #pragma once
 
-#include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #include "compiler_option_support_helper.hpp"
@@ -20,9 +22,11 @@
 
 namespace intel_npu {
 
-class PluginPropertyManager final {
+enum class ConfigMergeMode { Compile, Import, Query };
+
+class PluginPropertyManager final : private PropertyRegistrationBase {
 public:
-    PluginPropertyManager(const FilteredConfig& config,
+    PluginPropertyManager(const std::shared_ptr<OptionsDesc>& options,
                           const ov::SoPtr<IEngineBackend>& backend,
                           const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper,
                           Logger& logger);
@@ -33,53 +37,27 @@ public:
     ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
     bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {}) const;
 
-    const FilteredConfig& getConfig() const {
-        return _config;
-    }
-
-    FilteredConfig getConfigWithCompilerPropertiesDisabled(const ov::AnyMap& properties) const;
-    FilteredConfig getConfigForSpecificCompiler(const ov::AnyMap& properties) const;
+    std::pair<FilteredConfig, ov::AnyMap> getMergedConfigAndUnknownProperties(const ov::AnyMap& properties,
+                                                                              ConfigMergeMode mergeMode);
 
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
     ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
 
 private:
-    PluginPropertyManager(const PluginPropertyManager& other);
-    struct CopyState {
-        FilteredConfig config;
-        ov::SoPtr<IEngineBackend> backend;
-        std::shared_ptr<CompilerOptionSupportHelper> optionSupportHelper;
-        Logger& logger;
-        ov::intel_npu::CompilerType currentlyUsedCompiler;
-        ov::intel_npu::CompilerType _compilerForCompatibilityCheck;
-        bool compatibilityCheckSupported;
-        std::string currentlyUsedPlatform;
-        bool compilerConfigsFilteredByCompiler;
-        bool compatibilityCheckFiltered;
-    };
+    void registerProperties();
+    std::optional<ov::intel_npu::CompilerType> resolveCompilerType(ov::intel_npu::CompilerType compilerType,
+                                                                   const std::string& deviceId,
+                                                                   const std::string& platform) const;
+    void warnCompilerOnlyOptionSkipped(const std::string& key) const;
 
-    explicit PluginPropertyManager(CopyState&& state);
-
-    void registerProperties() const;
-    void initializeCompatibilityCheckSupportIfNeeded() const;
-    bool isPropertyRegistered(const std::string& propertyName) const;
-
-    mutable FilteredConfig _config;
+    FilteredConfig _config;
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
     Logger& _logger;
 
-    mutable ov::intel_npu::CompilerType _currentlyUsedCompiler = ov::intel_npu::CompilerType::PREFER_PLUGIN;
-    mutable ov::intel_npu::CompilerType _compilerForCompatibilityCheck = ov::intel_npu::CompilerType::DRIVER;
-    mutable bool _compatibilityCheckSupported = false;
-    mutable std::string _currentlyUsedPlatform;
-    mutable bool _compilerConfigsFilteredByCompiler = false;
-    mutable bool _compatibilityCheckFiltered = false;
-
-    mutable std::map<std::string, PropertyDescriptor> _properties;
-    mutable std::vector<ov::PropertyName> _supportedProperties;
+    mutable std::mutex _mutex;
 
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
@@ -112,12 +90,6 @@ private:
         });
         return properties;
     }();
-
-    const std::vector<ov::PropertyName> _internalSupportedProperties = {ov::internal::caching_properties.name(),
-                                                                        ov::internal::caching_with_mmap.name(),
-                                                                        ov::internal::cache_header_alignment.name()};
-
-    mutable std::mutex _mutex;
 };
 
 }  // namespace intel_npu

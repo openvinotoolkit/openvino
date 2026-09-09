@@ -15,8 +15,9 @@ namespace ov::intel_gpu {
 
 template<typename T>
 static inline std::string vecToString(std::vector<T> vec) {
-    if (vec.empty())
+    if (vec.empty()) {
         return "";
+    }
 
     std::string res = std::to_string(vec[0]);
     for (size_t i = 1; i < vec.size(); i++) {
@@ -27,8 +28,9 @@ static inline std::string vecToString(std::vector<T> vec) {
 
 template<>
 inline std::string vecToString<std::string>(std::vector<std::string> vec) {
-    if (vec.empty())
+    if (vec.empty()) {
         return "";
+    }
 
     std::string res = vec[0];
     for (size_t i = 1; i < vec.size(); i++) {
@@ -204,8 +206,9 @@ void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, Cust
 
     // if input index is greater than -1, take dimension from input
     if (iidx >= 0) {
-        if (static_cast<size_t>(iidx) >= op->get_input_size())
+        if (static_cast<size_t>(iidx) >= op->get_input_size()) {
             OPENVINO_THROW("Invalid input tensor for index: ", iidx);
+        }
         auto inputDims = op->get_input_shape(iidx);
         // Regardless of whether the model has one or more outputs, only the first output is used to update gws and lws.
         cldnn::custom_gpu_primitive::update_work_group_size(op->get_output_partial_shape(0),

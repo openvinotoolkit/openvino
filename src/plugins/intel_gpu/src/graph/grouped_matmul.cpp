@@ -50,8 +50,9 @@ std::string grouped_matmul_inst::to_string(grouped_matmul_node const& node) {
     std::stringstream primitive_description;
 
     json_composite info;
-    if (desc->output_data_types[0].has_value())
+    if (desc->output_data_types[0].has_value()) {
         info.add("out dt: ", dt_to_str(*desc->output_data_types[0]));
+    }
     node_info->add("grouped_matmul_info", info);
     node_info->dump(primitive_description);
 

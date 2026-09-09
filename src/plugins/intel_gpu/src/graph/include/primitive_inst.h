@@ -276,14 +276,16 @@ public:
     void set_impl(std::unique_ptr<primitive_impl> impl) { _impl = std::move(impl); }
 
     memory& input_memory(size_t index = 0) const {
-        if (index >= inputs_memory_count())
+        if (index >= inputs_memory_count()) {
             throw std::range_error("input offset too big");
+        }
         return dep_memory(index);
     }
 
     memory::ptr input_memory_ptr(size_t index = 0) const {
-        if (index >= inputs_memory_count())
+        if (index >= inputs_memory_count()) {
             throw std::range_error("input offset too big");
+        }
         return dep_memory_ptr(index);
     }
 
@@ -553,11 +555,13 @@ struct typed_primitive_impl : public primitive_impl {
     using primitive_impl::primitive_impl;
 
     event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
-        if (instance.type() != PType::type_id())
+        if (instance.type() != PType::type_id()) {
             throw std::invalid_argument("Implementation type does not match primitive type");
-        if (instance.get_impl() != this)
+        }
+        if (instance.get_impl() != this) {
             throw std::invalid_argument(
                 "Trying to execute primitive implementation with mismatching primitive instance");
+        }
 
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
@@ -567,11 +571,13 @@ struct typed_primitive_impl : public primitive_impl {
     }
 
     void set_arguments(primitive_inst& instance) override {
-        if (instance.type() != PType::type_id())
+        if (instance.type() != PType::type_id()) {
             throw std::invalid_argument("Implementation type does not match primitive type");
-        if (instance.get_impl() != this)
+        }
+        if (instance.get_impl() != this) {
             throw std::invalid_argument(
                 "Trying to set_arguments for primitive implementation with mismatching primitive instance");
+        }
 
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
@@ -579,9 +585,10 @@ struct typed_primitive_impl : public primitive_impl {
     void set_arguments(primitive_inst& instance, kernel_arguments_data& args) override {
         OPENVINO_ASSERT(instance.type() == PType::type_id(), "[GPU] Implementation type ", instance.type(),
                                                              " does not match primitive type ", PType::type_id());
-        if (instance.get_impl() != this)
+        if (instance.get_impl() != this) {
             throw std::invalid_argument(
                 "Trying to set_arguments for primitive implementation with mismatching primitive instance");
+        }
 
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance), args);
     }

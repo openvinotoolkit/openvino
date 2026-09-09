@@ -58,8 +58,9 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
     }
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
 
-    if (params.surface_input)
+    if (params.surface_input) {
         jit.AddConstant(MakeJitConstant("SURFACE_INPUT", true));
+    }
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;

@@ -67,7 +67,7 @@ OutputVector translate_glu_swiglu(const NodeContext& context) {
     auto silu = std::make_shared<ov::op::v1::Multiply>(src0, sigmoid);
     auto res = std::make_shared<ov::op::v1::Multiply>(silu, src1);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 // gpt-oss gated SiLU: clamp gate to (-inf, limit], scale by alpha, sigmoid-gate, then multiply by
@@ -91,7 +91,7 @@ OutputVector translate_glu_swiglu_oai(const NodeContext& context) {
     auto up_plus_one = std::make_shared<ov::op::v1::Add>(up, one);
     auto res = std::make_shared<ov::op::v1::Multiply>(out_glu, up_plus_one);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

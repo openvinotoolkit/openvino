@@ -31,9 +31,10 @@ const std::set<std::string>& verified_archs() {
         "llama",  // llama-2 / llama-3
         "qwen2",  // qwen2 / qwen2.5
         "qwen3",
-        "phi3",     // phi-3 (fused QKV)
-        "minicpm",  // NORMAL rope + scalar scales
-        "olmoe",    // OLMoE 1B-7B (MoE)
+        "phi3",           // phi-3 (fused QKV)
+        "minicpm",        // NORMAL rope + scalar scales
+        "hunyuan-dense",  // NEOX rope + per-head QK-norm after RoPE
+        "olmoe",          // OLMoE 1B-7B (MoE)
         // Qwen3.5/3.6 hybrid: Gated-DeltaNet linear attention on 3 of every 4 layers, full
         // attention with M-RoPE and an interleaved query+gate projection on the rest. Verified
         // token-exact against llama.cpp on Qwen3.5-0.8B-Q8_0 and Ternary-Bonsai-27B-Q2_g64.
@@ -75,7 +76,6 @@ const std::set<std::string>& experimental_archs() {
         // Demoted from verified_archs(): the GenAI-vs-llama.cpp measured status (see
         // docs/supported_models.md) found these produce degenerate output (or, for `gemma`,
         // throw) through the native builder despite passing conversion. Re-promote once fixed.
-        "hunyuan-dense",
         "qwen3moe",  // Qwen3 MoE: same topology as olmoe
         "gemma",     // Gemma 2B / 7B
         "gemma2",    // Gemma 2: post-norms + attention soft-cap

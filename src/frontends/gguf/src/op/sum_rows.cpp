@@ -25,7 +25,7 @@ OutputVector translate_sum_rows(const NodeContext& context) {
                                                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}),
                                                 true);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

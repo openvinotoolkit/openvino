@@ -63,6 +63,7 @@ jobs:
           images: |
             ov_build/ubuntu_22_04_x64
             ov_test/ubuntu_22_04_x64
+            ov_test/ubuntu_22_04_x64_igpu
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
           changed_components: '{"docker_env":false,"dockerfiles":false}'
@@ -225,11 +226,11 @@ jobs:
 
   CoverageCppGpu:
     name: Coverage C++ (${{ matrix.gpu.name }}, ${{ matrix.lane.name }})
-    needs: Build
+    needs: [ Build, Docker ]
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
-      image: ubuntu:22.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - /mount:/mount
@@ -271,10 +272,12 @@ jobs:
       BUILD_JS_DIR: ${{ github.workspace }}/openvino/openvino_build_js
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
       PYTHONDONTWRITEBYTECODE: '1'
+      PIP_CERT: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      REQUESTS_CA_BUNDLE: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
       - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
-          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
+          apt-get update && update-ca-certificates
         env:
           DEBIAN_FRONTEND: noninteractive
           TZ: "Europe/London"
@@ -354,6 +357,19 @@ jobs:
           if [[ -d "${notes_root}/js-build" ]]; then
             cp -a "${notes_root}/js-build/." "${BUILD_JS_DIR}/"
           fi
+
+      - name: Setup Python 3.11
+        uses: ./.github/actions/setup_python
+        with:
+          version: '3.11'
+          use-pip-proxy: 'false'
+          set-pip-install-path: 'true'
+          self-hosted-runner: 'true'
+
+      - name: Install coverage Python dependencies
+        uses: ./.github/actions/coverage_toolkit
+        with:
+          command: install-requirements
 
       - name: Run ${{ matrix.gpu.name }} ${{ matrix.lane.name }} C++ coverage tests
         uses: ./.github/actions/coverage_toolkit
@@ -533,11 +549,11 @@ jobs:
 
   CoveragePythonGpu:
     name: Coverage Python (${{ matrix.gpu.name }})
-    needs: Build
+    needs: [ Build, Docker ]
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-gpu-tests == 'true' }}
     runs-on: ${{ fromJSON(matrix.gpu.runs_on) }}
     container:
-      image: ubuntu:22.04
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
       volumes:
         - /usr/local/share/ca-certificates:/usr/local/share/ca-certificates:ro
         - /mount:/mount
@@ -570,10 +586,11 @@ jobs:
       COVERAGE_WRITE_STEP_SUMMARY: 'false'
       PYTHONDONTWRITEBYTECODE: '1'
       REQUESTS_CA_BUNDLE: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
+      PIP_CERT: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
     steps:
       - name: Prepare ${{ matrix.gpu.name }} test container
         run: |
-          apt-get update && apt-get install -y pigz wget software-properties-common ca-certificates gpg-agent tzdata clinfo git lcov python3-yaml
+          apt-get update && update-ca-certificates
         env:
           DEBIAN_FRONTEND: noninteractive
           TZ: "Europe/London"
@@ -663,7 +680,7 @@ jobs:
         uses: ./.github/actions/setup_python
         with:
           version: '3.11'
-          use-pip-proxy: 'true'
+          use-pip-proxy: 'false'
           set-pip-install-path: 'true'
           self-hosted-runner: 'true'
 

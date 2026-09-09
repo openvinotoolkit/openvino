@@ -279,8 +279,9 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
     } else {
         auto append_from_lock = [](auto& lock, std::vector<T>& out) {
             out.reserve(lock.end() - lock.begin());
-            for (auto it = lock.begin(); it != lock.end(); ++it)
+            for (auto it = lock.begin(); it != lock.end(); ++it) {
                 out.push_back(static_cast<T>(*it));
+            }
         };
         switch (mem_dtype) {
             case data_types::i32: {

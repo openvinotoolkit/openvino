@@ -106,7 +106,7 @@ OutputVector translate_permute(const NodeContext& context) {
                 active_cache = std::make_shared<ov::op::v8::Slice>(src, seq_active_start, seq_active_end, one, zero);
             }
             res = std::make_shared<ov::op::v1::Transpose>(active_cache, perm);
-            return rename_outputs_with_suffix({res}, context.get_name());
+            return rename_outputs_with_suffix({std::move(res)}, context.get_name());
         }
 
         int64_t ctx_per_seq = cache_shape[2].is_static() ? cache_shape[2].get_length() : -1;
@@ -149,7 +149,7 @@ OutputVector translate_permute(const NodeContext& context) {
         }
         res = std::make_shared<ov::op::v1::Transpose>(active_cache, perm);
     }
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

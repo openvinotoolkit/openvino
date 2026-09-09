@@ -1099,7 +1099,7 @@ TEST(arg_max_min_test, check_second_output_data_type) {
 
 // =============================================================================
 // Tests for arg_max_min_topk_radix kernel
-// Conditions: f16 input, SORT_VALUES, N >= 2, N <= 65535, SLM fits
+// Conditions: f16/f32 input, SORT_VALUES, N >= 2, N <= 65535, SLM fits
 // =============================================================================
 
 // Helper: create ExecutionConfig that forces the radix TopK kernel
@@ -1111,6 +1111,40 @@ inline ExecutionConfig get_radix_topk_config(const cldnn::engine& engine) {
     return config;
 }
 
+// Helper: check that forcing actually resulted in the radix kernel being used
+inline void assert_radix_topk_selected(const cldnn::network& net) {
+    auto info = net.get_primitive_info("arg_max");
+    ASSERT_TRUE(info.find("arg_max_min_topk_radix") != std::string::npos)
+        << "Expected arg_max_min_topk_radix, got: " << info;
+}
+
+namespace {
+// The radix kernel supports both floating point input types, so every case below runs for both.
+using topk_radix_data_types = ::testing::Types<ov::float16, float>;
+
+struct topk_radix_type_names {
+    template <typename T>
+    static std::string GetName(int) {
+        return std::is_same<T, ov::float16>::value ? "f16" : "f32";
+    }
+};
+
+template <typename T>
+std::vector<T> topk_radix_typed_vec(const std::vector<float>& values) {
+    return std::vector<T>(values.begin(), values.end());
+}
+
+// f16 storage rounds the reference values, f32 results are expected to be bit-exact.
+template <typename T>
+constexpr float topk_radix_tolerance() {
+    return std::is_same<T, ov::float16>::value ? 0.02f : 0.01f;
+}
+}  // namespace
+
+template <typename T>
+class arg_max_gpu_topk_radix : public ::testing::Test {};
+TYPED_TEST_SUITE(arg_max_gpu_topk_radix, topk_radix_data_types, topk_radix_type_names);
+
 // --------------------------------------------------------------------------
 // Parameterized test: value-only verification with various configurations
 // --------------------------------------------------------------------------
@@ -1120,20 +1154,21 @@ struct TopKRadixValueTestParam {
     int32_t feature_num;
     int top_k;
     int axis;
-    std::vector<ov::float16> input_vec;
+    std::vector<float> input_vec;
     std::vector<float> ref_values;     // expected top-K values in sorted order
     std::string name;
 };
 
-class TopKRadixValueTest : public testing::TestWithParam<TopKRadixValueTestParam> {};
+class TopKRadixValueTest : public testing::TestWithParam<std::tuple<TopKRadixValueTestParam, data_types>> {};
 
-TEST_P(TopKRadixValueTest, values_match) {
-    const auto& p = GetParam();
+template <typename T>
+void run_topk_radix_value_case(const TopKRadixValueTestParam& p) {
     auto& engine = get_test_engine();
+    const data_types dt = ov::element::from<T>();
 
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx,
+    auto input = engine.allocate_memory({dt, format::bfyx,
                                          {p.batch_num, p.feature_num, 1, 1}});
-    set_values(input, p.input_vec);
+    set_values(input, topk_radix_typed_vec<T>(p.input_vec));
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1145,64 +1180,81 @@ TEST_P(TopKRadixValueTest, values_match) {
                              ov::op::TopKSortType::SORT_VALUES,
                              true,
                              false,
-                             data_types::f16,
+                             dt,
                              2));
 
     network network(engine, topology, get_radix_topk_config(engine));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t i = 0; i < p.ref_values.size(); i++) {
         float val = static_cast<float>(output_ptr[i]);
-        ASSERT_NEAR(val, p.ref_values[i], 0.02f) << "value mismatch at i=" << i;
+        ASSERT_NEAR(val, p.ref_values[i], topk_radix_tolerance<T>()) << "value mismatch at i=" << i;
     }
 }
 
+TEST_P(TopKRadixValueTest, values_match) {
+    const auto& p = std::get<0>(GetParam());
+    if (std::get<1>(GetParam()) == data_types::f16)
+        run_topk_radix_value_case<ov::float16>(p);
+    else
+        run_topk_radix_value_case<float>(p);
+}
+
 INSTANTIATE_TEST_SUITE_P(arg_max_gpu_topk_radix, TopKRadixValueTest,
-    testing::Values(
-        TopKRadixValueTestParam{
-            ov::op::TopKMode::MAX, 1, 16, 4, 1,
-            {ov::float16(1.0f), ov::float16(5.0f), ov::float16(3.0f), ov::float16(9.0f),
-             ov::float16(2.0f), ov::float16(7.0f), ov::float16(4.0f), ov::float16(8.0f),
-             ov::float16(6.0f), ov::float16(0.5f), ov::float16(10.0f), ov::float16(0.1f),
-             ov::float16(15.0f), ov::float16(12.0f), ov::float16(11.0f), ov::float16(0.2f)},
-            {15.0f, 12.0f, 11.0f, 10.0f},
-            "f16_max_axis_feature"
-        },
-        TopKRadixValueTestParam{
-            ov::op::TopKMode::MIN, 1, 16, 4, 1,
-            {ov::float16(1.0f), ov::float16(5.0f), ov::float16(3.0f), ov::float16(9.0f),
-             ov::float16(2.0f), ov::float16(7.0f), ov::float16(4.0f), ov::float16(8.0f),
-             ov::float16(6.0f), ov::float16(0.5f), ov::float16(-1.0f), ov::float16(0.1f),
-             ov::float16(15.0f), ov::float16(12.0f), ov::float16(11.0f), ov::float16(-2.0f)},
-            {-2.0f, -1.0f, 0.1f, 0.5f},
-            "f16_min_axis_feature"
-        },
-        TopKRadixValueTestParam{
-            ov::op::TopKMode::MAX, 1, 8, 3, 1,
-            {ov::float16(-5.0f), ov::float16(-1.0f), ov::float16(-8.0f), ov::float16(-0.5f),
-             ov::float16(-3.0f), ov::float16(-10.0f), ov::float16(-2.0f), ov::float16(-0.1f)},
-            {-0.1f, -0.5f, -1.0f},
-            "f16_max_negatives"
-        }
+    testing::Combine(
+        testing::Values(
+            TopKRadixValueTestParam{
+                ov::op::TopKMode::MAX, 1, 16, 4, 1,
+                {1.0f, 5.0f, 3.0f, 9.0f,
+                 2.0f, 7.0f, 4.0f, 8.0f,
+                 6.0f, 0.5f, 10.0f, 0.1f,
+                 15.0f, 12.0f, 11.0f, 0.2f},
+                {15.0f, 12.0f, 11.0f, 10.0f},
+                "max_axis_feature"
+            },
+            TopKRadixValueTestParam{
+                ov::op::TopKMode::MIN, 1, 16, 4, 1,
+                {1.0f, 5.0f, 3.0f, 9.0f,
+                 2.0f, 7.0f, 4.0f, 8.0f,
+                 6.0f, 0.5f, -1.0f, 0.1f,
+                 15.0f, 12.0f, 11.0f, -2.0f},
+                {-2.0f, -1.0f, 0.1f, 0.5f},
+                "min_axis_feature"
+            },
+            TopKRadixValueTestParam{
+                ov::op::TopKMode::MAX, 1, 8, 3, 1,
+                {-5.0f, -1.0f, -8.0f, -0.5f,
+                 -3.0f, -10.0f, -2.0f, -0.1f},
+                {-0.1f, -0.5f, -1.0f},
+                "max_negatives"
+            }
+        ),
+        testing::Values(data_types::f16, data_types::f32)
     ),
-    [](const testing::TestParamInfo<TopKRadixValueTestParam>& info) { return info.param.name; }
+    [](const testing::TestParamInfo<TopKRadixValueTest::ParamType>& info) {
+        return std::get<0>(info.param).name +
+               (std::get<1>(info.param) == data_types::f16 ? "_f16" : "_f32");
+    }
 );
 
-// Separate parameterized case for large N on batch axis (generated input)
-TEST(arg_max_gpu_topk_radix, f16_max_large_n_axis_batch) {
+// Separate case for large N on batch axis (generated input)
+TYPED_TEST(arg_max_gpu_topk_radix, max_large_n_axis_batch) {
+    using T = TypeParam;
+    const data_types dt = ov::element::from<T>();
     static const int32_t batch_num = 1000;
     auto& engine = get_test_engine();
     const int top_k = 10;
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, 1, 1, 1}});
+    auto input = engine.allocate_memory({dt, format::bfyx, {batch_num, 1, 1, 1}});
 
-    std::vector<ov::float16> input_vec(batch_num);
+    std::vector<float> input_vec(batch_num);
     for (int i = 0; i < batch_num; i++) {
-        input_vec[i] = ov::float16(static_cast<float>(i) * 0.01f);
+        input_vec[i] = static_cast<float>(i) * 0.01f;
     }
-    set_values(input, input_vec);
+    set_values(input, topk_radix_typed_vec<T>(input_vec));
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1212,17 +1264,19 @@ TEST(arg_max_gpu_topk_radix, f16_max_large_n_axis_batch) {
                              top_k,
                              0,
                              ov::op::TopKSortType::SORT_VALUES,
-                             true, false, data_types::f16));
+                             true, false, dt));
 
     network network(engine, topology, get_radix_topk_config(engine));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < top_k; i++) {
-        float expected = static_cast<float>(batch_num - 1 - i) * 0.01f;
-        ASSERT_NEAR(static_cast<float>(output_ptr[i]), expected, 0.02f) << "mismatch at i=" << i;
+        float expected = input_vec[batch_num - 1 - i];
+        ASSERT_NEAR(static_cast<float>(output_ptr[i]), expected, topk_radix_tolerance<T>())
+            << "mismatch at i=" << i;
     }
 }
 
@@ -1230,19 +1284,21 @@ TEST(arg_max_gpu_topk_radix, f16_max_large_n_axis_batch) {
 // Non-parameterized tests: each has unique verification logic
 // --------------------------------------------------------------------------
 
-// Radix test: f16 MAX, second output (indices), axis=feature(1)
-TEST(arg_max_gpu_topk_radix, f16_max_second_output_indices) {
+// Radix test: MAX, second output (indices), axis=feature(1)
+TYPED_TEST(arg_max_gpu_topk_radix, max_second_output_indices) {
+    using T = TypeParam;
+    const data_types dt = ov::element::from<T>();
     static const int32_t feature_num = 32;
     auto& engine = get_test_engine();
     const int top_k = 8;
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {1, feature_num, 1, 1}});
-    auto top_k_input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+    auto input = engine.allocate_memory({dt, format::bfyx, {1, feature_num, 1, 1}});
+    auto top_k_input = engine.allocate_memory({dt, format::bfyx, {1, 1, 1, 1}});
     auto second_output = engine.allocate_memory({data_types::f32, format::bfyx, {1, top_k, 1, 1}});
 
-    std::vector<ov::float16> input_vec(feature_num);
+    std::vector<float> input_vec(feature_num);
     for (int i = 0; i < feature_num; i++)
-        input_vec[i] = ov::float16(static_cast<float>(i * 3 % 17));
-    set_values(input, input_vec);
+        input_vec[i] = static_cast<float>(i * 3 % 17);
+    set_values(input, topk_radix_typed_vec<T>(input_vec));
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1251,14 +1307,15 @@ TEST(arg_max_gpu_topk_radix, f16_max_second_output_indices) {
     topology.add(arg_max_min("arg_max",
                              {input_info("input"), input_info("const"), input_info("second_output")},
                              ov::op::TopKMode::MAX, top_k, 1,
-                             ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f16));
+                             ov::op::TopKSortType::SORT_VALUES, true, false, dt));
 
     network network(engine, topology, get_radix_topk_config(engine));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 1; i < top_k; i++) {
         ASSERT_GE(static_cast<float>(output_ptr[i - 1]), static_cast<float>(output_ptr[i]))
             << "values not sorted descending at i=" << i;
@@ -1270,16 +1327,18 @@ TEST(arg_max_gpu_topk_radix, f16_max_second_output_indices) {
 }
 
 // Radix test: duplicate values tiebreaking (smaller index first)
-TEST(arg_max_gpu_topk_radix, f16_max_duplicate_values_tiebreak) {
+TYPED_TEST(arg_max_gpu_topk_radix, max_duplicate_values_tiebreak) {
+    using T = TypeParam;
+    const data_types dt = ov::element::from<T>();
     auto& engine = get_test_engine();
     const int top_k = 5;
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 10, 1, 1}});
-    auto top_k_input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+    auto input = engine.allocate_memory({dt, format::bfyx, {1, 10, 1, 1}});
+    auto top_k_input = engine.allocate_memory({dt, format::bfyx, {1, 1, 1, 1}});
     auto second_output = engine.allocate_memory({data_types::f32, format::bfyx, {1, top_k, 1, 1}});
 
     // 5,5,5,5,5,3,3,3,1,1 — top5 are all 5.0, indices 0..4
-    set_values(input, {ov::float16(5.0f), ov::float16(5.0f), ov::float16(5.0f), ov::float16(5.0f), ov::float16(5.0f),
-                       ov::float16(3.0f), ov::float16(3.0f), ov::float16(3.0f), ov::float16(1.0f), ov::float16(1.0f)});
+    set_values(input, topk_radix_typed_vec<T>({5.0f, 5.0f, 5.0f, 5.0f, 5.0f,
+                                               3.0f, 3.0f, 3.0f, 1.0f, 1.0f}));
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1288,14 +1347,15 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicate_values_tiebreak) {
     topology.add(arg_max_min("arg_max",
                              {input_info("input"), input_info("const"), input_info("second_output")},
                              ov::op::TopKMode::MAX, top_k, 1,
-                             ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f16));
+                             ov::op::TopKSortType::SORT_VALUES, true, false, dt));
 
     network network(engine, topology, get_radix_topk_config(engine));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < top_k; i++)
         ASSERT_NEAR(static_cast<float>(output_ptr[i]), 5.0f, 0.01f) << "value mismatch at i=" << i;
 
@@ -1305,32 +1365,35 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicate_values_tiebreak) {
 }
 
 // Radix test: YOLOv26n-like scenario (N=8400, K=300, axis=feature)
-TEST(arg_max_gpu_topk_radix, f16_max_yolov26n_like) {
+TYPED_TEST(arg_max_gpu_topk_radix, max_yolov26n_like) {
+    using T = TypeParam;
+    const data_types dt = ov::element::from<T>();
     static const int32_t feature_num = 8400;
     auto& engine = get_test_engine();
     const int top_k = 300;
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {1, feature_num, 1, 1}});
+    auto input = engine.allocate_memory({dt, format::bfyx, {1, feature_num, 1, 1}});
 
-    std::vector<ov::float16> input_vec(feature_num);
+    std::vector<float> input_vec(feature_num);
     for (int i = 0; i < feature_num; i++)
-        input_vec[i] = ov::float16(static_cast<float>(i % 100) * 0.01f);
+        input_vec[i] = static_cast<float>(i % 100) * 0.01f;
     for (int i = 0; i < 300; i++)
-        input_vec[i * 28] = ov::float16(100.0f + static_cast<float>(300 - i) * 0.1f);
-    set_values(input, input_vec);
+        input_vec[i * 28] = 100.0f + static_cast<float>(300 - i) * 0.1f;
+    set_values(input, topk_radix_typed_vec<T>(input_vec));
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
     topology.add(arg_max_min("arg_max",
                              {input_info("input")},
                              ov::op::TopKMode::MAX, top_k, 1,
-                             ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f16));
+                             ov::op::TopKSortType::SORT_VALUES, true, false, dt));
 
     network network(engine, topology, get_radix_topk_config(engine));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 1; i < top_k; i++) {
         ASSERT_GE(static_cast<float>(output_ptr[i - 1]), static_cast<float>(output_ptr[i]))
             << "values not sorted descending at i=" << i;
@@ -1340,20 +1403,22 @@ TEST(arg_max_gpu_topk_radix, f16_max_yolov26n_like) {
 }
 
 // Radix test: CI failure reproducer - many duplicate values, verify indices tiebreaking
-TEST(arg_max_gpu_topk_radix, f16_max_duplicates_n70_k5_indices_tiebreak) {
+TYPED_TEST(arg_max_gpu_topk_radix, max_duplicates_n70_k5_indices_tiebreak) {
+    using T = TypeParam;
+    const data_types dt = ov::element::from<T>();
     static const int32_t batch_num = 4, feature_num = 70;
     auto& engine = get_test_engine();
     const int top_k = 5;
-    auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, 1, 1}});
-    auto top_k_input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 1, 1}});
+    auto input = engine.allocate_memory({dt, format::bfyx, {batch_num, feature_num, 1, 1}});
+    auto top_k_input = engine.allocate_memory({dt, format::bfyx, {1, 1, 1, 1}});
     auto second_output = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, top_k, 1, 1}});
 
-    std::vector<ov::float16> input_vec(batch_num * feature_num);
+    std::vector<float> input_vec(batch_num * feature_num);
     std::mt19937 rng(42);
     std::uniform_int_distribution<int> dist(0, 14);
     for (size_t i = 0; i < input_vec.size(); i++)
-        input_vec[i] = ov::float16(static_cast<float>(dist(rng)));
-    set_values(input, input_vec);
+        input_vec[i] = static_cast<float>(dist(rng));
+    set_values(input, topk_radix_typed_vec<T>(input_vec));
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -1362,14 +1427,15 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicates_n70_k5_indices_tiebreak) {
     topology.add(arg_max_min("arg_max",
                              {input_info("input"), input_info("const"), input_info("second_output")},
                              ov::op::TopKMode::MAX, top_k, 1,
-                             ov::op::TopKSortType::SORT_VALUES, true, false, data_types::f16));
+                             ov::op::TopKSortType::SORT_VALUES, true, false, dt));
 
     network network(engine, topology, get_radix_topk_config(engine));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
     network.set_input_data("input", input);
     auto outputs = network.execute();
 
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> val_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> val_ptr(output, get_test_stream());
     cldnn::mem_lock<float> idx_ptr(second_output, get_test_stream());
 
     for (int b = 0; b < batch_num; b++) {
@@ -1378,7 +1444,7 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicates_n70_k5_indices_tiebreak) {
 
         std::vector<std::pair<float, int>> ref;
         for (int i = 0; i < feature_num; i++)
-            ref.push_back({static_cast<float>(input_vec[input_offset + i]), i});
+            ref.push_back({input_vec[input_offset + i], i});
         std::stable_sort(ref.begin(), ref.end(),
             [](const auto& a, const auto& b) { return a.first > b.first; });
 
@@ -1388,6 +1454,52 @@ TEST(arg_max_gpu_topk_radix, f16_max_duplicates_n70_k5_indices_tiebreak) {
             ASSERT_EQ(static_cast<int>(idx_ptr[out_offset + k]), ref[k].second)
                 << "index mismatch at b=" << b << " k=" << k;
         }
+    }
+}
+
+// Radix test: very large sort size (N=100000, K=256, axis=feature)
+TYPED_TEST(arg_max_gpu_topk_radix, max_n100k_k256_axis_feature) {
+    using T = TypeParam;
+    const data_types dt = ov::element::from<T>();
+    static const int32_t feature_num = 100000;
+    auto& engine = get_test_engine();
+    const int top_k = 256;
+    const int stride = feature_num / top_k;
+    auto input = engine.allocate_memory({dt, format::bfyx, {1, feature_num, 1, 1}});
+    auto top_k_input = engine.allocate_memory({dt, format::bfyx, {1, 1, 1, 1}});
+    auto second_output = engine.allocate_memory({data_types::f32, format::bfyx, {1, top_k, 1, 1}});
+
+    // Background stays below 1.0, the K planted values are distinct integers
+    // (exactly representable in f16) so both values and indices are unambiguous.
+    std::vector<float> input_vec(feature_num);
+    for (int i = 0; i < feature_num; i++)
+        input_vec[i] = static_cast<float>(i % 100) * 0.01f;
+    for (int i = 0; i < top_k; i++)
+        input_vec[i * stride] = 100.0f + static_cast<float>(top_k - i);
+    set_values(input, topk_radix_typed_vec<T>(input_vec));
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(cldnn::data("const", top_k_input));
+    topology.add(mutable_data("second_output", second_output));
+    topology.add(arg_max_min("arg_max",
+                             {input_info("input"), input_info("const"), input_info("second_output")},
+                             ov::op::TopKMode::MAX, top_k, 1,
+                             ov::op::TopKSortType::SORT_VALUES, true, false, dt));
+
+    network network(engine, topology, get_radix_topk_config(engine));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("arg_max").get_memory();
+    cldnn::mem_lock<T, mem_lock_type::read> val_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> idx_ptr(second_output, get_test_stream());
+
+    for (int k = 0; k < top_k; k++) {
+        ASSERT_NEAR(static_cast<float>(val_ptr[k]), 100.0f + static_cast<float>(top_k - k),
+                    topk_radix_tolerance<T>()) << "value mismatch at k=" << k;
+        ASSERT_EQ(static_cast<int>(idx_ptr[k]), k * stride) << "index mismatch at k=" << k;
     }
 }
 

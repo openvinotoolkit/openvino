@@ -80,7 +80,10 @@ void add_rope_sin_cos(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
     // small cgraph (a single-op test) has no such attribute -> default RopeConfig (n_dims == 0,
     // "no RoPE") so the shared table is skipped and the op falls back to its own sin/cos.
     const auto rope_config_any = gguf_model_decoder.get_attribute("rope_config");
-    const auto rope_config = rope_config_any.empty() ? RopeConfig{} : rope_config_any.as<RopeConfig>();
+    if (rope_config_any.empty()) {
+        return;
+    }
+    const auto& rope_config = rope_config_any.as<RopeConfig>();
     // n_dims == 0 means the model uses no RoPE; per_op means each ROPE op builds its own sin/cos
     // (e.g. gemma4 where SWA and global layers differ), so skip the shared table entirely.
     if (tensor_map.find("inp_pos") == tensor_map.end() || rope_config.n_dims == 0 || rope_config.per_op) {
@@ -133,7 +136,7 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     std::shared_ptr<Model> resulting_model;
 
     const auto& gguf_model = std::dynamic_pointer_cast<InputModel>(input_model);
-    std::shared_ptr<GgufDecoder> gguf_model_decoder = gguf_model->get_model_decoder();
+    const auto& gguf_model_decoder = gguf_model->get_model_decoder();
 
     // Auxiliary input Parameters may only get a consumer from a later normalization pass, after
     // the unused-Parameter pruning below. Track them so pruning never drops one for lack of a
@@ -172,7 +175,7 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // lazy (never materialized to f32) and keeps one weight-loading path for both ingest paths.
 
     auto node_visitor = [&](std::shared_ptr<GgufDecoder> decoder) {
-        auto operation_type = decoder->get_op_type();
+        const auto& operation_type = decoder->get_op_type();
         if (operation_type == "GGML_OP_NONE") {
             // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
             // builder's pre-extracted payload (bool "gguf_weight") or the cgraph decoder's raw
@@ -206,7 +209,7 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
                                       " respectively.");
 
         for (size_t i = 0; i < node_output_names.size(); ++i) {
-            auto output_name = node_output_names[i];
+            const auto& output_name = node_output_names[i];
             if (i < converted_outputs.size() && converted_outputs[i].get_node_shared_ptr() != nullptr) {
                 (*tensor_map)[output_name] = converted_outputs[i];
             }

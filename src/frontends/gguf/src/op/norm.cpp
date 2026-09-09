@@ -25,7 +25,7 @@ OutputVector translate_norm(const NodeContext& context) {
     auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
     auto res = std::make_shared<ov::op::v6::MVN>(input_node, axes, true, eps, ov::op::MVNEpsMode::INSIDE_SQRT);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

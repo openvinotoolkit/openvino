@@ -50,7 +50,7 @@ A `gh-aw` workflow is a Markdown file with a YAML frontmatter block and a natura
 
 * **Frontmatter** configures the workflow the same way a normal GitHub Actions workflow is configured —
   `on:` triggers, `permissions:`, `concurrency:`, plus `gh-aw`-specific keys:
-  * `engine:` — the agent runtime (`copilot`) and `model:` (`claude-sonnet-4.6`).
+  * `engine:` — the agent runtime (`copilot`) and `model:` (`claude-sonnet-5`).
   * `network:` — the network policy enforced by a firewall proxy around the agent.
   * `tools:` — which tool servers the agent may use (for example the GitHub MCP server toolsets, and
     the `repo-memory` store).
@@ -91,7 +91,7 @@ See [Maintaining the workflows](#maintaining-the-workflows) for details.
 | Knowledge base | Reads the MQ pattern database (read-only) | **Writes** the pattern database (investigations + patterns) |
 | Output | One consolidated PR comment | Microsoft Teams notification (+ optional PR comment, re-run, re-queue) |
 | Remediation | Report only | Can re-run failed jobs, re-add the PR to the merge queue, escalate recurring failures |
-| Engine / model | `copilot` / `claude-sonnet-4.6` | `copilot` / `claude-sonnet-4.6` |
+| Engine / model | `copilot` / `claude-sonnet-5` | `copilot` / `claude-sonnet-5` |
 
 ## CI Doctor (pull request, on-demand)
 

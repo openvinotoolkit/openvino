@@ -57,7 +57,7 @@ OutputVector translate_glu_geglu(const NodeContext& context) {
     auto gelu = std::make_shared<ov::op::v7::Gelu>(src0, ov::op::GeluApproximationMode::TANH);
     auto res = std::make_shared<ov::op::v1::Multiply>(gelu, src1);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

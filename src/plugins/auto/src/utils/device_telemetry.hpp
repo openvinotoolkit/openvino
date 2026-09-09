@@ -15,6 +15,13 @@ namespace ov {
 namespace auto_plugin {
 namespace device_monitor {
 
+// IPF (Intel(R) Innovation Platform Framework): Intel's telemetry/policy client API used
+//     here to query platform state and subscribe to runtime platform events (e.g. DTT gear changes).
+// DTT (Intel(R) Dynamic Tuning Technology): Intel driver/service that manages platform
+//     power/thermal policy and exposes its state (status, version, current EPO gear) through IPF.
+// EPO (Energy Performance Optimizer): one of DTT's policies; its "gear" (1-7) indicates whether
+//     the platform currently favors low-latency/performance (gears 1-3) or low power (gears 4-7).
+
 #ifdef OV_AUTO_ENABLE_IPF
 void gear_changed_callback(const char* path, const char* event, void* context);
 #endif
@@ -45,11 +52,19 @@ inline constexpr std::string_view k_igpu_utilization_metric = "IGPUUtilization";
 inline constexpr std::string_view k_igpu_utilization_fallback_metric = "GPUUtilization";
 inline constexpr std::string_view k_dgpu_utilization_metric = "DGPUUtilization";
 inline constexpr std::string_view k_npu_utilization_metric = "NPUUtilization";
-inline constexpr int k_low_power_mode_min_gear = 1;
+// EPO defines gears 1-7: gears 1-3 request low-latency/performance operation
+// (perf_curve_table), gears 4-7 request low power operation (low_power_device).
+inline constexpr int k_min_gear = 1;
+inline constexpr int k_max_gear = 7;
+inline constexpr int k_low_power_mode_min_gear = 4;
+inline constexpr int k_low_power_mode_max_gear = k_max_gear;
 
-// EPO gear 0 is baseline; positive gears request reduced-power operation.
+inline constexpr bool is_valid_gear(int gear) {
+    return gear >= k_min_gear && gear <= k_max_gear;
+}
+
 inline constexpr bool is_low_power_gear(int gear) {
-    return gear >= k_low_power_mode_min_gear;
+    return gear >= k_low_power_mode_min_gear && gear <= k_low_power_mode_max_gear;
 }
 
 inline constexpr bool has_prefix(std::string_view value, std::string_view prefix) {

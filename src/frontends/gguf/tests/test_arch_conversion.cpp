@@ -43,8 +43,10 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common_test_utils/common_utils.hpp"
@@ -178,20 +180,63 @@ struct Fingerprint {
 
 const std::map<std::string, Fingerprint>& fingerprints() {
     static const std::map<std::string, Fingerprint> fp{
-        {"bailingmoe2-moe.gguf.hdr", {457, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {431, 10}},
-        {"exaone4-dense.gguf.hdr", {402, 11}},   {"gemma-dense.gguf.hdr", {349, 10}},
-        {"gemma2-dense.gguf.hdr", {399, 11}},    {"glm4moe-moe.gguf.hdr", {469, 10}},
-        {"gpt-oss-moe.gguf.hdr", {558, 11}},     {"hunyuan-dense-dense.gguf.hdr", {400, 10}},
-        {"hunyuan-moe-moe.gguf.hdr", {518, 10}}, {"llama-dense.gguf.hdr", {384, 10}},
-        {"llama-moe.gguf.hdr", {490, 10}},       {"maincoder-dense.gguf.hdr", {416, 10}},
-        {"minicpm-dense.gguf.hdr", {382, 10}},   {"minicpm-moe.gguf.hdr", {488, 10}},
-        {"minimax-m2-moe.gguf.hdr", {518, 10}},  {"mistral3-dense.gguf.hdr", {384, 10}},
-        {"mistral3-moe.gguf.hdr", {490, 10}},    {"olmoe-moe.gguf.hdr", {518, 10}},
-        {"phi3-dense.gguf.hdr", {364, 10}},      {"qwen2-dense.gguf.hdr", {352, 10}},
-        {"qwen3-dense.gguf.hdr", {400, 10}},     {"qwen3moe-moe.gguf.hdr", {534, 10}},
-        {"qwen35-dense.gguf.hdr", {387, 10}},    {"smollm3-dense.gguf.hdr", {368, 10}},
+        {"bailingmoe2-moe.gguf.hdr", {473, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {447, 10}},
+        {"exaone4-dense.gguf.hdr", {418, 11}},   {"gemma-dense.gguf.hdr", {365, 10}},
+        {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {485, 10}},
+        {"gpt-oss-moe.gguf.hdr", {574, 11}},     {"hunyuan-dense-dense.gguf.hdr", {416, 10}},
+        {"hunyuan-moe-moe.gguf.hdr", {534, 10}}, {"llama-dense.gguf.hdr", {400, 10}},
+        {"llama-moe.gguf.hdr", {506, 10}},       {"maincoder-dense.gguf.hdr", {432, 10}},
+        {"minicpm-dense.gguf.hdr", {398, 10}},   {"minicpm-moe.gguf.hdr", {504, 10}},
+        {"minimax-m2-moe.gguf.hdr", {534, 10}},  {"mistral3-dense.gguf.hdr", {400, 10}},
+        {"mistral3-moe.gguf.hdr", {506, 10}},    {"olmoe-moe.gguf.hdr", {534, 10}},
+        {"phi3-dense.gguf.hdr", {380, 10}},      {"qwen2-dense.gguf.hdr", {368, 10}},
+        {"qwen3-dense.gguf.hdr", {416, 10}},     {"qwen3moe-moe.gguf.hdr", {550, 10}},
+        {"qwen35-dense.gguf.hdr", {395, 10}},    {"smollm3-dense.gguf.hdr", {384, 10}},
     };
     return fp;
+}
+
+using GraphDependency = std::pair<std::string, std::string>;
+
+const std::map<std::string, std::vector<GraphDependency>>& graph_dependencies() {
+    static const std::map<std::string, std::vector<GraphDependency>> dependencies{
+        {"hunyuan-dense-dense.gguf.hdr", {{"blk.0.Qcur_rope", "blk.0.Qcur_normed"}}},
+        {"hunyuan-moe-moe.gguf.hdr", {{"blk.0.Qcur_rope", "blk.0.Qcur_normed"}}},
+        {"qwen3-dense.gguf.hdr", {{"blk.0.Qcur_normed", "blk.0.Qcur_rope"}}},
+        {"qwen3moe-moe.gguf.hdr", {{"blk.0.Qcur_normed", "blk.0.Qcur_rope"}}},
+    };
+    return dependencies;
+}
+
+std::shared_ptr<ov::Node> find_node(const std::shared_ptr<ov::Model>& model, const std::string& name) {
+    const auto ops = model->get_ordered_ops();
+    const auto it = std::find_if(ops.begin(), ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
+        const auto& friendly_name = node->get_friendly_name();
+        return friendly_name.find(name) != std::string::npos && friendly_name.find(name + ".") == std::string::npos;
+    });
+    return it == ops.end() ? nullptr : *it;
+}
+
+bool is_ancestor(const std::shared_ptr<ov::Node>& ancestor, const std::shared_ptr<ov::Node>& descendant) {
+    std::vector<std::shared_ptr<ov::Node>> pending;
+    for (const auto& input : descendant->input_values()) {
+        pending.push_back(input.get_node_shared_ptr());
+    }
+    std::set<const ov::Node*> visited;
+    while (!pending.empty()) {
+        const auto node = pending.back();
+        pending.pop_back();
+        if (node == ancestor) {
+            return true;
+        }
+        if (!visited.insert(node.get()).second) {
+            continue;
+        }
+        for (const auto& input : node->input_values()) {
+            pending.push_back(input.get_node_shared_ptr());
+        }
+    }
+    return false;
 }
 
 // A scratch directory that outlives one test, so the reconstructed .gguf can be written once per
@@ -246,6 +291,17 @@ TEST_P(GGUFArchConversion, MatchesManifestExpectation) {
             << "update fingerprints() -- and say why in the commit message.";
         EXPECT_EQ(model->inputs().size(), it->second.inputs)
             << "graph input count for " << fixture.header_file << " changed; see fingerprints().";
+        if (const auto dependency_it = graph_dependencies().find(fixture.header_file);
+            dependency_it != graph_dependencies().end()) {
+            for (const auto& dependency : dependency_it->second) {
+                const auto producer = find_node(model, dependency.first);
+                const auto consumer = find_node(model, dependency.second);
+                ASSERT_TRUE(producer) << fixture.header_file << " has no expected producer " << dependency.first;
+                ASSERT_TRUE(consumer) << fixture.header_file << " has no expected consumer " << dependency.second;
+                EXPECT_TRUE(is_ancestor(producer, consumer))
+                    << fixture.header_file << ": " << dependency.second << " must depend on " << dependency.first;
+            }
+        }
         break;
     }
     case Expectation::Reject: {

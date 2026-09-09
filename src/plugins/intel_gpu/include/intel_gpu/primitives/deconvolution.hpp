@@ -379,8 +379,9 @@ struct deconvolution : public primitive_base<deconvolution> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const deconvolution>(rhs);
 
@@ -443,11 +444,13 @@ protected:
         OPENVINO_ASSERT(weights.is_valid());
         ret[idx++] = &weights;
 
-        if (bias.is_valid())
+        if (bias.is_valid()) {
             ret[idx++] = &bias;
+        }
 
-        if (output_shape_id.is_valid())
+        if (output_shape_id.is_valid()) {
             ret[idx++] = &output_shape_id;
+        }
 
         return ret;
     }

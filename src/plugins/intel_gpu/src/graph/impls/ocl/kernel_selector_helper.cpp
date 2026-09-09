@@ -2,67 +2,63 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/graph/program.hpp"
-
 #include "kernel_selector_helper.h"
-#include "intel_gpu/runtime/device_info.hpp"
-#include "kernel_selector_params.h"
-#include "to_string_utils.h"
-#include "program_node.h"
+
+#include <chrono>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+#include "activation_inst.h"
+#include "eltwise_inst.h"
+#include "impls/ocl/kernels_cache.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
-
 #include "intel_gpu/primitives/concatenation.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/crop.hpp"
+#include "intel_gpu/primitives/cum_sum.hpp"
+#include "intel_gpu/primitives/depth_to_space.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/embedding_bag.hpp"
+#include "intel_gpu/primitives/extract_image_patches.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
-#include "intel_gpu/primitives/roi_pooling.hpp"
-#include "intel_gpu/primitives/softmax.hpp"
-#include "intel_gpu/primitives/depth_to_space.hpp"
-#include "intel_gpu/primitives/shuffle_channels.hpp"
-#include "intel_gpu/primitives/strided_slice.hpp"
-#include "intel_gpu/primitives/cum_sum.hpp"
 #include "intel_gpu/primitives/reverse_sequence.hpp"
-#include "intel_gpu/primitives/embedding_bag.hpp"
-#include "intel_gpu/primitives/extract_image_patches.hpp"
-
-#include "swiglu_inst.h"
-#include "activation_inst.h"
-#include "eltwise_inst.h"
-#include "quantize_inst.h"
-#include "reorder_inst.h"
-
-#include "kernel_selector/kernels/swiglu/swiglu_kernel_base.h"
+#include "intel_gpu/primitives/roi_pooling.hpp"
+#include "intel_gpu/primitives/shuffle_channels.hpp"
+#include "intel_gpu/primitives/softmax.hpp"
+#include "intel_gpu/primitives/strided_slice.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
 #include "kernel_selector/kernels/activation/activation_kernel_base.h"
 #include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
 #include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
 #include "kernel_selector/kernels/quantize/quantize_kernel_params.h"
 #include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
-
-#include "impls/ocl/kernels_cache.hpp"
-
-#include <string>
-#include <type_traits>
-#include <vector>
-#include <chrono>
+#include "kernel_selector/kernels/swiglu/swiglu_kernel_base.h"
+#include "kernel_selector_params.h"
+#include "program_node.h"
+#include "quantize_inst.h"
+#include "reorder_inst.h"
+#include "swiglu_inst.h"
+#include "to_string_utils.h"
 
 namespace {
 using namespace cldnn;
 
 kernel_selector::dev_type get_device_type(cldnn::device_type type) {
     switch (type) {
-        case cldnn::device_type::integrated_gpu:
-            return kernel_selector::dev_type::integrated_gpu;
-        case cldnn::device_type::discrete_gpu:
-            return kernel_selector::dev_type::discrete_gpu;
-        default:
-            return kernel_selector::dev_type::integrated_gpu;
+    case cldnn::device_type::integrated_gpu:
+        return kernel_selector::dev_type::integrated_gpu;
+    case cldnn::device_type::discrete_gpu:
+        return kernel_selector::dev_type::discrete_gpu;
+    default:
+        return kernel_selector::dev_type::integrated_gpu;
     }
 }
 
@@ -111,8 +107,7 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     }
 
     // Add timestamp to avoid IGC uses a cached cm_check kernel.
-    auto timestamp = std::chrono::high_resolution_clock::now()
-                .time_since_epoch().count();
+    auto timestamp = std::chrono::high_resolution_clock::now().time_since_epoch().count();
     kernel_string->options += " -DSEED=" + to_string(timestamp);
 
     try {
@@ -133,12 +128,14 @@ static bool parse_driver_version(const std::string& driver_version, size_t num_c
     const char* last = driver_version.data() + driver_version.size();
     for (size_t i = 0; i < num_components; i++) {
         auto [ptr, ec] = std::from_chars(first, last, components[i]);
-        if (ec != std::errc())
+        if (ec != std::errc()) {
             return false;
+        }
         if (i + 1 < num_components) {
             // Expect a '.' separator before the next component
-            if (ptr == last || *ptr != '.')
+            if (ptr == last || *ptr != '.') {
                 return false;
+            }
             first = ptr + 1;
         }
     }
@@ -152,8 +149,9 @@ static bool driver_version_supports_microkernels(const std::string& driver_versi
         return false;
     return std::tie(v[0], v[1], v[2], v[3]) >= std::make_tuple(31, 0, 101, 6987);
 #else
-    if (!parse_driver_version(driver_version, 3, v))
+    if (!parse_driver_version(driver_version, 3, v)) {
         return false;
+    }
     return std::tie(v[0], v[1], v[2]) >= std::make_tuple(24, 22, 29735);
 #endif
 }
@@ -209,8 +207,9 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
 
 bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
     auto* device = e.get_device().get();
-    if (device->get_info().arch < gpu_arch::xe3)
+    if (device->get_info().arch < gpu_arch::xe3) {
         return false;
+    }
 
     static std::mutex m;
     std::lock_guard<std::mutex> lock(m);
@@ -242,729 +241,727 @@ bool query_register_file_size_option_supported(cldnn::engine& e, const cldnn::Ex
 
 kernel_selector::data_type to_data_type(data_types dt) {
     switch (dt) {
-        case cldnn::data_types::u2:
-            return kernel_selector::data_type::UINT2;
-        case cldnn::data_types::i4:
-            return kernel_selector::data_type::INT4;
-        case cldnn::data_types::u4:
-            return kernel_selector::data_type::UINT4;
-        case cldnn::data_types::i8:
-            return kernel_selector::data_type::INT8;
-        case cldnn::data_types::u8:
-            return kernel_selector::data_type::UINT8;
-        case cldnn::data_types::i16:
-            return kernel_selector::data_type::INT16;
-        case cldnn::data_types::u16:
-            return kernel_selector::data_type::UINT16;
-        case cldnn::data_types::i32:
-            return kernel_selector::data_type::INT32;
-        case cldnn::data_types::u32:
-            return kernel_selector::data_type::UINT32;
-        case cldnn::data_types::i64:
-            return kernel_selector::data_type::INT64;
-        case cldnn::data_types::f16:
-            return kernel_selector::data_type::F16;
-        case cldnn::data_types::f32:
-            return kernel_selector::data_type::F32;
-        case cldnn::data_types::bf16:
-            return kernel_selector::data_type::BF16;
-        case cldnn::data_types::f4e2m1:
-            return kernel_selector::data_type::F4E2M1;
-        case cldnn::data_types::f8e4m3:
-            return kernel_selector::data_type::F8E4M3;
-        case cldnn::data_types::f8e5m2:
-            return kernel_selector::data_type::F8E5M2;
-        case cldnn::data_types::f8e8m0:
-            return kernel_selector::data_type::F8E8M0;
-        default:
-            OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector data type");
+    case cldnn::data_types::u2:
+        return kernel_selector::data_type::UINT2;
+    case cldnn::data_types::i4:
+        return kernel_selector::data_type::INT4;
+    case cldnn::data_types::u4:
+        return kernel_selector::data_type::UINT4;
+    case cldnn::data_types::i8:
+        return kernel_selector::data_type::INT8;
+    case cldnn::data_types::u8:
+        return kernel_selector::data_type::UINT8;
+    case cldnn::data_types::i16:
+        return kernel_selector::data_type::INT16;
+    case cldnn::data_types::u16:
+        return kernel_selector::data_type::UINT16;
+    case cldnn::data_types::i32:
+        return kernel_selector::data_type::INT32;
+    case cldnn::data_types::u32:
+        return kernel_selector::data_type::UINT32;
+    case cldnn::data_types::i64:
+        return kernel_selector::data_type::INT64;
+    case cldnn::data_types::f16:
+        return kernel_selector::data_type::F16;
+    case cldnn::data_types::f32:
+        return kernel_selector::data_type::F32;
+    case cldnn::data_types::bf16:
+        return kernel_selector::data_type::BF16;
+    case cldnn::data_types::f4e2m1:
+        return kernel_selector::data_type::F4E2M1;
+    case cldnn::data_types::f8e4m3:
+        return kernel_selector::data_type::F8E4M3;
+    case cldnn::data_types::f8e5m2:
+        return kernel_selector::data_type::F8E5M2;
+    case cldnn::data_types::f8e8m0:
+        return kernel_selector::data_type::F8E8M0;
+    default:
+        OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector data type");
     }
 }
 
 data_types from_data_type(kernel_selector::data_type dt) {
     switch (dt) {
-        case kernel_selector::data_type::UINT2:
-            return cldnn::data_types::u2;
-        case kernel_selector::data_type::INT4:
-            return cldnn::data_types::i4;
-        case kernel_selector::data_type::UINT4:
-            return cldnn::data_types::u4;
-        case kernel_selector::data_type::INT8:
-            return cldnn::data_types::i8;
-        case kernel_selector::data_type::UINT8:
-            return cldnn::data_types::u8;
-        case kernel_selector::data_type::INT16:
-            return cldnn::data_types::i16;
-        case kernel_selector::data_type::UINT16:
-            return cldnn::data_types::u16;
-        case kernel_selector::data_type::INT32:
-            return cldnn::data_types::i32;
-        case kernel_selector::data_type::UINT32:
-            return cldnn::data_types::u32;
-        case kernel_selector::data_type::INT64:
-            return cldnn::data_types::i64;
-        case kernel_selector::data_type::F16:
-            return cldnn::data_types::f16;
-        case kernel_selector::data_type::F32:
-            return cldnn::data_types::f32;
-        case kernel_selector::data_type::F4E2M1:
-            return cldnn::data_types::f4e2m1;
-        case kernel_selector::data_type::F8E4M3:
-            return cldnn::data_types::f8e4m3;
-        case kernel_selector::data_type::F8E5M2:
-            return cldnn::data_types::f8e5m2;
-        case kernel_selector::data_type::F8E8M0:
-            return cldnn::data_types::f8e8m0;
-        default:
-            OPENVINO_THROW("[GPU] Unable to convert kernel_selector data type ", kernel_selector::toString(dt), " to cldnn data type");
+    case kernel_selector::data_type::UINT2:
+        return cldnn::data_types::u2;
+    case kernel_selector::data_type::INT4:
+        return cldnn::data_types::i4;
+    case kernel_selector::data_type::UINT4:
+        return cldnn::data_types::u4;
+    case kernel_selector::data_type::INT8:
+        return cldnn::data_types::i8;
+    case kernel_selector::data_type::UINT8:
+        return cldnn::data_types::u8;
+    case kernel_selector::data_type::INT16:
+        return cldnn::data_types::i16;
+    case kernel_selector::data_type::UINT16:
+        return cldnn::data_types::u16;
+    case kernel_selector::data_type::INT32:
+        return cldnn::data_types::i32;
+    case kernel_selector::data_type::UINT32:
+        return cldnn::data_types::u32;
+    case kernel_selector::data_type::INT64:
+        return cldnn::data_types::i64;
+    case kernel_selector::data_type::F16:
+        return cldnn::data_types::f16;
+    case kernel_selector::data_type::F32:
+        return cldnn::data_types::f32;
+    case kernel_selector::data_type::F4E2M1:
+        return cldnn::data_types::f4e2m1;
+    case kernel_selector::data_type::F8E4M3:
+        return cldnn::data_types::f8e4m3;
+    case kernel_selector::data_type::F8E5M2:
+        return cldnn::data_types::f8e5m2;
+    case kernel_selector::data_type::F8E8M0:
+        return cldnn::data_types::f8e8m0;
+    default:
+        OPENVINO_THROW("[GPU] Unable to convert kernel_selector data type ", kernel_selector::toString(dt), " to cldnn data type");
     }
 }
 
 kernel_selector::weights_type to_weights_type(data_types dt) {
     switch (dt) {
-        case cldnn::data_types::u2:
-            return kernel_selector::weights_type::UINT2;
-        case cldnn::data_types::u4:
-            return kernel_selector::weights_type::UINT4;
-        case cldnn::data_types::i4:
-            return kernel_selector::weights_type::INT4;
-        case cldnn::data_types::i8:
-            return kernel_selector::weights_type::INT8;
-        case cldnn::data_types::u8:
-            return kernel_selector::weights_type::UINT8;
-        case cldnn::data_types::f16:
-            return kernel_selector::weights_type::F16;
-        case cldnn::data_types::f32:
-            return kernel_selector::weights_type::F32;
-        case cldnn::data_types::i32:
-            return kernel_selector::weights_type::INT32;
-        case cldnn::data_types::bf16:
-            return kernel_selector::weights_type::BF16;
-        case cldnn::data_types::f4e2m1:
-            return kernel_selector::weights_type::F4E2M1;
-        case cldnn::data_types::f8e4m3:
-            return kernel_selector::weights_type::F8E4M3;
-        case cldnn::data_types::f8e5m2:
-            return kernel_selector::weights_type::F8E5M2;
-        case cldnn::data_types::f8e8m0:
-            return kernel_selector::weights_type::F8E8M0;
-        default:
-            OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector weights type");
+    case cldnn::data_types::u2:
+        return kernel_selector::weights_type::UINT2;
+    case cldnn::data_types::u4:
+        return kernel_selector::weights_type::UINT4;
+    case cldnn::data_types::i4:
+        return kernel_selector::weights_type::INT4;
+    case cldnn::data_types::i8:
+        return kernel_selector::weights_type::INT8;
+    case cldnn::data_types::u8:
+        return kernel_selector::weights_type::UINT8;
+    case cldnn::data_types::f16:
+        return kernel_selector::weights_type::F16;
+    case cldnn::data_types::f32:
+        return kernel_selector::weights_type::F32;
+    case cldnn::data_types::i32:
+        return kernel_selector::weights_type::INT32;
+    case cldnn::data_types::bf16:
+        return kernel_selector::weights_type::BF16;
+    case cldnn::data_types::f4e2m1:
+        return kernel_selector::weights_type::F4E2M1;
+    case cldnn::data_types::f8e4m3:
+        return kernel_selector::weights_type::F8E4M3;
+    case cldnn::data_types::f8e5m2:
+        return kernel_selector::weights_type::F8E5M2;
+    case cldnn::data_types::f8e8m0:
+        return kernel_selector::weights_type::F8E8M0;
+    default:
+        OPENVINO_THROW("[GPU] Unable to convert cldnn data type ", dt, " to kernel_selector weights type");
     }
 }
 
 data_types from_weights_type(kernel_selector::weights_type dt) {
     switch (dt) {
-        case kernel_selector::weights_type::UINT2:
-            return data_types::u2;
-        case kernel_selector::weights_type::INT4:
-            return data_types::i4;
-        case kernel_selector::weights_type::UINT4:
-            return data_types::u4;
-        case kernel_selector::weights_type::INT8:
-            return data_types::i8;
-        case kernel_selector::weights_type::UINT8:
-            return data_types::u8;
-        case kernel_selector::weights_type::F16:
-            return data_types::f16;
-        case kernel_selector::weights_type::F32:
-            return data_types::f32;
-        case kernel_selector::weights_type::INT32:
-            return data_types::i32;
-        case kernel_selector::weights_type::F4E2M1:
-            return data_types::f4e2m1;
-        case kernel_selector::weights_type::F8E4M3:
-            return data_types::f8e4m3;
-        case kernel_selector::weights_type::F8E5M2:
-            return data_types::f8e5m2;
-        case kernel_selector::weights_type::F8E8M0:
-            return data_types::f8e8m0;
-        default:
-            OPENVINO_THROW("[GPU] Unable to convert kernel_selector weights type ", kernel_selector::toString(dt), " to cldnn data type");
+    case kernel_selector::weights_type::UINT2:
+        return data_types::u2;
+    case kernel_selector::weights_type::INT4:
+        return data_types::i4;
+    case kernel_selector::weights_type::UINT4:
+        return data_types::u4;
+    case kernel_selector::weights_type::INT8:
+        return data_types::i8;
+    case kernel_selector::weights_type::UINT8:
+        return data_types::u8;
+    case kernel_selector::weights_type::F16:
+        return data_types::f16;
+    case kernel_selector::weights_type::F32:
+        return data_types::f32;
+    case kernel_selector::weights_type::INT32:
+        return data_types::i32;
+    case kernel_selector::weights_type::F4E2M1:
+        return data_types::f4e2m1;
+    case kernel_selector::weights_type::F8E4M3:
+        return data_types::f8e4m3;
+    case kernel_selector::weights_type::F8E5M2:
+        return data_types::f8e5m2;
+    case kernel_selector::weights_type::F8E8M0:
+        return data_types::f8e8m0;
+    default:
+        OPENVINO_THROW("[GPU] Unable to convert kernel_selector weights type ", kernel_selector::toString(dt), " to cldnn data type");
     }
 }
 
 kernel_selector::data_layout to_data_layout(format f) {
     switch (f) {
-        case format::bfyx:
-            return kernel_selector::data_layout::bfyx;
-        case format::yxfb:
-            return kernel_selector::data_layout::yxfb;
-        case format::byxf:
-            return kernel_selector::data_layout::byxf;
-        case format::byfx:
-            return kernel_selector::data_layout::byfx;
-        case format::bxfy:
-            return kernel_selector::data_layout::bxfy;
-        case format::fbyx:
-            return kernel_selector::data_layout::fbyx;
-        case format::fyxb:
-            return kernel_selector::data_layout::fyxb;
-        case format::b_fs_yx_fsv2:
-            return kernel_selector::data_layout::b_fs_yx_fsv2;
-        case format::b_fs_yx_fsv4:
-            return kernel_selector::data_layout::b_fs_yx_fsv4;
-        case format::b_fs_yx_fsv8:
-            return kernel_selector::data_layout::b_fs_yx_fsv8;
-        case format::b_fs_yx_fsv16:
-            return kernel_selector::data_layout::b_fs_yx_fsv16;
-        case format::b_fs_yx_fsv32:
-            return kernel_selector::data_layout::b_fs_yx_fsv32;
-        case format::b_fs_zyx_fsv2:
-            return kernel_selector::data_layout::b_fs_zyx_fsv2;
-        case format::b_fs_zyx_fsv4:
-            return kernel_selector::data_layout::b_fs_zyx_fsv4;
-        case format::b_fs_zyx_fsv8:
-            return kernel_selector::data_layout::b_fs_zyx_fsv8;
-        case format::b_fs_zyx_fsv32:
-            return kernel_selector::data_layout::b_fs_zyx_fsv32;
-        case format::bs_f_bsv16:
-            return kernel_selector::data_layout::bs_f_bsv16__af8;
-        case format::bs_fs_fsv8_bsv8:
-            return kernel_selector::data_layout::bs_f_bsv8__af8;
-        case format::winograd_2x3_s1_data:
-            return kernel_selector::data_layout::winograd_2x3_s1_data;
-        case format::bfzyx:
-            return kernel_selector::data_layout::bfzyx;
-        case format::bzyxf:
-            return kernel_selector::data_layout::bzyxf;
-        case format::ybfx:
-            return kernel_selector::data_layout::ybfx;
-        case format::fs_b_yx_fsv32:
-            return kernel_selector::data_layout::fs_b_yx_fsv32;
-        case format::bfwzyx:
-            return kernel_selector::data_layout::bfwzyx;
-        case format::bfuwzyx:
-            return kernel_selector::data_layout::bfuwzyx;
-        case format::bfvuwzyx:
-            return kernel_selector::data_layout::bfvuwzyx;
-        case format::b_fs_zyx_fsv16:
-            return kernel_selector::data_layout::b_fs_zyx_fsv16;
-        case format::bs_fs_yx_bsv16_fsv32:
-            return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv32;
-        case format::bs_fs_zyx_bsv16_fsv32:
-            return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv32;
-        case format::bs_fs_zyx_bsv16_fsv16:
-            return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv16;
-        case format::bs_fs_yx_bsv16_fsv16:
-            return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv16;
-        case format::bs_fs_zyx_bsv32_fsv16:
-            return kernel_selector::data_layout::bs_fs_zyx_bsv32_fsv16;
-        case format::bs_fs_yx_bsv32_fsv16:
-            return kernel_selector::data_layout::bs_fs_yx_bsv32_fsv16;
-        case format::bs_fs_yx_bsv4_fsv4:
-            return kernel_selector::data_layout::bs_fs_yx_bsv4_fsv4;
-        case format::bs_fs_yx_bsv8_fsv4:
-            return kernel_selector::data_layout::bs_fs_yx_bsv8_fsv4;
-        case format::bs_fs_zyx_bsv8_fsv4:
-            return kernel_selector::data_layout::bs_fs_zyx_bsv8_fsv4;
-        case format::bs_fs_yx_bsv16_fsv4:
-            return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv4;
-        case format::bs_fs_zyx_bsv16_fsv4:
-            return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv4;
-        case format::bs_fs_yx_bsv16_fsv2:
-            return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv2;
-        case format::bs_fs_zyx_bsv16_fsv2:
-            return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv2;
-        case format::bs_fs_yx_bsv16_fsv8:
-            return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv8;
-        case format::bs_fs_zyx_bsv16_fsv8:
-            return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv8;
-        case format::bs_fs_yx_bsv8_fsv2:
-            return kernel_selector::data_layout::bs_fs_yx_bsv8_fsv2;
-        case format::bs_fs_zyx_bsv8_fsv2:
-            return kernel_selector::data_layout::bs_fs_zyx_bsv8_fsv2;
-        case format::bs_fs_yx_bsv4_fsv2:
-            return kernel_selector::data_layout::bs_fs_yx_bsv4_fsv2;
-        case format::bs_fs_yx_bsv32_fsv32:
-            return kernel_selector::data_layout::bs_fs_yx_bsv32_fsv32;
-        case format::bs_fs_zyx_bsv32_fsv32:
-            return kernel_selector::data_layout::bs_fs_zyx_bsv32_fsv32;
-        case format::nv12:
-            return kernel_selector::data_layout::nv12;
-        case format::image_2d_rgba:
-            return kernel_selector::data_layout::image_2d_rgba;
-        default:
-            OPENVINO_THROW("[GPU] Can't convert tensor format to kernel selector format as f=", f, " is not handled");
+    case format::bfyx:
+        return kernel_selector::data_layout::bfyx;
+    case format::yxfb:
+        return kernel_selector::data_layout::yxfb;
+    case format::byxf:
+        return kernel_selector::data_layout::byxf;
+    case format::byfx:
+        return kernel_selector::data_layout::byfx;
+    case format::bxfy:
+        return kernel_selector::data_layout::bxfy;
+    case format::fbyx:
+        return kernel_selector::data_layout::fbyx;
+    case format::fyxb:
+        return kernel_selector::data_layout::fyxb;
+    case format::b_fs_yx_fsv2:
+        return kernel_selector::data_layout::b_fs_yx_fsv2;
+    case format::b_fs_yx_fsv4:
+        return kernel_selector::data_layout::b_fs_yx_fsv4;
+    case format::b_fs_yx_fsv8:
+        return kernel_selector::data_layout::b_fs_yx_fsv8;
+    case format::b_fs_yx_fsv16:
+        return kernel_selector::data_layout::b_fs_yx_fsv16;
+    case format::b_fs_yx_fsv32:
+        return kernel_selector::data_layout::b_fs_yx_fsv32;
+    case format::b_fs_zyx_fsv2:
+        return kernel_selector::data_layout::b_fs_zyx_fsv2;
+    case format::b_fs_zyx_fsv4:
+        return kernel_selector::data_layout::b_fs_zyx_fsv4;
+    case format::b_fs_zyx_fsv8:
+        return kernel_selector::data_layout::b_fs_zyx_fsv8;
+    case format::b_fs_zyx_fsv32:
+        return kernel_selector::data_layout::b_fs_zyx_fsv32;
+    case format::bs_f_bsv16:
+        return kernel_selector::data_layout::bs_f_bsv16__af8;
+    case format::bs_fs_fsv8_bsv8:
+        return kernel_selector::data_layout::bs_f_bsv8__af8;
+    case format::winograd_2x3_s1_data:
+        return kernel_selector::data_layout::winograd_2x3_s1_data;
+    case format::bfzyx:
+        return kernel_selector::data_layout::bfzyx;
+    case format::bzyxf:
+        return kernel_selector::data_layout::bzyxf;
+    case format::ybfx:
+        return kernel_selector::data_layout::ybfx;
+    case format::fs_b_yx_fsv32:
+        return kernel_selector::data_layout::fs_b_yx_fsv32;
+    case format::bfwzyx:
+        return kernel_selector::data_layout::bfwzyx;
+    case format::bfuwzyx:
+        return kernel_selector::data_layout::bfuwzyx;
+    case format::bfvuwzyx:
+        return kernel_selector::data_layout::bfvuwzyx;
+    case format::b_fs_zyx_fsv16:
+        return kernel_selector::data_layout::b_fs_zyx_fsv16;
+    case format::bs_fs_yx_bsv16_fsv32:
+        return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv32;
+    case format::bs_fs_zyx_bsv16_fsv32:
+        return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv32;
+    case format::bs_fs_zyx_bsv16_fsv16:
+        return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv16;
+    case format::bs_fs_yx_bsv16_fsv16:
+        return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv16;
+    case format::bs_fs_zyx_bsv32_fsv16:
+        return kernel_selector::data_layout::bs_fs_zyx_bsv32_fsv16;
+    case format::bs_fs_yx_bsv32_fsv16:
+        return kernel_selector::data_layout::bs_fs_yx_bsv32_fsv16;
+    case format::bs_fs_yx_bsv4_fsv4:
+        return kernel_selector::data_layout::bs_fs_yx_bsv4_fsv4;
+    case format::bs_fs_yx_bsv8_fsv4:
+        return kernel_selector::data_layout::bs_fs_yx_bsv8_fsv4;
+    case format::bs_fs_zyx_bsv8_fsv4:
+        return kernel_selector::data_layout::bs_fs_zyx_bsv8_fsv4;
+    case format::bs_fs_yx_bsv16_fsv4:
+        return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv4;
+    case format::bs_fs_zyx_bsv16_fsv4:
+        return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv4;
+    case format::bs_fs_yx_bsv16_fsv2:
+        return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv2;
+    case format::bs_fs_zyx_bsv16_fsv2:
+        return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv2;
+    case format::bs_fs_yx_bsv16_fsv8:
+        return kernel_selector::data_layout::bs_fs_yx_bsv16_fsv8;
+    case format::bs_fs_zyx_bsv16_fsv8:
+        return kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv8;
+    case format::bs_fs_yx_bsv8_fsv2:
+        return kernel_selector::data_layout::bs_fs_yx_bsv8_fsv2;
+    case format::bs_fs_zyx_bsv8_fsv2:
+        return kernel_selector::data_layout::bs_fs_zyx_bsv8_fsv2;
+    case format::bs_fs_yx_bsv4_fsv2:
+        return kernel_selector::data_layout::bs_fs_yx_bsv4_fsv2;
+    case format::bs_fs_yx_bsv32_fsv32:
+        return kernel_selector::data_layout::bs_fs_yx_bsv32_fsv32;
+    case format::bs_fs_zyx_bsv32_fsv32:
+        return kernel_selector::data_layout::bs_fs_zyx_bsv32_fsv32;
+    case format::nv12:
+        return kernel_selector::data_layout::nv12;
+    case format::image_2d_rgba:
+        return kernel_selector::data_layout::image_2d_rgba;
+    default:
+        OPENVINO_THROW("[GPU] Can't convert tensor format to kernel selector format as f=", f, " is not handled");
     }
 }
 
 cldnn::format from_data_layout(kernel_selector::data_layout l) {
     switch (l) {
-        case kernel_selector::data_layout::bf:
-            return cldnn::format::bfyx;
-        case kernel_selector::data_layout::fb:
-            return cldnn::format::fyxb;
-        case kernel_selector::data_layout::bfyx:
-            return cldnn::format::bfyx;
-        case kernel_selector::data_layout::yxfb:
-            return cldnn::format::yxfb;
-        case kernel_selector::data_layout::byxf:
-            return cldnn::format::byxf;
-        case kernel_selector::data_layout::byfx:
-            return cldnn::format::byfx;
-        case kernel_selector::data_layout::bxfy:
-            return cldnn::format::bxfy;
-        case kernel_selector::data_layout::fbyx:
-            return cldnn::format::fbyx;
-        case kernel_selector::data_layout::fyxb:
-            return cldnn::format::fyxb;
-        case kernel_selector::data_layout::b_fs_yx_fsv2:
-            return cldnn::format::b_fs_yx_fsv2;
-        case kernel_selector::data_layout::b_fs_yx_fsv4:
-            return cldnn::format::b_fs_yx_fsv4;
-        case kernel_selector::data_layout::b_fs_yx_fsv8:
-            return cldnn::format::b_fs_yx_fsv8;
-        case kernel_selector::data_layout::b_fs_yx_fsv16:
-            return cldnn::format::b_fs_yx_fsv16;
-        case kernel_selector::data_layout::b_fs_yx_fsv32:
-            return cldnn::format::b_fs_yx_fsv32;
-        case kernel_selector::data_layout::b_fs_zyx_fsv8:
-            return cldnn::format::b_fs_zyx_fsv8;
-        case kernel_selector::data_layout::b_fs_zyx_fsv32:
-            return cldnn::format::b_fs_zyx_fsv32;
-        case kernel_selector::data_layout::bs_f_bsv8__af8:
-            return cldnn::format::bs_fs_fsv8_bsv8;
-        case kernel_selector::data_layout::bs_f_bsv16__af8:
-            return cldnn::format::bs_f_bsv16;
-        case kernel_selector::data_layout::winograd_2x3_s1_data:
-            return cldnn::format::winograd_2x3_s1_data;
-        case kernel_selector::data_layout::bfzyx:
-            return cldnn::format::bfzyx;
-        case kernel_selector::data_layout::fs_b_yx_fsv32:
-            return cldnn::format::fs_b_yx_fsv32;
-        case kernel_selector::data_layout::bfwzyx:
-            return cldnn::format::bfwzyx;
-        case kernel_selector::data_layout::bfuwzyx:
-            return cldnn::format::bfuwzyx;
-        case kernel_selector::data_layout::bfvuwzyx:
-            return cldnn::format::bfvuwzyx;
-        case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv16:
-            return cldnn::format::bs_fs_yx_bsv16_fsv16;
-        case kernel_selector::data_layout::bs_fs_zyx_bsv32_fsv16:
-            return cldnn::format::bs_fs_zyx_bsv32_fsv16;
-        case kernel_selector::data_layout::bs_fs_yx_bsv32_fsv16:
-            return cldnn::format::bs_fs_yx_bsv32_fsv16;
-        case kernel_selector::data_layout::bs_fs_yx_bsv4_fsv2:
-            return cldnn::format::bs_fs_yx_bsv4_fsv2;
-        case kernel_selector::data_layout::bs_fs_yx_bsv4_fsv4:
-            return cldnn::format::bs_fs_yx_bsv4_fsv4;
-        case kernel_selector::data_layout::bs_fs_yx_bsv8_fsv4:
-            return cldnn::format::bs_fs_yx_bsv8_fsv4;
-        case kernel_selector::data_layout::bs_fs_zyx_bsv8_fsv4:
-            return cldnn::format::bs_fs_zyx_bsv8_fsv4;
-        case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv4:
-            return cldnn::format::bs_fs_yx_bsv16_fsv4;
-        case kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv4:
-            return cldnn::format::bs_fs_zyx_bsv16_fsv4;
-        case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv2:
-            return cldnn::format::bs_fs_yx_bsv16_fsv2;
-        case kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv2:
-            return cldnn::format::bs_fs_zyx_bsv16_fsv2;
-        case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv8:
-            return cldnn::format::bs_fs_yx_bsv16_fsv8;
-        case kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv8:
-            return cldnn::format::bs_fs_zyx_bsv16_fsv8;
-        case kernel_selector::data_layout::bs_fs_yx_bsv8_fsv2:
-            return cldnn::format::bs_fs_yx_bsv8_fsv2;
-        case kernel_selector::data_layout::bs_fs_yx_bsv32_fsv32:
-            return cldnn::format::bs_fs_yx_bsv32_fsv32;
-        case kernel_selector::data_layout::bs_fs_zyx_bsv32_fsv32:
-            return cldnn::format::bs_fs_zyx_bsv32_fsv32;
-        case kernel_selector::data_layout::nv12:
-            return cldnn::format::nv12;
-        case kernel_selector::data_layout::image_2d_rgba:
-            return cldnn::format::image_2d_rgba;
-        default:
-            throw std::invalid_argument("Unable to convert data layout " + std::to_string(l) + " to tensor format");
+    case kernel_selector::data_layout::bf:
+        return cldnn::format::bfyx;
+    case kernel_selector::data_layout::fb:
+        return cldnn::format::fyxb;
+    case kernel_selector::data_layout::bfyx:
+        return cldnn::format::bfyx;
+    case kernel_selector::data_layout::yxfb:
+        return cldnn::format::yxfb;
+    case kernel_selector::data_layout::byxf:
+        return cldnn::format::byxf;
+    case kernel_selector::data_layout::byfx:
+        return cldnn::format::byfx;
+    case kernel_selector::data_layout::bxfy:
+        return cldnn::format::bxfy;
+    case kernel_selector::data_layout::fbyx:
+        return cldnn::format::fbyx;
+    case kernel_selector::data_layout::fyxb:
+        return cldnn::format::fyxb;
+    case kernel_selector::data_layout::b_fs_yx_fsv2:
+        return cldnn::format::b_fs_yx_fsv2;
+    case kernel_selector::data_layout::b_fs_yx_fsv4:
+        return cldnn::format::b_fs_yx_fsv4;
+    case kernel_selector::data_layout::b_fs_yx_fsv8:
+        return cldnn::format::b_fs_yx_fsv8;
+    case kernel_selector::data_layout::b_fs_yx_fsv16:
+        return cldnn::format::b_fs_yx_fsv16;
+    case kernel_selector::data_layout::b_fs_yx_fsv32:
+        return cldnn::format::b_fs_yx_fsv32;
+    case kernel_selector::data_layout::b_fs_zyx_fsv8:
+        return cldnn::format::b_fs_zyx_fsv8;
+    case kernel_selector::data_layout::b_fs_zyx_fsv32:
+        return cldnn::format::b_fs_zyx_fsv32;
+    case kernel_selector::data_layout::bs_f_bsv8__af8:
+        return cldnn::format::bs_fs_fsv8_bsv8;
+    case kernel_selector::data_layout::bs_f_bsv16__af8:
+        return cldnn::format::bs_f_bsv16;
+    case kernel_selector::data_layout::winograd_2x3_s1_data:
+        return cldnn::format::winograd_2x3_s1_data;
+    case kernel_selector::data_layout::bfzyx:
+        return cldnn::format::bfzyx;
+    case kernel_selector::data_layout::fs_b_yx_fsv32:
+        return cldnn::format::fs_b_yx_fsv32;
+    case kernel_selector::data_layout::bfwzyx:
+        return cldnn::format::bfwzyx;
+    case kernel_selector::data_layout::bfuwzyx:
+        return cldnn::format::bfuwzyx;
+    case kernel_selector::data_layout::bfvuwzyx:
+        return cldnn::format::bfvuwzyx;
+    case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv16:
+        return cldnn::format::bs_fs_yx_bsv16_fsv16;
+    case kernel_selector::data_layout::bs_fs_zyx_bsv32_fsv16:
+        return cldnn::format::bs_fs_zyx_bsv32_fsv16;
+    case kernel_selector::data_layout::bs_fs_yx_bsv32_fsv16:
+        return cldnn::format::bs_fs_yx_bsv32_fsv16;
+    case kernel_selector::data_layout::bs_fs_yx_bsv4_fsv2:
+        return cldnn::format::bs_fs_yx_bsv4_fsv2;
+    case kernel_selector::data_layout::bs_fs_yx_bsv4_fsv4:
+        return cldnn::format::bs_fs_yx_bsv4_fsv4;
+    case kernel_selector::data_layout::bs_fs_yx_bsv8_fsv4:
+        return cldnn::format::bs_fs_yx_bsv8_fsv4;
+    case kernel_selector::data_layout::bs_fs_zyx_bsv8_fsv4:
+        return cldnn::format::bs_fs_zyx_bsv8_fsv4;
+    case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv4:
+        return cldnn::format::bs_fs_yx_bsv16_fsv4;
+    case kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv4:
+        return cldnn::format::bs_fs_zyx_bsv16_fsv4;
+    case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv2:
+        return cldnn::format::bs_fs_yx_bsv16_fsv2;
+    case kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv2:
+        return cldnn::format::bs_fs_zyx_bsv16_fsv2;
+    case kernel_selector::data_layout::bs_fs_yx_bsv16_fsv8:
+        return cldnn::format::bs_fs_yx_bsv16_fsv8;
+    case kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv8:
+        return cldnn::format::bs_fs_zyx_bsv16_fsv8;
+    case kernel_selector::data_layout::bs_fs_yx_bsv8_fsv2:
+        return cldnn::format::bs_fs_yx_bsv8_fsv2;
+    case kernel_selector::data_layout::bs_fs_yx_bsv32_fsv32:
+        return cldnn::format::bs_fs_yx_bsv32_fsv32;
+    case kernel_selector::data_layout::bs_fs_zyx_bsv32_fsv32:
+        return cldnn::format::bs_fs_zyx_bsv32_fsv32;
+    case kernel_selector::data_layout::nv12:
+        return cldnn::format::nv12;
+    case kernel_selector::data_layout::image_2d_rgba:
+        return cldnn::format::image_2d_rgba;
+    default:
+        throw std::invalid_argument("Unable to convert data layout " + std::to_string(l) + " to tensor format");
     }
 }
 
 kernel_selector::weights_layout to_weights_layout(format f, bool is_grouped) {
     switch (f) {
-        case format::bfyx:
-        case format::oiyx:
-            return kernel_selector::weights_layout::oiyx;
-        case format::fbyx:
-        case format::ioyx:
-            return kernel_selector::weights_layout::ioyx;
-        case format::iyxo:
-        case format::fyxb:
-            return kernel_selector::weights_layout::iyxo;
-        case format::oyxi:
-        case format::byxf:
-            return kernel_selector::weights_layout::oyxi;
-        case format::oyix:
-        case format::byfx:
-            return kernel_selector::weights_layout::oyix;
-        case format::oxiy:
-        case format::bxfy:
-            return kernel_selector::weights_layout::oxiy;
-        case format::yxfb:
-        case format::yxio:
-            return kernel_selector::weights_layout::yxio;
-        case format::o_is_yx_isv4:
-            return kernel_selector::weights_layout::o_is_yx_isv4;
-        case format::o_is_yx_isv16:
-            return kernel_selector::weights_layout::o_is_yx_isv16;
-        case format::os_iyx_osv16:
-            return kernel_selector::weights_layout::os_iyx_osv16;
-        case format::os_is_yx_osv16_isv16:
-            return kernel_selector::weights_layout::os_is_yx_osv16_isv16;
-        case format::os_iyx_osv32:
-            return kernel_selector::weights_layout::os_iyx_osv32;
-        case format::os_iyx_osv32__ai32:
-            return kernel_selector::weights_layout::os_iyx_osv32__ai32;
-        case format::os_iyx_osv64:
-            return kernel_selector::weights_layout::os_iyx_osv64;
-        case format::image_2d_weights_c4_fyx_b:
-            return kernel_selector::weights_layout::image_2d_weights_c4_fyx_b;
-        case format::image_2d_weights_c1_b_fyx:
-            return kernel_selector::weights_layout::image_2d_weights_c1_b_fyx;
-        case format::winograd_2x3_s1_weights:
-            return kernel_selector::weights_layout::winograd_2x3_s1_weights;
-        case format::winograd_2x3_s1_fused_weights:
-            return kernel_selector::weights_layout::winograd_2x3_s1_fused_weights;
-        case format::winograd_6x3_s1_fused_weights:
-            return kernel_selector::weights_layout::winograd_6x3_s1_fused_weights;
-        case format::image_2d_weights_winograd_6x3_s1_fbxyb:
-            return kernel_selector::weights_layout::image_2d_weights_winograd_6x3_s1_fbxyb;
-        case format::image_2d_weights_winograd_6x3_s1_xfbyb:
-            return kernel_selector::weights_layout::image_2d_weights_winograd_6x3_s1_xfbyb;
-        case format::os_is_zyx_osa4_isa8_osv8_isv4:
-            return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4;
-        case format::os_is_yx_osa4_isa8_osv8_isv4:
-            return kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4;
-        case format::os_is_yx_isa8_osv8_isv4:
-            return kernel_selector::weights_layout::os_is_yx_isa8_osv8_isv4;
-        case format::os_is_yx_isa8_osv16_isv4:
-            return kernel_selector::weights_layout::os_is_yx_isa8_osv16_isv4;
-        case format::os_is_zyx_isa8_osv8_isv4:
-            return kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv4;
-        case format::os_is_zyx_isa8_osv16_isv4:
-            return kernel_selector::weights_layout::os_is_zyx_isa8_osv16_isv4;
-        case format::os_is_yx_osv8_isv4:
-            return kernel_selector::weights_layout::os_is_yx_osv8_isv4;
-        case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
-            return kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
-        case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
-            return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
-        case format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2:
-            return kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
-        case format::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2:
-            return kernel_selector::weights_layout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
-        case format::os_is_yx_osv16_isv4:
-            return kernel_selector::weights_layout::os_is_yx_osv16_isv4;
-        case format::os_is_yx_osv32_isv4_swizzled_by_2:
-            return kernel_selector::weights_layout::os_is_yx_osv32_isv4_swizzled_by_2;
-        case format::os_is_yx_osv32_isv4:
-            return kernel_selector::weights_layout::os_is_yx_osv32_isv4;
-        case format::os_is_zyx_osv32_isv4:
-            return kernel_selector::weights_layout::os_is_zyx_osv32_isv4;
-        case format::os_is_yx_isv16_osv16:
-            return kernel_selector::weights_layout::os_is_yx_isv16_osv16;
-        case format::bfzyx:
-            return is_grouped ? kernel_selector::weights_layout::goiyx : kernel_selector::weights_layout::oizyx;
-        case format::bfwzyx: {
-            if (!is_grouped)
-                throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx can't be non-grouped as 4D spatials are not supported");
-            return kernel_selector::weights_layout::goizyx;
+    case format::bfyx:
+    case format::oiyx:
+        return kernel_selector::weights_layout::oiyx;
+    case format::fbyx:
+    case format::ioyx:
+        return kernel_selector::weights_layout::ioyx;
+    case format::iyxo:
+    case format::fyxb:
+        return kernel_selector::weights_layout::iyxo;
+    case format::oyxi:
+    case format::byxf:
+        return kernel_selector::weights_layout::oyxi;
+    case format::oyix:
+    case format::byfx:
+        return kernel_selector::weights_layout::oyix;
+    case format::oxiy:
+    case format::bxfy:
+        return kernel_selector::weights_layout::oxiy;
+    case format::yxfb:
+    case format::yxio:
+        return kernel_selector::weights_layout::yxio;
+    case format::o_is_yx_isv4:
+        return kernel_selector::weights_layout::o_is_yx_isv4;
+    case format::o_is_yx_isv16:
+        return kernel_selector::weights_layout::o_is_yx_isv16;
+    case format::os_iyx_osv16:
+        return kernel_selector::weights_layout::os_iyx_osv16;
+    case format::os_is_yx_osv16_isv16:
+        return kernel_selector::weights_layout::os_is_yx_osv16_isv16;
+    case format::os_iyx_osv32:
+        return kernel_selector::weights_layout::os_iyx_osv32;
+    case format::os_iyx_osv32__ai32:
+        return kernel_selector::weights_layout::os_iyx_osv32__ai32;
+    case format::os_iyx_osv64:
+        return kernel_selector::weights_layout::os_iyx_osv64;
+    case format::image_2d_weights_c4_fyx_b:
+        return kernel_selector::weights_layout::image_2d_weights_c4_fyx_b;
+    case format::image_2d_weights_c1_b_fyx:
+        return kernel_selector::weights_layout::image_2d_weights_c1_b_fyx;
+    case format::winograd_2x3_s1_weights:
+        return kernel_selector::weights_layout::winograd_2x3_s1_weights;
+    case format::winograd_2x3_s1_fused_weights:
+        return kernel_selector::weights_layout::winograd_2x3_s1_fused_weights;
+    case format::winograd_6x3_s1_fused_weights:
+        return kernel_selector::weights_layout::winograd_6x3_s1_fused_weights;
+    case format::image_2d_weights_winograd_6x3_s1_fbxyb:
+        return kernel_selector::weights_layout::image_2d_weights_winograd_6x3_s1_fbxyb;
+    case format::image_2d_weights_winograd_6x3_s1_xfbyb:
+        return kernel_selector::weights_layout::image_2d_weights_winograd_6x3_s1_xfbyb;
+    case format::os_is_zyx_osa4_isa8_osv8_isv4:
+        return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4;
+    case format::os_is_yx_osa4_isa8_osv8_isv4:
+        return kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4;
+    case format::os_is_yx_isa8_osv8_isv4:
+        return kernel_selector::weights_layout::os_is_yx_isa8_osv8_isv4;
+    case format::os_is_yx_isa8_osv16_isv4:
+        return kernel_selector::weights_layout::os_is_yx_isa8_osv16_isv4;
+    case format::os_is_zyx_isa8_osv8_isv4:
+        return kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv4;
+    case format::os_is_zyx_isa8_osv16_isv4:
+        return kernel_selector::weights_layout::os_is_zyx_isa8_osv16_isv4;
+    case format::os_is_yx_osv8_isv4:
+        return kernel_selector::weights_layout::os_is_yx_osv8_isv4;
+    case format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
+        return kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
+    case format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
+        return kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
+    case format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2:
+        return kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
+    case format::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2:
+        return kernel_selector::weights_layout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
+    case format::os_is_yx_osv16_isv4:
+        return kernel_selector::weights_layout::os_is_yx_osv16_isv4;
+    case format::os_is_yx_osv32_isv4_swizzled_by_2:
+        return kernel_selector::weights_layout::os_is_yx_osv32_isv4_swizzled_by_2;
+    case format::os_is_yx_osv32_isv4:
+        return kernel_selector::weights_layout::os_is_yx_osv32_isv4;
+    case format::os_is_zyx_osv32_isv4:
+        return kernel_selector::weights_layout::os_is_zyx_osv32_isv4;
+    case format::os_is_yx_isv16_osv16:
+        return kernel_selector::weights_layout::os_is_yx_isv16_osv16;
+    case format::bfzyx:
+        return is_grouped ? kernel_selector::weights_layout::goiyx : kernel_selector::weights_layout::oizyx;
+    case format::bfwzyx: {
+        if (!is_grouped) {
+            throw std::runtime_error("Invalid conversion of data format to weights format. bfwzyx "
+                                     "can't be non-grouped as 4D spatials are not supported");
         }
-        case format::oizyx:
-            return kernel_selector::weights_layout::oizyx;
-        case format::iozyx:
-            return kernel_selector::weights_layout::iozyx;
-        case format::bs_fs_fsv8_bsv8:
-        case format::os_i_osv8__ai8:
-            return kernel_selector::weights_layout::os_i_osv8__ai8;
-        case format::os_i_osv16__ai8:
-            return kernel_selector::weights_layout::os_i_osv16__ai8;
-        case format::os_i_osv16:
-            return kernel_selector::weights_layout::os_i_osv16;
-        case format::os_is_yx_osv32_isv2:
-            return kernel_selector::weights_layout::os_is_yx_osv32_isv2;
-        case format::os_is_yx_osv64_isv2:
-            return kernel_selector::weights_layout::os_is_yx_osv64_isv2;
-        case format::os_is_zyx_isv16_osv16:
-            return kernel_selector::weights_layout::os_is_zyx_isv16_osv16;
-        case format::is_os_zyx_isv16_osv16:
-            return kernel_selector::weights_layout::is_os_zyx_isv16_osv16;
-        case format::os_is_zyx_osv32_isv16:
-            return kernel_selector::weights_layout::os_is_zyx_osv32_isv16;
-        case format::is_os_yx_isv16_osv16:
-            return kernel_selector::weights_layout::is_os_yx_isv16_osv16;
-        case format::i_yxs_os_yxsv2_osv16:
-            return kernel_selector::weights_layout::i_yxs_os_yxsv2_osv16;
-        case format::iy_xs_os_xsv2_osv8__ao32:
-            return kernel_selector::weights_layout::iy_xs_os_xsv2_osv8__ao32;
-        case format::iy_xs_os_xsv2_osv16__ao32:
-            return kernel_selector::weights_layout::iy_xs_os_xsv2_osv16__ao32;
-        case format::os_is_zyx_isv8_osv16_isv2:
-            return kernel_selector::weights_layout::os_is_zyx_isv8_osv16_isv2;
-        case format::os_is_yx_isv8_osv16_isv2:
-            return kernel_selector::weights_layout::os_is_yx_isv8_osv16_isv2;
-        case cldnn::format::os_iyx_osv8:
-            return kernel_selector::weights_layout::os_iyx_osv8;
-        case format::os_zyxi_osv16:
-            return kernel_selector::weights_layout::os_zyxi_osv16;
-        case format::goiyx:
-            return kernel_selector::weights_layout::goiyx;
-        case format::gioyx:
-            return kernel_selector::weights_layout::gioyx;
-        case format::goizyx:
-            return kernel_selector::weights_layout::goizyx;
-        case format::giozyx:
-            return kernel_selector::weights_layout::giozyx;
-        case format::g_os_iyx_osv8:
-            return kernel_selector::weights_layout::g_os_iyx_osv8;
-        case format::g_os_iyx_osv16:
-            return kernel_selector::weights_layout::g_os_iyx_osv16;
-        case format::g_os_iyx_osv32:
-            return kernel_selector::weights_layout::g_os_iyx_osv32;
-        case format::gs_oiyx_gsv16:
-            return kernel_selector::weights_layout::gs_oiyx_gsv16;
-        case format::gs_oizyx_gsv16:
-            return kernel_selector::weights_layout::gs_oizyx_gsv16;
-        case format::gs_oiyx_gsv32:
-            return kernel_selector::weights_layout::gs_oiyx_gsv32;
-        case format::gs_oi_yxs_gsv4_yxsv4:
-            return kernel_selector::weights_layout::gs_oi_yxs_gsv4_yxsv4;
-        case format::gs_oi_yxs_gsv16_yxsv4:
-            return kernel_selector::weights_layout::gs_oi_yxs_gsv16_yxsv4;
-        case format::gs_oi_yxs_gsv32_yxsv4:
-            return kernel_selector::weights_layout::gs_oi_yxs_gsv32_yxsv4;
-        case format::gyxio:
-            return kernel_selector::weights_layout::gyxio;
-        case format::gi_yxs_os_yxsv2_osv16:
-            return kernel_selector::weights_layout::gi_yxs_os_yxsv2_osv16;
-        case format::giy_xs_os_xsv2_osv8__ao32:
-            return kernel_selector::weights_layout::giy_xs_os_xsv2_osv8__ao32;
-        case format::g_is_os_zyx_isv16_osv16:
-            return kernel_selector::weights_layout::g_is_os_zyx_isv16_osv16;
-        case format::g_is_os_yx_isv16_osv16:
-            return kernel_selector::weights_layout::g_is_os_yx_isv16_osv16;
-        case format::g_os_is_zyx_isv8_osv16_isv2:
-            return kernel_selector::weights_layout::g_os_is_zyx_isv8_osv16_isv2;
-        case format::g_os_is_yx_isv8_osv16_isv2:
-            return kernel_selector::weights_layout::g_os_is_yx_isv8_osv16_isv2;
-        case format::g_os_is_zyx_isv16_osv16:
-            return kernel_selector::weights_layout::g_os_is_zyx_isv16_osv16;
-        case format::g_os_is_yx_osv16_isv4:
-            return kernel_selector::weights_layout::g_os_is_yx_osv16_isv4;
-        case format::os_is_zyx_osv16_isv16:
-            return kernel_selector::weights_layout::os_is_zyx_osv16_isv16;
-        case format::g_os_is_zyx_osv16_isv16:
-            return kernel_selector::weights_layout::g_os_is_zyx_osv16_isv16;
-        case format::g_os_zyx_is_osv16_isv4:
-            return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv4;
-        case format::g_os_zyx_is_osv16_isv16:
-            return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv16;
-        case format::g_os_zyx_is_osv16_isv32:
-            return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv32;
-        case format::g_os_zyx_is_osv32_isv4:
-            return kernel_selector::weights_layout::g_os_zyx_is_osv32_isv4;
-        case format::g_os_zyx_is_osv32_isv16:
-            return kernel_selector::weights_layout::g_os_zyx_is_osv32_isv16;
-        case format::g_os_zyx_is_osv32_isv32:
-            return kernel_selector::weights_layout::g_os_zyx_is_osv32_isv32;
-        case format::g_os_is_yx_isv16_osv16:
-            return kernel_selector::weights_layout::g_os_is_yx_isv16_osv16;
-        default:
-            throw std::invalid_argument("Unable to convert tensor layout " + fmt_to_str(f) + " to weights layout");
+        return kernel_selector::weights_layout::goizyx;
+    }
+    case format::oizyx:
+        return kernel_selector::weights_layout::oizyx;
+    case format::iozyx:
+        return kernel_selector::weights_layout::iozyx;
+    case format::bs_fs_fsv8_bsv8:
+    case format::os_i_osv8__ai8:
+        return kernel_selector::weights_layout::os_i_osv8__ai8;
+    case format::os_i_osv16__ai8:
+        return kernel_selector::weights_layout::os_i_osv16__ai8;
+    case format::os_i_osv16:
+        return kernel_selector::weights_layout::os_i_osv16;
+    case format::os_is_yx_osv32_isv2:
+        return kernel_selector::weights_layout::os_is_yx_osv32_isv2;
+    case format::os_is_yx_osv64_isv2:
+        return kernel_selector::weights_layout::os_is_yx_osv64_isv2;
+    case format::os_is_zyx_isv16_osv16:
+        return kernel_selector::weights_layout::os_is_zyx_isv16_osv16;
+    case format::is_os_zyx_isv16_osv16:
+        return kernel_selector::weights_layout::is_os_zyx_isv16_osv16;
+    case format::os_is_zyx_osv32_isv16:
+        return kernel_selector::weights_layout::os_is_zyx_osv32_isv16;
+    case format::is_os_yx_isv16_osv16:
+        return kernel_selector::weights_layout::is_os_yx_isv16_osv16;
+    case format::i_yxs_os_yxsv2_osv16:
+        return kernel_selector::weights_layout::i_yxs_os_yxsv2_osv16;
+    case format::iy_xs_os_xsv2_osv8__ao32:
+        return kernel_selector::weights_layout::iy_xs_os_xsv2_osv8__ao32;
+    case format::iy_xs_os_xsv2_osv16__ao32:
+        return kernel_selector::weights_layout::iy_xs_os_xsv2_osv16__ao32;
+    case format::os_is_zyx_isv8_osv16_isv2:
+        return kernel_selector::weights_layout::os_is_zyx_isv8_osv16_isv2;
+    case format::os_is_yx_isv8_osv16_isv2:
+        return kernel_selector::weights_layout::os_is_yx_isv8_osv16_isv2;
+    case cldnn::format::os_iyx_osv8:
+        return kernel_selector::weights_layout::os_iyx_osv8;
+    case format::os_zyxi_osv16:
+        return kernel_selector::weights_layout::os_zyxi_osv16;
+    case format::goiyx:
+        return kernel_selector::weights_layout::goiyx;
+    case format::gioyx:
+        return kernel_selector::weights_layout::gioyx;
+    case format::goizyx:
+        return kernel_selector::weights_layout::goizyx;
+    case format::giozyx:
+        return kernel_selector::weights_layout::giozyx;
+    case format::g_os_iyx_osv8:
+        return kernel_selector::weights_layout::g_os_iyx_osv8;
+    case format::g_os_iyx_osv16:
+        return kernel_selector::weights_layout::g_os_iyx_osv16;
+    case format::g_os_iyx_osv32:
+        return kernel_selector::weights_layout::g_os_iyx_osv32;
+    case format::gs_oiyx_gsv16:
+        return kernel_selector::weights_layout::gs_oiyx_gsv16;
+    case format::gs_oizyx_gsv16:
+        return kernel_selector::weights_layout::gs_oizyx_gsv16;
+    case format::gs_oiyx_gsv32:
+        return kernel_selector::weights_layout::gs_oiyx_gsv32;
+    case format::gs_oi_yxs_gsv4_yxsv4:
+        return kernel_selector::weights_layout::gs_oi_yxs_gsv4_yxsv4;
+    case format::gs_oi_yxs_gsv16_yxsv4:
+        return kernel_selector::weights_layout::gs_oi_yxs_gsv16_yxsv4;
+    case format::gs_oi_yxs_gsv32_yxsv4:
+        return kernel_selector::weights_layout::gs_oi_yxs_gsv32_yxsv4;
+    case format::gyxio:
+        return kernel_selector::weights_layout::gyxio;
+    case format::gi_yxs_os_yxsv2_osv16:
+        return kernel_selector::weights_layout::gi_yxs_os_yxsv2_osv16;
+    case format::giy_xs_os_xsv2_osv8__ao32:
+        return kernel_selector::weights_layout::giy_xs_os_xsv2_osv8__ao32;
+    case format::g_is_os_zyx_isv16_osv16:
+        return kernel_selector::weights_layout::g_is_os_zyx_isv16_osv16;
+    case format::g_is_os_yx_isv16_osv16:
+        return kernel_selector::weights_layout::g_is_os_yx_isv16_osv16;
+    case format::g_os_is_zyx_isv8_osv16_isv2:
+        return kernel_selector::weights_layout::g_os_is_zyx_isv8_osv16_isv2;
+    case format::g_os_is_yx_isv8_osv16_isv2:
+        return kernel_selector::weights_layout::g_os_is_yx_isv8_osv16_isv2;
+    case format::g_os_is_zyx_isv16_osv16:
+        return kernel_selector::weights_layout::g_os_is_zyx_isv16_osv16;
+    case format::g_os_is_yx_osv16_isv4:
+        return kernel_selector::weights_layout::g_os_is_yx_osv16_isv4;
+    case format::os_is_zyx_osv16_isv16:
+        return kernel_selector::weights_layout::os_is_zyx_osv16_isv16;
+    case format::g_os_is_zyx_osv16_isv16:
+        return kernel_selector::weights_layout::g_os_is_zyx_osv16_isv16;
+    case format::g_os_zyx_is_osv16_isv4:
+        return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv4;
+    case format::g_os_zyx_is_osv16_isv16:
+        return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv16;
+    case format::g_os_zyx_is_osv16_isv32:
+        return kernel_selector::weights_layout::g_os_zyx_is_osv16_isv32;
+    case format::g_os_zyx_is_osv32_isv4:
+        return kernel_selector::weights_layout::g_os_zyx_is_osv32_isv4;
+    case format::g_os_zyx_is_osv32_isv16:
+        return kernel_selector::weights_layout::g_os_zyx_is_osv32_isv16;
+    case format::g_os_zyx_is_osv32_isv32:
+        return kernel_selector::weights_layout::g_os_zyx_is_osv32_isv32;
+    case format::g_os_is_yx_isv16_osv16:
+        return kernel_selector::weights_layout::g_os_is_yx_isv16_osv16;
+    default:
+        throw std::invalid_argument("Unable to convert tensor layout " + fmt_to_str(f) + " to weights layout");
     }
 }
 
 cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
     switch (l) {
-        case kernel_selector::weights_layout::oi:
-            return cldnn::format::oiyx;
-        case kernel_selector::weights_layout::oiyx:
-            return cldnn::format::oiyx;
-        case kernel_selector::weights_layout::oyxi:
-            return cldnn::format::oyxi;
-        case kernel_selector::weights_layout::oyix:
-            return cldnn::format::oyix;
-        case kernel_selector::weights_layout::oxiy:
-            return cldnn::format::oxiy;
-        case kernel_selector::weights_layout::io:
-        case kernel_selector::weights_layout::iyxo:
-            return cldnn::format::iyxo;
-        case kernel_selector::weights_layout::yxio:
-            return cldnn::format::yxio;
-        case kernel_selector::weights_layout::o_is_yx_isv4:
-            return cldnn::format::o_is_yx_isv4;
-        case kernel_selector::weights_layout::o_is_yx_isv16:
-            return cldnn::format::o_is_yx_isv16;
-        case kernel_selector::weights_layout::os_iyx_osv16:
-            return cldnn::format::os_iyx_osv16;
-        case kernel_selector::weights_layout::os_is_yx_isv16_osv16:
-            return cldnn::format::os_is_yx_isv16_osv16;
-        case kernel_selector::weights_layout::os_is_yx_osv16_isv16:
-            return cldnn::format::os_is_yx_osv16_isv16;
-        case kernel_selector::weights_layout::os_iyx_osv32:
-            return cldnn::format::os_iyx_osv32;
-        case kernel_selector::weights_layout::os_iyx_osv64:
-            return cldnn::format::os_iyx_osv64;
-        case kernel_selector::weights_layout::os_i_osv16:
-            return cldnn::format::os_i_osv16;
-        case kernel_selector::weights_layout::os_is_yx_osv32_isv2:
-            return cldnn::format::os_is_yx_osv32_isv2;
-        case kernel_selector::weights_layout::os_is_yx_osv64_isv2:
-            return cldnn::format::os_is_yx_osv64_isv2;
-        case kernel_selector::weights_layout::os_i_osv8__ai8:
-            return cldnn::format::os_i_osv8__ai8;
-        case kernel_selector::weights_layout::os_i_osv16__ai8:
-            return cldnn::format::os_i_osv16__ai8;
-        case kernel_selector::weights_layout::image_2d_weights_c4_fyx_b:
-            return cldnn::format::image_2d_weights_c4_fyx_b;
-        case kernel_selector::weights_layout::image_2d_weights_c1_b_fyx:
-            return cldnn::format::image_2d_weights_c1_b_fyx;
-        case kernel_selector::weights_layout::winograd_2x3_s1_weights:
-            return cldnn::format::winograd_2x3_s1_weights;
-        case kernel_selector::weights_layout::winograd_2x3_s1_fused_weights:
-            return cldnn::format::winograd_2x3_s1_fused_weights;
-        case kernel_selector::weights_layout::winograd_6x3_s1_fused_weights:
-            return cldnn::format::winograd_6x3_s1_fused_weights;
-        case kernel_selector::weights_layout::image_2d_weights_winograd_6x3_s1_fbxyb:
-            return cldnn::format::image_2d_weights_winograd_6x3_s1_fbxyb;
-        case kernel_selector::weights_layout::image_2d_weights_winograd_6x3_s1_xfbyb:
-            return cldnn::format::image_2d_weights_winograd_6x3_s1_xfbyb;
-        case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4:
-            return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
-        case kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4:
-            return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4;
-        case kernel_selector::weights_layout::os_is_yx_isa8_osv8_isv4:
-            return cldnn::format::os_is_yx_isa8_osv8_isv4;
-        case kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv4:
-            return cldnn::format::os_is_zyx_isa8_osv8_isv4;
-        case kernel_selector::weights_layout::os_is_yx_isa8_osv16_isv4:
-            return cldnn::format::os_is_yx_isa8_osv16_isv4;
-        case kernel_selector::weights_layout::os_is_zyx_isa8_osv16_isv4:
-            return cldnn::format::os_is_zyx_isa8_osv16_isv4;
-        case kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
-            return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
-        case kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2:
-            return cldnn::format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
-        case kernel_selector::weights_layout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2:
-            return cldnn::format::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
-        case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
-            return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
-        case kernel_selector::weights_layout::os_is_yx_osv32_isv4_swizzled_by_2:
-            return format::os_is_yx_osv32_isv4_swizzled_by_2;
-        case kernel_selector::weights_layout::os_is_yx_osv32_isv4:
-            return format::os_is_yx_osv32_isv4;
-        case kernel_selector::weights_layout::os_is_zyx_osv32_isv4:
-            return format::os_is_zyx_osv32_isv4;
-        case kernel_selector::weights_layout::oizyx:
-            return cldnn::format::oizyx;
-        case kernel_selector::weights_layout::iozyx:
-            return cldnn::format::iozyx;
-        case kernel_selector::weights_layout::os_is_zyx_isv16_osv16:
-            return cldnn::format::os_is_zyx_isv16_osv16;
-        case kernel_selector::weights_layout::is_os_zyx_isv16_osv16:
-            return cldnn::format::is_os_zyx_isv16_osv16;
-        case kernel_selector::weights_layout::is_os_yx_isv16_osv16:
-            return cldnn::format::is_os_yx_isv16_osv16;
-        case kernel_selector::weights_layout::os_is_yx_osv8_isv4:
-            return cldnn::format::os_is_yx_osv8_isv4;
-        case kernel_selector::weights_layout::os_is_zyx_isv8_osv16_isv2:
-            return cldnn::format::os_is_zyx_isv8_osv16_isv2;
-        case kernel_selector::weights_layout::os_zyxi_osv16:
-            return cldnn::format::os_zyxi_osv16;
-        case kernel_selector::weights_layout::goiyx:
-            return cldnn::format::goiyx;
-        case kernel_selector::weights_layout::goizyx:
-            return cldnn::format::goizyx;
-        case kernel_selector::weights_layout::g_os_iyx_osv8:
-            return cldnn::format::g_os_iyx_osv8;
-        case kernel_selector::weights_layout::g_os_iyx_osv16:
-            return cldnn::format::g_os_iyx_osv16;
-        case kernel_selector::weights_layout::g_os_iyx_osv32:
-            return cldnn::format::g_os_iyx_osv32;
-        case kernel_selector::weights_layout::gs_oiyx_gsv16:
-            return cldnn::format::gs_oiyx_gsv16;
-        case kernel_selector::weights_layout::gs_oizyx_gsv16:
-            return cldnn::format::gs_oizyx_gsv16;
-        case kernel_selector::weights_layout::gs_oiyx_gsv32:
-            return cldnn::format::gs_oiyx_gsv32;
-        case kernel_selector::weights_layout::gyxio:
-            return cldnn::format::gyxio;
-        case kernel_selector::weights_layout::g_is_os_zyx_isv16_osv16:
-            return cldnn::format::g_is_os_zyx_isv16_osv16;
-        case kernel_selector::weights_layout::g_is_os_yx_isv16_osv16:
-            return cldnn::format::g_is_os_yx_isv16_osv16;
-        case kernel_selector::weights_layout::g_os_is_zyx_isv8_osv16_isv2:
-            return cldnn::format::g_os_is_zyx_isv8_osv16_isv2;
-        case kernel_selector::weights_layout::g_os_is_yx_isv8_osv16_isv2:
-            return cldnn::format::g_os_is_yx_isv8_osv16_isv2;
-        case kernel_selector::weights_layout::g_os_is_zyx_isv16_osv16:
-            return cldnn::format::g_os_is_zyx_isv16_osv16;
-        case kernel_selector::weights_layout::os_is_yx_osv16_isv4:
-            return cldnn::format::os_is_yx_osv16_isv4;
-        case kernel_selector::weights_layout::os_is_zyx_osv16_isv16:
-            return cldnn::format::os_is_zyx_osv16_isv16;
-        case kernel_selector::weights_layout::g_os_is_zyx_osv16_isv16:
-            return cldnn::format::g_os_is_zyx_osv16_isv16;
-        case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv4:
-            return cldnn::format::g_os_zyx_is_osv16_isv4;
-        case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv16:
-            return cldnn::format::g_os_zyx_is_osv16_isv16;
-        case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv32:
-            return cldnn::format::g_os_zyx_is_osv16_isv32;
-        case kernel_selector::weights_layout::g_os_zyx_is_osv32_isv4:
-            return cldnn::format::g_os_zyx_is_osv32_isv4;
-        case kernel_selector::weights_layout::g_os_zyx_is_osv32_isv16:
-            return cldnn::format::g_os_zyx_is_osv32_isv16;
-        case kernel_selector::weights_layout::g_os_zyx_is_osv32_isv32:
-            return cldnn::format::g_os_zyx_is_osv32_isv32;
-        case kernel_selector::weights_layout::gs_oi_yxs_gsv4_yxsv4:
-            return cldnn::format::gs_oi_yxs_gsv4_yxsv4;
-        case kernel_selector::weights_layout::gs_oi_yxs_gsv16_yxsv4:
-            return cldnn::format::gs_oi_yxs_gsv16_yxsv4;
-        case kernel_selector::weights_layout::gs_oi_yxs_gsv32_yxsv4:
-            return cldnn::format::gs_oi_yxs_gsv32_yxsv4;
-        case kernel_selector::weights_layout::g_os_is_yx_osv16_isv4:
-            return cldnn::format::g_os_is_yx_osv16_isv4;
-        case kernel_selector::weights_layout::g_os_is_yx_isv16_osv16:
-            return cldnn::format::g_os_is_yx_isv16_osv16;
-        case kernel_selector::weights_layout::os_iyx_osv8:
-            return cldnn::format::os_iyx_osv8;
-        case kernel_selector::weights_layout::os_iyx_osv32__ai32:
-            return cldnn::format::os_iyx_osv32__ai32;
-        case kernel_selector::weights_layout::iy_xs_os_xsv2_osv16__ao32:
-            return cldnn::format::iy_xs_os_xsv2_osv16__ao32;
-        case kernel_selector::weights_layout::iy_xs_os_xsv2_osv8__ao32:
-            return cldnn::format::iy_xs_os_xsv2_osv8__ao32;
-        case kernel_selector::weights_layout::i_yxs_os_yxsv2_osv16:
-            return cldnn::format::i_yxs_os_yxsv2_osv16;
-        case kernel_selector::weights_layout::os_is_zyx_osv32_isv16:
-            return cldnn::format::os_is_zyx_osv32_isv16;
-        case kernel_selector::weights_layout::os_is_zyx_osv64_isv16:
-            return cldnn::format::os_is_zyx_osv64_isv16;
-        case kernel_selector::weights_layout::os_is_yx_isv8_osv16_isv2:
-            return cldnn::format::os_is_yx_isv8_osv16_isv2;
-        case kernel_selector::weights_layout::os_iyx_osv16_rotate_180:
-            return cldnn::format::os_iyx_osv16;
-        case kernel_selector::weights_layout::gi_yxs_os_yxsv2_osv16:
-            return cldnn::format::gi_yxs_os_yxsv2_osv16;
-        case kernel_selector::weights_layout::giy_xs_os_xsv2_osv8__ao32:
-            return cldnn::format::giy_xs_os_xsv2_osv8__ao32;
-        case kernel_selector::weights_layout::giy_xs_os_xsv2_osv16__ao32:
-            return cldnn::format::giy_xs_os_xsv2_osv16__ao32;
-        case kernel_selector::weights_layout::ioyx:
-            return cldnn::format::ioyx;
-        case kernel_selector::weights_layout::giozyx:
-            return cldnn::format::giozyx;
-        default:
-            throw std::invalid_argument("Unable to convert kernel selector Weights layout " +
-                                         std::to_string(static_cast<int>(l)) + " to cldnn format");
+    case kernel_selector::weights_layout::oi:
+        return cldnn::format::oiyx;
+    case kernel_selector::weights_layout::oiyx:
+        return cldnn::format::oiyx;
+    case kernel_selector::weights_layout::oyxi:
+        return cldnn::format::oyxi;
+    case kernel_selector::weights_layout::oyix:
+        return cldnn::format::oyix;
+    case kernel_selector::weights_layout::oxiy:
+        return cldnn::format::oxiy;
+    case kernel_selector::weights_layout::io:
+    case kernel_selector::weights_layout::iyxo:
+        return cldnn::format::iyxo;
+    case kernel_selector::weights_layout::yxio:
+        return cldnn::format::yxio;
+    case kernel_selector::weights_layout::o_is_yx_isv4:
+        return cldnn::format::o_is_yx_isv4;
+    case kernel_selector::weights_layout::o_is_yx_isv16:
+        return cldnn::format::o_is_yx_isv16;
+    case kernel_selector::weights_layout::os_iyx_osv16:
+        return cldnn::format::os_iyx_osv16;
+    case kernel_selector::weights_layout::os_is_yx_isv16_osv16:
+        return cldnn::format::os_is_yx_isv16_osv16;
+    case kernel_selector::weights_layout::os_is_yx_osv16_isv16:
+        return cldnn::format::os_is_yx_osv16_isv16;
+    case kernel_selector::weights_layout::os_iyx_osv32:
+        return cldnn::format::os_iyx_osv32;
+    case kernel_selector::weights_layout::os_iyx_osv64:
+        return cldnn::format::os_iyx_osv64;
+    case kernel_selector::weights_layout::os_i_osv16:
+        return cldnn::format::os_i_osv16;
+    case kernel_selector::weights_layout::os_is_yx_osv32_isv2:
+        return cldnn::format::os_is_yx_osv32_isv2;
+    case kernel_selector::weights_layout::os_is_yx_osv64_isv2:
+        return cldnn::format::os_is_yx_osv64_isv2;
+    case kernel_selector::weights_layout::os_i_osv8__ai8:
+        return cldnn::format::os_i_osv8__ai8;
+    case kernel_selector::weights_layout::os_i_osv16__ai8:
+        return cldnn::format::os_i_osv16__ai8;
+    case kernel_selector::weights_layout::image_2d_weights_c4_fyx_b:
+        return cldnn::format::image_2d_weights_c4_fyx_b;
+    case kernel_selector::weights_layout::image_2d_weights_c1_b_fyx:
+        return cldnn::format::image_2d_weights_c1_b_fyx;
+    case kernel_selector::weights_layout::winograd_2x3_s1_weights:
+        return cldnn::format::winograd_2x3_s1_weights;
+    case kernel_selector::weights_layout::winograd_2x3_s1_fused_weights:
+        return cldnn::format::winograd_2x3_s1_fused_weights;
+    case kernel_selector::weights_layout::winograd_6x3_s1_fused_weights:
+        return cldnn::format::winograd_6x3_s1_fused_weights;
+    case kernel_selector::weights_layout::image_2d_weights_winograd_6x3_s1_fbxyb:
+        return cldnn::format::image_2d_weights_winograd_6x3_s1_fbxyb;
+    case kernel_selector::weights_layout::image_2d_weights_winograd_6x3_s1_xfbyb:
+        return cldnn::format::image_2d_weights_winograd_6x3_s1_xfbyb;
+    case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4:
+        return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4;
+    case kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4:
+        return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4;
+    case kernel_selector::weights_layout::os_is_yx_isa8_osv8_isv4:
+        return cldnn::format::os_is_yx_isa8_osv8_isv4;
+    case kernel_selector::weights_layout::os_is_zyx_isa8_osv8_isv4:
+        return cldnn::format::os_is_zyx_isa8_osv8_isv4;
+    case kernel_selector::weights_layout::os_is_yx_isa8_osv16_isv4:
+        return cldnn::format::os_is_yx_isa8_osv16_isv4;
+    case kernel_selector::weights_layout::os_is_zyx_isa8_osv16_isv4:
+        return cldnn::format::os_is_zyx_isa8_osv16_isv4;
+    case kernel_selector::weights_layout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4:
+        return cldnn::format::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
+    case kernel_selector::weights_layout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2:
+        return cldnn::format::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
+    case kernel_selector::weights_layout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2:
+        return cldnn::format::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
+    case kernel_selector::weights_layout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4:
+        return cldnn::format::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
+    case kernel_selector::weights_layout::os_is_yx_osv32_isv4_swizzled_by_2:
+        return format::os_is_yx_osv32_isv4_swizzled_by_2;
+    case kernel_selector::weights_layout::os_is_yx_osv32_isv4:
+        return format::os_is_yx_osv32_isv4;
+    case kernel_selector::weights_layout::os_is_zyx_osv32_isv4:
+        return format::os_is_zyx_osv32_isv4;
+    case kernel_selector::weights_layout::oizyx:
+        return cldnn::format::oizyx;
+    case kernel_selector::weights_layout::iozyx:
+        return cldnn::format::iozyx;
+    case kernel_selector::weights_layout::os_is_zyx_isv16_osv16:
+        return cldnn::format::os_is_zyx_isv16_osv16;
+    case kernel_selector::weights_layout::is_os_zyx_isv16_osv16:
+        return cldnn::format::is_os_zyx_isv16_osv16;
+    case kernel_selector::weights_layout::is_os_yx_isv16_osv16:
+        return cldnn::format::is_os_yx_isv16_osv16;
+    case kernel_selector::weights_layout::os_is_yx_osv8_isv4:
+        return cldnn::format::os_is_yx_osv8_isv4;
+    case kernel_selector::weights_layout::os_is_zyx_isv8_osv16_isv2:
+        return cldnn::format::os_is_zyx_isv8_osv16_isv2;
+    case kernel_selector::weights_layout::os_zyxi_osv16:
+        return cldnn::format::os_zyxi_osv16;
+    case kernel_selector::weights_layout::goiyx:
+        return cldnn::format::goiyx;
+    case kernel_selector::weights_layout::goizyx:
+        return cldnn::format::goizyx;
+    case kernel_selector::weights_layout::g_os_iyx_osv8:
+        return cldnn::format::g_os_iyx_osv8;
+    case kernel_selector::weights_layout::g_os_iyx_osv16:
+        return cldnn::format::g_os_iyx_osv16;
+    case kernel_selector::weights_layout::g_os_iyx_osv32:
+        return cldnn::format::g_os_iyx_osv32;
+    case kernel_selector::weights_layout::gs_oiyx_gsv16:
+        return cldnn::format::gs_oiyx_gsv16;
+    case kernel_selector::weights_layout::gs_oizyx_gsv16:
+        return cldnn::format::gs_oizyx_gsv16;
+    case kernel_selector::weights_layout::gs_oiyx_gsv32:
+        return cldnn::format::gs_oiyx_gsv32;
+    case kernel_selector::weights_layout::gyxio:
+        return cldnn::format::gyxio;
+    case kernel_selector::weights_layout::g_is_os_zyx_isv16_osv16:
+        return cldnn::format::g_is_os_zyx_isv16_osv16;
+    case kernel_selector::weights_layout::g_is_os_yx_isv16_osv16:
+        return cldnn::format::g_is_os_yx_isv16_osv16;
+    case kernel_selector::weights_layout::g_os_is_zyx_isv8_osv16_isv2:
+        return cldnn::format::g_os_is_zyx_isv8_osv16_isv2;
+    case kernel_selector::weights_layout::g_os_is_yx_isv8_osv16_isv2:
+        return cldnn::format::g_os_is_yx_isv8_osv16_isv2;
+    case kernel_selector::weights_layout::g_os_is_zyx_isv16_osv16:
+        return cldnn::format::g_os_is_zyx_isv16_osv16;
+    case kernel_selector::weights_layout::os_is_yx_osv16_isv4:
+        return cldnn::format::os_is_yx_osv16_isv4;
+    case kernel_selector::weights_layout::os_is_zyx_osv16_isv16:
+        return cldnn::format::os_is_zyx_osv16_isv16;
+    case kernel_selector::weights_layout::g_os_is_zyx_osv16_isv16:
+        return cldnn::format::g_os_is_zyx_osv16_isv16;
+    case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv4:
+        return cldnn::format::g_os_zyx_is_osv16_isv4;
+    case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv16:
+        return cldnn::format::g_os_zyx_is_osv16_isv16;
+    case kernel_selector::weights_layout::g_os_zyx_is_osv16_isv32:
+        return cldnn::format::g_os_zyx_is_osv16_isv32;
+    case kernel_selector::weights_layout::g_os_zyx_is_osv32_isv4:
+        return cldnn::format::g_os_zyx_is_osv32_isv4;
+    case kernel_selector::weights_layout::g_os_zyx_is_osv32_isv16:
+        return cldnn::format::g_os_zyx_is_osv32_isv16;
+    case kernel_selector::weights_layout::g_os_zyx_is_osv32_isv32:
+        return cldnn::format::g_os_zyx_is_osv32_isv32;
+    case kernel_selector::weights_layout::gs_oi_yxs_gsv4_yxsv4:
+        return cldnn::format::gs_oi_yxs_gsv4_yxsv4;
+    case kernel_selector::weights_layout::gs_oi_yxs_gsv16_yxsv4:
+        return cldnn::format::gs_oi_yxs_gsv16_yxsv4;
+    case kernel_selector::weights_layout::gs_oi_yxs_gsv32_yxsv4:
+        return cldnn::format::gs_oi_yxs_gsv32_yxsv4;
+    case kernel_selector::weights_layout::g_os_is_yx_osv16_isv4:
+        return cldnn::format::g_os_is_yx_osv16_isv4;
+    case kernel_selector::weights_layout::g_os_is_yx_isv16_osv16:
+        return cldnn::format::g_os_is_yx_isv16_osv16;
+    case kernel_selector::weights_layout::os_iyx_osv8:
+        return cldnn::format::os_iyx_osv8;
+    case kernel_selector::weights_layout::os_iyx_osv32__ai32:
+        return cldnn::format::os_iyx_osv32__ai32;
+    case kernel_selector::weights_layout::iy_xs_os_xsv2_osv16__ao32:
+        return cldnn::format::iy_xs_os_xsv2_osv16__ao32;
+    case kernel_selector::weights_layout::iy_xs_os_xsv2_osv8__ao32:
+        return cldnn::format::iy_xs_os_xsv2_osv8__ao32;
+    case kernel_selector::weights_layout::i_yxs_os_yxsv2_osv16:
+        return cldnn::format::i_yxs_os_yxsv2_osv16;
+    case kernel_selector::weights_layout::os_is_zyx_osv32_isv16:
+        return cldnn::format::os_is_zyx_osv32_isv16;
+    case kernel_selector::weights_layout::os_is_zyx_osv64_isv16:
+        return cldnn::format::os_is_zyx_osv64_isv16;
+    case kernel_selector::weights_layout::os_is_yx_isv8_osv16_isv2:
+        return cldnn::format::os_is_yx_isv8_osv16_isv2;
+    case kernel_selector::weights_layout::os_iyx_osv16_rotate_180:
+        return cldnn::format::os_iyx_osv16;
+    case kernel_selector::weights_layout::gi_yxs_os_yxsv2_osv16:
+        return cldnn::format::gi_yxs_os_yxsv2_osv16;
+    case kernel_selector::weights_layout::giy_xs_os_xsv2_osv8__ao32:
+        return cldnn::format::giy_xs_os_xsv2_osv8__ao32;
+    case kernel_selector::weights_layout::giy_xs_os_xsv2_osv16__ao32:
+        return cldnn::format::giy_xs_os_xsv2_osv16__ao32;
+    case kernel_selector::weights_layout::ioyx:
+        return cldnn::format::ioyx;
+    case kernel_selector::weights_layout::giozyx:
+        return cldnn::format::giozyx;
+    default:
+        throw std::invalid_argument("Unable to convert kernel selector Weights layout " + std::to_string(static_cast<int>(l)) + " to cldnn format");
     }
 }
 
-
-kernel_selector::n_dims compute_tensor_dimensions(const layout& l,
-                                                    const size_t num_channels,
-                                                    const tensor view_offset) {
+kernel_selector::n_dims compute_tensor_dimensions(const layout& l, const size_t num_channels, const tensor view_offset) {
     const auto& pad = l.data_padding;
     const auto& dynamic_pad_dims = layout::format_sizes(pad._dynamic_dims_mask, l.format);
     const auto& vals_original = l.get_partial_shape();
@@ -974,10 +971,11 @@ kernel_selector::n_dims compute_tensor_dimensions(const layout& l,
     ov::PartialShape vals_ordered;
     const auto& axis_order = l.format.dims_order();
     for (size_t i = 0; i < axis_order.size(); i++) {
-        if (axis_order[i] >= vals_original.size())
+        if (axis_order[i] >= vals_original.size()) {
             vals_ordered.push_back(ov::Dimension(1));
-        else
+        } else {
             vals_ordered.push_back(vals_original[axis_order[i]]);
+        }
     }
     const auto& lower_pad = layout::format_sizes(pad._lower_size, l.format);
     const auto& upper_pad = layout::format_sizes(pad._upper_size, l.format);
@@ -1047,103 +1045,103 @@ layout from_weights_tensor(const kernel_selector::weights_tensor& l) {
 
 kernel_selector::activation_function get_kernel_selector_activation_param(activation_func activation) {
     switch (activation) {
-        case cldnn::activation_func::none:
-            return kernel_selector::activation_function::NONE;
-        case cldnn::activation_func::logistic:
-            return kernel_selector::activation_function::LOGISTIC;
-        case cldnn::activation_func::hyperbolic_tan:
-            return kernel_selector::activation_function::HYPERBOLIC_TAN;
-        case cldnn::activation_func::relu:
-            return kernel_selector::activation_function::RELU;
-        case cldnn::activation_func::relu_negative_slope:
-            return kernel_selector::activation_function::RELU_NEGATIVE_SLOPE;
-        case cldnn::activation_func::clamp:
-            return kernel_selector::activation_function::CLAMP;
-        case cldnn::activation_func::softrelu:
-            return kernel_selector::activation_function::SOFTRELU;
-        case cldnn::activation_func::abs:
-            return kernel_selector::activation_function::ABS;
-        case cldnn::activation_func::linear:
-            return kernel_selector::activation_function::LINEAR;
-        case cldnn::activation_func::square:
-            return kernel_selector::activation_function::SQUARE;
-        case cldnn::activation_func::sqrt:
-            return kernel_selector::activation_function::SQRT;
-        case cldnn::activation_func::elu:
-            return kernel_selector::activation_function::ELU;
-        case cldnn::activation_func::sin:
-            return kernel_selector::activation_function::SIN;
-        case cldnn::activation_func::asin:
-            return kernel_selector::activation_function::ASIN;
-        case cldnn::activation_func::sinh:
-            return kernel_selector::activation_function::SINH;
-        case cldnn::activation_func::asinh:
-            return kernel_selector::activation_function::ASINH;
-        case cldnn::activation_func::cos:
-            return kernel_selector::activation_function::COS;
-        case cldnn::activation_func::acos:
-            return kernel_selector::activation_function::ACOS;
-        case cldnn::activation_func::cosh:
-            return kernel_selector::activation_function::COSH;
-        case cldnn::activation_func::acosh:
-            return kernel_selector::activation_function::ACOSH;
-        case cldnn::activation_func::log:
-            return kernel_selector::activation_function::LOG;
-        case cldnn::activation_func::log2:
-            return kernel_selector::activation_function::LOG2;
-        case cldnn::activation_func::exp:
-            return kernel_selector::activation_function::EXP;
-        case cldnn::activation_func::tan:
-            return kernel_selector::activation_function::TAN;
-        case cldnn::activation_func::atan:
-            return kernel_selector::activation_function::ATAN;
-        case cldnn::activation_func::atanh:
-            return kernel_selector::activation_function::ATANH;
-        case cldnn::activation_func::floor:
-            return kernel_selector::activation_function::FLOOR;
-        case cldnn::activation_func::ceil:
-            return kernel_selector::activation_function::CEIL;
-        case cldnn::activation_func::negative:
-            return kernel_selector::activation_function::NEGATIVE;
-        case cldnn::activation_func::negation:
-            return kernel_selector::activation_function::NOT;
-        case cldnn::activation_func::pow:
-            return kernel_selector::activation_function::POW;
-        case cldnn::activation_func::erf:
-            return kernel_selector::activation_function::ERF;
-        case cldnn::activation_func::reciprocal:
-            return kernel_selector::activation_function::RECIPROCAL;
-        case cldnn::activation_func::selu:
-            return kernel_selector::activation_function::SELU;
-        case cldnn::activation_func::sign:
-            return kernel_selector::activation_function::SIGN;
-        case cldnn::activation_func::softplus:
-            return kernel_selector::activation_function::SOFTPLUS;
-        case cldnn::activation_func::softsign:
-            return kernel_selector::activation_function::SOFTSIGN;
-        case cldnn::activation_func::hard_sigmoid:
-            return kernel_selector::activation_function::HARD_SIGMOID;
-        case cldnn::activation_func::hsigmoid:
-            return kernel_selector::activation_function::HSIGMOID;
-        case cldnn::activation_func::swish:
-            return kernel_selector::activation_function::SWISH;
-        case cldnn::activation_func::hswish:
-            return kernel_selector::activation_function::HSWISH;
-        case cldnn::activation_func::mish:
-            return kernel_selector::activation_function::MISH;
-        case cldnn::activation_func::gelu:
-            return kernel_selector::activation_function::GELU;
-        case cldnn::activation_func::gelu_tanh:
-            return kernel_selector::activation_function::GELU_TANH;
-        case cldnn::activation_func::round_half_to_even:
-            return kernel_selector::activation_function::ROUND_HALF_TO_EVEN;
-        case cldnn::activation_func::round_half_away_from_zero:
-            return kernel_selector::activation_function::ROUND_HALF_AWAY_FROM_ZERO;
-        case cldnn::activation_func::erfinv:
-            return kernel_selector::activation_function::ERFINV;
-        default:
-            throw std::runtime_error("Unknown activation function");
-            break;
+    case cldnn::activation_func::none:
+        return kernel_selector::activation_function::NONE;
+    case cldnn::activation_func::logistic:
+        return kernel_selector::activation_function::LOGISTIC;
+    case cldnn::activation_func::hyperbolic_tan:
+        return kernel_selector::activation_function::HYPERBOLIC_TAN;
+    case cldnn::activation_func::relu:
+        return kernel_selector::activation_function::RELU;
+    case cldnn::activation_func::relu_negative_slope:
+        return kernel_selector::activation_function::RELU_NEGATIVE_SLOPE;
+    case cldnn::activation_func::clamp:
+        return kernel_selector::activation_function::CLAMP;
+    case cldnn::activation_func::softrelu:
+        return kernel_selector::activation_function::SOFTRELU;
+    case cldnn::activation_func::abs:
+        return kernel_selector::activation_function::ABS;
+    case cldnn::activation_func::linear:
+        return kernel_selector::activation_function::LINEAR;
+    case cldnn::activation_func::square:
+        return kernel_selector::activation_function::SQUARE;
+    case cldnn::activation_func::sqrt:
+        return kernel_selector::activation_function::SQRT;
+    case cldnn::activation_func::elu:
+        return kernel_selector::activation_function::ELU;
+    case cldnn::activation_func::sin:
+        return kernel_selector::activation_function::SIN;
+    case cldnn::activation_func::asin:
+        return kernel_selector::activation_function::ASIN;
+    case cldnn::activation_func::sinh:
+        return kernel_selector::activation_function::SINH;
+    case cldnn::activation_func::asinh:
+        return kernel_selector::activation_function::ASINH;
+    case cldnn::activation_func::cos:
+        return kernel_selector::activation_function::COS;
+    case cldnn::activation_func::acos:
+        return kernel_selector::activation_function::ACOS;
+    case cldnn::activation_func::cosh:
+        return kernel_selector::activation_function::COSH;
+    case cldnn::activation_func::acosh:
+        return kernel_selector::activation_function::ACOSH;
+    case cldnn::activation_func::log:
+        return kernel_selector::activation_function::LOG;
+    case cldnn::activation_func::log2:
+        return kernel_selector::activation_function::LOG2;
+    case cldnn::activation_func::exp:
+        return kernel_selector::activation_function::EXP;
+    case cldnn::activation_func::tan:
+        return kernel_selector::activation_function::TAN;
+    case cldnn::activation_func::atan:
+        return kernel_selector::activation_function::ATAN;
+    case cldnn::activation_func::atanh:
+        return kernel_selector::activation_function::ATANH;
+    case cldnn::activation_func::floor:
+        return kernel_selector::activation_function::FLOOR;
+    case cldnn::activation_func::ceil:
+        return kernel_selector::activation_function::CEIL;
+    case cldnn::activation_func::negative:
+        return kernel_selector::activation_function::NEGATIVE;
+    case cldnn::activation_func::negation:
+        return kernel_selector::activation_function::NOT;
+    case cldnn::activation_func::pow:
+        return kernel_selector::activation_function::POW;
+    case cldnn::activation_func::erf:
+        return kernel_selector::activation_function::ERF;
+    case cldnn::activation_func::reciprocal:
+        return kernel_selector::activation_function::RECIPROCAL;
+    case cldnn::activation_func::selu:
+        return kernel_selector::activation_function::SELU;
+    case cldnn::activation_func::sign:
+        return kernel_selector::activation_function::SIGN;
+    case cldnn::activation_func::softplus:
+        return kernel_selector::activation_function::SOFTPLUS;
+    case cldnn::activation_func::softsign:
+        return kernel_selector::activation_function::SOFTSIGN;
+    case cldnn::activation_func::hard_sigmoid:
+        return kernel_selector::activation_function::HARD_SIGMOID;
+    case cldnn::activation_func::hsigmoid:
+        return kernel_selector::activation_function::HSIGMOID;
+    case cldnn::activation_func::swish:
+        return kernel_selector::activation_function::SWISH;
+    case cldnn::activation_func::hswish:
+        return kernel_selector::activation_function::HSWISH;
+    case cldnn::activation_func::mish:
+        return kernel_selector::activation_function::MISH;
+    case cldnn::activation_func::gelu:
+        return kernel_selector::activation_function::GELU;
+    case cldnn::activation_func::gelu_tanh:
+        return kernel_selector::activation_function::GELU_TANH;
+    case cldnn::activation_func::round_half_to_even:
+        return kernel_selector::activation_function::ROUND_HALF_TO_EVEN;
+    case cldnn::activation_func::round_half_away_from_zero:
+        return kernel_selector::activation_function::ROUND_HALF_AWAY_FROM_ZERO;
+    case cldnn::activation_func::erfinv:
+        return kernel_selector::activation_function::ERFINV;
+    default:
+        throw std::runtime_error("Unknown activation function");
+        break;
     }
 }
 
@@ -1227,36 +1225,36 @@ void convert_fused_ops_to_legacy_activations(const kernel_impl_params& param_inf
 
 bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
     const auto& fused_ops = param_info.fused_desc;
-    if (fused_ops.size() != 1)
+    if (fused_ops.size() != 1) {
         return false;
+    }
 
     const auto& fused_op = fused_ops[0];
-    if (!fused_op.is_type<activation>())
+    if (!fused_op.is_type<activation>()) {
         return false;
+    }
 
-    if (!fused_op.deps.empty())
+    if (!fused_op.deps.empty()) {
         return false;
+    }
 
-
-    std::vector<primitive_type_id> legacy_fusion_list = {
-        concatenation::type_id(),
-        convolution::type_id(),
-        crop::type_id(),
-        eltwise::type_id(),
-        fully_connected::type_id(),
-        normalize::type_id(),
-        reorder::type_id(),
-        reshape::type_id(),
-        roi_pooling::type_id(),
-        softmax::type_id(),
-        depth_to_space::type_id(),
-        shuffle_channels::type_id(),
-        strided_slice::type_id(),
-        cum_sum::type_id(),
-        reverse_sequence::type_id(),
-        embedding_bag::type_id(),
-        extract_image_patches::type_id()
-    };
+    std::vector<primitive_type_id> legacy_fusion_list = {concatenation::type_id(),
+                                                         convolution::type_id(),
+                                                         crop::type_id(),
+                                                         eltwise::type_id(),
+                                                         fully_connected::type_id(),
+                                                         normalize::type_id(),
+                                                         reorder::type_id(),
+                                                         reshape::type_id(),
+                                                         roi_pooling::type_id(),
+                                                         softmax::type_id(),
+                                                         depth_to_space::type_id(),
+                                                         shuffle_channels::type_id(),
+                                                         strided_slice::type_id(),
+                                                         cum_sum::type_id(),
+                                                         reverse_sequence::type_id(),
+                                                         embedding_bag::type_id(),
+                                                         extract_image_patches::type_id()};
 
     if (std::find(legacy_fusion_list.begin(), legacy_fusion_list.end(), param_info.desc->type) == legacy_fusion_list.end()) {
         return false;
@@ -1267,12 +1265,12 @@ bool use_legacy_fused_ops(const kernel_impl_params& param_info) {
     // The main distinguishing characteristic of old kernels is plain and winograd formats, so do fallback to legacy
     // only if this criteria is met.
     if (convolution::type_id() == param_info.desc->type) {
-        bool has_plain_formats = format::is_simple_data_format(param_info.get_input_layout().format) &&
-                                 format::is_simple_data_format(param_info.get_output_layout().format);
-        bool has_winograd_formats = format::is_winograd(param_info.get_input_layout().format) ||
-                                    format::is_winograd(param_info.get_output_layout().format);
-        if (!has_plain_formats && !has_winograd_formats)
+        bool has_plain_formats =
+            format::is_simple_data_format(param_info.get_input_layout().format) && format::is_simple_data_format(param_info.get_output_layout().format);
+        bool has_winograd_formats = format::is_winograd(param_info.get_input_layout().format) || format::is_winograd(param_info.get_output_layout().format);
+        if (!has_plain_formats && !has_winograd_formats) {
             return false;
+        }
     }
 
     return true;
@@ -1356,8 +1354,7 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
             kernel_selector::fused_operation_desc desc;
             desc.op_params = convert_fuse_params(fused_prim.f_param);
 
-            OPENVINO_ASSERT(desc.op_params != nullptr, "[GPU] Invalid fused operation (", param_info.desc->id , ") of type ", param_info.desc->type_string());
-
+            OPENVINO_ASSERT(desc.op_params != nullptr, "[GPU] Invalid fused operation (", param_info.desc->id, ") of type ", param_info.desc->type_string());
 
             desc.dep_idx_start = fused_prim.outer_dep_start_idx;
             desc.dep_size = fused_prim.deps.size();
@@ -1376,16 +1373,16 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
                     auto iter = prim_id_type_map.find(dep.first);
                     if (iter != prim_id_type_map.end()) {
                         auto& op_data = iter->second;
-                        desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::INTERNAL;
-                        desc.dep_data[dep.second].op_id     = op_data.first;
+                        desc.dep_data[dep.second].dep_type = kernel_selector::DepType::INTERNAL;
+                        desc.dep_data[dep.second].op_id = op_data.first;
                         desc.dep_data[dep.second].data_type = op_data.second;
                     }
                 }
 
                 int idx = 0;
                 for (const auto& dep : fused_prim.deps) {
-                    desc.dep_data[dep.second].dep_type  = kernel_selector::DepType::EXTERNAL;
-                    desc.dep_data[dep.second].op_id     = idx;
+                    desc.dep_data[dep.second].dep_type = kernel_selector::DepType::EXTERNAL;
+                    desc.dep_data[dep.second].op_id = idx;
                     desc.dep_data[dep.second].data_type = desc.tensors[idx++].GetDType();
                 }
 
@@ -1420,20 +1417,15 @@ void set_weight_bias_zero_point_default_params(const kernel_impl_params& param_i
     set_weights_bias_default_params(param_info, params, has_group_dimension, is_shape_agnostic);
 
     if (param_info.weights_zero_points_layout) {
-        params.weights_zero_points.push_back(
-            convert_data_tensor(*param_info.weights_zero_points_layout)
-            .FlattenFeatureAndSpatials());
+        params.weights_zero_points.push_back(convert_data_tensor(*param_info.weights_zero_points_layout).FlattenFeatureAndSpatials());
     }
 
     if (param_info.activations_zero_points_layout) {
-        params.activations_zero_points.push_back(
-            convert_data_tensor(*param_info.activations_zero_points_layout)
-            .FlattenFeatureAndSpatials());
+        params.activations_zero_points.push_back(convert_data_tensor(*param_info.activations_zero_points_layout).FlattenFeatureAndSpatials());
     }
 
     if (param_info.compensation_layout) {
-        params.compensation.push_back(
-            convert_data_tensor(*param_info.compensation_layout).FlattenFeatureAndSpatials());
+        params.compensation.push_back(convert_data_tensor(*param_info.compensation_layout).FlattenFeatureAndSpatials());
     }
 }
 

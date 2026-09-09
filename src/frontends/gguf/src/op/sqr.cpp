@@ -22,7 +22,7 @@ OutputVector translate_sqr(const NodeContext& context) {
     auto input = context.get_input(0);
     auto res = std::make_shared<ov::op::v1::Multiply>(input, input);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 // GGML_OP_SQRT: element-wise square root.
@@ -31,7 +31,7 @@ OutputVector translate_sqrt(const NodeContext& context) {
 
     auto res = std::make_shared<ov::op::v0::Sqrt>(context.get_input(0));
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

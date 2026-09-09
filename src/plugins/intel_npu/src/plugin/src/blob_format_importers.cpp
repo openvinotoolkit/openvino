@@ -58,7 +58,7 @@ void update_compiler_type_if_perf_count(FilteredConfig& config,
         CompilerAdapterFactory factory;
         (void)factory.getCompiler(backend, compilerType, device_name);
 
-        config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
+        config.update(ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType));
     }
 }
 
@@ -384,7 +384,7 @@ private:
     void register_compiler_version() {
         std::optional<uint32_t> compiler_version = m_metadata->get_compiler_version();
         if (compiler_version.has_value()) {
-            m_config.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
+            m_config.update(ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value()));
             m_logger.debug("Imported model was compiled with compiler version: %u.%u",
                            ONEAPI_VERSION_MAJOR(compiler_version.value()),
                            ONEAPI_VERSION_MINOR(compiler_version.value()));

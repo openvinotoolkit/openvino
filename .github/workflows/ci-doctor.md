@@ -19,7 +19,7 @@ if: ${{ contains(fromJSON('["akashchi","mryzhov","akladiev","ababushk","dorloff"
 
 permissions: read-all
 
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 engine:
   id: copilot
 network: defaults

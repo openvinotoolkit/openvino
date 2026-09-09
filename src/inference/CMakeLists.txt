@@ -4,65 +4,24 @@
 
 set (TARGET_NAME "openvino_runtime")
 
-file (GLOB LIBRARY_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/preprocessing/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dev/threading/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/threading/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/cpp_interfaces/interface/*.cpp
-      )
+include(sources.cmake)
 
-file (GLOB LIBRARY_HEADERS
-       ${CMAKE_CURRENT_SOURCE_DIR}/src/*.h
-       ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp
-      )
-
-if(WIN32)
-    file (GLOB LIBRARY_SRC
-         ${LIBRARY_SRC}
-         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.cpp)
-    file (GLOB LIBRARY_HEADERS
-         ${LIBRARY_HEADERS}
-         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/win/*.hpp)
-elseif(APPLE)
-    file (GLOB LIBRARY_SRC
-        ${LIBRARY_SRC}
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/mac/*.cpp)
-    file (GLOB LIBRARY_HEADERS
-        ${LIBRARY_HEADERS}
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/os/mac/*.hpp)
-elseif(NOT EMSCRIPTEN)
-    file (GLOB LIBRARY_SRC
-          ${LIBRARY_SRC}
-          ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.cpp)
-    file (GLOB LIBRARY_HEADERS
-         ${LIBRARY_HEADERS}
-         ${CMAKE_CURRENT_SOURCE_DIR}/src/os/lin/*.hpp)
-endif()
-
-set (PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
-
-file (GLOB_RECURSE PUBLIC_HEADERS
-       ${PUBLIC_HEADERS_DIR}/*.hpp
-       ${PUBLIC_HEADERS_DIR}/*.h
-      )
-
-# Create named folders for the sources within the .vcproj
-# Empty name lists them directly under the .vcproj
-
-source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
+set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 # Create object library
-
 add_library(${TARGET_NAME}_obj OBJECT
-            ${LIBRARY_SRC}
-            ${LIBRARY_HEADERS}
-            ${PUBLIC_HEADERS})
+    ${OV_RUNTIME_SRCS}
+    ${OV_RUNTIME_HEADERS}
+    ${OV_RUNTIME_PUBLIC_HEADERS}
+)
 
+if(WIN32)
+    target_sources(${TARGET_NAME}_obj PRIVATE ${WIN32_SOURCES})
+elseif(APPLE)
+    target_sources(${TARGET_NAME}_obj PRIVATE ${MACOS_SOURCES})
+elseif(NOT EMSCRIPTEN)
+    target_sources(${TARGET_NAME}_obj PRIVATE ${LINUX_SOURCES})
+endif()
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME}_obj PUBLIC OPENVINO_STATIC_LIBRARY)
@@ -104,7 +63,7 @@ add_library(${TARGET_NAME} INTERFACE)
 target_link_libraries(${TARGET_NAME} INTERFACE openvino::runtime)
 target_include_directories(${TARGET_NAME} INTERFACE $<BUILD_INTERFACE:${PUBLIC_HEADERS_DIR}>)
 
-ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${LIBRARY_SRC} ${LIBRARY_HEADERS} ${PUBLIC_HEADERS})
+ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME}_obj)
 
 ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     SOURCE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/include/openvino"

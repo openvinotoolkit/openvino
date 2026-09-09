@@ -209,7 +209,7 @@ jobs:
       device: 'GPU'
       test-suffix: 'iGPU'
       use-pip-proxy: false
-      timeout-minutes: 30
+      timeout-minutes: 60
 
   LLM_Accuracy_dGPU:
     name: LLM accuracy dGPU tests
@@ -228,7 +228,7 @@ jobs:
       device: 'GPU'
       test-suffix: 'dGPU'
       use-pip-proxy: false
-      timeout-minutes: 30
+      timeout-minutes: 60
 
   Pytorch_Layer_Tests:
     name: Pytorch Layer Tests

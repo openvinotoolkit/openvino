@@ -62,8 +62,9 @@ std::vector<result_indices> run_nms(
 
             std::priority_queue<boxInfo, std::vector<boxInfo>, decltype(less)> sorted_boxes(less);
             for (size_t bbi = 0; bbi < boxes[bi].size(); ++bbi) {
-                if (scores[bi][ci][bbi] > score_threshold)
+                if (scores[bi][ci][bbi] > score_threshold) {
                     sorted_boxes.emplace(boxInfo({scores[bi][ci][bbi], static_cast<int>(bbi), 0}));
+                }
             }
             fb.reserve(sorted_boxes.size());
 
@@ -81,8 +82,9 @@ std::vector<result_indices> run_nms(
                         box_is_selected = false;
                         break;
                     }
-                    if (currBox.score <= score_threshold)
+                    if (currBox.score <= score_threshold) {
                         break;
+                    }
                 }
                 currBox.suppress_begin_index = static_cast<int>(fb.size());
                 if (box_is_selected) {
@@ -375,8 +377,9 @@ void run(non_max_suppression_inst& instance) {
     }
 
     // New API for mutiple outputs support
-    if (instance.outputs_memory_count() == 3)
+    if (instance.outputs_memory_count() == 3) {
         store_third_output(stream, instance.output_memory_ptr(2), result);
+    }
 
     if (instance.outputs_memory_count() >= 2) {
         store_second_output(stream, instance.output_memory_ptr(1), result, output_size);

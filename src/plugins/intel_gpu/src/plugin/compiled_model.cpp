@@ -352,8 +352,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.get_num_streams();
-        if (m_config.get_performance_mode() != ov::hint::PerformanceMode::LATENCY)
+        if (m_config.get_performance_mode() != ov::hint::PerformanceMode::LATENCY) {
             nr *= 2;
+        }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
     }
     if (name == ov::execution_devices) {

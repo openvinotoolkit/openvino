@@ -72,9 +72,6 @@ GPU
       * Processor graphics are not included in all processors. See
         `Product Specifications <https://ark.intel.com/>`__
         for information about your processor.
-      * While this release of OpenVINO supports Ubuntu 20.04, the driver stack
-        for Intel discrete graphic cards does not fully support Ubuntu 20.04.
-        We recommend using Ubuntu 22.04 and later when executing on discrete graphics.
       * OpenCL™ driver versions required may vary, depending on hardware and operating Systems
         used. Consult driver documentation to select the best version for your setup.
 
