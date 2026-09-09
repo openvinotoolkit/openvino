@@ -245,6 +245,11 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
     auto pat = v0::Constant::create<int64_t>(element::i64, Shape{target_shape.size()}, target_shape);
 
     if (ov::is_type<v1::Reshape>(input) || ov::is_type<v0::Squeeze>(input) || ov::is_type<v0::Unsqueeze>(input)) {
+        const auto& source_shape = input->get_input_partial_shape(0);
+        if (source_shape.is_static() && shape_ps.is_static() &&
+            ov::shape_size(source_shape.to_shape()) != ov::shape_size(shape_ps.to_shape())) {
+            return false;
+        }
         reshape = std::make_shared<v1::Reshape>(input->input_value(0), pat, false);
     } else {
         reshape = std::make_shared<v1::Reshape>(node->input_value(0), pat, false);
