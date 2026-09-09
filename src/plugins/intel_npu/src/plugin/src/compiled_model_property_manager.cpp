@@ -7,6 +7,7 @@
 #include <sstream>
 
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/common/runtime_requirements.hpp"
 #include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 
@@ -18,38 +19,19 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
     OPENVINO_SUPPRESS_DEPRECATED_END
 }
 
-std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& graph,
-                                     const BlobWriter& blobWriter,
-                                     intel_npu::Logger& logger) {
-    OPENVINO_ASSERT(graph != nullptr, "Missing graph");
+std::string buildRuntimeRequirements(const BlobWriter& blobWriter, intel_npu::Logger& logger) {
+    // TODO make sure it throws if the compiler RR cannot be retrieved
+    const RuntimeRequirements runtimeRequirements = blobWriter.build_runtime_requirements();
+    const RuntimeRequirementsSection section(runtimeRequirements, logger.level());
 
-    auto compatibilityDescriptor = graph->get_compatibility_descriptor();
-    if (!compatibilityDescriptor.has_value()) {
-        OPENVINO_THROW("RUNTIME_REQUIREMENTS cannot be generated for this compiled model.");
-    }
-    const auto descriptorView = compatibilityDescriptor.value();
-    logger.debug("Runtime requirements from the graph %.*s length: %zu",
-                 static_cast<int>(descriptorView.size()),
-                 descriptorView.data(),
-                 descriptorView.size());
+    std::ostringstream result_stream;
+    BlobWriterInterface writeInterface(result_stream, 0, logger.level());
+    section.write(writeInterface);
 
-    std::ostringstream requirementsString;
-    intel_npu::Metadata<intel_npu::CURRENT_METADATA_VERSION>(0,
-                                                             intel_npu::CURRENT_OPENVINO_VERSION,
-                                                             std::nullopt,
-                                                             batchSize,
-                                                             std::nullopt,
-                                                             std::nullopt,
-                                                             std::nullopt,
-                                                             std::nullopt,
-                                                             compatibilityDescriptor)
-        .write_as_text(requirementsString);
+    const std::string result = result_stream.str();
+    logger.debug("Runtime requirements string: %s length: %zu", result, result.size());
 
-    logger.debug("Runtime requirements string: %s length: %zu",
-                 requirementsString.str().c_str(),
-                 requirementsString.str().length());
-
-    return requirementsString.str();
+    return result;
 }
 
 }  // namespace
@@ -58,11 +40,11 @@ namespace intel_npu {
 
 CompiledModelPropertyManager::CompiledModelPropertyManager(const FilteredConfig& config,
                                                            const std::shared_ptr<IGraph>& graph,
-                                                           const std::optional<int64_t>& batchSize,
+                                                           const BlobWriter& blobWriter,
                                                            Logger& logger)
     : _config(config),
       _graph(graph),
-      _batchSize(batchSize),
+      _blobWriter(std::cref(blobWriter)),
       _logger(logger) {
     registerProperties();
 }
@@ -200,14 +182,13 @@ void CompiledModelPropertyManager::registerProperties() {
     });
     // clang-format on
 
-    try_register_property_with_custom_function(
-        _properties,
-        ov::runtime_requirements.name(),
-        _graph != nullptr && _graph->get_compatibility_descriptor().has_value(),
-        true,
-        [this](const Config&) {
-            return ov::Any(buildRuntimeRequirements(_graph, _batchSize, _logger));
-        });
+    try_register_property_with_custom_function(_properties,
+                                               ov::runtime_requirements.name(),
+                                               _graph != nullptr && _graph->get_compatibility_descriptor().has_value(),
+                                               true,
+                                               [this](const Config&) {
+                                                   return ov::Any(buildRuntimeRequirements(_blobWriter, _logger));
+                                               });
 
     for (const auto& property : _properties) {
         if (property.second.isPublic) {

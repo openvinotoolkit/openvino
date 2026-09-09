@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -22,7 +23,7 @@ class CompiledModelPropertyManager final {
 public:
     CompiledModelPropertyManager(const FilteredConfig& config,
                                  const std::shared_ptr<IGraph>& graph,
-                                 const std::optional<int64_t>& batchSize,
+                                 const BlobWriter& blobWriter,
                                  Logger& logger);
 
     void setProperty(const ov::AnyMap& properties);
@@ -38,7 +39,8 @@ private:
     FilteredConfig _config;
 
     std::shared_ptr<IGraph> _graph;
-    std::optional<int64_t> _batchSize;
+    // TODO is this reference safe?
+    std::reference_wrapper<const BlobWriter> _blobWriter;
     Logger& _logger;
 
     std::map<std::string, PropertyDescriptor> _properties;

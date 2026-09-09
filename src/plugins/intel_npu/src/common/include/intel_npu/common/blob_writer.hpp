@@ -133,13 +133,8 @@ public:
      */
     void write_to(std::ostream& stream) const;
 
-    size_t count_registered_sections_of_type(const SectionType type) const;
-
-private:
-    std::streamoff get_offset_relative_to_npu_region(std::ostream& stream,
-                                                     const std::streampos stream_npu_region_start) const;
-
     /**
+     * TODO update
      * @brief Build a Compatibility Requirements Expression (CRE) based on the sections registered so far.
      * @note This function should be called either before writing tbe CRE section into a stream or before building the
      * compatibility string.
@@ -147,6 +142,12 @@ private:
      * blob.
      */
     RuntimeRequirements build_runtime_requirements() const;
+
+    size_t count_registered_sections_of_type(const SectionType type) const;
+
+private:
+    std::streamoff get_offset_relative_to_npu_region(std::ostream& stream,
+                                                     const std::streampos stream_npu_region_start) const;
 
     /**
      * @brief Helper function. Registers a section that has been already parsed by the BlobReader.
