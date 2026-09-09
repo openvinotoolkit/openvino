@@ -29,6 +29,22 @@ std::mutex& get_clspv_mutex() {
     return mutex;
 }
 
+void validate_spirv(const std::vector<uint8_t>& spirv, const std::string& entry_point) {
+    OPENVINO_ASSERT(spirv.size() % sizeof(uint32_t) == 0, "[GPU][Vulkan] Invalid SPIR-V word alignment");
+    std::vector<uint32_t> words(spirv.size() / sizeof(uint32_t));
+    std::memcpy(words.data(), spirv.data(), spirv.size());
+    spvtools::SpirvTools tools(SPV_ENV_VULKAN_1_3);
+    std::string diagnostics;
+    tools.SetMessageConsumer([&](spv_message_level_t, const char*, const spv_position_t& position, const char* message) {
+        diagnostics += "instruction " + std::to_string(position.index) + ": " + message + "\n";
+    });
+    OPENVINO_ASSERT(tools.Validate(words),
+                    "[GPU][Vulkan] CLSPV produced invalid Vulkan 1.3 SPIR-V for entry point '",
+                    entry_point,
+                    "':\n",
+                    diagnostics);
+}
+
 void normalize_storage_capabilities(std::vector<uint8_t>& spirv, const vulkan_device& device) {
     if (device.supports_arithmetic_type(data_types::i8) && device.supports_arithmetic_type(data_types::i16) &&
         device.supports_arithmetic_type(data_types::f16)) {
@@ -148,6 +164,9 @@ vulkan_clspv_compilation vulkan_clspv_compiler::compile(const std::string& sourc
     OPENVINO_ASSERT(!spirv.empty(), "[GPU][Vulkan] CLSPV returned an empty SPIR-V module for entry point '", entry_point, "'");
 
     normalize_storage_capabilities(spirv, device);
+    // Reflection checks the buffer ABI; it is not an instruction validator.
+    // Validate native-arithmetic modules as well as storage-normalized output.
+    validate_spirv(spirv, entry_point);
     const auto interface = vulkan_kernel_interface::reflect(spirv, entry_point);
     interface.validate_canonical_compute_abi(entry_point);
     return {std::move(spirv), std::move(diagnostics)};

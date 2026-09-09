@@ -12,7 +12,10 @@
 
 #include "clspv_bootstrap_spirv.hpp"
 #include "intel_gpu/runtime/kernel_builder.hpp"
+#include "openvino/core/except.hpp"
 #include "test_utils.h"
+#include "vulkan/vulkan_clspv_compiler.hpp"
+#include "vulkan/vulkan_device.hpp"
 #include "vulkan/vulkan_kernel_interface.hpp"
 #include "vulkan/vulkan_pipeline_cache.hpp"
 #include "vulkan/vulkan_stream.hpp"
@@ -103,4 +106,71 @@ TEST(vulkan_clspv_bootstrap, executes_host_compiled_opencl_c_through_vulkan_runt
     for (size_t index = 0; index < actual.size(); ++index) {
         EXPECT_FLOAT_EQ(actual[index], input_values[index] + increment) << "Mismatch at element " << index;
     }
+}
+
+TEST(vulkan_clspv_bootstrap, compiles_source_with_storage_buffers_and_scalar_arguments) {
+    auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
+    const auto& device = dynamic_cast<const vulkan_device&>(*target_engine->get_device());
+    constexpr char source[] = R"(
+        kernel void compiler_contract(global const float* input, global float* output, float increment) {
+            const size_t index = get_global_id(0);
+            output[index] = input[index] + increment;
+        }
+    )";
+    const auto compilation = vulkan_clspv_compiler{}.compile(source, {}, "compiler_contract", device);
+    const auto interface = vulkan_kernel_interface::reflect(compilation.spirv, "compiler_contract");
+    ASSERT_EQ(interface.descriptor_bindings.size(), 2);
+    EXPECT_EQ(interface.descriptor_bindings[0], (vulkan_descriptor_binding{0, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}));
+    EXPECT_EQ(interface.descriptor_bindings[1], (vulkan_descriptor_binding{0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER}));
+    EXPECT_EQ(interface.push_constant_size, sizeof(float));
+    for (const auto& specialization : interface.local_size_specialization_ids) {
+        EXPECT_TRUE(specialization.has_value());
+    }
+}
+
+TEST(vulkan_clspv_bootstrap, propagates_source_compilation_diagnostics) {
+    auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
+    const auto& device = dynamic_cast<const vulkan_device&>(*target_engine->get_device());
+    try {
+        (void)vulkan_clspv_compiler{}.compile("kernel void invalid_source( {", {}, "invalid_source", device);
+        FAIL() << "Malformed OpenCL C must not compile";
+    } catch (const ov::Exception& exception) {
+        const std::string message = exception.what();
+        EXPECT_NE(message.find("invalid_source"), std::string::npos);
+        EXPECT_NE(message.find("CLSPV failed to compile"), std::string::npos);
+        EXPECT_NE(message.find("error:"), std::string::npos);
+    }
+}
+
+TEST(vulkan_clspv_bootstrap, rejects_image_descriptor_abi) {
+    auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
+    const auto& device = dynamic_cast<const vulkan_device&>(*target_engine->get_device());
+    constexpr char source[] = R"(
+        kernel void image_contract(write_only image2d_t output) {
+            write_imagef(output, (int2)(0, 0), (float4)(1.0f));
+        }
+    )";
+    try {
+        (void)vulkan_clspv_compiler{}.compile(source, {}, "image_contract", device);
+        FAIL() << "Images are outside the canonical buffer-only ABI";
+    } catch (const ov::Exception& exception) {
+        EXPECT_NE(std::string(exception.what()).find("storage-buffer descriptors only"), std::string::npos);
+    }
+}
+
+TEST(vulkan_clspv_bootstrap, rejects_empty_compilation_inputs) {
+    auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
+    const auto& device = dynamic_cast<const vulkan_device&>(*target_engine->get_device());
+    const vulkan_clspv_compiler compiler;
+    EXPECT_THROW((void)compiler.compile({}, {}, "empty_source", device), ov::Exception);
+    EXPECT_THROW((void)compiler.compile("kernel void empty() {}", {}, {}, device), ov::Exception);
+}
+
+TEST(vulkan_clspv_bootstrap, preserves_semantic_options_without_intel_driver_flags) {
+    const auto options = vulkan_clspv_compiler::canonical_options(
+        "-cl-mad-enable -cl-intel-256-GRF-per-thread -cl-intel-greater-than-4GB-buffer-required -DTYPE=float");
+    EXPECT_NE(options.find("-cl-mad-enable"), std::string::npos);
+    EXPECT_NE(options.find("-DTYPE=float"), std::string::npos);
+    EXPECT_EQ(options.find("-cl-intel-"), std::string::npos);
+    EXPECT_EQ(options, vulkan_clspv_compiler::canonical_options("-cl-mad-enable -DTYPE=float"));
 }

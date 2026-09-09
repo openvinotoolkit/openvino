@@ -454,6 +454,9 @@ vulkan_kernel_interface vulkan_kernel_interface::reflect(const std::vector<uint8
         const auto storage_class = static_cast<spirv_storage_class>(variable.storage_class);
         const auto decoration_iterator = state.decorations.find(variable.result_id);
         const auto decoration = decoration_iterator == state.decorations.end() ? decoration_set{} : decoration_iterator->second;
+        OPENVINO_ASSERT((!decoration.binding.has_value() && !decoration.descriptor_set.has_value()) ||
+                            storage_class == spirv_storage_class::storage_buffer || storage_class == spirv_storage_class::uniform,
+                        "[GPU][Vulkan] Canonical compute ABI supports storage-buffer descriptors only");
         if (storage_class == spirv_storage_class::storage_buffer || storage_class == spirv_storage_class::uniform) {
             if (!decoration.binding.has_value() && !decoration.descriptor_set.has_value()) {
                 continue;
