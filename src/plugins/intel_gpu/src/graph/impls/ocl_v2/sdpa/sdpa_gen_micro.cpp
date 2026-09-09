@@ -948,6 +948,9 @@ sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quan
         if (head_size <= 256) {
             return &xe3_h256_pa;
         }
+        if (head_size <= 512) {
+            return &xe3_h512_pa;
+        }
     }
     if (head_size <= 32) {
         if (thin_q) {
