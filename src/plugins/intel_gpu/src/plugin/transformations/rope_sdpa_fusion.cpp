@@ -11,13 +11,16 @@
 #include "intel_gpu/op/sdpa.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 
 namespace ov::intel_gpu {
 
 // The kernel indexes the table as (batch, token, head_size) halves, so the leading dims have to
-// collapse to batch*tokens with head_size innermost and nothing else in between.
+// collapse to batch*tokens with head_size innermost and nothing else in between. That is a product
+// over an unknown number of dimensions, so it stays out of the pattern.
 static bool is_flat_cos_sin(const ov::Output<ov::Node>& out, int64_t batch, int64_t tokens, int64_t head_size) {
     const auto& pshape = out.get_partial_shape();
     if (pshape.is_dynamic() || pshape.size() < 2)
@@ -33,55 +36,72 @@ static bool is_flat_cos_sin(const ov::Output<ov::Node>& out, int64_t batch, int6
 RoPESDPAFusion::RoPESDPAFusion() {
     using namespace ov::pass::pattern;
 
-    auto rope_m = wrap_type<ov::op::internal::RoPE>(consumers_count(1));
+    // Only the plugin's own plain SDPA can absorb the rotation: IndirectSDPA reaches the primitive
+    // through a different creator, a compressed KV has no room for two more inputs, and an SDPA
+    // that already carries a rotated Q must not be handed a second table.
+    auto plain_sdpa = ov::pass::pattern::op::Predicate(
+        [](const ov::Output<ov::Node>& out) -> bool {
+            auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(out.get_node_shared_ptr());
+            return sdpa && !ov::as_type_ptr<ov::intel_gpu::op::IndirectSDPA>(sdpa) && !sdpa->get_kv_compressed() &&
+                   !sdpa->get_rope_q();
+        },
+        "plain_sdpa()");
 
-    const char* disable = std::getenv("OV_ROPE_SDPA");
-    const bool enabled = !disable || std::string(disable) != "0";
+    // Q side of a rotate-half RoPE: exactly three inputs, f16 in and out because that is all the
+    // fused rotation in the micro-kernel reads, and a rank-4 [batch, tokens, heads, head_size] Q
+    // whose three indexed dimensions the callback then requires to be constants.
+    auto x_m = any_input(shape_matches("[batch, tokens, ?, head_size]"));
+    auto cos_m = any_input(type_matches(ov::element::f16));
+    auto sin_m = any_input(type_matches(ov::element::f16));
+    auto rope_m = wrap_type<ov::op::internal::RoPE>({x_m, cos_m, sin_m},
+                                                    consumers_count(1) && type_matches(ov::element::f16));
 
-    ov::matcher_pass_callback callback = [=](Matcher& m) {
+    // SDPA carries three to five inputs; spelling each arity out is what pins the RoPE to Q at
+    // input 0 inside the pattern, since argument matching requires an exact input count.
+    auto k_m = any_input();
+    auto v_m = any_input();
+    auto sdpa_qkv_m = wrap_type<ov::intel_gpu::op::SDPA>({rope_m, k_m, v_m}, plain_sdpa);
+    auto sdpa_mask_m = wrap_type<ov::intel_gpu::op::SDPA>({rope_m, k_m, v_m, any_input()}, plain_sdpa);
+    auto sdpa_scale_m = wrap_type<ov::intel_gpu::op::SDPA>({rope_m, k_m, v_m, any_input(), any_input()}, plain_sdpa);
+    auto sdpa_m =
+        std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{sdpa_qkv_m, sdpa_mask_m, sdpa_scale_m});
+
+    const bool enabled = [] {
+        const char* disable = std::getenv("OV_ROPE_SDPA");
+        return !disable || std::string(disable) != "0";
+    }();
+
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         if (!enabled)
             return false;
-        auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(m.get_match_root());
-        if (!rope || rope->get_input_size() != 3)
-            return false;
+        auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(m.get_match_root());
+        auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(
+            m.get_pattern_value_map().at(rope_m).get_node_shared_ptr());
+
         const auto& cfg = rope->get_config();
         if (!cfg.is_interleaved || cfg.input_trans0213 || cfg.output_trans0213 || cfg.is_chatglm ||
             cfg.is_qwen || cfg.support_2d_rope || cfg.support_3d_rope || cfg.is_ltx_video ||
             cfg.use_rope_cache || cfg.gather_position_arg_id != 0 || cfg.slice_start != cfg.slice_stop)
             return false;
 
-        const auto& x_shape = rope->get_input_partial_shape(0);
-        if (x_shape.is_dynamic() || x_shape.size() != 4)
+        // shape_matches also binds a dynamic dimension that carries a symbol; the three the kernel
+        // indexes with have to be constants.
+        auto& symbols = m.get_symbols();
+        const auto& batch_sym = symbols["batch"];
+        const auto& tokens_sym = symbols["tokens"];
+        const auto& head_size_sym = symbols["head_size"];
+        if (!batch_sym.is_integer() || !tokens_sym.is_integer() || !head_size_sym.is_integer())
             return false;
-        const int64_t batch = x_shape[0].get_length();
-        const int64_t tokens = x_shape[1].get_length();
-        const int64_t head_size = x_shape[3].get_length();
+        const int64_t batch = batch_sym.i();
+        const int64_t tokens = tokens_sym.i();
+        const int64_t head_size = head_size_sym.i();
         if (cfg.rotary_ndims != static_cast<size_t>(head_size) || head_size % 2 != 0)
             return false;
 
-        if (rope->get_output_element_type(0) != ov::element::f16)
-            return false;
-        for (size_t i = 1; i < 3; i++) {
-            if (rope->get_input_element_type(i) != ov::element::f16)
-                return false;
+        for (size_t i = 1; i < 3; i++)
             if (!is_flat_cos_sin(rope->input_value(i), batch, tokens, head_size))
                 return false;
-        }
 
-        const auto& targets = rope->output(0).get_target_inputs();
-        if (targets.size() != 1)
-            return false;
-        const auto& target = *targets.begin();
-        if (target.get_index() != 0)
-            return false;
-
-        auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(target.get_node()->shared_from_this());
-        // IndirectSDPA derives from SDPA but reaches the primitive through a different creator.
-        if (!sdpa || ov::as_type_ptr<ov::intel_gpu::op::IndirectSDPA>(sdpa))
-            return false;
-        const auto sdpa_inputs = sdpa->get_input_size();
-        if (sdpa->get_kv_compressed() || sdpa->get_rope_q() || sdpa_inputs < 3 || sdpa_inputs > 5)
-            return false;
         if (transformation_callback(sdpa))
             return false;
 
@@ -105,7 +125,7 @@ RoPESDPAFusion::RoPESDPAFusion() {
         return true;
     };
 
-    this->register_matcher(std::make_shared<Matcher>(rope_m, "RoPESDPAFusion"), callback);
+    this->register_matcher(std::make_shared<Matcher>(sdpa_m, "RoPESDPAFusion"), callback);
 }
 
 }  // namespace ov::intel_gpu
