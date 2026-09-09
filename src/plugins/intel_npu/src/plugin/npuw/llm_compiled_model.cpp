@@ -1048,12 +1048,23 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Encoder embedding model: skipping generate model variants (prefill-only).");
     }
 
+    const bool is_per_layer_inputs_model = has_per_layer_inputs(prefill_model);
+    bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
+
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
         // so only apply slice to the Prefill model:
         ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
-        if (m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
+        // Gemma-4 E2B/E4B cross-group KV sharing models benefit the most from hoisting the slice
+        // through the SWA/Global boundary, so auto-enable this option for them unless the user
+        // explicitly configured it.
+        if (is_per_layer_inputs_model && !m_cfg.has<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
+            m_cfg.update({{"NPUW_LLM_PROPAGATE_SLICE_UP", "YES"}});
+            propagate_slice_up = true;
+            LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_PROPAGATE_SLICE_UP");
+        }
+        if (propagate_slice_up) {
             ov::npuw::PropagateSliceUp().run_on_model(prefill_model);
         }
         LOG_DEBUG("Make LM head model with static shapes");
@@ -1209,9 +1220,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // Both variants fall below the default keep_blocks=5 threshold and remain as
         // separate FCE compile units.  Lower to 3 so both are folded into REP and
         // reused across their respective instances.
-        if (has_per_layer_inputs(prefill_model)) {
+        if (is_per_layer_inputs_model) {
             prefill_config["NPUW_ONLINE_KEEP_BLOCKS"] = "3";
-            if (m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
+            if (propagate_slice_up) {
                 prefill_config["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
             }
             LOG_INFO("Gemma-4 cross-group KV model: setting NPUW_ONLINE_KEEP_BLOCKS=3 for prefill");
