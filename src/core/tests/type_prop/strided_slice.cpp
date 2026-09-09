@@ -959,3 +959,22 @@ TEST(type_prop, strided_slice_non_const_begin_end_on_bounded_dims_does_not_propa
     EXPECT_EQ(strided_slice->get_output_partial_shape(0), PartialShape({Dimension(0, 5), Dimension(0, 4)}));
     EXPECT_THAT(get_shape_symbols(strided_slice->get_output_partial_shape(0)), Each(nullptr));
 }
+
+TEST(type_prop, strided_slice_non_const_begin_end_keeps_symbols_on_masked_axes) {
+    // Axes ignored by begin_mask/end_mask take the full range whatever the unknown begin/end are, so stride +/-1 keeps
+    // the symbol and stride 2 drops it; the unmasked axis is [0..max] without a symbol.
+    auto shape = PartialShape{Dimension(1, -1), Dimension(1, -1), Dimension(1, -1), Dimension(1, -1)};
+    auto symbols = set_shape_symbols(shape);
+    auto data = std::make_shared<ov::op::v0::Parameter>(element::f32, shape);
+    auto begin = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto end = std::make_shared<ov::op::v0::Parameter>(element::i64, Shape{4});
+    auto stride = ov::op::v0::Constant::create(element::i64, Shape{4}, {1, -1, 2, 1});
+    auto mask = std::vector<int64_t>{1, 1, 1, 0};
+
+    auto strided_slice = std::make_shared<op::v1::StridedSlice>(data, begin, end, stride, mask, mask);
+
+    EXPECT_EQ(strided_slice->get_output_partial_shape(0),
+              PartialShape({Dimension(1, -1), Dimension(1, -1), Dimension(1, -1), Dimension(0, -1)}));
+    EXPECT_THAT(get_shape_symbols(strided_slice->get_output_partial_shape(0)),
+                ElementsAre(symbols[0], symbols[1], nullptr, nullptr));
+}

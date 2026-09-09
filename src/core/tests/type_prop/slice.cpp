@@ -1366,8 +1366,8 @@ TEST(type_prop, slice_v8_bounded_dims_full_reverse_propagates_symbols) {
 }
 
 TEST(type_prop, slice_v8_negative_start_with_bounds_does_not_propagate_symbols) {
-    // x[-n:] with an unknown n >= 1 (start bounds (-inf.., -1)): the output interval equals the input [1..inf], but
-    // the bounds do not prove that the size is preserved.
+    // x[-n:] with an unknown n >= 1 (start bounds (INT64_MIN + 1, -1): a genuine interval, not the INT64_MIN limit
+    // sentinel): the output interval equals the input [1..inf], but the bounds do not prove that the size is preserved.
     PartialShape data_shape{-1, Dimension(1, -1), 8};
     auto symbols = set_shape_symbols(data_shape);
 

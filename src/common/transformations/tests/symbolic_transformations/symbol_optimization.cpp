@@ -257,6 +257,7 @@ TEST_F(TransformationTestsF, ValueOptimizationSymbolAndValue) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
+namespace {
 shared_ptr<v0::Parameter> make_bhw8_input() {
     return make_shared<v0::Parameter>(element::f32, PartialShape{-1, Dimension(1, -1), Dimension(1, -1), 8});
 }
@@ -290,6 +291,7 @@ shared_ptr<Model> make_reshape_after_hw_slice(int64_t step, bool strided) {
     auto reshape = make_shared<v1::Reshape>(slice, pattern, false);
     return make_shared<Model>(OutputVector{reshape}, ParameterVector{input});
 }
+}  // namespace
 
 TEST_F(TransformationTestsF, ValueOptimizationKeepsSourceAcrossSliceStep2) {
     // H and W are read from a step-2 Slice, so they differ from the input dims and OptimizeSymbolsUsedAsValues must
