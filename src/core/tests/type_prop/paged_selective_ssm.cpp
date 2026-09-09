@@ -102,7 +102,7 @@ TEST(type_prop, paged_selective_ssm_state_type_is_independent) {
             EXPECT_EQ(op->get_output_element_type(0), data_type);
         };
 
-    check_types(element::f16, element::bf16, element::i64);
+    check_types(element::f16, element::bf16, element::i32);
     check_types(element::f32, element::f16, element::i32);
     check_types(element::f16, element::f32, element::i32);
     check_types(element::f32, element::dynamic, element::i32);
@@ -137,7 +137,20 @@ TEST(type_prop, paged_selective_ssm_bad_index_type) {
                                                            Shape{6, 2, 16},
                                                            Shape{3, 4, 8, 16}),
                     NodeValidationFailure,
-                    testing::HasSubstr("metadata inputs must have i32 or i64 element type."));
+                    testing::HasSubstr("metadata inputs must have i32 element type."));
+}
+
+TEST(type_prop, paged_selective_ssm_i64_index_type_rejected) {
+    OV_EXPECT_THROW(std::ignore = make_paged_selective_ssm(element::f32,
+                                                           element::i64,
+                                                           Shape{4},
+                                                           Shape{6, 4},
+                                                           Shape{6, 2, 16},
+                                                           Shape{6, 4, 8},
+                                                           Shape{6, 2, 16},
+                                                           Shape{3, 4, 8, 16}),
+                    NodeValidationFailure,
+                    testing::HasSubstr("metadata inputs must have i32 element type."));
 }
 
 TEST(type_prop, paged_selective_ssm_f16_and_bf16_accepted) {
@@ -576,7 +589,7 @@ TEST(type_prop, paged_selective_ssm_index_type_mixed) {
         std::ignore = std::make_shared<op::internal::PagedSelectiveSSM>(
             OutputVector{A, dt, B, x, C, state, subseq, block_idx, block_idx_begins, processed, cache_interval}),
         NodeValidationFailure,
-        testing::HasSubstr("expects all metadata inputs to have the same element type."));
+        testing::HasSubstr("metadata inputs must have i32 element type."));
 }
 
 }  // namespace ov::test

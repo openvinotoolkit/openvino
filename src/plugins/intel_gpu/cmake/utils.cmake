@@ -16,7 +16,7 @@ function(ov_gpu_set_runtime_interface_for TARGET_NAME)
 
     if(runtime STREQUAL "ZE")
         target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=1)
-        target_link_libraries(${TARGET_NAME} PRIVATE openvino::zero_loader)
+        target_link_libraries(${TARGET_NAME} PRIVATE openvino::zero_loader OpenCL::OpenCL)
     elseif(runtime STREQUAL "OCL")
         target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_OCL_RT=1)
         target_link_libraries(${TARGET_NAME} PRIVATE OpenCL::OpenCL)
