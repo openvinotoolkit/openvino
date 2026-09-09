@@ -36,6 +36,8 @@ struct Context {
     std::set<PPtr> closures_to_f16;
     void to_f16(const PPtr& orig_param);
 
+    std::map<PPtr, NPtr> params_to_subtract_128;
+
     using O = ov::Output<ov::Node>;
     struct DQParMM {
         PPtr w, s;
@@ -223,6 +225,12 @@ public:
 };
 
 // Tail vocab transformations
+class ExtractVocabSub128 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ExtractVocabSub128");
+    explicit ExtractVocabSub128(Context::Ref ctx);
+};
+
 class PreserveConstDictMatMulAsymm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulAsymm");

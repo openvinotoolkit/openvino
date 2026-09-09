@@ -2159,6 +2159,53 @@ void Partitioner::optimize(const std::string& func_name) {
     ov::npuw::Function& f = P.functions.at(func_name);
     auto& func_group = all_functions.at(func_name);
 
+    {
+        ov::npuw::patterns::opt::Context ctx;
+        {
+            ov::pass::GraphRewrite rewrite;
+            rewrite.add_matcher<ov::npuw::patterns::opt::ExtractVocabSub128>(std::ref(ctx));
+            rewrite.run_on_model(f._model);
+        }
+        ov::ParameterVector new_params;
+        for (const auto& entry : ctx.params_to_subtract_128) {
+            const auto source_param = ov::as_type_ptr<ov::op::v0::Parameter>(entry.second);
+            const auto source_const = ov::as_type_ptr<ov::op::v0::Constant>(entry.second);
+            const auto source_idx = source_param ? f._model->get_parameter_index(source_param) : -1;
+            OPENVINO_ASSERT(source_const || source_idx >= static_cast<int64_t>(f._param_offset),
+                            "Sub128 source must be a constant or closure parameter");
+            new_params.push_back(entry.first);
+            for (auto& ref : func_group.refs) {
+                auto& funcall = ref.get();
+                auto source = source_const ? LazyTensor(source_const) :
+                                             funcall._lazy_closure.at(static_cast<std::size_t>(source_idx) - f._param_offset);
+                funcall._lazy_closure.push_back(source.subtract_128());
+                funcall._closure.emplace_back();
+                funcall._is_lazy_unpack.push_back(false);
+            }
+        }
+        f._model->add_parameters(new_params);
+        std::set<std::size_t, std::greater<std::size_t>> unused_indices;
+        for (const auto& entry : ctx.params_to_subtract_128) {
+            const auto source = ov::as_type_ptr<ov::op::v0::Parameter>(entry.second);
+            if (source && source->output(0).get_target_inputs().empty()) {
+                unused_indices.insert(static_cast<std::size_t>(f._model->get_parameter_index(source)));
+            }
+        }
+        for (const auto param_idx : unused_indices) {
+            const auto closure_idx = param_idx - f._param_offset;
+            for (auto& ref : func_group.refs) {
+                auto& funcall = ref.get();
+                funcall._lazy_closure.erase(funcall._lazy_closure.begin() + closure_idx);
+                funcall._closure.erase(funcall._closure.begin() + closure_idx);
+                funcall._is_lazy_unpack.erase(funcall._is_lazy_unpack.begin() + closure_idx);
+            }
+            f._model->remove_parameter(f._model->get_parameters().at(param_idx));
+        }
+        if (!new_params.empty()) {
+            f._model->validate_nodes_and_infer_types();
+        }
+    }
+
     auto do_permute = [&](ov::npuw::patterns::opt::Context& ctx) {
         for (auto&& p : ctx.closures_to_permute) {
             auto param_idx = f._model->get_parameter_index(p.first);
