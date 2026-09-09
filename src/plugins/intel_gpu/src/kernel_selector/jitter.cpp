@@ -1103,8 +1103,7 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
                                         Datatype out_dt,
                                         const std::string& suffix,
                                         bool use_type_parameter,
-                                        bool disable_type_conversion,
-                                        size_t vec_size) {
+                                        bool disable_type_conversion) {
     std::string name = "ACTIVATION_FUNC" + suffix;
     JitConstants jitConstants = {};
 
@@ -1316,24 +1315,15 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            if (out_dt == Datatype::F16) {
-                // Softplus must be computed in fp32: float16 overflows for
-                // inputs above ~11 (exp(11) > HALF_MAX) and the CPU reference
-                // is fp32, which the F16 tests compare bit-exactly against.
-                // The width-aware convert keeps both kernels valid: the scalar
-                // ref kernel (width 1) matches the pre-existing behavior, and
-                // the vectorised opt kernel (width 4) expands to
-                // convert_float4/convert_half4.
-                std::string w = (vec_size == 1) ? "" : toCodeString(vec_size);
-                std::string formula = "convert_half" + w +
-                                      "(log(exp(convert_float" + w + "(input)) + " +
-                                      one.str() + "))";
-                jitConstants.AddConstant(MakeJitConstant(macro_def, formula));
-            } else {
-                jitConstants.AddConstant(MakeJitConstant(
-                        macro_def,
-                        (log(exp(input) + one)).str()));
-            }
+            // Numerically stable softplus: max(x, 0) + log(1 + exp(-|x|)).
+            // Mathematically equivalent to log(1 + exp(x)) for all x, but
+            // exp(-|x|) is in [0, 1] so it never overflows even at the
+            // float16 limit (~65504). Uses only type-dispatched helpers and
+            // vector-generic builtins, so it compiles for both the scalar ref
+            // kernel and the vectorised opt kernel without width-specific
+            // type conversions.
+            jitConstants.AddConstant(MakeJitConstant(macro_def,
+                    (max_func(input, zero) + log(one + exp(neg(abs_func(input))))).str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {
@@ -1824,8 +1814,7 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
                                         const std::string& suffix,
                                         bool use_type_parameter,
                                         bool disable_type_conversion,
-                                        bool convert_input_to_output_dt,
-                                        size_t vec_size) {
+                                        bool convert_input_to_output_dt) {
     JitConstants res = {};
     if (params.empty()) {
         return MakeActivationJitConstants({ActivationFunction::NONE, 0.f, 0.f}, out_dt,
@@ -1849,7 +1838,7 @@ JitConstants MakeActivationJitConstants(std::vector<kernel_selector::base_activa
         auto jitConstants = JitConstants{MakeJitConstant("NL_M" + activation_suffix, nl_m),
                                          MakeJitConstant("NL_N" + activation_suffix, nl_n)};
         jitConstants.Merge(MakeActivationJitConstants(
-                params[i].function, out_dt, activation_suffix, use_type_parameter, disable_type_conversion, vec_size));
+                params[i].function, out_dt, activation_suffix, use_type_parameter, disable_type_conversion));
         res.Merge(jitConstants);
 
         if (i == 0) {
