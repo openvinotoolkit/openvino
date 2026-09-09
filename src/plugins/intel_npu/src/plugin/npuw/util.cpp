@@ -4,6 +4,7 @@
 
 #include "util.hpp"
 
+#include <algorithm>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -413,8 +414,18 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     const uint8_t* pSrc = static_cast<uint8_t*>(src->data());
     uint8_t* pDst = static_cast<uint8_t*>(dst->data());
 
+    const auto num_rows = static_cast<int64_t>(src_shape[0]);
+    NPUW_ASSERT(num_rows > 0);
+
     for (std::size_t r = 0; r < idx_shape[1]; r++) {
-        auto srcRowIdx = pIdx[r];
+        // HostGather (see partitioning/patterns/opt.cpp) folds away both the Gather and
+        // the Minimum(N-1, Maximum(-N, ids)) clamp guarding it, so reproduce both here:
+        // saturate first, then apply Gather's negative-index semantics. The copy below
+        // is raw pointer arithmetic, so no index may escape [0, N).
+        auto srcRowIdx = std::clamp(pIdx[r], -num_rows, num_rows - 1);
+        if (srcRowIdx < 0) {
+            srcRowIdx += num_rows;
+        }
         auto pSrcRow = pSrc + src_shape[1] * srcRowIdx * src_type.size();
         std::copy_n(pSrcRow, src_shape[1] * src_type.size(), pDst);
         pDst += dst_shape[2] * dst_type.size();
