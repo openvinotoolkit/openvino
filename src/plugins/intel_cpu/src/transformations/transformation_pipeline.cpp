@@ -1395,6 +1395,9 @@ void Transformations::MainSnippets() {
         if (!matmul) {
             return false;
         }
+        if (n->is_dynamic()) {
+            return false;
+        }
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
         const auto is_fp32 = (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 &&
@@ -1582,8 +1585,7 @@ void Transformations::MainSnippets() {
                        is_unsupported_parallel_work_amount(n, n->get_output_partial_shape(0));
             },
             ExtractReshapesFromMHA);
-#if defined(OPENVINO_ARCH_RISCV64)
-        CPU_SET_CALLBACK_COMMON(
+        CPU_SET_CALLBACK_RISCV64(
             snippetsManager,
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {
                 if (!is_supported_matmul(n)) {
@@ -1596,13 +1598,12 @@ void Transformations::MainSnippets() {
                 return !is_supported_matmul(child);
             },
             TokenizeMHASnippets);
-        CPU_SET_CALLBACK_COMMON(
+        CPU_SET_CALLBACK_RISCV64(
             snippetsManager,
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {
                 return !is_supported_matmul(n);
             },
             ExtractReshapesFromMHA);
-#endif
     }
 
     CPU_SET_CALLBACK_COMMON(

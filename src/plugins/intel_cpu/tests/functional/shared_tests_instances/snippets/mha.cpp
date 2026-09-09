@@ -102,9 +102,9 @@ std::vector<std::vector<InputShape>> transposedShape_2D(bool with_dynamic = true
 }
 
 #if defined(OPENVINO_ARCH_RISCV64)
-static constexpr size_t expected_nodes_mha_4d_f32 = 4;
-static constexpr size_t expected_nodes_mha_4d_const_b = 3;
-static constexpr size_t expected_nodes_mha_4d_two_const_b = 6;
+static constexpr size_t expected_nodes_mha_4d_f32 = 4;  // 2 Subgraphs + 2 Reorders
+static constexpr size_t expected_nodes_mha_4d_const_b = 3;  // 2 Subgraphs + 1 Reorder
+static constexpr size_t expected_nodes_mha_4d_two_const_b = 6;  // 4 Subgraphs + 2 Reorders
 #else
 static constexpr size_t expected_nodes_mha_4d_f32 = 2;
 static constexpr size_t expected_nodes_mha_4d_const_b = expected_nodes_mha_4d_f32;
