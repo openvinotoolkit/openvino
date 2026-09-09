@@ -411,6 +411,24 @@ TEST(nop_elimination, unsqueeze_elimination) {
     ASSERT_EQ(count_ops_of_type<op::v0::Unsqueeze>(f), 1);
 }
 
+TEST(nop_elimination, unsqueeze_elimination_special_zero_reshape_zero_extent) {
+    auto input = std::make_shared<op::v0::Parameter>(element::f16, PartialShape{5, 0, 4, 4});
+    auto pattern = op::v0::Constant::create(element::i64, Shape{1}, {0});
+    auto reshape = std::make_shared<op::v1::Reshape>(input, pattern, true);
+
+    auto axis = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto unsqueeze = std::make_shared<op::v0::Unsqueeze>(reshape, axis);
+
+    auto model = std::make_shared<ov::Model>(unsqueeze, ParameterVector{input});
+
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::Validate>();
+    pass_manager.register_pass<ov::pass::NopElimination>();
+
+    ASSERT_NO_THROW(pass_manager.run_passes(model));
+    ASSERT_EQ(model->get_output_partial_shape(0), PartialShape({5, 1}));
+}
+
 TEST(nop_elimination, squeeze_unsqueeze_overlap_elimination) {
     auto check_usecase = [](const PartialShape& shape,
                             const std::vector<int64_t>& sq_axes_val,
