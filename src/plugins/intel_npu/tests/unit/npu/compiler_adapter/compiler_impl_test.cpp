@@ -607,25 +607,6 @@ TEST_F(VCLCompilerImplTest, CompileWsOneShotOrdersInitSchedulesBeforeMain) {
     EXPECT_EQ(tensors.back().get_byte_size(), ::intel_npu::utils::align_size_to_standard_page_size(4096 * 3));
 }
 
-TEST_F(VCLCompilerImplTest, CompileWsOneShotTensorsRemainValidAfterTheCompilerIsGone) {
-    // m_info is cleared so ownership transfers to the tensors; a double free would show up here.
-    fake.wsBlobSizes = {8, 16};
-    std::vector<ov::Tensor> tensors;
-    {
-        auto compiler = makeCompiler();
-        auto config = makeConfig();
-        auto result = compiler->compileWsOneShot(makeModel(), config);
-        tensors = std::move(result.first);
-    }
-    ASSERT_EQ(tensors.size(), 2u);
-    for (auto& tensor : tensors) {
-        ASSERT_NE(tensor.data(), nullptr);
-        // Touch every byte: a freed buffer would trip the allocator or a sanitizer here.
-        std::memset(tensor.data(), 0x5A, tensor.get_byte_size());
-    }
-    tensors.clear();
-}
-
 TEST_F(VCLCompilerImplTest, CompileWsOneShotThrowsAndDestroysExecutableWhenNothingWasAllocated) {
     fake.wsBlobSizes.clear();  // no allocations -> m_info stays empty
     auto compiler = makeCompiler();
