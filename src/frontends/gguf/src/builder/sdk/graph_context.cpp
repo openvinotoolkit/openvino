@@ -120,7 +120,7 @@ GgufValue GgufGraphContext::add_input(const std::string& name, ov::element::Type
 GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
     OPENVINO_ASSERT(tok_embd, "[GGUF] build_inp_embd: the token embedding weight is missing");
     auto tokens = add_input("inp_tokens", i32, ov::PartialShape({1, 1, 1, D}));
-    return node("GGML_OP_GET_ROWS", {tok_embd, tokens}, f32);
+    return node("GGML_OP_GET_ROWS", {tok_embd, tokens});
 }
 
 GgufValue GgufGraphContext::build_inp_pos() {
@@ -142,7 +142,6 @@ void GgufGraphContext::build_attn_inp_kv(bool swa) {
 
 GgufValue GgufGraphContext::node(const std::string& op_type,
                                  const std::vector<GgufValue>& inputs,
-                                 ov::element::Type out_type,
                                  int op_case,
                                  const std::map<std::string, ov::Any>& attrs) {
     m_impl->check_open();
@@ -153,7 +152,7 @@ GgufValue GgufGraphContext::node(const std::string& op_type,
         names.push_back(input.name());
     }
     const auto name = m_impl->fresh(op_type);
-    m_impl->emitter.add_op(op_type, name, names, out_type, op_case, attrs);
+    m_impl->emitter.add_op(op_type, name, names, op_case, attrs);
     return GgufValue(name, m_impl->emitter.value(name));
 }
 
@@ -171,18 +170,18 @@ GgufValue GgufGraphContext::build_norm(const GgufValue& cur, const GgufValue& w,
     m_impl->check_open();
     OPENVINO_ASSERT(cur, "[GGUF] normalization requires an input");
     if (!w)
-        return node("GGML_OP_RMS_NORM", {cur}, cur.type(), 0, {{"eps", eps}});
+        return node("GGML_OP_RMS_NORM", {cur}, 0, {{"eps", eps}});
     const auto out = blocks::rms_norm(m_impl->emitter, cur.name(), w.name(), m_impl->fresh("norm"), eps);
     return GgufValue(out, m_impl->emitter.value(out));
 }
 
 GgufValue GgufGraphContext::build_norm_ln(const GgufValue& cur, const GgufValue& w, const GgufValue& b, float eps) {
-    auto out = node("GGML_OP_NORM", {cur}, cur.type(), 0, {{"eps", eps}});
+    auto out = node("GGML_OP_NORM", {cur}, 0, {{"eps", eps}});
     if (w) {
-        out = node("GGML_OP_MUL", {out, w}, out.type());
+        out = node("GGML_OP_MUL", {out, w});
     }
     if (b) {
-        out = node("GGML_OP_ADD", {out, b}, out.type());
+        out = node("GGML_OP_ADD", {out, b});
     }
     return out;
 }

@@ -50,11 +50,9 @@ ov::Any GgufBuilderDecoder::get_attribute(const std::string& name) const {
 
     const auto& n = node();
 
-    // Reserved keys for per-output metadata
+    // Legacy source shape metadata is unavailable for native nodes.
     if (name == "output_shape")
         return ov::PartialShape::dynamic();
-    if (name == "output_type")
-        return n.output_type;
 
     // Per-node op case (the op translators read it via get_attribute<int>("op_case", 0)).
     if (name == "op_case")

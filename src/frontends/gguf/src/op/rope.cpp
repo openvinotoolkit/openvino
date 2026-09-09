@@ -92,7 +92,7 @@ OutputVector translate_rope(const NodeContext& context) {
         data = std::make_shared<ov::op::v1::Reshape>(data, make_bhsd_shape(), true);
     }
 
-    const auto output_type = context.get_output_type();
+    const auto output_type = data.get_element_type();
     if (data.get_element_type() != ov::element::f32) {
         data = std::make_shared<ov::op::v0::Convert>(data, ov::element::f32);
     }

@@ -36,33 +36,31 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
 
     // ---- input projections ----
     e.add_weight(p + "attn_qkv.weight");
-    auto qkv = e.add_op("GGML_OP_MUL_MAT", p + "qkv_mixed", {p + "attn_qkv.weight", attn_norm}, f32);
+    auto qkv = e.add_op("GGML_OP_MUL_MAT", p + "qkv_mixed", {p + "attn_qkv.weight", attn_norm});
     e.add_weight(p + "attn_gate.weight");
-    auto z = e.add_op("GGML_OP_MUL_MAT", p + "z", {p + "attn_gate.weight", attn_norm}, f32);
+    auto z = e.add_op("GGML_OP_MUL_MAT", p + "z", {p + "attn_gate.weight", attn_norm});
 
     // beta = sigmoid(ssm_beta @ x), one scalar per v-head
     e.add_weight(p + "ssm_beta.weight");
-    auto beta = e.add_op("GGML_OP_MUL_MAT", p + "beta", {p + "ssm_beta.weight", attn_norm}, f32);
-    beta = e.add_op("GGML_UNARY_OP_SIGMOID", p + "beta_sig", {beta}, f32);
+    auto beta = e.add_op("GGML_OP_MUL_MAT", p + "beta", {p + "ssm_beta.weight", attn_norm});
+    beta = e.add_op("GGML_UNARY_OP_SIGMOID", p + "beta_sig", {beta});
     beta = e.add_op("GGML_OP_RESHAPE",
                     p + "beta_4d",
                     {beta},
-                    e.value(beta).get_element_type(),
                     6,
                     {{"reshape_target", std::vector<int64_t>{0, -1, H_v, 1}}, {"special_zero", true}});
 
     // g = softplus(ssm_alpha @ x + ssm_dt.bias) * ssm_a   (ggml: -A_log.exp() * softplus)
     e.add_weight(p + "ssm_alpha.weight");
-    auto alpha = e.add_op("GGML_OP_MUL_MAT", p + "alpha", {p + "ssm_alpha.weight", attn_norm}, f32);
+    auto alpha = e.add_op("GGML_OP_MUL_MAT", p + "alpha", {p + "ssm_alpha.weight", attn_norm});
     e.add_named_weight(p + "ssm_dt.bias");
-    alpha = e.add_op("GGML_OP_ADD", p + "alpha_biased", {alpha, p + "ssm_dt.bias"}, f32);
-    alpha = e.add_op("GGML_UNARY_OP_SOFTPLUS", p + "alpha_sp", {alpha}, f32);
+    alpha = e.add_op("GGML_OP_ADD", p + "alpha_biased", {alpha, p + "ssm_dt.bias"});
+    alpha = e.add_op("GGML_UNARY_OP_SOFTPLUS", p + "alpha_sp", {alpha});
     e.add_named_weight(p + "ssm_a");
-    auto g = e.add_op("GGML_OP_MUL", p + "gate", {alpha, p + "ssm_a"}, f32);
+    auto g = e.add_op("GGML_OP_MUL", p + "gate", {alpha, p + "ssm_a"});
     g = e.add_op("GGML_OP_RESHAPE",
                  p + "gate_4d",
                  {g},
-                 e.value(g).get_element_type(),
                  6,
                  {{"reshape_target", std::vector<int64_t>{0, -1, H_v, 1}}, {"special_zero", true}});
 
@@ -74,35 +72,34 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     }
 
     // [1,1,T,conv_dim] -> [1,1,conv_dim,T] so the conv window grows along the last axis.
-    auto qkv_t = e.add_op("GGML_OP_TRANSPOSE", p + "qkv_t", {qkv}, f32);
-    auto conv_in = e.add_op("GGML_OP_CONCAT", p + "conv_in", {cs, qkv_t}, f32, 0, {{"concat_axis", int{0}}});
+    auto qkv_t = e.add_op("GGML_OP_TRANSPOSE", p + "qkv_t", {qkv});
+    auto conv_in = e.add_op("GGML_OP_CONCAT", p + "conv_in", {cs, qkv_t}, 0, {{"concat_axis", int{0}}});
 
     // Next step's state is the trailing d_conv-1 columns of this window.
     const std::vector<int64_t> tail_slice{3, -(d_conv - 1), d_conv - 1};
-    auto cs_out = e.add_op("GGML_OP_VIEW", cs + "_out", {conv_in}, f32, 3, {{"view_slice", tail_slice}});
+    auto cs_out = e.add_op("GGML_OP_VIEW", cs + "_out", {conv_in}, 3, {{"view_slice", tail_slice}});
     graph.model_output_names.push_back(cs_out);
     graph.recurrent_states.emplace_back(cs, cs_out);
 
     e.add_named_weight(p + "ssm_conv1d.weight");
-    auto conv = e.add_op("GGML_OP_SSM_CONV", p + "conv_out", {conv_in, p + "ssm_conv1d.weight"}, f32);
-    conv = e.add_op("GGML_UNARY_OP_SILU", p + "conv_silu", {conv}, f32);
+    auto conv = e.add_op("GGML_OP_SSM_CONV", p + "conv_out", {conv_in, p + "ssm_conv1d.weight"});
+    conv = e.add_op("GGML_UNARY_OP_SILU", p + "conv_silu", {conv});
 
     // ---- split the conv output into q | k | v and normalize q/k ----
     auto slice_heads = [&](const std::string& name, int64_t off, int64_t width, int64_t heads, int64_t dim) {
         const std::vector<int64_t> sl{3, off, width};
-        auto s = e.add_op("GGML_OP_VIEW", p + name + "_s", {conv}, f32, 3, {{"view_slice", sl}});
+        auto s = e.add_op("GGML_OP_VIEW", p + name + "_s", {conv}, 3, {{"view_slice", sl}});
         return e.add_op("GGML_OP_RESHAPE",
                         p + name,
                         {s},
-                        e.value(s).get_element_type(),
                         6,
                         {{"reshape_target", std::vector<int64_t>{0, -1, heads, dim}}, {"special_zero", true}});
     };
     auto q = slice_heads("q_conv", 0, key_dim, H_k, S);
     auto k = slice_heads("k_conv", key_dim, key_dim, H_k, S);
     auto v = slice_heads("v_conv", 2 * key_dim, value_dim, H_v, head_v);
-    q = e.add_op("GGML_OP_L2_NORM", p + "q_l2", {q}, f32, 0, {{"eps", cfg.rms_eps}});
-    k = e.add_op("GGML_OP_L2_NORM", p + "k_l2", {k}, f32, 0, {{"eps", cfg.rms_eps}});
+    q = e.add_op("GGML_OP_L2_NORM", p + "q_l2", {q}, 0, {{"eps", cfg.rms_eps}});
+    k = e.add_op("GGML_OP_L2_NORM", p + "k_l2", {k}, 0, {{"eps", cfg.rms_eps}});
 
     // ---- recurrent delta rule ----
     // ggml state layout is [B, H_v, value_dim, key_dim]; the translator transposes it for
@@ -112,12 +109,8 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
         e.add_input(ss, f32, ps({1, H_v, head_v, S}));
     }
 
-    auto gdn = e.add_op("GGML_OP_GATED_DELTA_NET",
-                        p + "gdn",
-                        {q, k, v, g, beta, ss},
-                        f32,
-                        0,
-                        {{"gdn_state_slots", int64_t{1}}});
+    auto gdn =
+        e.add_op("GGML_OP_GATED_DELTA_NET", p + "gdn", {q, k, v, g, beta, ss}, 0, {{"gdn_state_slots", int64_t{1}}});
 
     // Split the packed attention rows and recurrent state; only the token axis is inferred.
     const std::vector<int64_t> attn_view{0, head_v};
@@ -125,13 +118,11 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     auto attn = e.add_op("GGML_OP_VIEW",
                          p + "gdn_attn",
                          {gdn},
-                         f32,
                          4,
                          {{"gdn_view", attn_view}, {"view_reshape", std::vector<int64_t>{1, -1, H_v, head_v}}});
     auto new_state = e.add_op("GGML_OP_VIEW",
                               ss + "_out",
                               {gdn},
-                              f32,
                               4,
                               {{"gdn_view", state_view}, {"view_reshape", std::vector<int64_t>{1, H_v, head_v, S}}});
     graph.model_output_names.push_back(new_state);
@@ -143,20 +134,18 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     auto z_4d = e.add_op("GGML_OP_RESHAPE",
                          p + "z_4d",
                          {z},
-                         e.value(z).get_element_type(),
                          6,
                          {{"reshape_target", std::vector<int64_t>{0, -1, H_v, head_v}}, {"special_zero", true}});
-    auto z_silu = e.add_op("GGML_UNARY_OP_SILU", p + "z_silu", {z_4d}, f32);
-    out = e.add_op("GGML_OP_MUL", p + "gdn_gated", {out, z_silu}, f32);
+    auto z_silu = e.add_op("GGML_UNARY_OP_SILU", p + "z_silu", {z_4d});
+    out = e.add_op("GGML_OP_MUL", p + "gdn_gated", {out, z_silu});
     out = e.add_op("GGML_OP_RESHAPE",
                    p + "gdn_merged",
                    {out},
-                   e.value(out).get_element_type(),
                    6,
                    {{"reshape_target", std::vector<int64_t>{0, 1, -1, value_dim}}, {"special_zero", true}});
 
     e.add_weight(p + "ssm_out.weight");
-    return e.add_op("GGML_OP_MUL_MAT", p + "linear_attn_out", {p + "ssm_out.weight", out}, f32);
+    return e.add_op("GGML_OP_MUL_MAT", p + "linear_attn_out", {p + "ssm_out.weight", out});
 }
 
 }  // namespace blocks

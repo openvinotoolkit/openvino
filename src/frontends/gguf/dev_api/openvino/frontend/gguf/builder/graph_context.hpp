@@ -54,10 +54,8 @@ public:
     GgufValue add_input(const std::string& name, ov::element::Type type, const ov::PartialShape& shape);
 
     // Invoke a registered converter; its OpenVINO outputs supply shape/type inference.
-    // out_type is the GGML result type requested by the operation, not a shape-inference hint.
     GgufValue node(const std::string& op_type,
                    const std::vector<GgufValue>& inputs,
-                   ov::element::Type out_type,
                    int op_case = 0,
                    const std::map<std::string, ov::Any>& attrs = {});
 

@@ -55,14 +55,8 @@ public:
         return m_decoder->get_output_shape();
     }
 
-    // Convenience typed reads over get_attribute, kept so both the attribute-style op bodies and
-    // the accessor-style (op_case / output_type) op bodies compile against one NodeContext.
     int get_op_case() const {
         return get_attribute<int>("op_case", 0);
-    }
-
-    ov::element::Type get_output_type() const {
-        return get_attribute<ov::element::Type>("output_type");
     }
 
     Output<Node> get_input(int idx) const override {

@@ -73,7 +73,6 @@ public:
     std::string add_op(const std::string& op_type,
                        const std::string& name,
                        const std::vector<std::string>& inputs,
-                       ov::element::Type out_type,
                        int op_case = 0,
                        std::map<std::string, ov::Any> attrs = {});
 

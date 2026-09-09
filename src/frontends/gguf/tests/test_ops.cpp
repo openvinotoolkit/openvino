@@ -496,21 +496,19 @@ TEST(GGUFOps, Norm) {
     expect_near(out, expected, 1e-4f);
 }
 
-// The index type comes from the decoder, not a hardcoded i32: an i64 TOP_K output must produce
-// an i64 tensor, otherwise the model signature and the actual tensor disagree.
-TEST(GGUFOps, TopKIndexTypeFollowsOutput) {
+TEST(GGUFOps, TopKIndexTypeComesFromOperation) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_TOP_K")
                      .input("x", ov::element::f32, {1, 1, 2, 4})
-                     .output("out", ov::element::i64, {1, 1, 2, 2})
+                     .output("out", ov::element::dynamic, {1, 1, 2, 2})
                      .build();
 
     std::vector<float> x{4, 1, 3, 2, 10, 40, 20, 30};
     auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 2, 4}, x)}});
 
-    ASSERT_EQ(out.get_element_type(), ov::element::i64);
-    const int64_t* a = out.data<int64_t>();
-    std::vector<int64_t> expected{0, 2, 1, 3};
+    ASSERT_EQ(out.get_element_type(), ov::element::i32);
+    const int32_t* a = out.data<int32_t>();
+    std::vector<int32_t> expected{0, 2, 1, 3};
     for (size_t i = 0; i < expected.size(); ++i)
         EXPECT_EQ(a[i], expected[i]) << "mismatch at index " << i;
 }
@@ -627,7 +625,7 @@ TEST(GGUFOps, Argsort) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_ARGSORT")
                      .input("x", ov::element::f32, {1, 1, 2, 4})
-                     .output("out", ov::element::i32, {1, 1, 2, 4})
+                     .output("out", ov::element::dynamic, {1, 1, 2, 4})
                      .attr<int>("sort_order", 0)  // ascending
                      .build();
 
@@ -1790,7 +1788,7 @@ TEST(GGUFOps, MulMat) {
                      .op("GGML_OP_MUL_MAT")
                      .input("b", ov::element::f32, {1, 1, 2, 3})
                      .input("a", ov::element::f32, {1, 1, 2, 3})
-                     .output("out", ov::element::f32, {1, 1, 2, 2})
+                     .output("out", ov::element::dynamic, {1, 1, 2, 2})
                      .build();
 
     std::vector<float> b{1, 2, 3, 4, 5, 6};  // rows n0=[1,2,3], n1=[4,5,6]

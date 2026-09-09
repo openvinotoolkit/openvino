@@ -114,7 +114,11 @@ OutputVector translate_im2col(const NodeContext& context) {
         res = std::make_shared<ov::op::v1::Reshape>(res, final_reshape_shape, false);
     }
 
-    auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    // Older cgraph decoders expose ggml_im2col's dst_type as output_type.
+    const auto output_type = context.get_attribute<ov::element::Type>(
+        "dst_type",
+        context.get_attribute<ov::element::Type>("output_type", ov::element::dynamic));
+    FRONT_END_OP_CONVERSION_CHECK(output_type.is_static(), "IM2COL requires 'dst_type'");
     if (res.get_element_type() != output_type) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }

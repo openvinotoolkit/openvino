@@ -30,7 +30,6 @@ struct GgufOp {
     std::string name;                      // unique node/op name
     std::vector<std::string> input_names;  // producer tensor names (weights / inputs / other nodes)
     std::string output_name;               // this node's output tensor name
-    ov::element::Type output_type = ov::element::dynamic;
     int op_case = 0;
 
     // Typed scalar/struct op attributes consumed by translators via get_attribute<T>

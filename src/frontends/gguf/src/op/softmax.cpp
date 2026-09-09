@@ -124,7 +124,7 @@ OutputVector translate_soft_max(const NodeContext& context) {
         mask_node_sliced = std::make_shared<ov::op::v8::Slice>(mask_node, zero, token_len, one, one);
     }
 
-    auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    auto output_type = input0.get_element_type();
     if (mask_node_sliced.get_element_type() != output_type) {
         mask_node_sliced = std::make_shared<ov::op::v0::Convert>(mask_node_sliced, output_type);
     }

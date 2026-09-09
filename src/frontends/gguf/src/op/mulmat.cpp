@@ -45,9 +45,12 @@ OutputVector translate_mulmat(const NodeContext& context) {
         B = process_view_input(context, 0);
         A = process_view_input(context, 1);
     }
-    if (A.get_element_type() != B.get_element_type()) {
-        // Convert the reprocessed B, not input(0), to preserve the op_case 2/3 rebinding.
-        B = std::make_shared<ov::op::v0::Convert>(B, A.get_element_type());
+    // GGML MUL_MAT produces F32, including when both operands are F16.
+    if (A.get_element_type() != ov::element::f32) {
+        A = std::make_shared<ov::op::v0::Convert>(A, ov::element::f32);
+    }
+    if (B.get_element_type() != ov::element::f32) {
+        B = std::make_shared<ov::op::v0::Convert>(B, ov::element::f32);
     }
 
     auto B_shape = context.get_input_shape(0);
@@ -89,11 +92,6 @@ OutputVector translate_mulmat(const NodeContext& context) {
     }
 
     res = std::make_shared<ov::op::v0::MatMul>(A, B, false, transpose_b);
-
-    const auto output_type = context.get_output_type();
-    if (res.get_element_type() != output_type) {
-        res = std::make_shared<ov::op::v0::Convert>(res, output_type);
-    }
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }

@@ -169,14 +169,14 @@ nodes. Local functions can name repeated architectural fragments without adding 
 |---|---|
 | `create_tensor(tn(...), ...)` / a layer weight pointer | Look up the actual GGUF name through `GgufTensors`; parsing and dequantization are already handled |
 | `ggml_new_tensor_*` for runtime data | `add_input(name, type, shape)`; supply values at inference time |
-| `ggml_add`, `ggml_sub`, `ggml_mul` | `node("GGML_OP_ADD" / "GGML_OP_SUB" / "GGML_OP_MUL", {a, b}, type)` |
-| `ggml_mul_mat(ctx, weight, x)` | `node("GGML_OP_MUL_MAT", {weight, x}, ov::element::f32)` |
-| `ggml_silu(ctx, x)` | `node("GGML_UNARY_OP_SILU", {x}, x.type())` |
-| `ggml_rms_norm(ctx, x, eps)` | `node("GGML_OP_RMS_NORM", {x}, x.type(), 0, {{"eps", eps}})`; learned scaling remains a separate multiply |
+| `ggml_add`, `ggml_sub`, `ggml_mul` | `node("GGML_OP_ADD" / "GGML_OP_SUB" / "GGML_OP_MUL", {a, b})` |
+| `ggml_mul_mat(ctx, weight, x)` | `node("GGML_OP_MUL_MAT", {weight, x})` |
+| `ggml_silu(ctx, x)` | `node("GGML_UNARY_OP_SILU", {x})` |
+| `ggml_rms_norm(ctx, x, eps)` | `node("GGML_OP_RMS_NORM", {x}, 0, {{"eps", eps}})`; learned scaling remains a separate multiply |
 | `ggml_reshape_*` | `GGML_OP_RESHAPE`, case 6, with an OpenVINO-order `reshape_target`; use `special_zero` when copying an input dimension |
 | `ggml_permute` | `GGML_OP_PERMUTE`, case 1, with an OpenVINO-order `perm`; translate the axis mapping |
 | `ggml_view_*` | Describe the logical slice/layout with the converter's attributes; do not reproduce a ggml pointer or allocator |
-| `ggml_top_k(ctx, scores, k)` | `GGML_OP_TOP_K` with integer output type and explicit `int64_t` attribute `k` |
+| `ggml_top_k(ctx, scores, k)` | `GGML_OP_TOP_K` with explicit `int64_t` attribute `k`; its converter selects I32 indices |
 | `ggml_cpy`, `ggml_set*` used for state | Preserve the updated tensor and its consumer/state relationship, not an in-place memory side effect |
 | `cb(...)`, graph expansion and backend scheduling | Reference diagnostics and execution infrastructure; no corresponding model computation to emit |
 
@@ -249,10 +249,9 @@ public:
         auto cur = graph.add_input("features", ov::element::f32, {1, 1, -1, *width});
 
         const auto linear = [&](const std::string& base, const GgufValue& input) {
-            auto out = graph.node("GGML_OP_MUL_MAT", {tensors.require(base + ".weight"), input},
-                                  ov::element::f32);
+            auto out = graph.node("GGML_OP_MUL_MAT", {tensors.require(base + ".weight"), input});
             if (auto bias = tensors(base + ".bias")) {
-                out = graph.node("GGML_OP_ADD", {out, bias}, out.type());
+                out = graph.node("GGML_OP_ADD", {out, bias});
             }
             return out;
         };
@@ -262,11 +261,11 @@ public:
             const auto residual = cur;
             auto norm = graph.build_norm(cur, tensors.require(prefix + "norm.weight"), eps);
             auto gate = linear(prefix + "gate", norm);
-            gate = graph.node("GGML_UNARY_OP_SILU", {gate}, gate.type());
+            gate = graph.node("GGML_UNARY_OP_SILU", {gate});
             auto up = linear(prefix + "up", norm);
-            auto hidden = graph.node("GGML_OP_MUL", {gate, up}, gate.type());
+            auto hidden = graph.node("GGML_OP_MUL", {gate, up});
             auto down = linear(prefix + "down", hidden);
-            cur = graph.node("GGML_OP_ADD", {residual, down}, residual.type());
+            cur = graph.node("GGML_OP_ADD", {residual, down});
         }
 
         graph.set_output(graph.build_norm(cur, tensors.require("output_norm.weight"), eps));
@@ -373,18 +372,31 @@ constructs OpenVINO nodes immediately. `GgufValue` holds the resulting `ov::Outp
 builder operation registry, per-operation method or separate shape implementation to maintain.
 
 ```cpp
-auto sum = graph.node("GGML_OP_ADD", {a, b}, a.type());
-auto projected = graph.node("GGML_OP_MUL_MAT", {weight, sum}, ov::element::f32);
-auto experts = graph.node("GGML_OP_TOP_K", {scores}, ov::element::i32, 0,
-                          {{"k", int64_t{2}}});
+auto sum = graph.node("GGML_OP_ADD", {a, b});
+auto projected = graph.node("GGML_OP_MUL_MAT", {weight, sum});
+auto experts = graph.node("GGML_OP_TOP_K", {scores}, 0, {{"k", int64_t{2}}});
 ```
 
-Operands follow GGML order (weight before activation for matrix multiplication). `out_type` is
-the operation's requested GGML result type, such as TopK's integer index type. It is passed to
-the converter; the returned value's type comes from the actual OpenVINO output. `op_case` selects
-a converter's existing semantic variant. Attributes supply operation parameters, not inferred
-output shapes. A `ConversionExtension` adds a new operation through this same API without
-changing the builder. Missing converters report a conversion error.
+Operands follow GGML order (weight before activation for matrix multiplication). Converters
+implement ggml's result-type rules: `MUL_MAT` and `MUL_MAT_ID` produce F32; `TOP_K` and `ARGSORT`
+produce I32 indices; type-preserving operations use their input type, and state writes use the
+destination tensor's type. Architecture code does not supply an output type. OpenVINO outputs
+carry the resulting types and shapes, including through custom `ConversionExtension` converters.
+
+`op_case` selects a converter's existing semantic variant. Attributes supply operation parameters,
+not inferred output metadata. Explicit types are needed only when the operation itself selects a
+destination precision, such as a cast or `IM2COL`:
+
+```cpp
+auto half = graph.node("GGML_OP_CPY", {input}, 0, {{"dst_type", ov::element::f16}});
+auto copied = graph.node("GGML_OP_CPY", {input, destination});
+```
+
+The first call is a cast; the second derives its type from `destination`. `IM2COL` likewise requires
+`dst_type` alongside its convolution parameters. Older cgraph decoders may expose these two
+operations' destination types through `output_type`; the shared converters accept that encoding
+for compatibility. New operation support requires only a converter, without builder changes.
+Missing converters report a conversion error.
 
 Value shapes use OpenVINO order; `value.ne(i)` accesses reversed GGML dimensions. Weight values
 preserve logical vector and expert axes. Missing optional weights return an empty value;
@@ -396,11 +408,9 @@ input dimensions at zero entries. Splitting attention heads while preserving a d
 axis and the leading batch is:
 
 ```cpp
-auto heads = graph.node("GGML_OP_RESHAPE", {projected}, projected.type(), 6,
-                        {{"reshape_target", std::vector<int64_t>{0, -1, n_heads, head_size}},
+auto heads = graph.node("GGML_OP_RESHAPE", {projected}, 6, {{"reshape_target", std::vector<int64_t>{0, -1, n_heads, head_size}},
                          {"special_zero", true}});
-auto merged = graph.node("GGML_OP_RESHAPE", {heads}, heads.type(), 2,
-                         {{"merge_heads", true}});
+auto merged = graph.node("GGML_OP_RESHAPE", {heads}, 2, {{"merge_heads", true}});
 ```
 
 `PERMUTE` case 1 takes `perm` in OpenVINO axis order. `CONCAT` takes `concat_axis` in GGML order;

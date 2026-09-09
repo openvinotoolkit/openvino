@@ -79,9 +79,9 @@ std::string attention(GraphEmitter& e,
             e.add_weight_from(p + "attn_v.weight", p + "attn_k");
         }
     }
-    auto q = e.add_op("GGML_OP_MUL_MAT", p + "Qcur", {p + "attn_q.weight", attn_norm}, f32);
-    auto k = e.add_op("GGML_OP_MUL_MAT", p + "Kcur", {p + "attn_k.weight", attn_norm}, f32);
-    auto v = e.add_op("GGML_OP_MUL_MAT", p + "Vcur", {p + "attn_v.weight", attn_norm}, f32);
+    auto q = e.add_op("GGML_OP_MUL_MAT", p + "Qcur", {p + "attn_q.weight", attn_norm});
+    auto k = e.add_op("GGML_OP_MUL_MAT", p + "Kcur", {p + "attn_k.weight", attn_norm});
+    auto v = e.add_op("GGML_OP_MUL_MAT", p + "Vcur", {p + "attn_v.weight", attn_norm});
 
     // Q/K/V projection biases (qwen2 / qwen2.5: separate attn_{q,k,v}.bias; phi-3-style
     // fused-QKV archs: attn_qkv.bias, already split into attn_{q,k,v}.bias by
@@ -102,19 +102,16 @@ std::string attention(GraphEmitter& e,
     q = e.add_op("GGML_OP_RESHAPE",
                  p + "Qcur_r",
                  {q},
-                 e.value(q).get_element_type(),
                  6,
                  {{"reshape_target", std::vector<int64_t>{0, -1, cfg.n_head, head_size_l}}, {"special_zero", true}});
     k = e.add_op("GGML_OP_RESHAPE",
                  p + "Kcur_r",
                  {k},
-                 e.value(k).get_element_type(),
                  6,
                  {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
     v = e.add_op("GGML_OP_RESHAPE",
                  p + "Vcur_r",
                  {v},
-                 e.value(v).get_element_type(),
                  6,
                  {{"reshape_target", std::vector<int64_t>{0, -1, n_head_kv_l, head_size_l}}, {"special_zero", true}});
 
@@ -125,7 +122,7 @@ std::string attention(GraphEmitter& e,
     }
     // gemma4: V gets a plain RMSNorm (no multiplicative weight, just normalize).
     if (cfg.has_v_norm) {
-        v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, f32, 0, {{"eps", cfg.rms_eps}});
+        v = e.add_op("GGML_OP_RMS_NORM", p + "Vcur_normed", {v}, 0, {{"eps", cfg.rms_eps}});
     }
 
     // RoPE (NEOX). rope_freqs.weight (per-dim frequency factor) is an optional 3rd input.
@@ -142,18 +139,8 @@ std::string attention(GraphEmitter& e,
                                                    ? std::vector<std::string>{k, "inp_pos", "rope_freqs.weight"}
                                                    : std::vector<std::string>{k, "inp_pos"};
     if (use_rope) {
-        q = e.add_op("GGML_OP_ROPE",
-                     p + "Qcur_rope",
-                     q_rope_in,
-                     f32,
-                     cfg.rope_op_case,
-                     {{"rope_config", rope_config_l}});
-        k = e.add_op("GGML_OP_ROPE",
-                     p + "Kcur_rope",
-                     k_rope_in,
-                     f32,
-                     cfg.rope_op_case,
-                     {{"rope_config", rope_config_l}});
+        q = e.add_op("GGML_OP_ROPE", p + "Qcur_rope", q_rope_in, cfg.rope_op_case, {{"rope_config", rope_config_l}});
+        k = e.add_op("GGML_OP_ROPE", p + "Kcur_rope", k_rope_in, cfg.rope_op_case, {{"rope_config", rope_config_l}});
     }
 
     if (cfg.has_qk_norm && !cfg.qk_norm_full && cfg.qk_norm_after_rope) {
@@ -162,26 +149,24 @@ std::string attention(GraphEmitter& e,
     }
 
     if (cfg.attention_temperature_scale != 0.0f) {
-        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {"inp_pos"}, f32);
+        auto temp = e.add_op("GGML_OP_CPY", p + "temp_pos", {"inp_pos"}, 0, {{"dst_type", f32}});
         temp = scale(e, temp, 1.0f / cfg.rope_config.n_ctx_orig, p + "temp_window");
         // Positions are nonnegative: integer conversion implements floor(position / context).
-        temp = e.add_op("GGML_OP_CPY", p + "temp_floor", {temp}, ov::element::i32);
-        temp = e.add_op("GGML_OP_CPY", p + "temp_float", {temp}, f32);
-        temp = e.add_op("GGML_OP_SCALE", p + "temp_offset", {temp}, f32, 0, {{"bias", 1.0f}});
-        temp = e.add_op("GGML_OP_LOG", p + "temp_log", {temp}, f32);
+        temp = e.add_op("GGML_OP_CPY", p + "temp_floor", {temp}, 0, {{"dst_type", ov::element::i32}});
+        temp = e.add_op("GGML_OP_CPY", p + "temp_float", {temp}, 0, {{"dst_type", f32}});
+        temp = e.add_op("GGML_OP_SCALE", p + "temp_offset", {temp}, 0, {{"bias", 1.0f}});
+        temp = e.add_op("GGML_OP_LOG", p + "temp_log", {temp});
         temp = e.add_op("GGML_OP_SCALE",
                         p + "temp_scale",
                         {temp},
-                        f32,
                         0,
                         {{"scale", cfg.attention_temperature_scale}, {"bias", 1.0f}});
         temp = e.add_op("GGML_OP_RESHAPE",
                         p + "temp_broadcast",
                         {temp},
-                        e.value(temp).get_element_type(),
                         6,
                         {{"reshape_target", std::vector<int64_t>{0, -1, 1, 1}}, {"special_zero", true}});
-        q = e.add_op("GGML_OP_MUL", p + "Qcur_temp_scaled", {q, temp}, f32);
+        q = e.add_op("GGML_OP_MUL", p + "Qcur_temp_scaled", {q, temp});
     }
 
     // ---- KV cache store ----
@@ -210,8 +195,8 @@ std::string attention(GraphEmitter& e,
         // SET_ROWS(cur, idx, cache) -> the cache with this step's rows written in. Lowered by
         // the frontend to a stateless ScatterUpdate, or by the caller-registered MakeStateful
         // extension to a ReadValue/Concat/Assign OpenVINO state.
-        k = e.add_op("GGML_OP_SET_ROWS", kc, {k, "inp_kv_idx", kc}, ov::element::f16);
-        v = e.add_op("GGML_OP_SET_ROWS", vc, {v, "inp_kv_idx", vc}, ov::element::f16);
+        k = e.add_op("GGML_OP_SET_ROWS", kc, {k, "inp_kv_idx", kc});
+        v = e.add_op("GGML_OP_SET_ROWS", vc, {v, "inp_kv_idx", vc});
         // The written-through caches are model outputs, so the stateless graph returns each
         // updated cache as a Result (which MakeStateful, when registered, turns into an Assign
         // sink paired with the cache's ReadValue).
@@ -227,8 +212,8 @@ std::string attention(GraphEmitter& e,
         if (head_size_l < static_cast<int>(anchor_hs)) {
             // Slice the shared cache to this layer's head width.
             const std::vector<int64_t> hs_slice{3, 0, int64_t(head_size_l)};
-            k = e.add_op("GGML_OP_VIEW", p + "k_hslice", {kc}, ov::element::f16, 3, {{"view_slice", hs_slice}});
-            v = e.add_op("GGML_OP_VIEW", p + "v_hslice", {vc}, ov::element::f16, 3, {{"view_slice", hs_slice}});
+            k = e.add_op("GGML_OP_VIEW", p + "k_hslice", {kc}, 3, {{"view_slice", hs_slice}});
+            v = e.add_op("GGML_OP_VIEW", p + "v_hslice", {vc}, 3, {{"view_slice", hs_slice}});
         } else {
             k = kc;
             v = vc;
@@ -258,7 +243,6 @@ std::string attention(GraphEmitter& e,
     auto attn = e.add_op("GGML_OP_FLASH_ATTN_EXT",
                          p + "kqv",
                          attn_in,
-                         f32,
                          100,  // builder layout: q/k/v are ggml-natural [1, T, n_head, head_size]
                          std::move(attn_attrs));
 
@@ -266,7 +250,6 @@ std::string attention(GraphEmitter& e,
     auto attn_2d = e.add_op("GGML_OP_RESHAPE",
                             p + "kqv_merged",
                             {attn},
-                            e.value(attn).get_element_type(),
                             6,
                             {{"reshape_target", std::vector<int64_t>{0, 1, -1, q_width}}, {"special_zero", true}});
 
@@ -275,14 +258,14 @@ std::string attention(GraphEmitter& e,
     // multiplied elementwise into the merged attention output before the wo projection.
     if (cfg.has_attn_gate) {
         e.add_weight(p + "attn_gate.weight");
-        auto gate = e.add_op("GGML_OP_MUL_MAT", p + "attn_gate", {p + "attn_gate.weight", attn_norm}, f32);
-        gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate}, f32);
-        attn_2d = e.add_op("GGML_OP_MUL", p + "kqv_gated", {attn_2d, gate}, f32);
+        auto gate = e.add_op("GGML_OP_MUL_MAT", p + "attn_gate", {p + "attn_gate.weight", attn_norm});
+        gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "attn_gate_sig", {gate});
+        attn_2d = e.add_op("GGML_OP_MUL", p + "kqv_gated", {attn_2d, gate});
     }
 
     // output projection (+ optional bias)
     e.add_weight(p + "attn_output.weight");
-    auto attn_out = e.add_op("GGML_OP_MUL_MAT", p + "attn_out", {p + "attn_output.weight", attn_2d}, f32);
+    auto attn_out = e.add_op("GGML_OP_MUL_MAT", p + "attn_out", {p + "attn_output.weight", attn_2d});
     if (cfg.has_attn_out_bias) {
         attn_out = add_bias(e, attn_out, p + "attn_output.bias", p + "attn_out_b");
     }

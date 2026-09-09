@@ -15,17 +15,17 @@ std::string rms_norm(GraphEmitter& e,
                      const std::string& out_prefix,
                      float eps) {
     e.add_weight(weight);
-    auto norm = e.add_op("GGML_OP_RMS_NORM", out_prefix + ".rms", {in}, ov::element::f32, 0, {{"eps", eps}});
-    return e.add_op("GGML_OP_MUL", out_prefix, {norm, weight}, ov::element::f32);
+    auto norm = e.add_op("GGML_OP_RMS_NORM", out_prefix + ".rms", {in}, 0, {{"eps", eps}});
+    return e.add_op("GGML_OP_MUL", out_prefix, {norm, weight});
 }
 
 std::string scale(GraphEmitter& e, const std::string& x, float factor, const std::string& name) {
-    return e.add_op("GGML_OP_SCALE", name, {x}, ov::element::f32, 0, {{"scale", factor}, {"bias", 0.0f}});
+    return e.add_op("GGML_OP_SCALE", name, {x}, 0, {{"scale", factor}, {"bias", 0.0f}});
 }
 
 std::string add_bias(GraphEmitter& e, const std::string& x, const std::string& bias_weight, const std::string& name) {
     e.add_named_weight(bias_weight);
-    return e.add_op("GGML_OP_ADD", name, {x, bias_weight}, ov::element::f32);
+    return e.add_op("GGML_OP_ADD", name, {x, bias_weight});
 }
 
 }  // namespace blocks

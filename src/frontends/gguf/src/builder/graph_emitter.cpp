@@ -80,7 +80,6 @@ const ov::Output<ov::Node>& GraphEmitter::value(const std::string& name) const {
 std::string GraphEmitter::add_op(const std::string& op_type,
                                  const std::string& name,
                                  const std::vector<std::string>& inputs,
-                                 ov::element::Type out_type,
                                  int op_case,
                                  std::map<std::string, ov::Any> attrs) {
     GgufOp op;
@@ -88,7 +87,6 @@ std::string GraphEmitter::add_op(const std::string& op_type,
     op.name = name;
     op.input_names = inputs;
     op.output_name = name;
-    op.output_type = out_type;
     op.op_case = op_case;
     op.attributes = std::move(attrs);
     m_graph->nodes.push_back(std::move(op));
@@ -138,7 +136,7 @@ void GraphEmitter::emit_weight_op(const std::string& node_name, const WeightTens
     if (tensors.zero_point) {
         attrs["gguf.blob.zp"] = tensors.zero_point;
     }
-    add_op("GGML_OP_NONE", node_name, {}, ov::element::f32, 0, std::move(attrs));
+    add_op("GGML_OP_NONE", node_name, {}, 0, std::move(attrs));
 }
 
 void GraphEmitter::add_weight(const std::string& ggml_name) {

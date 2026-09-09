@@ -22,7 +22,7 @@ public:
         const auto weight = graph.tensors().require("projection.weight");
         OPENVINO_ASSERT(weight.ne(0) > 0, "Projector requires a static input width");
         const auto input = graph.add_input("embeddings", ov::element::f32, {1, 1, -1, weight.ne(0)});
-        graph.set_output(graph.node("GGML_OP_MUL_MAT", {weight, input}, ov::element::f32));
+        graph.set_output(graph.node("GGML_OP_MUL_MAT", {weight, input}));
         return graph.finish();
     }
 

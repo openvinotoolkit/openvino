@@ -87,14 +87,13 @@ ov::Output<ov::Node> make_topk_indices(const ov::Output<ov::Node>& input,
                                        const ov::Output<ov::Node>& k,
                                        int64_t axis,
                                        ov::op::v11::TopK::Mode mode,
-                                       const ov::element::Type& index_type,
                                        bool stable) {
     auto topk = std::make_shared<ov::op::v11::TopK>(input,
                                                     k,
                                                     axis,
                                                     mode,
                                                     ov::op::v11::TopK::SortType::SORT_VALUES,
-                                                    index_type,
+                                                    ov::element::i32,
                                                     stable);
     return topk->output(1);  // indices
 }

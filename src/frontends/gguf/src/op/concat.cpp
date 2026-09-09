@@ -31,11 +31,8 @@ OutputVector translate_concat(const NodeContext& context) {
 
     auto input_0 = context.get_input(0);
     auto input_1 = context.get_input(1);
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    const auto output_type = input_0.get_element_type();
 
-    if (input_0.get_element_type() != output_type) {
-        input_0 = std::make_shared<ov::op::v0::Convert>(input_0, output_type);
-    }
     if (input_1.get_element_type() != output_type) {
         input_1 = std::make_shared<ov::op::v0::Convert>(input_1, output_type);
     }

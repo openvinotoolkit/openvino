@@ -47,11 +47,8 @@ OutputVector translate_top_k(const NodeContext& context) {
         auto axis = v0::Constant::create(ov::element::i64, {}, {-1});
         // llama.cpp scores each group by its two highest (possibly biased) expert probabilities.
         auto scores = std::make_shared<v1::ReduceSum>(best->output(0), axis, false);
-        auto selected = make_topk_indices(scores,
-                                          v0::Constant::create(ov::element::i64, {}, {used}),
-                                          -1,
-                                          v11::TopK::Mode::MAX,
-                                          ov::element::i32);
+        auto selected =
+            make_topk_indices(scores, v0::Constant::create(ov::element::i64, {}, {used}), -1, v11::TopK::Mode::MAX);
         auto zero = v0::Constant::create(ov::element::boolean, {}, {false});
         auto one = v0::Constant::create(ov::element::boolean, {}, {true});
         auto mask = std::make_shared<v3::Broadcast>(zero, std::make_shared<v3::ShapeOf>(scores));
@@ -77,11 +74,7 @@ OutputVector translate_top_k(const NodeContext& context) {
     }
 
     auto k_node = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {k});
-    auto indices = make_topk_indices(input,
-                                     k_node,
-                                     -1,
-                                     ov::op::v11::TopK::Mode::MAX,
-                                     context.get_attribute<ov::element::Type>("output_type"));
+    auto indices = make_topk_indices(input, k_node, -1, ov::op::v11::TopK::Mode::MAX);
 
     return rename_outputs_with_suffix({std::move(indices)}, context.get_name());
 }
