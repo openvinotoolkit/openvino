@@ -57,8 +57,6 @@ on:
 
 permissions: read-all
 
-env:
-
 jobs:
   Build:
     name: Build

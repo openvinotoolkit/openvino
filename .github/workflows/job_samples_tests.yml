@@ -19,8 +19,6 @@ on:
 
 permissions: read-all
 
-env:
-
 jobs:
   Samples:
     timeout-minutes: 30
