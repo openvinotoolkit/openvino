@@ -11,8 +11,8 @@
         "MTL_PV": "windows/MTL/PV2/ci_tag_mtl_pv2_driver_rc_20231031_2101/npu_win_31.0.100.1688.zip"
     },
     "ubuntu24": {
-        "MTL": "ubuntu24/unified/integration/npu-linux-driver-ci-1.39.0.20260810-31423273404/npu-linux-driver-ci-1.39.0.20260810-31423273404-ubuntu2404-release.tar.gz",
-        "MTL_release": "ubuntu24/unified/1.39.0/npu-linux-driver-ci-1.39.0.20260903-33729455146/npu-linux-driver-ci-1.39.0.20260903-33729455146-ubuntu2404-release.tar.gz",
-        "PTL_release": "ubuntu24/unified/1.39.0/npu-linux-driver-ci-1.39.0.20260903-33729455146/npu-linux-driver-ci-1.39.0.20260903-33729455146-ubuntu2404-release.tar.gz"
+        "MTL": "ubuntu24/unified/1.39.0/npu-linux-driver-ci-1.39.0.20260830-33302301602/npu-linux-driver-ci-1.39.0.20260830-33302301602-ubuntu2404-release.tar.gz",
+        "MTL_release": "ubuntu24/unified/1.35.0/npu-linux-driver-ci-1.35.0.20260722-29947505341/npu-linux-driver-ci-1.35.0.20260722-29947505341-ubuntu2404-opensource.tar.gz",
+        "PTL_release": "ubuntu24/unified/1.35.0/npu-linux-driver-ci-1.35.0.20260722-29947505341/npu-linux-driver-ci-1.35.0.20260722-29947505341-ubuntu2404-opensource.tar.gz"
     }
 }
