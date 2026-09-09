@@ -1423,7 +1423,7 @@ public:
     // pa_single_token_finalization. Only added when SDPAOclDecodeGenerator::supported().
     Stage::Ptr pa_sdpa_ocl_decode = make_stage<SDPAOclDecodeGenerator>();
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    // TEST_USE_SDPA_OCL=0 (default): SDPAMicroGenerator, =1: SDPAOclGenerator
+    // TEST_USE_SDPA_OCL=0 selects SDPAMicroGenerator; unset or =1 selects SDPAOclGenerator.
     const char* env = std::getenv("TEST_USE_SDPA_OCL");
     const bool use_ocl = env == nullptr ? true : (env && env[0] == '1');
     Stage::Ptr pa_sdpa_micro = use_ocl ? make_stage<SDPAOclGenerator>(true) : make_stage<SDPAMicroGenerator>(true);

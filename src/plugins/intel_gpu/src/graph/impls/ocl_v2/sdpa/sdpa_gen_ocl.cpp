@@ -310,22 +310,10 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
         // So ~4096 is the sweet spot, and any further traffic cut has to keep the subgroup count.
         // Same lesson as SDPA_OCL_256GRF, which is a 70% REGRESSION here for the same reason.
         //
-        // RE-TUNED after PA_CUR_KV_F16: the WG key tile drops from 128 to 64 (kq_sg_per_wg_keys 8 -> 4,
-        // with kq_sg_per_wg_queries 4 - kq_sg_tile_queries 16 keeping the query tile at 64). Measured on
-        // llama-3.2-1b (u4 cache, PA MIXED, past_len 32, 1059-token prompt): 171,440 -> 151,545 ns/call,
-        // against sdpa_micro's 147,825.
-        //
-        // Why a narrower KEY tile helps now, when the reasoning above says traffic cuts do not: it is not
-        // a traffic cut. PA_CUR_KV_F16 splits the key range at past_len, so ONE k0 tile per query block
-        // straddles the split and its cache-side subgroups are ~2.2x slower than its Kc-side ones -- and
-        // the KQ stage ends in a workgroup barrier, so the whole tile costs what the slowest subgroup
-        // costs. The idle scales with (pages_per_tile - cached_pages), so halving the tile halves it.
-        //
-        // Crucially this is ORTHOGONAL to both findings above, which is why it does not contradict them:
-        // wg_queries stays 64 and sg_per_wg stays 16, so the subgroup count is unchanged at ~4096. The
-        // sweep confirmed that moving either of those still loses, and badly -- sg_per_wg 8 spills at
-        // runtime (512 B at wgK 64, 11,776 B at wgK 128 -> 372,628 ns) even though ocloc reported no
-        // spill for any of them.
+        // The raw-current path uses a 64-key, 64-query workgroup tile with 16 subgroups.
+        // Exact mode clips k_chunk at past_len, so each iteration has one K/V source.
+        // This geometry is validated with S*V trimming and raw-current V prefetch.
+        // The measurements above predate that exact-split path.
         // TODO re-confirm on gpt-oss-20b, which is where the 632/398/428 numbers above came from.
         config.kq_sg_tile_queries = 16;
         config.kq_sg_per_wg_keys = 4;
@@ -969,13 +957,9 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("IS_PA_K_U4", pa_u4_by_channel_tm ? 1 : 0);
     // Paged-attention MIXED: read the keys at/above past_len -- this iteration's NEW tokens -- from the
     // raw f16 K/V inputs (the kernel's Kc/Vc) instead of from the cache pages they were just written
-    // to. Both are correct; the cache costs a page read plus a nibble/byte extract, a zero-point
-    // subtract and a scale multiply per element, which at head 64 is ~250 extra instructions per
-    // subgroup per k0 tile against ~256 cycles of dpas in the same tile. sdpa_micro's MIXED kernel has
-    // always split its key loop this way (ugemm_kq on the pages below past_len, ugemm_kcq on Kc above
-    // it), and that -- not the tiling, the SLM or the causal bound, which all match -- is the 2.09x it
-    // won by on llama-3.2-1b's 1059-token prefill (309 us vs 148 us per call, 2.6 ms of the 2.4 ms
-    // first-token regression).
+    // to. For compressed caches this is required for exact current-token semantics and also avoids a
+    // page read, nibble/byte extraction, zero-point subtraction, and scale multiplication per element.
+    // sdpa_micro's MIXED kernel uses the same cache-prefix/raw-current split.
     //
     // Gated on the RAW K/V layouts (input_layouts 1/2), NOT on K/V above: those are the CACHE layouts
     // for this variant (see the m_is_prefill ternary where they are bound), so they say nothing about
@@ -998,23 +982,23 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         // first channel to be an EVEN number of halves from the surface origin -- and that parity comes
         // out of subsequence_begin * ldk + b0_kv * head_size + the feature padding, which is a runtime
         // value whenever the padding is dynamic. Gating it here would mean rejecting every dynamically
-        // padded K, i.e. every u4 MIXED case the unit suite has, so the kernel tests the parity itself
-        // and falls back to the cache read when it fails (kc_dword_ok in sdpa_ocl.cl).
+        // padded K, i.e. every u4 MIXED case the unit suite has, so the kernel tests the parity itself.
+        // Exact-split mode uses a scalar Kc fallback when the dword read is not representable; the
+        // legacy mode retains its cache fallback for same-build performance comparison.
         //
-        // Bisection/attribution toggle. =0 restores the pre-change kernel exactly (verified: the ocloc
-        // ISA for PA_CUR_KV_F16=0 is metric-identical to HEAD's), which is what makes the perf A/B
-        // single-variable inside ONE build -- ref vs dev across builds is not, because the u4
-        // BY_CHANNEL K page is d-major on master and token-major here.
+        // The =0 override selects cache-only reads for same-build performance attribution.
+        // It is not an exact baseline for compressed current tokens.
         // Deliberately inside this branch: Kc/Vc are only in the kernel signature for the PA non-prefill
         // variant, so letting the env force the flag on elsewhere would be a compile error, not a sweep.
         if (const char* env = std::getenv("SDPA_OCL_PA_CUR_F16"))
             pa_cur_kv_f16 = std::atoi(env);
     }
     jit.make("PA_CUR_KV_F16", pa_cur_kv_f16);
-    // Performance/correctness bisection controls. GRAN=0 keeps each k0 tile on one source by
-    // rounding the split to the WG key tile; GRAN=1 uses the finer cache-page split. SIDE is a
-    // bitmask: bit 0 enables Kc and bit 1 enables Vc, with a cleared bit pinning that side to cache.
-    int pa_cur_gran = 0;
+    // Performance/correctness bisection controls. GRAN=1 is the production path: it splits the
+    // outer key loop exactly at past_len, so each iteration reads either cache K/V or raw Kc/Vc.
+    // GRAN=0 retains the old WG-rounded boundary only as a same-build performance baseline. SIDE is
+    // honored only by that legacy mode: bit 0 enables Kc and bit 1 enables Vc.
+    int pa_cur_gran = 1;
     if (const char* env = std::getenv("SDPA_OCL_PA_CUR_GRAN"))
         pa_cur_gran = std::atoi(env);
     jit.make("PA_CUR_KV_GRAN", pa_cur_gran);
@@ -1022,6 +1006,24 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_PA_CUR_SIDE"))
         pa_cur_side = std::atoi(env);
     jit.make("PA_CUR_KV_SIDE", pa_cur_side);
+    // Enable S*V trimming by default for exact u4 MIXED chunks. The environment override
+    // can disable it for performance comparisons within this variant.
+    int pa_cur_sv_trim = 0;
+    if (pa_u4_by_channel_tm && pa_cur_kv_f16 && pa_cur_gran) {
+        pa_cur_sv_trim = 1;
+        if (const char* env = std::getenv("SDPA_OCL_PA_CUR_SV_TRIM"))
+            pa_cur_sv_trim = std::atoi(env) != 0;
+    }
+    jit.make("PA_CUR_SV_TRIM", pa_cur_sv_trim);
+    // Enable raw-current V prefetch by default for exact u4 MIXED chunks. The environment
+    // override can disable it for performance comparisons within this variant.
+    int pa_cur_v_prefetch = 0;
+    if (pa_u4_by_channel_tm && pa_cur_kv_f16 && pa_cur_gran) {
+        pa_cur_v_prefetch = 1;
+        if (const char* env = std::getenv("SDPA_OCL_PA_CUR_V_PREFETCH"))
+            pa_cur_v_prefetch = std::atoi(env) != 0;
+    }
+    jit.make("PA_CUR_V_PREFETCH", pa_cur_v_prefetch);
     // Same rule as BLOCK2D_KV_BASE_FIXUP: derived from the alignment, not from fixup_ok, and computed
     // after the override so forcing the toggle on cannot turn the fixup off.
     //
