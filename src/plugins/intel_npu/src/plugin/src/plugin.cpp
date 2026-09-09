@@ -583,7 +583,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
         compiledModel =
-            std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, localConfig, blobWriter);
+            std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, blobWriter, localConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

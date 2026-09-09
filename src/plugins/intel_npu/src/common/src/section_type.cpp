@@ -36,6 +36,10 @@ bool SectionType::operator!=(const SectionType& other) const {
     return !(*this == other);
 }
 
+bool SectionType::operator<(const SectionType& other) const {
+    return m_code < other.get_code();
+}
+
 // TODO test these
 std::string section_type_to_string(const SectionType type) {
     switch (type.get_code()) {

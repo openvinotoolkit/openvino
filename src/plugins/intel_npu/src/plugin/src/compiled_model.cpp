@@ -26,10 +26,10 @@ namespace {
 
 using namespace intel_npu;
 
-bool blob_contains_only_main_schedule(const BlobWriter& writer) {
-    return (writer.count_registered_sections_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
-           !writer.count_registered_sections_of_type(SectionTypeCode::ELF_INIT_SCHEDULES) &&
-           !writer.count_registered_sections_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
+bool blob_contains_only_main_schedule(const std::shared_ptr<BlobWriter>& writer) {
+    return (writer->count_registered_sections_of_type(SectionTypeCode::ELF_MAIN_SCHEDULE) == 1) &&
+           !writer->count_registered_sections_of_type(SectionTypeCode::ELF_INIT_SCHEDULES) &&
+           !writer->count_registered_sections_of_type(SectionTypeCode::DYNAMIC_SCHEDULE);
 }
 
 }  // namespace
@@ -55,7 +55,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     FilteredConfig localConfig = config;
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _blobWriter, _logger);
+    _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _blobWriter, _logger);
 
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));
@@ -111,12 +111,12 @@ void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
 
     if (!_propertiesManager->getConfig().get<EXPORT_RAW_BLOB>()) {
-        OPENVINO_ASSERT(blobWriter, "Cannot export non-raw blobs without a BlobWriter");
+        OPENVINO_ASSERT(_blobWriter, "Cannot export non-raw blobs without a BlobWriter");
         _blobWriter->write_to(stream);
         return;
     }
 
-    if (blobWriter && !blob_contains_only_main_schedule(_blobWriter)) {
+    if (_blobWriter && !blob_contains_only_main_schedule(_blobWriter)) {
         OPENVINO_THROW("Received a request to export the compiled model using the raw format, but multiple compiler "
                        "schedules have been found. The raw format supports only a single compiler schedule.");
     }
@@ -124,7 +124,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     if (!(_propertiesManager->getConfig().has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
           _propertiesManager->getConfig().get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr)) {
         // Plain raw blob
-        _graph->export_main_blob(tmpStream);
+        _graph->export_main_blob(stream);
         return;
     }
 

@@ -159,9 +159,10 @@ bool isCompatibilityCheckSupported(const ov::SoPtr<intel_npu::IEngineBackend>& b
 }
 
 // TODO consider refactoring this
-ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(std::string_view runtimeRequirements,
-                                                               const ov::SoPtr<intel_npu::IEngineBackend>& backend,
-                                                               CompilerOptionSupportHelper& optionSupportHelper) {
+ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
+    std::string_view runtimeRequirements,
+    const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+    const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper) {
     // Need to create a few object to connect to the API used within the import path
     BlobSource source(
         ov::Tensor(ov::element::Type_t::u8, ov::Shape({runtimeRequirements.size()}), runtimeRequirements.data()));
@@ -182,13 +183,12 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(std::string_view 
 
     // This evaluator can be shared, since all it does is to return "true"
     const auto supported_section_type_evaluator = std::make_shared<SupportedSectionTypeEvaluator>();
-    for (const SectionType type : ALREADY_SUPPORTED_SECTION_TYPES) {
+    for (const SectionType& type : ALREADY_SUPPORTED_SECTION_TYPES) {
         type_evaluators[type] = supported_section_type_evaluator;
     }
 
-    const auto compiler_schedules_instance_evaluator = std::make_shared<CompilerScheduleInstanceEvaluator>(
-        backend,
-        std::make_shared<CompilerOptionSupportHelper>(optionSupportHelper));
+    const auto compiler_schedules_instance_evaluator =
+        std::make_shared<CompilerScheduleInstanceEvaluator>(backend, optionSupportHelper);
     instance_evaluators[SectionTypeCode::ELF_MAIN_SCHEDULE] = compiler_schedules_instance_evaluator;
     instance_evaluators[SectionTypeCode::DYNAMIC_SCHEDULE] = compiler_schedules_instance_evaluator;
 
@@ -202,9 +202,10 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(std::string_view 
     }
 }
 
-ov::CompatibilityCheck validateCompatibilityDescriptorFormatV1(std::string_view runtimeRequirements,
-                                                               const ov::SoPtr<intel_npu::IEngineBackend>& backend,
-                                                               CompilerOptionSupportHelper& optionSupportHelper) {
+ov::CompatibilityCheck validateCompatibilityDescriptorFormatV1(
+    std::string_view runtimeRequirements,
+    const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+    const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper) {
     std::unique_ptr<MetadataBase> metadata = nullptr;
     try {
         metadata = read_as_text(runtimeRequirements);
@@ -218,17 +219,17 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV1(std::string_view 
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
     try {
-        return CompilerScheduleInstanceEvaluator(backend,
-                                                 std::make_shared<CompilerOptionSupportHelper>(optionSupportHelper))
+        return CompilerScheduleInstanceEvaluator(backend, optionSupportHelper)
             .evaluate(compilerRuntimeRequirements.value());
     } catch (...) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 }
 
-ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<IEngineBackend>& backend,
-                                                       const ov::AnyMap& arguments,
-                                                       CompilerOptionSupportHelper& optionSupportHelper) {
+ov::CompatibilityCheck validateCompatibilityDescriptor(
+    const ov::SoPtr<IEngineBackend>& backend,
+    const ov::AnyMap& arguments,
+    const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper) {
     if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
@@ -514,7 +515,7 @@ void PluginPropertyManager::registerProperties() const {
         _compatibilityCheckFiltered && _compatibilityCheckSupported,
         true,
         [this](const Config&, const ov::AnyMap& arguments) {
-            return validateCompatibilityDescriptor(_backend, arguments, *_compilerOptionSupportHelper);
+            return validateCompatibilityDescriptor(_backend, arguments, _compilerOptionSupportHelper);
         });
 
     for (auto& property : _properties) {
@@ -543,7 +544,7 @@ void PluginPropertyManager::initializeCompatibilityCheckSupportIfNeeded() const 
         _compatibilityCheckSupported,
         true,
         [this](const Config&, const ov::AnyMap& arguments) {
-            return validateCompatibilityDescriptor(_backend, arguments, *_compilerOptionSupportHelper);
+            return validateCompatibilityDescriptor(_backend, arguments, _compilerOptionSupportHelper);
         });
 
     // Update supported_properties incrementally for compatibility_check only.

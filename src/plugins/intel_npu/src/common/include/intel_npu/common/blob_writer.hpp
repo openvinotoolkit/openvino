@@ -111,8 +111,7 @@ public:
      *
      * @param blob_reader Contains the parsed data of a compiled model.
      */
-    BlobWriter(const std::shared_ptr<BlobReader>& blob_reader,
-               const ov::log::Level log_level = ov::log::Level::WARNING);
+    BlobWriter(const BlobReader& blob_reader, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     /**
      * @brief Add a new blob section to the writing queue.

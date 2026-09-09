@@ -24,18 +24,6 @@ constexpr std::string_view CLOSE_TOKEN_NAME = "CLOSE";
 
 constexpr std::string_view UNSUPPORTED_COMPATIBILITY_CHECK_MESSAGE = "Unsupported \"ov::CompatibilityCheck\" value";
 
-bool is_binary_operator(const std::shared_ptr<CREToken>& token) {
-    const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(token);
-    return special_token == nullptr ? false : (*special_token == CRE::AND || *special_token == CRE::OR);
-}
-
-bool is_operator(const std::shared_ptr<CREToken>& token) {
-    const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(token);
-    return special_token == nullptr
-               ? false
-               : (*special_token == CRE::AND || *special_token == CRE::OR || *special_token == CRE::NOT);
-}
-
 bool is_close_special_token(const std::shared_ptr<CREToken>& candidate) {
     const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(candidate);
     return special_token != nullptr && *special_token == CRE::CLOSE;
@@ -562,13 +550,13 @@ ov::CompatibilityCheck CRE::check_compatibility(
     return result;
 }
 
-std::string cre_to_string(const CRE cre) {
-    const std::vector<std::shared_ptr<CREToken>> expression = cre.get_expression();
+std::string CRE::to_string() {
+    const std::vector<std::shared_ptr<CREToken>> expression = get_expression();
     OPENVINO_ASSERT(is_expression_valid(expression), "Invalid CRE");
     std::string result("");
 
     bool is_first_token = true;
-    for (const std::shared_ptr<CREToken> token : expression) {
+    for (const std::shared_ptr<CREToken>& token : expression) {
         if (is_section_type(token)) {
             if (!is_first_token) {
                 result += OPERAND_AND_SPECIAL_TOKEN_SEPARATOR;
@@ -593,6 +581,8 @@ std::string cre_to_string(const CRE cre) {
         result += SECTION_TYPE_AND_INSTANCE_SEPARATOR;
         result += section_id_to_string(*std::dynamic_pointer_cast<SectionID>(token));
     }
+
+    return result;
 }
 
 CRE cre_from_string(std::string_view cre) {

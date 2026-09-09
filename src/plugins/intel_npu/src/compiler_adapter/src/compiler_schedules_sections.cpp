@@ -90,7 +90,7 @@ std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_compatibility
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ELF_MAIN_SCHEDULE section type to the CRE");
-    return {get_type()};
+    return {std::make_shared<CREToken>(get_type())};
 }
 
 void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
@@ -170,7 +170,9 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
         blob_reader.read_into_buffer(main_schedule.data(), main_schedule_size);
 
         logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), main_schedule_size);
-        return std::make_shared<ELFMainScheduleSection>(std::move(main_schedule), logger.level());
+        return std::make_shared<ELFMainScheduleSection>(std::move(main_schedule),
+                                                        get_encryption_callbacks_from_config(blob_reader.get_config()),
+                                                        logger.level());
     }
 
     return std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size),
@@ -205,7 +207,7 @@ std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_compatibilit
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ELF_INIT_SCHEDULES section type to the CRE");
-    return {get_type()};
+    return {std::make_shared<CREToken>(get_type())};
 }
 
 void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
@@ -316,7 +318,6 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
                     section_length);
 
     // Skip the first padding
-    const size_t offset = blob_reader.get_offset_relative_to_npu_region();
     size_t padding_size;
     blob_reader.read_into_buffer(&padding_size, sizeof(padding_size));
     blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
@@ -364,7 +365,7 @@ std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_compatibility
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the DYNAMIC_SCHEDULE section type to the CRE");
-    return {get_type()};
+    return {std::make_shared<CREToken>(get_type())};
 }
 
 void DynamicScheduleSection::write(BlobWriterInterface& writer) {

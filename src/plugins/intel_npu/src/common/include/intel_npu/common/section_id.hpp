@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <iostream>
+#include <memory>
 
 #include "intel_npu/common/cre_token.hpp"
 
@@ -24,6 +25,11 @@ public:
 
     bool operator!=(const SectionID& other) const;
 
+    /**
+     * @note Required to use this class as a map key type
+     */
+    bool operator<(const SectionID& other) const;
+
 private:
     /**
      * @note The size needs to be fixed (2 bytes) since this value is written inside the blob manifest
@@ -35,6 +41,7 @@ std::ostream& operator<<(std::ostream& os, const SectionID& id);
 
 std::istream& operator>>(std::istream& is, SectionID& id);
 
+// TODO put inside the section id class
 std::string section_id_to_string(const SectionID id);
 
 SectionID section_id_from_string(std::string_view id);

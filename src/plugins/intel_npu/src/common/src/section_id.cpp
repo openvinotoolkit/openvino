@@ -35,6 +35,10 @@ bool SectionID::operator!=(const SectionID& other) const {
     return !(*this == other);
 }
 
+bool SectionID::operator<(const SectionID& other) const {
+    return m_id < other.get_id();
+}
+
 std::string section_id_to_string(const SectionID id) {
     return std::to_string(id.get_id());
 }

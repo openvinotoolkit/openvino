@@ -58,7 +58,7 @@ std::unordered_map<SectionID, SectionInstanceEvaluator> RuntimeRequirements::bui
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     std::unordered_map<SectionID, SectionInstanceEvaluator> per_instance_evaluators;
 
-    for (const auto [section_id, section_runtime_requirements] : m_sections_requirements) {
+    for (const auto& [section_id, section_runtime_requirements] : m_sections_requirements) {
         OPENVINO_ASSERT(!per_instance_evaluators.count(section_id),
                         "Found a section that has at least two entries within the runtime requirements");
         OPENVINO_ASSERT(m_section_id_to_type.count(section_id));
@@ -67,8 +67,9 @@ std::unordered_map<SectionID, SectionInstanceEvaluator> RuntimeRequirements::bui
                         "Missing instance evaluator for section type ",
                         section_type_to_string(section_type));
 
-        per_instance_evaluators[section_id] =
-            SectionInstanceEvaluator(instance_evaluators.at(section_type), section_runtime_requirements);
+        per_instance_evaluators.emplace(
+            section_id,
+            SectionInstanceEvaluator(instance_evaluators.at(section_type), section_runtime_requirements));
     }
 
     return per_instance_evaluators;
@@ -99,9 +100,20 @@ std::optional<bool> RuntimeRequirements::get_type_evaluation_result(const Sectio
 }
 
 std::optional<bool> RuntimeRequirements::get_instance_evaluation_result(const SectionID id) const {
-    return m_instance_evaluators.count(id) && m_instance_evaluators.at(id).evaluated()
-               ? std::make_optional<>(m_instance_evaluators.at(id).get_result())
-               : std::nullopt;
+    if (!m_instance_evaluators.count(id) || !m_instance_evaluators.at(id).evaluated()) {
+        return std::nullopt;
+    }
+
+    switch (m_instance_evaluators.at(id).get_result()) {
+    case ov::CompatibilityCheck::SUPPORTED:
+        return true;
+    case ov::CompatibilityCheck::UNSUPPORTED:
+        return false;
+    case ov::CompatibilityCheck::NOT_APPLICABLE:
+        return std::nullopt;
+    default:
+        OPENVINO_THROW("Unsupported ov::CompatibilityCheck value");
+    }
 }
 
 RuntimeRequirementsSection::RuntimeRequirementsSection(const RuntimeRequirements& runtime_requirements,
@@ -118,14 +130,14 @@ void RuntimeRequirementsSection::write(BlobWriterInterface& writer) {
     write_requirements_entry(writer, VERSION_KEY, major_minor_version_to_string(CURRENT_RUNTIME_REQUIREMENTS_VERSION));
 
     // CRE
-    write_requirements_entry(writer, CRE_KEY, cre_to_string(m_runtime_requirements.get_cre()));
+    write_requirements_entry(writer, CRE_KEY, m_runtime_requirements.get_cre().to_string());
 
     // All section requirements, following the format "<section type name>_<id>=<value>"
     const std::map<SectionID, std::string> sections_requirements = m_runtime_requirements.get_sections_requirements();
     const std::unordered_map<SectionID, SectionType> section_id_to_type =
         m_runtime_requirements.get_section_id_to_type_mapping();
 
-    for (const auto [section_id, section_requirements] : sections_requirements) {
+    for (const auto& [section_id, section_requirements] : sections_requirements) {
         const SectionType section_type = section_id_to_type.at(section_id);
         write_requirements_entry(writer, section_type_and_id_to_string(section_type, section_id), section_requirements);
     }
@@ -151,7 +163,7 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
 
     compat::Parser::attr_map_type parsed_content;
     try {
-        compat::Parser parser(full_payload, std::vector<int>());
+        compat::Parser parser(full_payload, std::vector<std::string>());
         parsed_content = parser.getAttributes();
     } catch (const std::exception& ex) {
         OPENVINO_THROW("The content of the runtime requirements section is malformed: ", ex.what());
@@ -172,13 +184,13 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
     std::map<SectionID, std::string> sections_requirements;
     std::unordered_map<SectionID, SectionType> section_id_to_type;
 
-    for (const auto [section_type_and_id_string, value] : parsed_content) {
+    for (const auto& [section_type_and_id_string, value] : parsed_content) {
         const auto [section_type, section_id] = section_type_and_id_from_string(section_type_and_id_string);
 
         OPENVINO_ASSERT(!sections_requirements.count(section_id) && !section_id_to_type.count(section_id),
                         "Found the same section ID more than once within the runtime requirements");
-        sections_requirements[section_id] = value;
-        section_id_to_type[section_id] = section_type;
+        sections_requirements.emplace(section_id, value);
+        section_id_to_type.emplace(section_id, section_type);
     }
 
     return std::make_shared<RuntimeRequirementsSection>(
@@ -188,7 +200,7 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
 
 bool is_runtime_requirements_format_v2(std::string_view runtime_requirements) {
     try {
-        compat::Parser parser(runtime_requirements, std::vector<int>());
+        compat::Parser parser(runtime_requirements, std::vector<std::string>());
         return parser.getAttributes().count(VERSION_KEY.data());
     } catch (const std::exception& ex) {
         OPENVINO_THROW("The content of the runtime requirements section is malformed: ", ex.what());

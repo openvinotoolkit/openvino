@@ -4,25 +4,8 @@
 
 set(TARGET_NAME "openvino_npu_common")
 
-set(SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/compiler_adapter_factory.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/option_support_cache.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/device_helpers.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/filtered_config.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiled_model.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/icompiler_adapter.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/igraph.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/iparser.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/itt.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/network_metadata.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/npu.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/parser_factory.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/device_helpers.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/filtered_config.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/igraph.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/network_metadata.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/npu.cpp
-)
+file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/common/*.hpp
+                  ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})

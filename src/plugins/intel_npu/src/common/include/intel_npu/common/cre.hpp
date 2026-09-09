@@ -84,6 +84,8 @@ public:
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
         const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators) const;
 
+    std::string to_string();
+
     // TODO reconsider these
     // Some "globals" for convenience
     static inline const auto AND_PTR = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND);
@@ -149,8 +151,6 @@ private:
 };
 
 // TODO test these
-std::string cre_to_string(const CRE cre);
-
 CRE cre_from_string(std::string_view cre);
 
 }  // namespace intel_npu

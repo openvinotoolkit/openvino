@@ -23,7 +23,7 @@ class CompiledModelPropertyManager final {
 public:
     CompiledModelPropertyManager(const FilteredConfig& config,
                                  const std::shared_ptr<IGraph>& graph,
-                                 const BlobWriter& blobWriter,
+                                 const std::shared_ptr<BlobWriter>& blobWriter,
                                  Logger& logger);
 
     void setProperty(const ov::AnyMap& properties);
@@ -40,7 +40,7 @@ private:
 
     std::shared_ptr<IGraph> _graph;
     // TODO is this reference safe?
-    std::reference_wrapper<const BlobWriter> _blobWriter;
+    std::shared_ptr<BlobWriter> _blobWriter;
     Logger& _logger;
 
     std::map<std::string, PropertyDescriptor> _properties;

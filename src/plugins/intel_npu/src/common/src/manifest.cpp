@@ -25,14 +25,14 @@ void Manifest::add_entry(const SectionID id, const SectionType type, const uint6
                    offset,
                    length);
 
-    m_id_to_attributes[id] = std::make_tuple<>(type, offset, length);
-    m_offset_to_id[offset] = id;
+    m_id_to_attributes.emplace(id, std::make_tuple(type, offset, length));
+    m_offset_to_id.emplace(offset, id);
 
     if (m_type_to_ids.count(type)) {
         m_type_to_ids.at(type).push_back(id);
         return;
     }
-    m_type_to_ids[type] = {id};
+    m_type_to_ids.emplace(type, std::vector<SectionID>{id});
 }
 
 size_t Manifest::get_entry_size() {
@@ -136,8 +136,8 @@ std::shared_ptr<ISection> ManifestSection::read(BlobReaderInterface& blob_reader
 
     size_t number_of_sections_in_table = section_length / entry_size;
     Manifest manifest(blob_reader.get_log_level());
-    SectionID id;
-    SectionType type;
+    uint16_t id;
+    SectionTypeCode type;
     uint64_t offset;
     uint64_t length;
 

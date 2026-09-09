@@ -4,13 +4,18 @@
 
 #include "intel_npu/common/major_minor_version.hpp"
 
+#include <algorithm>
+
 #include "openvino/core/except.hpp"
 
 namespace {
 
 constexpr char VERSION_SEPARATOR = '.';
+constexpr size_t NUMBER_OF_VERSION_NUMBERS = 2;
+constexpr size_t MAJOR_VERSION_INDEX = 0;
+constexpr size_t MINOR_VERSION_INDEX = 1;
 
-}
+}  // namespace
 
 namespace intel_npu {
 
@@ -29,7 +34,7 @@ bool MajorMinorVersion::operator==(const MajorMinorVersion& other) const {
 }
 
 bool MajorMinorVersion::operator!=(const MajorMinorVersion& other) const {
-    return !(*this != other);
+    return !(*this == other);
 }
 
 bool MajorMinorVersion::operator>(const MajorMinorVersion& other) const {
@@ -52,7 +57,11 @@ std::string major_minor_version_to_string(const MajorMinorVersion& version) {
     return std::to_string(version.get_major()) + VERSION_SEPARATOR + std::to_string(version.get_minor());
 }
 
-MajorMinorVersion major_minor_version_from_string(std::string version);
+MajorMinorVersion major_minor_version_from_string(std::string version) {
+    const std::vector<uint16_t> parsed_version_numbers = parse_dotted_version(version, NUMBER_OF_VERSION_NUMBERS);
+    return MajorMinorVersion(parsed_version_numbers.at(MAJOR_VERSION_INDEX),
+                             parsed_version_numbers.at(MINOR_VERSION_INDEX));
+}
 
 std::ostream& operator<<(std::ostream& out, const MajorMinorVersion& version) {
     out << major_minor_version_to_string(version);
@@ -79,12 +88,12 @@ std::vector<uint16_t> parse_dotted_version(std::string_view version_string, cons
     while (true) {
         const size_t dot_location = remaining.find('.');
         const std::string_view part = remaining.substr(0, dot_location);
-        OPENVINO_ASSERT(has_only_digis(part),
+        OPENVINO_ASSERT(has_only_digits(part),
                         "Failure while parsing the version \"",
                         version_string,
                         "\": the part \"",
                         part,
-                        "\" is not made exclusively out of digits")
+                        "\" is not made exclusively out of digits");
 
         parts.push_back(static_cast<uint16_t>(std::stoul(std::string(part))));
         if (dot_location == std::string_view::npos) {

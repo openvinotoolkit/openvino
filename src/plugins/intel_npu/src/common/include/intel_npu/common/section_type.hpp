@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -40,7 +42,9 @@ public:
 
     bool operator==(const SectionType& other) const;
 
-    bool operator!=(const SectionID& other) const;
+    bool operator!=(const SectionType& other) const;
+
+    bool operator<(const SectionType& other) const;
 
 private:
     SectionTypeCode m_code;
