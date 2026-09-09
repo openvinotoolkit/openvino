@@ -1,0 +1,210 @@
+/*******************************************************************************
+ * Copyright (c) 2018-2026 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+// G1 - Gated Residual READ / MIX (also used for the model-tail FINAL_MIX).
+//
+// Fused chain (see OV_SUPPORT_QSA_GR_DESIGN_CN.md section 8.2):
+//   branch-wise grouped RMSNorm (group width D, FP32 accumulation)
+//     -> W_down GEMM -> x 1/C -> SiLU
+//     -> W_up GEMM -> sigmoid read gate
+//     -> gate * normalized branch -> branch reduce mean (x 1/C)
+//   optionally, in the same pass: S = 2 * sigmoid(W_inject * Rbar / C)
+//
+// The normalized residual Rbar is materialized once in SLM and reused by the
+// W_down GEMM, the branch mix and the (optional) W_inject GEMM. Neither the read
+// gate tensor [B,T,C,D] nor the low-rank tensor is written back to global memory.
+//
+// JIT constants:
+//   GR_BRANCHES            C, branch count (first version: 4)
+//   GR_HIDDEN              D, per-branch channel count (multiple of 16)
+//   GR_LOWRANK             L, low rank of the read gate (multiple of 16)
+//   GR_EPS                 RMSNorm epsilon
+//   GR_NORM_GAIN_PLUS_ONE  1 when the checkpoint stores w and the gain is (1 + w)
+//   GR_PRODUCE_WRITE_GATE  1 when W_inject is present and S is emitted
+//   GR_WG_SIZE             threads per token row
+//
+// Dispatch:
+//   gws = [GR_WG_SIZE, num_rows, 1]
+//   lws = [GR_WG_SIZE, 1, 1]        // one work-group owns one token row
+
+#include "qsa_gr_common.hpp"
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#define GR_TOTAL (GR_BRANCHES * GR_HIDDEN)
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* residual ATTR,      // [num_rows, C*D]
+                                        const half* norm_weight ATTR,   // [C*D]
+                                        const half* w_down ATTR,        // [L, C*D]
+                                        const half* w_up ATTR,          // [C*D, L]
+#if GR_PRODUCE_WRITE_GATE
+                                        const half* w_inject ATTR,      // [C, C*D]
+#endif
+                                        half* mixed ATTR,               // [num_rows, D]
+#if GR_PRODUCE_WRITE_GATE
+                                        half* write_gate ATTR,          // [num_rows, C]
+#endif
+                                        uint32_t num_rows) {
+    constexpr uint C = GR_BRANCHES;
+    constexpr uint D = GR_HIDDEN;
+    constexpr uint L = GR_LOWRANK;
+    constexpr uint CD = GR_TOTAL;
+    constexpr uint WG = GR_WG_SIZE;
+
+    static_assert(D % 16 == 0, "GR_HIDDEN must be a multiple of 16");
+    static_assert(L % 16 == 0, "GR_LOWRANK must be a multiple of 16");
+    static_assert(C > 0 && C <= 4, "first version supports C in [1, 4]");
+
+    const uint row = cm_group_id(1);
+    if (row >= num_rows) {
+        return;
+    }
+    const uint tid = cm_local_id(0);
+    const uint row_base = row * CD;
+
+    constexpr uint SLM_RBAR_SIZE = CD * (uint)sizeof(half);
+    constexpr uint SLM_T_SIZE = L * (uint)sizeof(float);
+    constexpr uint SLM_PART_SIZE = WG * 4 * (uint)sizeof(float);
+
+    cm_slm_init(SLM_RBAR_SIZE + SLM_T_SIZE + SLM_PART_SIZE);
+    auto slm_rbar = cm_slm_alloc(SLM_RBAR_SIZE);
+    auto slm_t = cm_slm_alloc(SLM_T_SIZE);
+    auto slm_part = cm_slm_alloc(SLM_PART_SIZE);
+
+    // ------------------------------------------------------------------
+    // Phase 1a: branch-wise FP32 sum of squares.
+    // Each branch is normalized independently over its own D channels; this is
+    // NOT a single RMSNorm over the concatenated C*D vector.
+    // ------------------------------------------------------------------
+    vector<float, 4> partial = 0.0f;
+    for (uint c = 0; c < C; c++) {
+        float acc = 0.0f;
+        for (uint d = tid * 16; d < D; d += WG * 16) {
+            vector<float, 16> rf = qsa_gr::load_h16(residual, row_base + c * D + d);
+            acc += cm_sum<float>(rf * rf);
+        }
+        partial[c] = acc;
+    }
+    cm_slm_block_write(slm_part, tid * 4 * (uint)sizeof(float), partial);
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+
+    vector<float, WG * 4> all_partials;
+    cm_slm_block_read(slm_part, 0, all_partials);
+    vector<float, 4> sumsq = 0.0f;
+    for (uint t = 0; t < WG; t++) {
+        sumsq += all_partials.select<4, 1>(t * 4);
+    }
+    const vector<float, 4> inv_rms = cm_rsqrt(sumsq * (1.0f / (float)D) + (float)GR_EPS);
+
+    // ------------------------------------------------------------------
+    // Phase 1b: materialize Rbar = rms_norm(R_c) * gain in SLM.
+    // gain = (1 + w) when GR_NORM_GAIN_PLUS_ONE, otherwise the weight is already folded.
+    // ------------------------------------------------------------------
+    for (uint idx = tid * 16; idx < CD; idx += WG * 16) {
+        const uint c = idx / D;  // safe: D % 16 == 0 and idx % 16 == 0
+        vector<float, 16> r = qsa_gr::load_h16(residual, row_base + idx);
+        vector<float, 16> gain = qsa_gr::load_h16(norm_weight, idx);
+#if GR_NORM_GAIN_PLUS_ONE
+        gain = gain + 1.0f;
+#endif
+        vector<half, 16> rbar = r * inv_rms[c] * gain;
+        cm_slm_block_write(slm_rbar, idx * (uint)sizeof(half), rbar);
+    }
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+
+    // ------------------------------------------------------------------
+    // Phase 2: low-rank down projection, 1/C scaling and SiLU.
+    //   t[l] = SiLU( (W_down[l,:] . Rbar) / C )
+    // The 1/C here is model semantics, not a foldable constant.
+    // ------------------------------------------------------------------
+    for (uint l0 = tid * 16; l0 < L; l0 += WG * 16) {
+        vector<float, 16> logits = 0.0f;
+#pragma unroll
+        for (uint j = 0; j < 16; j++) {
+            const uint w_row = (l0 + j) * CD;
+            float acc = 0.0f;
+            for (uint k = 0; k < CD; k += 16) {
+                vector<float, 16> wv = qsa_gr::load_h16(w_down, w_row + k);
+                vector<half, 16> rv;
+                cm_slm_block_read(slm_rbar, k * (uint)sizeof(half), rv);
+                acc += cm_sum<float>(wv * vector<float, 16>(rv));
+            }
+            logits[j] = acc;
+        }
+        logits = logits * (1.0f / (float)C);
+        const vector<float, 16> act = logits * qsa_gr::sigmoid<16>(logits);  // SiLU
+        cm_slm_block_write(slm_t, l0 * (uint)sizeof(float), act);
+    }
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+
+    vector<float, L> tvec;
+    cm_slm_block_read(slm_t, 0, tvec);
+
+    // ------------------------------------------------------------------
+    // Phase 3: per-(branch, channel) sigmoid read gate and branch reduce mean.
+    //   G[c,d]   = sigmoid(W_up[c*D+d,:] . t)
+    //   mixed[d] = (1/C) * sum_c G[c,d] * Rbar[c,d]
+    // ------------------------------------------------------------------
+    for (uint d0 = tid * 16; d0 < D; d0 += WG * 16) {
+        vector<float, 16> acc = 0.0f;
+        for (uint c = 0; c < C; c++) {
+            vector<float, 16> logits = 0.0f;
+#pragma unroll
+            for (uint j = 0; j < 16; j++) {
+                const uint w_row = (c * D + d0 + j) * L;
+                float s = 0.0f;
+                for (uint k = 0; k < L; k += 16) {
+                    vector<float, 16> wv = qsa_gr::load_h16(w_up, w_row + k);
+                    s += cm_sum<float>(wv * tvec.select<16, 1>(k));
+                }
+                logits[j] = s;
+            }
+            const vector<float, 16> gate = qsa_gr::sigmoid<16>(logits);
+            vector<half, 16> rbar;
+            cm_slm_block_read(slm_rbar, (c * D + d0) * (uint)sizeof(half), rbar);
+            acc += gate * vector<float, 16>(rbar);
+        }
+        vector<half, 16> out = acc * (1.0f / (float)C);
+        qsa_gr::store_h16(mixed, row * D + d0, out);
+    }
+
+#if GR_PRODUCE_WRITE_GATE
+    // ------------------------------------------------------------------
+    // Phase 4: per-branch scalar write gate, produced from the SAME Rbar that
+    // the READ stage used. Range is (0, 2) - it must not be clamped to (0, 1).
+    // ------------------------------------------------------------------
+    static_assert(C == 4, "packed write-gate store expects C == 4");
+    if (tid == 0) {
+        vector<half, 4> gate_out = 0.0f;
+        for (uint c = 0; c < C; c++) {
+            float acc = 0.0f;
+            for (uint k = 0; k < CD; k += 16) {
+                vector<float, 16> wv = qsa_gr::load_h16(w_inject, c * CD + k);
+                vector<half, 16> rv;
+                cm_slm_block_read(slm_rbar, k * (uint)sizeof(half), rv);
+                acc += cm_sum<float>(wv * vector<float, 16>(rv));
+            }
+            gate_out[c] = (half)(2.0f * qsa_gr::sigmoid_scalar(acc * (1.0f / (float)C)));
+        }
+        cm_ptr_store<int, 2>((int*)write_gate, row * C * (uint)sizeof(half), gate_out.format<int>());
+    }
+#endif
+}

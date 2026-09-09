@@ -1,0 +1,193 @@
+/*******************************************************************************
+ * Copyright (c) 2018-2026 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+// Q2 prefill, systolic variant - qsa_score_tile_dpas
+//
+// Same maths as qsa_score_topk_fused.cm (which stays the reference/fallback), but the
+// (query x block) score matrix is produced by cm_dpas instead of lane-reduction dot
+// products.
+//
+// This kernel only SCORES. Selection is left to qsa_topk_finalization, the very same
+// kernel the decode path uses, which has two benefits: the prefill and decode selections
+// are identical by construction, and the work-group no longer has to read back scores its
+// own peers just wrote to global memory (that intra-work-group round-trip needs a global
+// coherence fence and was observed to race).
+//
+// Tile mapping - the axis assignment is what makes this work:
+//   N (fixed to the GRF width, 16) = QUERY tile     -> prefill always has enough queries
+//   M (RepeatCount, 8)             = QSA block tile
+//   K (16 halfs per dpas)          = indexer head dim, accumulated over Di/16 steps
+// so dst[block][query], exactly like ugemm_KQ's St[kv][q] in the PA kernels.
+//
+// Operand construction:
+//   B (src1) = indexer Q^T in VNNI. Q lives as [token][head][Di]; a transposed d32 2D block
+//              load of a [16 tokens][Di] region IS the VNNI layout for fp16, so no shuffle
+//              is needed. It is loop-invariant over blocks, so the whole query tile is
+//              staged in SLM once and reused by every block tile.
+//   A (src2) = 8 consecutive block summaries, [8][16] row-major - summaries are contiguous
+//              in Di and consecutive slots are contiguous within a PA page, so this is one
+//              plain 2D block load. Requires (PA_BLOCK_SIZE / r) % 8 == 0 so an 8-block
+//              tile never straddles a page; the host falls back to the scalar kernel
+//              otherwise.
+//
+// Numerical order is unchanged and still mandatory: per-head dot product -> per-head ReLU
+// -> head reduction -> 1/sqrt(Di). The ReLU is applied to the dpas result tile of one head
+// before it is accumulated into `acc`, so it still precedes the head reduction.
+//
+// Dispatch:
+//   gws = [num_tiles * QSA_SCORE_WG, 1, 1]
+//   lws = [QSA_SCORE_WG, 1, 1]           // one work-group owns one 16-query tile
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#include "qsa_dpas_common.hpp"
+
+#define QSA_KTILES   (QSA_IDX_HEAD_DIM / QSA_REG_K)
+#define QSA_QT_TILES (QSA_IDX_HEADS * QSA_KTILES)
+#define QSA_SPP      (QSA_PA_BLOCK_SIZE / QSA_COMPRESS_RATIO)
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             // [num_tokens, Hidx, Di]
+                                        const half* summary_cache ATTR,         // [num_blocks, 1, PA_BLOCK/r, Di]
+                                        const int32_t* past_lens ATTR,          // [num_seqs]
+                                        const int32_t* subsequence_begins ATTR,  // [num_seqs+1]
+                                        const int32_t* block_indices ATTR,       // [used_blocks]
+                                        const int32_t* block_indices_begins ATTR,  // [num_seqs+1]
+                                        const int32_t* tile_map ATTR,              // [num_tiles, 2] = (seq, token_begin)
+                                        float* block_scores ATTR,                  // [num_tokens, max_blocks]
+                                        uint32_t num_tiles,
+                                        uint32_t max_blocks) {
+    constexpr uint HIDX = QSA_IDX_HEADS;
+    constexpr uint DI = QSA_IDX_HEAD_DIM;
+    constexpr uint R = QSA_COMPRESS_RATIO;
+    constexpr uint SPP = QSA_SPP;
+    constexpr uint WG = QSA_SCORE_WG;
+    constexpr uint NQ = QSA_REG_N;
+    constexpr uint MB = QSA_REG_M;
+    constexpr uint KT = QSA_KTILES;
+    constexpr uint QT_BYTES = QSA_REG_K * NQ * (uint)sizeof(half);
+
+    // The A operand is MB consecutive block summaries. A PA page holds SPP of them, so
+    // when a page is smaller than the tile the tile is assembled from MB/SPP whole pages
+    // (the real Qwen3.8 configuration is SPP = 16/4 = 4 against MB = 8). Block ids inside
+    // one sub-tile are contiguous and page-aligned because b0 is always a multiple of MB.
+    constexpr uint SUB_ROWS = SPP < MB ? SPP : MB;
+    constexpr uint SUB_TILES = MB / SUB_ROWS;
+
+    static_assert(NQ == 16, "the prefill dpas path needs a 512-bit GRF (Xe2 and later)");
+    static_assert(DI % QSA_REG_K == 0, "indexer head dim must be a multiple of the dpas K step");
+    static_assert(SPP % MB == 0 || MB % SPP == 0, "a page must hold a whole number of dpas A tiles, or vice versa");
+    static_assert(QSA_QT_TILES * QT_BYTES <= 64 * 1024, "staged query tile exceeds SLM");
+
+    const uint wg = cm_group_id(0);
+    if (wg >= num_tiles) {
+        return;
+    }
+    const uint tid = cm_local_id(0);
+
+    cm_slm_init(QSA_QT_TILES * QT_BYTES);
+    auto slm_qt = cm_slm_alloc(QSA_QT_TILES * QT_BYTES);
+
+    const uint seq = (uint)tile_map[wg * 2 + 0];
+    const uint token0 = (uint)tile_map[wg * 2 + 1];
+    const uint seq_begin = (uint)subsequence_begins[seq];
+    const uint seq_end = (uint)subsequence_begins[seq + 1];
+    const uint past_len = (uint)past_lens[seq];
+    const uint page_begin = (uint)block_indices_begins[seq];
+
+    uint valid = seq_end > token0 ? seq_end - token0 : 0;
+    if (valid > NQ) {
+        valid = NQ;
+    }
+
+    // Absolute position and visible-block count of every query in the tile.
+    vector<uint, NQ> lane;
+    cmtl::cm_vector_assign(lane.select_all(), 0, 1);
+    const vector<uint, NQ> abs_pos = lane + (past_len + token0 - seq_begin);
+    const vector<uint, NQ> n_complete = (abs_pos + 1) / R;
+    const uint n_blocks_max = valid == 0 ? 0 : n_complete[valid - 1];
+
+    // ---- stage the whole query tile as dpas B operands ----
+    // Rows past `valid` are clamped to zero by the descriptor's surface height, so the
+    // extra query columns simply produce zero scores that nobody reads.
+    const uint q_rows = valid == 0 ? 1 : valid;
+    for (uint t = tid; t < QSA_QT_TILES; t += WG) {
+        const uint h = t / KT;
+        const uint k = t % KT;
+        vector<half, QSA_REG_K * NQ> tile;
+        qsa_dpas::load_vnni_tile(tile,
+                                 indexer_q + (token0 * HIDX + h) * DI,
+                                 q_rows,
+                                 HIDX * DI * (uint)sizeof(half),
+                                 DI * (uint)sizeof(half),
+                                 k * QSA_REG_K);
+        cm_slm_block_write(slm_qt, t * QT_BYTES, tile);
+    }
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+
+    // ---- score every visible block tile ----
+    for (uint b0 = tid * MB; b0 < n_blocks_max; b0 += WG * MB) {
+        // Summaries are reused by every indexer head, so they are fetched once per tile.
+        matrix<half, KT, MB * QSA_REG_K> a_tiles;
+#pragma unroll
+        for (uint s = 0; s < SUB_TILES; s++) {
+            const uint b = b0 + s * SUB_ROWS;
+            if (b >= n_blocks_max) {
+                // Past the last visible block: its page id is not in this sequence's page
+                // list, so zero the rows instead of indexing out of the table. The scores
+                // are never read - the selection is bounded by each query's n_complete.
+#pragma unroll
+                for (uint k = 0; k < KT; k++) {
+                    a_tiles.row(k).select<SUB_ROWS * QSA_REG_K, 1>(s * SUB_ROWS * QSA_REG_K) = (half)0.0f;
+                }
+                continue;
+            }
+            const uint page = (uint)block_indices[page_begin + b / SPP];
+            const half* sbase = summary_cache + qsa::summary_offset(page, b % SPP, SPP, DI);
+#pragma unroll
+            for (uint k = 0; k < KT; k++) {
+                auto dst = a_tiles.row(k).select<SUB_ROWS * QSA_REG_K, 1>(s * SUB_ROWS * QSA_REG_K);
+                qsa_dpas::load_a_tile<SUB_ROWS>(dst, sbase, SUB_ROWS, DI * (uint)sizeof(half), DI * (uint)sizeof(half), k * QSA_REG_K);
+            }
+        }
+
+        vector<float, MB * NQ> acc = 0.0f;
+        for (uint h = 0; h < HIDX; h++) {
+            vector<float, MB * NQ> st = 0.0f;
+#pragma unroll
+            for (uint k = 0; k < KT; k++) {
+                vector<half, QSA_REG_K * NQ> qt;
+                cm_slm_block_read(slm_qt, (h * KT + k) * QT_BYTES, qt);
+                st = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH, QSA_REG_M, float>(st, qt.format<int32_t>(), a_tiles.row(k).format<int32_t>());
+            }
+            // ReLU per indexer head, still strictly before the head reduction.
+            acc = acc + cm_max<float>(st, 0.0f);
+        }
+        acc = acc * (float)QSA_IDX_SCALE;  // 1 / sqrt(Di), after the ReLU sum
+
+        // dst is [block][query]; the scores buffer is query-major.
+        matrix<float, NQ, MB> scores_t;
+        auto acc_m = acc.format<float, MB, NQ>();
+        qsa_dpas::transpose_8x16(acc_m.select<8, 1, 16, 1>(0, 0), scores_t.select<16, 1, 8, 1>(0, 0));
+
+        for (uint q = 0; q < valid; q++) {
+            cm_ptr_store<float, MB>(block_scores, ((token0 + q) * max_blocks + b0) * (uint)sizeof(float), scores_t.row(q));
+        }
+    }
+
+}

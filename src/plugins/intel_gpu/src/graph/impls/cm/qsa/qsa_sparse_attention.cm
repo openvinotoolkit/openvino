@@ -1,0 +1,207 @@
+/*******************************************************************************
+ * Copyright (c) 2018-2026 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+// Q3 - qsa_sparse_attention
+//
+// Consumes the selected QSA metadata directly: no 4D selected mask and no
+// materialized selected K/V are ever created. Structure (design section 6.4):
+//   selected block ids -> token positions -> PA page / token_in_page
+//     -> indirect f16 K/V read -> QK -> online softmax -> V accumulation
+//     -> attention output gate (the gate half of q_proj)
+// `o_proj` is NOT part of this kernel; the output keeps the attention head layout.
+//
+// Properties that shape the mapping:
+//   * the selected set is per query token and shared by all Hq query heads, because
+//     the indexer heads were already reduced in Q2;
+//   * the main attention is GQA, so KV addressing uses Hkv - not the indexer's
+//     single-key-head MQA assumption;
+//   * invalid (-1) slots are skipped BEFORE any address computation, never masked
+//     after a speculative read;
+//   * KV is fetched at QSA-block granularity (r * Dh contiguous elements), not along
+//     a linear kv_step tile, so no bandwidth is wasted at high sparsity.
+//
+// Q layout follows the PA convention and is fully parameterized by runtime scalars,
+// so a fused q_proj output of [query(Dh) | gate(Dh)] per head is consumed in place:
+//   q_offset_elems  = q_base + token * q_pitch + head * q_head_stride
+//   gate offset     = q_offset_elems + gate_delta
+//
+// Dispatch:
+//   gws = [QSA_HEADS, num_tokens, 1]
+//   lws = [1, 1, 1]
+
+// ATTR must be defined by every kernel outside of any include guard: the codegen
+// appends an `#undef ATTR` at the end of each kernel it inlines a header into, and a
+// guarded redefinition is skipped for every kernel after the first one in a batched
+// program, leaving ATTR undefined in the signature below.
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#include "qsa_score_common.hpp"
+
+#define QSA_LOG2E 1.4426950408889634f
+
+/// Online-softmax update for one visible KV position whose K/V are ALREADY in registers.
+CM_INLINE void qsa_softmax_step(float score, float& running_max, float& running_sum, float& corr, float& weight) {
+    const float new_max = running_max > score ? running_max : score;
+    vector<float, 2> e;
+    e[0] = (running_max - new_max) * QSA_LOG2E;
+    e[1] = (score - new_max) * QSA_LOG2E;
+    e = cm_exp(e);
+    corr = e[0];
+    weight = e[1];
+    running_sum = running_sum * corr + weight;
+    running_max = new_max;
+}
+
+/// Attends over SPAN consecutive KV positions starting at `pos0`.
+///
+/// SPAN * DH (and SPAN * DV) elements are contiguous in the paged cache as long as the
+/// whole span lives in one PA page, which holds for a QSA block because
+/// PA_BLOCK_SIZE % r == 0. Fetching a selected block as ONE r*Dh*2 = 1 KB message
+/// instead of r separate head-wide reads is what keeps the gather LSC-friendly at high
+/// sparsity (design section 6.8.5); a linear kv_step tile would waste ~4x the bandwidth.
+template <int DH, int DV, int HKV, int PA_BLOCK, int SPAN>
+CM_INLINE void qsa_attend_span(vector_ref<float, DH> q,
+                               vector_ref<float, DV> acc,
+                               float& running_max,
+                               float& running_sum,
+                               const half* key_cache ATTR,
+                               const half* value_cache ATTR,
+                               const int32_t* block_indices ATTR,
+                               uint page_begin,
+                               uint kv_head,
+                               uint pos0) {
+    const uint page = (uint)block_indices[page_begin + pos0 / (uint)PA_BLOCK];
+    const uint tok0 = pos0 % (uint)PA_BLOCK;
+
+    vector<half, SPAN * DH> ktile;
+    qsa_gr::load_hv<SPAN * DH>(ktile, key_cache, qsa::kv_cache_offset(page, kv_head, tok0, HKV, PA_BLOCK, DH));
+    vector<half, SPAN * DV> vtile;
+    qsa_gr::load_hv<SPAN * DV>(vtile, value_cache, qsa::kv_cache_offset(page, kv_head, tok0, HKV, PA_BLOCK, DV));
+
+#pragma unroll
+    for (int s = 0; s < SPAN; s++) {
+        float score = 0.0f;
+#pragma unroll
+        for (int k = 0; k < DH; k += 16) {
+            vector<float, 16> kv = ktile.template select<16, 1>(s * DH + k);
+            score += cm_sum<float>(q.template select<16, 1>(k) * kv);
+        }
+
+        float corr = 0.0f;
+        float weight = 0.0f;
+        qsa_softmax_step(score, running_max, running_sum, corr, weight);
+
+#pragma unroll
+        for (int k = 0; k < DV; k += 16) {
+            vector<float, 16> vv = vtile.template select<16, 1>(s * DV + k);
+            acc.template select<16, 1>(k) = acc.template select<16, 1>(k) * corr + vv * weight;
+        }
+    }
+}
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 // [num_tokens, Hq*Dh] or [num_tokens, 2*Hq*Dh]
+                                        const half* key_cache ATTR,             // [num_blocks, Hkv, PA_BLOCK, Dh]
+                                        const half* value_cache ATTR,           // [num_blocks, Hkv, PA_BLOCK, Dv]
+                                        const int32_t* past_lens ATTR,          // [num_seqs]
+                                        const int32_t* subsequence_begins ATTR,  // [num_seqs+1]
+                                        const int32_t* block_indices ATTR,       // [used_blocks]
+                                        const int32_t* block_indices_begins ATTR,  // [num_seqs+1]
+                                        const int32_t* selected_blocks ATTR,       // [num_tokens, block_topk]
+                                        const int32_t* selected_counts ATTR,       // [num_tokens]
+                                        half* output ATTR,                         // [num_tokens, Hq*Dv]
+                                        uint32_t num_tokens,
+                                        uint32_t num_seqs,
+                                        uint32_t q_base,
+                                        uint32_t q_pitch,
+                                        uint32_t q_head_stride,
+                                        uint32_t gate_delta) {
+    constexpr uint HQ = QSA_HEADS;
+    constexpr uint HKV = QSA_KV_HEADS;
+    constexpr uint DH = QSA_K_HEAD_SIZE;
+    constexpr uint DV = QSA_V_HEAD_SIZE;
+    constexpr uint R = QSA_COMPRESS_RATIO;
+    constexpr uint PA_BLOCK = QSA_PA_BLOCK_SIZE;
+    constexpr uint K_TOPK = QSA_BLOCK_TOPK;
+
+    static_assert(DH % 16 == 0 && DV % 16 == 0, "head sizes must be multiples of 16");
+
+    const uint head = cm_global_id(0);
+    const uint token_idx = cm_global_id(1);
+    if (head >= HQ || token_idx >= num_tokens) {
+        return;
+    }
+
+    uint seq = 0;
+    uint abs_pos = 0;
+    qsa_resolve_token(subsequence_begins, past_lens, num_seqs, token_idx, seq, abs_pos);
+
+    const uint kv_head = head / (HQ / HKV);
+    const uint page_begin = (uint)block_indices_begins[seq];
+
+    // ---- load and pre-scale the query ----
+    const uint q_elem = q_base + token_idx * q_pitch + head * q_head_stride;
+    vector<half, DH> q_h;
+    qsa_gr::load_hv<DH>(q_h, query, q_elem);
+    vector<float, DH> q = q_h;
+    q = q * (float)QSA_SCALE;
+
+    float running_max = -1e30f;
+    float running_sum = 0.0f;
+    vector<float, DV> acc = 0.0f;
+
+    // ---- selected complete QSA blocks ----
+    // One selected block = one r*Dh*2 byte contiguous fetch per (block, kv head).
+    const uint selected = (uint)selected_counts[token_idx];
+    for (uint i = 0; i < selected && i < K_TOPK; i++) {
+        const int32_t b = selected_blocks[token_idx * K_TOPK + i];
+        if (b < 0) {
+            continue;  // invalid slot: skipped before any address arithmetic
+        }
+        qsa_attend_span<DH, DV, HKV, PA_BLOCK, R>(q, acc, running_max, running_sum, key_cache, value_cache, block_indices, page_begin, kv_head,
+                                                  (uint)b * R);
+    }
+
+    // ---- always-visible tail of the incomplete block ----
+    // The tail is shorter than r and may end mid-block, so it is walked one position
+    // at a time; it costs at most r-1 fetches per query.
+    const uint tail_begin = qsa_num_complete_blocks(abs_pos) * R;
+    for (uint p = tail_begin; p <= abs_pos; p++) {
+        qsa_attend_span<DH, DV, HKV, PA_BLOCK, 1>(q, acc, running_max, running_sum, key_cache, value_cache, block_indices, page_begin, kv_head, p);
+    }
+
+    const float inv_sum = running_sum > 0.0f ? 1.0f / running_sum : 0.0f;
+
+#if QSA_HAS_OUTPUT_GATE
+    // The gate is the second half of the q_proj output for this head; it is a
+    // per-channel gate and must not be confused with the GR read/write gates.
+    vector<half, DV> gate_h;
+    qsa_gr::load_hv<DV>(gate_h, query, q_elem + gate_delta);
+#endif
+
+    vector<half, DV> out;
+#pragma unroll
+    for (uint k = 0; k < DV; k += 16) {
+        vector<float, 16> o = acc.select<16, 1>(k) * inv_sum;
+#if QSA_HAS_OUTPUT_GATE
+        vector<float, 16> g = gate_h.select<16, 1>(k);
+        o = o * qsa_gr::sigmoid<16>(g);
+#endif
+        out.select<16, 1>(k) = o;
+    }
+    qsa_gr::store_hv<DV>(output, (token_idx * HQ + head) * DV, out);
+}

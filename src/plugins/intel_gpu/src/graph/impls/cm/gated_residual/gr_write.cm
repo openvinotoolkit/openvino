@@ -1,0 +1,68 @@
+/*******************************************************************************
+ * Copyright (c) 2018-2026 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+// G2 - Gated Residual WRITE / COMBINE.
+//
+//   R'[c,d] = R[c,d] + S[c] * Y[d]
+//
+// S is the per-branch scalar write gate in (0, 2) produced by the READ stage
+// (`produce_write_gate`), so the normalization does not have to be recomputed here.
+// The two possible sources of S (saved by READ vs. recomputed) must never be mixed:
+// this kernel implements the "saved by READ" variant.
+//
+// JIT constants:
+//   GR_BRANCHES  C
+//   GR_HIDDEN    D (multiple of 16)
+//
+// Dispatch:
+//   gws = [D / 16, C, num_rows]
+//   lws = [1, 1, 1]
+
+#include "qsa_gr_common.hpp"
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* residual ATTR,  // [num_rows, C*D]
+                                        const half* sublayer_y ATTR,  // [num_rows, D]
+                                        const half* write_gate ATTR,  // [num_rows, C]
+                                        half* residual_out ATTR,      // [num_rows, C*D]
+                                        uint32_t num_rows) {
+    constexpr uint C = GR_BRANCHES;
+    constexpr uint D = GR_HIDDEN;
+    static_assert(D % 16 == 0, "GR_HIDDEN must be a multiple of 16");
+
+    const uint d0 = cm_global_id(0) * 16;
+    const uint c = cm_global_id(1);
+    const uint row = cm_global_id(2);
+
+    if (d0 >= D || c >= C || row >= num_rows) {
+        return;
+    }
+
+    // Per-branch scalar gate: scalar load, not a per-channel vector.
+    vector<half, 2> gate_pair;
+    gate_pair.format<int>() = cm_ptr_load<int, 1>((int*)write_gate, (row * C + (c & ~1u)) * (uint)sizeof(half));
+    const float gate = (float)gate_pair[c & 1u];
+
+    const uint elem = row * C * D + c * D + d0;
+    vector<float, 16> r = qsa_gr::load_h16(residual, elem);
+    vector<float, 16> y = qsa_gr::load_h16(sublayer_y, row * D + d0);
+
+    vector<half, 16> out = r + gate * y;
+    qsa_gr::store_h16(residual_out, elem, out);
+}

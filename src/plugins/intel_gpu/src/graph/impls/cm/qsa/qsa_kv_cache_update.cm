@@ -1,0 +1,105 @@
+/*******************************************************************************
+ * Copyright (c) 2018-2026 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+// Q0 - qsa_kv_cache_update
+//
+// Writes the externally projected K_cur / V_cur into the paged f16 main KV cache.
+// Deliberately a standalone kernel, never merged into Q1 (design section 6.8.6):
+//   * its natural dispatch is (token x kv_head), Q1's is (sequence x QSA block);
+//   * merging would serialize Q3's main-KV dependency behind the whole indexer chain;
+//   * a single-token work unit is transparent to mixed batches, so it needs no
+//     prefill / decode / mixed variants at all.
+//
+// The address arithmetic is intentionally byte-for-byte the same as the uncompressed
+// path of pa_kv_cache_update_ref.cm; QSA owns its own kernel instance and JIT config,
+// but must not invent a second cache layout.
+//
+// JIT constants:
+//   QSA_KV_HEADS, QSA_K_HEAD_SIZE, QSA_V_HEAD_SIZE, QSA_PA_BLOCK_SIZE
+//
+// Dispatch:
+//   gws = [1, QSA_KV_HEADS, wg_count * wg_size]
+//   lws = [1, 1, wg_size]                       // one lane = one token of one kv head
+
+// ATTR must be defined by every kernel outside of any include guard: the codegen
+// appends an `#undef ATTR` at the end of each kernel it inlines a header into, and a
+// guarded redefinition is skipped for every kernel after the first one in a batched
+// program, leaving ATTR undefined in the signature below.
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#include "qsa_common.hpp"
+
+template <int HEAD_SIZE>
+CM_INLINE void qsa_copy_head(const half* src ATTR, half* cache ATTR, uint src_elem, uint dst_elem) {
+    // Pure streaming copy with zero arithmetic intensity: the only lever is the LSC
+    // message count, so the whole head moves in one wide load/store pair.
+    vector<half, HEAD_SIZE> v;
+    qsa_gr::load_hv<HEAD_SIZE>(v, src, src_elem);
+    qsa_gr::store_hv<HEAD_SIZE>(cache, dst_elem, v);
+}
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* key ATTR,                    // [num_tokens, Hkv*Dh] token-major
+                                        const half* value ATTR,                  // [num_tokens, Hkv*Dv] token-major
+                                        const int32_t* past_lens ATTR,           // [num_seqs]
+                                        const int32_t* block_indices ATTR,       // [used_blocks]
+                                        const int32_t* block_indices_begins ATTR,  // [num_seqs+1]
+                                        const int32_t* subsequence_begins ATTR,    // [num_seqs+1]
+                                        half* key_cache ATTR,                      // [num_blocks, Hkv, PA_BLOCK_SIZE, Dh]
+                                        half* value_cache ATTR,                    // [num_blocks, Hkv, PA_BLOCK_SIZE, Dv]
+                                        uint32_t key_pitch,
+                                        uint32_t key_offset,
+                                        uint32_t value_pitch,
+                                        uint32_t value_offset,
+                                        uint32_t batch_size_in_sequences) {
+    constexpr uint KV_HEADS = QSA_KV_HEADS;
+    constexpr uint K_HEAD = QSA_K_HEAD_SIZE;
+    constexpr uint V_HEAD = QSA_V_HEAD_SIZE;
+    constexpr uint PA_BLOCK = QSA_PA_BLOCK_SIZE;
+
+    static_assert(K_HEAD % 16 == 0 && V_HEAD % 16 == 0, "head sizes must be multiples of 16");
+
+    const uint head_idx = cm_group_id(1);
+    const uint token_idx = cm_global_id(2);
+
+    if (token_idx >= (uint)subsequence_begins[batch_size_in_sequences]) {
+        return;
+    }
+
+    // token -> sequence
+    uint seq = 0;
+    for (uint i = 0; i < batch_size_in_sequences; i++) {
+        if (token_idx >= (uint)subsequence_begins[i] && token_idx < (uint)subsequence_begins[i + 1]) {
+            seq = i;
+            break;
+        }
+    }
+
+    const uint seq_begin = (uint)subsequence_begins[seq];
+    const uint past_len = (uint)past_lens[seq];
+    const uint abs_pos = past_len + token_idx - seq_begin;
+
+    const uint pa_page = abs_pos / PA_BLOCK;
+    const uint token_in_page = abs_pos % PA_BLOCK;
+    const uint physical_page = (uint)block_indices[(uint)block_indices_begins[seq] + pa_page];
+
+    const uint k_src = key_offset + token_idx * key_pitch + head_idx * K_HEAD;
+    const uint v_src = value_offset + token_idx * value_pitch + head_idx * V_HEAD;
+
+    qsa_copy_head<K_HEAD>(key, key_cache, k_src, qsa::kv_cache_offset(physical_page, head_idx, token_in_page, KV_HEADS, PA_BLOCK, K_HEAD));
+    qsa_copy_head<V_HEAD>(value, value_cache, v_src, qsa::kv_cache_offset(physical_page, head_idx, token_in_page, KV_HEADS, PA_BLOCK, V_HEAD));
+}

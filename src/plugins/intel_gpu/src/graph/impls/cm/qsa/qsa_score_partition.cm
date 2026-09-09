@@ -1,0 +1,83 @@
+/*******************************************************************************
+ * Copyright (c) 2018-2026 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+// Q2 decode, pass 1 - qsa_score_partition
+//
+// Decode has Tq == 1, so a query-owned single work-group would occupy a single
+// Xe-core and waste an order of magnitude of bandwidth (design section 6.8.4).
+// The partition is therefore taken along the BLOCK RANGE. Partitioning along
+// Hidx is forbidden: ReLU precedes the head reduction, so a per-head split would
+// re-read every summary Hidx times.
+//
+// JIT constants:
+//   QSA_IDX_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_SCALE, QSA_COMPRESS_RATIO,
+//   QSA_PA_BLOCK_SIZE, QSA_PARTITION_BLOCKS
+//
+// Dispatch:
+//   gws = [num_tokens, 1, num_partitions]
+//   lws = [1, 1, 1]
+
+// ATTR must be defined by every kernel outside of any include guard: the codegen
+// appends an `#undef ATTR` at the end of each kernel it inlines a header into, and a
+// guarded redefinition is skipped for every kernel after the first one in a batched
+// program, leaving ATTR undefined in the signature below.
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#include "qsa_score_common.hpp"
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             // [num_tokens, Hidx, Di]
+                                        const half* summary_cache ATTR,         // [num_blocks, 1, PA_BLOCK/r, Di]
+                                        const int32_t* past_lens ATTR,          // [num_seqs]
+                                        const int32_t* subsequence_begins ATTR,  // [num_seqs+1]
+                                        const int32_t* block_indices ATTR,       // [used_blocks]
+                                        const int32_t* block_indices_begins ATTR,  // [num_seqs+1]
+                                        float* block_scores ATTR,                  // [num_tokens, max_blocks]
+                                        uint32_t num_tokens,
+                                        uint32_t num_seqs,
+                                        uint32_t max_blocks) {
+    const uint token_idx = cm_global_id(0);
+    const uint partition = cm_global_id(2);
+    if (token_idx >= num_tokens) {
+        return;
+    }
+
+    uint seq = 0;
+    uint abs_pos = 0;
+    qsa_resolve_token(subsequence_begins, past_lens, num_seqs, token_idx, seq, abs_pos);
+
+    const uint n_complete = qsa_num_complete_blocks(abs_pos);
+    const uint begin = partition * (uint)QSA_PARTITION_BLOCKS;
+    if (begin >= n_complete) {
+        return;
+    }
+    uint end = begin + (uint)QSA_PARTITION_BLOCKS;
+    if (end > n_complete) {
+        end = n_complete;
+    }
+
+    const uint page_begin = (uint)block_indices_begins[seq];
+    const uint row = token_idx * max_blocks;
+
+    // Query stays in registers for the whole partition scan; only summaries stream.
+    matrix<half, QSA_IDX_HEADS, QSA_IDX_HEAD_DIM> q;
+    qsa_load_query<QSA_IDX_HEADS, QSA_IDX_HEAD_DIM>(q, indexer_q, token_idx);
+
+    for (uint b = begin; b < end; b++) {
+        block_scores[row + b] = qsa_block_score(q, summary_cache, block_indices, page_begin, b);
+    }
+}

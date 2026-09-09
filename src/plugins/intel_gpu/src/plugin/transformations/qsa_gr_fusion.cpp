@@ -1,0 +1,366 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "qsa_gr_fusion.hpp"
+
+#include <cmath>
+#include <memory>
+#include <vector>
+
+#include "intel_gpu/op/gated_residual.hpp"
+#include "intel_gpu/op/qsa.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/topk.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "ov_ops/rms.hpp"
+
+namespace ov::intel_gpu {
+
+namespace {
+
+/// Reads a constant that must hold exactly one value.
+bool get_scalar_f32(const ov::Output<ov::Node>& out, float& value) {
+    auto c = ov::as_type_ptr<ov::op::v0::Constant>(out.get_node_shared_ptr());
+    if (!c) {
+        return false;
+    }
+    const auto v = c->cast_vector<float>();
+    if (v.size() != 1) {
+        return false;
+    }
+    value = v[0];
+    return true;
+}
+
+bool close(float a, float b) {
+    return std::fabs(a - b) <= 1e-5f * std::max(1.0f, std::fabs(b));
+}
+
+bool get_i64_vector(const ov::Output<ov::Node>& out, std::vector<int64_t>& value) {
+    auto c = ov::as_type_ptr<ov::op::v0::Constant>(out.get_node_shared_ptr());
+    if (!c) {
+        return false;
+    }
+    value = c->cast_vector<int64_t>();
+    return true;
+}
+
+/// Reshapes a constant-like output to a flat [count] tensor when it is not already flat.
+ov::Output<ov::Node> flatten_to(const ov::Output<ov::Node>& src, size_t count, ov::NodeVector& new_ops) {
+    const auto& ps = src.get_partial_shape();
+    if (ps.is_static() && ps.size() == 1 && static_cast<size_t>(ps[0].get_length()) == count) {
+        return src;
+    }
+    auto target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(count)});
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(src, target, false);
+    new_ops.push_back(target);
+    new_ops.push_back(reshape);
+    return reshape->output(0);
+}
+
+/// Total number of elements of a static shape, or 0 when unknown.
+size_t static_element_count(const ov::PartialShape& ps) {
+    if (ps.is_dynamic()) {
+        return 0;
+    }
+    size_t total = 1;
+    for (const auto& d : ps) {
+        total *= static_cast<size_t>(d.get_length());
+    }
+    return total;
+}
+
+constexpr size_t supported_branch_count = 4;
+
+}  // namespace
+
+// ===========================================================================
+// GR READ / MIX
+// ===========================================================================
+GatedResidualReadFusion::GatedResidualReadFusion() {
+    using namespace ov::pass::pattern;
+
+    auto residual = any_input();
+    auto residual_3d = wrap_type<ov::op::v1::Reshape>({residual, any_input()});
+    auto norm = wrap_type<ov::op::internal::RMS>({residual_3d, any_input()});
+    auto rbar = wrap_type<ov::op::v1::Reshape>({norm, any_input()});
+
+    auto low = wrap_type<ov::op::v0::MatMul>({rbar, any_input()});
+    auto low_scaled = wrap_type<ov::op::v1::Multiply>({low, any_input()});
+    auto activation = wrap_type<ov::op::v4::Swish>({low_scaled});
+    auto up = wrap_type<ov::op::v0::MatMul>({activation, any_input()});
+    auto read_gate = wrap_type<ov::op::v0::Sigmoid>({up});
+
+    // The gate multiply may appear in either operand order.
+    auto weighted_a = wrap_type<ov::op::v1::Multiply>({read_gate, rbar});
+    auto weighted_b = wrap_type<ov::op::v1::Multiply>({rbar, read_gate});
+    auto weighted = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{weighted_a, weighted_b});
+
+    auto weighted_3d = wrap_type<ov::op::v1::Reshape>({weighted, any_input()});
+    auto reduced = wrap_type<ov::op::v1::ReduceSum>({weighted_3d, any_input()});
+    auto mixed = wrap_type<ov::op::v1::Multiply>({reduced, any_input()});
+
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        const auto& pm = m.get_pattern_value_map();
+
+        auto rms_node = ov::as_type_ptr<ov::op::internal::RMS>(pm.at(norm).get_node_shared_ptr());
+        auto residual_out = pm.at(residual);
+        auto low_mm = ov::as_type_ptr<ov::op::v0::MatMul>(pm.at(low).get_node_shared_ptr());
+        auto up_mm = ov::as_type_ptr<ov::op::v0::MatMul>(pm.at(up).get_node_shared_ptr());
+        auto root = m.get_match_root();
+        if (!rms_node || !low_mm || !up_mm || transformation_callback(root)) {
+            return false;
+        }
+
+        // --- branch geometry must be static and provable -----------------------
+        std::vector<int64_t> branch_shape;
+        if (!get_i64_vector(pm.at(residual_3d).get_node_shared_ptr()->input_value(1), branch_shape) || branch_shape.size() != 3) {
+            return false;
+        }
+        const auto C = static_cast<size_t>(branch_shape[1]);
+        const auto D = static_cast<size_t>(branch_shape[2]);
+        if (C != supported_branch_count || D == 0) {
+            return false;
+        }
+
+        const auto& residual_ps = residual_out.get_partial_shape();
+        if (residual_ps.rank().is_dynamic() || residual_ps[residual_ps.size() - 1].is_dynamic() ||
+            static_cast<size_t>(residual_ps[residual_ps.size() - 1].get_length()) != C * D) {
+            return false;
+        }
+
+        // --- the reduction must run over the branch axis ------------------------
+        std::vector<int64_t> reduce_axes;
+        if (!get_i64_vector(pm.at(reduced).get_node_shared_ptr()->input_value(1), reduce_axes) || reduce_axes.size() != 1) {
+            return false;
+        }
+        const auto rank = static_cast<int64_t>(pm.at(weighted_3d).get_partial_shape().size());
+        const int64_t branch_axis = reduce_axes[0] < 0 ? reduce_axes[0] + rank : reduce_axes[0];
+        if (branch_axis != rank - 2) {
+            return false;
+        }
+
+        // --- both 1/C scalings are model semantics and must be present ----------
+        float low_scale = 0.0f;
+        float mix_scale = 0.0f;
+        if (!get_scalar_f32(pm.at(low_scaled).get_node_shared_ptr()->input_value(1), low_scale) ||
+            !get_scalar_f32(root->input_value(1), mix_scale)) {
+            return false;
+        }
+        const float inv_c = 1.0f / static_cast<float>(C);
+        if (!close(low_scale, inv_c) || !close(mix_scale, inv_c)) {
+            return false;
+        }
+
+        // --- weights must be stored as [out, in] (transpose_b) ------------------
+        if (low_mm->get_transpose_a() || !low_mm->get_transpose_b() || up_mm->get_transpose_a() || !up_mm->get_transpose_b()) {
+            return false;
+        }
+
+        const auto w_down = low_mm->input_value(1);
+        const auto w_up = up_mm->input_value(1);
+        const auto& w_down_ps = w_down.get_partial_shape();
+        const auto& w_up_ps = w_up.get_partial_shape();
+        if (w_down_ps.rank().get_length() != 2 || w_up_ps.rank().get_length() != 2 || w_down_ps.is_dynamic() || w_up_ps.is_dynamic()) {
+            return false;
+        }
+        const auto L = static_cast<size_t>(w_down_ps[0].get_length());
+        if (static_cast<size_t>(w_down_ps[1].get_length()) != C * D || static_cast<size_t>(w_up_ps[0].get_length()) != C * D ||
+            static_cast<size_t>(w_up_ps[1].get_length()) != L) {
+            return false;
+        }
+
+        // --- the grouped norm must be per branch (gain width C*D or D) ----------
+        const auto gain = rms_node->input_value(1);
+        const auto gain_count = static_element_count(gain.get_partial_shape());
+        if (gain_count != C * D) {
+            // A [D]-wide gain would be a valid branch-shared gain, but the CM kernel
+            // expects the expanded [C*D] form; leave such graphs untouched.
+            return false;
+        }
+
+        ov::NodeVector new_ops;
+        const auto gain_flat = flatten_to(gain, C * D, new_ops);
+
+        // ov::op::internal::RMS applies the gain as stored, so any `1 + w` folding
+        // already happened in the checkpoint conversion: do not apply it twice.
+        auto gr = std::make_shared<op::GatedResidual>(ov::OutputVector{residual_out, gain_flat, w_down, w_up},
+                                                      op::GatedResidual::Mode::READ,
+                                                      C,
+                                                      D,
+                                                      L,
+                                                      static_cast<float>(rms_node->get_epsilon()),
+                                                      /*norm_gain_plus_one=*/false,
+                                                      /*produce_write_gate=*/false,
+                                                      root->get_output_element_type(0));
+        gr->set_friendly_name(root->get_friendly_name());
+        new_ops.push_back(gr);
+
+        ov::copy_runtime_info(m.get_matched_nodes(), new_ops);
+        ov::replace_node(root, gr);
+        return true;
+    };
+
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(mixed, "GatedResidualReadFusion");
+    this->register_matcher(matcher, callback);
+}
+
+// ===========================================================================
+// GR WRITE / COMBINE
+// ===========================================================================
+GatedResidualWriteFusion::GatedResidualWriteFusion() {
+    using namespace ov::pass::pattern;
+
+    auto write_gate = any_input();  // S: [T, C], produced by 2 * sigmoid(W_inject * Rbar / C)
+    auto gate_3d = wrap_type<ov::op::v1::Reshape>({write_gate, any_input()});
+    auto y_3d = wrap_type<ov::op::v1::Reshape>({any_input(), any_input()});
+
+    auto scaled_a = wrap_type<ov::op::v1::Multiply>({gate_3d, y_3d});
+    auto scaled_b = wrap_type<ov::op::v1::Multiply>({y_3d, gate_3d});
+    auto scaled = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{scaled_a, scaled_b});
+
+    auto residual_3d = wrap_type<ov::op::v1::Reshape>({any_input(), any_input()});
+    auto updated = wrap_type<ov::op::v1::Add>({residual_3d, scaled});
+    auto result = wrap_type<ov::op::v1::Reshape>({updated, any_input()});
+
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        const auto& pm = m.get_pattern_value_map();
+        auto root = m.get_match_root();
+        if (transformation_callback(root)) {
+            return false;
+        }
+
+        std::vector<int64_t> branch_shape;
+        if (!get_i64_vector(pm.at(residual_3d).get_node_shared_ptr()->input_value(1), branch_shape) || branch_shape.size() != 3) {
+            return false;
+        }
+        const auto C = static_cast<size_t>(branch_shape[1]);
+        const auto D = static_cast<size_t>(branch_shape[2]);
+        if (C != supported_branch_count || D == 0) {
+            return false;
+        }
+
+        // The gate must broadcast along the branch axis: [T, C, 1].
+        std::vector<int64_t> gate_shape;
+        if (!get_i64_vector(pm.at(gate_3d).get_node_shared_ptr()->input_value(1), gate_shape) || gate_shape.size() != 3 ||
+            gate_shape[1] != static_cast<int64_t>(C) || gate_shape[2] != 1) {
+            return false;
+        }
+        // Y must broadcast along the channel axis: [T, 1, D].
+        std::vector<int64_t> y_shape;
+        if (!get_i64_vector(pm.at(y_3d).get_node_shared_ptr()->input_value(1), y_shape) || y_shape.size() != 3 || y_shape[1] != 1 ||
+            y_shape[2] != static_cast<int64_t>(D)) {
+            return false;
+        }
+
+        const auto residual_out = pm.at(residual_3d).get_node_shared_ptr()->input_value(0);
+        const auto y_out = pm.at(y_3d).get_node_shared_ptr()->input_value(0);
+        const auto gate_out = pm.at(write_gate);
+
+        const auto& residual_ps = residual_out.get_partial_shape();
+        if (residual_ps.rank().is_dynamic() || residual_ps[residual_ps.size() - 1].is_dynamic() ||
+            static_cast<size_t>(residual_ps[residual_ps.size() - 1].get_length()) != C * D) {
+            return false;
+        }
+
+        auto gr = std::make_shared<op::GatedResidual>(ov::OutputVector{residual_out, y_out, gate_out},
+                                                      op::GatedResidual::Mode::WRITE,
+                                                      C,
+                                                      D,
+                                                      /*lowrank=*/0,
+                                                      /*epsilon=*/0.0f,
+                                                      /*norm_gain_plus_one=*/false,
+                                                      /*produce_write_gate=*/false,
+                                                      root->get_output_element_type(0));
+        gr->set_friendly_name(root->get_friendly_name());
+
+        ov::copy_runtime_info(m.get_matched_nodes(), gr);
+        ov::replace_node(root, gr);
+        return true;
+    };
+
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(result, "GatedResidualWriteFusion");
+    this->register_matcher(matcher, callback);
+}
+
+// ===========================================================================
+// QSA indexer detection
+// ===========================================================================
+QSAFusion::QSAFusion() {
+    using namespace ov::pass::pattern;
+
+    // The distinguishing signature of the QSA indexer is the score computation:
+    //   ReLU per indexer head  ->  head reduction  ->  1/sqrt(Di)  ->  TopK
+    auto logits = wrap_type<ov::op::v0::MatMul>({any_input(), any_input()});
+    auto relu = wrap_type<ov::op::v0::Relu>({logits});
+    auto reduced = wrap_type<ov::op::v1::ReduceSum>({relu, any_input()});
+    auto scaled = wrap_type<ov::op::v1::Multiply>({reduced, any_input()});
+    auto topk = wrap_type<ov::op::v11::TopK>({scaled, any_input()});
+
+    ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
+        const auto& pm = m.get_pattern_value_map();
+        auto root = ov::as_type_ptr<ov::op::v11::TopK>(m.get_match_root());
+        auto mm = ov::as_type_ptr<ov::op::v0::MatMul>(pm.at(logits).get_node_shared_ptr());
+        if (!root || !mm || transformation_callback(root)) {
+            return false;
+        }
+
+        // The indexer head dimension is the reduced dimension of the QK MatMul.
+        const auto& q_ps = mm->input_value(0).get_partial_shape();
+        if (q_ps.rank().is_dynamic() || q_ps[q_ps.size() - 1].is_dynamic()) {
+            return false;
+        }
+        const auto Di = static_cast<size_t>(q_ps[q_ps.size() - 1].get_length());
+
+        // The scale must be 1/sqrt(Di) and must sit AFTER the head reduction. If the
+        // graph scales before the ReLU or before the reduction the operator is not QSA.
+        float scale = 0.0f;
+        if (!get_scalar_f32(pm.at(scaled).get_node_shared_ptr()->input_value(1), scale)) {
+            return false;
+        }
+        if (!close(scale, 1.0f / std::sqrt(static_cast<float>(Di)))) {
+            return false;
+        }
+
+        // The reduction must collapse the indexer head axis, i.e. a single axis that is
+        // not the block axis.
+        std::vector<int64_t> axes;
+        if (!get_i64_vector(pm.at(reduced).get_node_shared_ptr()->input_value(1), axes) || axes.size() != 1) {
+            return false;
+        }
+
+        // block_topk comes from the TopK k input.
+        std::vector<int64_t> k_value;
+        if (!get_i64_vector(root->input_value(1), k_value) || k_value.size() != 1 || k_value[0] <= 0) {
+            return false;
+        }
+
+        // Publish the proven indexer configuration. Production models export
+        // ov::intel_gpu::op::QSA directly (see design section 14, open question 1); the
+        // remaining QSA inputs (indexer raw-K / summary caches, page table, RoPE table)
+        // cannot be proven from a generic decomposed graph, so per the design the pass
+        // keeps the original operators instead of guessing.
+        auto& rt = root->get_rt_info();
+        rt["qsa_indexer_detected"] = true;
+        rt["qsa_indexer_head_dim"] = static_cast<int64_t>(Di);
+        rt["qsa_block_topk"] = k_value[0];
+        return false;
+    };
+
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(topk, "QSAFusion");
+    this->register_matcher(matcher, callback);
+}
+
+}  // namespace ov::intel_gpu
