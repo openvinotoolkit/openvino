@@ -8,6 +8,7 @@
 #include "intel_gpu/op/sdpa.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/pass/manager.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "plugin/transformations/rope_sdpa_fusion.hpp"
 
@@ -188,7 +189,10 @@ TEST_F(TransformationTestsF, RoPESDPAFusion_DynamicTokensNotFolded) {
 }
 
 // IndirectSDPA reaches the primitive through a different creator and cannot take the table.
-TEST_F(TransformationTestsF, RoPESDPAFusion_IndirectSDPANotFolded) {
+// Not a TransformationTestsF case: that fixture clones the model to build its reference, and
+// IndirectSDPA::clone_with_new_inputs swaps its compressed and uncompressed branches, so cloning
+// an uncompressed one throws for reasons that have nothing to do with this pass.
+TEST(RoPESDPAFusionTest, IndirectSDPANotFolded) {
     auto q = q_param();
     auto k = q_param();
     auto v = q_param();
@@ -205,9 +209,19 @@ TEST_F(TransformationTestsF, RoPESDPAFusion_IndirectSDPANotFolded) {
                                                                  kIdentity,
                                                                  kIdentity,
                                                                  ov::element::dynamic);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{sdpa},
+                                             ov::ParameterVector{q, k, v, beam_idx, cos, sin});
 
-    model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{q, k, v, beam_idx, cos, sin});
+    ov::pass::Manager manager;
     manager.register_pass<RoPESDPAFusion>();
+    manager.run_passes(model);
+
+    EXPECT_EQ(count_ops_of_type<ov::op::internal::RoPE>(model), 1u);
+    auto kept = ov::as_type_ptr<ov::intel_gpu::op::IndirectSDPA>(
+        model->get_results()[0]->get_input_node_shared_ptr(0));
+    ASSERT_TRUE(kept);
+    EXPECT_EQ(kept->get_input_size(), 4u);
+    EXPECT_FALSE(kept->get_rope_q());
 }
 
 }  // namespace intel_gpu
