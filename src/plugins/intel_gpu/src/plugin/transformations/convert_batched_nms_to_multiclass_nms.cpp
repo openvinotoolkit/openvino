@@ -8,6 +8,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "openvino/core/except.hpp"
@@ -43,8 +44,8 @@
 namespace ov::intel_gpu {
 namespace {
 
-constexpr const char* static_class_count_key = "intel_gpu_batched_nms_static_class_count";
-constexpr const char* prefix_limit_key = "intel_gpu_batched_nms_prefix_limit";
+constexpr std::string_view static_class_count_key{"intel_gpu_batched_nms_static_class_count"};
+constexpr std::string_view prefix_limit_key{"intel_gpu_batched_nms_prefix_limit"};
 
 bool is_const_one_like(const std::shared_ptr<ov::Node>& node) {
     if (!node) {
@@ -189,7 +190,7 @@ MarkBatchedNmsStaticClassCount::MarkBatchedNmsStaticClassCount() {
                 int64_t class_count = 0;
                 const auto source = subgraph->input(input_desc->m_input_index).get_source_output();
                 if (infer_class_count_from_nonzero_indices(source, class_count)) {
-                    parameters[input_desc->m_body_parameter_index]->get_rt_info()[static_class_count_key] = class_count;
+                    parameters[input_desc->m_body_parameter_index]->get_rt_info()[std::string(static_class_count_key)] = class_count;
                     marked = true;
                 }
             }
@@ -198,7 +199,7 @@ MarkBatchedNmsStaticClassCount::MarkBatchedNmsStaticClassCount() {
                 int64_t prefix_limit = 0;
                 if (infer_prefix_limit(subgraph->output(output_desc->m_output_index), prefix_limit)) {
                     const auto& result = body->get_results()[output_desc->m_body_value_index];
-                    result->input_value(0).get_node_shared_ptr()->get_rt_info()[prefix_limit_key] = prefix_limit;
+                    result->input_value(0).get_node_shared_ptr()->get_rt_info()[std::string(prefix_limit_key)] = prefix_limit;
                     marked = true;
                 }
             }
@@ -277,14 +278,14 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         }
 
         const auto& class_ids_rt_info = class_ids_source.get_node_shared_ptr()->get_rt_info();
-        const auto class_count_it = class_ids_rt_info.find(static_class_count_key);
+        const auto class_count_it = class_ids_rt_info.find(std::string(static_class_count_key));
         if (class_count_it == class_ids_rt_info.end()) {
             return false;
         }
         const auto class_count = class_count_it->second.as<int64_t>();
 
         const auto& squeeze_rt_info = squeeze->get_rt_info();
-        const auto prefix_limit_it = squeeze_rt_info.find(prefix_limit_key);
+        const auto prefix_limit_it = squeeze_rt_info.find(std::string(prefix_limit_key));
         if (prefix_limit_it == squeeze_rt_info.end()) {
             return false;
         }
