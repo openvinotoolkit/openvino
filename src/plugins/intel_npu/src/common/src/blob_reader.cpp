@@ -211,7 +211,7 @@ void BlobReader::read(BlobSource& source) {
             seekg_with_bound_checking(source, source.tellg() + manifest_size, npu_region_start, npu_region_size);
             continue;
         }
-        if (source.tellg() == requirements_location.value()) {
+        if (requirements_location.has_value() && source.tellg() == requirements_location.value()) {
             seekg_with_bound_checking(source,
                                       source.tellg() + requirements_length.value(),
                                       npu_region_start,
@@ -271,9 +271,9 @@ void BlobReader::read(BlobSource& source) {
 
         OPENVINO_ASSERT(runtime_requirements->evaluated());
         const std::optional<bool> type_evaluation_result =
-            runtime_requirements->get_type_evaluation_result(section_type.has_value());
+            runtime_requirements->get_type_evaluation_result(section_type.value());
         const std::optional<bool> instance_evaluation_result =
-            runtime_requirements->get_instance_evaluation_result(section_id.has_value());
+            runtime_requirements->get_instance_evaluation_result(section_id.value());
 
         if (type_evaluation_result.has_value() && type_evaluation_result.value()) {
             if (instance_evaluation_result.has_value() && instance_evaluation_result.value()) {

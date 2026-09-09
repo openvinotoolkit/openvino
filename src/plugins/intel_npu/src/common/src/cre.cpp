@@ -224,16 +224,16 @@ std::shared_ptr<CREToken> cre_special_token_from_string(std::string_view token) 
         return CRE::AND_PTR;
     }
     if (token == OR_TOKEN_NAME) {
-        return CRE::OR;
+        return CRE::OR_PTR;
     }
     if (token == OPEN_TOKEN_NAME) {
-        return CRE::OPEN;
+        return CRE::OPEN_PTR;
     }
     if (token == CLOSE_TOKEN_NAME) {
-        return CRE::CLOSE;
+        return CRE::CLOSE_PTR;
     }
     if (token == NOT_TOKEN_NAME) {
-        return CRE::NOT;
+        return CRE::NOT_PTR;
     }
     return nullptr;
 }
@@ -258,6 +258,10 @@ CRESpecialTokenCode CRESpecialToken::get_code() const {
 
 bool CRESpecialToken::operator==(const CRESpecialToken& other) const {
     return m_code == other.get_code();
+}
+
+bool CRESpecialToken::operator!=(const CRESpecialToken& other) const {
+    return !(*this == other);
 }
 
 bool is_cre_special_token(const std::shared_ptr<CREToken>& candidate) {

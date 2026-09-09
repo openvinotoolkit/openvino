@@ -22,12 +22,17 @@ namespace intel_npu {
 
 SectionID::SectionID(const uint16_t section_id) : CREToken(), m_id(section_id) {}
 
+// TODO consider renaming
 uint16_t SectionID::get_id() const {
     return m_id;
 }
 
 bool SectionID::operator==(const SectionID& other) const {
     return m_id == other.get_id();
+}
+
+bool SectionID::operator!=(const SectionID& other) const {
+    return !(*this == other);
 }
 
 std::string section_id_to_string(const SectionID id) {

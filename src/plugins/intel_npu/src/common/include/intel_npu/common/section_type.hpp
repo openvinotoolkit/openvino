@@ -52,6 +52,8 @@ public:
 
     bool operator==(const SectionType& other) const;
 
+    bool operator!=(const SectionID& other) const;
+
 private:
     SectionTypeCode m_code;
 };

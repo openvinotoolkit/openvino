@@ -22,6 +22,8 @@ public:
 
     bool operator==(const SectionID& other) const;
 
+    bool operator!=(const SectionID& other) const;
+
 private:
     /**
      * @note The size needs to be fixed (2 bytes) since this value is written inside the blob manifest
@@ -40,14 +42,14 @@ SectionID section_id_from_string(std::string_view id);
 bool is_section_id(const std::shared_ptr<CREToken>& token);
 
 // TODO discard this, rely on type instead and populate the proper ID within the reader later
-const SectionID MANIFEST_SECTION_ID(0);
-const SectionID RUNTIME_REQUIREMENTS_SECTION_ID(1);
+static const SectionID MANIFEST_SECTION_ID(0);
+static const SectionID RUNTIME_REQUIREMENTS_SECTION_ID(1);
 
 }  // namespace intel_npu
 
 template <>
 struct std::hash<intel_npu::SectionID> {
-    std::size_t operator()(const intel_npu::SectionID& type) const noexcept {
-        return std::hash<uint16_t>()(static_cast<uint16_t>(type.get_code()));
+    std::size_t operator()(const intel_npu::SectionID& id) const noexcept {
+        return std::hash<uint16_t>()(static_cast<uint16_t>(id.get_id()));
     }
 };

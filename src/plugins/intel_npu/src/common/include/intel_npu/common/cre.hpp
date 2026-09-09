@@ -40,6 +40,8 @@ public:
 
     bool operator==(const CRESpecialToken& other) const;
 
+    bool operator!=(const CRESpecialToken& other) const;
+
 private:
     CRESpecialTokenCode m_code;
 };

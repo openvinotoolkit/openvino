@@ -120,7 +120,7 @@ SectionID BlobWriter::register_section(const std::shared_ptr<ISection>& section)
     const SectionType section_type = section->get_type();
 
     // TODO overflow checks
-    const SectionID section_id = m_next_section_id++;
+    const SectionID section_id(m_next_section_id++);
     section->set_id(section_id);
     m_write_queue.push(section);
 
@@ -138,8 +138,8 @@ void BlobWriter::register_section_from_blob_reader(const std::shared_ptr<ISectio
 
     // Update the next instance ID to be used.
     OPENVINO_ASSERT(section->get_id().has_value(), "Found a section parsed by a BlobReader object without an ID");
-    const SectionID candidate = section->get_id().value() + 1;
-    m_next_section_id = candidate > m_next_section_id ? candidate : m_next_section_id;
+    const SectionID candidate(section->get_id()->get_id() + 1);
+    m_next_section_id = candidate.get_id() > m_next_section_id ? candidate.get_id() : m_next_section_id;
 
     m_write_queue.push(section);
 
