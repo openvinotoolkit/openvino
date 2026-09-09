@@ -106,18 +106,18 @@ static std::optional<std::string> getVCLCompatibilityString(const VCLApi& api,
     return compatibilityString;
 }
 
-#define THROW_ON_FAIL_FOR_VCL(step, ret, logHandle)      \
-    {                                                    \
-        vcl_result_t result = ret;                       \
-        if (result != VCL_RESULT_SUCCESS) {              \
-            OPENVINO_THROW("Failed to call VCL API : ",  \
-                           step,                         \
-                           " result: 0x",                \
-                           std::hex,                     \
-                           result,                       \
-                           " - ",                        \
+#define THROW_ON_FAIL_FOR_VCL(step, ret, logHandle)            \
+    {                                                          \
+        vcl_result_t result = ret;                             \
+        if (result != VCL_RESULT_SUCCESS) {                    \
+            OPENVINO_THROW("Failed to call VCL API : ",        \
+                           step,                               \
+                           " result: 0x",                      \
+                           std::hex,                           \
+                           result,                             \
+                           " - ",                              \
                            getLatestVCLLog(*_api, logHandle)); \
-        }                                                \
+        }                                                      \
     }
 
 VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLApi> api,
@@ -128,6 +128,9 @@ VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLApi> api,
     _logger.debug("VCLCompilerImpl constructor start");
 
     OPENVINO_ASSERT(_api != nullptr, "VCLCompilerImpl requires a non-null VCLApi instance");
+    OPENVINO_ASSERT(_api->hasAllRequiredSymbols(),
+                    "VCLCompilerImpl received a VCLApi with unresolved entry points. Was it built "
+                    "with VCLApi::NoLoad and left unwired?");
 
     // Initialize the VCL API
     THROW_ON_FAIL_FOR_VCL("vclGetVersion", _api->vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);

@@ -62,6 +62,25 @@ public:
         return lib;
     }
 
+    /**
+     * @brief True when every non-weak entry point resolved.
+     *
+     * Weak symbols are excluded on purpose: they are legitimately null when the loaded library
+     * predates them. Consumers that need the full table assert on this at construction, so a
+     * `NoLoad` instance that was never wired fails with a diagnosable error instead of dispatching
+     * through a null function pointer at the first call. Generated from `vcl_symbols_list()`, so it
+     * cannot drift as the list grows.
+     */
+    bool hasAllRequiredSymbols() const {
+#define vcl_symbol_statement(vcl_symbol) \
+    if (this->vcl_symbol == nullptr) {   \
+        return false;                    \
+    }
+        vcl_symbols_list();
+#undef vcl_symbol_statement
+        return true;
+    }
+
 #define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
     vcl_symbols_list();
     vcl_weak_symbols_list();
@@ -71,22 +90,5 @@ private:
     std::shared_ptr<void> lib;
     Logger _logger;
 };
-
-#define vcl_symbol_statement(vcl_symbol)                                                                            \
-    template <typename... Args>                                                                                     \
-    inline typename std::invoke_result<decltype(&::vcl_symbol), Args...>::type wrapped_##vcl_symbol(Args... args) { \
-        const auto& ptr = VCLApi::getInstance();                                                                    \
-        if (ptr->vcl_symbol == nullptr) {                                                                           \
-            OPENVINO_THROW("Unsupported vcl_symbol " #vcl_symbol);                                                  \
-        }                                                                                                           \
-        return ptr->vcl_symbol(std::forward<Args>(args)...);                                                        \
-    }
-vcl_symbols_list();
-vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-#define vcl_symbol_statement(vcl_symbol) inline decltype(&::vcl_symbol) vcl_symbol = wrapped_##vcl_symbol;
-vcl_symbols_list();
-vcl_weak_symbols_list();
-#undef vcl_symbol_statement
 
 }  // namespace intel_npu

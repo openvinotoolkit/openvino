@@ -41,11 +41,6 @@ VCLApi::VCLApi(const std::string& library_dir) : _logger("VCLApi", Logger::globa
     }
     vcl_weak_symbols_list();
 #undef vcl_symbol_statement
-
-#define vcl_symbol_statement(vcl_symbol) vcl_symbol = this->vcl_symbol;
-    vcl_symbols_list();
-    vcl_weak_symbols_list();
-#undef vcl_symbol_statement
 }
 
 VCLApi::VCLApi(NoLoad) : _logger("VCLApi", Logger::global().level()) {
