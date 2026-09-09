@@ -36,13 +36,16 @@
 #include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/recurrent_cell.hpp"
+#include "low_precision/reshape.hpp"
 #include "low_precision/prelu.hpp"
 #include "low_precision/transpose.hpp"
+#include "low_precision/variadic_split.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gated_delta_net.hpp"
@@ -116,6 +119,7 @@
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
+#include "plugin/transformations/remove_fq_before_dw_conv.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
@@ -448,6 +452,47 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
         if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) ||
             ov::is_type<ov::op::internal::PagedGatedDeltaNet>(op)) {
             return true;
+        }
+    }
+    return false;
+}
+
+// LPT's Split/VariadicSplitTransformation moves the dequantization from above the split to
+// below it, once per split output. That only pays off if the moved dequantization can be
+// absorbed by one of the consumers (a layer with quantized weights). If it cannot, the plugin
+// is left with one standalone per-channel eltwise per split output and, on top of that, the
+// single original dequantization can no longer be fused into the producer.
+// Typical case: the QKV VariadicSplit of a transformer block, whose outputs feed
+// bias Add -> Reshape -> SDPA and whose producer is the quantized QKV MatMul.
+bool has_dequantization_absorbing_consumer(const std::shared_ptr<const ov::Node>& split) {
+    constexpr size_t max_visited = 32;
+    std::deque<std::shared_ptr<ov::Node>> queue;
+    for (const auto& user : split->get_users()) {
+        queue.push_back(user);
+    }
+
+    for (size_t visited = 0; !queue.empty() && visited < max_visited; ++visited) {
+        const auto node = queue.front();
+        queue.pop_front();
+
+        if (is_type_any_of<ov::op::v0::MatMul,
+                           ov::op::v1::Convolution,
+                           ov::op::v1::GroupConvolution,
+                           ov::op::v1::ConvolutionBackpropData,
+                           ov::op::v1::GroupConvolutionBackpropData>(node)) {
+            return true;
+        }
+
+        // Data movement ops LPT propagates the dequantization further through, so a quantized
+        // layer behind them is still reachable.
+        if (is_type_any_of<ov::op::v0::Concat,
+                           ov::op::v1::Reshape,
+                           ov::op::v1::Transpose,
+                           ov::op::v0::Squeeze,
+                           ov::op::v0::Unsqueeze>(node)) {
+            for (const auto& user : node->get_users()) {
+                queue.push_back(user);
+            }
         }
     }
     return false;
@@ -846,10 +891,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             if (use_xattention) {
                 // Throw exception if xattn is not supported by either GPU archieture or compiler.
-                if (!check_xattn_gpu_compatibility())
+                if (!check_xattn_gpu_compatibility()) {
                     OPENVINO_THROW("[GPU] XAttention is not supported by your current GPU architecture or IGC version. "
-                                "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
-                                "architecture and ensure the latest IGC is installed.");
+                                   "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
+                                   "architecture and ensure the latest IGC is installed.");
+                }
             }
 
             // KVCache layout with default attention -
@@ -1346,6 +1392,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                        ov::is_type<ov::op::v1::Convolution>(second_dep);
         });
 
+        if (enableInt8 && infer_precision == ov::element::f16) {
+            manager.register_pass<RemoveFakeQuantizeBeforeDepthwiseConv>();
+        }
+
         manager.run_passes(func);
     }
 
@@ -1382,6 +1432,39 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         lptPassConfig->disable<ov::pass::low_precision::RecurrentCellTransformation>();
         // Ticket 168015: Low precision PRelu is not supported on GPU
         lptPassConfig->disable<ov::pass::low_precision::PReluTransformation>();
+        lptPassConfig->set_callback<SplitTransformation, VariadicSplitTransformation>([](const_node_ptr& node) -> bool {
+            return !has_dequantization_absorbing_consumer(node);
+        });
+        auto isFp32LptAddWithFp16Scale = [defaultPrecisions](const_node_ptr& node) -> bool {
+            const auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions);
+            if (dequantization.subtract != nullptr || dequantization.multiply == nullptr || dequantization.data.get_element_type() != element::f32) {
+                return false;
+            }
+
+            const auto relaxed_add = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(dequantization.data.get_node_shared_ptr());
+            const auto relaxed_multiply = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(dequantization.multiply);
+            return ov::is_type<ov::opset1::Add>(dequantization.data.get_node_shared_ptr()) && relaxed_add != nullptr &&
+                   relaxed_add->get_overridden_output_type() == element::f32 && relaxed_multiply != nullptr &&
+                   relaxed_multiply->get_origin_input_type(0) == element::f32 && relaxed_multiply->get_origin_input_type(1) == element::f32 &&
+                   relaxed_multiply->get_overridden_output_type() == element::f16;
+        };
+        // Keep this scale before normalization paths; moving it exposes the FP32 inner Add to GPU.
+        lptPassConfig->set_callback<MVNTransformation>([infer_precision, isFp32LptAddWithFp16Scale](const_node_ptr& node) -> bool {
+            return infer_precision == element::f16 && node->get_input_element_type(0) == element::f16 && isFp32LptAddWithFp16Scale(node);
+        });
+        lptPassConfig->set_callback<ReshapeTransformation>([infer_precision, isFp32LptAddWithFp16Scale](const_node_ptr& node) -> bool {
+            if (infer_precision != element::f16 || node->get_input_element_type(0) != element::f16 || !isFp32LptAddWithFp16Scale(node)) {
+                return false;
+            }
+
+            const auto consumers = node->get_output_target_inputs(0);
+            if (consumers.size() != 1) {
+                return false;
+            }
+
+            const auto consumer = consumers.begin()->get_node()->shared_from_this();
+            return ov::is_type<ov::op::v0::MVN>(consumer) || ov::is_type<ov::op::v6::MVN>(consumer);
+        });
         lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([func, defaultPrecisions](const_node_ptr& node) -> bool {
             auto fillStaticChannel = [func](const ov::PartialShape& shape, size_t& channel) -> bool {
                 const auto rank = shape.rank();

@@ -12,13 +12,7 @@ namespace cldnn {
 struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     CLDNN_DECLARE_PRIMITIVE(moe_mask_gen)
 
-    enum MoEMaskGenOutputIdx {
-        TOKENS_PER_EXPERT         = 0,
-        EXPERTS_INFO_START_IDX    = 1,
-        EXPERTS_ID                = 2,
-        TOKENS_LENS_PER_EXPERT    = 3,
-        NUM_ACTUALLY_USED_EXPERTS = 4
-    };
+    enum MoEMaskGenOutputIdx { TOKENS_PER_EXPERT = 0, EXPERTS_INFO_START_IDX = 1, EXPERTS_ID = 2, TOKENS_LENS_PER_EXPERT = 3, NUM_ACTUALLY_USED_EXPERTS = 4 };
 
     moe_mask_gen() : primitive_base("", {}) {}
 
@@ -33,10 +27,10 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     /// @param output4 :            number of actually used experts
 
     moe_mask_gen(const primitive_id& id,
-              const input_info& router_idx,
-              const int32_t num_total_experts,
-              const int32_t num_experts_per_token,
-              const bool onednn_grouped_gemm_used = false)
+                 const input_info& router_idx,
+                 const int32_t num_total_experts,
+                 const int32_t num_experts_per_token,
+                 const bool onednn_grouped_gemm_used = false)
         : primitive_base(id, {router_idx}, 5),
           num_total_experts(num_total_experts),
           num_experts_per_token(num_experts_per_token),
@@ -55,11 +49,11 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         if (const auto* rhs_casted = dynamic_cast<const moe_mask_gen*>(&rhs)) {
-            return num_total_experts == rhs_casted->num_total_experts &&
-                   num_experts_per_token == rhs_casted->num_experts_per_token &&
+            return num_total_experts == rhs_casted->num_total_experts && num_experts_per_token == rhs_casted->num_experts_per_token &&
                    onednn_grouped_gemm_used == rhs_casted->onednn_grouped_gemm_used;
         }
         return false;
@@ -83,12 +77,7 @@ struct moe_mask_gen : public primitive_base<moe_mask_gen> {
 struct moe_mask_gen_reshape : public primitive_base<moe_mask_gen_reshape> {
     CLDNN_DECLARE_PRIMITIVE(moe_mask_gen_reshape)
 
-    enum MoEMaskGenReshapeOutputIdx {
-        TOKENS_PER_EXPERT      = 0,
-        EXPERTS_INFO_START_IDX = 1,
-        EXPERTS_ID             = 2,
-        TOKENS_LENS_PER_EXPERT = 3
-    };
+    enum MoEMaskGenReshapeOutputIdx { TOKENS_PER_EXPERT = 0, EXPERTS_INFO_START_IDX = 1, EXPERTS_ID = 2, TOKENS_LENS_PER_EXPERT = 3 };
 
     moe_mask_gen_reshape() : primitive_base("", {}) {}
 
