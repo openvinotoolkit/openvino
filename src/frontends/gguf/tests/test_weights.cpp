@@ -13,8 +13,15 @@
 
 #include <cmath>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <vector>
 
+#include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/util/file_util.hpp"
+#include "quant/gguf.hpp"
 #include "quant/weights.hpp"
 
 using namespace ov_gguf_test;
@@ -91,6 +98,102 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                          [](const ::testing::TestParamInfo<WeightCase>& i) {
                              return std::string(i.param.stem);
                          });
+
+// GGUFWeight.MatchesGgmlToFloat above (and the Q1_0 case in test_dequant_vs_ggml.cpp) both feed
+// raw quantized bytes into a SingleOpDecoder built entirely in memory: get_gguf_data(), the
+// function real .gguf loading calls to parse the tensor-info table, size the repacked weight/
+// scale buffers, and register the qtype, is never invoked by either. A regression in Q1_0 buffer
+// sizing, scale registration, or qtype registration would therefore leave both tests green while
+// native .gguf loading fails. This test writes a minimal, spec-valid one-tensor .gguf file to disk
+// and reads it back through get_gguf_data() -- the exact function real model loading uses -- to
+// close that gap.
+TEST(GGUFWeight, Q1_0RealFileLoadThroughGetGgufData) {
+    using namespace ov::frontend::gguf;
+
+    // One Q1_0 block: 128 elements, scale = 1.0 (f16 0x3C00 little-endian), first half of the
+    // packed bits set (-> +scale), second half clear (-> -scale). Block layout is 2-byte f16
+    // scale + 16 bytes of 128 packed 1-bit codes, LSB-first within each byte (see fill_q1_0 in
+    // gguf_quants.cpp).
+    std::vector<uint8_t> block(18, 0);
+    block[1] = 0x3C;  // scale bytes: {0x00, 0x3C} = f16(1.0)
+    for (size_t i = 0; i < 8; ++i)
+        block[2 + i] = 0xFF;  // bits 0..63 set -> elements 0..63 = +1.0
+    // bits 64..127 stay 0 (zero-initialized) -> elements 64..127 = -1.0
+
+    const std::string tensor_name = "w.weight";
+
+    // ---- Hand-assemble a minimal GGUF v3 file: header, zero KV pairs (so alignment defaults to
+    // 32), one tensor-info entry, then the tensor data at the next 32-byte-aligned offset. ----
+    std::vector<uint8_t> file;
+    auto put = [&file](const void* p, size_t n) {
+        const auto* b = static_cast<const uint8_t*>(p);
+        file.insert(file.end(), b, b + n);
+    };
+    auto put_u32 = [&](uint32_t v) {
+        put(&v, sizeof(v));
+    };
+    auto put_u64 = [&](uint64_t v) {
+        put(&v, sizeof(v));
+    };
+    auto put_str = [&](const std::string& s) {
+        put_u64(s.size());
+        put(s.data(), s.size());
+    };
+
+    put_u32(0x46554747u);  // magic: "GGUF"
+    put_u32(3u);           // version
+    put_u64(1u);           // tensor_count
+    put_u64(0u);           // kv_count
+
+    put_str(tensor_name);
+    put_u32(1u);    // ndim
+    put_u64(128u);  // dim[0]: 128 elements = exactly one Q1_0 block
+    put_u32(static_cast<uint32_t>(GGUF_TYPE_Q1_0));
+    put_u64(0u);  // offset, relative to the aligned data section
+
+    while (file.size() % 32 != 0)
+        file.push_back(0);
+    put(block.data(), block.size());
+
+    const std::string dir = ov::test::utils::generateTestFilePrefix() + "_gguf_q1_0_realfile";
+    ov::util::create_directory_recursive(std::filesystem::path(dir));
+    const std::string path = ov::util::path_join({dir, "q1_0_real.gguf"}).string();
+    {
+        std::ofstream out(path, std::ios::binary);
+        ASSERT_TRUE(static_cast<bool>(out)) << "could not create scratch file " << path;
+        out.write(reinterpret_cast<const char*>(file.data()), static_cast<std::streamsize>(file.size()));
+    }
+
+    auto [metadata, arrays, qtype, mmap, quant_buf] = get_gguf_data(path);
+
+    ov::test::utils::removeFile(path);
+    ov::test::utils::removeDir(dir);
+
+    ASSERT_TRUE(qtype.count("w.qtype"));
+    EXPECT_EQ(qtype.at("w.qtype"), GGUF_TYPE_Q1_0);
+
+    ASSERT_TRUE(arrays.count("w.scales"));
+    const ov::Tensor& scales = arrays.at("w.scales");
+    ASSERT_EQ(scales.get_shape(), ov::Shape{1});
+    EXPECT_EQ(scales.get_element_type(), ov::element::f16);
+    EXPECT_EQ(scales.data<ov::float16>()[0], ov::float16::from_bits(0x3C00));
+
+    ASSERT_TRUE(arrays.count(tensor_name));
+    const ov::Tensor& weights = arrays.at(tensor_name);
+    ASSERT_EQ(weights.get_shape(), ov::Shape{128});
+    EXPECT_EQ(weights.get_element_type(), ov::element::i4);
+    // i4 pack: element j goes into the low nibble of byte j/2 if even, the high nibble if odd
+    // (see fill_q1_0). Independently recomputed from the input bit pattern above rather than
+    // reusing production code: elements 0..63 (bit=1) decode to nibble 0x1 (+1), elements 64..127
+    // (bit=0) decode to nibble 0xF (-1) -> bytes 0..31 pack two 0x1 nibbles each (0x11), bytes
+    // 32..63 pack two 0xF nibbles each (0xFF).
+    ASSERT_EQ(weights.get_byte_size(), 64u);
+    const auto* w = static_cast<const uint8_t*>(weights.data());
+    for (size_t i = 0; i < 32; ++i)
+        EXPECT_EQ(w[i], 0x11) << "byte " << i;
+    for (size_t i = 32; i < 64; ++i)
+        EXPECT_EQ(w[i], 0xFF) << "byte " << i;
+}
 
 // token_embd / output are requantized to channel-wise Q8_0_C, and that path reads the zero-point
 // as f16 -- Q2_0 used to hard-code u8 here, which threw for every ternary model.
