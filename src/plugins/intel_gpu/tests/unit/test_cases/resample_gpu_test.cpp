@@ -3048,6 +3048,13 @@ TEST(resample_gpu, opt_nearest_fused_eltwise_builds) {
     net.set_input_data("in", in_mem);
 
     // Before the FUSED_OPS structure fix this throws (CL build failure); it must now build and run.
+    const auto primitives_info = net.get_primitives_info();
+    const auto resample_info = std::find_if(primitives_info.begin(), primitives_info.end(), [](const primitive_info& info) {
+        return info.original_id == "resample";
+    });
+    ASSERT_NE(resample_info, primitives_info.end());
+    ASSERT_NE(std::find(resample_info->c_fused_ids.begin(), resample_info->c_fused_ids.end(), "scaled"),
+              resample_info->c_fused_ids.end());
     auto out_opt = net.execute().at("scaled").get_memory();
 
     // The nearest-2x sample picks one of the input values; the eltwise multiplies it by 0.5.
