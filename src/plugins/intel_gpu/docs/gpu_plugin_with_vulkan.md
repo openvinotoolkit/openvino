@@ -93,9 +93,16 @@ Vulkan driver. Keep model-compilation cost separate from inference performance.
 
 Before redistributing a package, inspect transitive dependencies with `otool -L`
 or `readelf -d`, verify loader search paths from the installed location, and
-include applicable upstream third-party notices. The build-tree copy is not a
-claim of a self-contained redistributable SDK; in particular, macOS development
-builds can still reference an absolute Vulkan-loader path.
+include the standard OpenVINO `licensing` install component. It installs
+[`vulkan_third-party-programs.txt`](../../../../licensing/vulkan_third-party-programs.txt)
+with the compiler and SPIR-V dependency notices for the validated revisions.
+Review these notices when changing dependency revisions or build options.
+
+The runtime package uses an externally installed Vulkan loader and hardware
+driver (including MoltenVK on macOS); it does not bundle them. A build-tree copy
+is not a self-contained redistributable SDK: macOS development builds can still
+reference an absolute Vulkan-loader path. Bundling a loader or driver requires
+its own notices, relocatable loader paths and platform-specific signing.
 
 On macOS, perform the usual package signing after install-time RPATH changes.
 Those changes invalidate existing ad-hoc signatures. Local development copies
