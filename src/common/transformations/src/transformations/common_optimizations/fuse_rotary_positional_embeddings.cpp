@@ -126,9 +126,8 @@ RoPEFusionFlux::RoPEFusionFlux(bool num_heads_transposed) {
     // and the matcher silently declined -- leaving a 12-node elementwise chain per RoPE. Accept
     // the squeeze-then-unsqueeze round trip in its Reshape form too, pinned by shape so a
     // genuine reshape cannot slip through: rank 4, then rank 5 with a unit tail.
-    auto opt_reshape_sq =
-        pattern::optional<opset1::Reshape>({opt_unsqueeze, pattern::any_input()},
-                                           pattern::shape_matches("[" + num_heads_pattern + ", ?]"));
+    auto opt_reshape_sq = pattern::optional<opset1::Reshape>({opt_unsqueeze, pattern::any_input()},
+                                                             pattern::shape_matches("[" + num_heads_pattern + ", ?]"));
     auto opt_reshape_unsq =
         pattern::optional<opset1::Reshape>({opt_reshape_sq, pattern::any_input()},
                                            pattern::shape_matches("[" + num_heads_pattern + ", ?, 1]"));
