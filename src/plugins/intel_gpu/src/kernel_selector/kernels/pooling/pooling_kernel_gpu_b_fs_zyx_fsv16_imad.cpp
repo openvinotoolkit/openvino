@@ -100,20 +100,23 @@ JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling
     size_t unrollX = 1;
     size_t unrollY = 1;
     size_t unrollZ = 1;
-    if (in_size_x < maxUnrollSize)
+    if (in_size_x < maxUnrollSize) {
         unrollX = in_size_x;
-    else if (in_size_x % maxUnrollSize == 0)
+    } else if (in_size_x % maxUnrollSize == 0) {
         unrollX = maxUnrollSize;
+    }
     maxUnrollSize /= unrollX;
-    if (in_size_y < maxUnrollSize)
+    if (in_size_y < maxUnrollSize) {
         unrollY = in_size_y;
-    else if (in_size_y % maxUnrollSize == 0)
+    } else if (in_size_y % maxUnrollSize == 0) {
         unrollY = maxUnrollSize;
+    }
     maxUnrollSize /= unrollY;
-    if (in_size_z < maxUnrollSize)
+    if (in_size_z < maxUnrollSize) {
         unrollZ = in_size_z;
-    else if (in_size_z % maxUnrollSize == 0)
+    } else if (in_size_z % maxUnrollSize == 0) {
         unrollZ = maxUnrollSize;
+    }
     maxUnrollSize /= unrollZ;
     jit.AddConstant(MakeJitConstant("UNROLL_X", unrollX));
     jit.AddConstant(MakeJitConstant("UNROLL_Y", unrollY));
@@ -123,8 +126,9 @@ JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling
     jit.AddConstant(MakeJitConstant("IN_Z_PITCH", in_z_pitch));
     jit.Merge(MakeTypeJitConstants(GetActivationType(params), "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(GetAccumulatorType(params), "ACCUMULATOR"));
-    if (IsGlobalPooling(params))
+    if (IsGlobalPooling(params)) {
         jit.AddConstant(MakeJitConstant("GLOBAL_POOLING", 1));
+    }
 
     if (!params.fused_ops.empty()) {
         auto input_dt = EnableRound(params) ? Datatype::INT32 : GetActivationType(params);

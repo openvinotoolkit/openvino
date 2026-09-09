@@ -3,11 +3,12 @@
 //
 
 #include "mvn_kernel_b_fs_yx_fsv16.hpp"
-#include "common_tools.h"
 
-#include <string>
 #include <algorithm>
 #include <iostream>
+#include <string>
+
+#include "common_tools.h"
 
 namespace kernel_selector {
 
@@ -58,17 +59,18 @@ DeviceFeaturesKey MVNKernel_b_fs_yx_fsv16::get_required_device_features_key(cons
 }
 
 bool MVNKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
-    if (!Parent::Validate(p))
+    if (!Parent::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     auto params = static_cast<const mvn_params&>(p);
 
     // TODO Add support for input padding via iterating over y (parallel or in kernel).
     // Skip padding check for dynamic tensors (padding not known at compile time).
     if (!params.has_dynamic_tensors()) {
-        if (params.inputs[0].X().pad.Total() != 0 || params.inputs[0].Y().pad.Total() != 0 ||
-            params.inputs[0].Z().pad.Total() != 0)
+        if (params.inputs[0].X().pad.Total() != 0 || params.inputs[0].Y().pad.Total() != 0 || params.inputs[0].Z().pad.Total() != 0) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
@@ -113,13 +115,14 @@ Datatype MVNKernel_b_fs_yx_fsv16::GetAccumulatorType(const mvn_params& params) c
     const auto& input_dt = params.inputs[0].GetDType();
 
     switch (input_dt) {
-        case Datatype::F32:
-        case Datatype::F16:
-            return Datatype::F32;
-        case Datatype::INT8:
-        case Datatype::UINT8:
-            return Datatype::INT32;
-        default: return Datatype::F32;
+    case Datatype::F32:
+    case Datatype::F16:
+        return Datatype::F32;
+    case Datatype::INT8:
+    case Datatype::UINT8:
+        return Datatype::INT32;
+    default:
+        return Datatype::F32;
     }
 }
 
@@ -135,12 +138,10 @@ JitConstants MVNKernel_b_fs_yx_fsv16::GetJitConstants(const mvn_params& params, 
     jits.AddConstant(MakeJitConstant("GWS", dispatchData.gws[0]));
     jits.AddConstant(MakeJitConstant("ITEM_GROUPS", dispatchData.itemsNum));
     auto input_layout = params.inputs[0].GetLayout();
-    size_t input_slice_pitch = (input_layout == DataLayout::b_fs_yx_fsv32 ||
-                                input_layout == DataLayout::b_fs_zyx_fsv32) ? 32 : 16;
+    size_t input_slice_pitch = (input_layout == DataLayout::b_fs_yx_fsv32 || input_layout == DataLayout::b_fs_zyx_fsv32) ? 32 : 16;
     jits.AddConstant(MakeJitConstant("INPUT_SLICE_PITCH", input_slice_pitch));
     auto output_layout = params.outputs[0].GetLayout();
-    size_t output_slice_pitch = (output_layout == DataLayout::b_fs_yx_fsv32 ||
-                                 output_layout == DataLayout::b_fs_zyx_fsv32) ? 32 : 16;
+    size_t output_slice_pitch = (output_layout == DataLayout::b_fs_yx_fsv32 || output_layout == DataLayout::b_fs_zyx_fsv32) ? 32 : 16;
     jits.AddConstant(MakeJitConstant("OUTPUT_SLICE_PITCH", output_slice_pitch));
     if (params.has_dynamic_tensors()) {
         // For dynamic shapes, ITEMS_NUM is passed as a scalar kernel argument
@@ -149,17 +150,13 @@ JitConstants MVNKernel_b_fs_yx_fsv16::GetJitConstants(const mvn_params& params, 
     } else {
         // Define ITEMS_NUM via JIT so the batch-compilation #undef system
         // cleans it up between kernels sharing the same CL source file.
-        jits.AddConstant(MakeJitConstant("ITEMS_NUM",
-            params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v));
+        jits.AddConstant(MakeJitConstant("ITEMS_NUM", params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v));
     }
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
 
         if (params.inputs[0].GetDims().size() <= 4) {
-            idx_order = {"b",
-                         "(f + set_idx)",
-                         "(output_spatial / OUTPUT_SIZE_X)",
-                         "(output_spatial % OUTPUT_SIZE_X)"};
+            idx_order = {"b", "(f + set_idx)", "(output_spatial / OUTPUT_SIZE_X)", "(output_spatial % OUTPUT_SIZE_X)"};
         } else if (params.inputs[0].GetDims().size() == 5) {
             idx_order = {"b",
                          "(f + set_idx)",
@@ -177,8 +174,7 @@ JitConstants MVNKernel_b_fs_yx_fsv16::GetJitConstants(const mvn_params& params, 
     return jits;
 }
 
-MVNKernel_b_fs_yx_fsv16::MultiDispatchData MVNKernel_b_fs_yx_fsv16::SetDefaultForMulti(
-    const mvn_params& params) const {
+MVNKernel_b_fs_yx_fsv16::MultiDispatchData MVNKernel_b_fs_yx_fsv16::SetDefaultForMulti(const mvn_params& params) const {
     MultiDispatchData dispatchData;
 
     auto max_wg = params.engineInfo.maxWorkGroupSize;
@@ -245,8 +241,9 @@ MVNKernel_b_fs_yx_fsv16::MultiDispatchData MVNKernel_b_fs_yx_fsv16::SetDefaultFo
 }
 
 KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& params) const {
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     constexpr size_t intermidiate_bytes = 4;
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
@@ -265,22 +262,11 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& 
         auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[0];
-        FillCLKernelData(kernel,
-                         dispatchData.stage_1,
-                         params.engineInfo,
-                         finalKernelName,
-                         jit,
-                         entry_point,
-                         "",
-                         false,
-                         false,
-                         0,
-                         0);
+        FillCLKernelData(kernel, dispatchData.stage_1, params.engineInfo, finalKernelName, jit, entry_point, "", false, false, 0, 0);
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
-        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
-                                         dispatchData.item_groups * intermidiate_bytes);
+        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) * dispatchData.item_groups * intermidiate_bytes);
     }
     {
         // Mean second stage
@@ -289,22 +275,11 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& 
         auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[1];
-        FillCLKernelData(kernel,
-                         dispatchData.stage_2,
-                         params.engineInfo,
-                         finalKernelName,
-                         jit,
-                         entry_point,
-                         "",
-                         false,
-                         false,
-                         0,
-                         0);
+        FillCLKernelData(kernel, dispatchData.stage_2, params.engineInfo, finalKernelName, jit, entry_point, "", false, false, 0, 0);
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
-        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
-                                         intermidiate_bytes);
+        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) * intermidiate_bytes);
     }
     if (params.mvnNormalizeVariance) {
         // Variance first stage
@@ -313,17 +288,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& 
         auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[2];
-        FillCLKernelData(kernel,
-                         dispatchData.stage_1,
-                         params.engineInfo,
-                         finalKernelName,
-                         jit,
-                         entry_point,
-                         "",
-                         false,
-                         false,
-                         0,
-                         0);
+        FillCLKernelData(kernel, dispatchData.stage_1, params.engineInfo, finalKernelName, jit, entry_point, "", false, false, 0, 0);
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
@@ -336,22 +301,11 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& 
         auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[3];
-        FillCLKernelData(kernel,
-                         dispatchData.stage_2,
-                         params.engineInfo,
-                         finalKernelName,
-                         jit,
-                         entry_point,
-                         "",
-                         false,
-                         false,
-                         0,
-                         0);
+        FillCLKernelData(kernel, dispatchData.stage_2, params.engineInfo, finalKernelName, jit, entry_point, "", false, false, 0, 0);
         kernel.params.arguments.clear();  // Clear original output argument
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) *
-                                         intermidiate_bytes);
+        kd.internalBuffers.push_back(params.outputs[0].Batch().v * Align(params.outputs[0].Feature().v, fsv) * intermidiate_bytes);
     }
     {  // Final
         auto cldnn_jit = GetJitConstants(orgParams, dispatchData.stage_final);
@@ -385,8 +339,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetMultiStageKernelsData(const mvn_params& 
 }
 
 KernelsData MVNKernel_b_fs_yx_fsv16::GetDynamicMultiStageKernelsData(const mvn_params& params) const {
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const mvn_params& orgParams = static_cast<const mvn_params&>(params);
     bool has_variance = params.mvnNormalizeVariance;
@@ -439,17 +394,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetDynamicMultiStageKernelsData(const mvn_p
         auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[1];
-        FillCLKernelData(kernel,
-                         dispatchData.stage_1,
-                         params.engineInfo,
-                         finalKernelName,
-                         jit,
-                         entry_point,
-                         "",
-                         false,
-                         false,
-                         0,
-                         0);
+        FillCLKernelData(kernel, dispatchData.stage_1, params.engineInfo, finalKernelName, jit, entry_point, "", false, false, 0, 0);
         kernel.params.arguments.clear();
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
@@ -464,17 +409,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetDynamicMultiStageKernelsData(const mvn_p
         auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, entry_part_id++);
         auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
         auto& kernel = kd.kernels[2];
-        FillCLKernelData(kernel,
-                         dispatchData.stage_2,
-                         params.engineInfo,
-                         finalKernelName,
-                         jit,
-                         entry_point,
-                         "",
-                         false,
-                         false,
-                         0,
-                         0);
+        FillCLKernelData(kernel, dispatchData.stage_2, params.engineInfo, finalKernelName, jit, entry_point, "", false, false, 0, 0);
         kernel.params.arguments.clear();
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -490,17 +425,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetDynamicMultiStageKernelsData(const mvn_p
             auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[3];
-            FillCLKernelData(kernel,
-                             dispatchData.stage_1,
-                             params.engineInfo,
-                             finalKernelName,
-                             jit,
-                             entry_point,
-                             "",
-                             false,
-                             false,
-                             0,
-                             0);
+            FillCLKernelData(kernel, dispatchData.stage_1, params.engineInfo, finalKernelName, jit, entry_point, "", false, false, 0, 0);
             kernel.params.arguments.clear();
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 0});
@@ -516,17 +441,7 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetDynamicMultiStageKernelsData(const mvn_p
             auto entry_point = GetEntryPoint(finalKernelName, orgParams.layerID, params, entry_part_id++);
             auto jit = CreateJit(finalKernelName, cldnn_jit, entry_point);
             auto& kernel = kd.kernels[4];
-            FillCLKernelData(kernel,
-                             dispatchData.stage_2,
-                             params.engineInfo,
-                             finalKernelName,
-                             jit,
-                             entry_point,
-                             "",
-                             false,
-                             false,
-                             0,
-                             0);
+            FillCLKernelData(kernel, dispatchData.stage_2, params.engineInfo, finalKernelName, jit, entry_point, "", false, false, 0, 0);
             kernel.params.arguments.clear();
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
@@ -585,9 +500,7 @@ void MVNKernel_b_fs_yx_fsv16::GetUpdateDispatchDataFunc(KernelData& kd) const {
         constexpr size_t local_pref_work_groups = 16;
         constexpr size_t intermediate_bytes = 4;
 
-        auto items_num = prim_params.outputs[0].X().v
-                       * prim_params.outputs[0].Y().v
-                       * prim_params.outputs[0].Z().v;
+        auto items_num = prim_params.outputs[0].X().v * prim_params.outputs[0].Y().v * prim_params.outputs[0].Z().v;
         auto batch = prim_params.outputs[0].Batch().v;
         auto feature = prim_params.outputs[0].Feature().v;
 
@@ -668,9 +581,7 @@ void MVNKernel_b_fs_yx_fsv16::GetUpdateDispatchDataFunc(KernelData& kd) const {
                 size_t buf0_size = batch * Align(feature, local_fsv) * item_groups * intermediate_bytes;
                 size_t buf1_size = batch * Align(feature, local_fsv) * intermediate_bytes;
 
-                if (kd.internalBuffers.size() >= 2 &&
-                    (kd.internalBuffers[0].byte_count < buf0_size ||
-                     kd.internalBuffers[1].byte_count < buf1_size)) {
+                if (kd.internalBuffers.size() >= 2 && (kd.internalBuffers[0].byte_count < buf0_size || kd.internalBuffers[1].byte_count < buf1_size)) {
                     kd.internalBuffers.clear();
                     kd.internalBuffers.push_back(buf0_size);
                     kd.internalBuffers.push_back(buf1_size);
@@ -701,8 +612,9 @@ KernelsData MVNKernel_b_fs_yx_fsv16::GetKernelsData(const Params& params) const 
     auto enough_lws = max_lws / simd >= 1;
     auto enough_items = items_num >= max_lws / simd * simd * pref_work_groups;
 
-    if (enough_slm && enough_lws && enough_items)
+    if (enough_slm && enough_lws && enough_items) {
         return GetMultiStageKernelsData(orgParams);
+    }
     return GetCommonKernelsData(params);
 }
 

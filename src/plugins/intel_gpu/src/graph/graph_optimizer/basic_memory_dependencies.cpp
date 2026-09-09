@@ -21,8 +21,9 @@ void basic_memory_dependencies::run(program& p) {
         itr++;
 
         // data primitive can't be reused
-        if (node->is_type<data>())
+        if (node->is_type<data>()) {
             continue;
+        }
 
         // add my dependencies to restriction list (can't share input.output buffers)
         for (const auto& it : node->get_dependencies()) {
@@ -45,10 +46,12 @@ void basic_memory_dependencies::run(program& p) {
                 if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                     // If it is first sum, reuse the buffer
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
-                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
+                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0) {
                         continue;
-                    if (!fused_op.has_outer_dep())
+                    }
+                    if (!fused_op.has_outer_dep()) {
                         continue;
+                    }
                     eltw_dep = fused_op.outer_dep_start_idx;
                     auto& eltw_node = node->get_dependency(eltw_dep);
                     node->can_share_buffer(false);
