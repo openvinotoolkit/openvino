@@ -28,7 +28,6 @@ protected:
         options->add<INFER_PROFILING>();
 
         config = std::make_unique<FilteredConfig>(options);
-
     }
 
     static ze_graph_compiler_version_info_t modernCompilerVersion() {

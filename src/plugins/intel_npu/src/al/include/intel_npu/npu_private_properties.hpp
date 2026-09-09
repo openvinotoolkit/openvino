@@ -301,6 +301,8 @@ static constexpr ov::Property<std::string> dynamic_shape_to_static{"NPU_DYNAMIC_
  * @note This is resolved at runtime only and never reaches the compiler, so it adds no compilation overhead.
  * When enabled together with ov::enable_profiling, only the compiler-side PERF_COUNT setting is overridden;
  * the runtime configuration retains both properties and get_profiling_info() reports inference timings.
+ * @note Not supported for dynamic-graph pipelines (NPU_COMPILATION_MODE=HostCompile_Interpreter); a warning is
+ * logged and no inference timings are produced in that case.
  */
 static constexpr ov::Property<bool> infer_profiling{"NPU_INFER_PROFILING"};
 

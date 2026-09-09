@@ -509,10 +509,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool shouldForceThroughput = successfullyDebatched && !performanceHintSetByUser;
         const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
                                             localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
+        const bool shouldDisablePerfCountForInferProfiling =
+            localConfig.has<INFER_PROFILING>() && localConfig.get<INFER_PROFILING>() &&
+            localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>();
 
-        auto compilerConfig = localConfig;
-        if (compilerConfig.has<INFER_PROFILING>() && compilerConfig.get<INFER_PROFILING>() &&
-            compilerConfig.has<PERF_COUNT>() && compilerConfig.get<PERF_COUNT>()) {
+        std::optional<FilteredConfig> modifiedConfig;  // Copy only when needed
+        if (shouldDisablePerfCountForInferProfiling || shouldForceThroughput) {
+            modifiedConfig = localConfig;
+        }
+        FilteredConfig& compilerConfig = modifiedConfig.has_value() ? *modifiedConfig : localConfig;
+
+        if (shouldDisablePerfCountForInferProfiling) {
             _logger.info("%s is enabled, disabling %s for this compilation",
                          ov::intel_npu::infer_profiling.name(),
                          ov::enable_profiling.name());
@@ -531,12 +538,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
         if (shouldForceThroughput) {
             _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
-
             compilerConfig.updateAny(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
-            graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
-        } else {
-            graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
         }
+
+        graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {

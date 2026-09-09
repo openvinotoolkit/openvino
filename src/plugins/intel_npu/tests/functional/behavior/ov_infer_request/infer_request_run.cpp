@@ -388,7 +388,8 @@ TEST_P(ProfilingBlob, NoProfilingCompileProfilingImport) {
     OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
 
     if (configuration.at(ov::intel_npu::infer_profiling.name()).as<bool>()) {
-        // NPU_INFER_PROFILING turns layer profiling off in the compiler, so an uninstrumented blob stays usable.
+        // NPU_INFER_PROFILING suppresses the runtime PERF_COUNT check (IPipeline ctor), so importing an
+        // uninstrumented blob with PERF_COUNT=true doesn't throw.
         OV_ASSERT_NO_THROW(inferReq.infer());
     } else {
         ASSERT_ANY_THROW(inferReq.infer());
@@ -438,6 +439,63 @@ TEST_P(ProfilingBlob, ProfilingCompileProfilingImport) {
     OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
 
     OV_ASSERT_NO_THROW(inferReq.infer());
+}
+
+TEST_P(ProfilingBlob, GetProfilingInfoMatchesInferProfilingSetting) {
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        GTEST_SKIP() << "Skip since driver extension version is lower than expected";
+    }
+    ov::CompiledModel compiled_model;
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+
+    ov::InferRequest inferReq;
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inferReq.infer());
+
+    std::vector<ov::ProfilingInfo> profilingInfo;
+    OV_ASSERT_NO_THROW(profilingInfo = inferReq.get_profiling_info());
+
+    if (configuration.at(ov::intel_npu::infer_profiling.name()).as<bool>()) {
+        // Pipeline's constructor allocates _npu_profiling whenever NPU_INFER_PROFILING is set,
+        // independent of PERF_COUNT (left unset here), so get_profiling_info() reports NPU timestamps.
+        // The per-call "INFER_REQ" entries only appear at LOG_LEVEL >= WARNING; the "AVG" summary entry
+        // is unconditional (see NpuInferProfiling::getNpuInferStatistics()), so check for that instead.
+        ASSERT_FALSE(profilingInfo.empty());
+        EXPECT_TRUE(std::any_of(profilingInfo.begin(), profilingInfo.end(), [](const ov::ProfilingInfo& info) {
+            return info.node_type == "AVG";
+        }));
+    } else {
+        // Neither PERF_COUNT nor NPU_INFER_PROFILING is set, so IPipeline's ctor allocates no backend.
+        EXPECT_TRUE(profilingInfo.empty());
+    }
+}
+
+TEST_P(ProfilingBlob, GetProfilingInfoReturnsLayerStatisticsForPerfCountAlone) {
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStructs = ::intel_npu::ZeroInitStructsHolder::getInstance();
+    if (initStructs->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 16)) {
+        GTEST_SKIP() << "Skip since driver extension version is lower than expected";
+    }
+    if (configuration.at(ov::intel_npu::infer_profiling.name()).as<bool>()) {
+        GTEST_SKIP() << "NPU_INFER_PROFILING takes precedence over PERF_COUNT; covered by a separate test";
+    }
+
+    configuration[ov::enable_profiling.name()] = true;
+
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(ov_model, target_device, configuration));
+
+    ov::InferRequest inferReq;
+    OV_ASSERT_NO_THROW(inferReq = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inferReq.infer());
+
+    std::vector<ov::ProfilingInfo> profilingInfo;
+    OV_ASSERT_NO_THROW(profilingInfo = inferReq.get_profiling_info());
+
+    // PERF_COUNT alone (no NPU_INFER_PROFILING) routes through IPipeline's _profiling_query, populated by
+    // IPipeline's constructor via enable_profiling().
+    EXPECT_FALSE(profilingInfo.empty());
 }
 
 TEST_P(InferRequestRunTests, MultipleExecutorTestsSyncInfers) {

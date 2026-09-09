@@ -180,7 +180,10 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 
     OPENVINO_ASSERT(!_run_inferences_sequentially, "In-order execution doesn't work for dynamic pipeline");
 
-    setup_infer_profiling();
+    if (_config.has<INFER_PROFILING>() && _config.get<INFER_PROFILING>()) {
+        _logger.warning("%s is not supported on dynamic graphs, no inference timings will be reported",
+                        ov::intel_npu::infer_profiling.name());
+    }
 
     _logger.debug("Initialization started");
 
@@ -234,13 +237,6 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         ++io_index;
     }
     _logger.debug("Initialization completed");
-}
-
-void DynamicPipeline::setup_infer_profiling() {
-    if (_config.has<INFER_PROFILING>() && _config.get<INFER_PROFILING>()) {
-        _logger.warning("%s is not supported on dynamic graphs, no inference timings will be reported",
-                        ov::intel_npu::infer_profiling.name());
-    }
 }
 
 void DynamicPipeline::push() {

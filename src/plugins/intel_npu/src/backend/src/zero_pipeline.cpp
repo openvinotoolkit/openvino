@@ -75,22 +75,31 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
 
     const bool infer_profiling_enabled = _config.has<INFER_PROFILING>() && _config.get<INFER_PROFILING>();
-    bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>() && !infer_profiling_enabled;
-    std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
+    const bool layer_profiling_enabled =
+        _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>() && !infer_profiling_enabled;
+    const std::optional<bool> compiled_with_layer_profiling = _graph->is_profiling_blob();
 
-    if (compiled_with_profiling.has_value()) {
-        if (perf_count_enabled && !compiled_with_profiling.value()) {
+    if (compiled_with_layer_profiling == true) {
+        if (infer_profiling_enabled) {
+            _logger.warning("The model was compiled with layer profiling enabled, but %s is set; layer statistics "
+                            "will not be extracted",
+                            ov::intel_npu::infer_profiling.name());
+        } else if (!layer_profiling_enabled) {
+            _logger.warning("The model was compiled with layer profiling enabled, PERF_COUNT is NOT set "
+                            "and statistics will not be extracted");
+        }
+        enable_profiling();
+        return;
+    }
+
+    if (compiled_with_layer_profiling == false) {
+        if (layer_profiling_enabled) {
             OPENVINO_THROW("Model was not compiled with profiling enabled");
         }
+        return;
+    }
 
-        if (compiled_with_profiling.value()) {
-            if (!perf_count_enabled) {
-                _logger.warning("IPipeline - model was compiled with layer profiling enabled, PERF_COUNT is NOT set "
-                                "and statistics will not be extracted");
-            }
-            enable_profiling();
-        }
-    } else if (perf_count_enabled) {  // unable to determine if it was compiled with profiling enabled
+    if (layer_profiling_enabled) {  // unable to determine if it was compiled with profiling enabled
         enable_profiling();
     }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
 };
@@ -103,27 +112,24 @@ std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
         return _npu_profiling->getNpuInferStatistics();
     }
 
-    if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
-        if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::DRIVER) {
+    if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
+        _logger.warning("get_profiling_info - completed with empty result");
+        return {};
+    }
+
+    switch (_config.get<COMPILER_TYPE>()) {
+        case ov::intel_npu::CompilerType::DRIVER:
             _logger.debug("get_profiling_info - completed with _profiling_query->getLayerStatistics()");
             return _profiling_query->getLayerStatistics();
-        } else if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PLUGIN) {
+
+        case ov::intel_npu::CompilerType::PLUGIN:
             // For plugin compiler retrieve raw profiling data from backend and delegate
             // processing to the compiler
             _logger.debug("get_profiling_info - completed with _graph->process_profiling_output()");
             return _graph->process_profiling_output(_profiling_query->getData<uint8_t>());
-        } else {
+
+        default:
             OPENVINO_THROW("Cannot get profiling info, unknown compiler type");
-        }
-    }
-
-    _logger.warning("get_profiling_info - completed with empty result");
-    return {};
-}
-
-void Pipeline::setup_infer_profiling() {
-    if (_config.has<INFER_PROFILING>() && _config.get<INFER_PROFILING>()) {
-        _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
     }
 }
 
@@ -150,7 +156,9 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
 
     _logger.debug("Pipeline - initialization started, batch size: %i", _batch_size);
 
-    setup_infer_profiling();
+    if (_config.has<INFER_PROFILING>() && _config.get<INFER_PROFILING>()) {
+        _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
+    }
 
     if (_run_inferences_sequentially) {
         _graph->resize_last_submitted_event(_batch_size);
