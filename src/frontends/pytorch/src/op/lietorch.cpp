@@ -100,9 +100,9 @@ Output<Node> decompose_exp(const NodeContext& ctx, const Output<Node>& tau_phi) 
 
     // translation: t = tau + c1*(phi x tau) + c2*(phi x (phi x tau))
     // c1 = (1 - cos theta) / theta^2, c2 = (theta - sin theta) / theta^3
-    auto c1 = div(ctx, sub(ctx, fconst(ctx, 1.0f, tau_phi), ctx.mark_node(std::make_shared<v0::Cos>(theta))), theta2_eps);
-    auto c2 =
-        div(ctx, sub(ctx, theta, ctx.mark_node(std::make_shared<v0::Sin>(theta))), mul(ctx, theta2_eps, theta));
+    auto c1 =
+        div(ctx, sub(ctx, fconst(ctx, 1.0f, tau_phi), ctx.mark_node(std::make_shared<v0::Cos>(theta))), theta2_eps);
+    auto c2 = div(ctx, sub(ctx, theta, ctx.mark_node(std::make_shared<v0::Sin>(theta))), mul(ctx, theta2_eps, theta));
     auto phi_x_tau = cross_last(ctx, phi, tau);
     auto phi_x_phi_x_tau = cross_last(ctx, phi, phi_x_tau);
     auto t = add(ctx, tau, add(ctx, mul(ctx, c1, phi_x_tau), mul(ctx, c2, phi_x_phi_x_tau)));
