@@ -74,7 +74,7 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _logger(logName, _config.get<LOG_LEVEL>()) {
     _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
 
-    const bool infer_profiling_enabled = _config.has<PROFILING>() && _config.get<PROFILING>();
+    const bool infer_profiling_enabled = _config.has<INFER_PROFILING>() && _config.get<INFER_PROFILING>();
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>() && !infer_profiling_enabled;
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
 
@@ -98,7 +98,6 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
 std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
     _logger.debug("get_profiling_info - started");
 
-    // PERF_COUNT is already resolved to NO when NPU_PROFILING is set, so at most one of these branches applies.
     if (_npu_profiling != nullptr) {
         _logger.debug("get_profiling_info - completed with _npu_profiling->getNpuInferStatistics()");
         return _npu_profiling->getNpuInferStatistics();
@@ -123,7 +122,7 @@ std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
 }
 
 void Pipeline::setup_infer_profiling() {
-    if (_config.has<PROFILING>() && _config.get<PROFILING>()) {
+    if (_config.has<INFER_PROFILING>() && _config.get<INFER_PROFILING>()) {
         _npu_profiling = std::make_shared<zeroProfiling::NpuInferProfiling>(_init_structs, _config.get<LOG_LEVEL>());
     }
 }

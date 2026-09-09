@@ -171,7 +171,7 @@ void init_config(const IEngineBackend* backend, OptionsDesc& options, FilteredCo
     REGISTER_OPTION(PLATFORM);
     REGISTER_OPTION(CREATE_EXECUTOR);
     REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
-    REGISTER_OPTION(PROFILING);
+    REGISTER_OPTION(INFER_PROFILING);
     REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
     REGISTER_OPTION(BATCH_MODE);
     REGISTER_OPTION(BYPASS_UMD_CACHING);
@@ -528,10 +528,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                             localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
 
         auto compilerConfig = localConfig;
-        if (compilerConfig.has<PROFILING>() && compilerConfig.get<PROFILING>() && compilerConfig.has<PERF_COUNT>() &&
+        if (compilerConfig.has<INFER_PROFILING>() && compilerConfig.get<INFER_PROFILING>() &&
+            compilerConfig.has<PERF_COUNT>() &&
             compilerConfig.get<PERF_COUNT>()) {
             _logger.info("%s is enabled, disabling %s for this compilation",
-                         ov::intel_npu::profiling.name(),
+                         ov::intel_npu::infer_profiling.name(),
                          ov::enable_profiling.name());
             compilerConfig.update({{ov::enable_profiling.name(), PERF_COUNT::toString(false)}});
         }

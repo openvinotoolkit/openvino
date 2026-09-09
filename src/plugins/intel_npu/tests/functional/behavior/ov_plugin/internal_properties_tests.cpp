@@ -229,11 +229,11 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
     {{ov::intel_npu::dma_engines.name(), 1}},
     {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
-    {{ov::intel_npu::profiling.name(), true}}};
+    {{ov::intel_npu::infer_profiling.name(), true}}};
 
 const std::vector<ov::AnyMap> compat_IncorrectMutablePropertiesWrongValueTypes = {
     {{ov::intel_npu::compilation_mode.name(), -3.6}},
-    {{ov::intel_npu::profiling.name(), 10}},
+    {{ov::intel_npu::infer_profiling.name(), 10}},
     {{ov::intel_npu::dma_engines.name(), false}},
 };
 

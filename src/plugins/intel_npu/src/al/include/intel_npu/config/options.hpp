@@ -476,9 +476,9 @@ struct BATCH_MODE final : OptionBase<BATCH_MODE, ov::intel_npu::BatchMode> {
     }
 };
 
-struct PROFILING final : OptionBase<PROFILING, bool> {
+struct INFER_PROFILING final : OptionBase<INFER_PROFILING, bool> {
     static std::string_view key() {
-        return ov::intel_npu::profiling.name();
+        return ov::intel_npu::infer_profiling.name();
     }
 
     static bool defaultValue() {

@@ -299,10 +299,10 @@ static constexpr ov::Property<std::string> dynamic_shape_to_static{"NPU_DYNAMIC_
  * Type: boolean, default is false.
  * Measures the duration of each inference from NPU timestamps taken around the whole execution.
  * @note This is resolved at runtime only and never reaches the compiler, so it adds no compilation overhead.
- * When enabled it takes precedence over ov::enable_profiling: the model is not instrumented for layer profiling
- * and get_profiling_info() reports these inference timings instead of layer statistics.
+ * When enabled together with ov::enable_profiling, only the compiler-side PERF_COUNT setting is overridden;
+ * the runtime configuration retains both properties and get_profiling_info() reports inference timings.
  */
-static constexpr ov::Property<bool> profiling{"NPU_PROFILING"};
+static constexpr ov::Property<bool> infer_profiling{"NPU_INFER_PROFILING"};
 
 /**
  * @brief [Only for NPU Plugin]

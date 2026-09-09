@@ -51,7 +51,7 @@ const std::vector<std::pair<std::string, ov::Any>> compiledModelProperties = {
      ov::Any(std::shared_ptr<ov::Model>(nullptr))},  // intentionally copied above to test constness
     {ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::HIGH)},
     {ov::intel_npu::tiles.name(), ov::Any(2)},
-    {ov::intel_npu::profiling.name(), ov::Any(true)},
+    {ov::intel_npu::infer_profiling.name(), ov::Any(true)},
     {ov::intel_npu::defer_weights_load.name(), ov::Any(false)},
     {ov::cache_encryption_callbacks.name(), ov::Any(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})},
 };

@@ -237,9 +237,9 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
 }
 
 void DynamicPipeline::setup_infer_profiling() {
-    if (_config.has<PROFILING>() && _config.get<PROFILING>()) {
+    if (_config.has<INFER_PROFILING>() && _config.get<INFER_PROFILING>()) {
         _logger.warning("%s is not supported on dynamic graphs, no inference timings will be reported",
-                        ov::intel_npu::profiling.name());
+                        ov::intel_npu::infer_profiling.name());
     }
 }
 

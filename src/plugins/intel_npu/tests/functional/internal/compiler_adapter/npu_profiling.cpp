@@ -25,7 +25,7 @@ protected:
 
         options = std::make_shared<OptionsDesc>();
         options->add<PERF_COUNT>();
-        options->add<PROFILING>();
+        options->add<INFER_PROFILING>();
 
         config = std::make_unique<FilteredConfig>(options);
 
@@ -61,12 +61,12 @@ TEST_F(ProfilingSerializeConfigTests, PerfCountIsForwardedAsSet) {
 }
 
 TEST_F(ProfilingSerializeConfigTests, NpuProfilingIsNeverSerializedUnderItsOwnKey) {
-    config->update({{ov::intel_npu::profiling.name(), "YES"}});
+    config->update({{ov::intel_npu::infer_profiling.name(), "YES"}});
 
     const std::string flags = serialize();
 
-    EXPECT_EQ(flags.find(ov::intel_npu::profiling.name()), std::string::npos)
-        << "NPU_PROFILING is a runtime option and must never reach the compiler: " << flags;
+    EXPECT_EQ(flags.find(ov::intel_npu::infer_profiling.name()), std::string::npos)
+        << "NPU_INFER_PROFILING is a runtime option and must never reach the compiler: " << flags;
 }
 
 }  // namespace
