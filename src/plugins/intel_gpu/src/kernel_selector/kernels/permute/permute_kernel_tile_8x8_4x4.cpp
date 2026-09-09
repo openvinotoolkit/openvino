@@ -374,8 +374,9 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
     // Fused op output indexing is only validated for the is_rotating_except_batch
     // branch; the f<->spatial swap branch stores through a transposed output index,
     // so fall back to another implementation when a fused op is present.
-    if (has_fused_op(params) && IsSwappingFX(params.order))
+    if (has_fused_op(params) && IsSwappingFX(params.order)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
