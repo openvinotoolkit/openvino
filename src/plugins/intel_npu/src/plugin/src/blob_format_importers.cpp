@@ -15,6 +15,7 @@
 #include "intel_npu/common/isection.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/common/parser_factory.hpp"
+#include "intel_npu/common/runtime_requirements.hpp"
 #include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
@@ -361,8 +362,6 @@ public:
                 std::make_shared<EncryptedSchedulesFlagSection>(encryption_enabled, m_logger.level()));
         }
 
-        // TODO compatibility reqs section
-
         return blob_writer;
     }
 
@@ -668,8 +667,6 @@ private:
         OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
         return dynamic_schedule_section->get_blob_type();
     }
-
-    // TODO create blob writer function
 
     BlobReader m_blob_reader;
 };

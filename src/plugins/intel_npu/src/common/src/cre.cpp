@@ -270,10 +270,10 @@ bool is_cre_special_token(const std::shared_ptr<CREToken>& candidate) {
 
 CRE::CRE(const ov::log::Level log_level) : m_logger("CRE", log_level) {}
 
-// TODO validation check inside ctor? or actually validation function, called in multiple other methods
 CRE::CRE(const std::vector<std::shared_ptr<CREToken>>& subexpression, const ov::log::Level log_level)
     : m_logger("CRE", log_level) {
     if (!subexpression.empty()) {
+        OPENVINO_ASSERT(is_expression_valid(subexpression), "Received an invalid subexpression");
         m_subexpressions.push_back(subexpression);
     }
 }
@@ -307,6 +307,7 @@ void CRE::append_to_expression(const std::vector<std::shared_ptr<CREToken>>& sub
     if (!subexpression_size) {
         return;
     }
+    OPENVINO_ASSERT(is_expression_valid(subexpression), "Received an invalid subexpression to append to the CRE");
 
     // Add brackets to ensure the correct order of evaluation. Required only if the current subexpression is not the
     // first one
@@ -562,8 +563,8 @@ ov::CompatibilityCheck CRE::check_compatibility(
 }
 
 std::string cre_to_string(const CRE cre) {
-    // TODO validate the CRE
     const std::vector<std::shared_ptr<CREToken>> expression = cre.get_expression();
+    OPENVINO_ASSERT(is_expression_valid(expression), "Invalid CRE");
     std::string result("");
 
     bool is_first_token = true;

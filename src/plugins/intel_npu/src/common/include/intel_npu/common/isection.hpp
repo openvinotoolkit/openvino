@@ -57,7 +57,6 @@ public:
     // TODO rename?
     virtual std::optional<std::string> get_inidividual_compatibility_requirements() const;
 
-    // TODO return optional?
     /**
      * @brief Get the compatibility requirements subexpression corresponding to the current section.
      * @details The base implementation returns the section ID (type ID + type instance ID) as the required
@@ -107,13 +106,6 @@ private:
      * @note This value exists only if the current section has been added to a BlobWriter writing queue.
      */
     mutable std::optional<SectionID> m_id;
-
-    // TODO is this necessary?
-    /**
-     * @brief Stores the result obtained after evaluating if the current section is supported based on its section
-     * content. This result can then be returned in future calls, thus avoiding the need to reevaluate.
-     */
-    mutable std::optional<bool> m_supported;
 };
 
 }  // namespace intel_npu

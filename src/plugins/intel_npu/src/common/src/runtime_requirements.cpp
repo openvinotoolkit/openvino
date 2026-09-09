@@ -57,7 +57,7 @@ std::unordered_map<SectionID, SectionType> RuntimeRequirements::get_section_id_t
 std::unordered_map<SectionID, SectionInstanceEvaluator> RuntimeRequirements::build_section_instance_evaluators(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     std::unordered_map<SectionID, SectionInstanceEvaluator> per_instance_evaluators;
-    // TODO should all instances have evaluators?
+
     for (const auto [section_id, section_runtime_requirements] : m_sections_requirements) {
         OPENVINO_ASSERT(!per_instance_evaluators.count(section_id),
                         "Found a section that has at least two entries within the runtime requirements");
@@ -79,7 +79,8 @@ ov::CompatibilityCheck RuntimeRequirements::get_compatibility_check_result(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     if (!m_compatibility_check_result.has_value()) {
         // TODO maybe log message if caching used, and the new evaluators are ignored
-        // TODO asserts evaluators are empty?
+        OPENVINO_ASSERT(m_instance_evaluators.empty(), "Invalid state");
+
         m_type_evaluators = type_evaluators;
         m_instance_evaluators = build_section_instance_evaluators(instance_evaluators);
         m_compatibility_check_result = m_cre.check_compatibility(type_evaluators, m_instance_evaluators);

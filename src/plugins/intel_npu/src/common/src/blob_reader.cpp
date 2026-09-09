@@ -140,7 +140,6 @@ std::shared_ptr<ISection> BlobReader::parse_next_section(BlobSource& source,
     return parsed_section;
 }
 
-// TODO break into more functions, e.g. one for header
 void BlobReader::read(BlobSource& source) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BlobReader::read");
     m_logger.debug("Starting to parse a blob");

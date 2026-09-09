@@ -29,18 +29,6 @@ enum class SectionTypeCode : uint16_t {
     COMPILER_VERSION = 109,
 };
 
-// TODO do we need this?
-static inline const std::unordered_set<SectionType> ALL_VALID_SECTION_TYPE_CODES{
-    SectionTypeCode::RUNTIME_REQUIREMENTS,
-    SectionTypeCode::MANIFEST,
-    SectionTypeCode::ELF_MAIN_SCHEDULE,
-    SectionTypeCode::ELF_INIT_SCHEDULES,
-    SectionTypeCode::DYNAMIC_SCHEDULE,
-    SectionTypeCode::IO_LAYOUTS,
-    SectionTypeCode::BATCH_SIZE,
-    SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG,
-    SectionTypeCode::COMPILER_VERSION};
-
 /**
  * @brief Identifies the type of the section, along with its corresponding read & write handlers.
  */
