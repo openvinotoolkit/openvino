@@ -624,6 +624,10 @@ std::vector<std::string> VCLCompilerImpl::get_supported_options() const {
     auto trailingNul = std::find(options.begin(), options.end(), '\0');
     std::string optionsStr(options.begin(), trailingNul);
 
+    // Marker grepped by tests/functional/internal/plugin/test_compiler_option_support_helper.cpp to
+    // assert the bulk retrieval runs exactly once per compiler-type key. Keep the text in sync.
+    _logger.debug("VCLCompilerImpl return supported_options: %s", optionsStr.c_str());
+
     std::vector<std::string> result;
     std::istringstream iss(optionsStr);
     std::string token;
