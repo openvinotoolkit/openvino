@@ -33,11 +33,14 @@ on:
       - "Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)"
     types:
       - completed
+    branches:
+      - master
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
-# Only trigger for post-commit (push) failures on the master branch, or manual workflow_dispatch for testing
-if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'master') }}
+# Only trigger for post-commit (push) failures on the master branch (the workflow_run `branches` filter
+# already restricts triggering runs to master), or manual workflow_dispatch for testing
+if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'push') }}
 
 permissions: read-all
 
@@ -107,8 +110,7 @@ Logs have been pre-downloaded before this session started:
 - If triggered by `workflow_run` event: ONLY proceed if **all** of the following are true:
   1. `${{ github.event.workflow_run.conclusion }}` is `failure` or `cancelled`.
   2. `${{ github.event.workflow_run.event }}` is `push`.
-  3. `${{ github.event.workflow_run.head_branch }}` is `master`.
-  If any condition fails, call the `noop` tool and exit immediately. This workflow is exclusively for post-commit (push) failures on the `master` branch — do **not** investigate `pull_request` or `merge_group`-triggered runs, or push runs on any other branch.
+  If either condition fails, call the `noop` tool and exit immediately. This workflow is exclusively for post-commit (push) failures on the `master` branch (the `workflow_run` `branches` filter already restricts triggering runs to `master`) — do **not** investigate `pull_request` or `merge_group`-triggered runs.
 - If triggered by `workflow_dispatch` event: check if `${{ github.event.inputs.run_id }}` is provided, use that run ID to fetch the workflow run details. If no `run_id` is provided, check if `${{ github.event.inputs.link }}` is provided, use that workflow link to fetch the workflow run details. If neither is provided, exit immediately.
 
 ### Phase 1: Initial Triage
@@ -116,7 +118,7 @@ Logs have been pre-downloaded before this session started:
 1. **Verify Failure**: Check that `${{ github.event.workflow_run.conclusion }}` is `failure` or `cancelled`
    - **If the workflow was successful**: Call the `noop` tool with message "Post-commit workflow completed successfully - no investigation needed" and **stop immediately**. Do not proceed with any further analysis.
    - **If the workflow failed or was cancelled**: Proceed with the investigation steps below.
-2. **Verify Post-Commit**: Confirm that `${{ github.event.workflow_run.event }}` is `push` and `${{ github.event.workflow_run.head_branch }}` is `master`. If either is not the case, call the `noop` tool with message "Not a post-commit run on master - skipping" and **stop immediately**.
+2. **Verify Post-Commit**: Confirm that `${{ github.event.workflow_run.event }}` is `push`. If it is not, call the `noop` tool with message "Not a post-commit run - skipping" and **stop immediately**. (The `workflow_run` `branches` filter already guarantees the triggering run was on `master`.)
 3. **Get Workflow Details**: Use `get_workflow_run` to get full details of the failed run
 4. **List Jobs**: Use `list_workflow_jobs` to identify which specific jobs failed
 5. **Quick Assessment**: Determine if this is a new type of failure or a recurring pattern
