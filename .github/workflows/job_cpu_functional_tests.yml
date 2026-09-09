@@ -24,8 +24,6 @@ on:
 
 permissions: read-all
 
-env:
-
 jobs:
   CPU_Functional_Tests:
     name: CPU functional tests
