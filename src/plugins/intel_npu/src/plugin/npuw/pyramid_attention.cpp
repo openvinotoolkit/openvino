@@ -476,6 +476,9 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 LOG_DEBUG("  Past key param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
 
                 // Record past key input (will be handled later)
+            } else if (ov::npuw::util::is_swa_kv_cache_name(param_name)) {
+                // SWA-managed KV keeps its fixed window shape untouched.
+                LOG_DEBUG("  Past key param '" << param_name << "' is SWA-managed, left unchanged");
             } else {
                 LOG_WARN("No pre-analyzed sequence dimension for past key param: " << param_name);
                 return std::nullopt;
@@ -491,6 +494,9 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
                 LOG_DEBUG("  Past value param '" << param_name << "' shape: " << original_shape << " -> " << new_shape);
 
                 // Record past value input (will be handled later)
+            } else if (ov::npuw::util::is_swa_kv_cache_name(param_name)) {
+                // SWA-managed KV keeps its fixed window shape untouched.
+                LOG_DEBUG("  Past value param '" << param_name << "' is SWA-managed, left unchanged");
             } else {
                 LOG_WARN("No pre-analyzed sequence dimension for past value param: " << param_name);
                 return std::nullopt;
@@ -684,6 +690,9 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
         const auto& original_params = model->get_parameters();
         for (const auto& param : original_params) {
             const std::string param_name = param->get_friendly_name();
+            if (ov::npuw::util::is_swa_kv_cache_name(param_name)) {
+                continue;
+            }
             bool is_target_param = is_key ? ov::npuw::util::isPastKeyValuesKeyContiguous(param_name).has_value()
                                           : ov::npuw::util::isPastKeyValuesValueContiguous(param_name).has_value();
 
