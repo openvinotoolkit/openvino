@@ -161,7 +161,7 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     if ((input.GetDType() == Datatype::UINT8 || input.GetDType() == Datatype::INT8) &&
         params.resampleType != ResampleType::NEAREST_NEIGHBOR &&
         params.resampleType != ResampleType::BILINEAR_INTERP &&
-        params.resampleType != ResampleType::LINEAR_ONNX)
+        params.resampleType != ResampleType::LINEAR_ONNX) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
