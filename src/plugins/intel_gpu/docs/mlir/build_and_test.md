@@ -26,6 +26,7 @@ export LLVM_INSTALL_DIR=$GRAPH_COMPILER_DIR/externals/llvm-project/build
 
 cmake -S <openvino> -B <build> \
   -DENABLE_INTEL_GPU=ON \
+  -DENABLE_DEBUG_CAPS=ON \ # enabling DEBUG_CAPS is mandatory for MLIR support
   -DENABLE_MLIR_FOR_GPU=ON \
   -DGraphCompiler_DIR="${GC_INSTALL_DIR}/lib/cmake/GraphCompiler" \
   -DMLIR_DIR="${LLVM_INSTALL_DIR}/lib/cmake/mlir" \
@@ -36,7 +37,7 @@ cmake -S <openvino> -B <build> \
 ## 3. Run
 
 ```sh
-export OV_GPU_ENABLE_MLIR=1        # or GPU_ENABLE_MLIR in the GPU config file
+export OV_GPU_ENABLE_MLIR=1        # env variable only, DEBUG_GLOBAL options are not read from the config file
 ```
 
 ## Testing

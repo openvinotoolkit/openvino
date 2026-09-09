@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cstdlib>
 #include <openvino/op/abs.hpp>
 #include <openvino/op/add.hpp>
 #include <openvino/op/ceiling.hpp>
@@ -36,6 +35,7 @@
 #include "gc/Transforms/Passes.h"
 #include "graph_converter.hpp"
 #include "intel_gpu/op/mlir_op.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "mlir/Dialect/Bufferization/Transforms/Passes.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/Passes.h"
@@ -292,27 +292,31 @@ namespace ov::intel_gpu::mlir {
 
 // Marks matched subgraphs with a custom function name so the
 // Partitioner groups them into a dedicated MLIR function.
-// The patterns are specified with the env var:
-//   OV_MLIR_PATTERNS="name1=Type1,Type2;name2=Type3,Type4,...".
-// Behavior depending on OV_MLIR_PATTERNS:
-//   unset        -> fall back to the default patterns (PatternMatcher::default_patterns);
-//   empty string -> match every op already marked by the pattern passes;
-//   "spec"       -> match only the specified chains.
+// The patterns come from ov::intel_gpu::mlir_patterns (OV_GPU_MLIR_PATTERNS env var), format is
+//   "name1=Type1,Type2;name2=Type3,Type4,...".
+// Behavior depending on its value:
+//   empty  -> fall back to the default patterns (PatternMatcher::default_patterns);
+//   "*"    -> match every op already marked by the pattern passes;
+//   "spec" -> match only the specified chains.
 class PatternMatcher : public ov::pass::ModelPass {
     struct NamedPattern {
         std::string name;
         std::vector<std::string> types;
     };
 
-    // Out-of-the-box patterns used when OV_MLIR_PATTERNS is not set
+    // Out-of-the-box patterns used when mlir_patterns is not set
     static constexpr const char* default_patterns = "sdpa=ScaledDotProductAttention";
+    // Special value of mlir_patterns: match everything already marked by the pattern passes
+    static constexpr const char* match_all = "*";
 
-    const std::vector<NamedPattern> patterns = []() {
+    static std::vector<NamedPattern> parse(const std::string& requested) {
         std::vector<NamedPattern> patterns;
-        // Use the raw value to distinguish "unset" from "set to empty":
-        // unset falls back to the default pattern, empty string means "match all".
-        const char* raw = std::getenv("OV_MLIR_PATTERNS");
-        const std::string spec = raw ? std::string(raw) : default_patterns;
+        // An empty pattern list turns run_on_model() into a no-op, so nothing gets narrowed down
+        // and every op marked by the pattern passes stays matched.
+        if (requested == match_all) {
+            return patterns;
+        }
+        const std::string spec = requested.empty() ? std::string(default_patterns) : requested;
         size_t pos = 0;
         while (pos < spec.size()) {
             auto sep = spec.find(';', pos);
@@ -337,10 +341,14 @@ class PatternMatcher : public ov::pass::ModelPass {
             }
         }
         return patterns;
-    }();
+    }
+
+    const std::vector<NamedPattern> patterns;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("PatternMatcher");
+
+    explicit PatternMatcher(const std::string& requested) : patterns(parse(requested)) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
         if (patterns.empty()) {
@@ -480,7 +488,10 @@ namespace {
 using namespace mlir;
 using namespace ov::intel_gpu::mlir;
 
-void injectMLIR(const std::shared_ptr<ov::Model>& model, MLIRContext* context, const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
+void injectMLIR(const std::shared_ptr<ov::Model>& model,
+                MLIRContext* context,
+                const ov::intel_gpu::ExecutionConfig& config,
+                const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
     ov::pass::Manager manager;
     using namespace ov::op;
     manager.set_per_pass_validation(false);
@@ -515,7 +526,7 @@ void injectMLIR(const std::shared_ptr<ov::Model>& model, MLIRContext* context, c
     manager.register_pass<TransposePattern>();
     manager.register_pass<UnsqueezePattern>();
     manager.register_pass<MatMulPattern>();
-    manager.register_pass<PatternMatcher>();
+    manager.register_pass<PatternMatcher>(config.get_mlir_patterns());
     manager.register_pass<Partitioner>(context, loweringContext);
     manager.run_passes(model);
     model->validate_nodes_and_infer_types();
@@ -532,6 +543,8 @@ MLIRContext* get_shared_mlir_context() {
 
 }  // namespace
 
-void ov::intel_gpu::mlir::transformMLIR(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
-    injectMLIR(model, get_shared_mlir_context(), loweringContext);
+void ov::intel_gpu::mlir::transformMLIR(const std::shared_ptr<ov::Model>& model,
+                                        const ov::intel_gpu::ExecutionConfig& config,
+                                        const std::shared_ptr<ov::EvaluationContext>& loweringContext) {
+    injectMLIR(model, get_shared_mlir_context(), config, loweringContext);
 }

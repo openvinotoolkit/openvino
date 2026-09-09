@@ -6,11 +6,15 @@
 
 #include <memory>
 
+#include "intel_gpu/runtime/execution_config.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/model.hpp"
 
 namespace ov::intel_gpu::mlir {
 
-void transformMLIR(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::EvaluationContext>& loweringContext);
+// 'config' is needed for the per-model ov::intel_gpu::mlir_patterns option
+void transformMLIR(const std::shared_ptr<ov::Model>& model,
+                   const ExecutionConfig& config,
+                   const std::shared_ptr<ov::EvaluationContext>& loweringContext);
 
 }  // namespace ov::intel_gpu::mlir

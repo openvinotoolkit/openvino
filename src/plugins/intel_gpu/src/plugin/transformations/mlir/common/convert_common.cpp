@@ -4,8 +4,9 @@
 
 #include "convert_common.hpp"
 
-#include <openvino/util/env_util.hpp>
 #include <utility>
+
+#include "intel_gpu/runtime/execution_config.hpp"
 
 namespace ov::intel_gpu::mlir {
 
@@ -196,8 +197,8 @@ bool statically_broadcastable(const PartialShape& from, const PartialShape& to) 
 }
 
 bool is_debug() {
-    static bool debug = util::getenv_bool("OV_MLIR_DEBUG", false);
-    return debug;
+    // The option is DEBUG-only, but ENABLE_MLIR_FOR_GPU requires ENABLE_GPU_DEBUG_CAPS, so it always exists here
+    return ov::intel_gpu::ExecutionConfig::get_mlir_debug();
 }
 
 }  // namespace ov::intel_gpu::mlir

@@ -29,7 +29,7 @@ the GPU transformation pipeline.
 3. Add a functional test under `tests/functional/mlir_op/` (built only with `ENABLE_MLIR_FOR_GPU=ON`).
 
 Note that being *supported* and being *enabled by default* are different things: the set of patterns applied by
-default is narrow and can be overridden with the `OV_MLIR_PATTERNS` env variable
+default is narrow and can be overridden with the `ov::intel_gpu::mlir_patterns` option (`OV_GPU_MLIR_PATTERNS` env variable)
 (see [overall_flow.md](../../../../docs/mlir/overall_flow.md)).
 
 ## See also

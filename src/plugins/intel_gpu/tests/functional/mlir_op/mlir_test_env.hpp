@@ -16,21 +16,22 @@
 
 namespace ov::test {
 
-// RAII helper for MLIR op tests. Sets 'OV_MLIR_PATTERNS' to an empty
-// string (match-all to mlir) for the lifetime of the test-class object.
+// RAII helper for MLIR op tests. Sets 'OV_GPU_MLIR_PATTERNS' to "*" (match-all to mlir) for the
+// lifetime of the test-class object. This is the env form of ov::intel_gpu::mlir_patterns; the
+// environment is the only way to set it, DEBUG_GLOBAL options are not accepted from a config map.
 struct MlirMatchAllEnv {
     MlirMatchAllEnv() {
         // Respect an explicitly provided value: only inject "match all" when the
         // variable is not already set, and only then restore (unset) it later.
-        if (std::getenv("OV_MLIR_PATTERNS") == nullptr) {
+        if (std::getenv("OV_GPU_MLIR_PATTERNS") == nullptr) {
             m_owned = true;
-            setenv("OV_MLIR_PATTERNS", "", /*overwrite=*/1);
+            setenv("OV_GPU_MLIR_PATTERNS", "*", /*overwrite=*/1);
         }
     }
 
     ~MlirMatchAllEnv() {
         if (m_owned) {
-            unsetenv("OV_MLIR_PATTERNS");
+            unsetenv("OV_GPU_MLIR_PATTERNS");
         }
     }
 
@@ -67,9 +68,9 @@ inline bool has_mlir_op(const ov::CompiledModel& compiled) {
 
 // Common base for all MLIR op tests.
 //
-// - Sets OV_MLIR_PATTERNS="" for the test lifetime (match-all), see MlirMatchAllEnv.
-// - After run(), verifies that the MLIR path actually was actually involved: when
-//   OV_GPU_ENABLE_MLIR is on, at least one MLIROp must appear in the runtime graph.
+// - Sets OV_GPU_MLIR_PATTERNS="*" for the test lifetime (match-all), see MlirMatchAllEnv.
+// - After run(), verifies that the MLIR path was actually involved: when OV_GPU_ENABLE_MLIR is on,
+//   at least one MLIROp must appear in the runtime graph.
 template <typename Base>
 class MlirTestFixture : public Base {
 protected:

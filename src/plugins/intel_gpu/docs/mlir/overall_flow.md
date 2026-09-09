@@ -78,10 +78,12 @@ The feature is disabled by default and gated twice:
 * at **build time** by `-DENABLE_MLIR_FOR_GPU=ON` (default `OFF`) - when off, no MLIR related
   *implementations* are compiled (no pattern matching/conversion/unit tests/inference logic). The MLIR-related
   *definitions* are still included to the build though (`MLIROp` or `cldnn::mlir_primitive` header files) to
-  avoid sudden broken includes.
+  avoid sudden broken includes. The option requires `ENABLE_GPU_DEBUG_CAPS` (i.e. `ENABLE_DEBUG_CAPS=ON`),
+  since all the runtime knobs of the feature are DEBUG options and the path would otherwise be impossible
+  to switch on.
 * at **runtime** by `ov::intel_gpu::enable_mlir` property (env variable `OV_GPU_ENABLE_MLIR`) which is also
-  `false` by default. The option is `RELEASE_INTERNAL`, i.e. it is not settable via the public API -
-  only via the env variable or the GPU config file (`ov::intel_gpu::config_file`).
+  `false` by default. The option is `DEBUG_GLOBAL`, i.e. it applies to all models of the process and is
+  settable via the env variable only - neither the public API nor the GPU config file accept it.
 
 ## Supported subgraphs
 
@@ -90,12 +92,17 @@ The feature is disabled by default and gated twice:
 The MLIR path supports a lot more operations (see `transformations/mlir/common/converters`), there are unit
 tests for them, but they were never tested on a "real model".
 
-Enabling/disabling certain matching patterns can be controlled via `OV_MLIR_PATTERNS` env variable:
-* unset - fall back to the default patterns (`sdpa=ScaledDotProductAttention`);
-* empty string - enables conversion for every supported operation;
+Enabling/disabling certain matching patterns can be controlled via the `ov::intel_gpu::mlir_patterns`
+option (`OV_GPU_MLIR_PATTERNS` env variable):
+* unset or empty - fall back to the default patterns (`sdpa=ScaledDotProductAttention`);
+* `"*"` - enables conversion for every supported operation;
 * `"name1=Type1,Type2;name2=Type3,Type4"` - match only the specified chains, e.g.
-  `OV_MLIR_PATTERNS='mart=MatMul,Add,Reshape,Transpose;rms=Power,ReduceMean,Add,Sqrt,Divide'` would match
+  `OV_GPU_MLIR_PATTERNS='mart=MatMul,Add,Reshape,Transpose;rms=Power,ReduceMean,Add,Sqrt,Divide'` would match
   projection subgraphs.
+
+`mlir_patterns` is a per-model `DEBUG` option, so unlike `enable_mlir` it can also be set via the GPU
+config file. Verbose logging of the pipeline is controlled by `ov::intel_gpu::mlir_debug`
+(`OV_GPU_MLIR_DEBUG`), which is `DEBUG_GLOBAL` like `enable_mlir`.
 
 ## See also
 

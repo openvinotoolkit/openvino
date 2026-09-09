@@ -979,7 +979,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
             // Never decompose if mlir-path is enabled
-            if (config.get_enable_mlir()) {
+            if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
                 return true;
             }
 
@@ -1705,7 +1705,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.run_passes(func);
     }
 
-    if (config.get_enable_mlir()) {
+    if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
         // Guarded by OV_GPU_MLIR_BACKEND_LINKED rather than ENABLE_MLIR_FOR_GPU: this file is also
         // compiled into ov_gpu_unit_tests, which does not link the MLIR objects providing transformMLIR().
 #ifdef OV_GPU_MLIR_BACKEND_LINKED
@@ -1716,7 +1716,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // actual device will be extracted later by the 'mlir_op'.
             loweringContext->insert(ov::intel_gpu::ocl_context(it->second.as<ov::intel_gpu::gpu_handle_param>()));
         }
-        ov::intel_gpu::mlir::transformMLIR(func, loweringContext);
+        ov::intel_gpu::mlir::transformMLIR(func, config, loweringContext);
 #else
         OPENVINO_THROW("[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
                         "but this binary was built without Graph Compiler support. "

@@ -19,6 +19,7 @@ namespace ov::intel_gpu::mlir {
 
 using namespace ::mlir;
 
+// Verbose logging of the MLIR pipeline, controlled by the global ov::intel_gpu::mlir_debug option
 bool is_debug();
 
 #define OPENVINO_MLIR_DEBUG(X)                   \
