@@ -1130,7 +1130,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             if (has_token_type_ids) {
                 const size_t total_len = token_type_ids_in_tensor->get_size();
                 std::fill_n(token_type_ids_in_tensor->data<int64_t>(), total_len, int64_t{0});
-                std::copy_n(token_type_ids->data<int64_t>() + kvcache_desc.num_stored_tokens,
+                const uint32_t token_type_src_offset = kvcache_desc.num_stored_tokens - m_continued_prefill_base;
+                std::copy_n(token_type_ids->data<int64_t>() + token_type_src_offset,
                             current_prompts_len,
                             token_type_ids_in_tensor->data<int64_t>());
             }
