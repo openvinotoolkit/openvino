@@ -18,7 +18,8 @@ TEST(non_max_suppression, uses_logical_layout_for_fake_aligned_fully_connected_b
 
     const ov::Shape logical_boxes_shape{4, 1, 4};
     const ov::Shape weights_shape{4, 4};
-    const ov::Shape scores_shape{4, 1, 1};
+    const ov::Shape scores_shape{4, 3, 1};
+    const int selected_class = 2;
     const auto selected_indices_count = static_cast<int>(logical_boxes_shape[0]);
 
     const layout boxes_input_layout{logical_boxes_shape, data_type, format::bfyx};
@@ -50,7 +51,10 @@ TEST(non_max_suppression, uses_logical_layout_for_fake_aligned_fully_connected_b
                                                4.f, 0.f, 6.f, 2.f,
                                                4.f, 4.f, 6.f, 6.f});
     tests::set_values(weights_mem, std::vector<ov::float16>(16, ov::float16{1.f}));
-    tests::set_values(scores_mem, std::vector<ov::float16>{1.f, 1.f, 1.f, 1.f});
+    tests::set_values(scores_mem, std::vector<ov::float16>{0.f, 0.f, 1.f,
+                                                           0.f, 0.f, 1.f,
+                                                           0.f, 0.f, 1.f,
+                                                           0.f, 0.f, 1.f});
 
     topology topology;
     topology.add(input_layout{"input", boxes_input_layout});
@@ -77,9 +81,10 @@ TEST(non_max_suppression, uses_logical_layout_for_fake_aligned_fully_connected_b
 
     ASSERT_EQ(output.size(), selected_indices_count * 3);
     for (size_t batch = 0; batch < logical_boxes_shape[0]; ++batch) {
-        EXPECT_EQ(output[batch * 3], static_cast<int32_t>(batch));
-        EXPECT_EQ(output[batch * 3 + 1], 0);
-        EXPECT_EQ(output[batch * 3 + 2], 0);
+        const auto output_idx = batch * 3;
+        EXPECT_EQ(output[output_idx], static_cast<int32_t>(batch));
+        EXPECT_EQ(output[output_idx + 1], selected_class);
+        EXPECT_EQ(output[output_idx + 2], 0);
     }
 }
 
