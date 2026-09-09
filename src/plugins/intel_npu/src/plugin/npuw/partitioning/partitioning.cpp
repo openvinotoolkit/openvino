@@ -2176,8 +2176,9 @@ void Partitioner::optimize(const std::string& func_name) {
             new_params.push_back(entry.first);
             for (auto& ref : func_group.refs) {
                 auto& funcall = ref.get();
-                auto source = source_const ? LazyTensor(source_const) :
-                                             funcall._lazy_closure.at(static_cast<std::size_t>(source_idx) - f._param_offset);
+                auto source = source_const
+                                  ? LazyTensor(source_const)
+                                  : funcall._lazy_closure.at(static_cast<std::size_t>(source_idx) - f._param_offset);
                 funcall._lazy_closure.push_back(source.subtract_128());
                 funcall._closure.emplace_back();
                 funcall._is_lazy_unpack.push_back(false);
