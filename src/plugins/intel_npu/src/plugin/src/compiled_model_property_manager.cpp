@@ -193,7 +193,7 @@ void CompiledModelPropertyManager::registerProperties() {
     registerConfigProperty(EXPORT_RAW_BLOB{}, true);
     registerConfigProperty(IMPORT_RAW_BLOB{}, true);
     registerConfigProperty(INFERENCE_PRECISION_HINT{}, true);
-    registerConfigProperty(PROFILING_TYPE{}, true);
+    registerConfigProperty(INFER_PROFILING{}, true);
     registerConfigProperty(SEPARATE_WEIGHTS_VERSION{}, true);
     registerConfigProperty(SHARED_COMMON_QUEUE{}, true);
 

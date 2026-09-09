@@ -594,7 +594,7 @@ void PluginPropertyManager::registerProperties() {
     registerConfigProperty(DISABLE_VERSION_CHECK{}, false);
     registerConfigProperty(EXPORT_RAW_BLOB{}, false);
     registerConfigProperty(IMPORT_RAW_BLOB{}, false);
-    registerConfigProperty(PROFILING_TYPE{}, false);
+    registerConfigProperty(INFER_PROFILING{}, false);
     registerConfigProperty(SHARED_COMMON_QUEUE{}, false);
 
     // Special case: this property is always registered because it's supported by the implementation,

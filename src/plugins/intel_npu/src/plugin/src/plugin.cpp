@@ -144,7 +144,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(PLATFORM);
     REGISTER_OPTION(CREATE_EXECUTOR);
     REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
-    REGISTER_OPTION(PROFILING_TYPE);
+    REGISTER_OPTION(INFER_PROFILING);
     REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
     REGISTER_OPTION(BATCH_MODE);
     REGISTER_OPTION(BYPASS_UMD_CACHING);
@@ -509,6 +509,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool shouldForceThroughput = successfullyDebatched && !performanceHintSetByUser;
         const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
                                             localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
+        const bool shouldDisablePerfCountForInferProfiling =
+            localConfig.has<INFER_PROFILING>() && localConfig.get<INFER_PROFILING>() &&
+            localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>();
+
+        std::optional<FilteredConfig> modifiedConfig;  // Copy only when needed
+        if (shouldDisablePerfCountForInferProfiling || shouldForceThroughput) {
+            modifiedConfig = localConfig;
+        }
+        FilteredConfig& compilerConfig = modifiedConfig.has_value() ? *modifiedConfig : localConfig;
+
+        if (shouldDisablePerfCountForInferProfiling) {
+            _logger.info("%s is enabled, disabling %s for this compilation",
+                         ov::intel_npu::infer_profiling.name(),
+                         ov::enable_profiling.name());
+            compilerConfig.update(ov::enable_profiling.name(), PERF_COUNT::toString(false));
+        }
 
         if (shouldWarnAboutLatency) {
             _logger.warning("PERFORMANCE_HINT is explicitly set to LATENCY mode, but batch dimension (N) is "
@@ -522,13 +538,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
         if (shouldForceThroughput) {
             _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
-
-            auto modifiedConfig = localConfig;  // Copy only when needed
-            modifiedConfig.updateAny(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
-            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
-        } else {
-            graph = compileWithConfig(std::move(modelToCompile), localConfig);
+            compilerConfig.updateAny(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
         }
+
+        graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
