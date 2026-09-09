@@ -7,9 +7,9 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <regex>
 #include <unordered_set>
 
-#include "../kv_cache_sliding_window_manager.hpp"
 #include "../llm_compiled_model_utils.hpp"
 #include "../logging.hpp"
 #include "../util.hpp"
@@ -248,6 +248,35 @@ void freeze_shapeofs(const PastKVSource& source,
     }
 }
 
+// Renames an SWA past_kv Parameter (and its matching present.N.key/value output) by marking
+// them as SWA-managed, so SWA-managed KV cache entries can be identified by name downstream.
+void rename_swa_past_kv_and_present(const std::shared_ptr<ov::Model>& model,
+                                    const std::shared_ptr<ov::op::v0::Parameter>& param) {
+    const std::string old_name = param->get_friendly_name();
+
+    // Mark the name as SWA-managed by inserting an extra "swa" segment before the final
+    // key/value segment, e.g. "past_key_values.0.key" -> "past_key_values.0.swa.key".
+    const auto pos = old_name.find_last_of('.');
+    OPENVINO_ASSERT(pos != std::string::npos, "[SWA] Cannot mark unqualified name '", old_name, "' as SWA-managed.");
+    const std::string new_name = old_name.substr(0, pos) + ".swa" + old_name.substr(pos);
+
+    param->set_friendly_name(new_name);
+    param->get_output_tensor(0).set_names({new_name});
+
+    static const std::regex past_kv_regex("past_key_values");
+    const std::string old_present_name = std::regex_replace(old_name, past_kv_regex, "present");
+    const std::string new_present_name = std::regex_replace(new_name, past_kv_regex, "present");
+    for (const auto& output : model->outputs()) {
+        if (output.get_names().count(old_present_name) == 0) {
+            continue;
+        }
+        output.get_tensor().set_names({new_present_name});
+        LOG_DEBUG("[SWA] Renamed present output '" << old_present_name << "' -> '" << new_present_name << "'.");
+        return;
+    }
+    OPENVINO_ASSERT(false, "[SWA] No present output found matching past_kv Parameter '", old_name, "'.");
+}
+
 // Scans every SDPA node once, in topological order. For each SWA one found, externalizes
 // its mask into one shared Parameter (created on first encounter), patches its K/V shape
 // dependencies, and shrinks its past_kv Parameter. Topology violations abort with an error
@@ -330,10 +359,12 @@ void scan_and_patch(const std::shared_ptr<ov::Model>& model,
             const int64_t old_past = new_shape[seq_len_axis].get_length();
             new_shape[seq_len_axis] = new_past;
             source.param->set_partial_shape(new_shape);
-            source.param->get_rt_info()[ov::npuw::util::NPUW_KV_CACHE_SLIDING_RT_KEY] = true;
+            const std::string old_kv_name = source.param->get_friendly_name();
+            rename_swa_past_kv_and_present(model, source.param);
             ++num_params_shrunk;
-            LOG_DEBUG("[SWA] Past KV '" << source.param->get_friendly_name() << "' seq_len " << old_past << " -> "
-                                        << new_past << " (post-concat total=" << new_kv_total << ")");
+            LOG_DEBUG("[SWA] Past KV '" << old_kv_name << "' seq_len " << old_past << " -> " << new_past
+                                        << " (post-concat total=" << new_kv_total << "), renamed to '"
+                                        << source.param->get_friendly_name() << "'");
         }
     }
 
@@ -357,8 +388,8 @@ ShrinkSlidingWindowKVCache::ShrinkSlidingWindowKVCache(uint32_t kvcache_size,
       m_kv_axes_position(kv_axes_position) {}
 
 bool ShrinkSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    const uint32_t window_size = detect_swa_window_size(model);
-    if (window_size == 0) {
+    m_window_size = detect_swa_window_size(model);
+    if (m_window_size == 0) {
         LOG_DEBUG("[SWA] Sliding Window Attention is not configured, skipping " << model->get_friendly_name());
         return false;
     }
@@ -376,18 +407,18 @@ bool ShrinkSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& 
     // 2) prefill_chunk_size == max_prompt_len (for example, both are 1k).
     // Result: there is no past region, so SWA layers keep no past KV.
     const uint32_t available_past = m_kvcache_size - m_input_size;
-    OPENVINO_ASSERT(available_past == 0 || window_size <= available_past,
+    OPENVINO_ASSERT(available_past == 0 || m_window_size <= available_past,
                     "[SWA] window_size (",
-                    window_size,
+                    m_window_size,
                     ") exceeds available_past (",
                     available_past,
                     ").");
-    const int64_t new_past = available_past == 0 ? 0 : static_cast<int64_t>(window_size);
+    const int64_t new_past = available_past == 0 ? 0 : static_cast<int64_t>(m_window_size);
     const int64_t new_kv_total = static_cast<int64_t>(m_input_size) + new_past;
 
     LOG_INFO("[SWA] ShrinkSlidingWindowKVCache: model='"
              << model->get_friendly_name() << "' kvcache=" << m_kvcache_size << " input=" << m_input_size
-             << " window=" << window_size << " new_past=" << new_past << " new_kv_total=" << new_kv_total);
+             << " window=" << m_window_size << " new_past=" << new_past << " new_kv_total=" << new_kv_total);
 
     const size_t seq_len_axis = static_cast<size_t>(m_kv_axes_position.seq_len);
     scan_and_patch(model, static_cast<int64_t>(m_kvcache_size), new_past, new_kv_total, seq_len_axis);

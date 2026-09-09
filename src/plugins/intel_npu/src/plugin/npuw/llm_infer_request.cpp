@@ -9,6 +9,7 @@
 #include <regex>
 
 #include "infer_request_utils.hpp"
+#include "kv_cache_sliding_window_manager.hpp"
 #include "llm_block_kvcache_strategy.hpp"
 #include "llm_compiled_model.hpp"
 #include "llm_continuous_kvcache_strategy.hpp"
@@ -347,19 +348,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         }
     }
 
-    for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
-        const auto& all_names = input_port.get_names();
-        for (const auto& name : all_names) {
-            if (ov::npuw::util::starts_with(name, layer_names::past_key_values)) {
-                m_kvcache_past_names.push_back(name);
-                break;
-            }
-            if (ov::npuw::util::starts_with_past_lincache(name)) {
-                m_lincache_past_names.push_back(name);
-                break;
-            }
-        }
-    }
+    init_past_name_lists();
+
+    m_swa_cache = std::make_unique<SwaKVCacheHelper>(*this, m_npuw_llm_compiled_model->m_swa_window_size);
 
     m_pre_alloc_device = init_pre_alloc_device();
     m_stored_tokens_state = std::make_shared<ov::npuw::StoredTokensState>();
@@ -386,9 +377,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_kvcache_strategy = std::make_unique<LLMContinuousKVCacheStrategy>(*this);
     }
     m_kvcache_strategy->on_initialize();
-    // Lincache shape is kvcache_size-independent, so the same tensor can be shared across all
+    // Lincache/SWA shape is kvcache_size-independent, so the same tensor can be shared across all
     // generate variants.
     share_lincache_across_generate_variants();
+    m_swa_cache->share_across_generate_variants();
 
     if (m_npuw_llm_compiled_model->m_enable_prefix_caching) {
         const size_t prefix_cache_count = m_npuw_llm_compiled_model->m_longrope_context_limit > 0u ? 2u : 1u;
@@ -447,6 +439,10 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
             auto lincache_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(lincache_past_name));
             ov::npuw::util::fill_tensor_bytes(lincache_in_tensor, 0u);
         }
+        for (const auto& swa_past_name : m_swa_past_names) {
+            auto swa_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(swa_past_name));
+            ov::npuw::util::fill_tensor_bytes(swa_in_tensor, 0u);
+        }
     }
 
     m_generate_initialized = false;
@@ -486,6 +482,39 @@ std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
     }
 
     return pre_alloc_on_npu ? "NPU" : "CPU";
+}
+
+void ov::npuw::LLMInferRequest::init_past_name_lists() {
+    m_kvcache_past_names.clear();
+    m_lincache_past_names.clear();
+    m_swa_past_names.clear();
+
+    for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
+        const auto& all_names = input_port.get_names();
+        for (const auto& name : all_names) {
+            if (ov::npuw::util::starts_with_past_lincache(name)) {
+                m_lincache_past_names.push_back(name);
+                break;
+            }
+            if (ov::npuw::util::is_swa_kv_cache_name(name)) {
+                m_swa_past_names.push_back(name);
+                break;
+            }
+            if (ov::npuw::util::starts_with(name, layer_names::past_key_values)) {
+                m_kvcache_past_names.push_back(name);
+                break;
+            }
+        }
+    }
+}
+
+void ov::npuw::LLMInferRequest::zero_prefill_past_tensors(const std::vector<std::string>& past_names) {
+    namespace uu = ov::npuw::util;
+    for (const auto& input_name : past_names) {
+        if (m_prefill_in_ports.find(input_name) != m_prefill_in_ports.end()) {
+            uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name)), 0u);
+        }
+    }
 }
 
 void ov::npuw::LLMInferRequest::bind_past_kv() {
@@ -675,8 +704,6 @@ void ov::npuw::LLMInferRequest::bind_generate_variant(int64_t prompt_length) {
 }
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_length) {
-    namespace uu = ov::npuw::util;
-
     // A continued prefill that failed mid-way may leave its delta base behind;
     // a full prefill always addresses the caller tensors from zero.
     m_continued_prefill_base = 0u;
@@ -685,11 +712,8 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
 
     m_kvcache_strategy->on_reset(prompt_length > 0 ? static_cast<uint32_t>(prompt_length) : 0u);
 
-    for (const auto& input_name : m_lincache_past_names) {
-        if (m_prefill_in_ports.find(input_name) != m_prefill_in_ports.end()) {
-            uu::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name)), 0u);
-        }
-    }
+    zero_prefill_past_tensors(m_lincache_past_names);
+    m_swa_cache->zero_prefill_tensors();
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 
@@ -1145,6 +1169,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                             token_type_ids_in_tensor->data<int64_t>() + total_len - current_prompts_len);
             }
 
+            // Fill the SWA attention mask for this chunk's tokens.
+            m_swa_cache->fill_attention_masks(m_prefill_request,
+                                              m_prefill_in_ports,
+                                              static_cast<uint32_t>(current_prompts_len));
+
             // Prepare KV blocks or bind memory for this chunk via strategy.
             m_kvcache_strategy->on_prefill_chunk_begin(static_cast<uint32_t>(current_prompts_len));
         });
@@ -1180,6 +1209,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             if (!is_last_chunk) {
                 // Attention mask and lincache update for intermediate chunks.
                 copy_lincache(m_prefill_request, m_prefill_request, m_prefill_out_ports, m_prefill_in_ports);
+                m_swa_cache->update_prefill(static_cast<uint32_t>(current_prompts_len));
 
                 std::copy_n(
                     attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
@@ -1255,6 +1285,11 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
             auto dst = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::per_layer_inputs));
             ov::npuw::util::copy_to_right(per_layer_inputs, dst);
         }
+
+        m_swa_cache->fill_attention_masks(
+            m_prefill_request,
+            m_prefill_in_ports,
+            static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]));
     });
 
     m_llm_profile["1/prefill:3b.infer"].record([&]() {
@@ -1479,6 +1514,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             if (kvcache_desc.num_stored_tokens > 0) {
                 m_kvcache_strategy->on_generate_kv_init();
                 copy_lincache(m_prefill_request, m_kvcache_request, m_prefill_out_ports, m_kvcache_in_ports);
+                m_swa_cache->copy_prefill_to_generate();
             }
 
             LOG_DEBUG("Prepare inputs.");
@@ -1549,6 +1585,8 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             auto dst = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::per_layer_inputs));
             ov::npuw::util::copy_to_right(per_layer_inputs, dst);
         }
+
+        m_swa_cache->fill_attention_masks(m_kvcache_request, m_kvcache_in_ports, input_tokens_len);
     });
 
     m_llm_profile["N/generate:2.infer"].record([&]() {
@@ -1561,6 +1599,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         m_llm_profile["N/generate:3.update_kvcache"].record([&]() {
             if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
                 m_kvcache_strategy->on_generate_step_done(input_tokens_len);
+                m_swa_cache->update_generate(input_tokens_len);
             }
         });
     };
