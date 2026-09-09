@@ -5,14 +5,13 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
-#include "openvino/pass/pass.hpp"
 
 namespace ov::intel_gpu {
 
-class MarkBatchedNmsStaticClassCount : public ov::pass::ModelPass {
+class MarkBatchedNmsStaticClassCount : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("ov::intel_gpu::MarkBatchedNmsStaticClassCount");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    OPENVINO_MATCHER_PASS_RTTI("ov::intel_gpu::MarkBatchedNmsStaticClassCount");
+    MarkBatchedNmsStaticClassCount();
 };
 
 // Replaces the lowered PyTorch-style batched NMS pattern with a real
