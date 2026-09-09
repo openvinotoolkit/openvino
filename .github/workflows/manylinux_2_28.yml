@@ -118,8 +118,8 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ''
+      CMAKE_C_COMPILER_LAUNCHER: ''
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_CACHE_SIZE: 50G
@@ -133,6 +133,7 @@ jobs:
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: false # runner_squish_no_cache: compile cache disabled
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -184,6 +185,7 @@ jobs:
           CXXFLAGS: "-Wno-dangling-reference" # bug in gcc-14: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107532
 
       - name: Zero compile cache stats (openvino main build)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./src/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -195,12 +197,14 @@ jobs:
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
 
       - name: Compile cache statistics (openvino main build)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./src/.github/actions/compile_cache_stats
         with:
           build-label: openvino-main
           artifact-name: compile-cache-stats-manylinux-openvino-main
 
       - name: Zero compile cache stats (python api wheels)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./src/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -234,6 +238,7 @@ jobs:
           done
 
       - name: Compile cache statistics (python api wheels)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./src/.github/actions/compile_cache_stats
         with:
           build-label: python-api-wheels
@@ -247,6 +252,7 @@ jobs:
                 -DENABLE_WHEEL=OFF
 
       - name: Zero compile cache stats (openvino js api)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./src/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -257,6 +263,7 @@ jobs:
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node/bin
 
       - name: Compile cache statistics (openvino js api)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./src/.github/actions/compile_cache_stats
         with:
           build-label: openvino-js-api

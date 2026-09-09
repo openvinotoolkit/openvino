@@ -113,8 +113,8 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ''
+      CMAKE_C_COMPILER_LAUNCHER: ''
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
@@ -130,6 +130,7 @@ jobs:
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: false # runner_squish_no_cache: compile cache disabled
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -186,6 +187,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Zero compile cache stats (openvino cc collect main)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -194,12 +196,14 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Compile cache statistics (openvino cc collect main)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-collect-openvino-main
           artifact-name: compile-cache-stats-linux-cc-collect-openvino-main
 
       - name: Zero compile cache stats (sea_itt_lib)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -208,6 +212,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
       - name: Compile cache statistics (sea_itt_lib)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-collect-sea-itt-lib
@@ -221,6 +226,7 @@ jobs:
         run: cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${BUILD_DIR} -S ${INSTALL_DIR}/samples/cpp -B ${BUILD_DIR}/cpp_samples
 
       - name: Zero compile cache stats (cpp samples)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -229,6 +235,7 @@ jobs:
         run: cmake --build ${BUILD_DIR}/cpp_samples --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
 
       - name: Compile cache statistics (cpp samples)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-collect-cpp-samples
@@ -305,8 +312,8 @@ jobs:
       options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ''
+      CMAKE_C_COMPILER_LAUNCHER: ''
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
@@ -318,6 +325,7 @@ jobs:
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: false # runner_squish_no_cache: compile cache disabled
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -379,6 +387,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Zero compile cache stats (cc on benchmark_app)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -387,6 +396,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 8 --target benchmark_app -- --quiet
 
       - name: Compile cache statistics (cc on benchmark_app)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cc-on-benchmark-app

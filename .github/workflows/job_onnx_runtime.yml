@@ -21,7 +21,7 @@ on:
         description: 'Use compiler cache (sccache/ccache) for builds in this job'
         type: boolean
         required: false
-        default: true
+        default: false
 
 permissions: read-all
 
@@ -111,7 +111,7 @@ jobs:
       #
 
       - name: Zero compile cache stats (onnx runtime build)
-        if: ${{ inputs.enable-compile-cache }}
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -133,7 +133,7 @@ jobs:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
 
       - name: Compile cache statistics (onnx runtime build)
-        if: ${{ inputs.enable-compile-cache }}
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./.github/actions/compile_cache_stats
         with:
           build-label: onnx-runtime-build

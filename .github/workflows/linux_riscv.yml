@@ -132,8 +132,8 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ''
+      CMAKE_C_COMPILER_LAUNCHER: ''
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       BUILD_DIR: ${{ github.workspace }}/build
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
@@ -159,6 +159,7 @@ jobs:
         uses: ./openvino/.github/actions/system_info
 
       - name: Setup ccache
+        if: false # runner_squish_no_cache: compile cache disabled
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
@@ -194,6 +195,7 @@ jobs:
           -B ${BUILD_DIR}
 
       - name: Zero compile cache stats (openvino main build)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -202,6 +204,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
 
       - name: Compile cache statistics (openvino main build)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: openvino-main

@@ -118,8 +118,8 @@ jobs:
       BUILD_TYPE: Release
       INSTALL_DIR: android_package
       INSTALL_TEST_DIR: android_tests
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ''
+      CMAKE_C_COMPILER_LAUNCHER: ''
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: /__w/openvino/sccache_log.txt
@@ -142,6 +142,7 @@ jobs:
       PRODUCT_TYPE: public_android_${{ matrix.arch }}_release
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: false # runner_squish_no_cache: compile cache disabled
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -217,6 +218,7 @@ jobs:
             -B ${TBB_BUILD}
 
       - name: Zero compile cache stats (onetbb)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -225,6 +227,7 @@ jobs:
         run: cmake --build ${TBB_BUILD} --parallel 15 -- --quiet
 
       - name: Compile cache statistics (onetbb)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: onetbb-${{ matrix.arch }}
@@ -266,6 +269,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: Zero compile cache stats (openvino)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -274,6 +278,7 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
 
       - name: Compile cache statistics (openvino)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: openvino-${{ matrix.arch }}

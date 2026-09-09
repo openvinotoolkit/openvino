@@ -107,8 +107,8 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ''
+      CMAKE_C_COMPILER_LAUNCHER: ''
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
@@ -134,6 +134,7 @@ jobs:
         uses: ./openvino/.github/actions/system_info
         
       - name: Setup ccache
+        if: false # runner_squish_no_cache: compile cache disabled
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
@@ -229,8 +230,8 @@ jobs:
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_BUILD_DIR}/dependencies/conan_toolchain.cmake \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER='' \
+            -DCMAKE_C_COMPILER_LAUNCHER='' \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
             -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
             -S ${OPENVINO_REPO} \
@@ -238,6 +239,7 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
 
       - name: Zero compile cache stats (openvino main build)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -246,12 +248,14 @@ jobs:
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel 15 -- --quiet
 
       - name: Compile cache statistics (openvino main build)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: openvino-main
           artifact-name: compile-cache-stats-linux-riscv-conan-openvino-main
 
       - name: Zero compile cache stats (cmake install target)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           mode: zero-stats
@@ -260,6 +264,7 @@ jobs:
         run: cmake --build ${OPENVINO_BUILD_DIR} --parallel 15 --target install -- --quiet
 
       - name: Compile cache statistics (cmake install target)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
         with:
           build-label: cmake-install-target
