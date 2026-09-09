@@ -4,7 +4,6 @@
 
 #include "openvino/xml_util/weights_provider.hpp"
 
-#include <istream>
 #include <limits>
 
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -12,8 +11,8 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/native_stream.hpp"
 #include "openvino/util/parallel_io.hpp"
-#include "openvino/util/parallel_read_streambuf.hpp"
 
 namespace ov::util {
 
@@ -31,7 +30,9 @@ std::filesystem::path WeightsProvider::path() const {
 }
 
 BufferWeightsProvider::BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights)
-    : m_weights(std::move(weights)) {}
+    : m_weights(std::move(weights)) {
+    OPENVINO_ASSERT(m_weights != nullptr, "Empty weights data in bin file or bin file cannot be found!");
+}
 
 std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::make_region(size_t offset, size_t size) {
     OPENVINO_ASSERT(m_weights != nullptr, "Empty weights data in bin file or bin file cannot be found!");
@@ -81,8 +82,9 @@ std::shared_ptr<ov::AlignedBuffer> FileWeightsProvider::make_region(size_t offse
     } else {
         auto file_region = std::make_shared<ov::AlignedBuffer>(size);
         if (size > 0) {
-            ov::util::ParallelReadStreamBuf stream_buf(m_weights_path, static_cast<std::streamoff>(offset));
-            std::istream weights_stream(&stream_buf);
+            ov::util::NativeIfstream weights_stream(m_weights_handle,
+                                                    static_cast<std::streamoff>(offset),
+                                                    static_cast<std::streamoff>(size));
             weights_stream.read(file_region->get_ptr<char>(), static_cast<std::streamsize>(size));
             OPENVINO_ASSERT(weights_stream && static_cast<size_t>(weights_stream.gcount()) == size,
                             "Failed to read weights from ",
