@@ -139,11 +139,39 @@ bool infer_prefix_limit(const ov::Output<ov::Node>& output, int64_t& prefix_limi
     return true;
 }
 
+bool has_batched_nms_marking_candidate(const ov::Output<ov::Node>& output) {
+    const auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(output.get_node_shared_ptr());
+    if (!subgraph) {
+        return false;
+    }
+
+    const auto& bodies = subgraph->get_functions();
+    for (size_t body_index = 0; body_index < bodies.size(); ++body_index) {
+        const auto body_index_i = static_cast<int>(body_index);
+
+        for (const auto& input_desc : subgraph->get_input_descriptions(body_index_i)) {
+            const auto source = subgraph->input(input_desc->m_input_index).get_source_output();
+            if (ov::is_type<ov::op::util::GatherBase>(source.get_node_shared_ptr())) {
+                return true;
+            }
+        }
+
+        for (const auto& output_desc : subgraph->get_output_descriptions(body_index_i)) {
+            for (const auto& consumer : subgraph->output(output_desc->m_output_index).get_target_inputs()) {
+                if (ov::is_type<ov::op::v8::Slice>(consumer.get_node())) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 }  // namespace
 
 MarkBatchedNmsStaticClassCount::MarkBatchedNmsStaticClassCount() {
-    MATCHER_SCOPE(MarkBatchedNmsStaticClassCount);
-    auto subgraph_m = ov::pass::pattern::wrap_type<ov::op::util::MultiSubGraphOp>();
+    auto subgraph_m = ov::pass::pattern::wrap_type<ov::op::util::MultiSubGraphOp>(has_batched_nms_marking_candidate);
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(m.get_match_root());
@@ -178,7 +206,7 @@ MarkBatchedNmsStaticClassCount::MarkBatchedNmsStaticClassCount() {
         return marked;
     };
 
-    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(subgraph_m, matcher_name);
+    auto matcher = std::make_shared<ov::pass::pattern::Matcher>(subgraph_m, "MarkBatchedNmsStaticClassCount");
     register_matcher(matcher, callback);
 }
 
@@ -202,8 +230,12 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
     auto scores_unsqueeze_m = wrap_type<ov::op::v0::Unsqueeze, ov::op::v1::Reshape>({raw_scores_m, any_input()});
 
     // match NMSIEInternal for a static model, or op::v9 NMS for a dynamic model.
+    auto supported_nms_m = [](const ov::Output<ov::Node>& output) {
+        return has_supported_nms_semantics(output.get_node_shared_ptr());
+    };
     auto nms_m = wrap_type<ov::op::v9::NonMaxSuppression, ov::op::internal::NonMaxSuppressionIEInternal>(
-        {boxes_reshape_m, scores_unsqueeze_m, any_input(), any_input(), any_input()});
+        {boxes_reshape_m, scores_unsqueeze_m, any_input(), any_input(), any_input()},
+        supported_nms_m);
     auto nms_output_m = optional<ov::op::v0::Convert>(nms_m);
     auto gather_indices_m = wrap_type<ov::op::v0::Constant>(value_matches("2"));
     auto gather_axis_m = wrap_type<ov::op::v0::Constant>(value_matches("1"));
@@ -240,7 +272,7 @@ ConvertBatchedNmsToMulticlassNms::ConvertBatchedNmsToMulticlassNms() {
         if (max_output_boxes < 0 || max_output_boxes > std::numeric_limits<int>::max()) {
             return false;
         }
-        if (!has_supported_nms_semantics(nms) || !std::isfinite(score_threshold)) {
+        if (!std::isfinite(score_threshold)) {
             return false;
         }
 
