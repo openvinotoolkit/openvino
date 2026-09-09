@@ -156,6 +156,7 @@ ZeroInitStructsMock::ZeroInitStructsMock(uint32_t zeDriverNpuExtVersion,
                                          uint32_t zeContextNpuExtVersion,
                                          uint32_t zeMutableCommandListExtVersion,
                                          uint32_t zeExternalMemMapSysMemExtVersion,
+                                         uint32_t zeCommandQueueSetPriorityExtVersion,
                                          ze_api_version_t zeApiVersion)
     : _zero_api(ZeroApi::get_instance()),
       _log("NPUZeroInitStructsHolder", Logger::global().level()) {
@@ -366,6 +367,21 @@ ZeroInitStructsMock::ZeroInitStructsMock(uint32_t zeDriverNpuExtVersion,
 
     if (external_memory_mapping_ext_version > 0) {
         _external_memory_standard_allocation_supported = true;
+    }
+
+    uint32_t command_queue_set_priority_ext_version = 0;
+    std::tie(command_queue_set_priority_ext_version, std::ignore) =
+        queryDriverExtensionVersion(ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_NAME,
+                                    zeCommandQueueSetPriorityExtVersion,
+                                    extProps,
+                                    count);
+
+    _log.debug("Command queue set priority extension version %d.%d",
+               ZE_MAJOR_VERSION(command_queue_set_priority_ext_version),
+               ZE_MINOR_VERSION(command_queue_set_priority_ext_version));
+
+    if (command_queue_set_priority_ext_version > 0) {
+        _command_queue_set_priority_supported = true;
     }
 
     _command_queue_group_ordinal =

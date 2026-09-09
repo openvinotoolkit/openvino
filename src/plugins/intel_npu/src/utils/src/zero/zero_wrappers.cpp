@@ -12,7 +12,7 @@
 namespace intel_npu {
 
 CommandQueueDesc::CommandQueueDesc() {
-    update_key();
+    updatekey();
 }
 CommandQueueDesc::CommandQueueDesc(ze_command_queue_priority_t priority,
                                    std::optional<ze_command_queue_workload_type_t> workload,
@@ -24,15 +24,15 @@ CommandQueueDesc::CommandQueueDesc(ze_command_queue_priority_t priority,
       _options(options),
       _owner_tag(owner_tag),
       _shared_common_queue(shared_common_queue) {
-    update_key();
+    updatekey();
 }
-void CommandQueueDesc::set_priority(ze_command_queue_priority_t priority) {
+void CommandQueueDesc::setPriority(ze_command_queue_priority_t priority) {
     _priority = priority;
-    update_key();
+    updatekey();
 }
-void CommandQueueDesc::set_workload(std::optional<ze_command_queue_workload_type_t> workload) {
+void CommandQueueDesc::setWorkload(std::optional<ze_command_queue_workload_type_t> workload) {
     _workload = workload;
-    update_key();
+    updatekey();
 }
 bool CommandQueueDesc::operator==(const CommandQueueDesc& other) const {
     if (_priority != other._priority || _workload != other._workload || _options != other._options ||
@@ -40,8 +40,8 @@ bool CommandQueueDesc::operator==(const CommandQueueDesc& other) const {
         return false;
     }
 
-    const bool use_owner_tag = owner_tag_required();
-    const bool other_use_owner_tag = other.owner_tag_required();
+    const bool use_owner_tag = ownerTagRequired();
+    const bool other_use_owner_tag = other.ownerTagRequired();
     if (use_owner_tag || other_use_owner_tag) {
         if (_owner_tag == nullptr || other._owner_tag == nullptr || _owner_tag != other._owner_tag) {
             return false;
@@ -50,27 +50,27 @@ bool CommandQueueDesc::operator==(const CommandQueueDesc& other) const {
 
     return true;
 }
-bool CommandQueueDesc::owner_tag_required() const {
+bool CommandQueueDesc::ownerTagRequired() const {
     return (_options & ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC) != 0 || !_shared_common_queue;
 }
-void CommandQueueDesc::update_key() {
+void CommandQueueDesc::updatekey() {
     uint64_t hash = zero_hashing::kFnvOffsetBasis64;
-    hash = zero_hashing::hash_combine64(hash, static_cast<uint64_t>(_priority));
+    hash = zero_hashing::hashCombine64(hash, static_cast<uint64_t>(_priority));
     if (_workload.has_value()) {
-        hash = zero_hashing::hash_combine64(hash, 1ULL);
-        hash = zero_hashing::hash_combine64(hash, static_cast<uint64_t>(_workload.value()));
+        hash = zero_hashing::hashCombine64(hash, 1ULL);
+        hash = zero_hashing::hashCombine64(hash, static_cast<uint64_t>(_workload.value()));
     } else {
-        hash = zero_hashing::hash_combine64(hash, 0ULL);
+        hash = zero_hashing::hashCombine64(hash, 0ULL);
     }
-    hash = zero_hashing::hash_combine64(hash, static_cast<uint64_t>(_options));
-    hash = zero_hashing::hash_combine64(hash, static_cast<uint64_t>(_shared_common_queue));
+    hash = zero_hashing::hashCombine64(hash, static_cast<uint64_t>(_options));
+    hash = zero_hashing::hashCombine64(hash, static_cast<uint64_t>(_shared_common_queue));
 
-    const bool use_owner_tag = owner_tag_required();
+    const bool use_owner_tag = ownerTagRequired();
     if (use_owner_tag) {
         OPENVINO_ASSERT(_owner_tag != nullptr,
                         "owner_tag must not be null when ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC is set or "
                         "shared_common_queue is disabled");
-        hash = zero_hashing::hash_combine64(hash, std::hash<const void*>{}(_owner_tag));
+        hash = zero_hashing::hashCombine64(hash, std::hash<const void*>{}(_owner_tag));
     }
 
     _key = hash;
@@ -337,14 +337,18 @@ CommandQueue::CommandQueue(const std::shared_ptr<ZeroInitStructsHolder>& init_st
     }
 }
 void CommandQueue::setWorkloadType(ze_command_queue_workload_type_t workloadType) const {
-    if (_init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-        THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType",
-                                    _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
-    } else {
+    if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
         OPENVINO_THROW("The WorkloadType property is not supported by the current Driver Version!");
     }
+    THROW_ON_FAIL_FOR_LEVELZERO("zeSetWorkloadType",
+                                _init_structs->getCommandQueueDdiTable().pfnSetWorkloadType(_handle, workloadType));
 }
-
+void CommandQueue::setPriority(ze_command_queue_priority_t priority) const {
+    if (!_init_structs->isCommandQueueSetPrioritySupported()) {
+        OPENVINO_THROW("The Priority property is not supported by the current Driver Version!");
+    }
+    THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueSetPriorityExt", zeCommandQueueSetPriorityExt(_handle, priority));
+}
 void CommandQueue::executeCommandList(CommandList& command_list) const {
     THROW_ON_FAIL_FOR_LEVELZERO("zeCommandQueueExecuteCommandLists",
                                 zeCommandQueueExecuteCommandLists(_handle, 1, &command_list._handle, nullptr));
