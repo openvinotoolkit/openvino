@@ -193,8 +193,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (openvino)
-        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
-
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }}
       - name: Compile cache statistics (openvino cc collect main)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -209,8 +208,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (sea_itt_lib)
-        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
-
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
       - name: Compile cache statistics (sea_itt_lib)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -232,8 +230,7 @@ jobs:
           mode: zero-stats
 
       - name: Build C++ samples - OpenVINO build tree
-        run: cmake --build ${BUILD_DIR}/cpp_samples --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
-
+        run: cmake --build ${BUILD_DIR}/cpp_samples --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
       - name: Compile cache statistics (cpp samples)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -393,8 +390,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC ON
-        run: cmake --build ${BUILD_DIR} --parallel 8 --target benchmark_app -- --quiet
-
+        run: cmake --build ${BUILD_DIR} --parallel 8 --target benchmark_app
       - name: Compile cache statistics (cc on benchmark_app)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats

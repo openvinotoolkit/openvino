@@ -258,8 +258,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
-
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }}
       - name: Compile cache statistics (openvino main build)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -332,8 +331,7 @@ jobs:
             fi
 
             cmake ${CMAKE_OPTIONS} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}
-            cmake --build ${PY_BUILD_DIR} --parallel 15 -- --quiet
-            cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component pyopenvino_python$py_version
+            cmake --build ${PY_BUILD_DIR} --parallel 15            cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component pyopenvino_python$py_version
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
           done
         env:
@@ -398,8 +396,7 @@ jobs:
 
       - name: Build Debian packages
         if: ${{ inputs.build-debian-packages }}
-        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target package -- --quiet
-
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target package
       - name: Compile cache statistics (debian packages)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -425,8 +422,7 @@ jobs:
 
       - name: Cmake build - OpenVINO Contrib
         if: ${{ inputs.build-contrib }}
-        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
-
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }}
       - name: Compile cache statistics (openvino contrib)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -450,8 +446,7 @@ jobs:
 
       - name: Cmake build - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
-        run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
-
+        run: cmake --build ${BUILD_DIR} --parallel 15
       - name: Compile cache statistics (openvino js api)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -506,8 +501,7 @@ jobs:
 
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}
-        run: cmake --build ${BUILD_DIR} --parallel 15 --target package -- --quiet
-
+        run: cmake --build ${BUILD_DIR} --parallel 15 --target package
       - name: Compile cache statistics (rpm packages)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
