@@ -55,8 +55,9 @@ bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p) cons
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
-    if (params.inputs[0].Feature().v != 3)
+    if (params.inputs[0].Feature().v != 3) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
