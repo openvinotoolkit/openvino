@@ -290,9 +290,38 @@ jobs:
           if-no-files-found: 'ignore'
 
   Build_And_Run_On_Mode:
-    name: Conditional Compilation
+    name: CC ON (m=${{ matrix.MSBUILD_PROCESSES_COUNT }}, cl=${{ matrix.CL_PROCESSES_COUNT }}, t=${{ matrix.CL_THREADS_COUNT }})${{ matrix.baseline == true && ' [baseline]' || '' }}
     timeout-minutes: 40
     needs: [Build_And_Run_Collect_Mode, Smart_CI]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - MSBUILD_PROCESSES_COUNT: 8
+            CL_PROCESSES_COUNT: 16
+            CL_THREADS_COUNT: 4
+            baseline: true
+          - MSBUILD_PROCESSES_COUNT: 8
+            CL_PROCESSES_COUNT: 8
+            CL_THREADS_COUNT: 8
+          - MSBUILD_PROCESSES_COUNT: 8
+            CL_PROCESSES_COUNT: 4
+            CL_THREADS_COUNT: 16
+          - MSBUILD_PROCESSES_COUNT: 15
+            CL_PROCESSES_COUNT: 1
+            CL_THREADS_COUNT: 1
+          - MSBUILD_PROCESSES_COUNT: 15
+            CL_PROCESSES_COUNT: 4
+            CL_THREADS_COUNT: 8
+          - MSBUILD_PROCESSES_COUNT: 15
+            CL_PROCESSES_COUNT: 8
+            CL_THREADS_COUNT: 4
+          - MSBUILD_PROCESSES_COUNT: 15
+            CL_PROCESSES_COUNT: 15
+            CL_THREADS_COUNT: 4
+          - MSBUILD_PROCESSES_COUNT: 15
+            CL_PROCESSES_COUNT: 15
+            CL_THREADS_COUNT: 8
     defaults:
       run:
         shell: pwsh
@@ -304,6 +333,9 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+      MSBUILD_PROCESSES_COUNT: ${{ matrix.MSBUILD_PROCESSES_COUNT }}
+      CL_PROCESSES_COUNT: ${{ matrix.CL_PROCESSES_COUNT }}
+      CL_THREADS_COUNT: ${{ matrix.CL_THREADS_COUNT }}
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -356,13 +388,22 @@ jobs:
             -DENABLE_OV_JAX_FRONTEND=OFF `
             -DENABLE_OV_ONNX_FRONTEND=OFF `
             -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
+            -DCMAKE_CXX_FLAGS="/cgthreads$env:CL_THREADS_COUNT /MP$env:CL_PROCESSES_COUNT" `
+            -DCMAKE_C_FLAGS="/cgthreads$env:CL_THREADS_COUNT /MP$env:CL_PROCESSES_COUNT" `
+            -DCMAKE_EXE_LINKER_FLAGS="/CGTHREADS:$env:CL_THREADS_COUNT" `
+            -DCMAKE_SHARED_LINKER_FLAGS="/CGTHREADS:$env:CL_THREADS_COUNT" `
+            -DCMAKE_MODULE_LINKER_FLAGS="/CGTHREADS:$env:CL_THREADS_COUNT" `
+            -DCMAKE_STATIC_LINKER_FLAGS="/CGTHREADS:$env:CL_THREADS_COUNT" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-        # Number of threads is hardcoded due to OutOfMemory issues. Unless we switch CMake's generator to Ninja, we can't
-        # set number of jobs separately for compilation and linking. The issue most likely occurs during linking.
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+        run: |
+          cmake --build ${{ env.BUILD_DIR }} `
+            --parallel $env:MSBUILD_PROCESSES_COUNT `
+            --config ${{ env.CMAKE_BUILD_TYPE }} `
+            --target benchmark_app `
+            -- /verbosity:minimal
 
       - name: List bin files
         shell: cmd
