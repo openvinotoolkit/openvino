@@ -10,9 +10,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "blob_source.hpp"
 #include "cre.hpp"
 #include "intel_npu/common/blob_reader_interface.hpp"
+#include "intel_npu/common/blob_source.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/isection_type_evaluator.hpp"
 #include "intel_npu/common/manifest.hpp"

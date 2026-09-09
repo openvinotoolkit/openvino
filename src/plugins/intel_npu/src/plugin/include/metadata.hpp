@@ -14,7 +14,7 @@
 #include <variant>
 #include <vector>
 
-#include "blob_source.hpp"
+#include "intel_npu/common/blob_source.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/layout.hpp"
