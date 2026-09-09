@@ -10,9 +10,6 @@
 
 namespace intel_npu {
 
-const MajorMinorVersion CURRENT_BLOB_FORMAT_VERSION(3, 0);
-const MajorMinorVersion CURRENT_RUNTIME_REQUIREMENTS_VERSION(3, 0);
-
 class MajorMinorVersion {
 public:
     MajorMinorVersion(const uint16_t major, const uint16_t minor);
@@ -37,6 +34,9 @@ private:
     uint16_t m_major;
     uint16_t m_minor;
 };
+
+const MajorMinorVersion CURRENT_BLOB_FORMAT_VERSION(3, 0);
+const MajorMinorVersion CURRENT_RUNTIME_REQUIREMENTS_VERSION(3, 0);
 
 // TODO test these
 std::string major_minor_version_to_string(const MajorMinorVersion& version);

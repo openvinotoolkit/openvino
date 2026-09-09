@@ -11,6 +11,7 @@
 #include "blob_format_importers.hpp"
 #include "compiled_model.hpp"
 #include "compiler_schedules_sections.hpp"
+#include "compiler_version_section.hpp"
 #include "driver_compiler_adapter.hpp"
 #include "intel_npu/common/blob_reader.hpp"
 #include "intel_npu/common/blob_writer.hpp"
@@ -719,6 +720,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
         blob_format_importer_factory::create(blobSource,
                                              should_import_raw_blob(properties),
                                              get_model_ptr_from_map(properties),
+                                             _backend,
+                                             _compilerOptionSupportHelper,
                                              localConfig);
 
     std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, _propertiesManager->determineDeviceId(properties));
@@ -729,8 +732,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     }
 
     const std::shared_ptr<IGraph> graph =
-        blobFormatImporter->create_graph(_backend,
-                                         "net" + std::to_string(_compiledModelLoadCounter++),
+        blobFormatImporter->create_graph("net" + std::to_string(_compiledModelLoadCounter++),
                                          device->getName(),
                                          get_core());
 
@@ -738,8 +740,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
                                            shared_from_this(),
                                            device,
                                            graph,
-                                           blobFormatImporter->get_config(),
-                                           blobFormatImporter->create_blob_writer());
+                                           blobFormatImporter->create_blob_writer(),
+                                           blobFormatImporter->get_config());
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,

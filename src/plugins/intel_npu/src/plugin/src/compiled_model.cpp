@@ -40,8 +40,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
                              const std::shared_ptr<IDevice>& device,
                              const std::shared_ptr<IGraph>& graph,
-                             const FilteredConfig& config,
-                             const std::shared_ptr<BlobWriter>& blobWriter)
+                             const std::shared_ptr<BlobWriter>& blobWriter,
+                             const FilteredConfig& config)
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
@@ -55,7 +55,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
     FilteredConfig localConfig = config;
 
     OV_ITT_TASK_CHAIN(COMPILED_MODEL, itt::domains::NPUPlugin, "CompiledModel::CompiledModel", "initialize_properties");
-    _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _graph, _batchSize, _logger);
+    _propertiesManager = std::make_unique<CompiledModelPropertyManager>(localConfig, _blobWriter, _logger);
 
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
     _logger.info("The current compiled model is a %s one", to_string(_graph->get_kind()));

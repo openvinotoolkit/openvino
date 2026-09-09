@@ -13,12 +13,13 @@
 #include "blob_reader.hpp"
 #include "cre.hpp"
 #include "intel_npu/common/manifest.hpp"
+#include "intel_npu/common/runtime_requirements.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 
 namespace intel_npu {
 
 // ID 0 & 1 are reserved for the manifest & CRE sections
-constexpr SectionID FIRST_AVAILABLE_SECTION_ID = 2;
+constexpr uint16_t FIRST_AVAILABLE_SECTION_ID = 0;
 
 class BlobWriterInterface final {
 public:

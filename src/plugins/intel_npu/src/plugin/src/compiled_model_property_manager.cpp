@@ -19,7 +19,7 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
 }
 
 std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& graph,
-                                     const std::optional<int64_t>& batchSize,
+                                     const BlobWriter& blobWriter,
                                      intel_npu::Logger& logger) {
     OPENVINO_ASSERT(graph != nullptr, "Missing graph");
 
