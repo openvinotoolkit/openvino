@@ -34,14 +34,17 @@ struct SliceScatter : public ImplementationManager {
         const auto& in0_layout = node.get_input_layout(0);
         const auto& out_layout = node.get_output_layout(0);
 
-        if (!one_of(in0_layout.data_type, supported_types) || !one_of(out_layout.data_type, supported_types))
+        if (!one_of(in0_layout.data_type, supported_types) || !one_of(out_layout.data_type, supported_types)) {
             return false;
+        }
 
-        if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts))
+        if (!one_of(in0_layout.format, supported_fmts) || !one_of(out_layout.format, supported_fmts)) {
             return false;
+        }
 
-        if (out_layout.get_rank() > 5)
+        if (out_layout.get_rank() > 5) {
             return false;
+        }
 
         return !node.has_fused_primitives();
     }

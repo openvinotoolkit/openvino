@@ -144,15 +144,18 @@ void non_max_suppression_gather_inst::on_execute() {
 }
 
 void non_max_suppression_gather_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
         return;
+    }
 
     for (size_t i = 0; i < inputs_memory_count(); i++) {
-        if (get_node().get_program().is_new_shape_infer() && input_memory_ptr(i) == nullptr)
+        if (get_node().get_program().is_new_shape_infer() && input_memory_ptr(i) == nullptr) {
             return;
+        }
 
-        if (output_memory_ptr(i) != nullptr && _network.get_engine().is_the_same_buffer(output_memory(i), input_memory(i)))
+        if (output_memory_ptr(i) != nullptr && _network.get_engine().is_the_same_buffer(output_memory(i), input_memory(i))) {
             return;
+        }
 
         // Can_be_optimized nodes are allocating from memory_pool too. In this case,
         // we need release the legacy output memory from memory pool explicitly.
