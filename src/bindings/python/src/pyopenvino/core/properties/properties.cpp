@@ -137,6 +137,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::uarch_version, "uarch_version");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::execution_units_count, "execution_units_count");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::memory_statistics, "memory_statistics");
+    wrap_property_RO(m_intel_gpu, ov::intel_gpu::paged_attention_block_size, "paged_attention_block_size");
 
     wrap_property_RW(m_intel_gpu, ov::intel_gpu::enable_loop_unrolling, "enable_loop_unrolling");
     wrap_property_RW(m_intel_gpu, ov::intel_gpu::disable_winograd_convolution, "disable_winograd_convolution");

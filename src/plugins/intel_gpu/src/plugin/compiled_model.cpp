@@ -9,6 +9,8 @@
 #include "openvino/core/version.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
@@ -62,6 +64,22 @@ CompiledModel::CompiledModel(std::shared_ptr<ov::Model> model,
       m_outputs(ov::ICompiledModel::outputs()),
       m_loaded_from_cache(false) {
     m_runtime_requirements = build_runtime_requirements(m_context->get_engine().get_device_info());
+
+    // Detect PA block size from the model
+    for (const auto& op : model->get_ordered_ops()) {
+        if (auto pa_op = std::dynamic_pointer_cast<ov::op::PagedAttentionExtension>(op)) {
+            auto value_cache_ps = pa_op->get_input_partial_shape(4);
+            if (value_cache_ps.rank().is_static() && value_cache_ps.rank().get_length() > 2 &&
+                value_cache_ps[2].is_static() &&
+                static_cast<size_t>(value_cache_ps[2].get_length()) == cldnn::paged_attention::block_size_xattn) {
+                m_pa_block_size = cldnn::paged_attention::block_size_xattn;
+            } else {
+                m_pa_block_size = cldnn::paged_attention::block_size;
+            }
+            break;
+        }
+    }
+
     auto graph_base = std::make_shared<Graph>(model, m_context, m_config, 0);
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
@@ -103,6 +121,7 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
                        " in compiled blob (expected ", runtime_requirements_version, ").");
     }
     ib >> m_runtime_requirements;
+    ib >> m_pa_block_size;
 
     // Descriptor content mismatch => blob built for a different runtime (OpenVINO version/driver).
     const auto& device_info = m_context->get_engine().get_device_info();
@@ -232,6 +251,7 @@ void CompiledModel::export_model(std::ostream& model) const {
     const uint32_t requirements_version = runtime_requirements_version;
     ob << requirements_version;
     ob << m_runtime_requirements;
+    ob << m_pa_block_size;
 
     // Inputs
     {
@@ -341,6 +361,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::intel_gpu::offload_ratio.name(), PropertyMutability::RO},
             ov::PropertyName{ov::device::id.name(), PropertyMutability::RO},
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
+            ov::PropertyName{ov::intel_gpu::paged_attention_block_size.name(), PropertyMutability::RO},
             ov::PropertyName{ov::runtime_requirements.name(), PropertyMutability::RO},
         };
     }
@@ -356,6 +377,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             nr *= 2;
         }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
+    }
+    if (name == ov::intel_gpu::paged_attention_block_size) {
+        return decltype(ov::intel_gpu::paged_attention_block_size)::value_type{m_pa_block_size};
     }
     if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_context->get_device_name()};

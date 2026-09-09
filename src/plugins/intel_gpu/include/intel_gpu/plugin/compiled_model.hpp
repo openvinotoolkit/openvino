@@ -106,6 +106,7 @@ private:
     std::vector<std::shared_ptr<Graph>> m_graphs;
     bool m_loaded_from_cache;
     std::string m_runtime_requirements;
+    uint64_t m_pa_block_size = 0;  // 0 if model has no PA, 16 or 256 otherwise
     std::shared_ptr<ov::Tensor> _backing_tensor;
 };
 
