@@ -128,11 +128,11 @@ jobs:
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
-      max-parallel: 2
+      max-parallel: 10
       fail-fast: false
       matrix:
         TEST_TYPE: ['unit', 'func']
-        SHARD: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        SHARD: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
     with:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
@@ -140,7 +140,7 @@ jobs:
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
-      shard-count: 10
+      shard-count: 20
       shard-index: ${{ matrix.SHARD }}
     if: ${{ github.event_name != 'schedule' }}
 
@@ -149,11 +149,11 @@ jobs:
       needs: [ Build, Smart_CI, Docker ]
       uses: ./.github/workflows/job_gpu_tests.yml
       strategy:
-        max-parallel: 2
+        max-parallel: 10
         fail-fast: false
         matrix:
           TEST_TYPE: ['unit', 'func']
-          SHARD: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+          SHARD: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
       with:
         device: 'dgpu'
         test_type: ${{ matrix.TEST_TYPE }}
@@ -161,7 +161,7 @@ jobs:
         runner-group: 'Intel-GPU'
         image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
         options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
-        shard-count: 10
+        shard-count: 20
         shard-index: ${{ matrix.SHARD }}
       if: ${{ github.event_name != 'schedule' }}
 
