@@ -12,7 +12,6 @@ from torch_utils import TestTorchConvertModel, skip_npu_precommit
 torch.manual_seed(0)
 
 NPU_PRECOMMIT_SKIP = {
-    "detector": "*",
     "recognizer": "*",
 }
 

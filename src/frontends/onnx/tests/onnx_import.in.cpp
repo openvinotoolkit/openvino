@@ -4155,6 +4155,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_pad_constant_negative_begin_end) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_pad_axes_out_of_range) {
+    ASSERT_THROW(convert_model("pad_axes_out_of_range.onnx"), ov::AssertFailure);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_pow_float32_float32) {
     const auto model = convert_model("pow_float32_float32.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -9075,4 +9079,36 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_attention_opset24_qk_output_mode2) {
                                           -0.186292f,
                                           0.873769f});
     test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
+// Standard ONNX opset-24 Swish: Y = X * Sigmoid(alpha * X). The translator maps it to
+// ov::op::v4::Swish so that plugins can execute it as a single activation.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swish_opset24) {
+    auto model = convert_model("swish_opset24.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{6}, {-4.0f, -1.0f, -0.5f, 0.0f, 0.5f, 4.0f});
+    test_case.add_expected_output<float>(Shape{6}, {-0.071945f, -0.268941f, -0.188770f, 0.0f, 0.311230f, 3.928055f});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swish_opset24_alpha) {
+    auto model = convert_model("swish_opset24_alpha.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{6}, {-4.0f, -1.0f, -0.5f, 0.0f, 0.5f, 4.0f});
+    test_case.add_expected_output<float>(Shape{6}, {-0.476812f, -0.377541f, -0.218912f, 0.0f, 0.281088f, 3.523188f});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_swish_opset24_beta_input) {
+    auto model = convert_model("swish_opset24_beta.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{3}, {-0.5f, 0.0f, 0.5f});
+    test_case.add_expected_output<float>(Shape{3}, {-0.2036667f, 0.0f, 0.2963333f});
+
+    test_case.run_with_tolerance_as_fp(2.0e-5f);
 }

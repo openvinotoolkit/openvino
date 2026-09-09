@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <array>
-#include <cstddef>
-#include <exception>
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <array>
+#include <cstddef>
+#include <exception>
 #include <memory>
 #include <random>
 #include <thread>
@@ -433,12 +434,37 @@ TEST_P(ZeroMemPoolTests, DontDestroyZeroMemoryWhenZeroContextIsDestroyed) {
     ASSERT_EQ(logs.find("L0 zeMemFree result:"), std::string::npos);
 }
 
+TEST_P(ZeroMemPoolTests, PoolIsEmptiedAfterContextIsDestroyed) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto zero_init_mock = std::make_shared<::intel_npu::ZeroInitStructsMock>();
+    std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zero_init_struct =
+        std::reinterpret_pointer_cast<::intel_npu::ZeroInitStructsHolder>(zero_init_mock);
+
+    // Keep the ZeroMem objects alive on purpose: the pool must be cleared regardless of whether the
+    // tracked instances are still referenced elsewhere.
+    auto mem0 = ::intel_npu::zero_mem::allocate_memory(zero_init_struct, 4096, 4096);
+    auto mem1 = ::intel_npu::zero_mem::allocate_memory(zero_init_struct, 4096, 4096);
+    ASSERT_EQ(zero_init_mock->getZeroMemPool().mem_pool.size(), 2u);
+
+    ::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock);
+
+    ASSERT_EQ(zero_init_mock->getZeroMemPool().mem_pool.size(), 0u);
+    ASSERT_EQ(zero_init_mock->getZeroMemPool().notify_mem_pool.size(), 0u);
+
+    // Destroying an already-destroyed context must be a no-op and must not crash.
+    OV_ASSERT_NO_THROW(::intel_npu::ZeroInitStructsMock::destroyContextForInstance(zero_init_mock));
+    ASSERT_EQ(zero_init_mock->getZeroMemPool().mem_pool.size(), 0u);
+
+    mem0 = {};
+    mem1 = {};
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
 
 using namespace ov::test::behavior;
-
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          ZeroMemPoolTests,

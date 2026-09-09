@@ -6,6 +6,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/async_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/backends_registry.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/blob_format_importers.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/blob_source.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/compiler_option_support_helper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/compiled_model_property_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/executor.hpp
@@ -18,6 +20,8 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/backends_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_format_importers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_source.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiler_option_support_helper.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model_property_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/executor.cpp
@@ -63,6 +67,7 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/just_sync_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_block_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_block_manager.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_sliding_window_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lazy_tensor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lazy_tensor.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_block_kvcache_strategy.cpp
@@ -114,10 +119,10 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/collapse_unqdq.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/convert_kvcache_to_precision.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/insert_vocab_sub128.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/insert_vocab_sub128.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/conv_to_matmul.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/conv_to_matmul.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/decompose_gqa.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/decompose_gqa.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/detect_causal_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/detect_causal_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/drop_zp_subtract.cpp
@@ -131,6 +136,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.cpp
@@ -154,6 +161,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc/schema_npuw.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pa_compiled_model.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/compiler.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/partitioning/online/graph.cpp

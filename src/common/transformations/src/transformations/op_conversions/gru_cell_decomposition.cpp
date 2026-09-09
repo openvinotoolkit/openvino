@@ -18,6 +18,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -64,9 +65,10 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
         auto add_r_2 = std::make_shared<v1::Add>(Xt_W_zrh->output(1), add_r_1);
 
         auto clip = gru_cell->get_clip();
+        const bool apply_clip = op_util::classify_rnn_clip(clip) == op_util::RNNClipMode::CLAMP;
         std::shared_ptr<Node> clamp_z = add_z_2;
         std::shared_ptr<Node> clamp_r = add_r_2;
-        if (clip > 0.f) {
+        if (apply_clip) {
             clamp_z = std::make_shared<v0::Clamp>(add_z_2, -clip, clip);
             clamp_r = std::make_shared<v0::Clamp>(add_r_2, -clip, clip);
             ov::copy_runtime_info(gru_cell, {clamp_z, clamp_r});
@@ -95,7 +97,7 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
         }
         // ht = g(_h)
         std::shared_ptr<Node> clamp_h = _h;
-        if (clip > 0.f) {
+        if (apply_clip) {
             clamp_h = std::make_shared<v0::Clamp>(_h, -clip, clip);
             ov::copy_runtime_info(gru_cell, clamp_h);
         }
@@ -121,6 +123,8 @@ ov::pass::GRUCellDecomposition::GRUCellDecomposition() {
                                add_z_2,
                                add_r_1,
                                add_r_2,
+                               z_t,
+                               r_t,
                                h_t,
                                one,
                                sub,

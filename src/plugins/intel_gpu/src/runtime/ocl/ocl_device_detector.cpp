@@ -7,6 +7,8 @@
 #include "ocl_device.hpp"
 #include "ocl_common.hpp"
 
+#include <algorithm>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -62,8 +64,9 @@ bool does_device_match_config(const cl::Device& device) {
 #else
         int32_t min_ocl_version = 120;
 #endif
-        if (ocl_version < min_ocl_version)
+        if (ocl_version < min_ocl_version) {
             return false;
+        }
     }
 
     return true;
@@ -188,6 +191,14 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
     error_code = clGetPlatformIDs(num_platforms, platform_ids.data(), nullptr);
     OPENVINO_ASSERT(error_code == CL_SUCCESS, create_device_error_msg, "[GPU] clGetPlatformIDs error code: ", std::to_string(error_code));
 
+    // The ICD loader doesn't guarantee platform order. Keep Intel devices first.
+    const auto intel_platform = std::find_if(platform_ids.begin(), platform_ids.end(), [](const cl_platform_id id) {
+        return cl::Platform(id).getInfo<CL_PLATFORM_VENDOR>() == INTEL_PLATFORM_VENDOR;
+    });
+    if (intel_platform != platform_ids.end()) {
+        std::rotate(platform_ids.begin(), intel_platform, std::next(intel_platform));
+    }
+
     std::vector<device::ptr> supported_devices;
     for (auto& id : platform_ids) {
         cl::Platform platform = cl::Platform(id);
@@ -196,8 +207,9 @@ std::vector<device::ptr> ocl_device_detector::create_device_list() const {
             std::vector<cl::Device> devices;
             platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
             for (auto& device : devices) {
-                if (!does_device_match_config(device))
+                if (!does_device_match_config(device)) {
                     continue;
+                }
 
                 if (device.getInfo<CL_DEVICE_VENDOR_ID>() == cldnn::INTEL_VENDOR_ID) {
                     supported_devices.emplace_back(std::make_shared<ocl_device>(device, cl::Context(device), platform));
@@ -221,8 +233,9 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_conte
     std::vector<device::ptr> supported_devices;
     for (size_t i = 0; i < all_devices.size(); i++) {
         auto& device = all_devices[i];
-        if (!does_device_match_config(device) || static_cast<int>(i) != ctx_device_id)
+        if (!does_device_match_config(device) || static_cast<int>(i) != ctx_device_id) {
             continue;
+        }
         supported_devices.emplace_back(std::make_shared<ocl_device>(device, ctx, cl::Platform(device.getInfo<CL_DEVICE_PLATFORM>())));
     }
 
@@ -245,8 +258,9 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_devic
     for (auto& id : platform_ids) {
         cl::PlatformVA platform = cl::PlatformVA(id);
 
-        if (platform.getInfo<CL_PLATFORM_VENDOR>() != INTEL_PLATFORM_VENDOR)
+        if (platform.getInfo<CL_PLATFORM_VENDOR>() != INTEL_PLATFORM_VENDOR) {
             continue;
+        }
 
         std::vector<cl::Device> devices;
 #ifdef _WIN32
@@ -273,8 +287,9 @@ std::vector<device::ptr> ocl_device_detector::create_device_list_from_user_devic
             &devices);
 
         for (auto& device : devices) {
-            if (!does_device_match_config(device))
+            if (!does_device_match_config(device)) {
                 continue;
+            }
 
             cl_context_properties props[] = {
 #ifdef _WIN32

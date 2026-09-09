@@ -18,7 +18,8 @@ using namespace ::tests;
 
 template<typename T>
 void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::vector<size_t> output_shape,
-                          std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes) {
+                          std::vector<size_t> input_shape, std::vector<size_t> broadcast_axes,
+                          const std::string& expected_kernel = "") {
     size_t input_data_size = accumulate(input_shape.rbegin(), input_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(input_data_size, (size_t)1);
     std::vector<T> input_data = {};
@@ -84,6 +85,20 @@ void start_broadcast_test(format cldnn_format, data_types cldnn_data_type, std::
                 }
             }
         }
+    }
+
+    // Assert the expected implementation was selected (e.g. "broadcast_gpu_opt" vs
+    // "broadcast_gpu_ref"). Correctness alone doesn't prove which kernel ran — a test
+    // that silently falls back to ref validates nothing about the opt kernel.
+    if (!expected_kernel.empty()) {
+        std::string broadcast_kernel;
+        for (auto& info : network.get_primitives_info()) {
+            if (info.original_id == "broadcast")
+                broadcast_kernel = info.kernel_id;
+        }
+        ASSERT_NE(broadcast_kernel.find(expected_kernel), std::string::npos)
+            << "Expected broadcast impl containing '" << expected_kernel
+            << "' but got '" << broadcast_kernel << "'";
     }
 }
 template<typename inT, typename outT>
@@ -311,8 +326,16 @@ TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<float, ov::float16>(format::bfyx, data_types::f32, data_types::f16, {4, 5}, {1, 1}, {0, 1}, false, impl_types::any, true);
 }
 
+TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_bf16) {
+    start_broadcast_test_dynamic<float, ov::bfloat16>(format::bfyx, data_types::f32, data_types::bf16, {4, 5}, {1, 1}, {0, 1}, false, impl_types::any, true);
+}
+
 TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output) {
     start_broadcast_test_dynamic<float, ov::float16>(format::bfyx, data_types::f32, data_types::f16, {4, 5}, {1, 1}, {0, 1}, true);
+}
+
+TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output_bf16) {
+    start_broadcast_test_dynamic<float, ov::bfloat16>(format::bfyx, data_types::f32, data_types::bf16, {4, 5}, {1, 1}, {0, 1}, true);
 }
 
 TEST(broadcast_gpu_uint8_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
@@ -346,6 +369,18 @@ TEST(broadcast_cpu_impl_int64_t, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
 
 TEST(broadcast_cpu_impl_int64_t, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic_with_static_output) {
     start_broadcast_test_dynamic<int64_t, int32_t>(format::bfyx, data_types::i64, data_types::i32, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3}, false, impl_types::cpu);
+}
+
+TEST(broadcast_cpu_impl_bf16, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
+    start_broadcast_test_dynamic<ov::bfloat16, ov::bfloat16>(format::bfyx, data_types::bf16, data_types::bf16, {4, 5}, {1, 1}, {0, 1}, false, impl_types::cpu);
+}
+
+TEST(broadcast_cpu_impl_bf16, bfyx_1_to_4x5_w_b_axes_0x1_dynamic_with_static_output) {
+    start_broadcast_test_dynamic<ov::bfloat16, ov::bfloat16>(format::bfyx, data_types::bf16, data_types::bf16, {4, 5}, {1, 1}, {0, 1}, true, impl_types::cpu);
+}
+
+TEST(broadcast_cpu_impl_bf16, bfyx_1_to_4x5_w_b_axes_0x1x2x3_dynamic) {
+    start_broadcast_test_dynamic<ov::bfloat16, ov::bfloat16>(format::bfyx, data_types::bf16, data_types::bf16, {4, 5, 2, 3}, {1, 1, 1, 1}, {0, 1, 2, 3}, false, impl_types::cpu);
 }
 
 /* Expected golden_data = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
@@ -1235,6 +1270,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1x38x1x1_to_1x38x1x5_w_b_axes_0) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {1, 38, 1, 5}, {1, 38, 1, 1}, {0});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_1x38x1x1_to_1x38x1x5_w_b_axes_0) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {1, 38, 1, 5}, {1, 38, 1, 1}, {0});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_1x38x1x1_to_1x38x1x5_w_b_axes_0) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {1, 38, 1, 5}, {1, 38, 1, 1}, {0});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {4, 5}, {1}, {0, 1});
@@ -1262,6 +1305,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_1_to_4x5_w_b_axes_0x1) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {4, 5}, {1}, {0, 1});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_1_to_4x5_w_b_axes_0x1) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {4, 5}, {1}, {0, 1});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_1_to_4x5_w_b_axes_0x1) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {4, 5}, {1}, {0, 1});
 }
 
 
@@ -1293,6 +1344,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1_to_3x4x5_w_b_axes_0x1x2) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {3, 4, 5}, {1}, {0, 1, 2});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_1_to_3x4x5_w_b_axes_0x1x2) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {3, 4, 5}, {1}, {0, 1, 2});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_1_to_3x4x5_w_b_axes_0x1x2) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {3, 4, 5}, {1}, {0, 1, 2});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1_to_2x3x4x5_w_b_axes_0x1x2x3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {1}, {0, 1, 2, 3});
@@ -1320,6 +1379,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_1_to_2x3x4x5_w_b_axes_0x1x2x3) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1_to_2x3x4x5_w_b_axes_0x1x2x3) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {1}, {0, 1, 2, 3});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_1_to_2x3x4x5_w_b_axes_0x1x2x3) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {1}, {0, 1, 2, 3});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_1_to_2x3x4x5_w_b_axes_0x1x2x3) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {1}, {0, 1, 2, 3});
 }
 
 
@@ -1351,6 +1418,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_42x36x1x1_to_42x36x1x5_w_o_b_axes)
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {42, 36, 1, 5}, {42, 36, 1, 1}, {});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_42x36x1x1_to_42x36x1x5_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {42, 36, 1, 5}, {42, 36, 1, 1}, {});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_42x36x1x1_to_42x36x1x5_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {42, 36, 1, 5}, {42, 36, 1, 1}, {});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_35x32x1x3_to_140x128x1x12_w_o_b_axes) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {140, 128, 1, 12}, {35, 32, 1, 3}, {});
@@ -1378,6 +1453,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_35x32x1x3_to_140x128x1x12_w_o_b_axes) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_35x32x1x3_to_140x128x1x12_w_o_b_axes) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {140, 128, 1, 12}, {35, 32, 1, 3}, {});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_35x32x1x3_to_140x128x1x12_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {140, 128, 1, 12}, {35, 32, 1, 3}, {});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_35x32x1x3_to_140x128x1x12_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {140, 128, 1, 12}, {35, 32, 1, 3}, {});
 }
 
 
@@ -1409,6 +1492,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_42x64x1x1_to_84x128x4x5_w_o_b_axes
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {84, 128, 4, 5}, {42, 64, 1, 1}, {});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_42x64x1x1_to_84x128x4x5_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {84, 128, 4, 5}, {42, 64, 1, 1}, {});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_42x64x1x1_to_84x128x4x5_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {84, 128, 4, 5}, {42, 64, 1, 1}, {});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_156x78x2x3_to_156x156x8x6_w_o_b_axes) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {156, 156, 8, 6}, {156, 78, 2, 3}, {});
@@ -1436,6 +1527,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_156x78x2x3_to_156x156x8x6_w_o_b_axes) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_156x78x2x3_to_156x156x8x6_w_o_b_axes) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {156, 156, 8, 6}, {156, 78, 2, 3}, {});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_156x78x2x3_to_156x156x8x6_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {156, 156, 8, 6}, {156, 78, 2, 3}, {});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_156x78x2x3_to_156x156x8x6_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {156, 156, 8, 6}, {156, 78, 2, 3}, {});
 }
 
 
@@ -1467,6 +1566,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_42x2x3x4_to_126x6x6x4_w_o_b_axes) 
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {126, 6, 6, 4}, {42, 2, 3, 4}, {});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_42x2x3x4_to_126x6x6x4_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {126, 6, 6, 4}, {42, 2, 3, 4}, {});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_42x2x3x4_to_126x6x6x4_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {126, 6, 6, 4}, {42, 2, 3, 4}, {});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_256x91x4x5_to_256x273x8x5_w_o_b_axes) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {256, 273, 8, 5}, {256, 91, 4, 5}, {});
@@ -1494,6 +1601,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_256x91x4x5_to_256x273x8x5_w_o_b_axes) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_256x91x4x5_to_256x273x8x5_w_o_b_axes) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {256, 273, 8, 5}, {256, 91, 4, 5}, {});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_256x91x4x5_to_256x273x8x5_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {256, 273, 8, 5}, {256, 91, 4, 5}, {});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_256x91x4x5_to_256x273x8x5_w_o_b_axes) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {256, 273, 8, 5}, {256, 91, 4, 5}, {});
 }
 
 
@@ -1525,6 +1640,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv166_1x45x1x3_to_1x45x2x3_w_b_axes_0) 
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {1, 45, 2, 3}, {1, 45, 1, 3}, {0});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv166_1x45x1x3_to_1x45x2x3_w_b_axes_0) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {1, 45, 2, 3}, {1, 45, 1, 3}, {0});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv166_1x45x1x3_to_1x45x2x3_w_b_axes_0) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {1, 45, 2, 3}, {1, 45, 1, 3}, {0});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_1x62x1x3_to_1x62x2x6_w_b_axes_0) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {1, 62, 2, 6}, {1, 62, 1, 3}, {0});
@@ -1552,6 +1675,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_1x62x1x3_to_1x62x2x6_w_b_axes_0) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1x62x1x3_to_1x62x2x6_w_b_axes_0) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {1, 62, 2, 6}, {1, 62, 1, 3}, {0});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_1x62x1x3_to_1x62x2x6_w_b_axes_0) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {1, 62, 2, 6}, {1, 62, 1, 3}, {0});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_1x62x1x3_to_1x62x2x6_w_b_axes_0) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {1, 62, 2, 6}, {1, 62, 1, 3}, {0});
 }
 
 
@@ -1583,6 +1714,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2_to_2x3_w_b_axes_1) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3}, {2}, {1});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2_to_2x3_w_b_axes_1) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3}, {2}, {1});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2_to_2x3_w_b_axes_1) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3}, {2}, {1});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2_to_6x3_w_b_axes_1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {6, 3}, {2}, {1});
@@ -1610,6 +1749,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_2_to_6x3_w_b_axes_1) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2_to_6x3_w_b_axes_1) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {6, 3}, {2}, {1});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2_to_6x3_w_b_axes_1) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {6, 3}, {2}, {1});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2_to_6x3_w_b_axes_1) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {6, 3}, {2}, {1});
 }
 
 
@@ -1641,6 +1788,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1x76x3x4_to_1x152x3x4_w_b_axes_0) 
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {1, 152, 3, 4}, {1, 76, 3, 4}, {0});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_1x76x3x4_to_1x152x3x4_w_b_axes_0) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {1, 152, 3, 4}, {1, 76, 3, 4}, {0});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_1x76x3x4_to_1x152x3x4_w_b_axes_0) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {1, 152, 3, 4}, {1, 76, 3, 4}, {0});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x4_to_2x3x4_w_b_axes_1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4}, {2, 4}, {1});
@@ -1668,6 +1823,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_2x4_to_2x3x4_w_b_axes_1) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x4_to_2x3x4_w_b_axes_1) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4}, {2, 4}, {1});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2x4_to_2x3x4_w_b_axes_1) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4}, {2, 4}, {1});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2x4_to_2x3x4_w_b_axes_1) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4}, {2, 4}, {1});
 }
 
 
@@ -1699,6 +1862,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x3_to_2x3x4_w_b_axes_2) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4}, {2, 3}, {2});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2x3_to_2x3x4_w_b_axes_2) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4}, {2, 3}, {2});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2x3_to_2x3x4_w_b_axes_2) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4}, {2, 3}, {2});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_4_to_2x3x4_w_b_axes_0_1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4}, {4}, {0, 1});
@@ -1726,6 +1897,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_4_to_2x3x4_w_b_axes_0_1) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_4_to_2x3x4_w_b_axes_0_1) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4}, {4}, {0, 1});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_4_to_2x3x4_w_b_axes_0_1) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4}, {4}, {0, 1});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_4_to_2x3x4_w_b_axes_0_1) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4}, {4}, {0, 1});
 }
 
 
@@ -1757,6 +1936,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_3_to_2x3x4_w_b_axes_0_2) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4}, {3}, {0, 2});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_3_to_2x3x4_w_b_axes_0_2) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4}, {3}, {0, 2});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_3_to_2x3x4_w_b_axes_0_2) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4}, {3}, {0, 2});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2_to_2x3x4_w_b_axes_1_2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4}, {2}, {1, 2});
@@ -1784,6 +1971,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_2_to_2x3x4_w_b_axes_1_2) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2_to_2x3x4_w_b_axes_1_2) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4}, {2}, {1, 2});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2_to_2x3x4_w_b_axes_1_2) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4}, {2}, {1, 2});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2_to_2x3x4_w_b_axes_1_2) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4}, {2}, {1, 2});
 }
 
 
@@ -1815,6 +2010,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_1x128x4x5_to_2x256x4x5_w_b_axes_0)
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 256, 4, 5}, {1, 128, 4, 5}, {0});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_1x128x4x5_to_2x256x4x5_w_b_axes_0) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 256, 4, 5}, {1, 128, 4, 5}, {0});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_1x128x4x5_to_2x256x4x5_w_b_axes_0) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 256, 4, 5}, {1, 128, 4, 5}, {0});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x4x5_to_2x3x4x5_w_b_axes_1) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2, 4, 5}, {1});
@@ -1842,6 +2045,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_2x4x5_to_2x3x4x5_w_b_axes_1) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x4x5_to_2x3x4x5_w_b_axes_1) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 4, 5}, {1});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2x4x5_to_2x3x4x5_w_b_axes_1) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 4, 5}, {1});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2x4x5_to_2x3x4x5_w_b_axes_1) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 4, 5}, {1});
 }
 
 
@@ -1873,6 +2084,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x3x5_to_2x3x4x5_w_b_axes_2) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 3, 5}, {2});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2x3x5_to_2x3x4x5_w_b_axes_2) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 3, 5}, {2});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2x3x5_to_2x3x4x5_w_b_axes_2) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 3, 5}, {2});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x3x4_to_2x3x4x5_w_b_axes_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2, 3, 4}, {3});
@@ -1900,6 +2119,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_2x3x4_to_2x3x4x5_w_b_axes_3) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x3x4_to_2x3x4x5_w_b_axes_3) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 3, 4}, {3});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2x3x4_to_2x3x4x5_w_b_axes_3) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 3, 4}, {3});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2x3x4_to_2x3x4x5_w_b_axes_3) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 3, 4}, {3});
 }
 
 
@@ -1931,6 +2158,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_4x5_to_2x3x4x5_w_b_axes_0_1) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {4, 5}, {0, 1});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_4x5_to_2x3x4x5_w_b_axes_0_1) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {4, 5}, {0, 1});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_4x5_to_2x3x4x5_w_b_axes_0_1) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {4, 5}, {0, 1});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_3x5_to_2x3x4x5_w_b_axes_0_2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {3, 5}, {0, 2});
@@ -1958,6 +2193,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_3x5_to_2x3x4x5_w_b_axes_0_2) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_3x5_to_2x3x4x5_w_b_axes_0_2) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {3, 5}, {0, 2});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_3x5_to_2x3x4x5_w_b_axes_0_2) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {3, 5}, {0, 2});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_3x5_to_2x3x4x5_w_b_axes_0_2) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {3, 5}, {0, 2});
 }
 
 
@@ -1989,6 +2232,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_3x4_to_2x3x4x5_w_b_axes_0_3) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {3, 4}, {0, 3});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_3x4_to_2x3x4x5_w_b_axes_0_3) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {3, 4}, {0, 3});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_3x4_to_2x3x4x5_w_b_axes_0_3) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {3, 4}, {0, 3});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x5_to_2x3x4x5_w_b_axes_1_2) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2, 5}, {1, 2});
@@ -2016,6 +2267,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_2x5_to_2x3x4x5_w_b_axes_1_2) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x5_to_2x3x4x5_w_b_axes_1_2) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 5}, {1, 2});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2x5_to_2x3x4x5_w_b_axes_1_2) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 5}, {1, 2});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2x5_to_2x3x4x5_w_b_axes_1_2) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 5}, {1, 2});
 }
 
 
@@ -2047,6 +2306,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x4_to_2x3x4x5_w_b_axes_1_3) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 4}, {1, 3});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2x4_to_2x3x4x5_w_b_axes_1_3) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 4}, {1, 3});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2x4_to_2x3x4x5_w_b_axes_1_3) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 4}, {1, 3});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2x3_to_2x3x4x5_w_b_axes_2_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2, 3}, {2, 3});
@@ -2074,6 +2341,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_2x3_to_2x3x4x5_w_b_axes_2_3) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2x3_to_2x3x4x5_w_b_axes_2_3) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2, 3}, {2, 3});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2x3_to_2x3x4x5_w_b_axes_2_3) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 3}, {2, 3});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2x3_to_2x3x4x5_w_b_axes_2_3) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {2, 3}, {2, 3});
 }
 
 
@@ -2105,6 +2380,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_5_to_2x3x4x5_w_b_axes_0_1_2) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {5}, {0, 1, 2});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_5_to_2x3x4x5_w_b_axes_0_1_2) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {5}, {0, 1, 2});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_5_to_2x3x4x5_w_b_axes_0_1_2) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {5}, {0, 1, 2});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_4_to_2x3x4x5_w_b_axes_0_1_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {4}, {0, 1, 3});
@@ -2132,6 +2415,14 @@ TEST(broadcast_gpu_fp16, b_fs_yx_fsv16_4_to_2x3x4x5_w_b_axes_0_1_3) {
 
 TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_4_to_2x3x4x5_w_b_axes_0_1_3) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {4}, {0, 1, 3});
+}
+
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_4_to_2x3x4x5_w_b_axes_0_1_3) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {4}, {0, 1, 3});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_4_to_2x3x4x5_w_b_axes_0_1_3) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {4}, {0, 1, 3});
 }
 
 
@@ -2163,6 +2454,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_3_to_2x3x4x5_w_b_axes_0_2_3) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {3}, {0, 2, 3});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_3_to_2x3x4x5_w_b_axes_0_2_3) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {3}, {0, 2, 3});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_3_to_2x3x4x5_w_b_axes_0_2_3) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {3}, {0, 2, 3});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_yx_fsv16_2_to_2x3x4x5_w_b_axes_1_2_3) {
     start_broadcast_test<float>(format::b_fs_yx_fsv16, data_types::f32, {2, 3, 4, 5}, {2}, {1, 2, 3});
@@ -2192,6 +2491,14 @@ TEST(broadcast_gpu_fp16, bs_fs_yx_bsv32_fsv16_2_to_2x3x4x5_w_b_axes_1_2_3) {
     start_broadcast_test<ov::float16>(format::bs_fs_yx_bsv32_fsv16, data_types::f16, {2, 3, 4, 5}, {2}, {1, 2, 3});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_yx_fsv16_2_to_2x3x4x5_w_b_axes_1_2_3) {
+    start_broadcast_test<ov::bfloat16>(format::b_fs_yx_fsv16, data_types::bf16, {2, 3, 4, 5}, {2}, {1, 2, 3});
+}
+
+TEST(broadcast_gpu_bf16, bs_fs_yx_bsv32_fsv16_2_to_2x3x4x5_w_b_axes_1_2_3) {
+    start_broadcast_test<ov::bfloat16>(format::bs_fs_yx_bsv32_fsv16, data_types::bf16, {2, 3, 4, 5}, {2}, {1, 2, 3});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_zyx_fsv16_1x48x1x1_to_1x48x1x5_w_b_axes_0) {
     start_broadcast_test_5d<float>(format::b_fs_zyx_fsv16, data_types::f32, { 1, 48, 1, 5 }, { 1, 48, 1, 1 }, { 0 });
@@ -2207,6 +2514,10 @@ TEST(broadcast_gpu_int8_t, b_fs_zyx_fsv32_1x48x1x1_to_1x48x1x5_w_b_axes_0) {
 
 TEST(broadcast_gpu_fp16, b_fs_zyx_fsv16_1x48x1x1_to_1x48x1x5_w_b_axes_0) {
     start_broadcast_test_5d<ov::float16>(format::b_fs_zyx_fsv16, data_types::f16, { 1, 48, 1, 5 }, { 1, 48, 1, 1 }, { 0 });
+}
+
+TEST(broadcast_gpu_bf16, b_fs_zyx_fsv16_1x48x1x1_to_1x48x1x5_w_b_axes_0) {
+    start_broadcast_test_5d<ov::bfloat16>(format::b_fs_zyx_fsv16, data_types::bf16, { 1, 48, 1, 5 }, { 1, 48, 1, 1 }, { 0 });
 }
 
 
@@ -2226,6 +2537,10 @@ TEST(broadcast_gpu_fp16, b_fs_zyx_fsv16_64x256x2x1_to_128x256x4x5_w_b_axes_0x1) 
     start_broadcast_test_5d<ov::float16>(format::b_fs_zyx_fsv16, data_types::f16, { 128, 256, 4, 5 }, { 64, 256, 2, 1}, {});
 }
 
+TEST(broadcast_gpu_bf16, b_fs_zyx_fsv16_64x256x2x1_to_128x256x4x5_w_b_axes_0x1) {
+    start_broadcast_test_5d<ov::bfloat16>(format::b_fs_zyx_fsv16, data_types::bf16, { 128, 256, 4, 5 }, { 64, 256, 2, 1}, {});
+}
+
 
 TEST(broadcast_gpu_float, b_fs_zyx_fsv16_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test_5d<float>(format::b_fs_zyx_fsv16, data_types::f32, { 4, 5 }, { 1 }, { 0, 1 });
@@ -2241,6 +2556,10 @@ TEST(broadcast_gpu_int8_t, b_fs_zyx_fsv32_1_to_4x5_w_b_axes_0x1) {
 
 TEST(broadcast_gpu_fp16, b_fs_zyx_fsv16_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test_5d<ov::float16>(format::b_fs_zyx_fsv16, data_types::f16, { 4, 5 }, { 1 }, { 0, 1 });
+}
+
+TEST(broadcast_gpu_bf16, b_fs_zyx_fsv16_1_to_4x5_w_b_axes_0x1) {
+    start_broadcast_test_5d<ov::bfloat16>(format::b_fs_zyx_fsv16, data_types::bf16, { 4, 5 }, { 1 }, { 0, 1 });
 }
 
 
@@ -2260,10 +2579,19 @@ TEST(broadcast_gpu_fp16, b_fs_zyx_fsv16_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
     start_broadcast_test_5d<ov::float16>(format::b_fs_zyx_fsv16, data_types::f16, { 2, 3, 4, 5, 2 }, { 1 }, { 0, 1, 2, 3, 4 });
 }
 
+TEST(broadcast_gpu_bf16, b_fs_zyx_fsv16_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
+    start_broadcast_test_5d<ov::bfloat16>(format::b_fs_zyx_fsv16, data_types::bf16, { 2, 3, 4, 5, 2 }, { 1 }, { 0, 1, 2, 3, 4 });
+}
+
 TEST(export_import_broadcast_gpu_fp16, b_fs_zyx_fsv16_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
     start_broadcast_test_5d<ov::float16>(format::b_fs_zyx_fsv16, data_types::f16, { 2, 3, 4, 5, 2 }, { 1 }, { 0, 1, 2, 3, 4 }, true);
 }
 
+TEST(export_import_broadcast_gpu_bf16, b_fs_zyx_fsv16_1_to_2x3x4x5x2_w_b_axes_0x1x2x3x4) {
+    start_broadcast_test_5d<ov::bfloat16>(format::b_fs_zyx_fsv16, data_types::bf16, { 2, 3, 4, 5, 2 }, { 1 }, { 0, 1, 2, 3, 4 }, true);
+}
+
+template <typename T>
 static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> in_static_shape,
                                     std::vector<ov::Dimension::value_type> in_dynamic_shape,
                                     std::vector<ov::Dimension::value_type> output_shape,
@@ -2274,8 +2602,9 @@ static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> 
     config.set_property(ov::intel_gpu::optimize_data(true));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
 
-    auto input_static_layout = cldnn::layout{ov::PartialShape{in_static_shape}, data_types::f16, format::bfzyx};
-    auto input_dynamic_layout = cldnn::layout{ov::PartialShape{in_dynamic_shape}, data_types::f16, format::bfzyx};
+    const auto data_type = ov::element::from<T>();
+    auto input_static_layout = cldnn::layout{ov::PartialShape{in_static_shape}, data_type, format::bfzyx};
+    auto input_dynamic_layout = cldnn::layout{ov::PartialShape{in_dynamic_shape}, data_type, format::bfzyx};
     auto target_shape_layout = cldnn::layout{ov::PartialShape{static_cast<ov::Dimension::value_type>(target_shape.size())},
                                                                 data_types::i32, format::bfyx};
 
@@ -2294,15 +2623,15 @@ static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> 
         broadcast_prim.output_pshape = ov::PartialShape({-1, -1, output_shape[2], output_shape[3]});
     }
     topology.add(broadcast_prim);
-    topology.add(reorder("output", input_info("broadcast"), format::bfzyx, data_types::f16));
+    topology.add(reorder("output", input_info("broadcast"), format::bfzyx, data_type));
 
     cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), false);
 
     size_t input_data_size = accumulate(in_static_shape.rbegin(), in_static_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(input_data_size, (size_t)1);
-    std::vector<ov::float16> input_data = {};
+    std::vector<T> input_data = {};
     for (size_t i = 1; i <= input_data_size; ++i) {
-        input_data.push_back((ov::float16)i);
+        input_data.push_back((T)i);
     }
     auto input_mem = engine.allocate_memory(input_static_layout);
     set_values(input_mem, input_data);
@@ -2316,17 +2645,17 @@ static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> 
     auto output = outputs.at("output").get_memory();
 
     ASSERT_NE(output, nullptr);
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     size_t output_data_size = accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(output_data_size, (size_t)1);
-    std::vector<ov::float16> output_ref(output_data_size);
+    std::vector<T> output_ref(output_data_size);
     ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
                              reinterpret_cast<char*>(output_ref.data()),
                              ov::Shape(in_static_shape.begin(), in_static_shape.end()),
                              ov::Shape(output_shape.begin(), output_shape.end()),
                              ov::AxisSet({}),
-                             sizeof(ov::float16));
+                             sizeof(T));
 
     ASSERT_EQ(output_ref.size(), accumulate(output_shape.rbegin(), output_shape.rend(), (size_t)1, std::multiplies<size_t>()));
 
@@ -2373,41 +2702,366 @@ static void run_broadcast_gpu_opt_y_axis(std::vector<ov::Dimension::value_type> 
 }
 
 TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x128_to_21x1x2x16x128_axis_Y_16) {
-    run_broadcast_gpu_opt_y_axis({21,1,2,1,128},{-1,-1,2,1,128},{21,1,2,16,128},{1,1,1,16,1});
+    run_broadcast_gpu_opt_y_axis<ov::float16>({21,1,2,1,128},{-1,-1,2,1,128},{21,1,2,16,128},{1,1,1,16,1});
 }
 
 TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x128_to_21x1x2x17x128_axis_Y_17) {
-    run_broadcast_gpu_opt_y_axis({21,1,2,1,128},{-1,-1,2,1,128},{21,1,2,17,128},{1,1,1,17,1});
+    run_broadcast_gpu_opt_y_axis<ov::float16>({21,1,2,1,128},{-1,-1,2,1,128},{21,1,2,17,128},{1,1,1,17,1});
 }
 
 TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x129_to_21x1x2x19x129_axis_Y_19) {
-    run_broadcast_gpu_opt_y_axis({21,1,2,1,129},{-1,-1,2,1,129},{21,1,2,19,129},{1,1,1,19,1});
+    run_broadcast_gpu_opt_y_axis<ov::float16>({21,1,2,1,129},{-1,-1,2,1,129},{21,1,2,19,129},{1,1,1,19,1});
 }
 
 TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x1_to_21x1x2x19x1_axis_Y_19) {
-    run_broadcast_gpu_opt_y_axis({21,1,2,1,1},{-1,-1,2,1,1},{21,1,2,19,1},{1,1,1,19,1});
+    run_broadcast_gpu_opt_y_axis<ov::float16>({21,1,2,1,1},{-1,-1,2,1,1},{21,1,2,19,1},{1,1,1,19,1});
 }
 
 TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x1_to_21x1x2x3x1_axis_Y_3) {
-    run_broadcast_gpu_opt_y_axis({21,1,2,1,1},{-1,-1,2,1,1},{21,1,2,3,1},{1,1,1,3,1});
+    run_broadcast_gpu_opt_y_axis<ov::float16>({21,1,2,1,1},{-1,-1,2,1,1},{21,1,2,3,1},{1,1,1,3,1});
 }
 
 TEST(broadcast_gpu_opt_fp16, bfwzyx_21x1x2x1x1_to_21x1x2x19x1_axis_F_14_Z_12) {
-    run_broadcast_gpu_opt_y_axis({21,14,12,1,1},{-1,14,12,1,1},{21,14,12,1,1},{1,14,12,1,1});
+    run_broadcast_gpu_opt_y_axis<ov::float16>({21,14,12,1,1},{-1,14,12,1,1},{21,14,12,1,1},{1,14,12,1,1});
 }
 
 TEST(broadcast_gpu_opt_fp16, bfyx_21x2x1x1_to_21x2x3x1_axis_Y_13) {
-    run_broadcast_gpu_opt_y_axis({21,2,1,5},{-1,2,1,5},{21,2,13,5},{1,1,13,1});
+    run_broadcast_gpu_opt_y_axis<ov::float16>({21,2,1,5},{-1,2,1,5},{21,2,13,5},{1,1,13,1});
 }
 
 TEST(broadcast_gpu_opt_fp16, bfzyx_21x1x2x1x5_to_21x1x2x15x5_axis_Y_15) {
-    run_broadcast_gpu_opt_y_axis({21,1,2,1,5},{-1,-1,2,1,5},{21,1,2,15,5},{1,1,1,15,1});
+    run_broadcast_gpu_opt_y_axis<ov::float16>({21,1,2,1,5},{-1,-1,2,1,5},{21,1,2,15,5},{1,1,1,15,1});
 }
 
 TEST(broadcast_gpu_opt_fp16, bfyx_4x5x1x1_to_4x5x6x1_axis_Y_6) {
-    run_broadcast_gpu_opt_y_axis({4,5,1,1},{-1,-1,1,1},{4,5,6,1},{1,1,6,1});
+    run_broadcast_gpu_opt_y_axis<ov::float16>({4,5,1,1},{-1,-1,1,1},{4,5,6,1},{1,1,6,1});
 }
 
 TEST(broadcast_gpu_opt_fp16, bfyx_4x5x1x1_to_4x5x11x1_axis_Y_11) {
-    run_broadcast_gpu_opt_y_axis({4,5,1,1},{-1,-1,1,1},{4,5,11,1},{1,1,11,1});
+    run_broadcast_gpu_opt_y_axis<ov::float16>({4,5,1,1},{-1,-1,1,1},{4,5,11,1},{1,1,11,1});
+}
+
+TEST(broadcast_gpu_opt_bf16, bfzyx_21x1x2x1x128_to_21x1x2x16x128_axis_Y_16) {
+    run_broadcast_gpu_opt_y_axis<ov::bfloat16>({21,1,2,1,128},{-1,-1,2,1,128},{21,1,2,16,128},{1,1,1,16,1});
+}
+
+TEST(broadcast_gpu_opt_bf16, bfzyx_21x1x2x1x128_to_21x1x2x17x128_axis_Y_17) {
+    run_broadcast_gpu_opt_y_axis<ov::bfloat16>({21,1,2,1,128},{-1,-1,2,1,128},{21,1,2,17,128},{1,1,1,17,1});
+}
+
+TEST(broadcast_gpu_opt_bf16, bfzyx_21x1x2x1x129_to_21x1x2x19x129_axis_Y_19) {
+    run_broadcast_gpu_opt_y_axis<ov::bfloat16>({21,1,2,1,129},{-1,-1,2,1,129},{21,1,2,19,129},{1,1,1,19,1});
+}
+
+TEST(broadcast_gpu_opt_bf16, bfzyx_21x1x2x1x1_to_21x1x2x19x1_axis_Y_19) {
+    run_broadcast_gpu_opt_y_axis<ov::bfloat16>({21,1,2,1,1},{-1,-1,2,1,1},{21,1,2,19,1},{1,1,1,19,1});
+}
+
+TEST(broadcast_gpu_opt_bf16, bfzyx_21x1x2x1x1_to_21x1x2x3x1_axis_Y_3) {
+    run_broadcast_gpu_opt_y_axis<ov::bfloat16>({21,1,2,1,1},{-1,-1,2,1,1},{21,1,2,3,1},{1,1,1,3,1});
+}
+
+TEST(broadcast_gpu_opt_bf16, bfwzyx_21x1x2x1x1_to_21x1x2x19x1_axis_F_14_Z_12) {
+    run_broadcast_gpu_opt_y_axis<ov::bfloat16>({21,14,12,1,1},{-1,14,12,1,1},{21,14,12,1,1},{1,14,12,1,1});
+}
+
+TEST(broadcast_gpu_opt_bf16, bfyx_21x2x1x1_to_21x2x3x1_axis_Y_13) {
+    run_broadcast_gpu_opt_y_axis<ov::bfloat16>({21,2,1,5},{-1,2,1,5},{21,2,13,5},{1,1,13,1});
+}
+
+TEST(broadcast_gpu_opt_bf16, bfzyx_21x1x2x1x5_to_21x1x2x15x5_axis_Y_15) {
+    run_broadcast_gpu_opt_y_axis<ov::bfloat16>({21,1,2,1,5},{-1,-1,2,1,5},{21,1,2,15,5},{1,1,1,15,1});
+}
+
+TEST(broadcast_gpu_opt_bf16, bfyx_4x5x1x1_to_4x5x6x1_axis_Y_6) {
+    run_broadcast_gpu_opt_y_axis<ov::bfloat16>({4,5,1,1},{-1,-1,1,1},{4,5,6,1},{1,1,6,1});
+}
+
+TEST(broadcast_gpu_opt_bf16, bfyx_4x5x1x1_to_4x5x11x1_axis_Y_11) {
+    run_broadcast_gpu_opt_y_axis<ov::bfloat16>({4,5,1,1},{-1,-1,1,1},{4,5,11,1},{1,1,11,1});
+}
+
+// ===== Tests targeting broadcast_gpu_opt kernel (batch-repeat path) =====
+// The opt kernel fires when:
+//   input.Batch() == 1, output.Batch() > 1, input bytes > 16KB,
+//   input.X() == output.X(), output.X() >= 32, planar format, no fused ops.
+// These tests stress the BATCH_REPEAT loop and OUTPUT_BATCH_PITCH stride math.
+
+// Basic batch broadcast, X divisible by VEC_SIZE=8.
+TEST(broadcast_gpu_opt, bfyx_1x16x32x64_to_8x16x32x64_axes_0) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {8,16,32,64}, {16,32,64}, {0}, "broadcast_gpu_opt");
+}
+
+// FP16 path (most common in inference).
+TEST(broadcast_gpu_opt, bfyx_fp16_1x16x32x64_to_8x16x32x64_axes_0) {
+    start_broadcast_test<ov::float16>(format::bfyx, data_types::f16, {8,16,32,64}, {16,32,64}, {0}, "broadcast_gpu_opt");
+}
+
+// X NOT divisible by VEC_SIZE=8 -> exercises scalar tail loop.
+TEST(broadcast_gpu_opt, bfyx_1x16x32x70_to_8x16x32x70_axes_0_x_not_aligned) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {8,16,32,70}, {16,32,70}, {0}, "broadcast_gpu_opt");
+}
+
+// X just at threshold (kMinXForOpt = 32).
+TEST(broadcast_gpu_opt, bfyx_1x16x16x32_to_4x16x16x32_axes_0_x_min_threshold) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,16,32}, {16,16,32}, {0}, "broadcast_gpu_opt");
+}
+
+// Non-power-of-2 batch.
+TEST(broadcast_gpu_opt, bfyx_1x16x32x64_to_3x16x32x64_axes_0_batch_3) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {3,16,32,64}, {16,32,64}, {0}, "broadcast_gpu_opt");
+}
+
+TEST(broadcast_gpu_opt, bfyx_1x16x32x64_to_17x16x32x64_axes_0_batch_17) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {17,16,32,64}, {16,32,64}, {0}, "broadcast_gpu_opt");
+}
+
+// 5D bfzyx layout.
+TEST(broadcast_gpu_opt, bfzyx_1x8x4x32x64_to_4x8x4x32x64_axes_0) {
+    start_broadcast_test_5d<float>(format::bfzyx, data_types::f32, {4,8,4,32,64}, {8,4,32,64}, {0});
+}
+
+// FP16 5D path.
+TEST(broadcast_gpu_opt, bfzyx_fp16_1x8x4x32x64_to_4x8x4x32x64_axes_0) {
+    start_broadcast_test_5d<ov::float16>(format::bfzyx, data_types::f16, {4,8,4,32,64}, {8,4,32,64}, {0});
+}
+
+// INT8 path (verifies opt kernel handles 1-byte types).
+TEST(broadcast_gpu_opt, bfyx_int8_1x16x32x64_to_8x16x32x64_axes_0) {
+    start_broadcast_test<int8_t>(format::bfyx, data_types::i8, {8,16,32,64}, {16,32,64}, {0}, "broadcast_gpu_opt");
+}
+
+// INT64 path. Input must exceed the 16KB batch-repeat threshold to hit opt:
+// 4*16*40 i64 = 20480 bytes > 16384.
+TEST(broadcast_gpu_opt, bfyx_int64_1x4x16x40_to_4x4x16x40_axes_0) {
+    start_broadcast_test<int64_t>(format::bfyx, data_types::i64, {4,4,16,40}, {4,16,40}, {0}, "broadcast_gpu_opt");
+}
+
+// Input just above the 16KB threshold -> opt kernel.
+// 4*16*65 fp32 = 16640 bytes > 16384.
+TEST(broadcast_gpu_opt, bfyx_1x4x16x65_to_4x4x16x65_axes_0_above_threshold) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,4,16,65}, {4,16,65}, {0}, "broadcast_gpu_opt");
+}
+
+// Input just below threshold -> ref kernel (verifies fallback works).
+// 4*16*32 fp32 = 8192 bytes < 16384.
+TEST(broadcast_gpu_opt, bfyx_1x4x16x32_to_4x4x16x32_axes_0_below_threshold_uses_ref) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,4,16,32}, {4,16,32}, {0}, "broadcast_gpu_ref");
+}
+
+// Combined batch+feature broadcast. axes={0,1} -> identity input_order. Input must exceed
+// the 16KB batch-repeat threshold to hit opt: 64*128 f32 = 32768 bytes > 16384.
+// Input [1,1,64,128] -> Output [4,16,64,128]: batch (1->4) AND feature (1->16) broadcast.
+// Feature is handled via in_row_base modulo; opt fires because output.Batch>1, input.Batch==1.
+TEST(broadcast_gpu_opt, bfyx_1x1x64x128_to_4x16x64x128_axes_0_1) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,64,128}, {64,128}, {0,1}, "broadcast_gpu_opt");
+}
+
+// Batch + Y broadcast. broadcast_axes={0,2} yields a permuted input_order [0,2,1,3]
+// (NOT identity), so the opt kernel defers to ref. Verifies correctness on the fallback path.
+// Input [16,64] (dims F,X) -> Output [4,16,32,64]: batch (axis 0) AND Y (axis 2) broadcast.
+TEST(broadcast_gpu_opt, bfyx_16x64_to_4x16x32x64_axes_0_2) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,32,64}, {16,64}, {0,2}, "broadcast_gpu_ref");
+}
+
+// Guard regression test: broadcast_axes={2} (a middle axis) produces a permuted
+// input_order [1,2,0,3] (NOT identity). The opt kernel maps output axis i -> input axis i
+// with no permutation, so it must defer to ref here. Verifies the input_order identity
+// guard routes this correctly and the result still matches the reference.
+// NOTE: the legacy reinterpret (broadcast_axes) helper can only produce identity
+// input_order for leading-axis broadcasts ({0}, {0,1}, ...). Trailing/middle-axis
+// broadcasts always yield a permuted order and are (correctly) handled by ref. The opt
+// kernel's X-broadcast / block-write fast path is exercised via start_x_broadcast_test
+// below, which uses the numpy full-shape constructor to build a genuine input.X==1.
+TEST(broadcast_gpu_opt, bfyx_axis2_permuted_order_uses_ref) {
+    start_broadcast_test<float>(format::bfyx, data_types::f32, {4,16,32,64}, {4,16,64}, {2}, "broadcast_gpu_ref");
+}
+
+// Static numpy-mode X-broadcast helper: input has a genuine X==1 that is broadcast to
+// output X via the numpy full-shape Broadcast constructor (empty axes_mapping -> empty
+// broadcast_axes -> identity input_order). This is the ONLY way to hit the opt kernel's
+// IS_X_BROADCAST splat / X_BROADCAST_BLOCK_WRITE paths from a unit test; the legacy
+// reinterpret helper cannot construct input.X==1 with identity order.
+template<typename T>
+void start_x_broadcast_test(data_types dt, const ov::Shape& in_shape, const ov::Shape& out_shape,
+                            const std::string& expected_kernel) {
+    ASSERT_EQ(in_shape.size(), out_shape.size());
+    ASSERT_EQ(in_shape.back(), 1u);  // X must be 1 to exercise the X-broadcast path
+
+    size_t in_size = accumulate(in_shape.begin(), in_shape.end(), (size_t)1, std::multiplies<size_t>());
+    std::vector<T> input_data;
+    for (size_t i = 1; i <= in_size; ++i)
+        input_data.push_back((T)i);
+
+    size_t out_size = accumulate(out_shape.begin(), out_shape.end(), (size_t)1, std::multiplies<size_t>());
+    std::vector<T> ref(out_size);
+    ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
+                             reinterpret_cast<char*>(ref.data()),
+                             in_shape, out_shape, ov::AxisSet(), sizeof(T));
+
+    auto& engine = get_test_engine();
+    auto fmt = format::get_default_format(in_shape.size());
+    auto input = engine.allocate_memory({ov::PartialShape(in_shape), dt, fmt});
+    set_values(input, input_data);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(broadcast("broadcast", input_info("input"), out_shape, ov::AxisSet{}, ov::op::BroadcastType::NUMPY));
+    topology.add(reorder("output", input_info("broadcast"), fmt, dt));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < out_size; ++i)
+        ASSERT_EQ(output_ptr[i], ref[i]);
+
+    std::string broadcast_kernel;
+    for (auto& info : network.get_primitives_info()) {
+        if (info.original_id == "broadcast")
+            broadcast_kernel = info.kernel_id;
+    }
+    ASSERT_NE(broadcast_kernel.find(expected_kernel), std::string::npos)
+        << "Expected broadcast impl containing '" << expected_kernel << "' but got '" << broadcast_kernel << "'";
+}
+
+// X-broadcast splat path: input.X==1, output.X in [32,128) -> vstore8 splat (not block-write).
+TEST(broadcast_gpu_opt, bfyx_x_broadcast_x64_splat) {
+    start_x_broadcast_test<float>(data_types::f32, {1,64,128,1}, {1,64,128,64}, "broadcast_gpu_opt");
+}
+
+// X-broadcast block-write path: input.X==1, output.X==256 (>=128, %128==0) -> block_write8, no tail.
+TEST(broadcast_gpu_opt, bfyx_x_broadcast_x256_block_write) {
+    start_x_broadcast_test<float>(data_types::f32, {1,64,128,1}, {1,64,128,256}, "broadcast_gpu_opt");
+}
+
+// X-broadcast block-write + tail: output.X==200 (>=128, %128!=0) -> 1 block of 128 + 72-elem tail.
+TEST(broadcast_gpu_opt, bfyx_x_broadcast_x200_block_write_with_tail) {
+    start_x_broadcast_test<float>(data_types::f32, {1,64,128,1}, {1,64,128,200}, "broadcast_gpu_opt");
+}
+
+// FP16 X-broadcast block-write (verifies block_write_us8 for 2-byte types).
+TEST(broadcast_gpu_opt, bfyx_fp16_x_broadcast_x256_block_write) {
+    start_x_broadcast_test<ov::float16>(data_types::f16, {1,64,128,1}, {1,64,128,256}, "broadcast_gpu_opt");
+}
+
+// FP16 X-broadcast with ODD X=129 (>=128 but row byte-width 129*2=258 not %4). block_write
+// would misalign consecutive rows and silently corrupt, so the alignment guard must fall
+// back to the vstore8 splat path. Still opt kernel, just not the block-write path.
+// (Correctness of the fallback output is the key check here.)
+TEST(broadcast_gpu_opt, bfyx_fp16_x_broadcast_x129_odd_falls_back_to_splat) {
+    start_x_broadcast_test<ov::float16>(data_types::f16, {1,64,128,1}, {1,64,128,129}, "broadcast_gpu_opt");
+}
+
+// INT8 X-broadcast block-write (verifies block_write_uc8 for 1-byte types). X=256, row width
+// 256*1=256 %4==0 -> block-write. This is the quantized-model path; distinct 1-byte intrinsic.
+TEST(broadcast_gpu_opt, bfyx_int8_x_broadcast_x256_block_write) {
+    start_x_broadcast_test<int8_t>(data_types::i8, {1,64,128,1}, {1,64,128,256}, "broadcast_gpu_opt");
+}
+
+// INT8 X-broadcast, X=130: row width 130*1=130 %4==2 -> alignment guard fails -> splat fallback.
+// i8's alignment condition (X%4==0) differs from f16's (even X); exercises that boundary.
+TEST(broadcast_gpu_opt, bfyx_int8_x_broadcast_x130_unaligned_falls_back_to_splat) {
+    start_x_broadcast_test<int8_t>(data_types::i8, {1,64,128,1}, {1,64,128,130}, "broadcast_gpu_opt");
+}
+
+// FP16 X-broadcast block-write WITH tail: X=192 (>=128, %128=64, even so 192*2=384 %4==0 ->
+// block-write eligible). Exercises the 2-byte block-write + scalar-tail combination.
+TEST(broadcast_gpu_opt, bfyx_fp16_x_broadcast_x192_block_write_with_tail) {
+    start_x_broadcast_test<ov::float16>(data_types::f16, {1,64,128,1}, {1,64,128,192}, "broadcast_gpu_opt");
+}
+
+// Dynamic numpy-mode broadcast helper. The input partial shape is passed explicitly so a
+// test can mark only some axes dynamic (e.g. batch = -1, Y/X static) — matching how real
+// dynamic LLM broadcasts reach the plugin. Numpy mode = empty axes_mapping. The input
+// layout is dynamic (so the impl is shape-agnostic), while the target output shape is a
+// compile-time constant (so shape inference resolves static F/Y/X, letting the opt kernel's
+// Y-static gate admit the case). Exercises the opt kernel's dynamic path: shape-agnostic
+// JIT (BATCH_REPEAT=1, runtime INPUT0_SIZE_X==1 branch) + GetUpdateDispatchDataFunc.
+// Asserts the impl is dynamic, selects the expected kernel, and produces correct output.
+template<typename T>
+void start_dynamic_numpy_broadcast_test(data_types dt, const ov::PartialShape& in_pshape,
+                                        const ov::Shape& in_shape, const ov::Shape& out_shape,
+                                        const std::string& expected_kernel) {
+    ASSERT_EQ(in_shape.size(), out_shape.size());
+    ASSERT_EQ(in_pshape.size(), in_shape.size());
+
+    size_t in_size = accumulate(in_shape.begin(), in_shape.end(), (size_t)1, std::multiplies<size_t>());
+    std::vector<T> input_data;
+    for (size_t i = 1; i <= in_size; ++i)
+        input_data.push_back((T)i);
+
+    size_t out_size = accumulate(out_shape.begin(), out_shape.end(), (size_t)1, std::multiplies<size_t>());
+    std::vector<T> ref(out_size);
+    ov::reference::broadcast(reinterpret_cast<const char*>(input_data.data()),
+                             reinterpret_cast<char*>(ref.data()),
+                             in_shape, out_shape, ov::AxisSet(), sizeof(T));
+
+    auto& engine = get_test_engine();
+    const int64_t rank = static_cast<int64_t>(in_shape.size());
+    auto fmt = format::get_default_format(rank);
+
+    auto input = engine.allocate_memory({ov::PartialShape(in_shape), dt, fmt});
+    set_values(input, input_data);
+
+    topology topology;
+    topology.add(input_layout("input", layout(in_pshape, dt, fmt)));
+    // Constant (compile-time) target shape so shape inference resolves the static output
+    // dims (F/Y/X); the input stays dynamic on its marked axes. This mirrors a real
+    // dynamic-batch broadcast where the target shape is known from surrounding constants,
+    // and is required for the opt kernel's Y-static gate to admit the case.
+    topology.add(broadcast("broadcast", input_info("input"), out_shape, ov::AxisSet{},
+                           ov::op::BroadcastType::NUMPY));
+    topology.add(reorder("output", input_info("broadcast"), fmt, dt));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    // Confirm the selected broadcast impl is genuinely a dynamic (shape-agnostic) impl.
+    auto inst = network.get_primitive("broadcast");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("output").get_memory();
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t i = 0; i < out_size; ++i)
+        ASSERT_EQ(output_ptr[i], ref[i]);
+
+    std::string broadcast_kernel;
+    for (auto& info : network.get_primitives_info()) {
+        if (info.original_id == "broadcast")
+            broadcast_kernel = info.kernel_id;
+    }
+    ASSERT_NE(broadcast_kernel.find(expected_kernel), std::string::npos)
+        << "Expected broadcast impl containing '" << expected_kernel << "' but got '" << broadcast_kernel << "'";
+}
+
+// Dynamic batch broadcast: batch is dynamic (-1) but F/Y/X are static, matching a real
+// dynamic-batch LLM broadcast. The conservative gate requires Y statically known & equal
+// (it is: 128==128), so opt is selected. Runtime batch resolves to 4 at execution.
+TEST(broadcast_gpu_opt, dynamic_batch_broadcast_uses_opt) {
+    start_dynamic_numpy_broadcast_test<float>(data_types::f32, {-1,64,128,256},
+                                              {1,64,128,256}, {4,64,128,256}, "broadcast_gpu_opt");
+}
+
+// Dynamic X-broadcast: batch dynamic, X statically 1 -> opt kernel's INPUT0_SIZE_X==1
+// splat branch. Y statically equal so the gate admits it. Verifies runtime X-broadcast.
+TEST(broadcast_gpu_opt, dynamic_x_broadcast_uses_opt) {
+    start_dynamic_numpy_broadcast_test<float>(data_types::f32, {-1,64,128,1},
+                                              {1,64,128,1}, {4,64,128,64}, "broadcast_gpu_opt");
+}
+
+// Dynamic Y is unknown at compile time -> the conservative gate cannot prove Y is not a
+// broadcast axis, so opt defers to ref (which has Y-blocking). Guards against a Y-broadcast
+// regression on dynamic shapes.
+TEST(broadcast_gpu_opt, dynamic_y_unknown_uses_ref) {
+    start_dynamic_numpy_broadcast_test<float>(data_types::f32, {-1,64,-1,256},
+                                              {1,64,128,256}, {4,64,128,256}, "broadcast_gpu_ref");
 }

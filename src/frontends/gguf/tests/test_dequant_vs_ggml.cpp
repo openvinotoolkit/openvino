@@ -4,7 +4,7 @@
 // Dequantization correctness tests with REAL ggml as the oracle.
 //
 // The reference data was produced offline by linking real ggml from llama.cpp
-// (see tests/gen_ggml_reference.c): ggml quantizes smooth, asymmetric synthetic
+// (captured from real ggml): ggml quantizes smooth, asymmetric synthetic
 // data into real GGUF-format blocks (_qbytes) and dequantizes those exact bytes
 // (_deq).  The committed .npy files mean the tests need no ggml / llama.cpp at
 // build or run time.
@@ -15,14 +15,13 @@
 // Tolerance: ggml stores K-quant scales as f16 and the dequant subgraph runs in f16,
 // so allow ~3e-3 (matching llama.cpp's MAX_QUANTIZATION_TOTAL_ERROR-class thresholds).
 
-#include <gtest/gtest.h>
-
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <string>
 #include <vector>
 
+#include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
@@ -74,6 +73,8 @@ const char* type_name(uint32_t type) {
         return "Q5_K";
     case GGUF_TYPE_Q6_K:
         return "Q6_K";
+    case GGUF_TYPE_Q2_0:
+        return "Q2_0";
     default:
         return "";
     }
@@ -97,6 +98,16 @@ float max_abs_diff(const std::vector<float>& a, const std::vector<float>& b) {
     return m;
 }
 
+float mean_squared_error(const std::vector<float>& a, const std::vector<float>& b) {
+    EXPECT_EQ(a.size(), b.size());
+    double sum = 0.0;
+    for (size_t i = 0; i < a.size() && i < b.size(); ++i) {
+        const double diff = static_cast<double>(a[i]) - b[i];
+        sum += diff * diff;
+    }
+    return static_cast<float>(sum / a.size());
+}
+
 // One case: stem (test_data file prefix) + ggml quant enum + tolerance. rows/cols match the
 // generator. Q5_K/Q6_K go through the channel-wise Q8_0_C requantization (matching the
 // llama.cpp ggml-openvino CPU/GPU backend), so they diverge from ggml's faithful to_float by
@@ -111,10 +122,11 @@ constexpr uint64_t kRows = 4;
 constexpr uint64_t kCols = 256;
 constexpr float kTolFaithful = 3e-3f;   // f16-scale dequant noise
 constexpr float kTolRequant = 1.5e-2f;  // channel-wise Q8_0_C requant round-off
-// Q4_K uses an INTEGER (u8) zero-point so the CPU plugin fuses the dequant into the MatMul
-// (matching the original ggml-openvino backend). The integer zp rounds min to a multiple of
-// scale, so the dequant diverges from ggml's faithful to_float by up to ~0.045 per weight.
-constexpr float kTolIntZp = 5e-2f;
+// Q4_K is faithfully decoded and then requantized in its native 32-value groups to OpenVINO u4.
+// Keep its worst error below the former rounded-zero-point path's 5e-2 tolerance.
+constexpr float kTolU4Requant = 4e-2f;
+// Q2_0: (code - 1) * d on both sides and the zero-point of 1 is exact, so hold it to bit-equality.
+constexpr float kTolExact = 0.0f;
 
 }  // namespace
 
@@ -131,6 +143,30 @@ TEST_P(DequantVsGGML, MatchesGgmlToFloat) {
 
     EXPECT_LE(max_abs_diff(ours, ref), c.tol)
         << c.stem << ": frontend dequant diverges from ggml to_float beyond tolerance";
+}
+
+// Guard both aggregate quality and the worst outlier against the real ggml CPU oracle. The
+// previous SSE-only candidate selection lowered MSE but raised max error above 5e-2.
+TEST(DequantVsGGML, Q4KRequantizationImprovesWithoutOutliers) {
+    const auto qbytes = load_npy<uint8_t>("q4_k_qbytes");
+    const auto ref = load_npy<float>("q4_k_deq");
+    const auto ours = frontend_dequant(GGUF_TYPE_Q4_K, qbytes, kRows, kCols);
+
+    ASSERT_EQ(ours.size(), ref.size());
+    EXPECT_LE(mean_squared_error(ours, ref), 2.8e-4f);
+    EXPECT_LE(max_abs_diff(ours, ref), kTolU4Requant);
+}
+
+TEST(DequantVsGGML, Q4KRejectsNonFiniteScaleMetadata) {
+    const auto valid = load_npy<uint8_t>("q4_k_qbytes");
+    constexpr uint16_t inf_f16 = 0x7c00;
+    constexpr uint16_t nan_f16 = 0x7e00;
+
+    for (const auto& [offset, bits] : {std::pair<size_t, uint16_t>{0, inf_f16}, {2, nan_f16}}) {
+        auto malformed = valid;
+        std::memcpy(malformed.data() + offset, &bits, sizeof(bits));
+        EXPECT_ANY_THROW(frontend_dequant(GGUF_TYPE_Q4_K, malformed, kRows, kCols));
+    }
 }
 
 // The faithful per-row K-quant dequant used as the Q8_0_C requant source must match ggml's
@@ -156,16 +192,18 @@ TEST_P(FaithfulDequantVsGGML, MatchesGgmlToFloat) {
     for (size_t r = 0; r < kRows; ++r) {
         c.dq(qbytes.data() + r * bytes_per_row, kCols, ours.data() + r * kCols);
     }
-    EXPECT_LE(max_abs_diff(ours, ref), 3e-3f)
-        << c.stem << ": faithful per-row dequant diverges from ggml to_float";
+    EXPECT_LE(max_abs_diff(ours, ref), 3e-3f) << c.stem << ": faithful per-row dequant diverges from ggml to_float";
 }
 
-INSTANTIATE_TEST_SUITE_P(FaithfulKQuant,
-                         FaithfulDequantVsGGML,
-                         ::testing::Values(FaithfulCase{"q4_k", GGUF_TYPE_Q4_K, ov::frontend::gguf::dequant_row_q4_k_f32_for_test},
-                                           FaithfulCase{"q5_k", GGUF_TYPE_Q5_K, ov::frontend::gguf::dequant_row_q5_k_f32_for_test},
-                                           FaithfulCase{"q6_k", GGUF_TYPE_Q6_K, ov::frontend::gguf::dequant_row_q6_k_f32_for_test}),
-                         [](const ::testing::TestParamInfo<FaithfulCase>& i) { return std::string(i.param.stem); });
+INSTANTIATE_TEST_SUITE_P(
+    FaithfulKQuant,
+    FaithfulDequantVsGGML,
+    ::testing::Values(FaithfulCase{"q4_k", GGUF_TYPE_Q4_K, ov::frontend::gguf::dequant_row_q4_k_f32_for_test},
+                      FaithfulCase{"q5_k", GGUF_TYPE_Q5_K, ov::frontend::gguf::dequant_row_q5_k_f32_for_test},
+                      FaithfulCase{"q6_k", GGUF_TYPE_Q6_K, ov::frontend::gguf::dequant_row_q6_k_f32_for_test}),
+    [](const ::testing::TestParamInfo<FaithfulCase>& i) {
+        return std::string(i.param.stem);
+    });
 
 INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                          DequantVsGGML,
@@ -176,9 +214,13 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            DeqCase{"q8_0", GGUF_TYPE_Q8_0, kTolFaithful},
                                            DeqCase{"q2_k", GGUF_TYPE_Q2_K, kTolFaithful},
                                            DeqCase{"q3_k", GGUF_TYPE_Q3_K, kTolFaithful},
-                                           DeqCase{"q4_k", GGUF_TYPE_Q4_K, kTolIntZp},
+                                           DeqCase{"q4_k", GGUF_TYPE_Q4_K, kTolU4Requant},
                                            DeqCase{"q5_k", GGUF_TYPE_Q5_K, kTolRequant},
-                                           DeqCase{"q6_k", GGUF_TYPE_Q6_K, kTolRequant}),
+                                           DeqCase{"q6_k", GGUF_TYPE_Q6_K, kTolRequant},
+                                           // Q2_0 is bit-exact: both sides compute (code - 1) * d
+                                           // from the same f16 scale, and the u8 zero-point of 1 is
+                                           // represented exactly, so no dequant noise is introduced.
+                                           DeqCase{"q2_0", GGUF_TYPE_Q2_0, kTolExact}),
                          [](const ::testing::TestParamInfo<DeqCase>& i) {
                              return std::string(i.param.stem);
                          });

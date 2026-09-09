@@ -63,11 +63,14 @@ struct BlobFormatImportersTest : public ::testing::Test {
  * @brief Empty blobs should not be accepted by the importer factory
  */
 TEST_F(BlobFormatImportersTest, FactoryEmptyInputFails) {
-    std::istringstream input_stream("");
-    const ov::Tensor input_tensor;
+    const std::string empty_buffer("");
+    std::istringstream input_stream(empty_buffer);
+    BlobSource source(input_stream);
+    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
 
-    OV_EXPECT_THROW(blob_format_importer_factory::create(input_stream, false, nullptr, config), ov::Exception, _);
-    OV_EXPECT_THROW(blob_format_importer_factory::create(input_tensor, false, nullptr, config), ov::Exception, _);
+    const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({0}), empty_buffer.data());
+    source = BlobSource(input_tensor);
+    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
 }
 
 /**
@@ -81,7 +84,8 @@ TEST_F(BlobFormatImportersTest, FactoryTensorSmallerThanMagicFails) {
         const ov::Tensor input_tensor(ov::element::Type_t::u8,
                                       ov::Shape({blob.size()}),
                                       const_cast<char*>(blob.data()));
-        OV_EXPECT_THROW(blob_format_importer_factory::create(input_tensor, false, nullptr, config), ov::Exception, _);
+        BlobSource source(input_tensor);
+        OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
     }
 }
 
@@ -90,11 +94,14 @@ TEST_F(BlobFormatImportersTest, FactoryTensorSmallerThanMagicFails) {
  */
 TEST_F(BlobFormatImportersTest, FactoryNoMagicNoRawFails) {
     const std::string blob = build_blob_format_v1_without_magic();
-    std::istringstream input_stream(blob);
-    const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
 
-    OV_EXPECT_THROW(blob_format_importer_factory::create(input_stream, false, nullptr, config), ov::Exception, _);
-    OV_EXPECT_THROW(blob_format_importer_factory::create(input_tensor, false, nullptr, config), ov::Exception, _);
+    std::istringstream input_stream(blob);
+    BlobSource source(input_stream);
+    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
+
+    const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
+    source = BlobSource(input_tensor);
+    OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
 }
 
 /**
@@ -102,11 +109,14 @@ TEST_F(BlobFormatImportersTest, FactoryNoMagicNoRawFails) {
  */
 TEST_F(BlobFormatImportersTest, FactoryNoMagicRawPasses) {
     const std::string blob(RAW_BLOB);
-    std::istringstream input_stream(blob);
-    const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
 
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_stream, true, nullptr, config));
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_tensor, true, nullptr, config));
+    std::istringstream input_stream(blob);
+    BlobSource source(input_stream);
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, true, nullptr, config));
+
+    const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
+    source = BlobSource(input_tensor);
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, true, nullptr, config));
 }
 
 /**
@@ -116,17 +126,21 @@ TEST_F(BlobFormatImportersTest, FactoryCanCreateImporterForBlobFormatV1) {
     const std::string blob = build_blob_format_v1_with_magic();
     std::istringstream input_stream(blob);
     const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
+    BlobSource stream_source(input_stream);
+    BlobSource tensor_source(input_tensor);
 
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_stream, true, nullptr, config));
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_tensor, true, nullptr, config));
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, true, nullptr, config));
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, true, nullptr, config));
 
-    input_stream.seekg(0, std::ios::beg);
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_stream, false, nullptr, config));
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_tensor, false, nullptr, config));
+    stream_source.seekg(0, std::ios::beg);
+    tensor_source.seekg(0, std::ios::beg);
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, false, nullptr, config));
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, nullptr, config));
 
-    input_stream.seekg(0, std::ios::beg);
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_stream, false, create_simple_model(), config));
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(input_tensor, false, create_simple_model(), config));
+    stream_source.seekg(0, std::ios::beg);
+    tensor_source.seekg(0, std::ios::beg);
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(stream_source, false, create_simple_model(), config));
+    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(tensor_source, false, create_simple_model(), config));
 }
 
 /**
@@ -135,7 +149,8 @@ TEST_F(BlobFormatImportersTest, FactoryCanCreateImporterForBlobFormatV1) {
 TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
     const std::string blob = build_blob_format_v1_with_magic();
     const ov::Tensor input_tensor(ov::element::Type_t::u8, ov::Shape({blob.size()}), blob.data());
+    BlobSource source(input_tensor);
 
-    OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(input_tensor, true, nullptr, config));
+    OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(source, true, nullptr, config));
     OV_EXPECT_THROW(importer->create_dummy_model(), ov::Exception, _);
 }

@@ -4,7 +4,7 @@
 
 #include "jit_binary_call_emitter.hpp"
 
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#include <xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <algorithm>
 #include <cpu/aarch64/cpu_isa_traits.hpp>

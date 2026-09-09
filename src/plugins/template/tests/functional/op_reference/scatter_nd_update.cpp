@@ -657,6 +657,16 @@ std::vector<ScatterNDUpdateParams> generateScatterNDUpdateNegativeParams() {
                               reference_tests::Tensor({1}, IN_ET, std::vector<T>{10}),
                               reference_tests::Tensor({2, 2}, IN_ET, std::vector<T>{1, 2, 3, 4, 5, 6}),
                               "scatter_nd_update_2x3_with_out_of_bounds_index"),
+        // scatter_nd_update_4x4_with_out_of_range_negative_index
+        // Regression test for CWE-190 -> CWE-787: an index whose magnitude exceeds
+        // its dimension (dim=4, idx=-5) stays negative after the single-pass negative
+        // index fixup. Casting it to the unsigned accumulator used to wrap the bounds
+        // check and allow an out-of-bounds write; it must now be rejected.
+        ScatterNDUpdateParams(reference_tests::Tensor({4, 4}, IN_ET, std::vector<T>(16, static_cast<T>(0))),
+                              reference_tests::Tensor({1, 2}, IU_ET, std::vector<U>{0, -5}),
+                              reference_tests::Tensor({1}, IN_ET, std::vector<T>{1}),
+                              reference_tests::Tensor({4, 4}, IN_ET, std::vector<T>(16, static_cast<T>(0))),
+                              "scatter_nd_update_4x4_with_out_of_range_negative_index"),
     };
     return scatterParams;
 }

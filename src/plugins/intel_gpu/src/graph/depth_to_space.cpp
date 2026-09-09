@@ -21,11 +21,12 @@ layout depth_to_space_inst::calc_output_layout(depth_to_space_node const& node, 
 
     const size_t block_size = desc->block_size;
 
-    if (input_layout.feature() % (block_size * block_size) != 0)
+    if (input_layout.feature() % (block_size * block_size) != 0) {
         CLDNN_ERROR_MESSAGE(
             desc->id,
             "The depth of the input tensor must be divisible by squared block size. Actual block size is " +
                 std::to_string(block_size));
+    }
 
     auto out_size = input_layout.get_tensor();
     if (format::spatial_num(input_layout.format) == 3) {
