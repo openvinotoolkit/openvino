@@ -29,8 +29,6 @@ protected:
 
         config = std::make_unique<FilteredConfig>(options);
 
-        config->enable(ov::enable_profiling.name(), true);
-        config->enableRuntimeOptions();
     }
 
     static ze_graph_compiler_version_info_t modernCompilerVersion() {
@@ -53,7 +51,7 @@ protected:
 };
 
 TEST_F(ProfilingSerializeConfigTests, PerfCountIsForwardedAsSet) {
-    config->update({{ov::enable_profiling.name(), "YES"}});
+    config->update(ov::enable_profiling.name(), "YES");
 
     const std::string flags = serialize();
 
@@ -61,7 +59,7 @@ TEST_F(ProfilingSerializeConfigTests, PerfCountIsForwardedAsSet) {
 }
 
 TEST_F(ProfilingSerializeConfigTests, NpuProfilingIsNeverSerializedUnderItsOwnKey) {
-    config->update({{ov::intel_npu::infer_profiling.name(), "YES"}});
+    config->update(ov::intel_npu::infer_profiling.name(), "YES");
 
     const std::string flags = serialize();
 

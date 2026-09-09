@@ -9,14 +9,12 @@
 #endif
 
 
-// Do not include DirectX / VA wrappers when running with ZE runtime as they depend on OCL
-#ifndef OV_GPU_WITH_ZE_RT
 #ifdef _WIN32
 # include <openvino/runtime/intel_gpu/ocl/dx.hpp>
 #else
 # include <openvino/runtime/intel_gpu/ocl/va.hpp>
 #endif
-#endif
+
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/tensor.hpp"

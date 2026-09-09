@@ -21,7 +21,6 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
-#include "transformations/op_conversions/group_query_attention_decomposition.hpp"
 #include "xml_serializer.hpp"
 
 namespace {
@@ -323,16 +322,6 @@ protected:
         if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
             manager.register_pass<ov::pass::EliminateIdentity>();
         }
-
-        // Registers the passes that adapt a model to whichever compiler package is currently loaded, before it is
-        // handed to that compiler. ov::pass::GroupQueryAttentionDecomposition is registered unconditionally instead:
-        // the compiler runs its own copy of this pass, built against its own OpenVINO revision, and neither that
-        // revision nor a GQA-spec capability is queryable at runtime - so a stale copy (wrong optional-input
-        // convention, or an attribute it predates, e.g. local_window_size) can't be detected and worked around from
-        // here. A MatcherPass is a no-op where the operator is absent, so this is safe to always register; delete it
-        // once the loaded compiler is known to be caught up.
-
-        manager.register_pass<ov::pass::GroupQueryAttentionDecomposition>();
 
         manager.run_passes(model);
 
@@ -727,14 +716,13 @@ std::string serializeConfig(const FilteredConfig& originalConfig,
         std::ostringstream levelStr;
         levelStr << originalConfig.get<COMPILE_LOG_LEVEL>();
         configWithCompileLogLevel = originalConfig;
-        configWithCompileLogLevel->update({{ov::log::level.name(), levelStr.str()}});
+        configWithCompileLogLevel->update(ov::log::level.name(), levelStr.str());
     }
     const FilteredConfig& config = configWithCompileLogLevel.has_value() ? *configWithCompileLogLevel : originalConfig;
 
     std::string content = {};
 
-    content += config.toStringForCompiler();
-    content += config.toStringForCompilerInternal();
+    content += config.toStringForCompiler(isOptionSupportedByCompiler);
 
     logger.debug("Original content of config: %s", content.c_str());
 
@@ -806,35 +794,6 @@ std::string serializeConfig(const FilteredConfig& originalConfig,
                                      getTargetRegex(ov::hint::Priority::HIGH),
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
     }
-
-    // Special cases
-    const auto& removeOptionIfUnsupported = [&](const std::string& optionName) {
-        if (std::regex_search(content, std::regex(optionName))) {
-            const bool optionSupported =
-                isOptionSupportedByCompiler != nullptr ? isOptionSupportedByCompiler(optionName) : false;
-            if (!optionSupported) {
-                std::ostringstream optionStr;
-                optionStr << optionName << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-                logger.info("%s property is not supported by this compiler. Removing from parameters",
-                            optionName.c_str());
-                content = std::regex_replace(content, std::regex(optionStr.str()), "");
-            }
-        }
-    };
-
-    // Options with OptionMode::Both may be used by the plugin even when the compiler does not support them.
-    // Remove them from the config string before sending it to the compiler if they are unsupported.
-
-    // NPU_TURBO is a special option in the sense that by default it is a
-    //  driver-setting, but certain compilers support and make use of it too If we have turbo in the config string, we
-    //  check if compiler supports it. If it doesn't support it, we remove it
-    removeOptionIfUnsupported(ov::intel_npu::turbo.name());
-    // LOG_LEVEL must not be sent to the compiler if not supported
-    removeOptionIfUnsupported(ov::log::level.name());
-    // PERFORMANCE_HINT must not be sent to the compiler if not supported
-    removeOptionIfUnsupported(ov::hint::performance_mode.name());
-    // PERF_COUNT must not be sent to the compiler if not supported
-    removeOptionIfUnsupported(ov::enable_profiling.name());
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix
