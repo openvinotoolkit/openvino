@@ -22,6 +22,8 @@ public:
     std::set<size_t> get_lockable_input_ids() const override {
         std::set<size_t> input_ports = { PagedAttentionInputIdx::PAST_LENS,
                                          PagedAttentionInputIdx::SUBSEQUENCE_BEGINS,
+                                         PagedAttentionInputIdx::BLOCK_INDICES,
+                                         PagedAttentionInputIdx::BLOCK_INDICES_BEGINS,
                                          PagedAttentionInputIdx::XATTENTION_THRESHOLD,
                                          PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE,
                                          PagedAttentionInputIdx::MAX_CONTEXT_LEN };
