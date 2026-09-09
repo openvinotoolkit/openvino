@@ -8,17 +8,17 @@
 
 namespace ov::intel_gpu::op {
 
-StatelessKV::StatelessKV(const OutputVector& inputs, int64_t concat_axis, bool is_present_len)
+StatelessKV::StatelessKV(const OutputVector& inputs, int64_t concat_axis, bool is_seq_len_present_len)
     : Op(inputs),
       m_concat_axis(concat_axis),
-      m_is_present_len(is_present_len) {}
+      m_is_seq_len_present_len(is_seq_len_present_len) {}
 
 StatelessKV::StatelessKV(const Output<Node>& past,
                          const Output<Node>& new_token_data,
                          const Output<Node>& present_seq_len,
                          int64_t concat_axis,
-                         bool is_present_len)
-    : StatelessKV({past, new_token_data, present_seq_len}, concat_axis, is_present_len) {
+                         bool is_seq_len_present_len)
+    : StatelessKV({past, new_token_data, present_seq_len}, concat_axis, is_seq_len_present_len) {
     validate_and_infer_types();
 }
 
@@ -27,14 +27,14 @@ StatelessKV::StatelessKV(const Output<Node>& past,
                          const Output<Node>& present_seq_len,
                          const Output<Node>& pos_idx,
                          int64_t concat_axis,
-                         bool is_present_len)
-    : StatelessKV({past, new_token_data, present_seq_len, pos_idx}, concat_axis, is_present_len) {
+                         bool is_seq_len_present_len)
+    : StatelessKV({past, new_token_data, present_seq_len, pos_idx}, concat_axis, is_seq_len_present_len) {
     validate_and_infer_types();
 }
 
 bool StatelessKV::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("concat_axis", m_concat_axis);
-    visitor.on_attribute("is_present_len", m_is_present_len);
+    visitor.on_attribute("is_seq_len_present_len", m_is_seq_len_present_len);
     return true;
 }
 
@@ -61,9 +61,9 @@ void StatelessKV::validate_and_infer_types() {
 std::shared_ptr<Node> StatelessKV::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     if (new_args.size() == 3) {
-        return std::make_shared<StatelessKV>(new_args.at(0), new_args.at(1), new_args.at(2), m_concat_axis, m_is_present_len);
+        return std::make_shared<StatelessKV>(new_args.at(0), new_args.at(1), new_args.at(2), m_concat_axis, m_is_seq_len_present_len);
     }
-    return std::make_shared<StatelessKV>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_concat_axis, m_is_present_len);
+    return std::make_shared<StatelessKV>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_concat_axis, m_is_seq_len_present_len);
 }
 
 std::vector<ov::PartialShape> shape_infer(const StatelessKV* op, const std::vector<ov::PartialShape>& input_shapes) {
@@ -77,7 +77,6 @@ std::vector<ov::PartialShape> shape_infer(const StatelessKV* op, const std::vect
 
     if (update_offset && input_shapes[0][concat_axis].is_static() && input_shapes[1][concat_axis].is_static()) {
         const auto updated_dim = input_shapes[1][concat_axis] + *update_offset;
-        // OPENVINO_ASSERT(updated_dim.get_length() <= full_shape[concat_axis].get_length());
         trim_shape[concat_axis] = updated_dim;
         if (updated_dim.get_length() > full_shape[concat_axis].get_length()) {
             full_shape[concat_axis] = updated_dim;

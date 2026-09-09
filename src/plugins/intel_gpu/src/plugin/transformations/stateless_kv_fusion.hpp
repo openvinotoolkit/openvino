@@ -13,6 +13,74 @@
 
 namespace ov::intel_gpu {
 
+/// The diagrams below show one key/value cache. The same pattern is matched
+/// independently for key and value, and the length/index helper subgraphs are
+/// abbreviated as `len`, `past_len`, and `position_ids`.
+///
+/// 1. Dynamic shape cache update with Slice and Concat
+///     Before fusion:                                      After fusion:
+///     ┌───────────┐      ┌───────────┐                    ┌───────────┐      ┌───────────┐
+///     │ Parameter │      │ new_token │                    │ Parameter │      │ new_token │
+///     │ (past_kv) │      └─────┬─────┘                    │ (past_kv) │      └─────┬─────┘
+///     └─────┬─────┘            │                          └─────┬─────┘            │
+///           │                  │                                │                  │
+///      ┌────┴─────┐            │                                │    ┌─────────────┴─────────────┐
+///      │   Slice  │            │                                └────┤        StatelessKV        │<── len
+///      │(past_len)│            │                                     │          (axis )          │
+///      └────┬─────┘            │                                     └───────┬────────────┬──────┘
+///           │   ┌───────────┐  │                                             │0           │1
+///           └───┤   Concat  ├──┘                                        ┌────┴────┐   ┌───┴─────┐
+///               └────┬──────┘                                           │ Result  │   │ SomeOp  │
+///                    │                                                  │(present)│   │ (SDPA)  │
+///         ┌──────────┴─────────┐                                        └─────────┘   └─────────┘
+///    ┌────┴─────┐          ┌───┴─────┐          
+///    │  Result  │          │ SomeOp  │
+///    │(present) │          │ (SDPA)  │
+///    └──────────┘          └─────────┘
+///
+/// 2. Static shape cache update with ScatterUpdate (mask will also be trimmed)
+///     Before fusion:                                      After fusion:
+///     ┌───────────┐      ┌───────────┐                    ┌───────────┐      ┌───────────┐
+///     │ Parameter │      │ new_token │                    │ Parameter │      │ new_token │
+///     │ (past_kv) │      └─────┬─────┘                    │ (past_kv) │      └─────┬─────┘
+///     └─────┬─────┘            │                          └─────┬─────┘            │
+///           │                  │                                │                  │
+///           │             ┌────┴─────┐                          │    ┌─────────────┴─────────────┐
+///           └─────────────┤ Scatter  │<── position_ids          └────┤         StatelessKV       │<── len
+///                         │ Update   │<── axis                       │            (axis)         │<── position_ids 
+///                         └────┬─────┘                               └───────┬────────────┬──────┘
+///                              │                                             │0           │1
+///                 ┌────────────┴─────────┐                              ┌────┴────┐   ┌───┴─────┐
+///            ┌────┴─────┐            ┌───┴─────┐                        │ Result  │   │ SomeOp  │
+///            │  Result  │            │ SomeOp  │                        │(present)│   │ (SDPA)  │
+///            │(present) │            │ (SDPA)  │                        └─────────┘   └─────────┘
+///            └──────────┘            └─────────┘
+///
+/// 3. Static shape cache update with ScatterUpdate and VariadicSplit before SDPA
+///     Before fusion:                                      After fusion:
+///     ┌───────────┐      ┌───────────┐                    ┌───────────┐      ┌───────────┐
+///     │ Parameter │      │ new_token │                    │ Parameter │      │ new_token │
+///     │ (past_kv) │      └─────┬─────┘                    │ (past_kv) │      └─────┬─────┘
+///     └─────┬─────┘            │                          └─────┬─────┘            │
+///           │                  │                                │                  │
+///           │             ┌────┴─────┐                          │    ┌─────────────┴─────────────┐
+///           └─────────────┤Scatter   │<── position_ids          └────┤         StatelessKV       │<── len
+///                         │Update    │<── axis                       │           (axis)          │<── position_ids 
+///                         └────┬─────┘                               └───────┬────────────┬──────┘
+///                              │                                             │0           │1
+///                 ┌────────────┴───────────┐                            ┌────┴────┐   ┌───┴─────┐
+///            ┌────┴─────┐          ┌───────┴───────┐                    │ Result  │   │ SomeOp  │
+///            │  Result  │          │ VariadicSplit │                    │(present)│   │ (SDPA)  │
+///            │(present) │          │   [len, -1]   │                    └─────────┘   └─────────┘
+///            └──────────┘          └───────┬───────┘
+///                                          │0
+///                                     ┌────┴────┐
+///                                     │ SomeOp  │
+///                                     │ (SDPA)  │
+///                                     └─────────┘
+///
+/// StatelessKV's output0 is the complete present_kv for Result, output1 is the valid view consumed by SDPA.
+/// In case2, SDPA will recieve a trimmed view and mask will also be trimmed with present_len.
 class StatelessKVFusionMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("StatelessKVFusionMatcher");

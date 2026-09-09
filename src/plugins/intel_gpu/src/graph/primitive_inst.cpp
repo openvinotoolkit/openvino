@@ -501,7 +501,7 @@ void primitive_inst::update_shape() {
         auto new_pshape = new_layout.get_partial_shape();
         auto& impl_layout = _impl_params->get_output_layout(idx);
         if (get_node().is_type<stateless_kv>() && idx == 1) {
-            // stateless_kv updates padding in every iteration, don't accumulate.
+            // stateless_kv updates dedicate padding of output[1] in every iteration, don't accumulate.
         } else if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
             auto data_padding = padding::max(impl_layout.data_padding, new_layout.data_padding);
             new_layout.data_padding = padding::max(get_node().get_primitive()->get_output_padding(idx), data_padding);
@@ -796,8 +796,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         OPENVINO_ASSERT(output_it != users.end(), "[GPU] stateless_kv should directly connect to an output");
 
         const auto& past_layout = _impl_params->get_input_layout();
-        const auto& mid_layout = _impl_params->get_output_layout(0);
-        const auto& target_layout = _impl_params->get_output_layout(1);
+        const auto& mid_layout = _impl_params->get_output_layout(0);  // output to present_kv
+        const auto& target_layout = _impl_params->get_output_layout(1);  // output to sdpa
 
         auto& result = **output_it;
         if (result.is_dynamic()) {
@@ -826,12 +826,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
                                << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
                                << ") opt:" << result.can_be_optimized() << std::endl;
-        // const auto target_axis = get_typed_desc<stateless_kv>()->concat_axis;
-        // OPENVINO_ASSERT(present_layout.get_dim(target_axis) >= target_layout.get_dim(target_axis));
 
-        if (_outputs[0] && _mem_allocated) {
-            GPU_DEBUG_TRACE_DETAIL << id() << ": release previous allocated memory[" << _outputs[0]->buffer_ptr() << "]" << std::endl;
-            get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
+        if (_outputs[0]) {
+            OPENVINO_ASSERT(!_mem_allocated, "stateless_kv should never allocate output[0] for itself");
         }
         _outputs[0] = present_tensor;
         _outputs[1] = get_network().get_engine().reinterpret_buffer(*present_tensor, target_layout);
@@ -2309,7 +2306,8 @@ void primitive_inst::prepare_primitive() {
             }
         }
 
-        // StatelessKV uses next output's memory, may change even if the input shapes haven't been changed
+        // StatelessKV uses following result's memory, which may change due to SetOutput or other reason.
+        // So call realloc to update memory even if the input shapes haven't been changed
         if (get_node().is_type<stateless_kv>() && !get_flag(ExecutionFlags::IMPL_CHANGED)) {
             realloc_if_needed(prev_execution_skipped);
         }

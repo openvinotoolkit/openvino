@@ -16,7 +16,7 @@ using namespace ::tests;
 struct stateless_kv_runtime_params {
     int64_t new_token_len;
     int64_t seq_len;
-    bool is_present_len;
+    bool is_seq_len_present_len;
     bool has_pos_idx;
 };
 
@@ -30,8 +30,8 @@ TEST_P(stateless_kv_runtime, output_memory_reuse) {
     constexpr int64_t batch = 1;
     constexpr int64_t heads = 2;
     constexpr int64_t head_size = 4;
-    const auto logical_past_len = params.is_present_len ? params.seq_len - params.new_token_len : params.seq_len;
-    const auto logical_present_len = params.is_present_len ? params.seq_len : params.seq_len + params.new_token_len;
+    const auto logical_past_len = params.is_seq_len_present_len ? params.seq_len - params.new_token_len : params.seq_len;
+    const auto logical_present_len = params.is_seq_len_present_len ? params.seq_len : params.seq_len + params.new_token_len;
     const auto output_capacity = std::max(past_capacity, logical_present_len);
     const bool reuse_past_buffer = logical_present_len <= past_capacity;
     const auto past_layout = layout{ov::PartialShape{batch, heads, past_capacity, head_size}, data_types::f32, format::bfyx};
@@ -47,7 +47,7 @@ TEST_P(stateless_kv_runtime, output_memory_reuse) {
     if (params.has_pos_idx) {
         stateless_kv_inputs.emplace_back("pos_idx");
     }
-    auto stateless_kv_prim = stateless_kv("stateless_kv", stateless_kv_inputs, 2, params.is_present_len);
+    auto stateless_kv_prim = stateless_kv("stateless_kv", stateless_kv_inputs, 2, params.is_seq_len_present_len);
     stateless_kv_prim.num_outputs = 2;
     stateless_kv_prim.output_data_types = {data_types::f32, data_types::f32};
 
@@ -142,7 +142,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                          stateless_kv_runtime_params{2, 16, false, true}),
                          [](const testing::TestParamInfo<stateless_kv_runtime_params>& info) {
                              const auto& params = info.param;
-                             return std::string{params.is_present_len ? "PresentSeq" : "PastSeq"} + std::to_string(params.seq_len) + "_NewToken" +
+                             return std::string{params.is_seq_len_present_len ? "PresentSeq" : "PastSeq"} + std::to_string(params.seq_len) + "_NewToken" +
                                     std::to_string(params.new_token_len) + (params.has_pos_idx ? "_Scatter" : "_Concat");
                          });
 

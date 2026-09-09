@@ -48,16 +48,16 @@ std::optional<int64_t> stateless_kv_inst::compute_update_offset(const kernel_imp
 
     int64_t past_seq_len = 0;
     int64_t present_seq_len = 0;
-    if (desc.is_present_len) {
+    if (desc.is_seq_len_present_len) {
         present_seq_len = seq_len;
         past_seq_len = present_seq_len - current_dim.get_length();
     } else {
         past_seq_len = seq_len;
         present_seq_len = past_seq_len + current_dim.get_length();
     }
-    GPU_DEBUG_TRACE_DETAIL << desc.id << " : " << (desc.is_present_len ? "present" : "past") << "_len[" << seq_len << "] cur_len[" << current_dim.get_length()
-                           << "] past_tensor[" << past_dim.get_length() << "] " << (present_seq_len <= past_dim.get_length() ? "update" : "concat")
-                           << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << desc.id << " : " << (desc.is_seq_len_present_len ? "present" : "past") << "_len[" << seq_len << "] cur_len["
+                           << current_dim.get_length() << "] past_tensor[" << past_dim.get_length() << "] "
+                           << (present_seq_len <= past_dim.get_length() ? "update" : "concat") << std::endl;
     OPENVINO_ASSERT(past_seq_len >= 0, "[GPU] new_token_data shouldn't exceed present_seq_length");
 
     return past_seq_len;
@@ -68,7 +68,7 @@ void stateless_kv_inst::update_shape_info_tensor(const kernel_impl_params& param
         allocate_shape_info_memory();
     }
     mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
-    auto shape_info_ptr = lock.data();
+    auto* shape_info_ptr = lock.data();
     size_t offset = 0;
 
     const auto node_input_layouts = get_node().get_shape_info_input_layouts();
@@ -99,7 +99,7 @@ std::vector<layout> stateless_kv_inst::calc_output_layouts(const stateless_kv_no
     ov::intel_gpu::op::StatelessKV op;
     op.set_output_size(2);
     op.set_concat_axis(concat_axis);
-    op.set_is_present_len(desc->is_present_len);
+    op.set_is_seq_len_present_len(desc->is_seq_len_present_len);
     op.set_update_offset(stateless_kv_inst::compute_update_offset(impl_param, *desc));
 
     auto output_shapes = shape_infer(&op, input_shapes);
@@ -128,7 +128,7 @@ std::string stateless_kv_inst::to_string(const stateless_kv_node& node) {
     json_composite stateless_kv_info;
     stateless_kv_info.add("input id", node.input().id());
     stateless_kv_info.add("concat axis", node.get_primitive()->concat_axis);
-    stateless_kv_info.add("is present len", node.get_primitive()->is_present_len);
+    stateless_kv_info.add("is present len", node.get_primitive()->is_seq_len_present_len);
     node_info->add("stateless_kv info", stateless_kv_info);
     std::stringstream primitive_description;
     node_info->dump(primitive_description);
@@ -153,7 +153,6 @@ void stateless_kv_inst::update_output_memory() {
     GPU_DEBUG_TRACE_DETAIL << id() << ": update_output_memory in[" << input_memory().get_layout().to_short_string() << "] out["
                            << output_memory(0).get_layout().to_short_string() << "][" << output_memory(1).get_layout().to_short_string() << "] inplace["
                            << (m_is_inplace ? 'Y' : 'N') << "]" << std::endl;
-    _mem_allocated = false;
 }
 
 void stateless_kv_inst::on_execute() {

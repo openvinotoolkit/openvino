@@ -3,9 +3,7 @@
 //
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/memory.hpp"
 #include "primitive_base.hpp"
-
 #include "stateless_kv_inst.h"
 #include "concatenation/concatenation_kernel_selector.h"
 #include "concatenation/concatenation_kernel_base.h"
@@ -22,8 +20,7 @@ namespace ocl {
 namespace {
 kernel_selector::concat_axis convert_concat_axis(int64_t axis, size_t rank) {
     auto cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
-    if (cldnn_axis >= static_cast<int64_t>(rank))
-        OPENVINO_THROW("kv_cache axis exceeds number of dimensions");
+    OPENVINO_ASSERT(cldnn_axis < static_cast<int64_t>(rank), "stateless_kv axis exceeds number of dimensions");
 
     // Difference in dimension ordering between OV and GPU plugin,
     // reverse spatial dimensions after batch and feature.
@@ -41,7 +38,7 @@ kernel_selector::concat_axis convert_concat_axis(int64_t axis, size_t rank) {
         case 3: return kernel_selector::concat_axis::Y;
         case 4: return kernel_selector::concat_axis::Z;
         case 5: return kernel_selector::concat_axis::W;
-        default: OPENVINO_THROW("Unsupported kv_cache axis: ", axis);
+        default: OPENVINO_THROW("Unsupported stateless_kv axis: ", axis);
     }
 
     return kernel_selector::concat_axis::FEATURE;  // shouldn't get here
@@ -49,8 +46,7 @@ kernel_selector::concat_axis convert_concat_axis(int64_t axis, size_t rank) {
 
 kernel_selector::scatter_update_axis convert_scatter_axis(int64_t axis, size_t rank) {
     auto cldnn_axis = axis >= 0 ? axis : axis + static_cast<int64_t>(rank);
-    if (cldnn_axis >= static_cast<int64_t>(rank))
-        OPENVINO_THROW("stateless_kv axis exceeds number of dimensions");
+    OPENVINO_ASSERT(cldnn_axis < static_cast<int64_t>(rank), "stateless_kv axis exceeds number of dimensions");
 
     if (cldnn_axis >= 2) {
         auto spatial_axis = cldnn_axis - 2;
@@ -225,7 +221,8 @@ struct stateless_kv_impl : typed_primitive_impl_ocl<stateless_kv> {
             auto best_kernel = kernel_selector.get_best_kernel(kernel_params);
             OPENVINO_ASSERT(best_kernel.kernels.size() == 2, "[GPU] stateless_kv concat expects two sub-kernels");
             return std::make_unique<stateless_kv_impl>(best_kernel, false);
-        } else {
+        }
+        {
             auto kernel_params = get_scatter_kernel_params(params, impl_param.is_dynamic());
             kernel_params.is_shape_agnostic = impl_param.is_dynamic();
             auto& kernel_selector = scatter_kernel_selector_t::Instance();

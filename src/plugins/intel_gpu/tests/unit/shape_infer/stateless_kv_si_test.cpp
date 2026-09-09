@@ -22,7 +22,7 @@ namespace shape_infer_tests {
 struct stateless_kv_test_params {
     std::vector<layout> input_layouts;
     int64_t concat_axis;
-    bool is_present_len;
+    bool is_seq_len_present_len;
     std::vector<layout> expected_layouts;
 };
 
@@ -43,7 +43,7 @@ TEST_P(stateless_kv_test, shape_infer) {
     }
 
     auto stateless_kv_prim =
-        std::make_shared<stateless_kv>("output", input_prim_ids, p.concat_axis, p.is_present_len);
+        std::make_shared<stateless_kv>("output", input_prim_ids, p.concat_axis, p.is_seq_len_present_len);
     stateless_kv_prim->num_outputs = 2;
     stateless_kv_prim->output_data_types = {p.input_layouts[0].data_type, p.input_layouts[0].data_type};
     auto& stateless_kv_node = prog.get_or_create(stateless_kv_prim);
