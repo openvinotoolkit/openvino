@@ -58,7 +58,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-ab
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -89,7 +89,7 @@ jobs:
 
   Docker_Arm:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-8gb-arm-docker-build
+    runs-on: aks-linux-4-cores-8gb-arm-docker-build-ab
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -122,7 +122,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      runner: aks-linux-16-cores-32gb
+      runner: aks-linux-16-cores-32gb-ab
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy
@@ -135,7 +135,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      runner: aks-linux-16-cores-32gb-arm
+      runner: aks-linux-16-cores-32gb-arm-ab
       image: ${{ fromJSON(needs.docker_arm.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       cmake-generator: 'Unix Makefiles'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_aarch64
@@ -150,7 +150,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      runner: aks-linux-16-cores-32gb
+      runner: aks-linux-16-cores-32gb-ab
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       cmake-generator: 'Unix Makefiles'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_riscv64
@@ -166,7 +166,7 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).GPU && !needs.smart_ci.outputs.skip_workflow
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
-      runner: aks-linux-16-cores-32gb
+      runner: aks-linux-16-cores-32gb-ab
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_gpu
@@ -175,16 +175,3 @@ jobs:
       cmake-extra-args: '-DENABLE_INTEL_GPU=ON'
       build-extra-args: '--quiet -k 0'
 
-  Overall_Status:
-    name: ci/gha_overall_status_clang_tidy
-    needs: [Smart_CI, Build-x86_64, Build-aarch64, Build-riscv64, Build-gpu]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

@@ -17,6 +17,12 @@ on:
         type: string
         required: true
 
+      enable-compile-cache:
+        description: 'Use compiler cache (sccache/ccache) for builds in this job'
+        type: boolean
+        required: false
+        default: true
+
 permissions: read-all
 
 env:
@@ -42,8 +48,8 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       INSTALL_DIR: ${{ github.workspace }}/install
       CMAKE_GENERATOR: 'Ninja Multi-Config'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && 'sccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && 'sccache' || '' }}
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-azure-key-prefix }}
@@ -53,6 +59,7 @@ jobs:
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: ${{ inputs.enable-compile-cache }}
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -71,6 +78,7 @@ jobs:
         with:
           sparse-checkout: |
             src/frontends/onnx/tests/ci_utils/onnxruntime
+            .github/actions/compile_cache_stats
           sparse-checkout-cone-mode: false
 
       - name: Get ONNX runtime version
@@ -102,6 +110,12 @@ jobs:
       # Tests
       #
 
+      - name: Zero compile cache stats (onnx runtime build)
+        if: ${{ inputs.enable-compile-cache }}
+        uses: ./.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Build Lin ONNX Runtime
         run: |
           source ${INSTALL_DIR}/setupvars.sh
@@ -110,7 +124,7 @@ jobs:
             --config RelWithDebInfo \
             --use_openvino CPU \
             --build_shared_lib \
-            --parallel $(nproc) \
+            --parallel 15 \
             --skip_tests \
             --compile_no_warning_as_error \
             --allow_running_as_root \
@@ -118,8 +132,12 @@ jobs:
         env:
           CXXFLAGS: "-Wno-error=deprecated-declarations"
 
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Compile cache statistics (onnx runtime build)
+        if: ${{ inputs.enable-compile-cache }}
+        uses: ./.github/actions/compile_cache_stats
+        with:
+          build-label: onnx-runtime-build
+          artifact-name: compile-cache-stats-onnx-runtime-build
 
       - name: Run onnxruntime_test_all
         if: ${{ runner.arch != 'ARM64' }} # Ticket: 126277

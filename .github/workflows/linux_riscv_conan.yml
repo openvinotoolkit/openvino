@@ -64,7 +64,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-ab
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -99,7 +99,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-ab
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       volumes:
@@ -137,8 +137,8 @@ jobs:
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: 'true'
+          cleanup-always: 'true'
           cache-size: 10
           max-cache-size: 50
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
@@ -208,9 +208,6 @@ jobs:
       #
       # Build
       #
-      - name: Clean ccache stats
-        run: ccache --zero-stats
-
       - name: CMake - Configure
         run: |
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
@@ -240,14 +237,33 @@ jobs:
             -B ${OPENVINO_BUILD_DIR}
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
 
-      - name: Cmake - Build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) -- --quiet
+      - name: Zero compile cache stats (openvino main build)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
-      - name: Show ccache stats
-        run: ccache --show-stats
+      - name: Cmake - Build
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel 15 -- --quiet
+
+      - name: Compile cache statistics (openvino main build)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: openvino-main
+          artifact-name: compile-cache-stats-linux-riscv-conan-openvino-main
+
+      - name: Zero compile cache stats (cmake install target)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
       - name: Cmake - Install
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install -- --quiet
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel 15 --target install -- --quiet
+
+      - name: Compile cache statistics (cmake install target)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cmake-install-target
+          artifact-name: compile-cache-stats-linux-riscv-conan-cmake-install-target
 
       - name: Build OpenVINO C++ samples
         run: |
@@ -268,16 +284,3 @@ jobs:
           path: ${{ env.OPENVINO_BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
-  Overall_Status:
-    name: ci/gha_overall_status_linux_riscv_conan
-    needs: [Smart_CI, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

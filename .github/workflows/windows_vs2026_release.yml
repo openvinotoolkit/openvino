@@ -67,7 +67,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-16-cores-32gb-vs2026-build'
+      runner: 'aks-win-16-cores-32gb-vs2026-build-ab'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
       target-branch: ${{ needs.smart_ci.outputs.target_branch }}
@@ -83,16 +83,3 @@ jobs:
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 
-  Overall_Status:
-    name: ci/gha_overall_status_windows_vs2026
-    needs: [ Smart_CI, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
