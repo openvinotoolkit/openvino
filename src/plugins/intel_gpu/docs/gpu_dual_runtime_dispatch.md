@@ -37,8 +37,9 @@ The order matters for **numbering**: `GPU.0`, `GPU.1`, … are assigned in the o
 libraries enumerate devices, first library first. OCL is listed first so the numbering matches
 a single-runtime OCL build for every device OpenCL can see, and a `COMBINED` install does not
 renumber the GPUs your scripts already address. Devices only Level Zero enumerates are appended
-after. Order does not affect *which* runtime is chosen — that is decided per device by score,
-and no two scores can tie.
+after. Order does not affect *which* runtime is chosen — that is decided per device by score.
+If scores tie, Core keeps its registry order and the first-listed library wins; the current
+OCL/ZE score table cannot produce a tie.
 
 Single-runtime builds (`-DGPU_RT_TYPE=OCL` / `ZE` / `SYCL`) are unaffected and keep the
 single-`location` registration.
@@ -60,7 +61,8 @@ Different physical GPUs in one system can therefore resolve to different runtime
 ## Forcing a runtime for debugging
 
 Set `OV_GPU_RUNTIME=OCL` or `OV_GPU_RUNTIME=ZE` to force a runtime for Intel GPUs, bypassing
-the automatic selection. It is a debugging aid only (no public config property). An
+the automatic selection. It is an environment variable rather than a config property because the
+enumeration probe reads it before any plugin config exists, and it works in a regular build. An
 unrecognized value is ignored, and it can never attach Level Zero to a non-Intel GPU.
 
 An Intel GPU that the forced runtime cannot serve becomes **unavailable** while the variable is
