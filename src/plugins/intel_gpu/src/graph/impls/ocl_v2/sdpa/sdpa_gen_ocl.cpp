@@ -51,6 +51,62 @@ struct sdpa_ocl_config_t {
     }
 };
 
+// Derive the S*V split (value/score tiles and their subgroup counts) for a KQ tiling that is already
+// fixed, so that it covers `vd_max` value channels. Returns false when no legal split exists.
+//
+// The invariants are the ones documented on choose_config() below:
+//   sv_sg_tile_values * sv_sg_per_wg_values == vd_max              (cover the V head dim)
+//   sv_sg_tile_scores * sv_sg_per_wg_scores == kq_wg_tile_queries  (cover the WG query tile)
+//   sv_sg_per_wg_values * sv_sg_per_wg_scores == sg_per_wg         (every subgroup owns a tile)
+//   sv_sg_tile_values % subgroup_size == 0, sv_sg_tile_scores % DPAS_ROWS == 0
+//   alpha[] nesting, per subgroup (see the rescale in sdpa_ocl.cl):
+//       0 <= sg_i0_sv - sg_j0_kq  and  (sg_i0_sv - sg_j0_kq) + sv_sg_tile_scores <= kq_sg_tile_queries
+// Preferring the largest sv_sg_per_wg_values (widest value split) is what makes this reproduce the
+// tuned tables below exactly for every k_head_size == v_head_size; it is asserted by
+// sdpa_ocl_config_test.
+//
+// Shared by the vd_max != d_max path and by the SDPA_OCL_KQ_* override, which perturbs the same KQ
+// knobs and so needs the same re-derivation.
+bool solve_sv_split(sdpa_ocl_config_t& config, size_t vd_max) {
+    constexpr int dpas_rows = 8;
+    const int sg_per_wg = config.sg_per_wg();
+    const int wg_queries = config.kq_wg_tile_queries();
+    const int sg_size = config.subgroup_size;
+    if (sg_per_wg <= 0 || wg_queries <= 0 || sg_size <= 0) {
+        return false;
+    }
+
+    for (int per_wg_values = sg_per_wg; per_wg_values >= 1; per_wg_values--) {
+        if (sg_per_wg % per_wg_values != 0)
+            continue;
+        const int per_wg_scores = sg_per_wg / per_wg_values;
+        if (static_cast<int>(vd_max) % per_wg_values != 0 || wg_queries % per_wg_scores != 0)
+            continue;
+        const int tile_values = static_cast<int>(vd_max) / per_wg_values;
+        const int tile_scores = wg_queries / per_wg_scores;
+        if (tile_values % sg_size != 0 || tile_scores % dpas_rows != 0)
+            continue;
+        // alpha[] nesting: check it for every subgroup rather than just the tile sizes, since the two
+        // stages map sg_ij to (key, query) and (score, value) differently.
+        bool alpha_ok = true;
+        for (int sg_ij = 0; sg_ij < sg_per_wg && alpha_ok; sg_ij++) {
+            const int sg_j0_kq = (sg_ij / config.kq_sg_per_wg_keys) * config.kq_sg_tile_queries;
+            const int sg_i0_sv = (sg_ij / per_wg_values) * tile_scores;
+            const int rel_first = sg_i0_sv - sg_j0_kq;
+            const int rel_last = rel_first + tile_scores - 1;
+            alpha_ok = rel_first >= 0 && rel_last < config.kq_sg_tile_queries;
+        }
+        if (!alpha_ok)
+            continue;
+        config.sv_sg_tile_values = tile_values;
+        config.sv_sg_tile_scores = tile_scores;
+        config.sv_sg_per_wg_values = per_wg_values;
+        config.sv_sg_per_wg_scores = per_wg_scores;
+        return true;
+    }
+    return false;
+}
+
 // Whether this kernel takes the token_type_ids input (bidirectional image-token attention). Shared
 // by get_jit_constants() and get_arguments_desc() so the declared parameter and the bound argument
 // can never disagree. Paged attention only -- and both of its multi-token stages: token_type_ids
@@ -262,7 +318,10 @@ inline bool block2d_page_ok(size_t row_bytes) {
 //   - SLM budget and alpha-rescale (KQ/SV query-split) alignment.
 // arch is currently used only for the subgroup size; per-arch specialization can be
 // added here later the same way sdpa_micro splits choose_config_xehpc/xe2/xe3p.
-sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
+//
+// This is the k_head_size == v_head_size answer: the KQ tiling plus the S*V split that goes with it.
+// choose_config() below layers the k != v handling and the env overrides on top.
+sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
     // The branch chain below tops out at d_max == 512 (sv_sg_tile_values 64 * sv_sg_per_wg_values 8).
     // get_d_max() will happily return 1024 for a larger head size, and the final else would then
     // cover only half the head dimension -- silently producing wrong results rather than failing.
@@ -340,6 +399,55 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
         config.sv_sg_per_wg_scores = 2;
     }
 
+    return config;
+}
+
+// Full tiling for a (k_head_size, v_head_size) pair.
+//
+// d_max drives the KQ side (it is the Q/K contraction dim, so it sets DKS and the query tile) and
+// vd_max the S*V side (it is the V/output dim). They are equal for every k_head_size ==
+// v_head_size shape, in which case choose_config_kq_only()'s tuned tables are returned verbatim and
+// the codegen is bit-for-bit what it was before this function learned about vd_max.
+sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max) {
+    OPENVINO_ASSERT(vd_max <= 512,
+                    "[GPU] sdpa_ocl: unsupported value head size (vd_max=",
+                    vd_max,
+                    "); the tiling table covers vd_max <= 512 only");
+
+    auto config = choose_config_kq_only(arch, d_max);
+
+    // k_head_size != v_head_size: the tuned tables sized the S*V split for d_max, which is the K
+    // contraction dim, so re-derive just that split against the V dim. The KQ side (and therefore
+    // sg_per_wg, kq_wg_tile_queries and the paged-attention query-block stride) is untouched.
+    //
+    // Tier 2 exists because the tuned table alone leaves a hole: for d_max >= 128 the query tile is
+    // only 32, and a vd_max of 32 can be tiled at most 2 ways (tile_values must be a multiple of the
+    // subgroup size), which leaves >= 8 subgroups to split 32 queries -- a score tile of 4 or 2,
+    // below the DPAS 8-row minimum. Retrying with the d_max <= 64 KQ geometry doubles the query tile
+    // to 64 and every such pair then resolves to (16, 8, 2, 8). That hole is NOT benign: paged
+    // attention's MIXED fallback (pa_multi_token) reads a BY_CHANNEL K cache d-major while the
+    // writer relays it token-major, so a rejected shape produces NaN rather than a slower result.
+    //
+    // Tier 2 is unreachable for k_head_size == v_head_size (tier 1 always solves that case), so the
+    // tuned KQ tilings are preserved bit-for-bit wherever they are the tuned answer.
+    if (vd_max != d_max) {
+        if (!solve_sv_split(config, vd_max)) {
+            const auto tier1 = config;
+            config.kq_sg_tile_keys = 16;
+            config.kq_sg_tile_queries = 16;
+            config.kq_sg_per_wg_keys = 4;
+            config.kq_sg_per_wg_queries = 4;
+            OPENVINO_ASSERT(solve_sv_split(config, vd_max),
+                            "[GPU] sdpa_ocl: no valid S*V split for d_max=",
+                            d_max,
+                            " vd_max=",
+                            vd_max,
+                            " (tier-1 kq_wg_tile_queries=",
+                            tier1.kq_wg_tile_queries(),
+                            "); SDPAOclGenerator::supports_head_sizes() should have rejected this shape");
+        }
+    }
+
     // Perf-investigation toggles (default off = struct/branch values above). Lets one build sweep
     // the KQ tiling without a rebuild per config.
     //
@@ -350,23 +458,8 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
     // columns / score rows and their part of the output is simply never computed. An earlier sweep
     // that overrode kq_sg_per_wg_keys alone hit exactly this and produced wrong results.
     //
-    // So overriding any KQ knob here re-derives the S*V split to stay consistent:
-    //   sv_sg_tile_values * sv_sg_per_wg_values == d_max            (cover the head dim)
-    //   sv_sg_tile_scores * sv_sg_per_wg_scores == kq_wg_tile_queries (cover the WG query tile)
-    //   sv_sg_per_wg_values * sv_sg_per_wg_scores == sg_per_wg
-    // plus sv_sg_tile_values % SUBGROUP_SIZE == 0 and sv_sg_tile_scores % DPAS_ROWS == 0, which the
-    // .cl's sv_value_blocks / sv_score_blocks assume. The search prefers the largest
-    // sv_sg_per_wg_values (widest value split, matching the tuned tables above).
-    //
-    // The last requirement is the non-obvious one: the alpha rescale reuses the KQ stage's alpha[]
-    // (which only holds this subgroup's OWN kq_sg_tile_queries queries) at S*V coordinates, via
-    //   rel_query = sg_i0_sv + r * 8 - sg_j0_kq
-    // in sdpa_ocl.cl. For that index to stay inside alpha[] the subgroup's S*V query range must nest
-    // inside its KQ query range, which forces sv_sg_tile_scores <= kq_sg_tile_queries and, for every
-    // subgroup, sg_i0_sv >= sg_j0_kq with the whole score tile below sg_j0_kq + kq_sg_tile_queries.
-    // All the tuned tables above satisfy this; a search that ignores it produces configs that read
-    // past alpha[] and silently corrupt the output (measured: candidates with sv_sg_tile_scores of
-    // 32 and 64 against kq_sg_tile_queries of 16 and 32 both failed accuracy).
+    // So overriding any KQ knob here re-derives the S*V split (via solve_sv_split(), the same helper
+    // the vd_max != d_max path uses) to stay consistent.
     // Remove this block once the tiling investigation is done.
     const bool kq_override = std::getenv("SDPA_OCL_KQ_TILE_KEYS") || std::getenv("SDPA_OCL_KQ_TILE_QUERIES") ||
                              std::getenv("SDPA_OCL_KQ_PER_WG_KEYS") || std::getenv("SDPA_OCL_KQ_PER_WG_QUERIES");
@@ -383,40 +476,7 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
         if (const char* env = std::getenv("SDPA_OCL_KQ_PER_WG_QUERIES"))
             config.kq_sg_per_wg_queries = std::atoi(env);
 
-        const int sg_per_wg = config.sg_per_wg();
-        const int wg_queries = config.kq_wg_tile_queries();
-        const int sg_size = config.subgroup_size;
-        bool found = false;
-        for (int per_wg_values = sg_per_wg; per_wg_values >= 1; per_wg_values--) {
-            if (sg_per_wg % per_wg_values != 0)
-                continue;
-            const int per_wg_scores = sg_per_wg / per_wg_values;
-            if (static_cast<int>(d_max) % per_wg_values != 0 || wg_queries % per_wg_scores != 0)
-                continue;
-            const int tile_values = static_cast<int>(d_max) / per_wg_values;
-            const int tile_scores = wg_queries / per_wg_scores;
-            if (tile_values % sg_size != 0 || tile_scores % 8 != 0)  // 8 == DPAS_ROWS
-                continue;
-            // alpha[] nesting: check it for every subgroup rather than just the tile sizes, since
-            // the two stages map sg_ij to (key, query) and (score, value) differently.
-            bool alpha_ok = true;
-            for (int sg_ij = 0; sg_ij < sg_per_wg && alpha_ok; sg_ij++) {
-                const int sg_j0_kq = (sg_ij / config.kq_sg_per_wg_keys) * config.kq_sg_tile_queries;
-                const int sg_i0_sv = (sg_ij / per_wg_values) * tile_scores;
-                const int rel_first = sg_i0_sv - sg_j0_kq;
-                const int rel_last = rel_first + tile_scores - 1;
-                alpha_ok = rel_first >= 0 && rel_last < config.kq_sg_tile_queries;
-            }
-            if (!alpha_ok)
-                continue;
-            config.sv_sg_tile_values = tile_values;
-            config.sv_sg_tile_scores = tile_scores;
-            config.sv_sg_per_wg_values = per_wg_values;
-            config.sv_sg_per_wg_scores = per_wg_scores;
-            found = true;
-            break;
-        }
-        OPENVINO_ASSERT(found,
+        OPENVINO_ASSERT(solve_sv_split(config, vd_max),
                         "[GPU] sdpa_ocl: the SDPA_OCL_KQ_* override (tile_keys=",
                         config.kq_sg_tile_keys,
                         " tile_queries=",
@@ -425,8 +485,8 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max) {
                         config.kq_sg_per_wg_keys,
                         " per_wg_queries=",
                         config.kq_sg_per_wg_queries,
-                        ") admits no valid S*V split for d_max=",
-                        d_max);
+                        ") admits no valid S*V split for vd_max=",
+                        vd_max);
         std::cout << "[new config] config.kq_sg_tile_keys=" << config.kq_sg_tile_keys
                   << " config.kq_sg_tile_queries=" << config.kq_sg_tile_queries
                   << " config.kq_sg_per_wg_keys=" << config.kq_sg_per_wg_keys
@@ -707,8 +767,39 @@ void SDPAOclGenerator::init_sdpa_configuration(const kernel_impl_params& impl_pa
 }
 
 size_t SDPAOclGenerator::get_query_block_size(const kernel_impl_params& params) {
+    // Both head sizes, because a vd_max that the tuned KQ tiling cannot serve makes choose_config()
+    // fall back to a wider query tile -- and this value IS the paged-attention
+    // blocked_indexes_start_and_gws_mapping stride, so it must be derived from the same pair the jit
+    // constants and the dispatch use.
     const auto d_max = get_d_max(micro_get_head_size(params, 1));
-    return static_cast<size_t>(choose_config(params.get_device_info().arch, d_max).kq_wg_tile_queries());
+    const auto vd_max = get_d_max(micro_get_head_size(params, 2));
+    return static_cast<size_t>(choose_config(params.get_device_info().arch, d_max, vd_max).kq_wg_tile_queries());
+}
+
+bool SDPAOclGenerator::supports_head_sizes(gpu_arch arch, size_t k_head_size, size_t v_head_size) {
+    // Decidable from the descriptor alone, because an added stage is COMPILED even for parameters it
+    // is never dispatched with. choose_config() asserts rather than returns on an unsupported pair,
+    // so the bounds are checked here first and the tiling search is replayed non-fatally.
+    if (k_head_size == 0 || v_head_size == 0 || k_head_size > 512 || v_head_size > 512) {
+        return false;
+    }
+    const auto d_max = get_d_max(k_head_size);
+    const auto vd_max = get_d_max(v_head_size);
+    if (d_max > 512 || vd_max > 512) {
+        return false;
+    }
+    if (d_max == vd_max) {
+        return true;  // the tuned tables cover every head size they are defined for
+    }
+    auto config = choose_config_kq_only(arch, d_max);
+    if (solve_sv_split(config, vd_max)) {
+        return true;
+    }
+    config.kq_sg_tile_keys = 16;
+    config.kq_sg_tile_queries = 16;
+    config.kq_sg_per_wg_keys = 4;
+    config.kq_sg_per_wg_queries = 4;
+    return solve_sv_split(config, vd_max);
 }
 
 // Use 'maybe_unused' to avoid DPC++ build error
@@ -778,11 +869,11 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     const auto& V = (config.is_paged_attention && !m_is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
     const auto& out = params.output_layouts[0];
 
-    const auto head_size = micro_get_head_size(params, 0);
     const auto k_head_size = micro_get_head_size(params, 1);
     const auto v_head_size = micro_get_head_size(params, 2);
 
     const auto d_max = get_d_max(k_head_size);
+    const auto vd_max = get_d_max(v_head_size);
     // Deliberately no `batch = out_ps[0] * out_ps[1]` here: sdpa_gen_micro.cpp needs that product to
     // size the microkernel GEMM problem, this generator never used it, and the expression is wrong
     // anyway once output_transpose_order is non-identity (see the dispatch function).
@@ -792,7 +883,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     auto ldv = v_head_size * ov::element::Type(V.data_type).size();
     auto lda = v_head_size * ov::element::Type(out.data_type).size();
 
-    const auto ocl_config = choose_config(device_info.arch, d_max);
+    const auto ocl_config = choose_config(device_info.arch, d_max, vd_max);
 
     jit.make("DPAS_K", 16);          // intel_sub_group_f16_f16_matrix_mad_k16 only supports KSTEP of 16
     jit.make("DPAS_ROWS", 8);
@@ -1268,7 +1359,12 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("USE_2D_BLOCK_IO_K_I8", k_i8_2d);
     jit.make("INVERT_SCALE", false);
     jit.make("SCALE_DATA_T", "half");
-    jit.make("HEAD_SIZE", k_head_size);
+    // Split rather than one HEAD_SIZE: the kernel contracts Q against K over k_head_size channels
+    // and emits v_head_size of them, and the two are independent for e.g. an MLA-style attention.
+    // Both fold to the same integer literal whenever they are equal, so the preprocessed kernel --
+    // and therefore the generated ISA -- is unchanged for every k_head_size == v_head_size shape.
+    jit.make("K_HEAD_SIZE", k_head_size);
+    jit.make("V_HEAD_SIZE", v_head_size);
 
     auto data_inputs_num = micro_get_input_num(params, config);
 
@@ -1391,8 +1487,11 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         int vs_scale_mask = (static_cast<int>(config.is_kv_compressed) << 1) | static_cast<int>(vs_common_scales);
         jit.make("KEY_SCALES", kq_scale_mask);
         jit.make("VAL_SCALES", vs_scale_mask);
-        jit.make("KEY_GROUP_SIZE", head_size);
-        jit.make("VAL_GROUP_SIZE", head_size);
+        // The dequant group spans a whole head row of the tensor it belongs to, so K's is the K head
+        // size and V's the V head size. `head_size` here is the QUERY head size, which only happens
+        // to equal both when they are all the same.
+        jit.make("KEY_GROUP_SIZE", k_head_size);
+        jit.make("VAL_GROUP_SIZE", v_head_size);
 
         jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num)));
         jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num + 1)));
@@ -1643,12 +1742,13 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
 
             const auto& device_info = params.get_device_info();
             const auto k_head_size = micro_get_head_size(params, 1);
+            const auto v_head_size = micro_get_head_size(params, 2);
             const auto d_max = get_d_max(k_head_size);
-            const auto ocl_config = choose_config(device_info.arch, d_max);
+            const auto vd_max = get_d_max(v_head_size);
+            const auto ocl_config = choose_config(device_info.arch, d_max, vd_max);
 
             const ov::Dimension n_keys = micro_get_aligned_seq_length(params, 1, ocl_config.kq_wg_tile_keys());
             const ov::Dimension n_queries = micro_get_aligned_seq_length(params, 0, ocl_config.kq_wg_tile_queries());
-            const auto v_head_size = micro_get_head_size(params, 2);
 
             size_t q = n_queries.get_length();
 
@@ -1689,8 +1789,12 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
                 return static_cast<int32_t>(value);
             };
 
+            // `d` is the Q/K contraction dim, so it must be the KEY head size. The V/output dim
+            // reaches the kernel as the V_HEAD_SIZE jit constant instead. This only ever mattered
+            // once the two could differ; plain SDPA still gates on k_head_size == v_head_size, so
+            // this is the same value it always passed there.
             ScalarDescriptor s_d{ScalarDescriptor::Types::INT32};
-            s_d.v.s32 = to_int32(v_head_size);
+            s_d.v.s32 = to_int32(k_head_size);
             scalars.push_back(s_d);
 
             ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
