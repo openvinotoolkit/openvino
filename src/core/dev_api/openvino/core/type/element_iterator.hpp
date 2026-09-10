@@ -347,21 +347,21 @@ public:
     }
 
     // Iteration operators
-        Iterator<ET, T>& operator++() {
-            if constexpr (is_nibble_type(ET)) {
-                m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
-                m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
-            } else if constexpr (is_lsb_packed(ET)) {
-                m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
-                m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift / 8);
-                m_et_ptr.m_bit_shift %= 8;
-            } else {
-                m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
-                m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % 8;
-                m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
-            }
-            return *this;
+    Iterator<ET, T>& operator++() {
+        if constexpr (is_nibble_type(ET)) {
+            m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
+            m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
+        } else if constexpr (is_lsb_packed(ET)) {
+            m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
+            m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift / 8);
+            m_et_ptr.m_bit_shift %= 8;
+        } else {
+            m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
+            m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % 8;
+            m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
         }
+        return *this;
+    }
 
     Iterator<ET, T> operator++(int) {
         auto old = *this;
