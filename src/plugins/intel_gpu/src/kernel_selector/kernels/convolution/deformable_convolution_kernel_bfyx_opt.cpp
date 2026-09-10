@@ -127,8 +127,9 @@ KernelsData DeformableConvolutionKernel_bfyx_opt::GetKernelsData(const Params& p
     constexpr size_t kKernelsNum = 2;
     KernelData kd = KernelData::Default<convolution_params>(params, kKernelsNum);
     const auto& conv_params = static_cast<const convolution_params&>(params);
-    if (!conv_params.deformable_mode)
+    if (!conv_params.deformable_mode) {
         return {};
+    }
 
     auto preferredWeightsLayout = GetPreferredWeightsLayout(conv_params);
     bool succeed = UpdateWeightsParams(*static_cast<convolution_params*>(kd.params.get()),

@@ -34,15 +34,15 @@ public:
     /// \param gate Gate tensor [batch_size_in_tokens, v_num_heads].
     /// \param beta Beta tensor [batch_size_in_tokens, v_num_heads].
     /// \param subsequence_begins Start indices of tokens from current sequences [batch_size_in_sequences+1],
-    ///        element type i32 or i64.
+    ///        element type i32.
     /// \param la_block_indices Block index along 0-th dim in recurrent_state table [num_blocks],
-    ///        element type i32 or i64.
+    ///        element type i32.
     /// \param la_block_indices_begins Defines how block indices are split among sequences [batch_size_in_sequences+1],
-    ///        element type i32 or i64.
+    ///        element type i32.
     /// \param processed_tokens Number of tokens already handled per sequence [batch_size_in_sequences],
-    ///        element type i32 or i64.
+    ///        element type i32.
     /// \param cache_interval Interval between tokens to cache state [batch_size_in_sequences],
-    ///        element type i32 or i64.
+    ///        element type i32.
     /// \param use_qk_l2norm Enables q/k L2-normalization inside this op.
     /// \param q_l2_norm_eps Positive floating-point epsilon used for query L2-normalization.
     /// \param k_l2_norm_eps Positive floating-point epsilon used for key L2-normalization.

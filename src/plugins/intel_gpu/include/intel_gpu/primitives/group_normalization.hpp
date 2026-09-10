@@ -48,8 +48,9 @@ struct group_normalization : public primitive_base<group_normalization> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         const auto& rhs_casted = downcast<const group_normalization>(rhs);
 

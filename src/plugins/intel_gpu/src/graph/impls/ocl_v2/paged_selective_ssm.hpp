@@ -39,20 +39,22 @@ struct PagedSelectiveSSMOpt : public cldnn::ImplementationManager {
             if (i < cldnn::paged_selective_ssm::RECURRENT_STATE_TABLE) {
                 if (!cldnn::one_of(in_layout.data_type, supported_real_types))
                     return false;
-                if (data_type.is_dynamic())
+                if (data_type.is_dynamic()) {
                     data_type = in_layout.data_type;
-                else if (data_type != in_layout.data_type)
+                } else if (data_type != in_layout.data_type) {
                     return false;
+                }
             } else if (i == cldnn::paged_selective_ssm::RECURRENT_STATE_TABLE) {
                 if (!cldnn::one_of(in_layout.data_type, supported_real_types))
                     return false;
             } else {
                 if (!cldnn::one_of(in_layout.data_type, supported_index_types))
                     return false;
-                if (index_type.is_dynamic())
+                if (index_type.is_dynamic()) {
                     index_type = in_layout.data_type;
-                else if (index_type != in_layout.data_type)
+                } else if (index_type != in_layout.data_type) {
                     return false;
+                }
             }
         }
 

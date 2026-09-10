@@ -78,8 +78,9 @@ inline std::string toVectorMulString(const std::vector<std::string>& vec) {
     ss << "(";
     for (size_t i = 0; i < vec.size(); i++) {
         ss << vec[i];
-        if (i != vec.size() - 1)
+        if (i != vec.size() - 1) {
             ss << "*";
+        }
     }
     ss << ")";
     return ss.str();
@@ -119,10 +120,12 @@ inline std::string toVectorInitString(const VecT& vec,
                                       Func fetchFunc) {
     std::stringstream ss;
     ss << "{ ";
-    for (size_t i = 0; i < vec.size(); i++)
+    for (size_t i = 0; i < vec.size(); i++) {
         ss << toCodeString(fetchFunc(vec[i])) << ",";
-    for (size_t i = vec.size(); i < maxDim; i++)
+    }
+    for (size_t i = vec.size(); i < maxDim; i++) {
         ss << padFillingVal << ",";
+    }
     ss << " } ";
     return ss.str();
 }
@@ -134,8 +137,9 @@ inline std::string toVectorString(const VecT& vec,
                                   ValT padFillingVal,
                                   Func fetchFunc) {
     std::stringstream ss;
-    if (!vectorType.empty())
+    if (!vectorType.empty()) {
         ss << "(" << vectorType << " [])";
+    }
     ss << toVectorInitString(vec, vectorType, maxDim, padFillingVal, fetchFunc);
     return ss.str();
 }
