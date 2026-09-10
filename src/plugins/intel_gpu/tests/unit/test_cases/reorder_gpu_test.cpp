@@ -3257,6 +3257,89 @@ TEST(reorder_weights_gpu_i32, reorder_weights)
     }
 }
 
+static void check_imad_isv4_weight_padding(format input_format,
+                                           format output_format,
+                                           const tensor& weights_size,
+                                           size_t groups,
+                                           size_t output_features,
+                                           size_t input_features) {
+    auto& engine = get_test_engine();
+
+    layout input_weights_layout(data_types::i8, input_format, weights_size);
+    layout output_weights_layout(data_types::i8, output_format, weights_size);
+    auto weights_reorder_params = std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, false, groups > 1);
+
+    std::vector<int8_t> input_values(input_weights_layout.get_linear_size());
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        input_values[i] = static_cast<int8_t>(i % 127 + 1);
+    }
+
+    auto input = engine.allocate_memory(input_weights_layout);
+    set_values(input, input_values);
+
+    topology topology {
+        input_layout("input", input_weights_layout),
+        reorder("reorder", input_info("input"), weights_reorder_params)
+    };
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc wr_impl_desc = { output_format, "reorder_weights", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", wr_impl_desc} }));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "reorder");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    const size_t output_features_per_group = output_features / groups;
+    const size_t input_features_per_group = input_features / groups;
+    const size_t filter_y = static_cast<size_t>(weights_size.spatial[1]);
+    const size_t filter_x = static_cast<size_t>(weights_size.spatial[0]);
+    const auto get_os_is_yx_osv16_isv4_offset = [=](size_t g, size_t o, size_t i, size_t y, size_t x) {
+        const size_t isv = i % 4;
+        const size_t osv = o % 16;
+        const size_t input_slice = i / 4;
+        const size_t output_slice = o / 16;
+        const size_t x_pitch = 16 * 4;
+        const size_t y_pitch = x_pitch * filter_x;
+        const size_t input_slice_pitch = y_pitch * filter_y;
+        const size_t output_slice_pitch = input_slice_pitch * align_to(input_features_per_group, size_t{4}) / 4;
+        const size_t group_pitch = output_slice_pitch * align_to(output_features_per_group, size_t{16}) / 16;
+
+        return isv +
+               osv * 4 +
+               x * x_pitch +
+               y * y_pitch +
+               input_slice * input_slice_pitch +
+               output_slice * output_slice_pitch +
+               g * group_pitch;
+    };
+
+    for (size_t g = 0; g < groups; ++g) {
+        for (size_t o = 0; o < output_features_per_group; ++o) {
+            for (size_t i = input_features_per_group; i < align_to(input_features_per_group, size_t{4}); ++i) {
+                for (size_t y = 0; y < filter_y; ++y) {
+                    for (size_t x = 0; x < filter_x; ++x) {
+                        ASSERT_LT(get_os_is_yx_osv16_isv4_offset(g, o, i, y, x), output_ptr.size());
+                        ASSERT_EQ(output_ptr[get_os_is_yx_osv16_isv4_offset(g, o, i, y, x)], 0)
+                            << "at g=" << g << " o=" << o << " i=" << i << " y=" << y << " x=" << x;
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST(reorder_weights_gpu_i8, reorder_weights_imad_isv4_padding) {
+    check_imad_isv4_weight_padding(format::oiyx, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
+    check_imad_isv4_weight_padding(format::goiyx, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
+}
+
 TEST(reorder_weights_gpu_i32, reorder_weights_in_dynamic_convolution)
 {
     // This test is to check if weights_reorder shape stay same as convolution shape
