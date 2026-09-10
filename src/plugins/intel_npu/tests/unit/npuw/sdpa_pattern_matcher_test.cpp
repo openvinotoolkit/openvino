@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "openvino/op/ops.hpp"
@@ -116,15 +117,16 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
         if (with_gqa && num_kv_heads < num_heads) {
             const size_t groups = num_heads / num_kv_heads;
             auto expand_gqa = [&](Output<Node> input, const std::string& kv) -> Output<Node> {
-                auto unsq = std::make_shared<op::v0::Unsqueeze>(
-                    input,
-                    op::v0::Constant::create(element::i64, Shape{1}, {2}));
+                auto unsq =
+                    std::make_shared<op::v0::Unsqueeze>(input, op::v0::Constant::create(element::i64, Shape{1}, {2}));
                 unsq->set_friendly_name("unsqueeze_" + kv + "." + idx);
 
                 auto bcast = std::make_shared<op::v3::Broadcast>(
                     unsq,
-                    op::v0::Constant::create(element::i64, Shape{5},
-                                             std::vector<int64_t>{1, static_cast<int64_t>(num_kv_heads),
+                    op::v0::Constant::create(element::i64,
+                                             Shape{5},
+                                             std::vector<int64_t>{1,
+                                                                  static_cast<int64_t>(num_kv_heads),
                                                                   static_cast<int64_t>(groups),
                                                                   static_cast<int64_t>(context_len),
                                                                   static_cast<int64_t>(head_dim)}));
@@ -132,8 +134,10 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
 
                 auto rshp = std::make_shared<op::v1::Reshape>(
                     bcast,
-                    op::v0::Constant::create(element::i64, Shape{4},
-                                             std::vector<int64_t>{1, static_cast<int64_t>(num_heads),
+                    op::v0::Constant::create(element::i64,
+                                             Shape{4},
+                                             std::vector<int64_t>{1,
+                                                                  static_cast<int64_t>(num_heads),
                                                                   static_cast<int64_t>(context_len),
                                                                   static_cast<int64_t>(head_dim)}),
                     false);
@@ -200,9 +204,10 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_model(size_t num_layers = 1,
 
         auto reshape = std::make_shared<op::v1::Reshape>(
             transpose,
-            op::v0::Constant::create(element::i64, Shape{3},
-                                     std::vector<int64_t>{1, static_cast<int64_t>(query_len),
-                                                          static_cast<int64_t>(num_heads * head_dim)}),
+            op::v0::Constant::create(
+                element::i64,
+                Shape{3},
+                std::vector<int64_t>{1, static_cast<int64_t>(query_len), static_cast<int64_t>(num_heads * head_dim)}),
             false);
         reshape->set_friendly_name("reshape." + idx);
 
@@ -246,28 +251,21 @@ std::shared_ptr<ov::Model> build_decomposed_sdpa_dq_model(size_t num_layers = 1,
 
     for (size_t n = 0; n < num_layers; ++n) {
         const std::string idx = std::to_string(n);
-        auto make_param = [&](const std::string& name, const Shape& shape, element::Type et) {
-            auto p = std::make_shared<op::v0::Parameter>(et, shape);
-            p->set_friendly_name(name);
-            p->output(0).get_tensor().set_names({name});
-            params.push_back(p);
-            return p;
-        };
-
-        auto query = make_param("query." + idx, query_shape, element::f32);
-        auto past_key = make_param("past_key_values." + idx + ".key", past_shape, element::i8);
-        auto past_value = make_param("past_key_values." + idx + ".value", past_shape, element::i8);
-        auto new_key = make_param("new_key." + idx, new_token_shape, element::f32);
-        auto new_value = make_param("new_value." + idx, new_token_shape, element::f32);
-        auto mask = make_param("mask." + idx, mask_shape, element::f32);
+        auto query = ov::test::utils::make_param(element::f32, query_shape, "query." + idx);
+        auto past_key = ov::test::utils::make_param(element::i8, past_shape, "past_key_values." + idx + ".key");
+        auto past_value = ov::test::utils::make_param(element::i8, past_shape, "past_key_values." + idx + ".value");
+        auto new_key = ov::test::utils::make_param(element::f32, new_token_shape, "new_key." + idx);
+        auto new_value = ov::test::utils::make_param(element::f32, new_token_shape, "new_value." + idx);
+        auto mask = ov::test::utils::make_param(element::f32, mask_shape, "mask." + idx);
 
         // DQ scale and zp parameters
-        auto key_scale = make_param("DynamicQuantize/" + idx + "/past_key_values/key/scale", key_scale_shape,
-                                    element::f32);
+        auto key_scale = ov::test::utils::make_param(element::f32, key_scale_shape,
+                                                       "DynamicQuantize/" + idx + "/past_key_values/key/scale");
         auto key_zp =
-            make_param("DynamicQuantize/" + idx + "/past_key_values/key/zp", key_scale_shape, element::i8);
-        auto value_scale = make_param("DynamicQuantize/" + idx + "/past_key_values/value/scale", value_scale_shape,
-                                      element::f32);
+            ov::test::utils::make_param(element::i8, key_scale_shape, "DynamicQuantize/" + idx + "/past_key_values/key/zp");
+        auto value_scale = ov::test::utils::make_param(element::f32, value_scale_shape,
+                                                         "DynamicQuantize/" + idx + "/past_key_values/value/scale");
+        params.insert(params.end(), {query, past_key, past_value, new_key, new_value, mask, key_scale, key_zp, value_scale});
 
         // Past key path: Convert(i8→f32) → Subtract(Convert(zp)) → Multiply(scale) → Concat
         auto cvt_key = std::make_shared<op::v0::Convert>(past_key, element::f32);

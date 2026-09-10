@@ -3,6 +3,7 @@
 //
 
 #include "pooling_kernel_base.h"
+
 #include <algorithm>
 
 namespace kernel_selector {
@@ -14,12 +15,14 @@ bool PoolingKernelBase::Validate(const Params& p) const {
     const auto& params = dynamic_cast<const pooling_params&>(p);
 
     for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
-    if (params.inputs[0].Dimentions() > 5)
+    if (params.inputs[0].Dimentions() > 5) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -46,11 +49,11 @@ Datatype PoolingKernelBase::GetAccumulatorType(const pooling_params& params) con
 }
 
 Datatype PoolingKernelBase::GetActivationType(const pooling_params& params) const {
-    if (params.outputs[0].GetDType() == Datatype::F16)
+    if (params.outputs[0].GetDType() == Datatype::F16) {
         return Datatype::F16;
+    }
     return Datatype::F32;
 }
-
 
 JitConstants PoolingKernelBase::GetJitConstants(const pooling_params& pp, PoolingKernelBase::DispatchData dispatchData) const {
     JitConstants mem_consts = MakeBaseParamsJitConstants(pp);
@@ -124,15 +127,13 @@ bool PoolingKernelBase::NeedsBoundaryCheck(const pooling_params& pp) const {
 bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params& params) const {
     bool has_fused_quantize_to_int8 = false;
     for (const auto& op : params.fused_ops) {
-        if (op.GetType() == FusedOpType::QUANTIZE &&
-            (op.output_tensor.GetDType() == Datatype::INT8 || op.output_tensor.GetDType() == Datatype::UINT8)) {
+        if (op.GetType() == FusedOpType::QUANTIZE && (op.output_tensor.GetDType() == Datatype::INT8 || op.output_tensor.GetDType() == Datatype::UINT8)) {
             has_fused_quantize_to_int8 = true;
         }
     }
 
-    return !has_fused_quantize_to_int8 &&
-        (params.outputs[0].GetDType() == Datatype::INT8 || params.outputs[0].GetDType() == Datatype::UINT8) &&
-        params.poolType == PoolType::AVG;
+    return !has_fused_quantize_to_int8 && (params.outputs[0].GetDType() == Datatype::INT8 || params.outputs[0].GetDType() == Datatype::UINT8) &&
+           params.poolType == PoolType::AVG;
 }
 
 PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_params& params) const {
@@ -140,11 +141,9 @@ PoolingKernelBase::DispatchData PoolingKernelBase::SetDefault(const pooling_para
 
     DispatchData dispatchData;
 
-    if (output.GetLayout() == DataLayout::bfyx || output.GetLayout() == DataLayout::b_fs_yx_fsv4 ||
-        output.GetLayout() == DataLayout::byxf ||
+    if (output.GetLayout() == DataLayout::bfyx || output.GetLayout() == DataLayout::b_fs_yx_fsv4 || output.GetLayout() == DataLayout::byxf ||
         output.GetLayout() == DataLayout::bfzyx || output.GetLayout() == DataLayout::b_fs_zyx_fsv16 ||
-        output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 ||
-        output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
+        output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16 || output.GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv32 ||
         output.GetLayout() == DataLayout::bs_fs_zyx_bsv32_fsv32) {
         // Determine global work sizes.
         dispatchData.gws[0] = Align(output.X().v, 32);                // X
@@ -198,7 +197,16 @@ KernelsData PoolingKernelBase::GetCommonKernelsData(const Params& params) const 
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point, EXE_MODE_DEFAULT, false, false, 1,
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     1,
                      GetFusedPrimitiveInputsCount(params));
 
     if (orgParams.maxPoolOpset8Features) {

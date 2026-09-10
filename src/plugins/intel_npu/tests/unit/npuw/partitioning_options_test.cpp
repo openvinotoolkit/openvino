@@ -23,8 +23,8 @@
 #include "partitioning/partitioning.hpp"
 #include "pyramid_attention.hpp"
 
-using ov::test::npuw::ModelBuilder;
 using ov::test::npuw::LLMConfig;
+using ov::test::npuw::ModelBuilder;
 
 namespace {
 

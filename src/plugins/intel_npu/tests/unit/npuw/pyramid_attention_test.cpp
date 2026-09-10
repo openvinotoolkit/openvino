@@ -12,9 +12,8 @@
 #include <variant>
 #include <vector>
 
-#include "npuw_transformations/convert_kvcache_to_precision.hpp"
-#include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "attn/attn_subgraph.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/add.hpp"
@@ -68,7 +67,6 @@ std::shared_ptr<ov::Model> build_isolated_attention_model(const AttentionModelCo
 
     for (size_t n = 0; n < cfg.num_layers; ++n) {
         const std::string idx = std::to_string(n);
-
         auto make_param = [&](const std::string& name, const Shape& shape) {
             auto p = std::make_shared<op::v0::Parameter>(element::f32, shape);
             p->set_friendly_name(name);
