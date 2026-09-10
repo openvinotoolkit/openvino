@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Internal storage behind the opaque SDK metadata and weight views.
+// Internal storage behind the opaque metadata and weight views.
 
 #pragma once
 

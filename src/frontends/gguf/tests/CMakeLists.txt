@@ -38,9 +38,9 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/decoder_config.cpp"
     "${FE_SRC_DIR}/builder/model_kind.cpp"
     "${FE_SRC_DIR}/extension/architecture.cpp"
-    "${FE_SRC_DIR}/builder/sdk/graph_context.cpp"
-    "${FE_SRC_DIR}/builder/sdk/metadata.cpp"
-    "${FE_SRC_DIR}/builder/sdk/tensor_table.cpp"
+    "${FE_SRC_DIR}/builder/api/graph_context.cpp"
+    "${FE_SRC_DIR}/builder/api/metadata.cpp"
+    "${FE_SRC_DIR}/builder/api/tensor_table.cpp"
     "${FE_SRC_DIR}/builder/arch/decoder_builder.cpp"
     "${FE_SRC_DIR}/builder/blocks/attention.cpp"
     "${FE_SRC_DIR}/builder/blocks/common.cpp"
@@ -95,7 +95,7 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_conversion.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_accuracy.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_architecture_extension.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/test_builder_sdk.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_builder_api.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_dequant_vs_ggml.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_extensions.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_op_coverage.cpp"
@@ -165,7 +165,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-# Test loading an independently compiled architecture module using only SDK headers.
+# Test loading an independently compiled architecture module using only builder API headers.
 set(ARCH_EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../examples/architecture_extension")
 add_library(gguf_projector_extension MODULE
             "${ARCH_EXAMPLE_DIR}/projector.cpp" "${ARCH_EXAMPLE_DIR}/extension.cpp")

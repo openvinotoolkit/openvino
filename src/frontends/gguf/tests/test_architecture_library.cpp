@@ -11,7 +11,7 @@
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "projector.hpp"
 
-// Link the actual frontend library to exercise the SDK and module-loading boundary.
+// Link the actual frontend library to exercise the builder API and module-loading boundary.
 TEST(GGUFArchitectureLibrary, ExternalModuleMatchesDirectRegistrationAcrossTokenCounts) {
     const auto path =
         std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + "_projector.gguf");

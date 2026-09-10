@@ -9,9 +9,9 @@
 #include <limits>
 #include <set>
 
+#include "builder/api/graph_context_impl.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
-#include "builder/sdk/graph_context_impl.hpp"
 
 namespace ov {
 namespace frontend {
@@ -29,7 +29,7 @@ constexpr int64_t D = -1;
 }  // namespace
 
 GgufGraphContext::GgufGraphContext(const BuildContext& ctx) {
-    OPENVINO_ASSERT(ctx.weights, "[GGUF] builder SDK: BuildContext has no weight table");
+    OPENVINO_ASSERT(ctx.weights, "[GGUF] builder: BuildContext has no weight table");
     m_impl = std::make_unique<Impl>(ctx);
 }
 

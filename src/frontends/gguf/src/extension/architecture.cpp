@@ -4,8 +4,8 @@
 
 #include "openvino/frontend/gguf/extension/architecture.hpp"
 
+#include "builder/api/metadata_store.hpp"
 #include "builder/arch/decoder_builder.hpp"
-#include "builder/sdk/metadata_store.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::frontend::gguf {

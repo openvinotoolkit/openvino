@@ -4,9 +4,8 @@ An architecture is described by an `ArchitectureDefinition`. The native catalog 
 extensions consume the **same definition**, invoke the same factory, and use the same conversion
 and normalization pipeline. `ArchitectureExtension` is only the runtime registration adapter.
 
-The SDK is a developer API. Build an extension against the OpenVINO release it will run with;
-compatibility with future SDK revisions is not promised. Loading an extension does not require
-rebuilding that OpenVINO release.
+Build extensions against the OpenVINO release they will run with. The builder API does not promise
+compatibility across releases. Loading an extension does not require rebuilding OpenVINO.
 
 ## Choose the smallest implementation
 
@@ -49,7 +48,7 @@ mode against the architecture's reference implementation.
 
 `DecoderOptions` contains supported architectural overrides, not mutable dimensions or execution
 plans. The callback runs before configuration resolution. The native resolver validates the options
-and derives the SWA RoPE configuration and KV plan afterward. There is no second SDK hyperparameter
+and derives the SWA RoPE configuration and KV plan afterward. There is no separate hyperparameter
 reader: both built-in and custom decoder topologies use `decoder_config_from_meta` and
 `DecoderConfig`, including their defaults and RoPE scaling rules. The resolved configuration stays
 internal to the frontend. Options also cover QK-norm placement (`qk_norm_after_rope`),
@@ -64,7 +63,7 @@ metadata and weights, valid for the synchronous factory/build call. Do not retai
 Read scalar metadata with `get_int`, `get_float`, `get_bool`, or `get_str`; they return
 `std::optional`, so defaults use standard `value_or`, e.g.
 `metadata.get_int("my-arch.block_count").value_or(1)`. Array getters return typed vectors.
-Numeric conversion reuses OpenVINO's tensor utilities rather than a separate SDK type dispatcher.
+Numeric conversion reuses OpenVINO's tensor utilities rather than a separate type dispatcher.
 
 The [projector example](../examples/architecture_extension/projector.cpp) is a complete small
 non-decoder family. It reads a weight, accepts a variable number of input embeddings and projects
@@ -82,7 +81,7 @@ auto feed_forward = graph.decoder_ffn(layer, normalized_ffn_input);
 ```
 
 These methods call the existing `blocks::attention` / `blocks::gated_delta_net` and dense/GeGLU/MoE
-FFN implementations. Configuration chooses the applicable sublayer. There is no parallel SDK
+FFN implementations. Configuration chooses the applicable sublayer. There is no separate
 implementation of those blocks. Decoder dimensions are returned as a value snapshot; modifying it
 does not mutate the resolved model. See the custom decoder in
 [`test_architecture_extension.cpp`](../tests/test_architecture_extension.cpp).
@@ -150,7 +149,7 @@ weight-dependent dimensions from `GgufValue::ne` or its inferred shape, not from
 optional weight is absent, and `tensors.has(name)` checks presence without emitting a node.
 Implement tied-weight fallbacks explicitly where the reference does so.
 
-The SDK accepts named model inputs with a known rank of at most four; dimensions may be dynamic.
+The builder API accepts named model inputs with a known rank of at most four; dimensions may be dynamic.
 Use the layouts expected by the selected converters. For example, GGML `[width, items, 1, 1]`
 corresponds to OpenVINO `[1, 1, items, width]`. This is not an implicit batch-capability guarantee:
 the model's operations, state and consumer must all support the batch layout you expose.
@@ -163,7 +162,7 @@ connection, including cross-attention and state where needed; registration does 
 
 Port one reference fragment at a time, retaining its operand order and branches. Use shared
 attention/FFN blocks only where their semantics match. Otherwise express the fragment with generic
-nodes. Local functions can name repeated architectural fragments without adding methods to the SDK.
+nodes. Local functions can name repeated architectural fragments without adding methods to the builder API.
 
 | llama.cpp construction | Builder equivalent or porting action |
 |---|---|
@@ -326,7 +325,7 @@ explained in [Declare model contracts](#declare-model-contracts). Do not apply d
 
 ### 6. Build and validate the port in increasing scope
 
-Wrap `new_family_architecture()` in the plugin entry point and build it against installed SDK
+Wrap `new_family_architecture()` in the plugin entry point and build it against installed builder API
 headers using [Build and load an external plugin](#build-and-load-an-external-plugin). For this
 example, replace `projector.cpp` with `new_family.cpp` in the CMake target and declare the factory
 in a header included by the entry point. No llama.cpp objects or internal frontend headers are
@@ -418,9 +417,9 @@ auto merged = graph.node("GGML_OP_RESHAPE", {heads}, 2, {{"merge_heads", true}})
 view/stride semantics need explicit slice/layout parameters. No representative token count or
 intermediate output-shape metadata is supplied.
 
-The SDK is not a drop-in implementation of llama.cpp's `llm_graph_context`. Map sublayers onto
+The builder API is not a drop-in implementation of llama.cpp's `llm_graph_context`. Map sublayers onto
 shared blocks where applicable, then use `node` for new structure. Model-specific helpers may
-name repeated fragments without extending the SDK's operation vocabulary.
+name repeated fragments without extending the builder API's operation vocabulary.
 
 `load()` parses the file and selects the architecture. `convert()` invokes the selected builder
 with the frontend's current converters, then normalizes the constructed OpenVINO graph. Operation
@@ -475,7 +474,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>{
 
 Link against `openvino::frontend::gguf`. The
 [standalone CMake example](../examples/architecture_extension/CMakeLists.txt) builds against the
-installed SDK:
+installed OpenVINO package:
 
 ```sh
 cmake -S src/frontends/gguf/examples/architecture_extension -B /tmp/gguf-extension \

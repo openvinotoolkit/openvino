@@ -6,11 +6,11 @@
 #include <limits>
 #include <numeric>
 
+#include "builder/api/metadata_store.hpp"
 #include "builder/arch_registry.hpp"
 #include "builder/decoder_config.hpp"
 #include "builder/gguf_builder_decoder.hpp"
 #include "builder/gguf_graph.hpp"
-#include "builder/sdk/metadata_store.hpp"
 #include "gtest/gtest.h"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
@@ -77,7 +77,7 @@ ArchitectureDefinition handler(const std::string& id, ArchitectureDefinition::Ma
 }
 }  // namespace
 
-TEST(GGUFBuilderSDK, MetadataReadsReuseNumericConversionAcrossWidths) {
+TEST(GGUFBuilderAPI, MetadataReadsReuseNumericConversionAcrossWidths) {
     Environment env;
     const auto& metadata = env.context.metadata;
     const auto store = [&](const std::string& key, const ov::op::v0::Constant& value) {
@@ -117,7 +117,7 @@ TEST(GGUFBuilderSDK, MetadataReadsReuseNumericConversionAcrossWidths) {
     EXPECT_EQ(metadata.get_float("unsigned"), double(uint64_t{1} << 63));
 }
 
-TEST(GGUFBuilderSDK, MetadataMissingAndIncompatibleValuesRemainOptional) {
+TEST(GGUFBuilderAPI, MetadataMissingAndIncompatibleValuesRemainOptional) {
     Environment env;
     const auto& metadata = env.context.metadata;
     env.metadata["string"] = std::string("value");
@@ -147,7 +147,7 @@ TEST(GGUFBuilderSDK, MetadataMissingAndIncompatibleValuesRemainOptional) {
     }
 }
 
-TEST(GGUFBuilderSDK, RejectsValuesFromAnotherGraphWithMatchingNames) {
+TEST(GGUFBuilderAPI, RejectsValuesFromAnotherGraphWithMatchingNames) {
     Environment env;
     GgufGraphContext graph(env.context), other(env.context);
     auto local = graph.add_input("state", ov::element::f32, {1, 1, 1, 4});
@@ -162,7 +162,7 @@ TEST(GGUFBuilderSDK, RejectsValuesFromAnotherGraphWithMatchingNames) {
     EXPECT_NO_THROW(convert(graph.finish()));
 }
 
-TEST(GGUFBuilderSDK, GeneratedNamesDoNotOverwriteInputs) {
+TEST(GGUFBuilderAPI, GeneratedNamesDoNotOverwriteInputs) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("GGML_OP_SCALE_0", ov::element::f32, {1, 1, 1, 4});
@@ -183,7 +183,7 @@ TEST(GGUFBuilderSDK, GeneratedNamesDoNotOverwriteInputs) {
     }
 }
 
-TEST(GGUFBuilderSDK, NormalizationPreservesInputNamesAndAcceptsGraphValues) {
+TEST(GGUFBuilderAPI, NormalizationPreservesInputNamesAndAcceptsGraphValues) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("norm_0.rms", ov::element::f32, {1, 1, 1, 4});
@@ -202,7 +202,7 @@ TEST(GGUFBuilderSDK, NormalizationPreservesInputNamesAndAcceptsGraphValues) {
     }
 }
 
-TEST(GGUFBuilderSDK, LogicalWeightDimensionsPreserveVectorsAndExpertAxes) {
+TEST(GGUFBuilderAPI, LogicalWeightDimensionsPreserveVectorsAndExpertAxes) {
     GgufValue empty;
     EXPECT_TRUE(empty.shape().rank().is_dynamic());
     EXPECT_EQ(empty.type(), ov::element::dynamic);
@@ -221,7 +221,7 @@ TEST(GGUFBuilderSDK, LogicalWeightDimensionsPreserveVectorsAndExpertAxes) {
     EXPECT_THROW(graph.node("GGML_OP_ADD", {empty, vector}), ov::Exception);
 }
 
-TEST(GGUFBuilderSDK, GeneralReshapeDoesNotCopyTheAttentionBatchAxis) {
+TEST(GGUFBuilderAPI, GeneralReshapeDoesNotCopyTheAttentionBatchAxis) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {2, 3, 4, 5});
@@ -237,7 +237,7 @@ TEST(GGUFBuilderSDK, GeneralReshapeDoesNotCopyTheAttentionBatchAxis) {
         EXPECT_EQ(output[0].data<float>()[i], float(i));
 }
 
-TEST(GGUFBuilderSDK, ExplicitInferredReshapeRemainsDynamicAcrossTokenCounts) {
+TEST(GGUFBuilderAPI, ExplicitInferredReshapeRemainsDynamicAcrossTokenCounts) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {1, 1, -1, 8});
@@ -255,7 +255,7 @@ TEST(GGUFBuilderSDK, ExplicitInferredReshapeRemainsDynamicAcrossTokenCounts) {
     }
 }
 
-TEST(GGUFBuilderSDK, DecoderOptionsAreResolvedBeforeRopePlans) {
+TEST(GGUFBuilderAPI, DecoderOptionsAreResolvedBeforeRopePlans) {
     Environment env;
     env.decoder();
     env.real("test.rope.scaling.factor", 4.0f);
@@ -282,7 +282,7 @@ TEST(GGUFBuilderSDK, DecoderOptionsAreResolvedBeforeRopePlans) {
     EXPECT_THROW(other.configure_decoder(RopeMode::Neox, invalid), ov::Exception);
 }
 
-TEST(GGUFBuilderSDK, RecurrentStateDeclarationReachesMakeStateful) {
+TEST(GGUFBuilderAPI, RecurrentStateDeclarationReachesMakeStateful) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto state = graph.add_input("state", ov::element::f32, {1, 1, 1, 4});
@@ -300,7 +300,7 @@ TEST(GGUFBuilderSDK, RecurrentStateDeclarationReachesMakeStateful) {
     EXPECT_EQ(model->get_sinks().size(), 1);
 }
 
-TEST(GGUFBuilderSDK, SlidingWindowDeclarationSurvivesConversion) {
+TEST(GGUFBuilderAPI, SlidingWindowDeclarationSurvivesConversion) {
     Environment env;
     GgufGraphContext graph(env.context);
     graph.set_sliding_window(32);
@@ -366,7 +366,7 @@ TEST(GGUFArchitectureRegistry, PromotedDefinitionUsesTheSameBuilderAndDispatch) 
     }
 }
 
-TEST(GGUFBuilderSDK, SingleHeadSplitPreservesDynamicTokens) {
+TEST(GGUFBuilderAPI, SingleHeadSplitPreservesDynamicTokens) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {1, 1, -1, 8});
@@ -385,7 +385,7 @@ TEST(GGUFBuilderSDK, SingleHeadSplitPreservesDynamicTokens) {
     EXPECT_EQ(results[1].get_shape(), data.get_shape());
 }
 
-TEST(GGUFBuilderSDK, Gemma2DefaultsIncludeSlidingWindowAnd27BAttentionScale) {
+TEST(GGUFBuilderAPI, Gemma2DefaultsIncludeSlidingWindowAnd27BAttentionScale) {
     Environment env;
     env.decoder();
     env.integer("test.block_count", 46);
@@ -400,7 +400,7 @@ TEST(GGUFBuilderSDK, Gemma2DefaultsIncludeSlidingWindowAnd27BAttentionScale) {
     EXPECT_FLOAT_EQ(config.layer_kq_scale(0), 1.f / 12.f);
 }
 
-TEST(GGUFBuilderSDK, Gemma2RejectsZeroAttentionHeadsWithOrWithoutKeyLength) {
+TEST(GGUFBuilderAPI, Gemma2RejectsZeroAttentionHeadsWithOrWithoutKeyLength) {
     for (bool explicit_key_length : {false, true}) {
         SCOPED_TRACE(explicit_key_length);
         Environment env;
@@ -415,7 +415,7 @@ TEST(GGUFBuilderSDK, Gemma2RejectsZeroAttentionHeadsWithOrWithoutKeyLength) {
     }
 }
 
-TEST(GGUFBuilderSDK, ErnieInterleavesDenseAndExpertLayers) {
+TEST(GGUFBuilderAPI, ErnieInterleavesDenseAndExpertLayers) {
     Environment env;
     env.decoder();
     env.integer("test.block_count", 4);
@@ -457,7 +457,7 @@ TEST(GGUFBuilderSDK, ErnieInterleavesDenseAndExpertLayers) {
     }
 }
 
-TEST(GGUFBuilderSDK, Exaone64LayerDefaultsIncludeLocalRopeAndSlidingWindow) {
+TEST(GGUFBuilderAPI, Exaone64LayerDefaultsIncludeLocalRopeAndSlidingWindow) {
     Environment env;
     env.decoder();
     env.integer("test.block_count", 64);
@@ -472,7 +472,7 @@ TEST(GGUFBuilderSDK, Exaone64LayerDefaultsIncludeLocalRopeAndSlidingWindow) {
     EXPECT_TRUE(config.layer_is_swa(4));
 }
 
-TEST(GGUFBuilderSDK, ArchitectureOptionsOverrideAmbiguousTensorSemantics) {
+TEST(GGUFBuilderAPI, ArchitectureOptionsOverrideAmbiguousTensorSemantics) {
     Environment env;
     env.decoder();
     DecoderOptions options;
@@ -490,7 +490,7 @@ TEST(GGUFBuilderSDK, ArchitectureOptionsOverrideAmbiguousTensorSemantics) {
                  ov::Exception);
 }
 
-TEST(GGUFBuilderSDK, DevstralReadsYarnAndAttentionTemperatureMetadata) {
+TEST(GGUFBuilderAPI, DevstralReadsYarnAndAttentionTemperatureMetadata) {
     Environment env;
     env.decoder();
     env.metadata["test.rope.scaling.type"] = std::string("yarn");
@@ -510,7 +510,7 @@ TEST(GGUFBuilderSDK, DevstralReadsYarnAndAttentionTemperatureMetadata) {
     EXPECT_THROW(DecoderConfig(decoder_config_from_meta(env.metadata), env.weights), ov::Exception);
 }
 
-TEST(GGUFBuilderSDK, BroadcastAndConcatShapesComeFromOpenVINO) {
+TEST(GGUFBuilderAPI, BroadcastAndConcatShapesComeFromOpenVINO) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto a = graph.add_input("a", ov::element::f32, {2, 1, -1, 4});
@@ -537,7 +537,7 @@ TEST(GGUFBuilderSDK, BroadcastAndConcatShapesComeFromOpenVINO) {
     }
 }
 
-TEST(GGUFBuilderSDK, GenericNodesNeedOnlySemanticAttributes) {
+TEST(GGUFBuilderAPI, GenericNodesNeedOnlySemanticAttributes) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {1, 1, -1, 5});
@@ -551,7 +551,7 @@ TEST(GGUFBuilderSDK, GenericNodesNeedOnlySemanticAttributes) {
     EXPECT_EQ(model->output().get_partial_shape(), repeated.shape());
 }
 
-TEST(GGUFBuilderSDK, MergeHeadsAcceptsRuntimeTokenAndHeadDimensions) {
+TEST(GGUFBuilderAPI, MergeHeadsAcceptsRuntimeTokenAndHeadDimensions) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f32, {2, -1, 3, -1});
@@ -571,7 +571,7 @@ TEST(GGUFBuilderSDK, MergeHeadsAcceptsRuntimeTokenAndHeadDimensions) {
     }
 }
 
-TEST(GGUFBuilderSDK, GenericNodesValidateAttributesThroughConverters) {
+TEST(GGUFBuilderAPI, GenericNodesValidateAttributesThroughConverters) {
     for (const auto& invalid : std::vector<std::pair<std::string, std::map<std::string, ov::Any>>>{
              {"GGML_OP_RESHAPE", {{"reshape_target", std::vector<int64_t>{1, -1, -1, 4}}}},
              {"GGML_OP_PERMUTE", {{"perm", std::vector<int64_t>{0, 1, 1, 3}}}},
@@ -587,7 +587,7 @@ TEST(GGUFBuilderSDK, GenericNodesValidateAttributesThroughConverters) {
     }
 }
 
-TEST(GGUFBuilderSDK, GenericRopeNodesPreserveModelPositionContract) {
+TEST(GGUFBuilderAPI, GenericRopeNodesPreserveModelPositionContract) {
     for (bool multimodal : {false, true}) {
         for (bool per_op : {false, true}) {
             SCOPED_TRACE(testing::Message() << "multimodal=" << multimodal << ", per_op=" << per_op);
@@ -619,7 +619,7 @@ TEST(GGUFBuilderSDK, GenericRopeNodesPreserveModelPositionContract) {
     }
 }
 
-TEST(GGUFBuilderSDK, MatmulProducesF32FromF16Operands) {
+TEST(GGUFBuilderAPI, MatmulProducesF32FromF16Operands) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto weights = graph.add_input("w", ov::element::f16, {1, 1, 2, 2});
@@ -644,7 +644,7 @@ TEST(GGUFBuilderSDK, MatmulProducesF32FromF16Operands) {
     }
 }
 
-TEST(GGUFBuilderSDK, GetRowsDerivesFloatingAndIntegerResultTypes) {
+TEST(GGUFBuilderAPI, GetRowsDerivesFloatingAndIntegerResultTypes) {
     for (auto type : {ov::element::f16, ov::element::i32}) {
         SCOPED_TRACE(type);
         Environment env;
@@ -680,7 +680,7 @@ TEST(GGUFBuilderSDK, GetRowsDerivesFloatingAndIntegerResultTypes) {
     }
 }
 
-TEST(GGUFBuilderSDK, ElementwiseNodesPreserveF16) {
+TEST(GGUFBuilderAPI, ElementwiseNodesPreserveF16) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto input = graph.add_input("x", ov::element::f16, {1, 1, 1, 4});
@@ -696,7 +696,7 @@ TEST(GGUFBuilderSDK, ElementwiseNodesPreserveF16) {
     EXPECT_EQ(model->output().get_element_type(), ov::element::f16);
 }
 
-TEST(GGUFBuilderSDK, CopyAndStateWritesUseDestinationType) {
+TEST(GGUFBuilderAPI, CopyAndStateWritesUseDestinationType) {
     Environment env;
     GgufGraphContext graph(env.context);
     auto destination = graph.add_input("dst", ov::element::f16, {1, 1, 1, 4});
@@ -715,7 +715,7 @@ TEST(GGUFBuilderSDK, CopyAndStateWritesUseDestinationType) {
     }
 }
 
-TEST(GGUFBuilderSDK, CastAndIm2colRequireExplicitDestinationType) {
+TEST(GGUFBuilderAPI, CastAndIm2colRequireExplicitDestinationType) {
     for (bool cast : {true, false}) {
         Environment env;
         GgufGraphContext graph(env.context);

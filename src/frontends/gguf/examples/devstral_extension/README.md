@@ -1,15 +1,15 @@
 # Devstral behavior implemented in an external builder
 
 This example implements the Devstral **text graph** in a loadable `ModelBuilder`, using only
-installed GGUF SDK headers. It reads the original GGUF metadata and builds YaRN and
+installed GGUF builder API headers. It reads the original GGUF metadata and builds YaRN and
 position-dependent attention scaling itself. It does not call `make_decoder_architecture`,
 `configure_decoder`, `decoder_attention` or `decoder_ffn`, and does not depend on the shared
 `DecoderConfig` resolver's Devstral fixes. No new operation converter is required.
 
 The current frontend already supports these behaviors natively. This plugin demonstrates how
 to implement them externally when the shared decoder does not, rather than adding names to
-the supported-model list. It requires the generic-node SDK in this branch; it is not binary
-compatible with older SDKs.
+the supported-model list. It requires the generic node API in this branch; it is not binary
+compatible with older API versions.
 
 ## What the extension owns
 

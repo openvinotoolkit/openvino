@@ -6,7 +6,7 @@
 
 #include <type_traits>
 
-#include "builder/sdk/metadata_store.hpp"
+#include "builder/api/metadata_store.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ov::frontend::gguf {

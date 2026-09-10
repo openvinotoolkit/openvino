@@ -4,7 +4,7 @@
 
 #include "openvino/frontend/gguf/builder/tensor_table.hpp"
 
-#include "builder/sdk/graph_context_impl.hpp"
+#include "builder/api/graph_context_impl.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 #include "openvino/frontend/gguf/builder/model_builder.hpp"

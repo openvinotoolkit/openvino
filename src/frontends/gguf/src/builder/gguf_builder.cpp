@@ -9,10 +9,10 @@
 #include <memory>
 #include <type_traits>
 
+#include "builder/api/metadata_store.hpp"
 #include "builder/arch/decoder_builder.hpp"
 #include "builder/arch_registry.hpp"
 #include "builder/model_kind.hpp"
-#include "builder/sdk/metadata_store.hpp"
 #include "gguf_graph.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/frontend/gguf/builder/model_builder.hpp"

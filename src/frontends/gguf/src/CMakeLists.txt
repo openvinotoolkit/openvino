@@ -4,7 +4,7 @@
 
 # Native GGUF files and supplied GgufDecoder graphs use the same op translators.
 # The linkable frontend requires explicit selection by framework name.
-# dev_api/ installs the extension SDK; it does not promise compatibility across releases.
+# dev_api/ installs the extension API; it does not promise compatibility across releases.
 set(GGUF_FRONTEND_DEV_API "${CMAKE_CURRENT_SOURCE_DIR}/../dev_api")
 
 ov_add_frontend(NAME gguf
@@ -14,7 +14,7 @@ ov_add_frontend(NAME gguf
 
 ov_build_target_faster(openvino_gguf_frontend PCH)
 
-# Expose SDK headers to consumers of openvino::frontend::gguf in build and install trees.
+# Expose builder API headers to consumers of openvino::frontend::gguf in build and install trees.
 target_include_directories(openvino_gguf_frontend
                            PUBLIC $<BUILD_INTERFACE:${GGUF_FRONTEND_DEV_API}>)
 

@@ -7,9 +7,9 @@
 
 #include <string>
 
+#include "builder/api/metadata_store.hpp"
 #include "builder/blocks/attention.hpp"
 #include "builder/graph_emitter.hpp"
-#include "builder/sdk/metadata_store.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/frontend/gguf/builder/graph_context.hpp"
 
@@ -44,7 +44,7 @@ struct GgufGraphContext::Impl {
     }
     GraphEmitter emitter;
 
-    // Generate unique names for SDK operations. Shared decoder blocks use layer prefixes.
+    // Generate unique names for builder operations. Shared decoder blocks use layer prefixes.
     int seq = 0;
     std::string fresh(const std::string& op) {
         std::string name;

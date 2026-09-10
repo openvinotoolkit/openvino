@@ -12,7 +12,7 @@ namespace {
 using namespace ov::frontend::gguf;
 
 // A small non-decoder family: project a variable number of embedding vectors. This source uses
-// only installed SDK headers and is compiled unchanged in the plugin and catalog tests.
+// only installed builder API headers and is compiled unchanged in the plugin and catalog tests.
 class Projector : public ModelBuilder {
 public:
     explicit Projector(const BuildContext& context) : m_context(context) {}
