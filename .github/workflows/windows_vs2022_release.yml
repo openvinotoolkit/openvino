@@ -82,5 +82,6 @@ jobs:
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DCMAKE_VERBOSE_MAKEFILE=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 

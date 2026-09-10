@@ -193,6 +193,7 @@ jobs:
             -DTBB_TEST=OFF \
             -DTBB_STRICT=OFF \
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--undefined-version" \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -S ${TBB_SRC} \
             -B ${TBB_BUILD}
 
@@ -204,8 +205,7 @@ jobs:
           mode: zero-stats
 
       - name: Build OneTBB project
-        run: cmake --build ${TBB_BUILD} --parallel 15 -- --quiet
-
+        run: cmake --build ${TBB_BUILD} --parallel 15
       - name: Compile cache statistics (onetbb)
         if: false
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -244,6 +244,7 @@ jobs:
             -DENABLE_PYTHON=OFF \
             -DCMAKE_EXE_LINKER_FLAGS="-Wl,-z,max-page-size=16384" \
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-z,max-page-size=16384" \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -255,8 +256,7 @@ jobs:
           mode: zero-stats
 
       - name: CMake - build OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
-
+        run: cmake --build ${BUILD_DIR} --parallel 15
       - name: Compile cache statistics (openvino)
         if: false
         uses: ./openvino/.github/actions/compile_cache_stats

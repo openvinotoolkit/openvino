@@ -121,6 +121,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
             -DTHREADING=SEQ \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
 

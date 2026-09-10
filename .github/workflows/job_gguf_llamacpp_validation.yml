@@ -92,7 +92,8 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ inputs.enable-compile-cache && 'sccache' || '' }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ inputs.enable-compile-cache && 'sccache' || '' }} \
-            -DGGML_OPENVINO=ON
+            -DGGML_OPENVINO=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON
 
       - name: Zero compile cache stats (llama.cpp build)
         if: ${{ inputs.enable-compile-cache }}

@@ -189,7 +189,7 @@ jobs:
 
       - name: CMake configure
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }} -DCMAKE_VERBOSE_MAKEFILE=ON
         run: |
           $cmakeOptions = "$env:CMAKE_OPTIONS"
           $splitCmakeOptions = $cmakeOptions.Split(" ")
@@ -212,8 +212,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel 15 -- --quiet
-
+        run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel 15
       - name: Compile cache statistics (openvino main build)
         if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -305,12 +304,12 @@ jobs:
             & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
             if ($pyVersion -eq '3.14t') {
-              cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
+              cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DCMAKE_VERBOSE_MAKEFILE=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
             } else {
-              cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
+              cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=ON -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DCMAKE_VERBOSE_MAKEFILE=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
             }
 
-            cmake --build "$pyBuildDir" --parallel 15 --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+            cmake --build "$pyBuildDir" --parallel 15 --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }}
             if ($LASTEXITCODE -ne 0) {
               Write-Host "Failed to build Python wheels for Python $pyVersion"
               exit $LASTEXITCODE
@@ -376,9 +375,9 @@ jobs:
 
           & $pythonExecutablePath -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
 
-          cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
+          cmake -DPython3_EXECUTABLE="$pythonExecutablePath" -DENABLE_GIL_PYTHON_API=OFF -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DCMAKE_VERBOSE_MAKEFILE=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B "$pyBuildDir"
 
-          cmake --build "$pyBuildDir" --parallel 15 --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+          cmake --build "$pyBuildDir" --parallel 15 --target ie_wheel --config ${{ env.CMAKE_BUILD_TYPE }}
           if ($LASTEXITCODE -ne 0) {
             Write-Host "Failed to build Python wheels for Python $pyVersion"
             exit $LASTEXITCODE
@@ -460,7 +459,8 @@ jobs:
           cmake -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} `
                 -DCPACK_GENERATOR=NPM `
                 -DENABLE_SYSTEM_TBB=OFF `
-                -DENABLE_WHEEL=OFF
+                -DENABLE_WHEEL=OFF `
+                -DCMAKE_VERBOSE_MAKEFILE=ON
 
       - name: Zero compile cache stats (openvino js api)
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
@@ -471,8 +471,7 @@ jobs:
 
       - name: Cmake build - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API }}
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 15 -- --quiet
-
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 15
       - name: Compile cache statistics (openvino js api)
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -523,7 +522,8 @@ jobs:
         run: |
           cmake -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} `
                 -DOPENVINO_EXTRA_MODULES="${{ env.OPENVINO_CONTRIB_REPO }}/modules/custom_operations;${{ env.OPENVINO_CONTRIB_REPO }}/modules/java_api" `
-                -DENABLE_WHEEL=OFF
+                -DENABLE_WHEEL=OFF `
+                -DCMAKE_VERBOSE_MAKEFILE=ON
 
       - name: Zero compile cache stats (openvino contrib)
         if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
@@ -533,8 +533,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - OpenVINO Contrib
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 15 -- --quiet
-
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 15
       - name: Compile cache statistics (openvino contrib)
         if: ${{ inputs.build-type != 'Debug' && inputs.enable-compile-cache }}
         uses: ./openvino/.github/actions/compile_cache_stats

@@ -168,6 +168,7 @@ jobs:
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
           -DENABLE_WHEEL=OFF
           -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+          -DCMAKE_VERBOSE_MAKEFILE=ON
           -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_REPO}/cmake/toolchains/riscv64.linux.toolchain.cmake
           -DTHREADING=OMP
           -S ${OPENVINO_REPO}
@@ -181,8 +182,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake - Build
-        run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
-
+        run: cmake --build ${BUILD_DIR} --parallel 15
       - name: Compile cache statistics (openvino main build)
         if: false
         uses: ./openvino/.github/actions/compile_cache_stats

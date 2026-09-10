@@ -254,7 +254,7 @@ jobs:
       - name: CMake configure - OpenVINO
         run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }} -DCMAKE_VERBOSE_MAKEFILE=ON
 
       - name: Prepare Ninja log collection directory
         if: ${{ inputs.upload-ninja-log }}
@@ -268,7 +268,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Compile cache statistics (openvino main build)
         if: ${{ inputs.enable-compile-cache }}
@@ -337,7 +337,7 @@ jobs:
 
             $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
-            CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
+            CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR} -DCMAKE_VERBOSE_MAKEFILE=ON"
             if [[ "${ARCH}" == 'arm' ]]; then
               echo "Adding ARM specific CMake options"
               CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=${{ env.OPENVINO_REPO }}/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/opt/python${py_version}_arm/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
@@ -348,7 +348,7 @@ jobs:
             fi
 
             cmake ${CMAKE_OPTIONS} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}
-            cmake --build ${PY_BUILD_DIR} --parallel 15 -- --quiet
+            cmake --build ${PY_BUILD_DIR} --parallel 15
             if [[ "${UPLOAD_NINJA_LOG}" == "true" ]]; then
               bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" \
                 "${NINJA_LOGS_ARCHIVE_DIR}" "python_api_py${py_version}" "${PY_BUILD_DIR}"
@@ -410,6 +410,7 @@ jobs:
                 -DENABLE_SAMPLES=ON \
                 -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
+                -DCMAKE_VERBOSE_MAKEFILE=ON \
                 ${BUILD_DIR}
 
       - name: Zero compile cache stats (debian packages)
@@ -421,7 +422,7 @@ jobs:
 
       - name: Build Debian packages
         if: ${{ inputs.build-debian-packages }}
-        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target package -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target package
 
       - name: Compile cache statistics (debian packages)
         if: ${{ inputs.build-debian-packages && inputs.enable-compile-cache }}
@@ -442,6 +443,7 @@ jobs:
             -DCUSTOM_OPERATIONS="calculate_grid;complex_mul;fft;grid_sample;sparse_conv;sparse_conv_transpose" \
             -DOPENVINO_EXTRA_MODULES="${OPENVINO_CONTRIB_REPO}/modules/java_api;${OPENVINO_CONTRIB_REPO}/modules/custom_operations" \
             -DENABLE_WHEEL=OFF \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
 
@@ -454,7 +456,7 @@ jobs:
 
       - name: Cmake build - OpenVINO Contrib
         if: ${{ inputs.build-contrib }}
-        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Compile cache statistics (openvino contrib)
         if: ${{ inputs.build-contrib && inputs.enable-compile-cache }}
@@ -474,7 +476,8 @@ jobs:
           cmake -UTBB* -S ${OPENVINO_REPO} -B ${BUILD_DIR} \
                 -DCPACK_GENERATOR=NPM \
                 -DENABLE_SYSTEM_TBB=OFF \
-                -DENABLE_WHEEL=OFF
+                -DENABLE_WHEEL=OFF \
+                -DCMAKE_VERBOSE_MAKEFILE=ON
 
       - name: Zero compile cache stats (openvino js api)
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js && inputs.enable-compile-cache }}
@@ -485,7 +488,7 @@ jobs:
 
       - name: Cmake build - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
-        run: cmake --build ${BUILD_DIR} --parallel 15 -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel 15
 
       - name: Compile cache statistics (openvino js api)
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js && inputs.enable-compile-cache }}
@@ -536,6 +539,7 @@ jobs:
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
                 -DENABLE_SAMPLES=ON \
+                -DCMAKE_VERBOSE_MAKEFILE=ON \
                 ${BUILD_DIR}
 
       - name: Zero compile cache stats (rpm packages)
@@ -547,7 +551,7 @@ jobs:
 
       - name: Build RPM packages
         if: ${{ inputs.build-rpm-packages }}
-        run: cmake --build ${BUILD_DIR} --parallel 15 --target package -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel 15 --target package
 
       - name: Compile cache statistics (rpm packages)
         if: ${{ inputs.build-rpm-packages && inputs.enable-compile-cache }}
