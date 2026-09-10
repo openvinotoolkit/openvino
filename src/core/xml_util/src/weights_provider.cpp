@@ -30,9 +30,7 @@ std::filesystem::path WeightsProvider::path() const {
 }
 
 BufferWeightsProvider::BufferWeightsProvider(std::shared_ptr<ov::AlignedBuffer> weights)
-    : m_weights(std::move(weights)) {
-    OPENVINO_ASSERT(m_weights != nullptr, "Empty weights data in bin file or bin file cannot be found!");
-}
+    : m_weights(std::move(weights)) {}
 
 std::shared_ptr<ov::AlignedBuffer> BufferWeightsProvider::make_region(size_t offset, size_t size) {
     OPENVINO_ASSERT(m_weights != nullptr, "Empty weights data in bin file or bin file cannot be found!");
