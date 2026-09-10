@@ -475,7 +475,8 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 CHECK_VALID_NODE(node,
                                  zp_shape.is_static(),
                                  "Expected input Zero Point shape is static and compatible with shape "
-                                 "[N][n_blocks_per_col][1], got: ",
+                                 "[N][n_blocks_per_col][1] (or, if B is reordered, "
+                                 "[n_blocks_per_col][N][1]), got: ",
                                  zp_shape);
 
                 const auto zp_shape_static = zp_shape.get_shape();
@@ -485,8 +486,8 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 }
                 CHECK_VALID_NODE(node,
                                  actual_zp_size == expected_zp_size,
-                                 "Expected input Zero Point shape is compatible with shape [N][n_blocks_per_col][1], "
-                                 "got: ",
+                                 "Expected input Zero Point shape is compatible with shape [N][n_blocks_per_col][1] "
+                                 "(or, if B is reordered, [n_blocks_per_col][N][1]), got: ",
                                  zp_shape);
 
                 ov::Shape casted_zp_shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
