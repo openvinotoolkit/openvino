@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-10-08-56-00-492-34450412645",
+  "timestamp": "2026-09-10T08:56:00Z",
+  "run_id": "34450412645",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34450412645",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37983",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37983",
+  "author": "deepaks2",
+  "category": "Infrastructure",
+  "title": "iGPU RoPE Tests fail — runner exposes only CPU, no GPU device available",
+  "signature": "iGPU runner did not expose GPU (Available devices only CPU)|Infrastructure",
+  "signature_hash": "d6f1d63540a711ef",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "iGPU RoPE Tests / GPU_RoPE",
+      "conclusion": "failure",
+      "symptom": "Fail-fast device gate asserts 'GPU' in Core().available_devices; only ['CPU'] was reported, so the runner's OpenCL/GPU device was not exposed to the container."
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the GPU_RoPE job failed."
+    }
+  ],
+  "key_errors": [
+    "Traceback (most recent call last):\nAvailable devices: ['CPU']\n  File \"<string>\", line 5, in <module>\nAssertionError: iGPU runner did not expose GPU — likely infra flake, rerun the job",
+    "##[error]No files were found with the provided path: /__w/openvino/openvino/install/tests/TEST-gpu_rope_tests.html. No artifacts will be uploaded."
+  ],
+  "root_cause": "The job_gpu_rope_tests.yml workflow includes a fail-fast pre-check (added specifically to avoid 35 cryptic per-test GPU failures) that queries Core().available_devices before running pytest and asserts 'GPU' is present. On this run, the self-hosted iGPU runner (container from image intel-gpu igpu-pr...) only exposed CPU to the OpenVINO runtime, meaning the host's Intel GPU device node (/dev/dri) was not passed through to the Docker container or the GPU driver/clinfo stack was not initialized on the runner at job start. This is a runner/host provisioning issue, not a problem with the PR's Softplus GPU kernel change — the actual RoPE pytest suite never executed because the gate assertion fired first, so no test results were produced and the follow-up artifact-upload step also failed (no HTML report file existed).",
+  "reproduction_steps": "N/A — requires the specific self-hosted iGPU runner instance; cannot be reproduced without access to that host. Locally: run `python3 -c \"from openvino import Core; print(Core().available_devices)\"` inside the CI container/image on an iGPU-equipped host and confirm 'GPU' appears alongside 'CPU'.",
+  "recommended_actions": [
+    "Re-run the failed job — this is the documented, expected remedy for this fail-fast gate per the workflow's own comment ('likely infra flake, rerun the job').",
+    "If the failure recurs on the same runner, check that the runner's Docker invocation passes through --device=/dev/dri (or equivalent GPU device mapping) and that the intel-gpu drivers/OpenCL runtime are initialized before the job starts.",
+    "Consider adding a runner health-check step (e.g., clinfo) before job start that fails fast with a clearer error and triggers automatic runner recycling."
+  ],
+  "prevention_strategies": "Add pre-flight GPU availability checks (clinfo / device node checks) as a separate, earlier CI step so infra flakes are caught before dependency installation, saving CI time. Track recurrence of 'runner did not expose GPU' across runs to detect a systematically unhealthy runner and trigger runner replacement.",
+  "historical_context": "Other iGPU RoPE Tests failures previously recorded in the pattern DB are all Network-category (DNS/proxy resolution, HTTP/2 framing during checkout) or artifact-upload Infrastructure issues, none matching this specific 'GPU not exposed' device-gate assertion. This is a new, distinct failure signature for the iGPU RoPE Tests job."
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 229,
+  "total": 230,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2251,6 +2251,17 @@
       "category": "Infrastructure",
       "signature_hash": "f976d98a24b8000d",
       "pr_number": "37290"
+    },
+    {
+      "investigation_id": "2026-09-10-08-56-00-492-34450412645",
+      "run_id": "34450412645",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34450412645",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-09-10T08:56:00Z",
+      "title": "iGPU RoPE Tests fail \u2014 runner exposes only CPU, no GPU device available",
+      "category": "Infrastructure",
+      "signature_hash": "d6f1d63540a711ef",
+      "pr_number": "37983"
     }
   ]
 }

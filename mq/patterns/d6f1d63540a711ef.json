@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "iGPU runner did not expose GPU (Available devices only CPU)|Infrastructure",
+  "signature_hash": "d6f1d63540a711ef",
+  "title": "iGPU RoPE Tests fail — runner exposes only CPU, no GPU device available",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-10T08:56:00Z",
+  "last_seen": "2026-09-10T08:56:00Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34450412645"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37983"
+  ],
+  "recent_timestamps": [
+    "2026-09-10T08:56:00Z"
+  ],
+  "rerun_search_string": "iGPU runner did not expose GPU"
+}
