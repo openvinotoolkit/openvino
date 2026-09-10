@@ -1562,12 +1562,24 @@ public:
             return false;
         }
 
-        if (desc->k_head_size != desc->v_head_size) {
+        if (desc->k_head_size > 512 || desc->v_head_size > 512) {
             return false;
         }
 
-        if (desc->k_head_size > 512 || desc->v_head_size > 512) {
-            return false;
+        // sdpa_micro derives both of its ugemm packages from one d_max, so it needs the two head
+        // sizes to be equal. sdpa_ocl does not: it takes the KQ contraction depth from k_head_size
+        // and the S*V value split from v_head_size independently, so it only needs a tiling to exist
+        // for the pair.
+        //
+        // This is not just an optimisation. With the BY_CHANNEL token-major staging switch on, the
+        // writer relays the K page token-major while pa_multi_token (the MIXED fallback) still reads
+        // it d-major, so a MIXED shape rejected here produces NaN rather than a slower result --
+        // which is exactly the k_head_size != v_head_size bug this gate used to cause.
+        if (desc->k_head_size != desc->v_head_size) {
+            const auto arch = params.get_device_info().arch;
+            if (!use_ocl || !SDPAOclGenerator::supports_head_sizes(arch, desc->k_head_size, desc->v_head_size)) {
+                return false;
+            }
         }
 
         if (desc->has_scores_output() || desc->has_score_aggregation) {

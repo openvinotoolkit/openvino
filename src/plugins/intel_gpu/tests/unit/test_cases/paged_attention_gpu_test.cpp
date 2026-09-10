@@ -120,6 +120,93 @@ INSTANTIATE_TEST_SUITE_P(
     paged_attention_swa_partition_finalization_test,
     ::testing::Values(paged_attention_test_params{{{1, 511}, {1, 512}}, 8, 2, 128, 128, 16, 256, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}));
 
+// k_head_size != v_head_size.
+//
+// The MIXED stage is the load-bearing case: with the BY_CHANNEL token-major staging switch on, the
+// kv_cache_update writer relays the K page token-major, but the MIXED fallback (pa_multi_token in
+// paged_attention_opt.cl) still reads it d-major. Only sdpa_ocl understands both, so a shape it
+// rejects comes back as NaN rather than as a slower result -- which is exactly what
+// supports_micro_sdpa()'s old k_head_size == v_head_size requirement caused.
+//
+// PREFILL is covered for completeness (it runs sdpa_ocl_prefill, or pa_sdpa_opt off the raw KEY
+// input) and GENERATE asserts that sdpa_ocl_decode, which was already k/v-split, keeps working.
+//
+// sdpa_micro derives both of its ugemm packages from a single d_max and so cannot serve k != v at
+// all; TEST_USE_SDPA_OCL=0 forces that path, which makes these cases fall back to pa_multi_token
+// and its d-major read. That bisection mode is already red across the PA suite, so rather than add
+// to the noise these suites skip themselves when sdpa_ocl is switched off.
+inline bool sdpa_ocl_selected() {
+    const char* env = std::getenv("TEST_USE_SDPA_OCL");
+    return env == nullptr || env[0] == '1';
+}
+
+class paged_attention_kv_head_size_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_kv_head_size_test, matches_reference) {
+    if (!sdpa_ocl_selected())
+        GTEST_SKIP() << "k_head_size != v_head_size is served by sdpa_ocl; TEST_USE_SDPA_OCL=0 forces sdpa_micro";
+
+    auto p = GetParam();
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    regression_paged_attention_kv_head_size,
+    paged_attention_kv_head_size_test,
+    ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+        // MIXED (2nd token + 1st token + part of 1st token), which is the stage that regressed.
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 128, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        // v > k, so the S*V split is re-derived upwards rather than downwards.
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        // k >= 72 with v <= 32: the tuned KQ tiling (query tile 32) admits no legal S*V split here,
+        // so this is the only coverage of choose_config()'s tier-2 fallback. Without it that branch
+        // is dead code.
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 128, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        // PREFILL.
+        paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        paged_attention_test_params{ {{36, 0}}, 2, 2, 128, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        // GENERATE (one new token per subsequence) -- sdpa_ocl_decode.
+        paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 128, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        // GQA, so the query-block stride (kq_wg_tile_queries) is exercised with heads_num > kv_heads_num.
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 8, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+    }));
+
+// Companion to the suite above: proves the MIXED k != v cases are actually served by sdpa_ocl.
+// Without this, a future gate change could route them back to pa_multi_token and the accuracy tests
+// would go green only because the reference happens to agree on the fallback's layout.
+class paged_attention_kv_head_size_uses_sdpa_ocl_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_kv_head_size_uses_sdpa_ocl_test, dispatches_sdpa_ocl) {
+    if (!tests::get_test_engine().get_device_info().supports_immad)
+        GTEST_SKIP() << "sdpa_ocl requires DPAS/XMX support";
+    if (!sdpa_ocl_selected())
+        GTEST_SKIP() << "TEST_USE_SDPA_OCL=0 selects sdpa_micro, so there is no sdpa_ocl kernel to assert on";
+
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+
+    auto result = run_gpu_inference(*this->pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    auto* impl = pa_inst->get_impl();
+    ASSERT_NE(impl, nullptr);
+    const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
+    ASSERT_NE(dump_info.get_entries().find("sdpa_ocl"), std::string::npos)
+        << "k_head_size != v_head_size MIXED must run sdpa_ocl, not the d-major pa_multi_token "
+           "fallback: " << dump_info.get_entries();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    regression_paged_attention_kv_head_size_uses_sdpa_ocl,
+    paged_attention_kv_head_size_uses_sdpa_ocl_test,
+    ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 128, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },
+    }));
+
 class xattention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(xattention_test, basic) {
     auto p = GetParam();

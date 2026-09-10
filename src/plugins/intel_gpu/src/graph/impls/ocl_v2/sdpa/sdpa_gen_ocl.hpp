@@ -40,6 +40,16 @@ public:
     // per-workgroup query offsets disagree and part of every subsequence is left uncomputed.
     static size_t get_query_block_size(const kernel_impl_params& params);
 
+    // Whether a tiling exists for this (k_head_size, v_head_size) pair. Unlike sdpa_micro -- which
+    // builds both of its ugemm packages from a single d_max and therefore needs the two to be equal
+    // -- this kernel takes the KQ contraction depth from k_head_size and the S*V value split from
+    // v_head_size, so the only real requirement is that the two can be tiled together.
+    //
+    // Decidable from the descriptor and the arch alone, because PagedAttentionOptImpl adds its
+    // stages in the constructor and an added stage is COMPILED even for parameters it is never
+    // dispatched with.
+    static bool supports_head_sizes(gpu_arch arch, size_t k_head_size, size_t v_head_size);
+
 private:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
 

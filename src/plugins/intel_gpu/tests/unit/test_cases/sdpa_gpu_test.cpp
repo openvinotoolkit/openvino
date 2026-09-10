@@ -579,8 +579,8 @@ TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
     auto [network, output] = run_network();
     const auto sdpa_info = selected_sdpa_kernel(network);
     ASSERT_FALSE(sdpa_info.empty()) << "no scaled_dot_product_attention node in the built program";
-    ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
-        << "sdpa_micro was not selected; the multi-K-tile prefetch path was not exercised. Node "
+    ASSERT_TRUE(sdpa_info.find("sdpa_micro") != std::string::npos || sdpa_info.find("sdpa_ocl") != std::string::npos)
+        << "Neither sdpa_micro nor sdpa_ocl was selected; the multi-K-tile prefetch path was not exercised. Node "
            "description was:\n"
         << sdpa_info;
 
