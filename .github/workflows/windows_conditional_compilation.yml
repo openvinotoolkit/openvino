@@ -180,7 +180,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (openvino)
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --verbose --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 31 --verbose --config ${{ env.CMAKE_BUILD_TYPE }}
       - name: Compile cache statistics (openvino cc collect main)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -195,7 +195,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (sea_itt_lib)
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 31 --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
       - name: Compile cache statistics (sea_itt_lib)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
