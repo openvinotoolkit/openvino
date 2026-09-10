@@ -132,13 +132,13 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
 
+      - name: System info
+        uses: ./src/.github/actions/system_info
+
       - name: Setup Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
-
-      - name: System info
-        uses: ./src/.github/actions/system_info
 
       - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
         id: create_manifest

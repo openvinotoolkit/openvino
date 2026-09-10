@@ -105,6 +105,9 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
 
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: CMake configure
         env:
           CMAKE_EXTRA_ARGS: ${{ inputs.cmake-extra-args }}

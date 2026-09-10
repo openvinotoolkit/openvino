@@ -128,6 +128,9 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
 
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: Clone test models
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
@@ -136,13 +139,6 @@ jobs:
           path: ${{ env.MODELS_PATH }}
           lfs: 'true'
           ref: ${{ env.TARGET_BRANCH }}
-
-      #
-      # Print system info
-      #
-
-      - name: System info
-        uses: ./openvino/.github/actions/system_info
 
       #
       # Build
@@ -302,6 +298,9 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
 
       - name: Clone test models
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries

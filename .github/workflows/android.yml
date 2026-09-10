@@ -139,6 +139,13 @@ jobs:
           path: 'openvino'
           submodules: 'recursive'
 
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: Clone OpenVINO GenAI
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
@@ -159,13 +166,6 @@ jobs:
           build_type: 'release'
           save_to: ${{ env.MANIFEST_PATH }}
           trigger_repo_branch: ${{ inputs.target-branch }}
-
-      #
-      # Print system info
-      #
-
-      - name: System info
-        uses: ./openvino/.github/actions/system_info
 
       #
       # Build

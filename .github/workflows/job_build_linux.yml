@@ -184,6 +184,13 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
 
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
         if: ${{ inputs.event-name == 'schedule' && inputs.os == 'ubuntu_22_04' && inputs.use_latest_onednn }} # GPU tests are enabled only on U22
@@ -214,13 +221,6 @@ jobs:
           build_type: 'release'
           save_to: ${{ env.MANIFEST_PATH }}
           trigger_repo_branch: ${{ inputs.target-branch }}
-
-      #
-      # Print system info
-      #
-
-      - name: System info
-        uses: ./openvino/.github/actions/system_info
 
       #
       # Dependencies
