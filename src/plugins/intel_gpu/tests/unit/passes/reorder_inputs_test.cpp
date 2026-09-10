@@ -22,6 +22,8 @@
 #include "concatenation_inst.h"
 #include "fully_connected_inst.h"
 #include "mvn_inst.h"
+#include "reduce_inst.h"
+#include "resample_inst.h"
 #include "pass_manager.h"
 #include "to_string_utils.h"
 
@@ -669,6 +671,75 @@ TEST(reorder_inputs, dynamic_conv_chain_no_throw) {
     program::ptr prog = nullptr;
     OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
     ASSERT_NE(prog, nullptr);
+}
+
+TEST(reorder_inputs, static_resample_with_rank_changing_reshape_no_recursion) {
+    // Topology:
+    //
+    // input -> Resample -> Reshape (Unsqueeze) --+
+    //                                            +-> Concat -> Reduce -> Convolution
+    // skip -------------> Reshape (Unsqueeze) ---+
+    // Without the static Reshape-user guard, the downstream format lookup reaches the rank-changing
+    // Reshape, which queries its Resample dependency's preferred format and re-enters the same lookup.
+    auto& engine = get_test_engine();
+    auto weights = engine.allocate_memory({data_types::f16, format::bfyx, {512, 384, 1, 1}});
+
+    topology topology;
+    topology.add(data("weights", weights));
+    topology.add(input_layout("input", layout{{1, 384, 20, 20}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("skip", layout{{1, 384, 40, 40}, data_types::f16, format::bfyx}));
+    topology.add(resample("resample",
+                          input_info("input"),
+                          std::vector<int64_t>{},
+                          std::vector<float>{2.0f, 2.0f},
+                          std::vector<int64_t>{2, 3},
+                          std::vector<size_t>{0, 0, 0, 0},
+                          std::vector<size_t>{0, 0, 0, 0},
+                          0,
+                          -0.75f,
+                          resample::InterpolateOp::InterpolateMode::NEAREST,
+                          resample::InterpolateOp::ShapeCalcMode::SCALES,
+                          resample::InterpolateOp::CoordinateTransformMode::ASYMMETRIC,
+                          resample::InterpolateOp::NearestMode::SIMPLE));
+    topology.add(reshape("reshape",
+                         input_info("resample"),
+                         false,
+                         {1},
+                         {1, 1, 384, 40, 40},
+                         reshape::reshape_mode::unsqueeze));
+    topology.add(reshape("skip_reshape",
+                         input_info("skip"),
+                         false,
+                         {1},
+                         {1, 1, 384, 40, 40},
+                         reshape::reshape_mode::unsqueeze));
+    topology.add(concatenation("concat", {input_info("reshape"), input_info("skip_reshape")}, 0));
+    topology.add(reduce("reduce", input_info("concat"), reduce_mode::sum, {0}, false));
+    topology.add(convolution("output", input_info("reduce"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    program::ptr prog = nullptr;
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config, false, true));
+    ASSERT_NE(prog, nullptr);
+
+    program_wrapper::apply_opt_pass<mark_nodes>(*prog);
+    ASSERT_TRUE(prog->is_new_shape_infer());
+    ASSERT_FALSE(prog->get_node("resample").is_dynamic());
+    ASSERT_TRUE(prog->get_node("reshape").is_in_data_flow());
+    ASSERT_NE(prog->get_node("reshape").get_input_layout(0).get_rank(),
+              prog->get_node("reshape").get_output_layout().get_rank());
+    OV_ASSERT_NO_THROW(prog->get_layout_optimizer().get_preferred_format(prog->get_node("resample")));
+
+    reorder_factory rf;
+    OV_ASSERT_NO_THROW(program_wrapper::apply_opt_pass<reorder_inputs>(*prog, rf));
+
+    ASSERT_EQ(prog->get_node("resample").get_output_layout().format, format::bfyx);
+    ASSERT_EQ(prog->get_node("reshape").get_input_layout(0).format, format::bfyx);
+    ASSERT_EQ(prog->get_node("reshape").get_output_layout().format, format::bfzyx);
+    ASSERT_EQ(prog->get_node("reduce").get_output_layout().format, format::bfyx);
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU

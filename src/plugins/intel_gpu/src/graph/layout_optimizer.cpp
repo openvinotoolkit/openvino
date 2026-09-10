@@ -18,7 +18,6 @@
 #include "select_inst.h"
 #include "condition_inst.h"
 #include "strided_slice_inst.h"
-#include <sstream>
 
 #include "gated_mlp_inst.h"
 #include "gemm_inst.h"
@@ -68,6 +67,12 @@ static size_t get_post_ops_count(const program_node& node) {
     }
 
     return onednn_post_ops_count;
+}
+
+static bool has_reshape_user(const program_node& node) {
+    return std::any_of(node.get_users().begin(), node.get_users().end(), [](const program_node* user) {
+        return user->is_type<reshape>();
+    });
 }
 
 // A rank-reducing reorder may be fused into a producer only when every higher-rank external eltwise
@@ -1394,6 +1399,11 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     if (allow_new_shape_infer) {
         // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
         auto out_lay_rank = node.get_output_layout(false).get_rank();
+
+        // Use a plain format for static producers with a Reshape user to avoid recursive format propagation.
+        // Keep Deconvolution on its type-specific path so it can retain an optimized blocked format.
+        if (!node.is_dynamic() && !node.is_type<deconvolution>() && has_reshape_user(node))
+            return format::get_default_format(out_lay_rank);
 
         if (node.is_type<shape_of>())
             return format::get_default_format(node.get_input_layout(0).get_rank());
