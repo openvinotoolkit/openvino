@@ -27,8 +27,8 @@ struct bucketize_impl : typed_primitive_impl_ocl<bucketize> {
         // Empty buckets still gives a full output of zeros, but the generic skip logic drops the kernel.
         if (instance.get_input_layout(1).count() == 0) {
             stream& stream = instance.get_network().get_stream();
-            stream.enqueue_barrier();
-            return instance.output_memory_ptr()->fill(stream, {}, false);
+            auto dep = stream.enqueue_marker(events, instance.needs_completion_event());
+            return instance.output_memory_ptr()->fill(stream, {dep}, false);
         }
 
         return parent::execute_impl(events, instance);
