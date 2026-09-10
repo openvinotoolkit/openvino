@@ -14,7 +14,6 @@ import numpy as np
 import openvino as ov
 from openvino.utils.types import get_dtype
 
-
 stop_requested = False
 
 
