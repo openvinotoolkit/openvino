@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-10-09-14-32-000-34454632400",
+  "timestamp": "2026-09-10T09:14:32Z",
+  "run_id": "34454632400",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34454632400",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38056",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38056",
+  "author": "ababushk",
+  "category": "Flaky Test",
+  "title": "smoke_Snippets_Softmax tests fail on comparison",
+  "signature": "smoke_Snippets_Softmax accuracy mismatch: COMPARATION FAILED abs_threshold exceeded|Flaky Test",
+  "signature_hash": "2330f1abe60fbda7",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "1 of 71635 CPU func tests failed: smoke_Snippets_Softmax/Softmax.CompareWithRefImpl accuracy comparison mismatch, exact same parametrization and values as a prior unrelated failure"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because upstream CPU functional tests job failed"
+    }
+  ],
+  "key_errors": [
+    "[ RUN      ] smoke_Snippets_Softmax/Softmax.CompareWithRefImpl/IS[0]=[?.?]_([1.16].[1.32].[1.1].[1.9].[1.17].[1.19].[1.49].[1.50].[5.16].[1.16].[1.9])_Axis=-1_#N=1_#S=1_targetDevice=CPU\nTensor: [1,17] Mismatch: [17/17] Print: [0/17]\nCoordinate with max diff: [0,10] Expected: 0.255283 Actual: 0 Diff: 0.255283 abs_threshold: 2.56475e-05\nsrc/tests/functional/base_func_tests/src/base/ov_subgraph.cpp:97: Failure\n[ COMPARATION ] COMPARATION FAILED! abs_threshold: 0.000000 rel_threshold: 0.000100 incorrect elem counter: 17 among 17 shapes."
+  ],
+  "root_cause": "Only 1 of 71635 CPU functional tests failed on ARM64: smoke_Snippets_Softmax/Softmax.CompareWithRefImpl with dynamic-shape input and Axis=-1, producing all-zero output vs expected 0.255283 across all 17 elements. This is the exact same test parametrization and expected/actual values as a prior investigated failure from 2026-09-03 (run 33751824393, PR #37526), which was also NPU/CI-unrelated to its PR's diff. The PR under test here (#38056) only bumps the CodeQL analyze action version in .github/workflows/workflows_scans.yml and cannot plausibly affect CPU Snippets Softmax lowering. The recurrence of the identical all-zero-output signature across unrelated PRs and a week apart strengthens the case for a pre-existing, order/timing-dependent CPU Snippets JIT codegen defect (e.g., uninitialized buffer or race condition) rather than a per-PR regression, though it has not yet recurred often enough in a 12h window to escalate.",
+  "reproduction_steps": "Build with `-DENABLE_TESTS=ON` for ARM64 and run: `./bin/aarch64/Release/ov_cpu_func_tests --gtest_filter='*smoke_Snippets_Softmax*CompareWithRefImpl*IS0*1.16*1.32*1.1*1.9*1.17*1.19*1.49*1.50*5.16*1.16*1.9*Axis=-1*'` repeatedly (10-20x) to check reproducibility/flakiness on ARM64 hardware specifically.",
+  "recommended_actions": [
+    "Re-run only the failed CPU functional tests job (failure is unrelated to PR #38056's CodeQL-action-version-only diff)",
+    "Since this is now a second occurrence of the exact same parametrization/values (2026-09-03 and 2026-09-10), file a tracking issue with CPU plugin owners to investigate the Snippets Softmax Axis=-1 dynamic-shape lowering for ARM64 for a possible uninitialized-buffer or scheduling race, rather than treating it as pure noise",
+    "Consider quarantining smoke_Snippets_Softmax/Softmax.CompareWithRefImpl/IS[0]=[?.?]_([1.16]...Axis=-1... as known-flaky pending root-cause fix"
+  ],
+  "prevention_strategies": "Add flaky-test quarantine tracking keyed on signature hash so repeat all-zero-output failures for the same parametrization are flagged for owner triage instead of being silently re-run each time.",
+  "historical_context": "Second recorded occurrence of signature 2330f1abe60fbda7 (previously seen 2026-09-03 on run 33751824393 / PR #37526). Both occurrences show identical Expected: 0.255283 / Actual: 0 values for the same shape parametrization, on PRs unrelated to CPU Snippets code, suggesting a persistent latent defect rather than pure random flakiness."
+}
