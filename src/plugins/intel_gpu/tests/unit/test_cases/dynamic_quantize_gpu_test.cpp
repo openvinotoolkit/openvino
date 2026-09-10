@@ -210,12 +210,10 @@ public:
 };
 
 TEST_F(dynamic_quantization_gpu_tests, static_quantizing_large_size_non_uniform_workgroup) {
-    // if non_uniform_workgroup is not supported, it will run on dyn_quan_ref
-    // if non_uniform_workgroup is supported, it will run on dyn_quan_opt
+    // dispatch_block_num is always aligned to block_num (dynamic_quantize_kernel_opt.cpp),
+    // so the opt kernel's dispatch is safe regardless of non-uniform work-group support.
     this->test_dynamic_quantization(false, {11, 1, 4096+128}, {2048, 1, 4096+128}, QuantizationType::Symmetric, 128);
-    if (get_test_engine().get_device_info().supports_non_uniform_work_group) {
-        ASSERT_TRUE(dyn_quan_kernel_id.find("_opt") != std::string::npos);
-    }
+    ASSERT_TRUE(dyn_quan_kernel_id.find("_opt") != std::string::npos);
 }
 
 TEST_F(dynamic_quantization_gpu_tests, simple_quantizing_large_size) {
