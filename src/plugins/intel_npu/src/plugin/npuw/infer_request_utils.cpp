@@ -146,6 +146,8 @@ void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
     } else if (kv_dim_src == 2u) {
         copy_by_planes(src_tensor, dst_tensor);
     } else {
+        NPUW_ASSERT(dst_tensor._ptr &&
+                    "null tensor view passed to copy — check that the source tensor is valid and non-empty");
         src_tensor->copy_to(dst_tensor._ptr);
     }
 }

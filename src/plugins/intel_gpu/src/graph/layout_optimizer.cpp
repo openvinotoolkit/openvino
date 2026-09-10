@@ -47,6 +47,7 @@
 #include "lstm_seq_inst.h"
 #include "group_normalization_inst.h"
 #include "to_string_utils.h"
+#include "impls/ocl/kernel_selector_helper.h"
 #include <vector>
 #include <memory>
 #include <utility>
@@ -67,6 +68,47 @@ static size_t get_post_ops_count(const program_node& node) {
     }
 
     return onednn_post_ops_count;
+}
+
+// A rank-reducing reorder may be fused into a producer only when every higher-rank external eltwise
+// peer has the same provable lower-rank representation that OCL fused-op canonicalization will use.
+//
+// Example graph this guards against: a Permute produces [1,2,8,6,10] (bfzyx) and has an Add fused into
+// it as a post-op, whose second input ("peer") is an independent branch also shaped [1,2,8,6,10]. A
+// downstream Reshape only needs [1,2,48,10] (bfyx), so the layout optimizer wants to fuse a rank-reducing
+// Reorder into the Permute, making its *own* output layout 4D. The peer is a separate node reached only
+// through this fused primitive and its own shape inference is untouched, so it stays 5D: the fused-op
+// kernel would then read a 5D buffer using 4D indexing and produce wrong results. Folding the peer's
+// shape to [1,2,48,10] (see fold_higher_rank_fused_peer) keeps the fusion; when no such fold exists (e.g.
+// the peer broadcasts over an inner spatial axis, like [1,2,8,1,10]) the reorder fusion is declined here
+// and the Permute keeps its native 5D output instead.
+static bool fused_peers_can_fold_to_layout(const program_node& prev, const layout& reduced_layout) {
+    if (!prev.has_fused_primitives())
+        return true;
+
+    const size_t reduced_rank = reduced_layout.get_rank();
+    if (prev.get_output_layout().get_rank() <= reduced_rank)
+        return true;
+
+    for (const auto& fd : prev.get_fused_primitives()) {
+        if (!fd.is_type<eltwise>() || !fd.has_outer_dep())
+            continue;
+
+        const auto outer_idx = static_cast<size_t>(fd.outer_dep_start_idx);
+        const size_t outer_count = fd.deps.size();
+        if (outer_idx >= prev.get_dependencies().size() || outer_count == 0 || outer_count > prev.get_dependencies().size() - outer_idx) {
+            return false;
+        }
+
+        for (size_t i = 0; i < outer_count; ++i) {
+            const auto peer_layout = prev.get_dependency(outer_idx + i).get_output_layout();
+            if (peer_layout.get_rank() > reduced_rank && !fold_higher_rank_fused_peer(peer_layout, reduced_layout).has_value()) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 std::pair<std::shared_ptr<reorder>, bool> reorder_factory::get_reorder(primitive_id src_id,
@@ -124,10 +166,11 @@ int64_t cldnn::get_convolution_channel_count(const convolution_node& conv_node, 
         auto weights_layout = conv_node.weights().get_output_layout();
         if (weights_layout.is_static()) {
             const auto& shape = weights_layout.get_partial_shape();
-            if (is_input)
+            if (is_input) {
                 channel_count = shape[conv_node.get_groups() > 1 ? 2 : 1].get_length();
-            else
+            } else {
                 channel_count = shape[conv_node.get_groups() > 1 ? 1 : 0].get_length();
+            }
         }
     }
     return channel_count;
@@ -379,6 +422,14 @@ bool layout_optimizer::can_fuse_reorder(program_node& prev, program_node& next, 
 
 bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node& node, format fmt_prev, format fmt_next) {
     bool allow_new_shape_infer = node.get_program().is_new_shape_infer();
+
+    // Do not fuse a rank-reducing reorder into a producer whose fused higher-rank
+    // eltwise peer cannot be indexed correctly at the reduced rank (inner-spatial
+    // broadcast over the collapsed axes). Keeping the producer at its higher rank
+    // keeps the fused peer rank-consistent so the fused-op kernel reads it right.
+    if (!node.get_output_layout().is_dynamic() && !fused_peers_can_fold_to_layout(prev, node.get_output_layout())) {
+        return false;
+    }
     // Because kernels can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
@@ -386,8 +437,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
         // We can void only that case if we can check whether the current node is backedge of the network.
         // However no such handle is existing yet. (To be done in the future when we need to optimize out the type converting
         // reorders in the body network)
-        !node.get_program().is_body_program() && !prev.is_in_shape_of_subgraph() &&
-        prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
+        !node.get_program().is_body_program() && !prev.is_in_shape_of_subgraph() && prev.get_preferred_impl_type() != cldnn::impl_types::cpu) {
         // case for truncate mode
         if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
             prev.is_type<select>() || prev.is_type<eltwise>() || prev.is_type<rms>()) &&
@@ -1113,10 +1163,11 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
     }
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
-        if (input_layout.get_partial_shape().size() <= 4)
+        if (input_layout.get_partial_shape().size() <= 4) {
             expected_format = format::b_fs_yx_fsv16;
-        else if (input_layout.get_partial_shape().size() == 5)
+        } else if (input_layout.get_partial_shape().size() == 5) {
             expected_format = format::b_fs_zyx_fsv16;
+        }
         return expected_format;
     }
 
@@ -1129,10 +1180,11 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         if (use_onednn_impls && i8_u8_input) {
             // It is here because of post operation condition for onednn.
             // Use fsv32 for onednn friendliness.
-            if (node.get_input_layout(0).get_rank() == 4)
+            if (node.get_input_layout(0).get_rank() == 4) {
                 expected_format = cldnn::format::b_fs_yx_fsv32;
-            else
+            } else {
                 expected_format = cldnn::format::b_fs_zyx_fsv32;
+            }
         } else if (input_layout.get_rank() == 4 && input_layout.feature() == 1 &&
                    input_layout.spatial(0) == 1 && weights_layout.spatial(0) == 1 &&
                    weights_layout.spatial(1) >= 256 && activation_only_fusion) {
@@ -1151,10 +1203,11 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
         } else if ((_optimization_attributes.b_fs_zyx_fsv16_network != 0) &&
                 convolution_b_fs_zyx_fsv16_opt(input_layout, output_layout, weights_layout, prim)) {
             if ((output_layout.data_type == data_types::f32 && output_layout.batch() % 16 == 0) ||
-                (output_layout.data_type == data_types::f16 && output_layout.batch() % 32 == 0))
+                (output_layout.data_type == data_types::f16 && output_layout.batch() % 32 == 0)) {
                 expected_format = cldnn::format::bs_fs_zyx_bsv16_fsv16;
-            else
+            } else {
                 expected_format = cldnn::format::b_fs_zyx_fsv16;
+            }
 
         } else if (output_layout.format == format::bfzyx) {
             expected_format = cldnn::format::bfzyx;
@@ -1194,10 +1247,11 @@ format layout_optimizer::get_expected_format(convolution_node const& node) {
             expected_format = cldnn::format::bs_fs_yx_bsv16_fsv16;
         } else if (layout_optimizer::convolution_bfyx_opt(output_layout, weights_layout, prim) || _output_size_handling_enabled || node.get_transposed()) {
             {
-                if (output_layout.format == format::b_fs_zyx_fsv16 || output_layout.format == format::bs_fs_zyx_bsv16_fsv16)
+                if (output_layout.format == format::b_fs_zyx_fsv16 || output_layout.format == format::bs_fs_zyx_bsv16_fsv16) {
                     expected_format = cldnn::format::bfzyx;
-                else
+                } else {
                     expected_format = cldnn::format::bfyx;
+                }
             }
         } else {
             expected_format = cldnn::format::yxfb;
@@ -1215,10 +1269,11 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
     auto expected_format = output_layout.format;
 
     if (input_layout.is_dynamic() || output_layout.is_dynamic()) {
-        if (input_layout.get_partial_shape().size() <= 4)
+        if (input_layout.get_partial_shape().size() <= 4) {
             expected_format = format::b_fs_yx_fsv16;
-        else if (input_layout.get_partial_shape().size() == 5)
+        } else if (input_layout.get_partial_shape().size() == 5) {
             expected_format = format::b_fs_zyx_fsv16;
+        }
         return expected_format;
     }
 
@@ -1233,10 +1288,11 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
     } else if ((_optimization_attributes.b_fs_zyx_fsv16_network != 0) &&
         deconvolution_b_fs_zyx_fsv16_opt(output_layout, weights_layout, prim)) {
         if ((output_layout.data_type == data_types::f32 && expected_shape[0] % 16 == 0) ||
-            (output_layout.data_type == data_types::f16 && expected_shape[0] % 32 == 0))
+            (output_layout.data_type == data_types::f16 && expected_shape[0] % 32 == 0)) {
             expected_format = cldnn::format::bs_fs_zyx_bsv16_fsv16;
-        else
+        } else {
             expected_format = cldnn::format::b_fs_zyx_fsv16;
+        }
     } else if (((_optimization_attributes.b_fs_yx_fsv16_network) != 0) &&
                deconvolution_b_fs_yx_fsv16_opt(output_layout, weights_layout, prim)) {
         auto input_shape = input_layout.get_shape();
@@ -1244,10 +1300,11 @@ format layout_optimizer::get_expected_format(deconvolution_node const& node) {
         auto output_features = expected_shape[1];
         float f_cost = static_cast<float>(input_features * output_features) / (align_to(input_features, 16) * align_to(output_features, 16));
         float stride_cost = 1 / static_cast<float>(prim->stride[prim->stride.size() - 1]);
-        if (f_cost * stride_cost > 0.1f)
+        if (f_cost * stride_cost > 0.1f) {
             expected_format = cldnn::format::b_fs_yx_fsv16;
-        else
+        } else {
             expected_format = cldnn::format::bfyx;
+        }
     }
     return expected_format;
 }
@@ -1260,12 +1317,13 @@ format layout_optimizer::get_expected_format(quantize_node const& node) {
         bool all_users_gemm = (!node.get_users().empty());
 
         for (const auto* user : node.get_users()) {
-            if (user->is_type<reorder>() || user->is_type<reshape>())
+            if (user->is_type<reorder>() || user->is_type<reshape>()) {
                 all_users_gemm &= only_gemm_users(*user);
-            else if (user->is_type<gemm>())
+            } else if (user->is_type<gemm>()) {
                 all_users_gemm &= true;
-            else
+            } else {
                 return false;
+            }
         }
 
         return all_users_gemm;
@@ -1345,19 +1403,6 @@ format layout_optimizer::get_preferred_format(program_node& node) {
     if (allow_new_shape_infer) {
         // Let reorder_input pass to check input format instead of output_format in forward investigation, vice versa
         auto out_lay_rank = node.get_output_layout(false).get_rank();
-        auto has_reshape_user = [&](const program_node& node) -> bool {
-            for (const auto& user_node : node.get_users()) {
-                if (user_node->is_type<reshape>())
-                    return true;
-            }
-            return false;
-        };
-
-        // Return default format for output layout rank when user node is reshape
-        // to add reorder in front of reshape in reorder_input stage instead of handle_reshpae stage.
-        // It is only applied for the dynamic shape with static input shape
-        if (!node.is_dynamic() &&  has_reshape_user(node))
-            return format::get_default_format(out_lay_rank);
 
         if (node.is_type<shape_of>())
             return format::get_default_format(node.get_input_layout(0).get_rank());

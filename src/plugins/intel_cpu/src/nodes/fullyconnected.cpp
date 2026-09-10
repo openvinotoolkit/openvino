@@ -78,7 +78,9 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
     }
     return supportedDataTypes;
 #elif defined(OV_CPU_WITH_KLEIDIAI)
-    return {Type_t::i8, Type_t::i4};
+    // Symmetric weight-only compression uses i4. Asymmetric groupwise
+    // compression exported by Optimum uses u4 weights plus u4 zero-points.
+    return {Type_t::i8, Type_t::i4, Type_t::u4};
 #else
     return {};
 #endif
@@ -195,16 +197,35 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             return false;
         }
 
-        bool isNotGroupWise = (IC % G != 0 || IC / G < 4 || OC == 1 || (IC / G) % 32 != 0);
-        bool isNotChannelWise =
-            (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC);
-        if (isNotChannelWise && isNotGroupWise) {
+        const auto scalesShape = op->input(WEIGHT_SCALES).get_shape();
+        const bool isChannelWise = shape_size(scalesShape) == OC;
+        const bool hasValidGroupGeometry = IC % G == 0 && IC / G >= 4 && OC != 1 && (IC / G) % 32 == 0;
+        const bool isGroupWise = !isChannelWise && hasValidGroupGeometry;
+
+        if (!isChannelWise && !isGroupWise) {
             return false;
         }
 
-        if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic) {
+        const auto weightsType = op->input(WEIGHTS).get_element_type();
+        const bool hasWeightZeroPoints = op->get_input_size() > WEIGHT_ZERO_POINTS &&
+                                         op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic;
+
+        if (weightsType == ov::element::u4 && !hasWeightZeroPoints) {
             return false;
+        }
+
+        if (hasWeightZeroPoints) {
+            const auto zeroPointsType = op->input(WEIGHT_ZERO_POINTS).get_element_type();
+            // KleidiAI supports asymmetric INT4 only for group-wise u4.
+            if (weightsType != ov::element::u4 || zeroPointsType != ov::element::u4 || !isGroupWise) {
+                return false;
+            }
+
+            const auto zeroPointsShape = op->input(WEIGHT_ZERO_POINTS).get_shape();
+
+            if (zeroPointsShape != scalesShape) {
+                return false;
+            }
         }
     } catch (...) {
         return false;
@@ -577,7 +598,6 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.modelType = context->getConfig().modelType;
 
     attrs.dqScales = getDQScales();
-
     attrs.postOps = getPostOps(fusedWith);
 
     const auto& srcTypes = getOriginalInputPrecisions();

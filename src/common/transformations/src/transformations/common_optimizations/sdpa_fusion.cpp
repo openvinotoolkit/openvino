@@ -39,6 +39,7 @@ using ov::pass::pattern::consumers_count;
 using ov::pass::pattern::Matcher;
 using ov::pass::pattern::rank_equals;
 using ov::pass::pattern::wrap_type;
+using ov::pass::pattern::wrap_type_strict_index;
 
 namespace v0 = ov::op::v0;
 namespace v1 = ov::op::v1;
@@ -653,13 +654,10 @@ SDPASplitAttentionFusionMatcher::SDPASplitAttentionFusionMatcher() {
 
     auto split_axis = any_input();
     auto split_sizes = any_input();
-    auto vsplit_out0 =
-        wrap_type<v1::VariadicSplit>({softmax, split_axis, split_sizes}, ov::pass::pattern::output_index_matches(0));
-    auto vsplit_out1 =
-        wrap_type<v1::VariadicSplit>({softmax, split_axis, split_sizes}, ov::pass::pattern::output_index_matches(1));
+    auto vsplit = wrap_type_strict_index<v1::VariadicSplit>({softmax, split_axis, split_sizes});
 
-    auto attn_cache = wrap_type<v0::MatMul>({vsplit_out0, v_cache_input}, consumers_count(1));
-    auto attn_new = wrap_type<v0::MatMul>({vsplit_out1, v_new_input}, consumers_count(1));
+    auto attn_cache = wrap_type<v0::MatMul>({vsplit->output(0), v_cache_input}, consumers_count(1));
+    auto attn_new = wrap_type<v0::MatMul>({vsplit->output(1), v_new_input}, consumers_count(1));
     auto output_add = wrap_type<v1::Add>({attn_cache, attn_new});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
@@ -671,7 +669,7 @@ SDPASplitAttentionFusionMatcher::SDPASplitAttentionFusionMatcher() {
         auto add_node = pattern_map.at(output_add).get_node_shared_ptr();
         auto matmul_cache = ov::as_type_ptr<v0::MatMul>(pattern_map.at(attn_cache).get_node_shared_ptr());
         auto matmul_new = ov::as_type_ptr<v0::MatMul>(pattern_map.at(attn_new).get_node_shared_ptr());
-        auto vsplit_node = ov::as_type_ptr<v1::VariadicSplit>(pattern_map.at(vsplit_out0).get_node_shared_ptr());
+        auto vsplit_node = ov::as_type_ptr<v1::VariadicSplit>(m.get_pattern_map().at(vsplit));
         auto softmax_node = ov::as_type_ptr<v8::Softmax>(pattern_map.at(softmax).get_node_shared_ptr());
         auto concat_node = ov::as_type_ptr<v0::Concat>(pattern_map.at(scores_concat).get_node_shared_ptr());
         auto qk_cache_node = ov::as_type_ptr<v0::MatMul>(pattern_map.at(qk_cache).get_node_shared_ptr());

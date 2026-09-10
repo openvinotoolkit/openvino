@@ -614,6 +614,9 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                                                                          ov::SoPtr<ov::ITensor> infer_tensor,
                                                                          bool has_padding) {
                 if (!has_padding) {
+                    NPUW_ASSERT(
+                        infer_tensor._ptr &&
+                        "target request returned null tensor for LoRA input port — request may be uninitialized");
                     state_tensor->copy_to(infer_tensor._ptr);
                     return;
                 }
@@ -623,6 +626,8 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                 if (low_rank_dim == 1) {
                     copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
                 } else {
+                    NPUW_ASSERT(new_tensor_slice._ptr &&
+                                "null slice of LoRA infer tensor — tensor may be uninitialized or have wrong shape");
                     state_tensor->copy_to(new_tensor_slice._ptr);
                 }
             };
@@ -739,6 +744,8 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                                                    prefill_past_kv->get_shape(),
                                                                    m_pre_alloc_device,
                                                                    m_npuw_llm_compiled_model->get_plugin());
+                    NPUW_ASSERT(tmp_dense_kv_tensor._ptr &&
+                                "KV cache buffer allocation failed — check device availability and memory constraints");
                     prefill_past_kv->copy_to(tmp_dense_kv_tensor._ptr);
                     prefill_past_kv_chunks = make_tensor_slice(tmp_dense_kv_tensor,
                                                                pre_kv_dim,
@@ -873,6 +880,8 @@ void ov::npuw::LLMInferRequest::copy_lincache(
                         " not found in model outputs.");
         auto from_tensor = from_request->get_tensor(from_ports.at(output_name));
 
+        NPUW_ASSERT(to_tensor._ptr &&
+                    "destination request returned null tensor for output port — request may be uninitialized");
         from_tensor->copy_to(to_tensor._ptr);
     });
     LOG_DEBUG("Done.");
@@ -1074,6 +1083,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                                   static_cast<uint32_t>(chunk_prompt_len));
 
             // Copy with proper stride handling
+            NPUW_ASSERT(pos_ids_slice._ptr &&
+                        "null slice of position IDs tensor — source tensor may be uninitialized or have wrong shape");
             actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
 
             // DeepStack (Qwen3-VL): scatter only the visual tokens that fall into the current
