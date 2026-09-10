@@ -27,7 +27,6 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
-  PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   # To debug NPU compiler, set OV_NPU_LOG_LEVEL=LOG_INFO or higher
   # OV_NPU_LOG_LEVEL: 'LOG_INFO'
 
@@ -87,7 +86,6 @@ jobs:
         uses: ./openvino/.github/actions/setup_python
         with:
           version: ${{ env.PYTHON_VERSION }}
-          pip-cache-path: ${{ env.PIP_CACHE_PATH }}
           set-pip-install-path: 'false'
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
           use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
