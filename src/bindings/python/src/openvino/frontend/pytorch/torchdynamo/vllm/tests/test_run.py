@@ -39,6 +39,14 @@ import time
 # documented in vllm/getting_started/installation/cpu/.
 os.environ.setdefault("VLLM_LOGGING_LEVEL", "WARNING")
 
+# Must precede the first vLLM import: vLLM reads this at module import, well
+# before the plugin entry point loads. See preset.set_pre_import_env.
+from openvino.frontend.pytorch.torchdynamo.vllm.preset import (  # noqa: E402
+    set_pre_import_env,
+)
+
+set_pre_import_env()
+
 
 def _select_cpu_platform():
     import vllm.platforms as _vp

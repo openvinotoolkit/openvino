@@ -47,16 +47,12 @@ _OV_NATIVE_COMPILED = {}  # cached per (vocab, top_k, dtype)
 
 
 def _build_native_sampler(vocab: int, k: int):
-    """Build a native OpenVINO Model directly (opset13), skipping the
-    torch.compile trace + dynamo overhead.
+    """Build the sampler as a native opset13 Model, skipping the torch.compile
+    trace and dynamo overhead.
 
-    Graph: logits[B,V] + temperature[B] -> sampled_token[B]
-      1. divide logits by temperature (broadcast)
-      2. topk(k) -> values[B,k], indices[B,k]
-      3. softmax(values)
-      4. RandomUniform + log(-log()) = Gumbel noise on [B,k]
-      5. score = log(probs) + gumbel
-      6. argmax over k, gather winner from indices
+    logits[B,V] + temperature[B] -> sampled_token[B], by Gumbel-max: scale by
+    temperature, topk(k), softmax, add log(-log(uniform)) noise, then argmax
+    over k and gather the winner out of the topk indices.
     """
     import numpy as np
     import openvino as ov
@@ -146,10 +142,8 @@ def install():
         if not _is_fastpath_eligible(sampling_metadata):
             return _orig_sample(self, logits, sampling_metadata,
                                 logprobs_mode_override=logprobs_mode_override)
-        # Gate on vocab size: below ~100k, torch's topk_topp_sampler on CPU
-        # is faster than round-tripping through a compiled OV graph. The
-        # threshold is tunable via OV_FUSED_SAMPLER_MIN_VOCAB. Also skip when
-        # logits shape[0] > 1 (batching path is untested).
+        # Below ~100k vocab, torch's topk_topp_sampler on CPU beats a round
+        # trip through a compiled OV graph. Batches > 1 are untested.
         _min_vocab = int(os.environ.get("OV_FUSED_SAMPLER_MIN_VOCAB", "100000"))
         if logits.shape[-1] < _min_vocab or logits.shape[0] > 1:
             return _orig_sample(self, logits, sampling_metadata,
@@ -159,10 +153,9 @@ def install():
         B, V = logits.shape
 
         if _use_native:
-            # Native OV graph path — no torch.compile overhead. Skips top_p
-            # (uses pure Gumbel-max over top_k values) and has no per-request
-            # seed. Users opt in via OV_NATIVE_SAMPLER=1 and accept the small
-            # distribution difference when top_p < 1.0.
+            # Opt-in via OV_NATIVE_SAMPLER=1: no torch.compile overhead, but it
+            # ignores top_p (pure Gumbel-max over the top_k values) and has no
+            # per-request seed, so the distribution differs when top_p < 1.0.
             top_k_meta = getattr(sampling_metadata, "top_k", None)
             try:
                 k_val = int(top_k_meta.max().item()) if top_k_meta is not None else 0
@@ -201,7 +194,7 @@ def install():
                     logger.warning("[OV plugin] Native sampler call failed, falling back: %s", e)
                     _use_native = False
 
-        # Torch-compiled fused sampler path (original behavior)
+        # Torch-compiled fused sampler (the default path).
         if _OV_SAMPLE_COMPILED is None:
             try:
                 _OV_SAMPLE_COMPILED = _build_fused_sampler()

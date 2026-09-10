@@ -6,15 +6,10 @@ pre-compiled OpenVINO graph instead of PyTorch eager / `torch.compile +
 inductor`, while vLLM keeps owning scheduling, paged attention, batching,
 sampling, etc.
 
-> ⚠️ **Setup:** requires a source patch and a pinned pip lockfile.
-> See [setup.md](docs/setup.md) before running.
-
-
 ## Documentation
 
-- **[setup.md](docs/setup.md)** — install (venv, PyTorch, vLLM, OpenVINO), verify entry point, select the OV backend, troubleshooting.
+- **[setup.md](docs/setup.md)** — install (venv, vLLM, OpenVINO), supported version matrix, verify entry point, select the OV backend, precision behavior, troubleshooting.
 - **[test.md](docs/test.md)** — run the smoke test, environment variables, interpret perf numbers, diagnose regressions.
-- **[requirements-known-good.txt](docs/requirements-known-good.txt)** — pinned pip lockfile for the reproducible working stack.
 
 ## Layout
 
@@ -120,122 +115,18 @@ Since the `dddcff2cc70` baseline, `vllm_dev` has landed:
 - Reverts of experimental PT-frontend workarounds (`b95511a2e0`,
   `b463e6efa9`).
 
-### 1. Fresh venv
+## Setup
+
+See **[docs/setup.md](docs/setup.md)** for the full install. The short
+version, on a fresh Python 3.11 venv:
 
 ```bash
-python3.11 -m venv ~/ov_vllm_env
-source ~/ov_vllm_env/bin/activate
-python -m pip install -U pip setuptools wheel
-```
-
-### 2. PyTorch (CPU-only)
-
-Install this FIRST so vLLM picks it up rather than pulling CUDA-enabled
-torch during its own resolve.
-
-```bash
-python -m pip install "torch==2.11.0+cpu" \
-    --index-url https://download.pytorch.org/whl/cpu
-```
-
-### 3. vLLM (CPU) — use the known-good lockfile
-
-Install the pinned requirements from this directory. This is required —
-see the "First-infer hang" warning at the top of this file. Loose
-constraints (`vllm-cpu==0.25.0` alone) resolve to different dep
-versions over time and some of those combinations hang.
-
-```bash
-python -m pip install -r requirements-known-good.txt \
-    --index-url https://pypi.org/simple \
+python -m pip install "vllm-cpu==0.28.0" \
     --extra-index-url https://download.pytorch.org/whl/cpu
+python -m pip install "openvino>=2026.5"   # or build vllm_dev from source
 ```
 
-The lockfile pins all ~200 packages that reproduced a working stack
-(SPR, bf16, 66 tok/s TinyLlama). Notably it pins `apache-tvm-ffi==0.1.9`
-(later versions trigger a `__cxa_thread_atexit → posix_memalign`
-lock-contention with OV's intel_cpu plugin allocator) and torchvision
-`0.26.0+cpu` / torchaudio `2.11.0+cpu` (non-`+cpu` variants fail to
-load with `libnvrtc.so.13: cannot open shared object file`).
-
-Verified reproducer: `cp -a` the known-working `venv/` tree to a new
-location and rewrite hardcoded paths in `bin/activate*`. This runs the
-smoke test at 66 tok/s. A fresh `pip install "vllm-cpu==0.25.0"` today
-does NOT.
-
-If you don't have this lockfile handy, install `vllm-cpu==0.25.0` then
-downgrade `apache-tvm-ffi` explicitly:
-
-```bash
-python -m pip install "vllm-cpu==0.25.0"
-python -m pip install --force-reinstall "apache-tvm-ffi==0.1.9"
-python -m pip install --force-reinstall \
-    "torch==2.11.0+cpu" "torchvision==0.26.0+cpu" "torchaudio==2.11.0+cpu" \
-    --index-url https://download.pytorch.org/whl/cpu
-python -m pip uninstall -y torchcodec
-```
-
-But this shortcut has NOT been verified end-to-end — apache-tvm-ffi
-alone was not the whole cause in our fresh-env test. Use the lockfile.
-
-Optional (perf, Linux):
-
-```bash
-# Preload tcmalloc before Python starts for a cleaner CPU allocator profile.
-# WARNING: some vLLM 0.25.x releases have a `free(): invalid size` crash
-# under tcmalloc; if you hit it, unset LD_PRELOAD and use MALLOC_ARENA_MAX=4
-# as a fallback.
-export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4
-```
-
-### 4. OpenVINO
-
-Option A — build from the known-good commit `dddcff2cc70` on `vllm_dev`
-(required for this integration until the changes merge to a released
-wheel; see "Known good build" above for why not the tip):
-
-```bash
-git clone --recursive https://github.com/ynimmaga/openvino.git
-cd openvino
-git checkout dddcff2cc70
-git submodule update --init --recursive
-
-# patchelf is required for the wheel build target
-python -m pip install patchelf
-
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release \
-      -DENABLE_PYTHON=ON \
-      -DENABLE_WHEEL=ON \
-      -DENABLE_TESTS=OFF \
-      -DENABLE_INTEL_GPU=OFF \
-      -DENABLE_INTEL_NPU=OFF \
-      -DENABLE_OV_PYTORCH_FRONTEND=ON ..
-cmake --build . -j $(nproc)
-
-# Build the wheel via the ie_wheel target, then install it
-cmake --build . --target ie_wheel -j $(nproc)
-python -m pip install --force-reinstall ./wheels/openvino-*.whl
-```
-
-Option B — install a published wheel that already contains this
-subpackage:
-
-```bash
-python -m pip install "openvino>=2026.2"
-```
-
-### 5. Verify the entry point is registered
-
-```bash
-python -c "
-import importlib.metadata as md
-eps = md.entry_points(group='vllm.general_plugins')
-for e in eps:
-    print(e.name, '->', e.value)
-"
-```
-
-You should see `openvino_vllm_cpu -> openvino.frontend.pytorch.torchdynamo.vllm.plugin:register`.
-If it's missing, the OV install did not include this subpackage; rebuild
-the OpenVINO Python wheel from the branch that contains this PR.
+`vllm-cpu` pins its own PyTorch exactly (2.13.0+cpu for 0.28.0), so do
+not install torch separately. 0.25.0, 0.26.0, 0.27.1 and 0.28.0 all
+work; see setup.md for the version matrix, how to select the OV backend
+at runtime, precision behavior, and troubleshooting.

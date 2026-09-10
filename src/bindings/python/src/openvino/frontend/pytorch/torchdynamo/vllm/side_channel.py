@@ -3,11 +3,10 @@
 
 """vLLM PagedAttention side-channel binding.
 
-The C++ paged_attention frontend op emits extra OV Parameters with names
-like "__pa__<layer>__<field>" (key_cache, value_cache, past_lens, ...).
-At infer time we look those up in vllm.forward_context and bind them as
-side-channel inputs. Lives in the vllm/ subpackage so torchdynamo.execute
-does not need to import from vllm at all on standalone torch.compile.
+The C++ paged_attention translator emits extra OV Parameters named
+"__pa__<layer>__<field>" (key_cache, value_cache, past_lens, ...). At infer
+time we resolve those from vllm.forward_context and bind them as side-channel
+inputs. 
 """
 
 import logging
@@ -16,22 +15,20 @@ import torch
 
 logger = logging.getLogger(__name__)
 
-# Per-layer KV-cache ov.Tensor wrappers. The underlying torch tensors live for
-# the whole generate call, so we wrap them once and reuse. Keyed by meta layer
-# name so the wrapper persists across torch-compile invocations.
+# Per-layer KV-cache ov.Tensor wrappers, keyed by meta layer name so they
+# persist across torch-compile invocations. The underlying torch tensors live
+# for the whole generate call, so wrap once and reuse.
 _pa_kv_ovt_cache = {}
 _pa_sliding_window_cache = {}  # (id(compiled), layer_name) -> np.int32 array
-# Per-layer static state cache: (id(compiled), layer_name) -> dict with
-#   meta_layer_name: resolved vLLM layer name (post KV-sharing redirect)
-#   layer_obj: reference to vLLM layer object
-#   kv_cache_id: id(layer_obj.kv_cache) at cache-fill time (invalidation key)
-# Skips per-step _placeholder_to_real, nc_layers.get, kv_sharing chase.
+# (id(compiled), layer_name) -> {meta_layer_name, layer_obj, kv_cache_id}.
+# Architecture-static within a generate() call, so caching it skips the
+# per-step _placeholder_to_real / nc_layers.get / kv_sharing chase.
+# kv_cache_id is the invalidation key: vLLM may re-allocate the cache.
 _pa_layer_static_cache = {}
 
 
-# Small helpers for the zero placeholders we return when vLLM has no attn_meta
-# yet (e.g. warm-up dummy_run). These are pre-built at import time so we don't
-# allocate on every decode step in the happy path.
+# Zero placeholders for when vLLM has no attn_meta yet (e.g. warm-up
+# dummy_run), so the happy path allocates nothing per decode step.
 def _zeros_1_i32():
     return np.zeros(1, dtype=np.int32)
 def _zeros_2_i32():
@@ -39,33 +36,24 @@ def _zeros_2_i32():
 def _zero_scalar_i32():
     return np.array(0, dtype=np.int32)
 
-# Per-compiled-model layout cache for PA side-channel binding. Maps
-# id(compiled) -> {
-#   "layers":       list of (layer_name, meta_layer_name, {field: parameter_name}),
-#   "first_real":   placeholder->real layer_name for "shared" fallback,
-#   "real_names":   vLLM real layer name list used for placeholder->real mapping,
-# }
-# Built lazily on first bind and reused thereafter. Kills the regex + iterate
-# over compiled.inputs cost on every decode step.
+# id(compiled) -> {"layer_to_fields": {layer_name: {field: parameter_name}}}.
+# Built on first bind so the regex walk over compiled.inputs does not rerun on
+# every decode step.
 _pa_layout_cache = {}
 
 
 def _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=None):
     """Return (num_kv_heads, head_size) for the given layer.
 
-    Order of preference:
-      1. Direct lookup by meta_layer_name in ctx.no_compile_layers.
-      2. Ordinal lookup: derive the layer index from placeholder_layer_name
-         (\"unknown_layer\" -> 0, \"unknown_layer_N\" -> N) and index into
-         list(no_compile_layers.keys()). This is what works during warmup
-         when meta_layer_name has not been resolved yet from attn_metadata.
-      3. Global vLLM model_config (only correct when all layers share geom).
-      4. Fallback (1, 1).
+    Tried in order: direct lookup in ctx.no_compile_layers; ordinal lookup by
+    the placeholder's index ("unknown_layer_N" -> N), which is what works
+    during warmup before meta_layer_name is resolvable from attn_metadata;
+    global model_config; then (1, 1).
 
-    Models like Gemma-4-E2B have mixed head sizes across layers (28 layers
-    with head_size=256 for local attention + 7 with head_size=512 for
-    global attention). Per-layer lookup via (2) is required; a single
-    model-wide geom would size the KV buffer wrong for half the layers.
+    The per-layer lookups matter because head size can vary within a model:
+    Gemma-4-E2B has 28 local-attention layers at head_size=256 plus 7 global
+    ones at 512, and a single model-wide geom sizes the KV buffer wrong for
+    most of them.
     """
     def _extract(layer_obj):
         try:
@@ -75,7 +63,7 @@ def _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=None):
             return None
         return (hk, hs) if hk and hs else None
 
-    # 1. Direct lookup by resolved real layer name.
+    # 1. Direct, by resolved real layer name.
     try:
         nc = ctx.no_compile_layers if ctx is not None else None
         if isinstance(nc, dict) and meta_layer_name is not None:
@@ -120,22 +108,19 @@ def _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=None):
 _PA_FIELDS = (
     "key_cache", "value_cache", "past_lens", "subsequence_begins",
     "block_indices", "block_indices_begins", "max_context_len",
-    # Raw vLLM-format inputs: past_lens/subsequence_begins/max_context_len
-    # are now *derived* from these in-graph via SDPAToPagedAttention-style
-    # ops, so the translator emits these Parameters instead.
+    # Raw vLLM-format inputs. past_lens/subsequence_begins/max_context_len are
+    # derived from these in-graph, so the translator emits these instead.
     "seq_lens", "query_start_loc",
-    # Per-layer sliding_window (Gemma-4 hybrid: 512 for sliding layers, 0 for
-    # full-attention layers). Bound from layer_obj.impl.sliding_window.
+    # Per-layer, from layer_obj.impl.sliding_window.
     "sliding_window",
 )
 
 
 def _bind_paged_attention_side_channel(compiled):
-    """For every compiled-model input named "__pa__<layer>__<field>", look up
-    the tensor from vllm.forward_context.get_forward_context() and return a
-    mapping {name: numpy_array}.
+    """Resolve every "__pa__<layer>__<field>" input of `compiled` against the
+    current forward context and return {parameter_name: array-or-ov.Tensor}.
 
-    Relies on vLLM CPU attention metadata layout (CPUAttentionMetadata).
+    Relies on vLLM's CPUAttentionMetadata layout.
     """
     try:
         from vllm.forward_context import get_forward_context
@@ -145,12 +130,11 @@ def _bind_paged_attention_side_channel(compiled):
     try:
         ctx = get_forward_context()
     except AssertionError:
-        # No ForwardContext set (e.g. during CPU warmup paths); fall back to
-        # empty tensors so PA at least doesn't segfault.
+        # No ForwardContext (CPU warmup paths). Fall back to empty tensors so
+        # PA at least does not segfault.
         ctx = None
 
     result = {}
-    # Group the PA inputs by layer_name — cache across calls on compiled id.
     _layout = _pa_layout_cache.get(id(compiled))
     if _layout is None:
         layer_to_fields = {}
@@ -175,27 +159,24 @@ def _bind_paged_attention_side_channel(compiled):
         _pa_layout_cache[id(compiled)] = _layout
     layer_to_fields = _layout["layer_to_fields"]
 
-    # If a "shared" PA key exists (from get_or_make_shared_pa_param), we treat
-    # any real layer's attn_metadata as representative since per-seq metadata
-    # is identical across layers.
+    # A "shared" PA key (from get_or_make_shared_pa_param) can use any real
+    # layer's attn_metadata: per-seq metadata is identical across layers.
     _first_real_layer = next(
         (ln for ln in layer_to_fields if ln != "shared"), None)
 
-    # Build mapping: our placeholder layer_names like "unknown_layer",
-    # "unknown_layer_1", ... -> vLLM real layer names from attn_metadata, in
-    # the order the translator emitted them (== model layer order).
+    # Real vLLM layer names, in the order the translator emitted its
+    # placeholders (== model layer order).
     _real_layer_names = []
     if ctx is not None:
         try:
             _am = ctx.attn_metadata
             if isinstance(_am, dict):
                 _real_layer_names = list(_am.keys())
-                # attn_metadata dict iteration order groups layers by KV-cache
-                # spec (Gemma-4 hybrid: all 28 sliding then all 7 global), NOT
-                # by model layer index. The OV frontend numbers PA nodes in
-                # FX-graph order = model layer order, so we must sort real
-                # names by their trailing ".layers.<N>." index to match. Fall
-                # back to input order for layer names without that pattern.
+                # attn_metadata groups layers by KV-cache spec (Gemma-4 hybrid:
+                # all 28 sliding, then all 7 global), not by layer index, while
+                # the frontend numbers PA nodes in FX-graph == model order. Sort
+                # by the ".layers.<N>." index to match; fall back to dict order
+                # for names without that pattern.
                 import re as _re_sort
                 def _layer_idx(name):
                     m = _re_sort.search(r"layers\.(\d+)", name)
@@ -207,8 +188,10 @@ def _bind_paged_attention_side_channel(compiled):
 
     def _placeholder_to_real(placeholder):
         """Map 'unknown_layer' -> real[0], 'unknown_layer_1' -> real[1], ...
-        Modulo NUM_LAYERS because translator counter accumulates across
-        torch-compile invocations (first compile 0..15, second 16..31, ...)."""
+
+        Modulo NUM_LAYERS: the translator's counter accumulates across
+        torch-compile invocations (first compile 0..15, second 16..31, ...).
+        """
         if not _real_layer_names:
             return None
         import re as _re_map
@@ -219,9 +202,8 @@ def _bind_paged_attention_side_channel(compiled):
         idx = idx % len(_real_layer_names)
         return _real_layer_names[idx]
 
-    # Per-seq metadata (seq_lens, qsl, block_indices, etc.) is identical across
-    # all layers in a single forward pass. Compute it once from any real
-    # layer's attn_meta, then reuse for every layer's field binding.
+    # Per-seq metadata is identical across layers within a forward pass:
+    # compute once from any real layer's attn_meta, reuse for all bindings.
     _shared_meta = {
         "past_lens_np": _zeros_1_i32(),
         "subseq_begins_np": _zeros_2_i32(),
@@ -236,16 +218,10 @@ def _bind_paged_attention_side_channel(compiled):
     for layer_name, fields in layer_to_fields.items():
         attn_meta = None
         kv_cache = None
-        # For the shared Parameter group, fall back to any real layer's
-        # attn_metadata (per-seq fields are identical across layers).
-        # Layer-static state cache: meta_layer_name, layer_obj, and kv_cache
-        # identity are architecture-static within one generate() call. Cache
-        # them per (id(compiled), layer_name). Invalidate the entry if the
-        # layer's kv_cache tensor identity changes (vLLM re-allocated).
         _static_key = (id(compiled), layer_name)
         _static = _pa_layer_static_cache.get(_static_key)
         if _static is not None:
-            # Verify cached kv_cache still valid (fast path when it is)
+            # Invalidate if vLLM re-allocated this layer's kv_cache.
             _cached_layer_obj = _static["layer_obj"]
             if _cached_layer_obj is not None:
                 try:
@@ -253,12 +229,12 @@ def _bind_paged_attention_side_channel(compiled):
                     if isinstance(_cur_kv, list):
                         _cur_kv = _cur_kv[ctx.virtual_engine] if ctx is not None else _cur_kv[0]
                     if id(_cur_kv) != _static["kv_cache_id"]:
-                        _static = None  # invalidate
+                        _static = None
                 except Exception:
                     _static = None
 
         if _static is None:
-            # Slow path: resolve layer_obj + meta_layer_name + KV sharing chase
+            # Slow path: resolve layer_obj, meta_layer_name, KV-sharing target.
             if layer_name == "shared":
                 meta_layer_name = (_placeholder_to_real(_first_real_layer) if _first_real_layer else None) \
                                   or (_real_layer_names[0] if _real_layer_names else None)
@@ -270,7 +246,7 @@ def _bind_paged_attention_side_channel(compiled):
                 try:
                     nc_layers = ctx.no_compile_layers
                     layer_obj = nc_layers.get(meta_layer_name) if isinstance(nc_layers, dict) else None
-                    # KV sharing (Gemma-4 hybrid): redirect to target layer
+                    # KV sharing (Gemma-4 hybrid): redirect to the target layer.
                     kv_sharing_tgt = getattr(layer_obj, "kv_sharing_target_layer_name", None) if layer_obj is not None else None
                     if kv_sharing_tgt is not None:
                         tgt_obj = nc_layers.get(kv_sharing_tgt) if isinstance(nc_layers, dict) else None
@@ -294,7 +270,7 @@ def _bind_paged_attention_side_channel(compiled):
         meta_layer_name = _static["meta_layer_name"]
         layer_obj = _static["layer_obj"]
 
-        # Fetch per-step attn_meta and kv_cache using cached refs
+        # Per-step attn_meta and kv_cache, via the cached refs.
         if ctx is not None:
             try:
                 if meta_layer_name is not None:
@@ -308,23 +284,22 @@ def _bind_paged_attention_side_channel(compiled):
             except Exception:
                 pass
 
-        # Prepare numpy arrays for each field
         key_cache_np = value_cache_np = None
         key_cache_ovt = value_cache_ovt = None
         if kv_cache is not None:
             try:
-                # Key by meta_layer_name (vLLM's real layer name) so the OV
-                # tensor persists across torch-compile invocations (prefill +
-                # decode share the same underlying buffer).
+                # Key by real layer name so the OV tensor persists across
+                # torch-compile invocations: prefill and decode share one
+                # underlying buffer.
                 cache_key = meta_layer_name
                 cached = _pa_kv_ovt_cache.get(cache_key)
                 if cached is not None:
                     key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np = cached
                 else:
-                    # vLLM 0.25 CPU KV cache is rank-4
-                    # [num_blocks, num_kv_heads, block_size, 2*head_size]
-                    # with K/V interleaved along the last dim. unbind(0)
-                    # picks the wrong axis; view + chunk splits correctly.
+                    # vLLM 0.25's CPU KV cache is rank-4, [num_blocks,
+                    # num_kv_heads, block_size, 2*head_size], K/V interleaved
+                    # along the last dim: unbind(0) picks the wrong axis, so
+                    # view + chunk is what splits it correctly.
                     if kv_cache.ndim == 4:
                         _nb, _hk, _bs, _last = kv_cache.shape
                         _view = kv_cache.view(_nb, _hk, _bs * 2, _last // 2)
@@ -333,26 +308,23 @@ def _bind_paged_attention_side_channel(compiled):
                         vc = vc.contiguous()
                     else:
                         kc, vc = kv_cache.unbind(0)
-                    # Allocate OV-native f32 Tensor (matches PA Parameter dtype).
-                    # OV CPU PA writes back to this buffer via shared_memory.
+                    # OV-native Tensor matching the PA Parameter dtype; OV CPU
+                    # PA writes back into this buffer via shared memory.
                     import openvino as _ov
                     _kv_shape = tuple(kc.shape)
-                    # OV CPU PagedAttention hard-requires block_size==32. When
-                    # vLLM allocates blocks of size B>32 (e.g. Gemma-4 hybrid
-                    # unifies to 64 to keep page_size_bytes uniform across
-                    # layers with different head_size), present the buffer to
-                    # OV as (N*ratio, Hk, 32, S) — a pure reshape with the
-                    # same total element count. Block indices are re-expanded
-                    # accordingly when metadata is built.
+                    # OV CPU PA hard-requires block_size==32. When vLLM uses
+                    # B>32 (Gemma-4 hybrid unifies to 64 to keep page_size_bytes
+                    # uniform across differing head_size), present the buffer as
+                    # (N*ratio, Hk, 32, S) — a pure reshape, same element count.
+                    # Block indices are re-expanded to match below.
                     if len(_kv_shape) >= 4 and _kv_shape[-2] > 32 and _kv_shape[-2] % 32 == 0:
                         _ratio = _kv_shape[-2] // 32
                         _param_shape = (_kv_shape[0] * _ratio,) + _kv_shape[1:-2] + (32, _kv_shape[-1])
                     else:
                         _param_shape = _kv_shape
-                    # Find the actual Parameter in compiled.inputs for this layer's
-                    # key_cache and use its dtype (plugin may override via KV_CACHE_PRECISION).
+                    # Take the dtype from this layer's own key_cache Parameter:
+                    # the plugin may have retyped it via KV_CACHE_PRECISION.
                     _param_dt = None
-                    # Parameter name pattern: __pa__<layer_name>__key_cache
                     _target_name = fields.get("key_cache", f"__pa__{layer_name}__key_cache")
                     for _pi in compiled.inputs:
                         if _target_name in _pi.get_names():
@@ -368,15 +340,12 @@ def _bind_paged_attention_side_channel(compiled):
                     value_cache_np.fill(0)
                     _pa_kv_ovt_cache[cache_key] = (
                         key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np)
-                # KV buffers are kept alive in _pa_kv_ovt_cache; no need to
-                # stash an extra list in the result dict.
             except Exception:
                 pass
         if key_cache_np is None:
-            # Fallback dummy — must provide (1, Hk, block_size, S) that match
-            # what the PA op will see at real runtime. Otherwise CPU PA caches
-            # Hk=1, S=1 from the dummy and asserts against the real K.
-            # OV CPU PA requires block_size == 32 (hard constraint).
+            # Fallback dummy. Hk and S must match what PA sees at real runtime,
+            # or CPU PA caches Hk=1, S=1 from the dummy and then asserts against
+            # the real K.
             import openvino as _ov_fb
             _fb_dt_ov = _ov_fb.Type.f32
             _fb_Hk, _fb_S = _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=layer_name)
@@ -392,8 +361,7 @@ def _bind_paged_attention_side_channel(compiled):
             key_cache_np = key_cache_ovt.data if _fb_dt_ov != _ov_fb.Type.bf16 else None
             value_cache_np = value_cache_ovt.data if _fb_dt_ov != _ov_fb.Type.bf16 else None
 
-        # Per-seq shared metadata (seq_lens/qsl/past_lens/max_ctx) is identical
-        # across all layers; compute once from the first layer with attn_meta.
+        # Computed once, from the first layer that has attn_meta.
         if not _shared_built and attn_meta is not None:
             try:
                 seq_lens = getattr(attn_meta, "seq_lens", None)
@@ -409,15 +377,10 @@ def _bind_paged_attention_side_channel(compiled):
             except Exception:
                 pass
 
-        # Per-layer block_indices / block_indices_begins. Models with multiple
-        # KV-cache groups (e.g. Gemma-4 hybrid) have a distinct block_table per
-        # group. Compute from this layer's own attn_meta + kv_cache block_size.
-        #
-        # Intra-call cache keyed on (id(block_table), block_size): uniform-
-        # attention models have all layers pointing at the same block_table
-        # object, so the computation only runs once per bind() call. Gemma-4's
-        # two KV groups have distinct block_table objects, so both compute
-        # exactly once per bind().
+        # Per-layer, since models with multiple KV-cache groups (Gemma-4 hybrid)
+        # have a distinct block_table per group. The (id(block_table),
+        # block_size) cache makes this run once per distinct table per call:
+        # once for uniform-attention models, twice for Gemma-4's two groups.
         block_indices_np = _zeros_1_i32()
         block_indices_begins_np = _zeros_2_i32()
         if attn_meta is not None and kv_cache is not None:
@@ -454,11 +417,7 @@ def _bind_paged_attention_side_channel(compiled):
             except Exception:
                 pass
 
-        # Per-layer sliding_window is architecture-static — cache it per
-        # (compiled model id, layer_name). Read from vLLM layer_obj.impl on
-        # first call, reuse thereafter. Full-attention layers report None
-        # or 0; sliding-attention layers report their window size (e.g. 512
-        # for Gemma-4). Passed as a scalar i32.
+        # Architecture-static, so read from layer_obj.impl once and cache.
         _sw_key = (id(compiled), layer_name)
         sliding_window_np = _pa_sliding_window_cache.get(_sw_key)
         if sliding_window_np is None:
@@ -474,13 +433,12 @@ def _bind_paged_attention_side_channel(compiled):
                         if sw is None:
                             sw = getattr(lo, "sliding_window", None)
                     if sw is not None:
-                        # vLLM stores sliding_window as a tuple (w-1, w-1) or
-                        # (w-1, 0) for sliding layers, (-1, -1) for full-attention.
-                        # The OV PA op wants: 0 for disabled, N for "last N tokens".
+                        # vLLM: a tuple (w-1, w-1) or (w-1, 0) on sliding
+                        # layers, (-1, -1) on full attention. OV PA wants a
+                        # scalar: N for "last N tokens", 0 for disabled.
                         if isinstance(sw, (tuple, list)):
                             sw = sw[0] if sw else -1
                         sw_int = int(sw)
-                        # Map vLLM's -1 (no window) to 0 (OV's "disabled").
                         sliding_window_val = 0 if sw_int < 0 else sw_int
                 except Exception:
                     pass
