@@ -63,7 +63,7 @@ inline void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>
     if (inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds) {
         logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' for fully-dynamic model (inputs "
                     "and outputs both dynamic, static batch, other dimensions dynamic)");
-        config.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
+        config.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
     }
 }
 
