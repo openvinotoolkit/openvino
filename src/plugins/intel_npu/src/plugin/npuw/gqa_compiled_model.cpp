@@ -73,8 +73,12 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
         return GQAModelStage::UNKNOWN;
     };
 
+    // Disable partitioning in V1 case.
+    const auto gqa_case = ov::npuw::GQACompiledModel::identify_case(model);
+    const char* online_pipeline = gqa_case == ov::npuw::GQACompiledModel::Case::V1 ? "NONE" : "REP";
+
     ov::AnyMap config = {
-        {"NPUW_ONLINE_PIPELINE", "REP"},
+        {"NPUW_ONLINE_PIPELINE", online_pipeline},
         {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
         {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},

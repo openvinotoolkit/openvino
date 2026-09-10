@@ -356,6 +356,34 @@ TEST_F(GQACompiledModelTest, AddsExpectedNpuwDefaultsBeforeInnerCompilation) {
     EXPECT_EQ(call.props.count("NPUW_UNFOLD_IREQS"), 0u);
 }
 
+TEST_F(GQACompiledModelTest, DisablesOnlinePipelineForCaseV1Models) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        build_full_gqa_transformer_model(4, 2, true, PositionSignal::PositionIds),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
+}
+
+TEST_F(GQACompiledModelTest, KeepsOnlinePipelineForCaseV0Models) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        build_full_gqa_transformer_model(4, 2, true, PositionSignal::SeqLenPair),
+                        {},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+}
+
 TEST_F(GQACompiledModelTest, AppliesFoldOnlyAttnForGenerateStyleModels) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
