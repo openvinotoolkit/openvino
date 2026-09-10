@@ -1263,10 +1263,11 @@ public:
         }
         if (has_alibi) {
             const size_t tensor_id = PagedAttentionInputIdx::ALIBI;
-            if (has_scale_input)
+            if (has_scale_input) {
                 jit.add(make_layout_jit_constants("INPUT5", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
-            else
+            } else {
                 jit.add(make_layout_jit_constants("INPUT4", params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
+            }
         }
 
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
@@ -1382,11 +1383,15 @@ public:
         return false;
     }
 
+    // MIXED may use micro SDPA regardless of token_type_ids: bidirectional masking is implemented
+    // only in the PREFILL kernels, and in MIXED neither micro SDPA nor paged_attention_opt.cl consumes token_type_ids.
+    // TODO: implement bidirectional attention for MIXED with token_type_ids
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
-        if (!supports_micro_sdpa(params) || !valid_micro_stage(stage))
-            return false;
-        const auto desc = params.typed_desc<paged_attention>();
-        return !desc->has_token_type_ids || stage == PagedAttentionStage::PREFILL;
+        const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage);
+        GPU_DEBUG_TRACE_DETAIL << "can_use_micro_sdpa_for: stage = " << static_cast<size_t>(stage)
+                               << ", token_type_ids = " << params.get_input_layout(PagedAttentionInputIdx::TOKEN_TYPE_IDS).to_short_string()
+                               << ", can_use_micro_sdpa = " << can_use_micro_sdpa << std::endl;
+        return can_use_micro_sdpa;
     }
 
     bool supports_micro_sdpa(const kernel_impl_params& params) const {
@@ -1421,7 +1426,7 @@ public:
             return false;
         }
 
-        if (desc->k_head_size > 256 || desc->v_head_size > 256) {
+        if (desc->k_head_size > 512 || desc->v_head_size > 512) {
             return false;
         }
 
@@ -1557,11 +1562,13 @@ public:
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            if (rt_params->use_micro_sdpa)
+            if (rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
-            else
+            } else
 #endif
+            {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
+            }
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
@@ -1569,11 +1576,13 @@ public:
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-                if (multi_tokens_mode && rt_params->use_micro_sdpa)
+                if (multi_tokens_mode && rt_params->use_micro_sdpa) {
                     res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
-                else
+                } else
 #endif
+                {
                     res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_single_token)};
+                }
             }
             if (num_of_partitions > 1 && !rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token_finalization : pa_single_token_finalization)};
@@ -1733,10 +1742,11 @@ public:
             };
 
             size_t snap_kv_tokens = 0;
-            if (rt_params)
+            if (rt_params) {
                 snap_kv_tokens = rt_params->paged_attention_snap_kv_tokens;
-            else
+            } else {
                 snap_kv_tokens = get_snap_kv_tokens(desc->has_score_aggregation);
+            }
             auto tokens_number = desc->has_score_aggregation ? snap_kv_tokens : subsequences_number;
             auto softmax_buf_elements_count = static_cast<int64_t>(tokens_number * desc->heads_num * num_of_partitions * partition_size) * element_size;
 
