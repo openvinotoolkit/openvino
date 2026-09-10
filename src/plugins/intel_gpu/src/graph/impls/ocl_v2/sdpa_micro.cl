@@ -531,7 +531,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
    physically (head_dim, tokens), so A is k-contiguous and its stride is the head_dim one --
    as K*Q already gets under TRANSPOSE_K. `ldv` stays the token stride in both layouts, which
    is what every V pointer advance below is expressed in. */
-    const uint ldv_g = TRANSPOSE_V ? VAL_S3 : VAL_S2;
+    const uint ldv_g = TRANSPOSE_V ? VAL_S3 : ldv;
 
 #if KEY_SCALES || KEY_ZERO_POINTS
     uint ldkq = DIV_UP(d, KEY_GROUP_SIZE);
