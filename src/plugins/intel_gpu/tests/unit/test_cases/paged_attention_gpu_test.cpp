@@ -496,6 +496,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention, paged_attention_test, ::testing:
     paged_attention_test_params{ {{1, 4096}}, 8, 2, 128, 128, 16, 512, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode, triggers GQA kernel path (context>=4096)
     paged_attention_test_params{ {{1, 2048}}, 8, 2, 128, 128, 16, 512, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // GQA decode + KV compression + SWA
     paged_attention_test_params{ {{1, 1024}, {1, 2048}}, 8, 2, 128, 128, 16, 512, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // multi-seq GQA decode with SWA
+    // The window covers one more block when a length is not block-aligned, so the longest sequence is
+    // not always the one that needs the most partitions. Here the longest one is aligned (2047 + 1 = 2048)
+    // while the shorter one ends 15 tokens into a block (1038 + 1 = 1039) and needs one partition more.
+    // Sizing the dispatch from the longest sequence drops those 15 tokens, the newest ones it must attend.
+    paged_attention_test_params{ {{1, 2047}, {1, 1038}}, 8, 2, 128, 128, 16, 512, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // multi-seq SWA decode, mixed block alignment
+    paged_attention_test_params{ {{1, 1023}, {1, 526}}, 2, 2, 64, 64, 16, 256, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }, // same, non-GQA
 }));
 
 INSTANTIATE_TEST_SUITE_P(smoke_cm_xattention, xattention_test, ::testing::ValuesIn(std::vector<paged_attention_test_params>{

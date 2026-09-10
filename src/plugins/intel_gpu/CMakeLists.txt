@@ -128,15 +128,48 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Werror)
 endif()
 
+# Directory-wide on purpuse: the macro guards virtual methods in
+# include/intel_gpu/runtime, so ENABLE_MLIR_FOR_GPU must be defined consistently in all targets
+# sharing those headers.
+if(ENABLE_MLIR_FOR_GPU)
+    add_compile_definitions(ENABLE_MLIR_FOR_GPU)
+endif()
+
 add_subdirectory(src/runtime)
 add_subdirectory(src/kernel_selector)
 add_subdirectory(src/graph)
 
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
+# MLIR sources are always excluded from the main plugin target. When
+# ENABLE_MLIR_FOR_GPU=ON they are built into a dedicated OBJECT library
+# (openvino_intel_gpu_mlir_obj) that has MLIR/Graph-Compiler include paths;
+# when OFF they must not be compiled at all.
+set(OV_GPU_MLIR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/transformations/mlir)
+file(GLOB_RECURSE GPU_MLIR_SOURCES ${OV_GPU_MLIR_DIR}/*.cpp)
+list(REMOVE_ITEM PLUGIN_SOURCES ${GPU_MLIR_SOURCES})
+
+if(ENABLE_MLIR_FOR_GPU)
+    include(thirdparty/cmake/graph-compiler.cmake)
+
+    set(mlir_lib openvino_intel_gpu_mlir_obj)
+    add_library(${mlir_lib} OBJECT ${GPU_MLIR_SOURCES})
+    target_link_libraries(${mlir_lib} PRIVATE openvino::runtime openvino_intel_gpu_graph GraphCompiler)
+    target_include_directories(${mlir_lib} PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/
+            ${OV_GPU_MLIR_DIR})
+    # Not created via ov_add_plugin, so clang-tidy has to be applied explicitly.
+    ov_apply_clang_tidy(TARGET ${mlir_lib})
+
+    set(GPU_PLUGIN_OBJECT_LIBRARIES ${mlir_lib})
+    set(GPU_PLUGIN_OPTIONS LINKABLE)
+endif()
+
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "GPU"
               SOURCES ${PLUGIN_SOURCES}
+              OBJECT_LIBRARIES ${GPU_PLUGIN_OBJECT_LIBRARIES}
+              ${GPU_PLUGIN_OPTIONS}
               DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
               VERSION_DEFINES_FOR src/plugin/plugin.cpp
               # ADD_CLANG_TIDY makes ov_add_plugin apply clang-tidy to this target.
@@ -160,6 +193,17 @@ endif()
 
 target_include_directories(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+
+if(ENABLE_MLIR_FOR_GPU)
+    target_link_libraries(${TARGET_NAME} PRIVATE GraphCompiler)
+    # Per target, unlike ENABLE_MLIR_FOR_GPU: must be defined by everyone linking
+    # openvino_intel_gpu_mlir_obj, since only it provides mlir::transformMLIR().
+    # Workaround to fix tests build: ov_gpu_unit_tests '#includes transformations_pipeline.cpp'
+    # (xattention_kv_cache_transform_test.cpp) but links neither the MLIR objects nor the plugin's
+    # hidden symbols, so guarding the call with ENABLE_MLIR_FOR_GPU alone breaks that link with an
+    # undefined reference to transformMLIR().
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_MLIR_BACKEND_LINKED)
+endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME})
