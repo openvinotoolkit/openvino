@@ -84,14 +84,24 @@ DataID Extension::get_constant_id(const ov::op::v0::Constant& constant) {
 }
 
 std::optional<WeightOriginMetaData> Extension::get_constant_origin(const ov::op::v0::Constant& constant) {
+    // 1) Preferred: weight-sharing identity carried by the buffer descriptor. The
+    //    descriptor's id is the weight source id and its offset is the bin offset;
+    //    the size and precision come from the Constant itself. This is self-describing
+    //    and needs no external Context, so it works for the compile-from-model flow.
+    if (const auto desc = constant.m_data ? constant.m_data->get_descriptor() : nullptr) {
+        return std::make_optional(WeightOriginMetaData{desc->get_id(),
+                                                       desc->get_offset(),
+                                                       constant.get_byte_size(),
+                                                       constant.get_element_type()});
+    }
+    // 2) Transitional fallback: the deprecated WeightlessCacheAttribute rt_info.
     if (auto wl_attr = constant.get_rt_info().find(ov::WeightlessCacheAttribute::get_type_info_static());
         wl_attr != constant.get_rt_info().end()) {
         const auto& wl = wl_attr->second.as<ov::WeightlessCacheAttribute>();
         return std::make_optional(
             WeightOriginMetaData{get_constant_source_id(constant), wl.bin_offset, wl.original_size, wl.original_dtype});
-    } else {
-        return std::nullopt;
     }
+    return std::nullopt;
 }
 
 std::shared_ptr<ov::AlignedBuffer> Extension::get_constant_source_buffer(const ov::op::v0::Constant& constant) {

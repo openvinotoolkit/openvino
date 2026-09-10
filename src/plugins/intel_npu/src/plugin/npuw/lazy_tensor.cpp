@@ -9,7 +9,6 @@
 #include <variant>
 
 #include "logging.hpp"
-#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -18,12 +17,14 @@
 #include "openvino/util/mmap_object.hpp"
 #include "orc.hpp"
 #include "util.hpp"
+#include "wsh_lookup.hpp"
 
 using ov::npuw::weights::LazyTensor;
 
 namespace ov {
 namespace npuw {
 namespace weights {
+
 namespace op {
 Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     m_cached_type = m_node->get_element_type();
@@ -31,10 +32,8 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     m_cached_ptr = m_node->get_data_ptr();
     m_byte_size = m_node->get_byte_size();
 
-    auto rt_info = m_node->get_rt_info();
-    auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
-    if (weightless_cache_attr != rt_info.end()) {
-        m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+    if (auto origin = ov::npuw::wsh::resolve_origin(*m_node)) {
+        m_offset = origin->offset;
     } else {
         // See the comment in serialize() for more details
         LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. We need to "
@@ -70,7 +69,13 @@ ov::Tensor Const::eval() const {
         // Use handle_provider if available, otherwise use default mmap
         if (m_handle_provider) {
             ov::FileHandle handle = m_handle_provider();
-            mapped_memory = ov::load_mmap_object(handle);
+            if (m_handle_region_size != 0) {
+                // Map only the weights pool sub-region so m_mmaped_weights->get_ptr(m_offset)
+                // resolves the pool-relative descriptor offset (fd-backed sharing, Option B).
+                mapped_memory = ov::load_mmap_object(handle, m_handle_region_offset, m_handle_region_size);
+            } else {
+                mapped_memory = ov::load_mmap_object(handle);
+            }
         } else {
             mapped_memory = ov::load_mmap_object(ov::util::make_path(m_weights_path));
         }
@@ -129,6 +134,9 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             m_weights_path = ctx.weights_path;
             // Also save handle_provider if available
             m_handle_provider = ctx.handle_provider;
+            // Carry the pool sub-region so eval() maps the same window.
+            m_handle_region_offset = ctx.handle_region_offset;
+            m_handle_region_size = ctx.handle_region_size;
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});

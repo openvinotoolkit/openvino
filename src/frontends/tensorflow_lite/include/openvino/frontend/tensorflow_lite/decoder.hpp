@@ -22,6 +22,14 @@ struct TENSORFLOW_LITE_FRONTEND_API TensorMetaInfo {
     const uint8_t* m_tensor_data;
     size_t m_tensor_data_size = 0;
     std::string m_tensor_name;
+    // Optional weight-sharing identity. When m_source_id != 0 the frontend
+    // builds the resulting ov::op::v0::Constant with an IBufferDescriptor
+    // carrying (m_source_id, m_bin_offset), so downstream consumers (e.g.
+    // ov::weight_sharing / NPUW) can identify shared weights via
+    // Constant->m_data->get_descriptor(). m_bin_offset is used verbatim as the
+    // offset of this weight within its (caller-chosen) source id.
+    std::size_t m_source_id = 0;
+    std::size_t m_bin_offset = 0;
 };
 
 class TENSORFLOW_LITE_FRONTEND_API DecoderBase : public ov::frontend::DecoderBase {

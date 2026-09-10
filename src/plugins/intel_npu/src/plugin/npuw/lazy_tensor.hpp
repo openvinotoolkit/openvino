@@ -112,6 +112,10 @@ private:
     ov::Tensor m_read_from_bin;
     std::string m_weights_path;
     ov::FileHandleProvider m_handle_provider = nullptr;
+    // Sub-region of the handle to map in eval() (size 0 => whole handle). Keeps
+    // descriptor offsets pool-relative for fd-backed weight sharing (Option B).
+    std::size_t m_handle_region_offset = 0;
+    std::size_t m_handle_region_size = 0;
     mutable ov::npuw::s11n::WeightsPtr m_mmaped_weights = nullptr;
     // FIXME: special case when a new Constant was added into the model,
     // then made into LazyTensor during folding. We need to keep a copy of it,
