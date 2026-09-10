@@ -18,7 +18,8 @@ extern ov::OutputVector dequantize_linear(const ov::Output<ov::Node>& x,
                                           const ov::Output<ov::Node>& scale,
                                           const std::shared_ptr<ov::Node>& zero_point,
                                           int64_t axis,
-                                          const Node& node);
+                                          const Node& node,
+                                          const ov::element::Type& precision = ov::element::dynamic);
 }  // namespace detail
 }  // namespace opset_13
 namespace detail {

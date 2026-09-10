@@ -12,12 +12,13 @@ std::ostream& get_verbose_stream() {
 #ifdef GPU_DEBUG_CONFIG
     if (!ExecutionConfig::get_log_to_file().empty()) {
         static std::ofstream fout;
-        if (!fout.is_open())
+        if (!fout.is_open()) {
             fout.open(ExecutionConfig::get_log_to_file());
+        }
         return fout;
-    } else {
-        return std::cout;
     }
+    return std::cout;
+
 #else
     return std::cout;
 #endif

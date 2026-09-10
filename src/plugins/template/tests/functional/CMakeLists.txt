@@ -9,9 +9,28 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4305)
 endif()
 
+set(OV_TEMPLATE_TESTS_SRCS
+    ${CMAKE_CURRENT_SOURCE_DIR}/core_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/set_device_name.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/skip_tests_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/specific_properties_test.cpp
+)
+
+include(op_reference/sources.cmake)
+include(preprocessing/sources.cmake)
+include(shared_tests_instances/sources.cmake)
+include(subgraph_reference/sources.cmake)
+include(transformations/sources.cmake)
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES
+            ${OV_TEMPLATE_TESTS_SRCS}
+            ${OV_TEMPLATE_TESTS_OP_REFERENCE_SRCS}
+            ${OV_TEMPLATE_TESTS_PREPROCESSING_SRCS}
+            ${OV_TEMPLATE_TESTS_SHARED_INSTANCES_SRCS}
+            ${OV_TEMPLATE_TESTS_SUBGRAPH_REFERENCE_SRCS}
+            ${OV_TEMPLATE_TESTS_TRANSFORMATIONS_SRCS}
         DEPENDENCIES
             openvino_template_plugin
         LINK_LIBRARIES
@@ -21,10 +40,11 @@ ov_add_test_target(
             "${OpenVINOTemplatePlugin_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/op_reference"
         DEFINES
-            IN_OV_COMPONENT            
+            IN_OV_COMPONENT
         ADD_CLANG_FORMAT
         LABELS
             OV UNIT TEMPLATE
+        CHECK_SOURCES_LISTED
 )
 
 find_package(OpenCV QUIET COMPONENTS core imgproc)

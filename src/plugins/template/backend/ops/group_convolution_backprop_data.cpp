@@ -16,9 +16,9 @@ bool evaluate(const std::shared_ptr<ov::op::v1::GroupConvolutionBackpropData>& o
     const auto in_data_ptr = inputs[0].data<ET>();
     const auto filter_data_ptr = inputs[1].data<ET>();
     const auto out_data_ptr = outputs[0].data<ET>();
-    const auto in_shape = inputs[0].get_shape();
-    const auto filter_shape = inputs[1].get_shape();
-    const auto out_shape = outputs[0].get_shape();
+    const auto& in_shape = inputs[0].get_shape();
+    const auto& filter_shape = inputs[1].get_shape();
+    const auto& out_shape = outputs[0].get_shape();
     ov::reference::group_convolution_backprop_data<ET>(in_data_ptr,
                                                        filter_data_ptr,
                                                        out_data_ptr,

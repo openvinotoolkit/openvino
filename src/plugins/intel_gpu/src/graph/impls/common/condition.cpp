@@ -36,8 +36,9 @@ struct condition_impl : typed_primitive_impl<condition> {
 
     event::ptr execute_impl(const std::vector<event::ptr>& events, condition_inst& instance) override {
         // Wait for condition statement event only, and pass all other events to sub-network directly
-        if (!events.empty())
+        if (!events.empty()) {
             events[0]->wait();
+        }
 
         auto& stream = instance.get_network().get_stream();
         set_node_params(instance.get_node());
@@ -46,8 +47,9 @@ struct condition_impl : typed_primitive_impl<condition> {
         network::ptr executed_net = pred ? instance.get_net_true() : instance.get_net_false();
         auto branch = pred ? instance.get_branch_true() : instance.get_branch_false();
         bool can_skip_subgraph = branch.inner_program->can_be_optimized();
-        if (!can_skip_subgraph)
+        if (!can_skip_subgraph) {
             executed_net->set_shape_predictor(instance.get_network().get_shape_predictor());
+        }
 
         GPU_DEBUG_LOG << "predicate: " << (pred ? "True" : "False") << std::endl;
         GPU_DEBUG_LOG << "can_skip_subgraph: " << (can_skip_subgraph ? "True" : "False") << std::endl;
@@ -82,8 +84,9 @@ struct condition_impl : typed_primitive_impl<condition> {
                             if (dep_info.second != 0)
                                 dep_key += ".out" + std::to_string(dep_info.second);
                             if (dep_key == input_external_node->first) {
-                                if (events.size() > dep_idx)
+                                if (events.size() > dep_idx) {
                                     output_events.push_back(events[dep_idx]);
+                                }
                                 output_mem_ptr = instance.input_memory_ptr(dep_idx);
                                 output_layout = dep_info.first->get_output_layout(dep_info.second);
                                 break;
@@ -106,8 +109,7 @@ struct condition_impl : typed_primitive_impl<condition> {
                 instance.set_flag(ExecutionFlags::MEMORY_CHANGED);
             }
             return stream.group_events(output_events);
-        } else {
-            // Set input memory of inner network before its execution
+        }  // Set input memory of inner network before its execution
             for (size_t mem_idx = 0; mem_idx < instance.inputs_memory_count(); mem_idx++) {
                 const auto& dep_info = instance.dependencies().at(mem_idx);
                 const primitive_id& dep_base_id = dep_info.first->id();
@@ -146,7 +148,6 @@ struct condition_impl : typed_primitive_impl<condition> {
                 GPU_DEBUG_LOG << "Inner net - Inputs[" << mem_idx << "]: layout=" << mem_ptr->get_layout().to_short_string() << ", "
                               << "allocation_type=" << mem_ptr->get_allocation_type() << std::endl;
             }
-        }
 
         auto sub_net_results = executed_net->execute(events);
         // Update output layout of impl_param in condition_inst
@@ -155,9 +156,11 @@ struct condition_impl : typed_primitive_impl<condition> {
         // Set output memory of condition_inst to inner network output memory after inner network execution
         instance.postprocess_output_memory(executed_net, branch);
 
-        for (auto& output : sub_net_results)
-            if (output.second.get_event() != nullptr)
+        for (auto& output : sub_net_results) {
+            if (output.second.get_event() != nullptr) {
                 output_events.push_back(output.second.get_event());
+            }
+        }
 
         return stream.group_events(output_events);
     }

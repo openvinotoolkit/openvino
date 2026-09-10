@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
+#include <exception>
+#include <iostream>
 #include <unordered_set>
 #include <vector>
 
@@ -75,10 +77,16 @@ jit_aux_gpr_holder::jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator_t* ho
 }
 
 jit_aux_gpr_holder::~jit_aux_gpr_holder() {
-    if (m_is_preserved) {
-        m_h->pop(m_aux_gpr_idx);
-    } else {
-        m_pool_gpr_idxs.push_back(m_aux_gpr_idx.getIdx());
+    try {
+        if (m_is_preserved) {
+            m_h->pop(m_aux_gpr_idx);
+        } else {
+            m_pool_gpr_idxs.push_back(m_aux_gpr_idx.getIdx());
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "jit_aux_gpr_holder::~jit_aux_gpr_holder() caught exception: " << e.what() << '\n';
+    } catch (...) {
+        std::cerr << "jit_aux_gpr_holder::~jit_aux_gpr_holder() caught unknown exception" << '\n';
     }
 }
 

@@ -40,6 +40,7 @@
 #include "openvino/op/tensor_iterator.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -1579,8 +1580,9 @@ ov::pass::FuseLSTMSequencesToBidirectionalLSTMSequence::FuseLSTMSequencesToBidir
             return false;
         if (lstm_forward->get_activations() != lstm_reverse->get_activations())
             return false;
-        if (lstm_forward->get_clip() != lstm_reverse->get_clip())
+        if (!op_util::are_clips_equal(lstm_forward->get_clip(), lstm_reverse->get_clip())) {
             return false;
+        }
 
         auto squeeze_forward = pattern_map.at(squeeze_forward_label);
         if (squeeze_forward->input_value(0) != lstm_forward->output(0))

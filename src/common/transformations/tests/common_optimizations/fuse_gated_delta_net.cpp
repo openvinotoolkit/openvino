@@ -346,6 +346,37 @@ TEST_F(TransformationTestsF, GatedDeltaNetFusion_BuildBLHSLoopedGDNMode) {
     model_ref = build_fused_gdn_ref(batch, seq_len, qk_head_num, v_head_num, qk_head_size, v_head_size);
 }
 
+TEST(TransformationTests, FuseGDNLoop_TransformationCallbackPreventsLoopFusion) {
+    constexpr int32_t batch = -1;
+    constexpr int32_t seq_len = -1;
+    constexpr int32_t qk_head_num = 4;
+    constexpr int32_t v_head_num = 4;
+    constexpr int32_t qk_head_size = 8;
+    constexpr int32_t v_head_size = 16;
+    std::vector<size_t> input_order{0, 1, 2, 3};
+    auto model = build_looped_gdn(batch,
+                                  seq_len,
+                                  qk_head_num,
+                                  v_head_num,
+                                  qk_head_size,
+                                  v_head_size,
+                                  ov::element::f32,
+                                  input_order);
+
+    ov::pass::Manager manager;
+    auto callback = [](const std::shared_ptr<const ov::Node>& node) -> bool {
+        return true;
+    };
+    manager.get_pass_config()->set_callback<ov::pass::FuseGDNLoop>(callback);
+    manager.register_pass<ov::pass::FuseGDNLoop>();
+    manager.run_passes(model);
+
+    for (const auto& op : model->get_ordered_ops()) {
+        ASSERT_FALSE(ov::is_type<ov::op::internal::GatedDeltaNet>(op))
+            << "FuseGDNLoop should not apply when transformation_callback returns true";
+    }
+}
+
 namespace {
 
 std::shared_ptr<ov::Model> build_gdn_with_shared_qk_anchor(bool shared_anchor) {

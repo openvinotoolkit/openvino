@@ -98,13 +98,14 @@ inline size_t GemmKernelMMADint8::GetMmadOperationsNumber(const GemmTuningData& 
 bool GemmKernelMMADint8::HasLeftovers(const GemmTuningData& tuning_data, int tile_size) const {
     if (tile_size == 32) {
         return ((tuning_data.size_m % 32) != 0u) || ((tuning_data.size_n % 16) != 0u) || ((tuning_data.size_k % 64) != 0u);
-    } else if (tile_size == 16) {
-        return ((tuning_data.size_m % 16) != 0u) || ((tuning_data.size_n % 16) != 0u) || ((tuning_data.size_k % 64) != 0u);
-    } else if (tile_size == 8) {
-        return ((tuning_data.size_m % 8) != 0u) || ((tuning_data.size_n % 8) != 0u) || ((tuning_data.size_k % 32) != 0u);
-    } else {
-        return true;
     }
+    if (tile_size == 16) {
+        return ((tuning_data.size_m % 16) != 0u) || ((tuning_data.size_n % 16) != 0u) || ((tuning_data.size_k % 64) != 0u);
+    }
+    if (tile_size == 8) {
+        return ((tuning_data.size_m % 8) != 0u) || ((tuning_data.size_n % 8) != 0u) || ((tuning_data.size_k % 32) != 0u);
+    }
+    return true;
 }
 
 GemmKernelMMADint8::GemmTuningData GemmKernelMMADint8::SetTuningParams(const gemm_params& params) const {
@@ -172,20 +173,23 @@ KernelsPriority GemmKernelMMADint8::GetKernelsPriority(const Params& params) con
 }
 
 bool GemmKernelMMADint8::Validate(const Params& params) const {
-    if (!Parent::Validate(params))
+    if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& gmm_params = static_cast<const gemm_params&>(params);
     auto input0_type = gmm_params.inputs[0].GetDType();
     auto input1_type = gmm_params.inputs[1].GetDType();
 
     if ((input0_type != Datatype::UINT8 && input0_type != Datatype::INT8) ||
-        (input1_type != Datatype::UINT8 && input1_type != Datatype::INT8))
+        (input1_type != Datatype::UINT8 && input1_type != Datatype::INT8)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     GemmTuningData tuning_data = SetTuningParams(gmm_params);
-    if (!IsSIMDSizeSupported(params.engineInfo, tuning_data.simd_size))
+    if (!IsSIMDSizeSupported(params.engineInfo, tuning_data.simd_size)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }

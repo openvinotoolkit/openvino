@@ -192,9 +192,11 @@ bool FusedOpsCodeGenerator::can_preload_data(const FusedOpsConfiguration& conf) 
 JitTerm FusedOpsCodeGenerator::get_op_type() const {
     if (desc.is_type<eltwise>()) {
         return JitTerm{"eltwise"};
-    } else if (desc.is_type<quantize>()) {
+    }
+    if (desc.is_type<quantize>()) {
         return JitTerm{"quantize"};
-    } else if (desc.is_type<activation>()) {
+    }
+    if (desc.is_type<activation>()) {
         return JitTerm{"activation"};
     }
     return {};
@@ -262,8 +264,9 @@ JitConstants FusedOpsCodeGenerator::make_load_jit_constants(const FusedOpsConfig
     if (desc.is_type<eltwise>() && conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE) {
         std::string sub_group_local_id_str = "get_sub_group_local_id()";
         size_t found_sub = conf.bfzyx_idx_order[1].rfind(sub_group_local_id_str);
-        if (found_sub != std::string::npos)
+        if (found_sub != std::string::npos) {
             fused_op_config.bfzyx_idx_order[1].replace(found_sub, sub_group_local_id_str.length(), fused_op_config.shuffle_var_name);
+        }
     }
 
     for (auto op_input_id : get_required_inputs()) {
@@ -1027,7 +1030,7 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
             return concat(lit, type_suffix);
         };
         auto horner = [&](const JitTerm& s, std::initializer_list<JitTerm> coefs) {
-            auto it = coefs.begin();
+            const auto* it = coefs.begin();
             JitTerm r = *it++;
             for (; it != coefs.end(); ++it) {
                 r = r * s + *it;

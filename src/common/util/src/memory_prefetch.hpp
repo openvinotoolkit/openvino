@@ -115,13 +115,21 @@ private:
 };
 
 /**
- * @brief Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result. Returns an
- * empty region (m_length == 0) for a null/empty mapping, an offset at or past the end, or a
- * sub-page request.
+ * @brief Submits page-population jobs for [ptr, ptr + size) to the shared background thread pool,
+ * splitting the range into up to @p num_threads chunks.
  *
- * @note This is a self-contained helper for @ref make_prefetch_plan / hint_prefetch_async() only.
- * It intentionally does not replace the pre-existing per-platform region helpers used by
- * hint_evict()/hint_prefetch(), so those call sites remain untouched.
+ * @param ptr          Page-aligned base address of the range.
+ * @param size         Multiple of the system page size.
+ * @param num_threads  Number of population jobs to split the range into.
+ *
+ * Returns an empty vector if the work could not be scheduled (e.g. an allocation failure).
+ */
+std::vector<std::future<void>> submit_page_toucher_tasks(void* ptr, size_t size, size_t num_threads) noexcept;
+
+/**
+ * @brief Clamps [offset, offset + size) to [0, mapping_size) and page-aligns the result, rounding
+ * the length up so it is always a page multiple (both ends page-aligned). Returns an empty region
+ * (m_length == 0) for a null/empty mapping, an offset at or past the end, or a sub-page request.
  */
 inline AlignedRegion clamp_align_region(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
     const auto page_size = static_cast<size_t>(get_system_page_size());
@@ -130,39 +138,13 @@ inline AlignedRegion clamp_align_region(const void* data, size_t mapping_size, s
     }
     const auto available = mapping_size - offset;
     const auto raw_len = (size == auto_size) ? available : std::min(size, available);
-    return align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
-}
-
-/** @brief Aligned region and page-aligned size for a hint_prefetch_async() call. */
-struct PrefetchPlan {
-    uintptr_t m_address = 0;
-    size_t m_aligned_size = 0;
-};
-
-/**
- * @brief Computes the region and page-aligned size for a hint_prefetch_async() call, or an empty
- * plan (m_aligned_size == 0) when the region is below the parallel-I/O threshold (a real
- * population pass would not be worth it).
- */
-inline PrefetchPlan make_prefetch_plan(const void* data, size_t mapping_size, size_t offset, size_t size) noexcept {
-    if (const auto region = clamp_align_region(data, mapping_size, offset, size);
-        region.m_length > default_parallel_io_threshold) {
-        return {region.m_address, align_size_up(region.m_length, static_cast<size_t>(get_system_page_size()))};
-    }
-    return {};
+    auto region = align_region(reinterpret_cast<uintptr_t>(data) + offset, raw_len, page_size);
+    region.m_length = align_size_up(region.m_length, page_size);
+    return region;
 }
 
 /** @brief Upper bound on the shared page-population pool's worker threads. */
 inline constexpr size_t max_prefetch_threads = 8;
-
-/**
- * @brief Number of parallel chunks a @p size byte job should be split into: at least one, at most
- * @p max_chunks, targeting roughly one chunk per @p min_chunk bytes.
- */
-constexpr size_t split_chunk_count(size_t size, size_t min_chunk, size_t max_chunks) noexcept {
-    const size_t by_size = (min_chunk == 0) ? max_chunks : size / min_chunk;
-    return std::max<size_t>(1, std::min<size_t>(max_chunks, by_size));
-}
 
 /**
  * @brief Number of page-population jobs a @p size byte region is split into, honoring the shared

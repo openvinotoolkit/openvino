@@ -43,12 +43,10 @@ protected:
             if (params.outputs[0].Feature().v > 8 || params.outputs[0].Batch().v != 1 || !IsSIMDSizeSupported(params.engineInfo, 8)
                || ((params.outputs[0].GetDType() == Datatype::F16) && params.outputs[0].Feature().v == 8)) {
                 return 16;
-            } else {
-                return 8;
             }
-        } else {
-            return 16;
+            return 8;
         }
+        return 16;
     }
 
 private:

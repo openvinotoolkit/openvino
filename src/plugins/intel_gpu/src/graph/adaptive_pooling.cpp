@@ -35,7 +35,7 @@ std::vector<layout> adaptive_pooling_inst::calc_output_layouts(adaptive_pooling_
     std::vector<ShapeType> output_shapes = {ShapeType()};
     std::unordered_map<size_t, ov::Tensor> const_data;
 
-    auto& memory_deps = impl_param.memory_deps;
+    const auto& memory_deps = impl_param.memory_deps;
 
     if (memory_deps.count(1)) {
         auto pooledVector_mem = memory_deps.at(1);
@@ -77,7 +77,7 @@ std::string adaptive_pooling_inst::to_string(adaptive_pooling_node const& node) 
     std::stringstream primitive_description;
 
     json_composite info;
-    const auto mode = prim->mode == adaptive_pooling_mode::max ? "max" : "average";
+    const auto* const mode = prim->mode == adaptive_pooling_mode::max ? "max" : "average";
     info.add("mode", mode);
     info.add("output_size", prim->output_size);
 

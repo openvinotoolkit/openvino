@@ -17,9 +17,8 @@ size_t experimental_detectron_roi_feature_extractor_inst::inputs_memory_count() 
 memory::ptr experimental_detectron_roi_feature_extractor_inst::second_output_memory() const {
     if (desc()->num_outputs == 1) {
         return input_memory_ptr(parent::inputs_memory_count() - 1);
-    } else {
-        return output_memory_ptr(1);
     }
+    return output_memory_ptr(1);
 }
 
 memory::ptr experimental_detectron_roi_feature_extractor_inst::rois_memory() const {

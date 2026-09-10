@@ -19,9 +19,9 @@ inline void evaluate(const std::shared_ptr<ov::op::v1::BinaryConvolution>& op,
     const auto in_data_ptr = static_cast<const T_IN*>(inputs[0].data());
     const auto filter_data_ptr = static_cast<const T_F*>(inputs[1].data());
     auto out_data_ptr = static_cast<T_IN*>(outputs[0].data());
-    const auto in_shape = inputs[0].get_shape();
-    const auto filter_shape = inputs[1].get_shape();
-    const auto out_shape = outputs[0].get_shape();
+    const auto& in_shape = inputs[0].get_shape();
+    const auto& filter_shape = inputs[1].get_shape();
+    const auto& out_shape = outputs[0].get_shape();
 
     ov::reference::binary_convolution<T_IN, T_F>(in_data_ptr,
                                                  filter_data_ptr,

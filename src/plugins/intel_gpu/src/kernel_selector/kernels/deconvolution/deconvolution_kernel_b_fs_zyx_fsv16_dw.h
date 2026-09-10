@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "deconvolution_kernel_base.h"
 #include <vector>
+
+#include "deconvolution_kernel_base.h"
 
 namespace kernel_selector {
 
@@ -20,25 +21,18 @@ public:
 
 protected:
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& p) const override {
-        if (p.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16)
+        if (p.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16) {
             return WeightsLayout::gs_oiyx_gsv16;
-        else
-            return WeightsLayout::gs_oizyx_gsv16;
+        }
+        return WeightsLayout::gs_oizyx_gsv16;
     }
     bool Validate(const Params& p) const override;
     CommonDispatchData SetDefault(const deconvolution_params& arg) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     JitConstants GetJitConstants(const deconvolution_params& params) const override;
 
-    enum class weights_preload {
-        none,
-        line,
-        all
-    };
-    enum class input_preload {
-        none,
-        line
-    };
+    enum class weights_preload { none, line, all };
+    enum class input_preload { none, line };
 
     struct dispatch_params {
         size_t block_size_x;
@@ -49,11 +43,7 @@ protected:
     float EstimateRegPressure(const deconvolution_params& params, const dispatch_params& disp_params) const;
 
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
-        return {
-            FusedOpType::ACTIVATION,
-            FusedOpType::ELTWISE,
-            FusedOpType::QUANTIZE
-        };
+        return {FusedOpType::ACTIVATION, FusedOpType::ELTWISE, FusedOpType::QUANTIZE};
     }
 };
 }  // namespace kernel_selector

@@ -36,8 +36,9 @@ namespace {
 inline bool is_prefill_stage(const RuntimeParams& params) {
     const auto& input_shape = params.input_layouts[0].get_partial_shape();
     const auto n_tokens = input_shape[1];
-    if (n_tokens.is_dynamic())
+    if (n_tokens.is_dynamic()) {
         return false;
+    }
     return n_tokens.get_length() > 1;
 }
 
@@ -49,8 +50,9 @@ inline bool use_batched_prefill(const GatherMatmulRuntimeParams* rtp) {
 
 inline bool has_fused_swiglu(const kernel_impl_params& params) {
     for (const auto& fd : params.fused_desc) {
-        if (fd.is_type<swiglu>())
+        if (fd.is_type<swiglu>()) {
             return true;
+        }
     }
     return false;
 }
@@ -206,7 +208,7 @@ public:
             m_rt_params = std::make_unique<GatherMatmulRuntimeParams>();
         }
         update_stages_flags(instance);
-        auto rtp = static_cast<GatherMatmulRuntimeParams*>(m_rt_params.get());
+        auto* rtp = static_cast<GatherMatmulRuntimeParams*>(m_rt_params.get());
         const auto& input_shape = instance.get_input_layout(gather_matmul::BGMInputIdx::INPUT).get_shape();
         const auto& indices_shape = instance.get_input_layout(gather_matmul::BGMInputIdx::INDICES).get_shape();
         rtp->n_activated_experts = static_cast<int32_t>(input_shape[0]);
@@ -249,12 +251,13 @@ public:
                 auto sort_event = execute_stage(events, instance, batched_sort);
                 auto gather_event = execute_stage({sort_event}, instance, batched_gather);
                 return execute_stage({gather_event}, instance, batched_gemm);
-            } else if (has_stage(regular_micro_multi_tokens)) {
+            }
+            if (has_stage(regular_micro_multi_tokens)) {
                 GPU_DEBUG_TRACE_DETAIL << "GatherMatmul Execute prefill micro_multi_tokens stage (n_tokens=" << rtp->n_tokens << ")" << std::endl;
                 return execute_stage(events, instance, regular_micro_multi_tokens);
-            } else {
-                OPENVINO_THROW("GatherMatmul Prefill stage is not available");
             }
+            OPENVINO_THROW("GatherMatmul Prefill stage is not available");
+
         } else {
             return execute_stage(events, instance, regular_micro_single_token);
         }

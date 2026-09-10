@@ -48,8 +48,9 @@ DeviceFeaturesKey FullyConnected_GEMV::get_required_device_features_key(const Pa
 }
 
 bool FullyConnected_GEMV::Validate(const Params& params) const {
-    if (!Parent::Validate(params))
+    if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
     const auto& input = fc_params.inputs[0];
@@ -79,7 +80,7 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
     auto wl = weights.GetLayout();
     auto wo = weights.OFM().v;
 
-    auto& fc_input = fc_params.inputs[0];
+    const auto& fc_input = fc_params.inputs[0];
     if (is_swiglu_fused(fc_params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
@@ -97,15 +98,18 @@ bool FullyConnected_GEMV::Validate(const Params& params) const {
 
     if (input.GetLayout() == DataLayout::bfyx) {
         // Padding on input is not supported.
-        if (input.X().pad.Total() != 0)
+        if (input.X().pad.Total() != 0) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
-        if (input.Y().pad.Total() != 0)
+        }
+        if (input.Y().pad.Total() != 0) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     // We don't support 4d output
-    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx && fc_params.outputs[0].X().v > 1)
+    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx && fc_params.outputs[0].X().v > 1) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }
@@ -197,7 +201,7 @@ JitConstants FullyConnected_GEMV::GetJitConstants(const fully_connected_params& 
 }
 
 KernelsData FullyConnected_GEMV::GetTunedKernelsDataByIndex(const Params& params, const int autoTuneIndex) const {
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
     auto output_f = get_output_aligned_bf_size(fc_params, false).second;
 
     WeightsLayout weights_layout = WeightsLayout::os_iyx_osv16;

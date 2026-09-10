@@ -40,7 +40,7 @@ template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronROIFeatureExtractor>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    const auto attrs = op->get_attrs();
+    const auto& attrs = op->get_attrs();
 
     std::vector<std::vector<float>> input_data;
     std::vector<ov::Shape> input_shapes;

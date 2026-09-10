@@ -168,8 +168,9 @@ struct loop_impl : typed_primitive_impl<loop> {
         int64_t execution_condition = 1;
         if (!instance.get_initial_execution_id().empty()) {
             // Wait for completion of the execution_condition of outer_network
-            if (outer_network.has_event(instance.get_initial_execution_id()))
+            if (outer_network.has_event(instance.get_initial_execution_id())) {
                 outer_network.get_primitive_event(instance.get_initial_execution_id())->wait();
+            }
             memory::ptr first_execution_condition_mem = outer_network.get_primitive(instance.get_initial_execution_id())->output_memory_ptr();
             execution_condition = read_scalar_value(first_execution_condition_mem, stream);
         }
@@ -233,7 +234,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             }
 
             // Collect output events for waiting for all iterations finishing
-            for (auto& out : body_network->get_outputs()) {
+            for (const auto& out : body_network->get_outputs()) {
                 auto output_id = out->id();
                 if (body_network->has_event(output_id)) {
                     auto output_event = body_network->get_primitive_event(output_id);
@@ -279,8 +280,9 @@ struct loop_impl : typed_primitive_impl<loop> {
         GPU_DEBUG_LOG << "current_iteration_idx(" << instance.get_num_iterations_id() << ", "
                         << num_actual_iterations_mem << ")  : " << current_iteration_idx << std::endl;
 
-        if (is_dynamic)
+        if (is_dynamic) {
             instance.update_output_layout();
+        }
         instance.postprocess_output_memory(is_dynamic, current_iteration_idx);
 
         ev->set();

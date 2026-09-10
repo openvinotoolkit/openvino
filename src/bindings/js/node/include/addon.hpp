@@ -42,3 +42,8 @@ Napi::Object init_module(Napi::Env env, Napi::Object exports);
  * @brief Saves model in a specified path.
  */
 Napi::Value save_model_sync(const Napi::CallbackInfo& info);
+
+/**
+ * @brief Returns the version of the OpenVINO runtime library loaded by the addon.
+ */
+Napi::Value get_openvino_version(const Napi::CallbackInfo& info);

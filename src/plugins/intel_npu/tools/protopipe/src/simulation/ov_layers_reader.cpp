@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -9,6 +8,7 @@
 #include <openvino/openvino.hpp>
 
 #include "utils/error.hpp"
+#include "utils/utils.hpp"
 
 #include <fstream>
 
@@ -40,6 +40,8 @@ static ov::element::Type toElementType(int cvdepth) {
         return ov::element::f32;
     case CV_16F:
         return ov::element::f16;
+    case utils::kBooleanDepth:
+        return ov::element::boolean;
     }
     throw std::logic_error("Failed to convert opencv depth to ov::element::Type");
 }
@@ -66,6 +68,8 @@ static int toPrecision(ov::element::Type prec) {
         return CV_16F;
     case ov::element::i64:
         return CV_32S;
+    case ov::element::boolean:
+        return utils::kBooleanDepth;
     }
     throw std::logic_error("Unsupported OV precision");
 }
@@ -128,7 +132,7 @@ static void cfgOutputPostproc(ov::preprocess::PrePostProcessor& ppp, const std::
     }
 }
 
-static void cfgReshape(const std::shared_ptr<ov::Model>& model, 
+static void cfgReshape(const std::shared_ptr<ov::Model>& model,
                        const AttrMap<std::vector<size_t>> reshape_map) {
     std::map<std::string, ov::PartialShape> partial_shapes;
     for (const auto& [layer_name, shape] : reshape_map) {

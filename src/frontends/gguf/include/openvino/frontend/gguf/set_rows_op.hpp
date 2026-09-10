@@ -28,9 +28,7 @@ public:
     OPENVINO_OP("SetRows", "gguf");
 
     SetRows() = default;
-    SetRows(const ov::Output<ov::Node>& data,
-            const ov::Output<ov::Node>& indices,
-            const ov::Output<ov::Node>& dst);
+    SetRows(const ov::Output<ov::Node>& data, const ov::Output<ov::Node>& indices, const ov::Output<ov::Node>& dst);
 
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;

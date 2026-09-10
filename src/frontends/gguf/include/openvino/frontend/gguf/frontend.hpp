@@ -34,6 +34,10 @@ public:
     /// - `ov::frontend::ConversionExtension` — registers a custom op translator for the
     ///   ggml op name given by `get_op_type()`.  The converter receives an
     ///   `ov::frontend::gguf::NodeContext` and returns an `ov::OutputVector`.
+    /// - `ov::frontend::DecoderTransformationExtension` — registers a normalization pass, run
+    ///   AHEAD of the frontend's built-in lowerings. A caller that wants an OpenVINO KV cache
+    ///   registers `ov::frontend::gguf::pass::GGUFMakeStateful` (or its own variant) here; without one
+    ///   the frontend converts to a stateless graph.
     /// - `ov::frontend::TelemetryExtension` — receives error / event callbacks.
     /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is
     ///   recursively registered.
@@ -44,17 +48,17 @@ public:
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
-    /// \brief Check if FrontEnd can recognize model from given parts.
-    /// \note Always returns false: this frontend is hidden from FrontEndManager and is never
-    ///       auto-selected. It is used only via direct linkage, by constructing FrontEnd and
-    ///       calling convert() on an InputModel built from a GgufDecoder.
-    /// \param variants Unused.
-    /// \return Always false.
+    /// \brief Check if FrontEnd can recognize the model from the given parts.
+    /// \param variants A single element holding a `std::shared_ptr<GgufDecoder>`. No other variant
+    ///        is recognized in this frontend: file-path (`.gguf`) loading is not yet implemented.
+    /// \return True iff variants holds exactly that; false otherwise.
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
     /// \brief Load the input model from a GgufDecoder.
-    /// \param variants A single GgufDecoder (a .gguf file path is not accepted; the caller supplies
-    ///        the decoder). variants[0] must hold a std::shared_ptr<GgufDecoder>.
+    /// \param variants A single element holding a `std::shared_ptr<GgufDecoder>` -- a decoder
+    ///        supplied by a direct linker, wrapping an already-built ggml graph (the llama.cpp
+    ///        cgraph path). File-path (`.gguf`) loading, built per-architecture by the native
+    ///        builder, is not yet implemented in this frontend.
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 

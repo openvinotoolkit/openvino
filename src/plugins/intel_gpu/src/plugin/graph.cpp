@@ -217,7 +217,7 @@ Graph::~Graph() {
 void Graph::build(std::shared_ptr<cldnn::program> program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "Graph::build");
 
-    auto external_queue = m_context->get_external_queue();
+    auto* external_queue = m_context->get_external_queue();
     if (external_queue) {
         OPENVINO_ASSERT(m_config.get_num_streams() == 1, "[GPU] Throughput streams can't be used with shared queue!");
         const auto &engine = program->get_engine();
@@ -288,6 +288,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "fully_connected", "FullyConnected" },
                 { "gated_delta_net", "GatedDeltaNet" },
                 { "paged_causal_conv1d", "PagedCausalConv1D" },
+                { "paged_selective_ssm", "PagedSelectiveSSM" },
                 { "gather", "Gather" },
                 { "gemm", "Gemm" },
                 { "gru_seq", "GRU_Seq" },
@@ -310,6 +311,7 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "reverse_sequence", "ReverseSequence" },
                 { "roi_pooling", "ROIPooling" },
                 { "scale", "ScaleShift" },
+                { "selective_ssm", "SelectiveSSM" },
                 { "shuffle_channels", "ShuffleChannels" },
                 { "softmax", "SoftMax" },
                 { "strided_slice", "StridedSlice" },
@@ -332,15 +334,17 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 { "space_to_depth", "SpaceToDepth" },
         };
 
-        if (type_n2l.find(cldnn_name) != type_n2l.end())
+        if (type_n2l.find(cldnn_name) != type_n2l.end()) {
             return type_n2l.at(cldnn_name);
+        }
 
         return cldnn_name;
     };
 
     auto concat_strings = [](std::vector<std::string> strs, char sep) -> std::string {
-        if (strs.empty())
+        if (strs.empty()) {
             return "";
+        }
 
         std::string res = strs[0];
         for (size_t i = 1; i < strs.size(); i++) {
@@ -352,8 +356,9 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
 
     auto remove_type_from_name = [](const std::string& name) -> std::string {
         auto it = std::find(name.begin(), name.end(), ':');
-        if (it == name.end() || (it + 1) == name.end())
+        if (it == name.end() || (it + 1) == name.end()) {
             return name;
+        }
 
         return std::string((it+1), name.end());
     };
@@ -370,17 +375,18 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
     auto get_inputs = [&] (const cldnn::primitive_info& prim_info) {
         ov::OutputVector inputs;
 
-        auto& deps = prim_info.c_dependencies;
+        const auto& deps = prim_info.c_dependencies;
 
         // Decrease expected dependencies count if there is a const input without original id in the IR
-        for (auto& dep : deps) {
+        for (const auto& dep : deps) {
             auto dep_it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
                 return entry.original_id == dep;
             });
 
             if (filter_const_primitives) {
-                if (dep_it == primitives_info.end())
+                if (dep_it == primitives_info.end()) {
                     continue;
+                }
                 if (dep_it->type_id == "data") {
                     continue;
                 }
@@ -420,12 +426,13 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                 results.emplace_back(std::make_shared<ov::op::v0::Result>(return_node->get_default_output()));
             } else {
                 size_t port = 0;
-                for (auto& usr_id : user_ids) {
+                for (const auto& usr_id : user_ids) {
                     auto usr_it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
                         return entry.original_id == usr_id;
                     });
-                    if (usr_it == primitives_info.end())
+                    if (usr_it == primitives_info.end()) {
                         continue;
+                    }
 
                     return_node->set_output_type(port, out_et, out_pshape);
                     port++;
@@ -435,8 +442,9 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
 
         auto layerName = remove_type_from_name(prim_info.original_id);
         return_node->set_friendly_name(layerName);
-        if (is_output)
+        if (is_output) {
             results.back()->set_friendly_name(layerName + "_result");
+        }
 
         std::map<std::string, std::string> info;
         info[ov::exec_model_info::OUTPUT_PRECISIONS] = ov::element::Type(prim_info.output_layout.data_type).get_type_name();
@@ -447,10 +455,11 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
         info[ov::exec_model_info::RUNTIME_PRECISION] = ov::element::Type(prim_info.runtime_precision).get_type_name();
 
         std::vector<std::string> originalNames{find_origin_layers(prim_info.original_id)};
-        for (auto& fused_id : prim_info.c_fused_ids) {
+        for (const auto& fused_id : prim_info.c_fused_ids) {
             for (auto& origin_id : find_origin_layers(fused_id)) {
-                if (std::find(originalNames.begin(), originalNames.end(), origin_id) == originalNames.end())
+                if (std::find(originalNames.begin(), originalNames.end(), origin_id) == originalNames.end()) {
                     originalNames.push_back(origin_id);
+                }
             }
         }
         info[ov::exec_model_info::ORIGINAL_NAMES] = concat_strings(originalNames, ',');
@@ -466,35 +475,39 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
 
         // Expose per-primitive extra attributes in rt_info for debugging / testing.
         if (prim_info.type_id != "input_layout" && prim_info.type_id != "data") {
-            auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
+            // The primitive may have been removed from the program during graph optimization
+            // (e.g. when dumping intermediate transformation steps), so skip missing nodes.
+            if (get_network()->get_program()->has_node(prim_info.original_id)) {
+                const auto& node = get_network()->get_primitive(prim_info.original_id)->get_node();
 
-            if (node.is_type<cldnn::dynamic_quantize>()) {
-                auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
-                info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
-                if (dyn_quan->attrs.precomputed_reduction) {
-                    info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
-                }
-            } else if (node.is_type<cldnn::grouped_matmul>()) {
-                auto gm_prim = node.as<cldnn::grouped_matmul>().get_primitive();
-                if (gm_prim->compressed_weights) {
-                    auto wei_layout = node.get_input_layout(cldnn::grouped_matmul::GroupedMatmulInputIdx::WEIGHT);
-                    info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
-                    if (gm_prim->decompression_zero_point.is_valid()) {
-                        auto zp_layout = node.get_input_layout(gm_prim->input.size() + 1);
-                        info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                if (node.is_type<cldnn::dynamic_quantize>()) {
+                    auto dyn_quan = node.as<cldnn::dynamic_quantize>().get_primitive();
+                    info["group_sizes"] = ov::util::join(cldnn::convert_vector<int64_t>(dyn_quan->attrs.group_sizes));
+                    if (dyn_quan->attrs.precomputed_reduction) {
+                        info["precomputed_reduction_dt"] = dyn_quan->attrs.precomputed_reduction_dt.c_type_string();
                     }
-                }
-            } else if (node.is_type<cldnn::fully_connected>()) {
-                auto fc_prim = node.as<cldnn::fully_connected>().get_primitive();
-                if (fc_prim->decompression_scale.is_valid()) {
-                    auto wei_layout = node.get_input_layout(1);
-                    info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
-                    if (fc_prim->decompression_zero_point.is_valid()) {
-                        size_t zp_idx = fc_prim->input.size() + 1 /*weights*/
-                                        + (fc_prim->bias.is_valid() ? 1 : 0)
-                                        + 1 /*scale*/;
-                        auto zp_layout = node.get_input_layout(zp_idx);
-                        info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                } else if (node.is_type<cldnn::grouped_matmul>()) {
+                    auto gm_prim = node.as<cldnn::grouped_matmul>().get_primitive();
+                    if (gm_prim->compressed_weights) {
+                        auto wei_layout = node.get_input_layout(cldnn::grouped_matmul::GroupedMatmulInputIdx::WEIGHT);
+                        info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
+                        if (gm_prim->decompression_zero_point.is_valid()) {
+                            auto zp_layout = node.get_input_layout(gm_prim->input.size() + 1);
+                            info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                        }
+                    }
+                } else if (node.is_type<cldnn::fully_connected>()) {
+                    auto fc_prim = node.as<cldnn::fully_connected>().get_primitive();
+                    if (fc_prim->decompression_scale.is_valid()) {
+                        auto wei_layout = node.get_input_layout(1);
+                        info["weights_precision"] = ov::element::Type(wei_layout.data_type).get_type_name();
+                        if (fc_prim->decompression_zero_point.is_valid()) {
+                            size_t zp_idx = fc_prim->input.size() + 1 /*weights*/
+                                            + (fc_prim->bias.is_valid() ? 1 : 0)
+                                            + 1 /*scale*/;
+                            auto zp_layout = node.get_input_layout(zp_idx);
+                            info["wzp_precision"] = ov::element::Type(zp_layout.data_type).get_type_name();
+                        }
                     }
                 }
             }
@@ -502,11 +515,13 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
 
         for (auto&& kvp : info) {
             return_node->get_rt_info()[kvp.first] = kvp.second;
-            if (is_output)
+            if (is_output) {
                 results.back()->get_rt_info()[kvp.first] = kvp.second;
+            }
         }
-        if (is_output)
+        if (is_output) {
             results.back()->get_rt_info()[ov::exec_model_info::LAYER_TYPE] = "Result";
+        }
 
         nodes.push_back(return_node);
         node2layer[prim_info.original_id] = return_node;
@@ -522,8 +537,9 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                     auto it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
                         return entry.original_id == dep;
                     });
-                    if (it == primitives_info.end())
+                    if (it == primitives_info.end()) {
                         continue;
+                    }
 
                     auto& dep_users = it->c_users;
                     // Remove mutable data from users list
@@ -538,12 +554,14 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
                         it = std::find_if(primitives_info.begin(), primitives_info.end(), [&](cldnn::primitive_info& entry) {
                             return entry.original_id == user;
                         });
-                        if (it == primitives_info.end())
+                        if (it == primitives_info.end()) {
                             continue;
+                        }
 
                         for (auto& d : it->c_dependencies) {
-                            if (d == pi.original_id)
+                            if (d == pi.original_id) {
                                 d = dep;
+                            }
                         }
                     }
                 }
@@ -631,8 +649,9 @@ void Graph::update_profiling_info() {
             } else if (interval.stage == cldnn::instrumentation::profiling_stage::duration) {  // "duration" is used for CPU layers
                 pc.cpu_uSec += count;
 
-                if (pc.num == 0)
+                if (pc.num == 0) {
                     pc.isCPU = true;
+                }
             }
         }
     };
@@ -727,8 +746,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
     auto getFromProfiling = [&](std::string primId) -> bool {
         auto perfIter = perfMap.find(primId);
 
-        if (perfIter == perfMap.end())
+        if (perfIter == perfMap.end()) {
             return false;
+        }
 
         auto layerName = getClearName(perfIter->second.first);
 
@@ -741,8 +761,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
             start_time = extract_start_time_from_intervals(cldnnInfo.intervals);
         }
 
-        if (!perfCounter.parentPrimitive.empty() && combinePrimByIRLayers)
+        if (!perfCounter.parentPrimitive.empty() && combinePrimByIRLayers) {
             return false;
+        }
 
         auto& extPerfEntry = result[layerName];
 
@@ -771,7 +792,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         if (combinePrimByIRLayers) {
             std::string kernelId;
             long long kernelTime = 0;  // used for finding the most complex computation kernel in sub_graph for perf stat
-            for (auto &id : profilingIDs) {
+            for (const auto& id : profilingIDs) {
                 auto iter = perfMap.find(id);
                 if (iter == perfMap.end())  continue;
 
@@ -796,7 +817,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
     };
 
     // Step 1. Get all primitives in execution order which was added by GPU plugin
-    for (auto& primId : profilingIDs) {
+    for (const auto& primId : profilingIDs) {
         getFromProfiling(primId);
     }
 
@@ -809,8 +830,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
         if ((!existInProfiling || (existInProfiling && perfIter->second.first.empty())) &&
             executedPrimitives.find(primId) != executedPrimitives.end()) {
             auto event = executedPrimitives.at(primId);
-            if (!event)
+            if (!event) {
                 continue;
+            }
 
             cldnn::instrumentation::profiling_info cldnnInfo{primId, event->get_profiling_info()};
 
@@ -838,8 +860,9 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
 
             for (auto& pi : primitivesInfo) {
                 if (pi.original_id == primId) {
-                    if (pi.type_id == "mutable_data")
+                    if (pi.type_id == "mutable_data") {
                         continue;
+                    }
 
                     auto& extPerfEntry = result[layerName];
 
@@ -869,7 +892,7 @@ std::vector<ov::ProfilingInfo> Graph::get_profiling_info() const {
     }
 
     // Step 3. Checking primitives which has been deleted from execution order but added by GPU plugin
-    for (auto& primId : profilingIDs) {
+    for (const auto& primId : profilingIDs) {
         if (std::find(allIds.begin(), allIds.end(), primId) == allIds.end()) {
             getFromProfiling(primId);
         }

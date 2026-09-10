@@ -32,16 +32,13 @@ protected:
          if (IsSIMDSizeSupported(p.engineInfo, 8)) {
             if (DataTensor::ChannelsCount(p.outputs[0].GetLayout()) <= 4) {
                 return WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
-            } else {
-                return WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
             }
-        } else {
-            if (DataTensor::ChannelsCount(p.outputs[0].GetLayout()) <= 4) {
-                return WeightsLayout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
-            } else {
-                return WeightsLayout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
-            }
-        }
+            return WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
+         }
+         if (DataTensor::ChannelsCount(p.outputs[0].GetLayout()) <= 4) {
+             return WeightsLayout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
+         }
+         return WeightsLayout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,

@@ -36,11 +36,12 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
     cldnn::layout constLayout = cldnn::layout(cldnn::element_type_to_data_type(op->get_output_element_type(0)), cldnn::format::bfyx, cldnn::tensor{1});
     auto mem = p.get_engine().allocate_memory(constLayout, false);
     cldnn::mem_lock<int8_t> tmpPointer{mem, p.get_engine().get_service_stream()};
-    auto buf = tmpPointer.data();
+    auto* buf = tmpPointer.data();
     auto bufSize = scale->get_output_tensor(0).size();
 
-    if (bufSize != constLayout.bytes_count())
+    if (bufSize != constLayout.bytes_count()) {
         OPENVINO_THROW("Invalid scales buffer in NormalizeL2 op ", op->get_friendly_name());
+    }
 
     std::memcpy(&buf[0], scale->get_data_ptr(), bufSize);
     auto scalesName = layerName + "_cldnn_input_scales";

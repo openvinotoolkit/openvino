@@ -180,15 +180,17 @@ program::program(engine& engine_ref,
         if (_is_body_program) {
             // To skip empty if (condition) subgraph
             bool can_be_optimized = true;
-            for (auto& node : processing_order) {
+            for (const auto& node : processing_order) {
                 if (node->is_type<input_layout>()) {
                     continue;
-                } else if (node->is_type<data>()) {
+                }
+                if (node->is_type<data>()) {
                     continue;
-                } else if (node->is_output() && node->is_type<reorder>() && !node->has_fused_primitives() &&
-                      node->get_input_layout(0).data_type == node->get_output_layouts(false)[0].data_type &&
-                      node->get_input_layout(0).format == node->get_output_layouts(false)[0].format &&
-                      node->get_input_layout(0).get_partial_shape().size() == node->get_output_layouts(false)[0].get_partial_shape().size()) {
+                }
+                if (node->is_output() && node->is_type<reorder>() && !node->has_fused_primitives() &&
+                    node->get_input_layout(0).data_type == node->get_output_layouts(false)[0].data_type &&
+                    node->get_input_layout(0).format == node->get_output_layouts(false)[0].format &&
+                    node->get_input_layout(0).get_partial_shape().size() == node->get_output_layouts(false)[0].get_partial_shape().size()) {
                     continue;
                 }
                 can_be_optimized = false;
@@ -241,12 +243,10 @@ void program::init_program() {
     if (_task_executor == nullptr)
         _task_executor = program::make_task_executor(_config);
 
-    if (_engine.runtime_type() != runtime_types::sycl) {
-        _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
-                                                                          kernel_selector::KernelBase::get_db().get_batch_headers()));
+    _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(_engine, _config, prog_id, _task_executor,
+                                                                      kernel_selector::KernelBase::get_db().get_batch_headers()));
 
-        _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
-    }
+    _kernels_cache->set_kernels_reuse(_config.get_enable_kernels_reuse());
 
     if (!_compilation_context)
         _compilation_context = program::make_compilation_context(_config);
@@ -276,7 +276,6 @@ void program::init_primitives() {
 }
 
 kernels_cache& program::get_kernels_cache() const {
-    OPENVINO_ASSERT(_engine.runtime_type() != runtime_types::sycl, "[GPU] Kernels cache is not available for SYCL runtime");
     return *_kernels_cache;
 }
 
@@ -440,7 +439,7 @@ void program::prepare_nodes(topology const& topology) {
         get_or_create(prim.second);
     }
     for (const auto& node : nodes_map) {
-        auto node_ptr = node.second.get();
+        auto* node_ptr = node.second.get();
         if (node_ptr == nullptr)
             throw std::runtime_error("NULL pointer in nodes_map.");
         add_node_dependencies(node_ptr);
@@ -526,7 +525,7 @@ void program::init_graph() {
     apply_opt_pass<graph_initializations>();
 
     apply_opt_pass<mark_nodes>();
-    for (auto& node : processing_order) {
+    for (const auto& node : processing_order) {
         if (!node->is_type<data>())
             node->get_output_layouts();
     }
@@ -649,7 +648,7 @@ void program::mark_if_constant(program_node& node) {
         return;
     }
     node.constant = true;
-    for (auto& dep : node.get_dependencies()) {
+    for (const auto& dep : node.get_dependencies()) {
         if (!dep.first->is_constant()) {
             node.constant = false;
             return;
@@ -726,7 +725,7 @@ void program::transfer_memory_to_device() {
         // TODO: Do we need finish call here? Maybe call it in network::execute() ?
         get_stream().finish();
     };
-    for (auto& node : processing_order) {
+    for (const auto& node : processing_order) {
         if (node->is_shape_infer_dep()) {
             continue;
         }
@@ -785,7 +784,7 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
 
     std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
     auto& po = get_processing_order();
-    for (auto node : po) {
+    for (auto* node : po) {
         nodes_to_allocate.push_back(get_node_ptr(node->id()));
     }
 
@@ -827,7 +826,7 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
 void program::prepare_memory_dependencies() {
     if (!_config.get_enable_memory_pool())
         return;
-    for (auto& node : get_processing_order()) {
+    for (const auto& node : get_processing_order()) {
         node->add_memory_dependency(*node);
     }
     apply_opt_pass<basic_memory_dependencies>();
@@ -839,7 +838,7 @@ std::string program::get_memory_dependencies_string() const {
     std::string mem_dep = "Memory dependencies/restrictions:\n";
     auto itr = processing_order.begin();
     while (itr != processing_order.end()) {
-        auto& node = *itr;
+        const auto& node = *itr;
         itr++;
         mem_dep = mem_dep.append("primitive: ")
                          .append(node->id())
@@ -939,7 +938,7 @@ void program::add_intermediate(program_node& node,
     if (move_usrs_of_prev_to_node) {
         auto itr = prev.get_users().begin();
         while (itr != prev.get_users().end()) {
-            auto usr = *itr;
+            auto* usr = *itr;
             itr++;
             if (usr->id() != node.id())
                 usr->replace_dependency(prev, node);
@@ -1020,9 +1019,9 @@ void program::remove_all_connections(program_node& node) {
 void program::rename(program_node& node, primitive_id const& new_id) {
     if (nodes_map.count(new_id))
         throw std::runtime_error("Trying to rename program_node but node with id " + new_id + " already exists");
-    if (node.is_output())
-        throw std::invalid_argument(
-            "Trying to rename an output node. If you intend to do that, please clear 'output' flag manually.");
+    if (node.is_output()) {
+        throw std::invalid_argument("Trying to rename an output node. If you intend to do that, please clear 'output' flag manually.");
+    }
 
     auto node_itr = nodes_map.find(node.id());
     if (node_itr == nodes_map.end()) return;
@@ -1048,7 +1047,7 @@ void program::replace_all_usages(program_node& old_node, std::pair<program_node*
     const std::list<program_node*> users(old_node.users);
     auto itr = users.begin();
     while (itr != users.end()) {
-        auto user = *(itr++);
+        auto* user = *(itr++);
         user->replace_dependency(old_node, new_node, remove_if_dangling);
     }
 }
@@ -1057,9 +1056,9 @@ void program::replace(program_node& old_node, program_node& new_node) {
     if (!new_node.dependencies.empty() || !new_node.users.empty())
         throw std::invalid_argument("Node which is about to replace other node should be detached");
 
-    if (new_node.is_output())
-        throw std::invalid_argument(
-            "Replacement node shouldn't be marked as an output since it's impossible to rename such node.");
+    if (new_node.is_output()) {
+        throw std::invalid_argument("Replacement node shouldn't be marked as an output since it's impossible to rename such node.");
+    }
 
     auto id = old_node.id();
     new_node.output_layouts = old_node.get_output_layouts();
@@ -1363,7 +1362,7 @@ data_types program::get_inference_precision(const program_node& node) const {
         return node.get_output_layout().data_type;
     }
     std::vector<data_types> input_dts;
-    for (auto& dep : node.get_dependencies()) {
+    for (const auto& dep : node.get_dependencies()) {
         if (dep.first->is_valid_output_layout())
             input_dts.push_back(dep.first->get_output_layout().data_type);
     }
@@ -1378,25 +1377,27 @@ data_types program::get_inference_precision(const program_node& node) const {
     if (node.is_type<reorder>()) {
         // If reorder has different input/output types - pick the max one as runtime precision
         return data_type_traits::max_type(input_dts[0], output_dt);
-    } else if (node.is_type<quantize>()) {
+    }
+    if (node.is_type<quantize>()) {
         if (data_type_traits::is_quantized(output_dt))
             return output_dt;
         return data_type_traits::max_type(input_dts[0], output_dt);
-    } else if (node.is_type<eltwise>()) {
+    }
+    if (node.is_type<eltwise>()) {
         auto max_dt = input_dts[0];
         for (size_t i = 1; i < input_dts.size(); i++) {
             max_dt = data_type_traits::max_type(max_dt, input_dts[i]);
         }
         return max_dt;
-    } else if (node.is_type<convolution>() || node.is_type<deconvolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
+    }
+    if (node.is_type<convolution>() || node.is_type<deconvolution>() || node.is_type<fully_connected>() || node.is_type<gemm>()) {
         if (input_dts.size() < 2) {
             throw std::runtime_error("[clDNN] Invalid inputs count in node " + node.id() + " during stage info collection. Expected >= 2 inputs");
         }
         if (data_type_traits::is_quantized(input_dts[0]) && data_type_traits::is_quantized(input_dts[1])) {
             return input_dts[0];
-        } else {
-            return data_type_traits::max_type(input_dts[0], input_dts[1]);
         }
+        return data_type_traits::max_type(input_dts[0], input_dts[1]);
     }
 
     return input_dts[0];
@@ -1405,7 +1406,7 @@ data_types program::get_inference_precision(const program_node& node) const {
 std::string program::get_implementation_info(const primitive_id& id) const {
     try {
         const auto& node = get_node(id);
-        auto impl = node.get_selected_impl();
+        auto* impl = node.get_selected_impl();
         auto kernel_name = impl ? impl->get_kernel_name() : "";
         return !kernel_name.empty() ? (kernel_name + "__" + dt_to_str(get_inference_precision(node))) : "undef";
     } catch (...) { }
@@ -1418,7 +1419,7 @@ program::primitives_info program::get_current_stage_info() const {
 
     // Get info for actually executed graph nodes
     int exec_id = 0;
-    for (auto& p : get_processing_order()) {
+    for (const auto& p : get_processing_order()) {
         std::vector<primitive_id> users;
         for (auto& user : p->users) {
             users.push_back(user->id());
@@ -1429,8 +1430,8 @@ program::primitives_info program::get_current_stage_info() const {
         }
 
         std::vector<primitive_id> fused;
-        for (auto& op_prim : optimized) {
-            for (auto& fused_to : op_prim.second) {
+        for (const auto& op_prim : optimized) {
+            for (const auto& fused_to : op_prim.second) {
                 if (p->id() == fused_to) {
                     fused.push_back(op_prim.first);
                 }
@@ -1527,7 +1528,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                                                                               cldnn::reorder::type_id(),
                                                                               cldnn::eltwise::type_id()};
 #endif
-    for (auto& node : get_processing_order()) {
+    for (const auto& node : get_processing_order()) {
         auto &prim = *node;
         if (prim.type() == cldnn::convolution::type_id()) {
             auto &conv = prim.as<convolution>();
@@ -1545,13 +1546,14 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 #endif
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
-                if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
+                if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16) {
                     total_dw_conv_layers++;
-                else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
+                } else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16) {
                     total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16
                                                       // heuristics
-                else if (conv.get_primitive()->groups > 1)
+                } else if (conv.get_primitive()->groups > 1) {
                     total_grouped_conv_layers++;
+                }
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
                     total_1x1_fm_conv_layers++;
@@ -1564,10 +1566,11 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 total_asym_quantized_conv_layers++;
         }
         if (prim.type() == cldnn::deconvolution::type_id()) {
-            if (lo.is_format_optimized(prim.as<deconvolution>(), format::b_fs_zyx_fsv16))
+            if (lo.is_format_optimized(prim.as<deconvolution>(), format::b_fs_zyx_fsv16)) {
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
-            else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16))
+            } else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16)) {
                 opt_deconv_layers_b_fs_yx_fsv16 += 1;
+            }
 
             total_deconv_layers++;
         }
@@ -1796,7 +1799,7 @@ std::pair<int64_t, int64_t> program::get_estimated_device_mem_usage() {
     }
 #endif
     std::vector<program_node*> nodes_to_allocate{};
-    for (auto node : processing_order) {
+    for (auto* node : processing_order) {
         nodes_to_allocate.push_back(node);
     }
 
@@ -1863,14 +1866,10 @@ void program::cancel_compilation_context() {
 }
 
 void program::save(cldnn::BinaryOutputBuffer& ob) const {
-    if (_engine.runtime_type() == runtime_types::sycl) {
-        OPENVINO_THROW("[GPU] program::save is not supported for SYCL runtime");
-    }
-
     std::map<cldnn::memory::ptr, std::vector<const cldnn::program_node*>> mutable_datas_ptrs;
     ob << nodes_map.size();
 
-    for (auto& node : nodes_map) {
+    for (const auto& node : nodes_map) {
         ob.setKernelImplParams(node.second->get_kernel_impl_params().get());
 
         if (node.second->is_type<data>() && node.second->as<data>().get_primitive()->mem == nullptr) {
@@ -1878,9 +1877,8 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
             if (data_node.get_attached_memory_ptr() == nullptr) {
                 ob << false;
                 continue;
-            } else {
-                node.second->as<data>().typed_desc()->mem = data_node.get_attached_memory_ptr();
             }
+            node.second->as<data>().typed_desc()->mem = data_node.get_attached_memory_ptr();
         }
 
         ob << true;
@@ -1906,22 +1904,22 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << shared_mem_pair.second;
     }
 
-    for (auto& node : nodes_map) {
+    for (const auto& node : nodes_map) {
         ob << node.first;
         node.second->save(ob);
         ob << node.second->get_dependant_shape_of_nodes().size();
-        for (auto& dep_node : node.second->get_dependant_shape_of_nodes()) {
+        for (const auto& dep_node : node.second->get_dependant_shape_of_nodes()) {
             ob << dep_node->id();
         }
     }
 
     ob << inputs.size();
-    for (auto& input : inputs) {
+    for (const auto& input : inputs) {
         ob << input->id();
     }
 
     ob << outputs.size();
-    for (auto& output : outputs) {
+    for (const auto& output : outputs) {
         ob << output->id();
     }
 
@@ -1935,7 +1933,7 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     {
         auto& kernels_cache = get_kernels_cache();
         std::vector<primitive_id> impl_ids;
-        for (auto& node : processing_order) {
+        for (const auto& node : processing_order) {
             if (node->get_selected_impl() != nullptr) {
                 impl_ids.emplace_back(node->id());
                 kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
@@ -1954,12 +1952,12 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 
     ob << optimized_out.size();
-    for (auto& opt_prim : optimized_out) {
+    for (const auto& opt_prim : optimized_out) {
         ob << opt_prim;
     }
 
     ob << prim_info.size();
-    for (auto& p_info : prim_info) {
+    for (const auto& p_info : prim_info) {
         ob << p_info.original_id;
         ob << p_info.type_id;
         ob << p_info.c_dependencies;
@@ -1979,11 +1977,11 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 
     ob << state_initializers.size();
-    for (auto& state_initializer : state_initializers) {
+    for (const auto& state_initializer : state_initializers) {
         ob << state_initializer.first;
         ob << state_initializer.second;
     }
-    
+
     const auto& dev_info = get_engine().get_device_info();
     if (!ob.is_encrypted() && get_engine().can_use_host_usm_zero_copy()) {
         if (const auto pad = ov::util::align_padding_size(dev_info.cacheline_size.value_or(0), ob.get_offset()); pad > 0) {
@@ -1996,10 +1994,6 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 void program::load(cldnn::BinaryInputBuffer& ib,
                    std::shared_ptr<const ov::Model> model_ptr,
                    std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
-    if (_engine.runtime_type() == runtime_types::sycl) {
-        OPENVINO_THROW("[GPU] program::load is not supported for SYCL runtime");
-    }
-
     init_program();
 
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
@@ -2055,7 +2049,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
 
         std::shared_ptr<cldnn::primitive> prim;
         ib >> prim;
-        if (auto data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
+        if (auto* data_prim = dynamic_cast<cldnn::data*>(prim.get())) {
             data_prim->load_weights(ib, weights_memory, host_buffer_base_ptr);
         }
         get_or_create(prim);

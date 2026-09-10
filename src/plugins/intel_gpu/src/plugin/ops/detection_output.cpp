@@ -20,9 +20,9 @@ static cldnn::prior_box_code_type PriorBoxCodeFromString(const std::string& str)
     auto it = CodeNameToType.find(str);
     if (it != CodeNameToType.end()) {
         return it->second;
-    } else {
-        OPENVINO_THROW("Unknown Prior-Box code type: ", str);
     }
+    OPENVINO_THROW("Unknown Prior-Box code type: ", str);
+
     return cldnn::prior_box_code_type::corner;
 }
 

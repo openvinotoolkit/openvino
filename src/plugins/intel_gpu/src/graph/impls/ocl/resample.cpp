@@ -86,10 +86,12 @@ inline std::vector<int32_t> convert_pads(const std::vector<size_t>& pad, size_t 
         for (auto p : pad) {
             new_pad.push_back(static_cast<int32_t>(p));
         }
-        if (new_pad.size() > 2)
+        if (new_pad.size() > 2) {
             std::reverse(new_pad.begin() + 2, new_pad.end());
-        for (size_t i = new_pad.size(); i < rank || i < 4; ++i)
+        }
+        for (size_t i = new_pad.size(); i < rank || i < 4; ++i) {
             new_pad.push_back(0);
+        }
     }
 
     return new_pad;
@@ -102,24 +104,27 @@ inline kernel_selector::interpolate_axis convert_axis(int64_t axis, size_t rank)
         case 1:
             return kernel_selector::interpolate_axis::FEATURE;
         case 2:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::interpolate_axis::W;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::interpolate_axis::Z;
-            else
+            } else {
                 return kernel_selector::interpolate_axis::Y;
+            }
         case 3:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::interpolate_axis::Z;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::interpolate_axis::Y;
-            else
+            } else {
                 return kernel_selector::interpolate_axis::X;
+            }
         case 4:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::interpolate_axis::Y;
-            else
+            } else {
                 return kernel_selector::interpolate_axis::X;
+            }
         case 5:
             return kernel_selector::interpolate_axis::X;
         default:
@@ -179,7 +184,7 @@ namespace detail {
 attach_resample_impl::attach_resample_impl() {
     std::set<implementation_map<resample>::key_type> keys;
 
-    const auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32};
+    const auto types = {data_types::f16, data_types::bf16, data_types::f32, data_types::i8, data_types::u8, data_types::i32};
     const auto formats = {
         format::bfyx,
         format::b_fs_yx_fsv16,
@@ -206,6 +211,8 @@ attach_resample_impl::attach_resample_impl() {
     keys.emplace(data_types::f32, format::yxfb);
     keys.emplace(data_types::f16, format::yxfb);
     keys.emplace(data_types::f16, format::fs_b_yx_fsv32);
+    keys.emplace(data_types::bf16, format::yxfb);
+    keys.emplace(data_types::bf16, format::fs_b_yx_fsv32);
 
     implementation_map<resample>::add(impl_types::ocl, typed_primitive_impl_ocl<resample>::create<resample_impl>, keys);
 }

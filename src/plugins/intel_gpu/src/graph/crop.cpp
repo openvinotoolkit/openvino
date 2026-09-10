@@ -136,14 +136,15 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
         can_update_offsets = output_layouts[prev].is_static();
     }
     if (can_update_offsets) {
-        auto p_param = const_cast<kernel_impl_params*>(&impl_param);
+        auto* p_param = const_cast<kernel_impl_params*>(&impl_param);
         ov::Shape startOffset(input_shape.size());
         auto dims = p_param->input_layouts[0].get_partial_shape().size();
         for (int32_t prev = 0; prev < desc->output_idx; prev++) {
             auto prev_crop_shape = output_layouts[prev].get_partial_shape().to_shape();
             for (size_t i = 0; i < dims; ++i) {
-                if (prev_crop_shape[i] != input_shape.to_shape()[i])
+                if (prev_crop_shape[i] != input_shape.to_shape()[i]) {
                     startOffset[i] += prev_crop_shape[i];
+                }
             }
         }
 
@@ -265,16 +266,19 @@ void crop_inst::on_execute() {
 }
 
 void crop_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
         return;
+    }
 
     build_deps();
 
-    if (input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr) {
         return;
+    }
 
-    if (_outputs[0] && get_network().get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (_outputs[0] && get_network().get_engine().is_the_same_buffer(output_memory(), input_memory())) {
         return;
+    }
 
     // Can_be_optimized nodes are allocating from memory_pool too. In this case,
     // we need release the legacy output memory from memory pool explicitly.

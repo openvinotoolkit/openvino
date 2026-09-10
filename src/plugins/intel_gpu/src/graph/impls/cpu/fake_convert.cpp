@@ -58,7 +58,7 @@ struct fake_convert_impl : public typed_primitive_impl<fake_convert> {
             stream.wait_for_events(events);
         }
 
-        auto params = instance.get_impl_params();
+        const auto* params = instance.get_impl_params();
 
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;
@@ -69,15 +69,17 @@ struct fake_convert_impl : public typed_primitive_impl<fake_convert> {
         }
 
         std::vector<memory::ptr> input_mem_ptrs;
-        for (size_t i = 0; i < instance.dependencies().size(); i++)
+        for (size_t i = 0; i < instance.dependencies().size(); i++) {
             input_mem_ptrs.push_back(instance.dep_memory_ptr(i));
+        }
 
         auto output_mem_ptr = instance.output_memory_ptr();
 
         cldnn::mem_lock<uint8_t, mem_lock_type::read_write> output_lock(output_mem_ptr, stream);
 
-        for (size_t i = 0; i < input_mem_ptrs.size(); i++)
+        for (size_t i = 0; i < input_mem_ptrs.size(); i++) {
             input_host_tensors.push_back(make_tensor(params->input_layouts[i], input_mem_ptrs[i]->lock(stream, mem_lock_type::read)));
+        }
 
         output_host_tensors.push_back(make_tensor(params->output_layouts[0], output_lock.data()));
 
