@@ -100,8 +100,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefau
 }
 
 KernelsPriority ConvolutionKernel_bfyx_to_bfyx_f16::GetKernelsPriority(const Params& params) const {
-    // Validate() restricts this kernel to <=4 input channels, and it is the only kernel that
-    // directly produces b_fs_yx_fsv16 from a bfyx input, so it is always preferred.
     return FORCE_PRIORITY_2;
 }
 
