@@ -116,7 +116,9 @@ static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shar
 }
 
 static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::SDPA>& op) {
-    validate_inputs_count(op, {cnt_inputs_with_qkv, cnt_inputs_with_mask, cnt_inputs_with_scale, cnt_inputs_with_sink});
+    const size_t rope_inputs = op->get_rope_q() ? 2 : 0;
+    validate_inputs_count(op, {cnt_inputs_with_qkv + rope_inputs, cnt_inputs_with_mask + rope_inputs,
+                               cnt_inputs_with_scale + rope_inputs, cnt_inputs_with_sink + rope_inputs});
     auto inputs = p.GetInputInfo(op);
     auto layerName = layer_type_name_ID(op);
 
@@ -142,7 +144,8 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
                                                          op->get_quantization_attrs(),
                                                          op->get_kv_compressed(),
                                                          op->get_causal_mask_alignment() ==
-                                                             op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+                                                             op::SDPA::CausalMaskAlignment::LOWER_RIGHT,
+                                                         op->get_rope_q());
     if (scalar_scale) {
         sdpa_prim.scale_val = scalar_scale->cast_vector<float>()[0];
     }
