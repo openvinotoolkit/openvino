@@ -21,10 +21,10 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 
 // Depth (head-dim) tiles that actually hold data, for the KQ contraction only.
 //
-// DKS is D_MAX / DPAS_K, and D_MAX is HEAD_SIZE rounded UP to a power of two, so whenever
-// HEAD_SIZE is not itself a power-of-two multiple of DPAS_K the top tiles address channels past
+// DKS is D_MAX / DPAS_K, and D_MAX is K_HEAD_SIZE rounded UP to a power of two, so whenever
+// K_HEAD_SIZE is not itself a power-of-two multiple of DPAS_K the top tiles address channels past
 // the head dim entirely: they load nothing (the `head < d` guard masks every lane) and their
-// dpas adds zero. At HEAD_SIZE 72 -> D_MAX 128, DKS is 8 and only ceil(72/16) == 5 tiles are
+// dpas adds zero. At K_HEAD_SIZE 72 -> D_MAX 128, DKS is 8 and only ceil(72/16) == 5 tiles are
 // real -- three whole tiles plus half of the fourth are pure waste, 1.78x the necessary KQ dpas
 // and K loads. sdpa_micro never pays this because its ugemm_kq takes the reduction extent as a
 // RUNTIME argument (k = d), so it loops 5 blocks with remainder handling.
@@ -45,7 +45,7 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 // matters where DKS_FULL < DKS *and* the config still takes a scalar fallback -- head 48 and 96;
 // head 64/128 have DKS_FULL == DKS and are unaffected either way.
 #if USE_DKS_ACTIVE
-#  define DKS_FULL ((HEAD_SIZE + DPAS_K - 1) / DPAS_K)
+#  define DKS_FULL ((K_HEAD_SIZE + DPAS_K - 1) / DPAS_K)
 #  if IS_PA_K_U4
 // The u4 depth permutation pairs tiles (2g, 2g+1) over one 32-channel window, so an odd active
 // count would leave the last pair half-formed. Round up; DKS is even (D_MAX is a power of two
@@ -59,7 +59,7 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 #  define DKS_ACTIVE DKS
 #endif
 #if DKS_ACTIVE > DKS
-#  error "sdpa_ocl.cl: DKS_ACTIVE must not exceed DKS (D_MAX is HEAD_SIZE rounded up, so it cannot)"
+#  error "sdpa_ocl.cl: DKS_ACTIVE must not exceed DKS (D_MAX is K_HEAD_SIZE rounded up, so it cannot)"
 #endif
 #if DKS_ACTIVE < 1
 #  error "sdpa_ocl.cl: DKS_ACTIVE must cover at least one depth tile"
@@ -116,23 +116,23 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 #  define USE_BIDIR_GATE 1
 #endif
 
-// Row pitch of a K / V cache page's DATA region, in elements of the cache dtype. That is HEAD_SIZE
+// Row pitch of a K / V cache page's DATA region, in elements of the cache dtype. That is the head size
 // for f16 and i8 -- so those paths preprocess to exactly what they were and the host does not jit
 // these at all -- but a u4 page packs two values per byte while its layout dtype is u8, so the pitch
-// is NOT derivable from HEAD_SIZE and sizeof() and the host has to supply it:
-//   K u4 BY_CHANNEL  exactly HEAD_SIZE/2, deliberately NOT aligned up. 16*(h/2) data bytes + 4*h comp
+// is NOT derivable from the head size and sizeof() and the host has to supply it:
+//   K u4 BY_CHANNEL  exactly K_HEAD_SIZE/2, deliberately NOT aligned up. 16*(h/2) data bytes + 4*h comp
 //                    bytes == 12*h is what makes the token-major page a byte-exact fit into the
 //                    allocation the upstream d-major INT4 page already has; aligning the pitch up
 //                    would overflow that page whenever h % 32 != 0.
-//   V u4 BY_TOKEN    Align(HEAD_SIZE/2, SUBGROUP_SIZE). Aligning is free here because the trailing
+//   V u4 BY_TOKEN    Align(V_HEAD_SIZE/2, SUBGROUP_SIZE). Aligning is free here because the trailing
 //                    comp slack absorbs it (16*PV + 64 == 16*(PV+4)), and it keeps the pitch a
 //                    multiple of 16 for every head size.
 // Matches sdpa_ocl_decode.cl's K_ROW_ELEMS / V_ROW_ELEMS and the writer's phys_{k,v}_head_size.
 #ifndef PA_K_ROW_ELEMS
-#  define PA_K_ROW_ELEMS HEAD_SIZE
+#  define PA_K_ROW_ELEMS K_HEAD_SIZE
 #endif
 #ifndef PA_V_ROW_ELEMS
-#  define PA_V_ROW_ELEMS HEAD_SIZE
+#  define PA_V_ROW_ELEMS V_HEAD_SIZE
 #endif
 
 // In-page addressing for a paged-attention K cache, in K elements. d-major pages
@@ -156,14 +156,14 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 //   uncompressed   (head_size,     block_size)      no comp at all
 //   i8 BY_TOKEN    (head_size + 4, block_size)      one (scale, zp) pair per token   -> wider row
 //   i8 BY_CHANNEL  (head_size,     block_size + 4)  one pair per channel -> 4 more head_size rows
-// The DATA row pitch is HEAD_SIZE in every case -- the +4 is never inside a data row.
+// The DATA row pitch is the head size in every case -- the +4 is never inside a data row.
 #if IS_PAGED_ATTENTION
 #  define PA_K_PAGE_STRIDE (ADJUSTED_K_HEAD_SIZE * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE)
 // An uncompressed cache has no comp region, so both factors collapse and PA_K_PAGE_STRIDE is
-// PAGED_ATTENTION_BLOCK_SIZE * HEAD_SIZE exactly. Asserted rather than assumed because the f16 block
+// PAGED_ATTENTION_BLOCK_SIZE * K_HEAD_SIZE exactly. Asserted rather than assumed because the f16 block
 // read below spells that product out literally (see the comment there).
 #  if !IS_PA_KV_COMPRESSED
-#    if (ADJUSTED_K_HEAD_SIZE != HEAD_SIZE) || (ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE != PAGED_ATTENTION_BLOCK_SIZE)
+#    if (ADJUSTED_K_HEAD_SIZE != K_HEAD_SIZE) || (ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE != PAGED_ATTENTION_BLOCK_SIZE)
 #      error "sdpa_ocl.cl: an uncompressed PA K page must have ADJUSTED_* equal to the plain sizes"
 #    endif
 #  endif
@@ -173,9 +173,9 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 // elements (which is bytes in every compressed mode). Same place for every quant mode -- only the
 // CONTENT differs:
 //   BY_TOKEN   two per-token f16 arrays, scale at [token], zp at [PAGED_ATTENTION_BLOCK_SIZE + token]
-//   BY_CHANNEL HEAD_SIZE interleaved (scale, zp) f16 pairs, so channel c's pair is the DWORD at [c]
+//   BY_CHANNEL K_HEAD_SIZE interleaved (scale, zp) f16 pairs, so channel c's pair is the DWORD at [c]
 // The packing shrinks the DATA region, not the comp region, which is why the multiplier is
-// PA_*_ROW_ELEMS rather than HEAD_SIZE.
+// PA_*_ROW_ELEMS rather than K_HEAD_SIZE.
 // Matches pa_kv_cache_update_ref.cl's BC_COMP_OFF / quantize_and_save_per_token.
 #if IS_PAGED_ATTENTION
 #  define PA_K_COMP_OFF ((size_t)PA_K_ROW_ELEMS * PAGED_ATTENTION_BLOCK_SIZE)
@@ -188,7 +188,7 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 // This kernel's KQ A operand is K itself, so lane == head dim (the DPAS depth index) -- the exact
 // mirror of sdpa_ocl_decode.cl, where K is the B operand and lane == token. The K page uses the
 // upstream ADJACENT nibble order (byte b holds channel 2b in the low nibble, 2b+1 in the high), which
-// the writer is forced into: NUM_K_HEAD_SIZE_PARTITIONS splits the channel range across WORKGROUPS,
+// the writer is forced into: NUM_HEAD_SIZE_PARTITIONS splits the channel range across WORKGROUPS,
 // so a split-at-k/2 convention would put a byte's two channels in different workgroups and race.
 //
 // A byte column is therefore a channel PAIR, so the 8b VNNI-transform read -- whose lane IS the byte
@@ -240,11 +240,11 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 // comp lives inline at the end of every column, which nothing below can address.
 #    error "sdpa_ocl.cl: IS_PA_K_BY_CHANNEL is only valid for the token-major BY_CHANNEL page"
 #  endif
-#  if ADJUSTED_K_HEAD_SIZE != HEAD_SIZE
+#  if ADJUSTED_K_HEAD_SIZE != K_HEAD_SIZE
 // BY_CHANNEL's comp is sized by CHANNEL, so it grows the page's row COUNT
 // (ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE), not its row pitch. A host that added the BY_TOKEN +4 here
 // would put every page base 4 * block_size bytes too far apart.
-#    error "sdpa_ocl.cl: BY_CHANNEL must leave ADJUSTED_K_HEAD_SIZE == HEAD_SIZE"
+#    error "sdpa_ocl.cl: BY_CHANNEL must leave ADJUSTED_K_HEAD_SIZE == K_HEAD_SIZE"
 #  endif
 #endif
 
@@ -254,9 +254,9 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 // -- so there is no u4 BY_TOKEN path to write and none is implemented.
 #    error "sdpa_ocl.cl: IS_PA_K_U4 requires the token-major BY_CHANNEL page"
 #  endif
-#  if (HEAD_SIZE % 2) != 0
-// PA_K_ROW_ELEMS is HEAD_SIZE/2 exactly, with no rounding anywhere.
-#    error "sdpa_ocl.cl: u4 needs an even HEAD_SIZE"
+#  if (K_HEAD_SIZE % 2) != 0
+// PA_K_ROW_ELEMS is K_HEAD_SIZE/2 exactly, with no rounding anywhere.
+#    error "sdpa_ocl.cl: u4 needs an even K_HEAD_SIZE"
 #  endif
 #  if (DKS % 2) != 0 || (DKS_ACTIVE % 2) != 0
 // The depth permutation pairs DPAS tiles (2g, 2g+1) over a 32-channel window. DKS is D_MAX/DPAS_K and
@@ -284,7 +284,7 @@ float __builtin_IB_atomic_max_local_f32(__local float *, float);
 // ---------------------------------------------------------------------------------------------
 // 1D subgroup block read of a whole cache page.
 //
-// A u4 page's row is HEAD_SIZE/2 bytes, so at head 64 it is 32 -- below the 64-byte block2d
+// A u4 page's row is K_HEAD_SIZE/2 bytes, so at head 64 it is 32 -- below the 64-byte block2d
 // minimum, and no head size can fix that for BOTH K (row = h/2) and V (row = Align(h/2, 16)).
 // The host therefore leaves USE_2D_BLOCK_IO_{K,V}_PA_I8 off and the loads fall back to a per-lane
 // byte gather: measured on the gpt-oss-20b mixed kernel, 64 K + 128 V SIMD-16 scattered messages
@@ -421,8 +421,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int past_len = past_lens[gws_mapping];
         const int k = q + past_len;
     #endif
-    const int d = HEAD_SIZE;
+    const int d = K_HEAD_SIZE;
 #endif
+
+    // Head dim of the VALUE / output side. Separate from `d` (the K/Q contraction dim) because a
+    // model may attend over k_head_size channels and emit v_head_size of them -- everything from the
+    // S*V B operand to the output store is bounded by THIS one, and everything from Q staging to the
+    // KQ contraction by `d`. They are the same integer whenever k_head_size == v_head_size, so the
+    // preprocessed text (and therefore the ISA) is unchanged for that case.
+    const int dv = V_HEAD_SIZE;
 
     const size_t lane  = get_sub_group_local_id();
     const size_t sg_ij = get_local_id(1);
@@ -469,7 +476,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 float iscale = convert_float(STATIC_SCALE_VALUE_INV);
             #endif
         #else
-            float iscale = sqrt(convert_float(HEAD_SIZE));
+            float iscale = sqrt(convert_float(K_HEAD_SIZE));
             float scale = native_recip(iscale);
         #endif
     #endif
@@ -497,10 +504,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // Paged attention Q/K/V/output are 2D [total_tokens, num_heads * head_size]: there is no Y
     // dimension, so the generic QRY_S2/KEY_S2/VAL_S2/DST_S2 (Y pitch) macros are all 0 here and the
     // token stride has to be derived from the head layout instead.
-    const uint ldq = HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
-    const uint ldk = HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
-    const uint ldv = HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
-    const uint lda = HEAD_SIZE * HEADS_NUM;
+    const uint ldq = K_HEAD_SIZE * HEADS_NUM + INPUT0_PAD_BEFORE_FEATURE_NUM + INPUT0_PAD_AFTER_FEATURE_NUM;
+    const uint ldk = K_HEAD_SIZE * KV_HEADS_NUM + INPUT1_PAD_BEFORE_FEATURE_NUM + INPUT1_PAD_AFTER_FEATURE_NUM;
+    const uint ldv = V_HEAD_SIZE * KV_HEADS_NUM + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM;
+    const uint lda = V_HEAD_SIZE * HEADS_NUM;
 #else
     const uint ldq = QRY_S2;
     const uint ldk = KEY_S2;
@@ -511,11 +518,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if IS_PAGED_ATTENTION
     // Tokens of all subsequences are packed into one matrix, so a batch index does not exist:
     // seek to the first token of this workgroup's subsequence and to this head's column slice.
-    Q += (size_t)subsequence_begin * ldq + b0 * HEAD_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
-    A += (size_t)subsequence_begin * lda + b0 * HEAD_SIZE;
+    Q += (size_t)subsequence_begin * ldq + b0 * K_HEAD_SIZE + INPUT0_PAD_BEFORE_FEATURE_NUM;
+    A += (size_t)subsequence_begin * lda + b0 * V_HEAD_SIZE;
     #if IS_PREFILL
-        K += (size_t)subsequence_begin * ldk + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
-        V += (size_t)subsequence_begin * ldv + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
+        K += (size_t)subsequence_begin * ldk + b0_kv * K_HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
+        V += (size_t)subsequence_begin * ldv + b0_kv * V_HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
     #else
         const uint base_block_index = block_indices_begins[gws_mapping];
         #if PA_CUR_KV_F16
@@ -523,8 +530,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // K/V -- so they take the same bump as the IS_PREFILL branch above. Row index into them is
             // (key - past_len): they hold only the q NEW tokens of the flattened batch, while `key`
             // counts from the start of the CACHED context.
-            Kc += (size_t)subsequence_begin * ldk + b0_kv * HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
-            Vc += (size_t)subsequence_begin * ldv + b0_kv * HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
+            Kc += (size_t)subsequence_begin * ldk + b0_kv * K_HEAD_SIZE + INPUT1_PAD_BEFORE_FEATURE_NUM;
+            Vc += (size_t)subsequence_begin * ldv + b0_kv * V_HEAD_SIZE + INPUT2_PAD_BEFORE_FEATURE_NUM;
         #endif
     #endif
     #if BIDIR_MASK
@@ -571,8 +578,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 
     const int QD_w = d * (int)sizeof(QRY_DATA_T), QD_h = q, QD_p = (int)ldq * (int)sizeof(QRY_DATA_T);
     const int KD_w = d * (int)sizeof(KEY_DATA_T), KD_h = k, KD_p = (int)ldk * (int)sizeof(KEY_DATA_T);
-    const int VD_w = d * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = (int)ldv * (int)sizeof(VAL_DATA_T);
-    const int AD_w = d * (int)sizeof(half), AD_h = q, AD_p = (int)lda * (int)sizeof(half);
+    const int VD_w = dv * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = (int)ldv * (int)sizeof(VAL_DATA_T);
+    const int AD_w = dv * (int)sizeof(half), AD_h = q, AD_p = (int)lda * (int)sizeof(half);
 
 #if PA_CUR_KV_F16
     // Surfaces for the NEW-token half of the key range. Deliberately NOT KD_*/VD_*: those describe the
@@ -580,13 +587,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // Kc/Vc are always f16 and only q rows tall -- rows past q are hardware zero-filled, which is the
     // same OOB behaviour the `key < k` masking already assumes, so no extra guard is needed.
     const int KcD_w = d * (int)sizeof(half), KcD_h = q, KcD_p = (int)ldk * (int)sizeof(half);
-    const int VcD_w = d * (int)sizeof(half), VcD_h = q, VcD_p = (int)ldv * (int)sizeof(half);
+    const int VcD_w = dv * (int)sizeof(half), VcD_h = q, VcD_p = (int)ldv * (int)sizeof(half);
     const global half *Kc_b2d = (const global half *)Kc;
     const global half *Vc_b2d = (const global half *)Vc;
     int KcD_w_b2d = KcD_w, VcD_w_b2d = VcD_w;
     int KcD_x0 = 0, VcD_x0 = 0;
     #if BLOCK2D_KV_CUR_BASE_FIXUP
-    // Same repair as BLOCK2D_KV_BASE_FIXUP below, and needed for the same reason: b0_kv * HEAD_SIZE is
+    // Same repair as BLOCK2D_KV_BASE_FIXUP below, and needed for the same reason: b0_kv * K_HEAD_SIZE is
     // a whole number of rows but not necessarily of 64 B, and INPUT1/INPUT2_PAD_BEFORE_FEATURE_NUM can
     // be dynamic (a Q/K/V that is a crop view of one fused QKV tensor), so the base is not provably
     // 64B-aligned. Round down, widen, shift x.
@@ -609,7 +616,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     //   - this head's first channel must be an EVEN number of halves from that origin, or a dword would
     //     straddle the (2c, 2c+1) channel pair the permuted depth axis is built on.
     // The second one is a RUNTIME property -- it comes out of subsequence_begin * ldk +
-    // b0_kv * HEAD_SIZE + the feature padding, and the padding can be dynamic -- so it is tested here
+    // b0_kv * K_HEAD_SIZE + the feature padding, and the padding can be dynamic -- so it is tested here
     // rather than in the host gate. When it fails, from_cache below is forced true for every tile and
     // the kernel behaves exactly as it did before this path existed: correct, just slower.
     const int KcD_x0_dw = KcD_x0 / 2;
@@ -622,7 +629,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     //
     // The builtins require a 64B-aligned base. K and V have already been advanced to this head's
     // rows above, by an offset that is an integer multiple of the row width
-    // (head_size * element_size) but not necessarily of 64: at HEAD_SIZE 72 the f16 row is 144 B,
+    // (head_size * element_size) but not necessarily of 64: at K_HEAD_SIZE 72 the f16 row is 144 B,
     // so every head with (head % 4) != 0 lands 16, 32 or 48 bytes past a boundary.
     //
     // Repair it the way sdpa_micro's block2d_load helper always has: round the base DOWN to the 64 B
@@ -1084,16 +1091,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         // The pairs are interleaved, so channel c's (scale, zp) is exactly one DWORD at [c], and a
         // uint subgroup block read at dword offset db * SUBGROUP_SIZE hands lane L the pair for
         // channel db * DPAS_K + L -- one message per (page, head-dim tile), nothing re-read in the
-        // db loop below. The comp base is 64 B-aligned whenever HEAD_SIZE % 16 == 0 (page stride is
-        // HEAD_SIZE * 20 and the offset HEAD_SIZE * 16), so the dword read is always aligned.
+        // db loop below. The comp base is 64 B-aligned whenever K_HEAD_SIZE % 16 == 0 (page stride is
+        // K_HEAD_SIZE * 20 and the offset K_HEAD_SIZE * 16), so the dword read is always aligned.
         //
         // Two guards, BOTH mandatory and neither needed by BY_TOKEN:
-        //  - DKS is D_MAX / DPAS_K and D_MAX is HEAD_SIZE rounded UP to a power of two, so at head
-        //    48/80/96 the last tiles address channels past HEAD_SIZE. The comp region is exactly
-        //    HEAD_SIZE dwords, so an unguarded read walks into the NEXT page's data rows -- or past
+        //  - DKS is D_MAX / DPAS_K and D_MAX is K_HEAD_SIZE rounded UP to a power of two, so at head
+        //    48/80/96 the last tiles address channels past K_HEAD_SIZE. The comp region is exactly
+        //    K_HEAD_SIZE dwords, so an unguarded read walks into the NEXT page's data rows -- or past
         //    the whole cache for the last page. BY_TOKEN indexes comp by token, always < 16, so it
-        //    never had this. The `db < HEAD_SIZE / DPAS_K` test is compile-time in this unrolled loop,
-        //    and the per-lane `else` only survives for a HEAD_SIZE that is not a multiple of DPAS_K.
+        //    never had this. The `db < K_HEAD_SIZE / DPAS_K` test is compile-time in this unrolled loop,
+        //    and the per-lane `else` only survives for a K_HEAD_SIZE that is not a multiple of DPAS_K.
         //  - A key group at/past k had its page index clamped to 0 above, and page 0's comp bytes are
         //    arbitrary in that case. sc = zp = 0 makes the dequant produce a finite 0; a NaN would
         //    NOT be discarded, because the mask below ADDS -INFINITY to the score and
@@ -1117,8 +1124,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // ADJACENT, so one uint2 per-lane load covers the whole pair. Across the subgroup that is
             // 16 lanes x 8 bytes over one contiguous 128-byte span -- fully coalesced, and half as
             // many messages as i8's one block read per tile.
-            // Same two guards as i8: the window can run past HEAD_SIZE when HEAD_SIZE is not a
-            // multiple of 2*DPAS_K (the comp region is exactly HEAD_SIZE dwords, so an unguarded read
+            // Same two guards as i8: the window can run past K_HEAD_SIZE when K_HEAD_SIZE is not a
+            // multiple of 2*DPAS_K (the comp region is exactly K_HEAD_SIZE dwords, so an unguarded read
             // walks into the next page), and a key group at/past k had its page clamped to 0, whose
             // comp bytes are then arbitrary -- sc = zp = 0 keeps the dequant finite, which is all the
             // masked-out score needs.
@@ -1126,13 +1133,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             for (int g = 0; g < DKS_ACTIVE / 2; ++g) {
                 const int u4_win = g * (2 * DPAS_K);
                 uint2 pair2 = (uint2)(0u, 0u);
-                if (u4_win + 2 * DPAS_K <= HEAD_SIZE) {
+                if (u4_win + 2 * DPAS_K <= K_HEAD_SIZE) {
                     if (sc_valid)
                         pair2 = vload2(lane, k_comp_ch + u4_win);
                 } else {
                     const int c0 = u4_win + 2 * (int)lane;
-                    pair2.s0 = (sc_valid && c0 < HEAD_SIZE) ? k_comp_ch[c0] : 0u;
-                    pair2.s1 = (sc_valid && c0 + 1 < HEAD_SIZE) ? k_comp_ch[c0 + 1] : 0u;
+                    pair2.s0 = (sc_valid && c0 < K_HEAD_SIZE) ? k_comp_ch[c0] : 0u;
+                    pair2.s1 = (sc_valid && c0 + 1 < K_HEAD_SIZE) ? k_comp_ch[c0 + 1] : 0u;
                 }
                 const half2 sc_zp0 = as_half2(pair2.s0);
                 const half2 sc_zp1 = as_half2(pair2.s1);
@@ -1145,9 +1152,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #pragma unroll
             for (int db = 0; db < DKS_ACTIVE; ++db) {
                 uint pair = 0u;
-                if (db < HEAD_SIZE / DPAS_K) {
+                if (db < K_HEAD_SIZE / DPAS_K) {
                     pair = sc_valid ? intel_sub_group_block_read(k_comp_ch + db * SUBGROUP_SIZE) : 0u;
-                } else if (db * DPAS_K + (int)lane < HEAD_SIZE) {
+                } else if (db * DPAS_K + (int)lane < K_HEAD_SIZE) {
                     pair = sc_valid ? k_comp_ch[db * SUBGROUP_SIZE + lane] : 0u;
                 }
                 const half2 sc_zp = as_half2(pair);
@@ -1237,9 +1244,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             if (from_cache) {
     #if USE_2D_BLOCK_IO_K_PA
             // Token-major K cache: a (block, kv_head) page is a
-            // [PAGED_ATTENTION_BLOCK_SIZE keys x HEAD_SIZE head dims] ROW-MAJOR tile -- exactly the
+            // [PAGED_ATTENTION_BLOCK_SIZE keys x K_HEAD_SIZE head dims] ROW-MAJOR tile -- exactly the
             // [key, head] geometry the prefill branch below reads, just with the page as the surface
-            // origin and HEAD_SIZE (not ldk, which spans a whole page) as the pitch. So the same
+            // origin and K_HEAD_SIZE (not ldk, which spans a whole page) as the pitch. So the same
             // non-transform 16b builtin applies and lands the A operand as lane=head / elem=key,
             // replacing the DPAS_ROWS-per-block per-key SIMD-1 scalar loads with one block message
             // per 16-key group. Mirrors USE_2D_BLOCK_IO_V_PA in the S*V loop below.
@@ -1264,15 +1271,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 if (kp_rows > 0) {
                     // PA_K_PAGE_STRIDE by value (the #if above proves the two ADJUSTED_* collapse for
                     // an uncompressed cache), but spelled out so the generated code is bit-identical to
-                    // what it was before the macro existed: IGC strength-reduces (x * 16) * HEAD_SIZE
-                    // and x * (16 * HEAD_SIZE) differently when HEAD_SIZE is not a power of two (one
+                    // what it was before the macro existed: IGC strength-reduces (x * 16) * K_HEAD_SIZE
+                    // and x * (16 * K_HEAD_SIZE) differently when K_HEAD_SIZE is not a power of two (one
                     // shl becomes one mov at head 48/96), and this path must stay byte-identical so the
                     // ISA A/B can serve as evidence that nothing but BY_CHANNEL was touched.
                     const global half *Kp =
                         (const global half *)(K + (((size_t)k_page[kg_mb] * KV_HEADS_NUM + b0_kv) *
-                                                   PAGED_ATTENTION_BLOCK_SIZE * HEAD_SIZE));
+                                                   PAGED_ATTENTION_BLOCK_SIZE * K_HEAD_SIZE));
                     const int KP_w = d * (int)sizeof(half);
-                    const int KP_p = HEAD_SIZE * (int)sizeof(half);
+                    const int KP_p = K_HEAD_SIZE * (int)sizeof(half);
                     intel_sub_group_2d_block_read_16b_16r16x1c(
                         (global void *)Kp, KP_w, kp_rows, KP_p,
                         (int2)(db * DPAS_K, 0), (private ushort *)&k_raw[kg_mb]);
@@ -1287,8 +1294,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // geometry to BY_TOKEN's (that is the point of the token-major BY_CHANNEL layout), so the
             // read below is shared verbatim and only the comp source and the dequant's index differ.
             // The page's data region is a
-            // [PAGED_ATTENTION_BLOCK_SIZE tokens x HEAD_SIZE head dims] ROW-MAJOR i8 tile with a
-            // HEAD_SIZE-BYTE row pitch (128 at head 128, so >= 64 and % 64 -- checked host-side),
+            // [PAGED_ATTENTION_BLOCK_SIZE tokens x K_HEAD_SIZE head dims] ROW-MAJOR i8 tile with a
+            // K_HEAD_SIZE-BYTE row pitch (128 at head 128, so >= 64 and % 64 -- checked host-side),
             // which is exactly the geometry the V cache already block-reads below. So the same
             // 8-bit VNNI-transform builtin applies and lands the A operand as lane=head with each
             // uint packing 4 consecutive keys as bytes.
@@ -1337,7 +1344,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     intel_sub_group_2d_block_read_transform_8b_32r16x1c(
                         (global void *)(K + ((size_t)k_page[kg_mb] * KV_HEADS_NUM + b0_kv) *
                                                 PA_K_PAGE_STRIDE),
-                        d, kp_rows, HEAD_SIZE, (int2)(db * DPAS_K, 0), (private uint *)&kt[0]);
+                        d, kp_rows, K_HEAD_SIZE, (int2)(db * DPAS_K, 0), (private uint *)&kt[0]);
                     #endif
                     #if IS_PA_K_BY_CHANNEL
                     // Per-channel scale/zp are per LANE, so they leave the key loop entirely: one pair
@@ -1419,7 +1426,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // i8 K cache, per-key scalar gather. Serves two situations: a d-major page (data at
             // head_dim * PAGED_ATTENTION_BLOCK_SIZE + token, whose PAGED_ATTENTION_BLOCK_SIZE-byte row
             // is far below the 64 B block2d minimum, so a gather is the only correct load -- the same
-            // reason the f16 d-major branch below gathers), and a token-major page whose HEAD_SIZE byte
+            // reason the f16 d-major branch below gathers), and a token-major page whose K_HEAD_SIZE byte
             // pitch misses the block2d rule (head 32/48/80/96). PA_K_TOKEN_STRIDE /
             // PA_K_HIDDEN_STRIDE select the addressing, so one code path covers both.
             // Comp is hoisted above: BY_TOKEN's one scale/zp PER KEY in the two f16 arrays that follow
@@ -1847,7 +1854,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 if (cp * SUBGROUP_SIZE < k_chunk) {
                     #pragma unroll
                     for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                        if (sg_j0_sv + cd * SUBGROUP_SIZE < d) {
+                        if (sg_j0_sv + cd * SUBGROUP_SIZE < dv) {
                             intel_sub_group_2d_block_prefetch_16b_16r16x1c(
                                 (const global void *)Vc_b2d, VcD_w_b2d, VcD_h, VcD_p,
                                 (int2)(VcD_x0 + sg_j0_sv + cd * SUBGROUP_SIZE,
@@ -1966,7 +1973,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 // per cd, stepping x by SUBGROUP_SIZE. Reads are kept ahead of the S_slm (pA)
                 // reads below so the global-memory latency overlaps with the SLM traffic.
                 // Value columns past d only exist when d < D_MAX; the block read clamps them to 0
-                // and the store guard (out_col < d) drops the corresponding A_tile columns.
+                // and the store guard (out_col < dv) drops the corresponding A_tile columns.
                 //
                 // The builtin returns 32 key rows (uints 0..7, 4 rows each) but one cp block is
                 // only SUBGROUP_SIZE == 16 keys, so a per-cp read discards half of every message
@@ -2051,7 +2058,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             #elif IS_PA_KV_COMPRESSED && !IS_PREFILL
                 // Same scale/zp split as the plain-SDPA i8 path above, but the per-key scale and zp
                 // come from INSIDE the V page rather than from separate tensors: two f16 arrays at
-                // HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE, indexed [token] then [block_size + token].
+                // V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE, indexed [token] then [block_size + token].
                 // A cp block is exactly one page, so lane == the key's token index within the page.
                 // The writer stores 1/scale, so the value read back is already the multiplier.
                 // Scale is folded into pA (lane=key, so no broadcast needed); zp stays on the V side.
@@ -2094,7 +2101,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 // Page stride is ADJUSTED_V_HEAD_SIZE, which is v_head_size for an uncompressed
                 // cache (so this is unchanged for f16) and v_head_size + 4 for an i8 one, where the
                 // extra 4 bytes hold the page's trailing scale/zp arrays. The DATA row pitch stays
-                // HEAD_SIZE in both cases -- the +4 is at the end of the page, not inside each row.
+                // V_HEAD_SIZE in both cases -- the +4 is at the end of the page, not inside each row.
                 const size_t v_page_base =
                     (size_t)((cp_key0 < k) ? block_indices[base_block_index +
                                                            cp_key0 / PAGED_ATTENTION_BLOCK_SIZE]
@@ -2105,14 +2112,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     // i8 V cache. The cp block coincides with exactly one page, so the page's token
                     // index IS the key's subgroup-local index: token == lane for the per-key scale/zp,
                     // and == key_rel for the dequant below. scale/zp are the two f16 arrays at
-                    // HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE, indexed [token] and [block_size + token].
+                    // V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE, indexed [token] and [block_size + token].
                     // Scale is folded into pA above (score side, already lane=key) exactly as the
                     // plain-SDPA i8 path does, so only the zp subtraction happens here -- which does
                     // need its per-key value broadcast across the value/head-dim lanes.
                     #if USE_2D_BLOCK_IO_V_PA_I8
                     {
-                        // Data region is a [PAGED_ATTENTION_BLOCK_SIZE tokens x HEAD_SIZE values]
-                        // row-major i8 tile: pitch = HEAD_SIZE bytes (128 at head 128, so the >= 64
+                        // Data region is a [PAGED_ATTENTION_BLOCK_SIZE tokens x V_HEAD_SIZE values]
+                        // row-major i8 tile: pitch = V_HEAD_SIZE bytes (128 at head 128, so the >= 64
                         // and % 64 block2d rule holds -- checked host-side).
                         // The 8b transform builtin has a hard 32-row minimum on Xe2 (no _8b_16r form
                         // exists), while a page is only 16 tokens, so the surface height is clamped to
@@ -2128,8 +2135,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             const int VP_w = PA_V_ROW_ELEMS;
                             const int VP_p = PA_V_ROW_ELEMS;
                             #else
-                            const int VP_w = d;                  // bytes: i8, one byte per value
-                            const int VP_p = HEAD_SIZE;          // bytes: data row pitch, NOT ADJUSTED
+                            const int VP_w = dv;                  // bytes: i8, one byte per value
+                            const int VP_p = V_HEAD_SIZE;          // bytes: data row pitch, NOT ADJUSTED
                             #endif
                             #pragma unroll
                             for (int cd = 0; cd < sv_value_blocks; ++cd) {
@@ -2228,7 +2235,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             // of the softmax (its logit was -INFINITY), so its V value is multiplied
                             // by zero and only has to be FINITE -- which a u4 nibble is by
                             // construction, and v_zp_c is clamped to 0 there anyway.
-                            if (value < d) {
+                            if (value < dv) {
                                 #pragma unroll
                                 for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
                                     // The cp block coincides with one page (see above), so the
@@ -2267,7 +2274,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         const int v_hi = PA_V_U4_HI(v_base);
                         const int v_addr = PA_V_U4_COL(v_base) + (int)lane;
                         #endif
-                        if (value < d) {
+                        if (value < dv) {
                             #pragma unroll
                             for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
                                 const int key0 = cp_key0 + key_pair * 2;
@@ -2280,7 +2287,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                                     vv[0] = (half)(v_hi ? (vb0 >> 4) : (vb0 & 0x0Fu)) -
                                             sub_group_broadcast(v_zp_c, key_pair * 2 + 0);
                                     #else
-                                    vv[0] = (half)(char)V[v_page_base + (size_t)t0 * HEAD_SIZE + value] -
+                                    vv[0] = (half)(char)V[v_page_base + (size_t)t0 * V_HEAD_SIZE + value] -
                                             sub_group_broadcast(v_zp_c, key_pair * 2 + 0);
                                     #endif
                                 }
@@ -2291,7 +2298,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                                     vv[1] = (half)(v_hi ? (vb1 >> 4) : (vb1 & 0x0Fu)) -
                                             sub_group_broadcast(v_zp_c, key_pair * 2 + 1);
                                     #else
-                                    vv[1] = (half)(char)V[v_page_base + (size_t)t1 * HEAD_SIZE + value] -
+                                    vv[1] = (half)(char)V[v_page_base + (size_t)t1 * V_HEAD_SIZE + value] -
                                             sub_group_broadcast(v_zp_c, key_pair * 2 + 1);
                                     #endif
                                 }
@@ -2302,9 +2309,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     #endif
                 #elif USE_2D_BLOCK_IO_V_PA
                     // The cp block coincides with one (block, head) cache page, and that page is a
-                    // [PAGED_ATTENTION_BLOCK_SIZE tokens x HEAD_SIZE values] ROW-MAJOR tile -- the
+                    // [PAGED_ATTENTION_BLOCK_SIZE tokens x V_HEAD_SIZE values] ROW-MAJOR tile -- the
                     // same [key, value] geometry the prefill path reads, just with the page as the
-                    // surface origin and HEAD_SIZE (not HEAD_SIZE*KV_HEADS_NUM) as the pitch. So the
+                    // surface origin and V_HEAD_SIZE (not V_HEAD_SIZE*KV_HEADS_NUM) as the pitch. So the
                     // 16b VNNI-transform builtin applies unchanged and lands the operand in the
                     // layout the DPAS below wants, replacing the sv_value_blocks * DPAS_ROWS * 2
                     // per-lane scalar loads with sv_value_blocks coalesced messages.
@@ -2324,8 +2331,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     const int vp_rows = min((int)PAGED_ATTENTION_BLOCK_SIZE, k - cp_key0);
                     if (vp_rows > 0) {
                         const global half *Vp = (const global half *)(V + v_page_base);
-                        const int VP_w = d * (int)sizeof(half);
-                        const int VP_p = HEAD_SIZE * (int)sizeof(half);
+                        const int VP_w = dv * (int)sizeof(half);
+                        const int VP_p = V_HEAD_SIZE * (int)sizeof(half);
                         #pragma unroll
                         for (int cd = 0; cd < sv_value_blocks; ++cd) {
                             intel_sub_group_2d_block_read_transform_16b_16r16x1c(
@@ -2342,7 +2349,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 for (int cd = 0; cd < sv_value_blocks; ++cd) {
                     vb[cd] = (int8)0;
                     const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
-                    if (value < d) {
+                    if (value < dv) {
                         #pragma unroll
                         for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
                             const int key0 = cp_key0 + key_pair * 2;
@@ -2350,11 +2357,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             half2 vv = (half2)0.0h;
                             if (key0 < k) {
                                 vv[0] = V[v_page_base +
-                                          (size_t)(key0 % PAGED_ATTENTION_BLOCK_SIZE) * HEAD_SIZE + value];
+                                          (size_t)(key0 % PAGED_ATTENTION_BLOCK_SIZE) * V_HEAD_SIZE + value];
                             }
                             if (key1 < k) {
                                 vv[1] = V[v_page_base +
-                                          (size_t)(key1 % PAGED_ATTENTION_BLOCK_SIZE) * HEAD_SIZE + value];
+                                          (size_t)(key1 % PAGED_ATTENTION_BLOCK_SIZE) * V_HEAD_SIZE + value];
                             }
                             vb[cd][key_pair] = as_int(vv);
                         }
@@ -2442,7 +2449,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 for (int cd = 0; cd < sv_value_blocks; ++cd) {
                     vb[cd] = (int8)0;
                     const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
-                    if (value < d) {
+                    if (value < dv) {
                         #pragma unroll
                         for (int key_pair = 0; key_pair < 8; ++key_pair) {
                             const int key0 = k0 + cp * SUBGROUP_SIZE + key_pair * 2;
@@ -2517,7 +2524,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             const int col = sg_j0_sv + cd * SUBGROUP_SIZE;
             const int row = wg_j0 + sg_i0_sv + r * 8;
 #if USE_2D_BLOCK_IO_A
-            if (row + 7 < q && col + SUBGROUP_SIZE <= d) {
+            if (row + 7 < q && col + SUBGROUP_SIZE <= dv) {
                 intel_sub_group_2d_block_write_16b_8r16x1c(
                     (global void *)A, AD_w, AD_h, AD_p,
                     (int2)(col, row),
@@ -2528,7 +2535,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 for (int rr = 0; rr < 8; ++rr) {
                     const int out_row = row + rr;
                     const int out_col = col + lane;
-                    if (out_row < q && out_col < d)
+                    if (out_row < q && out_col < dv)
                         A[(size_t)out_row * lda + out_col] = out[rr];
                 }
 #if USE_2D_BLOCK_IO_A
