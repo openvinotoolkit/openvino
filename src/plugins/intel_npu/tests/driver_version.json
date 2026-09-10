@@ -1,9 +1,9 @@
 {
     "windows10": {
-        "MTL": "windows/unified/integration/ci_tag_driver_rc_config1_20260817_1901/npu-driver-ci-master-13516-RelWithDebInfo.zip",
-        "LNL": "windows/unified/integration/ci_tag_driver_rc_config1_20260817_1901/npu-driver-ci-master-13516-RelWithDebInfo.zip",
-        "PTL": "windows/unified/integration/ci_tag_driver_rc_config1_20260817_1901/npu-driver-ci-master-13516-RelWithDebInfo.zip",
-        "NVL": "windows/unified/integration/ci_tag_driver_rc_config1_20260817_1901/npu-driver-ci-master-13516-RelWithDebInfo.zip",
+        "MTL": "windows/unified/integration/ci_tag_driver_rc_config1_20260902_1230/npu-driver-ci-master-13805-Driver-RelWithDebInfo-64-bit.zip",
+        "LNL": "windows/unified/integration/ci_tag_driver_rc_config1_20260902_1230/npu-driver-ci-master-13805-Driver-RelWithDebInfo-64-bit.zip",
+        "PTL": "windows/unified/integration/ci_tag_driver_rc_config1_20260902_1230/npu-driver-ci-master-13805-Driver-RelWithDebInfo-64-bit.zip",
+        "NVL": "windows/unified/integration/ci_tag_driver_rc_config1_20260902_1230/npu-driver-ci-master-13805-Driver-RelWithDebInfo-64-bit.zip",
         "MTL_release": "windows/unified/UD202638/ci_tag_driver_rc_ud202638_20260820_1901/npu-driver-ci-releases_26ww32-ci-master-13301-700-RelWithDebInfo.zip",
         "LNL_release": "windows/unified/UD202638/ci_tag_driver_rc_ud202638_20260820_1901/npu-driver-ci-releases_26ww32-ci-master-13301-700-RelWithDebInfo.zip",
         "PTL_release": "windows/unified/UD202638/ci_tag_driver_rc_ud202638_20260820_1901/npu-driver-ci-releases_26ww32-ci-master-13301-700-RelWithDebInfo.zip",

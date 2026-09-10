@@ -87,6 +87,8 @@ OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::intel_gpu, moe_disable_fusion, false, "Dis
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, help, false, "Print help message for all config options")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose, 0, "Enable logging for debugging purposes. The higher value the more verbose output. 0 - Disabled, 4 - Maximum verbosity")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose_color, true, "Enable coloring for verbose logs")
+OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, enable_mlir, false, "Enable/Disable MLIR/Graph-Compiler execution for supported subgraphs. Requires ENABLE_MLIR_FOR_GPU=ON at build time [EXPERIMENTAL, NOT PRODUCTION-READY]")
+OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, mlir_debug, false, "Enable verbose logging of the MLIR/Graph-Compiler pipeline")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, disable_usm, false, "Disable USM memory allocations and use only cl_mem")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, usm_policy, 0, "0: default, 1: use usm_host, 2: do not use usm_host")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_batch_limit, std::numeric_limits<int32_t>::max(), "Max number of batch elements to dump")
@@ -95,6 +97,7 @@ OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, log_to_file, "", "Save verbose log 
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, debug_config, "", "Path to debug config in json format")
 
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_onednn_post_ops_opt, false, "Disable optimization pass for onednn post-ops")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, mlir_patterns, "", "Overrides the subgraph patterns compiled through MLIR/Graph-Compiler: \"name1=Type1,Type2;name2=Type3,Type4\". Empty keeps the built-in default set, \"*\" matches every supported operation")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_profiling_data_path, "", "Save csv file with per-stage and per-primitive profiling data to specified folder")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, average_counters, "", "Save csv file with per-primitive averaged execution time. Output format matches benchmark_app --report_type average_counters and OV_CPU_AVERAGE_COUNTERS")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dump_graphs_path, "", "Save intermediate graph representations during model compilation pipeline to specified folder")
