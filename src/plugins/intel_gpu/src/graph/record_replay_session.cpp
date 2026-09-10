@@ -40,6 +40,4 @@ void record_replay_session::end_iteration() {
     GPU_DEBUG_TRACE_DETAIL << "[GPU][REC] Stream recording " << (_valid ? "succeeded" : "failed") << std::endl;
 }
 
-void record_replay_session::invalidate() { _valid = false; }
-
 }  // namespace cldnn

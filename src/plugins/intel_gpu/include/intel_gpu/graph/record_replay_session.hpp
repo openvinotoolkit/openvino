@@ -41,7 +41,9 @@ public:
     void end_iteration();
 
     /// @brief Invalidates the recorded command list.
-    void invalidate();
+    void invalidate() {
+        _valid = false;
+    }
 
 private:
     stream& _stream;
