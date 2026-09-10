@@ -149,6 +149,18 @@ passes (`MakeStateful`, `AdaptToGenAI`) are caller-registered rather than built 
 
 ## Verifying a new architecture
 
+Use the existing suites for different kinds of coverage:
+
+| Suite | What it checks |
+|---|---|
+| [`tests/model_hub_tests/gguf`](../../../../tests/model_hub_tests/gguf) | Real checkpoints: download, conversion, compilation, finite logits and KV-cache updates |
+| [`test_arch_accuracy.cpp`](../tests/test_arch_accuracy.cpp) | Small offline fixtures: full-logit agreement with llama.cpp CPU through prefill and cached decode |
+| Builder API and architecture extension tests | Registration, custom builders, metadata validation, dynamic shapes, operation types and shared-library loading |
+
+Model-hub smoke tests do not compare predicted tokens or logits with a reference and do not
+register architecture extensions. Keep focused regression tests for those behaviors; add real
+checkpoint coverage to the existing model-hub lists.
+
 1. **Converts + compiles**: convert through the frontend, then `core.compile_model(m, "CPU")`.
    The frontend is not auto-selectable, so ask for it by name:
    `fe = FrontEndManager().load_by_framework("gguf"); m = fe.convert(fe.load("model.gguf"))`.

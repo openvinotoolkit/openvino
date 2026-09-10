@@ -133,6 +133,7 @@ jobs:
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_gguf_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GGUFFrontend.xml
+          ${{ env.INSTALL_TEST_DIR }}/ov_gguf_architecture_library_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GGUFArchitectureLibrary.xml
 
       - name: PaddlePaddle frontend tests
         if: ${{ fromJSON(inputs.affected-components).PDPD_FE.test && runner.os != 'Windows' }} # Ticket: 149651

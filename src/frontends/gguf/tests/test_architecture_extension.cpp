@@ -7,7 +7,6 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
-#include <limits>
 #include <map>
 #include <memory>
 #include <numeric>
@@ -19,7 +18,6 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
-#include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/extension/conversion.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
@@ -28,7 +26,7 @@
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/util/variable_context.hpp"
+#include "openvino/openvino.hpp"
 #include "openvino/util/file_util.hpp"
 
 using namespace ov_gguf_test;
@@ -230,51 +228,6 @@ private:
     BuildContext m_ctx;
 };
 
-}  // namespace
-
-TEST(GGUFArchitectureExtension, CustomDecoderUsesSharedAttentionBlocks) {
-    ScratchDir scratch;
-
-    const auto ref_path = write_decoder_gguf(scratch.path());
-    ASSERT_FALSE(ref_path.empty());
-    const auto reference = convert_with(ref_path, {});
-    ASSERT_TRUE(reference);
-    const auto ref_hist = op_histogram(reference);
-
-    ScratchDir scratch2;
-    const auto path = write_decoder_gguf(scratch2.path(), kUnknownArch);
-    ASSERT_FALSE(path.empty());
-    auto ext = std::make_shared<ArchitectureExtension>(
-        ArchitectureDefinition{kUnknownArch, kUnknownArch, [](const BuildContext& c) {
-                                   return std::make_shared<Qwen3Builder>(c);
-                               }});
-
-    const auto model = convert_with(path, {ext});
-    ASSERT_TRUE(model);
-
-    auto hist = op_histogram(model);
-
-    const size_t n_layer = 2;
-    // Softcapping can decompose attention; compare against the native graph rather than requiring SDPA.
-    EXPECT_EQ(hist["ScaledDotProductAttention"],
-              (ref_hist.count("ScaledDotProductAttention") ? ref_hist.at("ScaledDotProductAttention") : 0u));
-    // Logits plus a K and a V cache per layer -- the same output surface the built-in path has.
-    EXPECT_EQ(model->outputs().size(), reference->outputs().size())
-        << "the ported model must expose the same outputs (logits + per-layer KV caches)";
-    EXPECT_EQ(model->outputs().size(), 1u + 2u * n_layer);
-
-    // The per-layer caches must be real model inputs, not constants folded away.
-    size_t cache_inputs = 0;
-    for (const auto& input : model->inputs()) {
-        if (input.get_any_name().rfind("cache_", 0) == 0) {
-            ++cache_inputs;
-        }
-    }
-    EXPECT_EQ(cache_inputs, 2u * n_layer);
-}
-
-namespace {
-
 constexpr uint32_t kVisEmbd = 32;
 constexpr uint32_t kVisLayers = 2;
 constexpr uint32_t kVisHeads = 4;
@@ -433,20 +386,6 @@ TEST(GGUFArchitectureExtension, NonDecoderFamilyConvertsEndToEnd) {
     EXPECT_EQ(hist["Parameter"], 1u);
 }
 
-// Frontend library loading wraps each extension in SOExtension; registration must unwrap it.
-TEST(GGUFArchitectureExtension, SharedLibraryWrappedExtensionStillRegisters) {
-    ScratchDir scratch;
-    const auto path = write_decoder_gguf(scratch.path(), kUnknownArch);
-    ASSERT_FALSE(path.empty());
-
-    // A null library handle suffices because the builder code lives in this test executable.
-    const auto inner = std::make_shared<ArchitectureExtension>(kUnknownArch, RopeMode::Neox);
-    const auto wrapped = std::make_shared<ov::detail::SOExtension>(inner, std::shared_ptr<void>{});
-
-    const auto model = convert_with(path, {wrapped});
-    ASSERT_TRUE(model);
-}
-
 TEST(GGUFArchitectureExtension, AmbiguousClaimIsReportedNotGuessed) {
     ScratchDir scratch;
     const auto path = write_vision_gguf(scratch.path());
@@ -470,7 +409,7 @@ TEST(GGUFArchitectureExtension, AmbiguousClaimIsReportedNotGuessed) {
 
 TEST(GGUFArchitectureExtension, SharedDecoderBlocksMatchNumericallyAcrossPrefillAndDecode) {
     ScratchDir scratch;
-    const auto path = write_decoder_gguf(scratch.path(), "qwen3", 1);
+    const auto path = write_decoder_gguf(scratch.path(), "qwen3");
     ASSERT_FALSE(path.empty());
     const auto load = [&](bool custom) {
         ov::frontend::gguf::FrontEnd frontend;
@@ -491,84 +430,47 @@ TEST(GGUFArchitectureExtension, SharedDecoderBlocksMatchNumericallyAcrossPrefill
     };
     auto builtin = load(false);
     auto custom = load(true);
-    ASSERT_EQ(builtin->get_variables().size(), 2);
-    ASSERT_EQ(custom->get_variables().size(), 2);
-    builtin->output().set_names({"logits"});
-    custom->output().set_names({"logits"});
-    const auto evaluation_context = [](const std::shared_ptr<ov::Model>& model) {
-        ov::op::util::VariableContext variables;
-        for (const auto& variable : model->get_variables()) {
-            auto value = std::make_shared<ov::op::util::VariableValue>(ov::Tensor(variable->get_info().data_type, {0}));
-            variables.set_variable_value(variable, value);
-        }
-        return ov::EvaluationContext{{"VariableContext", variables}};
+    ASSERT_EQ(builtin->get_variables().size(), 4);
+    ASSERT_EQ(custom->get_variables().size(), 4);
+    ov::Core core;
+    const auto request = [&](const std::shared_ptr<ov::Model>& model) {
+        return core
+            .compile_model(model,
+                           "CPU",
+                           ov::hint::inference_precision(ov::element::f32),
+                           ov::num_streams(1),
+                           ov::inference_num_threads(4),
+                           ov::hint::dynamic_quantization_group_size(0),
+                           ov::hint::kv_cache_precision(ov::element::f16))
+            .create_infer_request();
     };
-    auto ref_context = evaluation_context(builtin);
-    auto ext_context = evaluation_context(custom);
+    auto reference = request(builtin);
+    auto extension = request(custom);
     size_t past = 0;
     for (size_t tokens : {3u, 1u, 2u}) {
-        const auto infer = [&](const std::shared_ptr<ov::Model>& model, ov::EvaluationContext& context) {
-            ov::Tensor ids(ov::element::i64, {1, tokens});
-            ov::Tensor pos(ov::element::i64, {1, tokens});
-            for (size_t i = 0; i < tokens; ++i) {
-                ids.data<int64_t>()[i] = static_cast<int64_t>((past + i + 1) % 16);
-                pos.data<int64_t>()[i] = static_cast<int64_t>(past + i);
-            }
-            ov::Tensor mask(ov::element::i64, {1, past + tokens});
-            std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
-            ov::Tensor beam(ov::element::i32, {1});
-            *beam.data<int32_t>() = 0;
-            ov::Tensor indices(ov::element::i32, {1, 1, 1, tokens});
-            for (size_t i = 0; i < tokens; ++i)
-                indices.data<int32_t>()[i] = static_cast<int32_t>(past + i);
-            ov::Tensor legacy_tokens(ov::element::i32, {1, 1, 1, tokens});
-            ov::Tensor rows(ov::element::i32, {1, 1, 1, tokens});
-            for (size_t i = 0; i < tokens; ++i) {
-                legacy_tokens.data<int32_t>()[i] = static_cast<int32_t>((past + i + 1) % 16);
-                rows.data<int32_t>()[i] = static_cast<int32_t>(i);
-            }
-            ov::Tensor length(ov::element::i64, {1});
-            *length.data<int64_t>() = static_cast<int64_t>(tokens);
-            ov::Tensor causal(ov::element::f32, {1, 1, tokens, past + tokens});
-            ov::Tensor windowed(ov::element::f32, {1, 1, tokens, past + tokens});
-            for (size_t q = 0; q < tokens; ++q) {
-                for (size_t k = 0; k < past + tokens; ++k) {
-                    causal.data<float>()[q * (past + tokens) + k] =
-                        k <= past + q ? 0.f : -std::numeric_limits<float>::infinity();
-                    windowed.data<float>()[q * (past + tokens) + k] =
-                        k <= past + q && k + 2 > past + q ? 0.f : -std::numeric_limits<float>::infinity();
-                }
-            }
-            // Normalization may retain disconnected legacy parameters; supply them as well.
-            const std::map<std::string, ov::Tensor> inputs{{"input_ids", ids},
-                                                           {"position_ids", pos},
-                                                           {"attention_mask", mask},
-                                                           {"beam_idx", beam},
-                                                           {"inp_kv_idx", indices},
-                                                           {"inp_pos", indices},
-                                                           {"inp_tokens", legacy_tokens},
-                                                           {"inp_out_ids", rows},
-                                                           {"token_len_per_seq", length},
-                                                           {"self_kq_mask", causal},
-                                                           {"self_kq_mask_swa", windowed}};
-            ov::TensorVector ordered;
-            for (const auto& parameter : model->inputs()) {
-                bool found = false;
-                for (const auto& entry : inputs) {
-                    if (parameter.get_names().count(entry.first)) {
-                        ordered.push_back(entry.second);
-                        found = true;
-                        break;
-                    }
-                }
-                OPENVINO_ASSERT(found, "Unexpected model input: ", parameter.get_any_name());
-            }
-            ov::TensorVector output{ov::Tensor(ov::element::f32, {0})};
-            EXPECT_TRUE(model->evaluate(output, ordered, context));
-            return output.front();
-        };
-        auto a = infer(builtin, ref_context);
-        auto b = infer(custom, ext_context);
+        ov::Tensor ids(ov::element::i64, {1, tokens});
+        ov::Tensor pos(ov::element::i64, {1, tokens});
+        for (size_t i = 0; i < tokens; ++i) {
+            ids.data<int64_t>()[i] = static_cast<int64_t>((past + i + 1) % 16);
+            pos.data<int64_t>()[i] = static_cast<int64_t>(past + i);
+        }
+        ov::Tensor mask(ov::element::i64, {1, past + tokens});
+        std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+        ov::Tensor beam(ov::element::i32, {1});
+        *beam.data<int32_t>() = 0;
+        for (auto* infer : {&reference, &extension}) {
+            infer->set_tensor("input_ids", ids);
+            infer->set_tensor("position_ids", pos);
+            infer->set_tensor("attention_mask", mask);
+            infer->set_tensor("beam_idx", beam);
+            infer->infer();
+            const auto states = infer->query_state();
+            ASSERT_EQ(states.size(), 4);
+            for (const auto& state : states)
+                EXPECT_EQ(state.get_state().get_size(), (past + tokens) * 4);
+        }
+        auto a = reference.get_output_tensor();
+        auto b = extension.get_output_tensor();
         ASSERT_GE(a.get_size(), 16);
         ASSERT_GE(b.get_size(), 16);
         const auto* last_a = a.data<float>() + a.get_size() - 16;
@@ -576,13 +478,6 @@ TEST(GGUFArchitectureExtension, SharedDecoderBlocksMatchNumericallyAcrossPrefill
         for (size_t i = 0; i < 16; ++i) {
             ASSERT_TRUE(std::isfinite(last_a[i]));
             EXPECT_NEAR(last_a[i], last_b[i], 1e-5f);
-        }
-        for (auto* context : {&ref_context, &ext_context}) {
-            const auto& states =
-                context->at("VariableContext").as<ov::op::util::VariableContext>().get_variable_values();
-            ASSERT_EQ(states.size(), 2);
-            for (const auto& state : states)
-                EXPECT_EQ(state.second->get_state().get_size(), (past + tokens) * 4);
         }
         past += tokens;
     }
