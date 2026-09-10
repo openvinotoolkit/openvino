@@ -47,9 +47,9 @@ inline int get_verbose_level() {
     case ov::log::Level::INFO:
         return std::max(level, static_cast<int>(LogLevel::LOG));
     case ov::log::Level::DEBUG:
-        return std::max(level, static_cast<int>(LogLevel::LOG));
+        return std::max(level, static_cast<int>(LogLevel::TRACE));
     case ov::log::Level::TRACE:
-        return std::max(level, static_cast<int>(LogLevel::LOG));
+        return std::max(level, static_cast<int>(LogLevel::TRACE_DETAIL));
     default:
         return level;
     }
