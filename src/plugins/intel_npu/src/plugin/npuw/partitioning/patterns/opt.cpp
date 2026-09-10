@@ -1443,6 +1443,12 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
+            const bool weight_is_sub128 = ctx.get().params_to_subtract_128.count(matched_qweight) != 0;
+            const bool zerop_is_sub128 = ctx.get().params_to_subtract_128.count(matched_qzerop) != 0;
+            if (weight_is_sub128 != zerop_is_sub128) {
+                return false;
+            }
+
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with future- unpacked and gathered
             // fp16
             auto new_wi = ctx.get().host_gather_unpack_quant(matched_ids,

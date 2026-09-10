@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -68,12 +69,15 @@ bool run_lift(const std::shared_ptr<ov::Model>& model) {
 }
 
 std::shared_ptr<ov::Model> make_parameter_gather_model(std::optional<float> weight_shift,
-                                                       std::optional<float> zero_point_shift) {
+                                                       std::optional<float> zero_point_shift,
+                                                       ov::element::Type weight_type = ov::element::u8,
+                                                       ov::element::Type zero_point_type = ov::element::u8) {
     constexpr std::size_t vocab_size = 4096;
     constexpr std::size_t hidden_size = 2048;
     auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
-    auto weights = std::make_shared<ov::opset10::Parameter>(ov::element::u8, ov::Shape{vocab_size, hidden_size});
-    auto zero_point = std::make_shared<ov::opset10::Parameter>(ov::element::u8, ov::Shape{vocab_size, hidden_size});
+    auto weights = std::make_shared<ov::opset10::Parameter>(weight_type, ov::Shape{vocab_size, hidden_size});
+    auto zero_point =
+        std::make_shared<ov::opset10::Parameter>(zero_point_type, ov::Shape{vocab_size, hidden_size});
     auto scale = std::make_shared<ov::opset10::Parameter>(ov::element::f16, ov::Shape{vocab_size, hidden_size});
     auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
 
@@ -262,6 +266,23 @@ TEST(DQLiftGatherAsymCWTest, RejectsUnmarked128Subtractions) {
 TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
     ov::npuw::patterns::opt::Context context;
     EXPECT_TRUE(run_host_gather(make_parameter_gather_model(128.0f), context));
+    ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
+    ASSERT_EQ(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.size(), 1);
+}
+
+TEST(HostGatherQuantAsymmTest, AcceptsExtractedI8Parameters) {
+    ov::npuw::patterns::opt::Context context;
+    const auto model = make_parameter_gather_model(std::nullopt,
+                                                   std::nullopt,
+                                                   ov::element::i8,
+                                                   ov::element::i8);
+    const auto& parameters = model->get_parameters();
+    context.params_to_subtract_128.emplace(std::static_pointer_cast<ov::op::v0::Parameter>(parameters[1]),
+                                           std::static_pointer_cast<ov::op::v0::Parameter>(parameters[1]));
+    context.params_to_subtract_128.emplace(std::static_pointer_cast<ov::op::v0::Parameter>(parameters[2]),
+                                           std::static_pointer_cast<ov::op::v0::Parameter>(parameters[2]));
+
+    EXPECT_TRUE(run_host_gather(model, context));
     ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
     ASSERT_EQ(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.size(), 1);
 }
@@ -546,10 +567,30 @@ TEST(LazySubtract128Test, CoversEveryU8ValueWithoutChangingSource) {
     EXPECT_EQ(constant->cast_vector<uint8_t>(), values);
 }
 
+TEST(LazySubtract128Test, HandlesVectorAndTailSizes) {
+    const std::array<std::size_t, 8> sizes{1, 31, 32, 33, 63, 64, 65, 257};
+    for (const auto size : sizes) {
+        std::vector<uint8_t> values(size);
+        for (std::size_t index = 0; index < size; ++index) {
+            values[index] = static_cast<uint8_t>(index);
+        }
+
+        const auto constant = ov::opset10::Constant::create(ov::element::u8, ov::Shape{size}, values);
+        const auto result = ov::npuw::weights::LazyTensor(constant).subtract_128().eval();
+
+        ASSERT_EQ(result.get_shape(), (ov::Shape{size}));
+        ASSERT_EQ(result.get_element_type(), ov::element::i8);
+        for (std::size_t index = 0; index < size; ++index) {
+            EXPECT_EQ(result.data<const int8_t>()[index], static_cast<int>(values[index]) - 128);
+        }
+    }
+}
+
 TEST(LazySubtract128Test, RejectsNonU8Input) {
     const auto constant = ov::opset10::Constant::create(ov::element::i8, ov::Shape{1}, {0});
     const auto shifted = ov::npuw::weights::LazyTensor(constant).subtract_128();
     EXPECT_THROW(shifted.eval(), ov::Exception);
     EXPECT_THROW(shifted.eval_meta(), ov::Exception);
 }
+
 
