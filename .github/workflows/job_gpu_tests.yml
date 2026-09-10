@@ -69,7 +69,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
       MODELS_PATH: ${{ github.workspace }}/testdata
-      GTEST_PARALLEL_SCRIPT: /usr/local/bin/gtest_parallel.py
+      PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
       NEO_CACHE_DIR: /root/.cache/neo_compiler_cache 
       NEO_CACHE_MAX_SIZE: 10737418240 # 10GB
@@ -159,11 +159,18 @@ jobs:
             test_filter='*smoke*'
           fi
 
-          shard_args=()
-          if [[ "${SHARD_COUNT}" -gt 0 && "${SHARD_INDEX}" -ge 0 ]]; then
-            shard_args+=("--shard_count=${SHARD_COUNT}" "--shard_index=${SHARD_INDEX}")
+          if [[ "${SHARD_COUNT}" -gt 0 || "${SHARD_INDEX}" -ge 0 ]]; then
+            echo "run_parallel.py does not support sharding; set both SHARD_COUNT and SHARD_INDEX to -1 for GPU workflow."
+            exit 1
           fi
-          python3 ${GTEST_PARALLEL_SCRIPT} ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests "${shard_args[@]}" --dump_json_test_results=${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/ov_gpu_"${TEST_TYPE}"_tests.json -- --report_unique_name --gtest_filter=$test_filter 
+
+          python3 ${PARALLEL_TEST_SCRIPT} \
+            -e ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests \
+            -c ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR}/test_cache.lst \
+            -w ${INSTALL_TEST_DIR}/${TEST_RESULTS_DIR} \
+            -s test \
+            -rf 1 \
+            -- --report_unique_name --gtest_filter="${test_filter}"
 
       - name: Upload Test Results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
