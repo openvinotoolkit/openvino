@@ -6,6 +6,7 @@
 
 import logging
 import inspect
+from functools import lru_cache
 import torch
 
 # Import HigherOrderOperator for detecting higher-order operations (while_loop, cond, etc.)
@@ -61,7 +62,17 @@ class BaseFXDecoder(Decoder):
 
     @staticmethod
     def arg_to_constant(arg):
-        if isinstance(arg, list):
+        if isinstance(arg, torch.dtype):
+            # ScalarType is an integer input in TorchScript's ATen schemas.
+            scalar_types = {
+                torch.uint8: 0, torch.int8: 1, torch.int16: 2, torch.int32: 3,
+                torch.int64: 4, torch.float16: 5, torch.float32: 6, torch.float64: 7,
+                torch.complex32: 8, torch.complex64: 9, torch.complex128: 10,
+                torch.bool: 11, torch.qint8: 12, torch.quint8: 13, torch.qint32: 14,
+                torch.bfloat16: 15,
+            }
+            return make_constant(OVType.i64, Shape([]), [scalar_types[arg]])
+        elif isinstance(arg, list):
             if len(arg) > 0:
                 return make_constant(pt_to_ov_type_map[type(
                     arg[0]).__name__], Shape([len(arg)]), arg)
@@ -74,6 +85,8 @@ class BaseFXDecoder(Decoder):
             return make_constant(OVType.i64, Shape([]), [arg])
         elif isinstance(arg, float):
             return make_constant(OVType.f32, Shape([]), [arg])
+        elif isinstance(arg, complex):
+            return make_constant(OVType.f32, Shape([2]), [arg.real, arg.imag])
         elif isinstance(arg, str):
             buf = bytearray(arg, "utf-8")
             u8_tensor = torch.frombuffer(buf, dtype=torch.uint8)
@@ -83,6 +96,11 @@ class BaseFXDecoder(Decoder):
     @staticmethod
     def get_type_for_value(value):
         if issubclass(type(value), torch.fx.Node):
+            tensor = value.meta.get("val")
+            if isinstance(tensor, torch.Tensor) and tensor.is_complex():
+                part_type = {torch.complex32: OVType.f16, torch.complex64: OVType.f32,
+                             torch.complex128: OVType.f64}[tensor.dtype]
+                return OVAny(DecoderType.Complex(OVAny(part_type)))
             if ("tensor_meta" in value.meta.keys()):
                 if value.meta["tensor_meta"] and isinstance(value.meta["tensor_meta"], torch.Tensor):
                     pt_type = value.meta["tensor_meta"].dtype
@@ -90,12 +108,16 @@ class BaseFXDecoder(Decoder):
                         ov_type = pt_to_ov_type_map[str(pt_type)]
                         return OVAny(ov_type)
             return OVAny(OVType.dynamic)
+        elif isinstance(value, bool):
+            return OVAny(DecoderType.PyScalar(OVAny(OVType.boolean)))
         elif isinstance(value, int):
             return OVAny(DecoderType.PyScalar(OVAny(OVType.i64)))
         elif isinstance(value, float):
             return OVAny(DecoderType.PyScalar(OVAny(OVType.f32)))
-        elif isinstance(value, bool):
-            return OVAny(DecoderType.PyScalar(OVAny(OVType.boolean)))
+        elif isinstance(value, complex):
+            return OVAny(DecoderType.Complex(OVAny(OVType.f32)))
+        elif isinstance(value, str):
+            return OVAny(DecoderType.Str())
         elif isinstance(value, list):
             if len(value) > 0:
                 return OVAny(DecoderType.List(BaseFXDecoder.get_type_for_value(value[0])))
@@ -169,7 +191,22 @@ class BaseFXDecoder(Decoder):
 class TorchFXPythonDecoder (BaseFXDecoder):
     """Decoder for PyTorch FX GraphModule and Node objects to OpenVINO IR."""
 
-    _decomp_table = None
+    @staticmethod
+    @lru_cache(None)
+    def _functional_out_target(target):
+        schema = getattr(target, "_schema", None)
+        if schema is None or len(schema.returns) != 1:
+            return target
+        out = next((arg for arg in schema.arguments if arg.name == "out"), None)
+        if out is None or out.alias_info is None or not out.alias_info.is_write:
+            return target
+        args = [(arg.name, str(arg.type), arg.kwarg_only) for arg in schema.arguments if arg.name != "out"]
+        for overload in target.overloadpacket.overloads():
+            candidate = getattr(target.overloadpacket, overload)
+            candidate_args = [(arg.name, str(arg.type), arg.kwarg_only) for arg in candidate._schema.arguments]
+            if candidate_args == args and len(candidate._schema.returns) == 1:
+                return candidate
+        return target
 
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=None,
@@ -235,7 +272,17 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             # Check if this is a higher-order operation that needs special tuple handling
             is_higher_order_op = self._is_higher_order_op(pt_module)
 
-            for arg_idx, arg in enumerate(pt_module.args):
+            args = list(pt_module.args)
+            schema = getattr(pt_module.target, "_schema", None)
+            if schema is not None:
+                # Export omits arguments equal to their defaults. Present positional
+                # defaults to the shared ATen converters just as TorchScript does.
+                for argument in schema.arguments[len(args):]:
+                    if argument.kwarg_only:
+                        break
+                    args.append(pt_module.kwargs.get(argument.name, argument.default_value))
+
+            for arg_idx, arg in enumerate(args):
                 is_subgraph, graph_module = self._is_subgraph_arg(arg)
 
                 if is_subgraph:
@@ -279,23 +326,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             to the ``target_op`` that the C++ frontend expects for
             ``ConversionExtension`` lookup.
         """
-        from packaging import version
-        if version.parse(torch.__version__) >= version.parse("2.6"):
-            if cls._decomp_table is None:
-                from torch.export.decomp_utils import CustomDecompTable
-                from openvino.frontend.pytorch.torchdynamo.export_decompositions import ops_to_not_decompose
-                cls._decomp_table = CustomDecompTable()
-                for op in ops_to_not_decompose():
-                    try:
-                        cls._decomp_table.pop(op)
-                    except KeyError as e:
-                        logging.warning("Operation %s not found in decomp table", op, exc_info=e)
-            exported_program = exported_program.run_decompositions(cls._decomp_table)
-        elif version.parse(torch.__version__) >= version.parse("2.2"):
-            from torch._decomp import get_decompositions
-            from openvino.frontend.pytorch.torchdynamo.export_decompositions import get_export_decomposition_list
-            decomp = get_decompositions(get_export_decomposition_list())
-            exported_program = exported_program.run_decompositions(decomp_table=decomp)
         gm = exported_program.module()
         logger.debug(gm.code)
         return cls(gm, dynamic_shapes=dynamic_shapes,
@@ -593,11 +623,13 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return decoder
 
     def get_op_type(self):
+        if isinstance(self.pt_module, torch.fx.GraphModule):
+            return "GraphModule"
         if self.pt_module.op == "call_function":
             if type(self.pt_module.target).__name__ == "EdgeOpOverload":
                 name = self.pt_module.target.__name__
             else:
-                name = str(self.pt_module.target)
+                name = str(self._functional_out_target(self.pt_module.target))
             if self._module_extension_target_ops:
                 if name in self._module_extension_target_ops:
                     return self._module_extension_target_ops[name]
@@ -606,6 +638,37 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             return "get_attr"  # FIXME should be aligned with get_attr from TS implementation
         else:
             return "UNKNOWN_TYPE_" + str(self.pt_module.op)
+
+    def get_schema(self):
+        schema = getattr(getattr(self.pt_module, "target", None), "_schema", None)
+        return str(schema) if schema is not None else "NONE"
+
+    def may_produce_alias(self, in_index: int, out_index: int) -> bool:
+        if not isinstance(self.pt_module, torch.fx.Node):
+            return False
+        input_node = self._raw_input(in_index)
+        input_value = input_node.meta.get("val") if isinstance(input_node, torch.fx.Node) else None
+        output_value = self.pt_module.meta.get("val")
+        if str(self.pt_module.target) == "<built-in function getitem>":
+            producer_schema = getattr(getattr(input_node, "target", None), "_schema", None)
+            if producer_schema is None or not producer_schema.returns[0].alias_info:
+                return False
+            return isinstance(input_value, (tuple, list)) and isinstance(output_value, torch.Tensor) and any(
+                isinstance(value, torch.Tensor) and torch._C._is_alias_of(value, output_value)
+                for value in input_value)
+        schema = getattr(self.pt_module.target, "_schema", None)
+        if schema is None or in_index >= len(schema.arguments) or out_index >= len(schema.returns):
+            return False
+        input_alias = schema.arguments[in_index].alias_info
+        output_alias = schema.returns[out_index].alias_info
+        if input_alias is None or output_alias is None:
+            return False
+        # Reshape and contiguous may copy. FakeTensor metadata distinguishes the
+        # actual storage relationship without running shape propagation again.
+        if isinstance(input_value, torch.Tensor):
+            values = output_value if isinstance(output_value, (list, tuple)) else [output_value]
+            return any(isinstance(value, torch.Tensor) and torch._C._is_alias_of(input_value, value) for value in values)
+        return bool(input_alias.after_set.intersection(output_alias.after_set))
 
     def outputs(self):
         return [o[1] for o in self._outputs]
@@ -629,6 +692,9 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return len(self.outputs())
 
     def output_list_size(self):
+        value = self.pt_module.meta.get("val")
+        if isinstance(value, (tuple, list)):
+            return len(value)
         max_out_id = -1
         for user in self.pt_module.users:
             if "<built-in function getitem>" == str(user.target) and max_out_id < user.args[1]:
@@ -718,7 +784,10 @@ class InlinedInputDecoder (BaseFXDecoder):
         return OVAny(OVType.dynamic)
 
     def get_output_type(self, index):
-        return OVAny(OVType.dynamic)
+        return self.get_type_for_value(self.inlined_input.data)
+
+    def as_string(self):
+        return self.inlined_input.data if isinstance(self.inlined_input.data, str) else None
 
     def input_is_none(self, index):
         if index < len(self._inputs) and isinstance(self._inputs[index], InlinedInput):

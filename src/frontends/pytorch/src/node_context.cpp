@@ -5,6 +5,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 
 #include "helper_ops/internal_op.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -21,6 +22,51 @@ namespace frontend {
 namespace pytorch {
 
 using namespace ov::op;
+
+namespace {
+Output<Node> rebase_view(const Output<Node>& view, const Output<Node>& old_base, const Output<Node>& new_base) {
+    std::map<Output<Node>, Output<Node>> replacements{{old_base, new_base}};
+    if (ov::is_type<SequenceMark>(old_base.get_node_shared_ptr())) {
+        const auto old_elements = old_base.get_node_shared_ptr()->input_values();
+        const auto new_elements = new_base.get_node_shared_ptr()->input_values();
+        FRONT_END_GENERAL_CHECK(old_elements.size() == new_elements.size(), "An aliased list cannot change length.");
+        for (size_t i = 0; i < old_elements.size(); ++i) {
+            replacements[old_elements[i]] = new_elements[i];
+        }
+    }
+    if (const auto old_complex = ov::as_type_ptr<ComplexTypeMark>(old_base.get_node_shared_ptr())) {
+        const auto new_complex = ov::as_type_ptr<ComplexTypeMark>(new_base.get_node_shared_ptr());
+        FRONT_END_GENERAL_CHECK(new_complex, "An alias update must preserve complex element type.");
+        replacements[old_complex->get_data()] = new_complex->get_data();
+        replacements[old_complex->get_real()] = new_complex->get_real();
+        replacements[old_complex->get_imag()] = new_complex->get_imag();
+    }
+    std::function<Output<Node>(const Output<Node>&)> clone = [&](const Output<Node>& output) -> Output<Node> {
+        const auto found = replacements.find(output);
+        if (found != replacements.end()) {
+            return found->second;
+        }
+        const auto node = output.get_node_shared_ptr();
+        const auto inputs = node->input_values();
+        OutputVector new_inputs;
+        for (const auto& input : inputs) {
+            new_inputs.push_back(clone(input));
+        }
+        if (new_inputs == inputs) {
+            replacements[output] = output;
+            return output;
+        }
+        const auto updated = node->clone_with_new_inputs(new_inputs);
+        updated->set_friendly_name(node->get_friendly_name());
+        copy_runtime_info(node, updated);
+        for (size_t i = 0; i < node->get_output_size(); ++i) {
+            replacements[node->output(i)] = updated->output(i);
+        }
+        return updated->output(output.get_index());
+    };
+    return clone(view);
+}
+}  // namespace
 
 OutputVector NodeContext::as_constant() const {
     auto dtype = m_decoder->get_output_type(0);
@@ -61,12 +107,42 @@ std::shared_ptr<Node> NodeContext::mark_node(std::shared_ptr<Node> ov_node) cons
 
 void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
     FRONT_END_GENERAL_CHECK(!input_is_none(index), "Input is none with index: ", index);
-    auto input_id = m_decoder_inputs.at(index);
+    mutate_tensor(m_decoder_inputs.at(index), ov_output, m_decoder->get_input_debug_name(index));
+}
+
+void NodeContext::mutate_input(const std::string& name, Output<Node> ov_output) const {
+    mutate_tensor(m_decoder->get_named_input(name), ov_output, name);
+}
+
+void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const std::string& name) const {
     auto tensor_it = m_tensor_map->find(input_id);
     FRONT_END_GENERAL_CHECK(tensor_it != m_tensor_map->end(), "No tensor corresponding input: ", input_id, " exist.");
-    m_translate_session->encode_tensor_name(ov_output, input_id, {m_decoder->get_input_debug_name(index)});
+    const auto previous_value = tensor_it->second;
+    m_translate_session->encode_tensor_name(ov_output, input_id, {name});
     tensor_it->second = ov_output;
     m_mutated_tensors->insert(input_id);
+
+    const auto op_type = m_decoder->get_op_type();
+    if (op_type.find("aten.unsqueeze_.") == 0 || op_type.find("aten.squeeze_.") == 0 ||
+        op_type.find("aten.transpose_.") == 0 || op_type.find("aten.t_.") == 0) {
+        // Existing views retain their shape when the base tensor's metadata changes.
+        const auto old_shape_view =
+            m_translate_session->get_reverseprop_op(m_decoder, ov_output, ov_output, previous_value);
+        for (auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
+            if (std::get<0>(info) == input_id) {
+                auto& snapshot = m_translate_session->m_alias_base_values.at(alias_id);
+                auto& direct_output = std::get<2>(info);
+                direct_output = rebase_view(direct_output, snapshot, old_shape_view);
+                snapshot = ov_output;
+                (*m_tensor_map)[alias_id] = direct_output;
+            }
+        }
+        const auto alias = m_translate_session->m_may_be_alias.find(input_id);
+        if (alias != m_translate_session->m_may_be_alias.end()) {
+            std::get<2>(alias->second) = ov_output;
+        }
+        return;
+    }
 
     // Resolve aliases
     auto& back_input_id = input_id;
@@ -78,7 +154,15 @@ void NodeContext::mutate_input(size_t index, Output<Node> ov_output) const {
         size_t in_tensor = std::get<0>(alias_info);
         auto& node = std::get<1>(alias_info);
         auto& node_converted_output = std::get<2>(alias_info);
-        auto reverseprop_node = m_translate_session->get_reverseprop_op(node, node_converted_output, back_node_input);
+        const auto base = m_translate_session->m_alias_base_values.find(back_input_id);
+        auto reverseprop_node =
+            base != m_translate_session->m_alias_base_values.end() && node_converted_output == base->second
+                ? back_node_input
+                : m_translate_session->get_reverseprop_op(
+                      node,
+                      node_converted_output,
+                      back_node_input,
+                      base != m_translate_session->m_alias_base_values.end() ? base->second : Output<Node>{});
         m_translate_session->encode_tensor_name(reverseprop_node, in_tensor);
         (*m_tensor_map)[in_tensor] = reverseprop_node;
         m_mutated_tensors->insert(in_tensor);
@@ -188,7 +272,27 @@ Output<Node> NodeContext::get_input(int index) const {
     }
     auto tensor_it = m_tensor_map->find(input);
     FRONT_END_GENERAL_CHECK(tensor_it != m_tensor_map->end(), "No tensor corresponding input: ", input, " exist.");
-    return tensor_it->second;
+    return resolve_tensor(input);
+}
+
+Output<Node> NodeContext::resolve_tensor(size_t index) const {
+    const auto alias = m_translate_session->m_may_be_alias.find(index);
+    const auto snapshot = m_translate_session->m_alias_base_values.find(index);
+    if (alias != m_translate_session->m_may_be_alias.end() &&
+        snapshot != m_translate_session->m_alias_base_values.end()) {
+        auto& [base_id, decoder, direct_output] = alias->second;
+        const auto base = resolve_tensor(base_id);
+        if (base != snapshot->second) {
+            // Replaying a view against the current base updates sibling views and
+            // views created before an in-place write. Previously consumed values
+            // remain connected to their original OpenVINO nodes.
+            direct_output = rebase_view(direct_output, snapshot->second, base);
+            snapshot->second = base;
+            (*m_tensor_map)[index] = direct_output;
+            m_translate_session->encode_tensor_name(direct_output, index);
+        }
+    }
+    return m_tensor_map->at(index);
 }
 
 Output<Node> NodeContext::get_input(const std::string& name) const {
@@ -201,7 +305,7 @@ Output<Node> NodeContext::get_input(const std::string& name) const {
         // None means input is unknown type, most likely a Node
         auto input = m_decoder->get_named_input(name);
         FRONT_END_GENERAL_CHECK(m_tensor_map->count(input), "No tensor corresponding input: ", input, " exist.");
-        return m_tensor_map->at(input);
+        return resolve_tensor(input);
     }
     FRONT_END_GENERAL_CHECK(false, "Input has type which can't be converted to ov::Node.");
 }

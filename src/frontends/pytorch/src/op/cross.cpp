@@ -34,13 +34,16 @@ Output<Node> translate_cross_base(const NodeContext& context, Output<Node> self,
 OutputVector translate_linalg_cross(const NodeContext& context) {
     // aten::linalg_cross(Tensor self, Tensor other, int? dim=-1) -> Tensor
     // aten::linalg_cross.out(Tensor self, Tensor other, int? dim=-1, *, Tensor(a!) out) -> Tensor(a!)
-    num_inputs_check(context, 3, 4);
+    num_inputs_check(context, 2, 4);
     Output<Node> self;
     Output<Node> other;
     std::tie(self, other) = get_inputs_with_promoted_types(context, 0, 1);
     auto const_minus_1 = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
     Output<Node> dim;
-    if (context.input_is_none(2)) {
+    if (context.has_attribute("dim")) {
+        const auto axis = context.get_attribute<int64_t>("dim");
+        dim = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {axis}));
+    } else if (context.input_is_none(2)) {
         dim = const_minus_1;
     } else {
         dim = context.get_input(2);

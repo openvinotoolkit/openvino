@@ -37,7 +37,8 @@ public:
     /// \brief Returns reverseprop operations for direct operation
     Output<Node> get_reverseprop_op(const std::shared_ptr<TorchDecoder>& node,
                                     const Output<Node>& direct_op_output,
-                                    const Output<Node>& value);
+                                    const Output<Node>& value,
+                                    const Output<Node>& base = {});
 
     /// \brief Writes pytorch tensor index into openvino tensor
     void encode_tensor_name(Output<Node> tensor_desc,
@@ -50,6 +51,9 @@ public:
     // Maps tensor index to initial tensor index which it is alias to, and to decoder of the node produced this alias
     // and to the output produced during conversion of this node
     std::map<size_t, std::tuple<size_t, std::shared_ptr<TorchDecoder>, Output<Node>>> m_may_be_alias;
+
+    // Value of the base tensor when an FX view was last converted.
+    std::map<size_t, Output<Node>> m_alias_base_values;
 
     OutputVector convert_node(const NodeContext& context);
 

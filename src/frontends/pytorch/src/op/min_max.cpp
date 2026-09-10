@@ -230,11 +230,13 @@ OutputVector translate_aminmax(const NodeContext& context) {
     auto input = context.get_input(0);
 
     // From torch 2.8, amax dim input is optional; an empty list also means reduce all dims
-    auto dim_input = !context.input_is_none(1) ? context.get_input(1) : Output<Node>{};
+    auto dim_input = context.has_attribute("dim") ? context.get_input("dim")
+                                                  : (!context.input_is_none(1) ? context.get_input(1) : Output<Node>{});
     auto dim = (dim_input.get_node() == nullptr || is_empty_axes(dim_input)) ? get_axes_range(context, 0) : dim_input;
 
     // check if keepdim is provided, if not, set it to false like PyTorch
-    bool keep_dims = !context.input_is_none(2) ? context.const_input<bool>(2) : false;
+    bool keep_dims = context.has_attribute("keepdim") ? context.get_attribute<bool>("keepdim")
+                                                      : (!context.input_is_none(2) && context.const_input<bool>(2));
 
     auto amin = context.mark_node(std::make_shared<v1::ReduceMin>(input, dim, keep_dims));
     auto amax = context.mark_node(std::make_shared<v1::ReduceMax>(input, dim, keep_dims));

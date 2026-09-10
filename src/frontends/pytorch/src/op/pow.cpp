@@ -15,7 +15,7 @@ OutputVector translate_pow(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     auto lhs = context.get_input(0);
     auto rhs = context.get_input(1);
-    auto inplace = context.get_op_type() == "aten::pow_";
+    auto inplace = context.get_op_type() == "aten::pow_" || context.get_op_type().find("aten.pow_.") == 0;
     if (inplace) {
         rhs = std::make_shared<ov::op::v1::ConvertLike>(rhs, lhs);
     } else {

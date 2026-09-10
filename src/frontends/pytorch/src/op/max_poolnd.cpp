@@ -74,6 +74,11 @@ OutputVector translate_max_pool3d(const NodeContext& context) {
     return translate_max_pool_base(context, 3, context.get_output_size() == 2);
 };
 
+OutputVector translate_max_pool1d_fx(const NodeContext& context) {
+    auto output = translate_max_pool_base(context, 1, true);
+    return {context.mark_node(make_list_construct(output))};
+};
+
 OutputVector translate_max_pool2d_fx(const NodeContext& context) {
     auto output = translate_max_pool_base(context, 2, true);
     return {context.mark_node(make_list_construct(output))};

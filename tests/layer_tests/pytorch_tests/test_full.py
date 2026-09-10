@@ -137,6 +137,16 @@ class TestFill(PytorchLayerTest):
 
 
         model = aten_fill(mode)
+        if self.use_torch_export():
+            # Tensor.fill is only exposed through the ATen API in eager PyTorch.
+            class ExportFill(torch.nn.Module):
+                def forward(self, input_t, x, out=None):
+                    if mode == "inplace":
+                        return input_t.fill_(x)
+                    if mode == "out":
+                        return torch.ops.aten.fill.Tensor_out(input_t, x, out=out), out
+                    return torch.ops.aten.fill.Tensor(input_t, x)
+            model = ExportFill()
 
         return model, "aten::fill_" if mode == "inplace" else "aten::fill"
 
@@ -149,6 +159,7 @@ class TestFill(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
+    @pytest.mark.precommit_torch_export
     def test_fill(self, shape, value, input_dtype, value_dtype, mode, ie_device, precision, ir_version):
         self._test(*self.create_model(mode), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
@@ -189,6 +200,7 @@ class TestFillDiagonal(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
+    @pytest.mark.precommit_torch_export
     def test_fill_diagonal(self, shape, value, input_dtype, value_dtype, wrap, ie_device, precision, ir_version):
         if ie_device == "GPU":
             pytest.xfail(reason="fill_diagonal is not supported on GPU")
@@ -431,7 +443,7 @@ class TestZerosAndOnes(PytorchLayerTest):
 
             def forward(self, x):
                 shape = x.shape
-                return self.op(shape, out=torch.zeros_like(x, dtype=self.dtype))
+                return self.op(shape, out=torch.zeros_like(x, dtype=self.dtype)), x
 
         class aten_op_out_with_names(torch.nn.Module):
             def __init__(self, op, dtype):
@@ -499,6 +511,7 @@ class TestZerosAndOnes(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["int8", "int32", "int64", "float32", "float64"])
     @pytest.mark.parametrize("with_names", [skip_if_export(True), False])
     @pytest.mark.nightly
+    @pytest.mark.precommit_torch_export
     def test_zeros_ones_with_out(self, op_type, shape, dtype, with_names, ie_device, precision, ir_version):
         self._test(*self.create_model(op_type, dtype=dtype, with_out=True, with_names=with_names), ie_device, precision,
                    ir_version, kwargs_to_prepare_input={'shape': shape})

@@ -7,8 +7,17 @@
 #include "helper_ops/gather_assign.hpp"
 #include "helper_ops/slice_assign.hpp"
 #include "input_model.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 #include "openvino/util/log.hpp"
 #include "place.hpp"
 #include "pt_framework_node.hpp"
@@ -21,6 +30,30 @@ namespace pytorch {
 using namespace ov::op;
 
 namespace {
+// FX node IDs are local to each GraphModule, including control-flow bodies.
+class AliasScope {
+public:
+    AliasScope(TranslateSession& session, bool enabled) : m_session(session), m_enabled(enabled) {
+        if (m_enabled) {
+            m_aliases.swap(m_session.m_may_be_alias);
+            m_base_values.swap(m_session.m_alias_base_values);
+        }
+    }
+
+    ~AliasScope() {
+        if (m_enabled) {
+            m_aliases.swap(m_session.m_may_be_alias);
+            m_base_values.swap(m_session.m_alias_base_values);
+        }
+    }
+
+private:
+    TranslateSession& m_session;
+    bool m_enabled;
+    decltype(TranslateSession::m_may_be_alias) m_aliases;
+    decltype(TranslateSession::m_alias_base_values) m_base_values;
+};
+
 // Helper to extract complex part element type from raw type
 element::Type get_complex_part_type(const Any& raw_type) {
     element::Type complex_part_type = element::dynamic;
@@ -87,8 +120,12 @@ std::shared_ptr<ov::Model> TranslateSession::translate_graph(const ov::frontend:
     FRONT_END_GENERAL_CHECK(pytorch_model != nullptr, "Invalid input model");
     auto model = convert_pytorch_model(pytorch_model->m_model_decoder, {}, pytorch_model);
     // First delete tensor indexes from outputs then resolve input names, otherwise Parameter->Result will fail
+    std::set<Output<Node>> named_outputs;
     for (auto& result : model->get_results()) {
         auto tensor_desc = result->input_value(0);
+        if (!named_outputs.insert(tensor_desc).second) {
+            continue;
+        }
         auto names = tensor_desc.get_names();
         if (!names.empty()) {
             auto tensor_idx = decode_tensor_name(tensor_desc);
@@ -119,6 +156,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
     std::shared_ptr<TorchDecoder> pytorch_model,
     const TensorMap& external_tensor_map,
     const std::shared_ptr<pytorch::InputModel>& input_model) {
+    AliasScope alias_scope(*this, pytorch_model->decoder_type_name() == "fx");
     std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         auto parameters = std::make_shared<ParameterVector>();
@@ -206,6 +244,13 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             // Add op type in the statistics
             m_op_statistics[context.get_op_type()]++;
             auto converted_outputs = convert_node(context);
+            const bool has_out = node->decoder_type_name() == "fx" && context.has_attribute("out");
+            if (has_out) {
+                FRONT_END_OP_CONVERSION_CHECK(converted_outputs.size() == 1, "Expected a single out tensor.");
+                const auto out = context.get_input("out");
+                converted_outputs[0] = ComplexTypeMark::convert_like(context, converted_outputs[0], out);
+                context.mutate_input("out", converted_outputs[0]);
+            }
 
             const auto& fw_outputs = node->outputs();
             // Ops with subgraphs or with mutated inputs may have more outputs after conversion compared to pytorch ones
@@ -219,10 +264,11 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                           " respectively.");
 
             const bool has_inputs = !node->inputs().empty();
-            const size_t in_tensor_id = has_inputs ? node->inputs().at(0) : 0;
+            const size_t in_tensor_id =
+                has_out ? node->get_named_input("out") : (has_inputs ? node->inputs().at(0) : 0);
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
-                if (has_inputs && node->may_produce_alias(0, i)) {
+                if (has_out || (has_inputs && node->may_produce_alias(0, i))) {
                     auto alias_iter = m_may_be_alias.find(fw_tensor_id);
                     // TODO: do we need to check other inputs, not only 0?
                     if (alias_iter != m_may_be_alias.end()) {
@@ -239,7 +285,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                                 " vs ",
                                                 recorded_in_tensor_id);
                     }
-                    m_may_be_alias[fw_tensor_id] = {node->inputs().at(0), node, converted_outputs[i]};
+                    m_may_be_alias[fw_tensor_id] = {in_tensor_id, node, converted_outputs[i]};
+                    if (node->decoder_type_name() == "fx") {
+                        m_alias_base_values[fw_tensor_id] = tensor_map->at(in_tensor_id);
+                    }
                     OPENVINO_DEBUG("Registered alias: ",
                                    fw_tensor_id,
                                    " of tensor: ",
@@ -275,6 +324,15 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                 "Model should have exactly 1 subgraph for TorchScript.");
         pytorch_model->visit_subgraph(node_visitor);
 
+        std::unique_ptr<NodeContext> output_context;
+        if (pytorch_model->decoder_type_name() == "fx") {
+            output_context = std::make_unique<NodeContext>(pytorch_model,
+                                                           external_tensor_map,
+                                                           tensor_map,
+                                                           parameters,
+                                                           mutated_tensors,
+                                                           this);
+        }
         ResultVector results;
         if (input_model) {
             // For the case when we have InputModel we need to have same order as its outputs
@@ -282,7 +340,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(output_p);
                 FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported.");
                 auto tensor_id = pytorch_place->get_tensor_index();
-                auto ov_output = tensor_map->at(tensor_id);
+                auto ov_output = output_context ? output_context->resolve_tensor(tensor_id) : tensor_map->at(tensor_id);
                 FRONT_END_GENERAL_CHECK(!ov_output.get_names().empty(),
                                         "Tensor doesn't have name, while it should have name: ",
                                         tensor_id);
@@ -303,7 +361,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 FRONT_END_GENERAL_CHECK(!it->second.get_names().empty(),
                                         "Tensor doesn't have name, while it should have name: ",
                                         id);
-                auto result = std::make_shared<v0::Result>(it->second);
+                auto result =
+                    std::make_shared<v0::Result>(output_context ? output_context->resolve_tensor(id) : it->second);
                 results.push_back(result);
             }
         }
@@ -354,10 +413,21 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
 OutputVector TranslateSession::convert_node(const NodeContext& context) {
     std::string exception;
     try {
-        const auto& op_type = context.get_op_type();
+        auto op_type = context.get_op_type();
         auto it = m_translator_map.find(op_type);
+        bool shared_aten_converter = false;
+        if (it == m_translator_map.end() && op_type.find("aten.") == 0) {
+            const auto overload = op_type.find('.', 5);
+            op_type = "aten::" + op_type.substr(5, overload - 5);
+            it = m_translator_map.find(op_type);
+            shared_aten_converter = true;
+        }
         if (it != m_translator_map.end()) {
-            return it->second(context);
+            auto outputs = it->second(context);
+            if (shared_aten_converter && outputs.size() > 1) {
+                return {context.mark_node(make_list_construct(outputs))};
+            }
+            return outputs;
         } else if (op_type.back() == '_') {
             // inplace op case
             std::string op_type_cut = op_type.substr(0, op_type.size() - 1);
@@ -480,14 +550,94 @@ using ReversepropCreatorFunction = std::function<ov::Output<ov::Node>(const Outp
 
 Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDecoder>& node,
                                                   const Output<Node>& direct_op_output,
-                                                  const Output<Node>& value) {
+                                                  const Output<Node>& value,
+                                                  const Output<Node>& base) {
     static const std::map<std::string, ReversepropCreatorFunction> backprop_map = {
         {"aten::slice", slice_reverseprop},
         {"aten::select", select_reverseprop},
+        {"aten.slice.Tensor", slice_reverseprop},
+        {"aten.select.int", select_reverseprop},
     };
 
     Output<Node> backprop_node;
     try {
+        const auto direct_node = direct_op_output.get_node_shared_ptr();
+        if (node->decoder_type_name() == "fx") {
+            const auto& name = node->get_op_type();
+            if (name.find("aten.split.") == 0 || name.find("aten.chunk.") == 0 ||
+                name.find("aten.unsafe_chunk.") == 0 || name.find("aten.tensor_split.") == 0 ||
+                name.find("aten.split_with_sizes.") == 0 || name.find("aten.unbind.") == 0) {
+                // getitem has already scattered the modified element into the base.
+                return value;
+            }
+            if (base.get_node()) {
+                if (direct_op_output == base) {
+                    return value;
+                }
+                if (ov::is_type<SequenceMark>(base.get_node_shared_ptr())) {
+                    for (const auto& element : base.get_node_shared_ptr()->input_values()) {
+                        if (direct_op_output == element) {
+                            return get_reverseprop_op(node, direct_op_output, value);
+                        }
+                    }
+                }
+                if (const auto complex_base = ov::as_type_ptr<ComplexTypeMark>(base.get_node_shared_ptr())) {
+                    if (direct_op_output == complex_base->get_data()) {
+                        return std::make_shared<ComplexTypeMark>(value, value.get_element_type());
+                    }
+                    if (direct_op_output == complex_base->get_real()) {
+                        return std::make_shared<ComplexTypeMark>(value, complex_base->get_imag());
+                    }
+                    if (direct_op_output == complex_base->get_imag()) {
+                        return std::make_shared<ComplexTypeMark>(complex_base->get_real(), value);
+                    }
+                }
+                if (const auto complex_view = ov::as_type_ptr<ComplexTypeMark>(direct_node)) {
+                    const auto complex_value = ov::as_type_ptr<ComplexTypeMark>(value.get_node_shared_ptr());
+                    FRONT_END_OP_CONVERSION_CHECK(complex_value, "Expected a complex alias update.");
+                    return get_reverseprop_op(node, complex_view->get_data(), complex_value->get_data(), base);
+                }
+                const auto updated = get_reverseprop_op(node, direct_op_output, value);
+                if (ov::as_type_ptr<PtFrameworkNode>(updated.get_node_shared_ptr())) {
+                    return updated;
+                }
+                return get_reverseprop_op(node, direct_node->input_value(0), updated, base);
+            }
+            if (ov::is_type<v0::Convert>(direct_node) || ov::is_type<v1::ConvertLike>(direct_node)) {
+                return value;
+            }
+            if (ov::is_type<v8::Slice>(direct_node)) {
+                return slice_reverseprop(direct_op_output, value);
+            }
+            if (ov::is_type<v8::Gather>(direct_node)) {
+                return select_reverseprop(direct_op_output, value);
+            }
+            if (ov::is_type<v1::Split>(direct_node) || ov::is_type<v1::VariadicSplit>(direct_node)) {
+                const auto axis = ov::util::get_constant_from_source(direct_node->input_value(1));
+                FRONT_END_OP_CONVERSION_CHECK(axis, "Cannot reverse a split with a dynamic axis.");
+                auto outputs = direct_node->outputs();
+                outputs[direct_op_output.get_index()] = value;
+                return std::make_shared<v0::Concat>(outputs, axis->cast_vector<int64_t>().at(0));
+            }
+        }
+        if (node->decoder_type_name() == "fx" &&
+            (ov::is_type<v1::Reshape>(direct_node) || ov::is_type<v0::Squeeze>(direct_node) ||
+             ov::is_type<v0::Unsqueeze>(direct_node))) {
+            return std::make_shared<v1::Reshape>(value,
+                                                 std::make_shared<v3::ShapeOf>(direct_node->input_value(0)),
+                                                 false);
+        }
+        if (node->decoder_type_name() == "fx" && ov::is_type<v1::Transpose>(direct_node)) {
+            const auto order = ov::util::get_constant_from_source(direct_node->input_value(1));
+            FRONT_END_OP_CONVERSION_CHECK(order, "Cannot reverse a view with a dynamic permutation.");
+            const auto axes = order->cast_vector<int64_t>();
+            std::vector<int64_t> inverse(axes.size());
+            for (size_t i = 0; i < axes.size(); ++i) {
+                inverse.at(axes[i]) = i;
+            }
+            return std::make_shared<v1::Transpose>(value,
+                                                   v0::Constant::create(element::i64, Shape{axes.size()}, inverse));
+        }
         auto it = backprop_map.find(node->get_op_type());
         if (it != backprop_map.end()) {
             return it->second(direct_op_output, value);

@@ -71,12 +71,13 @@ class TestNormal(PytorchLayerTest):
     class aten_normal6(torch.nn.Module):
         def forward(self, x):
             x = x.to(torch.float32)
-            return torch.normal(0., 1., x.shape)
+            return torch.normal(0., 1., x.shape), x
 
     class aten_normal7(torch.nn.Module):
         def forward(self, x):
             x = x.to(torch.float32)
-            return torch.normal(0., 1., x.shape, out=x), x
+            before = x.clone()
+            return torch.normal(0., 1., x.shape, out=x), x, before
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -89,6 +90,7 @@ class TestNormal(PytorchLayerTest):
         (aten_normal6(), [1, 3, 224, 224]),
         (aten_normal7(), [1, 3, 224, 224]),
     ])
+    @pytest.mark.precommit_torch_export
     def test_inplace_normal(self, model, inputs, ie_device, precision, ir_version):
         self.inputs = inputs
         self._test(model, "aten::normal",

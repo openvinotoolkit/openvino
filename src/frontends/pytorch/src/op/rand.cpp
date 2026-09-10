@@ -285,7 +285,13 @@ OutputVector translate_normal(const NodeContext& context) {
     auto mean = context.get_input(0);
     auto std = context.get_input(1);
     auto dtype = element::f32;
-    if (context.get_input_size() == 3 || context.get_input_size() == 4) {
+    if (context.get_op_type().find("aten.normal.float_float") == 0) {
+        if (context.has_attribute("dtype")) {
+            dtype = context.get_attribute<element::Type>("dtype");
+        }
+        return make_random_normal(context, context.get_input(2), dtype, std, mean);
+    }
+    if (context.get_input_size() >= 2 && context.get_input_size() <= 4) {
         // aten::normal.Tensor_float(Tensor mean, float std=1., *, Generator? generator=None) -> Tensor
         // aten::normal.Tensor_Tensor(Tensor mean, Tensor std, *, Generator? generator=None) -> Tensor
         // aten::normal.Tensor_float_out(Tensor mean, float std=1., *, Generator? generator=None, Tensor(a!) out) ->

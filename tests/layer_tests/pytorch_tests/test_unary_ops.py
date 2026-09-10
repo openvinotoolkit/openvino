@@ -5,7 +5,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 OPS = {
     "aten::abs": torch.abs,
@@ -91,12 +91,13 @@ class unary_op_out_net(torch.nn.Module):
         super().__init__()
         self.dtype = dtype
         self.op = op
+        self.out_op = torch.ops.aten.relu.out if PytorchLayerTest.use_torch_export() and op == torch.relu else op
 
     def forward(self, x):
         x1 = x.to(self.dtype)
         y = self.op(x1)
         z = torch.empty_like(y)
-        y1 = self.op(x1, out=z)
+        y1 = self.out_op(x1, out=z)
         return y1, z
 
 
@@ -163,11 +164,11 @@ class TestUnaryOp(PytorchLayerTest):
                                  "aten::exp",
                                  "aten::expm1",
                                  "aten::relu",
-                                 skip_if_export("aten::relu_"),
+                                 "aten::relu_",
                                  "aten::ceil",
-                                 skip_if_export("aten::ceil_"),
+                                 "aten::ceil_",
                                  "aten::floor",
-                                 skip_if_export("aten::floor_"),
+                                 "aten::floor_",
                                  "aten::sigmoid",
                                  "aten::reciprocal",
                                  "aten::log",
@@ -281,6 +282,7 @@ class TestUnaryOp(PytorchLayerTest):
                                  "aten::asinh",
                                  "aten::atanh"
                              ])
+    @pytest.mark.precommit_torch_export
     def test_unary_op_out(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
         self._test(unary_op_out_net(OPS[op_type], dtype), op_type,
@@ -298,6 +300,7 @@ class TestUnaryOp(PytorchLayerTest):
                                  "aten::hardswish",
                                  "aten::mish",
                              ])
+    @pytest.mark.precommit_torch_export
     def test_unary_func_op_inplace(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
         self._test(unary_func_op_inplace_net(OPS[op_type], dtype), op_type + "_",
@@ -321,6 +324,7 @@ class TestUnaryOp(PytorchLayerTest):
                                  "aten::abs",
                                  "aten::exp",
                              ])
+    @pytest.mark.precommit_torch_export
     def test_complex_unary_op(self, op_type, dtype, ie_device, precision, ir_version):
         self.dtype = dtype
         self._test(unary_op_complex_net(OPS[op_type], dtype), op_type,

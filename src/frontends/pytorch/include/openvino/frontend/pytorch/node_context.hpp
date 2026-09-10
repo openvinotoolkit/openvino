@@ -53,6 +53,10 @@ public:
     // TODO: int due to base class uses it, but naturally it should be size_t for PT
     Output<Node> get_input(int index) const override;
 
+    Output<Node> resolve_tensor(size_t index) const;
+
+    void mutate_input(const std::string& name, Output<Node> ov_output) const;
+
     Output<Node> get_input(const std::string& name) const override;
 
     Any get_values_from_const_input(int index) const override;
@@ -129,6 +133,8 @@ public:
     std::shared_ptr<ov::Model> convert_subgraph(size_t index) const;
 
 private:
+    void mutate_tensor(size_t input_id, Output<Node> ov_output, const std::string& name) const;
+
     ov::Any apply_additional_conversion_rules(const ov::Any& data, const std::type_info& type_info) const override;
 
     std::shared_ptr<TorchDecoder> m_decoder;
