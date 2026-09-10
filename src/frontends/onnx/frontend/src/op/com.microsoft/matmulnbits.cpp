@@ -314,6 +314,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                          ov::as_type<v0::Constant>(scales.get_node()) != nullptr,
                          "MatMulNBits limitation: reordered B layout requires a constant scales input");
         const auto scales_const_orig = ov::as_type_ptr<v0::Constant>(scales.get_node_shared_ptr());
+        CHECK_VALID_NODE(node,
+                         shape_size(scales_const_orig->get_shape()) == N * n_blocks_per_col,
+                         "MatMulNBits: B is stored in the reordered [n_blocks_per_col][N][blob_size] layout, but "
+                         "scales element count does not match N * n_blocks_per_col, got: ",
+                         scales_const_orig->get_shape());
         auto normalized_scales_bytes = swap_outer_axes(static_cast<const uint8_t*>(scales_const_orig->get_data_ptr()),
                                                        n_blocks_per_col,
                                                        static_cast<uint64_t>(N),
@@ -339,6 +344,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                      "[n_blocks_per_col][N] layout, got: ",
                                      zero_points.get_partial_shape());
                 }
+                CHECK_VALID_NODE(node,
+                                 shape_size(zp_const_orig->get_shape()) == N * n_blocks_per_col,
+                                 "MatMulNBits: B is stored in the reordered [n_blocks_per_col][N][blob_size] "
+                                 "layout, but zero_points element count does not match N * n_blocks_per_col, got: ",
+                                 zp_const_orig->get_shape());
                 normalized_zp_bytes = swap_outer_axes(static_cast<const uint8_t*>(zp_const_orig->get_data_ptr()),
                                                       n_blocks_per_col,
                                                       static_cast<uint64_t>(N),
