@@ -251,7 +251,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     add_default_output_chains();
 
     bool use_record_replay = get_config().get_record_replay();
-    bool skip_record_replay_check = GPU_DEBUG_VALUE_OR(get_config().get_record_replay_dynamic_wip(), false);
+    bool skip_record_replay_check = GPU_DEBUG_VALUE_OR(get_config().get_record_replay_dynamic(), false);
     if (!_internal && (use_record_replay || skip_record_replay_check)) {
         OPENVINO_ASSERT(skip_record_replay_check || is_recording_supported(), "[GPU] Record and replay is not supported on the provided model");
         OPENVINO_ASSERT(_stream->get_recorder() != nullptr, "[GPU] Stream recording is not supported by the current stream implementation");
