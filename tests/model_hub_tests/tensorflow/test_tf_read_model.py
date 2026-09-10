@@ -12,17 +12,18 @@ import tensorflow_hub as hub
 # noinspection PyUnresolvedReferences
 #import tensorflow_text  # do not delete, needed for text models. Commented due to ticket 179327
 from models_hub_common.test_convert_model import TestConvertModel
-from models_hub_common.utils import get_models_list
+from models_hub_common.utils import get_models_list, model_list_path
 from openvino import Core, PartialShape
 
 from utils import unpack_tf_result, retrieve_inputs_info_for_signature
 
 
 class TestTFReadModel(TestConvertModel):
-    def _reshape_if_required(self, ov_model, inputs):
+    def _reshape_if_required(self, ov_model, inputs, ie_device=None):
         # check if any input of dynamic rank
         # if yes, set a static rank
         if isinstance(inputs, dict):
+            is_npu = 'NPU' in (ie_device or '')
             needs_reshape = False
             new_shapes_dict = {}
             for model_input in ov_model.inputs:
@@ -32,7 +33,8 @@ class TestTFReadModel(TestConvertModel):
                 assert input_name in inputs, 'Inputs data does not contain {}'.format(input_name)
                 input_shape = list(inputs[input_name].shape)
                 new_shapes_dict[input_name] = PartialShape(input_shape)
-                if model_input.get_partial_shape().rank.is_dynamic:
+                partial_shape = model_input.get_partial_shape()
+                if partial_shape.rank.is_dynamic or (is_npu and partial_shape.is_dynamic):
                     needs_reshape = True
             if needs_reshape:
                 ov_model.reshape(new_shapes_dict)
@@ -82,8 +84,11 @@ class TestTFReadModel(TestConvertModel):
     def infer_ov_model(self, model_path, inputs, ie_device):
         core = Core()
         ov_model = core.read_model(model_path)
-        self._reshape_if_required(ov_model, inputs)
-        compiled = core.compile_model(ov_model, ie_device)
+        self._reshape_if_required(ov_model, inputs, ie_device)
+        compiled = core.compile_model(ov_model, ie_device, self.get_compile_config(ie_device))
+        # Compile-only for NPU device (base _run short-circuits on None)
+        if 'NPU' in (ie_device or ''):
+            return None
         ov_outputs = compiled(inputs)
         return ov_outputs
 
@@ -130,8 +135,8 @@ class TestTFReadModel(TestConvertModel):
         gc.collect()
 
     @pytest.mark.parametrize("model_name,model_link,mark,reason",
-                             get_models_list(os.path.join(os.path.dirname(__file__),
-                                                          "model_lists", "precommit_read_model")))
+                             get_models_list(model_list_path(os.path.join(os.path.dirname(__file__),
+                                                                          "model_lists"), "precommit_read_model")))
     @pytest.mark.precommit
     def test_read_model_precommit(self, model_name, model_link, mark, reason, ie_device):
         assert mark is None or mark == 'skip' or mark == 'xfail', \

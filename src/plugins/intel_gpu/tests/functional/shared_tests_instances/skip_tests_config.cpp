@@ -63,6 +63,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)"),
             std::regex(R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)"),
             std::regex(R"(.*smoke.*BehaviorTests.*DynamicInputToDynamicOutput.*)"),
+            // TODO: Implement RGBtoNV12/BGRtoNV12 in GPU plugin.
+            std::regex(R"(.*smoke_PostProcess.*convert_color_(rgb|bgr)_to_nv12.*)"),
             // TODO: Issue: 180519
             std::regex(R"(.*CoreThreadingTestsWithIter.*)"),
             // TODO: Issue: 145926
@@ -237,7 +239,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_MatMul_NoTranspose/MatMulLayerTest.Inference/IS=.*)"));
             patterns.push_back(std::regex(R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled/GroupConvo.*)"));
             patterns.push_back(std::regex(R"(.*smoke_static_conv_n_dynamic_concat/ConvStaticConcatDynamicGPUTestDynam.*)"));
-            patterns.push_back(std::regex(R"(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netP.*)"));
+            patterns.push_back(std::regex(R"(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netPRC=(f16|f32)_.*)"));
             patterns.push_back(std::regex(R"(.*smoke_FC_3D/MatMulLayerGPUTest.Inference/.*)"));
             patterns.push_back(std::regex(R"(.*smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest..*)"));
             patterns.push_back(std::regex(R"(.*smoke_MatmulWeightsDecompressionQuantizeConvolution_basic.*)"));
@@ -247,6 +249,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_3D_weight.*)"));
             // MoE patterns are not supported on the platforms without immad (fusion transformation are disabled)
             patterns.push_back(std::regex(R"(.*smoke_MoE3GemmCompressedFusion.*)"));
+            // Ticket 183099: enable after GroupedMatMul support on GPU
+            patterns.push_back(std::regex(R"(.*smoke_GroupedMatMul.*)"));
             // Dynamic quantization of fp8 and mxfp8 models supported only through oneDNN (disabled for non-systolic platforms)
             patterns.push_back(std::regex(R"(.*smoke_MatMulCompressedWeights_dyn_quan_.*fp8.*)"));
         }

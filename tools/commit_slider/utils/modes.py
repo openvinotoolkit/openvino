@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from utils.helpers import CfgManager, fetchAppOutput, getActualPath
+from utils.helpers import CfgManager, fetchAppOutput, getActualPath, fetchBenchmarkMetric
 from utils.helpers import getMeaningfullCommitTail, extractModelPath
 from utils.helpers import handleCommit, getBlobDiff, applySubstitutionRules, simpleSubstitute
 from utils.helpers import getCommitLogger, CashError, CfgError,\
@@ -275,11 +275,8 @@ class BenchmarkAppPerformanceMode(Mode):
             foundThroughput = cashedThroughput
         else:
             handleCommit(sampleCommit, cfg)
-            output = fetchAppOutput(cfg, sampleCommit)
+            output, foundThroughput = fetchBenchmarkMetric(cfg, sampleCommit, self.metric)
             commitLogger.info(output)
-            foundThroughput = re.search(
-                self.outPattern, output, flags=re.MULTILINE
-            ).group(1)
             self.setCommitCash(sampleCommit, float(foundThroughput))
         self.sampleThroughput = float(foundThroughput)
         return list
@@ -290,10 +287,7 @@ class BenchmarkAppPerformanceMode(Mode):
             raise CfgError("Appropriate deviation is not configured")
         else:
             self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
-        if ("metric" in cfg["runConfig"]):
-            self.outPattern = self.specifyMetric(cfg["runConfig"]["metric"])
-        else:
-            self.outPattern = self.specifyMetric()
+        self.metric = self.specifyMetric(cfg["runConfig"].get("metric", "throughput"))
 
 
     def specifyMetric(self, metric: str = "throughput"):
@@ -303,17 +297,7 @@ class BenchmarkAppPerformanceMode(Mode):
             "latency:min",
             "latency:median",
             "latency:average"]:
-            spec = metric.split(":")
-            idStr = "FPS"
-            if len(spec) == 2:
-                spec = spec[1]
-                idStr = "ms"
-            else:
-                spec = spec[0]
-            spec = spec.title()
-            res = r'{spec}:\s*([0-9]*[.][0-9]*)\s*{idStr}'.format(
-                spec=spec, idStr=idStr)
-            return res
+            return metric
         raise CfgError("Benchmark metric {} is not supported".format(metric))
 
     def preliminaryCheck(self, list, cfg):
@@ -400,12 +384,8 @@ class BenchmarkAppPerformanceMode(Mode):
                 commit=commit)
             )
             handleCommit(commit, cfg)
-            output = fetchAppOutput(cfg, commit)
+            output, curThroughput = fetchBenchmarkMetric(cfg, commit, self.metric)
             commitLogger.info(output)
-            foundThroughput = re.search(
-                self.outPattern, output, flags=re.MULTILINE
-            ).group(1)
-            curThroughput = float(foundThroughput)
             self.setCommitCash(commit, curThroughput)
         return curThroughput
 
@@ -421,11 +401,7 @@ class BenchmarkAppPerformanceMode(Mode):
         throughputList = []
         dev = self.apprDev = cfg["runConfig"]["perfAppropriateDeviation"]
         for i in range(cfg["preliminaryCheckCfg"]["tryCount"]):
-            output = fetchAppOutput(cfg, commit)
-            foundThroughput = re.search(
-                self.outPattern, output, flags=re.MULTILINE
-            ).group(1)
-            curThroughput = float(foundThroughput)
+            output, curThroughput = fetchBenchmarkMetric(cfg, commit, self.metric)
             throughputList.append(curThroughput)
         resStable = checkStability(throughputList, dev)
         if resStable:

@@ -201,6 +201,7 @@ static const std::vector<std::string> models{
     std::string("expand_v2_tensor/expand_v2_tensor.pdmodel"),
     std::string("expand_v2_tensor_list/expand_v2_tensor_list.pdmodel"),
     std::string("expand_v2_tensor_list2/expand_v2_tensor_list2.pdmodel"),
+    std::string("expand_v2_conditional/expand_v2_conditional.pdmodel"),
     std::string("expand_as_v2_1/expand_as_v2_1.pdmodel"),
     std::string("expand_as_v2_2/expand_as_v2_2.pdmodel"),
     std::string("exp_test_float32/exp_test_float32.pdmodel"),

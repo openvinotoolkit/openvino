@@ -24,7 +24,7 @@ The articles below provide the basic informations about the process of building 
 * [Docker Image](https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles/ubuntu20/build_custom)
 * [Linux RISC-V](./build_riscv64.md)
 
-> **NOTE**: For the details on how to build static OpenVINO, refer to [Building static OpenVINO libraries](static_libaries.md)
+> **NOTE**: For the details on how to build static OpenVINO, refer to [Building static OpenVINO libraries](static_libraries.md)
 
 ## See also
 

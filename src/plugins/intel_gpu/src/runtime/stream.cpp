@@ -16,11 +16,13 @@ SyncMethods stream::get_expected_sync_method(const ExecutionConfig& config) {
 }
 
 event::ptr stream::aggregate_events(const std::vector<event::ptr>& events, bool group, bool is_output) {
-    if (events.size() == 1 && !is_output)
+    if (events.size() == 1 && !is_output) {
         return events[0];
+    }
 
-    if (group && !is_output)
+    if (group && !is_output) {
         return group_events(events);
+    }
 
     return events.empty() ? (is_output ? create_user_event(true) : nullptr) : enqueue_marker(events, is_output);
 }

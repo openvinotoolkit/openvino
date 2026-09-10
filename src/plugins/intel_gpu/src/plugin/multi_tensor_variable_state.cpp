@@ -24,7 +24,7 @@ namespace ov::intel_gpu {
 MultiTensorState::MultiTensorState(const std::vector<VariableStateInfo>& infos,
                                    std::shared_ptr<RemoteContextImpl> context,
                                    ShapePredictor::Ptr shape_predictor) : ov::intel_gpu::VariableStateBase(infos[0].m_id, context) {
-    for (auto& info : infos) {
+    for (const auto& info : infos) {
         m_hidden_states.push_back(std::make_shared<VariableState>(info, context, shape_predictor));
     }
 }
@@ -104,10 +104,11 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
                     size_t out_offset = kv_out_mem->get_layout().get_linear_offset(out);
                     size_t in_offset = kv_layout.get_linear_offset(in);
 
-                    if (ov::element::Type(kv_layout.data_type).size() == 2)
+                    if (ov::element::Type(kv_layout.data_type).size() == 2) {
                         copy_element<uint16_t>(kv_in_ptr.data(), kv_out_ptr.data(), in_offset, out_offset);
-                    else if (ov::element::Type(kv_layout.data_type).size() == 4)
+                    } else if (ov::element::Type(kv_layout.data_type).size() == 4) {
                         copy_element<uint32_t>(kv_in_ptr.data(), kv_out_ptr.data(), in_offset, out_offset);
+                    }
                 }
             }
         }
@@ -129,9 +130,8 @@ ov::SoPtr<ov::ITensor> VariableStateIndirectKVCache::get_state() const {
         convert_and_copy(tmp_mem, tensor._ptr.get(), m_context->get_engine().get_service_stream());
 
         return tensor;
-    } else {
-        return m_hidden_states[0]->get_state();
     }
+    return m_hidden_states[0]->get_state();
 }
 
 void VariableStateIndirectKVCache::set_memory(const cldnn::memory::ptr& new_mem, const cldnn::layout& actual_layout) {

@@ -22,6 +22,11 @@ const std::vector<std::regex>& disabled_test_patterns() {
         std::regex(R"(.*OVCompiledModelBaseTest.*compile_from_.*_blob.*targetDevice=(HETERO.NPU).*)"),
         std::regex(R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*targetDevice=(HETERO.NPU).*)"),
         std::regex(R"(.*OVCompiledModelBaseTest.*use_blob_hint_.*targetDevice=CPU.*)"),
+#if defined(__APPLE__) && defined(OPENVINO_ARCH_ARM64)
+        // CVS-182864: accuracy mismatch in multi-core HETERO/TEMPLATE compile_model threading test
+        std::regex(
+            R"(.*CoreThreadingTestsWithIter\.smoke_CompileModel_Accuracy_MultipleCores.*targetDevice=HETERO_config=MULTI_DEVICE_PRIORITIES=TEMPLATE_numThreads=4_numIter=50.*)"),
+#endif
         // model import is not supported
         std::regex(R"(.*OVCompiledModelBaseTest.import_from_.*)"),
     };

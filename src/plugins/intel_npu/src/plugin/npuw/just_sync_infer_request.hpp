@@ -58,6 +58,10 @@ class FuncMemMgr {
     std::map<FO, std::vector<Assignment>> m_memory;  // Dynamic assignment table
     std::map<LinkFrom, TensorPtr> m_table;           // Static allocation/assignment table
 
+    // Global results are not pre-allocated - they will be set by the user via set_tensor()
+    // or allocated via get_tensor() before infer() on-demand.
+    std::set<LinkFrom> m_global_outputs;
+
 public:
     explicit FuncMemMgr(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model);
 
@@ -152,6 +156,7 @@ protected:
 
     bool is_pipelined(std::size_t idx) const;
     bool m_use_function_pipelining = false;
+    void propagate_params_to_subrequests() override;
     struct FuncallPipeline {
         // A "brother" subrequest for a "primary" subrequest. Initialized only
         // for function bodies (replaced_by == idx)

@@ -124,6 +124,9 @@ public:
         } else if (l.data_type == data_types::f16) {
             VF<ov::float16> rnd_vec = rg.generate_random_1d<ov::float16>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::bf16) {
+            VF<ov::bfloat16> rnd_vec = rg.generate_random_1d<ov::bfloat16>(s.count(), -1, 1);
+            set_values(prim, rnd_vec);
         } else {
             VF<float> rnd_vec = rg.generate_random_1d<float>(s.count(), -1, 1);
             set_values(prim, rnd_vec);
@@ -137,6 +140,9 @@ public:
         tensor s = l.get_tensor();
         if (l.data_type == data_types::f16) {
             VF<uint16_t> rnd_vec(s.count(), ov::float16(fill_value).to_bits());
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::bf16) {
+            VF<uint16_t> rnd_vec(s.count(), ov::bfloat16(fill_value).to_bits());
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f32) {
             VF<float> rnd_vec(s.count(), fill_value);
@@ -169,6 +175,9 @@ public:
         } else if (l.data_type == data_types::f16) {
             VF<ov::float16> rnd_vec = rg.generate_random_norepetitions<ov::float16>(s.count(), min, max);
             set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::bf16) {
+            VF<ov::bfloat16> rnd_vec = rg.generate_random_norepetitions<ov::bfloat16>(s.count(), min, max);
+            set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8) {
             VF<int8_t> rnd_vec = rg.generate_random_norepetitions<int8_t>(s.count(), min, max);
             set_values(prim, rnd_vec);
@@ -185,6 +194,9 @@ public:
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::f16) {
             VF<ov::float16> rnd_vec = rg.generate_random_1d<ov::float16>(s.count(), min, max);
+            set_values(prim, rnd_vec);
+        } else if (l.data_type == data_types::bf16) {
+            VF<ov::bfloat16> rnd_vec = rg.generate_random_1d<ov::bfloat16>(s.count(), min, max);
             set_values(prim, rnd_vec);
         } else if (l.data_type == data_types::i8) {
             VF<int8_t> rnd_vec = rg.generate_random_1d<int8_t>(s.count(), min, max);

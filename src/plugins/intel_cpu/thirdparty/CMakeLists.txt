@@ -4,21 +4,7 @@
 
 project(intel_cpu_thirdparty)
 
-# Suppress warnings from thirdparty code only (not from intel_cpu/src)
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    # C4849 OpenMP 'reduction' clause ignored in 'simd' directive
-    ov_add_compiler_flags(/wd4849)
-    # C4661 no suitable definition provided for explicit template instantiation request
-    ov_add_compiler_flags(/wd4661)
-    # Re-apply warning suppressions inside ov_add_onednn() function scope
-    # (needed because function() creates new variable scope in CMake)
-    ov_add_compiler_flags(/wd4018)
-    ov_add_compiler_flags(/wd4267)
-    ov_add_compiler_flags(/wd4244)
-    ov_add_compiler_flags(/wd4334)
-    ov_add_compiler_flags(/wd4146)
-    ov_add_compiler_flags(/wd5002)
-elseif(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
+if(OV_COMPILER_IS_INTEL_LLVM AND WIN32)
     ov_add_compiler_flags("/Wno-microsoft-include")
 endif()
 
@@ -164,6 +150,11 @@ function(ov_add_onednn)
 
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
+    # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+        target_compile_options(dnnl PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
+    endif()
+
     # install static libraries
     ov_install_static_lib(dnnl ${OV_CPACK_COMP_CORE})
 
@@ -192,6 +183,10 @@ endif()
 
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas EXCLUDE_FROM_ALL)
+    # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+        target_compile_options(mlas PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
+    endif()
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
 

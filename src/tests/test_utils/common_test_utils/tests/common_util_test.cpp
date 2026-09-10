@@ -6,6 +6,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/string_view_streambuf.hpp"
 namespace ov::test {
 
 using CommonUtilsTest = testing::Test;

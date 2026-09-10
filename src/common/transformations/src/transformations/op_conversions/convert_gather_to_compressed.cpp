@@ -157,10 +157,10 @@ ov::pass::ConvertGatherToGatherCompressed::ConvertGatherToGatherCompressed() {
 
 ov::pass::MoveDecompressionAfterGather::MoveDecompressionAfterGather() {
     auto dicts = wrap_type<v0::Constant>(ov::pass::pattern::type_matches_any({element::f16, element::bf16}));
-    auto convert_predicate = [](ov::Output<ov::Node> output) -> bool {
-        return ov::pass::pattern::consumers_count(1)(output) && type_matches(ov::element::f32)(output);
-    };
-    auto convert = wrap_type<v0::Convert>({dicts}, convert_predicate);
+    // No consumers_count(1) check: when the Convert has other consumers (e.g. FC/MatMul weight tying in LLMs),
+    // we still want to peel the Gather branch off into Gather(bf16/f16) -> Convert(f32). The original Convert
+    // keeps feeding its other consumers — Gather+Convert is fused at the plugin level with no extra overhead.
+    auto convert = wrap_type<v0::Convert>({dicts}, type_matches(ov::element::f32));
     auto gather = wrap_type<v8::Gather>({convert, any_input(), wrap_type<v0::Constant>()});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {

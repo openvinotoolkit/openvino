@@ -19,8 +19,9 @@ static std::vector<uint16_t> convert_axes(std::vector<int64_t> axes, size_t rank
             continue;
         }
 
-        if (axis < 0)
+        if (axis < 0) {
             axis = axis + rank;
+        }
 
         converted_axes.push_back(static_cast<uint16_t>(rank + 1 - axis));
     }
@@ -84,7 +85,7 @@ struct reduce_impl : typed_primitive_impl_ocl<reduce> {
         auto params = get_default_params<kernel_selector::reduce_params>(impl_param, is_shape_agnostic);
 
         params.reduceAxes = convert_axes(primitive->axes, impl_param.input_layouts[0].get_rank());
-        params.keepDims = primitive->keep_dims;
+        params.keepDims = static_cast<int32_t>(primitive->keep_dims);
         params.reduceMode = cldnn_2_reduce_mode(primitive->mode);
         return params;
     }

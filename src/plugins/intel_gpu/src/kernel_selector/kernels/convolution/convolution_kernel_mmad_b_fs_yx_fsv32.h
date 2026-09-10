@@ -14,7 +14,7 @@ class ConvolutionKernel_mmad_b_fs_yx_fsv32 : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_mmad_b_fs_yx_fsv32() : ConvolutionKernelBase("convolution_gpu_mmad_b_fs_yx_fsv32") {}
-    virtual ~ConvolutionKernel_mmad_b_fs_yx_fsv32() {}
+    ~ConvolutionKernel_mmad_b_fs_yx_fsv32() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
@@ -32,16 +32,13 @@ protected:
          if (IsSIMDSizeSupported(p.engineInfo, 8)) {
             if (DataTensor::ChannelsCount(p.outputs[0].GetLayout()) <= 4) {
                 return WeightsLayout::os_is_yx_osa4_isa8_osv8_isv4_swizzled_by_4;
-            } else {
-                return WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
             }
-        } else {
-            if (DataTensor::ChannelsCount(p.outputs[0].GetLayout()) <= 4) {
-                return WeightsLayout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
-            } else {
-                return WeightsLayout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
-            }
-        }
+            return WeightsLayout::os_is_zyx_osa4_isa8_osv8_isv4_swizzled_by_4;
+         }
+         if (DataTensor::ChannelsCount(p.outputs[0].GetLayout()) <= 4) {
+             return WeightsLayout::os_is_yx_osa2_isa8_osv16_isv4_swizzled_by_2;
+         }
+         return WeightsLayout::os_is_zyx_osa2_isa8_osv16_isv4_swizzled_by_2;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,
@@ -58,6 +55,6 @@ private:
     };
 
     AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
-    std::vector<AutoTuneOption> autoTuneOptions = {};
+    std::vector<AutoTuneOption> autoTuneOptions;
 };
 }  // namespace kernel_selector

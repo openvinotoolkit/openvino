@@ -65,6 +65,35 @@ TEST(get_constant_from_source, return_nullptr_for_empty_output) {
     ASSERT_EQ(res, nullptr);
 }
 
+TEST(is_empty_constant_tensor, returns_true_for_empty_constant) {
+    const auto empty = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{0}, {});
+    ASSERT_TRUE(ov::util::is_empty_constant_tensor(empty));
+}
+
+TEST(is_empty_constant_tensor, returns_false_for_non_empty_constant) {
+    const auto non_empty = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {1.0f});
+    ASSERT_FALSE(ov::util::is_empty_constant_tensor(non_empty));
+}
+
+TEST(is_empty_constant_tensor, returns_false_for_non_constant_node) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1});
+    ASSERT_FALSE(ov::util::is_empty_constant_tensor(param));
+}
+
+TEST(is_empty_constant_tensor, returns_false_for_scalar_constant) {
+    const auto scalar = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
+    ASSERT_FALSE(ov::util::is_empty_constant_tensor(scalar));
+}
+
+TEST(is_empty_constant_tensor, returns_true_for_multi_dim_zero_element_constant) {
+    const auto multi_dim_empty = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{5, 1, 0, 5}, {});
+    ASSERT_TRUE(ov::util::is_empty_constant_tensor(multi_dim_empty));
+}
+
+TEST(is_empty_constant_tensor, returns_false_for_empty_output) {
+    ASSERT_FALSE(ov::util::is_empty_constant_tensor(ov::Output<ov::Node>()));
+}
+
 TEST(constantfold_subgraph, split) {
     std::vector<float> input{0, 1, 2, 3, 4, 5, 6, 7, 8};
     auto constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{input.size()}, input);

@@ -18,7 +18,6 @@ Supported Python* versions:
   - Windows* 11
   - macOS* 12.6 and above, 64-bit and ARM64
   - Red Hat Enterprise Linux* 8, 64-bit
-  - Debian 9 ARM64 and ARM
   - CentOS 7 64-bit
 
 ## Setting Up the Environment

@@ -99,13 +99,18 @@ public:
         }();
 
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
+        std::shared_ptr<ov::util::WeightsProvider> weights_provider;
+        if (org_weights) {
+            weights_provider = std::make_shared<ov::util::BufferWeightsProvider>(org_weights);
+        }
         // deserialize model
         std::shared_ptr<ov::Model> model;
         if constexpr (std::is_same_v<Deserializer, ov::util::XmlDeserializer>) {
-            Deserializer visitor(root, org_weights, opsets, create_extensions_map, variables, version);
+            Deserializer visitor(root, weights_provider, opsets, create_extensions_map, variables, version);
             visitor.on_attribute("net", model);
         } else {
-            Deserializer visitor(root, org_weights, weights_map, opsets, create_extensions_map, variables, version);
+            Deserializer
+                visitor(root, weights_provider, weights_map, opsets, create_extensions_map, variables, version);
             visitor.on_attribute("net", model);
         }
 
@@ -251,14 +256,14 @@ class XmlDeserializer : public ov::util::XmlDeserializer {
 
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
-                             const std::shared_ptr<ov::AlignedBuffer>& origin_weights,
+                             const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
                              const WeightsMap& weights_map,
                              const std::unordered_map<std::string, ov::OpSet>& opsets,
                              const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                              std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
                              size_t version)
-        : ov::util::XmlDeserializer(node, origin_weights, opsets, extensions, variables, version),
-          m_origin_weights{origin_weights},
+        : ov::util::XmlDeserializer(node, weights_provider, opsets, extensions, variables, version),
+          m_weights_provider{weights_provider},
           m_weights_map{std::ref(weights_map)} {}
 
 protected:
@@ -313,9 +318,7 @@ protected:
                 actual_size = wl.original_size;
                 offset = wl.bin_offset;
                 auto original_dtype = wl.original_dtype;
-                char* data = m_origin_weights->get_ptr<char>() + offset;
-                auto w_size = m_origin_weights->size();
-                auto w_so = m_origin_weights;
+                auto w_size = m_weights_provider->size();
 
                 OPENVINO_ASSERT(w_size >= offset + actual_size, "Incorrect weights in bin file!");
                 if (original_dtype != el_type) {
@@ -335,9 +338,7 @@ protected:
                                        ov::util::get_memory_size(el_type, ov::shape_size(shape)));
                     }
 
-                    auto buffer =
-                        std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(data, actual_size, w_so);
-                    adapter.set(buffer);
+                    adapter.set(m_weights_provider->make_region(offset, actual_size));
                 }
             } else {
                 auto& buff = m_weights_map.get().at(offset);
@@ -349,13 +350,13 @@ protected:
 private:
     std::unique_ptr<ov::util::XmlDeserializer> make_visitor(
         const pugi::xml_node& node,
-        const std::shared_ptr<ov::AlignedBuffer>& origin_weights,
+        const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
         const std::unordered_map<std::string, ov::OpSet>& opsets,
         const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
         std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>>& variables,
         size_t version) const override {
         return std::make_unique<XmlDeserializer>(node,
-                                                 origin_weights,
+                                                 weights_provider,
                                                  m_weights_map,
                                                  opsets,
                                                  extensions,
@@ -363,7 +364,7 @@ private:
                                                  version);
     }
 
-    std::shared_ptr<ov::AlignedBuffer> m_origin_weights;
+    std::shared_ptr<ov::util::WeightsProvider> m_weights_provider;
     std::reference_wrapper<const WeightsMap> m_weights_map;
 };
 
@@ -422,6 +423,34 @@ TEST_F(CustomIRTest, modified_serialization_deserialization) {
 
     const auto& [is_valid, error_msg] = model_comparator().compare(ov_model, drv_model);
     EXPECT_TRUE(is_valid) << error_msg;
+}
+
+/**
+ * @brief An inflated size in a Const's <data> element must be rejected before
+ * any weights buffer dereference;
+ */
+TEST_F(CustomIRTest, parse_weightless_cache_attribute_oob_throws) {
+    {
+        auto c = std::make_shared<Constant>(element::f32, Shape{5}, std::vector<float>(5, 1.0f));
+        auto input = std::make_shared<Parameter>(element::f32, Shape{5});
+        ov::serialize(std::make_shared<Model>(OutputVector{std::make_shared<Add>(input, c)}, ParameterVector{input}),
+                      m_out_xml_path,
+                      m_out_bin_path);
+    }
+
+    // Inflate the Const's <data size> — that is what parse_weightless_cache_attribute
+    // reads to populate WeightlessCacheAttribute.original_size
+    pugi::xml_document doc;
+    ASSERT_EQ(doc.load_file(m_out_xml_path.string().c_str()).status, pugi::status_ok);
+    for (auto& layer : doc.child("net").child("layers").children("layer")) {
+        if (std::string(layer.attribute("type").value()) == "Const") {
+            layer.child("data").attribute("size").set_value(uint64_t{0x1000000000ULL});
+        }
+    }
+    doc.save_file(m_out_xml_path.string().c_str());
+
+    // .bin is ~20 bytes; injected size (~68 GB) must be rejected before any dereference
+    EXPECT_THROW(ov::Core().read_model(m_out_xml_path, m_out_bin_path), ov::Exception);
 }
 
 TEST(StrToContainer, FloatVectorWithInfAndNan) {

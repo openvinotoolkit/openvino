@@ -10,13 +10,20 @@
 #    include "impls/ocl_v2/pa_kv_reorder.hpp"
 #endif
 
+#if OV_GPU_WITH_CM
+#    include "impls/cm/pa_kv_reorder.hpp"
+#endif
+
 namespace ov {
 namespace intel_gpu {
 
 using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<pa_kv_reorder>::get_implementations() {
-    static const std::vector<std::shared_ptr<ImplementationManager>> impls = {OV_GPU_CREATE_INSTANCE_OCL(ocl::PA_KV_reorder, shape_types::any)};
+    static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::PA_KV_reorder, shape_types::any)
+        OV_GPU_CREATE_INSTANCE_CM(cm::PaKVReorderImplementationManager, shape_types::any)
+    };
 
     return impls;
 }

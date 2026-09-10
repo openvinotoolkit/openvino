@@ -36,7 +36,7 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
     const auto& input0_layout = impl_param.get_input_layout(0);
     auto input0_shape = input0_layout.get<ShapeType>();
 
-    auto& constant_mem = impl_param.memory_deps;
+    const auto& constant_mem = impl_param.memory_deps;
     const auto& begin_data = desc->begin;
     const auto& end_data = desc->end;
     const auto& strides_data = desc->strides;
@@ -46,8 +46,9 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         || (strides_data.empty() && !constant_mem.count(3))) {
         auto num_of_axis_mask_bit = [] (std::vector<int64_t> mask) -> size_t {
             size_t count = 0;
-            for (size_t i = 0; i < mask.size(); i++)
+            for (size_t i = 0; i < mask.size(); i++) {
                 if (mask[i]) count++;
+            }
             return count;
         };
 
@@ -57,10 +58,11 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
         auto num_of_shrink_axis_bit = num_of_axis_mask_bit(desc->shrink_axis_mask);
 
         auto output_len = input0_len;
-        if (num_of_new_axis_bit)
+        if (num_of_new_axis_bit) {
             output_len += num_of_new_axis_bit;
-        else if (num_of_shrink_axis_bit)
+        } else if (num_of_shrink_axis_bit) {
             output_len -= num_of_shrink_axis_bit;
+        }
 
         auto output_shape = ov::PartialShape::dynamic(output_len);
         if (input0_layout.is_dynamic()) {
@@ -83,7 +85,8 @@ std::vector<layout> strided_slice_inst::calc_output_layouts(strided_slice_node c
                 if (num_of_new_axis_bit && desc->new_axis_mask[i]) {
                     output_shape[output_idx++] = {1};
                     continue;
-                } else if (num_of_shrink_axis_bit && desc->shrink_axis_mask[i]) {
+                }
+                if (num_of_shrink_axis_bit && desc->shrink_axis_mask[i]) {
                     continue;
                 }
 
@@ -193,16 +196,19 @@ void strided_slice_inst::on_execute() {
 void strided_slice_inst::update_output_memory() {
     OPENVINO_ASSERT(!_outputs.empty(), "outputs is empty.");
     OPENVINO_ASSERT(_node != nullptr, "_node should not be nullptr.");
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
         return;
+    }
 
     build_deps();
 
-    if (input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr) {
         return;
+    }
 
-    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+    if (static_cast<bool>(_outputs[0]) && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())) {
         return;
+    }
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;

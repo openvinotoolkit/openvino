@@ -6,7 +6,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/transpose.hpp"
 #include "utils.hpp"
+#include "utils_quantize.hpp"
 
 namespace ov {
 namespace frontend {
@@ -40,6 +42,32 @@ OutputVector translate_embedding_ext(const NodeContext& context) {
     indices = context.mark_node(std::make_shared<ov::op::v0::Convert>(indices, element::i32));
     auto axis_0 = context.mark_node(ov::op::v0::Constant::create(element::i32, Shape{}, {0}));
     return {context.mark_node(std::make_shared<ov::op::v8::Gather>(data, indices, axis_0))};
+};
+
+OutputVector translate_embedding_ct(const NodeContext& context) {
+    // ov_ext::ct_embedding(weight_packed, weight_scale, group_size, sym,
+    //                      indices, weight_zero_point?)
+    // compressed-tensors pack-quantized int4 embedding lookup.
+    num_inputs_check(context, 5, 6);
+    auto weight_packed = context.get_input(0);
+    auto scales = context.get_input(1);
+    const auto group_size = context.const_input<int64_t>(2);
+    const auto sym = context.const_input<bool>(3);
+    auto indices = context.get_input(4);
+
+    Output<Node> zp;
+    if (!sym) {
+        FRONT_END_OP_CONVERSION_CHECK(!context.input_is_none(5), "CT asymmetric embedding requires weight_zero_point.");
+        zp = context.get_input(5);
+    }
+    // Dequantized as [embedding_dim, num_embeddings]; scales drive the output type (f32).
+    auto table = dequantize_ct_weight(context, weight_packed, scales, sym, group_size, scales, zp);
+    // Transpose to the [num_embeddings, embedding_dim] lookup table and gather rows.
+    auto perm = ov::op::v0::Constant::create(element::i32, {2}, std::vector<int32_t>{1, 0});
+    table = context.mark_node(std::make_shared<ov::op::v1::Transpose>(table, perm));
+    indices = context.mark_node(std::make_shared<ov::op::v0::Convert>(indices, element::i32));
+    auto axis_0 = ov::op::v0::Constant::create(element::i32, Shape{}, {0});
+    return {context.mark_node(std::make_shared<ov::op::v8::Gather>(table, indices, axis_0))};
 };
 
 }  // namespace op

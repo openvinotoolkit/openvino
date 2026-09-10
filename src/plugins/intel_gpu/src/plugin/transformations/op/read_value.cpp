@@ -8,7 +8,7 @@
 
 namespace ov::intel_gpu::op {
 
-ReadValue::ReadValue(const std::shared_ptr<ov::op::util::Variable>& past_values) : Op() {
+ReadValue::ReadValue(const std::shared_ptr<ov::op::util::Variable>& past_values) {
     m_variable = past_values;
     validate_and_infer_types();
 }
@@ -137,11 +137,10 @@ std::shared_ptr<Node> ReadValues::clone_with_new_inputs(const ov::OutputVector& 
                     "Incorrect number of inputs. Expected: 0 or ", m_internal_states_infos.size(), ". ",
                     "Actual: ", new_args.size(), ".");
 
-    if (new_args.size() > 0) {
+    if (!new_args.empty()) {
         return std::make_shared<ReadValues>(new_args, m_variable, m_internal_states_infos);
-    } else {
-        return std::make_shared<ReadValues>(m_variable, m_internal_states_infos);
     }
+    return std::make_shared<ReadValues>(m_variable, m_internal_states_infos);
 }
 
 std::vector<ov::op::util::VariableInfo> ReadValues::get_all_internal_states_info() const {

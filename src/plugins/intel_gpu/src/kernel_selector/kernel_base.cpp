@@ -27,10 +27,11 @@ std::string toString(const kernel_selector::CommonDispatchData& dispatchData) {
 void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_selector::CommonDispatchData& dispatchData,
                                    const EngineInfo& engineInfo) {
     const auto maxWorkGroupSize = engineInfo.maxWorkGroupSize;
-    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3)
+    if (dispatchData.gws.size() != 3 || dispatchData.lws.size() != 3) {
         throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName + ": " +
                                  ": LWS and GWS size is expected to be equal to 3. Actual: " +
                                  toString(dispatchData));
+    }
 
     if (dispatchData.lws[0] * dispatchData.lws[1] * dispatchData.lws[2] > maxWorkGroupSize) {
         throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
@@ -38,16 +39,16 @@ void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_s
                                  toString(dispatchData));
     }
     for (size_t i = 0; i < dispatchData.gws.size(); i++) {
-        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0)
+        if (dispatchData.gws[i] == 0 || dispatchData.lws[i] == 0) {
             throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
                                      ": Dispatch data cannot contain zeros. Actual: " +
                                      toString(dispatchData));
+        }
 
-        if (!engineInfo.supports_non_uniform_work_group) {
-            if (dispatchData.gws[i] % dispatchData.lws[i] != 0)
-                throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
-                                        ": GWS must be divisible by corresponding LWS. Actual: " +
-                                        toString(dispatchData));
+        if (dispatchData.gws[i] % dispatchData.lws[i] != 0) {
+            throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
+                                    ": GWS must be divisible by corresponding LWS. Actual: " +
+                                    toString(dispatchData));
         }
     }
 }
@@ -62,11 +63,13 @@ static bool IsTypeUsedIn(Datatype type, const base_params& params) {
 
 Datatype KernelBase::GetUnitType(const base_params& params) const {
     Datatype types_prioritized[] =
-        {Datatype::INT8, Datatype::F16, Datatype::INT32, Datatype::INT64, Datatype::UINT8, Datatype::UINT32};
+        {Datatype::INT8, Datatype::F16, Datatype::BF16, Datatype::INT32, Datatype::INT64, Datatype::UINT8, Datatype::UINT32};
 
-    for (Datatype type : types_prioritized)
-        if (IsTypeUsedIn(type, params))
+    for (Datatype type : types_prioritized) {
+        if (IsTypeUsedIn(type, params)) {
             return type;
+        }
+    }
 
     return Datatype::F32;
 }
@@ -95,7 +98,7 @@ JitConstants KernelBase::MakeBaseParamsJitConstants(const base_params& params, b
     // and unit type are different and activation param is existed
     bool convert_input_to_output_dt = (params.outputs[0].GetDType() == Datatype::F32 && params.inputs[0].GetDType() == Datatype::F16);
     // If input is FP16 and output is FP32, convert input to float before running activation function.
-    jit.Merge(MakeActivationJitConstants(params.activations, params.outputs[0].GetDType(), "", false, false, convert_input_to_output_dt));
+    jit.Merge(MakeActivationJitConstants(params.activations, GetComputeDatatype(params.outputs[0].GetDType()), "", false, false, convert_input_to_output_dt));
 
     if (add_tensor_definitions) {
         for (size_t i = 0; i < params.inputs.size(); i++) {
@@ -140,8 +143,9 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     JitConstants jit = {};
     // TODO: multiple output support
 
-    if (conf.empty())
+    if (conf.empty()) {
         return jit;
+    }
 
     if (std::all_of(params.fused_ops.cbegin(), params.fused_ops.cend(),
         [](fused_operation_desc desc) { return desc.GetType() == KernelType::REORDER; })) {
@@ -149,19 +153,20 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
     }
 
     try {
-        for (auto& c : conf) {
+        for (const auto& c : conf) {
             std::string fused_ops;
             std::string fused_ops_preload;
             std::string fused_ops_calc;
             std::string in_name = c.input_var_name;
-            std::string out_name = "";
+            std::string out_name;
             Datatype in_type = c.input_dt;
             bool can_all_use_preload = true;
-
+            Datatype last_fused_out_dtype = c.input_dt;
             for (size_t i = 0; i < params.fused_ops.size(); i++) {
                 // Reorder is not processed by jitter
-                if (params.fused_ops[i].GetType() == FusedOpType::REORDER)
+                if (params.fused_ops[i].GetType() == FusedOpType::REORDER) {
                     continue;
+                }
 
                 auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
                 jit.Merge(fused_dep_codegen.MakeLoadJitConstants(c, params.outputs[0]));
@@ -171,20 +176,31 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
                 can_all_use_preload &= can_use_preload;
                 bool can_preload_eltwise = true;
                 if (params.fused_ops[i].GetType() == FusedOpType::ELTWISE &&
-                    c.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE)
+                    c.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE) {
                     can_preload_eltwise = false;
+                }
                 fused_ops += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
                 fused_ops += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
-                if (can_use_preload && can_preload_eltwise)
+                if (can_use_preload && can_preload_eltwise) {
                     fused_ops_preload += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
-                if (c.allow_for_partial_preload && (!can_use_preload || !can_preload_eltwise))
+                }
+                if (c.allow_for_partial_preload && (!can_use_preload || !can_preload_eltwise)) {
                     fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
+                }
                 fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
+                last_fused_out_dtype = params.fused_ops[i].output_tensor.GetDType();
             }
 
             jit.AddConstant(MakeJitConstant("FUSED_OPS" + c.suffix, fused_ops));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc));
+            // Convert dtype, only if last fused op has a different one from kernel output
+            if (!params.outputs.empty() && params.outputs[0].GetDType() != last_fused_out_dtype) {
+                if (last_fused_out_dtype == Datatype::BF16) {
+                    out_name = "CONVERT_AS_BFLOAT16_FLOAT(" + out_name + ", " + toCodeString(c.vec_size) + ")";
+                }
+                out_name = "TO_OUTPUT_VECTOR_TYPE(" + out_name + ", " + toCodeString(c.vec_size) + ")";
+            }
             jit.AddConstant(MakeJitConstant("FUSED_OPS_RESULT" + c.suffix, out_name));
 
             bool can_any_use_preload = !fused_ops_preload.empty();
@@ -204,11 +220,12 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
                                                        const std::vector<FusedOpsConfiguration> &conf) const {
     JitConstants jit = {};
 
-    if (conf.empty())
+    if (conf.empty()) {
         return jit;
+    }
 
-    std::string input_decls = "";
-    std::string input_args = "";
+    std::string input_decls;
+    std::string input_args;
 
     for (size_t i = 0; i < params.fused_ops.size(); i++) {
         auto fused_dep_codegen = FusedOpsCodeGenerator(params.fused_ops[i]);
@@ -233,8 +250,9 @@ JitConstants KernelBase::MakeFusedOpsDeclsJitConstants(const kernel_selector::ba
 
 bool KernelBase::IsFusedPrimitiveSupported(const fused_operation_desc& fused_op) const {
     for (auto& supported_op : GetSupportedFusedOps()) {
-        if (fused_op.GetType() == supported_op)
+        if (fused_op.GetType() == supported_op) {
             return true;
+        }
     }
 
     return false;
@@ -253,10 +271,10 @@ DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Par
     const auto& casted_params = static_cast<const base_params&>(params);
 
     std::vector<Datatype> tensor_types;
-    for (auto& t : casted_params.inputs) {
+    for (const auto& t : casted_params.inputs) {
         tensor_types.push_back(t.GetDType());
     }
-    for (auto& t : casted_params.outputs) {
+    for (const auto& t : casted_params.outputs) {
         tensor_types.push_back(t.GetDType());
     }
 
@@ -270,14 +288,17 @@ DeviceFeaturesKey KernelBase::get_common_subgroups_device_features_key(const Par
         }
     }
 
-    if (requires_blocked_read_write)
+    if (requires_blocked_read_write) {
         k.requires_blocked_read_write();
+    }
 
-    if (requires_blocked_read_write_short)
+    if (requires_blocked_read_write_short) {
         k.requires_blocked_read_write_short();
+    }
 
-    if (requires_blocked_read_write_char)
+    if (requires_blocked_read_write_char) {
         k.requires_blocked_read_write_char();
+    }
 
     k.requires_subgroups();
     k.requires_reqd_subgroup_size();

@@ -44,8 +44,9 @@ struct resample : public primitive_base<resample> {
           cube_coeff(0.0f),
           coord_trans_mode(InterpolateOp::CoordinateTransformMode::ASYMMETRIC),
           round_mode(InterpolateOp::NearestMode::FLOOR) {
-        if (scales.size() != axes.size())
+        if (scales.size() != axes.size()) {
             throw std::runtime_error("Resample's scales/axes count does not match");
+        }
         if (operation_type == InterpolateOp::InterpolateMode::LINEAR) {
             coord_trans_mode = InterpolateOp::CoordinateTransformMode::HALF_PIXEL;
         }
@@ -66,7 +67,6 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::CoordinateTransformMode ctm = InterpolateOp::CoordinateTransformMode::HALF_PIXEL,
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR)
         : primitive_base(id, {input}),
-          output_size(tensor()),
           num_filter(0),
           sizes(sizes),
           scales(scales),
@@ -79,8 +79,9 @@ struct resample : public primitive_base<resample> {
           cube_coeff(cube_coeff),
           coord_trans_mode(ctm),
           round_mode(nm) {
-        if (scales.size() != axes.size() && shape_calc_mode == InterpolateOp::ShapeCalcMode::SCALES)
+        if (scales.size() != axes.size() && shape_calc_mode == InterpolateOp::ShapeCalcMode::SCALES) {
             throw std::runtime_error("Resample's scales/axes count does not match");
+        }
     }
 
     /// @brief resample with dynamic sizes/scales
@@ -99,7 +100,6 @@ struct resample : public primitive_base<resample> {
              InterpolateOp::NearestMode nm = InterpolateOp::NearestMode::ROUND_PREFER_FLOOR,
              const int scales_port = 2)
         : primitive_base(id, {input, sizes_id, scales_id}),
-          output_size(tensor()),
           num_filter(0),
           scales_port(scales_port),
           sizes({}),
@@ -171,8 +171,9 @@ struct resample : public primitive_base<resample> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const resample>(rhs);
 

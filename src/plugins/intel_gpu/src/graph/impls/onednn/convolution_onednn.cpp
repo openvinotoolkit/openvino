@@ -121,20 +121,18 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
             pad_l,
             pad_r,
             attr);
-    } else {
-        return std::make_shared<dnnl::convolution_forward::primitive_desc>(
-            engine.get_onednn_engine(),
-            dnnl::prop_kind::forward_inference,
-            dnnl::algorithm::convolution_direct,
-            input_md,
-            weights_md,
-            output_md,
-            stride,
-            dilation,
-            pad_l,
-            pad_r,
-            attr);
     }
+    return std::make_shared<dnnl::convolution_forward::primitive_desc>(engine.get_onednn_engine(),
+                                                                       dnnl::prop_kind::forward_inference,
+                                                                       dnnl::algorithm::convolution_direct,
+                                                                       input_md,
+                                                                       weights_md,
+                                                                       output_md,
+                                                                       stride,
+                                                                       dilation,
+                                                                       pad_l,
+                                                                       pad_r,
+                                                                       attr);
 }
 
 struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
@@ -173,7 +171,7 @@ protected:
             // In the case of dynamic model, if choose_impl was executed in runtime,
             // a_zp could be remained as u8 or i8.
             if (a_zp->get_layout().data_type != data_types::i32) {
-                auto& conv_node = instance.get_node().as<convolution>();
+                const auto& conv_node = instance.get_node().as<convolution>();
                 auto& a_zp_node = conv_node.activations_zero_points().as<data>();
                 a_zp = a_zp_node.get_attached_memory_ptr();
             }
@@ -210,7 +208,7 @@ protected:
                                                 cldnn::data_node& node, int& zero_point_mask) {
         int32_t zp_val = DNNL_RUNTIME_S32_VAL;
         bool is_per_tensor = onednn::is_per_tensor<T>(node, zp_val);
-        memory::ptr s32_mem = onednn::convert_zp_data_to_s32<T>(node.get_attached_memory_ptr());
+        memory::ptr s32_mem = onednn::convert_zp_data_to_s32(node.get_attached_memory_ptr());
         node.attach_memory(s32_mem, false);
         zero_point_mask = is_per_tensor ? 0 : 2;
         attrs->set_zero_points_mask(DNNL_ARG_SRC, zero_point_mask);
@@ -223,7 +221,8 @@ protected:
         auto attrs = impl_params.attrs_onednn;
 
         // accumulation_mode::any allows oneDNN to use f16 as the accumulation type.
-        if (impl_params.get_input_layout(0).data_type == data_types::f16) {
+        if ((impl_params.get_input_layout(0).data_type == data_types::f16) &&
+            (impl_params.prog->get_config().get_execution_mode() != ov::hint::ExecutionMode::ACCURACY)) {
             attrs->set_accumulation_mode(dnnl::accumulation_mode::any);
         }
 
@@ -342,6 +341,13 @@ public:
         ib >> zero_bias;
 
         auto prim = impl_params->typed_desc<convolution>();
+        if (prim->activations_zero_points.is_valid()) {
+            auto& a_zp = impl_params->get_program().get_node_ptr(prim->id)->as<convolution>().activations_zero_points().as<data>();
+            memory::ptr s32_mem = onednn::convert_zp_data_to_s32(a_zp.get_attached_memory_ptr());
+            if (s32_mem != nullptr) {
+                a_zp.attach_memory(s32_mem, false);
+            }
+        }
         bool has_wzp = prim->weights_zero_points.is_valid();
         if (has_wzp) {
             ib >> make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
@@ -378,7 +384,7 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         int zero_point_mask = -1;
         dnnl::memory::data_type wzp_data_type = dnnl::memory::data_type::undef;
 
@@ -411,8 +417,9 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
     auto prim_desc = get_convolution_primitive_descriptor(*node.get_kernel_impl_params(), dnnl::primitive_attr(), dnnl::memory::format_tag::any);
 
     for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
-        if (node.get_dependency(idx).is_constant())
+        if (node.get_dependency(idx).is_constant()) {
             continue;
+        }
 
         // Conv or deconv gets a preferred format for its data input based on source memory description
         // But an input format for fused post-ops should be same with an output format of conv/deconv
@@ -430,8 +437,9 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
         }
 
         // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
-        if (src_fmt == format::b_fs_yx_fsv2)
+        if (src_fmt == format::b_fs_yx_fsv2) {
             src_fmt = format::byxf;
+        }
 
         // WA: shallow convolution needs to set input format by bfyx.
         //     onednn recommended byxf for input format. It will insert reorder before shallow conv.
@@ -470,8 +478,9 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
     }
 
     // WA: Avoid b_fs_yx_fsv2 because Onednn tag aBcd2b is not declared.
-    if (out_fmts[0] == format::b_fs_yx_fsv2)
+    if (out_fmts[0] == format::b_fs_yx_fsv2) {
         out_fmts[0] = format::byxf;
+    }
 
     // Errata: Best impl for shallow input conv with zero-point ops is ocl:xe_lp.
     if (in_fmts[0] == format::bfyx) {

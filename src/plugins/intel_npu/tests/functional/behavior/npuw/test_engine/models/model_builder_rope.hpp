@@ -40,6 +40,23 @@ struct InterleavedRoPE {
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
 
+/// Partial RoPE (Qwen3.5-style): only the first rotary_dim of each head is rotated
+/// (half-rotation), the remaining head_dim - rotary_dim passes through, then both are
+/// re-concatenated. cos/sin are built over rotary_dim.
+struct PartialRotationRoPE {
+    size_t head_dim;
+    size_t rotary_dim;
+    HalfRotationRoPE inner;  ///< rotation over the rotary_dim prefix
+
+    PartialRotationRoPE(size_t head_dim,
+                        size_t rotary_dim,
+                        ov::element::Type precision,
+                        const ov::Output<ov::Node>& position_ids,
+                        const ov::Output<ov::Node>& shape_source = {});
+
+    ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
+};
+
 /// [batch, seq] position_ids Parameter.
 ov::Output<ov::Node> make_position_ids_2d();
 

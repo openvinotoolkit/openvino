@@ -53,7 +53,7 @@ static cldnn::condition::branch gen_branch(ProgramBuilder& p, const std::shared_
 
 static void CreateIfOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v8::If>& op) {
     auto inputs = p.GetInputInfo(op);
-    OPENVINO_ASSERT(inputs.size() >= 1, "Invalid inputs count (Not allowed no input)");
+    OPENVINO_ASSERT(!inputs.empty(), "Invalid inputs count (Not allowed no input)");
     auto compare_node_pshape = op->get_input_partial_shape(0);
     auto p_input_name = inputs[0].pid;
     std::string type_name_str = op->get_input_node_ptr(0)->get_type_name();

@@ -141,7 +141,7 @@ class BinaryManager {
    * Checks if the current platform and architecture are compatible.
    *
    * Supported platforms: 'win32', 'linux', 'darwin'.
-   * Supported architectures: 'arm64', 'armhf', 'x64'.
+   * Supported architectures: 'arm64', 'x64'.
    *
    * If the platform or architecture is not supported, an error message
    * is logged to the console.
@@ -158,11 +158,14 @@ class BinaryManager {
 
     const arch = os.arch();
 
-    if (!["arm64", "armhf", "x64"].includes(arch))
+    if (!["arm64", "x64"].includes(arch))
       missleadings.push(`Architecture '${arch}' is not supported.`);
 
     if (platform === "win32" && arch !== "x64")
       missleadings.push(`Version for windows and '${arch}' is not supported.`);
+
+    if (platform === "darwin" && arch !== "arm64")
+      missleadings.push(`Version for macOS and '${arch}' is not supported.`);
 
     if (missleadings.length) {
       console.error(missleadings.join(" "));

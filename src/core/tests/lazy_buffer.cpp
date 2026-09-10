@@ -11,10 +11,12 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/core/deprecated.hpp"
 
 using namespace testing;
 
 namespace ov::test {
+OPENVINO_SUPPRESS_DEPRECATED_START
 class LazyBufferTest : public Test {
 protected:
     std::filesystem::path m_file_path;
@@ -109,7 +111,7 @@ TEST_F(LazyBufferTest, load_on_first_get_ptr) {
     EXPECT_THAT(first_rewrite, ElementsAreArray(second_ptr, size));
 }
 
-TEST_F(LazyBufferTest, evict_and_reload) {
+TEST_F(LazyBufferTest, hint_evict_is_noop) {
     write_test_data(128);
 
     constexpr size_t offset = 31;
@@ -125,18 +127,13 @@ TEST_F(LazyBufferTest, evict_and_reload) {
     ASSERT_NE(first_ptr, nullptr);
     ASSERT_THAT(first_rewrite, ElementsAreArray(first_ptr, size));
 
-    // After evict(), get_ptr() should load the same file content again
-    buffer->hint_evict();
-    ASSERT_NO_THROW((first_ptr = buffer->get_ptr<char>()));
-    ASSERT_NE(first_ptr, nullptr);
-    ASSERT_THAT(first_rewrite, ElementsAreArray(first_ptr, size));
-
-    // After evict(), get_ptr() should load the file content again and reflect the second overwrite.
+    // hint_evict() is a no-op: cached content and pointer must stay the same even after a later file overwrite.
     buffer->hint_evict();
     overwrite_test_data(offset, second_rewrite);
     char* second_ptr = nullptr;
     ASSERT_NO_THROW((second_ptr = buffer->get_ptr<char>()));
     ASSERT_EQ(second_ptr, first_ptr);
-    EXPECT_THAT(second_rewrite, ElementsAreArray(second_ptr, size));
+    EXPECT_THAT(first_rewrite, ElementsAreArray(second_ptr, size));
 }
+OPENVINO_SUPPRESS_DEPRECATED_END
 }  // namespace ov::test

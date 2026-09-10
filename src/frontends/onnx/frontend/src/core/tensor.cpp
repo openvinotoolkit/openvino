@@ -5,6 +5,7 @@
 #include "core/tensor.hpp"
 
 #include "input_model.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/util/file_util.hpp"
 
 namespace ov {
@@ -251,10 +252,11 @@ std::vector<uint8_t> Tensor::get_data() const {
         return detail::__get_raw_data<uint8_t>(m_tensor_proto->raw_data(), m_tensor_proto->data_type());
     }
     if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_UINT8 ||
-        m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_UINT4) {
+        m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_UINT4 ||
+        m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1) {
         return detail::__get_data<uint8_t>(m_tensor_proto->int32_data());
     }
-    ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "UINT4, UINT8, raw data");
+    ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "UINT4, UINT8, FLOAT4E2M1, raw data");
 }
 
 template <>
@@ -387,6 +389,38 @@ std::vector<ov::float8_e5m2> Tensor::get_data() const {
 }
 
 template <>
+std::vector<ov::float8_e8m0> Tensor::get_data() const {
+    const auto bits_to_float8_e8m0 = [](const auto& int32_data) {
+        std::vector<ov::float8_e8m0> float8_data;
+        float8_data.reserve(int32_data.size());
+        std::transform(std::begin(int32_data), std::end(int32_data), std::back_inserter(float8_data), [](int32_t elem) {
+            return ov::float8_e8m0::from_bits(static_cast<uint8_t>(elem));
+        });
+        return float8_data;
+    };
+
+    if (has_external_data()) {
+        return get_external_data<ov::float8_e8m0>();
+    }
+    if (m_tensor_place != nullptr) {
+        if (m_tensor_place->is_raw()) {
+            return detail::__get_data<ov::float8_e8m0, ov::float8_e8m0>(
+                m_tensor_place->get_data(),
+                raw_value_count<ov::float8_e8m0>(m_tensor_place));
+        }
+        const auto* const int32_data = static_cast<const int32_t*>(m_tensor_place->get_data());
+        return bits_to_float8_e8m0(std::vector<int32_t>(int32_data, int32_data + m_tensor_place->get_data_size()));
+    }
+    if (m_tensor_proto->has_raw_data()) {
+        return detail::__get_raw_data<ov::float8_e8m0>(m_tensor_proto->raw_data(), m_tensor_proto->data_type());
+    }
+    if (m_tensor_proto->data_type() == TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0) {
+        return bits_to_float8_e8m0(m_tensor_proto->int32_data());
+    }
+    ONNX_INVALID_DATA_TYPE(m_tensor_proto->data_type(), "FLOAT8E8M0, raw data");
+}
+
+template <>
 std::vector<char> Tensor::get_data() const {
     // Boolean values are stored as char because std::vector<bool>
     // can behave differently from other vector containers.
@@ -445,6 +479,10 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     }
     std::shared_ptr<ov::AlignedBuffer> constant_buffer;
     bool external_data_valid = has_external_data();
+    // Only set for data backed by an external file. In the ORT case the "offset" is a raw
+    // memory address of a temporary buffer, not a reloadable file offset, so it is skipped.
+    bool has_weightless_offset = false;
+    size_t weightless_offset = 0;
     if (external_data_valid) {
         const auto ext_data = m_tensor_place != nullptr
                                   ? detail::TensorExternalData(*m_tensor_place->get_data_location(),
@@ -456,8 +494,12 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             constant_buffer = ext_data.load_external_mem_data();
         } else if (m_mmap_cache) {
             constant_buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
+            has_weightless_offset = true;
+            weightless_offset = ext_data.offset();
         } else {
             constant_buffer = ext_data.load_external_data(m_model_dir);
+            has_weightless_offset = true;
+            weightless_offset = ext_data.offset();
         }
         if (element_count == 0 && constant_buffer) {
             element_count = constant_buffer->size() * 8 / ov_type.bitwidth();
@@ -474,6 +516,8 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     }
 
     if (element_count == 0) {
+        // A failsafe constant holds no external data, so it has no offset there
+        has_weightless_offset = false;
         constant = common::make_failsafe_constant(ov_type);
     } else if (constant_buffer) {
         try {
@@ -520,18 +564,26 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
         case TensorProto_DataType::TensorProto_DataType_FLOAT16:
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float16>().data());
             break;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1:
+            // f4e2m1 is a nibble type - two values are packed into a single byte, same as in ONNX
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint8_t>().data());
+            break;
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e4m3>().data());
             break;
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e5m2>().data());
             break;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0:
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e8m0>().data());
+            break;
         case TensorProto_DataType::TensorProto_DataType_STRING:
             constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
             break;
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
-                                       "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, "
+                                       "BOOL, BFLOAT16, FLOAT4E2M1, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT8E8M0, FLOAT, "
+                                       "FLOAT16, DOUBLE, INT4, "
                                        "INT8, INT16, INT32, INT64, "
                                        "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
@@ -575,18 +627,26 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             case ov::element::f16:
                 constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float16>().data());
                 break;
+            case ov::element::f4e2m1:
+                // f4e2m1 is a nibble type - two values are packed into a single byte, same as in ONNX
+                constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<uint8_t>().data());
+                break;
             case ov::element::f8e4m3:
                 constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e4m3>().data());
                 break;
             case ov::element::f8e5m2:
                 constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e5m2>().data());
                 break;
+            case ov::element::f8e8m0:
+                constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<ov::float8_e8m0>().data());
+                break;
             case ov::element::string:
                 constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, get_data<std::string>().data());
                 break;
             default:
                 ONNX_UNSUPPORTED_DATA_TYPE(m_tensor_proto->data_type(),
-                                           "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, "
+                                           "BOOL, BFLOAT16, FLOAT4E2M1, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT8E8M0, FLOAT, "
+                                           "FLOAT16, DOUBLE, INT4, "
                                            "INT8, INT16, INT32, INT64, "
                                            "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
             }
@@ -609,6 +669,12 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
             constant->get_default_output().set_names({names.begin(), names.end()});
         }
     }
+
+    if (has_weightless_offset) {
+        constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(constant->get_byte_size(), weightless_offset, constant->get_element_type());
+    }
+
     return constant;
 }
 

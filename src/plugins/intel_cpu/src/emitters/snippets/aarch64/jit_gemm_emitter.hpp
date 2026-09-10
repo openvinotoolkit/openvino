@@ -39,8 +39,9 @@ protected:
     void emit_call(const std::shared_ptr<ExecutorT>& kernel_executor, const std::vector<size_t>& mem_ptrs_idxs) const;
     bool is_f16_executor() const;
 
-    using KernelExecutor =
-        std::variant<std::shared_ptr<GemmF32KaiKernelExecutor>, std::shared_ptr<GemmF16KaiKernelExecutor>>;
+    using KernelExecutor = std::variant<std::shared_ptr<GemmF32KaiKernelExecutor>,
+                                        std::shared_ptr<GemmF16KaiKernelExecutor>,
+                                        std::shared_ptr<GemmI8KaiKernelExecutor>>;
 
     KernelExecutor m_kernel_executor_kai;
     std::vector<size_t> m_memory_offsets;

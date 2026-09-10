@@ -3,6 +3,7 @@
 //
 
 // ! [ov:include]
+#include <exception>
 #include <openvino/openvino.hpp>
 // ! [ov:include]
 

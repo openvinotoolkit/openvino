@@ -211,6 +211,36 @@ ov::Output<ov::Node> InterleavedRoPE::operator()(const ov::Output<ov::Node>& inp
     return output->output(0);
 }
 
+PartialRotationRoPE::PartialRotationRoPE(size_t hd,
+                                         size_t rd,
+                                         ov::element::Type precision,
+                                         const ov::Output<ov::Node>& position_ids,
+                                         const ov::Output<ov::Node>& shape_source)
+    : head_dim(hd),
+      rotary_dim(rd),
+      inner(rd, precision, position_ids, shape_source) {}
+
+ov::Output<ov::Node> PartialRotationRoPE::operator()(const ov::Output<ov::Node>& input, const std::string& name) const {
+    auto zero = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    auto rot_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(rotary_dim)});
+    auto full_const = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {static_cast<int64_t>(head_dim)});
+    auto step = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+    auto last_axis = ov::opset11::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+
+    auto rot_part = std::make_shared<ov::op::v8::Slice>(input, zero, rot_const, step, last_axis);
+    rot_part->set_friendly_name(name + "_rot_part");
+
+    auto pass_part = std::make_shared<ov::op::v8::Slice>(input, rot_const, full_const, step, last_axis);
+    pass_part->set_friendly_name(name + "_pass_part");
+
+    auto roped = inner(rot_part->output(0), name);
+
+    auto output = std::make_shared<ov::opset11::Concat>(ov::OutputVector{roped, pass_part->output(0)}, -1);
+    output->set_friendly_name(name + "_partial_concat");
+
+    return output->output(0);
+}
+
 ov::Output<ov::Node> make_position_ids_2d() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
     param->set_friendly_name("position_ids");

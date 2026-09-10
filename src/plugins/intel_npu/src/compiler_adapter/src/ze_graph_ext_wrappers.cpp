@@ -590,6 +590,19 @@ std::optional<std::string> ZeGraphExtWrappers::getCompatibilityDescriptor(ze_gra
         return std::nullopt;
     }
 
+    if (size > descriptor.size()) {
+        _logger.warning("zeDeviceGetRuntimeRequirements returned inconsistent size: %zu > %zu",
+                        size,
+                        descriptor.size());
+        return std::nullopt;
+    }
+
+    size_t outSize = size;
+    if (outSize > 0 && descriptor[outSize - 1] == '\0') {
+        --outSize;
+    }
+    descriptor.resize(outSize);
+
     _logger.debug("Fetched runtime requirements from driver: %s", descriptor.c_str());
 
     return descriptor;

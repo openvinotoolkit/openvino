@@ -19,15 +19,17 @@ static inline kernel_selector::argm_axis GetArgMaxMinAxis(int64_t axis, size_t r
         case 0: return kernel_selector::argm_axis::BATCH;
         case 1: return kernel_selector::argm_axis::FEATURE;
         case 2:
-            if (rank > 4)
+            if (rank > 4) {
                 return kernel_selector::argm_axis::Z;
-            else
+            } else {
                 return kernel_selector::argm_axis::Y;
+            }
         case 3:
-            if (rank > 4)
+            if (rank > 4) {
                 return kernel_selector::argm_axis::Y;
-            else
+            } else {
                 return kernel_selector::argm_axis::X;
+            }
         case 4: return kernel_selector::argm_axis::X;
         default: OPENVINO_THROW("Invalid arg_max_min axis ", axis);
     }
@@ -47,7 +49,7 @@ struct arg_max_min_impl : typed_primitive_impl_ocl<arg_max_min> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -82,8 +84,8 @@ public:
         argm_params.outputs_num = outputs_num;
         argm_params.argMaxMinAxis = GetArgMaxMinAxis(axis, impl_param.get_output_layout().get_rank());
 
-        auto& constant_mem = impl_param.memory_deps;
-        if (constant_mem.count(1) && !argm_params.has_dynamic_outputs()) {
+        const auto& constant_mem = impl_param.memory_deps;
+        if ((constant_mem.count(1) != 0u) && !argm_params.has_dynamic_outputs()) {
             // The topK could be got by reading impl_param.memory_deps.at(1).
             // However, here we utilize output_layout and axis information to minimize mem_lock.
             auto output_layout = impl_param.get_output_layout(0);
@@ -93,15 +95,17 @@ public:
             argm_params.topK = top_k;
         }
 
-        if (mode == ov::op::TopKMode::MAX)
+        if (mode == ov::op::TopKMode::MAX) {
             argm_params.argMaxMinOut = kernel_selector::argm_output::MAX;
-        else
+        } else {
             argm_params.argMaxMinOut = kernel_selector::argm_output::MIN;
+        }
 
-        if (sort_type == ov::op::TopKSortType::SORT_VALUES)
+        if (sort_type == ov::op::TopKSortType::SORT_VALUES) {
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::VALUE;
-        else
+        } else {
             argm_params.argMaxMinSortType = kernel_selector::argm_sort::INDEX;
+        }
 
         if (outputs_num == 2) {  // for backward compatibility
             if (primitive->input_size() != 3) {

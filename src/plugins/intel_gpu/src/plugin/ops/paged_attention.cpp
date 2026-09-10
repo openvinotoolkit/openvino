@@ -25,9 +25,9 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     auto prim = cldnn::paged_attention(layer_type_name_ID(op), inputs);
 
     const auto& rt_info = op->get_rt_info();
-    const auto k_head_size_id = "k_head_size";
-    const auto v_head_size_id = "v_head_size";
-    const auto num_k_heads_id = "num_k_heads";
+    const auto* const k_head_size_id = "k_head_size";
+    const auto* const v_head_size_id = "v_head_size";
+    const auto* const num_k_heads_id = "num_k_heads";
     const auto has_rt_params =
         rt_info.find(k_head_size_id) != rt_info.end() && rt_info.find(v_head_size_id) != rt_info.end() && rt_info.find(num_k_heads_id) != rt_info.end();
 

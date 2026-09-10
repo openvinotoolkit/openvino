@@ -139,7 +139,8 @@ static void CreateProposalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
                                                              shared_memory);
             p.add_primitive(*op, argmax_mutable_prim_r);
             return;
-        } else if (op->get_output_size() == 1) {
+        }
+        if (op->get_output_size() == 1) {
             auto proposalPrim = cldnn::proposal(layerName,
                                                 inputs[0],  // cls_score
                                                 inputs[1],  // bbox_pred

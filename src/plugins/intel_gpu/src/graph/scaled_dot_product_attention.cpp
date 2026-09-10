@@ -20,8 +20,9 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
                                                              kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<scaled_dot_product_attention>();
     auto transpose_shape = [](const ov::PartialShape& shape, const std::vector<int64_t>& order) {
-        if (order.empty())
+        if (order.empty()) {
             return shape;
+        }
 
         auto shape_transposed = ov::PartialShape(shape);
         auto rank_diff = shape.size() - order.size();
@@ -46,6 +47,8 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
     auto v_shape = transpose_shape(input2_layout.get_partial_shape(),
                                 desc->input_v_transpose_order);
     output_shape[output_shape.size() - 1] = v_shape[v_shape.size() - 1];
+
+    output_shape = transpose_shape(output_shape, desc->output_transpose_order);
 
     return { layout{output_shape, output_type, output_format, desc->output_paddings[0]} };
 }

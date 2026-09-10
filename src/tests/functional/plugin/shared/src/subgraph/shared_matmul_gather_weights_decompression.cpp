@@ -18,7 +18,8 @@ std::string SharedMatmulAndGatherWeightsDecompression::getTestCaseName(const tes
                  shape_params,
                  weights_precision,
                  decompression_precision,
-                 decompression_subtract,
+                 decompression_multiply_type,
+                 decompression_subtract_type,
                  use_decompression_impl] = obj.param;
 
     std::ostringstream result;
@@ -26,7 +27,8 @@ std::string SharedMatmulAndGatherWeightsDecompression::getTestCaseName(const tes
     result << shape_params << "_";
     result << "weights_precision=" << weights_precision << "_";
     result << "decompression_precision=" << decompression_precision << "_";
-    result << "decompression_subtract=" << decompression_subtract << "_";
+    result << "decompression_multiply=" << decompression_multiply_type << "_";
+    result << "decompression_subtract=" << decompression_subtract_type << "_";
     result << "use_decompression_impl=" << use_decompression_impl;
     return result.str();
 }
@@ -38,16 +40,16 @@ std::shared_ptr<ov::Model> SharedMatmulAndGatherWeightsDecompression::initSubgra
                                                                                    const int group_size,
                                                                                    const ov::element::Type data_precision,
                                                                                    const ov::element::Type output_precision,
-                                                                                   const bool add_subtract) {
+                                                                                   const ov::test::utils::DecompressionType decompression_multiply_type,
+                                                                                   const ov::test::utils::DecompressionType decompression_subtract_type) {
     const auto indices_data = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, indices_shape);
     const auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {axis});
     const auto decompression_subgraph = ov::test::utils::initGatherDecompressionSubgraph(data_shape,
                                                                                          group_size,
                                                                                          data_precision,
                                                                                          output_precision,
-                                                                                         add_subtract,
-                                                                                         false,
-                                                                                         false,
+                                                                                         decompression_multiply_type,
+                                                                                         decompression_subtract_type,
                                                                                          false);
     const auto gather = std::make_shared<ov::op::v8::Gather>(decompression_subgraph, indices_data, axis_const, batch_dims);
 
@@ -69,7 +71,8 @@ void SharedMatmulAndGatherWeightsDecompression::SetUp() {
                  shape_params,
                  weights_precision,
                  decompression_precision,
-                 decompression_subtract,
+                 decompression_multiply_type,
+                 decompression_subtract_type,
                  use_decompression_impl] = GetParam();
     targetDevice = _targetDevice;
 
@@ -82,13 +85,14 @@ void SharedMatmulAndGatherWeightsDecompression::SetUp() {
                             shape_params.decompression_group_size,
                             weights_precision,
                             decompression_precision,
-                            decompression_subtract);
+                            decompression_multiply_type,
+                            decompression_subtract_type);
 }
 
 void SharedMatmulAndGatherWeightsDecompression::check_results() {
     const auto& test_param = GetParam();
     const ov::element::Type compressed_weights_precision = std::get<2>(test_param);
-    const auto use_matmul_decompression_impl = std::get<5>(test_param);
+    const auto use_matmul_decompression_impl = std::get<6>(test_param);
 
     const auto results = compiledModel.get_runtime_model()->get_results();
     EXPECT_EQ(results.size(), 2);

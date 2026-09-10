@@ -158,7 +158,8 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, const std::ve
     }
 }
 
-shared_mem_params gpu_buffer::get_internal_params() const {
+shared_mem_params gpu_buffer::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::sycl, "[GPU] gpu_buffer can not provide internal params for non-SYCL runtime");
     auto sycl_engine = downcast<const sycl::sycl_engine>(_engine);
     return {shared_mem_type::shared_mem_buffer, const_cast<shared_handle>(static_cast<const void*>(&(sycl_engine->get_sycl_context()))), nullptr,
             const_cast<shared_handle>(static_cast<const void*>(&_buffer)),
@@ -584,7 +585,8 @@ dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset)
 }
 #endif
 
-shared_mem_params gpu_usm::get_internal_params() const {
+shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
+    OPENVINO_ASSERT(rt_type == runtime_types::sycl, "[GPU] gpu_usm can not provide internal params for non-SYCL runtime");
     auto sycl_engine = downcast<const sycl::sycl_engine>(_engine);
     return {
         shared_mem_type::shared_mem_usm,  // shared_mem_type

@@ -23,7 +23,6 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/constant.hpp"
@@ -38,6 +37,7 @@
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
+#include "openvino/op/hsigmoid.hpp"
 #include "openvino/op/hswish.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
@@ -62,6 +62,7 @@
 #include "openvino/op/round.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/softsign.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
@@ -69,7 +70,6 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
-#include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/xor.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -177,11 +177,13 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
                                   ov::op::v0::Erf,
                                   ov::op::v0::Exp,
                                   ov::op::v1::LogicalNot,
+                                  ov::op::v5::HSigmoid,
                                   ov::op::v4::Mish,
                                   ov::op::v0::Negative,
                                   ov::op::v0::Relu,
                                   ov::op::v5::Round,
                                   ov::op::v0::Sigmoid,
+                                  ov::op::v9::SoftSign,
                                   ov::op::v0::Sqrt,
                                   ov::op::v0::Tanh,
                                   ov::op::v0::Gelu,
@@ -200,17 +202,6 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
         }
         const auto rank = static_cast<int64_t>(n->get_input_partial_shape(0).rank().get_length());
         return *axis == (rank - 1);
-    };
-
-    auto is_supported_broadcast_op = [](const std::shared_ptr<const Node>& n) -> bool {
-        // Broadcast is supported only for MHA tokenization where there are needed and special checks
-        if (auto broadcast_v1 = ov::as_type_ptr<const ov::op::v1::Broadcast>(n)) {
-            return broadcast_v1->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::NUMPY;
-        }
-        if (auto broadcast_v3 = ov::as_type_ptr<const ov::op::v3::Broadcast>(n)) {
-            return broadcast_v3->get_broadcast_spec().m_type == ov::op::BroadcastType::NUMPY;
-        }
-        return false;
     };
 
     auto is_supported_reduce_op = [](const std::shared_ptr<const Node>& n) -> bool {
@@ -233,7 +224,7 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
 
     return is_supported_fq_op(n) || is_supported_unary_eltwise_op(n) || is_supported_binary_eltwise_op(n) ||
            is_supported_ternary_eltwise_op(n) || is_supported_transpose(n) || is_supported_softmax(n) ||
-           is_supported_matmul(n) || is_supported_broadcast_op(n) || is_supported_reduce_op(n);
+           is_supported_matmul(n) || ov::snippets::utils::is_numpy_broadcast(n) || is_supported_reduce_op(n);
 }
 
 auto has_supported_in_out(const std::shared_ptr<const Node>& n) -> bool {

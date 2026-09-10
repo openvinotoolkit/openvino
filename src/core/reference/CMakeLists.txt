@@ -6,17 +6,15 @@ set(TARGET_NAME "openvino_reference")
 
 set(REF_IMPL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${REF_IMPL_INCLUDE_DIR}/*.hpp)
-
-# Create named folders for the sources within the .vcproj
-# Empty name lists them directly under the .vcproj
-
-source_group("src" FILES ${LIBRARY_SRC})
-source_group("include" FILES ${PUBLIC_HEADERS})
-
 # Create static library
-add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
+add_library(${TARGET_NAME} STATIC)
+include(sources.cmake)
+
+target_sources(${TARGET_NAME}
+    PRIVATE
+        ${REFERENCE_SRCS}
+        ${REFERENCE_HEADERS}
+)
 
 add_library(openvino::reference ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME reference)

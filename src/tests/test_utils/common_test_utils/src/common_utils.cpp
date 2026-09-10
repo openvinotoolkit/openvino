@@ -64,6 +64,12 @@ std::string generateTestFilePrefix() {
     return testName;
 }
 
+std::vector<uint8_t> make_modulo_sequence_pattern(size_t size) {
+    std::vector<uint8_t> data(size);
+    std::generate(data.begin(), data.end(), ModuloSequenceGenerator{});
+    return data;
+}
+
 #ifdef _WIN32
 static PROCESS_MEMORY_COUNTERS getMemoryInfo() {
     static PROCESS_MEMORY_COUNTERS pmc;
@@ -150,6 +156,7 @@ size_t count_resident_pages(const void* data, size_t size) {
 }
 
 #endif
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov
