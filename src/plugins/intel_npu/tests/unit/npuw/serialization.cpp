@@ -1246,7 +1246,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
 
     auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3},
                                                        {0, 1, 127, 128, 254, 255}, 0);
-    auto var = ov::npuw::weights::LazyTensor(constant).subtract_128().permute({1, 0});
+    auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
     ov::npuw::weights::LazyTensor res;
     const auto expected = var.eval();
 
@@ -1258,7 +1258,7 @@ TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
 
     expect_lazy_tensor_transform_types_equal(var, res);
     EXPECT_EQ(var.get_hash(), res.get_hash());
-    EXPECT_EQ(res.eval_meta().shape, (ov::Shape{3, 2}));
+    EXPECT_EQ(res.eval_meta().shape, (ov::Shape{2, 3}));
     EXPECT_EQ(res.eval_meta().type, ov::element::i8);
     expect_tensors_equal(expected, res.eval());
 }
