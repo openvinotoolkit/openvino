@@ -1396,8 +1396,150 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         OPENVINO_THROW("Missing ORC weights bank container");
     }
 
+    validate_import_routing_tables(compiled);
+
     compiled->implement_properties();
     return compiled;
+}
+
+void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_ptr<CompiledModel>& compiled) {
+    const auto num_submodels = compiled->m_compiled_submodels.size();
+
+    // The NO_LINK sentinel is only meaningful for global inputs (a Parameter may be unused by
+    // any submodel). Every other table is dereferenced without checking for it, so accepting the
+    // sentinel there would turn a malformed blob into an out-of-bounds access at infer-request time.
+    const auto ensure_submodel_index = [&](const char* table_name,
+                                           std::size_t owner_idx,
+                                           const char* field_name,
+                                           const auto& link,
+                                           bool allow_no_link) {
+        if (link == CompiledModel::NO_LINK) {
+            if (allow_no_link) {
+                return;
+            }
+            OPENVINO_THROW("Invalid ", table_name, "[", owner_idx, "] ", field_name, " link: NO_LINK is not allowed");
+        }
+        if (link.first >= num_submodels) {
+            OPENVINO_THROW("Invalid ",
+                           table_name,
+                           "[",
+                           owner_idx,
+                           "] ",
+                           field_name,
+                           " submodel index ",
+                           link.first,
+                           " (submodel count: ",
+                           num_submodels,
+                           ")");
+        }
+    };
+
+    const auto ensure_input_port_index =
+        [&](const char* table_name, std::size_t owner_idx, const auto& link, bool allow_no_link) {
+            ensure_submodel_index(table_name, owner_idx, "input", link, allow_no_link);
+            if (link == CompiledModel::NO_LINK) {
+                return;
+            }
+            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            if (submodel_desc.compiled_model != nullptr &&
+                link.second >= submodel_desc.compiled_model->inputs().size()) {
+                OPENVINO_THROW("Invalid ",
+                               table_name,
+                               "[",
+                               owner_idx,
+                               "] input port index ",
+                               link.second,
+                               " for submodel ",
+                               link.first,
+                               " (inputs: ",
+                               submodel_desc.compiled_model->inputs().size(),
+                               ")");
+            }
+        };
+
+    const auto ensure_output_port_index =
+        [&](const char* table_name, std::size_t owner_idx, const auto& link, bool allow_no_link) {
+            ensure_submodel_index(table_name, owner_idx, "output", link, allow_no_link);
+            if (link == CompiledModel::NO_LINK) {
+                return;
+            }
+            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            if (submodel_desc.compiled_model != nullptr &&
+                link.second >= submodel_desc.compiled_model->outputs().size()) {
+                OPENVINO_THROW("Invalid ",
+                               table_name,
+                               "[",
+                               owner_idx,
+                               "] output port index ",
+                               link.second,
+                               " for submodel ",
+                               link.first,
+                               " (outputs: ",
+                               submodel_desc.compiled_model->outputs().size(),
+                               ")");
+            }
+        };
+
+    for (std::size_t idx = 0u; idx < compiled->m_compiled_submodels.size(); ++idx) {
+        const auto& submodel_desc = compiled->m_compiled_submodels[idx];
+        if (submodel_desc.replaced_by.has_value() && submodel_desc.replaced_by.value() >= num_submodels) {
+            OPENVINO_THROW("Invalid m_compiled_submodels[",
+                           idx,
+                           "].replaced_by index ",
+                           submodel_desc.replaced_by.value(),
+                           " (submodel count: ",
+                           num_submodels,
+                           ")");
+        }
+    }
+
+    if (compiled->m_inputs_to_submodels_inputs.size() != compiled->inputs().size()) {
+        OPENVINO_THROW("Invalid m_inputs_to_submodels_inputs size ",
+                       compiled->m_inputs_to_submodels_inputs.size(),
+                       " (expected ",
+                       compiled->inputs().size(),
+                       ")");
+    }
+
+    if (compiled->m_outputs_to_submodels_outputs.size() != compiled->outputs().size()) {
+        OPENVINO_THROW("Invalid m_outputs_to_submodels_outputs size ",
+                       compiled->m_outputs_to_submodels_outputs.size(),
+                       " (expected ",
+                       compiled->outputs().size(),
+                       ")");
+    }
+
+    for (std::size_t idx = 0u; idx < compiled->m_inputs_to_submodels_inputs.size(); ++idx) {
+        ensure_input_port_index("m_inputs_to_submodels_inputs", idx, compiled->m_inputs_to_submodels_inputs[idx], true);
+    }
+
+    for (std::size_t idx = 0u; idx < compiled->m_outputs_to_submodels_outputs.size(); ++idx) {
+        ensure_output_port_index("m_outputs_to_submodels_outputs",
+                                 idx,
+                                 compiled->m_outputs_to_submodels_outputs[idx],
+                                 false);
+    }
+
+    for (const auto& kvp : compiled->m_param_subscribers) {
+        const auto input_idx = kvp.first;
+        if (input_idx >= compiled->m_inputs_to_submodels_inputs.size()) {
+            OPENVINO_THROW("Invalid m_param_subscribers key ",
+                           input_idx,
+                           " (inputs: ",
+                           compiled->m_inputs_to_submodels_inputs.size(),
+                           ")");
+        }
+        for (const auto& link_to : kvp.second) {
+            ensure_input_port_index("m_param_subscribers", input_idx, link_to, false);
+        }
+    }
+
+    std::size_t routing_idx = 0u;
+    for (const auto& kvp : compiled->m_submodels_input_to_prev_output) {
+        ensure_input_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.first, false);
+        ensure_output_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.second, false);
+        ++routing_idx;
+    }
 }
 
 void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& enc_ctx) const {
