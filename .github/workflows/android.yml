@@ -209,6 +209,7 @@ jobs:
             -DANDROID_STL=c++_shared \
             -DTBB_TEST=OFF \
             -DTBB_STRICT=OFF \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--undefined-version" \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
@@ -222,7 +223,7 @@ jobs:
           mode: zero-stats
 
       - name: Build OneTBB project
-        run: cmake --build ${TBB_BUILD} --parallel 15
+        run: cmake --build ${TBB_BUILD} --parallel 15 --verbose
       - name: Compile cache statistics (onetbb)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -251,6 +252,7 @@ jobs:
             -DTBB_DIR=${{ env.TBB_CMAKE_DIR }} \
             -DENABLE_FASTER_BUILD=ON \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DOPENVINO_EXTRA_MODULES=${{ env.OPENVINO_GENAI_REPO }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
@@ -272,7 +274,7 @@ jobs:
           mode: zero-stats
 
       - name: CMake - build OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel 15
+        run: cmake --build ${BUILD_DIR} --parallel 15 --verbose
       - name: Compile cache statistics (openvino)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats

@@ -102,7 +102,7 @@ jobs:
           mode: zero-stats
 
       - name: Build llama.cpp
-        run: cmake --build llama.cpp/build --parallel 15
+        run: cmake --build llama.cpp/build --parallel 15 --verbose
 
       - name: Compile cache statistics (llama.cpp build)
         if: false # runner_squish_no_cache: compile cache statistics disabled

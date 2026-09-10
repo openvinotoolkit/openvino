@@ -137,6 +137,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DTHREADING=SEQ \
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
@@ -148,7 +149,7 @@ jobs:
           mode: zero-stats
 
       - name: cmake --build - build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel 15
+        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel 15 --verbose
 
       - name: Compile cache statistics (hello_query_device)
         if: false # runner_squish_no_cache: compile cache statistics disabled

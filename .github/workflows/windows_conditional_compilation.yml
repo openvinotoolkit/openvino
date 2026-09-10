@@ -168,6 +168,7 @@ jobs:
             -DCMAKE_JOB_POOLS:STRING=link_jobs=20 `
             -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+            -DCMAKE_VERBOSE_MAKEFILE=ON `
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
@@ -179,7 +180,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (openvino)
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --verbose --config ${{ env.CMAKE_BUILD_TYPE }}
       - name: Compile cache statistics (openvino cc collect main)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -194,7 +195,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (sea_itt_lib)
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
       - name: Compile cache statistics (sea_itt_lib)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -217,7 +218,7 @@ jobs:
           mode: zero-stats
 
       - name: Build C++ samples - OpenVINO build tree
-        run: cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
+        run: cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
       - name: Compile cache statistics (cpp samples)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -278,7 +279,7 @@ jobs:
           # install PDB files to OpenVINO main installation folder to ensure that they are used instead of PDB files from build folder
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pdb
           # then, we need to clean build tree to remove PDB files
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target clean
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target clean
           & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
         env:
           CXXFLAGS: "/Zi"
@@ -394,6 +395,7 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS="/CGTHREADS:15" `
             -DCMAKE_SHARED_LINKER_FLAGS="/CGTHREADS:15" `
             -DCMAKE_MODULE_LINKER_FLAGS="/CGTHREADS:15" `
+            -DCMAKE_VERBOSE_MAKEFILE=ON `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
@@ -404,7 +406,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:detailed /clp:PerformanceSummary /detailedsummary
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 15 --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:detailed /clp:PerformanceSummary /detailedsummary
 
       - name: Compile cache statistics (cc on benchmark_app)
         if: false # runner_squish_no_cache: compile cache statistics disabled

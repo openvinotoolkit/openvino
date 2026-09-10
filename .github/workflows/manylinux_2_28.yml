@@ -174,6 +174,7 @@ jobs:
                          -DENABLE_NCC_STYLE=OFF \
                          -DENABLE_TESTS=ON \
                          -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+                         -DCMAKE_VERBOSE_MAKEFILE=ON \
                          -DENABLE_OV_JAX_FRONTEND=OFF \
                          -DENABLE_PYTHON=ON \
                          -DENABLE_WHEEL=ON \
@@ -190,7 +191,8 @@ jobs:
 
       - name: Build OpenVINO
         run: |
-          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }}          /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel 15 --verbose --config ${{ env.CMAKE_BUILD_TYPE }}
+          /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
 
       - name: Compile cache statistics (openvino main build)
@@ -228,7 +230,8 @@ jobs:
               /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
             fi
 
-            /usr/bin/cmake --build ${py_build_dir} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }}            /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
+            /usr/bin/cmake --build ${py_build_dir} --parallel 15 --verbose --config ${{ env.CMAKE_BUILD_TYPE }}
+            /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
             /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pyopenvino_python${PY_VER}
 
           done
@@ -255,7 +258,8 @@ jobs:
 
       - name: Build OpenVINO JS API
         run: |
-          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel 15          /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node/bin
+          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel 15 --verbose
+          /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node/bin
 
       - name: Compile cache statistics (openvino js api)
         if: false # runner_squish_no_cache: compile cache statistics disabled

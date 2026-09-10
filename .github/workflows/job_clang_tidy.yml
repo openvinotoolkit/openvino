@@ -112,6 +112,7 @@ jobs:
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             ${CMAKE_EXTRA_ARGS} \
             -DCMAKE_C_COMPILER_LAUNCHER="${CMAKE_C_COMPILER_LAUNCHER}" \
             -DCMAKE_CXX_COMPILER_LAUNCHER="${CMAKE_CXX_COMPILER_LAUNCHER}" \
@@ -132,6 +133,7 @@ jobs:
           cmake \
             --build "${BUILD_DIR}" \
             --parallel 15 \
+            --verbose \
             --config "${CMAKE_BUILD_TYPE}" \
             --target "${BUILD_TARGET}" \
             -- ${BUILD_EXTRA_ARGS}

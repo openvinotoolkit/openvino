@@ -179,6 +179,7 @@ jobs:
             -DENABLE_UNITY_BUILD=ON \
             -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_JOB_POOLS:STRING=link_jobs=8 \
@@ -193,7 +194,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (openvino)
-        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }}
+        run: cmake --build ${BUILD_DIR} --parallel 15 --verbose --config ${{ env.CMAKE_BUILD_TYPE }}
       - name: Compile cache statistics (openvino cc collect main)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -208,7 +209,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC COLLECT (sea_itt_lib)
-        run: cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+        run: cmake --build ${BUILD_DIR} --parallel 15 --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
       - name: Compile cache statistics (sea_itt_lib)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -230,7 +231,7 @@ jobs:
           mode: zero-stats
 
       - name: Build C++ samples - OpenVINO build tree
-        run: cmake --build ${BUILD_DIR}/cpp_samples --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
+        run: cmake --build ${BUILD_DIR}/cpp_samples --parallel 15 --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
       - name: Compile cache statistics (cpp samples)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
@@ -378,6 +379,7 @@ jobs:
             -DENABLE_OV_ONNX_FRONTEND=OFF \
             -DSELECTIVE_BUILD_STAT=${SELECTIVE_BUILD_STAT_DIR}/*.csv \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -S ${OPENVINO_REPO} \
@@ -390,7 +392,7 @@ jobs:
           mode: zero-stats
 
       - name: Cmake build - CC ON
-        run: cmake --build ${BUILD_DIR} --parallel 8 --target benchmark_app
+        run: cmake --build ${BUILD_DIR} --parallel 8 --verbose --target benchmark_app
       - name: Compile cache statistics (cc on benchmark_app)
         if: false # runner_squish_no_cache: compile cache statistics disabled
         uses: ./openvino/.github/actions/compile_cache_stats
