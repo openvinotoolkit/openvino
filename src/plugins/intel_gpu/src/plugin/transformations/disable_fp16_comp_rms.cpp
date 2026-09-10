@@ -59,14 +59,16 @@ DisableFP16CompForDecomposedRMSPattern::DisableFP16CompForDecomposedRMSPattern()
     using namespace ov::pass::pattern;
 
     auto convolution_m = wrap_type<ov::op::v1::Convolution>({any_input(), any_input()}, type_matches(element::f32));
-    auto power_m = wrap_type<ov::op::v1::Power>({convolution_m, wrap_type<ov::op::v0::Constant>()},
+    auto power_const_m = wrap_type<ov::op::v0::Constant>(value_matches("2"));
+    auto power_m = wrap_type<ov::op::v1::Power>({convolution_m, power_const_m},
                                                 type_matches(element::f32));
     auto reduce_mean_m = wrap_type<ov::op::v1::ReduceMean>({power_m, wrap_type<ov::op::v0::Constant>()},
                                                             type_matches(element::f32));
     auto add_m = wrap_type<ov::op::v1::Add>({reduce_mean_m, wrap_type<ov::op::v0::Constant>()},
                                              type_matches(element::f32));
     auto sqrt_m = wrap_type<ov::op::v0::Sqrt>({add_m}, type_matches(element::f32));
-    auto divide_m = wrap_type<ov::op::v1::Divide>({wrap_type<ov::op::v0::Constant>(), sqrt_m},
+    auto divide_const_m = wrap_type<ov::op::v0::Constant>(value_matches("1"));
+    auto divide_m = wrap_type<ov::op::v1::Divide>({divide_const_m, sqrt_m},
                                                    type_matches(element::f32));
     auto multiply_m = wrap_type<ov::op::v1::Multiply>({convolution_m, divide_m}, type_matches(element::f32));
 
