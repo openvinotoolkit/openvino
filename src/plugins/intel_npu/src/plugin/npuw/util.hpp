@@ -36,6 +36,9 @@ ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 
+// Case-insensitive substring search.
+bool contains_ignore_case(const std::string& str, const std::string& substr);
+
 std::string fmt(std::size_t number, std::size_t total);
 
 // Matches the three DynamicQuantize decomposition implementations declared in

@@ -4,6 +4,8 @@
 
 #include "util.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -192,6 +194,13 @@ ov::Tensor ov::npuw::util::copy_tensor_from_const(const std::shared_ptr<ov::Node
 
 bool ov::npuw::util::starts_with(const std::string& str, const std::string& prefix) {
     return str.substr(0, prefix.size()) == prefix;
+}
+
+bool ov::npuw::util::contains_ignore_case(const std::string& str, const std::string& substr) {
+    auto it = std::search(str.begin(), str.end(), substr.begin(), substr.end(), [](unsigned char a, unsigned char b) {
+        return std::tolower(a) == std::tolower(b);
+    });
+    return it != str.end();
 }
 
 std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {

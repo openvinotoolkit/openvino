@@ -310,10 +310,18 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto config = properties;
     config.erase(ov::cache_dir.name());
 
+    const bool gqa_explicitly_set = properties.count(use_gqa_key) > 0;
+    const bool gqa_explicitly_disabled = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == false;
+    const bool gqa_requested = gqa_explicitly_set && properties.at(use_gqa_key).as<bool>() == true;
+    // Auto-detect GQA models (GroupQueryAttention op present) so they take the
+    // GQACompiledModel route without requiring the NPUW_GQA property to be set,
+    // unless the caller has explicitly opted out via NPUW_GQA=NO.
+    const bool gqa_detected = !gqa_explicitly_disabled && ov::npuw::GQACompiledModel::supports(model);
+
     if (properties.count(use_flux2_key) && properties.at(use_flux2_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::Flux2CompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::Flux2CompiledModel>(model, plugin, config);
-    } else if (properties.count(use_gqa_key) && properties.at(use_gqa_key).as<bool>() == true) {
+    } else if (gqa_requested || gqa_detected) {
         LOG_INFO("ov::npuw::GQACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
     } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
@@ -2102,6 +2110,16 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
 
     if (ov::npuw::util::starts_with(device, "NPU") && m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>()) {
         device_config["NPU_RUN_INFERENCES_SEQUENTIALLY"] = "YES";
+    }
+
+    if (ov::npuw::util::starts_with(device, "NPU")) {
+        // This is an internal NPUW submodel recompilation, not a fresh
+        // top-level request. The submodel may still carry ops (e.g. an
+        // un-decomposed GroupQueryAttention) that would otherwise make
+        // Plugin::compile_model's zero-config auto-detect re-enter the NPUW
+        // path recursively. Explicitly mark NPUW as "not requested here" so
+        // this call takes the plain (non-NPUW) compile path instead.
+        device_config[ov::intel_npu::use_npuw.name()] = false;
     }
 
     const auto& cache_dir = m_cfg.get<::intel_npu::NPUW_CACHE_DIR>();

@@ -4,8 +4,6 @@
 
 #include "gqa_compiled_model.hpp"
 
-#include <algorithm>
-#include <cctype>
 #include <utility>
 
 #include "intel_npu/config/npuw.hpp"
@@ -15,8 +13,11 @@
 #include "npuw_transformations/drop_zp_subtract.hpp"
 #include "npuw_transformations/untangle_dq_scale.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
+#include "util.hpp"
 
 namespace {
 
@@ -139,6 +140,79 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::make_compi
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
     return std::make_shared<ov::npuw::CompiledModel>(model, plugin, properties);
+}
+
+namespace {
+
+bool has_valid_gqa_op(const std::shared_ptr<const ov::Model>& model) {
+    using ov::op::internal::GroupQueryAttention;
+    using ov::op::internal::GroupQueryAttentionInputs;
+    constexpr size_t mandatory_inputs = static_cast<size_t>(GroupQueryAttentionInputs::TOTAL_SEQUENCE_LENGTH) + 1;
+
+    for (const auto& node : model->get_ordered_ops()) {
+        auto gqa = ov::as_type_ptr<GroupQueryAttention>(node);
+        if (!gqa) {
+            continue;
+        }
+        const auto num_heads = gqa->get_num_heads();
+        const auto kv_num_heads = gqa->get_kv_num_heads();
+        if (num_heads <= 0 || kv_num_heads <= 0 || num_heads % kv_num_heads != 0 ||
+            gqa->get_input_size() < mandatory_inputs) {
+            continue;  // malformed instance, doesn't count as evidence
+        }
+        if (gqa->get_do_rotary() &&
+            gqa->get_input_size() <= static_cast<size_t>(GroupQueryAttentionInputs::SIN_CACHE)) {
+            continue;  // rotary requires the cos/sin cache inputs
+        }
+        return true;
+    }
+    return false;
+}
+
+}  // namespace
+
+bool ov::npuw::GQACompiledModel::supports(const std::shared_ptr<const ov::Model>& model) {
+    return identify_case(model) != Case::Unknown;
+}
+
+ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
+    const std::shared_ptr<const ov::Model>& model) {
+    if (!has_valid_gqa_op(model)) {
+        return Case::Unknown;
+    }
+
+    // V1 conveys RoPE position via an explicit `position_ids` input; V0 conveys it via
+    // `past_seq_len`/`total_seq_len` with no `position_ids` input.
+    bool has_activation_input = false;
+    bool has_position_ids = false;
+    bool has_seq_len_signal = false;
+    bool has_past_kv_cache = false;
+    for (const auto& parameter : model->get_parameters()) {
+        const auto& name = parameter->get_friendly_name();
+        has_activation_input = has_activation_input || (name == "input_hidden_states" || name == "input_ids");
+        has_position_ids = has_position_ids || (name == "position_ids");
+        has_seq_len_signal = has_seq_len_signal || (name == "past_seq_len") || (name == "total_seq_len");
+        has_past_kv_cache = has_past_kv_cache || util::contains_ignore_case(name, "past_key") ||
+                            util::contains_ignore_case(name, "past_value");
+    }
+    if (!has_activation_input || !has_past_kv_cache || (!has_position_ids && !has_seq_len_signal)) {
+        return Case::Unknown;
+    }
+
+    bool has_present_kv_cache = false;
+    for (const auto& result : model->get_results()) {
+        const auto& name = result->get_friendly_name();
+        if (util::contains_ignore_case(name, "present_key") || util::contains_ignore_case(name, "present_value") ||
+            util::contains_ignore_case(name, "present.")) {
+            has_present_kv_cache = true;
+            break;
+        }
+    }
+    if (!has_present_kv_cache) {
+        return Case::Unknown;
+    }
+
+    return has_position_ids ? Case::V1 : Case::V0;
 }
 
 ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& model,

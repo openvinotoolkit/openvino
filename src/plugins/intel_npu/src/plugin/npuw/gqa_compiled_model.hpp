@@ -43,10 +43,22 @@ public:
                                                                 const std::shared_ptr<const ov::IPlugin>&,
                                                                 const ov::AnyMap&)>;
 
+    enum class Case {
+        Unknown,
+        V0,
+        V1,
+    };
+
     static std::shared_ptr<ov::npuw::ICompiledModel> make_compiled_model(
         const std::shared_ptr<ov::Model>& model,
         const std::shared_ptr<const ov::IPlugin>& plugin,
         const ov::AnyMap& properties);
+
+    // Identifies which known GQA model family (if any) `model` belongs to.
+    static Case identify_case(const std::shared_ptr<const ov::Model>& model);
+
+    // True if `model` matches any known GQA family, i.e. identify_case() != Case::Unknown.
+    static bool supports(const std::shared_ptr<const ov::Model>& model);
 
     GQACompiledModel(const std::shared_ptr<ov::Model>& model,
                      const std::shared_ptr<const ov::IPlugin>& plugin,

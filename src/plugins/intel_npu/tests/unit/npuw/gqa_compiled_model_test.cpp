@@ -63,6 +63,86 @@ std::shared_ptr<ov::Model> build_group_query_attention_model() {
     return std::make_shared<ov::Model>(results, params, "gqa_model");
 }
 
+// Builds a model with a well-formed GQA op *and* the surrounding transformer
+// traits (activation input, position_ids, named past/present KV cache
+// Parameters/Results) that ov::npuw::GQACompiledModel::supports() looks for.
+// `position_signal` selects which of the two known ways a model conveys the
+// RoPE position: an explicit `position_ids` Parameter (V1),
+// or a `past_seq_len`/`total_seq_len` Parameter pair with the position
+// implied by the cache length and no `position_ids` input at all (V0).
+enum class PositionSignal {
+    PositionIds,
+    SeqLenPair,
+};
+
+std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 4,
+                                                            int64_t kv_num_heads = 2,
+                                                            bool do_rotary = true,
+                                                            PositionSignal position_signal = PositionSignal::PositionIds) {
+    auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
+    input_hidden_states->set_friendly_name("input_hidden_states");
+
+    std::shared_ptr<ov::op::v0::Parameter> position_ids;
+    if (position_signal == PositionSignal::PositionIds) {
+        position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1, 4});
+        position_ids->set_friendly_name("position_ids");
+    }
+
+    auto query =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, static_cast<size_t>(num_heads), 1, 16});
+    auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                       ov::Shape{1, static_cast<size_t>(kv_num_heads), 1, 16});
+    auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                         ov::Shape{1, static_cast<size_t>(kv_num_heads), 1, 16});
+    auto past_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                            ov::Shape{1, static_cast<size_t>(kv_num_heads), 8, 16});
+    past_key->set_friendly_name("past_keys_0");
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
+                                                              ov::Shape{1, static_cast<size_t>(kv_num_heads), 8, 16});
+    past_value->set_friendly_name("past_values_0");
+    auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    if (position_signal == PositionSignal::SeqLenPair) {
+        // The V0 wiring: no position_ids input at all --
+        // the op's own seqlens_k/total_sequence_length inputs double as the
+        // "past_seq_len"/"total_seq_len" model-level naming evidence.
+        seqlens_k->set_friendly_name("past_seq_len");
+        total_sequence_length->set_friendly_name("total_seq_len");
+    }
+    auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+    auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+
+    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
+        ov::OutputVector{query,
+                        key,
+                        value,
+                        past_key,
+                        past_value,
+                        seqlens_k,
+                        total_sequence_length,
+                        cos_cache,
+                        sin_cache},
+        num_heads,
+        kv_num_heads,
+        0.0f,
+        do_rotary,
+        false);
+
+    auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
+    present_key->set_friendly_name("present_keys_0");
+    auto present_value = std::make_shared<ov::op::v0::Result>(gqa->output(2));
+    present_value->set_friendly_name("present_values_0");
+
+    ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)), present_key, present_value};
+    ov::ParameterVector params = {input_hidden_states};
+    if (position_ids) {
+        params.push_back(position_ids);
+    }
+    params.insert(params.end(),
+                 {query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache});
+    return std::make_shared<ov::Model>(results, params, "gqa_full_transformer_model");
+}
+
 std::shared_ptr<ov::Model> build_unqdq_model(const ov::element::Type& input_type = ov::element::f32) {
     auto input = std::make_shared<ov::op::v0::Parameter>(input_type, ov::Shape{1, 4});
     auto input_low = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
@@ -422,6 +502,75 @@ TEST_F(GQACompiledModelTest, ForwardsPropertyAccessToInnerCompiledModel) {
     compiled.set_property({{"NPUW_CWAI", "YES"}});
     EXPECT_EQ(inner->last_set_properties.at("NPUW_CWAI").as<std::string>(), "YES");
     EXPECT_TRUE(compiled.get_property("NPUW_FOLD").as<bool>());
+}
+
+TEST(GQACompiledModelSupportsTest, ReturnsTrueForWellFormedGqaTransformerModel) {
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(build_full_gqa_transformer_model()));
+}
+
+TEST(GQACompiledModelSupportsTest, ReturnsFalseForBareGqaOpWithoutSurroundingModelContext) {
+    // The op alone (no input_hidden_states/position_ids/past-present KV cache
+    // naming) is not enough evidence -- avoid false positives on unrelated
+    // graphs that happen to use the op.
+    EXPECT_FALSE(ov::npuw::GQACompiledModel::supports(build_group_query_attention_model()));
+}
+
+TEST(GQACompiledModelSupportsTest, ReturnsFalseWhenHeadCountsAreInconsistent) {
+    // num_heads not evenly divisible by kv_num_heads: not a valid GQA grouping.
+    EXPECT_FALSE(ov::npuw::GQACompiledModel::supports(build_full_gqa_transformer_model(5, 2)));
+}
+
+TEST(GQACompiledModelSupportsTest, ReturnsFalseWithoutPositionIds) {
+    auto model = build_full_gqa_transformer_model();
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == "position_ids") {
+            parameter->set_friendly_name("position_ids_removed_for_test");
+        }
+    }
+    EXPECT_FALSE(ov::npuw::GQACompiledModel::supports(model));
+}
+
+TEST(GQACompiledModelSupportsTest, ReturnsFalseWithoutPastPresentKvCacheNaming) {
+    auto model = build_full_gqa_transformer_model();
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == "past_keys_0") {
+            parameter->set_friendly_name("layer0_prior_kv_k");
+        } else if (parameter->get_friendly_name() == "past_values_0") {
+            parameter->set_friendly_name("layer0_prior_kv_v");
+        }
+    }
+    for (const auto& result : model->get_results()) {
+        if (result->get_friendly_name() == "present_keys_0") {
+            result->set_friendly_name("layer0_next_kv_k");
+        } else if (result->get_friendly_name() == "present_values_0") {
+            result->set_friendly_name("layer0_next_kv_v");
+        }
+    }
+    EXPECT_FALSE(ov::npuw::GQACompiledModel::supports(model));
+}
+
+TEST(GQACompiledModelSupportsTest, IdentifiesCaseV1ForExplicitPositionIdsModel) {
+    auto model = build_full_gqa_transformer_model(4, 2, true, PositionSignal::PositionIds);
+    EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V1);
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
+}
+
+TEST(GQACompiledModelSupportsTest, IdentifiesCaseV0ForSeqLenPairModel) {
+    // Wiring: no position_ids input at all -- RoPE
+    // position is implied by past_seq_len/total_seq_len instead.
+    auto model = build_full_gqa_transformer_model(4, 2, true, PositionSignal::SeqLenPair);
+    EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V0);
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
+}
+
+TEST(GQACompiledModelSupportsTest, IdentifiesCaseUnknownWithoutAnyPositionSignal) {
+    auto model = build_full_gqa_transformer_model(4, 2, true, PositionSignal::PositionIds);
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == "position_ids") {
+            parameter->set_friendly_name("position_ids_removed_for_test");
+        }
+    }
+    EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::Unknown);
 }
 
 }  // namespace

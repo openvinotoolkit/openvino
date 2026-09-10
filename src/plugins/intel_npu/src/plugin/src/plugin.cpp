@@ -324,6 +324,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             // NPUW is disabled, remove the key from the properties
             localProperties.erase(useNpuwKey);
         }
+    } else if (ov::npuw::GQACompiledModel::supports(model)) {
+        // Zero-config path: detect if the model suits the NPUW_GQA path
+        _logger.info("Auto-detected NPUW_GQA path with no NPU_USE_NPUW set; routing through NPUW "
+                     "automatically.");
+        auto npuwProperties = localProperties;
+        npuwProperties[useNpuwKey] = true;
+        return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), npuwProperties);
     }
 
     if (_backend != nullptr) {
