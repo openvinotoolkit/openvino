@@ -56,9 +56,6 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_f16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableDifferentTypes();
-    // Enable dynamic-batch models (e.g. FlashOCC image_encoder with batch=-1).
-    // Non-batch dynamic dimensions are rejected in Validate(): only batch is
-    // shape-agnostic for this kernel.
     k.EnableDynamicShapesSupport();
     return k;
 }
@@ -77,9 +74,6 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefau
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = autoTune.blockWidth;
 
-    // The concrete grid is only derivable for static shapes: for a dynamic-batch model the
-    // batch is unknown (0) at JIT time, so keep the base grid here and let (re)dispatch apply
-    // the concrete sizes, as in the other dynamic-shape implementations.
     if (!params.has_dynamic_tensors()) {
         const auto& out = params.outputs[0];
         auto x = out.X().v;

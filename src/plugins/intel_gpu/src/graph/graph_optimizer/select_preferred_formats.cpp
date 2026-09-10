@@ -12,7 +12,6 @@
 #include "reshape_inst.h"
 #include "openvino/core/except.hpp"
 #include "intel_gpu/primitives/deconvolution.hpp"
-#include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -199,7 +198,6 @@ void select_preferred_formats::run(program& p) {
 
         const auto& params = n->get_kernel_impl_params();
         auto shape_type = ImplementationManager::get_shape_type(*params);
-
         // temporary set format to any as we need to query that from impl and don't want impl to be rejected
         // also drop padding as it may be handled later
         auto factory = test_format<std::shared_ptr<ImplementationManager>>(*n, format::any,
