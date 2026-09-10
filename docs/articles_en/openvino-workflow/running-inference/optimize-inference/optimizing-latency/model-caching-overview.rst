@@ -143,7 +143,7 @@ model caching, use the following code in your application:
 Set ``CacheMode`` property to ``OPTIMIZE_SIZE`` to enable weightless caching
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-Weightless caching is a feature that allows you to create a cache file which doesn't contain the weights of the model. Instead, the weights are loaded from the original model file. This helps to reduce the size of the cache file.
+Weightless caching is a feature that allows you to create a cache file which doesn't contain the weights of the model. Instead, the weights are loaded from the original model file. This helps to reduce the size of the cache file and lower peak memory consumption during compilation — which is especially beneficial for edge and client deployments.
 
 .. tab-set::
 
@@ -161,9 +161,56 @@ Weightless caching is a feature that allows you to create a cache file which doe
          :language: cpp
          :fragment: [ov:caching:part4]
 
+Explicitly enable weightless caching using ``enable_weightless``
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Instead of relying on ``CacheMode``, you can control weightless caching directly with the ``ov::enable_weightless`` property (``ENABLE_WEIGHTLESS``). When set, it takes priority over ``CacheMode``.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part8]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
+         :language: cpp
+         :fragment: [ov:caching:part8]
+
+Providing weights when reloading a weightless cache
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+A weightless cache blob does not contain the model weights, so when it is reloaded, the weights need to be supplied separately, using one of the following:
+
+* ``ov::weights_path`` (``WEIGHTS_PATH``) — a path to the ``.bin`` file that contains the weights.
+* ``ov::hint::model`` (``MODEL_PTR``) — the original ``ov::Model`` object, if it is still available in the application.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part9]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
+         :language: cpp
+         :fragment: [ov:caching:part9]
+
 .. important::
 
-   Currently, this property is supported only by the GPU Plugin and IR model format.
+   Weightless caching is supported by the CPU, GPU, and NPU plugins for models in the IR format.
+   Some behavioral details, such as how ``ENABLE_WEIGHTLESS`` interacts with ``CACHE_MODE``, may
+   vary between plugins.
 
 .. important::
 
@@ -215,3 +262,80 @@ If model caching is enabled in the GPU Plugin, the model topology is encrypted w
    Currently, encryption is supported only by the CPU and GPU plugins. Enabling this
    feature for other HW plugins will not encrypt/decrypt model topology in the
    cache and will not affect performance.
+
+
+Export and Import a Compiled Model from Tensor
+++++++++++++++++++++++++++++++++++++++++++++++
+
+Starting with OpenVINO 2025.3, you can import a pre-compiled model directly from
+an ``ov::Tensor`` (C++) or ``openvino.Tensor`` (Python), instead of reading from a
+file stream. This is useful for memory-mapped files, pre-loaded blobs, or
+scenarios where the compiled model is already available in memory.
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.py
+         :language: py
+         :fragment: [ov:caching:part7]
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. doxygensnippet:: docs/articles_en/assets/snippets/ov_caching.cpp
+         :language: cpp
+         :fragment: [ov:caching:part7]
+
+
+Caching Properties Reference
++++++++++++++++++++++++++++++
+
+The following properties control model caching behavior. Set them via
+``core.set_property()`` or pass them as additional arguments to
+``core.compile_model()``.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 20 10 45
+
+   * - Property
+     - Key
+     - Access
+     - Description
+   * - ``ov::cache_dir``
+     - ``CACHE_DIR``
+     - RW
+     - Directory path where the compiled model cache is stored.
+   * - ``ov::cache_mode``
+     - ``CACHE_MODE``
+     - RW
+     - Caching strategy: ``OPTIMIZE_SIZE`` (weightless caching) or
+       ``OPTIMIZE_SPEED`` (full blob caching, default).
+   * - ``ov::hint::compiled_blob``
+     - ``COMPILED_BLOB``
+     - RW
+     - Pass a pre-compiled model blob as an ``ov::Tensor`` for faster
+       model import. Used with ``ov::weights_path`` for weightless blobs.
+   * - ``ov::weights_path``
+     - ``WEIGHTS_PATH``
+     - RW
+     - File path to the model weights. Used with
+       ``CACHE_MODE=OPTIMIZE_SIZE`` so that weights are loaded from this
+       file instead of being stored in the cache.
+   * - ``ov::hint::model``
+     - ``MODEL_PTR``
+     - RW
+     - The original ``ov::Model`` object, provided as an alternative
+       weight source to ``ov::weights_path`` when reloading a
+       weightless cache blob.
+   * - ``ov::cache_model_path``
+     - ``CACHE_MODEL_PATH``
+     - WO
+     - Path to the original model file used to create the ``ov::Model``.
+       Speeds up cache model ID calculation by avoiding model content hashing.
+   * - ``ov::enable_weightless``
+     - ``ENABLE_WEIGHTLESS``
+     - RW
+     - Boolean flag to explicitly enable or disable weightless caching.

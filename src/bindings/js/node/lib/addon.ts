@@ -729,7 +729,7 @@ export interface PartialShape {
 export type AsyncInferQueueCallback = (
   error: null | Error,
   inferRequest: InferRequest,
-  userData: object,
+  userData: object | undefined,
 ) => void;
 
 export interface AsyncInferQueue {

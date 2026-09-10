@@ -162,6 +162,12 @@ int main(int argc, char* argv[]) {
         std::mutex mutex;
         std::exception_ptr exception_var;
         // -------- Step 10. Do asynchronous inference --------
+        // This sample chains several asynchronous requests from within the callback
+        // itself (cur_iteration below), so a condition_variable is used to specifically
+        // wait for the last iteration. For a single asynchronous request, wait()/wait_for()
+        // are enough on their own: they do not return until a callback registered via
+        // set_callback() has finished executing, so there is no race between the callback
+        // and the code that follows wait()/wait_for().
         infer_request.set_callback([&](std::exception_ptr ex) {
             std::lock_guard<std::mutex> l(mutex);
             if (ex) {
