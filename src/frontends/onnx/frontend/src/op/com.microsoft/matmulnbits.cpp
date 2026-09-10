@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <numeric>
 #include <optional>
 #include <vector>
@@ -22,7 +23,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
-#include "openvino/op/transpose.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 
@@ -63,6 +63,52 @@ std::optional<std::pair<uint64_t, uint64_t>> get_ordered_dims(const ov::PartialS
     }
     return std::nullopt;
 }
+
+// Swaps the two axes of a row-major [outer][inner] buffer of fixed-size elements into one owned
+// buffer, adoptable by Constant's shared-memory ctor with no further copy.
+std::shared_ptr<uint8_t[]> swap_outer_axes(const uint8_t* src, uint64_t outer, uint64_t inner, size_t elem_bytes) {
+    std::shared_ptr<uint8_t[]> dst(new uint8_t[static_cast<size_t>(outer * inner) * elem_bytes]);
+    for (uint64_t i = 0; i < outer; ++i) {
+        for (uint64_t j = 0; j < inner; ++j) {
+            std::memcpy(dst.get() + (j * outer + i) * elem_bytes, src + (i * inner + j) * elem_bytes, elem_bytes);
+        }
+    }
+    return dst;
+}
+
+uint8_t get_packed_value(const uint8_t* data, uint64_t idx, uint64_t bits) {
+    const uint64_t num_per_byte = 8 / bits;
+    const uint64_t shift = (idx % num_per_byte) * bits;
+    return static_cast<uint8_t>((data[idx / num_per_byte] >> shift) & ((1u << bits) - 1u));
+}
+
+void set_packed_value(uint8_t* data, uint64_t idx, uint64_t bits, uint8_t value) {
+    const uint64_t num_per_byte = 8 / bits;
+    const uint64_t shift = (idx % num_per_byte) * bits;
+    const uint8_t mask = static_cast<uint8_t>(((1u << bits) - 1u) << shift);
+    uint8_t& byte = data[idx / num_per_byte];
+    byte = static_cast<uint8_t>((byte & ~mask) | ((static_cast<unsigned>(value) << shift) & mask));
+}
+
+// Same axis swap, but for a [outer][inner] matrix of `bits`-wide values packed `8/bits`-per-byte along
+// `inner` (row-major, `ceil(inner*bits/8)` bytes/row) - the packed axis itself changes under the swap,
+// so this re-packs rather than just moving bytes.
+std::shared_ptr<uint8_t[]> swap_outer_axes_packed(const uint8_t* src, uint64_t outer, uint64_t inner, uint64_t bits) {
+    const uint64_t num_per_byte = 8 / bits;
+    const uint64_t src_row_bytes = (inner + num_per_byte - 1) / num_per_byte;
+    const uint64_t dst_row_bytes = (outer + num_per_byte - 1) / num_per_byte;
+    const size_t dst_size = static_cast<size_t>(inner * dst_row_bytes);
+    std::shared_ptr<uint8_t[]> dst(new uint8_t[dst_size]{});
+    for (uint64_t i = 0; i < outer; ++i) {
+        for (uint64_t j = 0; j < inner; ++j) {
+            set_packed_value(dst.get() + j * dst_row_bytes,
+                             i,
+                             bits,
+                             get_packed_value(src + i * src_row_bytes, j, bits));
+        }
+    }
+    return dst;
+}
 }  // namespace
 
 ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
@@ -73,7 +119,7 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     const auto& a = inputs[0];  // required
     ov::Output<ov::Node> b;
     const auto& b_quantized = inputs[1];                                                 // required
-    const auto& scales = inputs[2];                                                      // required
+    ov::Output<ov::Node> scales = inputs[2];                                             // required
     ov::Output<ov::Node> zero_points;                                                    // optional, input[3]
     ov::Output<ov::Node> group_idx;                                                      // optional, input[4]
     ov::Output<ov::Node> bias;                                                           // optional, input[5]
@@ -239,6 +285,104 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                          "], got: ",
                          bias.get_partial_shape());
     }
+
+    // Normalize B/scales/zero_points to the documented [N][n_blocks_per_col] axis order right here,
+    // once, on the raw initializer bytes - so every line below this point is byte-for-byte identical
+    // to the standard-layout path, regardless of b_is_reordered. Doing this as a runtime Transpose
+    // after dequantization instead (the previous approach) leaves the reordered path structurally
+    // different from the standard one, which breaks pattern-based recognition of the dequantize
+    // subgraph (MarkDequantization / CompressedWeightsBlock expect Convert(weights)->Subtract->
+    // Multiply->Reshape->optional-Transpose, with nothing between the raw weight Constant and its
+    // Convert) - so production models using this layout would silently lose compressed
+    // FullyConnected execution instead of just importing correctly.
+    //
+    // B and zero_points are only ever read here via get_data_ptr() to build a *new* repacked Constant
+    // further down (casted_b / casted_zp_*) - they never become a graph Output in their own right - so
+    // normalizing them into a plain byte buffer (no intermediate Constant) avoids one extra full-buffer
+    // copy of what can be a multi-GB weight tensor. scales, unlike them, flows directly into a Convert
+    // node below and so must become a real (small) replacement Constant either way.
+    std::shared_ptr<uint8_t[]> normalized_b_bytes;
+    std::shared_ptr<uint8_t[]> normalized_zp_bytes;
+    if (b_is_reordered) {
+        const auto b_const_orig = ov::as_type_ptr<v0::Constant>(b_quantized.get_node_shared_ptr());
+        normalized_b_bytes = swap_outer_axes(static_cast<const uint8_t*>(b_const_orig->get_data_ptr()),
+                                             n_blocks_per_col,
+                                             static_cast<uint64_t>(N),
+                                             static_cast<size_t>(blob_size));
+
+        CHECK_VALID_NODE(node,
+                         ov::as_type<v0::Constant>(scales.get_node()) != nullptr,
+                         "MatMulNBits limitation: reordered B layout requires a constant scales input");
+        const auto scales_const_orig = ov::as_type_ptr<v0::Constant>(scales.get_node_shared_ptr());
+        auto normalized_scales_bytes = swap_outer_axes(static_cast<const uint8_t*>(scales_const_orig->get_data_ptr()),
+                                                       n_blocks_per_col,
+                                                       static_cast<uint64_t>(N),
+                                                       scales_const_orig->get_element_type().size());
+        // scales is never named (kept unnamed so it can't be weight-shared/promoted, unlike B/zero_points).
+        const auto* normalized_scales_ptr = normalized_scales_bytes.get();
+        scales = std::make_shared<v0::Constant>(scales_const_orig->get_element_type(),
+                                                ov::Shape{static_cast<size_t>(N * n_blocks_per_col)},
+                                                normalized_scales_ptr,
+                                                std::move(normalized_scales_bytes));
+
+        if (zero_points.get_node_shared_ptr()) {
+            CHECK_VALID_NODE(node,
+                             ov::as_type<v0::Constant>(zero_points.get_node()) != nullptr,
+                             "MatMulNBits limitation: accepting only a constant as a zero_points");
+            const auto zp_const_orig = ov::as_type_ptr<v0::Constant>(zero_points.get_node_shared_ptr());
+            if (zero_points.get_element_type() == a.get_element_type()) {
+                if (const auto hint = get_ordered_dims(zero_points.get_partial_shape())) {
+                    CHECK_VALID_NODE(node,
+                                     hint->first == n_blocks_per_col && hint->second == static_cast<uint64_t>(N),
+                                     "MatMulNBits: B is stored in the reordered [n_blocks_per_col][N][blob_size] "
+                                     "layout, but zero_points shape does not match the expected reordered "
+                                     "[n_blocks_per_col][N] layout, got: ",
+                                     zero_points.get_partial_shape());
+                }
+                normalized_zp_bytes = swap_outer_axes(static_cast<const uint8_t*>(zp_const_orig->get_data_ptr()),
+                                                      n_blocks_per_col,
+                                                      static_cast<uint64_t>(N),
+                                                      zero_points.get_element_type().size());
+            } else if (zero_points.get_element_type() == ov::element::u8) {
+                const uint64_t num_per_byte = 8 / bits;
+                const uint64_t src_num_byte = (static_cast<uint64_t>(N) + num_per_byte - 1) / num_per_byte;
+                const auto& zp_shape_dyn = zero_points.get_partial_shape();
+                CHECK_VALID_NODE(node,
+                                 zp_shape_dyn.is_static(),
+                                 "Expected input Zero Point shape is static and compatible with the "
+                                 "reordered [n_blocks_per_col][ceil(N*bits/8)] packed layout, got: ",
+                                 zp_shape_dyn);
+                if (const auto hint = get_ordered_dims(zp_shape_dyn)) {
+                    CHECK_VALID_NODE(node,
+                                     hint->first == n_blocks_per_col && hint->second == src_num_byte,
+                                     "MatMulNBits: B is stored in the reordered [n_blocks_per_col][N][blob_size] "
+                                     "layout, but zero_points shape does not match the expected reordered "
+                                     "[n_blocks_per_col][ceil(N*bits/8)] packed layout, got: ",
+                                     zp_shape_dyn);
+                }
+                const auto zp_shape_static = zp_shape_dyn.get_shape();
+                const uint64_t actual_zp_bytes = std::accumulate(zp_shape_static.begin(),
+                                                                 zp_shape_static.end(),
+                                                                 uint64_t{1},
+                                                                 std::multiplies<uint64_t>{});
+                const uint64_t expected_zp_bytes = n_blocks_per_col * src_num_byte;
+                CHECK_VALID_NODE(node,
+                                 actual_zp_bytes == expected_zp_bytes,
+                                 "MatMulNBits: reordered zero_points buffer size (",
+                                 actual_zp_bytes,
+                                 ") does not match expected packed size n_blocks_per_col * ceil(N * bits / 8) (",
+                                 expected_zp_bytes,
+                                 ")");
+                normalized_zp_bytes = swap_outer_axes_packed(static_cast<const uint8_t*>(zp_const_orig->get_data_ptr()),
+                                                             n_blocks_per_col,
+                                                             static_cast<uint64_t>(N),
+                                                             static_cast<uint64_t>(bits));
+            } else {
+                FRONT_END_THROW("Unexpected zero point type");
+            }
+        }
+    }
+
     const auto zero = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 0);
     const auto one = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, 1);
     const auto elements = std::make_shared<v0::Constant>(ov::element::i32, Shape{1}, static_cast<int32_t>(K));
@@ -252,29 +396,36 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         ov::Shape casted_b_shape;
         ov::Output<ov::Node> default_zp;
         ov::element::Type zp_element_type;
-        // Casting/converting data of source constant.
-        // For further calculations (sub and/or multiply) we need to reshape
-        // b -> [N][n_blocks_per_col][block_size]
-        // b's leading two axes are [N][n_blocks_per_col] normally, or the reordered
-        // [n_blocks_per_col][N] when b_is_reordered - either way the axis sizes are known up front.
-        const size_t b_dim0 = b_is_reordered ? static_cast<size_t>(n_blocks_per_col) : static_cast<size_t>(N);
-        const size_t b_dim1 = b_is_reordered ? static_cast<size_t>(N) : static_cast<size_t>(n_blocks_per_col);
+        // b's leading two axes are already [N][n_blocks_per_col] here - reordered inputs were
+        // normalized to this order above. normalized_b_bytes (if set) is adopted, not copied.
+        auto make_casted_b = [&](const ov::element::Type& type, const ov::Shape& shape) {
+            if (normalized_b_bytes) {
+                return std::make_shared<v0::Constant>(type, shape, normalized_b_bytes.get(), normalized_b_bytes);
+            }
+            return std::make_shared<v0::Constant>(type, shape, b_const->get_data_ptr());
+        };
         switch (bits) {
         case 2:
-            casted_b_shape = ov::Shape{b_dim0, b_dim1, static_cast<size_t>(blob_size * 4)};
-            casted_b = std::make_shared<v0::Constant>(ov::element::u2, casted_b_shape, b_const->get_data_ptr());
+            casted_b_shape = ov::Shape{static_cast<size_t>(N),
+                                       static_cast<size_t>(n_blocks_per_col),
+                                       static_cast<size_t>(blob_size * 4)};
+            casted_b = make_casted_b(ov::element::u2, casted_b_shape);
             default_zp = std::make_shared<v0::Constant>(ov::element::u2, Shape{1}, 2);
             zp_element_type = ov::element::u2;
             break;
         case 4:
-            casted_b_shape = ov::Shape{b_dim0, b_dim1, static_cast<size_t>(blob_size * 2)};
-            casted_b = std::make_shared<v0::Constant>(ov::element::u4, casted_b_shape, b_const->get_data_ptr());
+            casted_b_shape = ov::Shape{static_cast<size_t>(N),
+                                       static_cast<size_t>(n_blocks_per_col),
+                                       static_cast<size_t>(blob_size * 2)};
+            casted_b = make_casted_b(ov::element::u4, casted_b_shape);
             default_zp = std::make_shared<v0::Constant>(ov::element::u4, Shape{1}, 8);
             zp_element_type = ov::element::u4;
             break;
         case 8:
-            casted_b_shape = ov::Shape{b_dim0, b_dim1, static_cast<size_t>(blob_size)};
-            casted_b = std::make_shared<v0::Constant>(ov::element::u8, casted_b_shape, b_const->get_data_ptr());
+            casted_b_shape = ov::Shape{static_cast<size_t>(N),
+                                       static_cast<size_t>(n_blocks_per_col),
+                                       static_cast<size_t>(blob_size)};
+            casted_b = make_casted_b(ov::element::u8, casted_b_shape);
             default_zp = std::make_shared<v0::Constant>(ov::element::u8, Shape{1}, 128);
             zp_element_type = ov::element::u8;
             break;
@@ -328,22 +479,15 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                  "got: ",
                                  zp_shape);
 
-                if (b_is_reordered) {
-                    if (const auto hint = get_ordered_dims(zp_shape)) {
-                        CHECK_VALID_NODE(node,
-                                         hint->first == n_blocks_per_col && hint->second == static_cast<uint64_t>(N),
-                                         "MatMulNBits: B is stored in the reordered [n_blocks_per_col][N][blob_size] "
-                                         "layout, but zero_points shape does not match the expected reordered "
-                                         "[n_blocks_per_col][N] layout, got: ",
-                                         zp_shape);
-                    }
-                }
-                ov::Shape casted_zp_shape =
-                    b_is_reordered ? ov::Shape{static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(N), 1}
-                                   : ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
-                converted_zero_points = std::make_shared<v0::Constant>(a.get_element_type(),
-                                                                       casted_zp_shape,
-                                                                       zero_points_const->get_data_ptr());
+                ov::Shape casted_zp_shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1};
+                converted_zero_points = normalized_zp_bytes
+                                            ? std::make_shared<v0::Constant>(a.get_element_type(),
+                                                                             casted_zp_shape,
+                                                                             normalized_zp_bytes.get(),
+                                                                             normalized_zp_bytes)
+                                            : std::make_shared<v0::Constant>(a.get_element_type(),
+                                                                             casted_zp_shape,
+                                                                             zero_points_const->get_data_ptr());
                 // Preserve the original zero_point name on the repacked Constant (as done for B) so weight
                 // sharing / weights-as-input can still identify it by name.
                 if (const auto casted_zp_const =
@@ -351,59 +495,26 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                     preserve_initializer_name(casted_zp_const, zero_points_const);
                 }
             } else if (zero_points.get_element_type() == ov::element::u8) {
-                // Packed along whichever axis is innermost in the chosen layout: n_blocks_per_col for the
-                // documented [N][n_blocks_per_col][blob_size] layout, N for the reordered
-                // [n_blocks_per_col][N][blob_size] layout. outer_dim is the other axis, kept as the
-                // leading dim of the repacked Constant.
+                // Packed along n_blocks_per_col (the innermost axis of the documented
+                // [N][n_blocks_per_col][blob_size] layout); N is the outer axis, kept as the leading
+                // dim of the repacked Constant.
                 const uint64_t num_per_byte = 8 / bits;
-                const uint64_t outer_dim = b_is_reordered ? n_blocks_per_col : static_cast<uint64_t>(N);
-                const uint64_t pack_dim = b_is_reordered ? static_cast<uint64_t>(N) : n_blocks_per_col;
+                const uint64_t outer_dim = static_cast<uint64_t>(N);
+                const uint64_t pack_dim = n_blocks_per_col;
                 // for alignment, pack_dim might not be aligned to num_per_byte
                 const uint64_t num_byte = (pack_dim + (num_per_byte - 1)) / num_per_byte;
                 const uint64_t num_elements_aligned = num_byte * num_per_byte;
 
-                if (b_is_reordered) {
-                    // The producer unpacks the standard [N][ceil(n_blocks_per_col*bits/8)] buffer,
-                    // transposes to [n_blocks_per_col][N], then repacks along the new last axis (N).
-                    // Validate both the buffer's actual byte size and, when known, its per-axis shape
-                    // before constructing the Constant - the ONNX op itself does not guarantee N is a
-                    // multiple of 8/bits, and a same-byte-count buffer stored in the standard layout must
-                    // not be silently reinterpreted with the reordered layout's different row boundaries.
-                    const auto& zp_shape_dyn = zero_points.get_partial_shape();
-                    CHECK_VALID_NODE(node,
-                                     zp_shape_dyn.is_static(),
-                                     "Expected input Zero Point shape is static and compatible with the "
-                                     "reordered [n_blocks_per_col][ceil(N*bits/8)] packed layout, got: ",
-                                     zp_shape_dyn);
-                    const auto zp_shape_static = zp_shape_dyn.get_shape();
-                    if (const auto hint = get_ordered_dims(zp_shape_dyn)) {
-                        CHECK_VALID_NODE(node,
-                                         hint->first == outer_dim && hint->second == num_byte,
-                                         "MatMulNBits: B is stored in the reordered "
-                                         "[n_blocks_per_col][N][blob_size] layout, but zero_points shape does "
-                                         "not match the expected reordered [n_blocks_per_col][ceil(N*bits/8)] "
-                                         "packed layout, got: ",
-                                         zp_shape_dyn);
-                    }
-                    const uint64_t actual_zp_bytes = std::accumulate(zp_shape_static.begin(),
-                                                                     zp_shape_static.end(),
-                                                                     uint64_t{1},
-                                                                     std::multiplies<uint64_t>{});
-                    const uint64_t expected_zp_bytes = outer_dim * num_byte;
-                    CHECK_VALID_NODE(node,
-                                     actual_zp_bytes == expected_zp_bytes,
-                                     "MatMulNBits: reordered zero_points buffer size (",
-                                     actual_zp_bytes,
-                                     ") does not match expected packed size n_blocks_per_col * ceil(N * bits / 8) "
-                                     "(",
-                                     expected_zp_bytes,
-                                     ")");
-                }
-
                 ov::Shape casted_zp_shape =
                     ov::Shape{static_cast<size_t>(outer_dim), static_cast<size_t>(num_elements_aligned), 1};
-                auto casted_zp_org =
-                    std::make_shared<v0::Constant>(zp_element_type, casted_zp_shape, zero_points_const->get_data_ptr());
+                auto casted_zp_org = normalized_zp_bytes
+                                         ? std::make_shared<v0::Constant>(zp_element_type,
+                                                                          casted_zp_shape,
+                                                                          normalized_zp_bytes.get(),
+                                                                          normalized_zp_bytes)
+                                         : std::make_shared<v0::Constant>(zp_element_type,
+                                                                          casted_zp_shape,
+                                                                          zero_points_const->get_data_ptr());
                 // Preserve the original zero_point name on the repacked Constant (as done for B) so
                 // weight sharing can promote it. The packed Constant keeps the source uint8 byte count, so
                 // the promoted input's tensor matches the external weight at runtime - true whether or not
@@ -474,24 +585,13 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 b = dequant;
             }
         } else {
-            // sub and scale via the shared low-precision dequantization helper. When B is reordered,
-            // scales are reordered the same way, so reshape to match instead of transposing.
+            // sub and scale via the shared low-precision dequantization helper.
             const auto scales_reshaped =
-                b_is_reordered
-                    ? op::util::reshape(scales_converted,
-                                        ov::Shape{static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(N), 1})
-                    : op::util::reshape(scales_converted,
-                                        ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
+                op::util::reshape(scales_converted,
+                                  ov::Shape{static_cast<size_t>(N), static_cast<size_t>(n_blocks_per_col), 1});
 
             ov::Output<ov::Node> scaled_b =
                 ov::decomposition::low_precision_dequantize(casted_b, scales_reshaped, converted_zero_points);
-
-            if (b_is_reordered) {
-                // scaled_b is [n_blocks_per_col, N, block_size]; transpose the leading two axes back to
-                // the documented [N, n_blocks_per_col, block_size] before flattening to [N, K].
-                const auto perm = v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<int64_t>{1, 0, 2});
-                scaled_b = std::make_shared<v1::Transpose>(scaled_b, perm);
-            }
 
             // reshape b to [N, K]
             auto shape_b = v0::Constant::create(ov::element::i32, ov::Shape{2}, {0, -1});
