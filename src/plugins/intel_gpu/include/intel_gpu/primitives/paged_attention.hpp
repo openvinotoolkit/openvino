@@ -95,8 +95,9 @@ struct paged_attention : public primitive_base<paged_attention> {
     // BY_CHANNEL so pa_sdpa_opt, rotate, reorder and micro all keep reading the upstream d-major page
     // and need no change -- which also means that with this switch on, every OTHER K-cache consumer is
     // INVALID: cache ROTATION, cache reorder, adaptive R-KV, a scores output, and any MIXED case the
-    // sdpa_ocl gate rejects (k_head_size != v_head_size, head_size > 256, i4, and everything that
-    // falls back to sdpa_micro because TEST_USE_SDPA_OCL is off) all read K d-major.
+    // sdpa_ocl gate rejects (head_size > 256, i4, and everything that falls back to sdpa_micro
+    // because TEST_USE_SDPA_OCL is off) all read K d-major. k_head_size != v_head_size used to be on
+    // that list; sdpa_ocl handles it now (SDPAOclGenerator::supports_head_sizes).
     // TODO: retire together with k_token_major() once rotate/reorder/adaptive-R-KV/micro follow and the
     // BY_CHANNEL page can flip unconditionally.
     static bool k_by_channel_token_major() {
