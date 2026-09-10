@@ -240,10 +240,11 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         } else if (supports_immad && shape_a.is_static() && shape_b.is_static()) {
              auto output_shape = matmul->get_output_shape(0);
              size_t k = 0;
-             if (matmul->get_transpose_a())
+             if (matmul->get_transpose_a()) {
                  k = shape_a[shape_a.rank().get_length() - 2].get_length();
-             else
+             } else {
                  k = shape_a[shape_a.rank().get_length() - 1].get_length();
+             }
              // M is the row/token dimension and N the output dimension of the matmul.
              size_t m = output_shape.size() >= 2 ? output_shape[output_shape.size() - 2] : 1;
              size_t n = !output_shape.empty() ? output_shape[output_shape.size() - 1] : 1;

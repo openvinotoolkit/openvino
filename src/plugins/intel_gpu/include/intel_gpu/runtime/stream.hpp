@@ -67,10 +67,18 @@ public:
     virtual void wait_for_events(const std::vector<event::ptr>& events) = 0;
     virtual event::ptr create_user_event(bool set) = 0;
     virtual event::ptr create_base_event() = 0;
+#ifdef ENABLE_MLIR_FOR_GPU
+    // Wraps an already existing native event handle (i.e. cl_event for OpenCL) into cldnn::event
+    virtual event::ptr create_base_event(void* /*handle*/) { return nullptr; }
+#endif
     virtual std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const = 0;
     virtual event::ptr aggregate_events(const std::vector<event::ptr>& events, bool group = false, bool is_output = false);
 
     QueueTypes get_queue_type() const { return m_queue_type; }
+#ifdef ENABLE_MLIR_FOR_GPU
+    // Returns the handle to the underlying stream object (e.g. cl_command_queue for OpenCL)
+    virtual void* get_native_handle() const { return nullptr; }
+#endif
     SyncMethods get_sync_method() const { return m_sync_method; }
 
     static SyncMethods get_expected_sync_method(const ExecutionConfig& config);
