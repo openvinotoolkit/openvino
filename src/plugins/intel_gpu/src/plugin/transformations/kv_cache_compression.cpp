@@ -88,8 +88,9 @@ std::shared_ptr<ov::intel_gpu::op::ReadValues>
         OutputVector initializer_outputs = { initializer_dq->output(0), initializer_dq->output(1) };
 
         if (quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
-            quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
+            quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
             initializer_outputs.push_back(initializer_dq->output(2));
+        }
 
         new_past_rv_node = std::make_shared<ov::intel_gpu::op::ReadValues>(initializer_outputs, past_rv_node->get_variable(), variable_infos);
     }
@@ -113,8 +114,9 @@ std::shared_ptr<ov::intel_gpu::op::KVCacheCompressed>
     kv_cache_inputs.push_back(past_rv_node->output(1));
 
     if (quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
-        quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
+        quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
         kv_cache_inputs.push_back(past_rv_node->output(2));
+    }
 
     auto new_kv_cache = std::make_shared<op::KVCacheCompressed>(kv_cache_inputs,
                                                                 kv_cache_node->get_variable(),
@@ -139,8 +141,9 @@ public:
 KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compression_dt, bool supports_immad) {
     using namespace ov::pass::pattern;
 
-    if (!cldnn::one_of(compression_dt, {element::i8, element::u8, element::i4, element::u4}))
+    if (!cldnn::one_of(compression_dt, {element::i8, element::u8, element::i4, element::u4})) {
         return;
+    }
 
     const auto quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
     const auto output_storage_type = supports_immad ? ov::op::internal::DynamicQuantize::OutputStorageType::Planar
@@ -249,8 +252,9 @@ KVCacheCompressionMatcher::KVCacheCompressionMatcher(ov::element::Type compressi
 
         OutputVector sdpa_inputs;
         // Add Query, Key, Value, attention_mask, scale inputs
-        for (size_t i = 0; i < sdpa_node->get_input_size() - 1; i++)
+        for (size_t i = 0; i < sdpa_node->get_input_size() - 1; i++) {
             sdpa_inputs.push_back(sdpa_node->input_value(i));
+        }
 
         // Replace Key and Value inputs with compressed ones
         sdpa_inputs[1] = new_key_cache->output(0);

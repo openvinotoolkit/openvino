@@ -62,8 +62,9 @@ DeviceFeaturesKey ConvolutionKernel_bfyx_to_fs_byx_fsv32::get_required_device_fe
 ConvolutionKernel_bfyx_to_fs_byx_fsv32::AutoTuneOption ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetAutoTuneOptions(
     const Params&,
     int autoTuneIndex) const {
-    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size()))
+    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size())) {
         return autoTuneOptions[autoTuneIndex];
+    }
 
     return {8, 2, EXE_MODE_AGE_BASED};
 }
@@ -93,14 +94,16 @@ KernelsPriority ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetKernelsPriority(const
 }
 
 bool ConvolutionKernel_bfyx_to_fs_byx_fsv32::Validate(const Params& p) const {
-    if (!ConvolutionKernelBase::Validate(p))
+    if (!ConvolutionKernelBase::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     auto cp = static_cast<const convolution_params&>(p);
 
     // Output feature padding must be multiple of fsv to keep block alignment
-    if (cp.outputs[0].Feature().pad.before % fsv != 0)
+    if (cp.outputs[0].Feature().pad.before % fsv != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

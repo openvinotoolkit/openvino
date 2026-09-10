@@ -17,8 +17,9 @@ namespace ov::intel_gpu::ocl {
 
 static bool has_fused_swiglu(const kernel_impl_params& params) {
     for (const auto& fd : params.fused_desc) {
-        if (fd.is_type<swiglu>())
+        if (fd.is_type<swiglu>()) {
             return true;
+        }
     }
     return false;
 }
@@ -68,10 +69,11 @@ JitConstants GatherMatmulBatchedGemmGenerator::get_jit_constants(const kernel_im
         }
 
         jit.make("WEIGHT_SCALE_DT", to_ocl_type(data_types::f16));
-        if (cfg.weight_group_size > 0)
+        if (cfg.weight_group_size > 0) {
             jit.make("NUM_GROUPS", scale_shape[2]);
-        else
+        } else {
             jit.make("NUM_GROUPS", 1);
+        }
 
         // Scales are physically [E, G, N]; must match GatherMatmulMicroGenerator.
         jit.make("SCALE_ZP_NO_TRANSPOSE", 1);
@@ -119,8 +121,9 @@ JitConstants GatherMatmulBatchedGemmGenerator::get_jit_constants(const kernel_im
     jit.make("TOP_K", indices_jitter.dim(ChannelName::FEATURE));
 
     auto slm_size = bgm_gemm.getSetting("slm_size");
-    if (slm_size > 0)
+    if (slm_size > 0) {
         jit.make("USE_SLM", 1);
+    }
 
     if (has_fused_swiglu(params)) {
         size_t m_out = weight_shape[1] / 2;
@@ -152,8 +155,9 @@ std::string GatherMatmulBatchedGemmGenerator::get_build_options(const kernel_imp
 
 Arguments GatherMatmulBatchedGemmGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
-    if (params.is_dynamic())
+    if (params.is_dynamic()) {
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
     auto cfg = GatherMatmulMicroGenerator::get_config(params);
 
     // gathered_A (internal buffer 0)
@@ -179,8 +183,9 @@ Arguments GatherMatmulBatchedGemmGenerator::get_arguments_desc(const kernel_impl
 
     if (cfg.is_weight_quantized) {
         args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(cfg.weight_scale_idx)});
-        if (!cfg.is_weight_symmetric_quantized)
+        if (!cfg.is_weight_symmetric_quantized) {
             args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(cfg.weight_zp_idx)});
+        }
     }
 
     return args;

@@ -84,8 +84,9 @@ public:
         conv_params.grouped_weights_shape = primitive->grouped_weights_shape;
 
         auto deform_conv_dep_offset = primitive->deformable_mode ? 1 : 0;
-        if (primitive->input.size() == 3)
+        if (primitive->input.size() == 3) {
             deform_conv_dep_offset++;
+        }
 
         const size_t weights_input_idx = 1 + deform_conv_dep_offset;
         auto weights_layout = impl_param.input_layouts[weights_input_idx]
@@ -239,8 +240,9 @@ public:
         if (format == format::b_fs_zyx_fsv16 ||
             format == format::bs_fs_zyx_bsv16_fsv16 ||
             format == format::bs_fs_yx_bsv16_fsv16 ||
-            format == format::b_fs_zyx_fsv32)
+            format == format::b_fs_zyx_fsv32) {
             conv_params.allowInputReordering = true;
+        }
 
         conv_params.set_dynamic_shape_offsets();
 
