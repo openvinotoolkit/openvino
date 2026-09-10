@@ -347,23 +347,21 @@ public:
     }
 
     // Iteration operators
-    Iterator<ET, T>& operator++() {
-        if constexpr (is_nibble_type(ET)) {
-            m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
-            m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
-        } else if constexpr (is_lsb_packed(ET)) {
-            m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
-            if (m_et_ptr.m_bit_shift >= 8) {
-                m_et_ptr.m_bit_shift -= 8;
-                ++m_et_ptr.m_ptr;
+        Iterator<ET, T>& operator++() {
+            if constexpr (is_nibble_type(ET)) {
+                m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
+                m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
+            } else if constexpr (is_lsb_packed(ET)) {
+                m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
+                m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift / 8);
+                m_et_ptr.m_bit_shift %= 8;
+            } else {
+                m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
+                m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % 8;
+                m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
             }
-        } else {
-            m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
-            m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % 8;
-            m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == m_et_ptr.m_shift_init);
+            return *this;
         }
-        return *this;
-    }
 
     Iterator<ET, T> operator++(int) {
         auto old = *this;
@@ -401,11 +399,10 @@ public:
             m_et_ptr.m_bit_shift ^= m_et_ptr.m_bits;
             m_et_ptr.m_ptr -= static_cast<std::ptrdiff_t>(m_et_ptr.m_bit_shift == 4);
         } else if constexpr (is_lsb_packed(ET)) {
-            if (m_et_ptr.m_bit_shift < m_et_ptr.m_bits) {
-                m_et_ptr.m_bit_shift += 8;
-                --m_et_ptr.m_ptr;
-            }
-            m_et_ptr.m_bit_shift -= m_et_ptr.m_bits;
+            // Biased by one byte to keep the arithmetic unsigned when the value starts in the previous byte.
+            const auto shift = m_et_ptr.m_bit_shift + 8 - m_et_ptr.m_bits;
+            m_et_ptr.m_ptr += static_cast<std::ptrdiff_t>(shift / 8) - 1;
+            m_et_ptr.m_bit_shift = shift % 8;
         } else {
             m_et_ptr.m_bit_shift += m_et_ptr.m_bits;
             m_et_ptr.m_bit_shift = m_et_ptr.m_bit_shift % 8;

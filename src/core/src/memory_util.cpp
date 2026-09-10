@@ -19,9 +19,13 @@ size_t get_bit_memory_size(const element::Type& type, const size_t elements_coun
 }
 
 size_t get_bit_elements_count(const element::Type& type, const size_t memory_size) {
-    size_t total_bits;
-    OPENVINO_ASSERT(!mul_overflow<size_t>(memory_size, 8, total_bits));
-    return total_bits / type.bitwidth();
+    const auto bit_width = type.bitwidth();
+    // Any bit_width bytes hold exactly 8 elements, so memory_size * 8 / bit_width is taken in two steps
+    size_t elements_count;
+    const auto tail_elements = ((memory_size % bit_width) * 8) / bit_width;
+    OPENVINO_ASSERT(!mul_overflow<size_t>(memory_size / bit_width, 8, elements_count) &&
+                    !add_overflow<size_t>(elements_count, tail_elements, elements_count));
+    return elements_count;
 }
 }  // namespace
 
