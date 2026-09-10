@@ -28,7 +28,7 @@ jobs:
       - name: Install gh-aw
         uses: github/gh-aw/actions/setup-cli@57c8c22d3eefb88d996ec6e49a461944adfee625
         with:
-          version: v0.87.4
+          version: v0.88.7
 
       - name: Compile and verify agentic workflows
         env:
