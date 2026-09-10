@@ -53,7 +53,7 @@ frontend->add_extension("/tmp/devstral-extension/libgguf_devstral_extension.so")
 auto model = frontend->convert(frontend->load("Devstral-Small-2-Q4_K_M.gguf"));
 ```
 
-Devstral Small 2505/2507 uses `llama`; Small 2 and Devstral 2 use `mistral3`. The library explicitly
+Devstral Small 2505/2507 uses `llama`; Devstral Small 2 and Devstral 2 use `mistral3`. The library explicitly
 replaces both existing family handlers in this frontend instance. **Use a dedicated frontend
 instance for the intended Devstral models**: this is a dense, full-attention text example, not a
 replacement supporting every Llama/Mistral variant. Vision, MoE, sliding-window variants and
@@ -69,7 +69,10 @@ GGUF frontend it creates. Registering on an unrelated `Core` or frontend does no
 The three existing Devstral F32 fixtures run through the loaded library as well as the native
 builder. They compare complete logits to independent llama.cpp CPU references, including
 prefill, cached decode, nondefault YaRN correction and temperature boundaries. See
-[the case study](../../docs/devstral_support.md) for checkpoint scope and reproduction details.
+[supported models](../../docs/supported_models.md#devstral-text-models) for checkpoint scope and
+[reference generation](../../tests/test_data/arch_accuracy/README.md) to reproduce the fixtures.
+Run both native and external cases with
+`--gtest_filter='*GGUFArchitectureAccuracy*devstral*'`.
 
 To include this implementation in the frontend, move `devstral.cpp` and its header into the
 builder sources and register the same `devstral_decoder` definition. Replace the intended

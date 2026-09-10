@@ -34,12 +34,24 @@ struct GgufGraphContext::Impl {
         OPENVINO_ASSERT(decoder, "[GGUF] call configure_decoder before using decoder blocks");
         OPENVINO_ASSERT(layer >= 0 && layer < decoder->n_layer, "[GGUF] decoder layer is out of range");
     }
+    const std::string& value_name(const GgufValue& value) const {
+        OPENVINO_ASSERT(value, "[GGUF] builder received an empty value");
+        OPENVINO_ASSERT(emitter.value(value.name()) == value.m_value,
+                        "[GGUF] value '",
+                        value.name(),
+                        "' does not belong to this graph");
+        return value.name();
+    }
     GraphEmitter emitter;
 
     // Generate unique names for SDK operations. Shared decoder blocks use layer prefixes.
     int seq = 0;
     std::string fresh(const std::string& op) {
-        return op + "_" + std::to_string(seq++);
+        std::string name;
+        do {
+            name = op + "_" + std::to_string(seq++);
+        } while (emitter.graph()->values->count(name) || emitter.has_weight(name));
+        return name;
     }
 };
 

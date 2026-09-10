@@ -52,6 +52,7 @@ public:
     }
 
 private:
+    friend class GgufGraphContext;
     std::string m_name;
     ov::Output<ov::Node> m_value;
 };

@@ -33,8 +33,10 @@ std::optional<T> number(const GGUFMetaData* value) {
         return std::nullopt;
     if (const auto* v = std::get_if<int>(value))
         return static_cast<T>(*v);
-    if (const auto* v = std::get_if<float>(value))
-        return static_cast<T>(*v);
+    if constexpr (std::is_floating_point_v<T>) {
+        if (const auto* v = std::get_if<float>(value))
+            return static_cast<T>(*v);
+    }
     if (const auto* t = std::get_if<ov::Tensor>(value); t && t->get_size() == 1) {
         const auto values = tensor_values<T>(*t);
         if (!values.empty())

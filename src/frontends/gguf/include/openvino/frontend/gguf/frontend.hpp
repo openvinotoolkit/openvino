@@ -52,7 +52,7 @@ protected:
     /// \param variants First element is a shared_ptr<GgufDecoder> or a file path.
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
-    /// \brief Load a GgufDecoder directly or build a graph from a .gguf file.
+    /// \brief Load a GgufDecoder, or parse a .gguf file and select its builder for convert().
     /// \param variants First element is a shared_ptr<GgufDecoder> or a file path.
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;

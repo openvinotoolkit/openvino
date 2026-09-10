@@ -108,7 +108,7 @@ The decoder catalog stores each architecture name, RoPE mode, and maturity toget
 `arch_uses_neox_rope()` is a derived lookup; `qwen35` uses interleaved multimodal RoPE.
 Classify the mode against a reference before registering a new architecture.
 
-### Native architecture regression coverage (2026-09-07)
+### Native architecture regression coverage
 
 `GGUFArchitectureAccuracy` checks 23 small, nonzero F32 models against complete logit
 vectors produced by the real llama.cpp CPU backend. The cases cover all 13 newly
@@ -167,56 +167,10 @@ external `ModelBuilder`. Both real models match all 13 reference choices on the 
 The native path uses shared YaRN and attention-temperature fixes; the external example reads
 the metadata and builds those behaviors itself. Devstral 2 has small-fixture
 coverage; its 123B checkpoint is not verified. Vision and tool orchestration are separate.
-See [Devstral support, validation and integration effort](devstral_support.md).
+See the [external builder example](../examples/devstral_extension) and
+[reference reproduction instructions](../tests/test_data/arch_accuracy/README.md).
 
-### Historical GenAI audit (before the architecture fixes)
-
-The following table records the earlier generation audit; its set labels and failures
-are historical, not the current registry status. Checkpoints marked “not tested” were
-not run. This audit motivated the fixes and promotions above.
-
-| Arch | Set | Model used | GenAI | llama.cpp ref |
-|---|---|---|---|---|
-| `llama` | verified | Llama-3.2-1B-Instruct Q4_K_M | generates | generates |
-| `qwen2` | verified | Qwen2.5-0.5B-Instruct Q4_K_M | generates | generates |
-| `qwen3` | verified | Qwen3-0.6B Q8_0 | generates (reasoning preamble) | same |
-| `phi3` | verified | Phi-3-mini-4k-instruct Q4 | generates | generates |
-| `minicpm` | verified | MiniCPM-2B-dpo Q4_K_M | generates | generates |
-| `hunyuan-dense` | experimental | Hunyuan-0.5B-Instruct Q4_K_M | **degenerate** | generates |
-| `olmoe` | verified | OLMoE-1B-7B-Instruct Q4_K_M | generates | generates |
-| `qwen3moe` | experimental | Qwen3-0.9B-A0.6B Q4_K_M | **degenerate** | generates |
-| `gpt-oss` | verified | gpt-oss-20b MXFP4 | generates (harmony format) | same |
-| `gemma` | experimental | gemma-2b Q4_K_M | **throws** (SDPA shape mismatch) | degenerate too |
-| `gemma2` | experimental | gemma-2-2b-it Q4_K_M | **degenerate** | generates |
-| `gemma3` | verified | gemma-3-1b-it Q4_K_M | generates | generates |
-| `gemma4` | verified | gemma-4-E4B-it Q4_K_M | generates | generates |
-| `llama-embed` | experimental | llama-nemotron-embed-1b-v2 Q4_K_M | repeats (embedding model) | degenerate too |
-| `exaone4` | experimental | EXAONE-4.0-1.2B Q4_K_M | **degenerate** | generates |
-| `plamo3` | experimental | plamo-3-nict-2b-base Q4_K_M | **degenerate** | degenerate too |
-| `smollm3` | experimental | SmolLM3-3B Q4_K_M | generates (reasoning preamble) | same |
-| `maincoder` | experimental | Maincoder-1B Q4_K_M | generates | generates |
-| `mistral3` | experimental | Ministral-3-3B-Instruct-2512 Q4_K_M | generates | generates |
-| `muse-glimmer` | experimental | Muse-Glimmer-30B Q4_0 | generates | generates |
-| `qwen35` | verified | Qwen3.5-0.8B Q8_0 | generates | generates |
-| `qwen35` (Bonsai) | verified | Ternary-Bonsai-27B Q2_g64 | generates | generates |
-| `deepseek2-ocr` | experimental | deepseek-ocr-2 Q4_K_M | generates | generates |
-| `ernie4_5-moe` | experimental | ERNIE-4.5-21B-A3B Q4_K_M | **degenerate** (blank) | generates |
-| `bailingmoe2` | experimental | Ling-mini-2.0 Q2_K | generates | generates |
-| `mellum` | experimental | Mellum2-12B-A2.5B-Instruct Q4_K_M | generates | generates |
-| `hunyuan-moe` | experimental | — | not tested (no checkpoint) | — |
-| `glm4moe` | experimental | — | not tested (smallest GLM-4.5-Air ≈ 40 GiB) | — |
-| `exaone-moe` | experimental | — | not tested (smallest ≈ 9 GiB, 32B) | — |
-| `minimax-m2` | experimental | — | not tested (smallest ≈ 78 GiB) | — |
-| `jais2` | experimental | — | not tested (no checkpoint) | — |
-
-Two caveats on reading this table. `llama-embed` is an *embedding* model, so degenerate
-greedy completion is expected of it, not a defect. `gemma` (v1 base) and `plamo3` (base, not
-instruct) are degenerate on the reference too, so those rows are checkpoint/prompt artifacts
-rather than frontend bugs.
-
-The Qwen3 MoE RoPE mode, Hunyuan QK-norm order, EXAONE4 norm placement, and ERNIE
-routing/shared-expert defects from this audit are now covered by numerical regressions.
-Gemma's single-KV-head path also passes the new prefill/decode fixture and real-model check.
+### Runtime limitations
 
 **`qwen35` is greedy / batch-1 only.** The recurrent conv and delta states are a single
 static-shaped block with no batch axis, and `MakeStateful` does not reorder them by `beam_idx` the
@@ -233,13 +187,6 @@ does not load in llama.cpp either. It's packed **g128** (one f16 scale per 128 w
 `GGML_TYPE_Q2_0` is **g64** (18 bytes per 64 weights); use `Ternary-Bonsai-27B-Q2_g64.gguf`
 instead. The frontend rejects the mispacked file safely (`data runs past EOF`) rather than
 dequantizing garbage.
-
-`muse-glimmer`'s row was decided by the *tokenizer*, not the graph: the converted graph reproduces
-llama.cpp token-for-token, but GenAI's GGUF tokenizer builder only honored
-`tokenizer.ggml.add_bos_token` on the SentencePiece path, silently dropping the leading BOS on the
-BPE (`gpt2`) path that this (BOS-sensitive) model uses. Same gap affected `llama3`/`mistral3` the
-same way; fixed in `gguf_tokenizer.cpp` by emitting BOS/EOS as a `CombineSegments` segment on every
-tokenizer path.
 
 ## Adding a new architecture
 

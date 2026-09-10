@@ -184,10 +184,6 @@ std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string
     //   experts [1,T,K,n_embd] * weights -> [1,T,K,n_embd]
     //   TRANSPOSE last two axes -> [1,T,n_embd,K]; SUM_ROWS over K -> [1,T,n_embd,1]
     //   RESHAPE (dynamic) -> [1,1,T,n_embd].
-    // The reshape is op_case 5: collapse to [1, 1, -1, n_embd], the token axis staying dynamic.
-    // That is the case the cgraph decoder would assign to this same reshape too -- ggml ne
-    // [1,n_embd,T,1] -> [n_embd,T,1,1] satisfies both of its case-5 predicates -- so the shared
-    // case applies as-is and needs no builder-specific numbering.
     auto weighted = e.add_op("GGML_OP_MUL", p + "moe_weighted", {experts, weights});
     auto tr = e.add_op("GGML_OP_TRANSPOSE", p + "moe_tr", {weighted});
     auto summed = e.add_op("GGML_OP_SUM_ROWS", p + "moe_sum", {tr});

@@ -3,6 +3,7 @@
 //
 
 #include <cmath>
+#include <limits>
 #include <numeric>
 
 #include "builder/arch_registry.hpp"
@@ -139,6 +140,66 @@ TEST(GGUFBuilderSDK, MetadataMissingAndIncompatibleValuesRemainOptional) {
     EXPECT_EQ(metadata.get_int_array("integers"), (std::vector<int64_t>{-2, 3}));
     EXPECT_EQ(metadata.get_int("integer"), 7);
     EXPECT_EQ(metadata.get_float("float"), 0.5);
+    for (float value : {0.5f, std::numeric_limits<float>::infinity(), std::numeric_limits<float>::quiet_NaN()}) {
+        env.metadata["float"] = value;
+        EXPECT_FALSE(metadata.get_int("float"));
+        EXPECT_FALSE(metadata.get_bool("float"));
+    }
+}
+
+TEST(GGUFBuilderSDK, RejectsValuesFromAnotherGraphWithMatchingNames) {
+    Environment env;
+    GgufGraphContext graph(env.context), other(env.context);
+    auto local = graph.add_input("state", ov::element::f32, {1, 1, 1, 4});
+    auto foreign = other.add_input("state", ov::element::f32, {1, 1, 1, 4});
+    EXPECT_THROW(graph.node("GGML_OP_ADD", {local, foreign}), ov::Exception);
+    EXPECT_THROW(graph.build_norm(foreign, {}, 1e-5f), ov::Exception);
+    EXPECT_THROW(graph.build_norm(local, foreign, 1e-5f), ov::Exception);
+    EXPECT_THROW(graph.set_output(foreign), ov::Exception);
+    EXPECT_THROW(graph.add_recurrent_state(local, foreign), ov::Exception);
+    EXPECT_THROW(graph.add_recurrent_state(foreign, local), ov::Exception);
+    graph.set_output(local);
+    EXPECT_NO_THROW(convert(graph.finish()));
+}
+
+TEST(GGUFBuilderSDK, GeneratedNamesDoNotOverwriteInputs) {
+    Environment env;
+    GgufGraphContext graph(env.context);
+    auto input = graph.add_input("GGML_OP_SCALE_0", ov::element::f32, {1, 1, 1, 4});
+    auto output = graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.f}});
+    EXPECT_NE(output.name(), input.name());
+    EXPECT_THROW(graph.add_input(output.name(), ov::element::f32, input.shape()), ov::Exception);
+    graph.set_output(input);
+    graph.set_output(output);
+    auto model = convert(graph.finish());
+    auto data = ov::op::v0::Constant::create(ov::element::f32, {1, 1, 1, 4}, {1, 2, 3, 4});
+    ov::TensorVector inputs;
+    ov::TensorVector outputs{ov::Tensor(ov::element::f32, {1, 1, 1, 4}), ov::Tensor(ov::element::f32, {1, 1, 1, 4})};
+    ASSERT_TRUE(data->evaluate(inputs, {}));
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+    for (size_t i = 0; i < 4; ++i) {
+        EXPECT_EQ(outputs[0].data<float>()[i], float(i + 1));
+        EXPECT_EQ(outputs[1].data<float>()[i], float(2 * (i + 1)));
+    }
+}
+
+TEST(GGUFBuilderSDK, NormalizationPreservesInputNamesAndAcceptsGraphValues) {
+    Environment env;
+    GgufGraphContext graph(env.context);
+    auto input = graph.add_input("norm_0.rms", ov::element::f32, {1, 1, 1, 4});
+    auto output = graph.build_norm(input, input, 0.f);
+    graph.set_output(input);
+    graph.set_output(output);
+    auto model = convert(graph.finish());
+    auto data = ov::op::v0::Constant::create(ov::element::f32, {1, 1, 1, 4}, {1, 2, 3, 4});
+    ov::TensorVector inputs;
+    ov::TensorVector outputs{ov::Tensor(ov::element::f32, {1, 1, 1, 4}), ov::Tensor(ov::element::f32, {1, 1, 1, 4})};
+    ASSERT_TRUE(data->evaluate(inputs, {}));
+    ASSERT_TRUE(model->evaluate(outputs, inputs));
+    for (size_t i = 0; i < 4; ++i) {
+        EXPECT_EQ(outputs[0].data<float>()[i], float(i + 1));
+        EXPECT_NEAR(outputs[1].data<float>()[i], float((i + 1) * (i + 1)) / std::sqrt(7.5f), 1e-6f);
+    }
 }
 
 TEST(GGUFBuilderSDK, LogicalWeightDimensionsPreserveVectorsAndExpertAxes) {

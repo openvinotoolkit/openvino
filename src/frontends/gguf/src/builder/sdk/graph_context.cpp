@@ -9,7 +9,6 @@
 #include <limits>
 #include <set>
 
-#include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
 #include "builder/sdk/graph_context_impl.hpp"
@@ -70,7 +69,7 @@ DecoderLayerParameters GgufGraphContext::decoder_layer_parameters(int layer) con
 
 GgufValue GgufGraphContext::decoder_attention(int layer, const GgufValue& input) {
     m_impl->check_layer(layer);
-    OPENVINO_ASSERT(input, "[GGUF] decoder attention requires a normalized input");
+    m_impl->value_name(input);
     const auto& cfg = *m_impl->decoder;
     auto& emitter = m_impl->emitter;
     const auto output = cfg.is_recurrent_layer(layer)
@@ -81,7 +80,7 @@ GgufValue GgufGraphContext::decoder_attention(int layer, const GgufValue& input)
 
 GgufValue GgufGraphContext::decoder_ffn(int layer, const GgufValue& input) {
     m_impl->check_layer(layer);
-    OPENVINO_ASSERT(input, "[GGUF] decoder FFN requires a normalized input");
+    m_impl->value_name(input);
     const auto& cfg = *m_impl->decoder;
     auto& emitter = m_impl->emitter;
     const auto prefix = "blk." + std::to_string(layer) + ".";
@@ -112,6 +111,9 @@ GgufValue GgufGraphContext::add_input(const std::string& name, ov::element::Type
                         name);
     }
     if (!e.has_model_input(name)) {
+        OPENVINO_ASSERT(!e.graph()->values->count(name) && !e.has_weight(name),
+                        "[GGUF] input name is already used: ",
+                        name);
         e.add_input(name, type, shape);
     }
     return GgufValue(name, e.value(name));
@@ -148,8 +150,7 @@ GgufValue GgufGraphContext::node(const std::string& op_type,
     std::vector<std::string> names;
     names.reserve(inputs.size());
     for (const auto& input : inputs) {
-        OPENVINO_ASSERT(input, "[GGUF] builder SDK: op '", op_type, "' was given an empty input value");
-        names.push_back(input.name());
+        names.push_back(m_impl->value_name(input));
     }
     const auto name = m_impl->fresh(op_type);
     m_impl->emitter.add_op(op_type, name, names, op_case, attrs);
@@ -167,12 +168,8 @@ void GgufGraphContext::configure_rope(const RopeConfig& config) {
 // Normalization blocks
 
 GgufValue GgufGraphContext::build_norm(const GgufValue& cur, const GgufValue& w, float eps) {
-    m_impl->check_open();
-    OPENVINO_ASSERT(cur, "[GGUF] normalization requires an input");
-    if (!w)
-        return node("GGML_OP_RMS_NORM", {cur}, 0, {{"eps", eps}});
-    const auto out = blocks::rms_norm(m_impl->emitter, cur.name(), w.name(), m_impl->fresh("norm"), eps);
-    return GgufValue(out, m_impl->emitter.value(out));
+    auto out = node("GGML_OP_RMS_NORM", {cur}, 0, {{"eps", eps}});
+    return w ? node("GGML_OP_MUL", {out, w}) : out;
 }
 
 GgufValue GgufGraphContext::build_norm_ln(const GgufValue& cur, const GgufValue& w, const GgufValue& b, float eps) {
@@ -188,8 +185,7 @@ GgufValue GgufGraphContext::build_norm_ln(const GgufValue& cur, const GgufValue&
 
 void GgufGraphContext::set_output(const GgufValue& logits) {
     m_impl->check_open();
-    OPENVINO_ASSERT(logits, "[GGUF] set_output: the output value is empty");
-    m_impl->emitter.graph()->model_output_names.push_back(logits.name());
+    m_impl->emitter.graph()->model_output_names.push_back(m_impl->value_name(logits));
 }
 
 void GgufGraphContext::set_sliding_window(int64_t tokens) {
@@ -201,7 +197,9 @@ void GgufGraphContext::set_sliding_window(int64_t tokens) {
 
 void GgufGraphContext::add_recurrent_state(const GgufValue& input, const GgufValue& update) {
     m_impl->check_open();
-    OPENVINO_ASSERT(input && update && m_impl->emitter.has_model_input(input.name()),
+    m_impl->value_name(input);
+    m_impl->value_name(update);
+    OPENVINO_ASSERT(m_impl->emitter.has_model_input(input.name()),
                     "[GGUF] recurrent state must refer to a model input and an update");
     OPENVINO_ASSERT(input.type() == update.type() && input.shape().compatible(update.shape()),
                     "[GGUF] recurrent state input and update must have compatible shapes and equal types");
