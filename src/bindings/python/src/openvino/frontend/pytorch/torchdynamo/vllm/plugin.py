@@ -18,6 +18,13 @@ this at engine init and at worker startup. We use it to:
    VLLM_USE_LAYERNAME=0) so OV's paged_attention C++ translator can cast
    the layer_name arg as `str`.
 
+4. Force `CPUAttentionBackend.forward_includes_kv_cache_update` to True when
+   the openvino backend is in use, so vLLM does not emit its standalone
+   `unified_kv_cache_update` op. OV's PagedAttention already writes the paged
+   KV cache, and the op has no OV translator, so leaving it in place strands
+   it (and its getitem unpacking) in eager PyTorch and prevents whole-graph
+   OV capture.
+
 This module is a no-op on non-CPU vLLM installs and on any environment where
 the OV backend is not requested by the user.
 """
@@ -65,6 +72,38 @@ def _patch_cpu_model_runner():
                     logger.debug("[OV plugin] _supports_onednn forced False (backend=openvino)")
             except Exception as _e:
                 logger.debug("[OV plugin] _supports_onednn flip skipped: %s", _e)
+
+        # Suppress vLLM's standalone unified_kv_cache_update op. OV's
+        # PagedAttentionExtension performs the paged KV-cache write itself, so
+        # vLLM's separate op is redundant here -- and having no OV translator,
+        # it (plus the getitem nodes unpacking the K/V Results feeding it) is
+        # left in eager PyTorch by the partitioner: 49 nodes per graph at
+        # Llama-3.2-1B, which is the only thing keeping check_fully_supported()
+        # from returning True. Suppressing it yields one fused OV partition
+        # with zero eager leftovers.
+        #
+        # Attention.forward (attention.py:566) emits the op only when the
+        # backend reports forward_includes_kv_cache_update=False.
+        # CPUAttentionBackend sets False (cpu_attn.py:40) even though its impl's
+        # forward() already calls ops.cpu_attn_reshape_and_cache under the same
+        # guards; the AttentionBackend base default is True (backend.py:67).
+        #
+        # Must run BEFORE _orig_load_model: the flag is read at forward time
+        # and _orig_load_model can trigger dummy/profile forwards.
+        if is_ov:
+            try:
+                from vllm.v1.attention.backends import cpu_attn as _cpu_attn
+                _cls = _cpu_attn.CPUAttentionBackend
+                if not getattr(_cls, "_ov_plugin_kv_update_patched", False):
+                    _cls.forward_includes_kv_cache_update = True
+                    _cls._ov_plugin_kv_update_patched = True
+                    logger.debug(
+                        "[OV plugin] CPUAttentionBackend."
+                        "forward_includes_kv_cache_update forced True "
+                        "(OV PagedAttention owns the KV-cache write)")
+            except Exception as _e:
+                logger.debug(
+                    "[OV plugin] kv_cache_update suppression skipped: %s", _e)
 
         _orig_load_model(self, load_dummy_weights)
         if not is_ov:
