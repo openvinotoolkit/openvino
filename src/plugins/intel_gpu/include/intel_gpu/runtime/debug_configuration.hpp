@@ -121,7 +121,7 @@ static constexpr const char* prefix = "GPU_Debug: ";
 #ifndef GPU_DEBUG_SET_ACTIVE_LUID
 #define GPU_DEBUG_SET_ACTIVE_LUID(luid)
 #endif
-#define GPU_DEBUG_LOG_RAW(min_verbose_level, min_verbose_level_log) if (0) ov::intel_gpu::get_verbose_stream()
+#define GPU_DEBUG_LOG_RAW(min_verbose_leve) if (0) ov::intel_gpu::get_verbose_stream()
 #endif
 
 #define GPU_DEBUG_COUT              GPU_DEBUG_LOG_RAW(ov::intel_gpu::LogLevel::DISABLED)
