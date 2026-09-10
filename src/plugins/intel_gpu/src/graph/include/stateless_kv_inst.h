@@ -5,6 +5,7 @@
 #pragma once
 
 #include "intel_gpu/primitives/stateless_kv.hpp"
+#include "openvino/core/dimension.hpp"
 #include "primitive_inst.h"
 
 #include <optional>
@@ -25,6 +26,21 @@ public:
 
     std::vector<size_t> get_shape_infer_dependencies() const override {
         return {2};
+    }
+
+    std::vector<layout> get_shape_info_input_layouts() const override {
+        auto layouts = parent::get_shape_info_input_layouts();
+        if (get_primitive()->input.size() != 3)
+            return layouts;
+
+        OPENVINO_ASSERT(layouts.size() == 3);
+        const auto axis = get_primitive()->concat_axis;
+        OPENVINO_ASSERT(axis >= 0 && axis < static_cast<int64_t>(layouts[0].get_rank()));
+        auto input0_shape = layouts[0].get_partial_shape();
+        input0_shape[axis] = ov::Dimension::dynamic();
+        layouts[0].set_partial_shape(input0_shape);
+        layouts[0].data_padding._dynamic_dims_mask[axis] = 1;
+        return layouts;
     }
 };
 

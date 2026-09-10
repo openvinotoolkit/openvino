@@ -148,12 +148,16 @@ struct stateless_kv_impl : typed_primitive_impl_ocl<stateless_kv> {
         auto params = get_default_params<concat_kernel_params_t>(impl_param, is_shape_agnostic);
         auto past_layout = impl_param.get_input_layout(0);
         const auto concat_offset = get_concat_offset(impl_param);
+        auto copy_shape = past_layout.get_partial_shape();
         if (concat_offset) {
-            auto copy_shape = past_layout.get_partial_shape();
             const auto past_length = copy_shape[primitive->concat_axis].get_length();
             copy_shape[primitive->concat_axis] = *concat_offset;
             past_layout.set_partial_shape(copy_shape);
             past_layout.data_padding._upper_size[primitive->concat_axis] += past_length - *concat_offset;
+        } else {
+            copy_shape[primitive->concat_axis] = ov::Dimension::dynamic();
+            past_layout.set_partial_shape(copy_shape);
+            past_layout.data_padding._dynamic_dims_mask[primitive->concat_axis] = 1;
         }
         params.axis = convert_concat_axis(primitive->concat_axis, impl_param.get_output_layout(0).get_rank());
         params.inputs.resize(2);

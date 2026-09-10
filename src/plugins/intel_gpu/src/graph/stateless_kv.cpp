@@ -71,10 +71,25 @@ void stateless_kv_inst::update_shape_info_tensor(const kernel_impl_params& param
     auto* shape_info_ptr = lock.data();
     size_t offset = 0;
 
+    const auto desc = get_typed_desc<stateless_kv>();
     const auto node_input_layouts = get_node().get_shape_info_input_layouts();
     for (size_t i = 0; i < get_node().get_dependencies().size(); ++i) {
         GPU_DEBUG_TRACE_DETAIL << id() << " : update shape_info for input[" << i << "]" << std::endl;
-        fill_shape_info_data(params.input_layouts[i], node_input_layouts[i], shape_info_ptr, offset);
+        if (i == 0 && desc->input.size() == 3) {
+            auto past_layout = params.get_input_layout(0);
+            const auto past_len = compute_update_offset(params, *desc);
+            if (past_len) {
+                auto past_shape = past_layout.get_partial_shape();
+                const auto past_capacity = past_shape[desc->concat_axis].get_length();
+                OPENVINO_ASSERT(*past_len >= 0 && *past_len <= past_capacity);
+                past_shape[desc->concat_axis] = *past_len;
+                past_layout.set_partial_shape(past_shape);
+                past_layout.data_padding._upper_size[desc->concat_axis] += past_capacity - *past_len;
+            }
+            fill_shape_info_data(past_layout, node_input_layouts[i], shape_info_ptr, offset);
+        } else {
+            fill_shape_info_data(params.input_layouts[i], node_input_layouts[i], shape_info_ptr, offset);
+        }
     }
 
     for (size_t i = 0; i < get_node().get_output_layouts().size(); ++i) {
