@@ -2871,12 +2871,12 @@ const std::vector<ov::AnyMap> configsBooleanPrecisionInferRequestRunTests = {
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
       ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN),
       // platform needed only for NPU_COMPILER_TYPE_PLUGIN
-      ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+      ov::intel_npu::platform(ov::intel_npu::platforms::standardize(
           ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}},
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
       ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::COMPILER),
       // platform needed only for NPU_COMPILER_TYPE_PLUGIN
-      ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+      ov::intel_npu::platform(ov::intel_npu::platforms::standardize(
           ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}},
     {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::DRIVER),
       ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN)}},

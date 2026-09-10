@@ -110,7 +110,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupported) {
                            model,
                            deviceName,
                            {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-                            ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+                            ov::intel_npu::platform(ov::intel_npu::platforms::standardize(
                                 ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}));
 
     std::vector<ov::PropertyName> properties;
@@ -150,7 +150,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsValueIsReadableWhen
                            model,
                            deviceName,
                            {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-                            ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+                            ov::intel_npu::platform(ov::intel_npu::platforms::standardize(
                                 ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}));
 
     std::vector<ov::PropertyName> properties;
@@ -204,7 +204,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsIsSupportedForWS) {
                            model,
                            deviceName,
                            {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-                            ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+                            ov::intel_npu::platform(ov::intel_npu::platforms::standardize(
                                 ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU))),
                             ov::enable_weightless(true),
                             ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT)}));
@@ -318,7 +318,7 @@ TEST_P(ClassCompatibilityStringTestSuite, RuntimeRequirementsExportImport) {
                            model,
                            deviceName,
                            {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-                            ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+                            ov::intel_npu::platform(ov::intel_npu::platforms::standardize(
                                 ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}));
     std::string reference_requirements;
     OV_ASSERT_NO_THROW(reference_requirements = compiledModel.get_property(ov::runtime_requirements));
@@ -425,7 +425,7 @@ TEST_P(ClassCompatibilityStringTestSuite, CompatibilityStringGenerateAndCheck) {
                            model,
                            deviceName,
                            {ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-                            ov::intel_npu::platform(ov::intel_npu::Platform::standardize(
+                            ov::intel_npu::platform(ov::intel_npu::platforms::standardize(
                                 ov::test::utils::getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU)))}));
 
     std::string requirements;

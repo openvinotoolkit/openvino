@@ -80,24 +80,24 @@ std::string ZeroDevice::getName() const {
     switch (_device_properties.deviceId) {
     case NPU_3720_P_DEVICE_ID:
     case NPU_3720_S_DEVICE_ID:
-        name = ov::intel_npu::Platform::NPU3720;
+        name = ov::intel_npu::platforms::NPU3720;
         break;
     case NPU_4000_DEVICE_ID:
-        name = ov::intel_npu::Platform::NPU4000;
+        name = ov::intel_npu::platforms::NPU4000;
         break;
     case NPU_5010_DEVICE_ID:
-        name = ov::intel_npu::Platform::NPU5010;
+        name = ov::intel_npu::platforms::NPU5010;
         break;
     case NPU_5020_DEVICE_ID:
-        name = ov::intel_npu::Platform::NPU5020;
+        name = ov::intel_npu::platforms::NPU5020;
         break;
     case NPU_6010_DEVICE_ID:
-        name = ov::intel_npu::Platform::NPU6010;
+        name = ov::intel_npu::platforms::NPU6010;
         break;
     case LEGACY_NPU_3000_DEVICE_ID:
         OPENVINO_THROW("[LEGACY] NPU device ID 0x", std::hex, _device_properties.deviceId, " is not supported!");
     default:
-        name = ov::intel_npu::Platform::AUTO_DETECT;
+        name = ov::intel_npu::platforms::AUTO_DETECT;
     }
 
     return name;

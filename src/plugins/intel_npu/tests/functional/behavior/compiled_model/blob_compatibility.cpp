@@ -166,9 +166,9 @@ const auto all_models = []() -> std::vector<std::string> {
 
 const auto match_platform =
     !ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM.empty()
-        ? (PARSED_PLATFORMS.find(ov::intel_npu::Platform::standardize(
+        ? (PARSED_PLATFORMS.find(ov::intel_npu::platforms::standardize(
                ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM)) != PARSED_PLATFORMS.end()
-               ? PLATFORMS.at(PARSED_PLATFORMS.at(ov::intel_npu::Platform::standardize(
+               ? PLATFORMS.at(PARSED_PLATFORMS.at(ov::intel_npu::platforms::standardize(
                      ov::test::utils::NpuTestEnvConfig::getInstance().IE_NPU_TESTS_PLATFORM)))
                : "")
         : "";
