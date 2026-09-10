@@ -4,21 +4,23 @@
   "signature_hash": "2abe56c58c994e45",
   "title": "NPU Models Tests - TensorFlow compile-only convert_model step fails on Windows runner",
   "category": "Flaky Test",
-  "count": 3,
+  "count": 4,
   "first_seen": "2026-08-19T16:25:29Z",
-  "last_seen": "2026-08-26T04:45:36Z",
+  "last_seen": "2026-09-10T11:17:07Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34463046270",
     "https://github.com/openvinotoolkit/openvino/actions/runs/32925478375",
     "https://github.com/openvinotoolkit/openvino/actions/runs/32797618628",
     "https://github.com/openvinotoolkit/openvino/actions/runs/32266833204"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38043",
     "https://github.com/openvinotoolkit/openvino/pull/37559",
     "https://github.com/openvinotoolkit/openvino/pull/37149",
     "https://github.com/openvinotoolkit/openvino/pull/37360"
   ],
   "recent_timestamps": [
-    "2026-08-26T04:45:36Z"
+    "2026-09-10T11:17:07Z"
   ],
   "rerun_search_string": null
 }

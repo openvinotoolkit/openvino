@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-10-11-17-07-000-34463046270",
+  "timestamp": "2026-09-10T11:17:07Z",
+  "run_id": "34463046270",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34463046270",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38043",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38043",
+  "author": "jade-cho",
+  "category": "Flaky Test",
+  "title": "NPU Models Tests - TensorFlow compile-only convert_model step fails on Windows runner",
+  "signature": "tf models tests npu compile only convert model step failed|Flaky Test",
+  "signature_hash": "2abe56c58c994e45",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 5020",
+      "conclusion": "failure",
+      "symptom": "'TensorFlow Models Tests - NPU compile-only (convert_model)' step failed; job overall summarized under ci/gha_overall_status_windows"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Overall status check reports failure because 'Check status of all jobs' failed due to the NPU Models Tests / 5020 job failure"
+    }
+  ],
+  "key_errors": [
+    "Job 'NPU Models Tests / 5020', step 'TensorFlow Models Tests - NPU compile-only (convert_model)' concluded 'failure' (step #10, 10:37:44Z-10:49:44Z); step-level output for this step could not be retrieved because the GitHub Actions log API only exposed the final ~5000 lines of the job log (covering 11:00-11:01Z, i.e. the later PyTorch/model_hub test steps and post-job cleanup), which all show success/PASSED.",
+    "Unrelated PyTorch model_hub tests in the same job (steps 11-25, e.g. easyocr detector/recognizer convert_model/convert_model_export) all passed or were skipped: '4 passed, 7 skipped, 232 deselected in 180.09s'."
+  ],
+  "root_cause": "The 'NPU Models Tests / 5020' job's 'TensorFlow Models Tests - NPU compile-only (convert_model)' step failed, causing the job and the aggregate 'ci/gha_overall_status_windows' check to fail. This exact step (TF NPU compile-only convert_model) has failed 2 prior times on unrelated PRs since 2026-08-19 (signature hash 2abe56c58c994e45, pattern count now 3->4), always alongside otherwise-passing PyTorch model_hub NPU tests in the same job, and is unrelated to the current PR's GPU-only Bucketize fix (src/plugins/intel_gpu/src/graph/impls/ocl/bucketize.cpp, tests/unit/test_cases/bucketize_gpu_test.cpp) which never touches TensorFlow frontend or NPU compile paths. Full step-level output for this run could not be retrieved (GitHub Actions job log API returned only the tail of the job log, past the failing step), but the recurring pattern strongly indicates a pre-existing flaky/transient failure in the TF NPU compile-only model conversion step on Windows NPU test runners, not a regression introduced by this PR.",
+  "reproduction_steps": "Re-run 'NPU Models Tests / 5020' (TensorFlow Models Tests - NPU compile-only, convert_model) on the Windows NPU runner platform 5020; failure has not been shown to reproduce consistently or in isolation.",
+  "recommended_actions": [
+    "Re-run the failed 'NPU Models Tests / 5020' job to confirm transient nature (a plain retry has cleared this pattern before).",
+    "Since this is now the 4th occurrence of the identical signature since 2026-08-19, escalate to the team owning TensorFlow Models Tests / NPU compile-only CI step to add retry logic or investigate the underlying intermittent failure directly (e.g., via GitHub API job logs beyond the ~5000-line tail limit, or Actions log download artifact).",
+    "No action needed on PR #38043 itself; the GPU Bucketize fix is unrelated to this NPU/TensorFlow CI step."
+  ],
+  "prevention_strategies": "This is a recurring flaky-test pattern isolated to the Windows NPU test runners' TensorFlow compile-only convert_model step, independent of PR content. Add retry logic to that specific CI step, or track down root cause via full uncapped job logs (this investigation was limited by tooling to the job log tail).",
+  "historical_context": "Same failure signature (2abe56c58c994e45) previously recorded on runs 32266833204, 32797618628, and 32925478375 (2026-08-19 through 2026-08-26), affecting unrelated PRs #37149, #37360, #37559. This run (34463046270, PR #38043) is the 4th occurrence."
+}
