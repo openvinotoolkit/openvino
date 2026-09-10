@@ -1115,9 +1115,11 @@ Worth stating up-front to prevent scope creep:
 - **Not a compiler**. No CSE, no constant folding, no LICM, no dead-code
   elimination, no pattern matching, no instruction selection beyond what
   the DSL primitives already committed to. *Still true for value-level
-  optimization. But the pipeline does contain loop unrolling, remat,
-  two-address lowering and tail synthesis, so the honest statement is
-  "no value-level optimization", not "nothing but allocation".*
+  optimization. But the pipeline contains remat, two-address lowering,
+  tail synthesis and memory-operand folding — and that last one is
+  instruction selection in the narrow sense, picking an instruction's
+  memory form over its register form. The honest statement is "no
+  value-level optimization", not "nothing but allocation".*
 - ~~**Not a default**. Kernels stay on eager mode unless measurement shows
   they benefit from IR mode.~~ *Superseded: eager vector mode was removed;
   any kernel using vector `variable`s is an IR-mode kernel.*

@@ -462,6 +462,75 @@ intrinsics and in plain C++, for gcc 13 and clang 18. Findings:
    upstreamable as a single change — wants splitting into IR core +
    tests / DSL / color_convert / RoPE.
 
+## Next change: compile-time trip counts (peeling)
+
+Agreed 2026-09-10. This is the one change the runtime measurements
+actually blamed (hazard 5), and it unblocks two other things.
+
+### What
+
+`foreach_vec<N>(count, body)` always emits a loop. When `count` is a
+compile-time constant — which every RoPE kernel has, since
+`half_rotary_ndims` is a C++ value at kernel-build time — specialize:
+
+1. Emit `count / N` full iterations **straight-line**, with byte offsets
+   instead of pointer bumps: no counter, no compare, no branch, no
+   predicate, `vlen::all()` throughout.
+2. Handle the `count % N` remainder **once**: prefer **width reduction**
+   when the remainder exactly fills a narrower register (8 floats → one
+   `ymm` step), else a predicated iteration.
+3. Fall back to the current loop when the count is dynamic or when
+   `count / N` exceeds an unroll cap (color_convert's case: the width is a
+   runtime argument).
+
+### Why this shape
+
+Three independent sources agree on it:
+
+- The legacy `jit_rotary_kernel` does exactly this: 4× unrolled `zmm` for
+  Llama2, 2× `zmm` + 1× `ymm` for QwenVL, zero branches, zero `kmov`.
+- gcc 13, given plain C++ and `-mprefer-vector-width=512`, picks the same
+  shape *including* the `ymm` remainder — see "Reference: what a compiler
+  produces".
+- It is the only explanation for the QwenVL gap: three trips paying
+  active-length plus predicate plus loop overhead, against straight-line
+  code.
+
+### Design decisions already taken
+
+- **Width reduction is a target query**, not a DSL choice: it belongs
+  next to `supports_masked_access` in `vector_target`. On AVX-512 a
+  narrower store beats building a mask; on SVE/RVV the predicate is free
+  and narrowing is meaningless, so the answer differs per target and must
+  not be hardcoded in the DSL.
+- **Recording-time, not a pass.** The trip count is known where the body
+  is recorded. This is also why the old IR-level unroll pass could not
+  work (hazard 4): by pass time the count is captured inside the loop
+  header's emit closure.
+- **Cap the unroll.** Full unroll is ~1 body per iteration of code; a
+  large `rotary_ndims` would otherwise produce an enormous kernel. Start
+  with `count / N <= 4` and measure.
+
+### What it unlocks
+
+Unmasked full iterations have foldable loads, so memory-operand folding —
+which today cannot fire on the default (mask) path at all — starts
+applying to the bodies that matter. The two changes compose: folding
+alone measured as worth nothing, peeling alone leaves the loads
+unfolded.
+
+### Expected outcome, stated before measuring
+
+- QwenVL (half=40): closes the ~15% regression against legacy (40 → ~35 µs).
+- Llama2 (half=64): no change expected. That shape is memory-bound; the
+  current rolled loop with per-iteration predicate setup is already the
+  fastest config measured.
+- color_convert: no change — its width is a runtime value, so it keeps the
+  loop.
+
+If QwenVL does not improve, the hypothesis is wrong and the next suspect
+is the masked access itself rather than the loop overhead.
+
 ## Multi-architecture plan
 
 Targets: x86-64 (AVX2, AVX-512), AArch64 (NEON, SVE), RISC-V (RVV 1.0).
@@ -598,6 +667,62 @@ unmapped. That single arrangement exercises i-cache maintenance, fault
 suppression, feature gating and unaligned access at once — and it is worth
 adding to the suite regardless, since it also hardens the x86 masked path.
 
+## Working notes — build, run, measure
+
+Everything below is from an AVX-512 host, `build_RelWithDebInfo`.
+
+Build:
+
+```bash
+cmake --build build_RelWithDebInfo --target ov_cpu_unit_tests -j"$(nproc)"
+cmake --build build_RelWithDebInfo --target ov_cpu_func_tests -j"$(nproc)"
+# a new source file needs a re-configure first: cmake -S . -B build_RelWithDebInfo
+```
+
+Never run binaries from the build tree; they are installed to
+`bin/intel64/RelWithDebInfo/`.
+
+Correctness (run the whole matrix — the strategies are env-selected, and
+`OV_JIT_TAIL_FOLDING=epilogue` is the only way to exercise the
+AVX2/NEON-shaped path on an AVX-512 machine):
+
+```bash
+for fold in "" "OV_JIT_IR_NO_FOLD=1"; do for style in mask epilogue; do
+  env $fold OV_JIT_TAIL_FOLDING=$style ./bin/intel64/RelWithDebInfo/ov_cpu_unit_tests \
+    --gtest_filter='JitKernel*'
+  env $fold OV_JIT_TAIL_FOLDING=$style ./bin/intel64/RelWithDebInfo/ov_cpu_func_tests \
+    --gtest_filter='smoke_TestsConvertColor*'
+  env $fold OV_JIT_TAIL_FOLDING=$style OV_JIT_IR_ROPE=1 \
+    ./bin/intel64/RelWithDebInfo/ov_cpu_func_tests --gtest_filter='smoke_RoPETest*'
+done; done
+```
+
+Benchmark (RoPE node time from `PERF_COUNT`, one thread, 200 attempts):
+
+```bash
+OV_JIT_IR_ROPE=1 OV_JIT_TAIL_FOLDING=mask \
+  ./bin/intel64/RelWithDebInfo/ov_cpu_func_tests \
+  --gtest_also_run_disabled_tests --gtest_filter='RoPEBench*'
+```
+
+Three repeats per configuration; spread has been ~1%. Perf-counter reads
+are inside the measurement, which matters at QwenVL's 35 µs scale.
+
+Assembly:
+
+```bash
+mkdir /tmp/asm && cd /tmp/asm
+OV_JIT_IR_ROPE=1 ONEDNN_JIT_DUMP=1 <binary> --gtest_filter='smoke_RoPETestLlama2StridedSlice*'
+objdump -D -b binary -mi386:x86-64 -M intel dnnl_dump_cpu_jit_rotary_kernel_ir.*.bin
+```
+
+Careful with the legacy dumps: `jit_rotary_kernel.*.bin` is code followed
+by constant tables, so file size overstates code size. Disassemble and
+stop at the first `ret` (Llama2: 446 B of code plus 640 B of data).
+
+Compiler reference: `rope_intrinsics.cpp` at the repo root (untracked),
+built with `g++/clang++ -O3 -march=native [-mprefer-vector-width=512]`.
+
 ## Environment variables
 
 | Variable | Effect |
@@ -608,7 +733,7 @@ adding to the suite regardless, since it also hardens the x86 masked path.
 | `OV_JIT_TAIL_FOLDING` | `epilogue` / `mask` / `length` — override the target's tail-folding choice (LLVM's `-prefer-predicate-over-epilogue`) |
 | `OV_JIT_IR_NO_FOLD` | disable memory-operand folding (LLVM's `-disable-peephole`) |
 
-## Test status (2026-09-04, RelWithDebInfo, AVX-512 host)
+## Test status (2026-09-10, RelWithDebInfo, AVX-512 host)
 
 Every suite run twice, once per tail-folding strategy
 (`OV_JIT_TAIL_FOLDING=mask` and `=epilogue`), with identical results:

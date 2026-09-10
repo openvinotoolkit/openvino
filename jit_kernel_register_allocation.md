@@ -6,8 +6,11 @@ Companion to `jit_kernel.md` — specifically the "Register allocation and
 pressure analysis" section, which motivates why this is needed.
 
 Scope was deliberately narrow: **this is a register allocator, not a
-compiler.** No CSE, no LICM, no constant folding, no instruction selection,
-no pattern matching.
+compiler.** No CSE, no LICM, no constant folding, no pattern matching.
+One qualification since: memory-operand folding *is* a form of
+instruction selection — choosing the rm form of an instruction over the
+rr form — and it shipped as a pass because x86's usual home for it
+(instruction selection) does not exist here.
 
 **Status (2026-09-03).** The narrow scope holds for the pipeline as it
 stands: two-address lowering, liveness, allocation with
@@ -863,6 +866,8 @@ that does not require rewriting anything shipped in the minimum:
 | Escape-hatch barriers for legacy emitters | ~50 lines | New `Op` with `clobbers` mask; spill/reload forced around it | not needed yet (DSL owns f32/u8/f16/bf16) |
 | Mask (k-register) allocation | ~50 lines | third pool + `RegisterClass::Mask` | **shipped**; per-target allocation order from `vector_target::predicate_pool()` |
 | Scratch-register modelling for emit closures | ~30 lines | extra dead def on the op that needs scratch | **shipped**; scratch is an IR value, and `Op::early_clobber` stops the allocator handing it a live read's register |
+| Memory-operand folding (single-use load into its consumer) | ~130 lines | `Op::may_load`/`may_store`, `foldable_reads` bitmask + `fold_emit` closure, a pass after two-address lowering | **shipped**; commutes operands where sound, refuses masked loads and anything reordered past a store or a pointer bump. Worth 12 -> 8 vector ops per RoPE iteration and nothing measurable in time |
+| Recording-time unroll for compile-time trip counts, with width-reduced remainders | ~120 lines | `foreach_vec` specialization plus a `vector_target` query for narrower vector widths | agreed as the next change — see `jit_kernel_journal.md`, "Next change: compile-time trip counts" |
 | Register tuple constraints (consecutive registers) | ~150 lines | a tuple register class, or a constraint on a value group; assignment must place members adjacently | not started, and required by SVE `ST3W {z0-z2}` and RVV segment ops. LLVM's answer is tuple register classes (`ZPR3`, `ZPR4`). Until then `supports_masked_interleaved_access()` is false on every target and interleaved stores keep the stack-slot fallback |
 
 ## What would force a rewrite (probably never needed)
