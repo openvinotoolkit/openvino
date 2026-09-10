@@ -59,6 +59,12 @@ static WeightsFormatSupportType CheckWeights(const weight_bias_params& newParams
                           (reqLayouts != WeightsLayout::oi || tensor.GetLayout() != WeightsLayout::oiyx);
     }
 
+    if (!reorderNeeded &&
+        (reqLayouts == WeightsLayout::os_is_yx_osv16_isv4 || reqLayouts == WeightsLayout::g_os_is_yx_osv16_isv4) &&
+        tensor.IFM().v % 4 != 0) {
+        reorderNeeded = true;
+    }
+
     return reorderNeeded ? REORDER_NEEDED : SUPPORTED;
 }
 
