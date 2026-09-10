@@ -75,8 +75,8 @@
     versions.
 
     Version history:
+        2026-05-28 Limit recursion depth.
         2026-05-06 Initial version.
-
 */
 
 #pragma once
@@ -122,10 +122,13 @@ public:
 
 private:
     enum class CaptureMode { ATTR, STRING };
+    constexpr static int MAX_NESTING = 20;
 
     char peek() const;
     char nextc();
     void expect(char c);
+    void nest();
+    void unnest();
     void reset(std::string_view input, CaptureMode mode = CaptureMode::ATTR);
     void startCapture(CaptureMode mode);
     std::string_view stopCapture(CaptureMode mode);
@@ -156,10 +159,7 @@ private:
     std::string_view::iterator _captureEnd;
     int _nesting = 0;   // Nesting level for current capture mode
     int _optional = 0;  // Tracks top-level optional attributes
-    int _depth = 0;     // parseString recursion depth, capped by kMaxNestingDepth
-
-    // Legitimate nesting is only a few SW layers deep; far below any stack limit.
-    static constexpr int kMaxNestingDepth = 32;
+    int _depth = 0;     // Tracks total nesting depth to prevent stack overflow on malicious input
 
     attr_map_type _attributes;
     attr_map_type _optional_attributes;
@@ -173,8 +173,6 @@ Parser::Parser(std::string_view input, const Iterable& legalAttributeNames) {
 template <typename Iterable>
 void Parser::parse(std::string_view input, const Iterable& legalAttributeNames) {
     reset(input);
-    _attributes.clear();
-    _optional_attributes.clear();
     parseString();
     if (peek() != 0) {
         throw errorAt("at the end of the string");
@@ -229,6 +227,17 @@ inline void Parser::expect(char c) {
     nextc();
 }
 
+inline void Parser::nest() {
+    if (++_depth > MAX_NESTING) {
+        throw errorAt("Maximum nesting depth exceeded");
+    }
+}
+
+inline void Parser::unnest() {
+    assert(_depth > 0);
+    --_depth;
+}
+
 inline void Parser::reset(std::string_view input, CaptureMode mode) {
     _current = input.begin();
     _end = input.end();
@@ -238,6 +247,8 @@ inline void Parser::reset(std::string_view input, CaptureMode mode) {
     _captureMode = mode;
     _captureStart = _end;
     _captureEnd = _end;
+    _attributes.clear();
+    _optional_attributes.clear();
 }
 
 inline void Parser::startCapture(CaptureMode mode) {
@@ -262,30 +273,25 @@ inline std::string_view Parser::stopCapture(CaptureMode mode) {
 
 // string ::= expr (';' expr)*
 inline std::string_view Parser::parseString() {
-    // '{' and '[' both re-enter parseString; without a bound, deep nesting
-    // exhausts the stack, which no try/catch can intercept.
-    if (++_depth > kMaxNestingDepth) {
-        throw errorAt("maximum nesting depth exceeded");
-    }
     startCapture(CaptureMode::STRING);
     parseExpr();
     while (peek() == ';') {
         nextc();  // ';'
         parseExpr();
     }
-    auto result = stopCapture(CaptureMode::STRING);
-    --_depth;
-    return result;
+    return stopCapture(CaptureMode::STRING);
 }
 
 // expr ::= attr | '{' string '}'
 inline void Parser::parseExpr() {
     if (peek() == '{') {
+        nest();
         ++_optional;
         nextc();  // '{'
         parseString();
         expect('}');
         --_optional;
+        unnest();
     } else {
         parseAttr();
     }
@@ -296,12 +302,14 @@ inline void Parser::parseAttr() {
     auto name = parseName();
     expect('=');
     if (peek() == '[') {
+        nest();
         startCapture(CaptureMode::ATTR);
         parseList();
         auto list = stopCapture(CaptureMode::ATTR);
         if (!list.empty()) {
             setAttribute(name, list);
         }
+        unnest();
         return;
     }
     auto value = parseValue();
