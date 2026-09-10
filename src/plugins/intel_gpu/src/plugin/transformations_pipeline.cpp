@@ -36,13 +36,16 @@
 #include "low_precision/mvn.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/recurrent_cell.hpp"
+#include "low_precision/reshape.hpp"
 #include "low_precision/prelu.hpp"
 #include "low_precision/transpose.hpp"
+#include "low_precision/variadic_split.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gated_delta_net.hpp"
@@ -100,6 +103,7 @@
 #include "plugin/transformations/fuse_atan2_decomposed.hpp"
 #include "plugin/transformations/fuse_moe_router.hpp"
 #include "plugin/transformations/fuse_moe_router_scale.hpp"
+#include "plugin/transformations/group_query_attention_decomposition.hpp"
 #include "plugin/transformations/increase_position_ids_precision.hpp"
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
@@ -115,6 +119,7 @@
 #include "plugin/transformations/optimize_subsequent_reshapes.hpp"
 #include "plugin/transformations/print_model_statistics.hpp"
 #include "plugin/transformations/reduce_fc_dimensions.hpp"
+#include "plugin/transformations/remove_fq_before_dw_conv.hpp"
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
@@ -164,6 +169,9 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#ifdef OV_GPU_MLIR_BACKEND_LINKED
+#    include "transformations/mlir/interface/convert.hpp"
+#endif  // OV_GPU_MLIR_BACKEND_LINKED
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
@@ -447,6 +455,47 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
         if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) ||
             ov::is_type<ov::op::internal::PagedGatedDeltaNet>(op)) {
             return true;
+        }
+    }
+    return false;
+}
+
+// LPT's Split/VariadicSplitTransformation moves the dequantization from above the split to
+// below it, once per split output. That only pays off if the moved dequantization can be
+// absorbed by one of the consumers (a layer with quantized weights). If it cannot, the plugin
+// is left with one standalone per-channel eltwise per split output and, on top of that, the
+// single original dequantization can no longer be fused into the producer.
+// Typical case: the QKV VariadicSplit of a transformer block, whose outputs feed
+// bias Add -> Reshape -> SDPA and whose producer is the quantized QKV MatMul.
+bool has_dequantization_absorbing_consumer(const std::shared_ptr<const ov::Node>& split) {
+    constexpr size_t max_visited = 32;
+    std::deque<std::shared_ptr<ov::Node>> queue;
+    for (const auto& user : split->get_users()) {
+        queue.push_back(user);
+    }
+
+    for (size_t visited = 0; !queue.empty() && visited < max_visited; ++visited) {
+        const auto node = queue.front();
+        queue.pop_front();
+
+        if (is_type_any_of<ov::op::v0::MatMul,
+                           ov::op::v1::Convolution,
+                           ov::op::v1::GroupConvolution,
+                           ov::op::v1::ConvolutionBackpropData,
+                           ov::op::v1::GroupConvolutionBackpropData>(node)) {
+            return true;
+        }
+
+        // Data movement ops LPT propagates the dequantization further through, so a quantized
+        // layer behind them is still reachable.
+        if (is_type_any_of<ov::op::v0::Concat,
+                           ov::op::v1::Reshape,
+                           ov::op::v1::Transpose,
+                           ov::op::v0::Squeeze,
+                           ov::op::v0::Unsqueeze>(node)) {
+            for (const auto& user : node->get_users()) {
+                queue.push_back(user);
+            }
         }
     }
     return false;
@@ -792,6 +841,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::DecomposeOneHotNonConstValues>();
 
         manager.register_pass<ov::pass::CommonOptimizations>();
+        pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
+        manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",
         // "zp/scale -> reshape -> transpose" is constant-folded in the above "CommonOptimizations".
@@ -843,10 +894,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             if (use_xattention) {
                 // Throw exception if xattn is not supported by either GPU archieture or compiler.
-                if (!check_xattn_gpu_compatibility())
+                if (!check_xattn_gpu_compatibility()) {
                     OPENVINO_THROW("[GPU] XAttention is not supported by your current GPU architecture or IGC version. "
-                                "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
-                                "architecture and ensure the latest IGC is installed.");
+                                   "Please either disable XAttention by following the GenAI guide, or switch to a GPU with Xe2/Xe3 "
+                                   "architecture and ensure the latest IGC is installed.");
+                }
             }
 
             // KVCache layout with default attention -
@@ -926,6 +978,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
+            // Never decompose if mlir-path is enabled
+            if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+                return true;
+            }
+
             if (!config.get_enable_sdpa_optimization())
                 return false;
 
@@ -1343,6 +1400,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                        ov::is_type<ov::op::v1::Convolution>(second_dep);
         });
 
+        if (enableInt8 && infer_precision == ov::element::f16) {
+            manager.register_pass<RemoveFakeQuantizeBeforeDepthwiseConv>();
+        }
+
         manager.run_passes(func);
     }
 
@@ -1379,6 +1440,39 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         lptPassConfig->disable<ov::pass::low_precision::RecurrentCellTransformation>();
         // Ticket 168015: Low precision PRelu is not supported on GPU
         lptPassConfig->disable<ov::pass::low_precision::PReluTransformation>();
+        lptPassConfig->set_callback<SplitTransformation, VariadicSplitTransformation>([](const_node_ptr& node) -> bool {
+            return !has_dequantization_absorbing_consumer(node);
+        });
+        auto isFp32LptAddWithFp16Scale = [defaultPrecisions](const_node_ptr& node) -> bool {
+            const auto dequantization = NetworkHelper::getDequantization(node, defaultPrecisions);
+            if (dequantization.subtract != nullptr || dequantization.multiply == nullptr || dequantization.data.get_element_type() != element::f32) {
+                return false;
+            }
+
+            const auto relaxed_add = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(dequantization.data.get_node_shared_ptr());
+            const auto relaxed_multiply = std::dynamic_pointer_cast<ov::op::TypeRelaxedBase>(dequantization.multiply);
+            return ov::is_type<ov::opset1::Add>(dequantization.data.get_node_shared_ptr()) && relaxed_add != nullptr &&
+                   relaxed_add->get_overridden_output_type() == element::f32 && relaxed_multiply != nullptr &&
+                   relaxed_multiply->get_origin_input_type(0) == element::f32 && relaxed_multiply->get_origin_input_type(1) == element::f32 &&
+                   relaxed_multiply->get_overridden_output_type() == element::f16;
+        };
+        // Keep this scale before normalization paths; moving it exposes the FP32 inner Add to GPU.
+        lptPassConfig->set_callback<MVNTransformation>([infer_precision, isFp32LptAddWithFp16Scale](const_node_ptr& node) -> bool {
+            return infer_precision == element::f16 && node->get_input_element_type(0) == element::f16 && isFp32LptAddWithFp16Scale(node);
+        });
+        lptPassConfig->set_callback<ReshapeTransformation>([infer_precision, isFp32LptAddWithFp16Scale](const_node_ptr& node) -> bool {
+            if (infer_precision != element::f16 || node->get_input_element_type(0) != element::f16 || !isFp32LptAddWithFp16Scale(node)) {
+                return false;
+            }
+
+            const auto consumers = node->get_output_target_inputs(0);
+            if (consumers.size() != 1) {
+                return false;
+            }
+
+            const auto consumer = consumers.begin()->get_node()->shared_from_this();
+            return ov::is_type<ov::op::v0::MVN>(consumer) || ov::is_type<ov::op::v6::MVN>(consumer);
+        });
         lptPassConfig->set_callback<ConvolutionBackpropDataTransformation>([func, defaultPrecisions](const_node_ptr& node) -> bool {
             auto fillStaticChannel = [func](const ov::PartialShape& shape, size_t& channel) -> bool {
                 const auto rank = shape.rank();
@@ -1611,6 +1705,25 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.run_passes(func);
     }
 
+    if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+        // Guarded by OV_GPU_MLIR_BACKEND_LINKED rather than ENABLE_MLIR_FOR_GPU: this file is also
+        // compiled into ov_gpu_unit_tests, which does not link the MLIR objects providing transformMLIR().
+#ifdef OV_GPU_MLIR_BACKEND_LINKED
+        auto loweringContext = std::make_shared<ov::EvaluationContext>();
+        auto it = m_context->get_property().find(ov::intel_gpu::ocl_context.name());
+        if (it != m_context->get_property().end()) {
+            // We assume here that there's only one device per context and that an
+            // actual device will be extracted later by the 'mlir_op'.
+            loweringContext->insert(ov::intel_gpu::ocl_context(it->second.as<ov::intel_gpu::gpu_handle_param>()));
+        }
+        ov::intel_gpu::mlir::transformMLIR(func, config, loweringContext);
+#else
+        OPENVINO_THROW("[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
+                        "but this binary was built without Graph Compiler support. "
+                        "Rebuild OpenVINO with -DENABLE_MLIR_FOR_GPU=ON to enable MLIR execution.");
+#endif  // OV_GPU_MLIR_BACKEND_LINKED
+    }
+
     {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
@@ -1710,11 +1823,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // under per-token INT8 dyn-quant on `linear_attn.out_proj`. Force gs=128 for
             // the whole model if a linear-attention block is detected.
             const bool use_gs128_for_linear_attention = is_hybrid_linear_attention_model(*func);
-            const bool group_dyn_quan_allowed = m_context->get_engine().get_device_info().supports_non_uniform_work_group;
-            // WA: when platform does not support non-uniform-work-group, it may fail to run dynamic quantization for gs128.
-            // This is unlikely to happen. But this WA is added just in case.
-            const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2
-                && group_dyn_quan_allowed;
+            const bool use_gs128_for_int8_per_token = m_context->get_engine().get_device_info().arch >= cldnn::gpu_arch::xe2;
 
             pass_config->set_callback<ov::intel_gpu::DynamicQuantizeFullyConnected>([=](const_node_ptr& root) -> bool {
                 const int64_t dyn_quan_bisect = GPU_DEBUG_VALUE_OR(config.get_dynamic_quantization_bisect(), 0);    // 0 will be ignored from GPU_DEBUG_IF
@@ -1774,14 +1883,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (has_wzp && !cldnn::one_of(root->get_input_element_type(4), {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
                                                                     " unsupported weight zp type: " << root->get_input_element_type(4) << std::endl;
-                    return true;
-                }
-
-                const bool is_grouped = adj_group_size != UINT64_MAX;
-                // It should be either per-token or hardware should support grouped dyn_quan(through non-uniform-work-group)
-                if (is_grouped && !group_dyn_quan_allowed) {
-                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
-                                                                    " group_dyn_quan_allowed " << group_dyn_quan_allowed << std::endl;
                     return true;
                 }
 
