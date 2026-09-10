@@ -1,7 +1,12 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Smoke test: vLLM + OpenVINO backend vs vLLM eager.
+"""Manual benchmarking/smoke-test CLI: vLLM + OpenVINO backend vs vLLM eager.
+
+This is the operational tool documented in docs/test.md for ad-hoc perf and
+correctness checks against arbitrary models -- not a pytest test. The
+CI-facing correctness regression check lives at
+tests/vllm_tests/test_run.py (fixed TinyLlama model, small token count).
 
 Greedy decode only (HuggingFace's `do_sample=False`; vLLM expresses it as
 `temperature=0`). No sampling code path is exercised: the eager and OV
@@ -14,7 +19,7 @@ Reports for each path:
   2. Steady-state decode tok/s.
 
 Usage:
-  python -m openvino.frontend.pytorch.torchdynamo.vllm.tests.test_run \
+  python -m openvino.frontend.pytorch.torchdynamo.vllm.scripts.bench_run \
       --model meta-llama/Llama-3.2-1B-Instruct \
       --prompt "The capital of France is " \
       --max-new-tokens 64

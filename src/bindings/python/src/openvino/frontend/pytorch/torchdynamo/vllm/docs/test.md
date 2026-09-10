@@ -7,7 +7,7 @@ for install instructions.
 ## Smoke test
 
 ```bash
-taskset -c 0-39 python -m openvino.frontend.pytorch.torchdynamo.vllm.tests.test_run \
+taskset -c 0-39 python -m openvino.frontend.pytorch.torchdynamo.vllm.scripts.bench_run \
     --model meta-llama/Llama-3.2-1B-Instruct \
     --max-new-tokens 128
 ```
@@ -50,7 +50,7 @@ Exit code is non-zero if the texts differ.
 # Pin to a single NUMA socket on a multi-socket box.
 numactl --cpunodebind=0 --membind=0 -- \
   taskset -c 0-39 \
-  python -m openvino.frontend.pytorch.torchdynamo.vllm.tests.test_run \
+  python -m openvino.frontend.pytorch.torchdynamo.vllm.scripts.bench_run \
     --model meta-llama/Llama-3.2-1B-Instruct \
     --max-new-tokens 128 --mode openvino
 ```
@@ -103,7 +103,7 @@ Not owned by this plugin but relevant to how vLLM+OV runs:
 
 ## Running your own benchmark
 
-The `test_run` script covers the golden-path A/B. For custom workloads,
+The `bench_run` script covers the golden-path A/B. For custom workloads,
 use the same LLM setup:
 
 ```python

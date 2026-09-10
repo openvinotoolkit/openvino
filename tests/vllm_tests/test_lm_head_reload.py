@@ -15,12 +15,11 @@ genuinely wrapped rather than silently skipped.
 No model download needed: exercises plugin functions against a minimal
 stand-in lm_head, and the patch machinery against the real (but
 uninitialized) CPUModelRunner/CPUWorker classes.
-
-Run directly: python -m openvino.frontend.pytorch.torchdynamo.vllm.tests.test_lm_head_reload
 """
 
 import os
-import sys
+
+import pytest
 
 os.environ.setdefault("VLLM_USE_LAYERNAME", "0")
 
@@ -48,6 +47,7 @@ def _ref(x, w):
     return (x.float() @ w.float().T).to(torch.bfloat16)
 
 
+@pytest.mark.precommit
 def test_install_ov_lm_head_picks_up_reloaded_weight():
     """Re-running _install_ov_lm_head must reflect the new weight, not the old one."""
     torch.manual_seed(0)
@@ -84,10 +84,26 @@ def test_install_ov_lm_head_picks_up_reloaded_weight():
         "rebuilt OV lm_head does not reflect the reloaded weight")
 
 
+@pytest.mark.precommit
 def test_reload_and_update_weights_are_patched():
-    """The two hook points must actually be wrapped, idempotently."""
+    """The two hook points must actually be wrapped, idempotently.
+
+    Force a pristine (unpatched) starting state first: other tests in this
+    session build real vLLM engines, which patch these classes for real via
+    plugin.register() -- without this reset, this test would see
+    already-patched methods and its before/after identity check would be
+    meaningless depending on test order.
+    """
     from vllm.v1.worker.cpu_model_runner import CPUModelRunner
     from vllm.v1.worker.cpu_worker import CPUWorker
+
+    def _pristine(self, *args, **kwargs):
+        pass
+
+    CPUModelRunner.reload_weights = _pristine
+    CPUModelRunner._ov_plugin_reload_patched = False
+    CPUWorker.update_weights = _pristine
+    CPUWorker._ov_plugin_update_patched = False
 
     orig_reload = CPUModelRunner.reload_weights
     orig_update = CPUWorker.update_weights
@@ -120,6 +136,7 @@ class _FakeVllmConfig:
     compilation_config = _FakeCompilationConfig()
 
 
+@pytest.mark.precommit
 def test_patched_reload_weights_rebuilds_lm_head():
     """Drive the real CPUModelRunner.reload_weights wrapper end to end.
 
@@ -162,6 +179,7 @@ def test_patched_reload_weights_rebuilds_lm_head():
         "rebuilt lm_head does not reflect the weight reload_weights wrote")
 
 
+@pytest.mark.precommit
 def test_patched_update_weights_rebuilds_lm_head():
     """Same as above, for CPUWorker.update_weights (RLHF-style weight sync)."""
     from vllm.v1.worker.cpu_worker import CPUWorker
@@ -204,28 +222,3 @@ def test_patched_update_weights_rebuilds_lm_head():
     out = model.lm_head.cpu_linear(x, model.lm_head.weight, None)
     assert torch.allclose(out.float(), _ref(x, w2).float(), atol=0.1), (
         "rebuilt lm_head does not reflect the weight update_weights wrote")
-
-
-def main():
-    tests = [
-        test_install_ov_lm_head_picks_up_reloaded_weight,
-        test_reload_and_update_weights_are_patched,
-        test_patched_reload_weights_rebuilds_lm_head,
-        test_patched_update_weights_rebuilds_lm_head,
-    ]
-    failed = []
-    for t in tests:
-        try:
-            t()
-            print(f"PASS: {t.__name__}")
-        except AssertionError as e:
-            failed.append(t.__name__)
-            print(f"FAIL: {t.__name__}: {e}")
-    if failed:
-        print(f"\n{len(failed)}/{len(tests)} failed: {failed}")
-        sys.exit(1)
-    print(f"\nall {len(tests)} passed")
-
-
-if __name__ == "__main__":
-    main()
