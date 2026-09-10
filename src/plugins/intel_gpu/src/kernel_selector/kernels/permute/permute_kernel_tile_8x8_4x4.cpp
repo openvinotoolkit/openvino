@@ -26,7 +26,7 @@ namespace kernel_selector {
 // (args 2 and 3 of OUTPUT_GET_INDEX exchanged): reads are identical (coalesced along x),
 // writes are still coalesced (f_tile indexes the innermost x_out dimension of the output).
 static inline bool IsSwappingFX(const std::vector<uint16_t>& order) {
-    const auto match = [order](const uint16_t* expected, size_t size) {
+    const auto match = [&order](const uint16_t* expected, size_t size) {
         return std::equal(expected, expected + size, order.begin());
     };
     if (order.size() == 4) {
