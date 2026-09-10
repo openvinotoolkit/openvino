@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <fstream>
+#include <string_view>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -172,7 +173,13 @@ static std::filesystem::path name_of_subgraph_file(const std::shared_ptr<ov::Nod
                                                    const size_t i) {
     // friendly is never empty it is either friendly (set by user) or unique (auto-generated) name
     auto node_name = op->get_friendly_name();
-    std::replace(node_name.begin(), node_name.end(), '/', '-');
+    static constexpr std::string_view allowed_chars =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-";
+    for (auto& c : node_name) {
+        if (allowed_chars.find(c) == std::string_view::npos) {
+            c = '_';
+        }
+    }
 
     auto file_name = current_file_name;
     file_name.replace_extension("._node_" + node_name + "_subgraph_#" + std::to_string(i));
@@ -683,6 +690,8 @@ void ov::pass::VisualizeTree::render() const {
         dot_file += dot_ext;
     }
 
+    // Keep the dump under its parent as sanitize_path() does (file_util.cpp:102).
+    dot_file = ov::util::sanitize_path(m_name.parent_path(), dot_file.filename());
     if (std::ofstream out(dot_file); out) {
         out << "digraph \n{\n";
         out << m_ss.str();
