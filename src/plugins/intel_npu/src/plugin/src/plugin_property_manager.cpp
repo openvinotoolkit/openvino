@@ -138,17 +138,6 @@ PluginPropertyManager::PluginPropertyManager(const std::shared_ptr<OptionsDesc>&
     }
 
     _config.parseEnvVars();
-    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && _backend != nullptr) {
-        auto device = _backend->getDevice();
-        if (device) {
-            auto platformName = device->getName();
-            CompilerAdapterFactory compilerFactory;
-            auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
-            if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                _config.update(ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType));
-            }
-        }
-    }
 
     registerProperties();
 }
