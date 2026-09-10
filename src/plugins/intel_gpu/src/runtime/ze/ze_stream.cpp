@@ -212,8 +212,7 @@ QueueTypes detect_queue_type(ze_command_list_resource cmd_list) {
 
 ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     : stream(config.get_queue_type(), stream::get_expected_sync_method(config))
-    , _engine(engine)
-    , m_profiling_enabled(config.get_enable_profiling()) {
+    , _engine(engine) {
     const auto &info = engine.get_device_info();
     static std::atomic<uint16_t> stream_id{0};
     uint32_t index = stream_id++ % info.num_ccs;
@@ -253,9 +252,10 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     // Passing reference to not fully formed object is safe here because ze_command_recorder does not call virtual methods for stream
     m_recorder = std::make_shared<ze_command_recorder>(*this);
 
-    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, m_profiling_enabled);
+    auto profiling_enabled = config.get_enable_profiling();
+    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, profiling_enabled);
     if (use_counter_based_events) {
-        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, m_profiling_enabled);
+        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, profiling_enabled);
     } else {
         // If counter based events are not supported or not used, use the same factory for both user and base events
         m_ev_factory = m_user_ev_factory;
@@ -270,17 +270,17 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
 ze_stream::ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_command_list_resource cmd_list)
     : stream(detect_queue_type(cmd_list), stream::get_expected_sync_method(config))
     , _engine(engine)
-    , m_imm_cmd_list(std::move(cmd_list))
-    , m_profiling_enabled(config.get_enable_profiling()) {
+    , m_imm_cmd_list(std::move(cmd_list)) {
     const auto &info = engine.get_device_info();
     bool use_counter_based_events = m_queue_type == QueueTypes::in_order && info.supports_counter_based_events;
+    auto profiling_enabled = config.get_enable_profiling();
 
     // Passing reference to not fully formed object is safe here because ze_command_recorder does not call virtual methods for stream
     m_recorder = std::make_shared<ze_command_recorder>(*this);
 
-    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, m_profiling_enabled);
+    m_user_ev_factory = std::make_shared<ze_event_factory>(engine, profiling_enabled);
     if (use_counter_based_events) {
-        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, m_profiling_enabled);
+        m_ev_factory = std::make_shared<ze_counter_based_event_factory>(engine, profiling_enabled);
     } else {
         m_ev_factory = m_user_ev_factory;
     }

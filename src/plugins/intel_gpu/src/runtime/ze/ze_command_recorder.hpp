@@ -10,8 +10,9 @@ namespace cldnn::ze {
 class ze_stream;
 class ze_command_recorder : public command_recorder {
 public:
-    ze_command_recorder(ze_stream& stream);
-    virtual command_list::ptr create_command_list() const override;
+    explicit ze_command_recorder(ze_stream& stream);
+
+    command_list::ptr create_command_list() const override;
 protected:
     ze_stream& _stream;
 };

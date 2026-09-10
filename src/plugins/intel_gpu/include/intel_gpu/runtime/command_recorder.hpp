@@ -15,6 +15,8 @@ class command_recorder {
 public:
     using ptr = std::shared_ptr<command_recorder>;
     virtual ~command_recorder() = default;
+    // Delete copy ctor to prevent sharing active command list
+    command_recorder(const command_recorder& other) = delete;
 
     /// @brief Create command list for recording executed commands.
     /// @return Command list object.

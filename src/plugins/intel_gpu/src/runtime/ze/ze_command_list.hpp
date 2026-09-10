@@ -19,7 +19,10 @@ class ze_command_list : public command_list {
 public:
     using ptr = std::shared_ptr<ze_command_list>;
     ze_command_list(ze_stream& ze_stream, QueueTypes queue_type);
+    // Cloning command list is experimental Level Zero API
+    ze_command_list(const ze_command_list& other) = delete;
     ~ze_command_list();
+
     ze_command_list_handle_t handle() const { return _cmd_list.handle(); }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream();
