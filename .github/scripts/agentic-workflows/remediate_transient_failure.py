@@ -25,7 +25,8 @@ because the default token cannot re-trigger ``merge_group`` check runs.
 from __future__ import annotations
 
 import os
-import subprocess
+# Merge-queue remediation: gh called with a fixed argv; PR/repo ids validated in common.py.
+import subprocess  # nosec B404
 
 from common import (
     github_client,

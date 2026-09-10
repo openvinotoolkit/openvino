@@ -261,11 +261,13 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionCo
     EXPECT_EQ(expected.query_size, actual.query_size);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
+    EXPECT_EQ(expected.global_mask_idx, actual.global_mask_idx);
+    EXPECT_EQ(expected._data_left_aligned, actual._data_left_aligned);
     ASSERT_EQ(expected._attention_infos.size(), actual._attention_infos.size());
     for (std::size_t i = 0; i < expected._attention_infos.size(); ++i) {
         const auto& lhs = expected._attention_infos[i];
         const auto& rhs = actual._attention_infos[i];
-        EXPECT_EQ(lhs.mask_idx, rhs.mask_idx);
+        EXPECT_EQ(lhs.mask_idx_local, rhs.mask_idx_local);
         EXPECT_EQ(lhs.query_size, rhs.query_size);
         EXPECT_EQ(lhs.context_length, rhs.context_length);
         EXPECT_EQ(lhs.params.size(), rhs.params.size());
@@ -283,15 +285,16 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBl
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
     EXPECT_EQ(expected.past_key_block_global_param_indices, actual.past_key_block_global_param_indices);
     EXPECT_EQ(expected.past_value_block_global_param_indices, actual.past_value_block_global_param_indices);
+    EXPECT_EQ(expected.global_mask_idx, actual.global_mask_idx);
+    EXPECT_EQ(expected._data_left_aligned, actual._data_left_aligned);
     ASSERT_EQ(expected._attention_infos.size(), actual._attention_infos.size());
     for (std::size_t i = 0; i < expected._attention_infos.size(); ++i) {
         const auto& lhs = expected._attention_infos[i];
         const auto& rhs = actual._attention_infos[i];
-        EXPECT_EQ(lhs.mask_idx, rhs.mask_idx);
+        EXPECT_EQ(lhs.mask_idx_local, rhs.mask_idx_local);
         EXPECT_EQ(lhs.query_size, rhs.query_size);
         EXPECT_EQ(lhs.context_length, rhs.context_length);
-        EXPECT_EQ(lhs.past_key_block_port_map, rhs.past_key_block_port_map);
-        EXPECT_EQ(lhs.past_value_block_port_map, rhs.past_value_block_port_map);
+        EXPECT_EQ(lhs.param_port_map, rhs.param_port_map);
         EXPECT_EQ(lhs.past_key_block_port_set, rhs.past_key_block_port_set);
         EXPECT_EQ(lhs.past_value_block_port_set, rhs.past_value_block_port_set);
     }
@@ -718,16 +721,18 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     var.query_size = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
+    var.global_mask_idx = 4;
+    var._data_left_aligned = true;
 
     ov::npuw::compiled::PyramidAttentionContiguousInfo info1;
     info1.params = {{0, 2}, {1, 3}};
-    info1.mask_idx = 4;
+    info1.mask_idx_local = 4;
     info1.query_size = 16;
     info1.context_length = 32;
 
     ov::npuw::compiled::PyramidAttentionContiguousInfo info2;
     info2.params = {{2, 1}};
-    info2.mask_idx = 5;
+    info2.mask_idx_local = 5;
     info2.query_size = 16;
     info2.context_length = 64;
 
@@ -752,28 +757,22 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
     var._context_lengths = {16, 32, 64, 128};
     var.past_key_block_global_param_indices = {10, 11, 12};
     var.past_value_block_global_param_indices = {20, 21, 22};
+    var.global_mask_idx = 4;
+    var._data_left_aligned = true;
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info1;
-    info1.mask_idx = 4;
+    info1.mask_idx_local = 4;
     info1.query_size = 16;
     info1.context_length = 32;
-    info1.past_key_block_port_map = {{10, std::numeric_limits<size_t>::max()},
-                                     {11, std::numeric_limits<size_t>::max()},
-                                     {12, std::numeric_limits<size_t>::max()}};
-    info1.past_value_block_port_map = {{20, std::numeric_limits<size_t>::max()},
-                                       {21, std::numeric_limits<size_t>::max()},
-                                       {22, std::numeric_limits<size_t>::max()}};
+    // This variant dropped all KV blocks — no entries for global indices 10/11/12/20/21/22.
+    info1.param_port_map = {{4, 4}};
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info2;
-    info2.mask_idx = 5;
+    info2.mask_idx_local = 5;
     info2.query_size = 16;
     info2.context_length = 64;
-    info2.past_key_block_port_map = {{10, 0},
-                                     {11, std::numeric_limits<size_t>::max()},
-                                     {12, std::numeric_limits<size_t>::max()}};
-    info2.past_value_block_port_map = {{20, 1},
-                                       {21, std::numeric_limits<size_t>::max()},
-                                       {22, std::numeric_limits<size_t>::max()}};
+    // This variant retained one K block (global 10 -> local 0) and one V block (global 20 -> local 1).
+    info2.param_port_map = {{4, 5}, {10, 0}, {20, 1}};
     info2.past_key_block_port_set = {0};
     info2.past_value_block_port_set = {1};
 
@@ -787,6 +786,49 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
     read(ss, res);
 
     expect_pyramid_attention_equal(var, res);
+}
+
+// make_pyramid_from_stream() rebuilds _key_block_global_set / _value_block_global_set from the
+// (serialized) ordered global block index vectors rather than serializing them directly. Exercise
+// that exact factory path (tag + orc::serialize/make_pyramid_from_stream), which the round-trip
+// test above bypasses, and verify the rebuilt sets answer is_key_block_global_idx() /
+// is_value_block_global_idx() correctly.
+TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode_RebuildsGlobalBlockSets) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::PyramidAttentionBlock var;
+    var.query_size = 16;
+    var.full_context_size = 128;
+    var._context_lengths = {16, 32, 64, 128};
+    var.past_key_block_global_param_indices = {10, 11, 12};
+    var.past_value_block_global_param_indices = {20, 21, 22};
+    var.global_mask_idx = 4;
+    var._data_left_aligned = true;
+
+    std::stringstream ss;
+    {
+        auto stream_io = Stream::writer(ss);
+        ov::npuw::orc::serialize(stream_io, static_cast<ov::npuw::compiled::PyramidAttention&>(var));
+    }
+
+    std::shared_ptr<ov::npuw::compiled::PyramidAttention> res;
+    {
+        auto stream_io = Stream::reader(ss);
+        res = ov::npuw::orc::make_pyramid_from_stream(stream_io, /*tag=*/1u);
+    }
+
+    ASSERT_TRUE(res);
+    ASSERT_TRUE(res->is_block_mode());
+    EXPECT_TRUE(res->is_key_block_global_idx(10));
+    EXPECT_TRUE(res->is_key_block_global_idx(11));
+    EXPECT_TRUE(res->is_key_block_global_idx(12));
+    EXPECT_FALSE(res->is_key_block_global_idx(20));  // 20 is a value block, not a key block
+    EXPECT_TRUE(res->is_value_block_global_idx(20));
+    EXPECT_TRUE(res->is_value_block_global_idx(21));
+    EXPECT_TRUE(res->is_value_block_global_idx(22));
+    EXPECT_FALSE(res->is_value_block_global_idx(10));  // 10 is a key block, not a value block
+    EXPECT_FALSE(res->is_key_block_global_idx(999));
+    EXPECT_FALSE(res->is_value_block_global_idx(999));
 }
 
 TEST(SerializationTest, OVTypes_HostFlashAttention) {
@@ -1021,14 +1063,14 @@ TEST(SerializationTest, OVTypes_Tensor_weightless_mmap_oob_overflow) {
     // reads it (serialize_weightless, is_weightless branch):
     //   size, is_initialized, is_weightless, type_str, shape, byte_size, offset
     std::stringstream ss;
-    write(ss, std::size_t(1));    // one tensor in the vector
-    write(ss, true);              // is_initialized
-    write(ss, true);              // is_weightless
-    write(ss, std::string("u8"));  // element type -> 1 byte / element
-    write(ss, ov::Shape{4});      // destination tensor: 4 bytes only
+    write(ss, std::size_t(1));                         // one tensor in the vector
+    write(ss, true);                                   // is_initialized
+    write(ss, true);                                   // is_weightless
+    write(ss, std::string("u8"));                      // element type -> 1 byte / element
+    write(ss, ov::Shape{4});                           // destination tensor: 4 bytes only
     const std::size_t attacker_byte_size = 64 * 1024;  // >> dest (4) and >> weights file (8)
-    write(ss, attacker_byte_size);  // byte_size  (attacker-controlled, unchecked)
-    write(ss, std::size_t(0));    // offset      (attacker-controlled, unchecked)
+    write(ss, attacker_byte_size);                     // byte_size  (attacker-controlled, unchecked)
+    write(ss, std::size_t(0));                         // offset      (attacker-controlled, unchecked)
 
     // Tiny backing "weights" file: only 8 bytes get mmapped.
     std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_npuw_oob_weights.bin";

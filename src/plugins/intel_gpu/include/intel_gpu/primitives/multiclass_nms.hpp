@@ -57,8 +57,9 @@ struct multiclass_nms : public primitive_base<multiclass_nms> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const multiclass_nms>(rhs);
 
@@ -106,11 +107,13 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (output_selected_indices.is_valid())
+        if (output_selected_indices.is_valid()) {
             ret[idx++] = &output_selected_indices;
+        }
 
-        if (output_selected_num.is_valid())
+        if (output_selected_num.is_valid()) {
             ret[idx++] = &output_selected_num;
+        }
 
         return ret;
     }
