@@ -30,12 +30,10 @@ concurrency:
 permissions: read-all
 
 env:
-
   PYTHON_VERSION: '3.11'
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
-
   Smart_CI:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false || github.run_attempt > 1
@@ -167,7 +165,7 @@ jobs:
           popd
 
       - name: Cmake build - OpenVINO with Coverity
-        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Pack Artefacts
         run: tar -cvf - cov-int | pigz > openvino.tgz
@@ -209,13 +207,14 @@ jobs:
           path: ${{ env.BUILD_DIR }}/cov-int/build-log.txt
           if-no-files-found: 'error'
 
-      - name: Upload Coverity build archive
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
-        with:
-          name: coverity_archive
-          path: ${{ env.BUILD_DIR }}/openvino.tgz
-          if-no-files-found: 'error'
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload Coverity build archive
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        if: always()
+#        with:
+#          name: coverity_archive
+#          path: ${{ env.BUILD_DIR }}/openvino.tgz
+#          if-no-files-found: 'error'
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
