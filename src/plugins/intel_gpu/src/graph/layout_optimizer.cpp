@@ -4,7 +4,6 @@
 
 #include "layout_optimizer.h"
 #include "registry/implementation_manager.hpp"
-#include "shallow_conv_utils.hpp"
 #include "intel_gpu/primitives/implementation_desc.hpp"
 #include "primitive_inst.h"
 #include "program_helpers.h"
@@ -704,7 +703,10 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     // ConvolutionKernel_bfyx_to_bfyx_f16 can directly produce b_fs_yx_fsv16 output
     // from a ≤4-channel bfyx input (e.g. RGB/RGBD first conv) for any batch size and dtype,
     // eliminating the expensive bfyx→b_fs_yx_fsv16 reorder that is otherwise inserted.
-    const bool is_small_channel_fsv16_eligible = is_shallow_conv_fsv16_candidate(input_layout, output_layout);
+    // Only a bfyx input can use the direct bfyx_to_bfyx_fsv16 kernel path (its sole
+    // supported input layout); keep the exception in sync with the kernel's Validate().
+    const bool is_small_channel_fsv16_eligible = input_layout.format == format::bfyx &&
+                                                 input_layout.feature() <= 4 && output_layout.feature() >= 16;
     bool correct_batch = (input_layout.batch() == 1) ||
                          (input_layout.batch() > 1 && input_layout.data_type == data_types::f32) ||
                          is_small_channel_fsv16_eligible;

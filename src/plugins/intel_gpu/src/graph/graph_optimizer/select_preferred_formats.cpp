@@ -11,7 +11,6 @@
 #include "openvino/core/except.hpp"
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "intel_gpu/primitives/convolution.hpp"
-#include "shallow_conv_utils.hpp"
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -150,21 +149,6 @@ void select_preferred_formats::run(program& p) {
         const auto& params = n->get_kernel_impl_params();
         auto shape_type = ImplementationManager::get_shape_type(*params);
 
-        // For shallow convolutions, first try to find a clDNN impl that supports
-        // b_fs_yx_fsv16 output.  If found, use that factory so query_formats returns
-        // b_fs_yx_fsv16.
-        bool shallow_fsv16_candidate = false;
-        if (n->is_type<convolution>()) {
-            auto& conv_node = n->as<convolution>();
-            auto conv_in_layout = conv_node.get_input_layout(0);
-            auto conv_out_layout = conv_node.calc_output_layout();
-            // Layouts with dynamic dims make the fsv16 impl query throw (get_dims() is
-            // called for dynamic shape), so restrict the preference to static shapes.
-            shallow_fsv16_candidate = (conv_in_layout.format == format::bfyx &&
-                                       !conv_in_layout.is_dynamic() && !conv_out_layout.is_dynamic() &&
-                                       is_shallow_conv_fsv16_candidate(conv_in_layout, conv_out_layout));
-        }
-
         // temporary set format to any as we need to query that from impl and don't want impl to be rejected
         // also drop padding as it may be handled later
         auto factory = test_format<std::shared_ptr<ImplementationManager>>(*n, format::any,
@@ -173,24 +157,6 @@ void select_preferred_formats::run(program& p) {
                     return n.type()->choose_impl(n, shape_type);
             });
         });
-
-        // For shallow convolutions, override with a b_fs_yx_fsv16-capable clDNN factory
-        // if one is available.  This makes query_formats return b_fs_yx_fsv16 as the
-        // preferred output format, which allows the bfyx_to_bfyx_f16 kernel to be selected
-        // and avoids the post-conv layout reorder.
-        if (shallow_fsv16_candidate) {
-            auto factory_fsv16 = test_format<std::shared_ptr<ImplementationManager>>(*n, format::b_fs_yx_fsv16,
-                [&shape_type](program_node& n) {
-                    return test_no_input_pad<std::shared_ptr<ImplementationManager>>(n, [&shape_type](program_node& n) {
-                        return n.type()->choose_impl(n, shape_type);
-                    });
-                });
-            if (factory_fsv16 && factory_fsv16->get_impl_type() == impl_types::ocl) {
-                GPU_DEBUG_LOG << "[select_preferred_formats] Shallow conv " << n->id()
-                              << ": overriding factory with clDNN ocl impl for b_fs_yx_fsv16 output\n";
-                factory = factory_fsv16;
-            }
-        }
 
         if (factory) {
             try {

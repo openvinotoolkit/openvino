@@ -122,69 +122,6 @@ TEST(test_select_preferred_formats, fsv2_fallback_to_byxf) {
     }
 }
 
-TEST(test_select_preferred_formats, shallow_conv_bfyx_fsv16_preference) {
-    // Convolution with <=4 input channels in bfyx and >=16 output channels can
-    // directly produce b_fs_yx_fsv16 via the clDNN bfyx_to_bfyx_f16 kernel. The
-    // pass should pick that factory so the preferred output format is
-    // b_fs_yx_fsv16 and the layout optimizer does not insert a bfyx reorder.
-    auto& engine = get_test_engine();
-    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 3, 64, 64 } });
-    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 16, 3, 3, 3 } });
-
-    topology topology;
-    topology.add(data("weights", weights));
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(convolution("conv1", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-
-    auto prog = program::build_program(engine, topology, config, false, true);
-
-    // It initializes output_layout.
-    // It's necessary because this test runs select_preferred_formats pass alone.
-    prog->get_node("conv1").get_output_layouts(false);
-    program_wrapper::apply_opt_pass<select_preferred_formats>(*prog);
-
-    ASSERT_NE(prog, nullptr);
-
-    const auto& node = prog->get_node("conv1");
-    // ocl::ConvolutionImplementationManager does not yet implement query_formats(),
-    // so the pass cannot currently set a preferred format for OCL convs and the
-    // fsv16 preference is not applied. Once query_formats() is implemented this
-    // should assert format::b_fs_yx_fsv16.
-    if (node.get_preferred_output_fmt(0) != format::b_fs_yx_fsv16)
-        GTEST_SKIP() << "OCL conv query_formats() not implemented; fsv16 preference not yet applied.";
-}
-
-TEST(test_select_preferred_formats, shallow_conv_dynamic_batch_no_fsv16_preference) {
-    // The fsv16 factory query calls get_dims() and throws on dynamic layouts,
-    // so the shallow conv preference must be skipped for dynamic-batch graphs.
-    // The pass must not throw and must not advertise b_fs_yx_fsv16 for the node.
-    auto& engine = get_test_engine();
-    auto dynamic_layout = layout{ ov::PartialShape{ ov::Dimension(), ov::Dimension(3), ov::Dimension(64), ov::Dimension(64) },
-                                  data_types::f16, format::bfyx };
-    auto weights = engine.allocate_memory({ data_types::f16, format::bfyx, { 16, 3, 3, 3 } });
-
-    topology topology;
-    topology.add(data("weights", weights));
-    topology.add(input_layout("input", dynamic_layout));
-    topology.add(convolution("conv1", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
-
-    ExecutionConfig config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-
-    auto prog = program::build_program(engine, topology, config, false, true);
-
-    prog->get_node("conv1").get_output_layouts(false);
-    program_wrapper::apply_opt_pass<select_preferred_formats>(*prog);
-
-    ASSERT_NE(prog, nullptr);
-
-    const auto& node = prog->get_node("conv1");
-    EXPECT_NE(node.get_preferred_output_fmt(0), format::b_fs_yx_fsv16);
-}
-
 TEST(test_select_preferred_formats, permute_conv_incompatible_format) {
     // Negative tests for is_compatible_format in optimize_permute_conv:
     //   1) node_fmt = b_fs_yx_fsv16 (not byxf) -> optimization does NOT trigger

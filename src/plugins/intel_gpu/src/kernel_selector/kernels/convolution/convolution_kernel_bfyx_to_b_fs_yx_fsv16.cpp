@@ -73,36 +73,35 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefau
                                                                                    int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
-    const auto& out = params.outputs[0];
-
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = autoTune.blockWidth;
 
-    auto x = out.X().v;
-    auto y = out.Y().v;
-    auto f = out.Feature().v;
-    auto b = out.Batch().v;
+    // The concrete grid is only derivable for static shapes: for a dynamic-batch model the
+    // batch is unknown (0) at JIT time, so keep the base grid here and let (re)dispatch apply
+    // the concrete sizes, as in the other dynamic-shape implementations.
+    if (!params.has_dynamic_tensors()) {
+        const auto& out = params.outputs[0];
+        auto x = out.X().v;
+        auto y = out.Y().v;
+        auto f = out.Feature().v;
+        auto b = out.Batch().v;
 
-    dispatchData.gws[0] = CeilDiv(x, autoTune.blockWidth) * y;
-    dispatchData.gws[1] = Align(f, sub_group_size);
-    // Guard against batch=0 (unknown at JIT time for dynamic-batch models).
-    dispatchData.gws[2] = b > 0 ? b : 1;
+        dispatchData.gws[0] = CeilDiv(x, autoTune.blockWidth) * y;
+        dispatchData.gws[1] = Align(f, sub_group_size);
+        dispatchData.gws[2] = b;
 
-    dispatchData.lws[0] = 1;
-    dispatchData.lws[1] = sub_group_size;
-    dispatchData.lws[2] = 1;
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = sub_group_size;
+        dispatchData.lws[2] = 1;
+    }
 
     return dispatchData;
 }
 
 KernelsPriority ConvolutionKernel_bfyx_to_bfyx_f16::GetKernelsPriority(const Params& params) const {
-    const auto& p = static_cast<const convolution_params&>(params);
-    // For shallow convolutions (<=4 input channels) this is the only kernel that directly
-    // produces b_fs_yx_fsv16 from a bfyx input, so prefer it.
-    if (p.inputs[0].Feature().v <= 4) {
-        return FORCE_PRIORITY_2;
-    }
-    return p.inputs[0].Batch().v == 1 ? FORCE_PRIORITY_2 : FORCE_PRIORITY_7;
+    // Validate() restricts this kernel to <=4 input channels, and it is the only kernel that
+    // directly produces b_fs_yx_fsv16 from a bfyx input, so it is always preferred.
+    return FORCE_PRIORITY_2;
 }
 
 bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p) const {
