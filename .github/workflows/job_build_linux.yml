@@ -526,7 +526,6 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Prepare debian packages for storage on share
-        if: steps.build_debian_packages.outcome == 'success'
         continue-on-error: true
         run: |
           pushd ${{ env.BUILD_DIR }}
