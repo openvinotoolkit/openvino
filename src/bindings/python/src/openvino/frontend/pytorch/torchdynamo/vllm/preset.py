@@ -49,6 +49,7 @@ def bool_opt(options, key: str, default: bool) -> bool:
             return default
     return bool(v) and str(v).lower() not in ("false", "0")
 
+
 # Expanded from options["vllm"]=True; caller-supplied flags win (see bool_opt).
 _PRESET_FLAGS = {
     "unbind_affinity": True,
@@ -80,10 +81,10 @@ _COMPUTE_PRECISION_SUBSTITUTE = {"f16": "bf16"}
 
 
 def precision_config(model_precision: Optional[str] = None) -> dict:
-    """Return the OV float-precision config pair for a model of dtype
-    `model_precision` ("bf16", "f16", or None/other for unknown).
+    """Return the OV float-precision config pair for a model of the given dtype.
 
-    Both keys are derived from one value because they must name the *same*
+    `model_precision` is "bf16", "f16", or None/other for unknown. Both keys
+    are derived from one value because they must name the *same*
     type: OV CPU PagedAttention selects
     ``AttentionExecutor<compute_t, key_cache_t, value_cache_t>`` and only
     instantiates <bf16,bf16,bf16>, <f16,f16,f16>, <f32,f16,f16>, <f32,f32,f32>

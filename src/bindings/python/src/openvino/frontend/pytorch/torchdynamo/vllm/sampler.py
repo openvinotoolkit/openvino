@@ -47,10 +47,10 @@ _OV_NATIVE_COMPILED = {}  # cached per (vocab, top_k, dtype)
 
 
 def _build_native_sampler(vocab: int, k: int):
-    """Build the sampler as a native opset13 Model, skipping the torch.compile
-    trace and dynamo overhead.
+    """Build the sampler as a native opset13 Model, skipping torch.compile.
 
-    logits[B,V] + temperature[B] -> sampled_token[B], by Gumbel-max: scale by
+    Skips the trace and dynamo overhead. logits[B,V] + temperature[B] ->
+    sampled_token[B], by Gumbel-max: scale by
     temperature, topk(k), softmax, add log(-log(uniform)) noise, then argmax
     over k and gather the winner out of the topk indices.
     """
@@ -68,9 +68,9 @@ def _build_native_sampler(vocab: int, k: int):
     probs = op.softmax(tv, axis=-1)
     shape_of = op.shape_of(tv, Type.i64)
     u = op.random_uniform(shape_of,
-                           op.constant(0.0, Type.f32),
-                           op.constant(1.0, Type.f32),
-                           Type.f32, global_seed=0, op_seed=0)
+                          op.constant(0.0, Type.f32),
+                          op.constant(1.0, Type.f32),
+                          Type.f32, global_seed=0, op_seed=0)
     eps = op.constant(1e-20, Type.f32)
     neg = op.constant(-1.0, Type.f32)
     g = op.multiply(op.log(op.add(op.multiply(op.log(op.add(u, eps)), neg), eps)), neg)

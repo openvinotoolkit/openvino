@@ -20,8 +20,11 @@ logger = logging.getLogger(__name__)
 # try/except per call site rather than one per hook.
 
 def apply_post_convert(om, options):
-    """vLLM hooks on the freshly-converted Model, run right after
-    ``fe.convert(im)`` and before serialization or input shaping."""
+    """Run vLLM hooks on the freshly-converted Model.
+
+    Runs right after ``fe.convert(im)`` and before serialization or input
+    shaping.
+    """
     register_pa_parameters(om)
     normalize_concat_ranks(om)
     from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
@@ -47,19 +50,19 @@ def apply_input_shapes(om, args, options, gm=None):
 
 
 def apply_post_config(config, device, options, om=None):
-    """Fill the vLLM defaults into the core.compile_model config, once the
-    caller has built ``config`` and set CACHE_DIR.
+    """Fill the vLLM defaults into the core.compile_model config.
 
-    ``om`` is optional for older callers, but without it float precisions
-    cannot be derived from the model and fall back to the preset default.
+    Called once the caller has built ``config`` and set CACHE_DIR. ``om`` is
+    optional for older callers, but without it float precisions cannot be
+    derived from the model and fall back to the preset default.
     """
     apply_kv_cache_config_defaults(config, device, options, om=om)
 
 
 def widen_affinity_if_needed(options):
-    """Widen process CPU affinity to all cores when the mask is narrower than
-    the requested OV thread count.
+    """Widen process CPU affinity to all cores when narrower than needed.
 
+    Needed when the mask is narrower than the requested OV thread count.
     vLLM's ``init_cpu_threads_env`` pins the worker to one CPU before
     ``torch.compile``, and TBB/OV sample affinity on first parallel use -- so a
     1-CPU mask locks ``INFERENCE_NUM_THREADS=1`` whatever config we pass.
@@ -287,10 +290,10 @@ def normalize_concat_ranks(om):
 
 
 def model_float_precision(om):
-    """Return the model's float dtype as an OV type name ("bf16"/"f16"), or
-    None when the graph carries no narrow float.
+    """Return the model's float dtype as an OV type name, "bf16"/"f16".
 
-    The PagedAttention key_cache Parameter wins: it is what compute precision
+    None when the graph carries no narrow float. The PagedAttention
+    key_cache Parameter wins: it is what compute precision
     must agree with, since the CPU plugin picks ``AttentionExecutor<compute_t,
     key_cache_t, value_cache_t>`` off its element type and only some triples
     exist (see preset.precision_config). The frontend creates it at the query
@@ -322,17 +325,22 @@ def model_float_precision(om):
 
 
 def _port_names(port):
-    """Every name a port answers to: tensor names plus the node's friendly name
-    (the frontend sets the latter, not always the former)."""
+    """Every name a port answers to.
+
+    Tensor names plus the node's friendly name (the frontend sets the
+    latter, not always the former).
+    """
     names = set(port.get_names())
     names.add(port.get_node().get_friendly_name())
     return names
 
 
 def _is_kv_cache_port(port, field=("key_cache", "value_cache")):
-    """True if `port` is a PagedAttention KV-cache Parameter. Substring match,
-    not suffix: the frontend appends the layer index, giving names like
-    ``__pa__unknown_layer__key_cache_15``."""
+    """True if `port` is a PagedAttention KV-cache Parameter.
+
+    Substring match, not suffix: the frontend appends the layer index,
+    giving names like ``__pa__unknown_layer__key_cache_15``.
+    """
     return any(n.startswith("__pa__") and any(f in n for f in field)
                for n in _port_names(port))
 
@@ -373,8 +381,10 @@ def retype_kv_cache_parameters(om, et_name):
 
 
 def apply_kv_cache_config_defaults(config, device, options=None, om=None):
-    """Fill the vLLM KV-cache and FC-quantization defaults into the OV CPU
-    config. Caller-supplied entries win. No-op on non-CPU devices."""
+    """Fill the vLLM KV-cache and FC-quantization defaults into the OV CPU config.
+
+    Caller-supplied entries win. No-op on non-CPU devices.
+    """
     if device != "CPU":
         return
     if _preset.is_vllm_preset(options):

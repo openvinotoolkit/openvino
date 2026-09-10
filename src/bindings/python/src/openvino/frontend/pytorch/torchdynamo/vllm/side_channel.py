@@ -6,7 +6,7 @@
 The C++ paged_attention translator emits extra OV Parameters named
 "__pa__<layer>__<field>" (key_cache, value_cache, past_lens, ...). At infer
 time we resolve those from vllm.forward_context and bind them as side-channel
-inputs. 
+inputs.
 """
 
 import logging
@@ -31,10 +31,15 @@ _pa_layer_static_cache = {}
 # dummy_run), so the happy path allocates nothing per decode step.
 def _zeros_1_i32():
     return np.zeros(1, dtype=np.int32)
+
+
 def _zeros_2_i32():
     return np.zeros(2, dtype=np.int32)
+
+
 def _zero_scalar_i32():
     return np.array(0, dtype=np.int32)
+
 
 # id(compiled) -> {"layer_to_fields": {layer_name: {field: parameter_name}}}.
 # Built on first bind so the regex walk over compiled.inputs does not rerun on
@@ -104,7 +109,6 @@ def _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=None):
     return 1, 1
 
 
-
 _PA_FIELDS = (
     "key_cache", "value_cache", "past_lens", "subsequence_begins",
     "block_indices", "block_indices_begins", "max_context_len",
@@ -117,10 +121,11 @@ _PA_FIELDS = (
 
 
 def _bind_paged_attention_side_channel(compiled):
-    """Resolve every "__pa__<layer>__<field>" input of `compiled` against the
-    current forward context and return {parameter_name: array-or-ov.Tensor}.
+    """Resolve every "__pa__<layer>__<field>" input of `compiled`.
 
-    Relies on vLLM's CPUAttentionMetadata layout.
+    Resolved against the current forward context, returning
+    {parameter_name: array-or-ov.Tensor}. Relies on vLLM's
+    CPUAttentionMetadata layout.
     """
     try:
         from vllm.forward_context import get_forward_context
@@ -178,6 +183,7 @@ def _bind_paged_attention_side_channel(compiled):
                 # by the ".layers.<N>." index to match; fall back to dict order
                 # for names without that pattern.
                 import re as _re_sort
+
                 def _layer_idx(name):
                     m = _re_sort.search(r"layers\.(\d+)", name)
                     return int(m.group(1)) if m else -1
@@ -236,8 +242,10 @@ def _bind_paged_attention_side_channel(compiled):
         if _static is None:
             # Slow path: resolve layer_obj, meta_layer_name, KV-sharing target.
             if layer_name == "shared":
-                meta_layer_name = (_placeholder_to_real(_first_real_layer) if _first_real_layer else None) \
-                                  or (_real_layer_names[0] if _real_layer_names else None)
+                meta_layer_name = (
+                    (_placeholder_to_real(_first_real_layer) if _first_real_layer else None)
+                    or (_real_layer_names[0] if _real_layer_names else None)
+                )
             else:
                 meta_layer_name = _placeholder_to_real(layer_name) or layer_name
             layer_obj = None
@@ -247,7 +255,8 @@ def _bind_paged_attention_side_channel(compiled):
                     nc_layers = ctx.no_compile_layers
                     layer_obj = nc_layers.get(meta_layer_name) if isinstance(nc_layers, dict) else None
                     # KV sharing (Gemma-4 hybrid): redirect to the target layer.
-                    kv_sharing_tgt = getattr(layer_obj, "kv_sharing_target_layer_name", None) if layer_obj is not None else None
+                    kv_sharing_tgt = (getattr(layer_obj, "kv_sharing_target_layer_name", None)
+                                      if layer_obj is not None else None)
                     if kv_sharing_tgt is not None:
                         tgt_obj = nc_layers.get(kv_sharing_tgt) if isinstance(nc_layers, dict) else None
                         if tgt_obj is not None:
@@ -407,7 +416,8 @@ def _bind_paged_attention_side_channel(compiled):
                             flat_bt = bt_np.reshape(rows, -1) if bt_np.ndim > 1 else bt_np[None, :]
                             bi = flat_bt[mask].astype(np.int32, copy=False)
                             if _ov_ratio > 1:
-                                bi = (bi[:, None] * _ov_ratio + np.arange(_ov_ratio, dtype=np.int32)[None, :]).reshape(-1)
+                                _ov_offsets = np.arange(_ov_ratio, dtype=np.int32)[None, :]
+                                bi = (bi[:, None] * _ov_ratio + _ov_offsets).reshape(-1)
                             block_indices_np = bi
                         begins = np.empty(rows + 1, dtype=np.int32)
                         begins[0] = 0

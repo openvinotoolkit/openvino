@@ -22,6 +22,8 @@ _fastinfer_out_static = {}  # id(compiled) -> bool: output views are reusable
 # Sentinel returned by run_pa_infer to signal "skip this infer; use eager".
 class _PA_Skip:
     __slots__ = ()
+
+
 PA_SKIP = _PA_Skip()
 
 
@@ -58,10 +60,12 @@ def has_pa_inputs(compiled) -> bool:
 
 
 def should_skip_pa_infer() -> bool:
-    """Detect the vLLM warm-up / profile_run state: ForwardContext exists but
-    ``attn_metadata`` is None. There the side-channel binder can only supply
-    zero-length metadata, so the OV CPU PA kernel would read uninitialized
-    ``_slot_mapping`` entries -- heap garbage, hence OOB writes.
+    """Detect the vLLM warm-up / profile_run state.
+
+    True when ForwardContext exists but ``attn_metadata`` is None. There the
+    side-channel binder can only supply zero-length metadata, so the OV CPU
+    PA kernel would read uninitialized ``_slot_mapping`` entries -- heap
+    garbage, hence OOB writes.
 
     vLLM calls forward() in this state for determine_available_memory and for
     dummy_run; neither consumes the output semantically, so zeros of the

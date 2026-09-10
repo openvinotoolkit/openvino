@@ -108,10 +108,10 @@ def _structural_key(gm, args, options=None):
             if n.op == "placeholder":
                 node_id[n] = f"ph{ph_i}"
                 ph_i += 1
-                parts.append(f"placeholder")
+                parts.append("placeholder")
                 continue
             # node target (stable)
-            t = str(n.target) if hasattr(n, 'target') else str(n.op)
+            t = str(n.target) if hasattr(n, "target") else str(n.op)
             # input edge descriptor: refer by node_id if known, else by op
             arg_descs = []
             for a in n.args:

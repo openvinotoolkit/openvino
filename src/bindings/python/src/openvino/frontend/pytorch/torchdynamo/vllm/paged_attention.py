@@ -85,10 +85,11 @@ def _is_unified_attention_with_output(node) -> bool:
 
 
 def rewrite_unified_attention_to_paged_attention(gm) -> int:
-    """Rewrite every auto_functionalized_v2(unified_attention_with_output, ...)
-    node to a call of torch.ops.openvino.paged_attention.default.
+    """Rewrite every attention HOP node to a call of the OV paged_attention op.
 
-    Returns the number of rewrites performed.
+    Matches auto_functionalized_v2(unified_attention_with_output, ...) nodes
+    and rewrites them to torch.ops.openvino.paged_attention.default. Returns
+    the number of rewrites performed.
     """
     import torch
 
