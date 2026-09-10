@@ -112,6 +112,13 @@ jobs:
           submodules: 'recursive'
           lfs: 'true'
 
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: Install python dependencies
         run: |
           python3 -m pip install -r ${OPENVINO_REPO}/docs/requirements.txt

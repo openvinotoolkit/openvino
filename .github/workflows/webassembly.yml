@@ -128,6 +128,13 @@ jobs:
           path: 'openvino'
           submodules: 'recursive'
 
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: emcmake cmake - configure
         run: |
           emcmake cmake \
