@@ -17,6 +17,12 @@ on:
         required: false
         default: null
 
+      enable-compile-cache:
+        description: 'Use compiler cache (sccache/ccache) for builds in this job'
+        type: boolean
+        required: false
+        default: false
+
 permissions: read-all
 
 env:
@@ -53,6 +59,7 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Cache sccache
+        if: ${{ inputs.enable-compile-cache }}
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.SCCACHE_DIR }}
@@ -60,6 +67,16 @@ jobs:
           restore-keys: |
             gguf-llamacpp-sccache-${{ runner.os }}-${{ github.base_ref || github.ref_name }}-
             gguf-llamacpp-sccache-${{ runner.os }}-
+
+      - name: Checkout compile cache statistics action
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 5
+        with:
+          path: openvino-ci-actions
+          sparse-checkout: |
+            .github/actions/compile_cache_stats
+          sparse-checkout-cone-mode: false
 
       - name: Checkout llama.cpp
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -74,15 +91,25 @@ jobs:
           source ${{ env.INSTALL_DIR }}/setupvars.sh
           cmake -G Ninja -S llama.cpp -B llama.cpp/build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER_LAUNCHER=sccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=sccache \
+            -DCMAKE_C_COMPILER_LAUNCHER=${{ inputs.enable-compile-cache && 'sccache' || '' }} \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ inputs.enable-compile-cache && 'sccache' || '' }} \
             -DGGML_OPENVINO=ON
 
-      - name: Build llama.cpp
-        run: cmake --build llama.cpp/build --parallel "$(nproc)"
+      - name: Zero compile cache stats (llama.cpp build)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ./openvino-ci-actions/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
-      - name: Show sccache stats
-        run: sccache --show-stats
+      - name: Build llama.cpp
+        run: cmake --build llama.cpp/build --parallel 15 --verbose
+
+      - name: Compile cache statistics (llama.cpp build)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ./openvino-ci-actions/.github/actions/compile_cache_stats
+        with:
+          build-label: llama-cpp-build
+          artifact-name: compile-cache-stats-gguf-llamacpp-llama-cpp-build
 
       - name: Run llama.cpp tests against the ggml-openvino backend
         env:

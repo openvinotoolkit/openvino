@@ -67,13 +67,13 @@ jobs:
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-32-cores-128gb-build
+    runs-on: aks-win-32-cores-128gb-build-ab
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ''
+      CMAKE_C_COMPILER_LAUNCHER: ''
       CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_MAXSIZE: 3G
@@ -134,10 +134,11 @@ jobs:
       #
 
       - name: Setup ccache
+        if: false # runner_squish_no_cache: compile cache disabled
         uses: ./openvino/.github/actions/cache
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: 'true'
+          cleanup-always: 'true'
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
           path: ${{ env.CCACHE_DIR }}
           key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
@@ -167,30 +168,63 @@ jobs:
             -DCMAKE_JOB_POOLS:STRING=link_jobs=20 `
             -DCMAKE_JOB_POOL_LINK:STRING=link_jobs `
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON `
+            -DCMAKE_VERBOSE_MAKEFILE=ON `
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-      - name: Clean ccache stats
-        run: '& ccache --zero-stats'
+      - name: Zero compile cache stats (openvino cc collect main)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
 
-      - name: Cmake build - CC COLLECT
-        run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+      - name: Cmake build - CC COLLECT (openvino)
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 31 --verbose --config ${{ env.CMAKE_BUILD_TYPE }}
+      - name: Compile cache statistics (openvino cc collect main)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-collect-openvino-main
+          artifact-name: compile-cache-stats-windows-cc-collect-openvino-main
 
-      - name: Show ccache stats
-        run: '& ccache --show-stats'
+      - name: Zero compile cache stats (sea_itt_lib)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
+      - name: Cmake build - CC COLLECT (sea_itt_lib)
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 31 --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib
+      - name: Compile cache statistics (sea_itt_lib)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-collect-sea-itt-lib
+          artifact-name: compile-cache-stats-windows-cc-collect-sea-itt-lib
 
       - name: Cmake install - OpenVINO
         run: |
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_PDB_DIR }} --component pdb
 
+      - name: Configure C++ samples build
+        run: cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
+
+      - name: Zero compile cache stats (cpp samples)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Build C++ samples - OpenVINO build tree
-        run: |
-          cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
-          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+        run: cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device
+      - name: Compile cache statistics (cpp samples)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-collect-cpp-samples
+          artifact-name: compile-cache-stats-windows-cc-collect-cpp-samples
 
       - name: Perform code tracing via ITT collector
         shell: cmd
@@ -245,7 +279,7 @@ jobs:
           # install PDB files to OpenVINO main installation folder to ensure that they are used instead of PDB files from build folder
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pdb
           # then, we need to clean build tree to remove PDB files
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target clean -- /verbosity:minimal
+          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target clean
           & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
         env:
           CXXFLAGS: "/Zi"
@@ -291,12 +325,12 @@ jobs:
 
   Build_And_Run_On_Mode:
     name: Conditional Compilation
-    timeout-minutes: 40
+    timeout-minutes: 60
     needs: [Build_And_Run_Collect_Mode, Smart_CI]
     defaults:
       run:
         shell: pwsh
-    runs-on: aks-win-16-cores-32gb-build
+    runs-on: aks-win-16-cores-32gb-build-ab
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}\\openvino\\cmake\\toolchains\\onecoreuap.toolchain.cmake"
@@ -322,6 +356,13 @@ jobs:
           path: 'testdata'
           lfs: 'true'
           ref: ${{ env.TARGET_BRANCH }}
+
+      #
+      # Print system info
+      #
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
 
       - name: Download selective build statistics package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
@@ -356,13 +397,30 @@ jobs:
             -DENABLE_OV_JAX_FRONTEND=OFF `
             -DENABLE_OV_ONNX_FRONTEND=OFF `
             -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
+            -DCMAKE_CXX_FLAGS="/cgthreads15 /MP15" `
+            -DCMAKE_C_FLAGS="/cgthreads15 /MP15" `
+            -DCMAKE_EXE_LINKER_FLAGS="/CGTHREADS:15" `
+            -DCMAKE_SHARED_LINKER_FLAGS="/CGTHREADS:15" `
+            -DCMAKE_MODULE_LINKER_FLAGS="/CGTHREADS:15" `
+            -DCMAKE_VERBOSE_MAKEFILE=ON `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-        # Number of threads is hardcoded due to OutOfMemory issues. Unless we switch CMake's generator to Ninja, we can't
-        # set number of jobs separately for compilation and linking. The issue most likely occurs during linking.
+      - name: Zero compile cache stats (cc on benchmark_app)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel 15 --verbose --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:detailed /clp:PerformanceSummary /detailedsummary
+
+      - name: Compile cache statistics (cc on benchmark_app)
+        if: false # runner_squish_no_cache: compile cache statistics disabled
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: cc-on-benchmark-app
+          artifact-name: compile-cache-stats-windows-cc-on-benchmark-app
 
       - name: List bin files
         shell: cmd
@@ -374,16 +432,3 @@ jobs:
           set path=%path%;${{ env.OPENVINO_REPO }}\temp\Windows_AMD64\tbb\bin;${{ env.BUILD_DIR }}\bin\${{ env.CMAKE_BUILD_TYPE }}
           ${{ env.OPENVINO_REPO }}\bin\intel64\${{ env.CMAKE_BUILD_TYPE }}\benchmark_app.exe -niter 1 -nireq 1 -m ${{ env.MODELS_PATH }}\models\test_model\test_model_fp32.xml -d CPU
 
-  Overall_Status:
-    name: ci/gha_overall_status_windows_cc
-    needs: [Smart_CI, Build_And_Run_Collect_Mode, Build_And_Run_On_Mode]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
