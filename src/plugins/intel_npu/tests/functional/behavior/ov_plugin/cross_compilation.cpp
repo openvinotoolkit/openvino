@@ -76,7 +76,8 @@ TEST_P(CrossCompilationNPU, CrossCompilationTest) {
             compiledModel.get_property(ov::intel_npu::compiler_type.name()).as<ov::intel_npu::CompilerType>());
 
     if (target_platform == ov::intel_npu::Platform::AUTO_DETECT &&
-        device_platform == ov::intel_npu::Platform::NPU3720) {
+        (device_platform == ov::intel_npu::Platform::NPU3720 ||
+         device_platform == ov::intel_npu::Platform::AUTO_DETECT)) {
         EXPECT_EQ(compiler_type, ov::intel_npu::CompilerType::DRIVER);
     } else {
         EXPECT_EQ(compiler_type, ov::intel_npu::CompilerType::PLUGIN);
@@ -102,7 +103,8 @@ TEST_P(CrossCompilationNPU, OnlineCompilationTest) {
 
     if (target_platform == ov::intel_npu::Platform::NPU3720 ||
         (target_platform == ov::intel_npu::Platform::AUTO_DETECT &&
-         device_platform == ov::intel_npu::Platform::NPU3720)) {
+         (device_platform == ov::intel_npu::Platform::NPU3720 ||
+          device_platform == ov::intel_npu::Platform::AUTO_DETECT))) {
         EXPECT_EQ(compiler_type, ov::intel_npu::CompilerType::DRIVER);
     } else {
         EXPECT_EQ(compiler_type, ov::intel_npu::CompilerType::PLUGIN);
