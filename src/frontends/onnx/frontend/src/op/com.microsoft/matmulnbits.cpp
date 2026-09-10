@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <optional>
 #include <vector>
 
 #include "core/null_node.hpp"
@@ -40,6 +41,27 @@ void preserve_initializer_name(const std::shared_ptr<v0::Constant>& repacked,
                                const std::shared_ptr<v0::Constant>& original) {
     repacked->set_friendly_name(original->get_friendly_name());
     repacked->get_output_tensor(0).set_names(original->get_output_tensor(0).get_names());
+}
+
+// A static shape carries an explicit 2-axis order hint when it is rank 2, or rank 3 with a trailing
+// size-1 axis (e.g. the documented [N][n_blocks_per_col][1] zero_points layout). Rank 1 (a flattened
+// buffer) carries no such hint - both axis orders flatten to the same buffer, so shape alone cannot
+// confirm or refute an assumed order in that case.
+std::optional<std::pair<uint64_t, uint64_t>> get_ordered_dims(const ov::PartialShape& shape) {
+    if (!shape.rank().is_static()) {
+        return std::nullopt;
+    }
+    const auto rank = shape.size();
+    if (rank == 2 && shape[0].is_static() && shape[1].is_static()) {
+        return std::make_pair(static_cast<uint64_t>(shape[0].get_length()),
+                              static_cast<uint64_t>(shape[1].get_length()));
+    }
+    if (rank == 3 && shape[0].is_static() && shape[1].is_static() && shape[2].is_static() &&
+        shape[2].get_length() == 1) {
+        return std::make_pair(static_cast<uint64_t>(shape[0].get_length()),
+                              static_cast<uint64_t>(shape[1].get_length()));
+    }
+    return std::nullopt;
 }
 }  // namespace
 
@@ -120,11 +142,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         b_shape_static[1] == static_cast<size_t>(N) && n_blocks_per_col != static_cast<uint64_t>(N);
     if (b_is_reordered) {
         const auto& scales_shape = scales.get_partial_shape();
-        if (scales_shape.rank().is_static() && scales_shape.size() == 2 && scales_shape[0].is_static() &&
-            scales_shape[1].is_static()) {
+        if (const auto hint = get_ordered_dims(scales_shape)) {
             CHECK_VALID_NODE(node,
-                             static_cast<uint64_t>(scales_shape[0].get_length()) == n_blocks_per_col &&
-                                 static_cast<uint64_t>(scales_shape[1].get_length()) == static_cast<uint64_t>(N),
+                             hint->first == n_blocks_per_col && hint->second == static_cast<uint64_t>(N),
                              "MatMulNBits: B is stored in the reordered [n_blocks_per_col][N][blob_size] layout, "
                              "but scales shape does not match the expected reordered [n_blocks_per_col][N] "
                              "layout, got: ",
@@ -308,14 +328,15 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                  "got: ",
                                  zp_shape);
 
-                if (b_is_reordered && zp_shape_static.size() == 2) {
-                    CHECK_VALID_NODE(
-                        node,
-                        zp_shape_static[0] == n_blocks_per_col && zp_shape_static[1] == static_cast<size_t>(N),
-                        "MatMulNBits: B is stored in the reordered [n_blocks_per_col][N][blob_size] "
-                        "layout, but zero_points shape does not match the expected reordered "
-                        "[n_blocks_per_col][N] layout, got: ",
-                        zp_shape);
+                if (b_is_reordered) {
+                    if (const auto hint = get_ordered_dims(zp_shape)) {
+                        CHECK_VALID_NODE(node,
+                                         hint->first == n_blocks_per_col && hint->second == static_cast<uint64_t>(N),
+                                         "MatMulNBits: B is stored in the reordered [n_blocks_per_col][N][blob_size] "
+                                         "layout, but zero_points shape does not match the expected reordered "
+                                         "[n_blocks_per_col][N] layout, got: ",
+                                         zp_shape);
+                    }
                 }
                 ov::Shape casted_zp_shape =
                     b_is_reordered ? ov::Shape{static_cast<size_t>(n_blocks_per_col), static_cast<size_t>(N), 1}
@@ -355,9 +376,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                      "reordered [n_blocks_per_col][ceil(N*bits/8)] packed layout, got: ",
                                      zp_shape_dyn);
                     const auto zp_shape_static = zp_shape_dyn.get_shape();
-                    if (zp_shape_static.size() == 2) {
+                    if (const auto hint = get_ordered_dims(zp_shape_dyn)) {
                         CHECK_VALID_NODE(node,
-                                         zp_shape_static[0] == outer_dim && zp_shape_static[1] == num_byte,
+                                         hint->first == outer_dim && hint->second == num_byte,
                                          "MatMulNBits: B is stored in the reordered "
                                          "[n_blocks_per_col][N][blob_size] layout, but zero_points shape does "
                                          "not match the expected reordered [n_blocks_per_col][ceil(N*bits/8)] "
