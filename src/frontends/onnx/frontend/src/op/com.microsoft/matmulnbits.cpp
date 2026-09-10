@@ -330,8 +330,8 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                     preserve_initializer_name(casted_zp_const, zero_points_const);
                 }
             } else if (zero_points.get_element_type() == ov::element::u8) {
-                // Packed along whichever axis is innermost in the chosen layout: N for the documented
-                // [N][n_blocks_per_col][blob_size] layout, n_blocks_per_col for the reordered
+                // Packed along whichever axis is innermost in the chosen layout: n_blocks_per_col for the
+                // documented [N][n_blocks_per_col][blob_size] layout, N for the reordered
                 // [n_blocks_per_col][N][blob_size] layout. outer_dim is the other axis, kept as the
                 // leading dim of the repacked Constant.
                 const uint64_t num_per_byte = 8 / bits;
