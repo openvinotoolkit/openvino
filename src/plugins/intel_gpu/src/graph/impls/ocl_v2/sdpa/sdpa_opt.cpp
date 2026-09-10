@@ -217,7 +217,12 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     ov::Dimension K_num_heads_dim = get_num_heads(k_layout, extended_input_k_transpose_order);
     ov::Dimension V_num_heads_dim = get_num_heads(v_layout, extended_input_v_transpose_order);
 
-    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 || extended_input_v_transpose_order[3] != 3) {
+    // {0, 1, 3, 2} on V means the value tensor is physically (batch, heads, head_size,
+    // tokens), which is the layout the V*S microkernel wants -- see TRANSPOSE_V in
+    // sdpa_gen_micro.cpp. Every other order still has to keep head_size last.
+    const bool value_transposed = extended_input_v_transpose_order == std::vector<int64_t>{0, 1, 3, 2};
+    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 ||
+        (extended_input_v_transpose_order[3] != 3 && !value_transposed)) {
         return false;
     }
 

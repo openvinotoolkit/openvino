@@ -42,18 +42,23 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                                  const std::vector<int64_t>& output_transpose_order = {},
                                  const QuantizationAttributes& quantization_attributes = {},
                                  bool is_kv_compressed = false,
-                                 bool causal_lower_right = false)
+                                 bool causal_lower_right = false,
+                                 bool has_rope_q = false)
         : primitive_base(id, inputs)
         , is_causal(is_causal)
         , causal_lower_right(causal_lower_right)
         , indirect_axis(indirect_axis)
         , is_kv_compressed(is_kv_compressed)
+        , has_rope_q(has_rope_q)
         , quantization_attributes(quantization_attributes)
         , input_q_transpose_order(input_q_transpose_order)
         , input_k_transpose_order(input_k_transpose_order)
         , input_v_transpose_order(input_v_transpose_order)
         , output_transpose_order(output_transpose_order) {
             auto data_inputs_num = inputs.size();
+            if (has_rope_q) {
+                data_inputs_num -= 2;  // rope cos/sin table, appended last
+            }
             if (indirect_axis != -1) {
                 data_inputs_num--;
             }
@@ -78,6 +83,9 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
     int64_t indirect_axis = -1;
 
     bool is_kv_compressed = false;
+    /// Q arrives unrotated and the last two inputs hold the interleaved RoPE cos/sin table,
+    /// laid out (batch, tokens, head_size); the SDPA kernel rotates Q as it stages it.
+    bool has_rope_q = false;
     QuantizationAttributes quantization_attributes;
 
     std::vector<int64_t> input_q_transpose_order;
@@ -109,6 +117,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
             seed = hash_combine(seed, scale_val.value());
         }
         seed = hash_combine(seed, is_kv_compressed);
+        seed = hash_combine(seed, has_rope_q);
         seed = hash_range(seed, quantization_attributes.scales_zp_output_order.begin(), quantization_attributes.scales_zp_output_order.end());
         seed = hash_range(seed, quantization_attributes.group_sizes.begin(), quantization_attributes.group_sizes.end());
         seed = hash_combine(seed, quantization_attributes.quantization_type);
@@ -140,6 +149,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                attn_mask_val == rhs_casted.attn_mask_val &&
                scale_val == rhs_casted.scale_val &&
                is_kv_compressed == rhs_casted.is_kv_compressed &&
+               has_rope_q == rhs_casted.has_rope_q &&
                quantization_attributes.scales_zp_output_order == rhs_casted.quantization_attributes.scales_zp_output_order &&
                quantization_attributes.output_storage_type == rhs_casted.quantization_attributes.output_storage_type &&
                quantization_attributes.group_sizes == rhs_casted.quantization_attributes.group_sizes &&
@@ -154,6 +164,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ob << is_causal;
         ob << causal_lower_right;
         ob << is_kv_compressed;
+        ob << has_rope_q;
         ob << has_attn_mask_input;
         ob << has_scale_input;
         ob << has_sink_input;
@@ -184,6 +195,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ib >> is_causal;
         ib >> causal_lower_right;
         ib >> is_kv_compressed;
+        ib >> has_rope_q;
         ib >> has_attn_mask_input;
         ib >> has_scale_input;
         ib >> has_sink_input;
