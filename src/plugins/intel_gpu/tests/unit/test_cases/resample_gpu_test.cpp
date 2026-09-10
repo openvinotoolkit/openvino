@@ -498,8 +498,9 @@ struct resample_random_test : testing::TestWithParam<resample_random_test_params
         std::string kernel = "";
         if (!is_caching_test) {
             for (auto& info : net->get_primitives_info()) {
-                if (info.original_id == "resample")
+                if (info.original_id == "resample") {
                     kernel = info.kernel_id;
+                }
             }
         }
     }
@@ -2859,8 +2860,9 @@ TEST(resample_gpu, pillow_identity_resample_no_crash) {
 
     // Fill with sequential values
     std::vector<float> input_data(b * f * y * x);
-    for (size_t i = 0; i < input_data.size(); ++i)
+    for (size_t i = 0; i < input_data.size(); ++i) {
         input_data[i] = static_cast<float>(i + 1);
+    }
     set_values(input_mem, input_data);
 
     // Test both BILINEAR_PILLOW and BICUBIC_PILLOW with identity spatial size
@@ -2913,8 +2915,9 @@ void test_pillow_half_precision(data_types dt) {
     const int32_t out_y = 8, out_x = 8;
 
     std::vector<float> input_data(b * f * y * x);
-    for (size_t i = 0; i < input_data.size(); ++i)
+    for (size_t i = 0; i < input_data.size(); ++i) {
         input_data[i] = static_cast<float>(i % 16) - 7.0f;
+    }
 
     std::vector<resample::InterpolateOp::InterpolateMode> modes = {
         resample::InterpolateOp::InterpolateMode::BILINEAR_PILLOW,
@@ -2986,8 +2989,9 @@ TEST(resample_gpu, opt_linear_onnx_4d_f16) {
     tensor output_size{1, 8, 26, 26};
     auto in_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     std::vector<ov::float16> in_vals(input_size.count());
-    for (size_t i = 0; i < in_vals.size(); ++i)
+    for (size_t i = 0; i < in_vals.size(); ++i) {
         in_vals[i] = ov::float16(0.1f * static_cast<float>(i % 17) - 0.8f);
+    }
     set_values<ov::float16>(in_mem, in_vals);
 
     auto make_net = [&](const std::string& kernel) {
@@ -3032,8 +3036,9 @@ std::string select_resample_kernel(const tensor& input_size,
     auto in_layout = layout(data_types::f16, format::b_fs_yx_fsv16, input_size);
     auto in_mem = engine.allocate_memory(in_layout);
     std::vector<ov::float16> in_vals(input_size.count());
-    for (size_t i = 0; i < in_vals.size(); ++i)
+    for (size_t i = 0; i < in_vals.size(); ++i) {
         in_vals[i] = ov::float16(0.1f * static_cast<float>(i % 17) - 0.8f);
+    }
     set_values<ov::float16>(in_mem, in_vals);
 
     auto resample_prim = resample("resample", input_info("in"), output_size, 8,
@@ -3049,8 +3054,9 @@ std::string select_resample_kernel(const tensor& input_size,
     net.execute();
 
     for (const auto& info : net.get_primitives_info()) {
-        if (info.original_id == "resample")
+        if (info.original_id == "resample") {
             return info.kernel_id;
+        }
     }
     return {};
 }
@@ -3087,8 +3093,9 @@ TEST(resample_gpu, opt_nearest_fused_eltwise_builds) {
     tensor output_size{1, 8, 26, 26};
     auto in_mem = engine.allocate_memory({ data_types::f16, format::bfyx, input_size });
     std::vector<ov::float16> in_vals(input_size.count());
-    for (size_t i = 0; i < in_vals.size(); ++i)
+    for (size_t i = 0; i < in_vals.size(); ++i) {
         in_vals[i] = ov::float16(0.1f * static_cast<float>(i % 13) - 0.6f);
+    }
     set_values<ov::float16>(in_mem, in_vals);
     // the scale has the resample output shape so the eltwise product broadcasts over it
     auto scale = engine.allocate_memory({ data_types::f16, format::bfyx, output_size });
