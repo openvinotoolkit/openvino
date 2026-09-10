@@ -1582,8 +1582,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() == cldnn::resample::type_id() || prim.type() == cldnn::reorg_yolo::type_id())
             lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::bfyx_only_layer, 1);
 
-        if (!prim.is_in_shape_of_subgraph() &&
-            prim.is_in_data_flow() &&
+        if (prim.is_in_data_flow() &&
             prim.type() != cldnn::convolution::type_id() &&
             prim.type() != cldnn::deconvolution::type_id() &&
             prim.type() != cldnn::activation::type_id() &&
