@@ -1,7 +1,7 @@
 ---
 description: |
-  Shared custom safe-output job for the CI Doctor MQ workflow.
-  Sends a CI failure investigation summary to Microsoft Teams.
+  Shared custom safe-output job for the CI Doctor workflows (Merge Queue and
+  Post-Commit). Sends a CI failure investigation summary to Microsoft Teams.
 safe-outputs:
   jobs:
     notify-teams:
@@ -11,6 +11,11 @@ safe-outputs:
       permissions:
         contents: read
       inputs:
+        source:
+          description: "Which CI Doctor produced this notification: 'merge_queue' for the Merge Queue investigator or 'post_commit' for the Post-Commit investigator. Controls the badge shown in the Teams card ([MQ] / [PC]) and the uploaded statistics artifact name. Defaults to 'merge_queue'."
+          required: false
+          type: string
+          default: "merge_queue"
         title:
           description: "Short, searchable description of the failure (e.g. 'smoke_Bucketize tests fail on comparison'). No PR/run numbers."
           required: true
@@ -69,6 +74,7 @@ safe-outputs:
           with:
             python-version: '3.13'
         - name: Send Teams notification
+          id: notify
           env:
             TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
             RUN_URL: ${{ github.event.workflow_run.html_url || github.event.inputs.link || '' }}
@@ -80,8 +86,8 @@ safe-outputs:
           if: always()
           uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
           with:
-            name: ci-doctor-mq-statistics
-            path: ${{ runner.temp }}/ci-doctor-mq-stats
+            name: ${{ steps.notify.outputs.artifact_name || 'ci-doctor-mq-statistics' }}
+            path: ${{ steps.notify.outputs.stats_dir || format('{0}/ci-doctor-mq-statistics', runner.temp) }}
             if-no-files-found: ignore
             retention-days: 90
 ---
@@ -89,5 +95,6 @@ safe-outputs:
 # CI Doctor MQ — Teams Notification Job
 
 Shared definition of the `notify-teams` custom safe-output job used by the
-CI Doctor Merge Queue workflow. Import it via `imports:` in the consuming
-workflow's frontmatter.
+CI Doctor Merge Queue and CI Doctor Post-Commit workflows. Import it via
+`imports:` in the consuming workflow's frontmatter, and pass `source` to select
+the correct badge and statistics artifact name.
