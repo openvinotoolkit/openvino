@@ -25,13 +25,17 @@ std::vector<ov::AnyMap> filter_additional_config_basic() {
 // expectations below platform-correct by construction.
 std::vector<ov::AnyMap> filter_additional_config_fp8_wd() {
     std::vector<ov::AnyMap> additional_config = {};
-    if (!ov::intel_cpu::hasFp8WeightsDecompressionSupport(ov::element::bf16)) {
-        return additional_config;
+    // bf16 and f16 fp8-decompression support don't always come together (e.g. Sapphire
+    // Rapids has avx512_core_amx for bf16 but not avx512_core_amx_fp16/avx10_2 for f16),
+    // so each inference precision must be gated independently.
+    if (ov::intel_cpu::hasFp8WeightsDecompressionSupport(ov::element::bf16)) {
+        additional_config.push_back(
+            {{ov::hint::dynamic_quantization_group_size(0), ov::hint::inference_precision(ov::element::bf16)}});
     }
-    additional_config.push_back(
-        {{ov::hint::dynamic_quantization_group_size(0), ov::hint::inference_precision(ov::element::bf16)}});
-    additional_config.push_back(
-        {{ov::hint::dynamic_quantization_group_size(0), ov::hint::inference_precision(ov::element::f16)}});
+    if (ov::intel_cpu::hasFp8WeightsDecompressionSupport(ov::element::f16)) {
+        additional_config.push_back(
+            {{ov::hint::dynamic_quantization_group_size(0), ov::hint::inference_precision(ov::element::f16)}});
+    }
     return additional_config;
 }
 
