@@ -441,8 +441,8 @@ struct HFARuntimeContext {
                                          ov::SoPtr<ov::ITensor>& sum,
                                          const ov::SoPtr<ov::ITensor>& attention_sink = {});
 
-    /// Prepare next buffer asynchronously (call during NPU execution)
-    void prepare_next_state_buffers(const ov::SoPtr<ov::ITensor>& attention_sink = {});
+    /// Prepare next buffer asynchronously with the fixed no-sink initial state.
+    void prepare_next_state_buffers();
 
     /// Switch to next buffer after inference
     void switch_buffers();

@@ -1594,13 +1594,13 @@ void HFARuntimeContext::initialize_state_tensors(ov::SoPtr<ov::ITensor>& acc,
     }
 }
 
-void HFARuntimeContext::prepare_next_state_buffers(const ov::SoPtr<ov::ITensor>& attention_sink) {
+void HFARuntimeContext::prepare_next_state_buffers() {
     if (!m_state_buffers.has_value()) {
         return;
     }
     size_t next_idx = 1 - m_current_buffer_idx;
     auto& next_buffer = (*m_state_buffers)[next_idx];
-    initialize_state_tensors(next_buffer.acc, next_buffer.max, next_buffer.sum, attention_sink);
+    initialize_state_tensors(next_buffer.acc, next_buffer.max, next_buffer.sum);
 }
 
 void HFARuntimeContext::switch_buffers() {
