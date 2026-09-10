@@ -454,6 +454,9 @@ bool remat_all_uses_impl(std::list<Op>& ops, IR& ir, value_id vid, const Op& vic
         clone.emit = victim_def.emit;
         clone.def_rc = victim_def.def_rc;  // preserve register class
         clone.early_clobber = victim_def.early_clobber;
+        clone.may_load = victim_def.may_load;
+        clone.mem_ptr_read = victim_def.mem_ptr_read;
+        clone.mem_offset = victim_def.mem_offset;
         clone.name = "remat";
         ops.insert(it, std::move(clone));
 
@@ -910,6 +913,129 @@ void dump_assignment(std::ostream& os,
 
 // ── Pass implementations ────────────────────────────────────────────
 
+// ── FoldMemoryOperandsPass ──────────────────────────────────────────────
+
+namespace {
+
+// How many times `vid` is read anywhere in the tree, region headers and
+// nested bodies included. A load may only be folded away when its value
+// has exactly one consumer.
+std::uint32_t count_reads(const std::list<Op>& ops, value_id vid) {
+    std::uint32_t n = 0;
+    for (const auto& op : ops) {
+        for (auto r : op.reads) {
+            if (r == vid) {
+                ++n;
+            }
+        }
+        if (op.body) {
+            n += count_reads(op.body->ops(), vid);
+        }
+    }
+    return n;
+}
+
+// Folds within one straight-line list. Returns how many folds were made.
+std::uint32_t fold_in_list(std::list<Op>& ops, const IR& ir) {
+    std::uint32_t folded = 0;
+
+    for (auto load_it = ops.begin(); load_it != ops.end();) {
+        auto& load = *load_it;
+        const bool foldable_load = load.may_load && !load.may_store &&
+                                   load.def != invalid_value && load.mem_ptr_read >= 0 &&
+                                   load.folded_read < 0 && load.foldable_reads == 0;
+        if (!foldable_load || count_reads(ir.ops(), load.def) != 1) {
+            ++load_it;
+            continue;
+        }
+
+        // Scan forward for the single consumer. Stop at anything that may
+        // write memory — the load cannot move past it — at any region,
+        // since the consumer must be on this straight-line path, and at any
+        // op that touches the base pointer: pointer bumps mutate the
+        // register they declare as a read, so an address folded past one
+        // would resolve differently.
+        const auto base_ptr = load.reads[static_cast<std::size_t>(load.mem_ptr_read)];
+        auto use_it = std::next(load_it);
+        bool blocked = false;
+        for (; use_it != ops.end(); ++use_it) {
+            if (use_it->body || use_it->may_store) {
+                blocked = true;
+                break;
+            }
+            const auto& reads = use_it->reads;
+            const bool uses_value = std::find(reads.begin(), reads.end(), load.def) != reads.end();
+            if (uses_value) {
+                break;
+            }
+            if (std::find(reads.begin(), reads.end(), base_ptr) != reads.end()) {
+                blocked = true;
+                break;
+            }
+        }
+        if (blocked || use_it == ops.end()) {
+            ++load_it;
+            continue;
+        }
+
+        auto& use = *use_it;
+        if (use.foldable_reads == 0 || !use.fold_emit || use.folded_read >= 0) {
+            ++load_it;
+            continue;
+        }
+
+        // Which operand of the consumer holds the loaded value, and may
+        // that operand come from memory?
+        int fold_read = -1;
+        for (std::size_t i = 0; i < use.reads.size() && i < 8; ++i) {
+            if (use.reads[i] == load.def && ((use.foldable_reads >> i) & 1U) != 0U) {
+                fold_read = static_cast<int>(i);
+                break;
+            }
+        }
+        if (fold_read < 0) {
+            ++load_it;
+            continue;
+        }
+
+        // Rewrite the consumer: the folded operand now names the base
+        // pointer, and the memory form of the instruction takes over.
+        use.reads[static_cast<std::size_t>(fold_read)] = base_ptr;
+        use.folded_read = fold_read;
+        use.mem_offset = load.mem_offset;
+        use.may_load = true;
+        use.mem_ptr_read = fold_read;
+        use.emit = use.fold_emit;
+
+        trace_ir("fold load %" + std::to_string(load.def) + " into " +
+                 std::string(use.name) + " operand " + std::to_string(fold_read));
+
+        load_it = ops.erase(load_it);
+        ++folded;
+    }
+
+    return folded;
+}
+
+std::uint32_t fold_recursive(std::list<Op>& ops, const IR& ir) {
+    std::uint32_t folded = fold_in_list(ops, ir);
+    for (auto& op : ops) {
+        if (op.body) {
+            folded += fold_recursive(op.body->ops(), ir);
+        }
+    }
+    return folded;
+}
+
+}  // namespace
+
+bool FoldMemoryOperandsPass::run(IR& ir, PassContext& ctx) {
+    if (ctx.disable_memory_folding) {
+        return false;
+    }
+    return fold_recursive(ir.ops(), ir) != 0;
+}
+
 // Recursive helper for TwoAddressPass.
 static bool two_address_rewrite(std::list<Op>& ops, IR& ir) {
     bool modified = false;
@@ -1017,6 +1143,7 @@ bool LoweringPass::run(IR& ir, PassContext& ctx) {
 PassManager build_default_pipeline() {
     PassManager pm;
     pm.add<TwoAddressPass>();
+    pm.add<FoldMemoryOperandsPass>();
     pm.add<LiveRangeAnalysis>();
     pm.add<DumpPass>("IR before allocation");
     pm.add<RegisterAllocator>();

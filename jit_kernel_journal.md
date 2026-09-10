@@ -29,6 +29,7 @@ Constraints from `jit_kernel.md` that no longer hold:
 
 ```
 TwoAddressPass      → COPY insertion before tied-operand ops (breaks SSA, LLVM-style)
+FoldMemoryOperands  → single-use loads folded into their consumer's operand
 LiveRangeAnalysis   → CFG + dataflow liveness → live ranges
 DumpPass("before")  → OV_JIT_IR_DUMP
 RegisterAllocator   → interference assignment; may rematerialize, then re-runs analysis
@@ -111,6 +112,43 @@ This is not theoretical: the active-lane-mask computation
 time it was written, because the count dies at that op and reads/defs
 normally do not interfere. The differential test caught it as wrong
 output.
+
+### Memory-operand folding
+
+`FoldMemoryOperandsPass` rewrites `%v = load(%p); %r = mul(%a, %v)` into
+`%r = mul(%a, [%p])`. x86 gets this for free at instruction selection by
+declaring separate rr/rm instruction forms; with no instruction selection
+of our own it is a pass, positioned where LLVM's `PeepholeOptimizer` sits
+(after two-address lowering, before liveness).
+
+Model:
+- `Op::may_load` / `may_store` / `mem_ptr_read` / `mem_offset` — LLVM's
+  `mayLoad`/`mayStore`. No pass may reorder memory accesses without them.
+- `Op::foldable_reads` (bitmask) + `Op::fold_emit` — the rr/rm pair,
+  expressed as two closures because the DSL, not the IR, knows the
+  instruction. The IR stays opcode-free.
+- **Operand commutation.** The memory operand must come last on x86, so
+  folding operand 0 means swapping sources. Permitted for `vaddps`,
+  `vmulps` and both FMA multiplicands; refused for `vsubps` and for
+  `vmaxps`/`vminps`, which return their second source when an operand is
+  NaN. LLVM's `isCommutable` + `commuteInstruction`.
+- Refused when: the loaded value has more than one use anywhere; a
+  `may_store` op, a region boundary, or any op reading the base pointer
+  sits between load and use (`ptr_advance` mutates a register it declares
+  only as a read); or the load is masked — a masked load must not fold
+  into unmasked arithmetic, since the inactive lanes would read memory the
+  mask exists to suppress.
+
+`OV_JIT_IR_NO_FOLD` disables it for A/B, like `-disable-peephole`.
+
+Effect on RoPE's main loop: 12 → 8 vector instructions per iteration,
+which is instruction-for-instruction what gcc 13 and clang 18 emit from
+the equivalent intrinsics. Kernel 301 → 277 bytes. **No measurable
+runtime change** — see the measurements section.
+
+It does not fire on two paths that matter: masked loads (so nothing under
+mask tail folding) and `color_convert`, whose loads feed `vsubps`
+operand 0 and custom shuffle ops that have no memory form.
 
 ### Register assignment (`assign_registers`)
 
@@ -324,6 +362,53 @@ Measured on the earlier `foreach_predicated` version of the kernel; the
 current `foreach_with_epilogue` version has not been re-measured, and the
 unroll column no longer has a mechanism behind it (see below).
 
+### Measured runtime — RoPE node, AVX-512 host, 2026-09
+
+`BenchmarkLayerTest<RoPETest*>` instances in
+`shared_tests_instances/subgraph_tests/rotary_pos_emb.cpp` report the
+average `real_time` of the RoPE node from `PERF_COUNT`, one thread, one
+stream, 200 attempts after a 2 s warmup. Disabled by default; run with
+`--gtest_also_run_disabled_tests --gtest_filter='RoPEBench*'`.
+
+| Shape | legacy | IR + mask | IR + epilogue |
+|---|---|---|---|
+| Llama2 (half=64, no tail) | 1577 / 1585 / 1578 | **1558 / 1547 / 1561** | 1579 / 1596 / 1589 |
+| QwenVL (half=40, tail) | **35 / 34 / 34** | 40 / 40 / 40 | 38 / 38 / 38 |
+| GPTJ (interleaved) | 1681 / 1685 / 1669 | 1685 / 1690 / 1680 | 1674 / 1676 / 1679 |
+
+With memory-operand folding on the epilogue path: 1584 / 1585 / 1580,
+i.e. inside the spread of the same config without folding
+(1578 / 1565 / 1609).
+
+Conclusions, none of them flattering to instruction counting:
+- The big shapes are **memory-bound**. Removing a third of the inner
+  loop's vector instructions changed nothing measurable, and the config
+  with the *most* instructions per iteration (mask folding) is the
+  fastest.
+- The small shape is where the kernel body shows: the IR kernel is ~15%
+  slower than legacy on QwenVL because it runs a 3-trip loop paying
+  per-iteration active-length and predicate setup, while legacy emits
+  straight-line code.
+- Code size is not a proxy for speed here. 236 B versus 446 B of legacy
+  code bought nothing on Llama2.
+
+### Reference: what a compiler produces
+
+`rope_intrinsics.cpp` (untracked, repo root) holds the same kernel in
+intrinsics and in plain C++, for gcc 13 and clang 18. Findings:
+- Both compilers fold four of six loads into their consumers, giving 8
+  vector ops per iteration — the number our folding pass now reaches.
+- Given plain C++ and `-mprefer-vector-width=512`, gcc handles a
+  40-element count as two `zmm` iterations plus **one `ymm` iteration**:
+  the same width-reduction trick the legacy JIT uses, chosen
+  automatically, and cheaper than building a predicate.
+- Without that flag neither compiler uses `zmm` at all for auto-vectorized
+  loops on this host — default tuning caps at 256 bits. Any "we beat the
+  compiler" claim has to name the flags.
+- For a runtime count, gcc does not vectorize (27 scalar instructions) and
+  clang emits 200 instructions with 22 branches. That is the case a JIT
+  wins by construction.
+
 ## Open hazards and gaps
 
 1. **No spiller.** Pool exhaustion is a hard failure. Needs frame sizing
@@ -342,27 +427,36 @@ unroll column no longer has a mechanism behind it (see below).
    (`foreach_predicated(..., unroll)`) still works. An IR pass becomes
    possible once the loop bound and step are IR operands of a real loop
    op instead of captured immediates.
-5. **The epilogue strategy records the body twice** — inherent to it, and
-   now only chosen on targets without predication (AVX2, SSE, NEON). The
-   masked strategy records once and is 36% smaller on the NV12 converter.
+5. **Loops are always rolled.** `foreach_vec` emits a loop even when the
+   trip count is a compile-time constant, so a 3-trip kernel pays
+   per-iteration active-length and predicate setup that the legacy kernel
+   avoids by emitting straight-line code. This is the one gap the runtime
+   measurements actually blamed. Fix: specialize on a compile-time count —
+   unroll the full iterations, and prefer width reduction (a `ymm` step
+   for an 8-float remainder) over a predicate where the target offers it.
+   It also unblocks memory-operand folding on the default path, since
+   unmasked iterations have foldable loads.
 6. **No predicated interleaved store on x86.** `store_interleaved3` under
    a short active length still builds the interleave in a stack slot and
    copies `count*3` elements out. Three separately-derived masks would fix
    it on AVX-512; SVE (`ST3`) and RVV (segment stores) take the predicate
    directly. `supports_masked_interleaved_access()` is the switch.
-7. **`length` (RVV) tail folding is declared, not implemented.** Needs a
+7. **The epilogue strategy records the body twice** — inherent to it, and
+   now only chosen on targets without predication (AVX2, SSE, NEON). The
+   masked strategy records once and is 36% smaller on the NV12 converter.
+8. **`length` (RVV) tail folding is declared, not implemented.** Needs a
    RISC-V generator and `vl` modelled as machine state with `vsetvli`
    insertion in the loop header. `foreach_vec` throws instead of
    approximating it.
-8. **Only an x86-64 generator exists**, and the DSL has no arch boundary.
+9. **Only an x86-64 generator exists**, and the DSL has no arch boundary.
    See "Multi-architecture plan" below for the measurement, the three real
    gaps and the phasing.
-9. **`bf16` store truncates** instead of rounding to nearest even
+10. **`bf16` store truncates** instead of rounding to nearest even
    (`vcvtneps2bf16` where available).
-10. **GPR-hungry scalarized access.** `ir_load_partial` /
+11. **GPR-hungry scalarized access.** `ir_load_partial` /
     `ir_store_partial` / `ir_memcpy` cost ~20 GPR values, which is why
     they are now only reached on targets without predication.
-11. **Repo hygiene.** `jit_kernel.hpp` is 2662 lines; the design docs live
+12. **Repo hygiene.** `jit_kernel.hpp` is 2662 lines; the design docs live
    in the repo root; the worktree carries `llvm-project/`,
    `dnnl_dump_*.bin`, `report_*.xml`, `rope_intrinsics.cpp`. Not
    upstreamable as a single change — wants splitting into IR core +
@@ -512,14 +606,16 @@ adding to the suite regardless, since it also hardens the x86 masked path.
 | `OV_JIT_IR_TRACE` | trace recording, CFG/liveness, allocation and lowering |
 | `OV_JIT_IR_ROPE` | select the IR RoPE kernel instead of the legacy one |
 | `OV_JIT_TAIL_FOLDING` | `epilogue` / `mask` / `length` — override the target's tail-folding choice (LLVM's `-prefer-predicate-over-epilogue`) |
+| `OV_JIT_IR_NO_FOLD` | disable memory-operand folding (LLVM's `-disable-peephole`) |
 
 ## Test status (2026-09-04, RelWithDebInfo, AVX-512 host)
 
 Every suite run twice, once per tail-folding strategy
 (`OV_JIT_TAIL_FOLDING=mask` and `=epilogue`), with identical results:
 
-- `ov_cpu_unit_tests --gtest_filter='JitKernel*'`: **47/47 pass**
-  (43 `JitKernelIR.*`, 4 `JitKernel.*`).
+- `ov_cpu_unit_tests --gtest_filter='JitKernel*'`: **52/52 pass**
+  (48 `JitKernelIR.*`, 4 `JitKernel.*`), and green in all four
+  combinations of `OV_JIT_TAIL_FOLDING` × `OV_JIT_IR_NO_FOLD`.
 - `ov_cpu_func_tests --gtest_filter='smoke_TestsConvertColor*'`: **26/26
   pass**, including the `u8` accuracy case (144×16).
 - `OV_JIT_IR_ROPE=1 ov_cpu_func_tests --gtest_filter='smoke_RoPETest*'`:

@@ -85,9 +85,19 @@ struct PhysReg {
 // `reads` is a plain vector rather than std::span because the intel_cpu
 // plugin is C++17 and std::span is C++20. Switch to std::span when the
 // plugin moves to C++20.
+// A memory operand folded into an instruction: base register plus a byte
+// displacement. Arch-neutral on purpose — the emit closure turns it into
+// whatever address form the target uses.
+struct FoldedMem {
+    PhysReg base;
+    std::uint32_t offset = 0;
+    int read = -1;        // which read of the op became the memory operand
+};
+
 struct EmitContext {
     std::optional<PhysReg> def;              // physical reg backing Op.def, if any
     const std::vector<PhysReg>& reads;       // physical regs backing Op.reads, in order
+    std::optional<FoldedMem> folded;         // set when an operand was folded into memory
 };
 
 using EmitFn = std::function<void(const EmitContext&)>;
@@ -105,6 +115,35 @@ struct Op {
                                          // that def must share a register with. -1 = none.
                                          // The allocator coalesces or inserts a copy.
     RegisterClass def_rc = RegisterClass::Vec;  // register class for the def value
+
+    // ── Memory effects ────────────────────────────────────────────────
+    // LLVM spells these mayLoad / mayStore on MachineInstr, generated from
+    // the target description. They exist here for the same reason: no pass
+    // may reorder a memory access past another one without them.
+    bool may_load = false;
+    bool may_store = false;
+    int mem_ptr_read = -1;               // index into reads[] holding the base pointer
+    std::uint32_t mem_offset = 0;        // byte displacement of the access
+
+    // ── Foldable operands ─────────────────────────────────────────────
+    // `foldable_reads` is a bitmask of the operands this op can take from
+    // memory instead of a register, and `fold_emit` is the memory form of
+    // the instruction. That is the rr/rm instruction pair an x86 target
+    // declares in its .td file, expressed as two closures because the DSL
+    // — not the IR — knows the instruction.
+    //
+    // More than one bit may be set for a commutative op: x86 requires the
+    // memory operand to come last, so folding a first operand means
+    // swapping the sources. LLVM does the same thing with isCommutable +
+    // commuteInstruction; here the fold closure reads
+    // EmitContext::folded->read and picks the surviving register operand.
+    std::uint8_t foldable_reads = 0;
+    EmitFn fold_emit;
+
+    // Set by FoldMemoryOperandsPass: the read index whose value now comes
+    // from memory. reads[folded_read] holds the base pointer.
+    int folded_read = -1;
+
     bool early_clobber = false;          // def is written before the reads are
                                          // consumed, so it must not share a
                                          // register with any of them. Mirrors
@@ -239,6 +278,12 @@ public:
     void loop(EmitFn emit, BodyBuilder&& body_builder) {
         region({}, std::move(emit), std::forward<BodyBuilder>(body_builder), /*is_loop=*/true);
     }
+
+    // The op just recorded. Builder-style annotation for the properties a
+    // recording site knows but the generic builders do not take — memory
+    // effects and the foldable-operand pair. Mirrors MachineInstrBuilder
+    // chaining onto the instruction it just built.
+    Op& last() { return target().back(); }
 
     [[nodiscard]] const std::list<Op>& ops() const noexcept { return _ops; }
     [[nodiscard]] std::list<Op>& ops() noexcept { return _ops; }
@@ -446,6 +491,7 @@ struct PassContext {
     // Config
     bool dump = false;     // OV_JIT_IR_DUMP
     bool trace = false;    // OV_JIT_IR_TRACE
+    bool disable_memory_folding = false;   // OV_JIT_IR_NO_FOLD, for A/B measurement
 };
 
 // Base class for all IR passes.
@@ -480,6 +526,28 @@ private:
 struct LiveRangeAnalysis : IRPass {
     bool run(IR& ir, PassContext& ctx) override;
     const char* name() const override { return "LiveRangeAnalysis"; }
+};
+
+// Transform: fold single-use loads into the operand of their consumer.
+//
+// %v = load(%ptr)            ->   %r = mul(%a, [%ptr])
+// %r = mul(%a, %v)
+//
+// This is the transform x86 gets for free at instruction selection by
+// having separate rr/rm instruction forms; with no instruction selection
+// of our own, it belongs in a pass, positioned where LLVM's
+// PeepholeOptimizer sits — after two-address lowering, before liveness.
+//
+// Requirements for a fold, all checked:
+//   - the load defines a value with exactly one use in the whole IR
+//   - the consumer declares that operand foldable (fold_read / fold_emit)
+//     and has no folded operand yet (x86 allows one memory operand)
+//   - load and consumer sit in the same region body, with no op that may
+//     write memory between them, and no region op between them
+//   - the load is unmasked and its base pointer is an IR value
+struct FoldMemoryOperandsPass : IRPass {
+    bool run(IR& ir, PassContext& ctx) override;
+    const char* name() const override { return "FoldMemoryOperands"; }
 };
 
 // Transform: insert explicit COPY ops before tied-operand instructions.

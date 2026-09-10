@@ -621,6 +621,9 @@ void jit_kernel::end_ir() {
     ctx.mask_pool_indices.assign(predicates.begin(), predicates.end());
     ctx.gpr_pool_indices.assign(_free_x64regs.begin(), _free_x64regs.end());
     ctx.dump = std::getenv("OV_JIT_IR_DUMP") != nullptr;
+    // A/B switch for the folding pass, same purpose as LLVM's
+    // -disable-peephole: measure what the transform is worth.
+    ctx.disable_memory_folding = std::getenv("OV_JIT_IR_NO_FOLD") != nullptr;
     ctx.trace = std::getenv("OV_JIT_IR_TRACE") != nullptr;
 
     // Lowering callback — walks the IR tree and emits xbyak instructions.
@@ -637,7 +640,7 @@ void jit_kernel::end_ir() {
                     for (auto vid : op.reads) {
                         read_regs.push_back(assignment.reg.at(vid));
                     }
-                    const jit_kernel_ir::EmitContext ectx{std::nullopt, read_regs};
+                    const jit_kernel_ir::EmitContext ectx{std::nullopt, read_regs, std::nullopt};
                     op.emit(ectx);
                     lower(op.body->ops());
                     ir_trace(std::string("lower ") + (op.is_loop ? "loop" : "region") + " exit");
@@ -665,7 +668,16 @@ void jit_kernel::end_ir() {
                         os << "]";
                         ir_trace(os.str());
                     }
-                    const jit_kernel_ir::EmitContext ectx{def_reg, read_regs};
+                    // A folded operand resolves to (base register, displacement);
+                    // the op's emit closure builds the address form.
+                    std::optional<jit_kernel_ir::FoldedMem> folded;
+                    if (op.folded_read >= 0 &&
+                        op.folded_read < static_cast<int>(read_regs.size())) {
+                        folded = jit_kernel_ir::FoldedMem{
+                            read_regs[static_cast<std::size_t>(op.folded_read)], op.mem_offset,
+                            op.folded_read};
+                    }
+                    const jit_kernel_ir::EmitContext ectx{def_reg, read_regs, folded};
                     // TwoAddressPass COPY: dispatch by register class.
                     // LLVM-style: X86InstrInfo::copyPhysReg checks class.
                     if (op.is_copy && def_reg && !read_regs.empty()

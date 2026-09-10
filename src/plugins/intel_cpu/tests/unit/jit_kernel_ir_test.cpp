@@ -582,6 +582,150 @@ TEST(JitKernelIR, LiveRangesUsedAfterBranch) {
     EXPECT_EQ(ranges[a].endIndex(), 11U);
 }
 
+// ── Memory operand folding ─────────────────────────────────────────────
+
+namespace {
+
+// A load: reads a base pointer, defines a value, declares its memory
+// effects so the pass can reason about ordering.
+value_id record_load(IR& ir, value_id base, std::uint32_t offset = 0) {
+    const auto vid = ir.def({base}, stub(), "load");
+    auto& op = ir.last();
+    op.may_load = true;
+    op.mem_ptr_read = 0;
+    op.mem_offset = offset;
+    return vid;
+}
+
+// A consumer with `foldable` as its bitmask of memory-capable operands.
+value_id record_consumer(IR& ir, std::vector<value_id> reads, std::uint8_t foldable) {
+    const auto vid = ir.def(std::move(reads), stub(), "consume");
+    auto& op = ir.last();
+    op.foldable_reads = foldable;
+    op.fold_emit = stub();
+    return vid;
+}
+
+bool has_load(const std::list<Op>& ops) {
+    for (const auto& op : ops) {
+        if (op.may_load && op.def != invalid_value && op.folded_read < 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool run_folding(IR& ir) {
+    PassContext ctx;
+    FoldMemoryOperandsPass pass;
+    return pass.run(ir, ctx);
+}
+
+}  // namespace
+
+TEST(JitKernelIR, FoldsSingleUseLoadIntoItsConsumer) {
+    IR ir;
+    const value_id ptr = ir.def({}, stub(), "ptr", RegisterClass::GPR);
+    const value_id other = ir.def({}, stub(), "other");
+    const value_id loaded = record_load(ir, ptr, /*offset=*/0x40);
+    const value_id result = record_consumer(ir, {other, loaded}, 0b10);
+    ir.use({result}, stub(), "sink");
+
+    EXPECT_TRUE(run_folding(ir));
+    EXPECT_FALSE(has_load(ir.ops())) << "the load should be gone";
+
+    // The consumer now names the base pointer in the folded operand.
+    const auto& consumer = *std::next(ir.ops().begin(), 2);
+    EXPECT_EQ(consumer.folded_read, 1);
+    EXPECT_EQ(consumer.reads[1], ptr);
+    EXPECT_EQ(consumer.mem_offset, 0x40U);
+    EXPECT_TRUE(consumer.may_load);
+}
+
+TEST(JitKernelIR, FoldsCommutedOperandForCommutativeOps) {
+    // The loaded value is operand 0. x86 wants the memory operand last, so
+    // this only folds when the op says both operands are foldable.
+    IR commutative;
+    {
+        const value_id ptr = commutative.def({}, stub(), "ptr", RegisterClass::GPR);
+        const value_id other = commutative.def({}, stub(), "other");
+        const value_id loaded = record_load(commutative, ptr);
+        const value_id result = record_consumer(commutative, {loaded, other}, 0b11);
+        commutative.use({result}, stub(), "sink");
+    }
+    EXPECT_TRUE(run_folding(commutative));
+    EXPECT_FALSE(has_load(commutative.ops()));
+
+    IR non_commutative;
+    {
+        const value_id ptr = non_commutative.def({}, stub(), "ptr", RegisterClass::GPR);
+        const value_id other = non_commutative.def({}, stub(), "other");
+        const value_id loaded = record_load(non_commutative, ptr);
+        const value_id result = record_consumer(non_commutative, {loaded, other}, 0b10);
+        non_commutative.use({result}, stub(), "sink");
+    }
+    EXPECT_FALSE(run_folding(non_commutative));
+    EXPECT_TRUE(has_load(non_commutative.ops()))
+        << "operand 0 of a non-commutative op cannot come from memory";
+}
+
+TEST(JitKernelIR, DoesNotFoldMultiUseLoad) {
+    IR ir;
+    const value_id ptr = ir.def({}, stub(), "ptr", RegisterClass::GPR);
+    const value_id other = ir.def({}, stub(), "other");
+    const value_id loaded = record_load(ir, ptr);
+    const value_id first = record_consumer(ir, {other, loaded}, 0b10);
+    ir.use({loaded, first}, stub(), "second_use");
+
+    EXPECT_FALSE(run_folding(ir));
+    EXPECT_TRUE(has_load(ir.ops())) << "the load still has a second consumer";
+}
+
+TEST(JitKernelIR, DoesNotFoldAcrossAStoreOrAPointerBump) {
+    // A store between the load and its use may alias the loaded address.
+    IR across_store;
+    {
+        const value_id ptr = across_store.def({}, stub(), "ptr", RegisterClass::GPR);
+        const value_id other = across_store.def({}, stub(), "other");
+        const value_id loaded = record_load(across_store, ptr);
+        across_store.use({other}, stub(), "store");
+        across_store.last().may_store = true;
+        const value_id result = record_consumer(across_store, {other, loaded}, 0b10);
+        across_store.use({result}, stub(), "sink");
+    }
+    EXPECT_FALSE(run_folding(across_store));
+    EXPECT_TRUE(has_load(across_store.ops()));
+
+    // A pointer bump rewrites the register the folded address would use.
+    IR across_bump;
+    {
+        const value_id ptr = across_bump.def({}, stub(), "ptr", RegisterClass::GPR);
+        const value_id other = across_bump.def({}, stub(), "other");
+        const value_id loaded = record_load(across_bump, ptr);
+        across_bump.use({ptr}, stub(), "ptr_advance");
+        const value_id result = record_consumer(across_bump, {other, loaded}, 0b10);
+        across_bump.use({result}, stub(), "sink");
+    }
+    EXPECT_FALSE(run_folding(across_bump));
+    EXPECT_TRUE(has_load(across_bump.ops()));
+}
+
+TEST(JitKernelIR, DoesNotFoldIntoARegionOrPastOne) {
+    IR ir;
+    const value_id ptr = ir.def({}, stub(), "ptr", RegisterClass::GPR);
+    const value_id other = ir.def({}, stub(), "other");
+    const value_id loaded = record_load(ir, ptr);
+    value_id result = invalid_value;
+    ir.region(stub(), [&]() {
+        result = record_consumer(ir, {other, loaded}, 0b10);
+    });
+    ir.use({result}, stub(), "sink");
+
+    EXPECT_FALSE(run_folding(ir));
+    EXPECT_TRUE(has_load(ir.ops()))
+        << "the consumer is only reached conditionally; the load must stay";
+}
+
 // ── Mask register class ────────────────────────────────────────────────
 
 namespace {

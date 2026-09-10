@@ -1252,6 +1252,12 @@ public:
     template <typename Reg>
     void lower(Insn2 insn, const Reg& d, const Reg& s1, const Reg& s2);
 
+    // Memory forms — the rm counterparts of the register instructions
+    // above. x86 allows one memory operand, always the last one, which is
+    // why FoldMemoryOperandsPass only ever folds a single read.
+    template <typename Reg>
+    void lower(Insn2 insn, const Reg& d, const Reg& s1, const Xbyak::Address& s2);
+
     // Destructive ternary dispatch: result = seed ± a * b.
     // The emit closure handles the tied-operand constraint: vmovups(def, seed)
     // before the FMA. If the allocator assigns the same register for def
@@ -1265,6 +1271,9 @@ public:
     // Destructive FMA: d = d ± s1 * s2. Seed copy handled by vec_copy().
     template <typename Reg>
     void lower(Insn3 insn, const Reg& d, const Reg& s1, const Reg& s2);
+
+    template <typename Reg>
+    void lower(Insn3 insn, const Reg& d, const Reg& s1, const Xbyak::Address& s2);
 
     // ── Syntactic sugar: instruction functors ──────────────────────────
     // Lightweight callable that binds an instruction enum to this kernel.
@@ -1771,7 +1780,40 @@ jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn2 insn,
                   reg_type(ctx.reads[1].idx));
         },
         "vec_op");
+
+    // Declare which operands may come from memory, and supply the memory
+    // form of the instruction — the DSL's equivalent of a target
+    // description listing both rr and rm.
+    //
+    // The memory operand must be last on x86, so folding operand 0 means
+    // swapping the sources: only sound for a commutative operation.
+    // vsubps is not commutative; vmaxps/vminps are not either in the
+    // strict sense, because they return the second source when an operand
+    // is NaN.
+    const bool commutative = (insn == Insn2::vaddps || insn == Insn2::vmulps);
+    auto& op = _ir->last();
+    op.foldable_reads = commutative ? 0b11 : 0b10;
+    op.fold_emit = [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+        const auto kept = (ctx.folded->read == 0) ? 1U : 0U;
+        lower(insn,
+              reg_type(ctx.def->idx),
+              reg_type(ctx.reads[kept].idx),
+              address_frame(sizeof(reg_type))[Xbyak::Reg64(ctx.folded->base.idx) +
+                                              ctx.folded->offset]);
+    };
     return variable<float[N]>(*this, vid);
+}
+
+template <typename Reg>
+void jit_kernel::lower(Insn2 insn, const Reg& d, const Reg& s1, const Xbyak::Address& s2) {
+    switch (insn) {
+    case Insn2::vaddps: uni_vaddps(d, s1, s2); break;
+    case Insn2::vsubps: uni_vsubps(d, s1, s2); break;
+    case Insn2::vmulps: uni_vmulps(d, s1, s2); break;
+    case Insn2::vmaxps: uni_vmaxps(d, s1, s2); break;
+    case Insn2::vminps: uni_vminps(d, s1, s2); break;
+    default: OPENVINO_THROW("jit_kernel::lower: unknown Insn2 value ", static_cast<int>(insn));
+    }
 }
 
 template <typename Reg>
@@ -1779,6 +1821,16 @@ void jit_kernel::lower(Insn3 insn, const Reg& d, const Reg& s1, const Reg& s2) {
     // Destructive FMA: d = d + s1 * s2 (fmadd231) or d = d - s1 * s2 (fnmadd231).
     // The seed copy (vmovups into d) is handled by vec_copy() — the allocator
     // may coalesce it, eliminating the copy entirely.
+    switch (insn) {
+    case Insn3::fmadd231ps:  uni_vfmadd231ps(d, s1, s2);  break;
+    case Insn3::fnmadd231ps: uni_vfnmadd231ps(d, s1, s2); break;
+    case Insn3::fmsub231ps:  Xbyak::CodeGenerator::vfmsub231ps(d, s1, s2); break;
+    default: OPENVINO_THROW("jit_kernel::lower: unknown Insn3 value ", static_cast<int>(insn));
+    }
+}
+
+template <typename Reg>
+void jit_kernel::lower(Insn3 insn, const Reg& d, const Reg& s1, const Xbyak::Address& s2) {
     switch (insn) {
     case Insn3::fmadd231ps:  uni_vfmadd231ps(d, s1, s2);  break;
     case Insn3::fnmadd231ps: uni_vfnmadd231ps(d, s1, s2); break;
@@ -1806,6 +1858,19 @@ jit_kernel::variable<float[N]> jit_kernel::vec_op(Insn3 insn,
                   reg_type(ctx.reads[2].idx));
         },
         "fma");
+
+    // The seed is the destination and cannot be memory; either
+    // multiplicand can, since the product commutes.
+    auto& op = _ir->last();
+    op.foldable_reads = 0b110;
+    op.fold_emit = [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+        const auto kept = (ctx.folded->read == 1) ? 2U : 1U;
+        lower(insn,
+              reg_type(ctx.def->idx),
+              reg_type(ctx.reads[kept].idx),
+              address_frame(sizeof(reg_type))[Xbyak::Reg64(ctx.folded->base.idx) +
+                                              ctx.folded->offset]);
+    };
     return variable<float[N]>(*this, vid);
 }
 
@@ -1948,6 +2013,19 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr
 
     const char* name = masked ? "load_masked" : "load";
     auto vid = _ir->def(std::move(reads), std::move(emit), name);
+
+    // Memory effects, so no pass reorders this against a store. A plain
+    // f32 load is also a fold candidate: its consumer can take the address
+    // directly. Converting loads are not — the conversion has no memory
+    // form — and neither are masked ones.
+    auto& op = _ir->last();
+    op.may_load = true;
+    op.mem_ptr_read = 0;
+    op.mem_offset = static_cast<std::uint32_t>(byte_offset);
+    if (masked || !std::is_same_v<elem_type, float>) {
+        op.mem_ptr_read = -1;  // still may_load, but not foldable
+        op.mem_offset = 0;
+    }
     return variable<float[N]>(*this, vid);
 }
 
@@ -1998,6 +2076,8 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load_partial(const variable<PtrT>&
             uni_vmovups(ptr[ptr_reg + off], zero_reg);
         }
     }, "zero_slot");
+
+    _ir->last().may_store = true;
 
     // Scalar copy of `count` elements from src (+offset) into the slot.
     ir_memcpy<elem_type>(stack, ir_offset_ptr(src_ptr, byte_offset), count.vid());
@@ -2052,6 +2132,8 @@ void jit_kernel::ir_memcpy(jit_kernel_ir::value_id dst_vid,
             jmp(loop, CodeGenerator::T_NEAR);
             L(exit);
         }, "memcpy_loop");
+
+    _ir->last().may_store = true;
 }
 
 template <size_t N, typename PtrT, typename ElemT>
@@ -2164,6 +2246,12 @@ void jit_kernel::ir_store(const variable<PtrT>& dst_ptr, size_t byte_offset,
                 }
             }
         }, masked ? "store_masked" : "store");
+
+    // Memory effects: nothing may be folded or reordered across a store.
+    auto& store_op = _ir->last();
+    store_op.may_store = true;
+    store_op.mem_ptr_read = 0;
+    store_op.mem_offset = static_cast<std::uint32_t>(byte_offset);
 }
 
 // ── foreach_vec ────────────────────────────────────────────────────────
