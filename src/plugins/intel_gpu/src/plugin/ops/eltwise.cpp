@@ -11,10 +11,11 @@
 #include "intel_gpu/primitives/reshape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
-#include "openvino/op/bitwise_or.hpp"
-#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/bitwise_left_shift.hpp"
+#include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
+#include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -34,6 +35,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/xor.hpp"
@@ -103,7 +105,41 @@ static void CreateAddOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Add
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::sum);
 }
 
+static bool IsWeightedReduceCandidate(const std::shared_ptr<ov::op::v1::Multiply>& multiply) {
+    if (multiply->output(0).get_target_inputs().size() != 1 || !multiply->get_input_partial_shape(0).is_static() ||
+        !multiply->get_input_partial_shape(1).is_static())
+        return false;
+
+    const auto input_type = multiply->get_input_element_type(0);
+    if (input_type != multiply->get_input_element_type(1) || (input_type != ov::element::f16 && input_type != ov::element::f32))
+        return false;
+
+    auto consumer = multiply->output(0).get_target_inputs().begin()->get_node()->shared_from_this();
+    auto reduce = ov::as_type_ptr<ov::op::v1::ReduceSum>(consumer);
+    if (!reduce)
+        return false;
+
+    auto axes_constant = ov::as_type_ptr<ov::op::v0::Constant>(reduce->get_input_node_shared_ptr(1));
+    if (!axes_constant)
+        return false;
+    auto axes = axes_constant->cast_vector<int64_t>();
+    if (axes.size() != 1)
+        return false;
+
+    const auto shape0 = multiply->get_input_shape(0);
+    const auto shape1 = multiply->get_input_shape(1);
+    if (shape0.size() != 4 || shape1.size() != 4)
+        return false;
+    int64_t axis = axes[0] < 0 ? axes[0] + 4 : axes[0];
+    if (axis != 3 || shape0[0] != shape1[0] || shape0[2] != shape1[2] || shape0[2] <= 1024 || shape0[3] != shape1[3] || shape0[3] != 16)
+        return false;
+
+    return (shape0[1] == 1 && shape1[1] > 1) || (shape1[1] == 1 && shape0[1] > 1);
+}
+
 static void CreateMultiplyOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Multiply>& op) {
+    if (IsWeightedReduceCandidate(op))
+        return;
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::prod);
 }
 

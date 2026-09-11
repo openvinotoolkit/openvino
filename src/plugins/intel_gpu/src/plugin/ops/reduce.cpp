@@ -2,29 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reduce_logical_or.hpp"
-#include "openvino/op/reduce_logical_and.hpp"
-#include "openvino/op/reduce_l1.hpp"
-#include "openvino/op/reduce_l2.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/constant.hpp"
-
 #include "intel_gpu/primitives/reduce.hpp"
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_l1.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 namespace ov::intel_gpu {
 
 static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, cldnn::reduce_mode mode, bool keep_dims) {
     validate_inputs_count(op, {2});
-    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
     auto input_pshape = op->get_input_partial_shape(0);
     int64_t rank = input_pshape.size();
@@ -43,13 +42,40 @@ static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& o
         }
     }
 
-    auto reducePrim = cldnn::reduce(layerName,
-                                    inputs[0],
-                                    mode,
-                                    axes,
-                                    keep_dims);
+    bool use_weighted_reduce = false;
+    std::vector<cldnn::input_info> weighted_inputs;
+    if (mode == cldnn::reduce_mode::sum && axes.size() == 1 && axes[0] == rank - 1) {
+        auto src = op->get_input_node_shared_ptr(0);
+        auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(src);
+        if (multiply && multiply->output(0).get_target_inputs().size() == 1 && multiply->get_input_partial_shape(0).is_static() &&
+            multiply->get_input_partial_shape(1).is_static()) {
+            const auto input_type = multiply->get_input_element_type(0);
+            const bool supported_type = input_type == multiply->get_input_element_type(1) && (input_type == ov::element::f16 || input_type == ov::element::f32);
+            const auto shape0 = multiply->get_input_shape(0);
+            const auto shape1 = multiply->get_input_shape(1);
+            if (supported_type && shape0.size() == 4 && shape1.size() == 4 && shape0[0] == shape1[0] && shape0[2] == shape1[2] && shape0[2] > 1024 &&
+                shape0[3] == shape1[3] && shape0[3] == 16) {
+                size_t values_idx = 0;
+                size_t weights_idx = 1;
+                if (shape0[1] == 1 && shape1[1] > 1) {
+                    values_idx = 1;
+                    weights_idx = 0;
+                }
+                if ((values_idx == 0 ? shape1[1] : shape0[1]) == 1 && (values_idx == 0 ? shape0[1] : shape1[1]) > 1) {
+                    auto multiply_inputs = p.GetInputInfo(multiply);
+                    weighted_inputs = {multiply_inputs[values_idx], multiply_inputs[weights_idx]};
+                    use_weighted_reduce = true;
+                }
+            }
+        }
+    }
 
-    p.add_primitive(*op, reducePrim);
+    if (use_weighted_reduce) {
+        p.add_primitive(*op, cldnn::reduce(layerName, weighted_inputs[0], weighted_inputs[1], mode, axes, keep_dims));
+    } else {
+        auto inputs = p.GetInputInfo(op);
+        p.add_primitive(*op, cldnn::reduce(layerName, inputs[0], mode, axes, keep_dims));
+    }
 
     if (input_pshape.is_dynamic() || p.use_new_shape_infer()) {
         return;

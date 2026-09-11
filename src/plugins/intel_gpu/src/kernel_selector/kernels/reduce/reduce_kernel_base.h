@@ -17,6 +17,7 @@ struct reduce_params : public base_params {
     ReduceMode reduceMode;
     std::vector<uint16_t> reduceAxes;
     int32_t keepDims;
+    bool weighted = false;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -33,6 +34,9 @@ protected:
     bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const reduce_params& params) const;
     virtual CommonDispatchData SetDefault(const reduce_params& params) const = 0;
+    virtual bool SupportsWeightedReduce() const {
+        return false;
+    }
     Datatype GetAccumulatorType(const reduce_params& p) const;
     Datatype GetFinalAccumulatorType(const reduce_params& p) const;
     Datatype GetActivationType(const reduce_params& params) const;

@@ -2,20 +2,495 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reduce.hpp>
-#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "random_generator.hpp"
 #include "reduce_inst.h"
 #include "registry/implementation_manager.hpp"
-
-#include <cmath>
-#include <algorithm>
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
+
+static void test_weighted_reduce_x16_matches_multiply_reduce_bit_exact(bool is_caching_test) {
+    auto& engine = get_test_engine();
+    const layout values_layout(data_types::f16, format::bfyx, tensor(2, 32, 16, 1025));
+    const layout weights_layout(data_types::f16, format::bfyx, tensor(2, 1, 16, 1025));
+    auto values = engine.allocate_memory(values_layout);
+    auto weights = engine.allocate_memory(weights_layout);
+    VF<ov::float16> values_data(values_layout.count());
+    VF<ov::float16> weights_data(weights_layout.count());
+    for (size_t i = 0; i < values_data.size(); ++i)
+        values_data[i] = ov::float16((static_cast<int>(i % 29) - 14) * 0.0731f + 0.0113f);
+    for (size_t i = 0; i < weights_data.size(); ++i)
+        weights_data[i] = ov::float16((static_cast<int>(i % 13) - 6) * 0.0473f - 0.0097f);
+    const float tie_values[16] = {-1.1669921875f,
+                                  -0.71533203125f,
+                                  -0.72509765625f,
+                                  -1.4033203125f,
+                                  -2.767578125f,
+                                  -3.353515625f,
+                                  -2.685546875f,
+                                  -2.5f,
+                                  -0.1978759765625f,
+                                  -0.1888427734375f,
+                                  0.259521484375f,
+                                  0.541015625f,
+                                  0.947265625f,
+                                  0.9755859375f,
+                                  1.263671875f,
+                                  0.0f};
+    const float tie_weights[16] = {0.0019483566284179688f,
+                                   0.0168609619140625f,
+                                   0.031280517578125f,
+                                   0.0096588134765625f,
+                                   0.23291015625f,
+                                   0.05780029296875f,
+                                   0.037567138671875f,
+                                   0.0026397705078125f,
+                                   0.00949859619140625f,
+                                   0.013580322265625f,
+                                   0.00011110305786132812f,
+                                   0.00013875961303710938f,
+                                   0.005435943603515625f,
+                                   0.0040283203125f,
+                                   0.0025119781494140625f,
+                                   0.57421875f};
+    for (size_t i = 0; i < 16; ++i) {
+        values_data[i] = ov::float16(tie_values[i]);
+        weights_data[i] = ov::float16(tie_weights[i]);
+    }
+    set_values(values, values_data);
+    set_values(weights, weights_data);
+    {
+        mem_lock<ov::float16, mem_lock_type::write> values_ptr(values, get_test_stream());
+        mem_lock<ov::float16, mem_lock_type::write> weights_ptr(weights, get_test_stream());
+        for (size_t x = 0; x < 16; ++x) {
+            const auto value_offset = values_layout.get_linear_offset(tensor(batch(1), feature(25), spatial(x, 754, 0, 0)));
+            const auto weight_offset = weights_layout.get_linear_offset(tensor(batch(1), feature(0), spatial(x, 754, 0, 0)));
+            values_ptr[value_offset] = ov::float16(tie_values[x]);
+            weights_ptr[weight_offset] = ov::float16(tie_weights[x]);
+            const auto positive_value_offset = values_layout.get_linear_offset(tensor(batch(1), feature(26), spatial(x, 754, 0, 0)));
+            values_ptr[positive_value_offset] = ov::float16(-tie_values[x]);
+        }
+    }
+
+    topology ref_topology;
+    ref_topology.add(input_layout("values", values_layout));
+    ref_topology.add(input_layout("weights", weights_layout));
+    ref_topology.add(eltwise("multiply", {input_info("values"), input_info("weights")}, eltwise_mode::prod));
+    ref_topology.add(reorder("multiply_fsv16", input_info("multiply"), format::b_fs_yx_fsv16, data_types::f16));
+    ref_topology.add(reduce("reference", input_info("multiply_fsv16"), reduce_mode::sum, {3}, false));
+    ref_topology.add(reorder("reference_out", input_info("reference"), format::bfyx, data_types::f16));
+    ExecutionConfig ref_config = get_test_default_config(engine);
+    ref_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"reference_out"}));
+    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"multiply", {format::bfyx, "generic_eltwise_ref"}}}));
+    network ref_network(engine, ref_topology, ref_config);
+    ref_network.set_input_data("values", values);
+    ref_network.set_input_data("weights", weights);
+    auto ref_output = ref_network.execute().at("reference_out").get_memory();
+
+    topology opt_topology;
+    opt_topology.add(input_layout("values", values_layout));
+    opt_topology.add(input_layout("weights", weights_layout));
+    opt_topology.add(reduce("weighted", input_info("values"), input_info("weights"), reduce_mode::sum, {3}, false));
+    opt_topology.add(reorder("weighted_out", input_info("weighted"), format::bfyx, data_types::f16));
+    ExecutionConfig opt_config = get_test_default_config(engine);
+    opt_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"weighted_out"}));
+    auto opt_network = get_network(engine, opt_topology, opt_config, get_test_stream_ptr(), is_caching_test);
+    opt_network->set_input_data("values", values);
+    opt_network->set_input_data("weights", weights);
+    const auto info = opt_network->get_primitive_info("weighted");
+    ASSERT_NE(info.find("weighted_reduce_x16"), std::string::npos) << info;
+    auto opt_output = opt_network->execute().at("weighted_out").get_memory();
+
+    mem_lock<ov::float16, mem_lock_type::read> ref_ptr(ref_output, get_test_stream());
+    mem_lock<ov::float16, mem_lock_type::read> opt_ptr(opt_output, get_test_stream());
+    ASSERT_EQ(ref_output->get_layout().count(), opt_output->get_layout().count());
+    size_t mismatch_count = 0;
+    for (size_t i = 0; i < ref_output->get_layout().count(); ++i) {
+        if (ref_ptr[i].to_bits() != opt_ptr[i].to_bits()) {
+            if (mismatch_count < 20) {
+                std::cout << "mismatch " << i << " ref_bits=" << ref_ptr[i].to_bits() << " opt_bits=" << opt_ptr[i].to_bits()
+                          << " ref=" << static_cast<float>(ref_ptr[i]) << " opt=" << static_cast<float>(opt_ptr[i]) << std::endl;
+            }
+            ++mismatch_count;
+        }
+    }
+    ASSERT_EQ(mismatch_count, 0);
+}
+
+TEST(reduce_gpu, weighted_reduce_x16_matches_multiply_reduce_bit_exact) {
+    test_weighted_reduce_x16_matches_multiply_reduce_bit_exact(false);
+}
+
+TEST(reduce_gpu, weighted_reduce_x16_cached_matches_multiply_reduce_bit_exact) {
+    test_weighted_reduce_x16_matches_multiply_reduce_bit_exact(true);
+}
+
+TEST(reduce_gpu, weighted_reduce_x16_f32_matches_multiply_reduce_bit_exact) {
+    auto& engine = get_test_engine();
+    const layout values_layout(data_types::f32, format::bfyx, tensor(1, 4, 16, 1025));
+    const layout weights_layout(data_types::f32, format::bfyx, tensor(1, 1, 16, 1025));
+    auto values = engine.allocate_memory(values_layout);
+    auto weights = engine.allocate_memory(weights_layout);
+    VF<float> values_data(values_layout.count());
+    VF<float> weights_data(weights_layout.count());
+    for (size_t i = 0; i < values_data.size(); ++i)
+        values_data[i] = (static_cast<int>(i % 29) - 14) * 0.0731f + 0.0113f;
+    for (size_t i = 0; i < weights_data.size(); ++i)
+        weights_data[i] = (static_cast<int>(i % 13) - 6) * 0.0473f - 0.0097f;
+    set_values(values, values_data);
+    set_values(weights, weights_data);
+
+    topology ref_topology;
+    ref_topology.add(input_layout("values", values_layout));
+    ref_topology.add(input_layout("weights", weights_layout));
+    ref_topology.add(eltwise("multiply", {input_info("values"), input_info("weights")}, eltwise_mode::prod));
+    ref_topology.add(reorder("multiply_fsv16", input_info("multiply"), format::b_fs_yx_fsv16, data_types::f32));
+    ref_topology.add(reduce("reference", input_info("multiply_fsv16"), reduce_mode::sum, {3}, false));
+    ref_topology.add(reorder("reference_out", input_info("reference"), format::bfyx, data_types::f32));
+    ExecutionConfig ref_config = get_test_default_config(engine);
+    ref_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"reference_out"}));
+    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"multiply", {format::bfyx, "generic_eltwise_ref"}}}));
+    network ref_network(engine, ref_topology, ref_config);
+    ref_network.set_input_data("values", values);
+    ref_network.set_input_data("weights", weights);
+    auto ref_output = ref_network.execute().at("reference_out").get_memory();
+
+    topology opt_topology;
+    opt_topology.add(input_layout("values", values_layout));
+    opt_topology.add(input_layout("weights", weights_layout));
+    opt_topology.add(reduce("weighted", input_info("values"), input_info("weights"), reduce_mode::sum, {3}, false));
+    opt_topology.add(reorder("weighted_out", input_info("weighted"), format::bfyx, data_types::f32));
+    ExecutionConfig opt_config = get_test_default_config(engine);
+    opt_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"weighted_out"}));
+    network opt_network(engine, opt_topology, opt_config);
+    opt_network.set_input_data("values", values);
+    opt_network.set_input_data("weights", weights);
+    const auto info = opt_network.get_primitive_info("weighted");
+    ASSERT_NE(info.find("weighted_reduce_x16"), std::string::npos) << info;
+    auto opt_output = opt_network.execute().at("weighted_out").get_memory();
+
+    mem_lock<float, mem_lock_type::read> ref_ptr(ref_output, get_test_stream());
+    mem_lock<float, mem_lock_type::read> opt_ptr(opt_output, get_test_stream());
+    ASSERT_EQ(ref_output->get_layout().bytes_count(), opt_output->get_layout().bytes_count());
+    ASSERT_EQ(std::memcmp(ref_ptr.data(), opt_ptr.data(), ref_output->get_layout().bytes_count()), 0);
+}
+
+namespace {
+
+struct weighted_reduce_graph_case {
+    int64_t y;
+    int64_t x;
+    int64_t axis;
+    bool reverse_inputs;
+    bool multiple_consumers;
+    bool dynamic_y;
+    bool keep_dims;
+    bool relu;
+    ov::element::Type element_type;
+    bool expect_weighted;
+    bool expect_reference;
+    const char* name;
+    int64_t values_batch = 1;
+    int64_t weights_batch = 1;
+    int64_t values_features = 32;
+    int64_t weights_features = 1;
+    int64_t rank = 4;
+    std::vector<int64_t> axes;
+    int64_t weights_y = 0;
+    int64_t weights_x = 0;
+};
+
+std::vector<ov::Dimension> make_weighted_reduce_dims(const weighted_reduce_graph_case& test_case, int64_t batch, int64_t features, bool is_weights) {
+    const auto y = is_weights && test_case.weights_y > 0 ? test_case.weights_y : test_case.y;
+    const auto x = is_weights && test_case.weights_x > 0 ? test_case.weights_x : test_case.x;
+    std::vector<ov::Dimension> dims;
+    if (test_case.rank == 3) {
+        dims = {features, y, x};
+    } else {
+        dims = {batch, features, y, x};
+    }
+    if (test_case.dynamic_y)
+        dims[dims.size() - 2] = ov::Dimension::dynamic();
+    return dims;
+}
+
+ov::Shape make_weighted_reduce_shape(const weighted_reduce_graph_case& test_case, int64_t batch, int64_t features, bool is_weights) {
+    const auto y = is_weights && test_case.weights_y > 0 ? test_case.weights_y : test_case.y;
+    const auto x = is_weights && test_case.weights_x > 0 ? test_case.weights_x : test_case.x;
+    if (test_case.rank == 3)
+        return {static_cast<size_t>(features), static_cast<size_t>(y), static_cast<size_t>(x)};
+    return {static_cast<size_t>(batch), static_cast<size_t>(features), static_cast<size_t>(y), static_cast<size_t>(x)};
+}
+
+std::shared_ptr<ov::Model> make_weighted_reduce_model(const weighted_reduce_graph_case& test_case, bool force_multiply_output = false) {
+    auto values = std::make_shared<ov::op::v0::Parameter>(
+        test_case.element_type,
+        ov::PartialShape(make_weighted_reduce_dims(test_case, test_case.values_batch, test_case.values_features, false)));
+    auto weights = std::make_shared<ov::op::v0::Parameter>(
+        test_case.element_type,
+        ov::PartialShape(make_weighted_reduce_dims(test_case, test_case.weights_batch, test_case.weights_features, true)));
+    values->set_friendly_name("values");
+    weights->set_friendly_name("weights");
+    auto multiply =
+        test_case.reverse_inputs ? std::make_shared<ov::op::v1::Multiply>(weights, values) : std::make_shared<ov::op::v1::Multiply>(values, weights);
+    multiply->set_friendly_name("multiply");
+    const auto axes_values = test_case.axes.empty() ? std::vector<int64_t>{test_case.axis} : test_case.axes;
+    auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes_values.size()}, axes_values);
+    auto reduce = std::make_shared<ov::op::v1::ReduceSum>(multiply, axes, test_case.keep_dims);
+    reduce->set_friendly_name("reduce");
+    std::shared_ptr<ov::Node> output = reduce;
+    if (test_case.relu) {
+        output = std::make_shared<ov::op::v0::Relu>(reduce);
+        output->set_friendly_name("relu");
+    }
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(output)};
+    if (test_case.multiple_consumers || force_multiply_output)
+        results.push_back(std::make_shared<ov::op::v0::Result>(multiply));
+    return std::make_shared<ov::Model>(results, ov::ParameterVector{values, weights});
+}
+
+class weighted_reduce_graph_test : public ::testing::TestWithParam<weighted_reduce_graph_case> {};
+
+}  // namespace
+
+TEST_P(weighted_reduce_graph_test, selects_or_falls_back) {
+    const auto test_case = GetParam();
+    ov::Core core;
+    auto compiled = core.compile_model(make_weighted_reduce_model(test_case), "GPU", ov::enable_profiling(true));
+    auto reference = core.compile_model(make_weighted_reduce_model(test_case, true), "GPU", ov::enable_profiling(true));
+    auto request = compiled.create_infer_request();
+    auto reference_request = reference.create_infer_request();
+    ov::Tensor values(test_case.element_type, make_weighted_reduce_shape(test_case, test_case.values_batch, test_case.values_features, false));
+    ov::Tensor weights(test_case.element_type, make_weighted_reduce_shape(test_case, test_case.weights_batch, test_case.weights_features, true));
+    const auto value_at = [&](size_t i) {
+        return test_case.relu ? -1.0f : (static_cast<int>(i % 29) - 14) * 0.125f;
+    };
+    const auto weight_at = [&](size_t i) {
+        return test_case.relu ? 1.0f : (static_cast<int>(i % 13) - 6) * 0.0625f;
+    };
+    if (test_case.element_type == ov::element::f32) {
+        for (size_t i = 0; i < values.get_size(); ++i)
+            values.data<float>()[i] = value_at(i);
+        for (size_t i = 0; i < weights.get_size(); ++i)
+            weights.data<float>()[i] = weight_at(i);
+    } else if (test_case.element_type == ov::element::i32) {
+        for (size_t i = 0; i < values.get_size(); ++i)
+            values.data<int32_t>()[i] = static_cast<int32_t>(value_at(i));
+        for (size_t i = 0; i < weights.get_size(); ++i)
+            weights.data<int32_t>()[i] = static_cast<int32_t>(weight_at(i));
+    } else if (test_case.element_type == ov::element::bf16) {
+        for (size_t i = 0; i < values.get_size(); ++i)
+            values.data<ov::bfloat16>()[i] = ov::bfloat16(value_at(i));
+        for (size_t i = 0; i < weights.get_size(); ++i)
+            weights.data<ov::bfloat16>()[i] = ov::bfloat16(weight_at(i));
+    } else {
+        for (size_t i = 0; i < values.get_size(); ++i)
+            values.data<ov::float16>()[i] = ov::float16(value_at(i));
+        for (size_t i = 0; i < weights.get_size(); ++i)
+            weights.data<ov::float16>()[i] = ov::float16(weight_at(i));
+    }
+    request.set_input_tensor(0, values);
+    request.set_input_tensor(1, weights);
+    reference_request.set_input_tensor(0, values);
+    reference_request.set_input_tensor(1, weights);
+    request.infer();
+    reference_request.infer();
+
+    const auto output = request.get_output_tensor(0);
+    const auto reference_output = reference_request.get_output_tensor(0);
+    ASSERT_EQ(output.get_element_type(), reference_output.get_element_type());
+    ASSERT_EQ(output.get_shape(), reference_output.get_shape());
+    ASSERT_EQ(output.get_byte_size(), reference_output.get_byte_size());
+    if (test_case.relu) {
+        const auto* output_data = output.data<const ov::float16>();
+        const auto* reference_data = reference_output.data<const ov::float16>();
+        for (size_t i = 0; i < output.get_size(); ++i) {
+            ASSERT_EQ(static_cast<float>(output_data[i]), static_cast<float>(reference_data[i])) << "Mismatch at element " << i;
+            ASSERT_EQ(static_cast<float>(output_data[i]), 0.0f) << "ReLU mismatch at element " << i;
+        }
+    } else {
+        ASSERT_EQ(std::memcmp(output.data(), reference_output.data(), output.get_byte_size()), 0);
+    }
+
+    size_t weighted_count = 0;
+    size_t weighted_reference_count = 0;
+    size_t multiply_count = 0;
+    for (const auto& info : request.get_profiling_info()) {
+        if (info.exec_type.find("weighted_reduce_x16") != std::string::npos)
+            ++weighted_count;
+        if (info.node_name == "reduce" && info.exec_type.find("reduce_ref") != std::string::npos)
+            ++weighted_reference_count;
+        if (info.node_name == "multiply" && info.exec_type != "undef")
+            ++multiply_count;
+    }
+    EXPECT_EQ(weighted_count, test_case.expect_weighted ? 1 : 0);
+    if (test_case.expect_reference) {
+        EXPECT_EQ(weighted_reference_count, 1);
+    } else if (test_case.expect_weighted) {
+        EXPECT_EQ(weighted_reference_count, 0);
+    }
+    EXPECT_EQ(multiply_count, (test_case.expect_weighted || test_case.expect_reference) ? 0 : 1);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    weighted_reduce_graph,
+    weighted_reduce_graph_test,
+    ::testing::Values(
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, true, false, "positive_f16"},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f32, true, false, "positive_f32"},
+        weighted_reduce_graph_case{1025, 16, 3, true, false, false, false, false, ov::element::f16, true, false, "reversed_inputs"},
+        weighted_reduce_graph_case{1025, 16, -1, false, false, false, false, false, ov::element::f16, true, false, "negative_last_axis"},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, true, false, ov::element::f16, true, false, "keep_dims"},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, true, false, "batch_2", 2, 2},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, true, true, ov::element::f16, false, true, "fused_relu"},
+        weighted_reduce_graph_case{1024, 16, 3, false, false, false, false, false, ov::element::f16, false, false, "threshold_boundary"},
+        weighted_reduce_graph_case{1025, 8, 3, false, false, false, false, false, ov::element::f16, false, false, "wrong_x"},
+        weighted_reduce_graph_case{1025, 16, 2, false, false, false, false, false, ov::element::f16, false, false, "wrong_axis"},
+        weighted_reduce_graph_case{1025, 16, 3, false, true, false, false, false, ov::element::f16, false, false, "multiple_consumers"},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, true, false, false, ov::element::f16, false, false, "dynamic_y"},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::i32, false, false, "unsupported_i32"},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::bf16, true, false, "bf16_converted_to_supported_precision"},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, false, false, "both_full", 1, 1, 32, 32},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, false, false, "both_feature_one", 1, 1, 1, 1},
+        weighted_reduce_graph_case{1025, 16, 2, false, false, false, false, false, ov::element::f16, false, false, "rank_3", 1, 1, 32, 1, 3},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, false, false, "batch_broadcast", 2, 1},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, false, false, "mismatched_y", 1, 1, 32, 1, 4, {}, 1, 0},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, false, false, "mismatched_x", 1, 1, 32, 1, 4, {}, 0, 1},
+        weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, false, false, "multiple_axes", 1, 1, 32, 1, 4, {2, 3}}),
+    [](const ::testing::TestParamInfo<weighted_reduce_graph_case>& info) {
+        return info.param.name;
+    });
+
+namespace {
+
+struct weighted_reduce_layout_case {
+    format::type data_format;
+    bool pad_values;
+    bool pad_weights;
+    bool pad_output;
+    bool use_f32;
+    bool cache;
+    const char* name;
+};
+
+class weighted_reduce_layout_fallback_test : public ::testing::TestWithParam<weighted_reduce_layout_case> {};
+
+}  // namespace
+
+TEST_P(weighted_reduce_layout_fallback_test, selects_reference_and_executes) {
+    const auto test_case = GetParam();
+    auto& engine = get_test_engine();
+    const auto data_type = test_case.use_f32 ? data_types::f32 : data_types::f16;
+    const tensor values_shape(1, 32, 16, 1025);
+    const tensor weights_shape(1, 1, 16, 1025);
+    const layout values_input_layout(data_type, format::bfyx, values_shape);
+    const layout weights_input_layout(data_type, format::bfyx, weights_shape);
+    const padding input_padding({0, 0, 0, 1}, {0, 0, 0, 0});
+    const layout values_prepared_layout(data_type, test_case.data_format, values_shape, test_case.pad_values ? input_padding : padding{});
+    const layout weights_prepared_layout(data_type, test_case.data_format, weights_shape, test_case.pad_weights ? input_padding : padding{});
+
+    auto values = engine.allocate_memory(values_input_layout);
+    auto weights = engine.allocate_memory(weights_input_layout);
+    VF<float> expected_f32(32 * 1025);
+    VF<ov::float16> expected_f16(32 * 1025);
+    if (test_case.use_f32) {
+        VF<float> values_data(values_input_layout.count());
+        VF<float> weights_data(weights_input_layout.count());
+        for (size_t i = 0; i < values_data.size(); ++i)
+            values_data[i] = (static_cast<int>(i % 29) - 14) * 0.0731f + 0.0113f;
+        for (size_t i = 0; i < weights_data.size(); ++i)
+            weights_data[i] = (static_cast<int>(i % 13) - 6) * 0.0473f - 0.0097f;
+        set_values(values, values_data);
+        set_values(weights, weights_data);
+        for (size_t f = 0; f < 32; ++f) {
+            for (size_t y = 0; y < 1025; ++y) {
+                float acc = 0.0f;
+                for (size_t x = 0; x < 16; ++x)
+                    acc += values_data[(f * 1025 + y) * 16 + x] * weights_data[y * 16 + x];
+                expected_f32[f * 1025 + y] = acc;
+            }
+        }
+    } else {
+        VF<ov::float16> values_data(values_input_layout.count());
+        VF<ov::float16> weights_data(weights_input_layout.count());
+        for (size_t i = 0; i < values_data.size(); ++i)
+            values_data[i] = ov::float16((static_cast<int>(i % 29) - 14) * 0.0731f + 0.0113f);
+        for (size_t i = 0; i < weights_data.size(); ++i)
+            weights_data[i] = ov::float16((static_cast<int>(i % 13) - 6) * 0.0473f - 0.0097f);
+        set_values(values, values_data);
+        set_values(weights, weights_data);
+        for (size_t f = 0; f < 32; ++f) {
+            for (size_t y = 0; y < 1025; ++y) {
+                float acc = 0.0f;
+                for (size_t x = 0; x < 16; ++x) {
+                    const auto product = ov::float16(static_cast<float>(values_data[(f * 1025 + y) * 16 + x]) * static_cast<float>(weights_data[y * 16 + x]));
+                    acc += static_cast<float>(product);
+                }
+                expected_f16[f * 1025 + y] = ov::float16(acc);
+            }
+        }
+    }
+
+    topology topology;
+    topology.add(input_layout("values", values_input_layout));
+    topology.add(input_layout("weights", weights_input_layout));
+    topology.add(reorder("values_prepared", input_info("values"), values_prepared_layout));
+    topology.add(reorder("weights_prepared", input_info("weights"), weights_prepared_layout));
+    auto weighted = reduce("weighted", input_info("values_prepared"), input_info("weights_prepared"), reduce_mode::sum, {3}, false);
+    if (test_case.pad_output)
+        weighted.output_paddings = {padding({0, 0, 0, 1}, {0, 0, 0, 0})};
+    topology.add(weighted);
+    topology.add(reorder("output", input_info("weighted"), format::bfyx, data_type));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"output"}));
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(), test_case.cache);
+    network->set_input_data("values", values);
+    network->set_input_data("weights", weights);
+    const auto info = network->get_primitive_info("weighted");
+    ASSERT_NE(info.find("reduce_ref"), std::string::npos) << info;
+    ASSERT_EQ(info.find("weighted_reduce_x16"), std::string::npos) << info;
+    auto output = network->execute().at("output").get_memory();
+    if (test_case.use_f32) {
+        mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        for (size_t i = 0; i < output->get_layout().count(); ++i)
+            ASSERT_EQ(output_ptr[i], expected_f32[i]) << "Mismatch at element " << i;
+    } else {
+        mem_lock<ov::float16, mem_lock_type::read> output_ptr(output, get_test_stream());
+        for (size_t i = 0; i < output->get_layout().count(); ++i)
+            ASSERT_EQ(output_ptr[i].to_bits(), expected_f16[i].to_bits()) << "Mismatch at element " << i;
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(weighted_reduce_layout_fallback,
+                         weighted_reduce_layout_fallback_test,
+                         ::testing::Values(weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, false, false, "blocked_f16"},
+                                           weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, true, false, "blocked_f32"},
+                                           weighted_reduce_layout_case{format::bfyx, true, false, false, false, false, "padded_values"},
+                                           weighted_reduce_layout_case{format::bfyx, false, true, false, false, false, "padded_weights"},
+                                           weighted_reduce_layout_case{format::bfyx, false, false, true, false, false, "padded_output"},
+                                           weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, false, true, "blocked_cached"}),
+                         [](const ::testing::TestParamInfo<weighted_reduce_layout_case>& info) {
+                             return info.param.name;
+                         });
 
 template <typename InputT>
 struct accumulator_type {
