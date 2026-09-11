@@ -260,6 +260,111 @@ void process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infe
 }
 }  // anonymous namespace
 
+void ov::npuw::LLMInferRequest::create_prefill_request_variants(
+    const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model) {
+    const auto& compiled_variants = compiled_model->m_prefill_compiled_variants;
+    NPUW_ASSERT(!compiled_variants.empty() && "No compiled Prefill variants are available.");
+
+    m_prefill_requests.reserve(compiled_variants.size());
+    m_prefill_base_requests.reserve(compiled_variants.size());
+    for (const auto& compiled_variant : compiled_variants) {
+        auto base_request = compiled_variant->create_base_infer_request();
+        auto request = compiled_variant->wrap_async_infer_request(base_request);
+        m_prefill_base_requests.push_back(base_request);
+        m_prefill_requests.push_back(request);
+
+        PortsMap input_ports;
+        PortsMap output_ports;
+        for (const auto& input_port : request->get_compiled_model()->inputs()) {
+            for (const auto& name : input_port.get_names()) {
+                auto res = input_ports.emplace(name, input_port);
+                OPENVINO_ASSERT(res.second, "Duplicate Prefill input tensor name across ports: ", name);
+            }
+        }
+        for (const auto& output_port : request->get_compiled_model()->outputs()) {
+            for (const auto& name : output_port.get_names()) {
+                auto res = output_ports.emplace(name, output_port);
+                OPENVINO_ASSERT(res.second, "Duplicate Prefill output tensor name across ports: ", name);
+            }
+        }
+        m_prefill_variant_in_ports.emplace(request, std::move(input_ports));
+        m_prefill_variant_out_ports.emplace(request, std::move(output_ports));
+    }
+
+    activate_prefill_variant(m_prefill_requests.size() - 1);
+}
+
+size_t ov::npuw::LLMInferRequest::select_prefill_variant_index(uint64_t tail_length) const {
+    const auto& sizes = m_npuw_llm_compiled_model->m_prefill_chunk_sizes;
+    for (size_t i = 0; i < sizes.size(); ++i) {
+        if (tail_length <= sizes[i]) {
+            return i;
+        }
+    }
+    return sizes.size() - 1;
+}
+
+void ov::npuw::LLMInferRequest::activate_prefill_variant(size_t variant_index) {
+    NPUW_ASSERT(variant_index < m_prefill_requests.size() && "Invalid Prefill variant index.");
+    m_prefill_variant_idx = variant_index;
+    m_prefill_request = m_prefill_requests[variant_index];
+    m_prefill_base_request = m_prefill_base_requests[variant_index];
+    m_prefill_in_ports = m_prefill_variant_in_ports.at(m_prefill_request);
+    m_prefill_out_ports = m_prefill_variant_out_ports.at(m_prefill_request);
+}
+
+void ov::npuw::LLMInferRequest::prepare_prefill_tail_variant(size_t tail_index, uint32_t num_stored_tokens) {
+    namespace uu = ov::npuw::util;
+    const auto& base_request = m_prefill_requests.back();
+    const auto& tail_request = m_prefill_requests[tail_index];
+    const auto& base_input_ports = m_prefill_variant_in_ports.at(base_request);
+    const auto& tail_input_ports = m_prefill_variant_in_ports.at(tail_request);
+    const auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+
+    auto tail_attention_mask = tail_request->get_tensor(tail_input_ports.at(layer_names::attention_mask));
+    uu::fill_tensor<int64_t>(tail_attention_mask, 0);
+    if (num_stored_tokens > 0) {
+        auto base_attention_mask = base_request->get_tensor(base_input_ports.at(layer_names::attention_mask));
+        std::copy_n(base_attention_mask->data<int64_t>(), num_stored_tokens, tail_attention_mask->data<int64_t>());
+    }
+
+    uu::fill_tensor<int64_t>(tail_request->get_tensor(tail_input_ports.at(layer_names::position_ids)), 0);
+    if (const auto per_layer_it = tail_input_ports.find(layer_names::per_layer_inputs);
+        per_layer_it != tail_input_ports.end()) {
+        uu::fill_tensor_bytes(tail_request->get_tensor(per_layer_it->second), 0u);
+    }
+
+    for (const auto& kv_name : m_kvcache_past_names) {
+        auto tail_past = tail_request->get_tensor(tail_input_ports.at(kv_name));
+        uu::fill_tensor_bytes(tail_past, 0u);
+        if (num_stored_tokens == 0) {
+            continue;
+        }
+        auto base_past = base_request->get_tensor(base_input_ports.at(kv_name));
+        const bool is_value_tensor = ov::npuw::util::isPastValueParam(kv_name);
+        const uint32_t kv_dim = (is_value_tensor && kvcache_desc.v_tensors_transposed_pre) ? 3u : kvcache_desc.dim;
+        auto base_slice = uu::make_tensor_slice(base_past, kv_dim, 0u, num_stored_tokens);
+        auto tail_slice = uu::make_tensor_slice(tail_past, kv_dim, 0u, num_stored_tokens);
+        uu::copy_tensor_by_dim(base_slice, tail_slice, kv_dim, kv_dim);
+    }
+
+    for (const auto& lincache_name : m_lincache_past_names) {
+        auto base_lincache = base_request->get_tensor(base_input_ports.at(lincache_name));
+        tail_request->set_tensor(tail_input_ports.at(lincache_name), base_lincache);
+    }
+
+    for (const auto& state : m_variableStates) {
+        const auto& state_name = state->get_name();
+        const auto base_port_it = base_input_ports.find(state_name);
+        const auto tail_port_it = tail_input_ports.find(state_name);
+        if (base_port_it != base_input_ports.end() && tail_port_it != tail_input_ports.end()) {
+            tail_request->set_tensor(tail_port_it->second, base_request->get_tensor(base_port_it->second));
+        }
+    }
+
+    activate_prefill_variant(tail_index);
+}
+
 void ov::npuw::LLMInferRequest::init_lora_states() {
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         // A port may expose several tensor names; pick the one that matches a LoRA pattern
@@ -328,24 +433,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     m_kvcache_in_ports = m_generate_variant_in_ports.at(m_kvcache_request);
     m_kvcache_out_ports = m_generate_variant_out_ports.at(m_kvcache_request);
 
-    m_prefill_base_request = compiled_model->m_prefill_compiled->create_base_infer_request();
-    m_prefill_request = compiled_model->m_prefill_compiled->wrap_async_infer_request(m_prefill_base_request);
-
-    // Register every tensor name of a port, not just get_any_name(): kv-cache copy derives lookup
-    // keys (e.g. "present.*") from the generate request's port names, which may not coincide with
-    // the arbitrary alias get_any_name() would pick for the matching prefill port.
-    for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
-        for (const auto& name : input_port.get_names()) {
-            auto res = m_prefill_in_ports.emplace(name, input_port);
-            OPENVINO_ASSERT(res.second, "Duplicate prefill input tensor name across ports: ", name);
-        }
-    }
-    for (const auto& output_port : m_prefill_request->get_compiled_model()->outputs()) {
-        for (const auto& name : output_port.get_names()) {
-            auto res = m_prefill_out_ports.emplace(name, output_port);
-            OPENVINO_ASSERT(res.second, "Duplicate prefill output tensor name across ports: ", name);
-        }
-    }
+    create_prefill_request_variants(compiled_model);
 
     for (const auto& input_port : m_kvcache_request->get_compiled_model()->inputs()) {
         const auto& all_names = input_port.get_names();
@@ -403,8 +491,11 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         OPENVINO_ASSERT(m_lm_head_request);
         const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
         m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
-        m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
-                                      m_lm_head_request->get_tensor(lm_head_embed_port));
+        for (const auto& prefill_request : m_prefill_requests) {
+            const auto& prefill_output_ports = m_prefill_variant_out_ports.at(prefill_request);
+            prefill_request->set_tensor(prefill_output_ports.at(layer_names::output_embeds),
+                                        m_lm_head_request->get_tensor(lm_head_embed_port));
+        }
 
         // Set output_embeds tensor for all generate variants
         for (auto& generate_req : m_generate_requests) {
@@ -681,6 +772,8 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation(int64_t prompt_leng
     // a full prefill always addresses the caller tensors from zero.
     m_continued_prefill_base = 0u;
 
+    activate_prefill_variant(m_prefill_requests.size() - 1);
+
     zero_prefill_staging();
 
     m_kvcache_strategy->on_reset(prompt_length > 0 ? static_cast<uint32_t>(prompt_length) : 0u);
@@ -714,7 +807,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                         " not found in prefill model outputs.");
         auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
 
-        const auto is_value_tensor = output_name.find("value") != std::string::npos;
+        const bool is_value_tensor = ov::npuw::util::isPastValueParam(input_name);
         const auto kv_dim = [&](bool v_trans) -> uint32_t {
             return (is_value_tensor && v_trans) ? 3u : kvcache_desc.dim;
         };
@@ -722,7 +815,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
         const auto& pre_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_pre);
         const auto& gen_kv_dim = kv_dim(kvcache_desc.v_tensors_transposed_gen);
 
-        const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
+        const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_sizes[m_prefill_variant_idx];
         const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
         if (use_chunk_prefill) {
             // The chunk prefilled KV results are divided into two parts:
@@ -817,7 +910,7 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
                         " in output ports map, while it is expected!");
 
         auto dst_tensor = request->get_tensor(in_ports.at(input_name));
-        const auto& kv_dim = (output_name.find("value") != std::string::npos && v_transposed) ? 3u : kvcache_desc.dim;
+        const auto& kv_dim = (ov::npuw::util::isPastValueParam(input_name) && v_transposed) ? 3u : kvcache_desc.dim;
         auto dst_slice = uu::make_tensor_slice(dst_tensor,
                                                kv_dim,
                                                kvcache_desc.num_stored_tokens - num_tokens,
@@ -974,12 +1067,12 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     const auto input_ids_elem_size = input_ids->get_element_type().size();
     auto input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
-    const uint64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
+    uint64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
 
     // DeepStack (Qwen3-VL): the deepstack injection is scattered per chunk inside the loop
     // below, the same way attention_mask / input_ids are sliced for the current chunk.
-    const auto deepstack_it = m_prefill_in_ports.find(layer_names::deepstack_visual_embeds);
-    const bool has_deepstack = deepstack_it != m_prefill_in_ports.end();
+    const bool has_deepstack =
+        m_prefill_in_ports.find(layer_names::deepstack_visual_embeds) != m_prefill_in_ports.end();
     if (has_deepstack) {
         OPENVINO_ASSERT(deepstack_visual_embeds && visual_pos_masks,
                         "deepstack_visual_embeds and visual_pos_masks must be provided for DeepStack VLM prefill.");
@@ -1024,6 +1117,30 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
+
+        const bool is_tail_chunk = remaining_prompts <= m_npuw_llm_compiled_model->m_prefill_chunk_size;
+        if (is_tail_chunk && current_prompts_len < m_npuw_llm_compiled_model->m_prefill_chunk_size &&
+            m_prefill_requests.size() > 1) {
+            const size_t tail_index = select_prefill_variant_index(current_prompts_len);
+            if (tail_index != m_prefill_requests.size() - 1) {
+                LOG_DEBUG("Prefill tail chunk of " << current_prompts_len << " tokens uses variant chunk size "
+                                                   << m_npuw_llm_compiled_model->m_prefill_chunk_sizes[tail_index]);
+                prepare_prefill_tail_variant(tail_index, kvcache_desc.num_stored_tokens);
+                process_longrope_tables(m_prefill_request,
+                                        m_prefill_in_ports,
+                                        m_npuw_llm_compiled_model->m_longrope_tables,
+                                        position_ids,
+                                        m_npuw_llm_compiled_model->m_longrope_context_limit);
+                chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_sizes[tail_index];
+                input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
+                attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
+                pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
+                if (has_token_type_ids) {
+                    token_type_ids_in_tensor =
+                        m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::token_type_ids));
+                }
+            }
+        }
 
         m_llm_profile["1/prefill:3a.prepare_chunk"].record([&]() {
             // Handle first chunk with prefix caching: populate attention mask for restored cache
@@ -1091,6 +1208,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // chunk. The chunk's visual_pos_masks slice gives their chunk-local positions, and
             // the deepstack rows for those tokens follow the visual tokens of earlier chunks.
             if (has_deepstack) {
+                const auto deepstack_it = m_prefill_in_ports.find(layer_names::deepstack_visual_embeds);
+                OPENVINO_ASSERT(deepstack_it != m_prefill_in_ports.end(),
+                                "DeepStack input is missing from the active Prefill variant.");
                 auto deepstack_local = m_prefill_request->get_tensor(deepstack_it->second);
                 const uint32_t seq_dim = static_cast<uint32_t>(visual_pos_masks->get_shape().size() - 1);
                 auto chunk_mask = ov::npuw::util::make_tensor_slice(
@@ -1276,6 +1396,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> deepstack_visual_embeds) {
     LOG_DEBUG("Calling inference for prefill model...");
     LOG_BLOCK();
+
+    activate_prefill_variant(m_prefill_requests.size() - 1);
 
     const auto prompt_length = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM];
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;

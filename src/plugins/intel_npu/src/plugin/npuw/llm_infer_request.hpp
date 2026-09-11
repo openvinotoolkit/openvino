@@ -5,6 +5,8 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
+#include <vector>
 
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
@@ -64,6 +66,11 @@ protected:
     // Internally calculates expected total tokens (prompt + min_response_len) to ensure
     // sufficient capacity for both input prompt and minimum response generation
     std::shared_ptr<ov::IAsyncInferRequest> select_generate_request(int64_t prompt_length);
+
+    void create_prefill_request_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
+    size_t select_prefill_variant_index(uint64_t tail_length) const;
+    void prepare_prefill_tail_variant(size_t tail_index, uint32_t num_stored_tokens);
+    void activate_prefill_variant(size_t variant_index);
 
     void trim_kvcache_for_speculative_decoding(ov::SoPtr<ov::ITensor> position_ids);
 
@@ -140,6 +147,8 @@ protected:
     // NOTE: This is just a casted pointer for convenience. In fact it points to the
     // same object as m_prefill_request.
     std::shared_ptr<ov::npuw::IBaseInferRequest> m_prefill_base_request;
+    std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_prefill_requests;
+    std::vector<std::shared_ptr<ov::npuw::IBaseInferRequest>> m_prefill_base_requests;
     // Base infer requests for all generate variants, parallel to m_generate_requests.
     // Used to propagate dummy tensors to sub-requests on conversation reset, ensuring that
     // sub-requests also release stale block tensor refs.
@@ -150,6 +159,8 @@ protected:
 
     PortsMap m_prefill_in_ports;
     PortsMap m_prefill_out_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_prefill_variant_in_ports;
+    std::unordered_map<std::shared_ptr<ov::IAsyncInferRequest>, PortsMap> m_prefill_variant_out_ports;
 
     // Ports for the currently selected generate model variant (set once per conversation in
     // prepare_for_new_conversation)
@@ -173,6 +184,8 @@ protected:
     // Index into m_generate_requests / m_kvcache_sizes for the currently active variant.
     // Updated in prepare_for_new_conversation() and try_switch_to_larger_variant().
     size_t m_kvcache_variant_idx = 0;
+
+    size_t m_prefill_variant_idx = 0;
 
     bool m_first_run = true;
 
