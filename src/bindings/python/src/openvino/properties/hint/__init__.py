@@ -8,6 +8,7 @@ from openvino._pyopenvino.properties.hint import SchedulingCoreType
 from openvino._pyopenvino.properties.hint import ModelDistributionPolicy
 from openvino._pyopenvino.properties.hint import ExecutionMode
 from openvino._pyopenvino.properties.hint import PerformanceMode
+from openvino._pyopenvino.properties.hint import AttnKernelMode
 
 # Properties
 import openvino._pyopenvino.properties.hint as __hint

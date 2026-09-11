@@ -266,9 +266,8 @@ void fill_value_cache(memory::ptr value_cache_mem,
 // ---------------------------------------------------------------------------------------------
 // CM kernel path (impls/cm/pa_kv_cache_reorder_ref.cm).
 //
-// The CM kernel is selected when has_xattention is set: cm::PaKVReorderImplementationManager
-// requires it and ocl::PA_KV_reorder rejects it, so the two managers are mutually exclusive and
-// no force_implementations is needed.
+// The CM kernel is selected when XAttention is enabled or PA_CM attention kernel mode is requested.
+// In both cases OCL rejects the primitive, so no force_implementations setting is needed.
 //
 // CM uses its own cache layout, different from the OCL one the helpers above describe:
 //   K: token-major data [BLOCK_SIZE][K_HEAD_SIZE], then all scales, then all zps, each indexed
@@ -1264,11 +1263,11 @@ void cm_run_by_channel_reorder(const std::vector<uint8_t>& key_ref,
     prim.is_key_by_channel = true;
     prim.scales_zp_size = cm_scales_zp_size;
 
-    prim.has_xattention = true;
     topo.add(prim);
 
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::hint::attn_kernel_mode(ov::hint::AttnKernelMode::PA_CM));
     auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
 
     network->set_input_data("block_indices", block_indices_mem);
