@@ -23,7 +23,7 @@ public:
     ze_command_list(const ze_command_list& other) = delete;
     ~ze_command_list();
 
-    ze_command_list_handle_t handle() const { return _cmd_list.handle(); }
+    ze_command_list_resource resource() const { return _cmd_list; }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream();
 #endif

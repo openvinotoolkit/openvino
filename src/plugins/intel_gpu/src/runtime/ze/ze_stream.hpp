@@ -20,20 +20,14 @@ class ze_command_recorder;
 
 class ze_stream : public stream {
 public:
-    ze_command_list_handle_t get_immediate_command_list() const { return m_imm_cmd_list.handle(); }
-    ze_command_list_handle_t get_current_command_list() const;
-    const ze_engine& get_engine() const { return _engine; }
-
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
     ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_command_list_resource cmd_list);
     ze_stream(const ze_stream& other) = delete;
-
     ~ze_stream();
 
     void flush() const override;
     void finish() const override;
     void wait() override;
-
     void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) override;
     event::ptr enqueue_kernel(kernel& kernel,
                               const kernel_arguments_desc& args_desc,
@@ -48,15 +42,18 @@ public:
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
     ze_context_resource get_context() const;
-
-    bool is_profiling_enabled() const { return m_ev_factory->is_profiling_enabled(); }
-    ze_command_list_resource get_command_list() const { return m_imm_cmd_list; }
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
 #endif
-
     command_recorder::ptr get_recorder() const override;
+
+    /// @brief Get the current command list.
+    /// @return Recorded command list if recoding is in progress, otherwise the immediate command list.
+    ze_command_list_resource get_command_list() const;
+
+    bool is_profiling_enabled() const { return m_ev_factory->is_profiling_enabled(); }
+    const ze_engine& get_engine() const { return _engine; }
+    ze_command_list_resource get_immediate_command_list() const { return m_imm_cmd_list; }
 private:
     void sync_events(std::vector<event::ptr> const& deps, bool is_output = false);
 

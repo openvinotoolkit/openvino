@@ -65,7 +65,7 @@ void ze_command_list::close_impl() {
 
 void ze_command_list::enqueue_impl() {
     auto& ze_stream = _stream;
-    ze_command_list_handle_t imm_cmd_list = ze_stream.get_immediate_command_list();
+    ze_command_list_handle_t imm_cmd_list = ze_stream.get_immediate_command_list().handle();
     ze_command_list_handle_t enqueued_cmd_list = _cmd_list.handle();
     auto event = std::static_pointer_cast<ze_base_event>(ze_stream.create_base_event());
     auto event_handle = event->get_handle();
