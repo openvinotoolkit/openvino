@@ -54,6 +54,8 @@ public:
         Output<Node> output;
         // Base value used to convert and replay a view.
         Output<Node> base_value;
+        // Constructed containers hold references to distinct tensors, not views of input 0.
+        std::vector<size_t> element_ids;
     };
     std::map<size_t, AliasInfo> m_may_be_alias;
 

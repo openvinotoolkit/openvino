@@ -551,6 +551,14 @@ class TestLLMModel(TestTorchConvertModel):
             return self._infer_ov_model_export(ov_model, ie_device)
         return super().infer_ov_model(ov_model, inputs, ie_device)
 
+    def get_compile_config(self, ie_device):
+        config = super().get_compile_config(ie_device)
+        if ie_device == "CPU" and platform.machine() in ["aarch64", "arm64", "ARM64"]:
+            # ARM CPU defaults to FP16, whose accumulated rounding error in the KV cache
+            # can exceed this conversion test's tolerance against the FP32 reference.
+            config["INFERENCE_PRECISION_HINT"] = "f32"
+        return config
+
     def compare_results(self, fw_outputs, ov_outputs):
         if self.export_mode and isinstance(fw_outputs, (list, tuple)):
             # In export mode, only compare the first output (logits).

@@ -258,11 +258,32 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                           " respectively.");
 
             const bool has_inputs = !node->inputs().empty();
-            const size_t in_tensor_id =
+            const size_t first_input_id =
                 has_out ? node->get_named_input("out") : (has_inputs ? node->inputs().at(0) : 0);
+            const auto op_type = node->get_op_type();
+            const bool constructs_sequence = op_type == "prim::TupleConstruct" || op_type == "prim::ListConstruct";
+            std::vector<size_t> unpacked_ids;
+            const auto sequence = m_may_be_alias.find(first_input_id);
+            if (sequence != m_may_be_alias.end() && !sequence->second.element_ids.empty()) {
+                const auto& elements = sequence->second.element_ids;
+                if (op_type == "prim::TupleUnpack" || op_type == "prim::ListUnpack") {
+                    unpacked_ids = elements;
+                } else if (op_type == "aten::__getitem__") {
+                    if (const auto index_node = ov::util::get_constant_from_source(context.get_input(1))) {
+                        auto index = index_node->cast_vector<int64_t>().at(0);
+                        if (index < 0) {
+                            index += static_cast<int64_t>(elements.size());
+                        }
+                        if (index >= 0 && static_cast<size_t>(index) < elements.size()) {
+                            unpacked_ids = {elements[index]};
+                        }
+                    }
+                }
+            }
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
                 size_t fw_tensor_id = node->output(i);
-                if (has_out || (has_inputs && node->may_produce_alias(0, i))) {
+                const auto in_tensor_id = unpacked_ids.empty() ? first_input_id : unpacked_ids.at(i);
+                if (has_out || (has_inputs && (constructs_sequence || node->may_produce_alias(0, i)))) {
                     auto alias_iter = m_may_be_alias.find(fw_tensor_id);
                     // TODO: do we need to check other inputs, not only 0?
                     if (alias_iter != m_may_be_alias.end()) {
@@ -280,7 +301,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     m_may_be_alias[fw_tensor_id] = {in_tensor_id,
                                                     node,
                                                     converted_outputs[i],
-                                                    tensor_map->at(in_tensor_id)};
+                                                    tensor_map->at(in_tensor_id),
+                                                    constructs_sequence ? raw_inputs : std::vector<size_t>{}};
                     OPENVINO_DEBUG("Registered alias: ",
                                    fw_tensor_id,
                                    " of tensor: ",

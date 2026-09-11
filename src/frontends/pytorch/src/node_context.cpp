@@ -127,6 +127,9 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         const auto alias = m_translate_session->m_may_be_alias.find(input_id);
         if (alias != m_translate_session->m_may_be_alias.end()) {
             alias->second.output = ov_output;
+            if (!alias->second.element_ids.empty() && m_decoder->get_op_type() == "aten::append") {
+                alias->second.element_ids.push_back(m_decoder_inputs.at(1));
+            }
         }
         return;
     }
@@ -141,7 +144,7 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         const auto old_shape_view =
             m_translate_session->get_reverseprop_op(m_decoder, ov_output, ov_output, previous_value);
         for (auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
-            if (info.base_id == input_id) {
+            if (info.element_ids.empty() && info.base_id == input_id) {
                 info.output = rebase_view(info.output, info.base_value, old_shape_view);
                 info.base_value = ov_output;
                 (*m_tensor_map)[alias_id] = info.output;
@@ -283,6 +286,18 @@ Output<Node> NodeContext::resolve_tensor(size_t index) const {
     const auto alias = m_translate_session->m_may_be_alias.find(index);
     if (alias != m_translate_session->m_may_be_alias.end() && alias->second.base_value.get_node()) {
         auto& info = alias->second;
+        if (!info.element_ids.empty()) {
+            OutputVector elements;
+            for (const auto element_id : info.element_ids) {
+                elements.push_back(resolve_tensor(element_id));
+            }
+            if (elements != info.output.get_node()->input_values()) {
+                info.output = make_list_construct(elements);
+                (*m_tensor_map)[index] = info.output;
+                m_translate_session->encode_tensor_name(info.output, index);
+            }
+            return m_tensor_map->at(index);
+        }
         const auto base = resolve_tensor(info.base_id);
         if (base != info.base_value) {
             // Replaying a view against the current base updates sibling views and

@@ -163,6 +163,29 @@ class TestViewMutations(PytorchLayerTest):
         self._test(Model(), ["aten::add_", "aten::mul_", "aten::fill_"],
                    ie_device, precision, ir_version, freeze_model=False)
 
+    @pytest.mark.parametrize("same_values", [False, True])
+    def test_tuple_member_mutation(self, same_values, ie_device, precision, ir_version):
+        class Pair(torch.nn.Module):
+            def forward(self, data):
+                right = data.clone() if same_values else data + 1
+                return data.clone(), right
+
+        class Model(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.pair = Pair()
+
+            def forward(self, data):
+                left, right = self.pair(data)
+                before = right + 1
+                right.add_(2)
+                left.mul_(3)
+                return data, left, right, before
+
+        self._test(Model(), ["prim::TupleConstruct", "aten::add_", "aten::mul_"],
+                   ie_device, precision, ir_version, trace_model=True, freeze_model=False,
+                   fx_kind=["aten.add_", "aten.mul_"])
+
     @pytest.mark.parametrize("unpack", [False, True])
     @pytest.mark.parametrize("mutate_base", [False, True])
     def test_split_view_mutation(self, unpack, mutate_base, ie_device, precision, ir_version):
