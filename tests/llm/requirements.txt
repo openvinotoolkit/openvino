@@ -1,4 +1,4 @@
--c ../constraints_common.txt
+-c ../constraints.txt
 --extra-index-url https://download.pytorch.org/whl/cpu
 # torch 2.13.0 fixes GHSA-rrmf-rvhw-rf47; WhoWhatBench caps torchvision at 0.28.0.
 torch==2.13.0

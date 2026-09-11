@@ -73,7 +73,7 @@ jobs:
           sparse-checkout: |
             .github/actions
             tests/llm
-            tests/constraints_common.txt
+            tests/constraints.txt
           sparse-checkout-cone-mode: false
           submodules: 'false'
 
