@@ -7,6 +7,7 @@
 #include "sycl_stream.hpp"
 #include "intel_gpu/runtime/stream.hpp"
 #include "sycl_event.hpp"
+#include "sycl_user_event.hpp"
 #include "sycl_command_queues_builder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "sycl_base_kernel.hpp"
@@ -187,8 +188,9 @@ event::ptr sycl_stream::group_events(std::vector<event::ptr> const& deps) {
 }
 
 event::ptr sycl_stream::create_user_event(bool set) {
-    OPENVINO_ASSERT(set, "[GPU] create user event with set=false is not supported in SYCL runtime");
-    return std::make_shared<sycl_event>(::sycl::event(), _command_queue);
+    // SYCL has no native user event, so the completion state is kept on the host side.
+    // See sycl_user_event for the implications.
+    return std::make_shared<sycl_user_event>(set);
 }
 
 event::ptr sycl_stream::create_base_event() {
