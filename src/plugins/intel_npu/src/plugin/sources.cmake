@@ -67,7 +67,6 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/just_sync_infer_request.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_block_manager.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_block_manager.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/kv_cache_sliding_window_manager.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lazy_tensor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/lazy_tensor.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_block_kvcache_strategy.cpp
@@ -136,8 +135,6 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/lora_stateful_to_stateless.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.cpp
@@ -155,7 +152,7 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/duplicate_shared_kv_concat.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/duplicate_shared_kv_concat.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.hpp
+                ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/split_kvcache_into_blocks.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untangle_dq_scale.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/untangle_dq_scale.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/orc.cpp

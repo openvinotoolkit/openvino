@@ -19,6 +19,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "orc.hpp"
 #include "util.hpp"
+#include "util_xarch.hpp"
 
 using ov::npuw::weights::LazyTensor;
 
@@ -325,6 +326,37 @@ void Convert::detach() {
     tensor.detach();
 }
 
+std::size_t Subtract128::hash() const {
+    return tensor.get_hash() ^ (ov::element::i8.hash() + 0x9e3779b9);
+}
+
+bool Subtract128::operator==(const Subtract128& other) const {
+    return tensor == other.tensor;
+}
+
+ov::Tensor Subtract128::eval() const {
+    const auto source = tensor.eval();
+    OPENVINO_ASSERT(source.get_element_type() == ov::element::u8, "Subtract128 requires u8 input");
+    ov::Tensor result(ov::element::i8, source.get_shape());
+    const auto& get_tensor_impl = ov::get_tensor_impl;
+    ov::npuw::util::XARCH::subtract_128(get_tensor_impl(source), get_tensor_impl(result));
+    return result;
+}
+
+LazyTensor::Meta Subtract128::eval_meta() const {
+    const auto meta = tensor.eval_meta();
+    OPENVINO_ASSERT(meta.type == ov::element::u8, "Subtract128 requires u8 input");
+    return {meta.shape, ov::element::i8};
+}
+
+void Subtract128::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+    tensor.read_weight(ctx);
+}
+
+void Subtract128::detach() {
+    tensor.detach();
+}
+
 std::size_t Gather::hash() const {
     std::size_t seed = w.get_hash() + 0x9e3779b9;
     seed ^= t.get_element_type().hash() + 0x9e3779b9;
@@ -396,6 +428,7 @@ enum class TransformType : std::uint16_t {
     PERMUTE = 4,
     CONVERT = 5,
     GATHER = 6,
+    SUBTRACT_128 = 7,
 };
 
 struct LazyTensorImpl {
@@ -458,6 +491,10 @@ ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op:
     return ov::npuw::weights::TransformType::GATHER;
 }
 
+ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op::Subtract128&) {
+    return ov::npuw::weights::TransformType::SUBTRACT_128;
+}
+
 }  // namespace
 
 namespace ov {
@@ -517,6 +554,10 @@ void Convert::serialize(ov::npuw::orc::Stream& stream) {
     }
 }
 
+void Subtract128::serialize(ov::npuw::orc::Stream& stream) {
+    stream & tensor;
+}
+
 void Gather::serialize(ov::npuw::orc::Stream& stream) {
     std::string type_str;
     if (stream.output()) {
@@ -564,6 +605,9 @@ void LazyTensorImpl::serialize(ov::npuw::orc::Stream& stream) {
         break;
     case TransformType::GATHER:
         m_transform.emplace<op::Gather>(ov::npuw::orc::load_versioned_payload<op::Gather>(section));
+        break;
+    case TransformType::SUBTRACT_128:
+        m_transform.emplace<op::Subtract128>(ov::npuw::orc::load_versioned_payload<op::Subtract128>(section));
         break;
     default:
         OPENVINO_THROW("ORC LazyTensor: unknown op_type ", section.type, " — please upgrade NPUW");
@@ -661,6 +705,10 @@ void LazyTensorImpl::get_transformations(std::vector<LazyTensor::Transform>& vec
                        auto next_tr = op.tensor.get_transformations();
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
                    },
+                   [&vec](const op::Subtract128& op) {
+                       auto next_tr = op.tensor.get_transformations();
+                       vec.insert(vec.end(), next_tr.begin(), next_tr.end());
+                   },
                    [&vec](const op::Permute& op) {
                        auto next_tr = op.tensor.get_transformations();
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
@@ -713,6 +761,12 @@ LazyTensor LazyTensor::permute(const std::vector<std::size_t>& axes) {
 LazyTensor LazyTensor::convert(const ov::element::Type& type) {
     LazyTensor new_lt;
     new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Convert(*this, type));
+    return new_lt;
+}
+
+LazyTensor LazyTensor::subtract_128() {
+    LazyTensor new_lt;
+    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Subtract128(*this));
     return new_lt;
 }
 

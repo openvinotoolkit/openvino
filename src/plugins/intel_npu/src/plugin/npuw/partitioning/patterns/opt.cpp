@@ -137,8 +137,6 @@ Context::PPtr Context::gather_cb4(const Context::PPtr& w, const ov::Tensor& t, o
 Context::PPtr Context::host_gather(const Context::PPtr& w, const Context::PPtr& ids) {
     const auto& w_shape = w->get_shape();
     const auto& ids_shape = ids->get_shape();
-
-    NPUW_ASSERT(w_shape.size() == 2);
     NPUW_ASSERT(ids_shape.size() == 2);
     NPUW_ASSERT(ids_shape[0] == 1);
 
@@ -155,8 +153,6 @@ Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
                                                 ov::element::Type type) {
     const auto& w_shape = w->get_shape();
     const auto& ids_shape = ids->get_shape();
-
-    NPUW_ASSERT(ids_shape.size() == 2);
     NPUW_ASSERT(ids_shape[0] == 1);
 
     Context::PPtr new_param;
@@ -1089,8 +1085,8 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
-    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
-    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()}, is_subtract_128);
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()}, is_subtract_128);
     auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qcoeff});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
@@ -1110,14 +1106,11 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
         auto matched_out_ids = uat::_(node_to_output).at_or_at(cvtids, pids);
         const auto& matched_out_gather = node_to_output.at(gather);
 
-        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+        const bool has_weight_shift = node_to_output.count(qshiftw) != 0;
+        const bool has_zeropoint_shift = node_to_output.count(qshiftz) != 0;
+        if (has_weight_shift != has_zeropoint_shift) {
             return false;
         }
-        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-                                              !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
-            return false;
-        }
-
         // Replicate the compute part
         auto gather_c = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, 0);
         auto new_g_w = std::make_shared<ov::op::v8::Gather>(matched_out_w, matched_out_ids, gather_c);
@@ -1400,8 +1393,8 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
 
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
-    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
-    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
+    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()}, is_subtract_128);
+    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()}, is_subtract_128);
     auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrs});
     auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
@@ -1412,17 +1405,11 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
         const auto& matched_out_mul = node_to_output.at(qmuls);
         auto out_shape = matched_out_mul.get_shape();
 
-        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
+        const bool has_weight_shift = node_to_output.count(qshiftw) != 0;
+        const bool has_zeropoint_shift = node_to_output.count(qshiftz) != 0;
+        if (has_weight_shift != has_zeropoint_shift) {
             return false;
         }
-        // The paired shifts mark u8 tensors adapted for an i8 DQ graph. The current
-        // host path replaces that graph with direct u8 dequantization, where the
-        // equal shifts cancel: (W - 128) - (Z - 128) == W - Z.
-        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-                                              !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
-            return false;
-        }
-
         if (out_shape.size() != 3 && out_shape.size() != 4) {
             return false;
         }
@@ -1455,6 +1442,12 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
             auto matched_qzerop = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qzerop);
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
+
+            const bool weight_is_sub128 = ctx.get().params_to_subtract_128.count(matched_qweight) != 0;
+            const bool zerop_is_sub128 = ctx.get().params_to_subtract_128.count(matched_qzerop) != 0;
+            if (weight_is_sub128 != zerop_is_sub128) {
+                return false;
+            }
 
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with future- unpacked and gathered
             // fp16
@@ -1954,6 +1947,49 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(res, "OptCompressDictMatMulf32"), std::move(callback));
 }
 
+ExtractVocabSub128::ExtractVocabSub128(Context::Ref ctx) {
+    const auto weight = opp::wrap_type<ov::op::v0::Parameter, ov::op::v0::Constant>(opp::type_matches(ov::element::u8));
+    const auto zerop = opp::wrap_type<ov::op::v0::Parameter, ov::op::v0::Constant>(opp::type_matches(ov::element::u8));
+    const auto weight_convert = opp::wrap_type<ov::op::v0::Convert>({weight});
+    const auto zerop_convert = opp::wrap_type<ov::op::v0::Convert>({zerop});
+    const auto shift_value = [](const ov::Output<ov::Node>& output) {
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+        return constant && constant->get_shape().empty() && constant->cast_vector<float>().front() == 128.0f;
+    };
+    const auto weight_shift =
+        opp::wrap_type<ov::op::v1::Subtract>({weight_convert, opp::wrap_type<ov::op::v0::Constant>(shift_value)},
+                                             is_subtract_128);
+    const auto zerop_shift =
+        opp::wrap_type<ov::op::v1::Subtract>({zerop_convert, opp::wrap_type<ov::op::v0::Constant>(shift_value)},
+                                             is_subtract_128);
+    const auto dequantized = opp::wrap_type<ov::op::v1::Subtract>({weight_shift, zerop_shift});
+
+    auto callback = [=](opp::Matcher& matcher) {
+        const auto& values = matcher.get_pattern_value_map();
+        for (const auto& convert : {weight_convert, zerop_convert}) {
+            const auto type = values.at(convert).get_element_type();
+            if (type != ov::element::f16 && type != ov::element::f32) {
+                return false;
+            }
+        }
+        for (const auto& shift : {weight_shift, zerop_shift}) {
+            const auto matched_shift = values.at(shift).get_node_shared_ptr();
+            const auto convert = matched_shift->input_value(0).get_node_shared_ptr();
+            const auto source = convert->input_value(0).get_node_shared_ptr();
+            auto shifted =
+                std::make_shared<ov::op::v0::Parameter>(ov::element::i8, source->output(0).get_partial_shape());
+            shifted->set_friendly_name(source->get_friendly_name() + "_sub128");
+            ctx.get().params_to_subtract_128.emplace(shifted, source);
+            auto replacement = convert->clone_with_new_inputs({shifted});
+            replacement->set_friendly_name(matched_shift->get_friendly_name());
+            ov::copy_runtime_info(convert, replacement);
+            ov::replace_node(matched_shift, replacement);
+        }
+        return true;
+    };
+    register_matcher(std::make_shared<opp::Matcher>(dequantized, "ExtractVocabSub128"), std::move(callback));
+}
+
 //     Const(W) -> to(f16) ->
 //     Const(Z) -> to(f16) -> Subtract
 //     Const(S) ---------------------> Multiply -> [to(f32) ->] MatMul -> Result
@@ -1966,9 +2002,7 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
     auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qzerop});
-    auto qshiftw = opp::optional<ov::op::v1::Subtract>({qcvtw->output(0), opp::any_input()});
-    auto qshiftz = opp::optional<ov::op::v1::Subtract>({qcvtz->output(0), opp::any_input()});
-    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qshiftw, qshiftz});
+    auto qsub = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsub, qcoeff});
     // The Convert between Multiply and MatMul is optional (some models omit it when Multiply is already f32)
     auto qcvtm = opp::optional<ov::op::v0::Convert>({qmuls});
@@ -2005,14 +2039,6 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(Context::Ref ctx,
         auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
-
-        if (node_to_output.count(qshiftw) != node_to_output.count(qshiftz)) {
-            return false;
-        }
-        if (node_to_output.count(qshiftw) && (!is_subtract_128(node_to_output.at(qshiftw).get_node_shared_ptr()) ||
-                                              !is_subtract_128(node_to_output.at(qshiftz).get_node_shared_ptr()))) {
-            return false;
-        }
 
         // Standard layout: weight [OC, IC], scale [OC, 1], transpose_b=true
         const bool standard_layout = qcoeff_shape.size() == 2 && qcoeff_shape[1] == 1 &&

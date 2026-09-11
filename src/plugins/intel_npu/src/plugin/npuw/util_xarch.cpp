@@ -204,6 +204,13 @@ inline __m128i avx2_i8tof16(__m128i vi8, __m256 s) {
     return _mm256_cvtps_ph(f32scl, _MM_FROUND_TO_NEAREST_INT);  // convert: 8 x f32 -> 8 x f16 [128b]
 }
 
+inline __m128i avx2_i8f16_zp(__m128i vi8, __m128i vzp, __m256 s) {
+    __m256i i32vec = _mm256_cvtepi8_epi32(vi8);
+    __m256i i32zp = _mm256_cvtepi8_epi32(vzp);
+    __m256 f32vec = _mm256_cvtepi32_ps(_mm256_sub_epi32(i32vec, i32zp));
+    return _mm256_cvtps_ph(_mm256_mul_ps(f32vec, s), _MM_FROUND_TO_NEAREST_INT);
+}
+
 inline __m128i avx2_u8tof16_hi(__m128i vu8, __m256 z, __m256 s) {
     __m256i u32vec = _mm256_cvtepu8_epi32(vu8);                 // extend:   8 x u8  -> 8 x i32 [256b of 256b]
     __m256 f32vec = _mm256_cvtepi32_ps(u32vec);                 // convert:  8 x i32 -> 8 x f32 [256b of 256b]
@@ -461,6 +468,37 @@ void ov::npuw::util::XARCH::unpack_u4i8(const ov::SoPtr<ov::ITensor>& from,
         pSrc++;
         pDst += 2;
     }
+}
+
+void ov::npuw::util::XARCH::subtract_128(const ov::SoPtr<ov::ITensor>& from,
+                                         const ov::SoPtr<ov::ITensor>& to) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+
+    const auto total = from->get_size();
+    const auto* source = static_cast<const uint8_t*>(from->data());
+    auto* result = static_cast<int8_t*>(to->data());
+
+#if defined(HAVE_AVX2)
+    constexpr std::size_t vector_size = 32;
+    const auto vector_count = total / vector_size;
+    const auto mask = _mm256_set1_epi8(static_cast<char>(0x80));
+
+    ov::parallel_for(vector_count, [source, result, mask](std::size_t index) {
+        const auto values = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(source + index * 32));
+        const auto shifted = _mm256_xor_si256(values, mask);
+        _mm256_storeu_si256(reinterpret_cast<__m256i*>(result + index * 32), shifted);
+    });
+
+    for (std::size_t index = vector_count * vector_size; index < total; ++index) {
+        result[index] = static_cast<int8_t>(source[index] ^ 0x80u);
+    }
+#else
+    for (std::size_t index = 0; index < total; ++index) {
+        result[index] = static_cast<int8_t>(source[index] ^ 0x80u);
+    }
+#endif
 }
 
 void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
@@ -1739,6 +1777,83 @@ void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t r
     });
 #else
     OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::unpack_i8f16_zp(const ov::SoPtr<ov::ITensor>& from,
+                                            const ov::SoPtr<ov::ITensor>& zerop,
+                                            const ov::SoPtr<ov::ITensor>& scale,
+                                            const ov::SoPtr<ov::ITensor>& to,
+                                            const ov::npuw::util::UnpackOptions& unpack_options) {
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(zerop->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(from->get_size() == zerop->get_size());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from->get_shape().size() == 2);
+    NPUW_ASSERT(scale->get_shape().size() == 2);
+    NPUW_ASSERT(scale->get_shape()[0] == from->get_shape()[0]);
+    NPUW_ASSERT(scale->get_shape()[1] == 1);
+    NPUW_ASSERT(scale->get_element_type() == ov::element::f16 || scale->get_element_type() == ov::element::f32);
+
+    const auto rows = from->get_shape()[0];
+    const auto columns = from->get_shape()[1];
+    const auto* source = from->data<const int8_t>();
+    const auto* zerop_data = zerop->data<const int8_t>();
+    auto* result = to->data<ov::float16>();
+
+#if defined(HAVE_AVX2)
+    constexpr std::size_t vector_size = 8;
+    const auto scale_element_type = scale->get_element_type();
+    const auto* scale_data = static_cast<const int8_t*>(scale->data());
+
+    auto unpack_row = [=](std::size_t row) {
+        const auto row_offset = row * columns;
+        const auto scale_vector = avx2_load_scale(scale_data + row * scale_element_type.size(), scale_element_type);
+
+        std::size_t column = 0;
+        for (; column + vector_size <= columns; column += vector_size) {
+            const auto input_vector = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(source + row_offset + column));
+            const auto zerop_vector = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(zerop_data + row_offset + column));
+            const auto output_vector = avx2_i8f16_zp(input_vector, zerop_vector, scale_vector);
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(result + row_offset + column), output_vector);
+        }
+
+        const float scale_value = avx2_load_f32(scale_data + row * scale_element_type.size(), scale_element_type);
+        for (; column < columns; ++column) {
+            const auto index = row_offset + column;
+            result[index] = ov::float16((source[index] - zerop_data[index]) * scale_value);
+        }
+    };
+
+    if (unpack_options.bUseOvParallelFor) {
+        ov::parallel_for(rows, unpack_row);
+    } else {
+        for (std::size_t row = 0; row < rows; ++row) {
+            unpack_row(row);
+        }
+    }
+#else
+    if (scale->get_element_type() == ov::element::f16) {
+        const auto* scale_data = scale->data<const ov::float16>();
+        ov::parallel_for(rows, [=](std::size_t row) {
+            const float scale_value = static_cast<float>(scale_data[row]);
+            for (std::size_t column = 0; column < columns; ++column) {
+                const auto index = row * columns + column;
+                result[index] = ov::float16((source[index] - zerop_data[index]) * scale_value);
+            }
+        });
+    } else {
+        const auto* scale_data = scale->data<const float>();
+        ov::parallel_for(rows, [=](std::size_t row) {
+            const float scale_value = scale_data[row];
+            for (std::size_t column = 0; column < columns; ++column) {
+                const auto index = row * columns + column;
+                result[index] = ov::float16((source[index] - zerop_data[index]) * scale_value);
+            }
+        });
+    }
 #endif
 }
 

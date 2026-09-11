@@ -1426,6 +1426,42 @@ TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
     EXPECT_EQ(var.eval_meta().type, res.eval_meta().type);
 }
 
+TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3},
+                                                       {0, 1, 127, 128, 254, 255}, 0);
+    auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
+    ov::npuw::weights::LazyTensor res;
+    const auto expected = var.eval();
+
+    std::stringstream ss;
+    write(ss, var);
+    var.detach();
+    read(ss, res);
+    res.read_weight(WeightsContext(nullptr, "", make_consts_cache({constant}), {}));
+
+    expect_lazy_tensor_transform_types_equal(var, res);
+    EXPECT_EQ(var.get_hash(), res.get_hash());
+    EXPECT_EQ(res.eval_meta().shape, (ov::Shape{2, 3}));
+    EXPECT_EQ(res.eval_meta().type, ov::element::i8);
+    expect_tensors_equal(expected, res.eval());
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_subtract128_embedded_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4}, {0, 127, 128, 255});
+    auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
+    const auto expected = var.eval();
+    ov::npuw::weights::LazyTensor res;
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    expect_tensors_equal(expected, res.eval());
+}
+
 TEST(SerializationTest, OVTypes_LazyTensor_unpack_roundtrip) {
     using namespace ov::npuw::s11n;
 
