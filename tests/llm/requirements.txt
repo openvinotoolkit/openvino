@@ -1,8 +1,8 @@
 -c ../constraints_common.txt
 --extra-index-url https://download.pytorch.org/whl/cpu
-# WhoWhatBench does not support the shared torch 2.14 / torchvision 0.29 stack yet.
-torch==2.12.0
-torchvision==0.27.0
+# torch 2.13.0 fixes GHSA-rrmf-rvhw-rf47; WhoWhatBench caps torchvision at 0.28.0.
+torch==2.13.0
+torchvision==0.28.0
 optimum-intel[tests,nncf]
 whowhatbench[llm-test-openvino] @ git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark
 pytest
