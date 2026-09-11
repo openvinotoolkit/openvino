@@ -281,7 +281,24 @@ bool FQStrippingTransformation::run_on_model(const std::shared_ptr<ov::Model>& f
             adjuster.adjust();
         }
 
-        OPENVINO_ASSERT(replace_output_update_name(fq->output(0), fq->input_value(0)), "FQ stripping failed");
+        if (!replace_output_update_name(fq->output(0), fq->input_value(0))) {
+            // replace_output_update_name returns false when the FQ has a Result
+            // consumer and its input source is a Parameter — it cannot transfer
+            // the FQ's friendly name onto the Parameter without changing the
+            // model's public input API. Rewire non-Result consumers directly to
+            // the FQ's input source; Result consumers stay attached (the FQ is
+            // identity-like, so values are numerically equivalent).
+            auto src = fq->input_value(0);
+            std::vector<ov::Input<ov::Node>> non_result_consumers;
+            for (auto& consumer_input : fq->output(0).get_target_inputs()) {
+                if (!ov::is_type<ov::op::v0::Result>(consumer_input.get_node())) {
+                    non_result_consumers.push_back(consumer_input);
+                }
+            }
+            for (auto& consumer_input : non_result_consumers) {
+                consumer_input.replace_source_output(src);
+            }
+        }
         model_changed = true;
     }
 
