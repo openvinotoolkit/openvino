@@ -119,6 +119,9 @@ jobs:
       CCACHE_MAXSIZE: 2G
       PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
       PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -132,8 +135,7 @@ jobs:
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
-        
-      - name: Setup ccache
+
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
@@ -241,13 +243,13 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
 
       - name: Cmake - Build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) -- --quiet
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
 
       - name: Show ccache stats
         run: ccache --show-stats
 
       - name: Cmake - Install
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install -- --quiet
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --target install -- --quiet
 
       - name: Build OpenVINO C++ samples
         run: |

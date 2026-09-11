@@ -128,6 +128,9 @@ jobs:
       NODE_VERSION: 22
       PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
       PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
@@ -178,7 +181,7 @@ jobs:
                          -DENABLE_WHEEL=ON \
                          -S ${{ env.OPENVINO_REPO }} \
                          -B ${{ env.BUILD_DIR }}
-          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
         env:
@@ -206,7 +209,7 @@ jobs:
               /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
             fi
 
-            /usr/bin/cmake --build ${py_build_dir} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+            /usr/bin/cmake --build ${py_build_dir} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
             /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
             /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pyopenvino_python${PY_VER}
 
@@ -218,7 +221,7 @@ jobs:
                 -DCPACK_GENERATOR=NPM \
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
-          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) -- --quiet
+          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
           /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node/bin
 
       - name: Pack Artifacts
