@@ -21,11 +21,14 @@
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/paged_attention.hpp>
 #include <intel_gpu/primitives/qsa.hpp>
+#include <intel_gpu/runtime/profiling.hpp>
+#include <iostream>
 #include <limits>
 #include <map>
 #include <numeric>
 #include <vector>
 
+#include "impls/cm/qsa/qsa_stage_events.hpp"
 #include "qsa_inst.h"
 #include "random_generator.hpp"
 #include "test_utils.h"
@@ -1080,5 +1083,279 @@ TEST(qsa_gpu_test, max_selected_tokens_reserves_the_tail) {
     // budget + compress_ratio - 1: budget expanded tokens plus at most r-1 tail tokens.
     ASSERT_EQ(prim.max_selected_tokens(), d.budget + d.r - 1);
 }
+
+// --- roofline perf harness (token_size sweep) ------------------------------
+//
+// These tests do not check the QSA output value; they build the production-shaped
+// network once per (phase, token_size), execute it repeatedly with GPU-side profiling
+// enabled, and print one JSON line per measurement. Feed the captured lines into
+// `qsa_gr_roofline.py --measured-ms` to compare the analytical roofline bound for
+// Q0..Q3 against a real device execution. QSA is a single fused primitive from clDNN's
+// point of view, so the number reported here is the *combined* Q0..Q3 time; compare it
+// against the *sum* of the per-stage roofline bounds for the same (phase, tokens). Run
+// with (also_run_disabled is required because these are marked DISABLED_ like the other
+// perf-only suites in this test tree):
+//   ov_gpu_unit_tests --gtest_also_run_disabled_tests --gtest_filter='*DISABLED_roofline*'
+namespace roofline {
+
+double mean_ms(const std::vector<double>& v) {
+    double sum = 0.0;
+    for (double x : v) {
+        sum += x;
+    }
+    return v.empty() ? 0.0 : sum / static_cast<double>(v.size());
+}
+
+/// Extracts the GPU-side "executing" duration of `ev`, in milliseconds. GPU-side timing
+/// is used instead of host wall-clock so host dispatch overhead (which the roofline
+/// model does not account for) is excluded from the comparison.
+double executing_ms(const event::ptr& ev) {
+    if (ev == nullptr) {
+        return -1.0;
+    }
+    for (const auto& interval : ev->get_profiling_info()) {
+        if (interval.stage == instrumentation::profiling_stage::executing && interval.value != nullptr) {
+            return static_cast<double>(interval.value->value().count()) / 1.0e6;
+        }
+    }
+    return -1.0;
+}
+
+/// Executes `net` `iterations` times (after `warmup` untimed iterations) and returns the
+/// mean GPU-side execution time of every *actually dispatched* CM kernel, keyed by the
+/// stage name recorded via qsa_stage_events.hpp. QSA fuses several independent kernel
+/// dispatches (Q0 kv cache update, Q1 prepare, Q2 score, Q2 top-k finalization, Q3
+/// attention) behind one clDNN primitive, so `network::get_executed_primitives()` alone
+/// only exposes the last of them.
+///
+/// `outputs.at("qsa").get_memory()` only forces a *data* dependency wait on the primitive's
+/// own returned event (Q3's), which transitively depends on every earlier stage - so by the
+/// time it returns, all GPU work for this call is done. But the intermediate stage events
+/// themselves are never individually waited on or queried anywhere else, so each one is
+/// explicitly `wait()`-ed before being read/discarded here: this is a no-op if the driver
+/// already reaped it via the transitive dependency, but makes sure no retained event object
+/// outlives this iteration without ever being explicitly synchronized on.
+std::map<std::string, std::vector<double>> time_qsa_stages(network& net, int warmup, int iterations) {
+    for (int i = 0; i < warmup; i++) {
+        auto outputs = net.execute();
+        outputs.at("qsa").get_memory();
+        for (auto& stage_event : ov::intel_gpu::cm::qsa_debug::take_stage_events()) {
+            if (stage_event.second != nullptr) {
+                stage_event.second->wait();
+            }
+        }
+    }
+    std::map<std::string, std::vector<double>> samples;
+    for (int i = 0; i < iterations; i++) {
+        auto outputs = net.execute();
+        outputs.at("qsa").get_memory();  // forces the whole call chain (Q0..Q3) to complete
+        for (const auto& stage_event : ov::intel_gpu::cm::qsa_debug::take_stage_events()) {
+            if (stage_event.second != nullptr) {
+                stage_event.second->wait();
+            }
+            const double ms = executing_ms(stage_event.second);
+            if (ms >= 0.0) {
+                samples[stage_event.first].push_back(ms);
+            }
+        }
+    }
+    return samples;
+}
+
+void print_measurement(const char* component, const char* phase, size_t tokens, const std::string& stage, double ms, size_t samples) {
+    std::cout << "ROOFLINE_JSON {\"component\":\"" << component << "\",\"phase\":\"" << phase
+               << "\",\"tokens\":" << tokens << ",\"stage\":\"" << stage << "\",\"ms\":" << ms
+               << ",\"samples\":" << samples << "}" << std::endl;
+}
+
+/// Builds and times the production-shaped QSA network for one (phase, token_size) point.
+/// `phase == "prefill"` submits the whole context as one call (`q_len = tokens`);
+/// `phase == "decode"` submits a single token after `tokens - 1` cached ones. Unlike
+/// `make_reference()`, this always calls `make_reference_once()` directly: the decode
+/// retry-for-discriminating-margin loop exists only for correctness tests and would be
+/// wasted CPU time here, since this harness never checks the attention output.
+void run_point(const char* phase, size_t tokens) {
+    if (!cm_qsa_available()) {
+        GTEST_SKIP() << "CM JIT / systolic GPU is required for qsa";
+    }
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    const bool decode = std::string(phase) == "decode";
+    const size_t past_len = decode ? tokens - 1 : 0;
+    const size_t q_len = decode ? 1 : tokens;
+
+    // prod_gqa_dims() shrinks hidden_size and the indexer budget to bound the CPU
+    // reference cost of the *correctness* tests; restore the real production values
+    // (design section 3) here so the measurement matches qsa_gr_roofline.py's defaults.
+    qsa_dims d = prod_gqa_dims(tokens + 16);
+    d.D = 2560;
+    d.budget = 2048;
+    d.block_topk = 512;
+
+    auto ref = make_reference_once(rg, d, past_len, q_len, /*has_gate=*/false);
+
+    auto& engine = get_test_engine();
+    const auto config_attrs = make_config(d, false);
+    const size_t total = ref.total_len();
+    const size_t num_pages = (total + d.pa_block - 1) / d.pa_block;
+    const size_t summaries_per_page = d.pa_block / d.r;
+
+    const auto slice = [&](const std::vector<float>& src, size_t stride) {
+        return std::vector<float>(src.begin() + ref.past_len * stride, src.begin() + total * stride);
+    };
+    const auto cur_mixed = slice(ref.mixed_all, d.D);
+    const auto cur_key = slice(ref.key_all, d.Hkv * d.Dh);
+    const auto cur_value = slice(ref.value_all, d.Hkv * d.Dv);
+
+    std::vector<float> key_cache(num_pages * d.Hkv * d.pa_block * d.Dh, 0.0f);
+    std::vector<float> value_cache(num_pages * d.Hkv * d.pa_block * d.Dv, 0.0f);
+    std::vector<float> raw_k_cache(num_pages * d.pa_block * d.Di, 0.0f);
+    std::vector<float> summary_cache(num_pages * summaries_per_page * d.Di, 0.0f);
+    for (size_t p = 0; p < ref.past_len; p++) {
+        const size_t page = p / d.pa_block;
+        const size_t slot = p % d.pa_block;
+        for (size_t h = 0; h < d.Hkv; h++) {
+            for (size_t j = 0; j < d.Dh; j++) {
+                key_cache[((page * d.Hkv + h) * d.pa_block + slot) * d.Dh + j] = ref.key_all[p * d.Hkv * d.Dh + h * d.Dh + j];
+            }
+            for (size_t j = 0; j < d.Dv; j++) {
+                value_cache[((page * d.Hkv + h) * d.pa_block + slot) * d.Dv + j] = ref.value_all[p * d.Hkv * d.Dv + h * d.Dv + j];
+            }
+        }
+        const auto proj = ref.project(p);
+        for (size_t j = 0; j < d.Di; j++) {
+            raw_k_cache[(page * d.pa_block + slot) * d.Di + j] = proj[d.Hidx * d.Di + j];
+        }
+    }
+    for (size_t b = 0; b * d.r + d.r <= ref.past_len; b++) {
+        const auto s = ref.summary(b);
+        const size_t page = b / summaries_per_page;
+        const size_t slot = b % summaries_per_page;
+        for (size_t j = 0; j < d.Di; j++) {
+            summary_cache[(page * summaries_per_page + slot) * d.Di + j] = s[j];
+        }
+    }
+
+    std::vector<int32_t> block_indices(num_pages);
+    std::iota(block_indices.begin(), block_indices.end(), 0);
+    const std::vector<int32_t> block_indices_begins = {0, static_cast<int32_t>(num_pages)};
+    const std::vector<int32_t> past_lens = {static_cast<int32_t>(ref.past_len)};
+    const std::vector<int32_t> subsequence_begins = {0, static_cast<int32_t>(ref.q_len)};
+    std::vector<int32_t> position_ids(ref.q_len);
+    for (size_t t = 0; t < ref.q_len; t++) {
+        position_ids[t] = static_cast<int32_t>(ref.past_len + t);
+    }
+
+    const size_t J = (d.Hidx + 1) * d.Di;
+
+    topology topology;
+    topology.add(input_layout("mixed", layout{{static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.D)}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("query", layout{{static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.Hq * d.Dh)}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("key", layout{{static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.Hkv * d.Dh)}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("value", layout{{static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.Hkv * d.Dv)}, data_types::f16, format::bfyx}));
+    topology.add(data("past_lens", make_i32(engine, {1}, past_lens)));
+    topology.add(data("subsequence_begins", make_i32(engine, {2}, subsequence_begins)));
+    topology.add(data("block_indices", make_i32(engine, {static_cast<int64_t>(num_pages)}, block_indices)));
+    topology.add(data("block_indices_begins", make_i32(engine, {2}, block_indices_begins)));
+    topology.add(input_layout("key_cache",
+                              layout{{static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
+                                      static_cast<int64_t>(d.Dh)},
+                                     data_types::f16,
+                                     format::bfyx}));
+    topology.add(input_layout("value_cache",
+                              layout{{static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
+                                      static_cast<int64_t>(d.Dv)},
+                                     data_types::f16,
+                                     format::bfyx}));
+    topology.add(input_layout("raw_k_cache",
+                              layout{{static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)},
+                                     data_types::f16,
+                                     format::bfyx}));
+    topology.add(input_layout("summary_cache",
+                              layout{{static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)},
+                                     data_types::f16,
+                                     format::bfyx}));
+    topology.add(data("idx_w", make_f16(engine, {static_cast<int64_t>(J), static_cast<int64_t>(d.D)}, ref.idx_w)));
+    topology.add(data("q_norm", make_f16(engine, {static_cast<int64_t>(d.Di)}, ref.q_norm)));
+    topology.add(data("k_norm", make_f16(engine, {static_cast<int64_t>(d.Di)}, ref.k_norm)));
+    topology.add(data("rotary", make_f16(engine, {static_cast<int64_t>(d.max_positions), static_cast<int64_t>(d.rotary)}, ref.rotary)));
+    topology.add(data("position_ids", make_i32(engine, {static_cast<int64_t>(ref.q_len)}, position_ids)));
+
+    const std::vector<input_info> inputs = {input_info("mixed"),
+                                            input_info("query"),
+                                            input_info("key"),
+                                            input_info("value"),
+                                            input_info("past_lens"),
+                                            input_info("subsequence_begins"),
+                                            input_info("block_indices"),
+                                            input_info("block_indices_begins"),
+                                            input_info("key_cache"),
+                                            input_info("value_cache"),
+                                            input_info("raw_k_cache"),
+                                            input_info("summary_cache"),
+                                            input_info("idx_w"),
+                                            input_info("q_norm"),
+                                            input_info("k_norm"),
+                                            input_info("rotary"),
+                                            input_info("position_ids")};
+    static_assert(QSAIn::COUNT == 17, "keep the test input order in sync with QSA::InputIdx");
+    topology.add(qsa("qsa", inputs, config_attrs));
+
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::optimize_data(true));
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    cfg.set_property(ov::enable_profiling(true));
+    network net(engine, topology, cfg);
+
+    net.set_input_data("mixed", make_f16(engine, {static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.D)}, cur_mixed));
+    net.set_input_data("query", make_f16(engine, {static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.Hq * d.Dh)}, ref.query_cur));
+    net.set_input_data("key", make_f16(engine, {static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.Hkv * d.Dh)}, cur_key));
+    net.set_input_data("value", make_f16(engine, {static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.Hkv * d.Dv)}, cur_value));
+    net.set_input_data("key_cache",
+                       make_f16(engine,
+                                {static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
+                                 static_cast<int64_t>(d.Dh)},
+                                key_cache));
+    net.set_input_data("value_cache",
+                       make_f16(engine,
+                                {static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
+                                 static_cast<int64_t>(d.Dv)},
+                                value_cache));
+    net.set_input_data("raw_k_cache",
+                       make_f16(engine, {static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)}, raw_k_cache));
+    net.set_input_data("summary_cache",
+                       make_f16(engine,
+                                {static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)},
+                                summary_cache));
+
+    const auto stage_samples = time_qsa_stages(net, /*warmup=*/2, /*iterations=*/100);
+    for (const auto& [stage, samples] : stage_samples) {
+        print_measurement("QSA", phase, tokens, stage, mean_ms(samples), samples.size());
+    }
+}
+
+}  // namespace roofline
+
+struct qsa_roofline_case {
+    size_t tokens;
+    bool decode;
+};
+
+class qsa_roofline_perf : public ::testing::TestWithParam<qsa_roofline_case> {};
+
+TEST_P(qsa_roofline_perf, measures_cm_kernel_time) {
+    const auto p = GetParam();
+    roofline::run_point(p.decode ? "decode" : "prefill", p.tokens);
+}
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_roofline,
+                         qsa_roofline_perf,
+                         ::testing::Values(qsa_roofline_case{1024, false},
+                                           qsa_roofline_case{1024, true},
+                                           qsa_roofline_case{2048, false},
+                                           qsa_roofline_case{2048, true},
+                                           qsa_roofline_case{4096, false},
+                                           qsa_roofline_case{4096, true}));
 
 }  // namespace

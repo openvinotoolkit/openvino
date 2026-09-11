@@ -1,0 +1,56 @@
+// Copyright (c) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+// Separate dispatch on the same in-order queue provides global visibility.
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+#include "qsa_gr_common.hpp"
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,
+    const float* partial_acc ATTR, const float* partial_ml ATTR, half* output ATTR,
+    uint32_t num_tokens, uint32_t q_base, uint32_t q_pitch,
+    uint32_t q_head_stride, uint32_t gate_delta) {
+    constexpr uint HQ = QSA_HEADS, DV = QSA_V_HEAD_SIZE, P = QSA_SPLIT_PARTITIONS;
+    const uint head = cm_global_id(0), token_idx = cm_global_id(1);
+    if (head >= HQ || token_idx >= num_tokens) return;
+    const uint row0 = (token_idx * HQ + head) * P;
+    float m = -1e30f;
+    for (uint p = 0; p < P; p++) {
+        const float l = partial_ml[(row0 + p) * 2 + 1];
+        if (l > 0.0f) {
+            const float mp = partial_ml[(row0 + p) * 2];
+            m = mp > m ? mp : m;
+        }
+    }
+    float sum = 0.0f;
+    vector<float, DV> acc = 0.0f;
+    for (uint p = 0; p < P; p++) {
+        const uint row = row0 + p;
+        const float l = partial_ml[row * 2 + 1];
+        if (!(l > 0.0f)) continue;  // skip BEFORE exp or acc load (empty m may be -inf/NaN)
+        vector<float, 1> exponent = (partial_ml[row * 2] - m) * qsa_gr::LOG2E;
+        const float weight = cm_exp(exponent)[0];
+        sum += l * weight;
+#pragma unroll
+        for (uint k = 0; k < DV; k += 16) {
+            vector<float, 16> a = cm_ptr_load<float, 16>(partial_acc, (row * DV + k) * (uint)sizeof(float));
+            acc.select<16, 1>(k) += a * weight;
+        }
+    }
+    const float inv_sum = sum > 0.0f ? 1.0f / sum : 0.0f;
+#if QSA_HAS_OUTPUT_GATE
+    vector<half, DV> gate;
+    qsa_gr::load_hv<DV>(gate, query, q_base + token_idx * q_pitch + head * q_head_stride + gate_delta);
+#endif
+    vector<half, DV> out;
+#pragma unroll
+    for (uint k = 0; k < DV; k += 16) {
+        vector<float, 16> o = acc.select<16, 1>(k) * inv_sum;
+#if QSA_HAS_OUTPUT_GATE
+        vector<float, 16> g = gate.select<16, 1>(k);
+        o *= qsa_gr::sigmoid<16>(g);
+#endif
+        out.select<16, 1>(k) = o;
+    }
+    qsa_gr::store_hv<DV>(output, (token_idx * HQ + head) * DV, out);
+}

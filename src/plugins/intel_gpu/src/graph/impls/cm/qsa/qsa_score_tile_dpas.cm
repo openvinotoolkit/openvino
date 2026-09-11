@@ -57,6 +57,10 @@
 
 #include "qsa_dpas_common.hpp"
 
+#ifndef QSA_SCORE_ROW_CHUNK
+#define QSA_SCORE_ROW_CHUNK 0
+#endif
+
 #define QSA_KTILES   (QSA_IDX_HEAD_DIM / QSA_REG_K)
 #define QSA_QT_TILES (QSA_IDX_HEADS * QSA_KTILES)
 #define QSA_SPP      (QSA_PA_BLOCK_SIZE / QSA_COMPRESS_RATIO)
@@ -70,7 +74,12 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
                                         const int32_t* tile_map ATTR,              // [num_tiles, 2] = (seq, token_begin)
                                         float* block_scores ATTR,                  // [num_tokens, max_blocks]
                                         uint32_t num_tiles,
+#if QSA_SCORE_ROW_CHUNK
+                                        uint32_t max_blocks, uint32_t row_begin, uint32_t row_end,
+                                        uint32_t tile_offset) {
+#else
                                         uint32_t max_blocks) {
+#endif
     constexpr uint HIDX = QSA_IDX_HEADS;
     constexpr uint DI = QSA_IDX_HEAD_DIM;
     constexpr uint R = QSA_COMPRESS_RATIO;
@@ -102,14 +111,25 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
     cm_slm_init(QSA_QT_TILES * QT_BYTES);
     auto slm_qt = cm_slm_alloc(QSA_QT_TILES * QT_BYTES);
 
-    const uint seq = (uint)tile_map[wg * 2 + 0];
-    const uint token0 = (uint)tile_map[wg * 2 + 1];
+#if QSA_SCORE_ROW_CHUNK
+    const uint map_idx = wg + tile_offset;
+#else
+    const uint map_idx = wg;
+#endif
+    const uint seq = (uint)tile_map[map_idx * 2 + 0];
+    const uint token0 = (uint)tile_map[map_idx * 2 + 1];
+#if QSA_SCORE_ROW_CHUNK
+    if (token0 < row_begin || token0 >= row_end) return;
+#endif
     const uint seq_begin = (uint)subsequence_begins[seq];
     const uint seq_end = (uint)subsequence_begins[seq + 1];
     const uint past_len = (uint)past_lens[seq];
     const uint page_begin = (uint)block_indices_begins[seq];
 
     uint valid = seq_end > token0 ? seq_end - token0 : 0;
+#if QSA_SCORE_ROW_CHUNK
+    valid = cm_min<uint>(valid, row_end - token0);
+#endif
     if (valid > NQ) {
         valid = NQ;
     }
@@ -120,6 +140,14 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
     const vector<uint, NQ> abs_pos = lane + (past_len + token0 - seq_begin);
     const vector<uint, NQ> n_complete = (abs_pos + 1) / R;
     const uint n_blocks_max = valid == 0 ? 0 : n_complete[valid - 1];
+
+#if QSA_DENSE_SCORE_BYPASS
+    // Uniform across the WG, before any SLM writes/barriers or query loads.
+    // Monotone sequence-local positions make the last valid row sufficient.
+    if (n_blocks_max <= (uint)QSA_BLOCK_TOPK) {
+        return;
+    }
+#endif
 
     // ---- stage the whole query tile as dpas B operands ----
     // Rows past `valid` are clamped to zero by the descriptor's surface height, so the
@@ -186,7 +214,18 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
         qsa_dpas::transpose_8x16(acc_m.select<8, 1, 16, 1>(0, 0), scores_t.select<16, 1, 8, 1>(0, 0));
 
         for (uint q = 0; q < valid; q++) {
-            cm_ptr_store<float, MB>(block_scores, ((token0 + q) * max_blocks + b0) * (uint)sizeof(float), scores_t.row(q));
+#if QSA_DENSE_SCORE_BYPASS
+            // Mixed tiles may still compute dense columns; never publish them.
+            if (n_complete[q] <= (uint)QSA_BLOCK_TOPK) {
+                continue;
+            }
+#endif
+#if QSA_SCORE_ROW_CHUNK
+            const uint score_row = token0 + q - row_begin;
+#else
+            const uint score_row = token0 + q;
+#endif
+            cm_ptr_store<float, MB>(block_scores, (score_row * max_blocks + b0) * (uint)sizeof(float), scores_t.row(q));
         }
     }
 

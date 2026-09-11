@@ -1,0 +1,173 @@
+// Copyright (c) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+// Explicit decode prototype: SIMD64 threshold scans across WG16 workers.
+// No candidate limit; one row per WG, 272 bytes SLM at WG16.
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+#include "qsa_topk_fast.hpp"
+#ifndef QSA_SCORE_ROW_CHUNK
+#define QSA_SCORE_ROW_CHUNK 0
+#endif
+#ifndef QSA_TOPK_WG
+#define QSA_TOPK_WG 16
+#endif
+#ifndef QSA_TOPK_CACHE_CAPACITY
+#define QSA_TOPK_CACHE_CAPACITY 0
+#endif
+// Opt-in register keys, NOT a candidate cap. Zero compiles out all caching.
+static_assert(QSA_TOPK_CACHE_CAPACITY >= 0 && QSA_TOPK_CACHE_CAPACITY <= 2048 &&
+              QSA_TOPK_CACHE_CAPACITY % 64 == 0, "cache must be 0..2048, multiple of 64");
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    const float* block_scores ATTR, const int32_t* past_lens ATTR,
+    const int32_t* subsequence_begins ATTR, int32_t* selected_blocks ATTR,
+    int32_t* selected_counts ATTR, uint32_t num_tokens, uint32_t num_seqs,
+#if QSA_SCORE_ROW_CHUNK
+    uint32_t max_blocks, uint32_t row_begin, uint32_t row_end) {
+    const uint token = cm_group_id(0) + row_begin;
+    if (token >= row_end) return;
+    const uint score_row = token - row_begin;
+#else
+    uint32_t max_blocks) {
+    const uint token = cm_group_id(0);
+    const uint score_row = token;
+#endif
+    if (token >= num_tokens) return;
+    constexpr uint K = QSA_BLOCK_TOPK, WG = QSA_TOPK_WG;
+    static_assert(WG == 8 || WG == 16, "WG8/16 only");
+    const uint tid = cm_local_id(0);
+    uint seq = 0, pos = 0;
+    qsa_resolve_token(subsequence_begins, past_lens, num_seqs, token, seq, pos);
+    const uint n = qsa_num_complete_blocks(pos), k = cm_min<uint>(n, K);
+    int32_t* out = selected_blocks + token * K;
+    if (tid == 0) selected_counts[token] = k;
+    for (uint i = k + tid; i < K; i += WG) out[i] = -1;
+    if (k == 0) return;
+    if (k == n) {
+        for (uint i = tid; i < k; i += WG) out[i] = i;
+        return;
+    }
+    cm_slm_init((WG + 1) * 16);
+    auto slm = cm_slm_alloc((WG + 1) * 16);
+    const float* scores = block_scores + score_row * max_blocks;
+    vector<uint, 64> lane;
+    cmtl::cm_vector_assign(lane.select_all(), 0, 1);
+    // 64-aligned consecutive ownership, possibly empty workers.
+    const uint chunk = ((n + WG * 64 - 1) / (WG * 64)) * 64;
+    const uint begin = tid * chunk, end = cm_min<uint>(begin + chunk, n);
+#if QSA_TOPK_CACHE_CAPACITY > 0
+    vector<uint, QSA_TOPK_CACHE_CAPACITY> cached;
+    // Row-uniform fallback: never truncate a worker or read a partial cache.
+    // WG16: n=32768 fits CAP2048; n=32769 has chunk2112 and scans globally.
+    const bool use_cache = chunk <= QSA_TOPK_CACHE_CAPACITY;
+    if (use_cache) {
+        for (uint i = begin; i < end; i += 64)
+            cached.select<64, 1>(i - begin) = fast_keys(scores, i, end);
+    }
+#endif
+    uint lo = 0, hi = 0xFFFFFFFFu;
+    while (lo < hi) {
+        const uint mid = lo + ((hi - lo) >> 1) + 1;
+        vector<uint, 64> count = 0, upper_min = 0xFFFFFFFFu, lower_max = 0;
+        for (uint i = begin; i < end; i += 64) {
+            vector<uint, 64> key, add = 0;
+#if QSA_TOPK_CACHE_CAPACITY > 0
+            if (use_cache) key = cached.select<64, 1>(i - begin);
+            else
+#endif
+                key = fast_keys(scores, i, end);
+            vector<ushort, 64> valid = lane + i < end;
+            vector<ushort, 64> ge = (key >= mid) & valid;
+            add.merge(1u, ge);
+            count += add;
+            vector<uint, 64> a = 0xFFFFFFFFu, b = 0;
+            a.merge(key, ge);
+            b.merge(key, (key < mid) & valid);
+            upper_min = cm_min<uint>(upper_min, a);
+            lower_max = cm_max<uint>(lower_max, b);
+        }
+        vector<uint, 4> state = 0;
+        state[0] = cm_sum<uint>(count);
+        state[1] = cm_reduced_min<uint>(upper_min);
+        state[2] = cm_reduced_max<uint>(lower_max);
+        cm_slm_block_write(slm, tid * 16, state);
+        cm_fence(CM_LOCAL_BARRIER);
+        cm_barrier();
+        if (tid == 0) {
+            uint rank = 0, min_ge = 0xFFFFFFFFu, max_lt = 0;
+            for (uint t = 0; t < WG; t++) {
+                vector<uint, 4> x;
+                cm_slm_block_read(slm, t * 16, x);
+                rank += x[0];
+                min_ge = cm_min<uint>(min_ge, x[1]);
+                max_lt = cm_max<uint>(max_lt, x[2]);
+            }
+            if (rank >= k) {
+                lo = min_ge;
+                if (rank == k) hi = lo;
+            } else hi = max_lt;
+            state[0] = lo; state[1] = hi;
+            cm_slm_block_write(slm, WG * 16, state);
+        }
+        cm_fence(CM_LOCAL_BARRIER);
+        cm_barrier();
+        cm_slm_block_read(slm, WG * 16, state);
+        lo = state[0]; hi = state[1];
+    }
+    vector<uint, 64> greater = 0, equal = 0;
+    for (uint i = begin; i < end; i += 64) {
+        vector<uint, 64> key, a = 0, b = 0;
+#if QSA_TOPK_CACHE_CAPACITY > 0
+        if (use_cache) key = cached.select<64, 1>(i - begin);
+        else
+#endif
+            key = fast_keys(scores, i, end);
+        a.merge(1u, (key > lo) & (lane + i < end));
+        b.merge(1u, (key == lo) & (lane + i < end));
+        greater += a; equal += b;
+    }
+    vector<uint, 4> state = 0;
+    state[0] = cm_sum<uint>(greater); state[1] = cm_sum<uint>(equal);
+    cm_slm_block_write(slm, tid * 16, state);
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+    if (tid == 0) {
+        uint total_greater = 0;
+        for (uint t = 0; t < WG; t++) {
+            vector<uint, 4> x;
+            cm_slm_block_read(slm, t * 16, x);
+            total_greater += x[0];
+        }
+        uint equals_left = k - total_greater, offset = 0;
+        for (uint t = 0; t < WG; t++) {
+            vector<uint, 4> x;
+            cm_slm_block_read(slm, t * 16, x);
+            const uint eq = cm_min<uint>(equals_left, x[1]), take = x[0] + eq;
+            x[0] = offset; x[1] = eq;
+            cm_slm_block_write(slm, t * 16, x);
+            offset += take; equals_left -= eq;
+        }
+    }
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+    cm_slm_block_read(slm, tid * 16, state);
+    uint written = state[0], equals_left = state[1];
+    for (uint i = begin; i < end; i += 64) {
+        vector<uint, 64> key, eq = 0, take = 0;
+#if QSA_TOPK_CACHE_CAPACITY > 0
+        if (use_cache) key = cached.select<64, 1>(i - begin);
+        else
+#endif
+            key = fast_keys(scores, i, end);
+        vector<ushort, 64> valid = lane + i < end;
+        eq.merge(1u, (key == lo) & valid);
+        vector<uint, 64> eq_prefix = fast_scan(eq);
+        take.merge(1u, valid & ((key > lo) | ((eq != 0) & (eq_prefix <= equals_left))));
+        equals_left -= cm_min<uint>(equals_left, eq_prefix[63]);
+        vector<uint, 64> offsets = fast_scan(take);
+        vector<int, 64> ids = lane + i;
+        cm_ptr_store<int>(out, (offsets + written - 1) * 4, ids, take != 0);
+        written += offsets[63];
+    }
+}

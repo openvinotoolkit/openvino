@@ -67,11 +67,18 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* indexer_q ATTR,             
     const uint page_begin = (uint)block_indices_begins[seq];
     float* row = block_scores + token_idx * max_blocks;
 
-    matrix<half, QSA_IDX_HEADS, QSA_IDX_HEAD_DIM> q;
-    qsa_load_query<QSA_IDX_HEADS, QSA_IDX_HEAD_DIM>(q, indexer_q, token_idx);
+#if QSA_DENSE_BYPASS
+    // Scratch is not a score-only output. Dense rows go straight to arange below;
+    // Q1 still maintains all indexer key/summary state for future sparse queries.
+    if (n_complete > K)
+#endif
+    {
+        matrix<half, QSA_IDX_HEADS, QSA_IDX_HEAD_DIM> q;
+        qsa_load_query<QSA_IDX_HEADS, QSA_IDX_HEAD_DIM>(q, indexer_q, token_idx);
 
-    for (uint b = 0; b < n_complete; b++) {
-        row[b] = qsa_block_score(q, summary_cache, block_indices, page_begin, b);
+        for (uint b = 0; b < n_complete; b++) {
+            row[b] = qsa_block_score(q, summary_cache, block_indices, page_begin, b);
+        }
     }
 
     int32_t* out = selected_blocks + token_idx * K;

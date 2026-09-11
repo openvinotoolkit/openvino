@@ -18,6 +18,8 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/gated_residual.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/runtime/profiling.hpp>
+#include <iostream>
 #include <vector>
 
 #include "gated_residual_inst.h"
@@ -367,5 +369,134 @@ TEST(gated_residual_gpu_test, unsupported_branch_count_is_rejected) {
     gated_residual supported("gr", {input_info("a"), input_info("b"), input_info("c"), input_info("d")}, gated_residual::Mode::READ, 4, 64, 16, 1e-6f, false, false);
     ASSERT_FALSE(prim == supported);
 }
+
+// --- roofline perf harness (token_size sweep) ------------------------------
+//
+// Companion to the QSA roofline harness in qsa_gpu_test.cpp: builds the production-shaped
+// READ/MIX network once per (phase, token_size), times repeated executions with GPU-side
+// profiling enabled, and prints one JSON line per measurement. These tests do not check
+// output values. Run with:
+//   ov_gpu_unit_tests --gtest_also_run_disabled_tests --gtest_filter='*DISABLED_roofline*'
+namespace roofline {
+
+double mean_ms(const std::vector<double>& v) {
+    double sum = 0.0;
+    for (double x : v) {
+        sum += x;
+    }
+    return v.empty() ? 0.0 : sum / static_cast<double>(v.size());
+}
+
+/// GPU-side "executing" duration, not host wall-clock, so host dispatch overhead is
+/// excluded. gated_residual dispatches exactly one CM kernel per mode, so (unlike QSA)
+/// `network::get_executed_primitives()` already exposes the real kernel's own event.
+double time_primitive_ms(network& net, const std::string& primitive_id, int warmup, int iterations) {
+    for (int i = 0; i < warmup; i++) {
+        auto outputs = net.execute();
+        outputs.at(primitive_id).get_memory();
+    }
+    std::vector<double> samples;
+    samples.reserve(static_cast<size_t>(iterations));
+    for (int i = 0; i < iterations; i++) {
+        auto outputs = net.execute();
+        outputs.at(primitive_id).get_memory();
+        auto executed = net.get_executed_primitives();
+        auto it = executed.find(primitive_id);
+        if (it == executed.end() || it->second == nullptr) {
+            continue;
+        }
+        for (const auto& interval : it->second->get_profiling_info()) {
+            if (interval.stage == instrumentation::profiling_stage::executing && interval.value != nullptr) {
+                samples.push_back(static_cast<double>(interval.value->value().count()) / 1.0e6);
+            }
+        }
+    }
+    if (samples.empty()) {
+        ADD_FAILURE() << "no 'executing' profiling interval was captured for " << primitive_id;
+        return 0.0;
+    }
+    return mean_ms(samples);
+}
+
+void print_measurement(const char* phase, size_t tokens, const char* stage, double ms) {
+    std::cout << "ROOFLINE_JSON {\"component\":\"GR\",\"phase\":\"" << phase << "\",\"tokens\":" << tokens
+               << ",\"stage\":\"" << stage << "\",\"ms\":" << ms << "}" << std::endl;
+}
+
+/// `phase == "prefill"` runs the whole context as one call (`rows = tokens`);
+/// `phase == "decode"` runs a single row, matching the QSA harness's query counts. The
+/// shape is the production hyper-connection width: hidden_size = 2560, C = 4 branches
+/// (D = 640), low-rank width = 320 (design section 3).
+void run_point(const char* phase, size_t tokens) {
+    if (!cm_gr_available()) {
+        GTEST_SKIP() << "CM JIT / systolic GPU is required for gated_residual";
+    }
+    const bool decode = std::string(phase) == "decode";
+    const size_t rows = decode ? 1 : tokens;
+
+    gr_ref_params p;
+    p.C = kBranches;
+    p.D = 640;
+    p.L = 320;
+    const size_t CD = p.C * p.D;
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto residual = random_vec(rg, rows * CD, 1.0f);
+    const auto gain = random_vec(rg, CD, 0.5f, 1.0f);
+    const auto w_down = random_vec(rg, p.L * CD, 0.1f);
+    const auto w_up = random_vec(rg, CD * p.L, 0.1f);
+
+    auto& engine = get_test_engine();
+    auto residual_mem = make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, residual);
+
+    topology topology;
+    topology.add(input_layout("residual", residual_mem->get_layout()));
+    topology.add(data("gain", make_f16(engine, {static_cast<int64_t>(CD)}, gain)));
+    topology.add(data("w_down", make_f16(engine, {static_cast<int64_t>(p.L), static_cast<int64_t>(CD)}, w_down)));
+    topology.add(data("w_up", make_f16(engine, {static_cast<int64_t>(CD), static_cast<int64_t>(p.L)}, w_up)));
+    topology.add(gated_residual("gr_read",
+                                {input_info("residual"), input_info("gain"), input_info("w_down"), input_info("w_up")},
+                                gated_residual::Mode::READ,
+                                p.C,
+                                p.D,
+                                p.L,
+                                p.eps,
+                                /*norm_gain_plus_one=*/false,
+                                /*produce_write_gate=*/false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::enable_profiling(true));
+    network net(engine, topology, config);
+    net.set_input_data("residual", residual_mem);
+
+    const double ms = time_primitive_ms(net, "gr_read", /*warmup=*/2, /*iterations=*/100);
+    print_measurement(phase, tokens, "READ/MIX", ms);
+}
+
+}  // namespace roofline
+
+struct gr_roofline_case {
+    size_t tokens;
+    bool decode;
+};
+
+class gated_residual_roofline_perf : public ::testing::TestWithParam<gr_roofline_case> {};
+
+TEST_P(gated_residual_roofline_perf, measures_cm_kernel_time) {
+    const auto p = GetParam();
+    roofline::run_point(p.decode ? "decode" : "prefill", p.tokens);
+}
+
+INSTANTIATE_TEST_SUITE_P(DISABLED_roofline,
+                         gated_residual_roofline_perf,
+                         ::testing::Values(gr_roofline_case{1024, false},
+                                           gr_roofline_case{1024, true},
+                                           gr_roofline_case{2048, false},
+                                           gr_roofline_case{2048, true},
+                                           gr_roofline_case{4096, false},
+                                           gr_roofline_case{4096, true}));
 
 }  // namespace

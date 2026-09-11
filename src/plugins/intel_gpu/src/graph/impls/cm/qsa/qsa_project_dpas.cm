@@ -1,0 +1,49 @@
+// Copyright (C) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+// Q1 projection only: [tokens,D] half * [J,D]^T half -> [tokens,J] float.
+// One work-item owns M=8 output channels, N=16 tokens, K=16 per cm_dpas.
+// Global token tiles may cross sequences: projection has no positional state.
+// Dispatch gws=[J/8, ceil(tokens/16), 1], lws=[1,1,1].
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+#include "qsa_dpas_common.hpp"
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* mixed ATTR,
+                                      const half* weight ATTR,
+                                      float* projected ATTR,
+                                      uint32_t num_tokens) {
+    constexpr uint D = QSA_HIDDEN;
+    constexpr uint J = (QSA_IDX_HEADS + 1) * QSA_IDX_HEAD_DIM;
+    constexpr uint M = QSA_REG_M;
+    constexpr uint N = QSA_REG_N;
+    static_assert(N == 16, "Q1 DPAS requires 512-bit GRFs (Xe2+)");
+    static_assert(D >= 32 && D % 32 == 0, "2D surfaces require >=64B width and 64B-aligned row pitch");
+    static_assert(J % M == 0, "output channels must be divisible by 8; partial output tiles unsupported");
+
+    const uint j0 = cm_group_id(0) * M;
+    const uint t0 = cm_group_id(1) * N;
+    if (j0 >= J || t0 >= num_tokens) return;
+    const uint valid = cm_min<uint>(N, num_tokens - t0);
+    vector<float, M * N> acc = 0.0f;
+    for (uint k = 0; k < D; k += QSA_REG_K) {
+        vector<half, QSA_REG_K * N> b;
+        vector<half, M * QSA_REG_K> a;
+        // Each message row is 16 halfs (32B), below the 64B row cap.
+        // Height is relative to the offset base, not the original allocation.
+        qsa_dpas::load_vnni_tile(b, mixed + t0 * D, valid,
+                               D * (uint)sizeof(half), D * (uint)sizeof(half), k);
+        qsa_dpas::load_a_tile<M>(a, weight + j0 * D, M,
+                                D * (uint)sizeof(half), D * (uint)sizeof(half), k);
+        acc = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH,
+                      QSA_REG_M, float>(acc, b.format<int32_t>(), a.format<int32_t>());
+    }
+    matrix<float, N, M> token_major;
+    auto result = acc.format<float, M, N>();
+    qsa_dpas::transpose_8x16(result.select<8, 1, 16, 1>(0, 0),
+                           token_major.select<16, 1, 8, 1>(0, 0));
+    for (uint t = 0; t < valid; ++t) {
+        cm_ptr_store<float, M>(projected, ((t0 + t) * J + j0) * (uint)sizeof(float),
+                               token_major.row(t));
+    }
+}

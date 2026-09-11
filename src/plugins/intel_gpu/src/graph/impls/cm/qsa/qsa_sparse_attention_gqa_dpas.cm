@@ -1,0 +1,294 @@
+/*******************************************************************************
+ * Copyright (c) 2018-2026 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+// Stage5 standalone, derived from qsa_sparse_attention_dpas.cm (kept unchanged).
+// One WG = ONE token x ONE KV head. N columns = all nrep query heads, padded to
+// 16 (nrep need NOT divide 16). A KV slice is loaded once for ALL actual heads.
+// QK: M8 KV rows / N16 heads / K16 dims. PV: M8 heads / N16 dims / K16 KV.
+// Four workers partition Dh/Dv; only St crosses workers via double-buffered SLM.
+// Each softmax update consumes 16 KV rows, retaining the original arithmetic order.
+// There is NO cross-token union, cross-head team, or split-selected-KV scratch.
+// token_map contains (sequence, global token) once per token, not 16-token tiles.
+// Caller provides sorted unique visible complete blocks, 0 <= count <= topk.
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+#include "qsa_dpas_common.hpp"
+
+#define GQA_W 4
+#ifndef QSA_GQA_VECTOR_META
+#define QSA_GQA_VECTOR_META 0
+#endif
+#ifndef QSA_GQA_HEAD_MAJOR
+#define QSA_GQA_HEAD_MAJOR 0
+#endif
+#define GQA_DH (QSA_K_HEAD_SIZE / GQA_W)
+#define GQA_DV (QSA_V_HEAD_SIZE / GQA_W)
+#define GQA_KT (GQA_DH / 16)
+#define GQA_VT (GQA_DV / 16)
+#define GQA_BLOCKS (16 / QSA_COMPRESS_RATIO)
+#define GQA_ST_BYTES (16 * 16 * 4)
+#define GQA_SLM_BYTES (2 * GQA_W * GQA_ST_BYTES)
+#define GQA_NEG_INF (-3.0e38f)
+
+CM_INLINE void gqa_reduce_st16(matrix_ref<float, 16, 16> st, uint slm, uint slot, uint worker) {
+    auto flat = st.format<float>();
+    cm_slm_block_write(slm, slot + worker * GQA_ST_BYTES, flat.select<128, 1>(0));
+    cm_slm_block_write(slm, slot + worker * GQA_ST_BYTES + 512, flat.select<128, 1>(128));
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+    // Keep the worker's own partial first, then add other workers in index order.
+#pragma unroll
+    for (uint w = 0; w < GQA_W; w++) {
+        if (w != worker) {
+            vector<float, 128> part;
+            cm_slm_block_read(slm, slot + w * GQA_ST_BYTES, part);
+            flat.select<128, 1>(0) = flat.select<128, 1>(0) + part;
+            cm_slm_block_read(slm, slot + w * GQA_ST_BYTES + 512, part);
+            flat.select<128, 1>(128) = flat.select<128, 1>(128) + part;
+        }
+    }
+}
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    const half* query ATTR, const half* key_cache ATTR, const half* value_cache ATTR,
+    const int32_t* past_lens ATTR, const int32_t* subsequence_begins ATTR,
+    const int32_t* block_indices ATTR, const int32_t* block_indices_begins ATTR,
+    const int32_t* selected_blocks ATTR, const int32_t* selected_counts ATTR,
+    const int32_t* token_map ATTR, half* output ATTR, uint32_t num_entries,
+    uint32_t q_base, uint32_t q_pitch, uint32_t q_head_stride, uint32_t gate_delta) {
+    constexpr uint HQ = QSA_HEADS, HKV = QSA_KV_HEADS;
+    constexpr uint DH = QSA_K_HEAD_SIZE, DV = QSA_V_HEAD_SIZE;
+    constexpr uint R = QSA_COMPRESS_RATIO, PAGE = QSA_PA_BLOCK_SIZE;
+    constexpr uint HEADS = HQ / HKV;
+    static_assert(QSA_REG_N == 16, "requires 512-bit GRF / Xe2 DPAS");
+    static_assert(HQ % HKV == 0 && HEADS >= 1 && HEADS <= 16, "GQA group must fit N16");
+    static_assert(DH % (GQA_W * 32) == 0 && DV % (GQA_W * 32) == 0, "worker slices must be 32-half aligned");
+    static_assert(R >= 2 && 16 % R == 0 && R % 2 == 0, "R must be 2/4/8/16");
+    static_assert(PAGE % R == 0, "compressed block must fit a physical page");
+    static_assert(QSA_IS_CAUSAL, "only causal QSA is supported");
+
+    const uint worker = cm_local_id(0);
+#if QSA_GQA_HEAD_MAJOR
+    const uint kv_head = cm_global_id(1), entry = cm_group_id(0);
+#else
+    const uint kv_head = cm_group_id(0), entry = cm_global_id(1);
+#endif
+    if (kv_head >= HKV || entry >= num_entries) return;
+    const uint seq = (uint)token_map[entry * 2];
+    const uint token = (uint)token_map[entry * 2 + 1];
+    const uint begin = (uint)subsequence_begins[seq];
+    if (token < begin || token >= (uint)subsequence_begins[seq + 1]) return;
+    const uint abs_pos = (uint)past_lens[seq] + token - begin;
+    const uint page_begin = (uint)block_indices_begins[seq];
+    const uint head_base = kv_head * HEADS;
+    const uint q_elem = q_base + token * q_pitch + head_base * q_head_stride;
+
+    cm_slm_init(GQA_SLM_BYTES);
+    auto slm = cm_slm_alloc(GQA_SLM_BYTES);
+    vector<uint, 16> lane;
+    cmtl::cm_vector_assign(lane.select_all(), 0, 1);
+    const vector<ushort, 16> valid_head = lane < HEADS;
+
+    // Memory ROWS are heads of this ONE token, not neighboring tokens. Descriptor
+    // height=HEADS (e.g.12) zero-pads remaining columns through the N16 transpose.
+    // Width=Dh excludes interleaved gate and padding. Runtime head stride is pitch.
+    matrix<half, GQA_KT, 16 * 16> rq;
+#pragma unroll
+    for (uint k = 0; k < GQA_KT; k++) {
+        qsa_dpas::load_vnni_tile(rq.row(k), query + q_elem, HEADS,
+            q_head_stride * (uint)sizeof(half), DH * (uint)sizeof(half), worker * GQA_DH + k * 16);
+        rq.row(k) = cm_mul<half>(rq.row(k), (half)((float)QSA_SCALE * 1.4426950408889634f));
+    }
+    vector<float, 16> running_max = GQA_NEG_INF, running_sum = 0.0f;
+    matrix<float, 2 * GQA_VT, 8 * 16> ro = 0.0f;
+    const uint count = (uint)selected_counts[token];
+    const uint steps = (count + GQA_BLOCKS - 1) / GQA_BLOCKS;
+    const uint tail_begin = (abs_pos + 1) / R * R;
+    const uint tail_rows = abs_pos + 1 - tail_begin;
+
+    // A single sorted list, then at most ONE tail step. Every worker has exactly
+    // the same trip count. Tail cannot be visited by any other token/head WG.
+    for (uint step = 0; step < steps + (tail_rows != 0); step++) {
+        const bool tail = step == steps;
+        vector<uint, GQA_BLOCKS> positions = 0, rows = 0;
+        uint valid_kv = 0;
+#if QSA_GQA_VECTOR_META
+        vector<uint, GQA_BLOCKS> meta_lane;
+    #pragma unroll
+        for (uint j = 0; j < GQA_BLOCKS; j++) meta_lane[j] = j;
+        if (!tail) {
+            vector<uint, GQA_BLOCKS> slots = step * GQA_BLOCKS + meta_lane;
+            vector<int, GQA_BLOCKS> ids = cm_ptr_load<int>(selected_blocks,
+                (token * QSA_BLOCK_TOPK + slots) * 4, slots < count);
+            positions = ids * R;
+            rows.merge(R, slots < count);
+        } else {
+            positions[0] = tail_begin;
+            rows[0] = tail_rows;
+        }
+        valid_kv = cm_sum<uint>(rows);
+        vector<int, GQA_BLOCKS> physical_pages = cm_ptr_load<int>(block_indices,
+            (page_begin + positions / PAGE) * 4, rows != 0);
+#else
+#pragma unroll
+        for (uint j = 0; j < GQA_BLOCKS; j++) {
+            if (tail) {
+                if (j == 0) { positions[j] = tail_begin; rows[j] = tail_rows; }
+            } else {
+                const uint slot = step * GQA_BLOCKS + j;
+                if (slot < count) {
+                    positions[j] = (uint)selected_blocks[token * QSA_BLOCK_TOPK + slot] * R;
+                    rows[j] = R;
+                }
+            }
+            valid_kv += rows[j];
+        }
+#endif
+
+        matrix<half, 16, GQA_DH> kwide;
+        matrix<half, 8, GQA_DV * 2> vwide;
+        // Coalesce only a full, contiguous, page-local 16-row step.
+        bool contiguous = valid_kv == 16 && positions[0] % PAGE + 16 <= PAGE;
+#pragma unroll
+        for (uint j = 1; j < GQA_BLOCKS; j++)
+            contiguous = contiguous && positions[j] == positions[0] + j * R;
+        if (contiguous) {
+            const uint pos = positions[0];
+#if QSA_GQA_VECTOR_META
+            const uint page = (uint)physical_pages[0];
+#else
+            const uint page = (uint)block_indices[page_begin + pos / PAGE];
+#endif
+            const half* kb = key_cache + qsa::kv_cache_offset(page, kv_head, pos % PAGE, HKV, PAGE, DH);
+            const half* vb = value_cache + qsa::kv_cache_offset(page, kv_head, pos % PAGE, HKV, PAGE, DV);
+#pragma unroll
+            for (uint c = 0; c < GQA_DH / 32; c++) {
+                matrix<half, 16, 32> tmp;
+                qsa_dpas::load_a_wide<16, 32>(tmp, kb, 16, DH * 2, DH * 2, worker * GQA_DH + c * 32);
+                kwide.select<16, 1, 32, 1>(0, c * 32) = tmp;
+            }
+#pragma unroll
+            for (uint c = 0; c < GQA_DV / 32; c++) {
+                matrix<half, 8, 64> tmp;
+                qsa_dpas::load_vnni_wide<16, 32>(tmp, vb, 16, DV * 2, DV * 2, worker * GQA_DV + c * 32);
+                vwide.select<8, 1, 64, 1>(0, c * 64) = tmp;
+            }
+        } else {
+#pragma unroll
+            for (uint j = 0; j < GQA_BLOCKS; j++) {
+                if (rows[j] != 0) {
+                    const uint pos = positions[j];
+#if QSA_GQA_VECTOR_META
+                    const uint page = (uint)physical_pages[j];
+#else
+                    const uint page = (uint)block_indices[page_begin + pos / PAGE];
+#endif
+                    const half* kb = key_cache + qsa::kv_cache_offset(page, kv_head, pos % PAGE, HKV, PAGE, DH);
+                    const half* vb = value_cache + qsa::kv_cache_offset(page, kv_head, pos % PAGE, HKV, PAGE, DV);
+#pragma unroll
+                    for (uint c = 0; c < GQA_DH / 32; c++) {
+                        matrix<half, R, 32> tmp;
+                        qsa_dpas::load_a_wide<R, 32>(tmp, kb, rows[j], DH * 2, DH * 2, worker * GQA_DH + c * 32);
+                        kwide.select<R, 1, 32, 1>(j * R, c * 32) = tmp;
+                    }
+#pragma unroll
+                    for (uint c = 0; c < GQA_DV / 32; c++) {
+                        matrix<half, R / 2, 64> tmp;
+                        qsa_dpas::load_vnni_wide<R, 32>(tmp, vb, rows[j], DV * 2, DV * 2, worker * GQA_DV + c * 32);
+                        vwide.select<R / 2, 1, 64, 1>(j * R / 2, c * 64) = tmp;
+                    }
+                } else {
+                    kwide.select<R, 1, GQA_DH, 1>(j * R, 0) = (half)0.0f;
+                    vwide.select<R / 2, 1, GQA_DV * 2, 1>(j * R / 2, 0) = (half)0.0f;
+                }
+            }
+        }
+
+        matrix<float, 16, 16> st = 0.0f;
+        auto st2 = st.format<float, 2, 8 * 16>();
+#pragma unroll
+        for (uint k = 0; k < GQA_KT; k++) {
+#pragma unroll
+            for (uint m = 0; m < 2; m++) {
+                matrix<half, 8, 16> ka = kwide.select<8, 1, 16, 1>(m * 8, k * 16);
+                st2.row(m) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, 8, 8, float>(
+                    st2.row(m), rq.row(k).format<int32_t>(), ka.format<int32_t>());
+            }
+        }
+        gqa_reduce_st16(st.select_all(), slm, (step & 1) * GQA_W * GQA_ST_BYTES, worker);
+#pragma unroll
+        for (uint i = 0; i < 16; i++) {
+            const vector<ushort, 16> keep = valid_head & (i < valid_kv);
+            st.row(i).merge(GQA_NEG_INF, keep == 0);
+        }
+        vector<float, 16> tile_max = st.row(0);
+#pragma unroll
+        for (uint i = 1; i < 16; i++) tile_max = cm_max<float>(tile_max, st.row(i));
+        const vector<float, 16> new_max = cm_max<float>(running_max, tile_max);
+        const vector<float, 16> corr = cm_exp(running_max - new_max);
+        matrix<half, 16, 16> p;
+        vector<float, 16> tile_sum = 0.0f;
+#pragma unroll
+        for (uint i = 0; i < 16; i++) {
+            vector<float, 16> e = cm_exp(st.row(i) - new_max);
+            e.merge(0.0f, st.row(i) <= GQA_NEG_INF);
+            tile_sum += e;
+            p.row(i) = e;
+        }
+        running_sum = running_sum * corr + tile_sum;
+        running_max = new_max;
+        // Rescale the running accumulator before this K16 PV contribution.
+#pragma unroll
+        for (uint t = 0; t < 2 * GQA_VT; t++) {
+            auto o = ro.row(t).format<float, 8, 16>();
+#pragma unroll
+            for (uint row = 0; row < 8; row++) o.row(row) *= corr[(t / GQA_VT) * 8 + row];
+        }
+        matrix<half, 16, 16> pt;
+        qsa_dpas::transpose_16x16(p.select_all(), pt.select_all());
+#pragma unroll
+        for (uint d = 0; d < GQA_VT; d++) {
+            matrix<half, 8, 32> vv = vwide.select<8, 1, 32, 1>(0, d * 32);
+#pragma unroll
+            for (uint h = 0; h < 2; h++) {
+                const uint t = h * GQA_VT + d;
+                ro.row(t) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, 8, 8, float>(
+                    ro.row(t), vv.format<int32_t>(), pt.select<8, 1, 16, 1>(h * 8, 0).format<int32_t>());
+            }
+        }
+    }
+
+    // PV accumulator already has head rows / dim columns. NEVER store padded
+    // heads: that would overwrite the next KV group or the next token.
+    for (uint h = 0; h < HEADS; h++) {
+        const float inv = running_sum[h] > 0 ? 1.0f / running_sum[h] : 0.0f;
+        vector<half, GQA_DV> out;
+#pragma unroll
+        for (uint d = 0; d < GQA_VT; d++) {
+            auto o = ro.row((h / 8) * GQA_VT + d).format<float, 8, 16>();
+            vector<float, 16> value = o.row(h % 8) * inv;
+#if QSA_HAS_OUTPUT_GATE
+            vector<half, 16> gate;
+            qsa_gr::load_hv<16>(gate, query, q_elem + h * q_head_stride + gate_delta + worker * GQA_DV + d * 16);
+            value *= qsa_gr::sigmoid<16>(gate);
+#endif
+            out.select<16, 1>(d * 16) = value;
+        }
+        qsa_gr::store_hv<GQA_DV>(output, (token * HQ + head_base + h) * DV + worker * GQA_DV, out);
+    }
+}

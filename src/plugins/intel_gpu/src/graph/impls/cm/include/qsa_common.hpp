@@ -31,6 +31,20 @@
 #define ATTR [[type("svmptr_t")]]
 #endif
 
+// Standalone stage 1: selection/fused scratch may bypass dense rows by default.
+// Separate score kernels retain their score-output contract unless the caller
+// explicitly pairs them with a bypass-enabled finalizer. Keep defaults outside
+// the guard, like ATTR, for flattened multi-kernel sources.
+#ifndef QSA_DENSE_BYPASS
+#define QSA_DENSE_BYPASS 1
+#endif
+#ifndef QSA_DENSE_SCORE_BYPASS
+#define QSA_DENSE_SCORE_BYPASS 0
+#endif
+#if QSA_DENSE_SCORE_BYPASS && !QSA_DENSE_BYPASS
+#error "Dense score bypass requires QSA_DENSE_BYPASS in the paired finalizer"
+#endif
+
 // Classic include guard - see qsa_gr_common.hpp for why `#pragma once` is not usable here.
 #ifndef QSA_COMMON_HPP
 #define QSA_COMMON_HPP
@@ -154,6 +168,16 @@ CM_INLINE uint radix_select_topk(const float* scores ATTR, uint n_valid, uint k,
     if (k == 0) {
         return 0;
     }
+#if QSA_DENSE_BYPASS
+    // After clamping k, equality means ALL valid blocks are selected. Do not
+    // read scores: a coordinated producer may have left this entire row unwritten.
+    if (k == n_valid) {
+        for (uint i = 0; i < k; i++) {
+            out[i] = (int32_t)i;
+        }
+        return k;
+    }
+#endif
 
     uint prefix = 0;     // resolved high bits of the k-th largest key
     uint hi_shift = 32;  // 32 == no high bits resolved yet

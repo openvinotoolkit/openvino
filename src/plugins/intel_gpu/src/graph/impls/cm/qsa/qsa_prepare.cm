@@ -52,7 +52,15 @@
 
 #define QSA_PROJ_WIDTH ((QSA_IDX_HEADS + 1) * QSA_IDX_HEAD_DIM)
 
-extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* mixed ATTR,                 // [num_tokens, D] GR READ/MIX output
+#ifndef QSA_PREPROJECTED
+#define QSA_PREPROJECTED 0
+#endif
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+#if QSA_PREPROJECTED
+                                        const float* projected ATTR,           // [num_tokens, J], FP32 (not half)
+#endif
+                                        const half* mixed ATTR,                 // [num_tokens, D] GR READ/MIX output
                                         const half* idx_qk_weight ATTR,         // [(Hidx+1)*Di, D] row-major
                                         const half* q_norm_weight ATTR,         // [Di]
                                         const half* k_norm_weight ATTR,         // [Di]
@@ -95,12 +103,18 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* mixed ATTR,                 
     constexpr uint SLM_PROJ_SIZE = J * (uint)sizeof(float);
     constexpr uint SLM_RAWK_SIZE = R * DI * (uint)sizeof(float);
     constexpr uint SLM_POOL_SIZE = DI * (uint)sizeof(float);
+#if QSA_PREPROJECTED
+    cm_slm_init(SLM_PROJ_SIZE + SLM_RAWK_SIZE + SLM_POOL_SIZE);
+#else
     constexpr uint SLM_MIXED_SIZE = D * (uint)sizeof(half);
     cm_slm_init(SLM_PROJ_SIZE + SLM_RAWK_SIZE + SLM_POOL_SIZE + SLM_MIXED_SIZE);
+#endif
     auto slm_proj = cm_slm_alloc(SLM_PROJ_SIZE);
     auto slm_rawk = cm_slm_alloc(SLM_RAWK_SIZE);
     auto slm_pool = cm_slm_alloc(SLM_POOL_SIZE);
+#if !QSA_PREPROJECTED
     auto slm_mixed = cm_slm_alloc(SLM_MIXED_SIZE);
+#endif
 
     const uint seq = (uint)prepare_map[wg * 2 + 0];
     const uint qsa_block = (uint)prepare_map[wg * 2 + 1];
@@ -121,6 +135,15 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* mixed ATTR,                 
     for (uint p = lo; p < hi; p++) {
         const uint token_idx = seq_begin + (p - past_len);
 
+#if QSA_PREPROJECTED
+        // Separate in-order dispatch makes all FP32 projection rows visible.
+        // In particular, do not reload freshly generated raw K from the half cache.
+        for (uint j0 = tid * 16; j0 < J; j0 += WG * 16) {
+            vector<float, 16> out = cm_ptr_load<float, 16>(
+                projected, (token_idx * J + j0) * (uint)sizeof(float));
+            cm_slm_block_write(slm_proj, j0 * (uint)sizeof(float), out);
+        }
+#else
         // Stage the activation row once per token. Every output tile of the projection
         // reads the SAME D elements, so reading it from global memory inside the tile
         // loop would multiply the activation traffic by the number of tiles (J/16).
@@ -156,6 +179,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* mixed ATTR,                 
             }
             cm_slm_block_write(slm_proj, j0 * (uint)sizeof(float), out);
         }
+#endif
         cm_fence(CM_LOCAL_BARRIER);
         cm_barrier();
 

@@ -83,6 +83,15 @@
 #ifndef QSA_HEADS_PER_TILE
 #define QSA_HEADS_PER_TILE 1
 #endif
+#ifndef QSA_COALESCE_KV
+#define QSA_COALESCE_KV 1
+#endif
+#ifndef QSA_WIDE_TAIL
+#define QSA_WIDE_TAIL 1
+#endif
+#ifndef QSA_CACHE_HEADS
+#define QSA_CACHE_HEADS 1
+#endif
 
 #define QSA_TOKENS_PER_TILE (QSA_REG_N / QSA_HEADS_PER_TILE)
 
@@ -174,6 +183,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
     static_assert(DV % (W * QSA_REG_N) == 0, "v head size must split evenly into per-worker dpas N tiles");
     static_assert(R % 2 == 0, "VNNI row pairs require an even compress ratio");
     static_assert(QSA_BLKS_PER_STEP * R == NKV, "compress ratio must divide the dpas K step");
+    static_assert(PA_BLOCK % R == 0, "a compressed block must not cross a KV page");
+    static_assert(DH_W % QSA_WIDE_COLS == 0 && DV_W % QSA_WIDE_COLS == 0,
+                  "wide loads must cover every worker dimension");
     static_assert(HT * TT == NQ, "the dpas N axis must be filled exactly by heads x tokens");
     static_assert(HQ % HT == 0 && (HQ / HKV) % HT == 0, "a head group must not straddle a KV head");
 
@@ -264,8 +276,20 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
     step_blocks = -1;
     step_masks = 0;
 
+#if QSA_CACHE_HEADS
+    // Retain the merge heads: only the lists that advanced need another global load.
+    // In a sparse union most lists do NOT advance on a given merge iteration.
+    vector<int32_t, TT> head_val = 0x7fffffff;
+#pragma unroll
+    for (uint t = 0; t < TT; t++) {
+        if (count[t] > 0) {
+            head_val[t] = selected_blocks[(token0 + t) * K_TOPK];
+        }
+    }
+#endif
     for (;;) {
         // ---- next union block: minimum over the TT cursor heads ----
+#if !QSA_CACHE_HEADS
         vector<int32_t, TT> head_val = 0x7fffffff;
 #pragma unroll
         for (uint t = 0; t < TT; t++) {
@@ -273,6 +297,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
                 head_val[t] = selected_blocks[(token0 + t) * K_TOPK + cursor[t]];
             }
         }
+#endif
         int32_t next_block = 0x7fffffff;
 #pragma unroll
         for (uint t = 0; t < TT; t++) {
@@ -287,6 +312,12 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
                 if (head_val[t] == next_block) {
                     mask |= (1u << t);
                     cursor[t] = cursor[t] + 1;
+#if QSA_CACHE_HEADS
+                    head_val[t] = 0x7fffffff;
+                    if (cursor[t] < count[t]) {
+                        head_val[t] = selected_blocks[(token0 + t) * K_TOPK + cursor[t]];
+                    }
+#endif
                 }
             }
             step_blocks[filled] = next_block;
@@ -301,38 +332,68 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
             continue;  // keep packing the kv_step tile
         }
 
-        // ---- stage the step's K and V, one message per union block ----
-        // Each block contributes R rows; its whole DH_W / DV_W slice is contiguous in the
-        // paged cache, so it arrives in a single 2D block load instead of one per dpas
-        // tile. That is the difference between 8 and 64 messages per step, and this kernel
-        // is bound by message rate (an ablation showed the dpas instructions themselves
-        // cost under 1% of its runtime).
+        // ---- stage the step's K and V with 64-byte-wide 2D messages ----
+        // Fallback: BLKS_PER_STEP * (K_CHUNKS + V_CHUNKS) loads per worker.
+        // A consecutive, page-local run needs only K_CHUNKS + V_CHUNKS loads
+        // (16 -> 4 at DH=DV=256, W=4, R=4), with exactly the same KV data.
         matrix<half, NKV, DH_W> kwide;
         matrix<half, NKV / 2, DV_W * 2> vwide;
+#if QSA_COALESCE_KV
+        // Sorted selections often pack a whole run (always in the dense prefix).
+        // Combine rows, NOT columns: a 2D row must still stay within the 64-byte cap.
+        // Requiring a single logical page is essential: physical pages are shuffled.
+        const uint first_pos = (uint)step_blocks[0] * R;
+        bool contiguous = filled == QSA_BLKS_PER_STEP && first_pos % PA_BLOCK + NKV <= PA_BLOCK;
 #pragma unroll
-        for (uint j = 0; j < QSA_BLKS_PER_STEP; j++) {
-            if (step_blocks[j] >= 0) {
-                const uint pos0 = (uint)step_blocks[j] * R;
-                const uint page = (uint)block_indices[page_begin + pos0 / PA_BLOCK];
-                const half* kbase = key_cache + qsa::kv_cache_offset(page, kv_head, pos0 % PA_BLOCK, HKV, PA_BLOCK, DH);
-                const half* vbase = value_cache + qsa::kv_cache_offset(page, kv_head, pos0 % PA_BLOCK, HKV, PA_BLOCK, DV);
+        for (uint j = 1; j < QSA_BLKS_PER_STEP; j++) {
+            contiguous = contiguous && step_blocks[j] == step_blocks[0] + (int32_t)j;
+        }
+        if (contiguous) {
+            const uint page = (uint)block_indices[page_begin + first_pos / PA_BLOCK];
+            const half* kbase = key_cache + qsa::kv_cache_offset(page, kv_head, first_pos % PA_BLOCK, HKV, PA_BLOCK, DH);
+            const half* vbase = value_cache + qsa::kv_cache_offset(page, kv_head, first_pos % PA_BLOCK, HKV, PA_BLOCK, DV);
 #pragma unroll
-                for (uint c = 0; c < QSA_K_CHUNKS; c++) {
-                    matrix<half, R, QSA_WIDE_COLS> ktmp;
-                    qsa_dpas::load_a_wide<R, QSA_WIDE_COLS>(ktmp, kbase, R, DH * (uint)sizeof(half), DH * (uint)sizeof(half),
-                                                            worker * DH_W + c * QSA_WIDE_COLS);
-                    kwide.select<R, 1, QSA_WIDE_COLS, 1>(j * R, c * QSA_WIDE_COLS) = ktmp;
+            for (uint c = 0; c < QSA_K_CHUNKS; c++) {
+                matrix<half, NKV, QSA_WIDE_COLS> ktmp;
+                qsa_dpas::load_a_wide<NKV, QSA_WIDE_COLS>(ktmp, kbase, NKV, DH * (uint)sizeof(half),
+                                                        DH * (uint)sizeof(half), worker * DH_W + c * QSA_WIDE_COLS);
+                kwide.select<NKV, 1, QSA_WIDE_COLS, 1>(0, c * QSA_WIDE_COLS) = ktmp;
+            }
+#pragma unroll
+            for (uint c = 0; c < QSA_V_CHUNKS; c++) {
+                matrix<half, NKV / 2, QSA_WIDE_COLS * 2> vtmp;
+                qsa_dpas::load_vnni_wide<NKV, QSA_WIDE_COLS>(vtmp, vbase, NKV, DV * (uint)sizeof(half),
+                                                           DV * (uint)sizeof(half), worker * DV_W + c * QSA_WIDE_COLS);
+                vwide.select<NKV / 2, 1, QSA_WIDE_COLS * 2, 1>(0, c * QSA_WIDE_COLS * 2) = vtmp;
+            }
+        } else
+#endif
+        {
+#pragma unroll
+            for (uint j = 0; j < QSA_BLKS_PER_STEP; j++) {
+                if (step_blocks[j] >= 0) {
+                    const uint pos0 = (uint)step_blocks[j] * R;
+                    const uint page = (uint)block_indices[page_begin + pos0 / PA_BLOCK];
+                    const half* kbase = key_cache + qsa::kv_cache_offset(page, kv_head, pos0 % PA_BLOCK, HKV, PA_BLOCK, DH);
+                    const half* vbase = value_cache + qsa::kv_cache_offset(page, kv_head, pos0 % PA_BLOCK, HKV, PA_BLOCK, DV);
+#pragma unroll
+                    for (uint c = 0; c < QSA_K_CHUNKS; c++) {
+                        matrix<half, R, QSA_WIDE_COLS> ktmp;
+                        qsa_dpas::load_a_wide<R, QSA_WIDE_COLS>(ktmp, kbase, R, DH * (uint)sizeof(half), DH * (uint)sizeof(half),
+                                                              worker * DH_W + c * QSA_WIDE_COLS);
+                        kwide.select<R, 1, QSA_WIDE_COLS, 1>(j * R, c * QSA_WIDE_COLS) = ktmp;
+                    }
+#pragma unroll
+                    for (uint c = 0; c < QSA_V_CHUNKS; c++) {
+                        matrix<half, R / 2, QSA_WIDE_COLS * 2> vtmp;
+                        qsa_dpas::load_vnni_wide<R, QSA_WIDE_COLS>(vtmp, vbase, R, DV * (uint)sizeof(half), DV * (uint)sizeof(half),
+                                                                 worker * DV_W + c * QSA_WIDE_COLS);
+                        vwide.select<R / 2, 1, QSA_WIDE_COLS * 2, 1>(j * R / 2, c * QSA_WIDE_COLS * 2) = vtmp;
+                    }
+                } else {
+                    kwide.select<R, 1, DH_W, 1>(j * R, 0) = (half)0.0f;
+                    vwide.select<R / 2, 1, DV_W * 2, 1>(j * R / 2, 0) = (half)0.0f;
                 }
-#pragma unroll
-                for (uint c = 0; c < QSA_V_CHUNKS; c++) {
-                    matrix<half, R / 2, QSA_WIDE_COLS * 2> vtmp;
-                    qsa_dpas::load_vnni_wide<R, QSA_WIDE_COLS>(vtmp, vbase, R, DV * (uint)sizeof(half), DV * (uint)sizeof(half),
-                                                               worker * DV_W + c * QSA_WIDE_COLS);
-                    vwide.select<R / 2, 1, QSA_WIDE_COLS * 2, 1>(j * R / 2, c * QSA_WIDE_COLS * 2) = vtmp;
-                }
-            } else {
-                kwide.select<R, 1, DH_W, 1>(j * R, 0) = (half)0.0f;
-                vwide.select<R / 2, 1, DV_W * 2, 1>(j * R / 2, 0) = (half)0.0f;
             }
         }
 
@@ -443,12 +504,51 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
     const uint tail_begin = n_complete[0] * R;
     const uint tail_end = past_len + token0 - seq_begin + valid - 1;
     for (uint base = tail_begin; base <= tail_end; base += NKV) {
+#if QSA_WIDE_TAIL
+        // Tail starts on an R boundary. Split at R boundaries so no message crosses
+        // a physical page; clamp the descriptor height to zero-pad partial row pairs.
+        matrix<half, NKV, DH_W> kwide;
+        matrix<half, NKV / 2, DV_W * 2> vwide;
+#pragma unroll
+        for (uint j = 0; j < QSA_BLKS_PER_STEP; j++) {
+            const uint pos = base + j * R;
+            if (pos <= tail_end) {
+                const uint rows = cm_min<uint>(R, tail_end - pos + 1);
+                const uint page = (uint)block_indices[page_begin + pos / PA_BLOCK];
+                const half* kbase = key_cache + qsa::kv_cache_offset(page, kv_head, pos % PA_BLOCK, HKV, PA_BLOCK, DH);
+                const half* vbase = value_cache + qsa::kv_cache_offset(page, kv_head, pos % PA_BLOCK, HKV, PA_BLOCK, DV);
+#pragma unroll
+                for (uint c = 0; c < QSA_K_CHUNKS; c++) {
+                    matrix<half, R, QSA_WIDE_COLS> ktmp;
+                    qsa_dpas::load_a_wide<R, QSA_WIDE_COLS>(ktmp, kbase, rows, DH * (uint)sizeof(half),
+                                                         DH * (uint)sizeof(half), worker * DH_W + c * QSA_WIDE_COLS);
+                    kwide.select<R, 1, QSA_WIDE_COLS, 1>(j * R, c * QSA_WIDE_COLS) = ktmp;
+                }
+#pragma unroll
+                for (uint c = 0; c < QSA_V_CHUNKS; c++) {
+                    matrix<half, R / 2, QSA_WIDE_COLS * 2> vtmp;
+                    qsa_dpas::load_vnni_wide<R, QSA_WIDE_COLS>(vtmp, vbase, rows, DV * (uint)sizeof(half),
+                                                            DV * (uint)sizeof(half), worker * DV_W + c * QSA_WIDE_COLS);
+                    vwide.select<R / 2, 1, QSA_WIDE_COLS * 2, 1>(j * R / 2, c * QSA_WIDE_COLS * 2) = vtmp;
+                }
+            } else {
+                kwide.select<R, 1, DH_W, 1>(j * R, 0) = (half)0.0f;
+                vwide.select<R / 2, 1, DV_W * 2, 1>(j * R / 2, 0) = (half)0.0f;
+            }
+        }
+#endif
         matrix<float, NKV, QSA_REG_N> St = 0.0f;
         auto St2 = St.format<float, NKV / MB, MB * QSA_REG_N>();
 
         matrix<half, NKV / MB, MB * QSA_REG_K> kmat;
 #pragma unroll
         for (uint k = 0; k < QSA_DH_TILES; k++) {
+#if QSA_WIDE_TAIL
+#pragma unroll
+            for (uint m = 0; m < NKV / MB; m++) {
+                kmat.row(m).format<half, MB, QSA_REG_K>() = kwide.select<MB, 1, QSA_REG_K, 1>(m * MB, k * QSA_REG_K);
+            }
+#else
             auto krows = kmat.format<half, NKV, QSA_REG_K>();
 #pragma unroll
             for (uint i = 0; i < NKV; i++) {
@@ -461,6 +561,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
                     krows.row(i) = (half)0.0f;
                 }
             }
+#endif
 #pragma unroll
             for (uint m = 0; m < NKV / MB; m++) {
                 St2.row(m) = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH, QSA_REG_M, float>(St2.row(m),
@@ -517,6 +618,9 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
         matrix<half, NKV / 2, QSA_REG_N * 2> vvnni;
 #pragma unroll
         for (uint d = 0; d < QSA_DV_TILES; d++) {
+    #if QSA_WIDE_TAIL
+            vvnni = vwide.select<NKV / 2, 1, QSA_REG_N * 2, 1>(0, d * QSA_REG_N * 2);
+    #else
 #pragma unroll
             for (uint i = 0; i < NKV; i++) {
                 const uint pos = base + i;
@@ -529,6 +633,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
                 // Scatter into VNNI order: element (kv, n) lives at [kv/2][n*2 + kv%2].
                 vvnni.row(i / 2).select<QSA_REG_N, 2>(i % 2) = v;
             }
+#endif
 #pragma unroll
             for (uint qt = 0; qt < QSA_Q_TILES; qt++) {
                 const uint t = qt * QSA_DV_TILES + d;
