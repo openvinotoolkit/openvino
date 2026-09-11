@@ -7,9 +7,9 @@ Throughput Benchmark Sample
 
 
 This sample demonstrates how to estimate performance of a model using Asynchronous
-Inference Request API in throughput mode. This sample
-does not have other configurable command-line arguments. Feel free to modify sample's
-source code to try out different options.
+Inference Request API in throughput mode. The Python sample provides options for
+the benchmark duration and minimum iteration count, and can run continuously until
+a stop signal is received.
 
 The reported results may deviate from what :doc:`benchmark_app <benchmark-tool>`
 reports. One example is model input precision for computer vision tasks. benchmark_app
@@ -26,8 +26,9 @@ How It Works
 ####################
 
 The sample compiles a model for a given device, randomly generates input data,
-performs asynchronous inference multiple times for a given number of seconds.
-Then, it processes and reports performance results.
+and performs asynchronous inference repeatedly. After the benchmark finishes, it
+waits for in-flight requests and reports performance results. The Python sample
+can use a finite duration or run continuously until a stop signal is received.
 
 .. tab-set::
 
@@ -62,7 +63,7 @@ Running
 
       .. code-block:: console
 
-         python throughput_benchmark.py <path_to_model> <device_name>(default: CPU)
+         python throughput_benchmark.py <path_to_model> [device_name] [--seconds-to-run SECONDS] [--niter NITER]
 
 
    .. tab-item:: C++
