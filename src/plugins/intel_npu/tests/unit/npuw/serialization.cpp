@@ -27,6 +27,7 @@
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "orc.hpp"
 #include "pyramid_attention.hpp"
 #include "spatial.hpp"
 #include "weights_bank.hpp"
@@ -1202,6 +1203,62 @@ TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_valid) {
 
         ov::Tensor expected(ov::element::f32, ov::Shape{2}, const_cast<float*>(values.data()));
         expect_tensors_equal(expected, res.eval());
+
+        res.detach();  // release the mmap before removing the file (Windows handle)
+    }
+
+    std::filesystem::remove(file_path);
+}
+
+// A legitimate constant always has byte_size == shape*type, so isolating the shape/byte_size assert
+// in eval() needs a hand-crafted blob: shape (f32 x4 = 16 B) disagrees with byte_size (8 B), and the
+// 8 B stays inside the 8 B mapping so the range check passes and only that assert can reject it.
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_shape_bytesize_mismatch) {
+    using namespace ov::npuw::s11n;
+
+    std::stringstream payload_ss(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        auto pw = ov::npuw::orc::Stream::writer(payload_ss);
+        std::string type_str = "f32";
+        ov::Shape shape{4};  // f32 x4 -> tensor byte size 16
+        std::size_t offset = 0;
+        std::size_t byte_size = 8;  // lies: does not match shape*type
+        bool contains_weight = false;
+        pw & type_str & shape & offset & byte_size & contains_weight;
+    }
+    const std::string payload_str = payload_ss.str();
+    std::vector<std::byte> payload(payload_str.size());
+    std::memcpy(payload.data(), payload_str.data(), payload_str.size());
+
+    std::stringstream ss(std::ios::in | std::ios::out | std::ios::binary);
+    {
+        auto w = ov::npuw::orc::Stream::writer(ss);
+        bool is_initialized = true;
+        std::size_t hash = 0;
+        w & is_initialized & hash;
+        // type id 1 == TransformType::CONST, version 0 == op::Const::kVersion
+        auto section = ov::npuw::orc::Section::raw(1, 0, payload);
+        ov::npuw::orc::serialize(w, section);
+    }
+
+    std::filesystem::path file_path = ov::test::utils::generateTestFilePrefix() + "_npuw_lt_shape_mismatch.bin";
+    {
+        std::ofstream os(file_path, std::ios::binary);
+        const std::vector<uint8_t> tiny(8, 0xAB);
+        os.write(reinterpret_cast<const char*>(tiny.data()), static_cast<std::streamsize>(tiny.size()));
+    }
+
+    {
+        ov::npuw::weights::LazyTensor res;
+        read(ss, res);
+
+        auto mapped = ov::load_mmap_object(file_path);
+        ASSERT_NE(mapped, nullptr);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+
+        WeightsContext import_ctx(weights, file_path.string(), {}, {});
+        res.read_weight(import_ctx);
+        EXPECT_THROW(res.eval(), ov::AssertFailure);
 
         res.detach();  // release the mmap before removing the file (Windows handle)
     }
