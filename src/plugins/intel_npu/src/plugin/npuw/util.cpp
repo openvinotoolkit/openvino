@@ -6,10 +6,12 @@
 
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
+#include <openvino/core/graph_util.hpp>
 #include <openvino/core/parallel.hpp>
 #include <openvino/core/type/bfloat16.hpp>
 #include <openvino/core/type/float16.hpp>
 #include <openvino/core/type/nf4.hpp>
+#include <openvino/core/validation_util.hpp>
 #include <regex>
 #include <sstream>
 
@@ -24,6 +26,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -994,6 +997,85 @@ bool ov::npuw::util::isRestoredPastKeyValueParam(const std::string& str) {
     return std::regex_match(str, restored_pattern);
 }
 
+namespace {
+
+std::optional<std::size_t> normalize_static_axis(int64_t axis, const ov::PartialShape& shape) {
+    const auto rank = shape.rank();
+    if (!rank.is_static()) {
+        return std::nullopt;
+    }
+
+    const auto rank_length = rank.get_length();
+    if (axis < -rank_length || axis >= rank_length) {
+        return std::nullopt;
+    }
+    return static_cast<std::size_t>(axis < 0 ? axis + rank_length : axis);
+}
+
+std::optional<int64_t> static_dimension(const ov::PartialShape& shape, std::size_t axis) {
+    if (!shape.rank().is_static() || axis >= static_cast<std::size_t>(shape.rank().get_length()) ||
+        !shape[axis].is_static()) {
+        return std::nullopt;
+    }
+    return shape[axis].get_length();
+}
+
+std::optional<std::vector<int64_t>> get_slice_constant(const std::shared_ptr<ov::op::v8::Slice>& slice,
+                                                       std::size_t input_idx) {
+    const auto constant = ov::util::get_constant_from_source(slice->input_value(input_idx));
+    if (!constant) {
+        return std::nullopt;
+    }
+    return constant->cast_vector<int64_t>();
+}
+
+}  // namespace
+
+bool ov::npuw::util::is_valid_attention_sink_slice(const std::shared_ptr<ov::Node>& sink_concat_node,
+                                                   const std::shared_ptr<ov::Node>& softmax_node,
+                                                   const std::shared_ptr<ov::Node>& slice_node) {
+    const auto sink_concat = ov::as_type_ptr<ov::op::v0::Concat>(sink_concat_node);
+    const auto softmax = ov::as_type_ptr<ov::op::v8::Softmax>(softmax_node);
+    const auto slice = ov::as_type_ptr<ov::op::v8::Slice>(slice_node);
+    if (!sink_concat || !softmax || !slice || sink_concat->get_input_size() != 2 || slice->get_input_size() != 5) {
+        return false;
+    }
+
+    const auto concat_axis = normalize_static_axis(sink_concat->get_axis(), sink_concat->get_output_partial_shape(0));
+    const auto softmax_axis = normalize_static_axis(softmax->get_axis(), softmax->get_output_partial_shape(0));
+    if (!concat_axis || !softmax_axis || *concat_axis != *softmax_axis) {
+        return false;
+    }
+
+    const auto scores_shape = sink_concat->input_value(0).get_partial_shape();
+    const auto sink_shape = sink_concat->input_value(1).get_partial_shape();
+    const auto softmax_shape = softmax->get_output_partial_shape(0);
+    const auto slice_shape = slice->get_output_partial_shape(0);
+    const auto scores_dim = static_dimension(scores_shape, *concat_axis);
+    const auto sink_dim = static_dimension(sink_shape, *concat_axis);
+    const auto concat_dim = static_dimension(sink_concat->get_output_partial_shape(0), *concat_axis);
+    const auto softmax_dim = static_dimension(softmax_shape, *softmax_axis);
+    const auto slice_dim = static_dimension(slice_shape, *softmax_axis);
+    if (!scores_dim || !sink_dim || !concat_dim || !softmax_dim || !slice_dim || *sink_dim != 1 ||
+        *scores_dim == std::numeric_limits<int64_t>::max() || *concat_dim != *scores_dim + 1 ||
+        *softmax_dim != *concat_dim || *slice_dim != *scores_dim) {
+        return false;
+    }
+
+    const auto begin = get_slice_constant(slice, 1);
+    const auto end = get_slice_constant(slice, 2);
+    const auto stride = get_slice_constant(slice, 3);
+    const auto axes = get_slice_constant(slice, 4);
+    if (!begin || !end || !stride || !axes || begin->size() != 1 || end->size() != 1 || stride->size() != 1 ||
+        axes->size() != 1) {
+        return false;
+    }
+
+    const auto slice_axis = normalize_static_axis((*axes)[0], softmax_shape);
+    const bool removes_trailing_sink = (*end)[0] == *scores_dim || (*end)[0] == -1;
+    return slice_axis && *slice_axis == *softmax_axis && (*begin)[0] == 0 && removes_trailing_sink && (*stride)[0] == 1;
+}
+
 std::optional<int> ov::npuw::util::isPastKeyValuesKeyContiguous(const std::string& str) {
     // Match only the single contiguous past key param (no _block_ suffix).
     // Allows optional intermediate parts like "encoder" or "decoder" (for Whisper).
@@ -1105,34 +1187,91 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
         auto& current_node = candidate;
         current_node.softmax_node = node;
 
-        // Check if softmax is fed by Add - TODO: how optional is add?
+        // A six-input SDPA is decomposed as Add -> Concat(scores, sink) ->
+        // Softmax -> Slice -> MatMul. Regular SDPA feeds Add directly to Softmax.
         auto softmax_input = node->input(0).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v1::Add>(softmax_input)) {
-            LOG_DEBUG("Softmax input is not Add(" << softmax_input->get_friendly_name() << "), skipping pattern check");
+        if (ov::is_type<ov::op::v1::Add>(softmax_input)) {
+            current_node.add_node = softmax_input;
+        } else if (auto scores_with_sink = ov::as_type_ptr<ov::op::v0::Concat>(softmax_input)) {
+            if (scores_with_sink->get_input_size() != 2 ||
+                !ov::is_type<ov::op::v1::Add>(scores_with_sink->get_input_node_shared_ptr(0))) {
+                LOG_DEBUG("Softmax input is not a supported attention-sink Concat, skipping pattern check");
+                continue;
+            }
+            current_node.add_node = scores_with_sink->get_input_node_shared_ptr(0);
+            current_node.attention_sink_node = scores_with_sink->get_input_node_shared_ptr(1);
+            if (auto sink_broadcast = ov::as_type_ptr<ov::op::v1::Broadcast>(current_node.attention_sink_node)) {
+                current_node.attention_sink_node = sink_broadcast->get_input_node_shared_ptr(0);
+            } else if (auto sink_broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(current_node.attention_sink_node)) {
+                current_node.attention_sink_node = sink_broadcast->get_input_node_shared_ptr(0);
+            }
+        } else {
+            LOG_DEBUG("Softmax input is neither Add nor attention-sink Concat(" << softmax_input->get_friendly_name()
+                                                                                << "), skipping pattern check");
             continue;
         }
-        current_node.add_node = softmax_input;
 
-        // Check if add is fed by MatMul (first MatMul)
+        // The standard six-input SDPA decomposition applies scale after QK.
+        // The custom decomposition pre-scales Q and therefore feeds MatMul directly.
         auto add_input0 = current_node.add_node->input(0).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v0::MatMul>(add_input0)) {
+        if (ov::is_type<ov::op::v0::MatMul>(add_input0)) {
+            current_node.matmul1_node = add_input0;
+        } else if (auto scaled_scores = ov::as_type_ptr<ov::op::v1::Multiply>(add_input0)) {
+            const auto first_input = scaled_scores->get_input_node_shared_ptr(0);
+            const auto second_input = scaled_scores->get_input_node_shared_ptr(1);
+            if (ov::is_type<ov::op::v0::MatMul>(first_input)) {
+                current_node.matmul1_node = first_input;
+                current_node.attention_scale_node = second_input;
+            } else if (ov::is_type<ov::op::v0::MatMul>(second_input)) {
+                current_node.matmul1_node = second_input;
+                current_node.attention_scale_node = first_input;
+            } else {
+                LOG_DEBUG("Scaled attention scores do not originate from MatMul, skipping pattern check");
+                continue;
+            }
+        } else {
             LOG_DEBUG("Add input is not MatMul(" << add_input0->get_friendly_name() << "), skipping pattern check");
             continue;
         }
-        current_node.matmul1_node = add_input0;
 
         // Find Concat node for past key (input 1 of MatMul1)
         current_node.past_key_concat_node = find_concat_from_matmul(current_node.matmul1_node, 1);
 
-        // Check if softmax feeds into MatMul (second MatMul)
+        // Check if Softmax feeds into MatMul directly, or through the Slice that
+        // removes the attention-sink probability.
         for (auto&& output : node->outputs()) {
             for (auto&& target_input : output.get_target_inputs()) {
                 auto target_node = target_input.get_node()->shared_from_this();
                 if (ov::is_type<ov::op::v0::MatMul>(target_node)) {
+                    if (current_node.attention_sink_node) {
+                        LOG_DEBUG("Attention-sink Softmax must feed MatMul through a Slice");
+                        continue;
+                    }
                     current_node.matmul2_node = target_node;
+                    break;
+                }
+                if (!current_node.attention_sink_node || !ov::is_type<ov::op::v8::Slice>(target_node)) {
+                    continue;
+                }
 
-                    // Find Concat node for past value (input 1 of MatMul2)
-                    current_node.past_value_concat_node = find_concat_from_matmul(current_node.matmul2_node, 1);
+                if (!ov::npuw::util::is_valid_attention_sink_slice(softmax_input, node, target_node)) {
+                    continue;
+                }
+
+                for (auto&& slice_output : target_node->outputs()) {
+                    for (auto&& slice_target_input : slice_output.get_target_inputs()) {
+                        auto slice_target_node = slice_target_input.get_node()->shared_from_this();
+                        if (ov::is_type<ov::op::v0::MatMul>(slice_target_node)) {
+                            current_node.softmax_slice_node = target_node;
+                            current_node.matmul2_node = slice_target_node;
+                            break;
+                        }
+                    }
+                    if (current_node.matmul2_node) {
+                        break;
+                    }
+                }
+                if (current_node.matmul2_node) {
                     break;
                 }
             }
@@ -1143,6 +1282,9 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
             LOG_DEBUG("Softmax does not feed into MatMul, skipping pattern check");
             continue;
         }
+
+        // Find Concat node for past value (input 1 of MatMul2)
+        current_node.past_value_concat_node = find_concat_from_matmul(current_node.matmul2_node, 1);
 
         // Attach the model-level KV param nodes collected above.
         candidate.past_key_param_nodes = all_past_key_params;

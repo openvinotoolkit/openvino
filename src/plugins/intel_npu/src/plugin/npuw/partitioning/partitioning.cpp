@@ -929,6 +929,9 @@ std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType 
     // Collect all groups of function call(s) and process them in groups
     std::map<std::string, int> idx;
     for (auto&& part_sg : P.subgraphs) {
+        if (part_sg._optimized_out) {
+            continue;
+        }
         if (!part_sg._repeated_id.empty() &&
             (selected_repeated_ids.empty() || selected_repeated_ids.count(part_sg._repeated_id) > 0)) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
@@ -2852,6 +2855,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTinyConstants(func_group);
                 p.saveScaleFactors(func_group);
                 p.createFunction(func_group);
+                p.attention(func_group);
                 p.decompressionCutOff(func_group);
             }
         };
