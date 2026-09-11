@@ -7,6 +7,8 @@
 #include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/reference/mvn.hpp"
 
 // ------------------------------ V0 ------------------------------
@@ -106,6 +108,23 @@ void ov::op::v6::MVN::validate_and_infer_types() {
                               data_rank.is_dynamic() || cmp::ge(data_rank.get_length(), axes.get_shape()[0]),
                               "Expected rank for the 'data' input to be higher than axes shape. Got: ",
                               data);
+
+        if (data_rank.is_static()) {
+            if (const auto axes_constant = ov::util::get_constant_from_source(input_value(1))) {
+                const auto rank_value = data_rank.get_length();
+                for (const auto& axis : axes_constant->cast_vector<int64_t>()) {
+                    NODE_VALIDATION_CHECK(this,
+                                          ov::util::is_axis_valid(axis, rank_value),
+                                          "Axis ",
+                                          axis,
+                                          " is out of the tensor rank range [",
+                                          -rank_value,
+                                          ", ",
+                                          rank_value - 1,
+                                          "].");
+                }
+            }
+        }
     }
 
     set_output_type(0, get_input_element_type(0), data);

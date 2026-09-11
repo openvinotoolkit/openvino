@@ -92,13 +92,15 @@ AxisSet mvn_6_reduction_axes(const ov::Tensor& axes_input, size_t rank) {
     const T* a = axes_input.data<T>();
     auto v = std::vector<T>(a, a + axes_input.get_shape()[0]);
     std::vector<size_t> axes(v.size(), 0);
+    const auto signed_rank = static_cast<int64_t>(rank);
     for (size_t i = 0; i < v.size(); i++) {
-        if (v[i] < 0) {
-            OPENVINO_ASSERT(rank + v[i] >= 0, "Unexpected axis");
-            axes[i] = (size_t)(rank + v[i]);
-        } else {
-            axes[i] = (size_t)(v[i]);
-        }
+        const auto axis = static_cast<int64_t>(v[i]);
+        OPENVINO_ASSERT(axis >= -signed_rank && axis < signed_rank,
+                        "Unexpected axis ",
+                        axis,
+                        " for the 'data' input of rank ",
+                        rank);
+        axes[i] = static_cast<size_t>(axis < 0 ? axis + signed_rank : axis);
     }
     return AxisSet(axes);
 }

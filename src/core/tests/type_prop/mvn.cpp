@@ -4,10 +4,12 @@
 
 #include "openvino/op/mvn.hpp"
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 
 using namespace std;
 using namespace ov;
+using testing::HasSubstr;
 
 // ------------------------------ V0 ------------------------------
 
@@ -61,4 +63,24 @@ TEST(type_prop, mvn_6_partial) {
                                  1e-6f,
                                  op::MVNEpsMode::INSIDE_SQRT);
     ASSERT_TRUE(mvn_partial->get_output_partial_shape(0).same_scheme(PartialShape::dynamic()));
+}
+
+TEST(type_prop, mvn_6_axes_out_of_range) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+    auto axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {1000});
+
+    OV_EXPECT_THROW(
+        std::ignore = make_shared<op::v6::MVN>(data, axes, true, 1e-6f, op::MVNEpsMode::INSIDE_SQRT),
+        NodeValidationFailure,
+        HasSubstr("Axis"));
+}
+
+TEST(type_prop, mvn_6_axes_out_of_range_negative) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+    auto axes = ov::op::v0::Constant::create(element::i64, Shape{1}, {-3});
+
+    OV_EXPECT_THROW(
+        std::ignore = make_shared<op::v6::MVN>(data, axes, true, 1e-6f, op::MVNEpsMode::INSIDE_SQRT),
+        NodeValidationFailure,
+        HasSubstr("Axis"));
 }
