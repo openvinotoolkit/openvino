@@ -705,8 +705,8 @@ void ov::CoreImpl::register_compile_time_plugins() {
     const decltype(::get_compiled_plugins_registry())& plugins = get_compiled_plugins_registry();
     for (const auto& plugin : plugins) {
         const auto& device_name = plugin.first;
-        if (device_name.find('.') != std::string::npos) {
-            OPENVINO_THROW("Device name must not contain dot '.' symbol");
+        if (device_name.find_first_of(".#") != std::string::npos) {
+            OPENVINO_THROW("Device name must not contain dot '.' or hash '#' symbol");
         }
 #ifdef OPENVINO_STATIC_LIBRARY
         if (m_plugin_registry.find(device_name) == m_plugin_registry.end()) {
@@ -753,8 +753,8 @@ void ov::CoreImpl::register_plugins_in_registry(const std::filesystem::path& xml
         if (m_plugin_registry.find(device_name) != m_plugin_registry.end()) {
             OPENVINO_THROW("Device with \"", device_name, "\"  is already registered in the OpenVINO Runtime");
         }
-        if (device_name.find('.') != std::string::npos) {
-            OPENVINO_THROW("Device name must not contain dot '.' symbol");
+        if (device_name.find_first_of(".#") != std::string::npos) {
+            OPENVINO_THROW("Device name must not contain dot '.' or hash '#' symbol");
         }
 
         // Library path(s): either the legacy single "location" attribute, or ordered
@@ -1014,9 +1014,9 @@ ov::Plugin ov::CoreImpl::get_plugin_impl(const std::string& plugin_name, const s
         // crosses this boundary later - in either direction - is already the canonical one.
         if (dispatch_id_map) {
             OPENVINO_ASSERT(device_supports_internal_property(plugin, ov::internal::device_id_map.name()),
-                            "Library \"",
-                            desc.primary().m_lib_location.string(),
-                            "\" is registered as one of several candidates for device \"",
+                            "Library ",
+                            desc.primary().m_lib_location,
+                            " is registered as one of several candidates for device \"",
                             device_name,
                             "\" but does not support ",
                             ov::internal::device_id_map.name(),
@@ -1293,7 +1293,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     OPENVINO_ASSERT(context, "Remote context must not be empty.");
-    auto parsed = parse_device_name_into_config(context->get_device_name(), config);
+    const auto parsed = parse_device_name_into_config(context->get_device_name(), config);
     return get_plugin(parsed.m_device_name, parsed.m_config).import_model(modelStream, context, parsed.m_config);
 }
 
@@ -1301,7 +1301,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& compi
                                                          const std::string& device_name,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
-    auto parsed = parse_device_name_into_config(device_name, config);
+    const auto parsed = parse_device_name_into_config(device_name, config);
     return get_plugin(parsed.m_device_name, parsed.m_config).import_model(compiled_blob, parsed.m_config);
 }
 
@@ -1310,7 +1310,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& compi
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     OPENVINO_ASSERT(context, "Remote context must not be empty.");
-    auto parsed = parse_device_name_into_config(context->get_device_name(), config);
+    const auto parsed = parse_device_name_into_config(context->get_device_name(), config);
     return get_plugin(parsed.m_device_name, parsed.m_config).import_model(compiled_blob, context, parsed.m_config);
 }
 
@@ -1318,7 +1318,7 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
                                               const std::string& device_name,
                                               const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::query_model");
-    auto parsed = parse_device_name_into_config(device_name, config);
+    const auto parsed = parse_device_name_into_config(device_name, config);
     return get_plugin(parsed.m_device_name, parsed.m_config).query_model(model, parsed.m_config);
 }
 
@@ -1673,8 +1673,8 @@ void ov::CoreImpl::unload_plugin(const std::string& device_name) {
 void ov::CoreImpl::register_plugin(const std::filesystem::path& plugin,
                                    const std::string& device_name,
                                    const ov::AnyMap& properties) {
-    if (device_name.find('.') != std::string::npos) {
-        OPENVINO_THROW("Device name must not contain dot '.' symbol");
+    if (device_name.find_first_of(".#") != std::string::npos) {
+        OPENVINO_THROW("Device name must not contain dot '.' or hash '#' symbol");
     }
 
     // Device lock before the global one, in get_plugin_impl's order: appending a candidate must not
@@ -1692,9 +1692,9 @@ void ov::CoreImpl::register_plugin(const std::filesystem::path& plugin,
         // already registered, so it could only ever shadow itself: reject it.
         for (size_t i = 0; i < it->second.candidate_count(); ++i) {
             if (is_same_plugin_library(it->second.candidate_location(i), lib_path))
-                OPENVINO_THROW("Library \"",
-                               lib_path.string(),
-                               "\" is already registered as device \"",
+                OPENVINO_THROW("Library ",
+                               lib_path,
+                               " is already registered as device \"",
                                device_name,
                                "\". Sharing a device name requires registering a different library under it.");
         }

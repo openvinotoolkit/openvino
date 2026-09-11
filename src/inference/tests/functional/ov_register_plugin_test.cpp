@@ -241,6 +241,19 @@ TEST(RegisterPluginTests, registerExistingPluginThrows) {
                     ::testing::HasSubstr("is already registered as device \"" + mock_plugin_name + "\""));
 }
 
+// A dispatch group caches its resolved member under "<device>#<candidate>", so a device literally
+// named that way would share the instance slot. Both separators are rejected in a device name.
+TEST(RegisterPluginTests, registerPluginWithReservedSymbolInNameThrows) {
+    ov::Core core;
+    const auto lib = ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                                        std::string("mock_engine") + OV_BUILD_POSTFIX);
+    for (const std::string name : {"MOCK_HARDWARE#1", "MOCK_HARDWARE.1"}) {
+        OV_EXPECT_THROW(core.register_plugin(lib, name),
+                        ov::Exception,
+                        ::testing::HasSubstr("Device name must not contain"));
+    }
+}
+
 inline std::string getPluginFile() {
     std::string filePostfix{"mock_engine_valid.xml"};
     std::string filename = ov::test::utils::generateTestFilePrefix() + "_" + filePostfix;
