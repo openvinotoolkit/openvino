@@ -94,7 +94,8 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefau
 }
 
 KernelsPriority ConvolutionKernel_bfyx_to_bfyx_f16::GetKernelsPriority(const Params& params) const {
-    return FORCE_PRIORITY_2;
+    const auto& p = static_cast<const convolution_params&>(params);
+    return p.inputs[0].Batch().v == 1 ? FORCE_PRIORITY_2 : FORCE_PRIORITY_7;
 }
 
 bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p) const {

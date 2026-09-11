@@ -1687,32 +1687,21 @@ TEST(convolution_f32_fw_gpu, input_f32_output_f16_dynamic_ref_kernel) {
     ASSERT_EQ(outputs.at("permute").get_layout().data_type, data_types::f16);
 }
 
-// Dynamic-batch regression for the bfyx_to_b_fs_yx_fsv16 kernel: a <=4-channel bfyx f16
-// convolution with a dynamic (unknown) batch axis must dispatch the fsv16 kernel (which
-// bakes feature/spatial sizes but takes batch only from gws) and run correctly at multiple
-// concrete runtime batch sizes -- the FlashOCC image_encoder case (batch=-1). Without the
-// dispatch guard, this kernel could not be selected/executed for a dynamic batch.
-// All-ones input and weights make the reference trivial: every output pixel sums
-// ic * 3 * 3 taps of (1*1) = 27.0.
 TEST(convolution_f16_fw_gpu, dynamic_batch_bfyx_small_channel_fsv16)
 {
-    using ov::Dimension;
     auto& engine = get_test_engine();
     const size_t ic = 3, oc = 16, iy = 8, ix = 8, oy = iy - 2, ox = ix - 2;
+    const ov::Shape weights_shape = { oc, ic, 3, 3 };
 
-    const auto alloc_type = engine.supports_allocation(allocation_type::usm_device)
-                                ? allocation_type::usm_device
-                                : engine.get_default_allocation_type();
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto weights_data = rg.generate_random_1d<ov::float16>(ov::shape_size(weights_shape), -1, 1);
+    auto weights_mem = engine.allocate_memory({ weights_shape, data_types::f16, format::bfyx });
+    set_values(weights_mem, weights_data);
 
-    auto in_dyn_layout = layout{ ov::PartialShape{ ov::Dimension(), ov::Dimension(ic), ov::Dimension(iy), ov::Dimension(ix) },
-                                 data_types::f16, format::bfyx };
-    auto weights_mem = engine.allocate_memory({ data_types::f16, format::bfyx, { oc, ic, 3, 3 } });
-    {
-        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::write> wp(weights_mem, get_test_stream());
-        std::fill(wp.begin(), wp.end(), ov::float16(1.f));
-    }
+    ov::PartialShape input_shape = { ov::Dimension(1, 4), ic, iy, ix };
+    auto in_dyn_layout = layout{ input_shape, data_types::f16, format::bfyx };
 
-    topology topology(
+    topology target_topology(
         input_layout("input", in_dyn_layout),
         data("weights", weights_mem),
         convolution("conv1", input_info("input"), "weights", "", 1, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, false),
@@ -1720,38 +1709,53 @@ TEST(convolution_f16_fw_gpu, dynamic_batch_bfyx_small_channel_fsv16)
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    // Force the fsv16 output (the format the layout optimizer picks for these shallow convs)
-    // so the bfyx_to_b_fs_yx_fsv16 kernel must dispatch for it.
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv1", impl } }));
 
-    network network(engine, topology, config);
+    network target_network(engine, target_topology, config);
 
-    size_t last_batch = 0;
     for (size_t b : { size_t(1), size_t(4) }) {
-        const auto bsz = static_cast<cldnn::tensor::value_type>(b);
-        auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { bsz, ic, iy, ix } }, alloc_type);
-        {
-            cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::write> wp(input, get_test_stream());
-            std::fill(wp.begin(), wp.end(), ov::float16(1.f));
-        }
-        network.set_input_data("input", input);
+        const ov::Shape current_input_shape = { b, ic, iy, ix };
+        auto input_data = rg.generate_random_1d<ov::float16>(ov::shape_size(current_input_shape), -1, 1);
+        auto input = engine.allocate_memory({ current_input_shape, data_types::f16, format::bfyx });
+        set_values(input, input_data);
+        target_network.set_input_data("input", input);
 
-        auto outputs = network.execute();
+        auto outputs = target_network.execute();
         ASSERT_EQ(outputs.size(), size_t(1));
         const auto& out = outputs.at("out").get_memory();
         ASSERT_EQ(out->get_layout().batch(), b);
-        last_batch = b;
-        cldnn::mem_lock<ov::float16> out_ptr(out, get_test_stream());
-        ASSERT_EQ(out_ptr.size(), b * oc * oy * ox);
-        // all-ones input (ic channels) x all-ones 3x3 weights => each pixel sums ic*3*3 taps = 27.0
-        for (size_t i = 0; i < out_ptr.size(); ++i)
-            EXPECT_NEAR(float(ic * 3 * 3), float(out_ptr[i]), 0.5f) << "batch=" << b << " idx=" << i;
+        ASSERT_EQ(out->get_layout().count(), b * oc * oy * ox);
+
+        topology reference_topology(
+            input_layout("input", input->get_layout()),
+            data("weights", weights_mem),
+            convolution("conv1", input_info("input"), "weights", "", 1, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, false),
+            reorder("out", input_info("conv1"), format::bfyx, data_types::f16));
+        ExecutionConfig reference_config = get_test_default_config(engine);
+        reference_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        reference_config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{ { "conv1", { format::bfyx, "convolution_gpu_ref", impl_types::ocl } } }));
+        network reference_network(engine, reference_topology, reference_config);
+        reference_network.set_input_data("input", input);
+
+        auto reference_outputs = reference_network.execute();
+        auto output_values = get_output_values_to_float(target_network, outputs.at("out"));
+        auto reference_values = get_output_values_to_float(reference_network, reference_outputs.at("out"));
+        ASSERT_EQ(output_values.size(), reference_values.size());
+        for (size_t i = 0; i < output_values.size(); ++i) {
+            const float tolerance = 0.1f + 1e-2f * std::abs(reference_values[i]);
+            ASSERT_NEAR(output_values[i], reference_values[i], tolerance) << "batch=" << b << " idx=" << i;
+        }
     }
-    ASSERT_EQ(last_batch, 4u);
-    // The convolution must dispatch the fsv16 path: its output stays b_fs_yx_fsv16
-    // (the trailing "out" node reorders it to bfyx).
-    EXPECT_EQ(network.get_primitive("conv1")->get_output_layout(0).format, format::b_fs_yx_fsv16);
+
+    const auto primitives_info = target_network.get_primitives_info();
+    const auto conv_info = std::find_if(primitives_info.begin(), primitives_info.end(), [](const primitive_info& info) {
+        return info.original_id == "conv1";
+    });
+    ASSERT_NE(conv_info, primitives_info.end());
+    EXPECT_EQ(conv_info->kernel_id, "convolution_gpu_bfyx_to_bfyx_f16__f16");
+    EXPECT_EQ(target_network.get_primitive("conv1")->get_output_layout(0).format, format::b_fs_yx_fsv16);
 }
 
 TEST(convolution_f32_fw_gpu, convolution_big_size_weights) {
