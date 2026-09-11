@@ -916,6 +916,27 @@ void PyramidAttentionContiguous::validate_port_indices() const {
                        _compiled_models.size(),
                        ")");
     }
+    if (_context_lengths.size() != _compiled_models.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention context length count (",
+                       _context_lengths.size(),
+                       ") does not match compiled model count (",
+                       _compiled_models.size(),
+                       ")");
+    }
+    const auto main_model_idx = _compiled_models.size() - 1;
+    if (!_compiled_models[main_model_idx]) {
+        OPENVINO_THROW("NPU NPUW: main compiled model at index ",
+                       main_model_idx,
+                       " is null while validating pyramid attention metadata");
+    }
+    const auto main_inputs_size = _compiled_models[main_model_idx]->inputs().size();
+    if (global_mask_idx >= main_inputs_size) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention global_mask_idx (",
+                       global_mask_idx,
+                       ") out of bounds for main compiled model with ",
+                       main_inputs_size,
+                       " inputs");
+    }
     for (size_t i = 0; i < _compiled_models.size(); ++i) {
         if (!_compiled_models[i]) {
             continue;
@@ -941,6 +962,17 @@ void PyramidAttentionContiguous::validate_port_indices() const {
                                inputs_size,
                                " inputs");
             }
+            const auto& rank = _compiled_models[i]->inputs()[param.idx].get_partial_shape().rank();
+            if (rank.is_static() && param.dim >= static_cast<size_t>(rank.get_length())) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention param dim (",
+                               param.dim,
+                               ") out of bounds for model ",
+                               i,
+                               " input ",
+                               param.idx,
+                               " with rank ",
+                               rank.get_length());
+            }
         }
     }
 }
@@ -952,6 +984,13 @@ void PyramidAttentionBlock::validate_port_indices() const {
     if (_attention_infos.size() != _compiled_models.size()) {
         OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
                        _attention_infos.size(),
+                       ") does not match compiled model count (",
+                       _compiled_models.size(),
+                       ")");
+    }
+    if (_context_lengths.size() != _compiled_models.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention context length count (",
+                       _context_lengths.size(),
                        ") does not match compiled model count (",
                        _compiled_models.size(),
                        ")");
@@ -975,6 +1014,13 @@ void PyramidAttentionBlock::validate_port_indices() const {
         }
 
         const auto main_inputs_size = _compiled_models[main_model_idx]->inputs().size();
+        if (global_mask_idx >= main_inputs_size) {
+            OPENVINO_THROW("NPU NPUW: pyramid attention global_mask_idx (",
+                           global_mask_idx,
+                           ") out of bounds for main compiled model with ",
+                           main_inputs_size,
+                           " inputs");
+        }
         for (const auto global_idx : past_key_block_global_param_indices) {
             if (global_idx >= main_inputs_size) {
                 OPENVINO_THROW("NPU NPUW: pyramid attention key block global param idx (",
@@ -1010,10 +1056,6 @@ void PyramidAttentionBlock::validate_port_indices() const {
                            inputs_size,
                            " inputs");
         }
-        // param_port_map values and the block port sets are LOCAL indices used to bind tensors
-        // to this variant's inputs(); validate them too since they are read verbatim from the blob.
-        // param_port_map has no "no port" sentinel — a dropped block is an absent entry, so every
-        // present value is a real port that bind_function_input dereferences unconditionally.
         for (const auto& kv : info.param_port_map) {
             if (kv.second >= inputs_size) {
                 OPENVINO_THROW("NPU NPUW: pyramid attention param_port_map value (",
