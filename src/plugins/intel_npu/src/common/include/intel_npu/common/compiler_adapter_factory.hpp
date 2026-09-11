@@ -21,8 +21,6 @@ namespace intel_npu {
 
 class CompilerAdapterFactory final {
 public:
-    ov::intel_npu::CompilerType determineAppropriateCompilerTypeBasedOnPlatform(std::string_view platform) const;
-
     std::unique_ptr<ICompilerAdapter> getCompiler(
         const ov::SoPtr<IEngineBackend>& engineBackend,
         ov::intel_npu::CompilerType& compilerType,
@@ -36,6 +34,8 @@ public:
     static const std::vector<ov::intel_npu::CompilerType>& getKnownCompilerTypes();
 
 private:
+    ov::intel_npu::CompilerType determineAppropriateCompilerTypeBasedOnPlatform(std::string_view platform) const;
+
     std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType> resolvePreferPluginCompiler(
         const ov::SoPtr<IEngineBackend>& engineBackend,
         const std::shared_ptr<OptionSupportCache>& optionSupportCache,

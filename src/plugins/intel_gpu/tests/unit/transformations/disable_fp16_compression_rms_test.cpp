@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 
+#include "common_test_utils/ov_test_utils.hpp"
 #include <openvino/core/model.hpp>
 #include <openvino/pass/manager.hpp>
 #include <transformations/utils/utils.hpp>
@@ -18,6 +19,12 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/sqrt.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -136,3 +143,83 @@ TEST(TransformationTests, DisableFP16CompForRMS_Negative) {
     };
     run_test(model, expected_status);
 }
+
+namespace {
+
+class DisableFP16CompForDecomposedRMSTest : public TransformationTestsF {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<DisableFP16CompForDecomposedRMSPattern>();
+    }
+
+    static std::shared_ptr<ov::Model> getModel(float power_value = 2.0f,
+                                               float numerator_value = 1.0f,
+                                               bool is_reference = false) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, 2, 2});
+        auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1.0f});
+        auto convolution = std::make_shared<ov::op::v1::Convolution>(input,
+                                                                     weights,
+                                                                     ov::Strides{1, 1},
+                                                                     ov::CoordinateDiff{0, 0},
+                                                                     ov::CoordinateDiff{0, 0},
+                                                                     ov::Strides{1, 1});
+        auto power = std::make_shared<ov::op::v1::Power>(
+            convolution,
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {power_value}));
+        auto reduce_mean = std::make_shared<ov::op::v1::ReduceMean>(
+            power,
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+            true);
+        auto add = std::make_shared<ov::op::v1::Add>(
+            reduce_mean,
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-6f}));
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add);
+        auto divide = std::make_shared<ov::op::v1::Divide>(
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {numerator_value}),
+            sqrt);
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(convolution, divide);
+
+        if (is_reference) {
+            for (const auto& node : ov::NodeVector{convolution, power, reduce_mean, add, sqrt, divide, multiply}) {
+                ov::disable_conversion(node, ov::element::f16);
+            }
+        }
+
+        return std::make_shared<ov::Model>(ov::OutputVector{multiply}, ov::ParameterVector{input});
+    }
+};
+
+struct DecomposedRMSConstants {
+    float power;
+    float numerator;
+    std::string name;
+};
+
+class DisableFP16CompForDecomposedRMSNegativeTest
+    : public DisableFP16CompForDecomposedRMSTest,
+      public testing::WithParamInterface<DecomposedRMSConstants> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<DecomposedRMSConstants>& info) {
+        return info.param.name;
+    }
+};
+
+}  // namespace
+
+TEST_F(DisableFP16CompForDecomposedRMSTest, CanonicalConstants) {
+    model = getModel();
+    model_ref = getModel(2.0f, 1.0f, true);
+}
+
+TEST_P(DisableFP16CompForDecomposedRMSNegativeTest, NearMissConstant_NoOp) {
+    const auto& params = GetParam();
+    model = getModel(params.power, params.numerator);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    DecomposedRMSConstants,
+    DisableFP16CompForDecomposedRMSNegativeTest,
+    testing::Values(DecomposedRMSConstants{2.1f, 1.0f, "PowerExponentNotTwo"},
+                    DecomposedRMSConstants{2.0f, 1.1f, "DivideNumeratorNotOne"}),
+    DisableFP16CompForDecomposedRMSNegativeTest::getTestCaseName);
