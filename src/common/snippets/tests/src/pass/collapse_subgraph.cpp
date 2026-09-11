@@ -3,13 +3,18 @@
 //
 
 #include <gtest/gtest.h>
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 #include <pass/collapse_subgraph.hpp>
 #include <subgraph_simple.hpp>
 #include <subgraph_fq.hpp>
 #include <subgraph_converts.hpp>
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/tokenization.hpp"
 #include "snippets/pass/collapse_subgraph.hpp"
 #include "utils.hpp"
+#include "snippets/utils/tokenization_utils.hpp"
 
 namespace ov {
 namespace test {
@@ -34,6 +39,39 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_Eltwise) {
 TEST_F(CollapseSubgraphTests, smoke_Snippets_MatMulWithEltwise) {
     const auto& f = MatMulEltwiseBranchesFunction(std::vector<PartialShape> {{1, 3, 4, 4}, {1, 3, 4, 4}});
     execute_and_validate_function(*this, f);
+}
+
+TEST(CollapseSubgraphSharedInputTests, smoke_Snippets_MatMulBranchesWithSharedInput) {
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 2, 2});
+    const auto weights1 =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 2, 2}, {1.f, 2.f, 3.f, 4.f});
+    const auto weights2 =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 2, 2}, {4.f, 3.f, 2.f, 1.f});
+    const auto branch1 = std::make_shared<ov::op::v0::MatMul>(input, weights1, false, false);
+    const auto branch2 = std::make_shared<ov::op::v0::MatMul>(input, weights2, false, false);
+    const auto join = std::make_shared<ov::op::v0::MatMul>(branch1, branch2, false, true);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{join}, ov::ParameterVector{input});
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::snippets::pass::EnumerateNodes>();
+    manager.run_passes(model);
+
+    const auto config = get_default_tokenization_config();
+    ASSERT_TRUE(ov::snippets::utils::tokenize_node(branch1, config));
+    ASSERT_TRUE(ov::snippets::utils::tokenize_node(branch2, config));
+
+    const auto branch1_subgraph =
+        ov::as_type_ptr<ov::snippets::op::Subgraph>(join->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(branch1_subgraph, nullptr);
+    branch1_subgraph->body_ptr()->get_parameters()[0]->set_friendly_name("different_input_name");
+
+    ASSERT_TRUE(ov::snippets::utils::tokenize_node(join, config));
+
+    const auto joined_subgraph =
+        ov::as_type_ptr<ov::snippets::op::Subgraph>(model->get_results()[0]->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(joined_subgraph, nullptr);
+    EXPECT_EQ(joined_subgraph->inputs().size(), 3);
+    EXPECT_EQ(joined_subgraph->body_ptr()->get_parameters().size(), 3);
 }
 
 TEST_F(CollapseSubgraphTests, smoke_Snippets_AvoidLoopEltwise) {
