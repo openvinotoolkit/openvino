@@ -6,6 +6,12 @@
 
 #include "intel_npu/config/options.hpp"
 
+namespace {
+
+constexpr std::string_view OUT_OF_BOUNDS_READ_MESSAGE = "A section reader attempted to read beyond its own boundaries";
+
+}
+
 namespace intel_npu {
 
 BlobReaderInterface::BlobReaderInterface(BlobSource& source,
@@ -33,7 +39,7 @@ void BlobReaderInterface::read_into_buffer(void* destination, const size_t size)
     m_logger.trace("Reading and copying %lu bytes", size);
 
     OPENVINO_ASSERT(size <= m_section_end && m_source.get().tellg() <= m_section_end - size,
-                    "A section reader attempted to read beyond its own boundaries");
+                    OUT_OF_BOUNDS_READ_MESSAGE);
     m_source.get().read_into_buffer(destination, size);
 }
 
@@ -41,7 +47,7 @@ const void* BlobReaderInterface::read_view(const size_t size) {
     m_logger.trace("Reading without copying %lu bytes", size);
 
     OPENVINO_ASSERT(size <= m_section_end && m_source.get().tellg() <= m_section_end - size,
-                    "A section reader attempted to read beyond its own boundaries");
+                    OUT_OF_BOUNDS_READ_MESSAGE);
     return m_source.get().read_view(size);
 }
 
@@ -49,7 +55,7 @@ ov::Tensor BlobReaderInterface::create_roi_tensor(const size_t size) {
     m_logger.trace("Extracting an RoI tensor of %lu bytes", size);
 
     OPENVINO_ASSERT(size <= m_section_end && m_source.get().tellg() <= m_section_end - size,
-                    "A section reader attempted to read beyond its own boundaries");
+                    OUT_OF_BOUNDS_READ_MESSAGE);
     return m_source.get().create_roi_tensor(size);
 }
 

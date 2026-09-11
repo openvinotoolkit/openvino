@@ -55,7 +55,9 @@ public:
     std::optional<SectionID> get_id() const;
 
     // TODO rename?
-    virtual std::optional<std::string> get_inidividual_compatibility_requirements() const;
+    // TODO add note to respect the format:
+    // value ::= [A-Z0-9][_A-Z0-9\.]*
+    virtual std::optional<std::string> get_individual_compatibility_requirements() const;
 
     /**
      * @brief Get the compatibility requirements subexpression corresponding to the current section.

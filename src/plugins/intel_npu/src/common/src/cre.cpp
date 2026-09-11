@@ -587,13 +587,16 @@ std::string CRE::to_string() {
     return result;
 }
 
-CRE cre_from_string(std::string_view cre) {
+CRE cre_from_string(std::string_view cre, const ov::log::Level log_level) {
+    Logger logger("cre_from_string", log_level);
+
     std::vector<std::shared_ptr<CREToken>> expression;
     std::string_view remaining = cre;
 
     while (true) {
         const size_t dot_location = remaining.find(OPERAND_AND_SPECIAL_TOKEN_SEPARATOR);
         const std::string_view token_string = remaining.substr(0, dot_location);
+        logger.trace("Parsing the token %s", token_string.data());
 
         const std::shared_ptr<CREToken> special_token = cre_special_token_from_string(token_string);
         if (special_token) {

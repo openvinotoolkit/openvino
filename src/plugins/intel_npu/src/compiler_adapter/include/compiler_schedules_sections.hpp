@@ -40,7 +40,7 @@ public:
 
     void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
 
-    std::optional<std::string> get_inidividual_compatibility_requirements() const override;
+    std::optional<std::string> get_individual_compatibility_requirements() const override;
 
 private:
     std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
@@ -112,7 +112,7 @@ public:
 
     void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
 
-    std::optional<std::string> get_inidividual_compatibility_requirements() const override;
+    std::optional<std::string> get_individual_compatibility_requirements() const override;
 
 private:
     ELFMainScheduleSection m_impl;

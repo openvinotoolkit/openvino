@@ -151,6 +151,6 @@ private:
 };
 
 // TODO test these
-CRE cre_from_string(std::string_view cre);
+CRE cre_from_string(std::string_view cre, const ov::log::Level log_level = ov::log::Level::WARNING);
 
 }  // namespace intel_npu

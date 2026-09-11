@@ -122,6 +122,7 @@ std::shared_ptr<ISection> BlobReader::parse_next_section(BlobSource& source,
                                                          const size_t length,
                                                          const size_t npu_region_start,
                                                          const size_t npu_region_size) {
+    m_logger.debug("Parsing section type %s", section_type_to_string(type).data());
     BlobReaderInterface interface(source, npu_region_start, npu_region_size, source.tellg(), length, m_config);
     const std::shared_ptr<ISection> parsed_section = m_readers.at(type)(interface);
     m_type_to_parsed_sections[type].insert(parsed_section);

@@ -29,7 +29,7 @@ std::optional<SectionID> ISection::get_id() const {
     return m_id;
 }
 
-std::optional<std::string> ISection::get_inidividual_compatibility_requirements() const {
+std::optional<std::string> ISection::get_individual_compatibility_requirements() const {
     // No individual requirements by default
     return std::nullopt;
 }

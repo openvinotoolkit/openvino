@@ -4,6 +4,8 @@
 
 #include "intel_npu/common/section_type.hpp"
 
+#include <algorithm>
+
 #include "openvino/core/except.hpp"
 
 namespace {
@@ -17,6 +19,12 @@ constexpr std::string_view IO_LAYOUTS_SECTION_NAME = "IO_LAYOUTS";
 constexpr std::string_view BATCH_SIZE_SECTION_NAME = "BATCH_SIZE";
 constexpr std::string_view ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME = "ENCRYPTED_SCHEDULES_FLAG";
 constexpr std::string_view COMPILER_VERSION_SECTION_NAME = "COMPILER_VERSION";
+
+void string_to_upper(std::string& target) {
+    std::transform(target.begin(), target.end(), target.begin(), [](unsigned char c) {
+        return std::toupper(c);
+    });
+}
 
 }  // namespace
 
@@ -67,31 +75,35 @@ std::string section_type_to_string(const SectionType type) {
 }
 
 SectionType section_type_from_string(std::string_view type) {
-    if (type == RUNTIME_REQUIREMENTS_SECTION_NAME) {
+    // TODO initializing using .data() only is not safe; check all other cases
+    std::string type_upper(type.begin(), type.end());
+    string_to_upper(type_upper);
+
+    if (type_upper == RUNTIME_REQUIREMENTS_SECTION_NAME) {
         return SectionTypeCode::RUNTIME_REQUIREMENTS;
     }
-    if (type == MANIFEST_SECTION_NAME) {
+    if (type_upper == MANIFEST_SECTION_NAME) {
         return SectionTypeCode::MANIFEST;
     }
-    if (type == ELF_MAIN_SCHEDULE_SECTION_NAME) {
+    if (type_upper == ELF_MAIN_SCHEDULE_SECTION_NAME) {
         return SectionTypeCode::ELF_MAIN_SCHEDULE;
     }
-    if (type == ELF_INIT_SCHEDULES_SECTION_NAME) {
+    if (type_upper == ELF_INIT_SCHEDULES_SECTION_NAME) {
         return SectionTypeCode::ELF_INIT_SCHEDULES;
     }
-    if (type == DYNAMIC_SCHEDULE_SECTION_NAME) {
+    if (type_upper == DYNAMIC_SCHEDULE_SECTION_NAME) {
         return SectionTypeCode::DYNAMIC_SCHEDULE;
     }
-    if (type == IO_LAYOUTS_SECTION_NAME) {
+    if (type_upper == IO_LAYOUTS_SECTION_NAME) {
         return SectionTypeCode::IO_LAYOUTS;
     }
-    if (type == BATCH_SIZE_SECTION_NAME) {
+    if (type_upper == BATCH_SIZE_SECTION_NAME) {
         return SectionTypeCode::BATCH_SIZE;
     }
-    if (type == ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME) {
+    if (type_upper == ENCRYPTED_SCHEDULES_FLAG_SECTION_NAME) {
         return SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG;
     }
-    if (type == COMPILER_VERSION_SECTION_NAME) {
+    if (type_upper == COMPILER_VERSION_SECTION_NAME) {
         return SectionTypeCode::COMPILER_VERSION;
     }
 

@@ -17,6 +17,8 @@ using namespace intel_npu;
 constexpr std::string_view INVALID_STATE_MESSAGE = "Invalid state";
 constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
     "A new, page aligned buffer of size %zu has been allocated to host a compiled model";
+constexpr char LIST_START_DELIMITER = '[';
+constexpr char LIST_END_DELIMITER = ']';
 
 ov::Tensor allocate_aligned_tensor(size_t blobSize) {
     ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
@@ -99,8 +101,8 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
     OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
 
     // Also take the padding size into account, we'll write that first
-    const size_t offset = writer.get_offset_relative_to_npu_region();
-    const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
+    const size_t offset = writer.get_offset_relative_to_npu_region() + sizeof(uint16_t);
+    const uint16_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
     writer.write_from(&padding_size, sizeof(padding_size));
     // TODO add method that adds padding until page aligned relative to NPU region start
     writer.add_padding(padding_size);
@@ -152,17 +154,17 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
     const Logger logger("ELFMainScheduleSection", blob_reader.get_log_level());
 
     // Skip the first padding region
-    const size_t offset = blob_reader.get_offset_relative_to_npu_region();
-
-    size_t padding_size;
+    // TODO double check no "size_t" used for r/w sizes
+    uint16_t padding_size;
     blob_reader.read_into_buffer(&padding_size, sizeof(padding_size));
     OPENVINO_ASSERT(padding_size <= blob_reader.get_section_length(),
                     "The read padding size is greater than the length of the blob section");
     blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
                                                         padding_size);
 
-    logger.debug("Skipped %lu padding from offset %lu", padding_size, offset);
+    logger.debug("Skipped %lu padding from offset %lu", padding_size, blob_reader.get_offset_relative_to_npu_region());
 
+    // TODO check this is secure
     const size_t main_schedule_size = blob_reader.get_section_length() - padding_size;
 
     if (!blob_reader.source_is_contiguous()) {
@@ -180,11 +182,13 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
                                                     logger.level());
 }
 
-std::optional<std::string> ELFMainScheduleSection::get_inidividual_compatibility_requirements() const {
+std::optional<std::string> ELFMainScheduleSection::get_individual_compatibility_requirements() const {
     const auto* graph = std::get_if<std::shared_ptr<Graph>>(&m_graph_or_schedule);
     OPENVINO_ASSERT(graph, INVALID_STATE_MESSAGE);
     std::optional<std::string_view> requirements = (*graph)->get_compatibility_descriptor();
-    return requirements.has_value() ? std::make_optional<>(std::string(requirements.value())) : std::nullopt;
+    return requirements.has_value()
+               ? std::make_optional(LIST_START_DELIMITER + std::string(requirements.value()) + LIST_END_DELIMITER)
+               : std::nullopt;
 }
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
@@ -225,8 +229,8 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     writer.add_padding(number_of_inits * sizeof(uint64_t));
 
     // Also take the padding size into account, we'll write that next
-    const size_t offset = writer.get_offset_relative_to_npu_region();
-    const size_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
+    const size_t offset = writer.get_offset_relative_to_npu_region() + sizeof(uint16_t);
+    const uint16_t padding_size = utils::align_size_to_standard_page_size(offset) - offset;
     writer.write_from(&padding_size, sizeof(padding_size));
     writer.add_padding(padding_size);
 
@@ -405,9 +409,9 @@ std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob
         blob_reader.get_log_level());
 }
 
-std::optional<std::string> DynamicScheduleSection::get_inidividual_compatibility_requirements() const {
+std::optional<std::string> DynamicScheduleSection::get_individual_compatibility_requirements() const {
     // TODO is this correct?
-    return m_impl.get_inidividual_compatibility_requirements();
+    return m_impl.get_individual_compatibility_requirements();
 }
 
 }  // namespace intel_npu

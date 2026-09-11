@@ -161,8 +161,7 @@ RuntimeRequirements BlobWriter::build_runtime_requirements() const {
 
     // Each section can register a compatibility substring, as well as a compatiblity subexpression (between sections)
     for (const auto& [section_id, section] : m_registered_sections) {
-        const std::optional<std::string> individual_requirements =
-            section->get_inidividual_compatibility_requirements();
+        const std::optional<std::string> individual_requirements = section->get_individual_compatibility_requirements();
         if (individual_requirements.has_value()) {
             sections_requirements.emplace(section_id, individual_requirements.value());
         }

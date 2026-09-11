@@ -17,7 +17,11 @@
 #include "openvino/core/partial_shape.hpp"
 
 namespace {
+
 using namespace intel_npu;
+
+constexpr size_t NULL_TERMINATOR_SIZE = 1;
+
 /**
  * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific
  * ones.
@@ -577,7 +581,7 @@ std::optional<std::string> ZeGraphExtWrappers::getCompatibilityDescriptor(ze_gra
                         static_cast<uint32_t>(result));
         return std::nullopt;
     }
-    if (size == 0) {
+    if (size <= NULL_TERMINATOR_SIZE) {
         return std::nullopt;
     }
 
@@ -598,7 +602,7 @@ std::optional<std::string> ZeGraphExtWrappers::getCompatibilityDescriptor(ze_gra
     }
 
     size_t outSize = size;
-    if (outSize > 0 && descriptor[outSize - 1] == '\0') {
+    if (descriptor[outSize - 1] == '\0') {
         --outSize;
     }
     descriptor.resize(outSize);
