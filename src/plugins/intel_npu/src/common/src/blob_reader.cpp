@@ -154,21 +154,19 @@ void BlobReader::read(BlobSource& source) {
     // Read the size of the NPU region
     const size_t npu_region_size = get_npu_region_size(source);
     m_logger.trace("NPU region size: %lu", npu_region_size);
-    // The magic and format version have been already checked within "get_npu_region_size"
-    source.seekg(MAGIC_BYTES.size() + FORMAT_VERSION_SIZE + sizeof(npu_region_size), std::ios::cur);
+    // The magic, format version and size have been already checked within "get_npu_region_size"
+    source.seekg(MAGIC_BYTES.size() + FORMAT_VERSION_SIZE + sizeof(uint64_t), std::ios::cur);
 
     // Step 1: Read the manifest. First, get the location and size of the table from the header.
     // Then, use this information to parse the table.
     uint64_t manifest_location;
     uint64_t manifest_size;
 
-    const size_t dynamic_format_region_start = source.tellg() + sizeof(manifest_location) + sizeof(manifest_size);
-
     source.read_into_buffer(&manifest_location, sizeof(manifest_location));
-    seekg_with_bound_checking(source, source.tellg() + sizeof(manifest_location), npu_region_start, npu_region_size);
     source.read_into_buffer(&manifest_size, sizeof(manifest_size));
     m_logger.trace("Manifest location %lu; size %lu", manifest_location, manifest_size);
 
+    const size_t dynamic_format_region_start = source.tellg();
     seekg_with_bound_checking(source, manifest_location, npu_region_start, npu_region_size);
 
     OPENVINO_ASSERT(m_readers.count(SectionTypeCode::MANIFEST), "No reader found for the manifest");
@@ -243,27 +241,28 @@ void BlobReader::read(BlobSource& source) {
         const std::optional<SectionType> section_type = manifest.lookup_type(section_id.value());
         const std::optional<uint64_t> section_length = manifest.lookup_length(section_id.value());
         OPENVINO_ASSERT(section_type.has_value() && section_length.has_value(), "Incomplete manifest");
+        const std::string debug_name = section_type_and_id_to_string(section_type.value(), section_id.value());
         ++number_of_sections_encountered;
 
         const size_t next_section_location = source.tellg() + section_length.value();
 
         m_logger.trace("Found section %s at offset %lu, length %lu",
-                       section_type_and_id_to_string(section_type.value(), section_id.value()),
+                       debug_name.data(),
                        source.tellg(),
                        section_length.value());
 
         // The section is considered for parsing only if the BlobReader has a reader registered for its type
         if (!m_readers.count(section_type.value())) {
-            m_logger.debug("No section reader found for section %s. Skipping", section_id);
+            m_logger.debug("No section reader found for section %s. Skipping", debug_name.data());
             seekg_with_bound_checking(source, next_section_location, npu_region_start, npu_region_size);
             continue;
         }
 
-        m_logger.trace("Found a reader for section ", section_id);
+        m_logger.trace("Found a reader for section %s", debug_name.data());
 
         if (!runtime_requirements.has_value()) {
             // No runtime requirements found. All sections are considered mandatory
-            m_logger.trace("Parsing mandatory section ", section_id);
+            m_logger.trace("Parsing mandatory section %s", debug_name.data());
             parse_next_section(source,
                                section_type.value(),
                                section_id.value(),
@@ -295,7 +294,7 @@ void BlobReader::read(BlobSource& source) {
             if (instance_evaluation_result.has_value() && instance_evaluation_result.value()) {
                 // Case 1
                 // TODO update logs
-                m_logger.trace("Parsing mandatory section ", section_id);
+                m_logger.trace("Parsing mandatory section %s", debug_name.data());
                 parse_next_section(source,
                                    section_type.value(),
                                    section_id.value(),
@@ -304,14 +303,13 @@ void BlobReader::read(BlobSource& source) {
                                    npu_region_size);
             } else if (instance_evaluation_result.has_value() && !instance_evaluation_result.value()) {
                 // Case 2
-                m_logger.debug("The parsing of section ID ",
-                               section_id,
-                               " has been skipped. The section type instance is not supported");
+                m_logger.debug(
+                    "The parsing of section ID %s has been skipped. The section type instance is not supported",
+                    debug_name.data());
             } else {
                 // Case 3
-                m_logger.trace("The section type instance corresponding to section ID ",
-                               section_id,
-                               " was not evaluated");
+                m_logger.trace("The section type instance corresponding to section ID %s was not evaluated",
+                               debug_name.data());
 
                 try {
                     parse_next_section(source,
@@ -321,20 +319,18 @@ void BlobReader::read(BlobSource& source) {
                                        npu_region_start,
                                        npu_region_size);
                 } catch (std::exception& e) {
-                    m_logger.warning("The parsing of optional section ",
-                                     section_id.value(),
-                                     " has failed. Error message: ",
+                    m_logger.warning("The parsing of optional section %s has failed. Error message: %s",
+                                     debug_name.data(),
                                      e.what());
                 }
             }
         } else if (type_evaluation_result.has_value() && !type_evaluation_result.value()) {
             // Case 4
-            m_logger.debug("The parsing of section ID ",
-                           section_id,
-                           " has been skipped. The section type is not supported");
+            m_logger.debug("The parsing of section %s has been skipped. The section type is not supported",
+                           debug_name.data());
         } else {
             // Case 5
-            m_logger.trace("Section type ", section_type.value(), " not evaluated");
+            m_logger.trace("The section type of %s was not evaluated", debug_name.data());
             OPENVINO_ASSERT(
                 !instance_evaluation_result.has_value(),
                 "Found a section type instance that was evaluated without evaluating the section type first");
@@ -347,9 +343,8 @@ void BlobReader::read(BlobSource& source) {
                                    npu_region_start,
                                    npu_region_size);
             } catch (std::exception& e) {
-                m_logger.warning("The parsing of optional section ",
-                                 section_id.value(),
-                                 " has failed. Error message: ",
+                m_logger.warning("The parsing of optional section %s has failed. Error message: %s",
+                                 debug_name.data(),
                                  e.what());
             }
         }

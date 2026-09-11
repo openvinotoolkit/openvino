@@ -90,7 +90,7 @@ std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_compatibility
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ELF_MAIN_SCHEDULE section type to the CRE");
-    return {std::make_shared<CREToken>(get_type())};
+    return {std::make_shared<SectionType>(get_type())};
 }
 
 void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
@@ -207,7 +207,7 @@ std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_compatibilit
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the ELF_INIT_SCHEDULES section type to the CRE");
-    return {std::make_shared<CREToken>(get_type())};
+    return {std::make_shared<SectionType>(get_type())};
 }
 
 void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
@@ -365,7 +365,7 @@ std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_compatibility
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the DYNAMIC_SCHEDULE section type to the CRE");
-    return {std::make_shared<CREToken>(get_type())};
+    return {std::make_shared<SectionType>(get_type())};
 }
 
 void DynamicScheduleSection::write(BlobWriterInterface& writer) {

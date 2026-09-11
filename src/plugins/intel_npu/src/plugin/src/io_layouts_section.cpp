@@ -37,7 +37,7 @@ void IOLayoutsSection::write(BlobWriterInterface& writer) {
             writer.write_from(&string_length, sizeof(string_length));
             writer.write_from(layout_string.c_str(), string_length);
 
-            m_logger.trace("Layout %s written", layout_string);
+            m_logger.trace("Layout %s written", layout_string.data());
         }
     };
 

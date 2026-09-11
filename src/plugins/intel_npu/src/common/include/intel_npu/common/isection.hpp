@@ -24,7 +24,7 @@ namespace intel_npu {
 
 std::string section_type_and_id_to_string(const SectionType type, const SectionID id);
 
-std::pair<SectionType, SectionID> section_type_and_id_from_string(std::string_view type_and_id);
+std::pair<SectionType, std::optional<SectionID>> section_type_and_id_from_string(std::string_view type_and_id);
 
 class BlobWriterInterface;
 class BlobReaderInterface;
@@ -99,7 +99,7 @@ private:
      * instance ID denotes, by convention, the order in which the sections of the given type have been registered to be
      * written in the blob.
      */
-    void set_id(const SectionID id) const;
+    void set_id(const SectionID& id) const;
 
     SectionType m_type;
     /**

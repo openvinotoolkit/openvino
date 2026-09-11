@@ -2,6 +2,7 @@
  # SPDX-License-Identifier: Apache-2.0
  #
 
+ # TODO restore these once the names and paths are settled
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
 
 set(NPUW_SOURCES

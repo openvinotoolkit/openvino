@@ -47,7 +47,7 @@ using namespace intel_npu;
 constexpr std::string_view NPU_PLUGIN_LIB_NAME = "openvino_intel_npu_plugin";
 constexpr std::string_view NO_BACKEND_MESSAGE = "No backend registered during model import";
 constexpr std::string_view NPUW_MODEL_IMPORTED_MESSAGE = "Finished importing the NPUW compiled model";
-constexpr std::string_view FAILED_IMPORT_MODEL_PREFACE = "Could not import the model:";
+constexpr std::string_view FAILED_IMPORT_MODEL_PREFACE = "Could not import the model: ";
 constexpr std::string_view IMPORT_MODEL_UNEXPECTED_FAILURE_MESSAGE = "Unexpected exception while importing the model";
 
 /**
@@ -320,7 +320,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     update_log_level(properties);
 
     // Created at this stage to allow functions to register blob sections on the fly
-    auto blobWriter = std::make_shared<BlobWriter>();
+    auto blobWriter = std::make_shared<BlobWriter>(_logger.level());
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated

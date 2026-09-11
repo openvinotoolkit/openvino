@@ -34,12 +34,15 @@ void write_requirements_entry(intel_npu::BlobWriterInterface& writer, std::strin
 
 namespace intel_npu {
 
+// TODO use logger
 RuntimeRequirements::RuntimeRequirements(const std::map<SectionID, std::string>& sections_requirements,
                                          const CRE& cre,
-                                         const std::unordered_map<SectionID, SectionType>& section_id_to_type)
+                                         const std::unordered_map<SectionID, SectionType>& section_id_to_type,
+                                         const ov::log::Level log_level)
     : m_sections_requirements(sections_requirements),
       m_cre(cre),
-      m_section_id_to_type(section_id_to_type) {}
+      m_section_id_to_type(section_id_to_type),
+      m_logger("RuntimeRequirements", log_level) {}
 
 std::map<SectionID, std::string> RuntimeRequirements::get_sections_requirements() const {
     return m_sections_requirements;
@@ -186,11 +189,15 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
 
     for (const auto& [section_type_and_id_string, value] : parsed_content) {
         const auto [section_type, section_id] = section_type_and_id_from_string(section_type_and_id_string);
+        OPENVINO_ASSERT(section_id.has_value(),
+                        "Missing section ID. The keys within the NPU plugin runtime requirements should contain both "
+                        "section type and ID");
 
-        OPENVINO_ASSERT(!sections_requirements.count(section_id) && !section_id_to_type.count(section_id),
-                        "Found the same section ID more than once within the runtime requirements");
-        sections_requirements.emplace(section_id, value);
-        section_id_to_type.emplace(section_id, section_type);
+        OPENVINO_ASSERT(
+            !sections_requirements.count(section_id.value()) && !section_id_to_type.count(section_id.value()),
+            "Found the same section ID more than once within the runtime requirements");
+        sections_requirements.emplace(section_id.value(), value);
+        section_id_to_type.emplace(section_id.value(), section_type);
     }
 
     return std::make_shared<RuntimeRequirementsSection>(

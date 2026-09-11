@@ -8,6 +8,13 @@ namespace {
 
 constexpr std::string_view TYPE_AND_ID_DELIMITER = "_";
 
+// TODO move to utility
+bool has_only_digits(std::string_view sv) {
+    return !sv.empty() && std::all_of(sv.begin(), sv.end(), [](unsigned char c) {
+        return std::isdigit(c);
+    });
+};
+
 }  // namespace
 
 namespace intel_npu {
@@ -27,7 +34,7 @@ std::optional<std::string> ISection::get_inidividual_compatibility_requirements(
     return std::nullopt;
 }
 
-void ISection::set_id(const SectionID id) const {
+void ISection::set_id(const SectionID& id) const {
     OPENVINO_ASSERT(!m_id.has_value(),
                     "Attempted to set an instance ID to a section that already had one. Section type: ",
                     m_type,
@@ -53,16 +60,19 @@ std::string section_type_and_id_to_string(const SectionType type, const SectionI
     return section_type_to_string(type) + TYPE_AND_ID_DELIMITER.data() + section_id_to_string(id);
 }
 
-std::pair<SectionType, SectionID> section_type_and_id_from_string(std::string_view type_and_id) {
+// TODO note about optional
+std::pair<SectionType, std::optional<SectionID>> section_type_and_id_from_string(std::string_view type_and_id) {
     const size_t search_result = type_and_id.rfind(TYPE_AND_ID_DELIMITER);
-    OPENVINO_ASSERT(search_result != std::string::npos,
-                    "The ",
-                    TYPE_AND_ID_DELIMITER,
-                    " character that delimits the type and instance IDs is missing from the given section ID string");
+    if (search_result == std::string::npos ||
+        !has_only_digits(type_and_id.substr(search_result + 1, std::string::npos))) {
+        // There's only a section type
+        return std::make_pair(section_type_from_string(type_and_id), std::nullopt);
+    }
 
+    // Both section type & id are present
     const SectionType type = section_type_from_string(type_and_id.substr(0, search_result));
     const SectionID id = section_id_from_string(type_and_id.substr(search_result + 1, std::string::npos));
-    return std::make_pair<>(type, id);
+    return std::make_pair(type, std::make_optional(id));
 }
 
 }  // namespace intel_npu

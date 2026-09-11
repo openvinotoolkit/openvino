@@ -355,6 +355,7 @@ bool CRE::empty() const {
 }
 
 bool CRE::is_expression_valid(const std::vector<std::shared_ptr<CREToken>>& expression) const {
+    m_logger.debug("Verifying the correctness of the CRE");
     if (expression.empty()) {
         return true;
     }
@@ -531,6 +532,7 @@ ov::CompatibilityCheck CRE::evaluate(
 ov::CompatibilityCheck CRE::check_compatibility(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
     const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators) const {
+    m_logger.debug("Evaluating the CRE");
     if (m_subexpressions.empty()) {
         return ov::CompatibilityCheck::SUPPORTED;
     }
@@ -600,7 +602,9 @@ CRE cre_from_string(std::string_view cre) {
             // The current substring should have the form "<section type name>_<id>"
             const auto [section_type, section_id] = section_type_and_id_from_string(token_string);
             expression.push_back(std::make_shared<SectionType>(section_type));
-            expression.push_back(std::make_shared<SectionID>(section_id));
+            if (section_id.has_value()) {
+                expression.push_back(std::make_shared<SectionID>(section_id.value()));
+            }
         }
 
         if (dot_location == std::string_view::npos) {

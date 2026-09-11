@@ -306,7 +306,7 @@ public:
     std::shared_ptr<BlobWriter> create_blob_writer() override {
         OPENVINO_ASSERT(m_graph, "Invalid state");
 
-        auto blob_writer = std::make_shared<BlobWriter>();
+        auto blob_writer = std::make_shared<BlobWriter>(m_logger.level());
 
         // Register the compiler schedules
         const bool encryption_enabled = m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
@@ -319,6 +319,7 @@ public:
             auto dynamic_graph = std::dynamic_pointer_cast<DynamicGraph>(m_graph);
             OPENVINO_ASSERT(dynamic_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_writer->register_section(
+                // TODO should use the BlobWriter log level instead?
                 std::make_shared<DynamicScheduleSection>(dynamic_graph, encryption_callbacks, m_logger.level()));
             break;
         }
@@ -498,7 +499,7 @@ public:
             dynamicScheduleSection->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
         }
 
-        return std::make_shared<BlobWriter>(m_blob_reader);
+        return std::make_shared<BlobWriter>(m_blob_reader, m_logger.level());
     }
 
 private:

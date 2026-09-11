@@ -21,7 +21,7 @@ std::vector<std::shared_ptr<CREToken>> BatchSizeSection::get_compatibility_requi
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
     m_logger.debug("Added the BATCH_SIZE section type to the CRE");
-    return {std::make_shared<CREToken>(get_type())};
+    return {std::make_shared<SectionType>(get_type())};
 }
 
 void BatchSizeSection::write(BlobWriterInterface& writer) {

@@ -13,7 +13,7 @@ namespace intel_npu {
 CompilerVersionSection::CompilerVersionSection(const int32_t version, const ov::log::Level log_level)
     : ISection(SectionTypeCode::COMPILER_VERSION),
       m_compiler_version(version),
-      m_logger("CompilerVersionSection ", log_level) {
+      m_logger("CompilerVersionSection", log_level) {
     m_logger.trace("Section created");
 }
 

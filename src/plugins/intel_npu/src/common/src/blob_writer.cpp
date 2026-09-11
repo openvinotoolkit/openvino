@@ -98,8 +98,9 @@ BlobWriter::BlobWriter(const BlobReader& blob_reader, const ov::log::Level log_l
 
     // TODO checks that check that the manifest & RR are missing?
     for (const SectionID& section_id : blob_reader.m_parsed_sections_order) {
-        // The CRE & manifest sections are added by the write() method after writing all registered sections
-        // (jic the registered sections will alter the CRE/table). Therefore, these sections should be omitted here.
+        // The runtime requirements & manifest sections are added by the write() method after writing all registered
+        // sections (jic the registered sections will alter the runtime requirements/table). Therefore, these sections
+        // should be omitted here.
         const std::shared_ptr<ISection> section = blob_reader.retrieve_section(section_id);
         register_section_from_blob_reader(section);
         m_logger.debug("Registered section %s", section_type_and_id_to_string(section->get_type(), section_id));
@@ -170,7 +171,7 @@ RuntimeRequirements BlobWriter::build_runtime_requirements() const {
         section_id_to_type.emplace(section_id, section->get_type());
     }
 
-    return RuntimeRequirements(sections_requirements, cre, section_id_to_type);
+    return RuntimeRequirements(sections_requirements, cre, section_id_to_type, m_logger.level());
 }
 
 void BlobWriter::write_section(std::ostream& stream,
@@ -181,7 +182,7 @@ void BlobWriter::write_section(std::ostream& stream,
     const std::optional<SectionID> section_id = section->get_id();
     OPENVINO_ASSERT(section_id.has_value(), "Missing section ID while writing the section");
     m_logger.debug("Writting the section identified as %s",
-                   section_type_and_id_to_string(section_type, section_id.value()));
+                   section_type_and_id_to_string(section_type, section_id.value()).data());
 
     stream.seekp(0, std::ios_base::end);
     const uint64_t offset = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
@@ -193,7 +194,7 @@ void BlobWriter::write_section(std::ostream& stream,
     const uint64_t length = static_cast<uint64_t>(blob_writer_interface.get_offset_relative_to_npu_region() - offset);
 
     // All sections registered within the BlobWriter are automatically added to the manifest
-    // The instance ID should have been added by the writer. Therefore, the section ID should exist.
+    // The IDs should have been added by the writer. Therefore, these should exist.
     manifest.add_entry(section_id.value(), section_type, offset, length);
 }
 
@@ -204,6 +205,7 @@ void BlobWriter::write_to(std::ostream& stream) const {
     // Operate on this copy instead of the attribute. This is necessary to ensure write idempotency by keeping the
     // attributes unchanged.
     std::queue<std::shared_ptr<ISection>> write_queue = m_write_queue;
+    uint16_t next_section_id = m_next_section_id;
     const std::streampos stream_npu_region_start = stream.tellp();
 
     // The manifest corresponds to a single blob written into a stream. Therefore, this object should exist
@@ -236,7 +238,7 @@ void BlobWriter::write_to(std::ostream& stream) const {
     // emphasize the fact that section writers cannot append to the "global" CRE
     const auto runtime_requirements_section =
         std::make_shared<RuntimeRequirementsSection>(build_runtime_requirements(), m_logger.level());
-    runtime_requirements_section->set_id(FIRST_INSTANCE_ID);
+    runtime_requirements_section->set_id(next_section_id++);
     write_section(stream, runtime_requirements_section, stream_npu_region_start, manifest);
 
     while (!write_queue.empty()) {
@@ -250,7 +252,7 @@ void BlobWriter::write_to(std::ostream& stream) const {
     manifest_location = get_offset_relative_to_npu_region(stream, stream_npu_region_start);
 
     const auto manifest_section = std::make_shared<ManifestSection>(manifest, m_logger.level());
-    manifest_section->set_id(FIRST_INSTANCE_ID);
+    manifest_section->set_id(next_section_id++);
     write_section(stream, manifest_section, stream_npu_region_start, manifest);
 
     npu_region_size = get_offset_relative_to_npu_region(stream, stream_npu_region_start);

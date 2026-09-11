@@ -13,17 +13,15 @@ namespace intel_npu {
 Manifest::Manifest(const ov::log::Level log_level) : m_logger("Manifest", log_level) {}
 
 void Manifest::add_entry(const SectionID id, const SectionType type, const uint64_t offset, const uint64_t length) {
-    OPENVINO_ASSERT(!m_id_to_attributes.count(id), "The section ID already exists within the manifest. ID: ", id);
+    const std::string debug_name = section_type_and_id_to_string(type, id);
+    OPENVINO_ASSERT(!m_id_to_attributes.count(id), "The section ", debug_name, " already exists within the manifest.");
     OPENVINO_ASSERT(!m_offset_to_id.count(offset),
                     "The offset is already in-use within the manifest. Offset: ",
                     offset,
-                    ". ID: ",
-                    id);
+                    ". Section: ",
+                    debug_name);
 
-    m_logger.debug("New entry added: section %s, offset %zu, length %zu",
-                   section_type_and_id_to_string(type, id),
-                   offset,
-                   length);
+    m_logger.debug("New entry added: section %s, offset %zu, length %zu", debug_name.data(), offset, length);
 
     m_id_to_attributes.emplace(id, std::make_tuple(type, offset, length));
     m_offset_to_id.emplace(offset, id);
@@ -36,8 +34,8 @@ void Manifest::add_entry(const SectionID id, const SectionType type, const uint6
 }
 
 size_t Manifest::get_entry_size() {
-    // Type ID, instance ID, offset, length
-    return sizeof(SectionID) + sizeof(SectionType) + 2 * sizeof(uint64_t);
+    // ID, type, offset, length
+    return 2 * sizeof(uint16_t) + 2 * sizeof(uint64_t);
 }
 
 // TODO minor refactor?
@@ -103,10 +101,12 @@ void ManifestSection::write(BlobWriterInterface& writer) {
 
     for (const auto& [id, values] : m_manifest.m_id_to_attributes) {
         const auto [type, offset, length] = values;
+        const uint16_t id_value = id.get_id();
+        const uint16_t type_code = static_cast<uint16_t>(type.get_code());
 
         // ID, type, offset, length
-        writer.write_from(&id, sizeof(id));
-        writer.write_from(&type, sizeof(type));
+        writer.write_from(&id_value, sizeof(id_value));
+        writer.write_from(&type_code, sizeof(type_code));
         writer.write_from(&offset, sizeof(offset));
         writer.write_from(&length, sizeof(length));
 
@@ -151,8 +151,8 @@ std::shared_ptr<ISection> ManifestSection::read(BlobReaderInterface& blob_reader
 
         manifest.add_entry(id, type, offset, length);
 
-        logger.trace("Read entry: section %s, offset %lu, length %lu",
-                     section_type_and_id_to_string(type, id),
+        logger.trace("Read the entry: section %s, offset %lu, length %lu",
+                     section_type_and_id_to_string(type, id).data(),
                      offset,
                      length);
     }
