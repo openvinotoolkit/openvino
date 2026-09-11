@@ -241,14 +241,17 @@ protected:
     std::shared_ptr<Recorder> m_recorder;
 };
 
-TEST_F(NPUWBatchedElementTest, RequestedFromProperties) {
-    EXPECT_FALSE(ov::npuw::batched::requested({}));
-    EXPECT_FALSE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", false}}));
-    EXPECT_FALSE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", "NO"}}));
-    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", true}}));
-    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_TEXT_RERANK", "YES"}}));
-    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_TEXT_EMBED", true}}));
-    EXPECT_TRUE(ov::npuw::batched::requested({{"NPUW_LLM", true}, {"NPUW_TEXT_RERANK", true}}));
+TEST_F(NPUWBatchedElementTest, ScoringTagsFromProperties) {
+    using ov::npuw::batched::scoring_tags;
+    EXPECT_FALSE(scoring_tags({}).text_rerank);
+    EXPECT_FALSE(scoring_tags({}).text_embed);
+    EXPECT_FALSE(scoring_tags({{"NPUW_TEXT_RERANK", false}}).text_rerank);
+    EXPECT_FALSE(scoring_tags({{"NPUW_TEXT_RERANK", "NO"}}).text_rerank);
+    EXPECT_TRUE(scoring_tags({{"NPUW_TEXT_RERANK", true}}).text_rerank);
+    EXPECT_TRUE(scoring_tags({{"NPUW_TEXT_RERANK", "YES"}}).text_rerank);
+    EXPECT_TRUE(scoring_tags({{"NPUW_TEXT_EMBED", true}}).text_embed);
+    EXPECT_FALSE(scoring_tags({{"NPUW_TEXT_EMBED", true}}).text_rerank);
+    EXPECT_TRUE(scoring_tags({{"NPUW_LLM", true}, {"NPUW_TEXT_RERANK", true}}).text_rerank);
 }
 
 // The wrap is part of the blob. export_model() writes the batched header in front
@@ -506,8 +509,8 @@ TEST_F(NPUWBatchedElementTest, PreBoundOutputResizedInPlace) {
     }
 }
 
-// The caller's tensor stays bound across batch changes, resized each time --
-// including down through the batch-1 shortcut path.
+// The caller's tensor stays bound across batch changes, resized each time,
+// including down to a single row.
 TEST_F(NPUWBatchedElementTest, PreBoundOutputResizedAcrossBatchChanges) {
     auto model = build_two_output_model();
     auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
@@ -568,10 +571,9 @@ TEST_F(NPUWBatchedElementTest, NonResizablePreBoundOutputThrows) {
     EXPECT_THROW(req->infer(), ov::Exception);
 }
 
-// Re-inferring with a different batch reallocates the outputs the element bound
-// itself -- they are the element's own, unlike a caller's tensor -- and the batch-1
-// shortcut may likewise replace them with the exposed inner outputs.
-TEST_F(NPUWBatchedElementTest, BatchChangeReallocatesElementOutputs) {
+// With no output bound, the element allocates one on the first infer and keeps
+// resizing that same tensor as the batch changes, growing and shrinking.
+TEST_F(NPUWBatchedElementTest, BatchChangeResizesElementOutputs) {
     auto model = build_two_output_model();
     auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
     auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
@@ -579,11 +581,13 @@ TEST_F(NPUWBatchedElementTest, BatchChangeReallocatesElementOutputs) {
 
     set_input_ids(req, {{11, 1}, {22, 1}, {33, 1}});
     req->infer();
-    ASSERT_EQ(req->get_tensor(wrapped->outputs()[0])->get_shape()[0], 3u);
+    const auto first = req->get_tensor(wrapped->outputs()[0]);
+    ASSERT_EQ(first->get_shape()[0], 3u);
 
     set_input_ids(req, {{44, 1}, {55, 1}});
     ASSERT_NO_THROW(req->infer());
     const auto out = req->get_tensor(wrapped->outputs()[0]);
+    EXPECT_EQ(out._ptr, first._ptr);
     ASSERT_EQ(out->get_shape()[0], 2u);
     EXPECT_FLOAT_EQ(row_value(out, 0), 44.0f);
     EXPECT_FLOAT_EQ(row_value(out, 1), 55.0f);
@@ -591,12 +595,21 @@ TEST_F(NPUWBatchedElementTest, BatchChangeReallocatesElementOutputs) {
     set_input_ids(req, {{66, 1}});
     ASSERT_NO_THROW(req->infer());
     const auto single = req->get_tensor(wrapped->outputs()[0]);
+    EXPECT_EQ(single._ptr, first._ptr);
     ASSERT_EQ(single->get_shape()[0], 1u);
     EXPECT_FLOAT_EQ(row_value(single, 0), 66.0f);
+
+    set_input_ids(req, {{77, 1}, {88, 1}, {99, 1}, {100, 1}});
+    ASSERT_NO_THROW(req->infer());
+    const auto grown = req->get_tensor(wrapped->outputs()[0]);
+    EXPECT_EQ(grown._ptr, first._ptr);
+    ASSERT_EQ(grown->get_shape()[0], 4u);
+    EXPECT_FLOAT_EQ(row_value(grown, 3), 100.0f);
 }
 
-// At batch 1 the outputs skip the stacking path, but a caller-bound tensor of the
-// fitting shape is still written in place rather than replaced.
+// A single row goes through the same path: a caller-bound tensor of the fitting
+// shape is written in place, and the public output is the element's own copy,
+// never the inner's tensor.
 TEST_F(NPUWBatchedElementTest, SingleRowPreBoundOutputWrittenInPlace) {
     auto model = build_two_output_model();
     auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
