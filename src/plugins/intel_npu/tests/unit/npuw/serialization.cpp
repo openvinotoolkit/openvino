@@ -10,6 +10,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <system_error>
 
 #include "attention.hpp"
 #include "common_test_utils/file_utils.hpp"
@@ -21,6 +22,7 @@
 #include "lazy_tensor.hpp"
 #include "model_builder.hpp"
 #include "moe_transformations/moe_transformation.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
@@ -33,29 +35,55 @@
 
 using ov::test::npuw::ModelBuilder;
 
-namespace ov {
-namespace npuw {
-namespace tests {
-struct CompiledModelTestAccess {
-    static void deserialize_compiled_model_desc(std::stringstream& input,
-                                                const ov::npuw::s11n::WeightsContext& ctx) {
-        auto reader = ov::npuw::s11n::Stream::reader(input);
-        ov::npuw::CompiledModel::CompiledModelDesc imported_desc;
-        imported_desc.serialize(reader, ctx);
-    }
-};
-}  // namespace tests
-}  // namespace npuw
-}  // namespace ov
-
 namespace {
 
+class SerializationNullPlugin final : public ov::IPlugin {
+public:
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
+        return {};
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&, const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override {
+        return {};
+    }
+};
 constexpr char kExpectedOobIndexMessage[] = "CPU closure index is out of range";
 constexpr char kExpectedClosureUidSizeMessage[] = "closure_uid size does not match closure size";
 constexpr char kExpectedIsRemoteSizeMessage[] = "is_remote size does not match closure size";
+constexpr char kExpectedLazyClosureSizeMessage[] = "lazy_closure size does not match closure size";
 constexpr char kExpectedCpuCountMismatchMessage[] = "CPU closure ids count does not match CPU closure tensor count";
-constexpr char kExpectedNonCpuCountMismatchMessage[] =
-    "non-CPU closure ids count does not match non-CPU tensor count";
+constexpr char kExpectedNonCpuCountMismatchMessage[] = "non-CPU closure ids count does not match non-CPU tensor count";
 constexpr char kExpectedNonCpuOobIndexMessage[] = "non-CPU closure index is out of range";
 
 // Writes the fixed CompiledModelDesc::serialize() prefix (funcall/spatial metadata) that
@@ -231,6 +259,189 @@ std::shared_ptr<ov::op::v0::Constant> make_weightless_constant(const ov::element
     return constant;
 }
 
+// Like make_weightless_constant(), but takes packed bytes - for sub-byte types they differ from the element count.
+std::shared_ptr<ov::op::v0::Constant> make_weightless_constant_from_bytes(const ov::element::Type& type,
+                                                                          const ov::Shape& shape,
+                                                                          const std::vector<uint8_t>& bytes,
+                                                                          std::size_t offset) {
+    auto storage = std::make_shared<std::vector<uint8_t>>(bytes);
+    auto constant = std::make_shared<ov::op::v0::Constant>(type, shape, storage->data(), storage);
+    constant->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+        ov::WeightlessCacheAttribute(constant->get_byte_size(), offset, type);
+    return constant;
+}
+
+// RAII: a gtest ASSERT_* failure only returns from the enclosing helper, skipping trailing cleanup.
+// Declare it before the LazyTensors: on Windows the file can't be removed while a mapping is open.
+struct ScopedFile {
+    explicit ScopedFile(std::filesystem::path p) : path(std::move(p)) {}
+    ScopedFile(ScopedFile&&) = default;
+    ScopedFile(const ScopedFile&) = delete;
+    ScopedFile& operator=(const ScopedFile&) = delete;
+    ~ScopedFile() {
+        std::error_code ec;
+        std::filesystem::remove(path, ec);  // never throws from a destructor
+    }
+
+    std::filesystem::path path;
+};
+
+ScopedFile write_binary_file(const std::string& tag, const std::vector<uint8_t>& bytes) {
+    std::filesystem::path path = ov::test::utils::generateTestFilePrefix() + "_npuw_lazy_" + tag + "_weights.bin";
+    {
+        std::ofstream os(path, std::ios::binary);
+        os.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
+    }
+    return ScopedFile(std::move(path));
+}
+
+// Full import path of one weightless Const: serialize -> deserialize -> read_weight() (lazy-mmap)
+// -> eval(). The file is `offset` filler + packed weight + `tail_size` filler: the leading filler
+// proves the view starts at `offset`, and `tail_size == 0` is the exact-fit case.
+void expect_lazy_weightless_mmap_roundtrip(const ov::element::Type& type,
+                                           const ov::Shape& shape,
+                                           std::size_t offset,
+                                           std::size_t tail_size,
+                                           const std::string& tag) {
+    using namespace ov::npuw::s11n;
+
+    const auto packed_size = ov::util::get_memory_size(type, ov::shape_size(shape));
+    ASSERT_GT(packed_size, 0u);
+
+    std::vector<uint8_t> payload(packed_size);
+    for (std::size_t i = 0; i < payload.size(); ++i) {
+        payload[i] = static_cast<uint8_t>(0x5Au + i);
+    }
+
+    auto constant = make_weightless_constant_from_bytes(type, shape, payload, offset);
+    // The invariant the importer relies on: Constant::get_byte_size() is the *packed* size.
+    ASSERT_EQ(constant->get_byte_size(), packed_size);
+
+    std::vector<uint8_t> file_bytes(offset, 0xCCu);
+    file_bytes.insert(file_bytes.end(), payload.begin(), payload.end());
+    file_bytes.insert(file_bytes.end(), tail_size, 0xDDu);
+
+    const ScopedFile weights_file = write_binary_file(tag, file_bytes);
+
+    ov::npuw::weights::LazyTensor var(constant);
+    ov::npuw::weights::LazyTensor res;
+
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    {
+        auto mapped = ov::load_mmap_object(weights_file.path);
+        ASSERT_NE(mapped, nullptr);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+
+        // Non-null weights + weights_path + empty consts_cache -> lazy-mmap branch.
+        WeightsContext import_ctx(weights, weights_file.path.string(), {}, {});
+        ASSERT_NO_THROW(res.read_weight(import_ctx));
+    }  // import-time mapping released here; eval() maps the file on its own
+
+    ov::Tensor evaluated;
+    ASSERT_NO_THROW(evaluated = res.eval());
+    EXPECT_EQ(evaluated.get_element_type(), type);
+    EXPECT_EQ(evaluated.get_shape(), shape);
+    ASSERT_EQ(evaluated.get_byte_size(), packed_size);
+    // The view must start exactly at `offset` - i.e. hold the payload, not the filler
+    EXPECT_EQ(std::memcmp(static_cast<const ov::Tensor&>(evaluated).data(), payload.data(), packed_size), 0);
+    expect_tensors_equal(var.eval(), evaluated);
+}
+
+// Same import path, but the weight description is malformed (by default: it does not fit the
+// weights file). read_weight() must reject the blob instead of handing out an OOB view.
+void expect_lazy_weightless_mmap_rejected(
+    const ov::element::Type& type,
+    const ov::Shape& shape,
+    std::size_t offset,
+    std::size_t file_size,
+    const std::string& tag,
+    const std::string& expected_message = "[NPU] ORC weight offset/size out of range") {
+    using namespace ov::npuw::s11n;
+
+    const auto packed_size = ov::util::get_memory_size(type, ov::shape_size(shape));
+    auto constant = make_weightless_constant_from_bytes(type, shape, std::vector<uint8_t>(packed_size, 0u), offset);
+
+    const ScopedFile weights_file = write_binary_file(tag, std::vector<uint8_t>(file_size, 0xABu));
+
+    ov::npuw::weights::LazyTensor var(constant);
+    ov::npuw::weights::LazyTensor res;
+
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    {
+        auto mapped = ov::load_mmap_object(weights_file.path);
+        ASSERT_NE(mapped, nullptr);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+
+        WeightsContext import_ctx(weights, weights_file.path.string(), {}, {});
+        // Match the message - read_weight() has several asserts, and ASSERT_THROW would pass on any of them.
+        OV_EXPECT_THROW_HAS_SUBSTRING(res.read_weight(import_ctx), ov::AssertFailure, expected_message);
+    }
+}
+
+// Rewrites one u64 field of an already serialized blob in place - safe because the ORC wire format
+// is raw little-endian with no checksum (orc.hpp) and the section length is unchanged. `from` must
+// be unique, so a format change turns the test red instead of patching a different field.
+void patch_u64_field(std::string& blob, std::uint64_t from, std::uint64_t to) {
+    char needle[sizeof(std::uint64_t)] = {};
+    char replacement[sizeof(std::uint64_t)] = {};
+    for (std::size_t i = 0; i < sizeof(std::uint64_t); ++i) {
+        needle[i] = static_cast<char>((from >> (8 * i)) & 0xFFu);
+        replacement[i] = static_cast<char>((to >> (8 * i)) & 0xFFu);
+    }
+
+    const auto pos = blob.find(needle, 0, sizeof(needle));
+    ASSERT_NE(pos, std::string::npos) << "u64 field " << from << " not found in the serialized blob";
+    ASSERT_EQ(blob.find(needle, pos + 1, sizeof(needle)), std::string::npos)
+        << "u64 field " << from << " is not unique in the serialized blob";
+    blob.replace(pos, sizeof(replacement), replacement, sizeof(replacement));
+}
+
+// Same path as expect_lazy_weightless_mmap_rejected(), but one u64 field is patched between write()
+// and read(): a Constant can't hold a byte_size that disagrees with its shape, so this is the only
+// way to reach the metadata-integrity assert.
+void expect_lazy_weightless_mmap_crafted_rejected(
+    const ov::element::Type& type,
+    const ov::Shape& shape,
+    std::size_t offset,
+    std::size_t file_size,
+    std::uint64_t patch_from,
+    std::uint64_t patch_to,
+    const std::string& tag,
+    const std::string& expected_message = "[NPU] ORC weight byte_size does not match tensor shape") {
+    using namespace ov::npuw::s11n;
+
+    const auto packed_size = ov::util::get_memory_size(type, ov::shape_size(shape));
+    auto constant = make_weightless_constant_from_bytes(type, shape, std::vector<uint8_t>(packed_size, 0u), offset);
+
+    const ScopedFile weights_file = write_binary_file(tag, std::vector<uint8_t>(file_size, 0xABu));
+
+    ov::npuw::weights::LazyTensor var(constant);
+    ov::npuw::weights::LazyTensor res;
+
+    std::stringstream out;
+    write(out, var);
+    std::string blob = out.str();
+    ASSERT_NO_FATAL_FAILURE(patch_u64_field(blob, patch_from, patch_to));
+
+    std::stringstream in(blob);
+    read(in, res);
+
+    {
+        auto mapped = ov::load_mmap_object(weights_file.path);
+        ASSERT_NE(mapped, nullptr);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+
+        WeightsContext import_ctx(weights, weights_file.path.string(), {}, {});
+        OV_EXPECT_THROW_HAS_SUBSTRING(res.read_weight(import_ctx), ov::AssertFailure, expected_message);
+    }
+}
+
 ov::npuw::s11n::WeightsContext::ConstsCache make_consts_cache(
     const std::vector<std::shared_ptr<ov::op::v0::Constant>>& constants) {
     ov::npuw::s11n::WeightsContext::ConstsCache cache;
@@ -359,6 +570,43 @@ void expect_lazy_tensor_transform_types_equal(const ov::npuw::weights::LazyTenso
 }
 
 }  // namespace
+
+namespace ov::npuw {
+class CompiledModelDescSerializationAccess {
+public:
+    static void deserialize_compiled_model_desc(std::stringstream& input, const ov::npuw::s11n::WeightsContext& ctx) {
+        auto reader = ov::npuw::s11n::Stream::reader(input);
+        CompiledModel::CompiledModelDesc imported_desc;
+        imported_desc.serialize(reader, ctx);
+    }
+
+    static std::shared_ptr<CompiledModel> make_serialized_compiled_model() {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+        auto output = std::make_shared<ov::op::v0::Result>(input);
+        auto model = std::make_shared<ov::Model>(ov::ResultVector{output}, ov::ParameterVector{input}, "test_model");
+        auto plugin = std::make_shared<SerializationNullPlugin>();
+        return std::make_shared<CompiledModel>(model, plugin, true);
+    }
+
+    static CompiledModel::CompiledModelDesc& append_submodel(CompiledModel& model) {
+        model.m_compiled_submodels.emplace_back();
+        return model.m_compiled_submodels.back();
+    }
+
+    static void run_reconstruct_closure(CompiledModel& model) {
+        model.reconstruct_closure();
+    }
+
+    static void set_weights_bank(CompiledModel& model, std::shared_ptr<ov::npuw::weights::Bank> bank) {
+        model.m_weights_bank = std::move(bank);
+    }
+
+    static void run_finalize_and_wait(CompiledModel& model) {
+        model.finalize_weights_bank();
+        model.m_eval_future.get();
+    }
+};
+}  // namespace ov::npuw
 
 // FIXME: parametrize all the tests below
 
@@ -1313,6 +1561,66 @@ TEST(SerializationTest, OVTypes_WeightsBank_cpu_roundtrip) {
     expect_tensors_equal(var.get(uid1, "CPU"), res.get(uid1, "CPU"));
 }
 
+TEST(SerializationTest, ReconstructClosureRejectsMismatchedClosureMetadata) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+
+    submodel.replaced_by = 0;
+    auto& closure = submodel.closure.get();
+    closure.closure.resize(1);
+    closure.closure[0] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.is_remote.resize(2, false);
+    closure.closure_uid.resize(2, -1);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModelDescSerializationAccess::run_reconstruct_closure(*compiled),
+                                  ov::Exception,
+                                  kExpectedIsRemoteSizeMessage);
+}
+
+TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedLazyClosureMetadata) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+
+    submodel.replaced_by = 0;
+    auto& closure = submodel.closure.get();
+    closure.closure.resize(1);
+    closure.closure[0] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.is_remote.resize(1, false);
+    closure.closure_uid.resize(1, -1);
+    submodel.lazy_closure.resize(2);
+
+    ov::npuw::CompiledModelDescSerializationAccess::set_weights_bank(
+        *compiled,
+        std::make_shared<ov::npuw::weights::Bank>(nullptr, "CPU", "test-bank"));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModelDescSerializationAccess::run_finalize_and_wait(*compiled),
+                                  ov::Exception,
+                                  kExpectedLazyClosureSizeMessage);
+}
+
+TEST(SerializationTest, FinalizeWeightsBankRejectsMismatchedClosureAndLazyClosureMetadata) {
+    auto compiled = ov::npuw::CompiledModelDescSerializationAccess::make_serialized_compiled_model();
+    auto& submodel = ov::npuw::CompiledModelDescSerializationAccess::append_submodel(*compiled);
+
+    submodel.replaced_by = 0;
+    submodel.lazy_closure.resize(1);
+
+    auto& closure = submodel.closure.get();
+    closure.closure.resize(2);
+    closure.closure[0] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.closure[1] = ov::Tensor(ov::element::f32, ov::Shape{1});
+    closure.is_remote.resize(2, false);
+    closure.closure_uid.resize(2, -1);
+
+    ov::npuw::CompiledModelDescSerializationAccess::set_weights_bank(
+        *compiled,
+        std::make_shared<ov::npuw::weights::Bank>(nullptr, "CPU", "test-bank"));
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::CompiledModelDescSerializationAccess::run_finalize_and_wait(*compiled),
+                                  ov::Exception,
+                                  kExpectedLazyClosureSizeMessage);
+}
+
 TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightful) {
     using namespace ov::npuw::s11n;
 
@@ -1321,9 +1629,10 @@ TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightfu
     const auto malformed_blob = make_blob_with_oob_cpu_closure_id(false);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
-                                  ov::Exception,
-                                  kExpectedOobIndexMessage);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedOobIndexMessage);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightless) {
@@ -1334,61 +1643,74 @@ TEST(SerializationTest, CompiledModelDesc_rejects_oob_cpu_closure_index_weightle
     const auto malformed_blob = make_blob_with_oob_cpu_closure_id(true);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
-                                  ov::Exception,
-                                  kExpectedOobIndexMessage);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedOobIndexMessage);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_closure_uid_size_mismatch_weightful) {
     using namespace ov::npuw::s11n;
 
     WeightsContext ctx(false, {});
-    const auto malformed_blob = make_blob_with_metadata_size(false, /*closure_size=*/1u, /*is_remote_size=*/1u,
+    const auto malformed_blob = make_blob_with_metadata_size(false,
+                                                             /*closure_size=*/1u,
+                                                             /*is_remote_size=*/1u,
                                                              /*closure_uid_size=*/2u);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
-                                  ov::Exception,
-                                  kExpectedClosureUidSizeMessage);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedClosureUidSizeMessage);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_closure_uid_size_mismatch_weightless) {
     using namespace ov::npuw::s11n;
 
     WeightsContext ctx(true, {});
-    const auto malformed_blob = make_blob_with_metadata_size(true, /*closure_size=*/1u, /*is_remote_size=*/1u,
+    const auto malformed_blob = make_blob_with_metadata_size(true,
+                                                             /*closure_size=*/1u,
+                                                             /*is_remote_size=*/1u,
                                                              /*closure_uid_size=*/2u);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
-                                  ov::Exception,
-                                  kExpectedClosureUidSizeMessage);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedClosureUidSizeMessage);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_is_remote_size_mismatch_weightful) {
     using namespace ov::npuw::s11n;
 
     WeightsContext ctx(false, {});
-    const auto malformed_blob = make_blob_with_metadata_size(false, /*closure_size=*/1u, /*is_remote_size=*/2u,
+    const auto malformed_blob = make_blob_with_metadata_size(false,
+                                                             /*closure_size=*/1u,
+                                                             /*is_remote_size=*/2u,
                                                              /*closure_uid_size=*/1u);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
-                                  ov::Exception,
-                                  kExpectedIsRemoteSizeMessage);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedIsRemoteSizeMessage);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_is_remote_size_mismatch_weightless) {
     using namespace ov::npuw::s11n;
 
     WeightsContext ctx(true, {});
-    const auto malformed_blob = make_blob_with_metadata_size(true, /*closure_size=*/1u, /*is_remote_size=*/2u,
+    const auto malformed_blob = make_blob_with_metadata_size(true,
+                                                             /*closure_size=*/1u,
+                                                             /*is_remote_size=*/2u,
                                                              /*closure_uid_size=*/1u);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
-                                  ov::Exception,
-                                  kExpectedIsRemoteSizeMessage);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedIsRemoteSizeMessage);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_weightless_cpu_closure_count_mismatch) {
@@ -1403,9 +1725,10 @@ TEST(SerializationTest, CompiledModelDesc_rejects_weightless_cpu_closure_count_m
                                                                                   /*non_cpu_index=*/0u);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
-                                  ov::Exception,
-                                  kExpectedCpuCountMismatchMessage);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedCpuCountMismatchMessage);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_weightless_non_cpu_closure_count_mismatch) {
@@ -1421,9 +1744,10 @@ TEST(SerializationTest, CompiledModelDesc_rejects_weightless_non_cpu_closure_cou
                                                                                   /*non_cpu_index=*/0u);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
-                                  ov::Exception,
-                                  kExpectedNonCpuCountMismatchMessage);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedNonCpuCountMismatchMessage);
 }
 
 TEST(SerializationTest, CompiledModelDesc_rejects_weightless_non_cpu_closure_index_out_of_range) {
@@ -1439,9 +1763,144 @@ TEST(SerializationTest, CompiledModelDesc_rejects_weightless_non_cpu_closure_ind
                                                                                   /*non_cpu_index=*/5u);
 
     std::stringstream input(malformed_blob, std::ios::in | std::ios::out | std::ios::binary);
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::tests::CompiledModelTestAccess::deserialize_compiled_model_desc(input, ctx),
-                                  ov::Exception,
-                                  kExpectedNonCpuOobIndexMessage);
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::CompiledModelDescSerializationAccess::deserialize_compiled_model_desc(input, ctx),
+        ov::Exception,
+        kExpectedNonCpuOobIndexMessage);
+}
+
+// Sub-byte coverage: the byte size is the *packed* size (ov::util::get_memory_size), which is what
+// both Constant::get_byte_size() and ov::Tensor::get_byte_size() report - not shape_size * size(),
+// which over-reports a 4-bit weight 2x and would reject most of NPUW's mostly-4-bit LLM blobs.
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_u4_roundtrip) {
+    // 16 nibbles -> 8 bytes
+    expect_lazy_weightless_mmap_roundtrip(ov::element::u4, ov::Shape{2, 8}, 8, 16, "u4");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_u4_odd_element_count_roundtrip) {
+    // 5 nibbles -> 3 bytes, the high nibble of the last byte is unused
+    expect_lazy_weightless_mmap_roundtrip(ov::element::u4, ov::Shape{5}, 3, 4, "u4_odd");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_i4_roundtrip) {
+    // 9 nibbles -> 5 bytes
+    expect_lazy_weightless_mmap_roundtrip(ov::element::i4, ov::Shape{3, 3}, 0, 8, "i4");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_nf4_roundtrip) {
+    // 32 nibbles -> 16 bytes; non-zero tail so that exact_fit below stays the only edge case
+    expect_lazy_weightless_mmap_roundtrip(ov::element::nf4, ov::Shape{1, 32}, 16, 8, "nf4");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_u1_roundtrip) {
+    // 12 bits -> 2 bytes
+    expect_lazy_weightless_mmap_roundtrip(ov::element::u1, ov::Shape{12}, 4, 4, "u1");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_u3_roundtrip) {
+    // Split-bit type: 8 elements share one 24-bit storage unit -> 3 bytes
+    expect_lazy_weightless_mmap_roundtrip(ov::element::u3, ov::Shape{8}, 1, 4, "u3");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_f32_roundtrip) {
+    expect_lazy_weightless_mmap_roundtrip(ov::element::f32, ov::Shape{2, 2}, 8, 8, "f32");
+}
+
+// offset + byte_size == weights size must still be accepted - the guard is inclusive on purpose.
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_exact_fit_roundtrip) {
+    expect_lazy_weightless_mmap_roundtrip(ov::element::u4, ov::Shape{2, 8}, 8, 0, "u4_exact");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_offset_oob) {
+    // shape {4} u8 = 4 bytes, but the offset is far past the 8-byte weights file
+    expect_lazy_weightless_mmap_rejected(ov::element::u8, ov::Shape{4}, 64 * 1024, 8, "u8_oob");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_size_overflow) {
+    // offset 0, but the shape spans 128 bytes while the weights file holds only 8
+    expect_lazy_weightless_mmap_rejected(ov::element::u8, ov::Shape{128}, 0, 8, "u8_size");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_string_type_rejected) {
+    expect_lazy_weightless_mmap_rejected(ov::element::string,
+                                         ov::Shape{2},
+                                         0,
+                                         4096,
+                                         "string",
+                                         "[NPU] ORC weight has unsupported element type");
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_u4_off_by_one_oob) {
+    // 8-byte weight at offset 1 in an 8-byte file: one byte short
+    expect_lazy_weightless_mmap_rejected(ov::element::u4, ov::Shape{2, 8}, 1, 8, "u4_off_by_one");
+}
+
+// The three tests below patch the blob to break the byte_size/shape agreement - a Constant-derived
+// one never can. That is the bypass: the range check sees only byte_size, eval() uses the shape.
+
+// byte_size = 0 satisfies any range check, but f32 {7,1013} spans 28364 bytes of an 8-byte file.
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_crafted_byte_size_zeroed) {
+    expect_lazy_weightless_mmap_crafted_rejected(ov::element::f32, ov::Shape{7, 1013}, 0, 8, 28364, 0, "craft_bs0");
+}
+
+// The declared byte_size (4024) fits the 4096-byte file, but the inflated shape spans 8056 bytes.
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_crafted_shape_inflated) {
+    expect_lazy_weightless_mmap_crafted_rejected(ov::element::f32, ov::Shape{2, 503}, 0, 4096, 503, 1007, "craft_shp");
+}
+
+// 7 * SIZE_MAX wraps, so get_memory_size_safe() returns nullopt.
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_crafted_shape_product_overflow) {
+    expect_lazy_weightless_mmap_crafted_rejected(ov::element::f32,
+                                                 ov::Shape{7, 1013},
+                                                 0,
+                                                 8,
+                                                 1013,
+                                                 std::numeric_limits<std::size_t>::max(),
+                                                 "craft_ovf");
+}
+
+// Covers the validate_weight_range() call in eval(): eval() maps the file again, possibly long
+// after import, so it may have been truncated or replaced in the meantime (TOCTOU).
+TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_file_shrunk_after_import) {
+    using namespace ov::npuw::s11n;
+
+    const auto type = ov::element::u4;
+    const ov::Shape shape{2, 8};  // 16 nibbles -> 8 packed bytes
+    const std::size_t offset = 8;
+    const auto packed_size = ov::util::get_memory_size(type, ov::shape_size(shape));
+
+    // Initially the file holds the whole weight: 8 filler bytes + 8 payload bytes.
+    std::vector<uint8_t> file_bytes(offset, 0xCCu);
+    file_bytes.insert(file_bytes.end(), packed_size, 0x5Au);
+    const ScopedFile weights_file = write_binary_file("u4_shrunk", file_bytes);
+
+    auto constant = make_weightless_constant_from_bytes(type, shape, std::vector<uint8_t>(packed_size, 0x5Au), offset);
+    ov::npuw::weights::LazyTensor var(constant);
+    ov::npuw::weights::LazyTensor res;
+
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    {
+        auto mapped = ov::load_mmap_object(weights_file.path);
+        ASSERT_NE(mapped, nullptr);
+        auto weights = std::make_shared<Weights>(reinterpret_cast<char*>(mapped->data()), mapped->size(), mapped);
+
+        // The description is valid against the file as it is right now, so import succeeds.
+        WeightsContext import_ctx(weights, weights_file.path.string(), {}, {});
+        ASSERT_NO_THROW(res.read_weight(import_ctx));
+    }  // import-time mapping released here - the file can be rewritten now
+
+    // Truncate down to the filler - kept non-empty, mapping an empty file fails differently.
+    {
+        std::ofstream os(weights_file.path, std::ios::binary | std::ios::trunc);
+        const std::vector<uint8_t> tiny(offset, 0xCCu);
+        os.write(reinterpret_cast<const char*>(tiny.data()), static_cast<std::streamsize>(tiny.size()));
+    }
+
+    // offset (8) <= weights_size (8), but byte_size (8) > weights_size - offset (0)
+    OV_EXPECT_THROW_HAS_SUBSTRING(res.eval(), ov::AssertFailure, "[NPU] ORC weight offset/size out of range");
 }
 
 // TODO: add tests on CompiledModel and LLMCompiledModel once tests have access to any model to test on
