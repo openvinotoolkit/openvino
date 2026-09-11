@@ -2,15 +2,131 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
 #include <vector>
-#include "single_op_tests/eltwise.hpp"
+
 #include "common_test_utils/test_constants.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "single_op_tests/eltwise.hpp"
 
 namespace {
 using ov::test::EltwiseLayerTest;
 using ov::test::utils::InputLayerType;
 using ov::test::utils::OpType;
 using ov::test::utils::EltwiseTypes;
+
+class Int64PowerLayerCPUTest : public ov::test::SubgraphBaseStaticTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
+
+        const ov::Shape baseShape{2, 10};
+        const ov::Shape exponentShape{1, 10};
+        auto base = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, baseShape);
+        auto exponent = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, exponentShape);
+        auto power = std::make_shared<ov::op::v1::Power>(base, exponent);
+        function = std::make_shared<ov::Model>(ov::OutputVector{power}, ov::ParameterVector{base, exponent});
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& functionInputs = function->inputs();
+
+        ov::Tensor baseTensor(ov::element::i64, targetInputStaticShapes[0]);
+        ov::Tensor exponentTensor(ov::element::i64, targetInputStaticShapes[1]);
+
+        constexpr std::array<int64_t, 20> bases = {
+            13,  17,  19,  23,  -2, -3, 5,  7,  2, -2,
+            -13, -17, -19, -23, 2,  3,  1, -1, 1, -1,
+        };
+        constexpr std::array<int64_t, 10> exponents = {8, 7, 7, 6, 3, 2, 1, 0, -1, -2};
+        std::copy(bases.begin(), bases.end(), baseTensor.data<int64_t>());
+        std::copy(exponents.begin(), exponents.end(), exponentTensor.data<int64_t>());
+
+        inputs.insert({functionInputs[0].get_node_shared_ptr(), baseTensor});
+        inputs.insert({functionInputs[1].get_node_shared_ptr(), exponentTensor});
+    }
+};
+
+TEST_F(Int64PowerLayerCPUTest, CompareWithRefs) {
+    run();
+}
+
+class Int64PowerFusedEltwiseLayerCPUTest : public ov::test::SubgraphBaseStaticTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
+
+        const ov::Shape inputShape{4};
+        auto base = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputShape);
+        auto exponent = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputShape);
+        auto power = std::make_shared<ov::op::v1::Power>(base, exponent);
+        auto addValue = ov::op::v0::Constant::create(ov::element::i64, inputShape, {1, 2, 3, 4});
+        auto add = std::make_shared<ov::op::v1::Add>(power, addValue);
+        function = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{base, exponent});
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& functionInputs = function->inputs();
+
+        ov::Tensor baseTensor(ov::element::i64, targetInputStaticShapes[0]);
+        ov::Tensor exponentTensor(ov::element::i64, targetInputStaticShapes[1]);
+
+        constexpr std::array<int64_t, 4> bases = {13, 17, 19, 23};
+        constexpr std::array<int64_t, 4> exponents = {8, 7, 7, 6};
+        std::copy(bases.begin(), bases.end(), baseTensor.data<int64_t>());
+        std::copy(exponents.begin(), exponents.end(), exponentTensor.data<int64_t>());
+
+        inputs.insert({functionInputs[0].get_node_shared_ptr(), baseTensor});
+        inputs.insert({functionInputs[1].get_node_shared_ptr(), exponentTensor});
+    }
+};
+
+TEST_F(Int64PowerFusedEltwiseLayerCPUTest, CompareWithRefs) {
+    run();
+}
+
+class Int64PowerFusedChildLayerCPUTest : public ov::test::SubgraphBaseStaticTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_CPU;
+
+        const ov::Shape inputShape{4};
+        auto base = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputShape);
+        auto exponent = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputShape);
+        auto addValue = ov::op::v0::Constant::create(ov::element::i64, inputShape, {1, 2, 3, 4});
+        auto add = std::make_shared<ov::op::v1::Add>(base, addValue);
+        auto power = std::make_shared<ov::op::v1::Power>(add, exponent);
+        function = std::make_shared<ov::Model>(ov::OutputVector{power}, ov::ParameterVector{base, exponent});
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& functionInputs = function->inputs();
+
+        ov::Tensor baseTensor(ov::element::i64, targetInputStaticShapes[0]);
+        ov::Tensor exponentTensor(ov::element::i64, targetInputStaticShapes[1]);
+
+        constexpr std::array<int64_t, 4> bases = {12, 15, 16, 19};
+        constexpr std::array<int64_t, 4> exponents = {8, 7, 7, 6};
+        std::copy(bases.begin(), bases.end(), baseTensor.data<int64_t>());
+        std::copy(exponents.begin(), exponents.end(), exponentTensor.data<int64_t>());
+
+        inputs.insert({functionInputs[0].get_node_shared_ptr(), baseTensor});
+        inputs.insert({functionInputs[1].get_node_shared_ptr(), exponentTensor});
+    }
+};
+
+TEST_F(Int64PowerFusedChildLayerCPUTest, CompareWithRefs) {
+    run();
+}
 
 std::vector<std::vector<ov::Shape>> in_shapes_static = {
         {{2}},

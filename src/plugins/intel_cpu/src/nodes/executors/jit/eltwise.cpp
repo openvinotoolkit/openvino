@@ -375,8 +375,8 @@ void EltwiseJitExecutor::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
 
 bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                                   const size_t rank,
-                                  [[maybe_unused]] const std::vector<ov::element::Type>& input_precisions,
-                                  [[maybe_unused]] const std::vector<ov::element::Type>& output_precisions) {
+                                  const std::vector<ov::element::Type>& input_precisions,
+                                  const std::vector<ov::element::Type>& output_precisions) {
 #if defined(OPENVINO_ARCH_X86_64)
     const auto isISASupportedByJIT = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::sse41);
 #elif defined(OPENVINO_ARCH_ARM64)
@@ -396,6 +396,16 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     }
 
     const auto algorithm = attrs.data.algo;
+    const auto hasInt64Precision = [](const std::vector<ov::element::Type>& precisions) {
+        return std::any_of(precisions.begin(), precisions.end(), [](const ov::element::Type& precision) {
+            return precision == ov::element::i64;
+        });
+    };
+    if (algorithm == Algorithm::EltwisePowerDynamic &&
+        (hasInt64Precision(input_precisions) || hasInt64Precision(output_precisions))) {
+        return false;
+    }
+
     if (any_of(algorithm,
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseLeftShift,
