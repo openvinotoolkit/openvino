@@ -271,6 +271,29 @@ void Graph::resize_last_submitted_event(size_t batch) {
 }
 
 void Graph::set_batch_size(std::size_t batch) {
+    // Batching handled by the plugin overrides the batch axis of a descriptor while allocating the Level Zero tensor
+    // backing it, so every descriptor has to own such an axis. "determine_batch_size" establishes this before enabling
+    // the feature, but a batch size may also be taken from the metadata of an imported blob, which never goes through
+    // it. Require it here instead, where every path setting a batch size passes.
+    const auto checkDescriptorsHaveBatchAxis = [](const std::vector<IODescriptor>& descriptors,
+                                                  const std::string_view descriptorType) {
+        for (const IODescriptor& descriptor : descriptors) {
+            const auto rank = descriptor.shapeFromCompiler.rank();
+
+            OPENVINO_ASSERT(rank.is_static() && rank.get_length() > static_cast<int64_t>(utils::BATCH_AXIS),
+                            "Batching cannot be handled by the plugin: the ",
+                            descriptorType,
+                            " '",
+                            descriptor.nameFromCompiler,
+                            "' has no batch dimension, its shape is ",
+                            descriptor.shapeFromCompiler,
+                            ".");
+        }
+    };
+
+    checkDescriptorsHaveBatchAxis(_metadata.inputs, "input");
+    checkDescriptorsHaveBatchAxis(_metadata.outputs, "output");
+
     _batchSize = batch;
 }
 
