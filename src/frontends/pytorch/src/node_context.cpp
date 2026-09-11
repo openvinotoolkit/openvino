@@ -122,7 +122,19 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
     tensor_it->second = ov_output;
     m_mutated_tensors->insert(input_id);
 
-    const auto op_type = m_decoder->get_op_type();
+    if (ov::is_type<SequenceMark>(ov_output.get_node_shared_ptr())) {
+        // Mutating a list changes its contents, not the storage of its member tensors.
+        const auto alias = m_translate_session->m_may_be_alias.find(input_id);
+        if (alias != m_translate_session->m_may_be_alias.end()) {
+            alias->second.output = ov_output;
+        }
+        return;
+    }
+
+    auto op_type = m_decoder->get_op_type();
+    if (op_type.find("aten::") == 0) {
+        op_type = "aten." + op_type.substr(6) + ".";
+    }
     if (op_type.find("aten.unsqueeze_.") == 0 || op_type.find("aten.squeeze_.") == 0 ||
         op_type.find("aten.transpose_.") == 0 || op_type.find("aten.t_.") == 0) {
         // Existing views retain their shape when the base tensor's metadata changes.
@@ -164,11 +176,12 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
 }
 
 void NodeContext::add_tensor_to_context(size_t index, const Output<Node>& ov_output) const {
-#ifdef ENABLE_OPENVINO_DEBUG
     if (m_tensor_map->count(index)) {
-        OPENVINO_DEBUG("[ WARNING ] Current context has tensor ", index, ". Assuming mutated output.\n");
+        // A subgraph returned a mutation of a captured tensor. Propagate it through
+        // aliases in the parent graph using the parent's view and base values.
+        mutate_tensor(index, ov_output, std::to_string(index));
+        return;
     }
-#endif
     m_translate_session->encode_tensor_name(ov_output, index);
     (*m_tensor_map)[index] = ov_output;
 }
@@ -176,7 +189,7 @@ void NodeContext::add_tensor_to_context(size_t index, const Output<Node>& ov_out
 Output<Node> NodeContext::get_tensor_from_model_or_create_input(size_t index) const {
     auto tensor_it = m_tensor_map->find(index);
     if (tensor_it != m_tensor_map->end()) {
-        return tensor_it->second;
+        return resolve_tensor(index);
     } else {
         // nested subgraphs case
         auto parameter = std::make_shared<v0::Parameter>(element::dynamic, PartialShape::dynamic());

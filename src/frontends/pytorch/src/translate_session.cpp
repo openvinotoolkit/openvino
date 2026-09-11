@@ -10,7 +10,9 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
@@ -30,24 +32,19 @@ namespace pytorch {
 using namespace ov::op;
 
 namespace {
-// FX node IDs are local to each GraphModule, including control-flow bodies.
+// Alias views and their base values belong to the graph where they were converted.
 class AliasScope {
 public:
-    AliasScope(TranslateSession& session, bool enabled) : m_session(session), m_enabled(enabled) {
-        if (m_enabled) {
-            m_aliases.swap(m_session.m_may_be_alias);
-        }
+    explicit AliasScope(TranslateSession& session) : m_session(session) {
+        m_aliases.swap(m_session.m_may_be_alias);
     }
 
     ~AliasScope() {
-        if (m_enabled) {
-            m_aliases.swap(m_session.m_may_be_alias);
-        }
+        m_aliases.swap(m_session.m_may_be_alias);
     }
 
 private:
     TranslateSession& m_session;
-    bool m_enabled;
     decltype(TranslateSession::m_may_be_alias) m_aliases;
 };
 
@@ -153,7 +150,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
     std::shared_ptr<TorchDecoder> pytorch_model,
     const TensorMap& external_tensor_map,
     const std::shared_ptr<pytorch::InputModel>& input_model) {
-    AliasScope alias_scope(*this, pytorch_model->decoder_type_name() == "fx");
+    AliasScope alias_scope(*this);
     std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         auto parameters = std::make_shared<ParameterVector>();
@@ -280,11 +277,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                                 " vs ",
                                                 recorded.base_id);
                     }
-                    m_may_be_alias[fw_tensor_id] = {
-                        in_tensor_id,
-                        node,
-                        converted_outputs[i],
-                        node->decoder_type_name() == "fx" ? tensor_map->at(in_tensor_id) : Output<Node>{}};
+                    m_may_be_alias[fw_tensor_id] = {in_tensor_id,
+                                                    node,
+                                                    converted_outputs[i],
+                                                    tensor_map->at(in_tensor_id)};
                     OPENVINO_DEBUG("Registered alias: ",
                                    fw_tensor_id,
                                    " of tensor: ",
@@ -320,15 +316,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                 "Model should have exactly 1 subgraph for TorchScript.");
         pytorch_model->visit_subgraph(node_visitor);
 
-        std::unique_ptr<NodeContext> output_context;
-        if (pytorch_model->decoder_type_name() == "fx") {
-            output_context = std::make_unique<NodeContext>(pytorch_model,
-                                                           external_tensor_map,
-                                                           tensor_map,
-                                                           parameters,
-                                                           mutated_tensors,
-                                                           this);
-        }
+        NodeContext output_context(pytorch_model, external_tensor_map, tensor_map, parameters, mutated_tensors, this);
         ResultVector results;
         if (input_model) {
             // For the case when we have InputModel we need to have same order as its outputs
@@ -336,7 +324,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 auto pytorch_place = std::dynamic_pointer_cast<pytorch::Place>(output_p);
                 FRONT_END_GENERAL_CHECK(pytorch_place, "Only place produced by PyTorch Frontend is supported.");
                 auto tensor_id = pytorch_place->get_tensor_index();
-                auto ov_output = output_context ? output_context->resolve_tensor(tensor_id) : tensor_map->at(tensor_id);
+                auto ov_output = output_context.resolve_tensor(tensor_id);
                 FRONT_END_GENERAL_CHECK(!ov_output.get_names().empty(),
                                         "Tensor doesn't have name, while it should have name: ",
                                         tensor_id);
@@ -357,8 +345,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 FRONT_END_GENERAL_CHECK(!it->second.get_names().empty(),
                                         "Tensor doesn't have name, while it should have name: ",
                                         id);
-                auto result =
-                    std::make_shared<v0::Result>(output_context ? output_context->resolve_tensor(id) : it->second);
+                auto result = std::make_shared<v0::Result>(output_context.resolve_tensor(id));
                 results.push_back(result);
             }
         }
@@ -541,97 +528,95 @@ Output<Node> select_reverseprop(const Output<Node>& select_output, const Output<
 }
 }  // namespace
 
-using ReversepropCreatorFunction = std::function<ov::Output<ov::Node>(const Output<Node>&, const Output<Node>&)>;
-
 Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDecoder>& node,
                                                   const Output<Node>& direct_op_output,
                                                   const Output<Node>& value,
                                                   const Output<Node>& base) {
-    static const std::map<std::string, ReversepropCreatorFunction> backprop_map = {
-        {"aten::slice", slice_reverseprop},
-        {"aten::select", select_reverseprop},
-    };
-
     try {
         const auto direct_node = direct_op_output.get_node_shared_ptr();
-        if (node->decoder_type_name() == "fx") {
-            const auto& name = node->get_op_type();
-            if (name.find("aten.split.") == 0 || name.find("aten.chunk.") == 0 ||
-                name.find("aten.unsafe_chunk.") == 0 || name.find("aten.tensor_split.") == 0 ||
-                name.find("aten.split_with_sizes.") == 0 || name.find("aten.unbind.") == 0) {
-                // getitem has already scattered the modified element into the base.
+        if (base.get_node()) {
+            if (direct_op_output == base) {
                 return value;
             }
-            if (base.get_node()) {
-                if (direct_op_output == base) {
-                    return value;
-                }
-                if (ov::is_type<SequenceMark>(base.get_node_shared_ptr())) {
-                    for (const auto& element : base.get_node_shared_ptr()->input_values()) {
-                        if (direct_op_output == element) {
-                            return get_reverseprop_op(node, direct_op_output, value);
-                        }
+            if (const auto sequence = ov::as_type_ptr<SequenceMark>(base.get_node_shared_ptr())) {
+                auto elements = sequence->get_sequence();
+                for (auto& element : elements) {
+                    if (direct_op_output == element) {
+                        element = value;
+                        return make_list_construct(elements);
                     }
                 }
-                if (const auto complex_base = ov::as_type_ptr<ComplexTypeMark>(base.get_node_shared_ptr())) {
-                    if (direct_op_output == complex_base->get_data()) {
-                        return std::make_shared<ComplexTypeMark>(value, value.get_element_type());
+            }
+            if (const auto sequence = ov::as_type_ptr<SequenceMark>(direct_node)) {
+                const auto updated_sequence = ov::as_type_ptr<SequenceMark>(value.get_node_shared_ptr());
+                FRONT_END_OP_CONVERSION_CHECK(updated_sequence, "Expected an aliased list update.");
+                const auto elements = sequence->get_sequence();
+                const auto updates = updated_sequence->get_sequence();
+                FRONT_END_OP_CONVERSION_CHECK(elements.size() == updates.size(),
+                                              "An aliased list cannot change length.");
+                Output<Node> updated_base;
+                for (size_t i = 0; i < elements.size(); ++i) {
+                    if (elements[i] != updates[i]) {
+                        FRONT_END_OP_CONVERSION_CHECK(!updated_base.get_node(), "Expected one updated list element.");
+                        updated_base = get_reverseprop_op(node, elements[i], updates[i], base);
                     }
-                    if (direct_op_output == complex_base->get_real()) {
-                        return std::make_shared<ComplexTypeMark>(value, complex_base->get_imag());
-                    }
-                    if (direct_op_output == complex_base->get_imag()) {
-                        return std::make_shared<ComplexTypeMark>(complex_base->get_real(), value);
-                    }
                 }
-                if (const auto complex_view = ov::as_type_ptr<ComplexTypeMark>(direct_node)) {
-                    const auto complex_value = ov::as_type_ptr<ComplexTypeMark>(value.get_node_shared_ptr());
-                    FRONT_END_OP_CONVERSION_CHECK(complex_value, "Expected a complex alias update.");
-                    return get_reverseprop_op(node, complex_view->get_data(), complex_value->get_data(), base);
+                return updated_base.get_node() ? updated_base : base;
+            }
+            if (const auto complex_base = ov::as_type_ptr<ComplexTypeMark>(base.get_node_shared_ptr())) {
+                if (direct_op_output == complex_base->get_data()) {
+                    return std::make_shared<ComplexTypeMark>(value, value.get_element_type());
                 }
-                const auto updated = get_reverseprop_op(node, direct_op_output, value);
-                if (ov::as_type_ptr<PtFrameworkNode>(updated.get_node_shared_ptr())) {
-                    return updated;
+                if (direct_op_output == complex_base->get_real()) {
+                    return std::make_shared<ComplexTypeMark>(value, complex_base->get_imag());
                 }
-                return get_reverseprop_op(node, direct_node->input_value(0), updated, base);
-            }
-            if (ov::is_type<v0::Convert>(direct_node) || ov::is_type<v1::ConvertLike>(direct_node)) {
-                return value;
-            }
-            if (ov::is_type<v8::Slice>(direct_node)) {
-                return slice_reverseprop(direct_op_output, value);
-            }
-            if (ov::is_type<v8::Gather>(direct_node)) {
-                return select_reverseprop(direct_op_output, value);
-            }
-            if (ov::is_type<v1::Split>(direct_node) || ov::is_type<v1::VariadicSplit>(direct_node)) {
-                const auto axis = ov::util::get_constant_from_source(direct_node->input_value(1));
-                FRONT_END_OP_CONVERSION_CHECK(axis, "Cannot reverse a split with a dynamic axis.");
-                auto outputs = direct_node->outputs();
-                outputs[direct_op_output.get_index()] = value;
-                return std::make_shared<v0::Concat>(outputs, axis->cast_vector<int64_t>().at(0));
-            }
-            if (ov::is_type<v1::Reshape>(direct_node) || ov::is_type<v0::Squeeze>(direct_node) ||
-                ov::is_type<v0::Unsqueeze>(direct_node)) {
-                return std::make_shared<v1::Reshape>(value,
-                                                     std::make_shared<v3::ShapeOf>(direct_node->input_value(0)),
-                                                     false);
-            }
-            if (ov::is_type<v1::Transpose>(direct_node)) {
-                const auto order = ov::util::get_constant_from_source(direct_node->input_value(1));
-                FRONT_END_OP_CONVERSION_CHECK(order, "Cannot reverse a view with a dynamic permutation.");
-                const auto axes = order->cast_vector<int64_t>();
-                std::vector<int64_t> inverse(axes.size());
-                for (size_t i = 0; i < axes.size(); ++i) {
-                    inverse.at(axes[i]) = i;
+                if (direct_op_output == complex_base->get_imag()) {
+                    return std::make_shared<ComplexTypeMark>(complex_base->get_real(), value);
                 }
-                return std::make_shared<v1::Transpose>(value,
-                                                       v0::Constant::create(element::i64, Shape{axes.size()}, inverse));
             }
+            if (const auto complex_view = ov::as_type_ptr<ComplexTypeMark>(direct_node)) {
+                const auto complex_value = ov::as_type_ptr<ComplexTypeMark>(value.get_node_shared_ptr());
+                FRONT_END_OP_CONVERSION_CHECK(complex_value, "Expected a complex alias update.");
+                return get_reverseprop_op(node, complex_view->get_data(), complex_value->get_data(), base);
+            }
+            const auto updated = get_reverseprop_op(node, direct_op_output, value);
+            if (ov::as_type_ptr<PtFrameworkNode>(updated.get_node_shared_ptr())) {
+                return updated;
+            }
+            return get_reverseprop_op(node, direct_node->input_value(0), updated, base);
         }
-        auto it = backprop_map.find(node->get_op_type());
-        if (it != backprop_map.end()) {
-            return it->second(direct_op_output, value);
+        if (ov::is_type<v0::Convert>(direct_node) || ov::is_type<v1::ConvertLike>(direct_node)) {
+            return value;
+        }
+        if (ov::is_type<v8::Slice>(direct_node)) {
+            return slice_reverseprop(direct_op_output, value);
+        }
+        if (ov::is_type<v8::Gather>(direct_node)) {
+            return select_reverseprop(direct_op_output, value);
+        }
+        if (ov::is_type<v1::Split>(direct_node) || ov::is_type<v1::VariadicSplit>(direct_node)) {
+            const auto axis = ov::util::get_constant_from_source(direct_node->input_value(1));
+            FRONT_END_OP_CONVERSION_CHECK(axis, "Cannot reverse a split with a dynamic axis.");
+            auto outputs = direct_node->outputs();
+            outputs[direct_op_output.get_index()] = value;
+            return std::make_shared<v0::Concat>(outputs, axis->cast_vector<int64_t>().at(0));
+        }
+        if (ov::is_type<v1::Reshape>(direct_node) || ov::is_type<v0::Squeeze>(direct_node) ||
+            ov::is_type<v0::Unsqueeze>(direct_node)) {
+            return std::make_shared<v1::Reshape>(value,
+                                                 std::make_shared<v3::ShapeOf>(direct_node->input_value(0)),
+                                                 false);
+        }
+        if (ov::is_type<v1::Transpose>(direct_node)) {
+            const auto order = direct_node->input_value(1);
+            const auto zero = v0::Constant::create(element::i32, Shape{}, {0});
+            const auto one = v0::Constant::create(element::i32, Shape{}, {1});
+            const auto shape = std::make_shared<v3::ShapeOf>(order, element::i32);
+            const auto rank = std::make_shared<v8::Gather>(shape, zero, zero);
+            const auto axes = std::make_shared<v4::Range>(zero, rank, one, order.get_element_type());
+            // inverse[order[i]] = i, including permutations built from a dynamic rank.
+            const auto inverse = std::make_shared<v3::ScatterElementsUpdate>(axes, order, axes, zero);
+            return std::make_shared<v1::Transpose>(value, inverse);
         }
 
     }

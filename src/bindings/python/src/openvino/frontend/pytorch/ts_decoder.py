@@ -358,6 +358,8 @@ class TorchScriptPythonDecoder(Decoder):
             return trampoline, getattr(trampoline, "target_extension", None)
 
     def get_op_type(self) -> str:
+        if not isinstance(self.graph_element, torch.Node):
+            return "prim::Graph"
         if op_extension := self.get_op_extension():
             trampoline, target_extension = op_extension
             if isinstance(target_extension, ModuleExtension):

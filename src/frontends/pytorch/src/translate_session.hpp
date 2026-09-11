@@ -52,7 +52,7 @@ public:
         size_t base_id;
         std::shared_ptr<TorchDecoder> decoder;
         Output<Node> output;
-        // Base value used to convert/replay an FX view; empty for TorchScript.
+        // Base value used to convert and replay a view.
         Output<Node> base_value;
     };
     std::map<size_t, AliasInfo> m_may_be_alias;
