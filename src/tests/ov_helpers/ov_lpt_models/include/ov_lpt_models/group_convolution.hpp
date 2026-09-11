@@ -49,7 +49,6 @@ public:
         const ov::builder::subgraph::DequantizationOperations& dequantizationOnWeights,
         const ov::element::Type precisionAfterOperation,
         const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
-        const ov::element::Type precisionAfterDequantization,
         const bool addReshape);
 };
 

@@ -43,13 +43,15 @@ KernelsPriority DeformableConvolutionKernel_bfyx_Ref::GetKernelsPriority(const P
 }
 
 bool DeformableConvolutionKernel_bfyx_Ref::Validate(const Params& params) const {
-    if (!ConvolutionKernelBase::Validate(params))
+    if (!ConvolutionKernelBase::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& conv_params = static_cast<const convolution_params&>(params);
 
-    if (!conv_params.deformable_mode)
+    if (!conv_params.deformable_mode) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }

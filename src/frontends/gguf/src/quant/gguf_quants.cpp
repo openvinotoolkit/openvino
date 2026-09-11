@@ -6,12 +6,14 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <numeric>
-#include "openvino/core/parallel.hpp"
 #include <sstream>
+#include <utility>
 
 #include "gguf.hpp"
+#include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 
 namespace ov {
@@ -27,6 +29,7 @@ static constexpr uint64_t kQ6K_BLOCK_BYTES = 128 + 64 + 16 + 2;      // ql + qh 
 
 // Round a fractional zero-point to u8, clamping to avoid a modulo-256 wrap when min/scale > 255.
 static inline uint8_t quantize_zp_u8(float zpval) {
+    OPENVINO_ASSERT(std::isfinite(zpval), "[GGUF] cannot quantize a non-finite zero-point");
     long r = std::lround(zpval);
     return static_cast<uint8_t>(std::min<long>(255, std::max<long>(0, r)));
 }
@@ -53,7 +56,7 @@ void unpack_32_4(const uint8_t* data, uint8_t* dst) {
 //   - f16 -> FRACTIONAL zp = -mn/sc: numerically faithful, used on the requant path where the
 //            dequant is consumed by channel-wise Q8_0_C rather than fed to the compressed MatMul.
 // Outputs u32-packed u4 weights + f16 scales + zero-points (one per block).
-void fill_q4_1(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
+void fill_q4_1(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
     const uint64_t bytes_per_block = 20;  // 2 bytes scale, 2 bytes min, 32x0.5 byte weights
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<uint8_t*>(weights_arr.data());
@@ -77,7 +80,7 @@ void fill_q4_1(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 
 // Q8_0 symmetric: block = |f16 scale|32x i8 weights|. Weights are stored as i8 on disk.
 // No zero-point. Output: i8 weights (direct copy) + f16 scales.
-void fill_q8_0(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+void fill_q8_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t weights_per_block = 32;
     const uint64_t bytes_per_block = 34;  // 2 bytes scale, 32x1 byte weights (i8)
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
@@ -92,7 +95,7 @@ void fill_q8_0(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 
 // Q5_0 symmetric: block = |f16 scale d|32-bit qh|16 bytes ql (32x4bit low)|.
 // weight = lo|(hi<<4) in [0..31]; dequant = d*(w - 16). Output: i8 weights [-16..15].
-void fill_q5_0(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+void fill_q5_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t weights_per_block = 32;
     const uint64_t bytes_per_block = 2 + 4 + 16;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
@@ -133,14 +136,16 @@ void unpack_256_4(const uint8_t* data, uint8_t* dst) {
 // Q4_K asymmetric: super-block = |f16 d|f16 dmin|12 bytes scales/mins|128 bytes ql|.
 // 8 sub-blocks of 32 with 6-bit scale and 6-bit min each.
 // Outputs: u32-packed u4 weights + f16 scales + zp (one per sub-block).
-// Dequant is w = scale*q - min, scale = d*sc_raw, min = dmin*m_raw, expressed as scale*(q - zp).
-// The zp element type selects the representation:
-//   - u8  -> INTEGER zp = round(min/scale): forces min to a multiple of scale (injects a small
-//            per-weight rounding error) but keeps the low-precision form the CPU plugin fuses
-//            into the MatMul -- this is what the original ggml-openvino backend does.
-//   - f16 -> FRACTIONAL zp = min/scale: faithful, used on the requant path (token_embd/output)
-//            where the dequant is re-quantized channel-wise rather than fed to the MatMul.
-void fill_q4_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
+// Dequant is w = scale*q - min, scale = d*sc_raw, min = dmin*m_raw.
+//
+// With an f16 zp, preserve the source nibbles and express the exact affine offset as min/scale.
+// With a u8 zp, faithfully decode one 32-value group to f32 and requantize it to a NEW u4 grid.
+// The latter follows NNCF's data-free INT4_ASYM baseline (range includes zero, min/max scale,
+// integral clipped zp), followed by one cheap least-squares scale refinement. Candidate errors
+// are evaluated with the actually stored f16 scale. A candidate is used only when it reduces
+// squared error without increasing the maximum error versus the former rounded-zp representation.
+// Only 32 f32 values are live per worker.
+void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
     const uint64_t bytes_per_block = kQ4K_BLOCK_BYTES;
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
@@ -154,6 +159,10 @@ void fill_q4_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
         const uint8_t* block_data = data + i * bytes_per_block;
         const float d = static_cast<float>(ov::float16::from_bits(*((uint16_t*)block_data)));
         const float dmin = static_cast<float>(ov::float16::from_bits(*((uint16_t*)block_data + 1)));
+        OPENVINO_ASSERT(std::isfinite(d) && std::isfinite(dmin),
+                        "[GGUF] Q4_K block ",
+                        i,
+                        " has non-finite scale metadata");
         const uint8_t* qs1 = block_data + 4;
 
         // 8 sub-blocks: 6-bit scale and 6-bit min packed in 12 bytes.
@@ -168,14 +177,110 @@ void fill_q4_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
         for (int j = 0; j < 8; ++j) {
             const float sc = d * sc_raw[j];
             const float mn = dmin * m_raw[j];
-            scales[i * 8 + j] = ov::float16(sc);
-            const float zpval = (sc != 0.f) ? (mn / sc) : 0.f;
-            if (int_zp)
-                zp_u8[i * 8 + j] = quantize_zp_u8(zpval);
-            else
+            if (!int_zp) {
+                scales[i * 8 + j] = ov::float16(sc);
+                const float zpval = (sc != 0.f) ? (mn / sc) : 0.f;
                 zp_f16[i * 8 + j] = ov::float16(zpval);
+                continue;
+            }
+
+            float values[32];
+            uint8_t source_q[32];
+            const uint8_t* source = block_data + 16 + (j / 2) * 32;
+            float min_value = 0.0f;
+            float max_value = 0.0f;
+            for (int k = 0; k < 32; ++k) {
+                const uint8_t q = (j % 2 == 0) ? (source[k] & 0x0F) : (source[k] >> 4);
+                source_q[k] = q;
+                values[k] = sc * static_cast<float>(q) - mn;
+                min_value = std::min(min_value, values[k]);
+                max_value = std::max(max_value, values[k]);
+            }
+
+            struct Error {
+                double squared;
+                float max_abs;
+            };
+            const auto measure = [&](float runtime_scale, uint8_t zp, const uint8_t* quantized) {
+                Error error{0.0, 0.0f};
+                for (int k = 0; k < 32; ++k) {
+                    const float diff = values[k] - runtime_scale * (static_cast<int>(quantized[k]) - zp);
+                    error.squared += static_cast<double>(diff) * diff;
+                    error.max_abs = std::max(error.max_abs, std::fabs(diff));
+                }
+                return error;
+            };
+
+            // Start from the previous compressed-FC representation. Requantization must not
+            // regress either its total error or its worst reconstructed value.
+            uint8_t best_q[32];
+            std::copy_n(source_q, 32, best_q);
+            ov::float16 best_scale(sc);
+            uint8_t best_zp = quantize_zp_u8((sc != 0.0f) ? (mn / sc) : 0.0f);
+            Error best_error = measure(static_cast<float>(best_scale), best_zp, best_q);
+            const float fallback_max_error = best_error.max_abs;
+
+            float initial_scale = (max_value - min_value) / 15.0f;
+            if (std::fabs(initial_scale) < std::numeric_limits<float>::epsilon()) {
+                initial_scale = std::numeric_limits<float>::epsilon();
+            }
+            const auto rounded_zp = static_cast<long>(std::nearbyint(-min_value / initial_scale));
+            const uint8_t zp = static_cast<uint8_t>(std::min<long>(15, std::max<long>(0, rounded_zp)));
+
+            const auto evaluate = [&](float scale_candidate, uint8_t* quantized) {
+                const ov::float16 scale_f16(scale_candidate);
+                const float runtime_scale = static_cast<float>(scale_f16);
+                if (!(runtime_scale > 0.0f) || !std::isfinite(runtime_scale)) {
+                    return std::make_pair(
+                        scale_f16,
+                        Error{std::numeric_limits<double>::infinity(), std::numeric_limits<float>::infinity()});
+                }
+                for (int k = 0; k < 32; ++k) {
+                    const long rounded = static_cast<long>(std::nearbyint(values[k] / runtime_scale)) + zp;
+                    quantized[k] = static_cast<uint8_t>(std::min<long>(15, std::max<long>(0, rounded)));
+                }
+                return std::make_pair(scale_f16, measure(runtime_scale, zp, quantized));
+            };
+
+            const auto accept = [&](const std::pair<ov::float16, Error>& candidate, const uint8_t* candidate_q) {
+                if (candidate.second.squared < best_error.squared && candidate.second.max_abs <= fallback_max_error) {
+                    best_scale = candidate.first;
+                    best_zp = zp;
+                    best_error = candidate.second;
+                    std::copy_n(candidate_q, 32, best_q);
+                }
+            };
+
+            uint8_t candidate_q[32];
+            auto candidate = evaluate(initial_scale, candidate_q);
+            accept(candidate, candidate_q);
+
+            // With the min/max assignments fixed, this is the least-squares optimal scale for
+            // x ~= scale * (q-zp). Requantize once more with it and retain it only if the actual
+            // f16-scale reconstruction improves both criteria versus the retained representation.
+            double numerator = 0.0;
+            double denominator = 0.0;
+            for (int k = 0; k < 32; ++k) {
+                const int centered = static_cast<int>(candidate_q[k]) - zp;
+                numerator += static_cast<double>(values[k]) * centered;
+                denominator += static_cast<double>(centered) * centered;
+            }
+            if (denominator != 0.0) {
+                candidate = evaluate(static_cast<float>(numerator / denominator), candidate_q);
+                accept(candidate, candidate_q);
+            }
+
+            scales[i * 8 + j] = best_scale;
+            zp_u8[i * 8 + j] = best_zp;
+            uint8_t* destination = weights + i * 128 + j * 16;
+            std::fill_n(destination, 16, 0);
+            for (int k = 0; k < 32; ++k) {
+                destination[k / 2] |= static_cast<uint8_t>(best_q[k] << (4 * (k % 2)));
+            }
         }
-        unpack_256_4(block_data + 16, weights + i * 128);
+        if (!int_zp) {
+            unpack_256_4(block_data + 16, weights + i * 128);
+        }
     });
 }
 
@@ -196,7 +301,7 @@ static inline void get_scale_min_k4(int j, const uint8_t* q, uint8_t* d, uint8_t
 // ports of ggml's dequantize_row_q{4,5,6}_K: they compute w = (d*sc)*q - (dmin*m) with the products
 // kept in f32 (d/dmin are the f16 super-block scales widened to f32), matching what the upstream
 // backend feeds into its Q8_0_C requant. This is NOT the general dequant path -- the compressed
-// matmul weights still go through fill_*/make_int4 (f16 scales, integer zp) unchanged. Each function
+// matmul weights still go through fill_*/make_int4 unchanged. Each function
 // fills ONE row (`cols` floats) so the caller never materializes the whole f32 weight.
 static void dequant_row_q4_k_f32(const uint8_t* row, size_t cols, float* y) {
     const uint64_t bpb = kQ4K_BLOCK_BYTES;
@@ -291,19 +396,29 @@ static void dequant_row_q6_k_f32(const uint8_t* row, size_t cols, float* y) {
 // weight is never materialized (holds only `cols` floats). Fills i8 weights [rows,cols] + f16 scales
 // [rows,1], matching the upstream Q8_0_C path (amax/127 per row, roundf). qtype selects the exact
 // ggml row dequant. Returns false if qtype is not a supported requant source.
-bool requantize_q8_0_channelwise_faithful(const gguf_tensor& tensor,
+bool requantize_q8_0_channelwise_faithful(const GgufTensor& tensor,
                                           size_t rows,
                                           size_t cols,
-                                          gguf_tensor_type qtype,
+                                          GgufTensorType qtype,
                                           int8_t* out_weights,
                                           ov::float16* out_scales) {
     void (*dq)(const uint8_t*, size_t, float*) = nullptr;
     uint64_t bytes_per_row = 0;
     switch (qtype) {
-        case GGUF_TYPE_Q4_K: dq = dequant_row_q4_k_f32; bytes_per_row = (cols / 256) * kQ4K_BLOCK_BYTES; break;
-        case GGUF_TYPE_Q5_K: dq = dequant_row_q5_k_f32; bytes_per_row = (cols / 256) * kQ5K_BLOCK_BYTES; break;
-        case GGUF_TYPE_Q6_K: dq = dequant_row_q6_k_f32; bytes_per_row = (cols / 256) * kQ6K_BLOCK_BYTES; break;
-        default: return false;
+    case GGUF_TYPE_Q4_K:
+        dq = dequant_row_q4_k_f32;
+        bytes_per_row = (cols / 256) * kQ4K_BLOCK_BYTES;
+        break;
+    case GGUF_TYPE_Q5_K:
+        dq = dequant_row_q5_k_f32;
+        bytes_per_row = (cols / 256) * kQ5K_BLOCK_BYTES;
+        break;
+    case GGUF_TYPE_Q6_K:
+        dq = dequant_row_q6_k_f32;
+        bytes_per_row = (cols / 256) * kQ6K_BLOCK_BYTES;
+        break;
+    default:
+        return false;
     }
     const uint8_t* data = static_cast<const uint8_t*>(tensor.weights_data);
     ov::parallel_for(rows, [&](size_t r) {
@@ -316,7 +431,12 @@ bool requantize_q8_0_channelwise_faithful(const gguf_tensor& tensor,
             amax = std::max(amax, std::fabs(rowf[c]));
         }
         const float d = amax / 127.0f;
-        const float id = d ? 1.0f / d : 0.0f;
+        // A zero row has a zero scale and must remain zero. Keep the division in a
+        // branch where its divisor is known to be non-zero.
+        float id = 0.0f;
+        if (d != 0.0f) {
+            id = 1.0f / d;
+        }
         out_scales[r] = ov::float16(d);
         for (size_t c = 0; c < cols; ++c) {
             out_weights[r * cols + c] = static_cast<int8_t>(std::lround(rowf[c] * id));
@@ -326,15 +446,21 @@ bool requantize_q8_0_channelwise_faithful(const gguf_tensor& tensor,
 }
 
 // Test-only thin wrappers exposing the file-static per-row dequant to the unit tests.
-void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y) { dequant_row_q4_k_f32(row, cols, y); }
-void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y) { dequant_row_q5_k_f32(row, cols, y); }
-void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y) { dequant_row_q6_k_f32(row, cols, y); }
+void dequant_row_q4_k_f32_for_test(const uint8_t* row, size_t cols, float* y) {
+    dequant_row_q4_k_f32(row, cols, y);
+}
+void dequant_row_q5_k_f32_for_test(const uint8_t* row, size_t cols, float* y) {
+    dequant_row_q5_k_f32(row, cols, y);
+}
+void dequant_row_q6_k_f32_for_test(const uint8_t* row, size_t cols, float* y) {
+    dequant_row_q6_k_f32(row, cols, y);
+}
 
 // Q5_K asymmetric: super-block = 2(d) + 2(dmin) + 12(scales) + 32(qh) + 128(ql).
 // 8 sub-blocks of 32 with 6-bit scale and 6-bit min. Output: i8 weights + f16 scales + zp.
 // Like Q4_K, dequant is w = scale*q - dmin*m; zp = dmin*m/scale. The zp element type selects
 // integer (u8, fuses) vs fractional (f16, faithful) -- see fill_q4_k.
-void fill_q5_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
+void fill_q5_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
     const uint64_t bytes_per_block = kQ5K_BLOCK_BYTES;
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
@@ -387,7 +513,7 @@ void fill_q5_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 // weight = lo|(hi<<4) in [0..31]; dequant = d*w + m = d*(w - zp), zp = -m/d.
 // Output: i8 weights [0..31] (raw, not centered) + f16 scales + zp (u8 integer or f16
 // fractional per element type -- see fill_q4_k).
-void fill_q5_1(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
+void fill_q5_1(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
     const uint64_t weights_per_block = 32;
     const uint64_t bytes_per_block = 2 + 2 + 4 + 16;  // d, m, qh, ql
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
@@ -421,7 +547,7 @@ void fill_q5_1(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 // 16 sub-blocks of 16; 3-bit values (2 low bits from qs, 1 inverted high bit from hmask) centered
 // to [-4..3]. Mirrors ggml dequantize_row_q3_K: kmask1/kmask2 scale interleave + strided qs order.
 // Output: i4 weights (2 per byte, low nibble first) + f16 scales (d * (scale6 - 32)). No zp.
-void fill_q3_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+void fill_q3_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t bytes_per_block = 32 + 64 + 12 + 2;  // 110
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
@@ -475,7 +601,7 @@ void fill_q3_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 // scales[j] lower nibble = sub-scale, upper nibble = sub-min. qs is not in element order, so unpack
 // per element into element-order u2 (4 per byte, LSB-first) like ggml dequantize_row_q2_K.
 // Output: u2 weights + f16 scales (d * sub_scale) + zp = ml/dl per sub-block (see fill_q4_k).
-void fill_q2_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
+void fill_q2_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
     const uint64_t bytes_per_block = 16 + 64 + 2 + 2;  // 84
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
@@ -486,8 +612,8 @@ void fill_q2_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
     auto zp_u8 = int_zp ? static_cast<uint8_t*>(zp_arr.data()) : nullptr;
     ov::parallel_for(n_super_block, [&](size_t i) {
         const uint8_t* block = data + i * bytes_per_block;
-        const uint8_t* sc = block;        // 16 bytes: per-sub-block scale+min nibbles
-        const uint8_t* qs = block + 16;   // 64 bytes: 4 weights per byte, 2 bits each
+        const uint8_t* sc = block;       // 16 bytes: per-sub-block scale+min nibbles
+        const uint8_t* qs = block + 16;  // 64 bytes: 4 weights per byte, 2 bits each
         const float d = static_cast<float>(ov::float16::from_bits(*(uint16_t*)(block + 80)));
         const float dmin = static_cast<float>(ov::float16::from_bits(*(uint16_t*)(block + 82)));
         for (int j = 0; j < 16; ++j) {
@@ -523,7 +649,7 @@ void fill_q2_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 // Q6_K symmetric: super-block = 128(ql) + 64(qh) + 16(scales i8) + 2(f16 d).
 // 16 sub-blocks of 16 with i8 scale each. Values in [0..63]; center = 32 → i8 [-32..31].
 // Output: i8 weights (value - 32) + f16 scales. No zero-point.
-void fill_q6_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+void fill_q6_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t bytes_per_block = kQ6K_BLOCK_BYTES;
     const uint64_t n_super_block = tensor.bsize / bytes_per_block;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
@@ -564,7 +690,7 @@ void fill_q6_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 // Value equivalence: gguf MXFP4 value = kvalues_mxfp4[idx] * 2^(e-128); OpenVINO's
 // f4e2m1 LUT equals kvalues_mxfp4/2 and f8e8m0->f32 = 2^(e-127), so
 //   f4e2m1[idx] * f8e8m0(e) = (kvalues/2) * 2^(e-127) = kvalues * 2^(e-128)  -- exact.
-void gguf_fill_mxfp4(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
+void gguf_fill_mxfp4(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
     const uint64_t bytes_per_block = 17;
     const uint64_t qk = 32;
     // GGUF stores dims fastest-first: dim[0] is the innermost (cols); the remaining dims fold
@@ -605,10 +731,10 @@ void gguf_fill_mxfp4(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor&
     });
 }
 
-// Q4_0 symmetric: same block layout as Q4_0 but XORs each packed byte with 0x88 to
+// Q4_0 symmetric: unpack each GGML block and XOR every packed byte with 0x88 to
 // flip the MSB of every nibble, converting u4 [0..15] to i4 [-8..7] in-place. No bias
 // tensor is produced (zp is exactly -8 * scale = a fixed shift, not per-element).
-void gguf_fill_q4_0(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+static void fill_q4_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t bytes_per_block = 18;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
     auto weights = static_cast<uint8_t*>(weights_arr.data());
@@ -624,7 +750,7 @@ void gguf_fill_q4_0(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tens
 
 // Q8_K symmetric: block = |f32 d|i8 qs[256]|i16 bsums[16]| (292 bytes/block).
 // bsums are partial sums for dot-product acceleration; unused in dequant-then-multiply.
-void fill_q8_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+void fill_q8_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t weights_per_block = 256;
     const uint64_t bytes_per_block = 292;  // 4(f32 d) + 256(i8) + 32(i16 bsums)
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
@@ -644,7 +770,7 @@ void fill_q8_k(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& s
 // code in [0..3] -> {-1, 0, +1, +2}. ggml packs the codes 4 per byte LSB-first
 // (dequantize_row_q2_0: `(qs[j/4] >> ((j%4)*2)) & 3`), which is exactly the order OpenVINO's u2
 // Constant reads, so the 16 code bytes are copied verbatim. The zero-point is the constant 1.
-void gguf_fill_q2_0(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
+void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
     const uint64_t bytes_per_block = 18;
     const uint64_t bytes_per_block_codes = 16;
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
@@ -668,10 +794,12 @@ void gguf_fill_q2_0(const gguf_tensor& tensor, ov::Tensor& weights_arr, ov::Tens
     });
 }
 
-// Symmetric types (Q8_0, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no zero-point.
+// Symmetric types (Q4_0, Q8_0, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no zero-point.
 // Q8_K uses f32 scales and is handled by a separate overload dispatched on tensor.type.
-void gguf_fill_sym(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
-    if (tensor.type == GGUF_TYPE_Q8_0) {
+void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
+    if (tensor.type == GGUF_TYPE_Q4_0) {
+        fill_q4_0(tensor, weights, scales);
+    } else if (tensor.type == GGUF_TYPE_Q8_0) {
         fill_q8_0(tensor, weights, scales);
     } else if (tensor.type == GGUF_TYPE_Q5_0) {
         fill_q5_0(tensor, weights, scales);
@@ -686,8 +814,8 @@ void gguf_fill_sym(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& s
     }
 }
 
-// Asymmetric types (Q4_1, Q4_K, Q5_K, Q5_1, Q2_K): fill weights + scales + integer zero-points.
-void gguf_fill_asym(const gguf_tensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp) {
+// Asymmetric types (Q4_1, Q4_K, Q5_K, Q5_1, Q2_K): fill weights, scales, and zero-points.
+void gguf_fill_asym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp) {
     if (tensor.type == GGUF_TYPE_Q4_1) {
         fill_q4_1(tensor, weights, scales, zp);
     } else if (tensor.type == GGUF_TYPE_Q4_K) {

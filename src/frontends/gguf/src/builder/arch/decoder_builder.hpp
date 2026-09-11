@@ -36,7 +36,7 @@ class DecoderBuilder : public ModelBuilder {
 public:
     DecoderBuilder(const std::map<std::string, GGUFMetaData>& config,
                    std::unordered_map<std::string, ov::Tensor>& weights,
-                   std::unordered_map<std::string, gguf_tensor_type>& qtypes);
+                   std::unordered_map<std::string, GgufTensorType>& qtypes);
 
     std::shared_ptr<GgufGraph> build() override;
 

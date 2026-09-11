@@ -129,7 +129,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     FilteredConfig localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
-        localConfig.update({{ov::intel_npu::separate_weights_version.name(), "ONE_SHOT"}});
+        localConfig.update(ov::intel_npu::separate_weights_version.name(), "ONE_SHOT");
     }
 
     _logger.info("SEPARATE_WEIGHTS_VERSION: %s",
@@ -147,10 +147,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     ov::Tensor tensorMain;
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
+    std::optional<std::string> compatibilityDescriptor;
 
     switch (localConfig.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
-        std::vector<ov::Tensor> initMainTensors = _compiler->compileWsOneShot(model, localConfig);
+        auto oneShotResult = _compiler->compileWsOneShot(model, localConfig);
+        auto initMainTensors = std::move(oneShotResult.first);
+        compatibilityDescriptor = std::move(oneShotResult.second);
 
         tensorMain = initMainTensors.back();
         initMainTensors.pop_back();
@@ -212,7 +215,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
 
-        while (auto tensor = _compiler->compileWsIterative(targetModel, localConfig, i++)) {
+        while (true) {
+            auto iterativeResult = _compiler->compileWsIterative(targetModel, localConfig, i++);
+            auto tensor = std::move(iterativeResult.first);
+            if (iterativeResult.second.has_value()) {
+                compatibilityDescriptor = std::move(iterativeResult.second);
+            }
+            if (!tensor) {
+                break;
+            }
             GraphDescriptor graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
 
@@ -259,7 +270,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         tensorsInits,
         std::move(model),
         localConfig,
-        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
+        /* persistentBlob = */ true,
+        compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
@@ -282,7 +294,6 @@ std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
         --optionsSize;
     }
     if (optionsSize == 0) {
-        _logger.info("get_supported_options returned no options; returning an empty supported options vector.");
         return {};
     }
 
@@ -308,6 +319,9 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
     if (optionSupportCache) {
         const auto cachedSupport = _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname);
         if (cachedSupport.has_value()) {
+            _logger.debug("Option %s %s by PluginCompilerAdapter",
+                          optname.c_str(),
+                          cachedSupport.value() ? "is supported" : "is not supported");
             return cachedSupport.value();
         }
     }
@@ -317,11 +331,10 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
         _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, supported);
     }
 
-    const char* valueForLog = optValue.has_value() ? optValue->c_str() : "null";
-    _logger.debug("Option %s %s `%s` by VCLCompilerImpl",
+    _logger.debug("Option %s with value '%s' %s by PluginCompilerAdapter",
                   optname.c_str(),
-                  supported ? "is supported" : "is not supported",
-                  valueForLog);
+                  optValue.has_value() ? optValue->c_str() : "null",
+                  supported ? "is supported" : "is not supported");
 
     return supported;
 }

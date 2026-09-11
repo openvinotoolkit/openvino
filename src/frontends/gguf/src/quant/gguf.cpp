@@ -8,7 +8,6 @@
 // dependency.
 
 #include "gguf.hpp"
-#include "weights.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -21,6 +20,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "weights.hpp"
 
 namespace ov {
 namespace frontend {
@@ -31,7 +31,7 @@ namespace {
 constexpr uint32_t GGUF_MAGIC = 0x46554747;  // "GGUF" little-endian
 constexpr uint64_t GGUF_DEFAULT_ALIGNMENT = 32;
 
-// (items_per_block, bytes_per_block) per gguf_tensor_type, indexed by the type id.
+// (items_per_block, bytes_per_block) per GgufTensorType, indexed by the type id.
 struct TypeTraits {
     uint32_t items_per_block;
     uint32_t bytes_per_block;
@@ -267,7 +267,7 @@ void read_metadata_value(Cursor& cur, uint32_t type, GGUFMetaData& out) {
 // Tensor(view, so) constructor so that the mmap shared_ptr is stored in _so and keeps
 // the mapping alive for the full lifetime of the returned tensor (and any Constant that
 // wraps it via Constant(const Tensor&) -> SharedBuffer<Tensor>).
-ov::Tensor extract_tensor_data(const gguf_tensor& tensor, const std::shared_ptr<ov::MappedMemory>& mmap) {
+ov::Tensor extract_tensor_data(const GgufTensor& tensor, const std::shared_ptr<ov::MappedMemory>& mmap) {
     auto dtype = gguf_type_to_dtype(tensor.type);
     OPENVINO_ASSERT(dtype.has_value(),
                     "[load_gguf] tensor '",
@@ -285,8 +285,8 @@ ov::Tensor extract_tensor_data(const gguf_tensor& tensor, const std::shared_ptr<
 // type doesn't match (so a caller can't read past a smaller-than-expected stored type, e.g. a
 // 1-byte BOOL where a 4-byte scalar is expected).
 static const ov::Tensor& metadata_scalar_tensor(const std::unordered_map<std::string, GGUFMetaData>& metadata,
-                                                 const std::string& key,
-                                                 const ov::element::Type& expected_type) {
+                                                const std::string& key,
+                                                const ov::element::Type& expected_type) {
     auto it = metadata.find(key);
     OPENVINO_ASSERT(it != metadata.end(), "[GGUF] required metadata key is missing: '", key, "'");
     const auto* tensor = std::get_if<ov::Tensor>(&it->second);
@@ -341,7 +341,7 @@ bool metadata_to_bool_or(const std::unordered_map<std::string, GGUFMetaData>& me
 
 }  // namespace
 
-ov::Shape get_shape(const gguf_tensor& tensor) {
+ov::Shape get_shape(const GgufTensor& tensor) {
     ov::Shape shape;
     // GGUF stores dimensions fastest-varying first; the logical (GGML) order is reversed.
     for (int i = static_cast<int>(tensor.ndim) - 1; i >= 0; i--) {
@@ -353,7 +353,7 @@ ov::Shape get_shape(const gguf_tensor& tensor) {
 GGUFLoad get_gguf_data(const std::string& file) {
     std::unordered_map<std::string, GGUFMetaData> metadata;
     std::unordered_map<std::string, ov::Tensor> arrays;
-    std::unordered_map<std::string, gguf_tensor_type> qtype;
+    std::unordered_map<std::string, GgufTensorType> qtype;
 
     auto mapped = ov::load_mmap_object(file);
     OPENVINO_ASSERT(mapped && mapped->data(), "[load_gguf] failed to mmap '", file, "'");
@@ -427,8 +427,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
     // Helper: for a quantized tensor, compute (weights_bytes, scale_bytes, zp_bytes).
     // Symmetric types (Q4_0, Q8_0, Q5_0, Q6_K): zp_bytes = 0.
-    // Asymmetric types (Q4_1, Q4_K): zp u4 packed (same count as scales, half the bytes).
-    // Asymmetric Q5_K: zp u8 (one byte per sub-block, same count as scales).
+    // Asymmetric types: zero-points use the element type selected by gguf_zero_point_type.
     //
     // Every dim comes straight from the file, so shape products (and the total below) use
     // ov::util::mul_overflow/add_overflow instead of raw `*=`/`+=`: wrapped products could
@@ -500,8 +499,8 @@ GGUFLoad get_gguf_data(const std::string& file) {
             return {w_bytes, s_nelems * sizeof(uint16_t), 0};  // symmetric: no zp
         }
 
-        // Weights: i8 or u8 stored in byte arrays (not u32-packed anymore for sym; u32 only for 4-bit).
-        // 4-bit types: Q4_0(i4 in u32), Q4_1(u4 in u32), Q4_K(u4 in u32).
+        // Weights: i8 or u8 stored in byte arrays (u32 only for asymmetric 4-bit).
+        // 4-bit types: Q4_0(i4), Q4_1(u4 in u32), Q4_K(u4 in u32).
         // 8-bit types: Q8_0(i8), Q5_0(i8), Q5_1(i8), Q5_K(i8), Q6_K(i8).
         const bool is_4bit = (ti.type == GGUF_TYPE_Q4_0 || ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K);
         uint64_t weights_per_byte = is_4bit ? 2 : 1;
@@ -522,15 +521,16 @@ GGUFLoad get_gguf_data(const std::string& file) {
         const size_t s_nelems = size_prod(scale_shape);
         const size_t s_bytes = s_nelems * sizeof(uint16_t);
 
-        // Zero-point bytes:
-        //   Symmetric (Q4_0, Q8_0, Q5_0, Q6_K): no zp.
-        //   Q4_1, Q4_K: u4 zp — same element count as scales, packed 2/byte.
-        //   Q5_K, Q5_1: u8 zp — one byte per sub-block.
+        // Zero-point bytes. Symmetric formats have none; asymmetric formats use the same
+        // element count as scales and the representation selected by gguf_zero_point_type.
         size_t z_bytes = 0;
-        if (ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K) {
-            z_bytes = (s_nelems + 1) / 2;  // u4 packed
-        } else if (ti.type == GGUF_TYPE_Q5_K || ti.type == GGUF_TYPE_Q5_1) {
-            z_bytes = s_nelems;  // u8
+        if (ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K || ti.type == GGUF_TYPE_Q5_K ||
+            ti.type == GGUF_TYPE_Q5_1) {
+            OPENVINO_ASSERT(
+                !ov::util::mul_overflow(s_nelems,
+                                        gguf_zero_point_type(ti.name, static_cast<GgufTensorType>(ti.type)).size(),
+                                        z_bytes),
+                "[load_gguf] zero-point byte count overflows size_t");
         }
         return {w_bytes, s_bytes, z_bytes};
     };
@@ -558,7 +558,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
     // ---- Pass 2: materialize tensors, slicing into quant_buf for quantized ones ----
     size_t quant_offset = 0;
     for (const auto& ti : infos) {
-        gguf_tensor tensor;
+        GgufTensor tensor;
         tensor.name = ti.name.data();
         tensor.namelen = ti.name.size();
         tensor.type = ti.type;
@@ -611,20 +611,18 @@ GGUFLoad get_gguf_data(const std::string& file) {
             auto [wb, sb, bb] = quant_sizes(ti);
             char* buf_ptr = quant_buf->get_ptr<char>();
             auto shape = get_shape(tensor);
-            auto weights_shape = shape;
-            weights_shape.back() /= 8;  // u32 packs 8 i4 nibbles
             auto scale_shape = shape;
             scale_shape.back() /= 32;
 
             std::shared_ptr<void> so_buf(quant_buf);
-            ov::Tensor w_view(ov::element::u32, weights_shape, static_cast<void*>(buf_ptr + quant_offset));
+            ov::Tensor w_view(ov::element::i4, shape, static_cast<void*>(buf_ptr + quant_offset));
             ov::Tensor weights(w_view, so_buf);
             quant_offset += wb;
             ov::Tensor s_view(ov::element::f16, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
             ov::Tensor scales(s_view, so_buf);
             quant_offset += sb;
 
-            gguf_fill_q4_0(tensor, weights, scales);
+            gguf_fill_sym(tensor, weights, scales);
             mapped->hint_evict(abs_off, tensor.bsize);
 
             arrays.emplace(name, std::move(weights));
@@ -759,12 +757,11 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
             arrays.emplace(name, std::move(weights));
             arrays.emplace(name_prefix + ".scales", std::move(scales));
-            qtype.emplace(name_prefix + ".qtype", static_cast<gguf_tensor_type>(ti.type));
+            qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
         } else if (ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K || ti.type == GGUF_TYPE_Q5_K ||
                    ti.type == GGUF_TYPE_Q5_1) {
-            // Asymmetric: weights + f16 scales + integer zp.
-            // 4-bit (Q4_1, Q4_K): u32-packed u4 weights, u4 zp.
-            // 8-bit (Q5_K, Q5_1): i8 weights, u8 zp.
+            // Asymmetric: weights + f16 scales + zero-point. Q4_K matmul weights are decoded and
+            // requantized group-wise to u4 with an integer zero-point; Q8_0_C sources keep f16.
             auto [wb, sb, zb] = quant_sizes(ti);
             char* buf_ptr = quant_buf->get_ptr<char>();
 
@@ -788,10 +785,10 @@ GGUFLoad get_gguf_data(const std::string& file) {
             quant_offset += sb;
             // Both ingest paths must agree on the zero-point representation; see
             // gguf_zero_point_type in quant/weights.hpp for why it matters.
-            const auto zp_elem = gguf_zero_point_type(name, static_cast<gguf_tensor_type>(ti.type));
-            // Only Q4_K's integer zp actually rounds: Q2_0's zero-point is the exact integer 1.
+            const auto zp_elem = gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type));
+            // Q4_K performs a real group-wise requantization; Q2_0's integer zero-point is exact.
             if (zp_elem == ov::element::u8 && ti.type == GGUF_TYPE_Q4_K) {
-                notify_lossy_weight_approximation(LossyWeightApproximation::IntegerZeroPoint);
+                notify_lossy_weight_approximation(LossyWeightApproximation::Q4_K_REQUANT);
             }
             ov::Tensor zp(zp_elem, scale_shape);
             quant_offset += zb;
@@ -802,7 +799,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
             arrays.emplace(name, std::move(weights));
             arrays.emplace(name_prefix + ".scales", std::move(scales));
             arrays.emplace(name_prefix + ".zp", std::move(zp));
-            qtype.emplace(name_prefix + ".qtype", static_cast<gguf_tensor_type>(ti.type));
+            qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
         } else if (ti.type == GGUF_TYPE_MXFP4) {
             // MXFP4: slice weight (f4e2m1) + scale (f8e8m0) out of quant_buf.
             auto [wb, sb, dummy_bb] = quant_sizes(ti);
@@ -811,9 +808,6 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
             auto shape = get_shape(tensor);
             const size_t cols = shape.back();
-            size_t nelems = 1;
-            for (auto d : shape)
-                nelems *= d;
             const size_t groups = cols / 32;
             ov::Shape scale_shape = shape;
             scale_shape.back() = groups;
@@ -841,7 +835,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
             constexpr std::string_view weight_suffix = ".weight";
             if (name.size() >= weight_suffix.size()) {
                 const std::string name_prefix = name.substr(0, name.length() - weight_suffix.length());
-                qtype.emplace(name_prefix + ".qtype", static_cast<gguf_tensor_type>(ti.type));
+                qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
             }
         }
     }
@@ -862,20 +856,14 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     const std::string arch = *arch_ptr;
     config["architecture"] = arch;
     config["layer_num"] = metadata_to_int(metadata, arch + ".block_count");
-    config["head_num"] = metadata_to_int(metadata, arch + ".attention.head_count");
-    // When key_length is absent, head_size falls back to embedding_length / head_count, which
-    // runs before supported_archs() can reject anything; a malformed/adversarial file with
-    // head_count == 0 would otherwise be an uncatchable SIGFPE crash rather than a clear error.
-    if (!metadata.count(arch + ".attention.key_length")) {
-        OPENVINO_ASSERT(std::get<int>(config["head_num"]) > 0,
-                        "[GGUF] '",
-                        arch,
-                        ".attention.head_count' must be positive");
-    }
+    const int head_count = metadata_to_int(metadata, arch + ".attention.head_count");
+    // Validate this independently of key_length: head_count is also used by the builder and,
+    // when key_length is absent, is the divisor for the head-size fallback below.
+    OPENVINO_ASSERT(head_count > 0, "[GGUF] '", arch, ".attention.head_count' must be positive");
+    config["head_num"] = head_count;
     config["head_size"] = metadata.count(arch + ".attention.key_length")
                               ? metadata_to_int(metadata, arch + ".attention.key_length")
-                              : (metadata_to_int(metadata, arch + ".embedding_length") /
-                                 metadata_to_int(metadata, arch + ".attention.head_count"));
+                              : (metadata_to_int(metadata, arch + ".embedding_length") / head_count);
     {
         const std::string kv_key = arch + ".attention.head_count_kv";
         if (metadata.count(kv_key)) {
@@ -1051,8 +1039,7 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
             swa_window_value = v;
         }
     }
-    config["has_swa"] =
-        (metadata.count(arch + ".attention.sliding_window_pattern") || swa_window_value > 0) ? 1 : 0;
+    config["has_swa"] = (metadata.count(arch + ".attention.sliding_window_pattern") || swa_window_value > 0) ? 1 : 0;
     config["swa_window_size"] = static_cast<int>(swa_window_value);
 
     // gpt-oss SWA: alternation period (default 2: even layers are SWA). Matches llama.cpp's

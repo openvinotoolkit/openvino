@@ -26,6 +26,7 @@ struct RopeOpt : public ImplementationManager {
         static constexpr std::array supported_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
         };
 
         const auto& in0_layout = node.get_input_layout(0);

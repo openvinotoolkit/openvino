@@ -18,6 +18,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "quant/gguf.hpp"
+#include "quant/weights.hpp"
 
 namespace ov {
 namespace frontend {
@@ -41,7 +42,7 @@ public:
     // `weights` / `qtypes` are the parser's tensor tables; they are referenced, not copied, and
     // must outlive the emitter.
     GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
-                 std::unordered_map<std::string, gguf_tensor_type>& qtypes,
+                 std::unordered_map<std::string, GgufTensorType>& qtypes,
                  std::string arch);
 
     // ---- graph under construction ----
@@ -66,7 +67,7 @@ public:
     std::unordered_map<std::string, ov::Tensor>& weights() {
         return m_weights;
     }
-    std::unordered_map<std::string, gguf_tensor_type>& qtypes() {
+    std::unordered_map<std::string, GgufTensorType>& qtypes() {
         return m_qtypes;
     }
 
@@ -109,16 +110,15 @@ public:
 
     // Emit a weight as a GGML_OP_NONE leaf node carrying the parser's already-extracted tensors
     // (`<base>.weight` [+ `.scales` [+ `.zp`]] + qtype) as node attributes. translate_weight
-    // rebuilds the weights/qtypes maps from these attributes and calls make_weight_node(base,
-    // weights, qtypes). Routing weights through GGML_OP_NONE makes that the single weight-loading
+    // rebuilds a WeightTensors payload from these attributes and calls make_weight_node.
+    // Routing weights through GGML_OP_NONE makes that the single weight-loading
     // API, shared with the llama.cpp cgraph decoder (which marks the same leaf with raw ggml bytes
     // instead), and keeps the compressed decompression subgraph -- built lazily in translate_weight
     // during the walk -- rather than materializing an ov::Node eagerly here.
-    // `node_name` is the tensor name translators reference (the GGML_OP_NONE output);
-    // `extracted` maps "<base>.weight"/".scales"/".zp" -> tensor; `qtype` is the ggml type.
+    // `node_name` is the tensor name translators reference (the GGML_OP_NONE output).
     void emit_weight_op(const std::string& node_name,
-                        const std::unordered_map<std::string, ov::Tensor>& extracted,
-                        gguf_tensor_type qtype,
+                        const WeightTensors& tensors,
+                        GgufTensorType qtype,
                         const ov::PartialShape& shape_4d);
 
     // `ggml_name` is the full tensor name ending in ".weight" (the name translators reference).
@@ -141,7 +141,7 @@ public:
 
 private:
     std::unordered_map<std::string, ov::Tensor>& m_weights;
-    std::unordered_map<std::string, gguf_tensor_type>& m_qtypes;
+    std::unordered_map<std::string, GgufTensorType>& m_qtypes;
     // Architecture name, used only to make a missing-tensor diagnostic actionable.
     std::string m_arch;
 

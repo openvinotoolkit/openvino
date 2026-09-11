@@ -20,7 +20,6 @@
 #include "openvino/op/softplus.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
-
 #include "utils.hpp"
 
 namespace ov {

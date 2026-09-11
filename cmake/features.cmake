@@ -61,6 +61,7 @@ ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components f
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 ov_dependent_option (ENABLE_NPU_DEBUG_CAPS "enable NPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_NPU" OFF)
 ov_dependent_option (ENABLE_GPU_DEBUG_CAPS "enable GPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_GPU" OFF)
+ov_dependent_option (ENABLE_MLIR_FOR_GPU "Enable MLIR / Graph Compiler based execution in GPU plugin [EXPERIMENTAL, NOT PRODUCTION-READY]" OFF "ENABLE_INTEL_GPU;ENABLE_GPU_DEBUG_CAPS" OFF)
 ov_dependent_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_CPU" OFF)
 ov_dependent_option (ENABLE_SNIPPETS_DEBUG_CAPS "enable Snippets debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS" OFF)
 
@@ -157,7 +158,7 @@ ov_option(ENABLE_OV_PYTORCH_FRONTEND "Enable PyTorch FrontEnd" ON)
 ov_option(ENABLE_OV_JAX_FRONTEND "Enable JAX FrontEnd" ON)
 ov_option(ENABLE_OV_TF_FRONTEND "Enable TensorFlow FrontEnd" ON)
 ov_option(ENABLE_OV_TF_LITE_FRONTEND "Enable TensorFlow Lite FrontEnd" ON)
-ov_option(ENABLE_OV_GGUF_FRONTEND "Enable GGUF FrontEnd" OFF)
+ov_option(ENABLE_OV_GGUF_FRONTEND "Enable GGUF FrontEnd" ON)
 
 if(WIN32 AND AARCH64 AND CMAKE_CL_64)
     # Failed: openvino/src/bindings/js/node/thirdparty/node-lib.def: no such file or directory

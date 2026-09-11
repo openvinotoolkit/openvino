@@ -65,8 +65,7 @@ void add_sliced_mask(TensorMap& tensor_map) {
             auto mask = tensor_map.at(mask_name).get_node_shared_ptr();
             // The decoder binds the mask with its current runtime shape, so its
             // token axis already is the active token window.
-            std::shared_ptr<ov::Node> mask_sliced =
-                std::make_shared<ov::op::v0::Convert>(mask, ov::element::f16);
+            std::shared_ptr<ov::Node> mask_sliced = std::make_shared<ov::op::v0::Convert>(mask, ov::element::f16);
             mask_sliced->set_friendly_name(sliced_name);
             tensor_map.insert({sliced_name, mask_sliced->output(0)});
         }
@@ -81,7 +80,10 @@ void add_rope_sin_cos(TensorMap& tensor_map, GgufDecoder& gguf_model_decoder) {
     // small cgraph (a single-op test) has no such attribute -> default RopeConfig (n_dims == 0,
     // "no RoPE") so the shared table is skipped and the op falls back to its own sin/cos.
     const auto rope_config_any = gguf_model_decoder.get_attribute("rope_config");
-    const auto rope_config = rope_config_any.empty() ? RopeConfig{} : rope_config_any.as<RopeConfig>();
+    if (rope_config_any.empty()) {
+        return;
+    }
+    const auto& rope_config = rope_config_any.as<RopeConfig>();
     // n_dims == 0 means the model uses no RoPE; per_op means each ROPE op builds its own sin/cos
     // (e.g. gemma4 where SWA and global layers differ), so skip the shared table entirely.
     if (tensor_map.find("inp_pos") == tensor_map.end() || rope_config.n_dims == 0 || rope_config.per_op) {
@@ -134,7 +136,7 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     std::shared_ptr<Model> resulting_model;
 
     const auto& gguf_model = std::dynamic_pointer_cast<InputModel>(input_model);
-    std::shared_ptr<GgufDecoder> gguf_model_decoder = gguf_model->get_model_decoder();
+    const auto& gguf_model_decoder = gguf_model->get_model_decoder();
 
     // Auxiliary input Parameters may only get a consumer from a later normalization pass, after
     // the unused-Parameter pruning below. Track them so pruning never drops one for lack of a
@@ -173,14 +175,14 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // lazy (never materialized to f32) and keeps one weight-loading path for both ingest paths.
 
     auto node_visitor = [&](std::shared_ptr<GgufDecoder> decoder) {
-        auto operation_type = decoder->get_op_type();
+        const auto& operation_type = decoder->get_op_type();
         if (operation_type == "GGML_OP_NONE") {
             // A GGML_OP_NONE leaf is a weight if the decoder marks it as one: either the native
             // builder's pre-extracted payload (bool "gguf_weight") or the cgraph decoder's raw
             // bytes ("data"). Otherwise it is a model-input leaf (already seeded as a Parameter
             // above) and there is nothing to translate.
-            const bool is_builder_weight = decoder->get_attribute("gguf_weight").is<bool>() &&
-                                           decoder->get_attribute("gguf_weight").as<bool>();
+            const bool is_builder_weight =
+                decoder->get_attribute("gguf_weight").is<bool>() && decoder->get_attribute("gguf_weight").as<bool>();
             const bool is_cgraph_weight = decoder->get_attribute("data").is<ov::Tensor>();
             if (!is_builder_weight && !is_cgraph_weight) {
                 return;
@@ -207,7 +209,7 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
                                       " respectively.");
 
         for (size_t i = 0; i < node_output_names.size(); ++i) {
-            auto output_name = node_output_names[i];
+            const auto& output_name = node_output_names[i];
             if (i < converted_outputs.size() && converted_outputs[i].get_node_shared_ptr() != nullptr) {
                 (*tensor_map)[output_name] = converted_outputs[i];
             }
@@ -360,9 +362,10 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     // Loop: GatedDeltaNetFusion also bundles TransposeFuse, a generic cleanup that would otherwise
     // touch every architecture's op count.
     const auto ordered_ops = model->get_ordered_ops();
-    const auto has_loop = std::any_of(ordered_ops.begin(), ordered_ops.end(), [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::v5::Loop>(node);
-    });
+    const auto has_loop =
+        std::any_of(ordered_ops.begin(), ordered_ops.end(), [](const std::shared_ptr<ov::Node>& node) {
+            return ov::is_type<ov::op::v5::Loop>(node);
+        });
     if (has_loop) {
         auto live_before_gdn = std::make_shared<std::unordered_set<const ov::Node*>>();
         manager.register_pass<pass::SnapshotLiveParameters>(live_before_gdn);

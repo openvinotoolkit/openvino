@@ -22,9 +22,9 @@ namespace gguf {
 // ...) are data, detected from the tensor table; families are code, one ModelBuilder subclass
 // each.
 enum class ModelKind {
-    Decoder,  // causal decoder-only LLM: the "llama family" (dense + MoE + hybrid recurrent)
-    Vision,   // mmproj vision encoder + projector (clip.has_vision_encoder)
-    Audio,    // mmproj audio encoder + projector (clip.has_audio_encoder)
+    DECODER,  // causal decoder-only LLM: the "llama family" (dense + MoE + hybrid recurrent)
+    VISION,   // mmproj vision encoder + projector (clip.has_vision_encoder)
+    AUDIO,    // mmproj audio encoder + projector (clip.has_audio_encoder)
 };
 
 // Classify a parsed GGUF file from its raw metadata.

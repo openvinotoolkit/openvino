@@ -5,7 +5,6 @@
 #include "mlp_fusion.hpp"
 
 #include <memory>
-#include <utility>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -14,6 +13,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -25,6 +25,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
@@ -59,13 +60,13 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     auto input = any_input(rank_equals(3));
 
     auto gate_proj_weight_compressed = wrap_type<Constant>();  // [up_size, down_size]
-    auto gate_proj_weight = wrap_type<Convert>(gate_proj_weight_compressed, {{"destination_type", "f32"}});
+    auto gate_proj_weight = optional<Convert>(gate_proj_weight_compressed, {{"destination_type", "f32"}});
 
     auto up_proj_weight_compressed = wrap_type<Constant>();  // [up_size, down_size]
-    auto up_proj_weight = wrap_type<Convert>(up_proj_weight_compressed, {{"destination_type", "f32"}});
+    auto up_proj_weight = optional<Convert>(up_proj_weight_compressed, {{"destination_type", "f32"}});
 
     auto down_proj_weight_compressed = wrap_type<Constant>();  // [down_size, up_size]
-    auto down_proj_weight = wrap_type<Convert>(down_proj_weight_compressed, {{"destination_type", "f32"}});
+    auto down_proj_weight = optional<Convert>(down_proj_weight_compressed, {{"destination_type", "f32"}});
 
     // symmetrically INT8 quantized version
     // all 3 layers must be quantized at the same time (checked in callback)
@@ -89,7 +90,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
 
     // gate-up weights are combined
     auto gate_up_proj_weight = wrap_type<Constant>(type_matches(element::f16) && rank_equals(2));
-    auto gate_up_proj_weight_f32 = wrap_type<Convert>(gate_up_proj_weight, {{"destination_type", "f32"}});
+    auto gate_up_proj_weight_f32 = optional<Convert>(gate_up_proj_weight, {{"destination_type", "f32"}});
 
     auto gate_up_proj_weight_const_i8 = wrap_type<Constant>(type_matches(element::i8) && rank_equals(2));
     auto gate_up_proj_weight_cvt_f32 = wrap_type<Convert>(gate_up_proj_weight_const_i8, {{"destination_type", "f32"}});
@@ -103,21 +104,16 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     auto gate_up_proj_split = wrap_type<VariadicSplit>({gate_up_proj, -1, gate_up_split_lengths});
     gate_up_proj_split->set_output_size(2);
 
-    auto mlp_gate_proj =
-        wrap_type<MatMul>({input, gate_proj_weight | gate_proj_weight_compressed | gate_proj_weight_deq},
-                          {{"transpose_a", false}, {"transpose_b", true}});
-    auto mlp_silu_gate = wrap_type<Swish>({mlp_gate_proj | gate_up_proj_split});
-    auto mlp_gelu_gate = wrap_type<Gelu>({mlp_gate_proj | gate_up_proj_split});
-    auto mlp_up_proj = wrap_type<MatMul>({input, up_proj_weight | up_proj_weight_compressed | up_proj_weight_deq},
+    auto mlp_gate_proj = wrap_type<MatMul>({input, gate_proj_weight | gate_proj_weight_deq},
+                                           {{"transpose_a", false}, {"transpose_b", true}});
+    auto mlp_gate_act = wrap_type<Swish, Gelu>({mlp_gate_proj | gate_up_proj_split});
+    auto mlp_up_proj = wrap_type<MatMul>({input, up_proj_weight | up_proj_weight_deq},
                                          {{"transpose_a", false}, {"transpose_b", true}});
 
-    auto mlp_gated_up = wrap_type<Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split},
-                                            {{"auto_broadcast", "numpy"}});
-    auto down_proj =
-        wrap_type<MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq},
-                          {{"transpose_a", false}, {"transpose_b", true}});
-
-    auto result = down_proj;
+    auto mlp_gated_up =
+        wrap_type<Multiply>({mlp_gate_act, mlp_up_proj | gate_up_proj_split}, {{"auto_broadcast", "numpy"}});
+    auto down_proj = wrap_type<MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_deq},
+                                       {{"transpose_a", false}, {"transpose_b", true}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -125,19 +121,11 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
 
         // Determine gate_up_type based on pattern matching
         LLMMLPNode::GATE_UP_TYPE gate_up_type = LLMMLPNode::GATE_UP_TYPE::SEPARATE;
-        if (pattern_map.find(gate_up_proj_split) != pattern_map.end()) {
-            auto mlp_gated_up_node = pattern_map.at(mlp_gated_up).get_node_shared_ptr();
-            auto input0 = mlp_gated_up_node->input_value(0);
-            auto input1 = mlp_gated_up_node->input_value(1);
-
-            // Check if VariadicSplit output[0] connects to Multiply (swapped case)
-            // Since pattern matching succeeded, we know one of the outputs connects to Multiply
-            if ((input0.get_node() == pattern_map.at(gate_up_proj_split).get_node() && input0.get_index() == 0) ||
-                (input1.get_node() == pattern_map.at(gate_up_proj_split).get_node() && input1.get_index() == 0)) {
-                gate_up_type = LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE;  // swapped case
-            } else {
-                gate_up_type = LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP;  // normal combined case
-            }
+        if (pattern_map.count(gate_up_proj_split)) {
+            // The gate half feeds the activation: gate at split output(0) is the normal layout, otherwise swapped.
+            auto gate_src = pattern_map.at(mlp_gate_act).get_node_shared_ptr()->input_value(0);
+            gate_up_type = (gate_src.get_index() == 0) ? LLMMLPNode::GATE_UP_TYPE::COMBINED_GATE_UP
+                                                       : LLMMLPNode::GATE_UP_TYPE::COMBINED_UP_GATE;
         }
 
         auto src = pattern_map.at(input);
@@ -237,37 +225,16 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
             return false;
         }
 
-        auto [config, gate_act] = [&]() -> std::pair<LLMMLPNode::Config, std::shared_ptr<Node>> {
-            LLMMLPNode::Config cfg{};
+        LLMMLPNode::Config config{};
+        config.act = ov::is_type<Swish>(pattern_map.at(mlp_gate_act).get_node()) ? LLMMLPNode::ACT_FN::SILU
+                                                                                 : LLMMLPNode::ACT_FN::GELU;
+        config.gate_up_quantized = is_gate_up_quantized_int8;
+        config.down_quantized = is_down_proj_int8;
+        config.hidden_size = static_cast<int>(down_size);
+        config.up_size = static_cast<int>(up_size);
+        config.gate_up_type = gate_up_type;
 
-            cfg.gate_up_quantized = is_gate_up_quantized_int8;
-            cfg.down_quantized = is_down_proj_int8;
-            cfg.hidden_size = static_cast<int>(down_size);
-            cfg.up_size = static_cast<int>(up_size);
-            cfg.gate_up_type = gate_up_type;
-
-            if (pattern_map.count(mlp_silu_gate) > 0) {
-                cfg.act = LLMMLPNode::ACT_FN::SILU;
-                return {cfg, mlp_silu_gate};
-            }
-
-            if (pattern_map.count(mlp_gelu_gate) > 0) {
-                cfg.act = LLMMLPNode::ACT_FN::GELU;
-                return {cfg, mlp_gelu_gate};
-            }
-
-            return {cfg, nullptr};
-        }();
-
-        if (!gate_act) {
-            return false;
-        }
-
-        OutputVector new_args;
-        new_args.push_back(src);
-        new_args.push_back(gate_proj_w);
-        new_args.push_back(up_proj_w);
-        new_args.push_back(down_proj_w);
+        OutputVector new_args{src, gate_proj_w, up_proj_w, down_proj_w};
         if (is_gate_up_quantized_int8) {
             if (gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
                 new_args.push_back(pattern_map.at(gate_up_proj_weight_scales_per_OC));
@@ -285,7 +252,7 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
         auto new_node = std::make_shared<LLMMLPNode>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
         ov::copy_runtime_info(
-            {pattern_map.at(gate_act).get_node_shared_ptr(), pattern_map.at(down_proj).get_node_shared_ptr()},
+            {pattern_map.at(mlp_gate_act).get_node_shared_ptr(), pattern_map.at(down_proj).get_node_shared_ptr()},
             new_node);
         if (gate_up_type != LLMMLPNode::GATE_UP_TYPE::SEPARATE) {
             ov::copy_runtime_info({pattern_map.at(gate_up_proj).get_node_shared_ptr()}, new_node);
@@ -303,6 +270,6 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(down_proj, matcher_name);
     this->register_matcher(m, callback);
 }

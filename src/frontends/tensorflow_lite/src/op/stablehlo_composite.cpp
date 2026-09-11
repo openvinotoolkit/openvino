@@ -14,6 +14,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/pass/node_registry.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -30,6 +31,8 @@ OutputVector translate_odml_rms_norm(const ov::frontend::tensorflow_lite::NodeCo
     FRONT_END_GENERAL_CHECK(inputs.size() == 2,
                             "STABLEHLO_COMPOSITE odml.rms_norm expects 2 inputs (data, gamma), got ",
                             inputs.size());
+
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs, node.get_decoder());
 
     const auto& data = inputs[0];
     const auto& gamma = inputs[1];

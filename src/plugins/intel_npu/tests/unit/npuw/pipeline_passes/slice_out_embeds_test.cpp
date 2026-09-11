@@ -43,8 +43,10 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsInsertedWhenGenerationTokenLenIsLessThanPr
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
     ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"},
+                                                      {"NPUW_LLM_PROPAGATE_SLICE_UP", "NO"},
                                                       {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
                                                      recorder));
+
     ASSERT_NE(compiled, nullptr);
 
     const auto& prefill = require_sub_model(recorder, "_prefill");
@@ -73,9 +75,9 @@ TEST_F(SliceOutEmbedsPassTest, SliceIsNotInsertedWhenGenerationTokenLenEqualsPro
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
     // MAX_GENERATION_TOKEN_LEN=128 equals MAX_PROMPT_LEN=128, so no slicing is needed.
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "YES"},
-                                                      {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "128"}},
-                                                     recorder));
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        {{"NPUW_LLM_SHARED_HEAD", "YES"}, {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "128"}},
+                        recorder));
     ASSERT_NE(compiled, nullptr);
 
     const auto& prefill = require_sub_model(recorder, "_prefill");
@@ -101,9 +103,9 @@ TEST_F(SliceOutEmbedsPassTest, SliceNotAppliedWhenNoSharedHead) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "NO"},
-                                                      {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
-                                                     recorder));
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
+                                         recorder));
     ASSERT_NE(compiled, nullptr);
 
     // lm_head sub-model must not exist when SHARED_HEAD=NO

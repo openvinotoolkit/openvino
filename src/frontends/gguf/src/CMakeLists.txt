@@ -12,7 +12,7 @@
 ov_add_frontend(NAME gguf
                 LINKABLE_FRONTEND
                 FILEDESCRIPTION "FrontEnd to convert GGUF models"
-                LINK_LIBRARIES openvino::util openvino::core::dev openvino::offline_transformations)
+                LINK_LIBRARIES openvino::util openvino::core::dev)
 
 ov_build_target_faster(openvino_gguf_frontend PCH)
 
