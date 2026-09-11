@@ -24,6 +24,23 @@ namespace onnx {
 namespace ai_onnx {
 namespace opset_11 {
 
+namespace {
+// The ONNX spec requires 'position' to be a scalar, but OV's own ONNX Loop
+// translator (op/loop.cpp) represents the Loop's iteration-counter special body
+// port as a rank-1, size-1 tensor (OV's own v5::Loop convention), not a true
+// rank-0 scalar. Accept that shape too: it is a shape-convention mismatch
+// between two parts of OV's own ONNX frontend, not a real modeling error, and
+// the downstream resolution paths already squeeze such indices to scalar
+// before use.
+bool is_scalar_like_position(const ov::PartialShape& position_shape) {
+    const auto& rank = position_shape.rank();
+    if (rank.compatible(0)) {
+        return true;
+    }
+    return rank.is_static() && rank.get_length() == 1 && position_shape[0].compatible(1);
+}
+}  // namespace
+
 /// @brief Implements the SequenceAt operator
 /// @param node Input ONNX node. Must have two inputs: a sequence and a position.
 ///             Sequence is represented as a SequenceMark node.
@@ -36,7 +53,8 @@ ov::OutputVector sequence_at(const ov::frontend::onnx::Node& node) {
     const auto& inputs = node.get_ov_inputs();
 
     auto position = inputs[1];
-    OPENVINO_ASSERT(position.get_partial_shape().rank().compatible(0), "SequenceAt: 'position' input must be a scalar");
+    OPENVINO_ASSERT(is_scalar_like_position(position.get_partial_shape()),
+                    "SequenceAt: 'position' input must be a scalar (or a rank-1, size-1 tensor)");
 
     // Fast path: input is a SequenceMark chain - resolve directly.
     if (const auto input_sequence = as_type_ptr<SequenceMark>(inputs[0].get_node_shared_ptr())) {
