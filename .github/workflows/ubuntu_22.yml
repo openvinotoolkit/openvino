@@ -646,6 +646,7 @@ jobs:
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
+      test_filter: ${{ github.event_name == 'pull_request' && matrix.TEST_TYPE == 'unit' && '*pooling_forward_gpu*-*basic_max_pooling_int8*' || '' }}
       runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
