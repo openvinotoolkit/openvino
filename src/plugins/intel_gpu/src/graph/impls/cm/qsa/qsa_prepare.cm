@@ -17,13 +17,13 @@
 // Q1 - qsa_prepare
 //
 // One work-group owns one (sequence, QSA compression block) pair. This single
-// ownership rule covers all three variants of design section 6.2 at once:
-//   * prefill    -> many blocks per sequence, each fully owned (prefill_block_local);
-//   * decode     -> the single appended token lands in exactly one block (decode_append);
-//   * mixed      -> the host emits the touched (sequence, block) pairs per segment
-//                   (mixed_segmented); a work-group never spans two sequences.
+// ownership rule covers all three variants at once:
+//   * prefill    -> many blocks per sequence, each fully owned;
+//   * decode     -> the single appended token lands in exactly one block;
+//   * mixed      -> the host emits the touched (sequence, block) pairs per segment;
+//                   a work-group never spans two sequences.
 //
-// Fused chain with register/SLM-level reuse (design section 6.2):
+// Fused chain with register/SLM-level reuse:
 //   indexer Q/K projection (CM tiled GEMM, no oneDNN)
 //     -> indexer Q: RMSNorm + partial RoPE at the token's own position
 //     -> indexer raw K: cache layout transform ONLY (no norm, no RoPE)

@@ -17,10 +17,10 @@
 // Q2 prefill - qsa_score_topk_fused
 //
 // Prefill has plenty of queries, so the parallelism comes from the query axis and
-// scoring + top-k collapse into ONE dispatch per query (design section 6.3). The
-// summary array of a sequence is shared by every query of that sequence and is
-// L2-resident at the 8 MB/layer scale, which is why re-reading it per query tile
-// is cheap here while it would dominate decode.
+// scoring + top-k collapse into ONE dispatch per query. The summary array of a
+// sequence is shared by every query of that sequence and is L2-resident at the
+// 8 MB/layer scale, which is why re-reading it per query tile is cheap here
+// while it would dominate decode.
 //
 // The selection uses exactly the same radix_select_topk() helper as the decode
 // finalization kernel, which is what guarantees the prefill and decode variants

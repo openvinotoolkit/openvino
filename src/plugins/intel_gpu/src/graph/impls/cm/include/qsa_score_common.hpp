@@ -16,7 +16,7 @@
 
 // Indexer block scoring shared by the three Q2 kernels.
 //
-// Numerical rules that must not be reordered (design section 6.3):
+// Numerical rules that must not be reordered:
 //   1. per-head dot product, then per-head ReLU, then head reduction;
 //   2. the 1/sqrt(Di) scale is applied AFTER the ReLU sum, not per head;
 //   3. dot products accumulate in FP32 (pooling was already FP32 in Q1).

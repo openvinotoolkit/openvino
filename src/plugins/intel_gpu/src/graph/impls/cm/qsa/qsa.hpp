@@ -44,7 +44,6 @@ struct QSAInternalBufIdx {
 /// row_end) query-row window, plus the [tile_offset, tile_offset+tile_count) slice of
 /// QSARuntimeParams::score_tile_map that covers it (tile boundaries are re-anchored at
 /// max(row_begin, sequence_begin), so a tile never straddles a chunk or sequence edge).
-/// Mirrors qsa_score_chunked.py::ScoreChunk/plan_score_chunks in the standalone harness.
 struct QSAScoreChunk {
     size_t row_begin = 0;
     size_t row_end = 0;

@@ -38,12 +38,12 @@ constexpr size_t dpas_block_tile = 8;     // dpas RepeatCount (M axis)
 constexpr size_t dpas_k_step = 16;          // fp16 K elements per dpas
 constexpr size_t dpas_wide_cols = 32;       // halfs per 2D block row; the hardware caps a row at 64 B
 constexpr size_t max_slm_bytes = 64 * 1024;
-constexpr size_t topk_wg_size = 16;          // qsa_topk_radix_wg cooperative WG size (fast-wg16 policy)
-// The kernel's own upper bound (matches qsa_score_chunked.py::topk_cache_capacity's cap):
-// compiled once with the maximum, it degrades to an uncached global scan only above 2048
-// SIMD64-aligned keys/worker, never producing a wrong selection at any context length.
+constexpr size_t topk_wg_size = 16;          // qsa_topk_radix_wg cooperative WG size
+// This is the kernel's own upper bound: compiled once with the maximum, it degrades to
+// an uncached global scan only above 2048 SIMD64-aligned keys/worker, never producing a
+// wrong selection at any context length.
 constexpr size_t topk_cache_capacity = 2048;
-constexpr size_t split_partitions = 16;      // decode split-selected-KV Q3 partitions (validated Stage4 P16)
+constexpr size_t split_partitions = 16;      // decode split-selected-KV Q3 partitions
 // Only route decode Q3 through the split path at/above this past length; shorter decode
 // contexts are already cheap on the scalar kernel and do not need the extra reduce pass.
 constexpr size_t split_decode_min_past = 2048;
@@ -93,11 +93,11 @@ bool can_use_dpas_score(const qsa& desc, const cldnn::device_info& info) {
     return staged_bytes <= max_slm_bytes;
 }
 
-// Matches qsa_score_chunked.py::DEFAULT_SCORE_BYTES: the BLOCK_SCORES scratch buffer is
-// bounded to this many bytes regardless of how many query rows a call actually has, so a
-// 128K-token prefill never allocates the tens-of-GB [tokens, max_blocks] f32 buffer an
-// unbounded design would need. Q2 instead runs as a sequence of query-row chunks, each
-// scoring/selecting into the SAME bounded buffer before the next chunk reuses it.
+// Upper bound on the BLOCK_SCORES scratch buffer's byte size, regardless of how many
+// query rows a call actually has, so a 128K-token prefill never allocates the tens-of-GB
+// [tokens, max_blocks] f32 buffer an unbounded design would need. Q2 instead runs as a
+// sequence of query-row chunks, each scoring/selecting into the SAME bounded buffer
+// before the next chunk reuses it.
 constexpr size_t score_budget_bytes = 128 * 1024 * 1024;
 
 /// Query-row capacity of the (possibly bounded) BLOCK_SCORES buffer for this shape/device.
@@ -207,11 +207,10 @@ bool can_use_dpas_projection(const qsa& desc, const cldnn::device_info& info) {
 }
 
 /// Whether the GQA-aware systolic Q3 (qsa_sparse_attention_gqa_dpas) can be used.
-/// Mirrors Q3GQAAttention.unsupported_reason() in the standalone qsa_attention_gqa.py: an
-/// integral GQA group that fits the N16 dpas tile, W4 head-dimension slices aligned to 32
-/// halfs, head sizes within the verified <=256 range, and a compress ratio the kernel can
-/// pack into one 16-token dpas K step. When unsupported, QSACmImpl falls back to the older
-/// union-based qsa_sparse_attention_dpas, then to the scalar kernel.
+/// Needs an integral GQA group that fits the N16 dpas tile, W4 head-dimension slices
+/// aligned to 32 halfs, head sizes within the verified <=256 range, and a compress ratio
+/// the kernel can pack into one 16-token dpas K step. When unsupported, QSACmImpl falls
+/// back to the older union-based qsa_sparse_attention_dpas, then to the scalar kernel.
 bool can_use_gqa_dpas_attention(const qsa& desc, const cldnn::device_info& info) {
     if (info.arch < gpu_arch::xe2) {
         return false;
@@ -228,7 +227,7 @@ bool can_use_gqa_dpas_attention(const qsa& desc, const cldnn::device_info& info)
         return false;
     }
     if (std::max(desc.k_head_size, desc.v_head_size) > 256) {
-        return false;  // above the verified standalone accumulator range
+        return false;  // above the verified accumulator range
     }
     if (desc.compress_ratio != 2 && desc.compress_ratio != 4 && desc.compress_ratio != 8 && desc.compress_ratio != 16) {
         return false;
@@ -422,7 +421,7 @@ protected:
 };
 
 // ===========================================================================
-// Q1 systolic variant - standalone indexer Q/K projection on cm_dpas
+// Q1 systolic variant - indexer Q/K projection on cm_dpas
 // ===========================================================================
 // Feeds QSAPrepareGenerator's QSA_PREPROJECTED path: [tokens,D] x [J,D]^T -> [tokens,J]
 // FP32, so the fused qsa_prepare kernel only has to do norm/RoPE/pooling/cache-layout
@@ -656,60 +655,9 @@ protected:
 };
 
 // ===========================================================================
-// Q2 decode pass 2 - top-k finalization
-// ===========================================================================
-class QSATopkFinalizationGenerator : public KernelGenerator {
-public:
-    QSATopkFinalizationGenerator() : KernelGenerator("qsa_topk_finalization", "_cm") {}
-
-protected:
-    [[nodiscard]] std::string get_build_options(const RuntimeParams& params) const override {
-        return KernelGenerator::get_build_options(params) + get_qsa_build_options();
-    }
-
-    [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
-        auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
-        jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
-        return jit;
-    }
-
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
-        Arguments args;
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAInternalBufIdx::BLOCK_SCORES});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAInternalBufIdx::SELECTED_BLOCKS});
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAInternalBufIdx::SELECTED_COUNTS});
-        for (uint32_t i = 0; i < 3; i++) {
-            args.push_back({ArgumentDescriptor::Types::SCALAR, i});
-        }
-        return args;
-    }
-
-    [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
-        return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt) {
-            if (params.is_dynamic()) {
-                return;
-            }
-            auto* rtp = rt_of(rt);
-            auto& wgs = kd.params.workGroups;
-            wgs.global = {std::max<size_t>(1, rtp->num_tokens), 1, 1};
-            wgs.local = {1, 1, 1};
-
-            kd.params.scalars.clear();
-            push_u32(kd, rtp->num_tokens);
-            push_u32(kd, rtp->num_seqs);
-            push_u32(kd, rtp->max_blocks);
-        }};
-    }
-};
-
-// ===========================================================================
 // Q2 decode pass 2, cooperative variant - fast-wg16-cached exact top-k
 // ===========================================================================
-// Drop-in replacement for QSATopkFinalizationGenerator: identical buffer/scalar contract,
-// but one work-group of QSA_TOPK_WG threads cooperatively scans each row instead of a
+// One work-group of QSA_TOPK_WG threads cooperatively scans each row instead of a
 // single thread, with an opt-in per-worker key cache. QSA_TOPK_CACHE_CAPACITY is compiled
 // at its own maximum (2048): the kernel falls back to an uncached global scan above that
 // many SIMD64-aligned keys/worker, so this is always safe and never an approximation, for
@@ -922,9 +870,9 @@ protected:
 // Preferred over QSASparseAttentionDpasGenerator whenever can_use_gqa_dpas_attention()
 // holds: the dpas N axis is filled with the GQA replication group (all n_rep query heads
 // of one token share one KV read), not a union of several tokens' independent top-k
-// selections. QSA_GQA_HEAD_MAJOR/QSA_GQA_VECTOR_META are the measured PTL winners (see
-// qsa_attention_gqa.py): KV-head-major work-group launch order plus batched masked
-// metadata gathers. Neither changes the score/softmax arithmetic.
+// selections. QSA_GQA_HEAD_MAJOR/QSA_GQA_VECTOR_META enable KV-head-major work-group
+// launch order plus batched masked metadata gathers, which improve KV cache locality on
+// long contexts. Neither changes the score/softmax arithmetic.
 class QSASparseAttentionGqaDpasGenerator : public KernelGenerator {
 public:
     QSASparseAttentionGqaDpasGenerator() : KernelGenerator("qsa_sparse_attention_gqa_dpas", "_cm") {}
@@ -972,7 +920,7 @@ protected:
 
             auto& wgs = kd.params.workGroups;
             // QSA_GQA_HEAD_MAJOR=1: dim0 enumerates (token, W4 worker), dim1 the KV head,
-            // so consecutive work-groups share a KV head (see qsa_attention_gqa.py).
+            // so consecutive work-groups share a KV head.
             const size_t tokens = std::max<size_t>(1, rtp->num_tokens);
             wgs.global = {tokens * 4, desc->kv_heads_num, 1};
             wgs.local = {4, 1, 1};
@@ -1313,9 +1261,9 @@ public:
             // both run as a sequence of bounded query-row chunks against the SAME reused
             // BLOCK_SCORES scratch: chunk i+1's score dispatch must not start before chunk
             // i's topk_radix_wg has finished reading it, so chunks are chained strictly
-            // sequentially (never run concurrently), matching qsa_score_chunked.py's
-            // ChunkedQ2.enqueue(). A shape that fits the score budget in one chunk (the
-            // common case) just runs this loop once, identical to the old unchunked calls.
+            // sequentially (never run concurrently). A shape that fits the score budget in
+            // one chunk (the common case) just runs this loop once, identical to a single
+            // unchunked call.
             std::vector<event::ptr> chunk_deps = after_prepare;
             for (const auto& chunk : rtp->score_chunks) {
                 rtp->chunk_row_begin = chunk.row_begin;
@@ -1446,10 +1394,9 @@ public:
             }
         }
 
-        // Bounded-scratch query-row chunk plan + its score_tile_map, mirroring
-        // qsa_score_chunked.py::plan_score_chunks: chunk boundaries are plain row-count
-        // windows over the flat 0..num_tokens range (independent of sequence
-        // boundaries), and within each chunk, 16-query tiles are re-anchored at
+        // Bounded-scratch query-row chunk plan + its score_tile_map: chunk boundaries are
+        // plain row-count windows over the flat 0..num_tokens range (independent of
+        // sequence boundaries), and within each chunk, 16-query tiles are re-anchored at
         // max(chunk_begin, sequence_begin) so a tile never straddles a chunk OR a
         // sequence edge. The row-chunk-aware kernels clamp `valid`/`row_end - token0`
         // themselves, so a tile may legitimately be shorter than 16 at either kind of
@@ -1494,11 +1441,10 @@ public:
         rtp->num_partitions = std::max<size_t>(1, (rtp->max_blocks + partition_blocks - 1) / partition_blocks);
         rtp->stage = (any_multi && any_single) ? QSAStage::MIXED : (any_multi ? QSAStage::PREFILL : QSAStage::GENERATE);
         // Only pure decode (every sequence contributes exactly one new token) with enough
-        // history for the K=512 selection budget to matter routes through the
-        // split-selected-KV Q3; short decode is already cheap on the scalar kernel. Mirrors
-        // the standalone's validated "all p >= 2048" gate (qsa_attention_split.py /
-        // test_qsa_pipeline.py Stage4), generalized from batch in (1,4) to any batch size
-        // since neither kernel's dispatch grid depends on the number of sequences.
+        // history for the block-selection budget to matter routes through the
+        // split-selected-KV Q3; short decode is already cheap on the scalar kernel. This
+        // is independent of batch size since neither kernel's dispatch grid depends on
+        // the number of sequences.
         rtp->use_split_attention = rtp->stage == QSAStage::GENERATE && any_single &&
                                    min_past_len != std::numeric_limits<size_t>::max() &&
                                    min_past_len >= split_decode_min_past;

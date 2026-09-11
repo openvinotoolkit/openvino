@@ -17,11 +17,11 @@
 // Shared address arithmetic, RoPE / RMSNorm helpers and the deterministic radix
 // top-k selector used by the four QSA CM kernel families.
 //
-// Address contract (design sections 6.1 / 7.1.1 / 7.1.2): the main K/V cache, the
-// indexer raw-K cache and the QSA block-summary cache all share ONE page table
-// (`block_indices` / `block_indices_begins`). Each buffer converts a page index into
-// a base address using its own per-page element count. Sharing the page table is what
-// keeps selection and the actual KV in sync across seq_rm / seq_cp / beam reorder.
+// Address contract: the main K/V cache, the indexer raw-K cache and the QSA
+// block-summary cache all share ONE page table (`block_indices` /
+// `block_indices_begins`). Each buffer converts a page index into a base address
+// using its own per-page element count. Sharing the page table is what keeps
+// selection and the actual KV in sync across seq_rm / seq_cp / beam reorder.
 
 // ATTR must sit OUTSIDE the include guard. The codegen appends an `#undef ATTR` at the
 // end of every kernel it inlines this header into, and the guard suppresses the second
@@ -31,10 +31,12 @@
 #define ATTR [[type("svmptr_t")]]
 #endif
 
-// Standalone stage 1: selection/fused scratch may bypass dense rows by default.
-// Separate score kernels retain their score-output contract unless the caller
-// explicitly pairs them with a bypass-enabled finalizer. Keep defaults outside
-// the guard, like ATTR, for flattened multi-kernel sources.
+// Dense-prefix bypass: rows whose complete-block count does not exceed block_topk
+// select every block via arange, without ever reading (or, with
+// QSA_DENSE_SCORE_BYPASS, ever writing) scores for that row. Separate score kernels
+// retain their score-output contract unless the caller explicitly pairs them with a
+// bypass-enabled finalizer. Keep defaults outside the guard, like ATTR, for
+// flattened multi-kernel sources.
 #ifndef QSA_DENSE_BYPASS
 #define QSA_DENSE_BYPASS 1
 #endif
@@ -116,7 +118,7 @@ CM_INLINE void apply_partial_rope(vector_ref<float, HEAD_DIM> v, const half* tab
 // --------------------------------------------------------------------------
 // RMSNorm over one head vector, FP32 accumulation. The gain is applied exactly
 // as stored: any `1 + w` folding must happen once, either in lowering or in the
-// kernel, never twice (design section 8.5).
+// kernel, never twice.
 // --------------------------------------------------------------------------
 template <int HEAD_DIM>
 CM_INLINE void rms_norm(vector_ref<float, HEAD_DIM> v, const half* weight ATTR, float eps) {
@@ -139,10 +141,10 @@ CM_INLINE void rms_norm(vector_ref<float, HEAD_DIM> v, const half* weight ATTR, 
 // --------------------------------------------------------------------------
 // Deterministic top-k over an FP32 score row.
 //
-// Order-preserving float->uint key transform plus a 4 x 8-bit radix select, i.e.
-// the histogram / radix-select scheme of design section 6.8.4. The tie-break is
-// fixed to (score descending, qsa_block_id ascending), so the prefill fused
-// variant and the decode partition + finalization variant select the same blocks.
+// Order-preserving float->uint key transform plus a 4 x 8-bit radix select. The
+// tie-break is fixed to (score descending, qsa_block_id ascending), so the prefill
+// fused variant and the decode partition + finalization variant select the same
+// blocks.
 // --------------------------------------------------------------------------
 
 /// Monotonic float -> uint32 key; preserves IEEE-754 ordering for finite values.

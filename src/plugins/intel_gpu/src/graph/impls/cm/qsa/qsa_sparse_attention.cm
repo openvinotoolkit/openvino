@@ -17,7 +17,7 @@
 // Q3 - qsa_sparse_attention
 //
 // Consumes the selected QSA metadata directly: no 4D selected mask and no
-// materialized selected K/V are ever created. Structure (design section 6.4):
+// materialized selected K/V are ever created. Structure:
 //   selected block ids -> token positions -> PA page / token_in_page
 //     -> indirect f16 K/V read -> QK -> online softmax -> V accumulation
 //     -> attention output gate (the gate half of q_proj)
@@ -73,7 +73,7 @@ CM_INLINE void qsa_softmax_step(float score, float& running_max, float& running_
 /// whole span lives in one PA page, which holds for a QSA block because
 /// PA_BLOCK_SIZE % r == 0. Fetching a selected block as ONE r*Dh*2 = 1 KB message
 /// instead of r separate head-wide reads is what keeps the gather LSC-friendly at high
-/// sparsity (design section 6.8.5); a linear kv_step tile would waste ~4x the bandwidth.
+/// sparsity; a linear kv_step tile would waste ~4x the bandwidth.
 template <int DH, int DV, int HKV, int PA_BLOCK, int SPAN>
 CM_INLINE void qsa_attend_span(vector_ref<float, DH> q,
                                vector_ref<float, DV> acc,

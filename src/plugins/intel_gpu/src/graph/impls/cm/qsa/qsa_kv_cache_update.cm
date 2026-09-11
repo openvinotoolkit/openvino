@@ -17,7 +17,7 @@
 // Q0 - qsa_kv_cache_update
 //
 // Writes the externally projected K_cur / V_cur into the paged f16 main KV cache.
-// Deliberately a standalone kernel, never merged into Q1 (design section 6.8.6):
+// Deliberately its own kernel, never merged into Q1:
 //   * its natural dispatch is (token x kv_head), Q1's is (sequence x QSA block);
 //   * merging would serialize Q3's main-KV dependency behind the whole indexer chain;
 //   * a single-token work unit is transparent to mixed batches, so it needs no

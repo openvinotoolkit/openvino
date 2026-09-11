@@ -14,7 +14,7 @@
  * limitations under the License.
  *******************************************************************************/
 
-// Stage5 standalone, derived from qsa_sparse_attention_dpas.cm (kept unchanged).
+// GQA-aware systolic Q3, added alongside (not replacing) qsa_sparse_attention_dpas.cm.
 // One WG = ONE token x ONE KV head. N columns = all nrep query heads, padded to
 // 16 (nrep need NOT divide 16). A KV slice is loaded once for ALL actual heads.
 // QK: M8 KV rows / N16 heads / K16 dims. PV: M8 heads / N16 dims / K16 KV.

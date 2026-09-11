@@ -17,10 +17,10 @@
 // Q2 decode, pass 1 - qsa_score_partition
 //
 // Decode has Tq == 1, so a query-owned single work-group would occupy a single
-// Xe-core and waste an order of magnitude of bandwidth (design section 6.8.4).
-// The partition is therefore taken along the BLOCK RANGE. Partitioning along
-// Hidx is forbidden: ReLU precedes the head reduction, so a per-head split would
-// re-read every summary Hidx times.
+// Xe-core and waste an order of magnitude of bandwidth. The partition is
+// therefore taken along the BLOCK RANGE. Partitioning along Hidx is forbidden:
+// ReLU precedes the head reduction, so a per-head split would re-read every
+// summary Hidx times.
 //
 // JIT constants:
 //   QSA_IDX_HEADS, QSA_IDX_HEAD_DIM, QSA_IDX_SCALE, QSA_COMPRESS_RATIO,

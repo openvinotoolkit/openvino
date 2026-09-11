@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
-// Standalone opt-in Stage4: [head, token, partition], one thread per segment.
+// Q3 decode, split-selected-KV variant, pass 1: [head, token, partition], one thread
+// per segment. See qsa_sparse_attention_split_reduce.cm for the merge pass.
 #ifndef ATTR
 #define ATTR [[type("svmptr_t")]]
 #endif

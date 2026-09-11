@@ -197,7 +197,7 @@ bool GatedResidualCMImplementationManager::validate_impl(const cldnn::program_no
 
     const auto desc = node.as<cldnn::gated_residual>().get_primitive();
 
-    // First version: C == 4 only (see design section 4.3 "转换前必须验证").
+    // First version: C == 4 only.
     if (desc->hc_count != 4) {
         return false;
     }

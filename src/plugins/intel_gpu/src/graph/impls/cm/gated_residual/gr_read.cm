@@ -16,7 +16,7 @@
 
 // G1 - Gated Residual READ / MIX (also used for the model-tail FINAL_MIX).
 //
-// Fused chain (see OV_SUPPORT_QSA_GR_DESIGN_CN.md section 8.2):
+// Fused chain:
 //   branch-wise grouped RMSNorm (group width D, FP32 accumulation)
 //     -> W_down GEMM -> x 1/C -> SiLU
 //     -> W_up GEMM -> sigmoid read gate
