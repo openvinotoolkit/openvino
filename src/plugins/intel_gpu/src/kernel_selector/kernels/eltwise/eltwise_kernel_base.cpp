@@ -310,7 +310,21 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
             } else {
                 // input_0 != int && input_1 != int
-                op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
+                if (ew.mode == EltwiseMode::MODULU) {
+                    op += cast_type + "fmod(" + input0_str + ", " + input1_str + ")";
+                } else {
+                    // OpenCL fmax/fmin return the non-NaN operand, so a NaN
+                    // in the second input was silently dropped, while the CPU
+                    // plugin propagates it (and returns the second operand for
+                    // a NaN in the first one). Select on the second input
+                    // explicitly to match the CPU behavior.
+                    // A ternary is used for the NaN branch instead of select():
+                    // select() requires the condition to be a signed integer of
+                    // the same width as the operands (short for half), while
+                    // isnan() returns int, so f16 kernels do not compile with
+                    // select().
+                    op += cast_type + "(isnan(" + input1_str + ") ? " + input1_str + " : f" + mode + "(" + input0_str + ", " + input1_str + "))";
+                }
             }
         } break;
         case EltwiseMode::POW:
