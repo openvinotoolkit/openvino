@@ -3106,11 +3106,12 @@ TEST(resample_gpu, opt_nearest_fused_eltwise_builds) {
                   data("scale", scale),
                   resample("resample", input_info("in"), output_size, 8,
                             resample::InterpolateOp::InterpolateMode::NEAREST),
-                  eltwise("scaled", input_info("resample"), input_info("scale"), eltwise_mode::prod));
+                  eltwise("scaled", input_info("resample"), input_info("scale"), eltwise_mode::prod),
+                  reorder("output", input_info("scaled"), format::bfyx, data_types::f16));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
-    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "scaled" }));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "output" }));
     ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "resample_opt" };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "resample", impl } }));
     network net(engine, topo, config);
@@ -3124,7 +3125,7 @@ TEST(resample_gpu, opt_nearest_fused_eltwise_builds) {
     ASSERT_NE(resample_info, primitives_info.end());
     ASSERT_NE(std::find(resample_info->c_fused_ids.begin(), resample_info->c_fused_ids.end(), "scaled"),
               resample_info->c_fused_ids.end());
-    auto out_opt = net.execute().at("scaled").get_memory();
+    auto out_opt = net.execute().at("output").get_memory();
 
     // The nearest-2x sample picks one of the input values; the eltwise multiplies it by 0.5.
     // We check that invariant instead of comparing against a free-selection reference, whose
