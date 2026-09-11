@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 #include <memory>
 #include <string>
@@ -98,7 +99,22 @@ bool can_use_dpas_score(const qsa& desc, const cldnn::device_info& info) {
 // [tokens, max_blocks] f32 buffer an unbounded design would need. Q2 instead runs as a
 // sequence of query-row chunks, each scoring/selecting into the SAME bounded buffer
 // before the next chunk reuses it.
-constexpr size_t score_budget_bytes = 128 * 1024 * 1024;
+//
+// Overridable via QSA_TEST_SCORE_BUDGET_BYTES so a regression test can force the
+// multi-chunk loop in execute() to actually run more than once without allocating a
+// multi-GB buffer: none of this repo's normal-sized tests come close to 128 MiB, so
+// without this hook the chunk-boundary logic is only exercised by a 100K+ token prefill.
+// Production code paths never set this env var, so real deployments always get the
+// 128 MiB default.
+size_t score_budget_bytes() {
+    if (const char* override_str = std::getenv("QSA_TEST_SCORE_BUDGET_BYTES")) {
+        const auto override_val = std::strtoull(override_str, nullptr, 10);
+        if (override_val > 0) {
+            return static_cast<size_t>(override_val);
+        }
+    }
+    return 128 * 1024 * 1024;
+}
 
 /// Query-row capacity of the (possibly bounded) BLOCK_SCORES buffer for this shape/device.
 /// Only bounded when the row-chunk-aware kernels (qsa_score_tile_dpas for prefill,
@@ -116,7 +132,7 @@ size_t score_scratch_rows(const kernel_impl_params& params, const qsa& desc) {
     const auto& kcache = params.get_input_layout(QSAIn::KEY_CACHE).get_shape();
     const auto max_blocks = block_scores_stride(std::max<size_t>(1, kcache[0] * desc.pa_block_size / desc.compress_ratio));
     const size_t row_bytes = max_blocks * 4;
-    const size_t budget_rows = std::max<size_t>(1, score_budget_bytes / row_bytes);
+    const size_t budget_rows = std::max<size_t>(1, score_budget_bytes() / row_bytes);
     return std::min(tokens, budget_rows);
 }
 

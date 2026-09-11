@@ -594,6 +594,200 @@ std::vector<float> run_qsa(const qsa_reference& ref, bool has_gate) {
     return result;
 }
 
+/// Runs QSA once over a BATCH of independent sequences in a single network.execute()
+/// call - the continuous-batching / QSAStage::MIXED scenario when the batch mixes a
+/// q_len > 1 (prefill or chunked-prefill-continuation) entry with a q_len == 1 (decode)
+/// entry. Every `ref` in `refs` must share one QSA layer's weights (see
+/// `make_reference_sharing_weights`); sequences are otherwise fully independent (QSA has
+/// no cross-sequence interaction) and each gets its own contiguous range of PA pages in a
+/// cache shared by the whole batch, exactly as a real paged-attention allocator would lay
+/// out unrelated requests. Returns the flat [total_tokens, Hq*Dv] output, tokens ordered
+/// the same way `subsequence_begins` orders them (sequence 0's tokens, then sequence 1's,
+/// ...).
+std::vector<float> run_qsa_batch(const std::vector<qsa_reference>& refs, bool has_gate) {
+    auto& engine = get_test_engine();
+    if (refs.empty()) {
+        ADD_FAILURE() << "run_qsa_batch requires at least one sequence";
+        return {};
+    }
+    const auto& d = refs.front().d;
+    const size_t num_seqs = refs.size();
+    const size_t summaries_per_page = d.pa_block / d.r;
+
+    size_t total_tokens = 0;
+    size_t total_pages = 0;
+    std::vector<size_t> page_begin(num_seqs);
+    std::vector<size_t> num_pages_of(num_seqs);
+    for (size_t s = 0; s < num_seqs; s++) {
+        total_tokens += refs[s].q_len;
+        page_begin[s] = total_pages;
+        num_pages_of[s] = (refs[s].total_len() + d.pa_block - 1) / d.pa_block;
+        total_pages += num_pages_of[s];
+    }
+
+    std::vector<float> mixed_cur, query_cur, key_cur, value_cur;
+    std::vector<float> key_cache(total_pages * d.Hkv * d.pa_block * d.Dh, 0.0f);
+    std::vector<float> value_cache(total_pages * d.Hkv * d.pa_block * d.Dv, 0.0f);
+    std::vector<float> raw_k_cache(total_pages * d.pa_block * d.Di, 0.0f);
+    std::vector<float> summary_cache(total_pages * summaries_per_page * d.Di, 0.0f);
+    std::vector<int32_t> past_lens(num_seqs);
+    std::vector<int32_t> subsequence_begins(num_seqs + 1, 0);
+    std::vector<int32_t> block_indices_begins(num_seqs + 1, 0);
+    std::vector<int32_t> block_indices(total_pages);
+    std::iota(block_indices.begin(), block_indices.end(), 0);
+    std::vector<int32_t> position_ids;
+    position_ids.reserve(total_tokens);
+
+    for (size_t s = 0; s < num_seqs; s++) {
+        const auto& ref = refs[s];
+        if (ref.d.D != d.D || ref.d.Hq != d.Hq || ref.d.Hkv != d.Hkv) {
+            ADD_FAILURE() << "run_qsa_batch requires every sequence to share one QSA config";
+            return {};
+        }
+        const size_t total = ref.total_len();
+        past_lens[s] = static_cast<int32_t>(ref.past_len);
+        subsequence_begins[s + 1] = subsequence_begins[s] + static_cast<int32_t>(ref.q_len);
+        block_indices_begins[s + 1] = block_indices_begins[s] + static_cast<int32_t>(num_pages_of[s]);
+
+        const auto slice = [&](const std::vector<float>& src, size_t stride) {
+            return std::vector<float>(src.begin() + ref.past_len * stride, src.begin() + total * stride);
+        };
+        const auto cm = slice(ref.mixed_all, d.D);
+        const auto ck = slice(ref.key_all, d.Hkv * d.Dh);
+        const auto cv = slice(ref.value_all, d.Hkv * d.Dv);
+        mixed_cur.insert(mixed_cur.end(), cm.begin(), cm.end());
+        key_cur.insert(key_cur.end(), ck.begin(), ck.end());
+        value_cur.insert(value_cur.end(), cv.begin(), cv.end());
+        query_cur.insert(query_cur.end(), ref.query_cur.begin(), ref.query_cur.end());
+
+        for (size_t t = 0; t < ref.q_len; t++) {
+            position_ids.push_back(static_cast<int32_t>(ref.past_len + t));
+        }
+
+        // History tokens are pre-populated exactly the way Q0 / Q1 would have, at this
+        // sequence's own page range so unrelated sequences never alias.
+        for (size_t p = 0; p < ref.past_len; p++) {
+            const size_t page = page_begin[s] + p / d.pa_block;
+            const size_t slot = p % d.pa_block;
+            for (size_t h = 0; h < d.Hkv; h++) {
+                for (size_t j = 0; j < d.Dh; j++) {
+                    key_cache[((page * d.Hkv + h) * d.pa_block + slot) * d.Dh + j] = ref.key_all[p * d.Hkv * d.Dh + h * d.Dh + j];
+                }
+                for (size_t j = 0; j < d.Dv; j++) {
+                    value_cache[((page * d.Hkv + h) * d.pa_block + slot) * d.Dv + j] = ref.value_all[p * d.Hkv * d.Dv + h * d.Dv + j];
+                }
+            }
+            const auto proj = ref.project(p);
+            for (size_t j = 0; j < d.Di; j++) {
+                raw_k_cache[(page * d.pa_block + slot) * d.Di + j] = proj[d.Hidx * d.Di + j];
+            }
+        }
+        for (size_t b = 0; b * d.r + d.r <= ref.past_len; b++) {
+            const auto sm = ref.summary(b);
+            const size_t page = page_begin[s] + b / summaries_per_page;
+            const size_t slot = b % summaries_per_page;
+            for (size_t j = 0; j < d.Di; j++) {
+                summary_cache[(page * summaries_per_page + slot) * d.Di + j] = sm[j];
+            }
+        }
+    }
+
+    const auto q_width = has_gate ? 2 * d.Hq * d.Dh : d.Hq * d.Dh;
+    const size_t J = (d.Hidx + 1) * d.Di;
+    const auto& w = refs.front();  // shared layer weights
+
+    topology topology;
+    topology.add(input_layout("mixed", layout{{static_cast<int64_t>(total_tokens), static_cast<int64_t>(d.D)}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("query", layout{{static_cast<int64_t>(total_tokens), static_cast<int64_t>(q_width)}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("key", layout{{static_cast<int64_t>(total_tokens), static_cast<int64_t>(d.Hkv * d.Dh)}, data_types::f16, format::bfyx}));
+    topology.add(input_layout("value", layout{{static_cast<int64_t>(total_tokens), static_cast<int64_t>(d.Hkv * d.Dv)}, data_types::f16, format::bfyx}));
+    topology.add(data("past_lens", make_i32(engine, {static_cast<int64_t>(num_seqs)}, past_lens)));
+    topology.add(data("subsequence_begins", make_i32(engine, {static_cast<int64_t>(num_seqs + 1)}, subsequence_begins)));
+    topology.add(data("block_indices", make_i32(engine, {static_cast<int64_t>(total_pages)}, block_indices)));
+    topology.add(data("block_indices_begins", make_i32(engine, {static_cast<int64_t>(num_seqs + 1)}, block_indices_begins)));
+    topology.add(input_layout("key_cache",
+                              layout{{static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
+                                      static_cast<int64_t>(d.Dh)},
+                                     data_types::f16,
+                                     format::bfyx}));
+    topology.add(input_layout("value_cache",
+                              layout{{static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
+                                      static_cast<int64_t>(d.Dv)},
+                                     data_types::f16,
+                                     format::bfyx}));
+    topology.add(input_layout("raw_k_cache",
+                              layout{{static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)},
+                                     data_types::f16,
+                                     format::bfyx}));
+    topology.add(input_layout("summary_cache",
+                              layout{{static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)},
+                                     data_types::f16,
+                                     format::bfyx}));
+    topology.add(data("idx_w", make_f16(engine, {static_cast<int64_t>(J), static_cast<int64_t>(d.D)}, w.idx_w)));
+    topology.add(data("q_norm", make_f16(engine, {static_cast<int64_t>(d.Di)}, w.q_norm)));
+    topology.add(data("k_norm", make_f16(engine, {static_cast<int64_t>(d.Di)}, w.k_norm)));
+    topology.add(data("rotary", make_f16(engine, {static_cast<int64_t>(d.max_positions), static_cast<int64_t>(d.rotary)}, w.rotary)));
+    topology.add(data("position_ids", make_i32(engine, {static_cast<int64_t>(total_tokens)}, position_ids)));
+
+    const std::vector<input_info> inputs = {input_info("mixed"),
+                                            input_info("query"),
+                                            input_info("key"),
+                                            input_info("value"),
+                                            input_info("past_lens"),
+                                            input_info("subsequence_begins"),
+                                            input_info("block_indices"),
+                                            input_info("block_indices_begins"),
+                                            input_info("key_cache"),
+                                            input_info("value_cache"),
+                                            input_info("raw_k_cache"),
+                                            input_info("summary_cache"),
+                                            input_info("idx_w"),
+                                            input_info("q_norm"),
+                                            input_info("k_norm"),
+                                            input_info("rotary"),
+                                            input_info("position_ids")};
+    static_assert(QSAIn::COUNT == 17, "keep the test input order in sync with QSA::InputIdx");
+
+    const auto config_attrs = make_config(d, has_gate);
+    topology.add(qsa("qsa", inputs, config_attrs));
+
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::optimize_data(true));
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, cfg);
+
+    network.set_input_data("mixed", make_f16(engine, {static_cast<int64_t>(total_tokens), static_cast<int64_t>(d.D)}, mixed_cur));
+    network.set_input_data("query", make_f16(engine, {static_cast<int64_t>(total_tokens), static_cast<int64_t>(q_width)}, query_cur));
+    network.set_input_data("key", make_f16(engine, {static_cast<int64_t>(total_tokens), static_cast<int64_t>(d.Hkv * d.Dh)}, key_cur));
+    network.set_input_data("value", make_f16(engine, {static_cast<int64_t>(total_tokens), static_cast<int64_t>(d.Hkv * d.Dv)}, value_cur));
+    network.set_input_data("key_cache",
+                           make_f16(engine,
+                                    {static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
+                                     static_cast<int64_t>(d.Dh)},
+                                    key_cache));
+    network.set_input_data("value_cache",
+                           make_f16(engine,
+                                    {static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
+                                     static_cast<int64_t>(d.Dv)},
+                                    value_cache));
+    network.set_input_data("raw_k_cache",
+                           make_f16(engine,
+                                    {static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)},
+                                    raw_k_cache));
+    network.set_input_data("summary_cache",
+                           make_f16(engine,
+                                    {static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)},
+                                    summary_cache));
+
+    auto outputs = network.execute();
+    cldnn::mem_lock<ov::float16> out(outputs.at("qsa").get_memory(), get_test_stream());
+    std::vector<float> result(out.size());
+    for (size_t i = 0; i < out.size(); i++) {
+        result[i] = static_cast<float>(out[i]);
+    }
+    return result;
+}
+
 qsa_reference make_reference_once(tests::random_generator& rg, const qsa_dims& d, size_t past_len, size_t q_len, bool has_gate) {
     qsa_reference ref;
     ref.d = d;
@@ -671,6 +865,37 @@ qsa_reference make_reference(tests::random_generator& rg, const qsa_dims& d, siz
     return ref;
 }
 
+/// Draws a second sequence's runtime data (hidden states, KV, query) while reusing the
+/// SAME layer weights (idx_w, RMSNorm gains, rotary table) as `shared`. One real QSA
+/// primitive is one layer serving every sequence in a batch with one set of weights, so a
+/// multi-sequence test must not let each sequence draw its own - that would silently be
+/// testing N independent layers instead of N requests against one layer.
+qsa_reference make_reference_sharing_weights(tests::random_generator& rg, const qsa_reference& shared, size_t past_len, size_t q_len, bool has_gate) {
+    const auto assign_shared_weights = [&](qsa_reference& ref) {
+        ref.idx_w = shared.idx_w;
+        ref.q_norm = shared.q_norm;
+        ref.k_norm = shared.k_norm;
+        ref.rope_cos = shared.rope_cos;
+        ref.rope_sin = shared.rope_sin;
+        ref.rotary = shared.rotary;
+    };
+    if (q_len > 1) {
+        auto ref = make_reference_once(rg, shared.d, past_len, q_len, has_gate);
+        assign_shared_weights(ref);
+        return ref;
+    }
+    qsa_reference ref;
+    for (int attempt = 0; attempt < 64; attempt++) {
+        ref = make_reference_once(rg, shared.d, past_len, q_len, has_gate);
+        assign_shared_weights(ref);
+        if (ref.selection_margin(past_len) >= kMinSelectionMargin) {
+            return ref;
+        }
+    }
+    ADD_FAILURE() << "could not draw a decode step whose top-k boundary is separated by " << kMinSelectionMargin;
+    return ref;
+}
+
 void expect_close(const std::vector<float>& got, const std::vector<float>& expected, float tol) {
     ASSERT_EQ(got.size(), expected.size());
     for (size_t i = 0; i < expected.size(); i++) {
@@ -702,6 +927,32 @@ void expect_qsa_matches(const qsa_reference& ref, bool has_gate, float tol) {
         << "only " << compared << " of " << ref.q_len
         << " tokens had an unambiguous top-k boundary; the configuration is too degenerate for this comparison to mean anything";
 }
+
+/// Overrides the QSA Q2 BLOCK_SCORES scratch budget (see qsa.cpp's `score_budget_bytes()`)
+/// for the lifetime of the guard, then restores the production default. Production code
+/// never sets this env var; it exists purely so a regression test can force the
+/// query-row-chunked path (QSAScoreChunk) to actually run more than once per call without
+/// allocating a multi-GB buffer.
+class score_budget_override {
+public:
+    explicit score_budget_override(size_t bytes) {
+        const auto value = std::to_string(bytes);
+#ifdef _WIN32
+        _putenv_s("QSA_TEST_SCORE_BUDGET_BYTES", value.c_str());
+#else
+        ::setenv("QSA_TEST_SCORE_BUDGET_BYTES", value.c_str(), 1);
+#endif
+    }
+    ~score_budget_override() {
+#ifdef _WIN32
+        _putenv_s("QSA_TEST_SCORE_BUDGET_BYTES", "");
+#else
+        ::unsetenv("QSA_TEST_SCORE_BUDGET_BYTES");
+#endif
+    }
+    score_budget_override(const score_budget_override&) = delete;
+    score_budget_override& operator=(const score_budget_override&) = delete;
+};
 
 TEST(qsa_gpu_test, prefill_single_sequence) {
     if (!cm_qsa_available()) {
@@ -850,6 +1101,30 @@ TEST(qsa_gpu_test, dpas_chunked_prefill_with_past) {
     expect_qsa_matches(ref, true, 5e-2);
 }
 
+TEST(qsa_gpu_test, dpas_score_multi_chunk_matches_single_chunk) {
+    // Forces qsa.cpp's query-row-chunked BLOCK_SCORES path (QSAScoreChunk / score_chunks)
+    // to actually run more than once per call. Without shrinking the budget, no test in
+    // this file gets anywhere near the production 128 MiB default, so the chunk loop in
+    // execute() always plans exactly one chunk and a chunk-boundary regression (stale
+    // dispatch data reused across chunks, wrong re-anchored tile map, ...) would stay
+    // invisible until someone tried a 100K+ token prefill by hand.
+    if (!cm_qsa_available()) {
+        GTEST_SKIP() << "CM JIT / systolic GPU is required for qsa";
+    }
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    const auto d = dpas_dims();
+    ASSERT_SELECTION_IS_DISCRIMINATING(d, 0, 64);
+    auto ref = make_reference(rg, d, /*past_len=*/0, /*q_len=*/64, /*has_gate=*/false);
+
+    // One f32 BLOCK_SCORES row is max_blocks * 4 bytes; a 64-byte budget is well under one
+    // row, so every chunk covers exactly 1 query row and a 64-token prefill plans 64
+    // chunks instead of the usual 1.
+    score_budget_override guard(64);
+    expect_qsa_matches(ref, false, 5e-2);
+}
+
 TEST(qsa_gpu_test, dpas_prefill_and_scalar_decode_agree) {
     // The systolic prefill selector and the scalar decode partition + finalization
     // selector must pick the same blocks; comparing the last prefill token against a
@@ -875,6 +1150,63 @@ TEST(qsa_gpu_test, dpas_prefill_and_scalar_decode_agree) {
     ASSERT_EQ(decode_out.size(), d.Hq * d.Dv);
     for (size_t i = 0; i < decode_out.size(); i++) {
         ASSERT_NEAR(decode_out[i], prefill_out[offset + i], 5e-2f) << "dpas/scalar selection divergence at " << i;
+    }
+}
+
+// --- continuous batching (QSAStage::MIXED) ---------------------------------
+
+TEST(qsa_gpu_test, mixed_batch_prefill_and_decode_together) {
+    // Continuous batching: one network.execute() call carries a multi-token
+    // chunked-prefill-continuation sequence AND a single-token decode sequence at the
+    // same time (any_multi && any_single in qsa.cpp::update_rt_params -> QSAStage::MIXED),
+    // sharing one physical page table exactly as a real scheduler packing unrelated
+    // requests would. Both sequences use the SAME layer weights (idx_w, norm gains,
+    // rotary table) but independent hidden states/KV/query and independent PA page
+    // ranges, so a bug that let one sequence's dispatch read another's data (wrong
+    // subsequence_begins/block_indices_begins indexing in Q0/Q1/Q2/Q3) would show up as a
+    // numeric mismatch here even though every existing test in this file only ever
+    // submits num_seqs == 1.
+    if (!cm_qsa_available()) {
+        GTEST_SKIP() << "CM JIT / systolic GPU is required for qsa";
+    }
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    const auto d = prod_gqa_dims(200);
+    ASSERT_SELECTION_IS_DISCRIMINATING(d, 40, 37);
+    ASSERT_SELECTION_IS_DISCRIMINATING(d, 63, 1);
+
+    // seq0: chunked-prefill continuation (past_len > 0, q_len > 1) -> any_multi.
+    auto seq0 = make_reference(rg, d, /*past_len=*/40, /*q_len=*/37, /*has_gate=*/true);
+    // seq1: decode append (q_len == 1) -> any_single. Shares seq0's weights: this is one
+    // QSA layer serving two requests, not two independently-configured layers.
+    auto seq1 = make_reference_sharing_weights(rg, seq0, /*past_len=*/63, /*q_len=*/1, /*has_gate=*/true);
+
+    const auto got = run_qsa_batch({seq0, seq1}, /*has_gate=*/true);
+
+    const size_t width = d.Hq * d.Dv;
+    ASSERT_EQ(got.size(), (seq0.q_len + seq1.q_len) * width);
+
+    std::vector<float> margins0, margins1;
+    const auto expected0 = seq0.attention(&margins0);
+    const auto expected1 = seq1.attention(&margins1);
+
+    size_t compared = 0;
+    for (size_t t = 0; t < seq0.q_len; t++) {
+        if (margins0[t] < kMinSelectionMargin) {
+            continue;
+        }
+        compared++;
+        for (size_t i = t * width; i < (t + 1) * width; i++) {
+            ASSERT_NEAR(got[i], expected0[i], 8e-2f) << "seq0 (prefill) mismatch at token " << t << " elem " << i;
+        }
+    }
+    ASSERT_GE(compared, std::min(seq0.q_len, kMinComparedTokens));
+
+    ASSERT_GE(margins1[0], kMinSelectionMargin);
+    const size_t base = seq0.q_len * width;
+    for (size_t i = 0; i < width; i++) {
+        ASSERT_NEAR(got[base + i], expected1[i], 8e-2f) << "seq1 (decode) mismatch at elem " << i;
     }
 }
 
