@@ -142,6 +142,9 @@ jobs:
       CCACHE_DIR: ${{ github.workspace }}/ccache
       CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
       CCACHE_MAXSIZE: 2G
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
 
     steps:
       - name: Clone OpenVINO
@@ -158,7 +161,6 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
-      - name: Setup ccache
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
@@ -197,7 +199,7 @@ jobs:
           -B ${BUILD_DIR}
 
       - name: Cmake - Build
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
 
       - name: Show ccache stats and cleanup
         run: |

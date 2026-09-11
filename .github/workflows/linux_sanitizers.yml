@@ -128,6 +128,9 @@ jobs:
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
       PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
@@ -158,7 +161,6 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
-      - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
@@ -206,7 +208,7 @@ jobs:
 
       - name: Cmake build - OpenVINO
         run: |
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+          cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
@@ -230,7 +232,7 @@ jobs:
           python3 ${OPENVINO_REPO}/src/frontends/gguf/tests/gen_arch_fixtures.py \
             --fetch \
             --out-dir ${INSTALL_TEST_DIR}/tests/test_data/arch_fixtures \
-            -j $(nproc)
+            -j ${CMAKE_BUILD_PARALLEL_LEVEL}
 
       - name: Remove unused files to free space
         run: rm -rf ${BUILD_DIR}/*
