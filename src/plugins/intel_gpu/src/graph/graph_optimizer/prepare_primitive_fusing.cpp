@@ -604,6 +604,41 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 GPU_DEBUG_TRACE_DETAIL << node.id() << " has fused swiglu. Skip fusing more primitives" << std::endl;
                 return false;
             }
+            // Cap the number of binary post-ops fused into a single FC. The oneDNN
+            // GPU post-op limit is 32 and binary post-ops beyond that cannot be
+            // created (each needs a DNNL_ARG_ATTR_MULTIPLE_POST_OP memory arg).
+            // Without this cap, long eltwise add-chains (e.g. residual/expert-sum
+            // chains in MoE models) over-fuse into one FC and make it uncompilable
+            // on oneDNN. Stop fusing before the limit so the remaining ops stay as
+            // standalone primitives, which is numerically identical.
+            {
+                int binary_post_ops = 0;
+                bool seen_sum = false;
+                for (const auto& f : fused_prims) {
+                    if (f.is_type<eltwise>()) {
+                        auto mode = f.typed_desc<eltwise>()->mode;
+                        if (mode == eltwise_mode::sum) {
+                            // The first sum becomes append_sum (in-place, not a
+                            // binary memory arg); subsequent sums become binary_add.
+                            if (!seen_sum) seen_sum = true;
+                            else binary_post_ops++;
+                        } else if (one_of(mode, {eltwise_mode::prod, eltwise_mode::sub, eltwise_mode::div})) {
+                            binary_post_ops++;
+                        }
+                    } else if (f.is_type<quantize>()) {
+                        // Per-channel quantize expands into up to ~4 binary post-ops
+                        // (pre-scale/shift, post-scale/shift). Conservative bound.
+                        binary_post_ops += 4;
+                    }
+                }
+                // Leave 1 slot of headroom for append_sum / eltwise activations.
+                static constexpr int max_binary_post_ops = 31;
+                if (binary_post_ops >= max_binary_post_ops) {
+                    GPU_DEBUG_TRACE_DETAIL << node.id() << " reached binary post-op cap ("
+                                           << binary_post_ops << "), skip fusing more primitives" << std::endl;
+                    return false;
+                }
+            }
             if (lo.has_all_enabled_onednn_impls_optimization_attribute() &&
                 lo.get_preferred_impl_type(node, format::any /*dummy*/) == impl_types::onednn) {
                 return true;
