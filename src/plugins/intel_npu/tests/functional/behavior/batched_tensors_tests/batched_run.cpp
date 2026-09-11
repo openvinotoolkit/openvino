@@ -215,6 +215,27 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInfer) {
     }
 }
 
+TEST_P(BatchedTensorsRunTests, SetInputTensorsWithMismatchedNonBatchDimension) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+
+    size_t batch = 2;
+    auto batch_shape = Shape{batch, 2, 2, 2};
+    // The tensors agree with the model on the batch dimension and with each other, but not on the remaining
+    // dimensions. They must be rejected by set_tensors: the Level Zero buffer backing this input is allocated
+    // from the compiler shape, so copying these tensors into it writes far past the end of that allocation.
+    auto one_shape = Shape{1, 2, 2, 512};
+    auto model = BatchedTensorsRunTests::create_n_inputs(1, element::f32, batch_shape, "N...");
+    auto execNet = core->compile_model(model, target_device, configuration);
+    ov::InferRequest req = execNet.create_infer_request();
+
+    std::vector<ov::Tensor> tensors;
+    for (size_t i = 0; i < batch; ++i) {
+        tensors.push_back(ov::Tensor(element::f32, one_shape));
+    }
+
+    EXPECT_THROW(req.set_tensors("tensor_input0", tensors), ov::Exception);
+}
+
 TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferWithExportImport) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
