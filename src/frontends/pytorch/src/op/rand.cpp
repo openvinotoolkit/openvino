@@ -294,13 +294,15 @@ OutputVector translate_normal(const NodeContext& context) {
     if (context.get_input_size() >= 2 && context.get_input_size() <= 4) {
         // aten::normal.Tensor_float(Tensor mean, float std=1., *, Generator? generator=None) -> Tensor
         // aten::normal.Tensor_Tensor(Tensor mean, Tensor std, *, Generator? generator=None) -> Tensor
+        // aten::normal.float_Tensor(float mean, Tensor std, *, Generator? generator=None) -> Tensor
         // aten::normal.Tensor_float_out(Tensor mean, float std=1., *, Generator? generator=None, Tensor(a!) out) ->
         // Tensor(a!)
-        // aten::normal.Tensor_float_out(Tensor mean, float std=1., *, Generator? generator=None, Tensor(a!)
+        // aten::normal.float_Tensor_out(float mean, Tensor std, *, Generator? generator=None, Tensor(a!)
         // out) -> Tensor(a!)
         // aten::normal.Tensor_Tensor_out(Tensor mean, Tensor std, *, Generator? generator=None,
         // Tensor(a!) out) -> Tensor(a!)
-        auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(mean, element::i32));
+        const auto tensor = is_python_scalar_input(context, 0) ? std : mean;
+        auto sizes = context.mark_node(std::make_shared<v3::ShapeOf>(tensor, element::i32));
         auto res = make_random_normal(context, sizes, dtype, std, mean);
         if (!context.input_is_none(3)) {
             // out
