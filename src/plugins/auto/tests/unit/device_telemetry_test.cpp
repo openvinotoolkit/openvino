@@ -182,12 +182,16 @@ TEST(DeviceMonitorTest, telemetry_client_is_low_power_mode_updates_on_gear_chang
         .WillOnce(::testing::DoAll(::testing::SaveArg<1>(&captured_callback), ::testing::Return(true)));
 
     device_monitor::TelemetryClient client(std::move(mock));
-    ASSERT_FALSE(client.is_low_power_mode().value());
+    const auto initial_low_power = client.is_low_power_mode();
+    ASSERT_TRUE(initial_low_power.has_value());
+    EXPECT_FALSE(initial_low_power.value());
 
     ASSERT_TRUE(static_cast<bool>(captured_callback));
     // Gear 5 is within the EPO low-power range [4,7].
     captured_callback(R"({"OnEpoGearChanged": "5"})");
-    EXPECT_TRUE(client.is_low_power_mode().value());
+    const auto updated_low_power = client.is_low_power_mode();
+    ASSERT_TRUE(updated_low_power.has_value());
+    EXPECT_TRUE(updated_low_power.value());
 }
 
 TEST(DeviceMonitorTest, telemetry_client_unregisters_event_on_destruction_when_registered) {
