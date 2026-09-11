@@ -248,6 +248,9 @@ inline JitTerm ternary(const JitTerm& condition, const JitTerm& true_expr, const
 inline JitTerm isinf(const JitTerm& arg) {
     return JitTerm{"isinf(" + arg.str() + ")"};
 }
+inline JitTerm isnan(const JitTerm& arg) {
+    return JitTerm{"isnan(" + arg.str() + ")"};
+}
 inline JitTerm exp(const JitTerm& arg) {
     return JitTerm{"exp(" + arg.str() + ")"};
 }
