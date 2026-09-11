@@ -23,16 +23,6 @@ inline std::string get_log_tag() {
     return "[IPF]";
 }
 
-// The registered event path ends in "OnEpoGearChanged", not "OnGearChanged"; the event's
-// own eventPath argument is delivered as the parent node ("...Policy.EPO"), with the real
-// event name/value inside the JSON payload instead.
-constexpr const char* k_dtt_root_path = "Platform.Features.DTT";
-constexpr const char* k_dtt_status_path = "Platform.Features.DTT.Software.Status";
-constexpr const char* k_dtt_version_path = "Platform.Features.DTT.Software.Version";
-constexpr const char* k_dtt_epo_status_path = "Platform.Features.DTT.Policy.EPO.Status";
-constexpr const char* k_dtt_current_gear_path = "Platform.Features.DTT.Policy.EPO.CurrentGear";
-constexpr const char* k_dtt_gear_changed_path = "Platform.Features.DTT.Policy.EPO.OnEpoGearChanged";
-
 namespace {
 
 std::optional<float> parse_utilization_from_aiselector_json_impl(const std::string& json_str,
@@ -87,96 +77,22 @@ std::optional<float> parse_utilization_from_aiselector_json_impl(const std::stri
     }
 }
 
-// Rejects anything outside the EPO-defined range so untrusted telemetry cannot force a mode.
-std::optional<int> parse_gear(const std::string& gear_str) {
-    int gear = 0;
-    std::size_t parsed_chars = 0;
-    try {
-        gear = std::stoi(gear_str, &parsed_chars);
-    } catch (const std::exception&) {
-        LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
-        return std::nullopt;
-    }
-    // std::stoi accepts a numeric prefix (e.g. "4garbage"); require the whole string to be consumed.
-    if (parsed_chars != gear_str.size()) {
-        LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
-        return std::nullopt;
-    }
-    if (!is_valid_gear(gear)) {
-        LOG_WARNING_TAG("TelemetryClient: EPO gear %d is out of the supported range [%d, %d]",
-                        gear,
-                        k_min_gear,
-                        k_max_gear);
-        return std::nullopt;
-    }
-    return gear;
-}
-
-// Stores a parsed gear value; captured by value (shared_ptr) in the event callback closure so it
-// remains safe to invoke even if IpfClientApiAdapter ever has to leak a failed-unregister callback.
-void store_gear(const std::shared_ptr<std::atomic<int>>& shared_gear, const std::string& gear_str) {
-    if (const auto gear = parse_gear(gear_str)) {
-        shared_gear->store(*gear);
-    }
-}
-
-// Free function (not a TelemetryClient::Impl member) so the event callback closure never needs to
-// capture `this`; see store_gear() above for the leak-safety rationale.
-void handle_gear_changed_event(const std::shared_ptr<std::atomic<int>>& shared_gear, const std::string& event_json) {
-    try {
-        const auto data = nlohmann::json::parse(event_json);
-        if (!data.is_object() || data.empty()) {
-            LOG_WARNING_TAG("TelemetryClient: gear-changed payload must be a non-empty JSON object");
-            return;
-        }
-        const auto event_name = data.begin().key();
-        const auto& event_value = data.begin().value();
-        const std::string gear_str = event_value.is_string() ? event_value.get<std::string>() : event_value.dump();
-        LOG_DEBUG_TAG("TelemetryClient: event name=%s, EPO gear=%s", event_name.c_str(), gear_str.c_str());
-        store_gear(shared_gear, gear_str);
-    } catch (const nlohmann::json::exception& e) {
-        LOG_WARNING_TAG("TelemetryClient: failed to parse gear-changed event data: %s", e.what());
-    }
-}
-
 }  // namespace
 
-// Business logic; all direct IPF ClientApi calls live in ipf_client.cpp.
-class TelemetryClient::Impl {
+// Tracks DTT's EPO gear via lazy IPF queries plus an OnEpoGearChanged subscription, exposing
+// only the low-power-mode question that TelemetryClient needs.
+class DttGearTracker {
 public:
-    // Falls back to a real adapter when client is null.
-    explicit Impl(std::unique_ptr<IIpfClient> client)
-        : m_client(client ? std::move(client) : std::make_unique<IpfClientApiAdapter>()) {}
+    explicit DttGearTracker(IIpfClient& client) : m_client(client) {}
 
-    Impl() : Impl(std::make_unique<IpfClientApiAdapter>()) {}
-
-    ~Impl() {
+    ~DttGearTracker() {
         if (m_gear_event_registered) {
-            m_client->unregister_event(k_dtt_gear_changed_path);
+            m_client.unregister_event(k_dtt_gear_changed_path);
         }
-    }
-
-    std::optional<float> utilization(const std::string& device_name, const std::string& device_type) {
-        if (!m_client->is_valid()) {
-            LOG_DEBUG_TAG("TelemetryClient::utilization(%s): client not initialized", device_name.c_str());
-            return std::nullopt;
-        }
-        const auto metric_key_view = device_to_metric_key(device_name, device_type);
-        if (metric_key_view.empty()) {
-            LOG_WARNING_TAG("TelemetryClient::utilization(%s): unknown device type, metric_key empty", device_name.c_str());
-            return std::nullopt;
-        }
-        const std::string metric_key{metric_key_view};
-        LOG_DEBUG_TAG("TelemetryClient::utilization(%s): querying IPF for metric_key=%s", device_name.c_str(), metric_key.c_str());
-        const std::string json_str = m_client->get_node("Platform.Features.AISelector");
-        if (json_str.empty()) {
-            return std::nullopt;
-        }
-        return parse_utilization_from_aiselector_json_impl(json_str, metric_key, metric_key_view, device_name);
     }
 
     std::optional<bool> is_low_power_mode() {
-        if (!m_client->is_valid()) {
+        if (!m_client.is_valid()) {
             return std::nullopt;
         }
         ensure_gear_tracking_registered();
@@ -194,6 +110,16 @@ public:
     }
 
 private:
+    // The registered event path ends in "OnEpoGearChanged", not "OnGearChanged"; the event's
+    // own eventPath argument is delivered as the parent node ("...Policy.EPO"), with the real
+    // event name/value inside the JSON payload instead.
+    static constexpr const char* k_dtt_root_path = "Platform.Features.DTT";
+    static constexpr const char* k_dtt_status_path = "Platform.Features.DTT.Software.Status";
+    static constexpr const char* k_dtt_version_path = "Platform.Features.DTT.Software.Version";
+    static constexpr const char* k_dtt_epo_status_path = "Platform.Features.DTT.Policy.EPO.Status";
+    static constexpr const char* k_dtt_current_gear_path = "Platform.Features.DTT.Policy.EPO.CurrentGear";
+    static constexpr const char* k_dtt_gear_changed_path = "Platform.Features.DTT.Policy.EPO.OnEpoGearChanged";
+
     // DTT is probed once per client.
     void ensure_gear_tracking_registered() {
         std::call_once(m_low_power_init_once, [this]() { initialize_gear_tracking(); });
@@ -213,10 +139,10 @@ private:
             log_current_gear();
         }
         m_gear_event_registered =
-            m_client->register_event(k_dtt_gear_changed_path,
-                                      [shared_gear = m_shared_gear](const std::string& event_json) {
-                                          handle_gear_changed_event(shared_gear, event_json);
-                                      });
+            m_client.register_event(k_dtt_gear_changed_path,
+                                     [shared_gear = m_shared_gear](const std::string& event_json) {
+                                         handle_gear_changed_event(shared_gear, event_json);
+                                     });
         if (m_gear_event_registered) {
             LOG_INFO_TAG("TelemetryClient: registered for %s", k_dtt_gear_changed_path);
         }
@@ -224,7 +150,7 @@ private:
 
     // DTT requires reading its root node once to refresh the subtree before individual value queries.
     void refresh_dtt_nodes() {
-        const std::string json_str = m_client->get_node(k_dtt_root_path);
+        const std::string json_str = m_client.get_node(k_dtt_root_path);
         LOG_DEBUG_TAG("TelemetryClient: DTT root node refresh %s", json_str.empty() ? "failed" : "succeeded");
     }
 
@@ -264,7 +190,7 @@ private:
 
     // DTT values arrive as JSON; non-string nodes are dumped verbatim so they stay loggable.
     std::optional<std::string> get_value_as_string(const char* path) {
-        const std::string json_str = m_client->get_value(path);
+        const std::string json_str = m_client.get_value(path);
         if (json_str.empty()) {
             return std::nullopt;
         }
@@ -292,10 +218,100 @@ private:
         store_gear(m_shared_gear, *gear_str);
     }
 
-    std::unique_ptr<IIpfClient> m_client;
+    // Rejects anything outside the EPO-defined range so untrusted telemetry cannot force a mode.
+    static std::optional<int> parse_gear(const std::string& gear_str) {
+        int gear = 0;
+        std::size_t parsed_chars = 0;
+        try {
+            gear = std::stoi(gear_str, &parsed_chars);
+        } catch (const std::exception&) {
+            LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
+            return std::nullopt;
+        }
+        // std::stoi accepts a numeric prefix (e.g. "4garbage"); require the whole string to be consumed.
+        if (parsed_chars != gear_str.size()) {
+            LOG_WARNING_TAG("TelemetryClient: EPO gear value is not an integer: %s", gear_str.c_str());
+            return std::nullopt;
+        }
+        if (!is_valid_gear(gear)) {
+            LOG_WARNING_TAG("TelemetryClient: EPO gear %d is out of the supported range [%d, %d]",
+                            gear,
+                            k_min_gear,
+                            k_max_gear);
+            return std::nullopt;
+        }
+        return gear;
+    }
+
+    // Static so the event callback closure captures only shared_gear (by value) and never `this`,
+    // staying safe to invoke even if IpfClientApiAdapter ever has to leak a failed-unregister callback.
+    static void store_gear(const std::shared_ptr<std::atomic<int>>& shared_gear, const std::string& gear_str) {
+        if (const auto gear = parse_gear(gear_str)) {
+            shared_gear->store(*gear);
+        }
+    }
+
+    // Static for the same leak-safety reason as store_gear() above.
+    static void handle_gear_changed_event(const std::shared_ptr<std::atomic<int>>& shared_gear,
+                                          const std::string& event_json) {
+        try {
+            const auto data = nlohmann::json::parse(event_json);
+            if (!data.is_object() || data.empty()) {
+                LOG_WARNING_TAG("TelemetryClient: gear-changed payload must be a non-empty JSON object");
+                return;
+            }
+            const auto event_name = data.begin().key();
+            const auto& event_value = data.begin().value();
+            const std::string gear_str = event_value.is_string() ? event_value.get<std::string>() : event_value.dump();
+            LOG_DEBUG_TAG("TelemetryClient: event name=%s, EPO gear=%s", event_name.c_str(), gear_str.c_str());
+            store_gear(shared_gear, gear_str);
+        } catch (const nlohmann::json::exception& e) {
+            LOG_WARNING_TAG("TelemetryClient: failed to parse gear-changed event data: %s", e.what());
+        }
+    }
+
+    IIpfClient& m_client;
     bool m_gear_event_registered = false;
     std::once_flag m_low_power_init_once;
     std::shared_ptr<std::atomic<int>> m_shared_gear;
+};
+
+// Business logic; all direct IPF ClientApi calls live in ipf_client.cpp.
+class TelemetryClient::Impl {
+public:
+    // Falls back to a real adapter when client is null.
+    explicit Impl(std::unique_ptr<IIpfClient> client)
+        : m_client(client ? std::move(client) : std::make_unique<IpfClientApiAdapter>()),
+          m_gear_tracker(*m_client) {}
+
+    Impl() : Impl(std::make_unique<IpfClientApiAdapter>()) {}
+
+    std::optional<float> utilization(const std::string& device_name, const std::string& device_type) {
+        if (!m_client->is_valid()) {
+            LOG_DEBUG_TAG("TelemetryClient::utilization(%s): client not initialized", device_name.c_str());
+            return std::nullopt;
+        }
+        const auto metric_key_view = device_to_metric_key(device_name, device_type);
+        if (metric_key_view.empty()) {
+            LOG_WARNING_TAG("TelemetryClient::utilization(%s): unknown device type, metric_key empty", device_name.c_str());
+            return std::nullopt;
+        }
+        const std::string metric_key{metric_key_view};
+        LOG_DEBUG_TAG("TelemetryClient::utilization(%s): querying IPF for metric_key=%s", device_name.c_str(), metric_key.c_str());
+        const std::string json_str = m_client->get_node("Platform.Features.AISelector");
+        if (json_str.empty()) {
+            return std::nullopt;
+        }
+        return parse_utilization_from_aiselector_json_impl(json_str, metric_key, metric_key_view, device_name);
+    }
+
+    std::optional<bool> is_low_power_mode() {
+        return m_gear_tracker.is_low_power_mode();
+    }
+
+private:
+    std::unique_ptr<IIpfClient> m_client;
+    DttGearTracker m_gear_tracker;
 };
 
 TelemetryClient::TelemetryClient() : m_impl(std::make_unique<Impl>()) {}
