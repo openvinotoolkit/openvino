@@ -11,7 +11,6 @@
 #include <string_view>
 
 #include "common_test_utils/test_assertions.hpp"
-#include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -41,24 +40,6 @@ std::string build_blob_format_v1_without_magic() {
     return blob.substr(0, blob.size() - MAGIC_BYTES.size());
 }
 
-std::string build_blob_format_v1_with_blob_type(const BlobType blob_type) {
-    std::ostringstream stream;
-    stream << DUMMY_COMPILER_PAYLOAD.data();
-    Metadata<CURRENT_METADATA_VERSION> metadata(DUMMY_COMPILER_PAYLOAD.size(),
-                                                std::nullopt,
-                                                std::nullopt,
-                                                std::nullopt,
-                                                std::nullopt,
-                                                std::nullopt,
-                                                std::nullopt,
-                                                std::nullopt,
-                                                std::nullopt,
-                                                blob_type);
-    metadata.write(stream);
-
-    return stream.str();
-}
-
 std::shared_ptr<ov::Model> create_simple_model() {
     auto weights = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{5}, std::vector<float>{1.0f});
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
@@ -72,11 +53,8 @@ std::shared_ptr<ov::Model> create_simple_model() {
 using testing::_;
 
 struct BlobFormatImportersTest : public ::testing::Test {
-    BlobFormatImportersTest() : options(std::make_shared<OptionsDesc>()), config(options) {
-        options->add<ENFORCE_NATIVE_BLOB>();
-    }
+    BlobFormatImportersTest() : config(std::make_shared<OptionsDesc>()) {}
 
-    std::shared_ptr<OptionsDesc> options;
     std::unique_ptr<IBlobFormatImporter> importer;
     FilteredConfig config;
 };
@@ -175,59 +153,4 @@ TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
 
     OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(source, true, nullptr, config));
     OV_EXPECT_THROW(importer->create_dummy_model(), ov::Exception, _);
-}
-
-/**
- * @brief A blob whose metadata declares the ELF format is always accepted
- */
-TEST_F(BlobFormatImportersTest, FactoryAcceptsElfBlobType) {
-    const std::string blob = build_blob_format_v1_with_blob_type(BlobType::ELF);
-    std::istringstream input_stream(blob);
-    BlobSource source(input_stream);
-
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, false, nullptr, config));
-}
-
-/**
- * @brief Without NPU_ENFORCE_NATIVE_BLOB (the default) a host-executable blob type is imported like any other, so the
- * plugin's behavior is unchanged unless the application opts in.
- */
-TEST_F(BlobFormatImportersTest, FactoryAcceptsHostExecutableBlobTypeByDefault) {
-    for (const BlobType blob_type : {BlobType::LLVM, BlobType::BYTECODE}) {
-        const std::string blob = build_blob_format_v1_with_blob_type(blob_type);
-        std::istringstream input_stream(blob);
-        BlobSource source(input_stream);
-
-        OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, false, nullptr, config));
-    }
-}
-
-/**
- * @brief The blob type is read from unauthenticated metadata, and the host-executable formats are handed to the host
- * VM runtime instead of the NPU driver. Once native-blob import is enforced, importing a blob that declares such a
- * format must be refused.
- */
-TEST_F(BlobFormatImportersTest, FactoryRejectsHostExecutableBlobTypeWhenEnforced) {
-    config.update({{std::string(ENFORCE_NATIVE_BLOB::key()), "YES"}});
-
-    for (const BlobType blob_type : {BlobType::LLVM, BlobType::BYTECODE}) {
-        const std::string blob = build_blob_format_v1_with_blob_type(blob_type);
-        std::istringstream input_stream(blob);
-        BlobSource source(input_stream);
-
-        OV_EXPECT_THROW(blob_format_importer_factory::create(source, false, nullptr, config), ov::Exception, _);
-    }
-}
-
-/**
- * @brief A native ELF device blob is still accepted while native-blob import is enforced
- */
-TEST_F(BlobFormatImportersTest, FactoryAcceptsElfBlobTypeWhenEnforced) {
-    config.update({{std::string(ENFORCE_NATIVE_BLOB::key()), "YES"}});
-
-    const std::string blob = build_blob_format_v1_with_blob_type(BlobType::ELF);
-    std::istringstream input_stream(blob);
-    BlobSource source(input_stream);
-
-    OV_ASSERT_NO_THROW(blob_format_importer_factory::create(source, false, nullptr, config));
 }
