@@ -23,6 +23,12 @@ impl_desc_type parse_impl_name(std::string impl_desc_name) {
     REPLACE_WORD(brg_conv, brgconv);
     REPLACE_WORD(brdgmm, brgconv);
     REPLACE_WORD(avx10_1_512, avx512);
+    // AVX10.2 (Nova Lake and later). oneDNN reports "avx10_2" / "avx10_2_amx_2".
+    // Without this the name parses to a bare `avx` (SEARCH_WORD(avx2) and
+    // SEARCH_WORD(avx512) both miss, SEARCH_WORD(avx) hits), which is absent from
+    // every implPriorities list, so for_each_implementation() selects nothing and
+    // the caller dereferences an empty primitive_desc ("object is not initialized").
+    REPLACE_WORD(avx10_2, avx512);
     REPLACE_WORD(brg_matmul, brgemm);
 
     REPLACE_WORD(simple, ref);
