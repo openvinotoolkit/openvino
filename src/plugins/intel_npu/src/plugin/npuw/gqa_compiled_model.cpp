@@ -4,8 +4,10 @@
 
 #include "gqa_compiled_model.hpp"
 
+#include <optional>
 #include <utility>
 
+#include "infer_request_utils.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "logging.hpp"
 #include "npuw_transformations/collapse_unqdq.hpp"
@@ -20,6 +22,41 @@
 #include "util.hpp"
 
 namespace {
+
+// Static capacity (in tokens) a dynamic KV-cache is reshaped to for NPU compilation.
+constexpr size_t kMaxSeqLen = 32768;
+
+// Scans `model`'s past_key/past_value Parameters for a dynamic dimension and returns the
+// axis to pin to kMaxSeqLen, keyed by Parameter friendly name. A KV-cache Parameter with
+// more than one dynamic dimension is ambiguous and not something we can safely resolve.
+std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::shared_ptr<const ov::Model>& model) {
+    std::unordered_map<std::string, size_t> result;
+    for (const auto& parameter : model->get_parameters()) {
+        const auto& name = parameter->get_friendly_name();
+        if (!ov::npuw::util::contains_ignore_case(name, "past_key") &&
+            !ov::npuw::util::contains_ignore_case(name, "past_value")) {
+            continue;
+        }
+        const auto& partial_shape = parameter->get_partial_shape();
+        if (partial_shape.rank().is_dynamic()) {
+            continue;
+        }
+        std::optional<size_t> dynamic_axis;
+        for (size_t i = 0; i < partial_shape.size(); ++i) {
+            if (partial_shape[i].is_dynamic()) {
+                OPENVINO_ASSERT(!dynamic_axis.has_value(),
+                                "GQA KV-cache parameter '",
+                                name,
+                                "' has more than one dynamic dimension; can't resolve its max_seq_len axis");
+                dynamic_axis = i;
+            }
+        }
+        if (dynamic_axis.has_value()) {
+            result.emplace(name, *dynamic_axis);
+        }
+    }
+    return result;
+}
 
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     for (const auto& [key, value] : rhs) {
@@ -136,7 +173,43 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
         ov::npuw::CollapseUNQDQ collapse_unqdq;
         collapse_unqdq.run_on_model(model);
     }
-    return {model, std::move(prepared_properties)};
+
+    // Reshape kv-cache to static, if any
+    std::shared_ptr<ov::Model> compiled_model = model;
+    std::unordered_map<std::string, size_t> dynamic_kv_cache_axis;
+    if (has_dynamic_max_seq_len(model)) {
+        dynamic_kv_cache_axis = find_dynamic_kv_cache_axes(model);
+        OPENVINO_ASSERT(!dynamic_kv_cache_axis.empty(),
+                        "GQA model has a dynamic max_seq_len but no resolvable KV-cache Parameter was found");
+        compiled_model = model->clone();
+        std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
+        for (const auto& [name, axis] : dynamic_kv_cache_axis) {
+            const auto& params = compiled_model->get_parameters();
+            auto it = std::find_if(params.begin(), params.end(), [&](const auto& parameter) {
+                return parameter->get_friendly_name() == name;
+            });
+            OPENVINO_ASSERT(it != params.end(), "KV-cache parameter '", name, "' not found in the cloned model");
+            auto new_shape = (*it)->get_partial_shape();
+            new_shape[axis] = ov::Dimension(static_cast<int64_t>(kMaxSeqLen));
+            new_shapes[(*it)->output(0)] = new_shape;
+        }
+        compiled_model->reshape(new_shapes);
+        for (const auto& [name, axis] : dynamic_kv_cache_axis) {
+            const auto& params = compiled_model->get_parameters();
+            auto it = std::find_if(params.begin(), params.end(), [&](const auto& parameter) {
+                return parameter->get_friendly_name() == name;
+            });
+            OPENVINO_ASSERT(it != params.end() && (*it)->get_partial_shape().is_static(),
+                            "Reshaping the GQA KV-cache parameter '",
+                            name,
+                            "' to a static capacity of ",
+                            kMaxSeqLen,
+                            " did not make it fully static");
+        }
+        LOG_INFO("Reshaped dynamic GQA KV-cache to a static capacity of " << kMaxSeqLen << " tokens");
+    }
+
+    return {model, compiled_model, std::move(prepared_properties), std::move(dynamic_kv_cache_axis)};
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::make_compiled_model(
@@ -219,6 +292,61 @@ ov::npuw::GQACompiledModel::Case ov::npuw::GQACompiledModel::identify_case(
     return has_position_ids ? Case::V1 : Case::V0;
 }
 
+bool ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(const std::shared_ptr<const ov::Model>& model) {
+    using ov::op::internal::GroupQueryAttention;
+    using ov::op::internal::GroupQueryAttentionInputs;
+    for (const auto& node : model->get_ordered_ops()) {
+        auto gqa = ov::as_type_ptr<GroupQueryAttention>(node);
+        if (!gqa) {
+            continue;
+        }
+        for (auto kv_input : {GroupQueryAttentionInputs::PAST_KEY, GroupQueryAttentionInputs::PAST_VALUE}) {
+            const auto& shape = gqa->input_value(static_cast<size_t>(kv_input)).get_partial_shape();
+            if (shape.rank().is_dynamic()) {
+                continue;
+            }
+            for (const auto& dim : shape) {
+                if (dim.is_dynamic()) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+void ov::npuw::GQACompiledModel::copy_kv_cache_prefix(const ov::SoPtr<ov::ITensor>& src,
+                                                      const ov::SoPtr<ov::ITensor>& dst,
+                                                      size_t axis) {
+    OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type());
+    const auto& src_shape = src->get_shape();
+    const auto& dst_shape = dst->get_shape();
+    OPENVINO_ASSERT(src_shape.size() == 4u && dst_shape.size() == 4u, "Expected rank-4 KV-cache tensors");
+    OPENVINO_ASSERT(axis == 2 || axis == 3, "Unsupported dynamic KV-cache axis ", axis);
+    if (axis == 2) {
+        // S is not the last dim (V-cache not transposed): reuse the existing per-plane
+        // (N=1, iterate H, copy S*E contiguous elements) KV-cache copy helper.
+        ov::npuw::util::copy_by_planes(src, dst);
+        return;
+    }
+    // S is the last dim (transposed V-cache): each (n, h, e) row is a contiguous S-length
+    // chunk; copy every row's S1 prefix into the wider S2-capacity row, left-aligned. This
+    // is the axis==3 analog of copy_by_planes, walking the same N=1/H/E "rows".
+    OPENVINO_ASSERT(src_shape[0] == 1u, "Expected batch size 1");
+    OPENVINO_ASSERT(src_shape[0] == dst_shape[0] && src_shape[1] == dst_shape[1] && src_shape[2] == dst_shape[2]);
+    const auto* src_p = reinterpret_cast<const uint8_t*>(src->data());
+    auto* dst_p = reinterpret_cast<uint8_t*>(dst->data());
+    const auto rows = src_shape[1] * src_shape[2];
+    const auto src_row_stride = src->get_strides()[2];
+    const auto dst_row_stride = dst->get_strides()[2];
+    const auto row_bytes = src_row_stride;  // src's own S1-sized contiguous row
+    for (size_t i = 0; i < rows; ++i) {
+        std::copy_n(src_p, row_bytes, dst_p);
+        src_p += src_row_stride;
+        dst_p += dst_row_stride;
+    }
+}
+
 ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties,
@@ -229,7 +357,8 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              CompiledModelFactory factory)
     : ov::npuw::ICompiledModel(prepared.model, plugin),
-      m_compiled_model(factory(prepared.model, plugin, prepared.properties)) {
+      m_compiled_model(factory(prepared.compiled_model, plugin, prepared.properties)),
+      m_dynamic_kv_cache_axis(std::move(prepared.dynamic_kv_cache_axis)) {
     OPENVINO_ASSERT(m_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
 }
 
@@ -356,6 +485,20 @@ void ov::npuw::GQAInferRequest::infer() {
 ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
+
+    const auto& name = port.get_node()->get_friendly_name();
+    if (m_compiled_model->m_dynamic_kv_cache_axis.count(name) != 0) {
+        // The inner request's tensor for this port is the static, kMaxSeqLen-sized
+        // buffer -- not what the caller set. Hand back the exact user-owned tensor
+        // instead; there is nothing to allocate on our side for the dynamic shape.
+        auto it = m_dynamic_kv_cache_tensors.find(name);
+        OPENVINO_ASSERT(it != m_dynamic_kv_cache_tensors.end(),
+                        "GQA KV-cache '",
+                        name,
+                        "' has a dynamic max_seq_len; set_tensor() must be called before get_tensor()");
+        return it->second;
+    }
+
     return m_inner_request->get_tensor(map_port_locked(port));
 }
 
@@ -363,7 +506,32 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
                                            const ov::SoPtr<ov::ITensor>& tensor) {
     std::lock_guard<std::mutex> lock(m_mutex);
     ensure_inner_request_locked();
-    m_inner_request->set_tensor(map_port_locked(port), tensor);
+
+    const auto& name = port.get_node()->get_friendly_name();
+    const auto& dynamic_axes = m_compiled_model->m_dynamic_kv_cache_axis;
+    auto it = dynamic_axes.find(name);
+    if (it == dynamic_axes.end()) {
+        m_inner_request->set_tensor(map_port_locked(port), tensor);
+        return;
+    }
+
+    // This KV-cache input was compiled with a static capacity of kMaxSeqLen: keep the
+    // inner request's own (already-allocated, statically-shaped) tensor and copy the
+    // user-supplied, variable-length data into its valid prefix instead of replacing it.
+    const auto axis = it->second;
+    const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
+    const auto requested_len = tensor->get_shape().at(axis);
+    const auto capacity = inner_tensor->get_shape().at(axis);
+    OPENVINO_ASSERT(requested_len <= capacity,
+                    "GQA KV-cache '",
+                    name,
+                    "' length ",
+                    requested_len,
+                    " exceeds the static capacity (",
+                    capacity,
+                    ") it was compiled with");
+    ov::npuw::GQACompiledModel::copy_kv_cache_prefix(tensor, inner_tensor, axis);
+    m_dynamic_kv_cache_tensors[name] = tensor;
 }
 
 void ov::npuw::GQAInferRequest::check_tensors() const {

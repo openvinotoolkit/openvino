@@ -23,6 +23,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 
 namespace {
@@ -141,6 +142,24 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
     params.insert(params.end(),
                  {query, key, value, past_key, past_value, seqlens_k, total_sequence_length, cos_cache, sin_cache});
     return std::make_shared<ov::Model>(results, params, "gqa_full_transformer_model");
+}
+
+// Same wiring as build_full_gqa_transformer_model(), but past_key/past_value's
+// KV-cache dimension is left dynamic at `axis` (2 for the plain [N,H,S,E] layout, 3 for
+// the transpose_v-applied [N,H,E,S] layout) to exercise has_dynamic_max_seq_len()/prepare().
+std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_kv_cache(size_t axis) {
+    auto model = build_full_gqa_transformer_model();
+    for (const auto& parameter : model->get_parameters()) {
+        const auto& name = parameter->get_friendly_name();
+        if (name != "past_keys_0" && name != "past_values_0") {
+            continue;
+        }
+        auto shape = parameter->get_partial_shape();
+        shape[axis] = ov::Dimension::dynamic();
+        parameter->set_partial_shape(shape);
+    }
+    model->validate_nodes_and_infer_types();
+    return model;
 }
 
 std::shared_ptr<ov::Model> build_unqdq_model(const ov::element::Type& input_type = ov::element::f32) {
@@ -599,6 +618,109 @@ TEST(GQACompiledModelSupportsTest, IdentifiesCaseUnknownWithoutAnyPositionSignal
         }
     }
     EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::Unknown);
+}
+
+TEST(GQACompiledModelDynamicKvCacheTest, ReturnsFalseForFullyStaticModel) {
+    auto model = build_full_gqa_transformer_model();
+    EXPECT_FALSE(ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(model));
+}
+
+TEST(GQACompiledModelDynamicKvCacheTest, DetectsDynamicSeqLenAtAxis2) {
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(model));
+}
+
+TEST(GQACompiledModelDynamicKvCacheTest, DetectsDynamicSeqLenAtAxis3) {
+    // Mirrors the --transpose_v layout, where the KV-cache dimension moves to the last axis.
+    auto model = build_gqa_model_with_dynamic_kv_cache(3);
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(model));
+}
+
+TEST_F(GQACompiledModelTest, ReshapesDynamicKvCacheToStaticCapacityAtAxis2) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(model, {}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_FALSE(call.model->is_dynamic());
+    for (const auto& parameter : call.model->get_parameters()) {
+        const auto& name = parameter->get_friendly_name();
+        if (name == "past_keys_0" || name == "past_values_0") {
+            EXPECT_EQ(parameter->get_shape().at(2), 32768u);
+        }
+    }
+
+    // The outer, user-facing model (compiled_model's own ports) is untouched -- it must
+    // stay dynamic so the infer request still accepts variable-length KV-cache input.
+    EXPECT_TRUE(compiled->inputs().front().get_partial_shape().is_dynamic() ||
+               std::any_of(compiled->inputs().begin(), compiled->inputs().end(), [](const auto& input) {
+                   return input.get_partial_shape().is_dynamic();
+               }));
+}
+
+TEST_F(GQACompiledModelTest, ReshapesDynamicKvCacheToStaticCapacityAtAxis3) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+    auto model = build_gqa_model_with_dynamic_kv_cache(3);
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(model, {}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_FALSE(call.model->is_dynamic());
+    for (const auto& parameter : call.model->get_parameters()) {
+        const auto& name = parameter->get_friendly_name();
+        if (name == "past_keys_0" || name == "past_values_0") {
+            EXPECT_EQ(parameter->get_shape().at(3), 32768u);
+        }
+    }
+}
+
+namespace {
+ov::SoPtr<ov::ITensor> make_kv_cache_tensor(const ov::Shape& shape, float start_val = 0.f) {
+    auto tensor = ov::get_tensor_impl(ov::Tensor(ov::element::f32, shape));
+    auto* data = reinterpret_cast<float*>(tensor->data());
+    for (size_t i = 0; i < tensor->get_size(); ++i) {
+        data[i] = start_val + static_cast<float>(i);
+    }
+    return tensor;
+}
+
+std::vector<float> to_vec(const ov::SoPtr<ov::ITensor>& t) {
+    const auto* data = reinterpret_cast<const float*>(t->data());
+    return std::vector<float>(data, data + t->get_size());
+}
+}  // namespace
+
+TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis2LeftAligned) {
+    // [N=1, H=2, S, E=3]: src has S1=2, dst has capacity S2=4.
+    auto src = make_kv_cache_tensor({1, 2, 2, 3}, 0.f);
+    auto dst = make_kv_cache_tensor({1, 2, 4, 3}, 100.f);
+
+    ASSERT_NO_THROW(ov::npuw::GQACompiledModel::copy_kv_cache_prefix(src, dst, /*axis=*/2));
+
+    const auto dst_values = to_vec(dst);
+    // Head 0: src rows [0..5] copied into dst's first 2 (of 4) rows; head 1 likewise.
+    EXPECT_EQ(std::vector<float>(dst_values.begin(), dst_values.begin() + 6),
+              (std::vector<float>{0, 1, 2, 3, 4, 5}));
+    EXPECT_EQ(std::vector<float>(dst_values.begin() + 12, dst_values.begin() + 18),
+              (std::vector<float>{6, 7, 8, 9, 10, 11}));
+}
+
+TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis3LeftAligned) {
+    // [N=1, H=1, E=2, S] (transpose_v layout): src has S1=2, dst has capacity S2=4.
+    auto src = make_kv_cache_tensor({1, 1, 2, 2}, 0.f);
+    auto dst = make_kv_cache_tensor({1, 1, 2, 4}, 100.f);
+
+    ASSERT_NO_THROW(ov::npuw::GQACompiledModel::copy_kv_cache_prefix(src, dst, /*axis=*/3));
+
+    const auto dst_values = to_vec(dst);
+    // Row 0 (e=0): src[0,1] into dst's first 2 (of 4) slots; row 1 (e=1) likewise.
+    EXPECT_EQ(std::vector<float>(dst_values.begin(), dst_values.begin() + 2), (std::vector<float>{0, 1}));
+    EXPECT_EQ(std::vector<float>(dst_values.begin() + 4, dst_values.begin() + 6), (std::vector<float>{2, 3}));
 }
 
 }  // namespace
