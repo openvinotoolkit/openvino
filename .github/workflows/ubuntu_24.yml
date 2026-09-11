@@ -306,7 +306,7 @@ jobs:
     with:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Battlemage', 'Linux' ]"
+      runner: "[ 'self-hosted', 'dgpu-test', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
