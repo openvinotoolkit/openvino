@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "llm_test_helpers.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 
@@ -183,6 +184,27 @@ TEST_F(LLMCompiledModelGraphOptionsTest, DynamicChunkPrefillKeepsPastKvInputsAnd
     const auto ids = find_input(prefill->model, "input_ids");
     ASSERT_TRUE(ids.has_value());
     EXPECT_EQ(ids->get_shape(), (ov::Shape{1, 32}));
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, DynamicChunkPrefillWithoutSharedHeadSelectsLastTokenLogits) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_SHARED_HEAD", "NO"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+    const auto logits = find_output(prefill->model, "logits");
+    ASSERT_TRUE(logits.has_value());
+    EXPECT_EQ(logits->get_shape()[1], 1u);
+
+    const auto result = logits->get_node_shared_ptr();
+    ASSERT_NE(result, nullptr);
+    EXPECT_TRUE(ov::is_type<ov::op::v8::Gather>(result->input_value(0).get_node_shared_ptr()));
 }
 
 TEST_F(LLMCompiledModelGraphOptionsTest, StaticPrefillRemovesPastKvInputsAndKeepsPresentKvOutputs) {
