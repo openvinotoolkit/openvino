@@ -9,6 +9,7 @@
 #include <string>
 
 #include "openvino/core/model.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/serialize.hpp"
 
 namespace ov::intel_cpu {
@@ -37,9 +38,14 @@ private:
 };
 
 static constexpr uint64_t runtime_requirements_magic = 0x4F564350555F5252ULL;  // "OVCPU_RR" in ASCII
-static constexpr uint32_t runtime_requirements_version = 1;
+static constexpr uint32_t runtime_requirements_version = 2;
 static constexpr uint64_t runtime_requirements_max_size = 4096;
-std::string build_runtime_requirements();
+// inference_precision controls what precision flags are stored:
+//   f32      -> bf16=0;f16=0 (no special hardware needed, compatible everywhere)
+//   bf16     -> bf16=1;f16=0
+//   f16      -> bf16=0;f16=1
+//   dynamic  -> hardware capabilities (conservative: store what the machine can use)
+std::string build_runtime_requirements(ov::element::Type inference_precision = ov::element::dynamic);
 bool is_runtime_requirements_compatible(const std::string& requirements);
 
 }  // namespace ov::intel_cpu

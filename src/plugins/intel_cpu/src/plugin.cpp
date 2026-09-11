@@ -810,7 +810,7 @@ static void validate_runtime_requirements(const char* base_ptr, size_t total_byt
     offset += static_cast<size_t>(reqs_size);
     OPENVINO_ASSERT(is_runtime_requirements_compatible(runtime_requirements),
                     "[CPU] Cannot import compiled blob: it was built for a different runtime "
-                    "configuration (OpenVINO version/isa mismatch) and cannot be executed on "
+                    "configuration (OpenVINO version/precision mismatch) and cannot be executed on "
                     "this device.\n"
                     "  blob:    ",
                     runtime_requirements,
