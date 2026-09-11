@@ -4,6 +4,7 @@
 
 #include "ze_counter_based_event.hpp"
 #include "ze/ze_common.hpp"
+#include "ze_base_event_factory.hpp"
 
 #include <cassert>
 #include <chrono>
@@ -13,6 +14,7 @@ using namespace cldnn;
 using namespace ze;
 
 void ze_counter_based_event::wait_impl() {
+    stop_recording();
     OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.handle(), endless_wait));
 }
 

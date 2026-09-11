@@ -5,8 +5,8 @@
 #pragma once
 
 #include "intel_gpu/runtime/event.hpp"
-#include "ze_base_event_factory.hpp"
 #include "ze_common.hpp"
+#include "ze_command_recorder.hpp"
 
 #include <chrono>
 #include <optional>
@@ -22,12 +22,39 @@ public:
     , m_queue_stamp(queue_stamp) { }
     uint64_t get_queue_stamp() const { return m_queue_stamp; }
     void set_queue_stamp(uint64_t val) { m_queue_stamp = val; }
+    void set_command_recorder(ze_command_recorder::ptr recorder) { m_command_recorder = recorder; }
 
     virtual ze_event_handle_t get_handle() const = 0;
     virtual std::optional<ze_kernel_timestamp_result_t> query_timestamp() = 0;
 
+    /// @brief Retrieve valid Level Zero handles from a list of events.
+    /// @param events A vector of event pointers to check.
+    /// @param expect_handles If true, the function will throw an exception if any event does not have a valid handle.
+    /// @note This function assumes all events derive from ze_base_event and performs unsafe cast to avoid RTTI.
+    /// @return A vector of valid Level Zero event handles.
+    static std::vector<ze_event_handle_t> get_event_handles(const std::vector<event::ptr>& events, bool expect_handles = false) {
+        std::vector<ze_event_handle_t> handles;
+        for (auto ev : events) {
+            if (!ev) continue; // Discard null event pointers
+            auto handle = std::static_pointer_cast<ze_base_event>(ev)->get_handle();
+            if (handle != nullptr) {
+                handles.push_back(handle);
+            } else if (expect_handles) {
+                OPENVINO_THROW("Expected a valid event object to have a valid Level Zero handle");
+            }
+        }
+        return handles;
+    }
+
 protected:
     uint64_t m_queue_stamp = 0;
+    ze_command_recorder::ptr m_command_recorder = nullptr;
+
+    void stop_recording() {
+        if (m_command_recorder && m_command_recorder->stop_recording() != nullptr) {
+            GPU_DEBUG_TRACE << "[GPU][REC] Event interrupted recording" << std::endl;
+        }
+    }
 
     static std::chrono::nanoseconds timestamp_to_duration(const device_info &info, const ze_kernel_timestamp_data_t& timestamp) {
         constexpr double NS_IN_SEC = 1000000000.0;

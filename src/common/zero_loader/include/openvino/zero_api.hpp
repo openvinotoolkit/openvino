@@ -103,7 +103,8 @@ namespace ov {
     symbol_statement(zelSetDriverTeardown)                    \
     symbol_statement(zeDeviceGetRuntimeRequirements)          \
     symbol_statement(zeDeviceGetRuntimeRequirementsKey)       \
-    symbol_statement(zeDeviceValidateRuntimeRequirements)
+    symbol_statement(zeDeviceValidateRuntimeRequirements)     \
+    symbol_statement(zeCommandListImmediateAppendCommandListsWithParameters)
 // clang-format on
 
 /**
