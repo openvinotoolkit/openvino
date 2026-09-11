@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
+
 if(NOT BUILD_SHARED_LIBS)
-    file(GLOB_RECURSE op_list "src/op/*.cpp")
     set(static_reg_file ${CMAKE_CURRENT_BINARY_DIR}/static_reg.hpp)
     file(WRITE ${static_reg_file} "// Copyright (C) 2018-2026 Intel Corporation\n// SPDX-License-Identifier: Apache-2.0\n// Auto generated file, DO NOT EDIT INLINE\n\n")
     file(APPEND ${static_reg_file} "#include \"core/operator_set.hpp\"\n\n")
@@ -75,7 +76,10 @@ ov_add_frontend(NAME onnx
                 PROTOBUF_LITE
                 SKIP_NCC_STYLE
                 FILEDESCRIPTION "FrontEnd to load and convert ONNX file format"
-                LINK_LIBRARIES openvino_onnx_common openvino::core::dev)
+                LINK_LIBRARIES openvino_onnx_common openvino::core::dev
+                SOURCES ${ONNX_FRONTEND_SRCS}
+                HEADERS ${ONNX_FRONTEND_HEADERS}
+                PUBLIC_HEADERS ${ONNX_FRONTEND_PUBLIC_HEADERS})
 
 set(ONNX_OPSET_VERSION 26 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
