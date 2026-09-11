@@ -38,6 +38,8 @@ struct ConvAttrs {
     std::vector<float> dqScales;
 
     PostOps postOps;
+
+    int32_t inputZeroPoint = 0;  // per-tensor activation zero point
 };
 
 using ConvConfig = executor::Config<ConvAttrs>;
