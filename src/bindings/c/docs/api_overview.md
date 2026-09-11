@@ -358,6 +358,7 @@ OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_device_bind_buffer;
 OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_enable_startup_fallback;
 
 OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_enable_runtime_fallback;
+OPENVINO_C_VAR(const char*) ov_property_key_intel_auto_compile_for_all;
 ```
 
 ### GPU plugin specified properties
