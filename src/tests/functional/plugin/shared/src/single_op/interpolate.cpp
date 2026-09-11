@@ -144,7 +144,15 @@ void Interpolate11LayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto scales_orsizes_input = make_scales_or_sizes_input(shape_calc_mode, target_shape, scales);
+    auto target_sizes = target_shape;
+    if (!axes.empty()) {
+        target_sizes.clear();
+        for (const auto axis : axes) {
+            target_sizes.push_back(target_shape[axis]);
+        }
+    }
+
+    auto scales_orsizes_input = make_scales_or_sizes_input(shape_calc_mode, target_sizes, scales);
 
     ov::op::util::InterpolateBase::InterpolateAttrs interpolate_attributes{mode, shape_calc_mode, pad_begin,
         pad_end, coordinate_transform_mode, nearest_mode, antialias, cube_coef};
@@ -165,6 +173,10 @@ void Interpolate11LayerTest::SetUp() {
 
     auto result = std::make_shared<ov::op::v0::Result>(interpolate);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "interpolate");
+
+    if (model_type == ov::element::f32) {
+        abs_threshold = 1e-6;
+    }
 }
 }  // namespace test
 }  // namespace ov

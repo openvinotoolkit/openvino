@@ -98,4 +98,6 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
                                                        { Tensor::DataChannelName::FEATURE },
                                                        { Tensor::DataChannelName::BATCH }});
 bool CheckInputsOutputNoPitchSameDims(const base_params& params);
+
+
 }  // namespace kernel_selector

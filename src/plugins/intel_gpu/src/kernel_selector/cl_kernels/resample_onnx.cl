@@ -22,20 +22,33 @@
     #define TO_OUT_VEC_TYPE(x)          TO_OUTPUT_VECTOR_TYPE(x, VEC_SIZE)
 #endif
 
+inline float FUNC(ref_divide)(float numerator, float denominator)
+{
+    volatile float numerator_value = numerator;
+    volatile float denominator_value = denominator;
+    volatile float quotient = numerator_value / denominator_value;
+    volatile float residual = numerator_value - quotient * denominator_value;
+    return quotient + residual / denominator_value;
+}
+
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
     if (scale == 1.0f)
         return num;
 #if defined(COORD_TRANS_MODE_HALF_PIXEL)
-    return (num + 0.5f) * scale - 0.5f;
+    return FUNC_CALL(ref_divide)(num + 0.5f, scale) - 0.5f;
 #elif defined(COORD_TRANS_MODE_PYTORCH_HALF_PIXEL)
-    return (length_resized > 1) ? (num + 0.5f) * scale - 0.5f : 0.f;
+    return (length_resized > 1) ? FUNC_CALL(ref_divide)(num + 0.5f, scale) - 0.5f : 0.f;
 #elif defined(COORD_TRANS_MODE_ASYMMETRIC)
-    return num * scale;
+    return FUNC_CALL(ref_divide)(num, scale);
 #elif defined(COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN)
-    return (num + 0.5f) * scale;
+    return FUNC_CALL(ref_divide)(num + 0.5f, scale);
 #elif defined(COORD_TRANS_MODE_ALIGN_CORNERS)
-    return (length_resized != 1) ? num * (length_original - 1) / (length_resized - 1) : 0.f;
+    if (length_resized == 1)
+        return 0.f;
+    if (num == 0.f || num == (float)(length_resized - 1))
+        return num == 0.f ? 0.f : (float)(length_original - 1);
+    return FUNC_CALL(ref_divide)((float)((int)num * (length_original - 1)), (float)(length_resized - 1));
 #else
 #error [clDNN resample_onnx.cl]: coordinate transformation mode - not supported
 #endif
