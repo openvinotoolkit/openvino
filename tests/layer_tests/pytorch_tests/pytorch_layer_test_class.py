@@ -337,7 +337,7 @@ class PytorchLayerTest:
 
                 dynamic_shapes = kwargs.get('dynamic_shapes_for_export', {})
 
-                em = export(model, tuple(torch_inputs), dynamic_shapes=dynamic_shapes)
+                em = export(deepcopy(model), tuple(deepcopy(torch_inputs)), dynamic_shapes=dynamic_shapes)
 
                 # Verify FX graph operations exist
                 # Use explicit fx_kind if provided, otherwise auto-derive from TorchScript kind

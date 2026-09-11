@@ -93,6 +93,7 @@ class TestQuantizePerTensorDequantize(PytorchLayerTest):
     @pytest.mark.precommit
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',
                        reason='Ticket - 122715')
+    @pytest.mark.precommit_torch_export
     def test_quantize_per_tensor_dequantize(self, scale, zero_point, dtype, ie_device, precision, ir_version):
         if dtype == torch.quint8: zero_point = abs(zero_point)
         self._test(aten_quantize_per_tensor_aten_dequantize(scale, zero_point, dtype), ["aten::quantize_per_tensor", "aten::dequantize"],

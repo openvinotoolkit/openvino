@@ -1,5 +1,8 @@
 -c ../constraints.txt
 --extra-index-url https://download.pytorch.org/whl/cpu
+# torch 2.13.0 fixes GHSA-rrmf-rvhw-rf47; WhoWhatBench caps torchvision at 0.28.0.
+torch==2.13.0
+torchvision==0.28.0
 optimum-intel[tests,nncf]
 whowhatbench[llm-test-openvino] @ git+https://github.com/openvinotoolkit/openvino.genai.git#subdirectory=tools/who_what_benchmark
 pytest

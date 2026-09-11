@@ -5,7 +5,7 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class aten_rrelu(torch.nn.Module):
@@ -34,7 +34,7 @@ class TestRRelu(PytorchLayerTest):
         (0.0, 1.0),
     ])
     @pytest.mark.parametrize("dtype", [torch.float16, torch.float32, torch.float64])
-    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
+    @pytest.mark.parametrize("inplace", [True, False])
     def test_rrelu(self, lower, upper, dtype, inplace, ie_device, precision, ir_version):
         kwargs = {}
         if dtype == torch.float16:

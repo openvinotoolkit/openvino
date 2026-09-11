@@ -363,6 +363,8 @@ namespace {
 std::map<std::string, RnnVariant> RNN_VARIANT_MAP = {
     {"aten::rnn_tanh", RnnVariant::RNN_TANH},
     {"aten::rnn_relu", RnnVariant::RNN_RELU},
+    {"aten.rnn_tanh.input", RnnVariant::RNN_TANH},
+    {"aten.rnn_relu.input", RnnVariant::RNN_RELU},
 };
 }
 

@@ -38,7 +38,7 @@ using namespace ov::op;
 
 AtenIndexPutReplacer::AtenIndexPutReplacer() {
     auto index_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(
-        fw_node_predicate({"aten::index_put_", "aten.index_put.default"}));
+        fw_node_predicate({"aten::index_put_", "aten.index_put.default", "aten.index_put_.default"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         auto index_op = m.get_match_root();
