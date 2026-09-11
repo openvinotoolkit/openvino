@@ -6,6 +6,7 @@
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
@@ -142,17 +143,43 @@ RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert, bool enable_without_
         const auto& axes = pattern_map.at(mean_axes).get_node_shared_ptr();
         auto axes_constant = ov::as_type_ptr<v0::Constant>(axes);
         auto axes_val = axes_constant->cast_vector<int64_t>();
-        // allow last dimension only
-        if ((axes_val[0] != -1) &&
-            (axes_val[0] != (static_cast<int64_t>(mean_node->get_input_partial_shape(0).size()) - 1))) {
-            return false;
+
+        const auto& in_pshape = mean_node->get_input_partial_shape(0);
+        int64_t raw_axis = axes_val[0];
+        int64_t rms_axis = -1;
+
+        if (in_pshape.rank().is_static()) {
+            const auto rank = static_cast<int64_t>(in_pshape.rank().get_length());
+            int64_t norm_axis = raw_axis;
+            try {
+                norm_axis = ov::util::normalize_axis(raw_axis, rank);
+            } catch (...) {
+                return false;
+            }
+
+            const bool is_last_dim = (norm_axis == rank - 1);
+            const bool is_nchw_channel = (rank == 4 && norm_axis == 1);
+
+            if (!is_last_dim && !is_nchw_channel) {
+                return false;
+            }
+
+            // Keep default -1 for last dimension to preserve compatibility with existing tests/callers,
+            // or explicit axis=1 for 4D NCHW channel axis.
+            rms_axis = is_last_dim ? -1 : norm_axis;
+        } else {
+            if (raw_axis != -1) {
+                return false;
+            }
+            rms_axis = -1;
         }
 
         auto output_type = elementwise_affine ? m.get_match_root()->get_output_element_type(0)
                                               : mul_or_div_node->get_output_element_type(0);
         std::shared_ptr<ov::op::internal::RMS> rms =
-            elementwise_affine ? std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type)
-                               : std::make_shared<ov::op::internal::RMS>(x_output, eps_value, output_type);
+            elementwise_affine
+                ? std::make_shared<ov::op::internal::RMS>(x_output, gamma_node, eps_value, output_type, rms_axis)
+                : std::make_shared<ov::op::internal::RMS>(x_output, eps_value, output_type, rms_axis);
         if (elementwise_affine) {
             rms->set_friendly_name(m.get_match_root()->get_friendly_name());
             ov::copy_runtime_info(m.get_matched_nodes(), rms);

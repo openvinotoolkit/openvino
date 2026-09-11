@@ -31,6 +31,44 @@ KERNEL(rms_gpu_ref)(
     #endif
 )
 {
+#if NORMALIZE_FEATURE && INPUT_RANK >= 4
+    const uint x = get_global_id(0);
+    const uint y = get_global_id(1);
+    const uint bz = get_global_id(2);
+    const uint z = bz % INPUT0_SIZE_Z;
+    const uint b = bz / INPUT0_SIZE_Z;
+
+    if (x >= INPUT0_SIZE_X || y >= INPUT0_SIZE_Y || b >= INPUT0_BATCH_NUM)
+        return;
+
+    ACCUMULATOR_TYPE rms = ACCUMULATOR_VAL_ZERO;
+    for (uint n = 0; n < NORM_SIZE; n++) {
+        uint f = n;
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
+        const ACCUMULATOR_TYPE value = TO_ACCUMULATOR_TYPE(input[input_idx]);
+        rms += value * value;
+    }
+
+    rms /= NORM_SIZE;
+    rms = pow(sqrt(rms + EPSILON), -1);
+
+    for (uint n = 0; n < NORM_SIZE; n++) {
+        uint f = n;
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
+        const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
+#if ELEMENTWISE_AFFINE
+        const uint gamma_idx = INPUT1_OFFSET + (INPUT1_LENGTH == 1 ? 0 : n);
+        OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]) * TO_ACCUMULATOR_TYPE(gamma[gamma_idx]));
+#else
+        OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]));
+#endif
+        #if HAS_FUSED_OPS
+            FUSED_OPS;
+            result = FUSED_OPS_RESULT;
+        #endif
+        output[output_idx] = result;
+    }
+#else
 #if NORMALIZE_X
     const uint outer_z_size = INPUT0_SIZE_Z;
     const uint outer_y_size = INPUT0_SIZE_Y;
@@ -76,6 +114,7 @@ KERNEL(rms_gpu_ref)(
             }
         }
     }
+#endif
 }
 
 #undef NORM_SIZE

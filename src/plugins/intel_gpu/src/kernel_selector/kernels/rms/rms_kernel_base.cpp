@@ -46,6 +46,15 @@ JitConstants RMSKernelBase::GetJitConstants(const rms_params& params, RMSKernelB
 }
 
 Tensor::DataChannelName RMSKernelBase::GetNormalizationAxis(const rms_params& params) {
+    if (params.axis != -1) {
+        int64_t norm_axis = params.axis;
+        if (params.ov_input_rank > 0) {
+            norm_axis = (norm_axis % params.ov_input_rank + params.ov_input_rank) % params.ov_input_rank;
+        }
+        if (params.ov_input_rank == 4 && norm_axis == 1) {
+            return Tensor::DataChannelName::FEATURE;
+        }
+    }
     switch (params.ov_input_rank) {
         case 1: return Tensor::DataChannelName::BATCH;
         case 2: return Tensor::DataChannelName::FEATURE;
@@ -73,7 +82,11 @@ RMSKernelBase::DispatchData RMSKernelBase::SetDefault(const rms_params& params) 
             dispatchData.gws = {1, 1, 1};
             break;
         case Tensor::DataChannelName::FEATURE:
-            dispatchData.gws = {output.Batch().v, 1, 1};
+            if (params.ov_input_rank >= 4) {
+                dispatchData.gws = {output.X().v, output.Y().v, output.Batch().v * output.Z().v};
+            } else {
+                dispatchData.gws = {output.Batch().v, 1, 1};
+            }
             break;
         default:
             dispatchData.gws = {output.Batch().v, output.Feature().v, 1};

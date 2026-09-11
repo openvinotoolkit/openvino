@@ -692,3 +692,115 @@ TEST_F(TransformationTestsF, RMSNormFusionTest20_PowerNegHalf_NoGamma) {
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
+
+TEST_F(TransformationTestsF, RMSNormFusion_NCHWChannelAxis) {
+    // Gemma-3n vision RmsNorm2d reduces C in NCHW, fusing into internal RMS with axis=1.
+    const std::string scope = "__module.model.model.vision_tower.timm_model.conv_stem.bn/";
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 64, -1, -1});
+    {
+        auto power_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {2.f});
+        auto power = std::make_shared<ov::op::v1::Power>(input, power_const);
+        auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, true);
+        mean->set_friendly_name(scope + "aten::mean/ReduceMean");
+        auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1e-6f});
+        auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+        auto one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1.f});
+        auto reciprocal = std::make_shared<ov::op::v1::Divide>(one, sqrt);
+        auto normalized = std::make_shared<ov::op::v1::Multiply>(input, reciprocal);
+        normalized->set_friendly_name(scope + "aten::mul/Multiply");
+        auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 64, 1, 1}, {0.5f});
+        auto scaled = std::make_shared<ov::op::v1::Multiply>(normalized, gamma);
+        scaled->set_friendly_name(scope + "aten::mul/Multiply_1");
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{scaled}, ov::ParameterVector{input});
+        manager.register_pass<RMSFusion>(/*force_tail_convert=*/false, /*enable_without_gamma=*/true);
+    }
+    {
+        auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 64, 1, 1}, {0.5f});
+        auto rms = std::make_shared<ov::op::internal::RMS>(input, gamma, 1e-6f, ov::element::f32, 1);
+        rms->set_friendly_name(scope + "aten::mul/Multiply_1");
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, RMSNormFusion_NCHWChannelAxis_NegativeAxis) {
+    const std::string scope = "test/";
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 16, 16});
+    {
+        auto power_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f});
+        auto power = std::make_shared<ov::op::v1::Power>(input, power_const);
+        auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-3});
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, true);
+        auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-5f});
+        auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+        auto one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f});
+        auto reciprocal = std::make_shared<ov::op::v1::Divide>(one, sqrt);
+        auto normalized = std::make_shared<ov::op::v1::Multiply>(input, reciprocal);
+        auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 32, 1, 1}, {1.0f});
+        auto scaled = std::make_shared<ov::op::v1::Multiply>(normalized, gamma);
+        scaled->set_friendly_name(scope + "out");
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{scaled}, ov::ParameterVector{input});
+        manager.register_pass<RMSFusion>(false, true);
+    }
+    {
+        auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 32, 1, 1}, {1.0f});
+        auto rms = std::make_shared<ov::op::internal::RMS>(input, gamma, 1e-5f, ov::element::f32, 1);
+        rms->set_friendly_name(scope + "out");
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, RMSNormFusion_UnsupportedAxis_NoFusion) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, 16, 16});
+    auto power_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {2.f});
+    auto power = std::make_shared<ov::op::v1::Power>(input, power_const);
+    auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+    auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, true);
+    auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1e-5f});
+    auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
+    auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+    auto one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.f});
+    auto reciprocal = std::make_shared<ov::op::v1::Divide>(one, sqrt);
+    auto normalized = std::make_shared<ov::op::v1::Multiply>(input, reciprocal);
+    auto gamma = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 16, 1}, {1.0f});
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(normalized, gamma);
+
+    model = std::make_shared<ov::Model>(ov::OutputVector{scaled}, ov::ParameterVector{input});
+    manager.register_pass<RMSFusion>(false, true);
+}
+
+TEST_F(TransformationTestsF, RMSNormFusion_NCHWChannelAxis_NoGamma) {
+    const std::string scope = "test_no_gamma/";
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 64, -1, -1});
+    {
+        auto power_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {2.f});
+        auto power = std::make_shared<ov::op::v1::Power>(input, power_const);
+        auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, true);
+        auto eps = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1e-6f});
+        auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+        auto one = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {1.f});
+        auto reciprocal = std::make_shared<ov::op::v1::Divide>(one, sqrt);
+        auto normalized = std::make_shared<ov::op::v1::Multiply>(input, reciprocal);
+        normalized->set_friendly_name(scope + "aten::mul/Multiply");
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{normalized}, ov::ParameterVector{input});
+        manager.register_pass<RMSFusion>(/*force_tail_convert=*/false, /*enable_without_gamma=*/true);
+    }
+    {
+        auto rms = std::make_shared<ov::op::internal::RMS>(input, 1e-6f, ov::element::f32, 1);
+        rms->set_friendly_name(scope + "aten::mul/Multiply");
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rms}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}

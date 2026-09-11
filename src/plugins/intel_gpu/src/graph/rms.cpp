@@ -32,6 +32,7 @@ std::string rms_inst::to_string(rms_node const& node) {
     json_composite rms_info;
     rms_info.add("input_id", node.input(0).id());
     rms_info.add("epsilon", desc->epsilon);
+    rms_info.add("axis", desc->axis);
 
     node_info->add("rms_info", rms_info);
     node_info->dump(primitive_description);
