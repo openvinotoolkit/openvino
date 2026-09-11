@@ -38,13 +38,11 @@ public:
                                         size_t batch_index,
                                         const std::shared_ptr<ov::ITensor>& userTensor = nullptr) = 0;
 
-    std::vector<ov::ProfilingInfo> get_profiling_info() const;
+    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const = 0;
 
     virtual ~IPipeline() = default;
 
 protected:
-    void enable_profiling();
-
     // Helper function handling strides for Zero Pipeline and ZeroDynamicPipeline. Stateless regarding pipeline
     // instances, hence static
     static std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes,
@@ -54,9 +52,6 @@ protected:
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;
     const Config _config;
-
-    std::unique_ptr<zeroProfiling::ProfilingQuery> _profiling_query;
-    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
 
     /**
      * @brief Indicates how many command lists will be used inside the pipeline.
@@ -105,7 +100,14 @@ public:
                                 size_t batch_index,
                                 const std::shared_ptr<ov::ITensor>& userTensor = nullptr) override;
 
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override;
+
 private:
+    void setup_profiling();
+    void enable_profiling();
+
+    std::unique_ptr<zeroProfiling::ProfilingQuery> _profiling_query;
+    std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;
     std::vector<std::unique_ptr<CommandList>> _command_lists;
 };
 

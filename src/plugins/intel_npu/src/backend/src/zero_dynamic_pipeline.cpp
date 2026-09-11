@@ -507,12 +507,15 @@ void DynamicPipeline::pull() {
     } else {
         _events.front()->hostSynchronize();
     }
-    /// sample npu timestamps if feature was activated
-    if (_npu_profiling != nullptr) {
-        _npu_profiling->sampleNpuTimestamps();
-    }
 
     _logger.debug("pull - completed");
+}
+
+std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
+    if (_config.has<PERF_COUNT>() && _config.get<PERF_COUNT>()) {
+        _logger.warning("get_profiling_info - profiling is not supported for dynamic graphs");
+    }
+    return {};
 }
 
 void DynamicPipeline::reset() const {
