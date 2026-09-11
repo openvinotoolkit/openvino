@@ -186,8 +186,17 @@ void BevPoolV2::validate_and_infer_types() {
     const auto idx_et = get_input_element_type(2);
     const auto itv_et = get_input_element_type(3);
 
-    NODE_VALIDATION_CHECK(this, cf_et.is_real(), "Input 0 (cf) must be a floating-point tensor. Got: ", cf_et);
-    NODE_VALIDATION_CHECK(this, dw_et.is_real(), "Input 1 (dw) must be a floating-point tensor. Got: ", dw_et);
+    const auto is_supported_float_type = [](const element::Type& et) {
+        return et == element::f16 || et == element::f32;
+    };
+    NODE_VALIDATION_CHECK(this,
+                          is_supported_float_type(cf_et),
+                          "Input 0 (cf) must be an f16 or f32 tensor. Got: ",
+                          cf_et);
+    NODE_VALIDATION_CHECK(this,
+                          is_supported_float_type(dw_et),
+                          "Input 1 (dw) must be an f16 or f32 tensor. Got: ",
+                          dw_et);
     NODE_VALIDATION_CHECK(this,
                           cf_et.compatible(dw_et),
                           "Input 0 (cf) and input 1 (dw) element types must be compatible. Got: ",

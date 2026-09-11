@@ -92,31 +92,17 @@ ov::OutputVector bevpool_v2(const ov::frontend::onnx::Node& node) {
     const auto itv_input = inputs[3];
 
     // Frontend layout adaptation for feat:
-    // - preferred layout: NHWC
-    // - if feat comes in NCHW, transpose to NHWC
-    // Optional string attr `feat_layout` can force behavior: "NCHW" or "NHWC".
-    const auto feat_layout = node.get_attribute_value<std::string>("feat_layout", "AUTO");
-    bool convert_feat_nchw_to_nhwc = false;
-
-    if (feat_layout == "NCHW") {
-        convert_feat_nchw_to_nhwc = true;
-    } else if (feat_layout == "AUTO") {
-        const auto feat_ps = cf_input.get_partial_shape();
-        const auto dw_ps = dw_input.get_partial_shape();
-
-        if (feat_ps.rank().is_static() && dw_ps.rank().is_static() && feat_ps.rank().get_length() == 4 &&
-            dw_ps.rank().get_length() == 4 && feat_ps[2].is_static() && feat_ps[3].is_static() &&
-            dw_ps[2].is_static() && dw_ps[3].is_static()) {
-            // Detect NCHW by matching feat H/W against depth H/W at dims [2]/[3].
-            const auto feat_h = feat_ps[2].get_length();
-            const auto feat_w = feat_ps[3].get_length();
-            const auto dw_h = dw_ps[2].get_length();
-            const auto dw_w = dw_ps[3].get_length();
-            if (feat_h == dw_h && feat_w == dw_w) {
-                convert_feat_nchw_to_nhwc = true;
-            }
-        }
-    }
+    // - default/documented layout: NHWC (no conversion performed)
+    // - explicit `feat_layout` = "NCHW" requests a transpose to NHWC
+    // The layout cannot be inferred unambiguously from shapes alone (e.g. NHWC [N,H,W,C] can
+    // coincidentally match a NCHW-vs-depth shape heuristic when W == H_dw and C == W_dw), so no
+    // shape-based AUTO detection is performed; unrecognized values are rejected explicitly.
+    const auto feat_layout = node.get_attribute_value<std::string>("feat_layout", "NHWC");
+    CHECK_VALID_NODE(node,
+                     feat_layout == "NHWC" || feat_layout == "NCHW",
+                     "Attribute 'feat_layout' must be one of 'NHWC', 'NCHW'. Got: ",
+                     feat_layout);
+    const bool convert_feat_nchw_to_nhwc = (feat_layout == "NCHW");
 
     if (convert_feat_nchw_to_nhwc) {
         cf_input = std::make_shared<ov::op::v1::Transpose>(
@@ -128,9 +114,8 @@ ov::OutputVector bevpool_v2(const ov::frontend::onnx::Node& node) {
                                                    {"input_channels", "in_channels", "channels"},
                                                    get_static_dim_or_default(cf_input, 3, 1));
 
-    const auto output_channels = get_u32_attr_alias(node,
-                                                    {"output_channels", "out_channels", "channels_out", "bev_channels"},
-                                                    get_static_dim_or_default(dw_input, 1, input_channels));
+    const auto output_channels =
+        get_u32_attr_alias(node, {"output_channels", "out_channels", "channels_out", "bev_channels"}, input_channels);
 
     const auto image_width =
         get_u32_attr_alias(node, {"image_width", "in_width", "width"}, get_static_dim_or_default(cf_input, 2, 1));
