@@ -65,12 +65,12 @@ GNDecomposition::GNDecomposition() {
         ov::Shape group_shape = {orig_shape[0], num_groups, 1UL, c_in_group * spatial_dim};
         std::shared_ptr<ov::Node> reshaped_node_orig = std::make_shared<ov::snippets::op::Reshape>(data, group_shape);
 
-        std::shared_ptr<ov::Node> reshaped_node1 = reshaped_node_orig;
+        std::shared_ptr<ov::Node> reshaped_node = reshaped_node_orig;
         if (data.get_element_type() != element::f32) {
-            reshaped_node1 = std::make_shared<ov::snippets::op::ConvertSaturation>(reshaped_node_orig, element::f32);
+            reshaped_node = std::make_shared<ov::snippets::op::ConvertSaturation>(reshaped_node_orig, element::f32);
         }
 
-        const auto reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(reshaped_node1, group_rank - 1);
+        const auto reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(reshaped_node, group_rank - 1);
         op::ReduceBase::compute_and_set_reduce_subtensors(reduce_sum);
 
         // reduceMean
@@ -80,11 +80,7 @@ GNDecomposition::GNDecomposition() {
         const auto reduce_mean = std::make_shared<ov::op::v1::Multiply>(reduce_sum, group_size_inv_node);
 
         // x - mean
-        std::shared_ptr<ov::Node> reshaped_node2 = reshaped_node_orig;
-        if (data.get_element_type() != element::f32) {
-            reshaped_node2 = std::make_shared<ov::snippets::op::ConvertSaturation>(reshaped_node_orig, element::f32);
-        }
-        auto sub_mean = std::make_shared<ov::op::v1::Subtract>(reshaped_node2, reduce_mean);
+        auto sub_mean = std::make_shared<ov::op::v1::Subtract>(reshaped_node, reduce_mean);
         // (x - mean) ^ 2
         auto sqr_const = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{2});
         auto sqr = std::make_shared<ov::op::v1::Power>(sub_mean, sqr_const);
@@ -92,9 +88,7 @@ GNDecomposition::GNDecomposition() {
         auto sqr_reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(sqr, group_rank - 1);
         op::ReduceBase::compute_and_set_reduce_subtensors(sqr_reduce_sum);
         // reduceMean((x - mean) ^ 2)
-        const auto group_size_inv_node_aux =
-            std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{group_size_inv});
-        auto sqr_mean = std::make_shared<ov::op::v1::Multiply>(sqr_reduce_sum, group_size_inv_node_aux);
+        auto sqr_mean = std::make_shared<ov::op::v1::Multiply>(sqr_reduce_sum, group_size_inv_node);
         // reduceMean((x - mean) ^ 2) + eps
         auto eps_node = std::make_shared<ov::op::v0::Constant>(element::f32, Shape{1}, std::vector<float>{eps});
         auto eps_add = std::make_shared<ov::op::v1::Add>(sqr_mean, eps_node);  // fma to this add and parent multiply

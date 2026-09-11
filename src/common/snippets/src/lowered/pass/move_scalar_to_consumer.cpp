@@ -5,10 +5,13 @@
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 
 #include <iterator>
+#include <set>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/op/scalar.hpp"
 
@@ -31,9 +34,17 @@ bool MoveScalarToConsumer::run(LinearIR& linear_ir) {
             auto consumer_expr = consumers.begin()->get_expr();
             const auto& loop_ids = consumer_expr->get_loop_ids();
             for (const auto& consumer : consumers) {
-                OPENVINO_ASSERT(consumer.get_expr()->get_loop_ids() == loop_ids,
-                                "All consumers of a Scalar expression are expected to have the same loop IDs");
-                if (consumer.get_expr()->get_exec_num() < consumer_expr->get_exec_num()) {
+                if (consumer.get_expr()->get_loop_ids() != loop_ids) {
+                    const auto scalar = ov::as_type_ptr<op::Scalar>(expr->get_node());
+                    const auto consumer_expr_it = linear_ir.find(consumer.get_expr());
+                    const auto scalar_clone = std::make_shared<op::Scalar>(*scalar);
+                    linear_ir.insert_node(scalar_clone,
+                                          std::vector<PortConnectorPtr>{},
+                                          consumer.get_expr()->get_loop_ids(),
+                                          false,
+                                          consumer_expr_it,
+                                          std::set<ExpressionPort>{consumer});
+                } else if (consumer.get_expr()->get_exec_num() < consumer_expr->get_exec_num()) {
                     consumer_expr = consumer.get_expr();
                 }
             }
