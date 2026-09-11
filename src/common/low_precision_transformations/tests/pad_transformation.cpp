@@ -4,6 +4,7 @@
 
 #include "layer_transformation.hpp"
 
+#include <limits>
 #include <string>
 #include <sstream>
 #include <gtest/gtest.h>
@@ -1086,4 +1087,39 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValuesForDynamicRank)),
     PadTransformation::getTestCaseName);
 } // namespace testCasesWithDynamicRank
+
+// CONSTANT mode with a non-finite (±inf) pad value: the transformation
+// must be skipped, leaving dequantization before Pad.
+namespace testCasesForNonFinitePadValue {
+const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsByUniqueDimension = {
+    {0, 0, 2, 0}, {0, 0, 1, 0}
+};
+
+const std::vector<PadTransformationTestValues> testValuesForNonFinitePadValue = {
+    {
+        LayerTransformation::createParamsU8I8(),
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {}, {3.f}}
+        },
+        {
+            ov::element::u8,
+            {{ov::element::f32}, {}, {3.f}},
+            ov::element::f32,
+            {{}, {}, {}}
+        }
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_LPT,
+    PadTransformation,
+    ::testing::Combine(
+        ::testing::ValuesIn(inputShapes),
+        ::testing::Values(padsByUniqueDimension),
+        ::testing::Values(ov::op::PadMode::CONSTANT),
+        ::testing::Values(-std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity()),
+        ::testing::ValuesIn(testValuesForNonFinitePadValue)),
+    PadTransformation::getTestCaseName);
+} // namespace testCasesForNonFinitePadValue
 } // namespace
