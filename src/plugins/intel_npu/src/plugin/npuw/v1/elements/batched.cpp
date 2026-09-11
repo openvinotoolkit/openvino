@@ -245,11 +245,32 @@ void ov::npuw::batched::InferRequest::infer() {
     }
 }
 
+bool ov::npuw::batched::InferRequest::published_by_element(std::size_t port_idx,
+                                                          const ov::SoPtr<ov::ITensor>& tensor) const {
+    return port_idx < m_published_outputs.size() && m_published_outputs[port_idx]._ptr != nullptr &&
+           m_published_outputs[port_idx]._ptr == tensor._ptr;
+}
+
+void ov::npuw::batched::InferRequest::publish_output(std::size_t port_idx,
+                                                     const ov::Output<const ov::Node>& port,
+                                                     const ov::SoPtr<ov::ITensor>& tensor) {
+    if (m_published_outputs.size() <= port_idx) {
+        m_published_outputs.resize(port_idx + 1);
+    }
+    // Keep the published tensor alive for as long as it is remembered: a freed
+    // tensor's address could otherwise be reused by a caller's allocation and
+    // mistaken for one of ours.
+    m_published_outputs[port_idx] = tensor;
+    set_tensor(port, tensor);
+}
+
 void ov::npuw::batched::InferRequest::expose_inner_outputs() {
-    for (const auto& port : get_outputs()) {
+    const auto& out_ports = get_outputs();
+    for (std::size_t k = 0; k < out_ports.size(); ++k) {
+        const auto& port = out_ports[k];
         const auto inner_out = m_inner->get_tensor(port);
         const auto current = get_tensor(port);
-        if (current && current._ptr != inner_out._ptr && m_owned_outputs.count(current._ptr.get()) == 0) {
+        if (current && current._ptr != inner_out._ptr && !published_by_element(k, current)) {
             // A caller-bound tensor is the caller's: it is never replaced, the
             // result is written into it. The shape is brought in line the way
             // plugins treat dynamic outputs - set_shape() resizes an owning
@@ -266,13 +287,14 @@ void ov::npuw::batched::InferRequest::expose_inner_outputs() {
             inner_out->copy_to(current._ptr);
             continue;
         }
-        m_owned_outputs.insert(inner_out._ptr.get());
-        set_tensor(port, inner_out);
+        publish_output(k, port, inner_out);
     }
 }
 
 void ov::npuw::batched::InferRequest::ensure_batched_outputs(std::size_t batch) {
-    for (const auto& port : get_outputs()) {
+    const auto& out_ports = get_outputs();
+    for (std::size_t k = 0; k < out_ports.size(); ++k) {
+        const auto& port = out_ports[k];
         const auto inner_out = m_inner->get_tensor(port);
         OPENVINO_ASSERT(inner_out && !inner_out->get_shape().empty() && inner_out->get_shape()[0] == 1,
                         "Batched element: output '",
@@ -281,7 +303,7 @@ void ov::npuw::batched::InferRequest::ensure_batched_outputs(std::size_t batch) 
         ov::Shape shape = inner_out->get_shape();
         shape[0] = batch;
         const auto current = get_tensor(port);
-        if (current && current._ptr != inner_out._ptr && m_owned_outputs.count(current._ptr.get()) == 0) {
+        if (current && current._ptr != inner_out._ptr && !published_by_element(k, current)) {
             // A caller-bound tensor is the caller's: it is never replaced, the
             // rows are written into it. The shape is brought in line the way
             // plugins treat dynamic outputs - set_shape() resizes an owning
@@ -303,9 +325,7 @@ void ov::npuw::batched::InferRequest::ensure_batched_outputs(std::size_t batch) 
             // written straight into it.
             continue;
         }
-        auto fresh = ov::get_tensor_impl(ov::Tensor(inner_out->get_element_type(), shape));
-        m_owned_outputs.insert(fresh._ptr.get());
-        set_tensor(port, fresh);
+        publish_output(k, port, ov::get_tensor_impl(ov::Tensor(inner_out->get_element_type(), shape)));
     }
 }
 
