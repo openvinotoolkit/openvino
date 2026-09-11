@@ -1061,7 +1061,10 @@ bool network::is_recording_supported() const {
 
         // Check for any implementations that are not replay safe
         const auto* impl = inst->get_impl();
-        if (impl && !impl->is_replay_safe())
+        if (impl == nullptr)
+            return false;
+
+        if (!impl->is_replay_safe())
             return false;
     }
 
