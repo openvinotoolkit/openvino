@@ -76,6 +76,22 @@ INSTANTIATE_TEST_SUITE_P(smoke, grid_sample_test,
             GridSampleOp::PaddingMode::BORDER,
             layout{{1, 2, 5, 6}, data_types::f32, format::bfyx}
         },
+        {   // 5D volumetric: data [N,C,D,H,W], grid [N,Do,Ho,Wo,3] -> out [N,C,Do,Ho,Wo]
+            layout{{1, 2, 3, 4, 5}, data_types::f32, format::bfzyx},
+            layout{{1, 6, 7, 8, 3}, data_types::f32, format::bfzyx},
+            false,
+            GridSampleOp::InterpolationMode::BILINEAR,
+            GridSampleOp::PaddingMode::ZEROS,
+            layout{{1, 2, 6, 7, 8}, data_types::f32, format::bfzyx}
+        },
+        {   // 5D dynamic spatials
+            layout{{1, 2, -1, -1, -1}, data_types::f32, format::bfzyx},
+            layout{{1, -1, -1, -1, 3}, data_types::f32, format::bfzyx},
+            true,
+            GridSampleOp::InterpolationMode::NEAREST,
+            GridSampleOp::PaddingMode::BORDER,
+            layout{{1, 2, -1, -1, -1}, data_types::f32, format::bfzyx}
+        },
     }));
 
 }  // namespace shape_infer_tests

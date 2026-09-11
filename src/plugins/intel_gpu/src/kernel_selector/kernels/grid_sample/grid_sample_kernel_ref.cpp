@@ -12,7 +12,12 @@ CommonDispatchData GridSampleKernelRef::CalcDispatch(const grid_sample_params& k
     CommonDispatchData dispatch_data;
     const auto& output = kernel_params.outputs.front();
 
-    dispatch_data.gws = {output.Batch().v * output.Feature().v, output.Y().v, output.X().v};
+    if (output.GetDims().size() == 5) {
+        // Volumetric output [N, C, D_out, H_out, W_out]: fold D_out into the second global dimension.
+        dispatch_data.gws = {output.Batch().v * output.Feature().v, output.Z().v * output.Y().v, output.X().v};
+    } else {
+        dispatch_data.gws = {output.Batch().v * output.Feature().v, output.Y().v, output.X().v};
+    }
     dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, kernel_params.engineInfo);
 
     return dispatch_data;
@@ -25,6 +30,8 @@ ParamsKey GridSampleKernelRef::GetSupportedKey() const {
     key.EnableDifferentTypes();
     key.EnableInputLayout(DataLayout::bfyx);
     key.EnableOutputLayout(DataLayout::bfyx);
+    key.EnableInputLayout(DataLayout::bfzyx);
+    key.EnableOutputLayout(DataLayout::bfzyx);
     key.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     key.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     key.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
