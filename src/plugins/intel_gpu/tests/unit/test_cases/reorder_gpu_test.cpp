@@ -5010,7 +5010,7 @@ static void run_reorder_uint2(const ov::Shape in_shape) {
     std::vector<uint8_t> input_data((num_elements + 3) / 4, 0);
     std::vector<T> expected_data(num_elements);
     for (size_t idx = 0; idx < num_elements; idx++) {
-        const uint8_t val = static_cast<uint8_t>(idx % 4);
+        const uint8_t val = static_cast<uint8_t>((idx * 3 + 1) % 4);
         expected_data[idx] = static_cast<T>(val);
         input_data[idx / 4] |= static_cast<uint8_t>(val << ((idx % 4) * 2));
     }
@@ -5061,12 +5061,23 @@ TEST(reorder_gpu_u2, basic_uint2_non_primitive_shape_bf16)
     run_reorder_uint2<ov::bfloat16>({1, 1, 2, 3});
 }
 
+// Packing: val[0] in bits[1:0], val[1] in bits[3:2], val[2] in bits[5:4], val[3] in bits[7:6]
 template <typename T>
-void run_reorder_test_to_u2(data_types input_type, const std::vector<T>& input_data, const std::vector<uint8_t>& expected) {
+void run_reorder_test_to_u2(data_types input_type, const ov::Shape& in_shape) {
     auto& engine = get_test_engine();
 
-    layout in_layout({ov::Shape{1, 1, 4, 4}, input_type, format::bfyx});
-    layout out_layout({ov::Shape{1, 1, 4, 4}, data_types::u2, format::bfyx});
+    // Values (cycling 0..3, same formula as run_reorder_uint2) and their expected packed bytes scale with in_shape.
+    const size_t num_elements = ov::shape_size(in_shape);
+    std::vector<T> input_data(num_elements);
+    std::vector<uint8_t> expected((num_elements + 3) / 4, 0);
+    for (size_t idx = 0; idx < num_elements; idx++) {
+        const uint8_t val = static_cast<uint8_t>((idx * 3 + 1) % 4);
+        input_data[idx] = static_cast<T>(val);
+        expected[idx / 4] |= static_cast<uint8_t>(val << ((idx % 4) * 2));
+    }
+
+    layout in_layout({in_shape, input_type, format::bfyx});
+    layout out_layout({in_shape, data_types::u2, format::bfyx});
 
     memory::ptr input_mem = engine.allocate_memory(in_layout);
     set_values(input_mem, input_data);
@@ -5086,34 +5097,34 @@ void run_reorder_test_to_u2(data_types input_type, const std::vector<T>& input_d
     auto output_mem = outputs.at("reorder").get_memory();
     cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
+    ASSERT_EQ(expected.size(), output_ptr.size());
     for (size_t i = 0; i < expected.size(); ++i) {
         ASSERT_EQ(expected[i], output_ptr[i]) << "mismatch at byte " << i;
     }
 }
 
-// Packing: val[0] in bits[1:0], val[1] in bits[3:2], val[2] in bits[5:4], val[3] in bits[7:6]
 TEST(reorder_gpu_u2, fp16_to_u2) {
-    std::vector<ov::float16> input_data = {
-        ov::float16(0.f), ov::float16(1.f), ov::float16(2.f), ov::float16(3.f),
-        ov::float16(3.f), ov::float16(2.f), ov::float16(1.f), ov::float16(0.f),
-        ov::float16(1.f), ov::float16(0.f), ov::float16(3.f), ov::float16(2.f),
-        ov::float16(2.f), ov::float16(3.f), ov::float16(0.f), ov::float16(1.f),
-    };
-    // byte0: (0<<0)|(1<<2)|(2<<4)|(3<<6) = 0xE4
-    // byte1: (3<<0)|(2<<2)|(1<<4)|(0<<6) = 0x1B
-    // byte2: (1<<0)|(0<<2)|(3<<4)|(2<<6) = 0xB1
-    // byte3: (2<<0)|(3<<2)|(0<<4)|(1<<6) = 0x4E
-    run_reorder_test_to_u2(data_types::f16, input_data, {0xE4, 0x1B, 0xB1, 0x4E});
+    run_reorder_test_to_u2<ov::float16>(data_types::f16, {1, 1, 4, 4});
 }
 
 TEST(reorder_gpu_u2, bf16_to_u2) {
-    std::vector<ov::bfloat16> input_data = {
-        ov::bfloat16(0.f), ov::bfloat16(1.f), ov::bfloat16(2.f), ov::bfloat16(3.f),
-        ov::bfloat16(3.f), ov::bfloat16(2.f), ov::bfloat16(1.f), ov::bfloat16(0.f),
-        ov::bfloat16(1.f), ov::bfloat16(0.f), ov::bfloat16(3.f), ov::bfloat16(2.f),
-        ov::bfloat16(2.f), ov::bfloat16(3.f), ov::bfloat16(0.f), ov::bfloat16(1.f),
-    };
-    run_reorder_test_to_u2(data_types::bf16, input_data, {0xE4, 0x1B, 0xB1, 0x4E});
+    run_reorder_test_to_u2<ov::bfloat16>(data_types::bf16, {1, 1, 4, 4});
+}
+
+TEST(reorder_gpu_u2, fp16_to_u2_non_primitive_shape) {
+    run_reorder_test_to_u2<ov::float16>(data_types::f16, {1, 1, 2, 3});
+}
+
+TEST(reorder_gpu_u2, bf16_to_u2_non_primitive_shape) {
+    run_reorder_test_to_u2<ov::bfloat16>(data_types::bf16, {1, 1, 2, 3});
+}
+
+TEST(reorder_gpu_u2, fp16_to_u2_prime_shape) {
+    run_reorder_test_to_u2<ov::float16>(data_types::f16, {1, 1, 1, 7});
+}
+
+TEST(reorder_gpu_u2, bf16_to_u2_prime_shape) {
+    run_reorder_test_to_u2<ov::bfloat16>(data_types::bf16, {1, 1, 1, 7});
 }
 
 static uint8_t pack_int4(int8_t a, int8_t b) {
