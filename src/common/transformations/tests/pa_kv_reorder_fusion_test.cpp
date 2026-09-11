@@ -80,10 +80,10 @@ TEST(PaKVReorderFusionTest, FusionPattern) {
     auto value_scatter = std::make_shared<op::v3::ScatterUpdate>(value_cache, block_indices, value_gather, axis);
     value_scatter->set_friendly_name("updated_value_cache_0");
 
-    auto concat = std::make_shared<op::v0::Concat>(OutputVector{key_scatter, value_scatter}, 0);
-    auto result = std::make_shared<op::v0::Result>(concat);
+    auto key_result = std::make_shared<op::v0::Result>(key_scatter);
+    auto value_result = std::make_shared<op::v0::Result>(value_scatter);
 
-    auto model = std::make_shared<Model>(ResultVector{result},
+    auto model = std::make_shared<Model>(ResultVector{key_result, value_result},
                                          ParameterVector{key_cache,
                                                          value_cache,
                                                          block_indices,
@@ -114,6 +114,11 @@ TEST(PaKVReorderFusionTest, FusionPattern) {
     ASSERT_TRUE(found_pa_kv_reorder) << "PaKVReorder op should be created after fusion";
     ASSERT_EQ(gather_count, 0) << "Gather ops should be removed after fusion";
     ASSERT_EQ(scatter_count, 0) << "ScatterUpdate ops should be removed after fusion";
+    ASSERT_TRUE(std::dynamic_pointer_cast<op::internal::PaKVReorder>(key_result->input_value(0).get_node_shared_ptr()));
+    ASSERT_EQ(key_result->input_value(0).get_index(), 0);
+    ASSERT_TRUE(
+        std::dynamic_pointer_cast<op::internal::PaKVReorder>(value_result->input_value(0).get_node_shared_ptr()));
+    ASSERT_EQ(value_result->input_value(0).get_index(), 1);
 }
 
 TEST_F(TransformationTestsF, PaKVReorderFusion_basic) {
@@ -181,7 +186,9 @@ TEST_F(TransformationTestsF, PaKVReorderFusion_basic) {
                                                                          block_update_indices,
                                                                          block_update_indices_begins);
         pa_kv_reorder->set_friendly_name("pa_kv_reorder_0");
-        auto result = std::make_shared<op::v0::Result>(pa_kv_reorder);
+        auto concat =
+            std::make_shared<op::v0::Concat>(OutputVector{pa_kv_reorder->output(0), pa_kv_reorder->output(1)}, 0);
+        auto result = std::make_shared<op::v0::Result>(concat);
 
         model_ref = std::make_shared<Model>(ResultVector{result},
                                             ParameterVector{key_cache,
@@ -258,7 +265,7 @@ TEST(PaKVReorderOpTest, OpCreation) {
 
     ASSERT_NE(pa_kv_reorder, nullptr);
     ASSERT_EQ(pa_kv_reorder->get_input_size(), 6);
-    ASSERT_EQ(pa_kv_reorder->get_output_size(), 1);
+    ASSERT_EQ(pa_kv_reorder->get_output_size(), 2);
 }
 
 TEST(PaKVReorderOpTest, ModelWithOp) {
