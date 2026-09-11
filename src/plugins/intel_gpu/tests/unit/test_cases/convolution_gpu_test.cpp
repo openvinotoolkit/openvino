@@ -1709,7 +1709,7 @@ TEST(convolution_f16_fw_gpu, dynamic_batch_bfyx_small_channel_fsv16)
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "" };
+    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_to_bfyx_f16", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv1", impl } }));
 
     network target_network(engine, target_topology, config);
