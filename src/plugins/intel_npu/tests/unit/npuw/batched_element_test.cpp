@@ -32,13 +32,16 @@
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
 #include "v1/elements/batched.hpp"
 #include "variable_state.hpp"
 
 namespace {
 
+using ov::test::npuw::build_llm_test_model;
 using ov::test::npuw::build_reranker_test_model;
 using ov::test::npuw::NullPlugin;
 
@@ -628,5 +631,77 @@ TEST_F(NPUWBatchedElementTest, SingleRowPreBoundOutputWrittenInPlace) {
     EXPECT_FLOAT_EQ(row_value(out, 0), 42.0f);
     EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer"}));
 }
+
+// The wrap is part of the blob end to end. A real LLM compiled through NPUW on
+// CPU with the rerank tag exports a batched blob, the import dispatch rebuilds
+// the wrapper from it (tag restored, no property re-supplied beyond the model
+// pointer the weightless blob needs), and the imported model stacks a batch row
+// for row like the compiled one scores single prompts.
+TEST(NPUWBatchedElementRoundTrip, ExportImportRebuildsTheWrapAndStacks) {
+    constexpr std::size_t kRows = 3;
+    constexpr std::size_t kLen = 6;
+
+    ov::Core core;
+    auto model = build_llm_test_model();
+    // The online partitioner's repeated-block detection does not cope with the
+    // synthetic model, so the sub-models are compiled whole on CPU.
+    const ov::AnyMap props = {{"NPU_USE_NPUW", "YES"},
+                              {"NPUW_LLM", "YES"},
+                              {"NPUW_DEVICES", "CPU"},
+                              {"NPUW_ONLINE_PIPELINE", "NONE"},
+                              {"NPUW_LLM_MAX_PROMPT_LEN", "32"},
+                              {"NPUW_LLM_MIN_RESPONSE_LEN", "8"},
+                              {"NPUW_TEXT_RERANK", "YES"}};
+    auto compiled = core.compile_model(model, "NPU", props);
+    ASSERT_TRUE(compiled.get_property("NPUW_TEXT_RERANK").as<bool>());
+
+    std::stringstream blob;
+    compiled.export_model(blob);
+    auto import_props = props;
+    import_props[ov::hint::model.name()] = std::static_pointer_cast<const ov::Model>(model);
+    auto imported = core.import_model(blob, "NPU", import_props);
+    EXPECT_TRUE(imported.get_property("NPUW_TEXT_RERANK").as<bool>());
+
+    // Row r of a batch carries tokens 1 + first_row + r, so batched row r on the
+    // imported model must equal a single-row infer of the same prompt on the
+    // compiled one.
+    const auto score = [&](ov::CompiledModel& cm, std::size_t rows, std::size_t first_row) {
+        auto req = cm.create_infer_request();
+        ov::Tensor input_ids(ov::element::i64, {rows, kLen});
+        ov::Tensor attention_mask(ov::element::i64, {rows, kLen});
+        ov::Tensor position_ids(ov::element::i64, {rows, kLen});
+        ov::Tensor beam_idx(ov::element::i32, {rows});
+        for (std::size_t r = 0; r < rows; ++r) {
+            for (std::size_t t = 0; t < kLen; ++t) {
+                input_ids.data<int64_t>()[r * kLen + t] = static_cast<int64_t>(1 + first_row + r + t);
+                attention_mask.data<int64_t>()[r * kLen + t] = 1;
+                position_ids.data<int64_t>()[r * kLen + t] = static_cast<int64_t>(t);
+            }
+            beam_idx.data<int32_t>()[r] = 0;
+        }
+        req.set_tensor("input_ids", input_ids);
+        req.set_tensor("attention_mask", attention_mask);
+        req.set_tensor("position_ids", position_ids);
+        req.set_tensor("beam_idx", beam_idx);
+        req.infer();
+        ov::Tensor out(req.get_output_tensor(0).get_element_type(), req.get_output_tensor(0).get_shape());
+        req.get_output_tensor(0).copy_to(out);
+        return out;
+    };
+
+    const auto batched = score(imported, kRows, 0);
+    ASSERT_EQ(batched.get_shape()[0], kRows);
+    const std::size_t row_elems = batched.get_size() / kRows;
+    for (std::size_t r = 0; r < kRows; ++r) {
+        const auto single = score(compiled, 1, r);
+        ASSERT_EQ(single.get_size(), row_elems) << "row " << r;
+        const float* got = batched.data<float>() + r * row_elems;
+        const float* want = single.data<float>();
+        for (std::size_t i = 0; i < row_elems; ++i) {
+            ASSERT_NEAR(got[i], want[i], 1e-5f) << "row " << r << " element " << i;
+        }
+    }
+}
+
 
 }  // namespace
