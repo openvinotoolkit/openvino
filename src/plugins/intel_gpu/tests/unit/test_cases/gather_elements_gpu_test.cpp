@@ -45,6 +45,54 @@ inline void DoTest(engine& engine,
     }
 }
 
+// The indices input and the output share a shape but not necessarily their pitches. Feeding
+// the indices through a padded reorder makes INPUT1's pitches differ from OUTPUT's; the kernel
+// must index each with its own pitches rather than reusing one index for both.
+TEST(gather_elements_gpu_fp16, padded_indices_axis0) {
+    auto& engine = get_test_engine();
+
+    const int64_t axis = 0;
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 2, 2 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 2, 1, 2, 2 } }); // indices
+
+    set_values(input0, {
+        ov::float16(0), ov::float16(1), ov::float16(2), ov::float16(3),
+        ov::float16(4), ov::float16(5), ov::float16(6), ov::float16(7),
+    });
+    set_values(input1, {
+        ov::float16(0), ov::float16(1), ov::float16(1), ov::float16(0),
+        ov::float16(1), ov::float16(0), ov::float16(0), ov::float16(1),
+    });
+
+    topology topology;
+    topology.add(input_layout("InputData", input0->get_layout()));
+    topology.add(input_layout("InputIndices", input1->get_layout()));
+    topology.add(reorder("PaddedIndices",
+                         input_info("InputIndices"),
+                         input1->get_layout().with_padding(padding{{0, 0, 1, 1}})));
+    topology.add(gather_elements("gather_elements",
+                                 input_info("InputData"),
+                                 input_info("PaddedIndices"),
+                                 input1->get_layout().format,
+                                 tensor{2, 1, 2, 2},
+                                 axis));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("InputData", input0);
+    network.set_input_data("InputIndices", input1);
+
+    auto output = network.execute().at("gather_elements").get_memory();
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+    // axis 0: out[b, f, y, x] = data[indices[b, f, y, x], f, y, x]
+    const std::vector<float> expected_results = { 0, 5, 6, 3, 4, 1, 2, 7 };
+
+    ASSERT_EQ(expected_results.size(), output_ptr.size());
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], half_to_float(output_ptr[i])) << ", i=" << i;
+    }
+}
+
 TEST(gather_elements_gpu_fp16, d3283_i2283_a0) {
     auto& engine = get_test_engine();
 
