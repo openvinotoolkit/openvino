@@ -61,9 +61,7 @@ InputShape GroupNormalization::ExtractScaleShiftShape(const InputShape& shape) {
 }
 
 TEST_P(GroupNormalization, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

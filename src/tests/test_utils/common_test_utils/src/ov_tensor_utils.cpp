@@ -408,6 +408,17 @@ inline bool is_value_suitable_for_comparation(const T1 value1, const T2 value2) 
     return res;
 }
 
+// Converts a value read via `ov::element::iterator` (fundamental type or `BitProxy`) to double.
+// nf4/f4e2m1 are de-quantized to their real value; other types use their fundamental value as-is.
+template <ov::element::Type_t ET, class ValueRef>
+inline double to_comparable_double(const ValueRef& value) {
+    if constexpr (ET == ov::element::Type_t::nf4 || ET == ov::element::Type_t::f4e2m1) {
+        return static_cast<double>(static_cast<float>(value));
+    } else {
+        return static_cast<double>(static_cast<ov::fundamental_type_for<ET>>(value));
+    }
+}
+
 class Error {
 protected:
     struct IncorrectValue {
@@ -565,7 +576,7 @@ double calculate_default_rel_threshold(const ov::element::Type& expected_type,
 
 }  // namespace tensor_comparation
 
-template <typename ExpectedT, typename ActualT>
+template <ov::element::Type_t ExpectedET, ov::element::Type_t ActualET>
 void compare(const ov::Tensor& expected,
              const ov::Tensor& actual,
              const ov::element::Type& inference_precision,
@@ -573,6 +584,9 @@ void compare(const ov::Tensor& expected,
              double rel_threshold,
              double topk_threshold,
              double mvn_threshold) {
+    using ExpectedT = ov::fundamental_type_for<ExpectedET>;
+    using ActualT = ov::fundamental_type_for<ActualET>;
+
     // check shapes
     auto expected_shape = expected.get_shape();
     auto actual_shape = actual.get_shape();
@@ -609,15 +623,20 @@ void compare(const ov::Tensor& expected,
     // error is a place with whole data related to incorrect element in tensor
     size_t shape_size_cnt = shape_size(expected_shape);
     tensor_comparation::Error error(abs_threshold, rel_threshold, topk_threshold, mvn_threshold, shape_size_cnt);
-    const auto expected_data = expected.data<ExpectedT>();
-    const auto actual_data = actual.data<ActualT>();
-    for (size_t i = 0; i < shape_size_cnt; ++i) {
-        auto expected_value = expected_data[i];
-        auto actual_value = actual_data[i];
-        if (!tensor_comparation::is_value_suitable_for_comparation<ExpectedT, ActualT>(expected_value, actual_value)) {
+
+    auto expected_it = ov::element::iterator<ExpectedET>(expected.data());
+    auto actual_it = ov::element::iterator<ActualET>(actual.data());
+    for (size_t i = 0; i < shape_size_cnt; ++i, ++expected_it, ++actual_it) {
+        const auto& expected_ref = *expected_it;
+        const auto& actual_ref = *actual_it;
+        const auto expected_raw = static_cast<ExpectedT>(expected_ref);
+        const auto actual_raw = static_cast<ActualT>(actual_ref);
+        if (!tensor_comparation::is_value_suitable_for_comparation<ExpectedT, ActualT>(expected_raw, actual_raw)) {
             continue;
         }
 
+        const auto expected_value = tensor_comparation::to_comparable_double<ExpectedET>(expected_ref);
+        const auto actual_value = tensor_comparation::to_comparable_double<ActualET>(actual_ref);
         error.update(actual_value, expected_value, i);
     }
     error.check_results(expected_shape);
@@ -640,15 +659,15 @@ void compare(const ov::Tensor& expected,
              const double rel_threshold,
              const double topk_threshold,
              const double mvn_threshold) {
-#define CASE0(X, Y)                                                                                          \
-    case Y:                                                                                                  \
-        compare<element_type_traits<X>::value_type, element_type_traits<Y>::value_type>(expected,            \
-                                                                                        actual,              \
-                                                                                        inference_precision, \
-                                                                                        abs_threshold,       \
-                                                                                        rel_threshold,       \
-                                                                                        topk_threshold,      \
-                                                                                        mvn_threshold);      \
+#define CASE0(X, Y)                        \
+    case Y:                                \
+        compare<X, Y>(expected,            \
+                      actual,              \
+                      inference_precision, \
+                      abs_threshold,       \
+                      rel_threshold,       \
+                      topk_threshold,      \
+                      mvn_threshold);      \
         break;
 
 #define CASE(X)                                          \
@@ -665,11 +684,16 @@ void compare(const ov::Tensor& expected,
             CASE0(X, ov::element::Type_t::i32)           \
             CASE0(X, ov::element::Type_t::i64)           \
             CASE0(X, ov::element::Type_t::u1)            \
+            CASE0(X, ov::element::Type_t::u2)            \
+            CASE0(X, ov::element::Type_t::u3)            \
             CASE0(X, ov::element::Type_t::u4)            \
+            CASE0(X, ov::element::Type_t::u6)            \
             CASE0(X, ov::element::Type_t::u8)            \
             CASE0(X, ov::element::Type_t::u16)           \
             CASE0(X, ov::element::Type_t::u32)           \
             CASE0(X, ov::element::Type_t::u64)           \
+            CASE0(X, ov::element::Type_t::nf4)           \
+            CASE0(X, ov::element::Type_t::f4e2m1)        \
             CASE0(X, ov::element::Type_t::f8e4m3)        \
             CASE0(X, ov::element::Type_t::f8e5m2)        \
         default:                                         \
@@ -693,11 +717,16 @@ void compare(const ov::Tensor& expected,
         CASE(ov::element::Type_t::i32)
         CASE(ov::element::Type_t::i64)
         CASE(ov::element::Type_t::u1)
+        CASE(ov::element::Type_t::u2)
+        CASE(ov::element::Type_t::u3)
         CASE(ov::element::Type_t::u4)
+        CASE(ov::element::Type_t::u6)
         CASE(ov::element::Type_t::u8)
         CASE(ov::element::Type_t::u16)
         CASE(ov::element::Type_t::u32)
         CASE(ov::element::Type_t::u64)
+        CASE(ov::element::Type_t::nf4)
+        CASE(ov::element::Type_t::f4e2m1)
         CASE(ov::element::Type_t::f8e4m3)
         CASE(ov::element::Type_t::f8e5m2)
     case ov::element::Type_t::string:
@@ -709,6 +738,7 @@ void compare(const ov::Tensor& expected,
 #undef CASE0
 #undef CASE
 }
+
 }  // namespace utils
 }  // namespace test
 }  // namespace ov

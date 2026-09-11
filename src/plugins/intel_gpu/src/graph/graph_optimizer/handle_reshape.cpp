@@ -29,8 +29,9 @@ void handle_reshape::run(program& p) {
             auto output_lay = node.get_output_layout();
 
             if (!node.is_in_place() ||
-                node.has_fused_primitives())
+                node.has_fused_primitives()) {
                 return;
+            }
 
             if (input_lay.identical(output_lay)) {
                 p.add_optimized_primitive_info(node.id());
@@ -52,13 +53,15 @@ void handle_reshape::run(program& p) {
     while (node_itr != p.get_processing_order().end()) {
         const auto& node = (*node_itr++);
         program_helpers::do_for_types<reshape>(*node, [&p](reshape_node& node) {
-            if (node.is_output() || node.get_users().size() > 1 || node.has_fused_primitives() || node.is_dynamic())
+            if (node.is_output() || node.get_users().size() > 1 || node.has_fused_primitives() || node.is_dynamic()) {
                 return;
+            }
 
             const auto& out_node = node.get_users().front();
 
-            if (!out_node->is_type<reshape>())
+            if (!out_node->is_type<reshape>()) {
                 return;
+            }
 
             const auto& out_reshape = out_node->as<reshape>();
             // In case of new shape infer we should not shrink reshapes chain if first reshape changes input rank, e.g.
@@ -66,8 +69,9 @@ void handle_reshape::run(program& p) {
             // Configuration above will fail if we remove reshape1 node as attempt to handle special zero will fail due to small rank of input
             if (p.is_new_shape_infer() &&
                 out_node->get_output_pshape().size() != node.get_input_pshape().size() &&
-                (out_reshape.get_primitive()->special_zero || node.get_primitive()->special_zero))
+                (out_reshape.get_primitive()->special_zero || node.get_primitive()->special_zero)) {
                 return;
+            }
 
             p.extract_and_remove(node);
         });
@@ -79,8 +83,9 @@ void handle_reshape::run(program& p) {
             auto& input_node = *dep.first;
             const auto& input_port = dep.second;
 
-            if (input_node.is_type<reorder>())
+            if (input_node.is_type<reorder>()) {
                 continue;
+            }
 
             node->get_output_layout();
 
@@ -93,10 +98,12 @@ void handle_reshape::run(program& p) {
             // find users who are onednn impl
             for (const auto& user : node->get_users()) {
                 if (user->is_type<reorder>() &&
-                    !(*user).as<reorder>().get_primitive()->truncate)   // not to split conversion only reorder
+                    !(*user).as<reorder>().get_primitive()->truncate) {   // not to split conversion only reorder
                     reorder_node_to_split.push_back(user);
-                if (user->can_use(impl_types::onednn))
+                }
+                if (user->can_use(impl_types::onednn)) {
                     onednn_users.push_back(user);
+                }
             }
 
             // If onednn user doesn't support new input data type from future "reorder:_reshape_input_" reorder,
@@ -140,8 +147,9 @@ void handle_reshape::run(program& p) {
                     // reshape node for first user will be the orginal reshape from the graph
                     if (!found_one) {
                         if ((std::find(reorder_node_to_split.begin(), reorder_node_to_split.end(), user) !=
-                            reorder_node_to_split.end()) && (user->get_output_layout().get_rank() == node->get_output_layout().get_rank()))
+                            reorder_node_to_split.end()) && (user->get_output_layout().get_rank() == node->get_output_layout().get_rank())) {
                             reorder_reshape_nodes.push_back(node);
+                        }
                         found_one = true;
                         continue;
                     }
@@ -172,8 +180,9 @@ void handle_reshape::run(program& p) {
                     }
                 }
 
-                if (reorder_reshape_nodes.empty())
+                if (reorder_reshape_nodes.empty()) {
                     continue;
+                }
 
                 // add new reorder nodes to proper reshape node
                 auto reshape_reorder_id = 0;

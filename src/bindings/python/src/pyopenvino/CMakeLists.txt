@@ -53,11 +53,9 @@ if(TARGET openvino::frontend::jax)
 endif()
 
 # create target
+include(sources.cmake)
 
-file(GLOB_RECURSE SOURCES core/*.cpp experimental/*.cpp graph/*.cpp frontend/*.cpp utils/*.cpp pyopenvino.cpp)
-list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch|jax))/*")
-
-pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
+pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${PYOPENVINO_SOURCES})
 
 if(NOT ENABLE_GIL_PYTHON_API)
     # disable GIL for free-threaded python build
@@ -90,8 +88,8 @@ if(OV_GENERATOR_MULTI_CONFIG)
         COMMAND_EXPAND_LISTS)
 endif()
 
-# Collect all Python source files for dependency tracking
-file(GLOB_RECURSE OPENVINO_PYTHON_SOURCE_FILES CONFIGURE_DEPENDS ${OpenVINOPython_SOURCE_DIR}/src/openvino/*.py)
+# Python source files for dependency tracking are provided by the parent scope
+# as OPENVINO_PYTHON_SOURCE_FILES (see src/bindings/python/CMakeLists.txt)
 
 # Create a stamp file to track when copy was last performed
 set(PYTHON_COPY_STAMP_FILE ${CMAKE_CURRENT_BINARY_DIR}/python_copy.stamp)

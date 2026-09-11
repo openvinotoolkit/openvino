@@ -23,18 +23,21 @@ kv_cache_inst::typed_primitive_inst(network& network, const kv_cache_node& node)
 }
 
 int64_t kv_cache_inst::compute_trim_length(const kernel_impl_params& impl_param, const kv_cache& desc) {
-    if (!desc.trim)
+    if (!desc.trim) {
         return 0;
+    }
 
     const size_t past_seq_len_idx = desc.indirect ? 3 : 2;
     const auto mem_dep_it = impl_param.memory_deps.find(past_seq_len_idx);
-    if (mem_dep_it == impl_param.memory_deps.end())
+    if (mem_dep_it == impl_param.memory_deps.end()) {
         return 0;
+    }
 
     const auto& past_seq_len_mem = mem_dep_it->second;
     const auto past_seq_len_layout = past_seq_len_mem->get_layout();
-    if (past_seq_len_layout.count() == 0)
+    if (past_seq_len_layout.count() == 0) {
         return 0;
+    }
 
     OPENVINO_ASSERT(past_seq_len_layout.count() == 1);
     cldnn::mem_lock<uint8_t, mem_lock_type::read> past_seq_len_mem_lock(past_seq_len_mem, impl_param.get_stream());
@@ -180,8 +183,9 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
         if (bt_layout.is_dynamic()) {
             auto bt_shape = bt_layout.get_partial_shape();
             for (auto& d : bt_shape) {
-                if (d.is_dynamic())
+                if (d.is_dynamic()) {
                     d = 0;
+                }
             }
             bt_layout.set_partial_shape(bt_shape);
         }
@@ -200,8 +204,9 @@ void kv_cache_inst::update_shape_info_tensor(const kernel_impl_params& params) {
 
 void kv_cache_inst::release_variable() {
     // if there's variable state, it should hold a reference of tensor same as outputs
-    if (!get_network().has_variable(variable_id()))
+    if (!get_network().has_variable(variable_id())) {
         return;
+    }
     for (size_t i = 0; i < _outputs.size(); ++i) {
         auto& output = _outputs[i];
         output.reset();

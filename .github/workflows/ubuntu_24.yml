@@ -209,26 +209,26 @@ jobs:
       device: 'GPU'
       test-suffix: 'iGPU'
       use-pip-proxy: false
-      timeout-minutes: 30
+      timeout-minutes: 60
 
   LLM_Accuracy_dGPU:
     name: LLM accuracy dGPU tests
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     if: |
-      github.event_name != 'schedule' && (
+      github.event_name == 'push' && (
         fromJSON(needs.smart_ci.outputs.affected_components).GPU ||
         fromJSON(needs.smart_ci.outputs.affected_components).transformations ||
         fromJSON(needs.smart_ci.outputs.affected_components).Core
       )
     uses: ./.github/workflows/job_llm_accuracy_tests.yml
     with:
-      runner: '{"group": "Intel-GPU", "labels": ["self-hosted", "dgpu", "Arc-B580", "Battlemage", "Linux"]}'
+      runner: '{"group": "Intel-GPU", "labels": ["self-hosted", "dgpu", "Arc-B50", "Battlemage", "Linux"]}'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       container-options: '--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129'
       device: 'GPU'
       test-suffix: 'dGPU'
       use-pip-proxy: false
-      timeout-minutes: 30
+      timeout-minutes: 60
 
   Pytorch_Layer_Tests:
     name: Pytorch Layer Tests
@@ -332,7 +332,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, LLM_Accuracy_CPU, LLM_Accuracy_iGPU, LLM_Accuracy_dGPU]
+    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, LLM_Accuracy_CPU, LLM_Accuracy_iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

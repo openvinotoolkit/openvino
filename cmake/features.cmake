@@ -42,12 +42,18 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
-# Set default GPU runtime to OCL
+# Set default GPU runtime to OCL. COMBINED (build ZE and OCL plugins side by side) is
+# opt-in only; the default is never flipped.
 set(OV_GPU_DEFAULT_RT "OCL")
 if (ENABLE_INTEL_GPU)
-    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL, SYCL and ZE (L0 is accepted as ZE alias)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0 SYCL)
+    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported values: OCL (default), SYCL, ZE (L0 alias), and COMBINED (ZE+OCL, shared builds only)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0 SYCL COMBINED)
     if(GPU_RT_TYPE STREQUAL "L0")
         set(GPU_RT_TYPE "ZE" CACHE STRING "Type of GPU runtime" FORCE)
+    endif()
+    # COMBINED ships two plugin libraries via plugins.xml, which requires shared libs.
+    if(GPU_RT_TYPE STREQUAL "COMBINED" AND NOT BUILD_SHARED_LIBS)
+        message(FATAL_ERROR "GPU_RT_TYPE=COMBINED requires BUILD_SHARED_LIBS=ON. "
+                            "Static/monolithic builds support a single GPU runtime only.")
     endif()
 endif()
 
@@ -61,6 +67,7 @@ ov_dependent_option (ENABLE_INTEL_NPU_INTERNAL "NPU plugin internal components f
 ov_option (ENABLE_DEBUG_CAPS "enable OpenVINO debug capabilities at runtime" OFF)
 ov_dependent_option (ENABLE_NPU_DEBUG_CAPS "enable NPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_NPU" OFF)
 ov_dependent_option (ENABLE_GPU_DEBUG_CAPS "enable GPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_GPU" OFF)
+ov_dependent_option (ENABLE_MLIR_FOR_GPU "Enable MLIR / Graph Compiler based execution in GPU plugin [EXPERIMENTAL, NOT PRODUCTION-READY]" OFF "ENABLE_INTEL_GPU;ENABLE_GPU_DEBUG_CAPS" OFF)
 ov_dependent_option (ENABLE_CPU_DEBUG_CAPS "enable CPU debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS;ENABLE_INTEL_CPU" OFF)
 ov_dependent_option (ENABLE_SNIPPETS_DEBUG_CAPS "enable Snippets debug capabilities at runtime" ON "ENABLE_DEBUG_CAPS" OFF)
 
@@ -231,7 +238,8 @@ else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
 endif()
 
-if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND GPU_RT_TYPE STREQUAL "ZE"))
+# COMBINED includes a ZE build, so it needs the Level Zero loader too.
+if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND (GPU_RT_TYPE STREQUAL "ZE" OR GPU_RT_TYPE STREQUAL "COMBINED")))
     set(ENABLE_OV_ZERO_LOADER ON)
 else()
     set(ENABLE_OV_ZERO_LOADER OFF)

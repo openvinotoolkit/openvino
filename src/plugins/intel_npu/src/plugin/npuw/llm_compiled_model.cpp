@@ -9,6 +9,7 @@
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "embedding/remove_empty_kv_inputs.hpp"
 #include "infer_request_utils.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
@@ -17,9 +18,11 @@
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
+#include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
+#include "npuw_transformations/propagate_slice.hpp"
 #include "npuw_transformations/remove_token_type_ids.hpp"
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
@@ -256,10 +259,13 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1)) {
-        // Flash attention tile with GQA is supported starting from compiler version 8.1 on NPU5010
-        desc.support_flash_attention_tile = true;
-    }
+    static const std::unordered_set<std::string_view> flash_attention_tile_supported_platforms = {
+        ov::intel_npu::Platform::NPU5010,
+        ov::intel_npu::Platform::NPU6010};
+
+    // Flash attention tile with GQA is supported starting from compiler version 8.1 on supported platforms
+    desc.support_flash_attention_tile =
+        flash_attention_tile_supported_platforms.count(desc.arch) && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1);
 
     return std::make_optional(std::move(desc));
 }
@@ -424,6 +430,33 @@ void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properti
         } else {
             other_properties.insert(*it);
         }
+    }
+}
+
+// Decide on using fused flash attention tile based on provided option and NPU capabilities.
+// If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
+// automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
+void resolve_hfa_fused_attention(::intel_npu::Config& cfg,
+                                 ov::AnyMap& other_props,
+                                 const std::optional<NPUDesc>& npudesc) {
+    uint32_t max_prompt_len = align_to(cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
+    const auto prefill_attn_hint_provided = cfg.has<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+    const auto prompt_length_supported =
+        max_prompt_len >= 4096;  // HFA fused attention tile is optimal prompt length >= 4096
+
+    // If NPUW_LLM_PREFILL_ATTENTION_HINT was not provided, set HFA automatically
+    // when the hardware and prompt length favor the fused flash attention tile implementation
+    if (!prefill_attn_hint_provided && hfa_fused_npu_supported && prompt_length_supported) {
+        cfg.update({{"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"}});
+        LOG_INFO("Auto-selected NPUW_LLM_PREFILL_ATTENTION_HINT to HFA");
+    }
+
+    const auto is_hfa =
+        cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
+        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
+        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
     }
 }
 
@@ -754,16 +787,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
-    // Decide on using fused flash attention tile based on provided option and NPU capabilities.
-    // If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
-    // automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
-    const auto is_hfa =
-        m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
-    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
-    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
-        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
-        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
-    }
+    resolve_hfa_fused_attention(m_cfg, other_props, npudesc);
 
     m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
     if (m_is_whisper) {
@@ -857,6 +881,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
+
+    if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
+        ov::npuw::InsertVocabSub128 pass;
+        if (!pass.run_on_model(kvcache_model)) {
+            LOG_INFO("No asymmetric u8 vocab found - graph Sub128 insertion is skipped.");
+        }
+    }
 
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
@@ -1017,11 +1048,25 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Encoder embedding model: skipping generate model variants (prefill-only).");
     }
 
+    const bool is_per_layer_inputs_model = has_per_layer_inputs(prefill_model);
+    bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
+
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
         // so only apply slice to the Prefill model:
         ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
+        // Gemma-4 E2B/E4B cross-group KV sharing models benefit the most from hoisting the slice
+        // through the SWA/Global boundary, so auto-enable this option for them unless the user
+        // explicitly configured it.
+        if (is_per_layer_inputs_model && !m_cfg.has<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
+            m_cfg.update({{"NPUW_LLM_PROPAGATE_SLICE_UP", "YES"}});
+            propagate_slice_up = true;
+            LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_PROPAGATE_SLICE_UP");
+        }
+        if (propagate_slice_up) {
+            ov::npuw::PropagateSliceUp().run_on_model(prefill_model);
+        }
         LOG_DEBUG("Make LM head model with static shapes");
         ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
             .run_on_model(lm_head_model);
@@ -1175,8 +1220,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // Both variants fall below the default keep_blocks=5 threshold and remain as
         // separate FCE compile units.  Lower to 3 so both are folded into REP and
         // reused across their respective instances.
-        if (has_per_layer_inputs(prefill_model)) {
+        if (is_per_layer_inputs_model) {
             prefill_config["NPUW_ONLINE_KEEP_BLOCKS"] = "3";
+            if (propagate_slice_up) {
+                prefill_config["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
+            }
             LOG_INFO("Gemma-4 cross-group KV model: setting NPUW_ONLINE_KEEP_BLOCKS=3 for prefill");
         }
     }
@@ -1933,6 +1981,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
+                          BIND(npuw::llm::propagate_slice_up, NPUW_LLM_PROPAGATE_SLICE_UP, get),
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),
