@@ -111,8 +111,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
 
     for (size_t inputIndex = 0; inputIndex < inputDescriptors.size(); ++inputIndex) {
         const IODescriptor& inputDescriptor = inputDescriptors.at(inputIndex);
-        if (inputDescriptor.isStateInput || inputDescriptor.isStateOutput || inputDescriptor.isShapeTensor ||
-            inputDescriptor.isInitInputWeights || inputDescriptor.isMainInputWeights) {
+        if (inputDescriptor.isHiddenInput()) {
             continue;
         }
 
@@ -140,8 +139,7 @@ std::shared_ptr<ov::Model> create_dummy_model(const std::vector<IODescriptor>& i
     // potentially dynamic, output shape.
     for (size_t outputIndex = 0; outputIndex < outputDescriptors.size(); ++outputIndex) {
         const IODescriptor& outputDescriptor = outputDescriptors.at(outputIndex);
-        if (outputDescriptor.isStateInput || outputDescriptor.isStateOutput || outputDescriptor.isShapeTensor ||
-            outputDescriptor.isInitOutputWeights) {
+        if (outputDescriptor.isHiddenOutput()) {
             continue;
         }
 
