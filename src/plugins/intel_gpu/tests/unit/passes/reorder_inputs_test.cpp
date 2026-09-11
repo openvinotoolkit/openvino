@@ -679,8 +679,8 @@ TEST(reorder_inputs, static_resample_with_rank_changing_reshape_no_recursion) {
     // input -> Resample -> Reshape (Unsqueeze) --+
     //                                            +-> Concat -> Reduce -> Convolution
     // skip -------------> Reshape (Unsqueeze) ---+
-    // Without the static Reshape-user guard, the downstream format lookup reaches the rank-changing
-    // Reshape, which queries its Resample dependency's preferred format and re-enters the same lookup.
+    // The downstream format lookup must treat the rank-changing Reshape as an intrinsic plain-format
+    // boundary instead of querying its Resample dependency's preferred format and re-entering the same lookup.
     auto& engine = get_test_engine();
     auto weights = engine.allocate_memory({data_types::f16, format::bfyx, {512, 384, 1, 1}});
 
@@ -716,6 +716,7 @@ TEST(reorder_inputs, static_resample_with_rank_changing_reshape_no_recursion) {
     topology.add(concatenation("concat", {input_info("reshape"), input_info("skip_reshape")}, 0));
     topology.add(reduce("reduce", input_info("concat"), reduce_mode::sum, {0}, false));
     topology.add(convolution("output", input_info("reduce"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(reorder("sink", input_info("output"), format::bfyx, data_types::f16));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -740,6 +741,17 @@ TEST(reorder_inputs, static_resample_with_rank_changing_reshape_no_recursion) {
     ASSERT_EQ(prog->get_node("reshape").get_input_layout(0).format, format::bfyx);
     ASSERT_EQ(prog->get_node("reshape").get_output_layout().format, format::bfzyx);
     ASSERT_EQ(prog->get_node("reduce").get_output_layout().format, format::bfyx);
+
+    auto blocked_prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(blocked_prog, nullptr);
+    program_wrapper::apply_opt_pass<mark_nodes>(*blocked_prog);
+    blocked_prog->get_layout_optimizer().set_implementation_forcing(
+        ov::intel_gpu::ImplForcingMap{{"output", {format::b_fs_yx_fsv16, ""}}});
+
+    // Reshape is a non-recursive plain-format boundary, not a traversal stop. The blocked consumer
+    // after it must still prevent the Resample from being forced to a plain format.
+    ASSERT_EQ(blocked_prog->get_layout_optimizer().get_preferred_format(blocked_prog->get_node("resample")),
+              format::any);
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
