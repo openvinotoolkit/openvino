@@ -53,6 +53,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/disable_shapeof_constant_folding_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/divide_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/dropout_with_random_uniform_replacer_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/dynamic_same_padding_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/eliminate_duplicate_ti_inputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/eliminate_loop_inputs_outputs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/eliminate_split_test.cpp

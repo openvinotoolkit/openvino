@@ -38,6 +38,7 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/disable_shapeof_constant_folding.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/divide_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/dropout_with_random_uniform_replacer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/dynamic_same_padding_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_duplicate_ti_inputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_loop_inputs_outputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_unsqueeze_gather.cpp
