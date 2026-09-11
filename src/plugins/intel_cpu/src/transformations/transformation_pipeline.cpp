@@ -215,6 +215,7 @@
 #    include "transformations/cpu_opset/x64/pass/convert_to_interaction.hpp"
 #    include "transformations/cpu_opset/x64/pass/mlp_fusion.hpp"
 #    include "transformations/cpu_opset/x64/pass/qkv_proj_fusion.hpp"
+#    include "transformations/fp16_compression/clamp_fp16_fc_output.hpp"
 #    include "transformations/op_conversions/group_normalization_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/reduce_l1_decomposition.hpp"
@@ -1205,6 +1206,10 @@ void Transformations::PostLpt() {
             return node::RMSNorm::isSupportedOperation(node, errorMsg);
         },
         ov::intel_cpu::DecomposeRMSNorm);
+
+    // x64 only: Clamp is expected to fuse into the preceding MatMul there, which does not
+    // necessarily hold on other platforms
+    CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::ClampFP16FCOutput);
 
     // markup Rope Input when BF16/F16 inference.
     if (any_of(config.inferencePrecision, ov::element::bf16, ov::element::f16)) {
