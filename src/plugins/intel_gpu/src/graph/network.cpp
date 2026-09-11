@@ -876,6 +876,8 @@ void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu
         }
         invalidate_stream_recording();
         it->second = block;
+    } else {
+        invalidate_stream_recording();
     }
 }
 
@@ -894,7 +896,9 @@ ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primiti
 }
 
 void network::clear_output_memory_blocks() {
-    invalidate_stream_recording();
+    if (!_output_memory_blocks.empty()) {
+        invalidate_stream_recording();
+    }
     // Move map out first so _output_memory_blocks is empty even if invalidation throws.
     auto blocks = std::move(_output_memory_blocks);
     for (auto& [prim_id, block_ptr] : blocks) {

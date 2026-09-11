@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "intel_gpu/runtime/debug_configuration.hpp"
+
 #include <memory>
 #include <list>
 #include <vector>
@@ -43,6 +45,7 @@ public:
     /// @brief Invalidates the recorded command list.
     void invalidate() {
         _valid = false;
+        GPU_DEBUG_TRACE_DETAIL << "[GPU][REC] Recorded command list was invalidated";
     }
 
 private:
