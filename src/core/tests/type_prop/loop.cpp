@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
@@ -19,6 +20,7 @@
 
 using namespace std;
 using namespace ov;
+using testing::HasSubstr;
 
 // trip_count = 10
 // execution_condition = true
@@ -1579,4 +1581,36 @@ TEST(type_prop, loop_merged_static_seed_relaxed_when_body_value_dynamic) {
 
     EXPECT_EQ(body_carried->get_partial_shape(), (PartialShape{1, Dimension::dynamic()}));
     EXPECT_TRUE(loop->get_output_partial_shape(0)[1].is_dynamic());
+}
+
+static shared_ptr<Node> make_nested_loop(size_t depth) {
+    auto trip = op::v0::Constant::create(element::i64, Shape{1}, {1});
+    auto cond = op::v0::Constant::create(element::boolean, Shape{1}, {true});
+    auto loop = make_shared<op::v5::Loop>(trip, cond);
+
+    auto body_data = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto body_cond = make_shared<op::v0::Parameter>(element::boolean, Shape{1});
+    shared_ptr<Node> body_out;
+    if (depth > 0) {
+        body_out = make_nested_loop(depth - 1);
+    } else {
+        body_out = body_data;
+    }
+    auto body_cond_res = make_shared<op::v0::Result>(body_cond);
+    auto body_data_res = make_shared<op::v0::Result>(body_out);
+    auto body = make_shared<Model>(OutputVector{body_cond_res, body_data_res}, ParameterVector{body_data, body_cond});
+
+    loop->set_function(body);
+    loop->set_special_body_ports({-1, 0});
+    loop->set_invariant_input(body_data, loop->input_value(0));
+    loop->set_invariant_input(body_cond, cond);
+    loop->get_iter_value(body_data_res, -1);
+    return loop;
+}
+
+TEST(type_prop, loop_nested_depth_limit_is_rejected) {
+    const size_t excessive_depth = 1024;
+    OV_EXPECT_THROW(std::ignore = make_nested_loop(excessive_depth),
+        ov::NodeValidationFailure,
+        HasSubstr("nesting depth exceeds"));
 }
