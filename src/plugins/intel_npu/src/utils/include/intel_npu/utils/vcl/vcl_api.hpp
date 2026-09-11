@@ -32,51 +32,81 @@ namespace intel_npu {
     vcl_symbol_statement(vclExecutableGetCompatibilityString) \
     vcl_symbol_statement(vclGetCompilerSupportedOptions)    \
     vcl_symbol_statement(vclGetCompilerIsOptionSupported)   \
+    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot2) \
 
 
 // symbols that may not be supported in older versions of vcl
 #define vcl_weak_symbols_list()                             \
-    vcl_symbol_statement(vclAllocatedExecutableCreate2)     \
-    vcl_symbol_statement(vclAllocatedExecutableCreateWSOneShot2)  // clang-format on
+    vcl_symbol_statement(vclAllocatedExecutableCreate2)  // clang-format on
 
-class VCLApi {
-public:
-    VCLApi(const std::string& library_dir);
-    VCLApi(const VCLApi& other) = delete;
-    VCLApi(VCLApi&& other) = delete;
-    void operator=(const VCLApi&) = delete;
-    void operator=(VCLApi&&) = delete;
-
-    static const std::shared_ptr<VCLApi> getInstance(const std::string& library_dir = std::string());
-    std::shared_ptr<void> getLibrary() const {
-        return lib;
-    }
-
-#define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol;
+/**
+ * @brief The VCL entry points, as a plain aggregate.
+ *
+ * Deliberately holds no library handle and does no loading: it is data, not behaviour. Every entry
+ * point defaults to null, so a default-constructed table is a legitimate value - an unpopulated
+ * table
+ */
+struct VCLFunctionTable {
+#define vcl_symbol_statement(vcl_symbol) decltype(&::vcl_symbol) vcl_symbol = nullptr;
     vcl_symbols_list();
     vcl_weak_symbols_list();
 #undef vcl_symbol_statement
 
+    /**
+     * @brief True when every non-weak entry point is populated.
+     *
+     * Weak symbols are excluded on purpose: they are legitimately null when the loaded library
+     * predates them. Consumers that need the full table assert on this at construction, so an
+     * unpopulated table fails with a diagnosable error instead of dispatching through a null
+     * function pointer at the first call. Generated from `vcl_symbols_list()`, so it cannot drift
+     * as the list grows.
+     */
+    bool hasAllRequiredSymbols() const {
+#define vcl_symbol_statement(vcl_symbol) \
+    if (this->vcl_symbol == nullptr) {   \
+        return false;                    \
+    }
+        vcl_symbols_list();
+#undef vcl_symbol_statement
+        return true;
+    }
+};
+
+/**
+ * @brief Owns the loaded VCL compiler library and the function table resolved out of it.
+ *
+ * The loading constructor is private: `getInstance` is the only way to load, so the process cannot
+ * end up with two independently dlopen'd copies of the compiler library.
+ */
+class VCLLoader final : public std::enable_shared_from_this<VCLLoader> {
+public:
+    VCLLoader(const VCLLoader& other) = delete;
+    VCLLoader(VCLLoader&& other) = delete;
+    void operator=(const VCLLoader&) = delete;
+    void operator=(VCLLoader&&) = delete;
+
+    static const std::shared_ptr<const VCLLoader> getInstance(const std::string& library_dir = std::string());
+
+    /**
+     * @brief The function table, sharing this loader's lifetime.
+     *
+     * An aliasing `shared_ptr`, so a holder of the returned table keeps the library loaded without
+     * having to know a library exists.
+     */
+    std::shared_ptr<const VCLFunctionTable> sharedFunctions() const {
+        return {shared_from_this(), &_functions};
+    }
+
+    std::shared_ptr<void> getLibrary() const {
+        return lib;
+    }
+
 private:
+    explicit VCLLoader(const std::string& library_dir);
+
+    VCLFunctionTable _functions;
     std::shared_ptr<void> lib;
     Logger _logger;
 };
-
-#define vcl_symbol_statement(vcl_symbol)                                                                            \
-    template <typename... Args>                                                                                     \
-    inline typename std::invoke_result<decltype(&::vcl_symbol), Args...>::type wrapped_##vcl_symbol(Args... args) { \
-        const auto& ptr = VCLApi::getInstance();                                                                    \
-        if (ptr->vcl_symbol == nullptr) {                                                                           \
-            OPENVINO_THROW("Unsupported vcl_symbol " #vcl_symbol);                                                  \
-        }                                                                                                           \
-        return ptr->vcl_symbol(std::forward<Args>(args)...);                                                        \
-    }
-vcl_symbols_list();
-vcl_weak_symbols_list();
-#undef vcl_symbol_statement
-#define vcl_symbol_statement(vcl_symbol) inline decltype(&::vcl_symbol) vcl_symbol = wrapped_##vcl_symbol;
-vcl_symbols_list();
-vcl_weak_symbols_list();
-#undef vcl_symbol_statement
 
 }  // namespace intel_npu
