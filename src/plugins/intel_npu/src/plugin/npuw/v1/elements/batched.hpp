@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <mutex>
-#include <unordered_set>
 #include <vector>
 
 #include "../../compiled_model.hpp"
@@ -141,11 +140,21 @@ private:
     // and written into, under the same contract as ensure_batched_outputs().
     void expose_inner_outputs();
 
+    // Whether `tensor` is what the element itself last published on output
+    // `port_idx` (its own allocation or an exposed inner tensor), as opposed to
+    // a tensor the caller bound: ours are replaced freely, the caller's are
+    // resized in place, never discarded.
+    bool published_by_element(std::size_t port_idx, const ov::SoPtr<ov::ITensor>& tensor) const;
+    // Bind `tensor` to output `port_idx` and remember it as the element's own.
+    void publish_output(std::size_t port_idx,
+                        const ov::Output<const ov::Node>& port,
+                        const ov::SoPtr<ov::ITensor>& tensor);
+
     std::shared_ptr<ov::IAsyncInferRequest> m_inner;
-    // The output tensors the element itself published (its own allocations and
-    // exposed inner tensors), to tell them from tensors the caller bound: ours
-    // are replaced freely, the caller's are resized in place, never discarded.
-    std::unordered_set<const ov::ITensor*> m_owned_outputs;
+    // Per output port, the tensor the element last published there. Held, not
+    // just remembered by address, so a caller's later allocation can never be
+    // mistaken for it.
+    std::vector<ov::SoPtr<ov::ITensor>> m_published_outputs;
     mutable std::mutex m_mutex;
 
     // Per-phase timings of the unroll.
