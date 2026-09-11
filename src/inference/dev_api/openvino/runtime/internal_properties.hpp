@@ -182,6 +182,7 @@ static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_qu
 enum class CacheQuantAlgorithm {
     SCALAR = 0,  // Per-group affine scale/zero-point (metadata in k_scale_zp / v_scale_zp)
     TURBO = 1,   // TurboQuant: random orthogonal rotation + Lloyd-Max codebook + per-head norm
+    OSCAR = 2,   // OScaR: deterministic Hadamard + per-token norm + INT2 residual-block packed cache
 };
 
 /** @cond INTERNAL */
@@ -191,6 +192,8 @@ inline std::ostream& operator<<(std::ostream& os, const CacheQuantAlgorithm& alg
         return os << "SCALAR";
     case CacheQuantAlgorithm::TURBO:
         return os << "TURBO";
+    case CacheQuantAlgorithm::OSCAR:
+        return os << "OSCAR";
     default:
         OPENVINO_THROW("Unsupported cache quant algorithm");
     }
@@ -203,6 +206,8 @@ inline std::istream& operator>>(std::istream& is, CacheQuantAlgorithm& alg) {
         alg = CacheQuantAlgorithm::SCALAR;
     } else if (str == "TURBO") {
         alg = CacheQuantAlgorithm::TURBO;
+    } else if (str == "OSCAR") {
+        alg = CacheQuantAlgorithm::OSCAR;
     } else {
         OPENVINO_THROW("Unsupported cache quant algorithm: ", str);
     }

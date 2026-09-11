@@ -150,6 +150,7 @@
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
+#include "transformations/cpu_opset/common/pass/assign_kv_cache_per_layer_config.hpp"
 #include "transformations/cpu_opset/common/pass/stateful_sdpa_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/swap_convert_transpose.hpp"
 #include "transformations/cpu_opset/convert_to_cpu_specific_opset.hpp"
@@ -1222,6 +1223,10 @@ void Transformations::PostLpt() {
     // Snippets.
     auto symbolic_pipeline = CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::SymbolicOptimizations, false);
     symbolic_pipeline->get_manager()->register_pass<NgramFusion>();
+
+    if (!config.kvCachePerLayerConfig.empty()) {
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, AssignKVCachePerLayerConfig, config.kvCachePerLayerConfig);
+    }
 
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::Validate);
     postLPTPassManager.run_passes(model);
