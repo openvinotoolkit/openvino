@@ -69,6 +69,12 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
                         consumers_are_sdpa = false;
                         break;
                     }
+                    // VLSDPA has no operand able to carry the mapping from quantization codes
+                    // to values, which the SDPA op admits on its key and value.
+                    if (v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
+                        consumers_are_sdpa = false;
+                        break;
+                    }
                 } else {
                     consumers_are_sdpa = false;
                     break;
