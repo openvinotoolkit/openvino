@@ -17,6 +17,7 @@
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/common/emitter_factory.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "jit_brgemm_emitter.hpp"
 #include "jit_fill_emitter.hpp"
 #include "jit_horizon_emitter.hpp"
 #include "jit_kernel_emitter.hpp"
@@ -102,6 +103,7 @@
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "transformations/snippets/common/op/load_convert.hpp"
 #include "transformations/snippets/common/op/store_convert.hpp"
+#include "transformations/snippets/riscv64/op/brgemm_cpu.hpp"
 #include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
@@ -171,6 +173,7 @@ static bool is_store_emitter(const intel_cpu::riscv64::jit_emitter* emitter) {
 static bool is_segfault_detector_emitter(const intel_cpu::riscv64::jit_emitter* emitter) {
     bool ret = false;
     ret = is_load_emitter(emitter) || is_store_emitter(emitter) ||
+          (dynamic_cast<const intel_cpu::riscv64::jit_brgemm_emitter*>(emitter) != nullptr) ||
           (dynamic_cast<const intel_cpu::riscv64::jit_kernel_emitter*>(emitter) != nullptr);
     return ret;
 }
@@ -234,7 +237,14 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
 #endif
         return emitter;
     };
-    const auto emitter_factory = ov::intel_cpu::EmitterFactory{get_host, isa, wrap_snippets_emitter};
+    const auto configurator = std::dynamic_pointer_cast<CPURuntimeConfigurator>(get_runtime_configurator());
+    OPENVINO_ASSERT(configurator, "Expected CPURuntimeConfigurator in CPUTargetMachine");
+    const auto get_kernel_table = [this]() {
+        return std::dynamic_pointer_cast<CPURuntimeConfigurator>(get_runtime_configurator())
+            ->get_kernel_executor_table();
+    };
+    const auto emitter_factory =
+        ov::intel_cpu::EmitterFactory{get_host, isa, wrap_snippets_emitter, get_kernel_table, compiled_kernel_cache};
 
     // data movement
     jitters[op::v0::Parameter::get_type_info_static()] = emitter_factory.from_expr<jit_nop_emitter>();
@@ -275,6 +285,8 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
         decltype(emitter_factory)::undefined({{ov::element::f32}});
     jitters[ov::snippets::op::HorizonMax::get_type_info_static()] = emitter_factory.from_expr<jit_horizon_emitter>();
     jitters[ov::snippets::op::HorizonSum::get_type_info_static()] = emitter_factory.from_expr<jit_horizon_emitter>();
+
+    jitters[intel_cpu::BrgemmCPU::get_type_info_static()] = emitter_factory.from_expr_cached<jit_brgemm_emitter>();
 
     // loop control
     jitters[snippets::op::LoopBegin::get_type_info_static()] = emitter_factory.from_expr<jit_loop_begin_emitter>();
@@ -449,14 +461,17 @@ std::shared_ptr<ov::snippets::Generator> CPUGenerator::clone() const {
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
+    if (ov::is_type<intel_cpu::BrgemmCPU>(op)) {
+        return ov::snippets::RegType::gpr;
+    }
     if (ov::is_type<intel_cpu::FusedMulAdd>(op)) {
         return ov::snippets::RegType::vec;
     }
     return ov::snippets::RegType::undefined;
 }
 
-bool CPUGenerator::uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<snippets::Emitter>& e) const {
-    bool need = false;
+bool CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
+    bool need = std::dynamic_pointer_cast<jit_brgemm_emitter>(e) != nullptr;
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<CPUTargetMachine>(target);
     need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||
