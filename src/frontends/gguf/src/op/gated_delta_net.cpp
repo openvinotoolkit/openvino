@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <vector>
 
 #include "node_context.hpp"
@@ -15,8 +16,10 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -92,6 +95,24 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     g = std::make_shared<ov::op::v0::Squeeze>(g, sq_axis_3);
     beta = std::make_shared<ov::op::v0::Squeeze>(beta, sq_axis_3);
 
+    if (context.has_input("chunk_valid_len")) {
+        const auto& g_shape = g.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(
+            g_shape.rank().is_static() && g_shape.rank().get_length() == 3 && g_shape[1].is_static(),
+            "GATED_DELTA_NET pad masking requires a static token dimension");
+        const int64_t n_tokens = g_shape[1].get_length();
+        std::vector<int64_t> positions(n_tokens);
+        std::iota(positions.begin(), positions.end(), 0);
+        auto valid = std::make_shared<ov::op::v1::Less>(
+            ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(n_tokens)}, positions),
+            context.get_input("chunk_valid_len"));
+        auto mask = std::make_shared<ov::op::v0::Unsqueeze>(
+            std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
+            ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{0, 2}));
+        g = std::make_shared<ov::op::v1::Multiply>(g, mask);
+        beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
+    }
+
     auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, g, beta);
     auto attn_4d = gdn->output(0);
     auto state_4d = gdn->output(1);  // [B, H_v, key_dim, value_dim]
@@ -135,6 +156,20 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
 
     const int64_t rq1 = H_v / H_k;  // GQA head repeat factor
     const float scale = 1.0f / std::sqrt((float)S_v);
+
+    if (context.has_input("chunk_valid_len")) {
+        std::vector<int64_t> positions(T);
+        std::iota(positions.begin(), positions.end(), 0);
+        auto valid = std::make_shared<ov::op::v1::Less>(
+            ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(T)}, positions),
+            context.get_input("chunk_valid_len"));
+        auto mask = std::make_shared<ov::op::v1::Reshape>(
+            std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
+            ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, T, 1, 1}),
+            false);
+        g = std::make_shared<ov::op::v1::Multiply>(g, mask);
+        beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
+    }
 
     // T is dynamic at runtime: T-dependent reshapes use -1 and the Loop trip count is read at
     // runtime, so the convert-time T is only used for the static dims (B/H_v/S_v/H_k).

@@ -3,15 +3,14 @@
 //
 
 #include <memory>
+#include <utility>
 
 #include "node_context.hpp"
 #include "op_table.hpp"
-#include "openvino/core/node_output.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
-#include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -20,42 +19,24 @@ namespace gguf {
 namespace op {
 
 OutputVector translate_glu_geglu(const NodeContext& context) {
-    num_inputs_check(context, 1, 2);
-
-    ov::Output<ov::Node> src0;
-    ov::Output<ov::Node> src1;
-    if (context.get_input_size() == 2) {
-        src0 = context.get_input(0);
-        src1 = context.get_input(1);
-    } else {
-        // GGUF splits along ne[0] (OV last axis) using floor division: nc = ne[0] / 2.
-        // Both halves are nc elements; if the dimension is odd, the last element is dropped.
-        // Use Slice instead of Split to handle odd dimensions correctly.
-        auto combined = context.get_input(0);
-        auto combined_shape = combined.get_partial_shape();
-        int64_t last_dim_val = combined_shape[combined_shape.rank().get_length() - 1].get_length();
-        int64_t nc = last_dim_val / 2;
-
-        auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-        auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        auto start0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-        auto stop0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {nc});
-        auto start1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {nc});
-        auto stop1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {2 * nc});
-
-        src0 = std::make_shared<ov::op::v8::Slice>(combined, start0, stop0, step, axis);
-        src1 = std::make_shared<ov::op::v8::Slice>(combined, start1, stop1, step, axis);
-    }
-
-    if (context.get_attribute<bool>("swapped")) {
-        std::swap(src0, src1);
-    }
+    auto inputs = get_glu_inputs(context);
 
     // ggml's GGML_GLU_OP_GEGLU uses the tanh GELU approximation, not OV's default ERF form. The
     // ERF/tanh difference is small per call but compounds across layers into a wrong argmax on
     // deep models (e.g. gemma3-1b), so match ggml with TANH.
-    auto gelu = std::make_shared<ov::op::v7::Gelu>(src0, ov::op::GeluApproximationMode::TANH);
-    auto res = std::make_shared<ov::op::v1::Multiply>(gelu, src1);
+    auto gelu = std::make_shared<ov::op::v7::Gelu>(inputs.first, ov::op::GeluApproximationMode::TANH);
+    auto res = std::make_shared<ov::op::v1::Multiply>(gelu, inputs.second);
+
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+}
+
+OutputVector translate_glu_geglu_quick(const NodeContext& context) {
+    auto inputs = get_glu_inputs(context);
+    auto coefficient = ov::op::v0::Constant::create(inputs.first.get_element_type(), {}, {1.702f});
+    auto scaled = std::make_shared<ov::op::v1::Multiply>(inputs.first, coefficient);
+    auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(scaled);
+    auto gate = std::make_shared<ov::op::v1::Multiply>(inputs.first, sigmoid);
+    auto res = std::make_shared<ov::op::v1::Multiply>(gate, inputs.second);
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
