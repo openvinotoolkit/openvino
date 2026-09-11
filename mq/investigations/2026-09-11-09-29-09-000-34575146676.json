@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-11-09-29-09-000-34575146676",
+  "timestamp": "2026-09-11T09:29:09Z",
+  "run_id": "34575146676",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34575146676",
+  "workflow_name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+  "pr_number": "37985",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37985",
+  "author": "deepaks2",
+  "category": "Network",
+  "title": "LLM accuracy iGPU tests checkout fails with curl 56 Connection died",
+  "signature": "RPC failed; curl 56 Connection died, tried 5 times before giving up|Network",
+  "signature_hash": "2b01e13eb8c2761f",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "Checkout step failed after 3 retries with 'RPC failed; curl 56 Connection died' during shallow git fetch of the merge-queue ref"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Downstream aggregate status check failed (exit 1) because the LLM accuracy iGPU tests job it depends on did not succeed"
+    }
+  ],
+  "key_errors": [
+    "2026-09-11T08:39:51.8185087Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --filter=blob:none --depth=1 origin +459c57cb9a85567da43ffe0f86d0c38e0b59e93b:refs/remotes/origin/gh-readonly-queue/master/pr-37985-b7c34b3ee07ba2fec222c24c8f193c2f70b29881",
+    "2026-09-11T08:40:49.1696391Z ##[error]error: RPC failed; curl 56 Connection died, tried 5 times before giving up",
+    "2026-09-11T08:40:49.1702832Z ##[error]fatal: expected 'packfile'",
+    "2026-09-11T08:43:14.9217878Z ##[error]error: RPC failed; curl 56 Connection died, tried 5 times before giving up (repeated across 3 retry attempts)"
+  ],
+  "root_cause": "The actions/checkout step for the 'LLM accuracy iGPU tests' job repeatedly failed to complete a shallow blob-filtered git fetch of the merge-queue ref (gh-readonly-queue/master/pr-37985-...) against github.com, with curl returning error 56 (connection died mid-transfer) three times in a row before actions/checkout gave up. This is a transient network/connectivity failure between the self-hosted iGPU runner and github.com, not caused by the PR's GPU kernel changes (resample_opt.cl / resample_kernel_*.cpp). The downstream 'ci/gha_overall_status_ubuntu_24' job then failed because it aggregates job statuses and one of its required jobs never ran.",
+  "reproduction_steps": "N/A - transient network failure during checkout on a self-hosted runner; not reproducible via the PR's code changes. Retrying the same fetch command against the same commit typically succeeds.",
+  "recommended_actions": [
+    "Re-run the failed 'LLM accuracy iGPU tests' job (and consequently the overall-status job) - a plain retry is expected to clear a transient connection failure.",
+    "If curl 56 / 'Connection died' recurs frequently for this runner pool, check the self-hosted iGPU runner's network path/proxy stability to github.com.",
+    "No changes needed to the PR's resample_opt.cl / resample_kernel_base.cpp / resample_kernel_opt.cpp code."
+  ],
+  "prevention_strategies": "Consider increasing actions/checkout's fetch retry count/backoff for self-hosted iGPU runners, or adding a network health-check step before checkout on that runner pool to fail fast with a clearer signal when connectivity to github.com is degraded.",
+  "historical_context": "A related but distinct network checkout failure ('RPC failed; curl 16 Error in the HTTP2 framing layer') was recorded on 2026-07-07 (pattern a34cf8b1555a33e4, run 28868848906, PR #36754). This is the first recorded occurrence of the curl 56 'Connection died' variant."
+}

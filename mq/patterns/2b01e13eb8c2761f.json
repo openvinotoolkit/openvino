@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "RPC failed; curl 56 Connection died, tried 5 times before giving up|Network",
+  "signature_hash": "2b01e13eb8c2761f",
+  "title": "LLM accuracy iGPU tests checkout fails with curl 56 Connection died",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-09-11T09:29:09Z",
+  "last_seen": "2026-09-11T09:29:09Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34575146676"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37985"
+  ],
+  "recent_timestamps": [
+    "2026-09-11T09:29:09Z"
+  ],
+  "rerun_search_string": "RPC failed; curl 56 Connection died, tried 5 times before giving up"
+}
