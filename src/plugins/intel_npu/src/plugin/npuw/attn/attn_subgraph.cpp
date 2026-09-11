@@ -4,6 +4,7 @@
 
 #include "attn_subgraph.hpp"
 
+#include <algorithm>
 #include <array>
 #include <limits>
 #include <sstream>
@@ -330,6 +331,7 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     const auto& pipeline = get_subgraph_pipeline(ctx, ctx.real_subgraph_idx);
     const auto* hfa = ov::npuw::attn::get_compiled_hfa(pipeline.context);
     OPENVINO_ASSERT(hfa != nullptr, "Missing compiled HFA state");
+    OPENVINO_ASSERT(hfa->is_valid(), "HFA configuration must be valid");
 
     auto& request = get_request(ctx);
     const bool is_piped = request.is_subrequest_pipelined(ctx.real_subgraph_idx);
@@ -342,6 +344,10 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         state.hfa_requests.pipeline_requests[HFARequestSet::FINAL_TILE] = state.base_pipeline_request;
     }
 
+    // The regular and the final tile models share the same leading input layout by construction
+    // (see build_tile_param_mapping) - the final tile model may only have extra trailing inputs.
+    OPENVINO_ASSERT(hfa->_compiled_final_tile_model->inputs().size() >= hfa->_compiled_tile_model->inputs().size(),
+                    "HFA: final tile model must expose at least the regular tile model's inputs");
     const size_t num_inputs = hfa->_compiled_tile_model->inputs().size();
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
         const auto tile_input = hfa->_compiled_tile_model->inputs()[input_idx];
@@ -440,6 +446,14 @@ void extract_and_copy_tile(const ov::SoPtr<ov::ITensor>& source_tensor,
                            int64_t sequence_offset,
                            int64_t sequence_length,
                            const std::string& tensor_name) {
+    OPENVINO_ASSERT(sequence_offset >= 0 && sequence_length >= 0,
+                    "HFA tile extraction error: negative window for '",
+                    tensor_name,
+                    "' (offset=",
+                    sequence_offset,
+                    ", length=",
+                    sequence_length,
+                    ")");
     if (!dest_tensor->is_continuous()) {
         OPENVINO_THROW("HFA tile extraction error: destination tensor for '",
                        tensor_name,
@@ -488,6 +502,7 @@ bool can_reuse_tensor_zero_copy(const ov::SoPtr<ov::ITensor>& source_tensor,
                                 int64_t sequence_offset,
                                 int64_t tile_length) {
     const auto source_shape = source_tensor->get_shape();
+    NPUW_ASSERT(sequence_dim < source_shape.size());
     const int64_t source_full_length = static_cast<int64_t>(source_shape[sequence_dim]);
     return (sequence_offset == 0 && tile_length == source_full_length &&
             dest_tensor->get_element_type() == source_tensor->get_element_type());
@@ -1095,11 +1110,31 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         // For the fused hfa, the regular tile model has no mask input (6 inputs)
                         const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
 
+                        // Every tile reads a [offset, offset + tile_size) window out of the attention
+                        // mask: regular tiles walk it from 0, the final tile takes the trailing window.
+                        // Validate the mask once here so that a short mask fails fast with a readable
+                        // message instead of producing an out-of-bounds view deeper in process_tile.
+                        int64_t mask_total_length = 0;
+                        if (attention_mask_tensor) {
+                            NPUW_ASSERT(MASK_KV_SEQ_DIM < attention_mask_tensor->get_shape().size());
+                            mask_total_length =
+                                static_cast<int64_t>(attention_mask_tensor->get_shape()[MASK_KV_SEQ_DIM]);
+                            OPENVINO_ASSERT(mask_total_length >= num_tiles * tile_size,
+                                            "HFA: attention mask is too short - it covers ",
+                                            mask_total_length,
+                                            " positions but ",
+                                            num_tiles,
+                                            " tiles of ",
+                                            tile_size,
+                                            " positions each must be extracted from it");
+                        }
+
                         // Iterate through KV blocks; each block contributes block_size/tile_size tiles.
                         for (size_t block_idx = 0; block_idx < past_key_blocks.size() && past_kv_tiles > 0;
                              ++block_idx) {
                             const auto& k_block = past_key_blocks[block_idx];
                             const auto& v_block = past_value_blocks[block_idx];
+                            NPUW_ASSERT(K_SEQ_DIM < k_block->get_shape().size());
                             const int64_t block_size = static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
                             NPUW_ASSERT(block_size % tile_size == 0 &&
                                         "HFA block size must be a multiple of tile size");
@@ -1123,14 +1158,17 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                     "HFA: All past KV blocks should contain exactly (num_tiles - 1) tiles");
 
                         if (num_tiles > 0) {
+                            NPUW_ASSERT(K_SEQ_DIM < present_key_tensor->get_shape().size());
                             const size_t present_seq_length = present_key_tensor->get_shape()[K_SEQ_DIM];
                             const int64_t final_tile_length = static_cast<int64_t>(present_seq_length);
                             OPENVINO_ASSERT(
                                 final_tile_length == tile_size,
                                 "Final tile must process entire present KV sequence in a single inference. "
                                 "This is guaranteed during compilation (tile_size = query_size = present_seq_length).");
-                            const int64_t mask_total_length = attention_mask_tensor->get_shape()[MASK_KV_SEQ_DIM];
-                            const int64_t final_mask_offset = mask_total_length - final_tile_length;
+                            // Non-negative by construction: the mask length was validated above against
+                            // num_tiles * tile_size, and final_tile_length == tile_size.
+                            const int64_t final_mask_offset =
+                                attention_mask_tensor ? mask_total_length - final_tile_length : 0;
                             process_tile(final_tile_request,
                                          hfa_desc->_compiled_final_tile_model,
                                          present_key_tensor,
