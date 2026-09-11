@@ -263,10 +263,7 @@ void perform_inference_thread(TsfnContext* context) {
     };
 
     const auto status = context->tsfn.BlockingCall(context, callback);
-    if (status != napi_ok && status != napi_closing) {
-        std::cerr << "ThreadSafeFunction::BlockingCall failed with status " << status << '\n';
-    }
-    context->tsfn.Release();
+    release_tsfn_after_blocking_call(context->tsfn, status);
 }
 }  // namespace
 
