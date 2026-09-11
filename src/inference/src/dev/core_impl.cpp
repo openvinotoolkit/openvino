@@ -295,6 +295,16 @@ std::string get_blob_id_or_compute(const ov::AnyMap& user_config, std::function<
     }
 }
 
+// Devices fanned out from a single compile_model() call (e.g. MULTI/AUTO compiling the same
+// model for several underlying devices in parallel) all share the very same ov::Model instance
+// and may call ModelCache::compute_hash() on it concurrently, before any per-hash CacheGuard
+// lock exists (that lock can only be taken once the hash/blob id is known). Use this identity
+// key so callers can serialize hashing of the *same* Model object without affecting parallel
+// hashing of unrelated models.
+std::string get_model_hash_sync_key(const std::shared_ptr<const ov::Model>& model) {
+    return "model_hash_" + std::to_string(reinterpret_cast<uintptr_t>(model.get()));
+}
+
 ov::SharedContextManager& get_cache_wsh_ctx_manager() {
     static ov::SharedContextManager s_cache_wsh_ctx_manager;
     return s_cache_wsh_ctx_manager;
@@ -882,6 +892,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
+            // Serialize hashing of this exact Model instance to avoid concurrent, unguarded
+            // graph traversal when the same model is being compiled for multiple devices at once.
+            const auto model_hash_lock = m_cache_guard.get_hash_lock(get_model_hash_sync_key(model));
             return ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
         });
         cache_content.model = model;
@@ -921,6 +934,9 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                           cache_content.m_shared_ctx);
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
+            // Serialize hashing of this exact Model instance to avoid concurrent, unguarded
+            // graph traversal when the same model is being compiled for multiple devices at once.
+            const auto model_hash_lock = m_cache_guard.get_hash_lock(get_model_hash_sync_key(model));
             return ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
         });
         cache_content.model = model;
