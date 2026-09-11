@@ -22,6 +22,7 @@ network_exec_mode record_replay_session::begin_iteration(const std::vector<std::
         _stream.enqueue_marker(deps);
     }
     if (_valid) {
+        _cmd_list->wait();
         for (const auto& inst : order) {
             inst->reset_out_event();
         }
