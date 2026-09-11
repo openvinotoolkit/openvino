@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "GPU Can't get PERFORMANCE_HINT property as no supported devices found or an error happened during devices query|Infrastructure",
+  "signature_hash": "bf326e8abc84a5b2",
+  "title": "iGPU func tests fail — runner exposes no OpenCL/GPU device (clinfo reports 0 platforms)",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-11T02:31:36Z",
+  "last_seen": "2026-09-11T02:31:36Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34549097886"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37540"
+  ],
+  "recent_timestamps": [
+    "2026-09-11T02:31:36Z"
+  ],
+  "rerun_search_string": "Can't get PERFORMANCE_HINT property as no supported devices found or an error happened during devices query"
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 233,
+  "total": 234,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -90,8 +90,7 @@
       "pr_number": "36413",
       "category": "Flaky Test",
       "title": "Windows CI: CachingTest LoadMulti_race mock call count mismatch and Electron cleanup permission error",
-      "signature_hash": "18324e8563a426a9",
-      "confidence": "High"
+      "signature_hash": "18324e8563a426a9"
     },
     {
       "investigation_id": "2026-07-13-16-41-56-000-29257338803",
@@ -2291,6 +2290,17 @@
       "category": "Infrastructure",
       "signature_hash": "6e384cf2944ada58",
       "pr_number": "37788"
+    },
+    {
+      "investigation_id": "2026-09-11-02-31-36-157-34549097886",
+      "run_id": "34549097886",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34549097886",
+      "workflow_name": "iGPU Tests (func) / GPU",
+      "timestamp": "2026-09-11T02:31:36Z",
+      "title": "iGPU func tests fail \u2014 runner exposes no OpenCL/GPU device (clinfo reports 0 platforms)",
+      "category": "Infrastructure",
+      "signature_hash": "bf326e8abc84a5b2",
+      "pr_number": "37540"
     }
   ]
 }

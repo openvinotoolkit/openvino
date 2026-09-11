@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-11-02-31-36-157-34549097886",
+  "timestamp": "2026-09-11T02:31:36Z",
+  "run_id": "34549097886",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34549097886",
+  "workflow_name": "iGPU Tests (func) / GPU",
+  "pr_number": "37540",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37540",
+  "author": "darktears",
+  "category": "Infrastructure",
+  "title": "iGPU func tests fail — runner exposes no OpenCL/GPU device (clinfo reports 0 platforms)",
+  "signature": "GPU Can't get PERFORMANCE_HINT property as no supported devices found or an error happened during devices query|Infrastructure",
+  "signature_hash": "bf326e8abc84a5b2",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "iGPU Tests (func) / GPU",
+      "conclusion": "failure",
+      "symptom": "32486 of 42621 GPU functional tests failed immediately with 'Check !m_device_map.empty() failed' — no GPU device visible to the plugin"
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the iGPU Tests (func) / GPU job failed"
+    }
+  ],
+  "key_errors": [
+    "Number of platforms                               0",
+    "C++ exception with description \"Exception from src/inference/src/cpp/core.cpp:117:\nException from src/inference/src/dev/plugin.cpp:112:\nCheck '!m_device_map.empty()' failed at src/plugins/intel_gpu/src/plugin/plugin.cpp:564:\n[GPU] Can't get PERFORMANCE_HINT property as no supported devices found or an error happened during devices query.\n[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\" thrown in the test body.",
+    "FAILED TESTS (32486/42621)"
+  ],
+  "root_cause": "The `clinfo` diagnostic step run at the start of the job reports 'Number of platforms 0', meaning the OpenCL runtime found zero GPU platforms inside the test container despite `/dev/dri/renderD128` being passed through to Docker. Every GPU plugin call in the intel_gpu plugin therefore hits an empty device map and throws at src/plugins/intel_gpu/src/plugin/plugin.cpp:564, cascading into ~32k of the 42621 smoke tests failing uniformly and instantly (10-60ms each), which is the signature of a missing/broken GPU device on the runner rather than a code regression. The PR under test (#37540) only touches NPUW closure-metadata validation code (src/plugins/intel_npu/...) and has no relation to the intel_gpu plugin, reinforcing that this is a runner/environment issue, not induced by the PR's changes.",
+  "reproduction_steps": "N/A — this is an infrastructure/runner issue; the failure is not reproducible by re-running the PR's code, only by inspecting the runner's GPU/driver exposure (clinfo, /dev/dri/renderD128 permissions, NEO/OpenCL ICD registration) in the affected container/host.",
+  "recommended_actions": [
+    "Re-run the failed `iGPU Tests (func) / GPU` job; if the underlying runner/driver state is transient this should resolve it.",
+    "If failures persist across reruns, escalate to CI infra owners to check the igpu runner pool for driver/OpenCL ICD registration issues or device passthrough regressions (`/dev/dri/renderD128` group ids, NEO compiler cache mount, container image `ov_test/ubuntu_22_04_x64_igpu`).",
+    "Confirm the runner host actually has a physical/virtual GPU attached and the intel-opencl-icd package is correctly installed in the `ov_test/ubuntu_22_04_x64_igpu:pr-37751` image used for this job."
+  ],
+  "prevention_strategies": "Add a CI guard step that fails fast with a clear infra-error message when `clinfo` reports 0 platforms, before running the full ~42k-test suite, to avoid burning ~19 minutes of CI time on tests that cannot possibly pass without a GPU device. Consider auto-retrying the job once when clinfo detects 0 platforms, since this has recurred at least once before on this runner pool.",
+  "historical_context": "A near-identical failure ('iGPU RoPE Tests fail — runner exposes only CPU, no GPU device available', pattern d6f1d63540a711ef, Infrastructure) was recorded once on 2026-09-10 for PR #37983 (run 34450412645), less than a day before this occurrence. This is the second known runner-exposure failure for the iGPU pool but the first with this specific PERFORMANCE_HINT/device_map error signature; it is stored as a separate pattern since the underlying error string differs, but both point to the same class of iGPU runner infrastructure instability."
+}
