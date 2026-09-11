@@ -113,6 +113,17 @@ TEST_P(UnitTestSuite, stress_multiple_cores) {
     runStressTest("stress_multiple_cores", GetParam());
 }
 
+class UnitTestSuiteMultiModel : public ::testing::TestWithParam<MultiModelTestCase> {
+};
+
+TEST_P(UnitTestSuiteMultiModel, stress_heterogeneous_concurrent_infer) {
+    runMultiModelStressTest("stress_heterogeneous_concurrent_infer", GetParam());
+}
+
+TEST_P(UnitTestSuiteMultiModel, stress_heterogeneous_concurrent_processes) {
+    runMultiModelProcessesStressTest(GetParam());
+}
+
 
 // tests_pipelines/tests_pipelines_full_pipeline.cpp
 
@@ -130,3 +141,7 @@ INSTANTIATE_TEST_SUITE_P(StressUnitTests, UnitTestSuite,
                          ::testing::ValuesIn(generateTestsParams(
                                  {"processes", "threads", "iterations", "devices", "models"})),
                          getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(StressUnitTests, UnitTestSuiteMultiModel,
+                         ::testing::ValuesIn(generateMultiModelTestsParams()),
+                         getMultiModelTestCaseName);

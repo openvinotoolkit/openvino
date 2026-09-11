@@ -197,6 +197,47 @@ int run_in_processes_exec(int numprocesses, const std::vector<std::string>& argu
 #endif
 }
 
+int run_in_processes_exec_multi(const std::vector<std::vector<std::string>>& process_arguments) {
+#ifdef _WIN32
+    (void)process_arguments;
+    return -1;
+#else
+    const int process_count = static_cast<int>(process_arguments.size());
+    std::vector<pid_t> child_pids;
+    child_pids.reserve(static_cast<size_t>(process_count));
+    for (int index = 0; index < process_count; ++index) {
+        const auto& arguments = process_arguments[static_cast<size_t>(index)];
+        const pid_t child_pid = fork();
+        if (child_pid == 0) {
+            std::vector<char*> argv;
+            argv.reserve(arguments.size() + 1);
+            for (const auto& argument : arguments) {
+                argv.push_back(const_cast<char*>(argument.c_str()));
+            }
+            argv.push_back(nullptr);
+            execv(argv.front(), argv.data());
+            _exit(127);
+        }
+        if (child_pid < 0) {
+            return errno;
+        }
+        child_pids.push_back(child_pid);
+    }
+
+    int status = 0;
+    for (size_t index = 0; index < child_pids.size(); ++index) {
+        int child_status = 0;
+        if (waitpid(child_pids[index], &child_status, 0) < 0) {
+            status = errno;
+        } else if (!WIFEXITED(child_status) || WEXITSTATUS(child_status) != 0) {
+            status = WIFEXITED(child_status) ? WEXITSTATUS(child_status) : 128 + WTERMSIG(child_status);
+            log_err("Process run # " << index << " failed with exitcode " << status);
+        }
+    }
+    return status;
+#endif
+}
+
 std::string get_executable_path() {
 #ifdef _WIN32
     return {};

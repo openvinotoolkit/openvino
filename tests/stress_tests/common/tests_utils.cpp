@@ -116,11 +116,82 @@ std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks() {
     return tests_cases;
 }
 
+std::vector<MultiModelTestCase> generateMultiModelTestsParams() {
+    std::vector<MultiModelTestCase> tests_cases;
+    const pugi::xml_document &test_config = Environment::Instance().getTestConfig();
+
+    std::vector<int> processes, threads, iterations;
+    std::vector<std::string> devices, models, models_names;
+
+    pugi::xml_node values;
+    values = test_config.child("attributes").child("processes");
+    for (pugi::xml_node val = values.first_child(); val; val = val.next_sibling())
+        processes.push_back(val.text().as_int());
+
+    values = test_config.child("attributes").child("threads");
+    for (pugi::xml_node val = values.first_child(); val; val = val.next_sibling())
+        threads.push_back(val.text().as_int());
+
+    values = test_config.child("attributes").child("iterations");
+    for (pugi::xml_node val = values.first_child(); val; val = val.next_sibling())
+        iterations.push_back(val.text().as_int());
+
+    values = test_config.child("attributes").child("devices");
+    for (pugi::xml_node val = values.first_child(); val; val = val.next_sibling())
+        devices.emplace_back(val.text().as_string());
+
+    values = test_config.child("attributes").child("models");
+    for (pugi::xml_node val = values.first_child(); val; val = val.next_sibling()) {
+        std::string full_path = val.attribute("full_path").as_string();
+        std::string path = val.attribute("path").as_string();
+        if (!full_path.empty() && !path.empty()) {
+            models.push_back(full_path);
+            models_names.push_back(path);
+        }
+    }
+
+    processes = !processes.empty() ? processes : std::vector<int>{1};
+    threads = !threads.empty() ? threads : std::vector<int>{1};
+    iterations = !iterations.empty() ? iterations : std::vector<int>{1};
+    devices = !devices.empty() ? devices : std::vector<std::string>{"NULL"};
+
+    if (models.empty()) {
+        return tests_cases;
+    }
+
+    for (auto &numprocesses: processes) {
+        for (auto &numthreads: threads) {
+            for (auto &numiters: iterations) {
+                for (auto &device: devices) {
+                    if (models.size() >= 2) {
+                        for (size_t i = 0; i < models.size(); ++i) {
+                            for (size_t j = i + 1; j < models.size(); ++j) {
+                                tests_cases.emplace_back(numprocesses, numthreads, numiters, device,
+                                                         models[i], models_names[i],
+                                                         models[j], models_names[j]);
+                            }
+                        }
+                    } else {
+                        tests_cases.emplace_back(numprocesses, numthreads, numiters, device,
+                                                 models[0], models_names[0],
+                                                 models[0], models_names[0]);
+                    }
+                }
+            }
+        }
+    }
+    return tests_cases;
+}
+
 std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj) {
     return obj.param.test_case_name;
 }
 
 std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCase> &obj) {
+    return obj.param.test_case_name;
+}
+
+std::string getMultiModelTestCaseName(const testing::TestParamInfo<MultiModelTestCase> &obj) {
     return obj.param.test_case_name;
 }
 
@@ -151,5 +222,37 @@ void runStressTest(const std::string& scenario, const TestCase& params) {
                                                 "--stress_iterations=" + std::to_string(params.numiters),
                                                 "--stress_threads=" + std::to_string(params.numthreads)};
     const int status = run_in_processes_exec(params.numprocesses, arguments);
+    ASSERT_EQ(status, 0) << "Test failed with exitcode " << std::to_string(status);
+}
+
+void runMultiModelStressTest(const std::string& scenario, const MultiModelTestCase& params) {
+    const std::vector<std::string> arguments = {get_executable_path(),
+                                                "--stress_child",
+                                                "--stress_scenario=" + scenario,
+                                                "--stress_model=" + params.model1,
+                                                "--stress_model2=" + params.model2,
+                                                "--stress_device=" + params.device,
+                                                "--stress_iterations=" + std::to_string(params.numiters),
+                                                "--stress_threads=" + std::to_string(params.numthreads)};
+    const int status = run_in_processes_exec(params.numprocesses, arguments);
+    ASSERT_EQ(status, 0) << "Test failed with exitcode " << std::to_string(status);
+}
+
+void runMultiModelProcessesStressTest(const MultiModelTestCase& params) {
+    std::vector<std::vector<std::string>> process_arguments;
+    const int procs = std::max(2, params.numprocesses);
+    for (int i = 0; i < procs; ++i) {
+        const std::string& model = (i % 2 == 0) ? params.model1 : params.model2;
+        process_arguments.push_back({
+            get_executable_path(),
+            "--stress_child",
+            "--stress_scenario=stress_parallel_infer",
+            "--stress_model=" + model,
+            "--stress_device=" + params.device,
+            "--stress_iterations=" + std::to_string(params.numiters),
+            "--stress_threads=" + std::to_string(params.numthreads)
+        });
+    }
+    const int status = run_in_processes_exec_multi(process_arguments);
     ASSERT_EQ(status, 0) << "Test failed with exitcode " << std::to_string(status);
 }

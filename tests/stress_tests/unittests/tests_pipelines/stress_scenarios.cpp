@@ -431,11 +431,82 @@ void stress_multiple_cores(const std::string& model,
     });
 }
 
+void stress_heterogeneous_concurrent_infer(const std::string& model_heavy,
+                                           const std::string& model_light,
+                                           const std::string& device,
+                                           int iterations,
+                                           int threads) {
+    ov::Core core;
+    const std::string light_path = !model_light.empty() ? model_light : model_heavy;
+    auto compiled_heavy = core.compile_model(model_heavy, device);
+    auto compiled_light = core.compile_model(light_path, device);
+
+    const bool heavy_is_lm = is_language_model(compiled_heavy);
+    const bool light_is_lm = is_language_model(compiled_light);
+
+    const int total_threads = normalized_threads(threads);
+    const int heavy_threads = std::max(1, total_threads / 2);
+    const int light_threads = std::max(1, total_threads - heavy_threads);
+    const int total_workers = heavy_threads + light_threads;
+
+    std::atomic<bool> heavy_done{false};
+    ThreadErrors errors;
+    std::vector<std::thread> workers;
+    workers.reserve(static_cast<size_t>(total_workers));
+
+    // Heavy model workers (e.g. primary/LLM workload): run designated iterations
+    for (int t = 0; t < heavy_threads; ++t) {
+        workers.emplace_back([&, t]() {
+            errors.run("heavy worker " + std::to_string(t), [&]() {
+                auto request = compiled_heavy.create_infer_request();
+                for (int iter = 0; iter < normalized_iterations(iterations); ++iter) {
+                    const size_t seq_len = heavy_is_lm ? static_cast<size_t>(8 + ((iter + t) % 16)) : 1;
+                    set_inputs(request, compiled_heavy, seq_len);
+                    request.infer();
+                    static_cast<void>(request.get_output_tensor(0));
+                }
+            });
+        });
+    }
+
+    // Light model workers (e.g. streaming audio/embedding): run continuously while heavy workers are active
+    for (int t = 0; t < light_threads; ++t) {
+        workers.emplace_back([&, t]() {
+            errors.run("light worker " + std::to_string(t), [&]() {
+                auto request = compiled_light.create_infer_request();
+                int iter = 0;
+                while (!heavy_done.load(std::memory_order_relaxed) || iter < normalized_iterations(iterations)) {
+                    const size_t seq_len = light_is_lm ? static_cast<size_t>(8 + ((iter + t) % 16)) : 1;
+                    set_inputs(request, compiled_light, seq_len);
+                    request.infer();
+                    static_cast<void>(request.get_output_tensor(0));
+                    ++iter;
+                }
+            });
+        });
+    }
+
+    // Wait for heavy workers
+    for (int t = 0; t < heavy_threads; ++t) {
+        workers[static_cast<size_t>(t)].join();
+    }
+    // Signal light workers to stop
+    heavy_done.store(true, std::memory_order_release);
+
+    // Wait for light workers
+    for (size_t t = static_cast<size_t>(heavy_threads); t < workers.size(); ++t) {
+        workers[t].join();
+    }
+
+    errors.throw_if_any();
+}
+
 void run_stress_scenario(const std::string& scenario,
                          const std::string& model,
                          const std::string& device,
                          int iterations,
-                         int threads) {
+                         int threads,
+                         const std::string& model2) {
     if (scenario == "stress_load_unload") {
         stress_load_unload(model, device, iterations, threads);
     } else if (scenario == "stress_parallel_infer") {
@@ -452,6 +523,8 @@ void run_stress_scenario(const std::string& scenario,
         stress_destroy_compiled_model(model, device, iterations, threads);
     } else if (scenario == "stress_multiple_cores") {
         stress_multiple_cores(model, device, iterations, threads);
+    } else if (scenario == "stress_heterogeneous_concurrent_infer") {
+        stress_heterogeneous_concurrent_infer(model, model2, device, iterations, threads);
     } else {
         throw std::invalid_argument("Unknown stress scenario: " + scenario);
     }

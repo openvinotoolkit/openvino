@@ -27,6 +27,7 @@ DEFINE_string(test_conf, OS_PATH_JOIN({"stress_tests_configs", "unittests", "tes
 DEFINE_bool(stress_child, false, "Run one stress scenario in a fresh child process");
 DEFINE_string(stress_scenario, "", "Stress scenario name");
 DEFINE_string(stress_model, "", "Stress scenario model path");
+DEFINE_string(stress_model2, "", "Second stress scenario model path for multi-model concurrent testing");
 DEFINE_string(stress_device, "", "Stress scenario device name");
 DEFINE_int32(stress_iterations, 0, "Stress scenario iteration count");
 DEFINE_int32(stress_threads, 0, "Stress scenario thread count");

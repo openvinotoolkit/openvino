@@ -39,6 +39,7 @@ size_t getThreadsNum();
 
 int run_in_processes(const int &numprocesses, const std::function<void()> &function);
 int run_in_processes_exec(int numprocesses, const std::vector<std::string>& arguments);
+int run_in_processes_exec_multi(const std::vector<std::vector<std::string>>& process_arguments);
 std::string get_executable_path();
 
 template<typename Function, typename ... Args>

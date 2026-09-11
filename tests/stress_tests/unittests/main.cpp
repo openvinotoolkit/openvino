@@ -56,7 +56,8 @@ int main(int argc, char **argv) {
                                 FLAGS_stress_model,
                                 FLAGS_stress_device,
                                 FLAGS_stress_iterations,
-                                FLAGS_stress_threads);
+                                FLAGS_stress_threads,
+                                FLAGS_stress_model2);
         } catch (const std::exception& error) {
             log_err("Stress child failed: " << error.what());
             return 1;

@@ -22,3 +22,11 @@ void stress_destroy_compiled_model(const std::string& model, const std::string& 
                                    int iterations, int threads);
 void stress_multiple_cores(const std::string& model, const std::string& device, int iterations,
                            int threads);
+void stress_heterogeneous_concurrent_infer(const std::string& model_heavy,
+                                           const std::string& model_light,
+                                           const std::string& device,
+                                           int iterations,
+                                           int threads);
+void run_stress_scenario(const std::string& scenario, const std::string& model,
+                         const std::string& device, int iterations, int threads,
+                         const std::string& model2 = "");

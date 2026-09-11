@@ -24,6 +24,8 @@ StressUnitTests also covers coordinated runtime lifecycle scenarios:
 | `stress_memory_pressure` | Simultaneous compiled models creating device memory pressure |
 | `stress_destroy_compiled_model` | Compiled-model handle destruction while an infer request remains active |
 | `stress_multiple_cores` | Simultaneous creation and destruction of multiple `ov::Core` instances |
+| `stress_heterogeneous_concurrent_infer` | Concurrent inference with multiple different models in parallel threads |
+| `stress_heterogeneous_concurrent_processes` | Concurrent inference with multiple different models in parallel child processes |
 
 The scenarios use public OpenVINO Runtime APIs and are device-independent. Add
 `CPU`, `GPU`, or `NPU` to the configuration's `devices` section to run them on
@@ -31,7 +33,8 @@ an installed accelerator plugin. Export/import is skipped when a plugin does
 not advertise the `EXPORT_IMPORT` capability.
 
 Each test refers to configuration files located in `<test dir>\.automation`
-folder. 
+folder. For detailed configuration schema, examples, and execution options, see
+[CONFIG_AND_RUN_GUIDE.md](CONFIG_AND_RUN_GUIDE.md).
 
 ## Getting Started
 

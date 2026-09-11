@@ -73,6 +73,25 @@ public:
     }
 };
 
+class MultiModelTestCase : public TestCaseBase {
+public:
+    std::string model1;
+    std::string model2;
+    std::string model1_name;
+    std::string model2_name;
+
+    MultiModelTestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device,
+                       const std::string &_model1, const std::string &_model1_name,
+                       const std::string &_model2, const std::string &_model2_name) {
+        numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters,
+        device = _device, model1 = _model1, model1_name = _model1_name,
+        model2 = _model2, model2_name = _model2_name;
+        test_case_name = "NP" + std::to_string(numprocesses) + "_NT" + std::to_string(numthreads) +
+                         "_NI" + std::to_string(numiters) + safe_string(device) +
+                         "_M1_" + safe_string(model1_name) + "_M2_" + safe_string(model2_name);
+    }
+};
+
 class Environment {
 private:
     pugi::xml_document _test_config;
@@ -99,13 +118,21 @@ std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> ite
 
 std::vector<MemLeaksTestCase> generateTestsParamsMemLeaks();
 
+std::vector<MultiModelTestCase> generateMultiModelTestsParams();
+
 std::string getTestCaseName(const testing::TestParamInfo<TestCase> &obj);
 
 std::string getTestCaseNameMemLeaks(const testing::TestParamInfo<MemLeaksTestCase> &obj);
 
+std::string getMultiModelTestCaseName(const testing::TestParamInfo<MultiModelTestCase> &obj);
+
 void runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 
 void runStressTest(const std::string& scenario, const TestCase& params);
+
+void runMultiModelStressTest(const std::string& scenario, const MultiModelTestCase& params);
+
+void runMultiModelProcessesStressTest(const MultiModelTestCase& params);
 
 void _runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 
