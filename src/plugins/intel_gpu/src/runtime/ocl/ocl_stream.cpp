@@ -328,7 +328,9 @@ void ocl_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
         }
     } else {
         auto dep_events = utils::get_cl_events(deps);
-        OPENVINO_ASSERT(dep_events.size() == deps.size(), "Some dependencies could not be converted to cl::Event");
+        if (dep_events.empty()) {
+            return;
+        }
         try {
             _command_queue.enqueueBarrierWithWaitList(&dep_events, nullptr);
         } catch (const cl::Error& err) {

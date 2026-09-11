@@ -29,14 +29,18 @@ public:
 
     /// @brief Retrieve valid Level Zero handles from a list of events.
     /// @param events A vector of event pointers to check.
+    /// @param expect_handles If true, the function will throw an exception if any event does not have a valid handle.
     /// @note This function assumes all events derive from ze_base_event and performs unsafe cast to avoid RTTI.
     /// @return A vector of valid Level Zero event handles.
-    static std::vector<ze_event_handle_t> get_valid_event_handles(const std::vector<event::ptr>& events) {
+    static std::vector<ze_event_handle_t> get_event_handles(const std::vector<event::ptr>& events, bool expect_handles = false) {
         std::vector<ze_event_handle_t> handles;
         for (auto ev : events) {
+            if (!ev) continue; // Discard null event pointers
             auto handle = std::static_pointer_cast<ze_base_event>(ev)->get_handle();
             if (handle != nullptr) {
                 handles.push_back(handle);
+            } else if (expect_handles) {
+                OPENVINO_THROW("Expected a valid event object to have a valid Level Zero handle");
             }
         }
         return handles;
