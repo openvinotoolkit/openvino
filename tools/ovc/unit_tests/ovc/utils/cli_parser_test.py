@@ -303,6 +303,16 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
             argv_input = parse_inputs("inp1->[1.0]")
             input_to_input_cut_info(argv_input)
 
+    def test_invalid_character_in_shape_not_last_input(self):
+        # a shape containing an invalid character must be rejected no matter
+        # which position the input has in the list
+        argv_input = "inp1[1,2/3],inp2[1,2]"
+        self.assertRaises(Error, parse_inputs, argv_input)
+
+    def test_invalid_character_in_shape_last_input(self):
+        argv_input = "inp1[1,2],inp2[1,2/3]"
+        self.assertRaises(Error, parse_inputs, argv_input)
+
 
 class PathCheckerFunctions(unittest.TestCase):
     READABLE_DIR = tempfile.gettempdir()
