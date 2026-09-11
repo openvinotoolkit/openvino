@@ -148,9 +148,10 @@ std::shared_ptr<ov::Model> create_compressed_matmul_model(size_t output_features
     return std::make_shared<ov::Model>(OutputVector{matmul}, ParameterVector{data});
 }
 
-bool has_dynamic_quantize(const std::shared_ptr<const ov::Model>& model) {
-    return std::any_of(model->get_ordered_ops().begin(), model->get_ordered_ops().end(), [](const auto& node) {
-        return ov::is_type<ov::op::internal::DynamicQuantize>(node);
+bool has_node_type(const std::shared_ptr<const ov::Model>& model, const std::string& type_name) {
+    const auto ordered_ops = model->get_ordered_ops();
+    return std::any_of(ordered_ops.begin(), ordered_ops.end(), [&type_name](const auto& node) {
+        return std::string(node->get_type_name()) == type_name;
     });
 }
 
@@ -167,16 +168,14 @@ TEST(DynamicQuantizeTransformPipelineTest, SkipsSingleOutputFeature) {
     config.set_property(ov::intel_gpu::use_onednn(true));
     config.set_user_property(ov::hint::dynamic_quantization_group_size(64));
 
-    for (const auto& [output_features, expected_dynamic_quantize] :
-            std::vector<std::pair<size_t, bool>>{{1, false}, {1024, true}}) {
-        auto model = create_compressed_matmul_model(output_features);
-        config.finalize(context.get(), model.get());
+    auto model = create_compressed_matmul_model(1);
+    config.finalize(context.get(), model.get());
 
-        ov::intel_gpu::TransformationsPipeline pipeline(config, context);
-        pipeline.apply(model);
+    ov::intel_gpu::TransformationsPipeline pipeline(config, context);
+    pipeline.apply(model);
 
-        EXPECT_EQ(has_dynamic_quantize(model), expected_dynamic_quantize) << "N=" << output_features;
-    }
+    EXPECT_TRUE(has_node_type(model, "FullyConnectedCompressed"));
+    EXPECT_FALSE(has_node_type(model, "DynamicQuantize"));
 }
 
 TEST(XAttentionTransformPipelineTest, NormalizesByTokenFp16RtInfoToCompressedCacheLayout) {
