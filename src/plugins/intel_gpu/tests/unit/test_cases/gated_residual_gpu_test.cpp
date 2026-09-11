@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "gated_residual_inst.h"
+#include "impls/cm/gated_residual/gr_stage_events.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"
 
@@ -241,7 +242,14 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                          ::testing::Values(gr_read_case{1, 64, 16, false},
                                            gr_read_case{1, 64, 16, true},
                                            gr_read_case{7, 128, 32, true},
-                                           gr_read_case{16, 32, 16, true}));
+                                           gr_read_case{16, 32, 16, true},
+                                           // Below: C*D and L satisfy can_use_dpas_gr_read(), so these route
+                                           // through the new gr_rbar_dpas -> gr_down_proj_dpas ->
+                                           // gr_up_proj_dpas -> [gr_writegate_dpas] -> gr_combine pipeline
+                                           // instead of the scalar gr_read.cm kernel.
+                                           gr_read_case{32, 64, 32, true},    // exact N-tile boundary (2x16), GR_COMBINE_TILE=64
+                                           gr_read_case{37, 96, 32, false},   // partial last N-tile (37=2*16+5), no write gate, tile=32
+                                           gr_read_case{41, 48, 64, true}));  // partial tile; D=48 forces GR_COMBINE_TILE/GR_WRITE_TILE down to 16
 
 TEST(gated_residual_gpu_test, final_mix_matches_read) {
     if (!cm_gr_available()) {
@@ -361,6 +369,70 @@ TEST(gated_residual_gpu_test, write_combines_branches) {
     }
 }
 
+// D=48 is a multiple of 16 but not of 32 or 64, so the generator's gr_best_tile() falls
+// back to GR_WRITE_TILE=16 - the same per-thread width as the original gr_write.cm. This
+// exercises that fallback path (the smoke test above only ever hits GR_WRITE_TILE=64).
+TEST(gated_residual_gpu_test, write_combines_branches_narrow_tile) {
+    if (!cm_gr_available()) {
+        GTEST_SKIP() << "CM JIT / systolic GPU is required for gated_residual";
+    }
+
+    const size_t rows = 9;
+    const size_t C = kBranches;
+    const size_t D = 48;
+    const size_t CD = C * D;
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    const auto residual = random_vec(rg, rows * CD, 1.0f);
+    const auto y = random_vec(rg, rows * D, 1.0f);
+    const auto gate = random_vec(rg, rows * C, 1.0f, 1.0f);
+
+    std::vector<float> ref(rows * CD, 0.0f);
+    for (size_t row = 0; row < rows; row++) {
+        for (size_t c = 0; c < C; c++) {
+            for (size_t d = 0; d < D; d++) {
+                ref[row * CD + c * D + d] = residual[row * CD + c * D + d] + gate[row * C + c] * y[row * D + d];
+            }
+        }
+    }
+
+    auto& engine = get_test_engine();
+    auto residual_mem = make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(CD)}, residual);
+    auto y_mem = make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(D)}, y);
+    auto gate_mem = make_f16(engine, {static_cast<int64_t>(rows), static_cast<int64_t>(C)}, gate);
+
+    topology topology;
+    topology.add(input_layout("residual", residual_mem->get_layout()));
+    topology.add(input_layout("y", y_mem->get_layout()));
+    topology.add(input_layout("gate", gate_mem->get_layout()));
+    topology.add(gated_residual("gr_write_narrow",
+                                {input_info("residual"), input_info("y"), input_info("gate")},
+                                gated_residual::Mode::WRITE,
+                                C,
+                                D,
+                                0,
+                                1e-6f,
+                                false,
+                                false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("residual", residual_mem);
+    network.set_input_data("y", y_mem);
+    network.set_input_data("gate", gate_mem);
+
+    auto outputs = network.execute();
+    cldnn::mem_lock<ov::float16> out(outputs.at("gr_write_narrow").get_memory(), get_test_stream());
+    ASSERT_EQ(out.size(), ref.size());
+    for (size_t i = 0; i < ref.size(); i++) {
+        ASSERT_NEAR(static_cast<float>(out[i]), ref[i], 1e-2f) << "residual update mismatch at " << i;
+    }
+}
+
 TEST(gated_residual_gpu_test, unsupported_branch_count_is_rejected) {
     // C != 4 is outside the first supported configuration; the CM implementation
     // manager must reject it instead of silently producing wrong results.
@@ -387,28 +459,55 @@ double mean_ms(const std::vector<double>& v) {
     return v.empty() ? 0.0 : sum / static_cast<double>(v.size());
 }
 
-/// GPU-side "executing" duration, not host wall-clock, so host dispatch overhead is
-/// excluded. gated_residual dispatches exactly one CM kernel per mode, so (unlike QSA)
-/// `network::get_executed_primitives()` already exposes the real kernel's own event.
+/// Extracts the GPU-side "executing" duration of `ev`, in milliseconds, or -1.0 if `ev`
+/// is null or has no such interval. GPU-side timing is used instead of host wall-clock so
+/// host dispatch overhead (which the roofline model does not account for) is excluded.
+double executing_ms(const event::ptr& ev) {
+    if (ev == nullptr) {
+        return -1.0;
+    }
+    for (const auto& interval : ev->get_profiling_info()) {
+        if (interval.stage == instrumentation::profiling_stage::executing && interval.value != nullptr) {
+            return static_cast<double>(interval.value->value().count()) / 1.0e6;
+        }
+    }
+    return -1.0;
+}
+
+/// GPU-side total duration of one gated_residual call, summed across every CM kernel
+/// dispatch recorded via gr_stage_events.hpp. The systolic READ/FINAL_MIX path fuses 4-5
+/// independent kernels (RBAR, down-proj, up-proj, [write-gate], combine) behind one clDNN
+/// primitive, so `network::get_executed_primitives()` alone would only expose the last of
+/// them (see gr_stage_events.hpp / qsa_gpu_test.cpp's identical situation for QSA).
 double time_primitive_ms(network& net, const std::string& primitive_id, int warmup, int iterations) {
     for (int i = 0; i < warmup; i++) {
         auto outputs = net.execute();
         outputs.at(primitive_id).get_memory();
+        for (auto& stage_event : ov::intel_gpu::cm::gr_debug::take_stage_events()) {
+            if (stage_event.second != nullptr) {
+                stage_event.second->wait();
+            }
+        }
     }
     std::vector<double> samples;
     samples.reserve(static_cast<size_t>(iterations));
     for (int i = 0; i < iterations; i++) {
         auto outputs = net.execute();
-        outputs.at(primitive_id).get_memory();
-        auto executed = net.get_executed_primitives();
-        auto it = executed.find(primitive_id);
-        if (it == executed.end() || it->second == nullptr) {
-            continue;
-        }
-        for (const auto& interval : it->second->get_profiling_info()) {
-            if (interval.stage == instrumentation::profiling_stage::executing && interval.value != nullptr) {
-                samples.push_back(static_cast<double>(interval.value->value().count()) / 1.0e6);
+        outputs.at(primitive_id).get_memory();  // forces the whole stage chain to complete
+        double total = 0.0;
+        bool any = false;
+        for (const auto& stage_event : ov::intel_gpu::cm::gr_debug::take_stage_events()) {
+            if (stage_event.second != nullptr) {
+                stage_event.second->wait();
             }
+            const double ms = executing_ms(stage_event.second);
+            if (ms >= 0.0) {
+                total += ms;
+                any = true;
+            }
+        }
+        if (any) {
+            samples.push_back(total);
         }
     }
     if (samples.empty()) {

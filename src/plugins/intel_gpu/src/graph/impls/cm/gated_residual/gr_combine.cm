@@ -1,0 +1,50 @@
+// Copyright (C) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+// GR DPAS pipeline, stage 4b/4: branch reduce-mean combine (no dpas - pure elementwise).
+//
+//   mixed[token, d] = (1/C) * sum_c gate[token, c, d] * Rbar[token, c, d]
+//
+// Reads the two tensors materialized by gr_rbar_dpas.cm / gr_up_proj_dpas.cm and folds
+// them down to the final [tokens, D] output. This step is bandwidth-bound (one read of
+// each C*D input plus a D output per row) so it stays a plain wide vector kernel; there
+// is no matmul left to hand to dpas once the two GEMMs above have already run.
+//
+// JIT constants: GR_BRANCHES, GR_HIDDEN, GR_COMBINE_TILE (elements/thread, multiple of 16).
+// Dispatch: gws = [ceil(GR_HIDDEN/GR_COMBINE_TILE), num_rows, 1], lws = [1, 1, 1].
+
+#include "qsa_gr_common.hpp"
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* rbar ATTR,  // [num_rows, C*D]
+                                        const half* gate ATTR,  // [num_rows, C*D]
+                                        half* mixed ATTR,       // [num_rows, D]
+                                        uint32_t num_rows) {
+    constexpr uint C = GR_BRANCHES;
+    constexpr uint D = GR_HIDDEN;
+    constexpr uint CD = C * D;
+    constexpr uint TILE = GR_COMBINE_TILE;
+    static_assert(TILE % 16 == 0, "GR_COMBINE_TILE must be a multiple of 16");
+    static_assert(D % TILE == 0, "GR_HIDDEN must be a multiple of GR_COMBINE_TILE");
+
+    const uint d0 = cm_global_id(0) * TILE;
+    const uint row = cm_global_id(1);
+    if (d0 >= D || row >= num_rows) {
+        return;
+    }
+
+    vector<float, TILE> acc = 0.0f;
+#pragma unroll
+    for (uint c = 0; c < C; c++) {
+        const uint elem = row * CD + c * D + d0;
+        vector<half, TILE> rv, gv;
+        qsa_gr::load_hv<TILE>(rv, rbar, elem);
+        qsa_gr::load_hv<TILE>(gv, gate, elem);
+        acc += vector<float, TILE>(gv) * vector<float, TILE>(rv);
+    }
+    vector<half, TILE> outp = acc * (1.0f / (float)C);
+    qsa_gr::store_hv<TILE>(mixed, row * D + d0, outp);
+}

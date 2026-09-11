@@ -23,12 +23,21 @@
 // The two possible sources of S (saved by READ vs. recomputed) must never be mixed:
 // this kernel implements the "saved by READ" variant.
 //
+// Dispatches one thread per (d-tile, row) instead of per (d-tile, branch, row): the
+// GR_BRANCHES branch loop moved INSIDE the kernel so Y and the full gate vector are
+// each read from DRAM exactly ONCE per thread (the original per-branch dispatch
+// re-read the same Y[row, d0:d0+TILE] and re-derived the same gate pair once per
+// branch, for no reason). GR_WRITE_TILE (a multiple of 16, chosen by the generator as
+// the widest of {64,32,16} that evenly divides GR_HIDDEN) also cuts thread count by
+// widening the per-thread slice, which matters at small D (dispatch-overhead bound).
+//
 // JIT constants:
-//   GR_BRANCHES  C
-//   GR_HIDDEN    D (multiple of 16)
+//   GR_BRANCHES     C
+//   GR_HIDDEN       D (multiple of 16)
+//   GR_WRITE_TILE   elements/thread (multiple of 16, divides GR_HIDDEN)
 //
 // Dispatch:
-//   gws = [D / 16, C, num_rows]
+//   gws = [ceil(D / GR_WRITE_TILE), num_rows, 1]
 //   lws = [1, 1, 1]
 
 #include "qsa_gr_common.hpp"
@@ -37,32 +46,39 @@
 #define ATTR [[type("svmptr_t")]]
 #endif
 
-extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* residual ATTR,  // [num_rows, C*D]
-                                        const half* sublayer_y ATTR,  // [num_rows, D]
-                                        const half* write_gate ATTR,  // [num_rows, C]
-                                        half* residual_out ATTR,      // [num_rows, C*D]
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* residual ATTR,      // [num_rows, C*D]
+                                        const half* sublayer_y ATTR,    // [num_rows, D]
+                                        const half* write_gate ATTR,    // [num_rows, C]
+                                        half* residual_out ATTR,        // [num_rows, C*D]
                                         uint32_t num_rows) {
     constexpr uint C = GR_BRANCHES;
     constexpr uint D = GR_HIDDEN;
-    static_assert(D % 16 == 0, "GR_HIDDEN must be a multiple of 16");
+    constexpr uint CD = C * D;
+    constexpr uint TILE = GR_WRITE_TILE;
+    static_assert(TILE % 16 == 0, "GR_WRITE_TILE must be a multiple of 16");
+    static_assert(D % TILE == 0, "GR_HIDDEN must be a multiple of GR_WRITE_TILE");
+    static_assert(C % 2 == 0, "packed gate load expects an even branch count");
 
-    const uint d0 = cm_global_id(0) * 16;
-    const uint c = cm_global_id(1);
-    const uint row = cm_global_id(2);
-
-    if (d0 >= D || c >= C || row >= num_rows) {
+    const uint d0 = cm_global_id(0) * TILE;
+    const uint row = cm_global_id(1);
+    if (d0 >= D || row >= num_rows) {
         return;
     }
 
-    // Per-branch scalar gate: scalar load, not a per-channel vector.
-    vector<half, 2> gate_pair;
-    gate_pair.format<int>() = cm_ptr_load<int, 1>((int*)write_gate, (row * C + (c & ~1u)) * (uint)sizeof(half));
-    const float gate = (float)gate_pair[c & 1u];
+    // One load for all C branches instead of one redundant pair-load per branch.
+    vector<half, C> gate;
+    gate.format<int>() = cm_ptr_load<int, C / 2>((int*)write_gate, row * C * (uint)sizeof(half));
 
-    const uint elem = row * C * D + c * D + d0;
-    vector<float, 16> r = qsa_gr::load_h16(residual, elem);
-    vector<float, 16> y = qsa_gr::load_h16(sublayer_y, row * D + d0);
+    vector<half, TILE> y;
+    qsa_gr::load_hv<TILE>(y, sublayer_y, row * D + d0);
+    vector<float, TILE> yf = y;
 
-    vector<half, 16> out = r + gate * y;
-    qsa_gr::store_h16(residual_out, elem, out);
+#pragma unroll
+    for (uint c = 0; c < C; c++) {
+        const uint elem = row * CD + c * D + d0;
+        vector<half, TILE> r;
+        qsa_gr::load_hv<TILE>(r, residual, elem);
+        vector<half, TILE> out = vector<float, TILE>(r) + (float)gate[c] * yf;
+        qsa_gr::store_hv<TILE>(residual_out, elem, out);
+    }
 }

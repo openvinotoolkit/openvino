@@ -1,0 +1,54 @@
+// Copyright (C) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+// GR DPAS pipeline, stage 2/4: low-rank down projection + 1/C scale + SiLU.
+//
+//   t[token, l] = SiLU( (W_down[l,:] . Rbar[token,:]) / C )
+//
+// This is a plain dense GEMM (Rbar[tokens,CD] @ W_down[L,CD]^T -> [tokens,L]), so it
+// reuses exactly the same M8/N16/K16 systolic tiling as qsa_project_dpas.cm (Q1's
+// projection is the identical shape of operation: token-major activations times a
+// channel-major weight matrix). One work-item owns M=8 output channels x N=16 tokens.
+//
+// JIT constants: GR_BRANCHES, GR_HIDDEN, GR_LOWRANK.
+// Dispatch: gws = [GR_LOWRANK/8, ceil(num_tokens/16), 1], lws = [1, 1, 1].
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+#include "qsa_dpas_common.hpp"
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* rbar ATTR,    // [tokens, C*D]
+                                        const half* w_down ATTR,  // [L, C*D]
+                                        half* t_out ATTR,         // [tokens, L]
+                                        uint32_t num_tokens) {
+    constexpr uint CD = GR_BRANCHES * GR_HIDDEN;
+    constexpr uint L = GR_LOWRANK;
+    constexpr uint M = QSA_REG_M;
+    constexpr uint N = QSA_REG_N;
+    static_assert(N == 16, "GR DPAS requires 512-bit GRFs (Xe2+)");
+    static_assert(CD >= 32 && CD % 32 == 0, "2D surfaces require >=64B width and 64B-aligned row pitch");
+    static_assert(L % M == 0, "GR_LOWRANK must be divisible by 8; partial output tiles unsupported");
+
+    const uint j0 = cm_group_id(0) * M;
+    const uint t0 = cm_group_id(1) * N;
+    if (j0 >= L || t0 >= num_tokens) return;
+    const uint valid = cm_min<uint>(N, num_tokens - t0);
+    vector<float, M * N> acc = 0.0f;
+    for (uint k = 0; k < CD; k += QSA_REG_K) {
+        vector<half, QSA_REG_K * N> b;
+        vector<half, M * QSA_REG_K> a;
+        qsa_dpas::load_vnni_tile(b, rbar + t0 * CD, valid, CD * (uint)sizeof(half), CD * (uint)sizeof(half), k);
+        qsa_dpas::load_a_tile<M>(a, w_down + j0 * CD, M, CD * (uint)sizeof(half), CD * (uint)sizeof(half), k);
+        acc = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH, QSA_REG_M, float>(acc, b.format<int32_t>(), a.format<int32_t>());
+    }
+    matrix<float, N, M> token_major;
+    auto result = acc.format<float, M, N>();
+    qsa_dpas::transpose_8x16(result.select<8, 1, 16, 1>(0, 0), token_major.select<16, 1, 8, 1>(0, 0));
+    for (uint t = 0; t < valid; ++t) {
+        vector<float, M> logits = token_major.row(t) * (1.0f / (float)GR_BRANCHES);
+        vector<float, M> act = logits * qsa_gr::sigmoid<M>(logits);  // SiLU
+        vector<half, M> outp = act;
+        cm_ptr_store<int, M / 2>((int*)t_out, ((t0 + t) * L + j0) * (uint)sizeof(half), outp.format<int>());
+    }
+}

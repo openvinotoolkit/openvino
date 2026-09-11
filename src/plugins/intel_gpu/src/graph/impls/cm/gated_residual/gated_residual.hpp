@@ -14,6 +14,17 @@
 
 namespace ov::intel_gpu::cm {
 
+/// @brief Internal (scratch) buffers used by the systolic (dpas) READ/FINAL_MIX pipeline.
+/// Always allocated (mirrors QSAInternalBufIdx) even though only READ/FINAL_MIX nodes
+/// that pass `can_use_dpas_gr_read()` ever reference them - see gated_residual.cpp.
+struct GatedResidualInternalBufIdx {
+    static constexpr size_t RBAR = 0;          ///< f16 [num_rows, C*D], branch-wise RMSNorm output
+    static constexpr size_t T_SCRATCH = 1;     ///< f16 [num_rows, L], down-projection + SiLU output
+    static constexpr size_t GATE_SCRATCH = 2;  ///< f16 [num_rows, C*D], up-projection + sigmoid output
+
+    static constexpr size_t COUNT = 3;
+};
+
 /// @brief CM implementation of the gated residual READ/WRITE/FINAL_MIX stages.
 /// There is no OpenCL counterpart on purpose: QSA/GR dedicated paths are CM-only.
 struct GatedResidualCMImplementationManager : public cldnn::ImplementationManager {

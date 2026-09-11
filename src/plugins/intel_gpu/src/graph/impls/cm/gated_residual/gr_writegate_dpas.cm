@@ -1,0 +1,60 @@
+// Copyright (C) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+// GR DPAS pipeline, stage 4a/4 (optional): write-gate low-rank projection.
+//
+//   S[token, c] = 2 * sigmoid( (W_inject[c,:] . Rbar[token,:]) / C )
+//
+// Only C (<=4, first version fixes C==4) output channels exist, so this is a single
+// dpas tile with RepeatCount == C instead of the usual 8 - cm_dpas's RepeatCount may be
+// 1/2/4/8, it is not required to be 8 (see qsa_dpas_common.hpp). There is no ready
+// 4x16 -> 16x4 register-transpose helper (transpose_8x16 is specific to 8x16), so the
+// tiny transpose here is a plain unrolled scalar copy; at 4*16 = 64 elements per token
+// tile this is negligible next to the CD-deep dpas reduction above it.
+//
+// JIT constants: GR_BRANCHES, GR_HIDDEN.
+// Dispatch: gws = [1, ceil(num_tokens/16), 1], lws = [1, 1, 1].
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+#include "qsa_dpas_common.hpp"
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* rbar ATTR,          // [tokens, C*D]
+                                        const half* w_inject ATTR,      // [C, C*D]
+                                        half* write_gate_out ATTR,      // [tokens, C]
+                                        uint32_t num_tokens) {
+    constexpr uint C = GR_BRANCHES;
+    constexpr uint CD = GR_BRANCHES * GR_HIDDEN;
+    constexpr uint WM = GR_BRANCHES;  // RepeatCount == branch count
+    constexpr uint N = QSA_REG_N;
+    static_assert(N == 16, "GR DPAS requires 512-bit GRFs (Xe2+)");
+    static_assert(CD >= 32 && CD % 32 == 0, "2D surfaces require >=64B width and 64B-aligned row pitch");
+    static_assert(WM > 0 && WM <= 8 && WM % 2 == 0, "write-gate RepeatCount must fit one dpas tile and pack in half-pairs");
+
+    const uint t0 = cm_group_id(1) * N;
+    if (t0 >= num_tokens) return;
+    const uint valid = cm_min<uint>(N, num_tokens - t0);
+    vector<float, WM * N> acc = 0.0f;
+    for (uint k = 0; k < CD; k += QSA_REG_K) {
+        vector<half, QSA_REG_K * N> b;
+        vector<half, WM * QSA_REG_K> a;
+        qsa_dpas::load_vnni_tile(b, rbar + t0 * CD, valid, CD * (uint)sizeof(half), CD * (uint)sizeof(half), k);
+        qsa_dpas::load_a_tile<WM>(a, w_inject, WM, CD * (uint)sizeof(half), CD * (uint)sizeof(half), k);
+        acc = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, QSA_SYSTOLIC_DEPTH, WM, float>(acc, b.format<int32_t>(), a.format<int32_t>());
+    }
+    matrix<float, WM, N> result = acc.format<float, WM, N>();
+    matrix<float, N, WM> token_major;
+#pragma unroll
+    for (uint m = 0; m < WM; ++m) {
+#pragma unroll
+        for (uint t = 0; t < N; ++t) {
+            token_major(t, m) = result(m, t);
+        }
+    }
+    for (uint t = 0; t < valid; ++t) {
+        vector<float, WM> logits = token_major.row(t) * (1.0f / (float)C);
+        vector<half, WM> gate = 2.0f * qsa_gr::sigmoid<WM>(logits);
+        cm_ptr_store<int, WM / 2>((int*)write_gate_out, (t0 + t) * C * (uint)sizeof(half), gate.format<int>());
+    }
+}

@@ -1,0 +1,81 @@
+// Copyright (C) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+// GR DPAS pipeline, stage 1/4: branch-wise grouped RMSNorm only.
+//
+// Identical math to gr_read.cm's Phase 1a/1b, but Rbar is written to GLOBAL memory
+// instead of staying in SLM. This is a SEPARATE kernel dispatch (not a phase inside
+// a bigger kernel) on purpose: the down/up-projection dpas kernels need Rbar through
+// a hardware-transposed 2D block load, which only works on real (SVM/global) memory,
+// and reading back a peer thread's SLM-adjacent write within the same dispatch is the
+// documented "intra-work-group global round-trip" race (see repo notes) - splitting
+// into independent dispatches turns the dependency into a safe in-order-queue event.
+//
+// JIT constants: GR_BRANCHES, GR_HIDDEN, GR_EPS, GR_NORM_GAIN_PLUS_ONE, GR_WG_SIZE.
+// Dispatch: gws = [GR_WG_SIZE, num_rows, 1], lws = [GR_WG_SIZE, 1, 1].
+
+#include "qsa_gr_common.hpp"
+
+#ifndef ATTR
+#define ATTR [[type("svmptr_t")]]
+#endif
+
+#define GR_TOTAL (GR_BRANCHES * GR_HIDDEN)
+
+extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* residual ATTR,      // [num_rows, C*D]
+                                        const half* norm_weight ATTR,   // [C*D]
+                                        half* rbar_out ATTR,            // [num_rows, C*D]
+                                        uint32_t num_rows) {
+    constexpr uint C = GR_BRANCHES;
+    constexpr uint D = GR_HIDDEN;
+    constexpr uint CD = GR_TOTAL;
+    constexpr uint WG = GR_WG_SIZE;
+
+    static_assert(D % 16 == 0, "GR_HIDDEN must be a multiple of 16");
+    static_assert(C > 0 && C <= 4, "first version supports C in [1, 4]");
+
+    const uint row = cm_group_id(1);
+    if (row >= num_rows) {
+        return;
+    }
+    const uint tid = cm_local_id(0);
+    const uint row_base = row * CD;
+
+    constexpr uint SLM_PART_SIZE = WG * 4 * (uint)sizeof(float);
+    cm_slm_init(SLM_PART_SIZE);
+    auto slm_part = cm_slm_alloc(SLM_PART_SIZE);
+
+    // Phase 1a: branch-wise FP32 sum of squares (same reduction as gr_read.cm).
+    vector<float, 4> partial = 0.0f;
+    for (uint c = 0; c < C; c++) {
+        float acc = 0.0f;
+        for (uint d = tid * 16; d < D; d += WG * 16) {
+            vector<float, 16> rf = qsa_gr::load_h16(residual, row_base + c * D + d);
+            acc += cm_sum<float>(rf * rf);
+        }
+        partial[c] = acc;
+    }
+    cm_slm_block_write(slm_part, tid * 4 * (uint)sizeof(float), partial);
+    cm_fence(CM_LOCAL_BARRIER);
+    cm_barrier();
+
+    vector<float, WG * 4> all_partials;
+    cm_slm_block_read(slm_part, 0, all_partials);
+    vector<float, 4> sumsq = 0.0f;
+    for (uint t = 0; t < WG; t++) {
+        sumsq += all_partials.select<4, 1>(t * 4);
+    }
+    const vector<float, 4> inv_rms = cm_rsqrt(sumsq * (1.0f / (float)D) + (float)GR_EPS);
+
+    // Phase 1b: Rbar = rms_norm(R_c) * gain, written to global memory this time.
+    for (uint idx = tid * 16; idx < CD; idx += WG * 16) {
+        const uint c = idx / D;
+        vector<float, 16> r = qsa_gr::load_h16(residual, row_base + idx);
+        vector<float, 16> gain = qsa_gr::load_h16(norm_weight, idx);
+#if GR_NORM_GAIN_PLUS_ONE
+        gain = gain + 1.0f;
+#endif
+        vector<half, 16> rbar = r * inv_rms[c] * gain;
+        qsa_gr::store_h16(rbar_out, row_base + idx, rbar);
+    }
+}
