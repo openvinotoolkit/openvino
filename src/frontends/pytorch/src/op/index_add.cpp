@@ -27,12 +27,17 @@ OutputVector translate_index_add(const NodeContext& context) {
     // aten::index_add(Tensor self, int dim, Tensor index, Tensor source, *, Scalar alpha=1) -> Tensor
     // aten::index_add.out(Tensor self, int dim, Tensor index, Tensor source, *, Scalar alpha=1, Tensor(a!) out) ->
     // Tensor(a!)
-    num_inputs_check(context, 5, 6);
+    num_inputs_check(context, 4, 6);
     auto input = context.get_input(0);
     auto dim = context.get_input(1);
     auto index = context.mark_node(std::make_shared<v0::Convert>(context.get_input(2), element::i32));
     auto src = context.get_input(3);
-    auto alpha = context.get_input(4);
+    Output<Node> alpha;
+    if (context.get_input_size() < 5 || context.input_is_none(4)) {
+        alpha = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1.0}));
+    } else {
+        alpha = context.get_input(4);
+    }
     auto converted_alpha = context.mark_node(std::make_shared<v1::ConvertLike>(alpha, src));
     auto alpha_src = context.mark_node(std::make_shared<v1::Multiply>(converted_alpha, src));
     auto input_shape_rank = get_shape_rank(context, input);
