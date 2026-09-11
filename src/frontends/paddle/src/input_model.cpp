@@ -8,6 +8,8 @@
 #include <fstream>
 #include <limits>
 #include <queue>
+#include <string>
+#include <vector>
 
 #include "decoder_proto.hpp"
 #include "framework.pb.h"
@@ -15,9 +17,11 @@
 #include "openvino/core/log_util.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/opsets/opset7.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/xml_util/weights_provider.hpp"
 #include "paddle_utils.hpp"
 #include "place.hpp"
 
@@ -26,6 +30,14 @@ namespace frontend {
 namespace paddle {
 
 using namespace ::paddle::framework::proto;
+
+// Location and layout of a single weight payload inside a .pdiparams file.
+struct PdiparamsRecord {
+    size_t offset;
+    size_t size;
+    ov::Shape shape;
+    ov::element::Type type;
+};
 
 class InputModel::InputModelImpl {
 public:
@@ -62,6 +74,11 @@ private:
     void load_places();
     void load_consts(const std::filesystem::path& folder_with_weights);
     void load_consts(std::istream* weight_stream);
+    void load_consts_from_file(const std::filesystem::path& weights_path);
+    std::vector<std::string> collect_persistable_var_names() const;
+    void materialize_consts(ov::util::WeightsProvider& provider,
+                            const std::vector<std::string>& names,
+                            const std::vector<PdiparamsRecord>& records);
     void create_temp_consts();
     std::vector<std::shared_ptr<OpPlace>> determine_cut_nodes() const;
 
@@ -191,17 +208,92 @@ bool is_pdmodel(const std::filesystem::path& path) {
     return path.extension() == ".pdmodel";
 }
 
-std::filesystem::path get_model_path(std::filesystem::path model_file, std::ifstream* weights_stream) {
+struct ModelPaths {
+    std::filesystem::path model;
+    // Empty for the legacy layout, where every weight is a separate file next to __model__.
+    std::filesystem::path weights;
+};
+
+ModelPaths get_model_paths(std::filesystem::path model_file) {
     if (is_pdmodel(model_file)) {
         auto weights_file = model_file;
         weights_file.replace_extension(".pdiparams");
-        weights_stream->open(weights_file, std::ios::binary);
-        // Don't throw error if file isn't opened
-        // It may mean that model don't have constants
-    } else {
-        model_file = model_file / "__model__";
+        return {std::move(model_file), std::move(weights_file)};
     }
-    return model_file;
+    return {model_file / "__model__", {}};
+}
+
+/*
+    Builds the payload table of a .pdiparams file by reading record headers only, skipping over
+    the payloads. Records carry no name, so they are matched positionally with `names`.
+
+    Layout of every record:
+    [ 4 byte ]      -- version(not need)
+    [   8 byte   ]  -- lod_level(not need)
+    [ 4 byte ]      -- version(not need)
+    [ 4 byte ]      -- TensorDesc size
+    [ x byte ... ]  -- TensorDesc
+    [ y byte ... ]  -- weight
+*/
+std::vector<PdiparamsRecord> scan_pdiparams(std::istream& stream,
+                                            const std::vector<std::string>& names,
+                                            size_t weights_size) {
+    std::vector<PdiparamsRecord> records;
+    records.reserve(names.size());
+
+    for (const auto& name : names) {
+        FRONT_END_GENERAL_CHECK(stream.peek() != EOF, "PaddlePaddle *.pdiparams format weight file doesn't exist!");
+        {
+            constexpr size_t header_size = 16;
+            std::vector<char> header(header_size);
+            FRONT_END_GENERAL_CHECK(stream.read(header.data(), header_size),
+                                    "Failed to read weight header for ",
+                                    name,
+                                    ".");
+        }
+
+        int32_t size = 0;
+        FRONT_END_GENERAL_CHECK(stream.read(reinterpret_cast<char*>(&size), sizeof(size)),
+                                "Failed to read TensorDesc size for ",
+                                name,
+                                ".");
+        FRONT_END_GENERAL_CHECK(size > 0 && static_cast<size_t>(size) <= kMaxTensorDescSize,
+                                "TensorDesc size is invalid for ",
+                                name,
+                                ".");
+
+        std::vector<char> buf(static_cast<size_t>(size));
+        FRONT_END_GENERAL_CHECK(stream.read(buf.data(), size), "Failed to read TensorDesc data for ", name, ".");
+
+        VarType_TensorDesc tensor_desc;
+        FRONT_END_GENERAL_CHECK(tensor_desc.ParseFromArray(buf.data(), size),
+                                "Failed to parse TensorDesc for ",
+                                name,
+                                ".");
+
+        PdiparamsRecord record;
+        record.shape = make_shape_checked(tensor_desc.dims());
+        record.type = get_ov_type(tensor_desc.data_type());
+        const auto data_length = ov::util::get_memory_size_safe(record.type, record.shape);
+        FRONT_END_GENERAL_CHECK(data_length, "Weight tensor size overflow for constant ", name, ".");
+        record.size = *data_length;
+
+        const auto payload_offset = stream.tellg();
+        FRONT_END_GENERAL_CHECK(payload_offset >= 0, "Cannot locate weights of constant ", name, ".");
+        record.offset = static_cast<size_t>(payload_offset);
+
+        // Seeking past the end of a stream does not fail, so the payload has to be range checked here.
+        FRONT_END_GENERAL_CHECK(record.offset <= weights_size && record.size <= weights_size - record.offset,
+                                "File containing constant with name ",
+                                name,
+                                " wasn't successfully read.");
+        stream.seekg(static_cast<std::streamoff>(record.size), std::ios::cur);
+        FRONT_END_GENERAL_CHECK(stream, "File containing constant with name ", name, " wasn't successfully read.");
+
+        records.push_back(std::move(record));
+    }
+
+    return records;
 }
 }  // namespace
 
@@ -253,17 +345,63 @@ std::vector<std::shared_ptr<OpPlace>> InputModel::InputModelImpl::determine_cut_
     return new_op_places;
 }
 
-// load_consts with folder is compatible with old PaddlePaddle API.
-void InputModel::InputModelImpl::load_consts(const std::filesystem::path& folder_with_weights) {
+std::vector<std::string> InputModel::InputModelImpl::collect_persistable_var_names() const {
+    std::vector<std::string> names;
     for (const auto& item : m_var_places) {
-        const auto& var_desc = item.second->get_desc();
         const auto& name = item.first;
         if (ov::util::ends_with(name, std::string{"feed"}) || ov::util::ends_with(name, std::string{"fetch"}))
             continue;
+
+        // var_desc.persistable() is used to mark node const value or not.
+        const auto& var_desc = item.second->get_desc();
         if (!var_desc.persistable())
             continue;
 
         FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
+        names.push_back(name);
+    }
+    return names;
+}
+
+void InputModel::InputModelImpl::materialize_consts(ov::util::WeightsProvider& provider,
+                                                    const std::vector<std::string>& names,
+                                                    const std::vector<PdiparamsRecord>& records) {
+    for (size_t i = 0; i < names.size(); ++i) {
+        const auto& name = names[i];
+        const auto& record = records[i];
+        auto const_node = std::make_shared<ov::op::v0::Constant>(record.type,
+                                                                 record.shape,
+                                                                 provider.make_region(record.offset, record.size));
+        const_node->set_friendly_name(name);
+        m_tensor_values[name] = const_node;
+    }
+}
+
+// Loads constants as views into the .pdiparams file instead of copying them into memory.
+void InputModel::InputModelImpl::load_consts_from_file(const std::filesystem::path& weights_path) {
+    const auto names = collect_persistable_var_names();
+    if (names.empty()) {
+        // Model has no learnable weights, so a missing .pdiparams is not an error.
+        return;
+    }
+    FRONT_END_GENERAL_CHECK(ov::util::file_exists(weights_path),
+                            "PaddlePaddle *.pdiparams format weight file doesn't exist!");
+
+    ov::util::FileWeightsProvider provider(weights_path);
+
+    std::ifstream weights_stream(weights_path, std::ios::in | std::ifstream::binary);
+    FRONT_END_GENERAL_CHECK(weights_stream && weights_stream.is_open(),
+                            "PaddlePaddle *.pdiparams format weight file doesn't exist!");
+    const auto records = scan_pdiparams(weights_stream, names, provider.size());
+    weights_stream.close();
+
+    materialize_consts(provider, names, records);
+}
+
+// load_consts with folder is compatible with old PaddlePaddle API.
+void InputModel::InputModelImpl::load_consts(const std::filesystem::path& folder_with_weights) {
+    for (const auto& name : collect_persistable_var_names()) {
+        const auto& var_desc = m_var_places.at(name)->get_desc();
         const auto& tensor = var_desc.type().lod_tensor().tensor();
         Shape shape = make_shape_checked(tensor.dims());
         const auto& type = get_ov_type(tensor.data_type());
@@ -306,17 +444,7 @@ void InputModel::InputModelImpl::load_consts(const std::filesystem::path& folder
 
 // load_consts with stream is compatible with new PaddlePaddle API.
 void InputModel::InputModelImpl::load_consts(std::istream* weight_stream) {
-    for (const auto& item : m_var_places) {
-        const auto& var_desc = item.second->get_desc();
-        const auto& name = item.first;
-        if (ov::util::ends_with(name, std::string{"feed"}) || ov::util::ends_with(name, std::string{"fetch"}))
-            continue;
-
-        // var_desc.persistable() is used to mark node const value or not.
-        if (!var_desc.persistable())
-            continue;
-
-        FRONT_END_GENERAL_CHECK(var_desc.type().type() == ::paddle::framework::proto::VarType::LOD_TENSOR);
+    for (const auto& name : collect_persistable_var_names()) {
         FRONT_END_GENERAL_CHECK(weight_stream != nullptr && weight_stream->peek() != EOF,
                                 "PaddlePaddle *.pdiparams format weight file doesn't exist!");
         /*
@@ -393,8 +521,8 @@ InputModel::InputModelImpl::InputModelImpl(const std::filesystem::path& path,
     : m_fw_ptr{std::make_shared<ProgramDesc>()},
       m_input_model(input_model),
       m_telemetry(telemetry) {
-    std::ifstream weights_stream;
-    std::ifstream pb_stream(get_model_path(path, &weights_stream), std::ios::in | std::ifstream::binary);
+    const auto paths = get_model_paths(path);
+    std::ifstream pb_stream(paths.model, std::ios::in | std::ifstream::binary);
 
     FRONT_END_GENERAL_CHECK(pb_stream && pb_stream.is_open(), "Could not open the file: ", path);
     FRONT_END_GENERAL_CHECK(m_fw_ptr->ParseFromIstream(&pb_stream), "Model can't be parsed");
@@ -407,10 +535,10 @@ InputModel::InputModelImpl::InputModelImpl(const std::filesystem::path& path,
         version >= 2000000 || version == 0,
         "[Frontend]Only Support Paddle greater than 2.0.0, current version " + std::to_string(version));
     load_places();
-    if (is_pdmodel(path)) {
-        load_consts(&weights_stream);
-    } else {
+    if (paths.weights.empty()) {
         load_consts(path);
+    } else {
+        load_consts_from_file(paths.weights);
     }
     create_temp_consts();
 }
