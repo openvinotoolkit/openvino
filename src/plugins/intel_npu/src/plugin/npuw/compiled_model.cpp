@@ -1501,6 +1501,27 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                            num_submodels,
                            ")");
         }
+        if (!submodel_desc.scales.empty() || !submodel_desc.zerops.empty()) {
+            const auto closure_size = submodel_desc.closure.get().closure.size();
+            if (submodel_desc.scales.size() != closure_size) {
+                OPENVINO_THROW("Invalid m_compiled_submodels[",
+                               idx,
+                               "].scales size ",
+                               submodel_desc.scales.size(),
+                               " (expected ",
+                               closure_size,
+                               ")");
+            }
+            if (submodel_desc.zerops.size() != closure_size) {
+                OPENVINO_THROW("Invalid m_compiled_submodels[",
+                               idx,
+                               "].zerops size ",
+                               submodel_desc.zerops.size(),
+                               " (expected ",
+                               closure_size,
+                               ")");
+            }
+        }
     }
 
     if (compiled->m_inputs_to_submodels_inputs.size() != compiled->inputs().size()) {
