@@ -906,6 +906,9 @@ void PyramidAttentionContiguous::collect_strided_input_names(const ov::Model& mo
 }
 
 void PyramidAttentionContiguous::validate_port_indices() const {
+    if (_compiled_models.empty()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention has no compiled models");
+    }
     if (_attention_infos.size() != _compiled_models.size()) {
         OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
                        _attention_infos.size(),
@@ -943,6 +946,9 @@ void PyramidAttentionContiguous::validate_port_indices() const {
 }
 
 void PyramidAttentionBlock::validate_port_indices() const {
+    if (_compiled_models.empty()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention has no compiled models");
+    }
     if (_attention_infos.size() != _compiled_models.size()) {
         OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
                        _attention_infos.size(),
@@ -951,12 +957,13 @@ void PyramidAttentionBlock::validate_port_indices() const {
                        ")");
     }
 
-    if (past_key_block_global_param_indices.size() != past_value_block_global_param_indices.size()) {
-        OPENVINO_THROW("NPU NPUW: pyramid attention block global metadata mismatch: key indices count (",
+    if (past_key_block_global_param_indices.empty() ||
+        past_key_block_global_param_indices.size() != past_value_block_global_param_indices.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention block global metadata invalid: key indices count (",
                        past_key_block_global_param_indices.size(),
-                       ") does not match value indices count (",
+                       "), value indices count (",
                        past_value_block_global_param_indices.size(),
-                       ")");
+                       ") must be non-empty and equal");
     }
 
     if (!_compiled_models.empty()) {
@@ -1002,6 +1009,43 @@ void PyramidAttentionBlock::validate_port_indices() const {
                            " with ",
                            inputs_size,
                            " inputs");
+        }
+        // param_port_map values and the block port sets are LOCAL indices used to bind tensors
+        // to this variant's inputs(); validate them too since they are read verbatim from the blob.
+        // param_port_map has no "no port" sentinel — a dropped block is an absent entry, so every
+        // present value is a real port that bind_function_input dereferences unconditionally.
+        for (const auto& kv : info.param_port_map) {
+            if (kv.second >= inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention param_port_map value (",
+                               kv.second,
+                               ") out of bounds for model ",
+                               i,
+                               " with ",
+                               inputs_size,
+                               " inputs");
+            }
+        }
+        for (const auto port : info.past_key_block_port_set) {
+            if (port >= inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention key block port (",
+                               port,
+                               ") out of bounds for model ",
+                               i,
+                               " with ",
+                               inputs_size,
+                               " inputs");
+            }
+        }
+        for (const auto port : info.past_value_block_port_set) {
+            if (port >= inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention value block port (",
+                               port,
+                               ") out of bounds for model ",
+                               i,
+                               " with ",
+                               inputs_size,
+                               " inputs");
+            }
         }
     }
 }
