@@ -1698,7 +1698,7 @@ TEST(convolution_f16_fw_gpu, dynamic_batch_bfyx_small_channel_fsv16)
     auto weights_mem = engine.allocate_memory({ weights_shape, data_types::f16, format::bfyx });
     set_values(weights_mem, weights_data);
 
-    ov::PartialShape input_shape = { ov::Dimension(1, 4), ic, iy, ix };
+    ov::PartialShape input_shape = { -1, ic, iy, ix };
     auto in_dyn_layout = layout{ input_shape, data_types::f16, format::bfyx };
 
     topology target_topology(
@@ -1744,8 +1744,7 @@ TEST(convolution_f16_fw_gpu, dynamic_batch_bfyx_small_channel_fsv16)
         auto reference_values = get_output_values_to_float(reference_network, reference_outputs.at("out"));
         ASSERT_EQ(output_values.size(), reference_values.size());
         for (size_t i = 0; i < output_values.size(); ++i) {
-            const float tolerance = 0.1f + 1e-2f * std::abs(reference_values[i]);
-            ASSERT_NEAR(output_values[i], reference_values[i], tolerance) << "batch=" << b << " idx=" << i;
+            ASSERT_NEAR(output_values[i], reference_values[i], 1e-2f) << "batch=" << b << " idx=" << i;
         }
     }
 
