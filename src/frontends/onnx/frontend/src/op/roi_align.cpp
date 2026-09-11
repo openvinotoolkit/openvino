@@ -24,7 +24,8 @@ ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
 
     const auto pooled_h = static_cast<int>(node.get_attribute_value<int64_t>("output_height", 1));
     const auto pooled_w = static_cast<int>(node.get_attribute_value<int64_t>("output_width", 1));
-    const auto sampling_ratio = static_cast<int>(node.get_attribute_value<int64_t>("sampling_ratio", 1));
+    // ONNX spec default for sampling_ratio is 0 (adaptive grid), not 1.
+    const auto sampling_ratio = static_cast<int>(node.get_attribute_value<int64_t>("sampling_ratio", 0));
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
     const auto mode = node.get_attribute_value<std::string>("mode", "avg");
     const auto pooling_mode = ov::EnumNames<v9::ROIAlign::PoolingMode>::as_enum(mode);
@@ -54,7 +55,8 @@ ov::OutputVector roi_align(const ov::frontend::onnx::Node& node) {
 
     const auto pooled_h = node.get_attribute_value<int64_t>("output_height", 1);
     const auto pooled_w = node.get_attribute_value<int64_t>("output_width", 1);
-    const auto sampling_ratio = node.get_attribute_value<int64_t>("sampling_ratio", 1);
+    // ONNX spec default for sampling_ratio is 0 (adaptive grid), not 1.
+    const auto sampling_ratio = node.get_attribute_value<int64_t>("sampling_ratio", 0);
     const auto spatial_scale = node.get_attribute_value<float>("spatial_scale", 1.0f);
     const auto mode = node.get_attribute_value<std::string>("mode", "avg");
     const auto pooling_mode = ov::EnumNames<v9::ROIAlign::PoolingMode>::as_enum(mode);
