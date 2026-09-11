@@ -152,7 +152,7 @@ std::shared_ptr<ov::Node> lp_norm(const Output<ov::Node>& value,
     }
     // sqrt of sum of squares - Euclidean norm
     else if (p_norm == 2) {
-        return l2_norm(value, reduction_axes, bias, BiasMode::ADD, keep_dims);
+        return l2_norm(value, reduction_axes, bias, BiasMode::MAX, keep_dims);
     }
     // generic case
     else {
