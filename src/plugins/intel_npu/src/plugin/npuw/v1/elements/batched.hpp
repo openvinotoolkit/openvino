@@ -28,12 +28,6 @@ struct ScoringTags {
 // Extract the scoring tags from the compile properties.
 ScoringTags scoring_tags(const ov::AnyMap& properties);
 
-// True when the compile properties tag the model for batched single-shot scoring
-// (NPUW_TEXT_RERANK / NPUW_TEXT_EMBED) -- currently the text rerank and text
-// embedding pipelines. The compile entry point uses this to decide the wrap
-// explicitly. Import needs no such decision, the blob indicator carries it.
-bool requested(const ov::AnyMap& properties);
-
 // A compiled-model decorator that adds batched (batch > 1) execution on top of an
 // inner compiled model that only supports a batch size of 1 (as NPUW's LLM
 // pipeline does, since it reshapes every sub-model to a static batch of 1).
@@ -95,13 +89,14 @@ private:
 // inner request.
 //
 // The public input tensors default to the inner request's own tensors (surfaced in
-// the constructor), so a plain batch-1 infer works exactly as on the inner. When
-// the caller binds [N, ...] inputs, infer() takes N as the leading dimension the
-// batched inputs agree on (an input with a leading dim of 1 is broadcast - shared
-// across rows), and for each row: resets the inner variable state, binds the row's
-// [1, ...] view of every batched input, runs the inner request, and copies the
-// inner outputs into row i of the [N, ...] public output tensors. A caller-bound
-// output tensor is written into in place, resized via set_shape() when needed.
+// the constructor), so a plain batch-1 infer works exactly as on the inner. infer()
+// takes N as the leading dimension the batched inputs agree on (an input with a
+// leading dim of 1 is broadcast - shared across rows), and for each row: resets the
+// inner variable state, binds the row's [1, ...] view of every batched input, runs
+// the inner request, and copies the inner outputs into row i of the [N, ...] public
+// output tensors. Outputs are always the element's own dense [N, ...] copies. A
+// bound output tensor is written into in place and resized via set_shape() when
+// the produced shape differs, the way plugins treat dynamic outputs.
 class InferRequest final : public ov::ISyncInferRequest {
 public:
     InferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
@@ -126,35 +121,15 @@ private:
     // ([1, ...], bound whole to every row); inputs disagreeing on N throw.
     BatchedInputs extract_batch() const;
 
-    // Make the public output tensors [batch, ...] copies of the inner's [1, ...]
-    // outputs. A caller-bound tensor is never discarded: it is resized in place
-    // via set_shape() and written into (a type mismatch throws, as does set_shape
-    // on a fixed view too small for the data); only the element's own previous
-    // allocations are replaced freely. The wrapped model's ports are dynamic, so
-    // this can only run once the first row has been scored and the inner output
-    // shapes are known.
-    void ensure_batched_outputs(std::size_t batch);
-
-    // Batch-1 shortcut: publish the inner outputs as the public ones without the
-    // stacking copy. A caller-bound tensor is instead resized in place when needed
-    // and written into, under the same contract as ensure_batched_outputs().
-    void expose_inner_outputs();
-
-    // Whether `tensor` is what the element itself last published on output
-    // `port_idx` (its own allocation or an exposed inner tensor), as opposed to
-    // a tensor the caller bound: ours are replaced freely, the caller's are
-    // resized in place, never discarded.
-    bool published_by_element(std::size_t port_idx, const ov::SoPtr<ov::ITensor>& tensor) const;
-    // Bind `tensor` to output `port_idx` and remember it as the element's own.
-    void publish_output(std::size_t port_idx,
-                        const ov::Output<const ov::Node>& port,
-                        const ov::SoPtr<ov::ITensor>& tensor);
+    // Size the public output tensors to [batch, ...] from the inner's [1, ...]
+    // outputs. An unset output gets a fresh tensor; a bound one is resized in
+    // place via set_shape() (a type mismatch throws, as does set_shape on a fixed
+    // view too small for the data). The wrapped model's ports are dynamic, so this
+    // can only run once the first row has been scored and the inner output shapes
+    // are known.
+    void prepare_outputs(std::size_t batch);
 
     std::shared_ptr<ov::IAsyncInferRequest> m_inner;
-    // Per output port, the tensor the element last published there. Held, not
-    // just remembered by address, so a caller's later allocation can never be
-    // mistaken for it.
-    std::vector<ov::SoPtr<ov::ITensor>> m_published_outputs;
     mutable std::mutex m_mutex;
 
     // Per-phase timings of the unroll.
