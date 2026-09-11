@@ -32,8 +32,7 @@ protected:
     ze_command_recorder::ptr m_command_recorder = nullptr;
 
     void stop_recording() {
-        if (m_command_recorder && m_command_recorder->is_recording()) {
-            m_command_recorder->stop_recording();
+        if (m_command_recorder && m_command_recorder->stop_recording() != nullptr) {
             GPU_DEBUG_TRACE << "[GPU][REC] Event interrupted recording" << std::endl;
         }
     }

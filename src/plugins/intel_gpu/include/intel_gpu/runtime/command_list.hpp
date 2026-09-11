@@ -16,6 +16,7 @@ enum class command_list_status {
 };
 
 /// @brief Commands that can be recorded and executed
+/// @note Concurrent operations on the same command list are not allowed.
 class command_list {
 public:
     using ptr = std::shared_ptr<command_list>;

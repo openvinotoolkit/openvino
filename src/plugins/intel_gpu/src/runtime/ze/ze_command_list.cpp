@@ -30,6 +30,9 @@ ze_command_list::ze_command_list(ze_stream& ze_stream, QueueTypes queue_type)
 }
 
 ze_command_list::~ze_command_list() {
+    if (_status == command_list_status::enqueued) {
+        wait();
+    }
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // Destroy OneDNN stream before dropping command list
     _onednn_stream.reset();

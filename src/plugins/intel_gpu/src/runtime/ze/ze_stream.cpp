@@ -415,8 +415,7 @@ void ze_stream::flush() const {
 }
 
 void ze_stream::finish() const {
-    if (get_recorder()->is_recording()) {
-        get_recorder()->stop_recording();
+    if (get_recorder()->stop_recording()) {
         GPU_DEBUG_TRACE << "[GPU][REC] Stream finish interrupted recording" << std::endl;
     }
     OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(m_imm_cmd_list.handle(), endless_wait));
@@ -475,8 +474,8 @@ ze_context_resource ze_stream::get_context() const {
 dnnl::stream& ze_stream::get_onednn_stream() {
     OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
     OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
-    if (m_recorder->is_recording()) {
-        return std::static_pointer_cast<ze_command_list>(m_recorder->get_active_command_list())->get_onednn_stream();
+    if (auto active_cmd_list = m_recorder->get_active_command_list()) {
+        return std::static_pointer_cast<ze_command_list>(active_cmd_list)->get_onednn_stream();
     }
     if (!_onednn_stream) {
         _onednn_stream = std::make_shared<dnnl::stream>(dnnl::ze_interop::make_stream(_engine.get_onednn_engine(), m_imm_cmd_list.handle(), is_profiling_enabled()));
@@ -491,8 +490,8 @@ command_recorder::ptr ze_stream::get_recorder() const {
 }
 
 ze_command_list_resource ze_stream::get_command_list() const {
-    if (m_recorder->is_recording()) {
-        return std::static_pointer_cast<ze_command_list>(m_recorder->get_active_command_list())->resource();
+    if (auto active_cmd_list = m_recorder->get_active_command_list()) {
+        return std::static_pointer_cast<ze_command_list>(active_cmd_list)->resource();
     }
     return m_imm_cmd_list;
 }
