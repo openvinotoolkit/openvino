@@ -948,6 +948,161 @@ def test_make_16bit_traceable_no_16bit_activation_cast(dtype):
         f"Expected a {ov_dtype} weight constant, got {const_dtypes}"
 
 
+def test_dataclasses_to_dicts():
+    import dataclasses
+    from openvino.frontend.pytorch.patch_model import _dataclasses_to_dicts
+
+    @dataclasses.dataclass
+    class Inner:
+        a: torch.Tensor
+        b: torch.Tensor = None
+
+    @dataclasses.dataclass
+    class Outer:
+        inner: Inner
+        c: torch.Tensor = None
+
+    t1, t2, t3 = torch.tensor(1), torch.tensor(2), torch.tensor(3)
+
+    # Plain values and non-dataclass containers pass through unchanged
+    assert _dataclasses_to_dicts(t1) is t1
+    assert _dataclasses_to_dicts(None) is None
+    assert _dataclasses_to_dicts(42) == 42
+
+    # None fields are dropped, non-None fields become dict entries keyed by field name
+    assert _dataclasses_to_dicts(Inner(a=t1, b=None)) == {"a": t1}
+    assert _dataclasses_to_dicts(Inner(a=t1, b=t2)) == {"a": t1, "b": t2}
+
+    # Nested dataclasses are converted recursively
+    assert _dataclasses_to_dicts(Outer(inner=Inner(a=t1, b=t2), c=None)) == {"inner": {"a": t1, "b": t2}}
+
+    # Dataclasses inside lists/tuples/dicts are converted, container type kept
+    assert _dataclasses_to_dicts([Inner(a=t1, b=None)]) == [{"a": t1}]
+    assert _dataclasses_to_dicts((Inner(a=t1, b=None),)) == ({"a": t1},)
+    assert _dataclasses_to_dicts({"x": Inner(a=t1, b=t3)}) == {"x": {"a": t1, "b": t3}}
+
+
+def test_dataclasses_to_dicts_leaves_supported_containers_alone():
+    """Only bare dataclasses are rewritten.
+
+    Container subclasses cannot always be rebuilt from a generator (namedtuple) or
+    would be downcast (OrderedDict/defaultdict), and dataclasses that are also dict
+    subclasses (transformers' ModelOutput) are already capturable as-is.
+    """
+    import collections
+    import dataclasses
+    from openvino.frontend.pytorch.patch_model import _dataclasses_to_dicts
+
+    t1, t2 = torch.tensor(1), torch.tensor(2)
+
+    point = collections.namedtuple("Point", ["x", "y"])(t1, t2)
+    assert _dataclasses_to_dicts(point) is point
+
+    ordered = collections.OrderedDict(a=t1)
+    assert _dataclasses_to_dicts(ordered) is ordered
+
+    default = collections.defaultdict(list, a=t1)
+    assert _dataclasses_to_dicts(default) is default
+
+    # A dataclass that is also a dict subclass, like transformers' ModelOutput.
+    @dataclasses.dataclass
+    class DictOutput(collections.OrderedDict):
+        first: torch.Tensor = None
+
+    dict_output = DictOutput(first=t1)
+    assert _dataclasses_to_dicts(dict_output) is dict_output
+
+
+def test_patched_dataclass_outputs():
+    """patched_dataclass_outputs temporarily converts a bare @dataclass model
+    output into a dict, and restores the original forward on exit."""
+    import dataclasses
+    from openvino.frontend.pytorch.patch_model import patched_dataclass_outputs
+
+    @dataclasses.dataclass
+    class Output:
+        first: torch.Tensor
+        second: torch.Tensor = None
+
+    class Model(torch.nn.Module):
+        def forward(self, x):
+            return Output(first=x + 1, second=None)
+
+    model = Model()
+    orig_forward = model.forward
+    x = torch.tensor([1.0, 2.0])
+
+    with patched_dataclass_outputs(model):
+        assert model.forward != orig_forward
+        result = model(x)
+        assert isinstance(result, dict) and list(result) == ["first"]
+        assert torch.equal(result["first"], x + 1)
+
+    # Original forward (and its dataclass output) is restored after exit.
+    assert model.forward == orig_forward
+    restored = model(x)
+    assert dataclasses.is_dataclass(restored)
+    assert torch.equal(restored.first, x + 1)
+    assert restored.second is None
+
+
+def test_convert_model_with_dataclass_output():
+    """End-to-end conversion of a model whose forward() returns a bare @dataclass.
+    """
+    import dataclasses
+    import openvino as ov
+
+    @dataclasses.dataclass
+    class GuardOutput:
+        first: torch.Tensor
+        second: torch.Tensor
+        unset: torch.Tensor = None
+
+    class DataclassOutputModel(torch.nn.Module):
+        def forward(self, x):
+            return GuardOutput(first=x + 1, second=x * 2)
+
+    model = DataclassOutputModel().eval()
+    example_input = torch.rand(1, 4)
+
+    converted_model = ov.convert_model(model, example_input=example_input, dynamo=True)
+    assert len(converted_model.outputs) == 2
+
+    compiled_model = ov.compile_model(converted_model, "CPU", default_cfg)
+    res = compiled_model((example_input.numpy(),))
+    ref = model(example_input)
+    np.testing.assert_allclose(res[0], ref.first.numpy(), 1e-7, 0)
+    np.testing.assert_allclose(res[1], ref.second.numpy(), 1e-7, 0)
+
+    # The patch is only active during capture; the model still returns its dataclass.
+    assert dataclasses.is_dataclass(model(example_input))
+
+
+@pytest.mark.parametrize("dynamo", [False, True])
+def test_convert_model_with_namedtuple_output(dynamo):
+    """A namedtuple output must survive conversion untouched by the dataclass patch."""
+    import collections
+    import openvino as ov
+
+    point = collections.namedtuple("Point", ["x", "y"])
+
+    class NamedTupleOutputModel(torch.nn.Module):
+        def forward(self, x):
+            return point(x + 1, x * 2)
+
+    model = NamedTupleOutputModel().eval()
+    example_input = torch.rand(1, 4)
+
+    converted_model = ov.convert_model(model, example_input=example_input, dynamo=dynamo)
+    assert len(converted_model.outputs) == 2
+
+    compiled_model = ov.compile_model(converted_model, "CPU", default_cfg)
+    res = compiled_model((example_input.numpy(),))
+    ref = model(example_input)
+    np.testing.assert_allclose(res[0], ref.x.numpy(), 1e-7, 0)
+    np.testing.assert_allclose(res[1], ref.y.numpy(), 1e-7, 0)
+
+
 def verify_model(model, example_input, expected_ops):
     import numpy as np
     import openvino as ov

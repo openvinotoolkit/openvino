@@ -326,7 +326,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         """
         from openvino.frontend.pytorch import quantized
         from openvino.frontend.pytorch.patch_model import (
-            patch_model_for_export, unpatch_model, _clear_export_cache)
+            patch_model_for_export, unpatch_model, patched_dataclass_outputs, _clear_export_cache)
 
         orig_forward_name = "_openvino_module_extension_patch_orig_forward"
 
@@ -362,7 +362,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 quant_patched = False
 
         try:
-            exported_program = cls._export(model, example_inputs, dynamic_shapes)
+            with patched_dataclass_outputs(model):
+                exported_program = cls._export(model, example_inputs, dynamic_shapes)
         finally:
             if quant_patched:
                 quantized.unpatch_quantized_for_export(model)
