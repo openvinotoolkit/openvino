@@ -1,6 +1,6 @@
 ---
 name: Analyze and Convert Agent
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 description: Attempts HuggingFace model conversion to OpenVINO IR using a multi-strategy matrix, deeply probes model properties and requirements, classifies failures with full traceback analysis, and produces a structured diagnostic report with precise routing signals for the orchestrator.
 ---
 # Analyze and Convert Agent
