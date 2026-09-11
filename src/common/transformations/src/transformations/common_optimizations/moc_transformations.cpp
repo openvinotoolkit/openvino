@@ -31,6 +31,7 @@
 #include "transformations/common_optimizations/disable_random_uniform_constant_folding.hpp"
 #include "transformations/common_optimizations/disable_shapeof_constant_folding.hpp"
 #include "transformations/common_optimizations/divide_fusion.hpp"
+#include "transformations/common_optimizations/dynamic_same_padding_fusion.hpp"
 #include "transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp"
 #include "transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp"
 #include "transformations/common_optimizations/eliminate_unsqueeze_gather.hpp"
@@ -233,6 +234,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, HSigmoidFusion)
     ADD_MATCHER(common_fusions, NormalizeL2Fusion)
     ADD_MATCHER(common_fusions, ClampFusion)
+    ADD_MATCHER(common_fusions, DynamicSamePaddingFusion)
     ADD_MATCHER(common_fusions, PadFusion)
     ADD_MATCHER(common_fusions, SoftmaxFusion)
     ADD_MATCHER(common_fusions, ReduceReshapeFusion)
