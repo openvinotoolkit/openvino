@@ -130,4 +130,15 @@ TEST(KVCachePrecisionAutoDetection, U8NormalizedToI8) {
     auto kv_prec = compiled_model.get_property(ov::hint::kv_cache_precision);
     ASSERT_EQ(kv_prec, ov::element::i8);
 }
-} // namespace
+
+TEST_F(TestPropertiesGPU, PagedAttentionBlockSizeNonPAModel) {
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU));
+
+    uint64_t block_size = 0;
+    OV_ASSERT_NO_THROW(block_size = compiled_model.get_property(ov::intel_gpu::paged_attention_block_size));
+    ASSERT_EQ(block_size, 0u) << "Non-PA model must report block_size == 0";
+}
+
+}  // namespace

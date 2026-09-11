@@ -116,6 +116,42 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
         }
     }
 
+    // Validate block_indices consistency: if block_indices is shorter than
+    // the context implied by past_lens, the PA kernel will read out-of-bounds,
+    // causing CL_OUT_OF_RESOURCES (error -5) which kills the process.
+    // Catch this early with a clear error message. (See issue #37662, Request 6)
+    const auto block_indices_idx = cldnn::paged_attention::PagedAttentionInputIdx::BLOCK_INDICES;
+    const auto block_indices_begins_idx = cldnn::paged_attention::PagedAttentionInputIdx::BLOCK_INDICES_BEGINS;
+    const auto past_lens_idx_val = cldnn::paged_attention::PagedAttentionInputIdx::PAST_LENS;
+    const auto& block_indices_layout = impl_param.get_input_layout(block_indices_idx);
+    const auto& block_indices_begins_layout = impl_param.get_input_layout(block_indices_begins_idx);
+    const auto& past_lens_layout = impl_param.get_input_layout(past_lens_idx_val);
+
+    if (block_indices_layout.is_static() && block_indices_begins_layout.is_static() && past_lens_layout.is_static()) {
+        const auto& memory_deps = impl_param.memory_deps;
+        if (memory_deps.count(past_lens_idx_val) && memory_deps.count(block_indices_begins_idx) && memory_deps.count(block_indices_idx)) {
+            auto past_lens_mem = memory_deps.at(past_lens_idx_val);
+            auto block_indices_begins_mem = memory_deps.at(block_indices_begins_idx);
+            mem_lock<int32_t, mem_lock_type::read> past_lens_lock(past_lens_mem, *impl_param.strm);
+            mem_lock<int32_t, mem_lock_type::read> bi_begins_lock(block_indices_begins_mem, *impl_param.strm);
+
+            const auto num_sequences = past_lens_lock.size();
+            const auto block_indices_count = static_cast<size_t>(block_indices_layout.get_shape()[0]);
+            const auto pa_block_sz = desc->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
+
+            if (num_sequences > 0 && bi_begins_lock.size() > num_sequences) {
+                // block_indices_begins[last] should equal the total number of block indices
+                const auto expected_block_indices = static_cast<size_t>(bi_begins_lock[num_sequences]);
+                OPENVINO_ASSERT(block_indices_count >= expected_block_indices,
+                    "[GPU] PagedAttention: block_indices length (", block_indices_count,
+                    ") is smaller than required by block_indices_begins (", expected_block_indices,
+                    "). This will cause the kernel to read out-of-bounds memory. "
+                    "Ensure block_indices has at least ceil(sum(past_lens + new_tokens) / block_size=", pa_block_sz,
+                    ") entries per sequence.");
+            }
+        }
+    }
+
     return output_layouts;
 }
 
