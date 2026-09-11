@@ -83,6 +83,6 @@ def _get_disabled_ops(options) -> Optional[Any]:
 def _is_testing(options) -> Optional[Any]:
     if options is not None and "testing" in options:
         is_testing = options["testing"]
-        if bool(is_testing) and str(is_testing).lower not in ["false", "0"]:
+        if bool(is_testing) and str(is_testing).lower() not in ["false", "0"]:
             return True
     return False
