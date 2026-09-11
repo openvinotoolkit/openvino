@@ -131,6 +131,9 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
             serialization_info["kv_cache_precision"] = sdpa_node->getKVCachePrecision().get_type_name();
         }
     }
+    if (node->getType() == Type::PagedAttention) {
+        serialization_info["block_size"] = "32";
+    }
 
     return serialization_info;
 }
@@ -231,7 +234,12 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
         holder->add_control_dependency(node);
     }
 
-    return std::make_shared<ov::Model>(results, params, graph._name);
+    auto runtime_model = std::make_shared<ov::Model>(results, params, graph._name);
+    if (auto pa_bs = graph.get_paged_attention_block_size()) {
+        runtime_model->get_rt_info()["paged_attention_block_size"] = pa_bs.value();
+        runtime_model->get_rt_info()["paged_attention"] = ov::AnyMap{{"block_size", pa_bs.value()}};
+    }
+    return runtime_model;
 }
 
 #ifdef CPU_DEBUG_CAPS

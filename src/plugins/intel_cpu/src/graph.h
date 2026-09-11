@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -107,6 +108,8 @@ public:
     std::string GetName() const {
         return _name;
     }
+
+    std::optional<size_t> get_paged_attention_block_size() const;
 
     NodePtr getInputNodeByIndex(std::size_t index) {
         if (index >= inputNodes.size()) {
