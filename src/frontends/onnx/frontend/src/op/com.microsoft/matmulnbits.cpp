@@ -74,11 +74,27 @@ uint64_t checked_mul(uint64_t a, uint64_t b) {
     return a * b;
 }
 
+// Same rationale as checked_mul, for the row-byte round-up additions below.
+uint64_t checked_add(uint64_t a, uint64_t b) {
+    FRONT_END_GENERAL_CHECK(a <= std::numeric_limits<uint64_t>::max() - b,
+                            "MatMulNBits: repacked buffer size overflow while normalizing reordered layout");
+    return a + b;
+}
+
+// A value that survives the uint64_t overflow checks above can still exceed size_t's range on a
+// platform where size_t is narrower than 64-bit - reject instead of silently truncating the
+// allocation the callers below make from it.
+size_t checked_size(uint64_t v) {
+    FRONT_END_GENERAL_CHECK(v <= static_cast<uint64_t>(std::numeric_limits<size_t>::max()),
+                            "MatMulNBits: repacked buffer size exceeds addressable memory on this platform");
+    return static_cast<size_t>(v);
+}
+
 // Swaps the two axes of a row-major [outer][inner] buffer of fixed-size elements into one owned
 // buffer, adoptable by Constant's shared-memory ctor with no further copy.
 std::shared_ptr<uint8_t[]> swap_outer_axes(const uint8_t* src, uint64_t outer, uint64_t inner, size_t elem_bytes) {
     const uint64_t total_bytes = checked_mul(checked_mul(outer, inner), static_cast<uint64_t>(elem_bytes));
-    std::shared_ptr<uint8_t[]> dst(new uint8_t[static_cast<size_t>(total_bytes)]);
+    std::shared_ptr<uint8_t[]> dst(new uint8_t[checked_size(total_bytes)]);
     for (uint64_t i = 0; i < outer; ++i) {
         for (uint64_t j = 0; j < inner; ++j) {
             std::memcpy(dst.get() + (j * outer + i) * elem_bytes, src + (i * inner + j) * elem_bytes, elem_bytes);
@@ -106,10 +122,10 @@ void set_packed_value(uint8_t* data, uint64_t idx, uint64_t bits, uint8_t value)
 // so this re-packs rather than just moving bytes.
 std::shared_ptr<uint8_t[]> swap_outer_axes_packed(const uint8_t* src, uint64_t outer, uint64_t inner, uint64_t bits) {
     const uint64_t num_per_byte = 8 / bits;
-    const uint64_t src_row_bytes = (inner + num_per_byte - 1) / num_per_byte;
-    const uint64_t dst_row_bytes = (outer + num_per_byte - 1) / num_per_byte;
+    const uint64_t src_row_bytes = checked_add(inner, num_per_byte - 1) / num_per_byte;
+    const uint64_t dst_row_bytes = checked_add(outer, num_per_byte - 1) / num_per_byte;
     const uint64_t dst_size = checked_mul(inner, dst_row_bytes);
-    std::shared_ptr<uint8_t[]> dst(new uint8_t[static_cast<size_t>(dst_size)]{});
+    std::shared_ptr<uint8_t[]> dst(new uint8_t[checked_size(dst_size)]{});
     for (uint64_t i = 0; i < outer; ++i) {
         for (uint64_t j = 0; j < inner; ++j) {
             set_packed_value(dst.get() + j * dst_row_bytes,
@@ -382,11 +398,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                                      zp_shape_dyn);
                 }
                 const auto zp_shape_static = zp_shape_dyn.get_shape();
-                const uint64_t actual_zp_bytes = std::accumulate(zp_shape_static.begin(),
-                                                                 zp_shape_static.end(),
-                                                                 uint64_t{1},
-                                                                 std::multiplies<uint64_t>{});
-                const uint64_t expected_zp_bytes = n_blocks_per_col * src_num_byte;
+                uint64_t actual_zp_bytes = 1;
+                for (const auto dim : zp_shape_static) {
+                    actual_zp_bytes = checked_mul(actual_zp_bytes, static_cast<uint64_t>(dim));
+                }
+                const uint64_t expected_zp_bytes = checked_mul(n_blocks_per_col, src_num_byte);
                 CHECK_VALID_NODE(node,
                                  actual_zp_bytes == expected_zp_bytes,
                                  "MatMulNBits: reordered zero_points buffer size (",
