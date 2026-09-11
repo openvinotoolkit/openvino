@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-11-10-27-48-000-34586539583",
+  "timestamp": "2026-09-11T10:27:48Z",
+  "run_id": "34586539583",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34586539583",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "37783",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37783",
+  "author": "intelgaoxiong",
+  "category": "Flaky Test",
+  "title": "smoke_MaxPoolV8_CPU_4D primTypeCheck(primType) is unexpected (undef_f32 vs acl_f32)",
+  "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
+  "signature_hash": "eb0b94c864ee1a85",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_MaxPoolV8_CPU_4D/MaxPoolingV8LayerCPUTest.CompareWithRefs failed: primTypeCheck(primType) mismatch, got undef_f32 expected acl_f32"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32",
+    "[  FAILED  ] smoke_MaxPoolV8_CPU_4D/MaxPoolingV8LayerCPUTest.CompareWithRefs/IS=([?.?.?.?])_TS=(1.32.8.8)_(1.21.8.4)_(2.8.8.12)_(1.96.125.125)_Prc=f32_MaxPool_K(11.7)_S(2.2)_D(1.1)_PB(2.2)_PE(2.2)_Rounding=ceil_AutoPad=explicit__inFmts=nhwc_outFmts=nhwc_primitive=acl (2106 ms)"
+  ],
+  "root_cause": "The ARM64 cross-compiled ACL (Arm Compute Library) backend selected an undefined primitive descriptor (undef_f32) instead of the expected acl_f32 for a specific MaxPoolV8 shape/parameter combination (kernel 11x7, dynamic batch/channel dims, explicit padding). This is not related to the PR under test (NPUW pyramid attention / block-KV changes on x86-only intel_npu plugin code); the failing test belongs to the CPU plugin's ACL executor selection path on ARM64, which is known to be sensitive to specific shape/kernel combinations and has produced the same primTypeCheck assertion (with a different primitive/prim-type combo, undef vs ref) once before on 2026-07-17. This points to an intermittent/flaky primitive-selection issue in the ACL CPU executor rather than a deterministic regression introduced by this PR's NPUW-only changes.",
+  "reproduction_steps": "On an ARM64 (aarch64) build with ACL enabled, run: ./ov_cpu_func_tests --gtest_filter=*smoke_MaxPoolV8_CPU_4D/MaxPoolingV8LayerCPUTest.CompareWithRefs*IS*inFmts=nhwc_outFmts=nhwc_primitive=acl* repeatedly; the primTypeCheck failure may only reproduce intermittently since it depends on ACL's internal primitive-descriptor resolution for this exact shape set.",
+  "recommended_actions": [
+    "Re-run only the failed CPU functional tests job on the merge-queue run to confirm this is transient (unrelated to PR #37783's NPUW-only file changes).",
+    "If it reproduces consistently, file/triage against the CPU plugin ACL executor selection code (src/plugins/intel_cpu/src/nodes/executors/acl/*) for the MaxPoolV8 op with kernel {11,7}, dynamic input shapes, and explicit padding.",
+    "Consider adding this specific parameter combination to the ARM64 known-issues/skip list if it is confirmed as a pre-existing flaky case unrelated to any recent PR."
+  ],
+  "prevention_strategies": "Add CI-level tracking/quarantine for intermittently-failing ACL primitive-selection tests on ARM64 so a single flaky assertion does not block unrelated merge-queue entries; consider stabilizing ACL primitive-type resolution logic for edge-case pooling parameter combinations.",
+  "historical_context": "A near-identical assertion (primTypeCheck(primType) is unexpected) was previously recorded on 2026-07-17 for smoke_ConvertCPULayerTest with primType unknown vs ref, categorized as Flaky Test (pattern 76751669c7a78fcd, count 1). This occurrence involves a different op (MaxPoolV8) and prim-type pair (undef_f32 vs acl_f32), so it is tracked as a new, related-but-distinct pattern (eb0b94c864ee1a85) rather than merged into the prior one, since the normalized error text differs."
+}

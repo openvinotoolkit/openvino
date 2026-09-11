@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
+  "signature_hash": "eb0b94c864ee1a85",
+  "title": "smoke_MaxPoolV8_CPU_4D primTypeCheck(primType) is unexpected (undef_f32 vs acl_f32)",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-09-11T10:27:48Z",
+  "last_seen": "2026-09-11T10:27:48Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34586539583"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37783"
+  ],
+  "recent_timestamps": [
+    "2026-09-11T10:27:48Z"
+  ],
+  "rerun_search_string": "primType is unexpected"
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 235,
+  "total": 236,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2310,6 +2310,15 @@
       "category": "Network",
       "signature_hash": "2b01e13eb8c2761f",
       "pr_number": "37985"
+    },
+    {
+      "investigation_id": "2026-09-11-10-27-48-000-34586539583",
+      "run_id": "34586539583",
+      "timestamp": "2026-09-11T10:27:48Z",
+      "title": "smoke_MaxPoolV8_CPU_4D primTypeCheck(primType) is unexpected (undef_f32 vs acl_f32)",
+      "category": "Flaky Test",
+      "signature_hash": "eb0b94c864ee1a85",
+      "pr_number": "37783"
     }
   ]
 }
