@@ -34,6 +34,35 @@ class TestCopy(PytorchLayerTest):
         self._test(*self.create_model(value), ie_device, precision, ir_version)
 
 
+@pytest.mark.skipif(
+    not (PytorchLayerTest.use_torch_export() or PytorchLayerTest.use_torch_compile_backend()),
+    reason="Tests the functional ATen copy used by FX graphs",
+)
+class TestFunctionalCopy(PytorchLayerTest):
+    def _prepare_input(self, source_shape):
+        return (self.random.randn(2, 3).astype("float32"),
+                self.random.randint(-10, 10, size=source_shape).astype("int32"))
+
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.precommit_fx_backend
+    @pytest.mark.nightly
+    @pytest.mark.parametrize("non_blocking", [None, False, True])
+    @pytest.mark.parametrize("source_shape", [(2, 3), (3,)])
+    def test_copy(self, non_blocking, source_shape, ie_device, precision, ir_version):
+        import torch
+
+        class Model(torch.nn.Module):
+            def forward(self, destination, source):
+                if non_blocking is None:
+                    copied = torch.ops.aten.copy.default(destination, source)
+                else:
+                    copied = torch.ops.aten.copy.default(destination, source, non_blocking)
+                return copied, destination, source
+
+        self._test(Model(), "aten::copy", ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"source_shape": source_shape})
+
+
 class TestAliasCopy(PytorchLayerTest):
     def _prepare_input(self, out):
         import numpy as np
