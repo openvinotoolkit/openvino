@@ -642,11 +642,15 @@ jobs:
       max-parallel: 2
       fail-fast: false
       matrix:
-        TEST_TYPE: ['unit', 'func']
+        include:
+          - TEST_TYPE: 'unit'
+            TEST_FILTER: '*smoke*fully_connected*:*convolution_gpu_bfyx_f16*:*convolution_f16_fw_gpu*:*smoke*convolution*-*deconvolution*:*DISABLED*:*fully_connected_random_test*'
+          - TEST_TYPE: 'func'
+            TEST_FILTER: '*KVCacheTests*smoke*'
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      test_filter: ${{ github.event_name == 'pull_request' && (matrix.TEST_TYPE == 'unit' && '*pooling_forward_gpu*-*basic_max_pooling_int8*' || '*KVCacheTests*smoke*') || '' }}
+      test_filter: ${{ github.event_name == 'pull_request' && matrix.TEST_FILTER || '' }}
       runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
