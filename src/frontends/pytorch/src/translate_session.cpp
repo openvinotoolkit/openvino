@@ -36,14 +36,12 @@ public:
     AliasScope(TranslateSession& session, bool enabled) : m_session(session), m_enabled(enabled) {
         if (m_enabled) {
             m_aliases.swap(m_session.m_may_be_alias);
-            m_base_values.swap(m_session.m_alias_base_values);
         }
     }
 
     ~AliasScope() {
         if (m_enabled) {
             m_aliases.swap(m_session.m_may_be_alias);
-            m_base_values.swap(m_session.m_alias_base_values);
         }
     }
 
@@ -51,7 +49,6 @@ private:
     TranslateSession& m_session;
     bool m_enabled;
     decltype(TranslateSession::m_may_be_alias) m_aliases;
-    decltype(TranslateSession::m_alias_base_values) m_base_values;
 };
 
 // Helper to extract complex part element type from raw type
@@ -272,23 +269,22 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     auto alias_iter = m_may_be_alias.find(fw_tensor_id);
                     // TODO: do we need to check other inputs, not only 0?
                     if (alias_iter != m_may_be_alias.end()) {
-                        size_t recorded_in_tensor_id;
-                        std::shared_ptr<TorchDecoder> recorded_node;
-                        std::tie(recorded_in_tensor_id, recorded_node, std::ignore) = alias_iter->second;
-                        FRONT_END_GENERAL_CHECK(recorded_in_tensor_id == in_tensor_id,
+                        const auto& recorded = alias_iter->second;
+                        FRONT_END_GENERAL_CHECK(recorded.base_id == in_tensor_id,
                                                 "Operation ",
                                                 context.get_op_type(),
                                                 " creates alias to tensor which was already created before by ",
-                                                recorded_node->get_op_type(),
+                                                recorded.decoder->get_op_type(),
                                                 ", but from different tensor: ",
                                                 in_tensor_id,
                                                 " vs ",
-                                                recorded_in_tensor_id);
+                                                recorded.base_id);
                     }
-                    m_may_be_alias[fw_tensor_id] = {in_tensor_id, node, converted_outputs[i]};
-                    if (node->decoder_type_name() == "fx") {
-                        m_alias_base_values[fw_tensor_id] = tensor_map->at(in_tensor_id);
-                    }
+                    m_may_be_alias[fw_tensor_id] = {
+                        in_tensor_id,
+                        node,
+                        converted_outputs[i],
+                        node->decoder_type_name() == "fx" ? tensor_map->at(in_tensor_id) : Output<Node>{}};
                     OPENVINO_DEBUG("Registered alias: ",
                                    fw_tensor_id,
                                    " of tensor: ",
@@ -555,11 +551,8 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDec
     static const std::map<std::string, ReversepropCreatorFunction> backprop_map = {
         {"aten::slice", slice_reverseprop},
         {"aten::select", select_reverseprop},
-        {"aten.slice.Tensor", slice_reverseprop},
-        {"aten.select.int", select_reverseprop},
     };
 
-    Output<Node> backprop_node;
     try {
         const auto direct_node = direct_op_output.get_node_shared_ptr();
         if (node->decoder_type_name() == "fx") {
@@ -619,24 +612,23 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDec
                 outputs[direct_op_output.get_index()] = value;
                 return std::make_shared<v0::Concat>(outputs, axis->cast_vector<int64_t>().at(0));
             }
-        }
-        if (node->decoder_type_name() == "fx" &&
-            (ov::is_type<v1::Reshape>(direct_node) || ov::is_type<v0::Squeeze>(direct_node) ||
-             ov::is_type<v0::Unsqueeze>(direct_node))) {
-            return std::make_shared<v1::Reshape>(value,
-                                                 std::make_shared<v3::ShapeOf>(direct_node->input_value(0)),
-                                                 false);
-        }
-        if (node->decoder_type_name() == "fx" && ov::is_type<v1::Transpose>(direct_node)) {
-            const auto order = ov::util::get_constant_from_source(direct_node->input_value(1));
-            FRONT_END_OP_CONVERSION_CHECK(order, "Cannot reverse a view with a dynamic permutation.");
-            const auto axes = order->cast_vector<int64_t>();
-            std::vector<int64_t> inverse(axes.size());
-            for (size_t i = 0; i < axes.size(); ++i) {
-                inverse.at(axes[i]) = i;
+            if (ov::is_type<v1::Reshape>(direct_node) || ov::is_type<v0::Squeeze>(direct_node) ||
+                ov::is_type<v0::Unsqueeze>(direct_node)) {
+                return std::make_shared<v1::Reshape>(value,
+                                                     std::make_shared<v3::ShapeOf>(direct_node->input_value(0)),
+                                                     false);
             }
-            return std::make_shared<v1::Transpose>(value,
-                                                   v0::Constant::create(element::i64, Shape{axes.size()}, inverse));
+            if (ov::is_type<v1::Transpose>(direct_node)) {
+                const auto order = ov::util::get_constant_from_source(direct_node->input_value(1));
+                FRONT_END_OP_CONVERSION_CHECK(order, "Cannot reverse a view with a dynamic permutation.");
+                const auto axes = order->cast_vector<int64_t>();
+                std::vector<int64_t> inverse(axes.size());
+                for (size_t i = 0; i < axes.size(); ++i) {
+                    inverse.at(axes[i]) = i;
+                }
+                return std::make_shared<v1::Transpose>(value,
+                                                       v0::Constant::create(element::i64, Shape{axes.size()}, inverse));
+            }
         }
         auto it = backprop_map.find(node->get_op_type());
         if (it != backprop_map.end()) {

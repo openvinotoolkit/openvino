@@ -129,17 +129,15 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         const auto old_shape_view =
             m_translate_session->get_reverseprop_op(m_decoder, ov_output, ov_output, previous_value);
         for (auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
-            if (std::get<0>(info) == input_id) {
-                auto& snapshot = m_translate_session->m_alias_base_values.at(alias_id);
-                auto& direct_output = std::get<2>(info);
-                direct_output = rebase_view(direct_output, snapshot, old_shape_view);
-                snapshot = ov_output;
-                (*m_tensor_map)[alias_id] = direct_output;
+            if (info.base_id == input_id) {
+                info.output = rebase_view(info.output, info.base_value, old_shape_view);
+                info.base_value = ov_output;
+                (*m_tensor_map)[alias_id] = info.output;
             }
         }
         const auto alias = m_translate_session->m_may_be_alias.find(input_id);
         if (alias != m_translate_session->m_may_be_alias.end()) {
-            std::get<2>(alias->second) = ov_output;
+            alias->second.output = ov_output;
         }
         return;
     }
@@ -151,18 +149,11 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         // Create node to aliased data. While loop is needed for the cases when alias to tensor point to another
         // alias to tensor. In that case we need to create a chain of reverseprop ops
         auto& alias_info = m_translate_session->m_may_be_alias.at(back_input_id);
-        size_t in_tensor = std::get<0>(alias_info);
-        auto& node = std::get<1>(alias_info);
-        auto& node_converted_output = std::get<2>(alias_info);
-        const auto base = m_translate_session->m_alias_base_values.find(back_input_id);
-        auto reverseprop_node =
-            base != m_translate_session->m_alias_base_values.end() && node_converted_output == base->second
-                ? back_node_input
-                : m_translate_session->get_reverseprop_op(
-                      node,
-                      node_converted_output,
-                      back_node_input,
-                      base != m_translate_session->m_alias_base_values.end() ? base->second : Output<Node>{});
+        const auto in_tensor = alias_info.base_id;
+        auto reverseprop_node = m_translate_session->get_reverseprop_op(alias_info.decoder,
+                                                                        alias_info.output,
+                                                                        back_node_input,
+                                                                        alias_info.base_value);
         m_translate_session->encode_tensor_name(reverseprop_node, in_tensor);
         (*m_tensor_map)[in_tensor] = reverseprop_node;
         m_mutated_tensors->insert(in_tensor);
@@ -277,19 +268,17 @@ Output<Node> NodeContext::get_input(int index) const {
 
 Output<Node> NodeContext::resolve_tensor(size_t index) const {
     const auto alias = m_translate_session->m_may_be_alias.find(index);
-    const auto snapshot = m_translate_session->m_alias_base_values.find(index);
-    if (alias != m_translate_session->m_may_be_alias.end() &&
-        snapshot != m_translate_session->m_alias_base_values.end()) {
-        auto& [base_id, decoder, direct_output] = alias->second;
-        const auto base = resolve_tensor(base_id);
-        if (base != snapshot->second) {
+    if (alias != m_translate_session->m_may_be_alias.end() && alias->second.base_value.get_node()) {
+        auto& info = alias->second;
+        const auto base = resolve_tensor(info.base_id);
+        if (base != info.base_value) {
             // Replaying a view against the current base updates sibling views and
             // views created before an in-place write. Previously consumed values
             // remain connected to their original OpenVINO nodes.
-            direct_output = rebase_view(direct_output, snapshot->second, base);
-            snapshot->second = base;
-            (*m_tensor_map)[index] = direct_output;
-            m_translate_session->encode_tensor_name(direct_output, index);
+            info.output = rebase_view(info.output, info.base_value, base);
+            info.base_value = base;
+            (*m_tensor_map)[index] = info.output;
+            m_translate_session->encode_tensor_name(info.output, index);
         }
     }
     return m_tensor_map->at(index);

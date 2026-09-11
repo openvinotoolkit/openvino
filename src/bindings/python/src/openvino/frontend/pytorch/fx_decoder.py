@@ -667,7 +667,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         # actual storage relationship without running shape propagation again.
         if isinstance(input_value, torch.Tensor):
             values = output_value if isinstance(output_value, (list, tuple)) else [output_value]
-            return any(isinstance(value, torch.Tensor) and torch._C._is_alias_of(input_value, value) for value in values)
+            return any(isinstance(value, torch.Tensor) and torch._C._is_alias_of(input_value, value)
+                       for value in values)
         return bool(input_alias.after_set.intersection(output_alias.after_set))
 
     def outputs(self):

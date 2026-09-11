@@ -48,12 +48,14 @@ public:
     /// \brief Gets pytorch tensor index from openvino tensor
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
 
-    // Maps tensor index to initial tensor index which it is alias to, and to decoder of the node produced this alias
-    // and to the output produced during conversion of this node
-    std::map<size_t, std::tuple<size_t, std::shared_ptr<TorchDecoder>, Output<Node>>> m_may_be_alias;
-
-    // Value of the base tensor when an FX view was last converted.
-    std::map<size_t, Output<Node>> m_alias_base_values;
+    struct AliasInfo {
+        size_t base_id;
+        std::shared_ptr<TorchDecoder> decoder;
+        Output<Node> output;
+        // Base value used to convert/replay an FX view; empty for TorchScript.
+        Output<Node> base_value;
+    };
+    std::map<size_t, AliasInfo> m_may_be_alias;
 
     OutputVector convert_node(const NodeContext& context);
 
