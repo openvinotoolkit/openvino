@@ -830,6 +830,102 @@ public:
         ASSERT_TRUE(net->get_primitive(cond_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
         ASSERT_FALSE(net->get_primitive(cond_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
     }
+
+    void test_skip_subgraph_nonzero_output_port(bool is_caching_test) {
+        auto& engine = get_test_engine();
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        const primitive_id producer_predicate_id = "producer_predicate";
+        const primitive_id consumer_predicate_id = "consumer_predicate";
+        const primitive_id f32_input_id = "f32_input";
+        const primitive_id f16_input_id = "f16_input";
+        const primitive_id producer_id = "producer_condition";
+        const primitive_id consumer_id = "consumer_condition";
+
+        auto producer_predicate = engine.allocate_memory({data_types::u8, format::bfyx, {1, 1, 1, 1}});
+        auto consumer_predicate = engine.allocate_memory({data_types::u8, format::bfyx, {1, 1, 1, 1}});
+        auto f32_input = engine.allocate_memory({data_types::f32, format::bfyx, {1, 1, 2, 1}});
+        auto f16_input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 1, 2, 1}});
+
+        auto make_producer_branch = [&](const primitive_id& prefix) {
+            condition::branch branch;
+            const primitive_id f32_parameter = prefix + "_f32_parameter";
+            const primitive_id f16_parameter = prefix + "_f16_parameter";
+            // Note: node ids are chosen so that their lexicographic order matches the declared
+            // output_map index order (program::get_outputs() enumerates outputs following the
+            // internal nodes_map key order, which is alphabetical).
+            const primitive_id f32_result = prefix + "_result_0";
+            const primitive_id f16_result = prefix + "_result_1";
+            topology branch_topology;
+            branch_topology.add(
+                input_layout(f32_parameter, f32_input->get_layout()),
+                input_layout(f16_parameter, f16_input->get_layout()),
+                reorder(f32_result, input_info(f32_parameter), format::bfyx, data_types::f32),
+                reorder(f16_result, input_info(f16_parameter), format::bfyx, data_types::f16));
+            branch.inner_program = program::build_program(engine, branch_topology, config, false, false, true);
+            branch.input_map.insert({f32_input_id, f32_parameter});
+            branch.input_map.insert({f16_input_id, f16_parameter});
+            branch.output_map.insert({0, f32_result});
+            branch.output_map.insert({1, f16_result});
+            return branch;
+        };
+
+        auto make_consumer_branch = [&](const primitive_id& prefix) {
+            condition::branch branch;
+            const primitive_id parameter = prefix + "_parameter";
+            const primitive_id result = prefix + "_result";
+            topology branch_topology;
+            branch_topology.add(
+                input_layout(parameter, f16_input->get_layout()),
+                reorder(result, input_info(parameter), format::bfyx, data_types::f16));
+            branch.inner_program = program::build_program(engine, branch_topology, config, false, false, true);
+            branch.input_map.insert({producer_id + ".out1", parameter});
+            branch.output_map.insert({0, result});
+            return branch;
+        };
+
+        topology topology;
+        topology.add(
+            input_layout(producer_predicate_id, producer_predicate->get_layout()),
+            input_layout(consumer_predicate_id, consumer_predicate->get_layout()),
+            input_layout(f32_input_id, f32_input->get_layout()),
+            input_layout(f16_input_id, f16_input->get_layout()),
+            condition(producer_id,
+                      {input_info(producer_predicate_id), input_info(f32_input_id), input_info(f16_input_id)},
+                      make_producer_branch("producer_true"),
+                      make_producer_branch("producer_false"),
+                      2),
+            condition(consumer_id,
+                      {input_info(consumer_predicate_id), input_info(producer_id, 1)},
+                      make_consumer_branch("consumer_true"),
+                      make_consumer_branch("consumer_false")));
+
+        auto net = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        ASSERT_TRUE(net->get_primitive(producer_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
+        ASSERT_TRUE(net->get_primitive(producer_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+        ASSERT_TRUE(net->get_primitive(consumer_id)->get_node().as<condition>().get_branch_true().inner_program->can_be_optimized());
+        ASSERT_TRUE(net->get_primitive(consumer_id)->get_node().as<condition>().get_branch_false().inner_program->can_be_optimized());
+
+        set_values<int8_t>(producer_predicate, {1});
+        set_values<int8_t>(consumer_predicate, {1});
+        set_values(f32_input, {42.0f, 43.0f});
+        set_values(f16_input, {ov::float16{1.5f}, ov::float16{2.5f}});
+        net->set_input_data(producer_predicate_id, producer_predicate);
+        net->set_input_data(consumer_predicate_id, consumer_predicate);
+        net->set_input_data(f32_input_id, f32_input);
+        net->set_input_data(f16_input_id, f16_input);
+
+        auto outputs = net->execute();
+        ASSERT_TRUE(is_output_equal(outputs.at(consumer_id).get_memory(), std::vector<ov::float16>{1.5f, 2.5f}));
+
+        set_values<int8_t>(producer_predicate, {0});
+        set_values<int8_t>(consumer_predicate, {1});
+        net->set_input_data(producer_predicate_id, producer_predicate);
+        net->set_input_data(consumer_predicate_id, consumer_predicate);
+        outputs = net->execute();
+        ASSERT_TRUE(is_output_equal(outputs.at(consumer_id).get_memory(), std::vector<ov::float16>{1.5f, 2.5f}));
+    }
 };
 
 TEST_F(condition_gpu_tests, basic_range_equal_comp) {
@@ -854,6 +950,14 @@ TEST_F(condition_gpu_tests, dynamic_shapes_skip_condition) {
 
 TEST_F(condition_gpu_tests, dynamic_shapes_skip_condition_cached) {
     this->test_dynamic_shapes_skip_condition(true);
+}
+
+TEST_F(condition_gpu_tests, skip_subgraph_nonzero_output_port) {
+    this->test_skip_subgraph_nonzero_output_port(false);
+}
+
+TEST_F(condition_gpu_tests, skip_subgraph_nonzero_output_port_cached) {
+    this->test_skip_subgraph_nonzero_output_port(true);
 }
 
 TEST_F(condition_gpu_tests, basic_stacked_ifs) {
