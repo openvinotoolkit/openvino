@@ -5005,9 +5005,15 @@ static void run_reorder_uint2(const ov::Shape in_shape) {
     layout in_layout({in_shape, data_types::u2, format::bfyx});
     auto input = engine.allocate_memory(in_layout);
 
-    std::vector<uint8_t> input_data = {
-        0xe4, 0x1b, 0x39, 0x93, 0x00, 0x55, 0xaa, 0xff,
-    };
+    // Pack 4 values (2 bits each, cycling 0..3) per byte so input/expected data scale with in_shape.
+    const size_t num_elements = ov::shape_size(in_shape);
+    std::vector<uint8_t> input_data((num_elements + 3) / 4, 0);
+    std::vector<T> expected_data(num_elements);
+    for (size_t idx = 0; idx < num_elements; idx++) {
+        const uint8_t val = static_cast<uint8_t>(idx % 4);
+        expected_data[idx] = static_cast<T>(val);
+        input_data[idx / 4] |= static_cast<uint8_t>(val << ((idx % 4) * 2));
+    }
 
     set_values(input, input_data);
 
@@ -5028,13 +5034,6 @@ static void run_reorder_uint2(const ov::Shape in_shape) {
 
     auto output = outputs.begin()->second.get_memory();
 
-    std::vector<T> expected_data = {
-        0, 1, 2, 3, 3, 2, 1, 0,
-        1, 2, 3, 0, 3, 0, 1, 2,
-        0, 0, 0, 0, 1, 1, 1, 1,
-        2, 2, 2, 2, 3, 3, 3, 3,
-    };
-
     cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
     ASSERT_EQ(expected_data.size(), output_ptr.size());
@@ -5050,6 +5049,16 @@ TEST(reorder_gpu_u2, basic_uint2)
 TEST(reorder_gpu_u2, basic_uint2_bf16)
 {
     run_reorder_uint2<ov::bfloat16>({32, 1, 1, 1});
+}
+
+TEST(reorder_gpu_u2, basic_uint2_non_primitive_shape)
+{
+    run_reorder_uint2<ov::float16>({1, 1, 2, 3});
+}
+
+TEST(reorder_gpu_u2, basic_uint2_non_primitive_shape_bf16)
+{
+    run_reorder_uint2<ov::bfloat16>({1, 1, 2, 3});
 }
 
 template <typename T>
