@@ -210,7 +210,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          # compile_gptq.txt downgrades torch to 2.3.1; remove packages incompatible with it
+          # Remove other quantization dependencies before installing AutoGPTQ's dependencies
           python3 -m pip uninstall -y triton torchao autoawq 2>/dev/null || true
           python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/compile_gptq.txt
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gptq_torchfx_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gptqpattern_tests.html --self-contained-html -v --tb=short

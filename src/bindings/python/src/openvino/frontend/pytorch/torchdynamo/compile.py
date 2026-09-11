@@ -96,16 +96,6 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         fe_manager = FrontEndManager()
         fe = fe_manager.load_by_framework("pytorch")
 
-        input_shapes = []
-        input_types = []
-        for input_data in args:
-            if isinstance(input_data, int):
-                input_types.append(torch.int64)
-                input_shapes.append(torch.Size([1]))
-            else:
-                input_types.append(input_data.type())
-                input_shapes.append(input_data.size())
-
         decoder = TorchFXPythonDecoder(gm)
 
         im = fe.load(decoder)
@@ -129,7 +119,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     for idx, input_data in enumerate(args):
         if isinstance(input_data, int):
             om.inputs[idx].get_node().set_element_type(dtype_mapping[torch.int64])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
+            om.inputs[idx].get_node().set_partial_shape(PartialShape([]))
         else:
             om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
             om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
