@@ -441,16 +441,12 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 return value.meta["tensor_meta"].shape
             if ("val" in value.meta.keys()) and isinstance(value.meta["val"], torch.Tensor):
                 return value.meta["val"].shape
-            if isinstance(value.meta.get("val"), torch.SymInt):
-                return torch.Size([])
         return None
 
     @staticmethod
     def get_found_dtype(value) -> str:
         # Deserialized exports retain FakeTensor values but may omit tensor_meta.
         if hasattr(value, "meta"):
-            if isinstance(value.meta.get("val"), torch.SymInt):
-                return OVAny(OVType.i64)
             for key in ("tensor_meta", "val"):
                 metadata = value.meta.get(key)
                 if hasattr(metadata, "dtype"):

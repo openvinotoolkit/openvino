@@ -70,12 +70,9 @@ def run_gptq_torchfx(tmp_path, model_id, model_link, prompt_result_pair):
     prompt = prompt_result_pair["prompt"]
     expected_md5 = prompt_result_pair["result_md5"]
 
-    # Freeze the weights so GPTQ unpacking can be folded into u4 constants.
-    with torch._inductor.config.patch(freezing=True):
-        model.model.forward = torch.compile(
-            model.model.forward, backend="openvino", dynamic=True, fullgraph=True, options={"aot_autograd": True}
-        )
-        result_ov = pipe(prompt)
+    model.model.forward = torch.compile(model.model.forward, backend="openvino", dynamic=True, fullgraph=True, options={'aot_autograd': True})
+
+    result_ov = pipe(prompt)
     md5_ov = hashlib.new("md5", result_ov[0]['generated_text'].encode(), usedforsecurity=False).hexdigest()
 
     u4_ops = ["FullyConnected",]

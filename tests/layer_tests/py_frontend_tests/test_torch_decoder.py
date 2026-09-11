@@ -778,21 +778,3 @@ def test_pytorch_fx_decoder_extracts_signature():
     assert nc_decoder.get_input_signature_name(0) == "a"
     assert nc_decoder.get_input_signature_name(1) == "b"
     assert nc_decoder._input_signature == ["a", "b"]
-
-
-@pytest.mark.precommit
-def test_pytorch_fx_scalar_shape_input():
-    import numpy as np
-    from torch.fx.experimental.proxy_tensor import make_fx
-    from openvino.frontend.pytorch.torchdynamo.compile import openvino_compile
-
-    def model(data, length):
-        return data[:length].reshape(length, -1)
-
-    example = torch.arange(12, dtype=torch.float32).reshape(4, 3)
-    graph = make_fx(model, tracing_mode="symbolic")(example, 2)
-    compiled = openvino_compile(graph, example, 2, options={"device": "CPU"})
-    for rows, columns, length in ((4, 3, 2), (6, 2, 3)):
-        data = torch.arange(rows * columns, dtype=torch.float32).reshape(rows, columns)
-        actual = compiled([data.numpy(), length])[0]
-        np.testing.assert_array_equal(actual, model(data, length).numpy())
