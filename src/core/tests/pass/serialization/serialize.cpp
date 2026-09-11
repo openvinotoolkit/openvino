@@ -15,6 +15,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -916,5 +917,28 @@ TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefine
 
     ASSERT_TRUE(files_equal(m_dynamic_type_out_xml_path, m_undefined_type_out_xml_path))
         << "Serialized XML files are different: dynamic type vs undefined type";
+}
+TEST_P(SerializePassTestP, constant_data_pointer_is_aligned) {
+    // A 1 B u8 spacer precedes the constant under test, so missing alignment padding would
+    // leave it at an unaligned offset.
+    const auto& precision = GetParam();
+    auto param = std::make_shared<Parameter>(element::f32, Shape{1});
+    auto spacer = std::make_shared<Constant>(element::u8, Shape{1}, std::vector<uint8_t>{7});
+    auto c = std::make_shared<Constant>(precision, Shape{1}, std::vector{1});
+
+    auto a1 = std::make_shared<Add>(param, std::make_shared<op::v0::Convert>(spacer, element::f32));
+    auto a2 = std::make_shared<Add>(a1, std::make_shared<op::v0::Convert>(c, element::f32));
+    m_model = std::make_shared<Model>(OutputVector{a2}, ParameterVector{param});
+
+    OV_ASSERT_NO_THROW(ov::serialize(m_model, m_out_xml_path, m_out_bin_path));
+
+    const auto reloaded = test::readModel(m_out_xml_path.string(), m_out_bin_path.string());
+    const auto alignment = precision.size();
+    for (auto& node : reloaded->get_ops()) {
+        if (const auto& constant = ov::as_type_ptr<Constant>(node);
+            constant && constant->get_element_type() == precision) {
+            EXPECT_EQ(reinterpret_cast<uintptr_t>(constant->get_data_ptr()) % alignment, 0) << *constant;
+        }
+    }
 }
 }  // namespace ov::test

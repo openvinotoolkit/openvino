@@ -1109,10 +1109,10 @@ void XmlSerializer::serialize(pugi::xml_node& net_xml, const ov::Model& model) {
         // <layers/data> general attributes
         {
             bool compress_to_fp16 = false;
-            ov::element::Type output_element_type = ov::element::dynamic;
+            ov::element::Type output_element_type =
+                node->get_output_size() > 0 ? node->get_output_element_type(0) : ov::element::dynamic;
             if (is_fp16_compression_postponed(node->get_rt_info())) {
                 compress_to_fp16 = true;
-                output_element_type = node->get_output_element_type(0);
             }
             // Backward compatibility: clear padding values for nodes with auto_pad
             PaddingsFixer fixed_node(node);

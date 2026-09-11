@@ -4,7 +4,11 @@
 
 #include "openvino/xml_util/constant_writer.hpp"
 
+#include <algorithm>
+#include <iterator>
+
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/compute_hash.hpp"
 #include "openvino/util/hash_util.hpp"
@@ -26,19 +30,18 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
                                                    bool compress_to_fp16,
                                                    ov::element::Type src_type,
                                                    bool ptr_is_temporary) {
-    const FilePosition write_pos = m_binary_output.get().tellp();
-    const auto offset = write_pos - m_blob_offset;
     new_size = size;
 
     const auto fp16_data = compress_to_fp16 ? compress_data_to_fp16(ptr, size, src_type, new_size) : nullptr;
     const auto data_ptr = compress_to_fp16 ? fp16_data.get() : ptr;
 
+    HashValue hash = 0;
     if (m_enable_compression) {
         // This hash is weak (but efficient). For example current hash algorithms gives
         // the same hash for {2, 2} and {0, 128} arrays.
         // But even strong hashing algorithms sometimes give collisions.
         // Therefore we always have to compare values when finding a match in the hash multimap.
-        const HashValue hash = ov::runtime::compute_hash(data_ptr, new_size);
+        hash = ov::runtime::compute_hash(data_ptr, new_size);
 
         const auto found = m_hash_to_file_positions.equal_range(hash);
         // iterate over all matches of the key in the multimap
@@ -47,6 +50,21 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
                 return it->second.offset;
             }
         }
+    }
+
+    // Pad to this type's own alignment, measured from the absolute stream position
+    const auto written_type = compress_to_fp16 ? element::f16 : src_type;
+    const size_t alignment = written_type.size();
+    const FilePosition write_pos = m_binary_output.get().tellp();
+    if (write_pos >= 0) {  // negative: stream can't report its position (e.g. pass::Hash's sink)
+        const auto pad = ov::util::align_padding_size(alignment, static_cast<size_t>(write_pos));
+        if (pad > 0) {
+            std::fill_n(std::ostream_iterator<char>(m_binary_output.get()), pad, 0);
+        }
+    }
+    const FilePosition offset = m_binary_output.get().tellp() - m_blob_offset;
+
+    if (m_enable_compression) {
         if (!ptr_is_temporary) {
             // Since fp16_compressed data will be disposed at exit point and since we cannot reread it from the
             // ostream, we store pointer to the original uncompressed blob.
