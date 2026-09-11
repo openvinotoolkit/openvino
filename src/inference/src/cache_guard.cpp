@@ -13,19 +13,25 @@ CacheGuardEntry::CacheGuardEntry(CacheGuard& cacheGuard,
     : m_cacheGuard(cacheGuard),
       m_hash(hash),
       m_mutex(std::move(m)),
-      m_refCount(refCount) {
-    // Don't lock mutex right here for exception-safe considerations
+      m_refCount(refCount),
+      // Deferred: don't lock the mutex here for exception-safety considerations.
+      m_lock(*m_mutex, std::defer_lock) {
     m_refCount++;
 }
 
 CacheGuardEntry::~CacheGuardEntry() {
     m_refCount--;
-    m_mutex->unlock();
+    // Unlock only if this entry actually acquired the lock. perform_lock() is
+    // called after construction, so the entry may be destroyed (e.g. on an
+    // exception path) without ever having locked the mutex.
+    if (m_lock.owns_lock()) {
+        m_lock.unlock();
+    }
     m_cacheGuard.check_for_remove(m_hash);
 }
 
 void CacheGuardEntry::perform_lock() {
-    m_mutex->lock();
+    m_lock.lock();
 }
 
 //////////////////////////////////////////////////////

@@ -65,6 +65,10 @@ private:
     std::string m_hash;
     std::shared_ptr<std::mutex> m_mutex;
     std::atomic_int& m_refCount;
+    // NOTE: m_lock is initialized from '*m_mutex' and therefore must be declared
+    // after m_mutex so that m_mutex is constructed first (members are initialized
+    // in declaration order). Do not reorder these members.
+    std::unique_lock<std::mutex> m_lock;
 };
 
 /**
