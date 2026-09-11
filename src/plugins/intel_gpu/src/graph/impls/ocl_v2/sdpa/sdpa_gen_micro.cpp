@@ -447,12 +447,35 @@ sdpa_config_t xe2_q_h256_s768_2nd_integrated = {64, 16, 16, 16, 16, 1, 16, 1};
 sdpa_config_t xe2_q_h256_s512_2nd_integrated = {32, 32, 32, 16, 16, 1, 8, 2};
 sdpa_config_t xe2_q_h256_s384_2nd_integrated = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t xe3_h128 = {32, 16, 32, 16, 16, 2, 16, 2};
-sdpa_config_t xe3_h256 = {32, 16, 32, 16, 16, 2, 16, 2};
+// Native Xe3p configurations from oneDNN SDPA's config catalog. OpenVINO does
+// not distinguish FMA and systolic configurations during config selection, so
+// FMA/f32 labels below preserve source catalog provenance.
+sdpa_config_t xe3_fma_h32 = {16, 16, 16, 16, 2, 2, 2, 2};
+sdpa_config_t xe3_fma_h64_2nd = {16, 16, 16, 16, 8, 4, 8, 4};
+sdpa_config_t xe3_fma_q_h32_2nd = {16, 16, 16, 16, 2, 2, 2, 2};
+sdpa_config_t xe3_fma_q_h64_2nd = {16, 16, 16, 16, 8, 4, 8, 4};
+sdpa_config_t xe3_fma_h32_pa = {16, 16, 16, 16, 2, 2, 2, 2};
+
+// PagedAttention generate_mixed block-size-16 records.
+sdpa_config_t xe3_h64_pa = {16, 16, 16, 16, 4, 4, 4, 4};
+
+sdpa_config_t xe3_h128 = {32, 32, 32, 32, 4, 4, 4, 4};
+sdpa_config_t xe3_h128_pa_sw0 = {16, 16, 16, 16, 8, 1, 8, 1};
+sdpa_config_t xe3_h128_pa = {16, 16, 16, 16, 16, 4, 16, 4};
+sdpa_config_t xe3_h128_2nd = {32, 32, 32, 32, 4, 1, 4, 1};
+sdpa_config_t xe3_q_h128 = {32, 32, 32, 32, 4, 4, 4, 4};
+sdpa_config_t xe3_q_h128_2nd = {32, 32, 32, 32, 4, 1, 4, 1};
+
+sdpa_config_t xe3_h256_2nd = {32, 32, 32, 32, 8, 1, 8, 1};
+sdpa_config_t xe3_h256_pa = {16, 16, 16, 16, 16, 1, 16, 1};
+sdpa_config_t xe3_q_h256 = {32, 32, 32, 32, 8, 2, 8, 2};
+sdpa_config_t xe3_q_h256_2nd = {32, 32, 32, 32, 8, 1, 8, 1};
 
 sdpa_config_t xe3_h512 = {32, 16, 32, 16, 16, 2, 16, 2};
+sdpa_config_t xe3_h512_pa = {16, 16, 16, 16, 16, 2, 16, 2};
 sdpa_config_t xe3_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
-sdpa_config_t xe3_q_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
+sdpa_config_t xe3_fma_q_h512 = {16, 16, 32, 16, 16, 1, 16, 1};
+sdpa_config_t xe3_fma_f32_q_h512_2nd = {16, 16, 32, 16, 16, 1, 16, 1};
 
 sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa, bool is_prefill) {
     if (head_size <= 32) {
@@ -910,22 +933,62 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
     }
     return choose_config_xehpc(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
-sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
+
+sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill, int sliding_window) {
+    if (is_pa && !is_prefill && !thin_q) {
+        if (head_size > 32 && head_size <= 64) {
+            return &xe3_h64_pa;
+        }
+        if (head_size <= 32) {
+            return &xe3_fma_h32_pa;
+        }
+        if (head_size <= 128) {
+            return sliding_window == 0 ? &xe3_h128_pa_sw0 : &xe3_h128_pa;
+        }
+        if (head_size <= 256) {
+            return &xe3_h256_pa;
+        }
+        if (head_size <= 512) {
+            return &xe3_h512_pa;
+        }
+    }
+    if (head_size <= 32) {
+        if (thin_q) {
+            return quantized ? &xe3_fma_q_h32_2nd : &xe3_fma_h64_2nd;
+        }
+        if (!quantized) {
+            return &xe3_fma_h32;
+        }
+    }
+    if (head_size <= 64 && thin_q) {
+        return quantized ? &xe3_fma_q_h64_2nd : &xe3_fma_h64_2nd;
+    }
     if (head_size <= 128) {
-        return &xe3_h128;
+        if (thin_q) {
+            return quantized ? &xe3_q_h128_2nd : &xe3_h128_2nd;
+        }
+        return quantized ? &xe3_q_h128 : &xe3_h128;
     }
     if (head_size <= 256) {
-        return &xe3_h256;
+        if (thin_q) {
+            return quantized ? &xe3_q_h256_2nd : &xe3_h256_2nd;
+        }
+        if (quantized) {
+            return &xe3_q_h256;
+        }
         return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
     }
     if (head_size <= 512) {
         if (thin_q) {
             if (quantized) {
-                return &xe3_q_h512_2nd;
+                return &xe3_fma_f32_q_h512_2nd;
             }
             return &xe3_h512_2nd;
         }
-        return &xe3_h512;
+        if (!quantized) {
+            return &xe3_h512;
+        }
+        return &xe3_fma_q_h512;
     }
     return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
@@ -1676,7 +1739,14 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
         break;
     case gpu_arch::xe3p:
-        config = choose_config_xe3p(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
+        config = choose_config_xe3p(static_cast<int32_t>(k_head_size),
+                                    nkeys_v,
+                                    thin_q,
+                                    is_quantized,
+                                    is_integrated,
+                                    is_paged_attention,
+                                    is_prefill,
+                                    static_cast<int32_t>(configuration.paged_attention_sliding_window));
         break;
     default: {
         config = choose_config_xe2(static_cast<int32_t>(k_head_size), nkeys_v, thin_q, is_quantized, is_integrated, is_paged_attention, is_prefill);
@@ -1804,14 +1874,18 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     if (is_paged_attention && !is_prefill) {
         auto pa_desc = params.typed_desc<paged_attention>();
         const auto paged_attention_block_size = static_cast<int>(paged_attention::block_size);
-        if (is_int4_kv_cache) {
-            // INT4 BY_CHANNEL Layout::N: lda = packed_block_bytes + scales
-            // = block_size * u4 + 4 = 16 * 0.5 + 4 = 12 bytes
+        const bool use_xe3p_quantized_kq_alignment = device_info.arch == gpu_arch::xe3p && (is_int4_kv_cache || (is_quantized && pa_desc->is_key_by_channel));
+        if (use_xe3p_quantized_kq_alignment) {
+            // Xe3p block 2D loads require 4-byte A alignment. Use 2-byte alignment for quantized
+            // BY_CHANNEL K to select block loads with explicit m/n remainder handling instead;
+            // the resulting increase in generated code size is expected.
+            problem_kq.A.setAlignment(2);
+        } else if (is_int4_kv_cache) {
             problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta_ext + 4);
         } else {
             problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta);
             if (is_quantized && pa_desc->is_key_by_channel) {
-                problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta + 4);  // scale - 2 bytes, zp - 2 bytes
+                problem_kq.A.setAlignment(paged_attention_block_size * problem.Ta + 4);
             }
         }
     }
