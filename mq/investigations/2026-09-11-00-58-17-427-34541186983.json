@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-11-00-58-17-427-34541186983",
+  "timestamp": "2026-09-11T00:58:17Z",
+  "run_id": "34541186983",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34541186983",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "37788",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37788",
+  "author": "GuoliangShiIntel",
+  "category": "Infrastructure",
+  "title": "NPU Models Tests fail installing TF Models tests requirements, unrelated to NPUW SWA runtime utils PR",
+  "signature": "TensorFlow Models tests requirements pip install failure, unrelated to NPU code change|Infrastructure",
+  "signature_hash": "6e384cf2944ada58",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 4000",
+      "conclusion": "failure",
+      "symptom": "Step 'Install TF Models tests requirements' failed at 00:05:19-00:05:46, causing 'TensorFlow Models Tests - NPU compile-only (read_model)' to fail; JAX/Flax and both PyTorch groups A/B in the same job passed and the job's own conclusion is 'failure' solely because of this unrelated pip-install step."
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregate status job failed because it depends on 'NPU Models Tests / 4000'."
+    }
+  ],
+  "key_errors": [
+    "Job log for 'NPU Models Tests / 4000' (id 103093884642) has no explicit stdout error text retrievable for step 9 'Install TF Models tests requirements' within the tool's tail-anchored log window (tool consistently returns only the last ~5000 lines regardless of a larger tail_lines value, which lands after this step); the job's step list confirms step 9 'Install TF Models tests requirements' (00:05:19Z-00:05:46Z) and step 11 'TensorFlow Models Tests - NPU compile-only (read_model)' both concluded 'failure', while steps 12-13 (JAX/Flax) and 14+ (PyTorch groups A/B) succeeded normally afterward.",
+    "Job environment (visible in the retrieved tail) shows PIP_INDEX_URL=http://pip-proxy.pip-proxy.svc.cluster.local/simple/ and PIP_TRUSTED_HOST=pip-proxy.pip-proxy.svc.cluster.local, the same internal pip-proxy dependency implicated in the prior occurrence of this exact pattern."
+  ],
+  "root_cause": "This PR (#37788) only touches src/plugins/intel_npu/src/plugin/npuw/kv_cache_sliding_window_manager.{cpp,hpp} and adds new unit tests under src/plugins/intel_npu/tests/unit/npuw/ (pure NPUW SWA runtime-utility code, no TensorFlow/pip dependency). All NPU-relevant PyTorch and JAX/Flax compile-only checks in the same 'NPU Models Tests / 4000' job passed. The only failing step is a generic 'Install TF Models tests requirements' pip-install step (unrelated to the PR diff) which then causes the downstream 'TensorFlow Models Tests - NPU compile-only (read_model)' check to fail. This exact signature (TF Models tests requirements install failing and blocking an otherwise-unrelated NPU PR) was already recorded once before, on 2026-09-04 for PR #37898 (an NPU mutex fix), pointing at the same internal pip-proxy service (pip-proxy.pip-proxy.svc.cluster.local) as the likely fault, consistent with an intermittent proxy/package-index hiccup rather than anything in this PR.",
+  "reproduction_steps": "N/A - not reproducible from the PR diff; re-running the 'Install TF Models tests requirements' step (or the whole 'NPU Models Tests / 4000' job) for run 34541186983 attempt 2 (already in progress at investigation time) will confirm whether the pip install succeeds on retry.",
+  "recommended_actions": [
+    "Let the automatic re-run of the failed 'NPU Models Tests / 4000' job proceed (already triggered); the PR's own NPUW SWA changes are unaffected and unrelated to this failure.",
+    "If the exact pip error text is needed for deeper diagnosis, capture the full raw log for the 'Install TF Models tests requirements' step via the GitHub UI, since the log-retrieval tool returns only a fixed ~5000-line tail window that does not reach this step for this job.",
+    "Consider adding retry/backoff around the TF Models tests requirements pip install step, as recommended in the prior instance of this same pattern, to reduce recurring unrelated merge-queue failures."
+  ],
+  "prevention_strategies": "Add resilience (automatic retries, dependency caching, or a pre-baked test image) specifically for the 'Install TF Models tests requirements' step so transient internal pip-proxy blips stop blocking unrelated PRs in the merge queue; this is now the second recorded occurrence of the identical signature within roughly a week.",
+  "historical_context": "Identical signature previously recorded on 2026-09-04 (investigation 2026-09-04-08-38-10-000-33844291174, pattern 6e384cf2944ada58) for PR #37898, also an NPU-focused PR unrelated to TensorFlow. Broader theme: two additional prior investigations flagged separate TF-related pip/network flakiness blocking unrelated PRs (grpcio PyPI truncated-JSON failure, category Network, High confidence; and a defusedxml pip install failure, category Network). This is the second observed instance of exactly this TF Models tests requirements install failure; recurrence count is now 2, still well below the 3-in-12-hours escalation threshold given the ~1 week gap between occurrences."
+}
