@@ -411,16 +411,15 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
     try {
         auto op_type = context.get_op_type();
         auto it = m_translator_map.find(op_type);
-        bool shared_aten_converter = false;
         if (it == m_translator_map.end() && op_type.find("aten.") == 0) {
             const auto overload = op_type.find('.', 5);
             op_type = "aten::" + op_type.substr(5, overload - 5);
             it = m_translator_map.find(op_type);
-            shared_aten_converter = true;
         }
         if (it != m_translator_map.end()) {
             auto outputs = it->second(context);
-            if (shared_aten_converter && outputs.size() > 1) {
+            // FX represents multiple operator results as a single tuple value.
+            if (context.get_decoder()->decoder_type_name() == "fx" && outputs.size() > 1) {
                 return {context.mark_node(make_list_construct(outputs))};
             }
             return outputs;
