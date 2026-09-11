@@ -14,6 +14,7 @@ namespace cldnn {
 class command_recorder {
 public:
     using ptr = std::shared_ptr<command_recorder>;
+    command_recorder() = default;
     virtual ~command_recorder() = default;
     // Delete copy ctor to prevent sharing active command list
     command_recorder(const command_recorder& other) = delete;
