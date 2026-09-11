@@ -155,6 +155,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/arg_max_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/barriers_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/batch_to_space_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/bevpool_v2_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/bf16_onednn_ops_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/border_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/broadcast_gpu_test.cpp

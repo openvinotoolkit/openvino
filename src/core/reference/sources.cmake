@@ -75,6 +75,7 @@ set(REFERENCE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/autobroadcast_binop.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/avg_pool.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/batch_norm.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/bevpool_v2.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/binary_convolution.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/bitwise_and.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/bitwise_left_shift.hpp

@@ -2176,6 +2176,28 @@ std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::SearchSor
     return std::make_shared<ov::Model>(results, params, "SearchSortedGraph");
 }
 
+std::shared_ptr<ov::Model> generate(const std::shared_ptr<ov::op::v15::BevPoolV2>& node) {
+    ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 10, 12, 8}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{3, 4, 10, 12}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{9}),
+                               std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{3, 3})};
+    const ov::op::v15::Bound bound{0.f, 1.f, 0.5f};
+    auto new_node = std::make_shared<ov::op::v15::BevPoolV2>(
+        ov::OutputVector{params.at(0), params.at(1), params.at(2), params.at(3)},
+        8,
+        8,
+        12,
+        10,
+        20,
+        30,
+        bound,
+        bound,
+        bound,
+        bound);
+    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(new_node)};
+    return std::make_shared<ov::Model>(results, params, "BevPoolV2Graph");
+}
+
 std::shared_ptr<ov::Model> generateSubGraphOp(const std::shared_ptr<ov::op::Op> &node) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2}}),
                                std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{{2, 2}}),
