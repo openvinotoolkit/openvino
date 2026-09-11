@@ -573,9 +573,6 @@ protected:
 
     event::ptr execute_impl(const std::vector<event::ptr>& /* events */,
                             typed_primitive_inst<PType>& instance) override {
-#ifdef OV_GPU_WITH_ZE_RT
-        static std::mutex execute_mutex;
-#endif
         auto& network = instance.get_network();
         auto& stream = network.get_stream();
         auto net_id = network.get_id();
@@ -596,9 +593,13 @@ protected:
             auto t0 = prof_k ? clk_dn::now() : clk_dn::time_point{};
             try {
 #ifdef OV_GPU_WITH_ZE_RT
-                // Prevent race condition issue for Level Zero runtime
+                // Prevent race condition issue for Level Zero runtime.
+                // The racing state lives in the device's runtime, so the lock is
+                // scoped to this engine: ranks driving independent devices no
+                // longer serialize against each other, which a process-global
+                // mutex made them do.
                 // To be removed once MFDNN-15356 is resolved
-                std::lock_guard<std::mutex> lock(execute_mutex);
+                std::lock_guard<std::mutex> lock(network.get_engine().get_onednn_execution_mutex());
 #endif
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
