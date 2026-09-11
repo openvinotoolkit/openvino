@@ -60,6 +60,10 @@ std::vector<std::vector<InputShape>> transposedShape_4D_v3_broadcast() {
     return SNIPPETS_TESTS_STATIC_SHAPES({{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 1, 128, 128}, {1, 128, 12, 64}});
 }
 
+std::vector<std::vector<InputShape>> transposedShape_4D_shapeof_broadcast() {
+    return {transposedShape_4D(false, true).front()};
+}
+
 std::vector<std::vector<InputShape>> twoConstBShape_4D() {
     return SNIPPETS_TESTS_STATIC_SHAPES({{1, 300, 8, 32},   // Q1
                                          {1, 300, 8, 32},   // K1
@@ -145,7 +149,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_V3_Broadcast,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_ShapeOf_Broadcast,
                          MHAWithShapeOfBroadcast,
-                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D(false, true)),
+                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D_shapeof_broadcast()),
                                             ::testing::ValuesIn(precision_f32(4)),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(false),
@@ -157,7 +161,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_ShapeOf_Broadcast,
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_ShapeOf_Reshape,
                          MHAWithShapeOfReshape,
-                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D(false, true)),
+                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D_shapeof_broadcast()),
                                             ::testing::ValuesIn(precision_f32(4)),
                                             ::testing::Values(ov::element::f32),
                                             ::testing::Values(false),

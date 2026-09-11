@@ -127,6 +127,25 @@ bool is_shape_of_consumer(const ov::Input<ov::Node>& input) {
     return ov::is_type<ov::op::util::ShapeOfBase>(input.get_node());
 }
 
+bool is_reachable_from(const std::shared_ptr<ov::Node>& root, const ov::Node* target) {
+    std::set<const ov::Node*> visited;
+    std::vector<std::shared_ptr<ov::Node>> pending{root};
+    while (!pending.empty()) {
+        const auto node = pending.back();
+        pending.pop_back();
+        if (!visited.insert(node.get()).second) {
+            continue;
+        }
+        if (node.get() == target) {
+            return true;
+        }
+        for (const auto& input : node->inputs()) {
+            pending.push_back(input.get_source_output().get_node_shared_ptr());
+        }
+    }
+    return false;
+}
+
 bool has_shape_of_consumer(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
     const auto& target_inputs = matmul->get_output_target_inputs(0);
     return target_inputs.size() == 2 && std::any_of(target_inputs.begin(), target_inputs.end(), is_shape_of_consumer);
@@ -234,8 +253,8 @@ std::vector<int32_t> ov::snippets::pass::TokenizeMHASnippets::get_decomposed_tra
 
 bool ov::snippets::pass::TokenizeMHASnippets::is_matmul0_supported(const std::shared_ptr<ov::opset1::MatMul>& matmul) {
     if (!matmul || (matmul->get_output_target_inputs(0).size() != 1 && !has_shape_of_consumer(matmul)) ||
-        matmul->get_transpose_a() ||
-        !is_supported_tensor(matmul->get_input_tensor(0)) || !is_supported_tensor(matmul->get_input_tensor(1))) {
+        matmul->get_transpose_a() || !is_supported_tensor(matmul->get_input_tensor(0)) ||
+        !is_supported_tensor(matmul->get_input_tensor(1))) {
         return false;
     }
 
@@ -488,6 +507,30 @@ ov::snippets::pass::TokenizeMHASnippets::TokenizeMHASnippets(const Config& confi
                 }
                 ordered_ops.erase(std::find(ordered_ops.begin(), ordered_ops.end(), reshape0));
                 ordered_ops.erase(std::find(ordered_ops.begin(), ordered_ops.end(), reshape1));
+            }
+
+            if (matmul0->get_output_target_inputs(0).size() == 2) {
+                const auto shape_of_consumer = get_matmul0_shape_of_consumer(matmul0);
+                if (!shape_of_consumer) {
+                    return false;
+                }
+                const auto shape_consumers = shape_of_consumer->output(0).get_target_inputs();
+                const auto is_ordered_op = [&ordered_ops](const ov::Node* node) {
+                    return std::find_if(ordered_ops.begin(), ordered_ops.end(), [node](const auto& ordered_op) {
+                               return ordered_op.get() == node;
+                           }) != ordered_ops.end();
+                };
+                const auto is_shape_path_op = [&](const ov::Node* node) {
+                    return reshape0 && reshape1 &&
+                           (node == reshape0.get() || node == reshape1.get() ||
+                            is_reachable_from(reshape0->input_value(1).get_node_shared_ptr(), node) ||
+                            is_reachable_from(reshape1->input_value(1).get_node_shared_ptr(), node));
+                };
+                if (!std::all_of(shape_consumers.begin(), shape_consumers.end(), [&](const ov::Input<ov::Node>& input) {
+                        return is_ordered_op(input.get_node()) || is_shape_path_op(input.get_node());
+                    })) {
+                    return false;
+                }
             }
 
             const auto subgraph = tokenize_ordered_nodes(ordered_ops);

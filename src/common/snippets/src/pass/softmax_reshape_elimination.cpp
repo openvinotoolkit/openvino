@@ -14,6 +14,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
@@ -27,7 +28,10 @@ bool ov::snippets::pass::SoftmaxReshapeElimination::eliminate(const std::shared_
     const auto input_shape = reshape0->get_input_partial_shape(0);
     const auto output_shape = reshape1->get_output_partial_shape(0);
     const auto softmax_shape = softmax->get_input_partial_shape(0);
-    if (input_shape != output_shape || input_shape.rank() != output_shape.rank()) {
+    const auto shape_of = ov::as_type_ptr<ov::op::util::ShapeOfBase>(reshape1->input_value(1).get_node_shared_ptr());
+    const bool shape_of_input =
+        shape_of && shape_of->input_value(0).get_node_shared_ptr() == reshape0->input_value(0).get_node_shared_ptr();
+    if ((!input_shape.compatible(output_shape) && !shape_of_input) || input_shape.rank() != output_shape.rank()) {
         return false;
     }
 
@@ -42,7 +46,8 @@ bool ov::snippets::pass::SoftmaxReshapeElimination::eliminate(const std::shared_
     const auto in_last_dim = *input_shape.crbegin();
     const auto out_last_dim = *output_shape.crbegin();
     const auto softmax_last_dim = *softmax_shape.crbegin();
-    if ((!in_last_dim.is_static() && !ov::symbol::are_equal(in_last_dim.get_symbol(), out_last_dim.get_symbol())) ||
+    if ((!shape_of_input &&
+         (!in_last_dim.is_static() && !ov::symbol::are_equal(in_last_dim.get_symbol(), out_last_dim.get_symbol()))) ||
         (in_last_dim.is_static() && in_last_dim != out_last_dim) ||
         (softmax_last_dim.is_static() &&
          ((in_last_dim.is_static() && in_last_dim != softmax_last_dim) ||

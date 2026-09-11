@@ -9,6 +9,8 @@
 #include <pass/mha_tokenization.hpp>
 #include <subgraph_mha.hpp>
 
+#include "openvino/op/result.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/tokenization.hpp"
@@ -77,6 +79,25 @@ TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_ShapeOf_Broadcast) {
         true,
         true);
     execute_and_validate_function(*this, f);
+}
+
+TEST_F(TokenizeMHASnippetsTests, ShapeOfExternalConsumer) {
+    const auto f = MHAFunction(
+        std::vector<PartialShape>{{-1, 128, 12, 64}, {-1, 128, 12, 64}, {-1, 1, 128, 128}, {-1, 128, 12, 64}},
+        std::vector<ov::element::Type>(4, ov::element::f32),
+        false,
+        false,
+        true,
+        true);
+    model = f.getOriginal();
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v3::ShapeOf>(node)) {
+            model->add_results({std::make_shared<ov::op::v0::Result>(node)});
+            break;
+        }
+    }
+    ASSERT_EQ(model->get_results().size(), 2);
+    run();
 }
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_V3_Broadcast) {
