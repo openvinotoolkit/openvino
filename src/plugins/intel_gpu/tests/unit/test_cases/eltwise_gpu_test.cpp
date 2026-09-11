@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/runtime/layout.hpp"
-#include "test_utils.h"
-#include "random_generator.hpp"
-#include "openvino/core/type/bfloat16.hpp"
-
-#include <intel_gpu/primitives/input_layout.hpp>
+#include <cstring>
+#include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gather.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
-#include <intel_gpu/primitives/data.hpp>
 
 #include "eltwise_inst.h"
+#include "intel_gpu/runtime/layout.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "random_generator.hpp"
 #include "reshape_inst.h"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -4698,6 +4698,145 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_precision,
                                 ::testing::ValuesIn(inputs)
                                 ));
 
+template <typename T>
+void test_vload8_feature_broadcast(data_types data_type,
+                                   bool broadcast_first,
+                                   const tensor& values_size = tensor(2, 4, 16, 3),
+                                   const tensor& weights_size = tensor(2, 1, 16, 3),
+                                   bool expect_vload8 = true,
+                                   bool pad_broadcast = false,
+                                   bool pad_output = false,
+                                   format::type broadcast_format = format::bfyx) {
+    auto& engine = get_test_engine();
+    const layout values_layout(data_type, format::bfyx, values_size);
+    const layout weights_layout(data_type, format::bfyx, weights_size);
+
+    auto values = engine.allocate_memory(values_layout);
+    auto weights = engine.allocate_memory(weights_layout);
+    VF<T> values_data(values_layout.count());
+    VF<T> weights_data(weights_layout.count());
+    for (size_t i = 0; i < values_data.size(); ++i)
+        values_data[i] = T((static_cast<int>(i % 29) - 14) * 0.125f);
+    for (size_t i = 0; i < weights_data.size(); ++i)
+        weights_data[i] = T((static_cast<int>(i % 13) - 6) * 0.0625f);
+    set_values(values, values_data);
+    set_values(weights, weights_data);
+
+    auto make_topology = [&](const primitive_id& eltwise_id) {
+        topology topo;
+        topo.add(input_layout("values", values_layout));
+        topo.add(input_layout("weights", weights_layout));
+        primitive_id weights_id = "weights";
+        if (pad_broadcast || broadcast_format != format::bfyx) {
+            weights_id = "weights_prepared";
+            const layout prepared_layout(data_type, broadcast_format, weights_size, pad_broadcast ? padding{{0, 0, 0, 1}, 0} : padding{});
+            topo.add(reorder(weights_id, input_info("weights"), prepared_layout));
+        }
+        const std::vector<input_info> inputs = broadcast_first ? std::vector<input_info>{input_info(weights_id), input_info("values")}
+                                                               : std::vector<input_info>{input_info("values"), input_info(weights_id)};
+        auto eltwise_prim = eltwise(eltwise_id, inputs, eltwise_mode::prod, DEFAULT_BROADCAST_SPEC);
+        if (pad_output)
+            eltwise_prim.output_paddings = {padding({0, 0, 0, 1}, {0, 0, 0, 0})};
+        topo.add(eltwise_prim);
+        if (pad_output)
+            topo.add(reorder(eltwise_id + "_out", input_info(eltwise_id), layout(data_type, format::bfyx, values_size)));
+        return topo;
+    };
+
+    const auto opt_output_id = pad_output ? primitive_id("eltwise_opt_out") : primitive_id("eltwise_opt");
+    ExecutionConfig opt_config = get_test_default_config(engine);
+    opt_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{opt_output_id}));
+    network opt_network(engine, make_topology("eltwise_opt"), opt_config);
+    opt_network.set_input_data("values", values);
+    opt_network.set_input_data("weights", weights);
+    const auto opt_info = opt_network.get_primitive_info("eltwise_opt");
+    if (expect_vload8) {
+        ASSERT_NE(opt_info.find("eltwise_simple_vload8"), std::string::npos) << opt_info;
+    } else {
+        ASSERT_EQ(opt_info.find("eltwise_simple_vload8"), std::string::npos) << opt_info;
+    }
+    auto opt_output = opt_network.execute().at(opt_output_id).get_memory();
+
+    const auto ref_output_id = pad_output ? primitive_id("eltwise_ref_out") : primitive_id("eltwise_ref");
+    ExecutionConfig ref_config = get_test_default_config(engine);
+    ref_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ref_output_id}));
+    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"eltwise_ref", {format::bfyx, "generic_eltwise_ref"}}}));
+    network ref_network(engine, make_topology("eltwise_ref"), ref_config);
+    ref_network.set_input_data("values", values);
+    ref_network.set_input_data("weights", weights);
+    auto ref_output = ref_network.execute().at(ref_output_id).get_memory();
+
+    mem_lock<T, mem_lock_type::read> opt_ptr(opt_output, get_test_stream());
+    mem_lock<T, mem_lock_type::read> ref_ptr(ref_output, get_test_stream());
+    ASSERT_EQ(opt_output->get_layout().count(), ref_output->get_layout().count());
+    ASSERT_EQ(std::memcmp(opt_ptr.data(), ref_ptr.data(), opt_output->get_layout().bytes_count()), 0);
+}
+
+TEST(eltwise_gpu, vload8_f16_feature_broadcast_bit_exact) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false);
+}
+
+TEST(eltwise_gpu, vload8_f16_feature_broadcast_first_bit_exact) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, true);
+}
+
+TEST(eltwise_gpu, vload8_f32_feature_broadcast_bit_exact) {
+    test_vload8_feature_broadcast<float>(data_types::f32, false);
+}
+
+TEST(eltwise_gpu, vload8_f32_feature_broadcast_first_bit_exact) {
+    test_vload8_feature_broadcast<float>(data_types::f32, true);
+}
+
+TEST(eltwise_gpu, vload8_bf16_feature_broadcast_bit_exact) {
+    test_vload8_feature_broadcast<ov::bfloat16>(data_types::bf16, false);
+}
+
+TEST(eltwise_gpu, vload8_bf16_feature_broadcast_first_bit_exact) {
+    test_vload8_feature_broadcast<ov::bfloat16>(data_types::bf16, true);
+}
+
+TEST(eltwise_gpu, vload8_rejects_unaligned_feature_plane) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 5, 3), tensor(2, 1, 5, 3), false);
+}
+
+TEST(eltwise_gpu, vload8_rejects_padded_broadcast_input) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 1, 16, 3), false, true);
+}
+
+TEST(eltwise_gpu, vload8_same_shape_regression_bit_exact) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 4, 16, 3));
+}
+
+TEST(eltwise_gpu, vload8_scalar_first_regression_bit_exact) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, true, tensor(2, 4, 16, 3), tensor(1, 1, 1, 1));
+}
+
+TEST(eltwise_gpu, vload8_rejects_padded_output) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 1, 16, 3), false, false, true);
+}
+
+TEST(eltwise_gpu, vload8_rejects_batch_broadcast) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(1, 1, 16, 3), false);
+}
+
+TEST(eltwise_gpu, vload8_rejects_spatial_broadcast) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 1, 1, 3), false);
+}
+
+TEST(eltwise_gpu, vload8_rejects_blocked_feature_broadcast) {
+    skip_if_no_fp16();
+    test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 1, 16, 3), false, false, false, format::b_fs_yx_fsv16);
+}
 
 struct eltwise_layout_test_params {
     eltwise_mode mode;
