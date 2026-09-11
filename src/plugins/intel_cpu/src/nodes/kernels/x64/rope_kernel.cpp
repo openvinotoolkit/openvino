@@ -199,7 +199,7 @@ void jit_rotary_kernel<isa>::rotary_interleave(size_t step) {
         add(reg_sin, sizeof(float) * step * 2);
     } else {
         if (m_jcp.mix_cos_sin) {
-            add(reg_cos, 2 * sizeof(float) * step);
+            add(reg_cos, sizeof(float) * step * 2);
         } else {
             add(reg_cos, sizeof(float) * step);
             add(reg_sin, sizeof(float) * step);
