@@ -245,6 +245,20 @@ TEST(CompiledModelOrcImportValidationTest, RejectsMissingZeroPointsForScaledClos
     expect_validation_throw_contains(compiled, "m_compiled_submodels[0].zerops size 0");
 }
 
+TEST(CompiledModelOrcImportValidationTest, RejectsZeroPointsWithoutScalesForClosure) {
+    auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
+    add_fake_submodel(compiled);
+    auto& submodel = compiled->m_compiled_submodels[0];
+    auto& closure = submodel.closure.unsafe_get();
+    closure.closure.resize(2);
+    closure.closure_uid = {-1, -1};
+    closure.is_remote = {false, false};
+    submodel.scales.clear();
+    submodel.zerops = {ov::Tensor{}, ov::Tensor{}};
+
+    expect_validation_throw_contains(compiled, "m_compiled_submodels[0].scales size 0");
+}
+
 TEST(CompiledModelOrcImportValidationTest, AcceptsAlignedScaleAndZeroPointMetadata) {
     auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
     add_fake_submodel(compiled);
