@@ -193,8 +193,12 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
                 op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic) {
                 return false;
             }
-            // oneDNN needs a blocked B layout for fp8, which requires 2D const weights.
-            if (op->get_input_partial_shape(WEIGHTS).rank().get_length() != 2) {
+            // oneDNN needs a blocked B layout for fp8, which requires 2D const weights
+            // whose shape actually matches [OC, IC] (not e.g. broadcast from a smaller
+            // constant via the scale multiply - such a "weights" constant does not carry
+            // real per-OC data and must keep being folded like today).
+            const auto& weightsShape = op->get_input_shape(WEIGHTS);
+            if (weightsShape.size() != 2 || weightsShape[0] != OC || weightsShape[1] != IC) {
                 return false;
             }
             return IC >= 4 && OC != 1;
