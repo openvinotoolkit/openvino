@@ -80,4 +80,17 @@ static constexpr Property<bool, PropertyMutability::RW> enable_tensor_parallel{"
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_sage_attn{"ENABLE_SAGE_ATTN"};
 
+/**
+ * @brief Where Snippets fuses a Softmax whose result reaches an integer MatMul across a quantizer,
+ * apply the softmax row sums to that MatMul's dequantized output instead of to the Softmax, so the
+ * quantizer sees exp(s - rowmax) rather than the normalized probabilities. The two agree in exact
+ * arithmetic but not in quantized arithmetic, and which one a model wants depends on how its
+ * Softmax was calibrated, so this is a decision about a model rather than an optimization and it is
+ * off unless it is asked for.
+ * @param true - defer the normalization past the MatMul
+ * @param false - normalize in place (default)
+ */
+static constexpr Property<bool, PropertyMutability::RW> snippets_defer_softmax_normalization{
+    "SNIPPETS_DEFER_SOFTMAX_NORMALIZATION"};
+
 }  // namespace ov::intel_cpu
