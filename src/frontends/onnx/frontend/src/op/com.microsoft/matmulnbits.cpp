@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <numeric>
 #include <optional>
 #include <vector>
@@ -64,10 +65,20 @@ std::optional<std::pair<uint64_t, uint64_t>> get_ordered_dims(const ov::PartialS
     return std::nullopt;
 }
 
+// outer/inner/elem_bytes ultimately derive from untrusted ONNX shape/attribute values (N,
+// n_blocks_per_col, bits) with no upper bound - throws instead of letting the product silently
+// wrap and undersize the allocation the callers below make from it.
+uint64_t checked_mul(uint64_t a, uint64_t b) {
+    FRONT_END_GENERAL_CHECK(a == 0 || b <= std::numeric_limits<uint64_t>::max() / a,
+                            "MatMulNBits: repacked buffer size overflow while normalizing reordered layout");
+    return a * b;
+}
+
 // Swaps the two axes of a row-major [outer][inner] buffer of fixed-size elements into one owned
 // buffer, adoptable by Constant's shared-memory ctor with no further copy.
 std::shared_ptr<uint8_t[]> swap_outer_axes(const uint8_t* src, uint64_t outer, uint64_t inner, size_t elem_bytes) {
-    std::shared_ptr<uint8_t[]> dst(new uint8_t[static_cast<size_t>(outer * inner) * elem_bytes]);
+    const uint64_t total_bytes = checked_mul(checked_mul(outer, inner), static_cast<uint64_t>(elem_bytes));
+    std::shared_ptr<uint8_t[]> dst(new uint8_t[static_cast<size_t>(total_bytes)]);
     for (uint64_t i = 0; i < outer; ++i) {
         for (uint64_t j = 0; j < inner; ++j) {
             std::memcpy(dst.get() + (j * outer + i) * elem_bytes, src + (i * inner + j) * elem_bytes, elem_bytes);
@@ -97,8 +108,8 @@ std::shared_ptr<uint8_t[]> swap_outer_axes_packed(const uint8_t* src, uint64_t o
     const uint64_t num_per_byte = 8 / bits;
     const uint64_t src_row_bytes = (inner + num_per_byte - 1) / num_per_byte;
     const uint64_t dst_row_bytes = (outer + num_per_byte - 1) / num_per_byte;
-    const size_t dst_size = static_cast<size_t>(inner * dst_row_bytes);
-    std::shared_ptr<uint8_t[]> dst(new uint8_t[dst_size]{});
+    const uint64_t dst_size = checked_mul(inner, dst_row_bytes);
+    std::shared_ptr<uint8_t[]> dst(new uint8_t[static_cast<size_t>(dst_size)]{});
     for (uint64_t i = 0; i < outer; ++i) {
         for (uint64_t j = 0; j < inner; ++j) {
             set_packed_value(dst.get() + j * dst_row_bytes,
