@@ -30,6 +30,13 @@ constexpr auto g_value_cache_name = "value";
 constexpr auto g_past_name = "past_key_values";
 constexpr auto g_present_name = "present";
 
+size_t get_kv_embedding_index(bool is_key, bool v_tensors_transposed) {
+    if (is_key) {
+        return 3u;
+    }
+    return v_tensors_transposed ? 2u : 3u;
+}
+
 bool isKey(const std::string& n) {
     return n.find(g_key_cache_name) != std::string::npos;
 }
@@ -176,7 +183,7 @@ ov::OutputVector dynamic_quantize_linear_v3(const ov::Output<ov::Node>& input,
 
 // ── V2: ONNX DynamicQuantizeLinear style, u8 [0, 255] ────────────────────────
 
-ov::npuw::DecomposeDynamicQuantize2::DecomposeDynamicQuantize2() {
+ov::npuw::DecomposeDynamicQuantize2::DecomposeDynamicQuantize2(bool v_tensors_transposed) {
     auto dynamic_quantize = opp::wrap_type<ov::op::internal::DynamicQuantize>({opp::any_input()});
     auto callback = [=](opp::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
@@ -193,10 +200,7 @@ ov::npuw::DecomposeDynamicQuantize2::DecomposeDynamicQuantize2() {
         LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
         LOG_BLOCK();
 
-        constexpr size_t k_embedding_index = 3;
-        constexpr size_t v_embedding_index = 2;
-
-        auto reduction_axis = isKey(dq_ptr->get_friendly_name()) ? k_embedding_index : v_embedding_index;
+        const auto reduction_axis = get_kv_embedding_index(isKey(dq_ptr->get_friendly_name()), v_tensors_transposed);
 
         auto dq_input = dq_ptr->input_value(0);
         auto has_zp = dq_ptr->outputs().size() == 3;
@@ -217,7 +221,7 @@ ov::npuw::DecomposeDynamicQuantize2::DecomposeDynamicQuantize2() {
 
 // ── V3: compiler pattern style, i8 [-128, 127] ───────────────────────────────
 
-ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
+ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3(bool v_tensors_transposed) {
     auto dynamic_quantize = opp::wrap_type<ov::op::internal::DynamicQuantize>({opp::any_input()});
     auto callback = [=](opp::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
@@ -240,10 +244,7 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
         LOG_DEBUG("Found DynamicQuantize : " << dq_ptr->get_friendly_name() << " decomposing");
         LOG_BLOCK();
 
-        constexpr size_t k_embedding_index = 3;
-        constexpr size_t v_embedding_index = 2;
-
-        auto reduction_axis = isKey(dq_ptr->get_friendly_name()) ? k_embedding_index : v_embedding_index;
+        const auto reduction_axis = get_kv_embedding_index(isKey(dq_ptr->get_friendly_name()), v_tensors_transposed);
 
         auto dq_input = dq_ptr->input_value(0);
         auto has_zp = dq_ptr->outputs().size() == 3;
@@ -265,7 +266,7 @@ ov::npuw::DecomposeDynamicQuantize3::DecomposeDynamicQuantize3() {
 
 // ── V1: handcrafted symmetric-style, i8 [-127, 127] ──────────────────────────
 
-ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize() {
+ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize(bool v_tensors_transposed) {
     auto dynamic_quantize = opp::wrap_type<ov::op::internal::DynamicQuantize>({opp::any_input()});
 
     auto callback = [=](opp::Matcher& m) {
@@ -294,10 +295,7 @@ ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize() {
         LOG_BLOCK();
 
         // dequantize k and v caches in different layouts
-        constexpr size_t k_embedding_index = 3;
-        constexpr size_t v_embedding_index = 2;
-
-        auto reduction_axis = isKey(dq_ptr->get_friendly_name()) ? k_embedding_index : v_embedding_index;
+        const auto reduction_axis = get_kv_embedding_index(isKey(dq_ptr->get_friendly_name()), v_tensors_transposed);
 
         //
         auto cst_0 =
@@ -399,7 +397,8 @@ ov::npuw::DecomposeDynamicQuantize::DecomposeDynamicQuantize() {
 
 // inject DynamicQuantize/Dynamic dequantize ops on kv-cache passes before matmuls
 void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov::Model>& model,
-                                                        const KVCacheCompressionParams& params) {
+                                                        const KVCacheCompressionParams& params,
+                                                        bool v_tensors_transposed) {
     //  Validate SDPA patterns and extract key nodes
     auto pattern_nodes_list = ov::npuw::util::find_all_sdpa_pattern_nodes(model);
 
@@ -409,13 +408,11 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
                  << ". Will skip past-cache dequantization rewiring and keep present-cache quantization only.");
     }
 
-    // in per token quantization lets use 1 scale/zp per token, effectively means shape should be clear from embeddings
-    auto clear_embedding_index = [](auto shape_node, bool k_tensor) {
+    auto clear_embedding_index = [v_tensors_transposed](auto shape_node, bool k_tensor) {
         constexpr int64_t k_embedding_index = 3;
-        constexpr int64_t v_embedding_index = 2;
 
         auto kv_shape = shape_node->get_output_partial_shape(0);
-        auto embedding_index = k_tensor ? k_embedding_index : v_embedding_index;
+        auto embedding_index = k_tensor ? k_embedding_index : (v_tensors_transposed ? 2 : 3);
 
         std::vector<ov::Dimension> new_dims;
         for (int64_t i = 0; i < kv_shape.rank().get_length(); ++i) {
@@ -536,7 +533,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         if (is_asym) {
             //  Subtract zero-point - TODO: share this memory with DynamicQuantize/read/assign?
             auto zp = create_parameter_with_name(storage_types.zero_point_type,
-                                                 clear_embedding_index(start_node, isKey),
+                                                   clear_embedding_index(start_node, isKey),
                                                  make_dq_param_name("zp"));
 
             // this probably to be optimized by compiler - but for now we need it to avoid types mismatch
@@ -635,8 +632,8 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
 
     // TODO: for now internal op DynamicQuantize not easily gets converted into IE so run decompose here
     ov::pass::Manager manager("insert_dq_internal_ops");
-    manager.register_pass<ov::npuw::DecomposeDynamicQuantize2>();  // asymmetric u8
-    manager.register_pass<ov::npuw::DecomposeDynamicQuantize>();   // symmetric i8/i4
+    manager.register_pass<ov::npuw::DecomposeDynamicQuantize2>(v_tensors_transposed);  // asymmetric u8
+    manager.register_pass<ov::npuw::DecomposeDynamicQuantize>(v_tensors_transposed);   // symmetric i8/i4
     manager.run_passes(model);
 
     model->validate_nodes_and_infer_types();
