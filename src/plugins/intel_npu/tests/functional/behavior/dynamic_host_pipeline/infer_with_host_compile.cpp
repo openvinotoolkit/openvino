@@ -237,6 +237,13 @@ inline ov::Shape dynamicNHWOutputShape(const std::string& modelName, const ov::S
     return inputShape;
 }
 
+inline ov::Shape resizeTestInputShape(const std::string& modelName, bool useLargeShape) {
+    if (isESPCNX2Model(modelName)) {
+        return dynamicNHWInputShape(modelName, 1, useLargeShape);
+    }
+    return useLargeShape ? ov::Shape{1, 720, 1280, 16} : ov::Shape{1, 720, 720, 16};
+}
+
 using InferWithHostCompileParams = std::tuple<std::string,  // Device name
                                               ov::AnyMap,   // Config
                                               std::string   // Model name
@@ -478,9 +485,6 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
-    if (isESPCNX2Model(selectedModelName)) {
-        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
-    }
     auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
@@ -505,10 +509,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
-    if (isESPCNX2Model(selectedModelName)) {
-        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
-    }
-
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
@@ -523,7 +523,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     auto& testContext = setupResult.context;
 
     // Start with the largest shape in the dynamic range.
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape = resizeTestInputShape(selectedModelName, true);
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -550,7 +550,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
                             "CompileAndInferWithDecreasedSize_third");
 
     logCapture.clear();
-    ov::Shape shape2 = {1, 720, 720, 16};
+    ov::Shape shape2 = resizeTestInputShape(selectedModelName, false);
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -572,10 +572,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
-    if (isESPCNX2Model(selectedModelName)) {
-        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
-    }
-
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
@@ -591,7 +587,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     auto& testContext = setupResult.context;
 
     // Start with a smaller valid dynamic shape.
-    ov::Shape shape = {1, 720, 720, 16};
+    ov::Shape shape = resizeTestInputShape(selectedModelName, false);
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -618,7 +614,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
                             "CompileAndInferWithIncreasedSize_third");
 
     logCapture.clear();
-    ov::Shape shape2 = {1, 720, 1280, 16};
+    ov::Shape shape2 = resizeTestInputShape(selectedModelName, true);
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -639,10 +635,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
-    if (isESPCNX2Model(selectedModelName)) {
-        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
-    }
-
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
@@ -657,7 +649,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     auto& testContext = setupResult.context;
 
     // Start from a regular host tensor.
-    ov::Shape shape = {1, 720, 1280, 16};
+    ov::Shape shape = resizeTestInputShape(selectedModelName, true);
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -679,6 +671,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
     logCapture.clear();
     auto outputTensorFromReq = testContext.reqDynamic.get_tensor(model->output());
+    if (isESPCNX2Model(selectedModelName)) {
+        OV_ASSERT_NO_THROW(outputTensorFromReq.set_shape(shape));
+    }
     setInputInferAndCompare(model,
                             reqDynamic1,
                             reqReference1,
@@ -1024,8 +1019,6 @@ const std::vector<ov::AnyMap> configs = {
     },
 };
 
-// Ensure the added test model's input and output shapes are identical and accept concrete NHWC shapes for reuse shape
-// in tests.
 const std::vector<std::string> modelNames = {"CustomNet", "CustomNet_DynBatch", "MaxPool", "ESPCN_x2_gh"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -1047,7 +1040,7 @@ const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
     },
 };
 
-const std::vector<std::string> defaultHCModelNames = {"MaxPool_NCHW", "MaxPool_NCHW_DynBatch"};
+const std::vector<std::string> defaultHCModelNames = {"MaxPool_NCHW", "MaxPool_NCHW_DynBatch", "ESPCN_x2_gh"};
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithDefaultHostCompileTests,
                          ::testing::Combine(::testing::ValuesIn(devices),
