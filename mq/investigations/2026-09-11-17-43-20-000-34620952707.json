@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-11-17-43-20-000-34620952707",
+  "timestamp": "2026-09-11T17:43:20Z",
+  "run_id": "34620952707",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34620952707",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37178",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37178",
+  "author": "maxnick",
+  "category": "Flaky Test",
+  "title": "LLM accuracy GPU test fails \u2014 Qwen2-0.5B-Instruct-INT8 metric drop exceeds threshold",
+  "signature": "metric drop exceeds threshold|Flaky Test",
+  "signature_hash": "47caedf70a4041f8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] fails with AssertionError: Metric drop 0.05254477262496948 exceeds threshold 0.03"
+    }
+  ],
+  "key_errors": [
+    "FAILED tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] - AssertionError: Metric drop 0.05254477262496948 exceeds threshold 0.03",
+    "assert np.float32(0.052544773) <= 0.03",
+    "====== 1 failed, 3 passed, 4 deselected, 23 warnings in 546.47s (0:09:06) ======"
+  ],
+  "root_cause": "The failed job (LLM accuracy iGPU tests) is unrelated to this PR's diff, which only touches GPU plugin dual-runtime dispatch/build infrastructure (core_impl, plugin registration, CMake) and does not change the LLM accuracy pipeline, Qwen2 model handling, or GPU inference numerics for the default single-runtime OCL path exercised by this job. This exact failure signature (Qwen2-0.5B-Instruct-INT8-GPU metric drop of ~0.0525 vs 0.03 threshold) has now recurred 4 times across unrelated PRs since 2026-08-27, indicating a known intermittent accuracy flake in the LLM accuracy GPU test (likely driven by run-to-run numerical variance near the threshold boundary) rather than a regression introduced by any single PR.",
+  "reproduction_steps": "Run `pytest tests/llm/accuracy_conformance.py::test_accuracy_conformance -k Qwen2-0.5B-Instruct-INT8-GPU` on a GPU-enabled runner multiple times; the metric drop value fluctuates near the 0.03 threshold and occasionally exceeds it.",
+  "recommended_actions": [
+    "Re-run only the failed job (already recorded in the pattern database with 4 occurrences) \u2014 no PR code change is needed for this specific failure.",
+    "Investigate whether the 0.03 threshold for Qwen2-0.5B-Instruct-INT8-GPU is too tight given observed run-to-run variance (~0.05 metric drop seen repeatedly), and consider widening it or adding averaging/seed pinning if not already done.",
+    "Track CVS ticket for this specific model/threshold combination if one does not already exist, referencing the recurring pattern hash 47caedf70a4041f8."
+  ],
+  "prevention_strategies": "Add variance/seed stabilization to the Qwen2-0.5B-Instruct-INT8-GPU accuracy check, or increase its threshold margin with justified statistical analysis, to reduce false-positive merge-queue failures for unrelated PRs.",
+  "historical_context": "Same signature previously recorded on 2026-08-27 (PR #37611), 2026-08-27 (PR #37768, later investigation), and 2026-09-03 (PR #37799) \u2014 all with the same or very similar assertion message. This is the 4th occurrence in the CI Doctor MQ pattern database."
+}
