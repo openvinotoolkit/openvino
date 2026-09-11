@@ -139,7 +139,7 @@ static std::shared_ptr<Node> fuse_const_to_weights(const std::shared_ptr<Node>& 
         // Scalars were fused before, it suffices to check for 1D shape here
         if (const_rank == 1) {
             const_shape.insert(const_shape.begin(), 1);
-            new_const = std::make_shared<v1::Reshape>(
+            new_const = ov::op::util::make_try_fold<v1::Reshape>(
                 mul_const,
                 v0::Constant::create(element::u64, Shape{const_shape.size()}, const_shape),
                 false);

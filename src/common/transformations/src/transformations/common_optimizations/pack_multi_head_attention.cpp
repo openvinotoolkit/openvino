@@ -159,6 +159,26 @@ static std::shared_ptr<ov::Node> extract_scale_node(const std::shared_ptr<ov::No
     return nullptr;
 };
 
+static std::shared_ptr<ov::Node> get_reciprocal_divide_scale(const std::shared_ptr<ov::Node>& scale_node) {
+    auto div = ov::as_type_ptr<v1::Divide>(scale_node);
+    if (!div) {
+        return nullptr;
+    }
+
+    auto scale = ov::as_type_ptr<v0::Constant>(div->input_value(1).get_node_shared_ptr());
+    if (!scale || ov::shape_size(scale->get_shape()) != 1) {
+        return nullptr;
+    }
+
+    const auto scale_values = scale->cast_vector<float>();
+    if (scale_values.front() == 0.0f) {
+        return nullptr;
+    }
+    auto reciprocal_scale = v0::Constant::create(scale->get_element_type(), scale->get_shape(), {1.0f / scale_values.front()});
+    copy_runtime_info(scale, reciprocal_scale);
+    return reciprocal_scale;
+}
+
 }  // namespace
 
 bool PackMultiHeadAttention::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -284,12 +304,24 @@ MergeUnrolledSDPA::MergeUnrolledSDPA() {
             return false;
         }
 
+        bool scale_absorbed = false;
+        std::shared_ptr<ov::Node> scores_scaled;
+        if (scale1 && scale2) {
+            if (ov::is_type<v1::Divide>(scale2)) {
+                if (auto reciprocal_scale = get_reciprocal_divide_scale(scale1)) {
+                    K = std::make_shared<v1::Multiply>(K, reciprocal_scale);
+                    copy_runtime_info({scale1, scale2}, K);
+                    scale_absorbed = true;
+                }
+            }
+        }
+
         // Build fused SDPA
         auto qk_fused = qk1->copy_with_new_inputs({Q, K});
         copy_runtime_info({qk1, qk2}, qk_fused);
 
-        std::shared_ptr<ov::Node> scores_scaled = qk_fused;
-        if (scale1 && scale2) {
+        scores_scaled = qk_fused;
+        if (scale1 && scale2 && !scale_absorbed) {
             scores_scaled = scale1->copy_with_new_inputs({qk_fused, scale1->input_value(1)});
             copy_runtime_info({scale1, scale2}, scores_scaled);
         }
