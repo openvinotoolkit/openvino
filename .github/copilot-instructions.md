@@ -108,6 +108,7 @@ Before posting any comment, apply this gate:
 - Watch for shape/dtype/attribute corner cases and cross-platform behavior differences.
 - Require tests for bug fixes and transformation pattern updates.
 - For stateful components (e.g., state helpers, cached parameters), verify that state is properly initialized, updated, and cleared across inference runs. Flag cases where state set in one call path is never reset in alternative paths.
+- For MatcherPass/ModelPass changes (pattern design, callback logic, runtime-info propagation, pass-type choice), use [writing_transformations.md](../src/common/transformations/docs/writing_transformations.md) as the authoritative reference.
 
 ### CPU/GPU/NPU Plugins
 - Prioritize inference-path performance and memory correctness.
@@ -153,6 +154,7 @@ Before posting any comment, apply this gate:
 ## Testing Expectations
 - Every behavioral change should have corresponding tests in existing suites when possible.
 - For bug fixes, actively verify that the PR includes a regression test exercising the specific fix scenario. If no such test is present, post a `[HIGH]` comment requesting one. This is the single most common gap in bug-fix PRs.
+- For transformation tests, use [writing_tests.md](../src/common/transformations/docs/writing_tests.md) as the authoritative reference.
 - For architecture-specific changes (x64/ARM64/RISCV, CPU/GPU/NPU), verify appropriate platform/test gating.
 - If tests are skipped/disabled, require explicit rationale and limited scope.
 - If required validation jobs fail, cite the exact failing job(s) and explain impact on merge readiness.
