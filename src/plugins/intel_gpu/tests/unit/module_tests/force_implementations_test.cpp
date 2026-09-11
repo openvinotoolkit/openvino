@@ -70,6 +70,21 @@ TEST(force_implementations, parse_ImplForcingMap_colon_in_name) {
     ASSERT_EQ(layer_desc.output_format, format::any);
 }
 
+TEST(force_implementations, parse_ImplForcingMap_wildcard_with_colon_in_name) {
+    const std::string force_impl_string = "{'concat:*':ocl::any}";
+    ov::Any any(force_impl_string);
+
+    ImplForcingMap map;
+    OV_ASSERT_NO_THROW(map = any.as<ImplForcingMap>());
+    ASSERT_EQ(map.size(), 1);
+
+    ASSERT_NE(map.find("concat:*"), map.end());
+    const auto& concat_desc = map.at("concat:*");
+    ASSERT_EQ(concat_desc.impl_type, impl_types::ocl);
+    ASSERT_EQ(concat_desc.kernel_name, "");
+    ASSERT_EQ(concat_desc.output_format, format::any);
+}
+
 
 TEST(force_implementations, force_ocl_for_gemm) {
     auto& engine = get_test_engine();
