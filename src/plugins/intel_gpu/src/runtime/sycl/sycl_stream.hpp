@@ -46,7 +46,7 @@ public:
     event::ptr enqueue_marker(std::vector<event::ptr> const& deps, bool is_output) override;
     event::ptr group_events(std::vector<event::ptr> const& deps) override;
     void wait_for_events(const std::vector<event::ptr>& events) override;
-    void enqueue_barrier() override;
+    void enqueue_barrier(const std::vector<event::ptr>& deps) override;
     event::ptr create_user_event(bool set) override;
     event::ptr create_base_event() override;
     event::ptr create_base_event(::sycl::event& event);

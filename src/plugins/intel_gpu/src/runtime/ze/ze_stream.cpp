@@ -346,8 +346,17 @@ event::ptr ze_stream::enqueue_kernel(kernel& kernel,
     return ev;
 }
 
-void ze_stream::enqueue_barrier() {
-    OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(get_command_list().handle(), nullptr, 0, nullptr));
+void ze_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
+    if (deps.empty()) {
+        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(get_command_list().handle(), nullptr, 0, nullptr));
+    } else {
+        auto handles = ze_base_event::get_valid_event_handles(deps);
+        OPENVINO_ASSERT(handles.size() == deps.size(), "Expected all events to have valid Level Zero handles");
+        OV_ZE_EXPECT(ze::zeCommandListAppendBarrier(get_command_list().handle(),
+                                                    nullptr,
+                                                    static_cast<uint32_t>(handles.size()),
+                                                    handles.data()));
+    }
 }
 
 event::ptr ze_stream::enqueue_marker(std::vector<ze_event::ptr> const& deps, bool is_output) {

@@ -67,7 +67,10 @@ public:
                                       std::vector<event::ptr> const& deps,
                                       bool is_output_event = false) = 0;
     virtual event::ptr enqueue_marker(std::vector<event::ptr> const& deps, bool is_output_event = false) = 0;
-    virtual void enqueue_barrier() = 0;
+    /// @brief Enqueue a barrier that blocks all following commands.
+    /// @param deps A vector of events that the barrier should wait for.
+    /// @note If deps is empty, the barrier will wait for all previously enqueued commands to complete.
+    virtual void enqueue_barrier(const std::vector<event::ptr>& deps = {}) = 0;
     virtual event::ptr group_events(std::vector<event::ptr> const& deps) = 0;
     virtual void wait_for_events(const std::vector<event::ptr>& events) = 0;
     virtual event::ptr create_user_event(bool set) = 0;

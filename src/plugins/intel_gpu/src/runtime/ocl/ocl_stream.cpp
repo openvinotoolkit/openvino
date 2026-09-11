@@ -319,11 +319,21 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
 }
 
-void ocl_stream::enqueue_barrier() {
-    try {
-        _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
-    } catch (const cl::Error& err) {
-        OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+void ocl_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
+    if (deps.empty()) {
+        try {
+            _command_queue.enqueueBarrierWithWaitList(nullptr, nullptr);
+        } catch (const cl::Error& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
+    } else {
+        auto dep_events = utils::get_cl_events(deps);
+        OPENVINO_ASSERT(dep_events.size() == deps.size(), "Some dependencies could not be converted to cl::Event");
+        try {
+            _command_queue.enqueueBarrierWithWaitList(&dep_events, nullptr);
+        } catch (const cl::Error& err) {
+            OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
+        }
     }
 }
 

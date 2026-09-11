@@ -19,7 +19,8 @@ record_replay_session::record_replay_session(stream& s)
 network_exec_mode record_replay_session::begin_iteration(const std::vector<std::shared_ptr<event>>& deps,
                               const std::list<std::shared_ptr<primitive_inst>>& order) {
     if (!deps.empty()) {
-        _stream.enqueue_marker(deps);
+        // Ensure dependencies complete before recording or replaying
+        _stream.enqueue_barrier(deps);
     }
     if (_valid) {
         _cmd_list->wait();
