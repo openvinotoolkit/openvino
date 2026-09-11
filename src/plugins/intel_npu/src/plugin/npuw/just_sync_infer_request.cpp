@@ -15,6 +15,7 @@
 #include "host_flash_attention.hpp"
 #include "infer_request_utils.hpp"  // to utilize copy_tensor_by_dim
 #include "logging.hpp"
+#include "util.hpp"
 #include "moe/moe_subgraph.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
@@ -975,6 +976,16 @@ void ov::npuw::JustInferRequest::unsafe_during(std::size_t real_idx, std::size_t
     }
 }
 
+void ov::npuw::JustInferRequest::submit(RqPtr& r, std::size_t real_idx) {
+    if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() &&
+        ov::npuw::util::starts_with(m_npuw_model->submodel_device(real_idx), "NPU")) {
+        r->start_async();
+        r->wait();
+        return;
+    }
+    r->infer();
+}
+
 void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std::size_t) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[real_idx];
     NPUW_ASSERT(comp_model_desc.spatial.has_value());
@@ -1034,7 +1045,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
         }  // for(outputs)
 
         // Now run the part
-        r->infer();
+        submit(r, real_idx);
     }  // for(full_nway_times)
 
     // Now process the tail, if required
@@ -1061,7 +1072,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
         }  // for(outputs)
 
         // Now run the tail infer
-        r->infer();
+        submit(r, real_idx);
 
         // Now copy the views from the output full-nway tensor to the output tensors
         for (std::size_t out_idx = 0u; out_idx < num_outputs; out_idx++) {
@@ -1086,7 +1097,7 @@ void ov::npuw::JustInferRequest::legacy_infer(std::size_t real_idx, std::size_t 
     if (comp_model_desc.spatial) {
         unsafe_infer_spatial(real_idx, idx);
     } else {
-        r->infer();  // Run normally
+        submit(r, real_idx);  // Run normally
     }
 }
 
