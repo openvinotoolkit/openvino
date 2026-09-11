@@ -123,6 +123,7 @@ void parse_pre_process(pugi::xml_node& root,
                 mean_scalar_values.insert({chanNo, ov::util::pugixml::get_float_attr(meanNode, "value")});
             }
             if (meanNode.attribute("size") && meanNode.attribute("offset")) {
+                OPENVINO_ASSERT(weights_provider, "Weights are required, but not provided");
                 auto const_size = ov::util::pugixml::get_uint64_attr(meanNode, "size");
                 auto const_offset = ov::util::pugixml::get_uint64_attr(meanNode, "offset");
                 if (shape_size(mean_shape) * input_type.size() != const_size) {

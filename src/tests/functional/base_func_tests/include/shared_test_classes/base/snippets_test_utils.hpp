@@ -13,9 +13,8 @@ namespace snippets {
 using ov::test::operator<<;
 class SnippetsTestsCommon : virtual public ov::test::SubgraphBaseTest {
 protected:
+    void validate() override;
     void validateNumSubgraphs();
-
-    void validateOriginalLayersNamesByType(const std::string& layerType, const std::string& originalLayersNames);
 
     void setInferenceType(ov::element::Type type);
 
