@@ -27,8 +27,9 @@ layout arg_max_min_inst::calc_output_layout(arg_max_min_node const& node, kernel
         output_idx_type = *(desc->output_data_types[0]);
     }
     auto size_check = [&](size_t tensor_size) {
-        if (desc->input.size() == 1 && values_first)
+        if (desc->input.size() == 1 && values_first) {
             return;
+        }
         size_t max_size;
         // lowest integer not representable in floating point type = 2^(mantissa_bits + 1) + 1
         // https://stackoverflow.com/questions/3793838/which-is-the-first-integer-that-an-ieee-754-float-is-incapable-of-representing-e

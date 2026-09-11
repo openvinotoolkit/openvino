@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#if defined(OV_GPU_WITH_OCL_RT) && defined(_WIN32) && defined(ENABLE_DX11)
+#if (defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT)) && defined(_WIN32) && defined(ENABLE_DX11)
 #include <array>
 #include <cstring>
 #include <gtest/gtest.h>

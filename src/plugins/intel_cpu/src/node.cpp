@@ -191,6 +191,7 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
     if (is_conversion_disabled(op, element::f16)) {
         keepOriginalPrecision = true;
     }
+    disableBF16Conversion = is_conversion_disabled(op, element::f32, element::bf16);
 }
 
 Node::Node(const std::string& type,
