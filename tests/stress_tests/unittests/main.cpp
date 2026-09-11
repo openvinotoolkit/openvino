@@ -5,10 +5,10 @@
 #include "flags.h"
 #include "../common/utils.h"
 #include "../common/tests_utils.h"
+#include "tests_pipelines/stress_scenarios.h"
 
 #include <gtest/gtest.h>
 #include <pugixml.hpp>
-
 
 bool parseAndCheckCommandLine(int argc, char **argv) {
     // ---------------------------Parsing and validating input arguments--------------------------------------
@@ -31,6 +31,10 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
         return false;
     }
 
+    if (FLAGS_stress_child) {
+        return true;
+    }
+
     pugi::xml_document config;
     pugi::xml_parse_result result = config.load_file(FLAGS_test_conf.c_str());
     if (!result) {
@@ -44,6 +48,20 @@ bool parseAndCheckCommandLine(int argc, char **argv) {
 int main(int argc, char **argv) {
     if (!parseAndCheckCommandLine(argc, argv)) {
         return 0;   // TODO return correct status
+    }
+
+    if (FLAGS_stress_child) {
+        try {
+            run_stress_scenario(FLAGS_stress_scenario,
+                                FLAGS_stress_model,
+                                FLAGS_stress_device,
+                                FLAGS_stress_iterations,
+                                FLAGS_stress_threads);
+        } catch (const std::exception& error) {
+            log_err("Stress child failed: " << error.what());
+            return 1;
+        }
+        return 0;
     }
 
     pugi::xml_document config;

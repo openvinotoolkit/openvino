@@ -13,6 +13,7 @@
     <devices>
         <value>CPU</value>
         <value>GPU</value>
+        <value>NPU</value>
     </devices>
     <models>
         <model name="densenet-121-tf" precision="FP32" source="omz" />

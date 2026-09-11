@@ -3,6 +3,7 @@
 //
 
 #include "../common/tests_utils.h"
+#include "tests_pipelines/stress_scenarios.h"
 #include "tests_pipelines/tests_pipelines.h"
 
 #include <gtest/gtest.h>
@@ -78,6 +79,38 @@ TEST_P(UnitTestSuite, infer_request_inference_full_pipeline) {
 
 TEST_P(UnitTestSuite, recreate_and_infer_in_thread) {
     runTest(test_recreate_and_infer_in_thread, GetParam());
+}
+
+TEST_P(UnitTestSuite, stress_load_unload) {
+    runStressTest("stress_load_unload", GetParam());
+}
+
+TEST_P(UnitTestSuite, stress_parallel_infer) {
+    runStressTest("stress_parallel_infer", GetParam());
+}
+
+TEST_P(UnitTestSuite, stress_concurrent_load_infer) {
+    runStressTest("stress_concurrent_load_infer", GetParam());
+}
+
+TEST_P(UnitTestSuite, stress_import_export) {
+    runStressTest("stress_import_export", GetParam());
+}
+
+TEST_P(UnitTestSuite, stress_mid_flight_cancel) {
+    runStressTest("stress_mid_flight_cancel", GetParam());
+}
+
+TEST_P(UnitTestSuite, stress_memory_pressure) {
+    runStressTest("stress_memory_pressure", GetParam());
+}
+
+TEST_P(UnitTestSuite, stress_destroy_compiled_model) {
+    runStressTest("stress_destroy_compiled_model", GetParam());
+}
+
+TEST_P(UnitTestSuite, stress_multiple_cores) {
+    runStressTest("stress_multiple_cores", GetParam());
 }
 
 
