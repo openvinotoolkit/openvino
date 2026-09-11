@@ -36,6 +36,7 @@ device_query::device_query(engine_types engine_type,
                            int target_tile_id,
                            bool initialize_devices) {
     switch (runtime_type) {
+#if defined(OV_GPU_WITH_OCL_RT) || defined(OV_GPU_WITH_ZE_RT)
     case runtime_types::ocl: {
         OPENVINO_ASSERT(engine_type == engine_types::ocl || engine_type == engine_types::sycl);
         ocl::ocl_device_detector ocl_detector;
@@ -51,6 +52,7 @@ device_query::device_query(engine_types engine_type,
 #endif
         break;
     }
+#endif
 #ifdef OV_GPU_WITH_ZE_RT
     case runtime_types::ze: {
         OPENVINO_ASSERT(engine_type == engine_types::ze);

@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-file(GLOB SOURCES "src/*.cpp" "include/*.hpp")
-file(GLOB_RECURSE NPUW_SOURCES "npuw/*.cpp" "npuw/*.hpp")
+include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
 
 set(NPU_PLUGIN_TARGET "openvino_intel_npu_plugin")
 set(NPU_PLUGIN_ENGINE_SOURCE_FILE "src/plugin.cpp")

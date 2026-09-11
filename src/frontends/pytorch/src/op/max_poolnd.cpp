@@ -2,24 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
-#include "openvino/op/add.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/max_pool.hpp"
-#include "openvino/op/multiply.hpp"
-#include "openvino/op/pad.hpp"
-#include "openvino/op/range.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/select.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/subtract.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -28,31 +13,23 @@ namespace pytorch {
 namespace op {
 
 using namespace ov::op;
+
 OutputVector translate_max_pool_base(const NodeContext& context, int dims, bool return_indices) {
     num_inputs_check(context, 2, 6);
     auto input = context.get_input(0);
-    auto input_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
 
-    auto const_0 = v0::Constant::create(element::i64, Shape{1}, {0});
-    auto const_1 = v0::Constant::create(element::i64, Shape{1}, {1});
-    bool is_static = input.get_partial_shape().rank().is_static();
-    bool no_batch_dim = is_static && input.get_partial_shape().rank().get_length() == dims + 1;
-
-    if (is_static) {
-        if (no_batch_dim) {
-            input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, const_0));
-        }
-    } else {
-        input = context.mark_node(std::make_shared<v0::Unsqueeze>(input, const_0));
-        auto unsqueeze_shape = context.mark_node(std::make_shared<v3::ShapeOf>(input));
-        auto rank = context.mark_node(std::make_shared<v0::ShapeOf>(unsqueeze_shape));
-        auto end_index = context.mark_node(std::make_shared<v1::Add>(rank, const_1));
-        auto start_index = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims - 2}));
-        auto reshape_pattern =
-            context.mark_node(std::make_shared<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0));
-        input = context.mark_node(std::make_shared<v1::Reshape>(input, reshape_pattern, true));
+    // The MaxPool kernel is a constructor attribute, but PyTorch can build kernel_size from runtime
+    // values (e.g. [1, x.size(3)]). If any element is non-constant now, fail conversion so the op is
+    // left as a PtFrameworkNode: MaxPoolDynamicKernelResolver picks it up after shapes propagate and
+    // either folds it to a plain MaxPool (e.g. convert_model(input=...)) or a ReduceMax fallback.
+    for (const auto& e : get_list_as_outputs(context.get_input(1))) {
+        PYTORCH_OP_CONVERSION_CHECK(ov::util::get_constant_from_source(e),
+                                    "aten::max_pool",
+                                    dims,
+                                    "d with a non-constant kernel_size is deferred to a normalization pass.");
     }
 
+    // All kernel elements are constant -> build the static MaxPool directly.
     auto kernel = context.const_input<Shape>(1);
     Strides strides;
     if (!context.input_is_none(2)) {
@@ -79,63 +56,10 @@ OutputVector translate_max_pool_base(const NodeContext& context, int dims, bool 
         rounding_type = context.const_input<bool>(5) ? RoundingType::CEIL_TORCH : RoundingType::FLOOR;
     }
 
-    auto res = context.mark_node(std::make_shared<v14::MaxPool>(input,
-                                                                strides,
-                                                                dilations,
-                                                                pads,
-                                                                pads,
-                                                                kernel,
-                                                                rounding_type,
-                                                                PadType::EXPLICIT,
-                                                                element::i64,
-                                                                2));
-    if (is_static) {
-        if (no_batch_dim) {
-            if (return_indices) {
-                auto out1 = res->output(0);
-                auto out2 = res->output(1);
-                out1 = context.mark_node(std::make_shared<v0::Squeeze>(out1, const_0));
-                out2 = context.mark_node(std::make_shared<v0::Squeeze>(out2, const_0));
-                return {std::move(out1), std::move(out2)};
-            } else {
-                res = context.mark_node(std::make_shared<v0::Squeeze>(res, const_0));
-                return {res};
-            }
-        } else {
-            if (return_indices) {
-                auto out1 = res->output(0);
-                auto out2 = res->output(1);
-                return {std::move(out1), std::move(out2)};
-            } else {
-                return {res};
-            }
-        }
-
-    } else {
-        auto pooled_output_shape = context.mark_node(std::make_shared<v3::ShapeOf>(res));
-
-        auto start_index_input = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims}));
-        auto slice_input_shape =
-            context.mark_node(std::make_shared<v8::Slice>(input_shape, const_0, start_index_input, const_1, const_0));
-
-        auto start_index_pooled = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-dims}));
-        auto end_index_pooled = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2 + dims}));
-        auto slice_pooled_output_shape = context.mark_node(
-            std::make_shared<v8::Slice>(pooled_output_shape, start_index_pooled, end_index_pooled, const_1, const_0));
-
-        auto concat_shape = context.mark_node(
-            std::make_shared<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0));
-        if (return_indices) {
-            auto out1 = res->output(0);
-            auto out2 = res->output(1);
-            out1 = context.mark_node(std::make_shared<v1::Reshape>(out1, concat_shape, true));
-            out2 = context.mark_node(std::make_shared<v1::Reshape>(out2, concat_shape, true));
-            return {std::move(out1), std::move(out2)};
-        } else {
-            res = context.mark_node(std::make_shared<v1::Reshape>(res, concat_shape, true));
-            return {res};
-        }
-    }
+    ov::pass::NodeRegistry rg;
+    auto res = build_static_max_pool(rg, input, dims, return_indices, kernel, strides, pads, dilations, rounding_type);
+    context.mark_nodes(rg.get());
+    return res;
 };
 
 OutputVector translate_max_pool1d(const NodeContext& context) {

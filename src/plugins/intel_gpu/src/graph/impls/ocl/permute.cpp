@@ -17,16 +17,18 @@ inline std::vector<uint16_t> convert_permute_order(const std::vector<uint16_t>& 
     std::vector<uint16_t> ie_order_aligned = ie_order;
     // if order size is less than 4 - fill the rest with just copy
     rank = std::max(rank, (size_t)4);
-    for (auto o = ie_order_aligned.size(); o < rank; o++)
+    for (auto o = ie_order_aligned.size(); o < rank; o++) {
         ie_order_aligned.push_back((uint16_t)o);
+    }
 
     std::vector<uint16_t> cldnn_order;
     // 1. Switch permute order values for spatial dims
     for (auto const& o : ie_order_aligned) {
-        if (o >= 2)
+        if (o >= 2) {
             cldnn_order.push_back(1 + static_cast<uint16_t>(ie_order_aligned.size()) - o);
-        else
+        } else {
             cldnn_order.push_back(o);
+        }
     }
 
     // 2. Swap spatial positions
@@ -52,7 +54,7 @@ struct permute_impl : typed_primitive_impl_ocl<permute> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);
@@ -89,6 +91,7 @@ attach_permute_impl::attach_permute_impl() {
     auto dyn_types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::i8,
         data_types::u8,
         data_types::i32

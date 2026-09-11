@@ -15,6 +15,26 @@
 using namespace cldnn;
 using namespace ::tests;
 
+namespace {
+// Floating-point data types the strided_slice tests are parametrized over.
+using slice_data_types = ::testing::Types<float, ov::float16, ov::bfloat16>;
+
+// Produces readable type suffixes (f32/f16/bf16) for the generated typed tests.
+struct slice_type_names {
+    template <typename T>
+    static std::string GetName(int) {
+        if (std::is_same<T, float>::value)
+            return "f32";
+        if (std::is_same<T, ov::float16>::value)
+            return "f16";
+        if (std::is_same<T, ov::bfloat16>::value)
+            return "bf16";
+        return "unknown";
+    }
+};
+}  // namespace
+
+template <typename T>
 class strided_slice_gpu: public ::testing::Test {
 public:
     void test_2x2x2x2_full_legacy_activation(bool is_caching_test) {
@@ -25,12 +45,12 @@ public:
         // Output (BFYX): 2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, ov::element::from<T>(), format::bfyx });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 -0.2f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.8f
         });
@@ -46,7 +66,7 @@ public:
         topology.add(data("input4", strides));
         topology.add(strided_slice("strided_slice", input_info("input"), input_info("input2"), input_info("input3"), input_info("input4"), {}, {}, {}, {}, {}, {2, 2, 2, 2}));
         topology.add(activation("out", input_info("strided_slice"), activation_func::clamp, {0.f, 15.0f}));
-        topology.add(reorder("out_reorder", input_info("out"), format::bfyx, data_types::f32));
+        topology.add(reorder("out_reorder", input_info("out"), format::bfyx, ov::element::from<T>()));
 
         auto config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -66,7 +86,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -83,9 +103,9 @@ public:
         // Output (BFYX): 2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, ov::element::from<T>(), format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -111,7 +131,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -128,9 +148,9 @@ public:
         // Output (BFZYX): 2x2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2, 2 }, data_types::f32, format::bfzyx });
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2, 2 }, ov::element::from<T>(), format::bfzyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f,
                 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f,
@@ -162,7 +182,7 @@ public:
             23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f,
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -180,9 +200,9 @@ public:
         // Output (BFWZYX): 2x2x2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2, 2, 2 }, data_types::f32, format::bfwzyx });
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2, 2, 2 }, ov::element::from<T>(), format::bfwzyx });
 
-        set_values(input, {
+        set_values<T>(input, {
             0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f,
             8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f,
             16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f,
@@ -225,7 +245,7 @@ public:
             56.0f, 57.0f, 58.0f, 59.0f, 60.0f, 61.0f, 62.0f, 63.0f,
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -242,9 +262,9 @@ public:
         // Output (BFYX): 2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, ov::element::from<T>(), format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -274,7 +294,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -291,9 +311,9 @@ public:
         // Output (BFYX): 2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 2, 2 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -321,7 +341,7 @@ public:
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -338,9 +358,9 @@ public:
         // Output (BFYX): 1x1x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 2, 2 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -369,7 +389,7 @@ public:
 
         std::vector<float> answers = { 15.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -386,9 +406,9 @@ public:
         // Output (BFYX): 2x2x2x3
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 3, 4 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 3, 4 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
                 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f,
                 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f, 25.f, 26.f,
@@ -420,7 +440,7 @@ public:
                 24.f, 25.f, 26.f, 30.f, 31.f, 32.f, 36.f, 37.f, 38.f, 42.f, 43.f, 44.f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -437,9 +457,9 @@ public:
         // Output (BFYX): 1x2x4x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 4, 4 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 4, 4 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f,
                 4.0f, 5.0f, 6.0f, 7.0f,
                 8.0f, 9.0f, 10.0f, 11.0f,
@@ -491,7 +511,7 @@ public:
                 61.0f, 63.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -506,9 +526,9 @@ public:
         // Output (BFYX): 1x2x2x4
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 4 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 1, 4 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -536,7 +556,7 @@ public:
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -550,9 +570,9 @@ public:
         // Output (BFYX): 1x2x1x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 1, 1 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f
         });
         std::vector<int64_t> begin_data = { 1, 0, 1, 0 };
@@ -578,7 +598,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -591,9 +611,9 @@ public:
         // Output (BFYX): 2x2x1x1
 
         auto engine = create_test_engine(engine_types::ocl, runtime_types::ocl, !disable_usm);
-        auto input = engine->allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
+        auto input = engine->allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 1, 1 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f
         });
         std::vector<int64_t> begin_data = { 0, 0 };
@@ -623,7 +643,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -636,9 +656,9 @@ public:
         // Output (BFZYX): 1x2x2x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfzyx, { 2, 2, 1, 1, 2 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
         });
         std::vector<int64_t> begin_data = { 0, 0, 0 };
@@ -664,7 +684,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -677,9 +697,9 @@ public:
         // Output (BFZYX): 2x1x1x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfzyx, { 2, 2, 1, 1, 2 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
         });
         std::vector<int64_t> begin_data = { 0, 0, 0 };
@@ -709,7 +729,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -722,9 +742,9 @@ public:
         // Output (BFWZYX): 1x2x2x2x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, { 2, 2, 1, 1, 2, 2 }});
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfwzyx, { 2, 2, 1, 1, 2, 2 }});
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f,
                 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f,
         });
@@ -751,7 +771,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f,
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -764,9 +784,9 @@ public:
         // Output (BFWZYX): 2x1x1x1x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfwzyx, { 2, 2, 1, 1, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfwzyx, { 2, 2, 1, 1, 2, 2 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f,
                 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f,
         });
@@ -797,7 +817,7 @@ public:
                 0.0f, 8.0f,
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -813,9 +833,9 @@ public:
         // Output (BFYX): 2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, ov::element::from<T>(), format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -841,7 +861,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -858,9 +878,9 @@ public:
         // Output (BFYX): 2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2, 2 }, ov::element::from<T>(), format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -890,7 +910,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -903,9 +923,9 @@ public:
         // Output (BFZYX): 2x1x1x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfzyx, { 2, 2, 1, 1, 2 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
         });
         std::vector<int64_t> begin_data = { 0, 0, 0 };
@@ -931,7 +951,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -944,13 +964,13 @@ public:
         // Output (BFZYX): 2x1x1x1x1
 
         auto& engine = get_test_engine();
-        auto input_lay = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto input_lay = layout{ ov::PartialShape::dynamic(3), ov::element::from<T>(), format::bfyx };
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, ov::element::from<T>(), format::bfyx });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
 
-        set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
+        set_values<T>(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
         set_values<int64_t>(begin, {0, 0, 0});
         set_values<int64_t>(end, {2, 2, 2});
         set_values<int64_t>(strides, {1, 2, 2});
@@ -987,7 +1007,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -997,13 +1017,13 @@ public:
 
     void test_2x2x2_all_dynamic_bcast(impl_types impl_type = impl_types::any) {
         auto& engine = get_test_engine();
-        auto input_lay = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto input_lay = layout{ ov::PartialShape::dynamic(3), ov::element::from<T>(), format::bfyx };
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, ov::element::from<T>(), format::bfyx });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 1 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 1 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 1 }, data_types::i64, format::bfyx });
 
-        set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
+        set_values<T>(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
         set_values<int64_t>(begin, {1});
         set_values<int64_t>(end, {2});
         set_values<int64_t>(strides, {1});
@@ -1044,7 +1064,7 @@ public:
                 4.0f, 5.0f, 6.0f, 7.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)         {
             ASSERT_EQ(answers[i], output_ptr[i]) << " i = " << i;
@@ -1053,12 +1073,12 @@ public:
 
     void test_2x2x2x1x1_2_negative_all_dynamic_begin(impl_types impl_type = impl_types::any) {
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, data_types::f32, format::bfyx });
+        auto input = engine.allocate_memory({ ov::PartialShape{ 2, 2, 2 }, ov::element::from<T>(), format::bfyx });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 3 }, data_types::i64, format::bfyx });
 
-        set_values(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
+        set_values<T>(input, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
         set_values<int64_t>(begin, {0, 0, 0});
         set_values<int64_t>(end, {2, 2, 2});
         set_values<int64_t>(strides, {1, 2, 2});
@@ -1095,7 +1115,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1105,7 +1125,7 @@ public:
 
     void test_3d_all_dynamic_with_new_axis() {
         auto& engine = get_test_engine();
-        auto l_input = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
+        auto l_input = layout{ ov::PartialShape::dynamic(3), ov::element::from<T>(), format::bfyx };
         auto l_begin = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
         auto l_end = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
 
@@ -1139,7 +1159,7 @@ public:
     void test_3d_all_dynamic_with_shrink_axis() {
         auto& engine = get_test_engine();
 
-        auto l_input = layout{ ov::PartialShape::dynamic(3), data_types::f32, format::bfyx };
+        auto l_input = layout{ ov::PartialShape::dynamic(3), ov::element::from<T>(), format::bfyx };
         auto l_begin = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
         auto l_end = layout{ ov::PartialShape{ 3 }, data_types::i64, format::bfyx };
 
@@ -1171,6 +1191,9 @@ public:
     }
 };
 
+TYPED_TEST_SUITE(strided_slice_gpu, slice_data_types, slice_type_names);
+
+template <typename T>
 class strided_slice_gpu_constants: public ::testing::Test {
 public:
     void test_2x2x2x2_full(bool is_caching_test, impl_types impl_type = impl_types::any) {
@@ -1181,12 +1204,12 @@ public:
         // Output (BFYX): 2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 2, 2 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -1225,7 +1248,7 @@ public:
         std::vector<float> answers = {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1242,12 +1265,12 @@ public:
         // Output (BFYX): 2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 2, 2 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -1284,7 +1307,7 @@ public:
             9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1301,12 +1324,12 @@ public:
         // Output (BFYX): 1x1x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 2, 2 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
                 });
@@ -1344,7 +1367,7 @@ public:
 
         std::vector<float> answers = { 15.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1361,12 +1384,12 @@ public:
         // Output (BFYX): 2x2x2x3
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 3, 4 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 3, 4 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f,
                 9.f, 10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f,
                 18.f, 19.f, 20.f, 21.f, 22.f, 23.f, 24.f, 25.f, 26.f,
@@ -1411,7 +1434,7 @@ public:
                 24.f, 25.f, 26.f, 30.f, 31.f, 32.f, 36.f, 37.f, 38.f, 42.f, 43.f, 44.f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1428,12 +1451,12 @@ public:
         // Output (BFYX): 1x2x4x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 4, 4 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 4, 4 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f,
                 4.0f, 5.0f, 6.0f, 7.0f,
                 8.0f, 9.0f, 10.0f, 11.0f,
@@ -1497,7 +1520,7 @@ public:
                 61.0f, 63.0f
         };
 
-        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1512,12 +1535,12 @@ public:
         // Output (BFYX): 1x2x2x4
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 4 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 1, 4 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -1558,7 +1581,7 @@ public:
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1572,12 +1595,12 @@ public:
         // Output (BFYX): 1x2x1x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 1, 1 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f
         });
         set_values<int64_t>(begin, {
@@ -1612,7 +1635,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1625,12 +1648,12 @@ public:
         // Output (BFYX): 2x2x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 1, 1 } });
         auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 2, 1, 1, 1 } });
         auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 2, 1, 1, 1 } });
         auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 2, 1, 1, 1 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f
         });
 
@@ -1666,7 +1689,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1679,12 +1702,12 @@ public:
         // Output (BFZYX): 1x2x2x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfzyx, { 2, 2, 1, 1, 2 } });
         auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
         auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
         auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
         });
         set_values<int64_t>(begin, {
@@ -1719,7 +1742,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1732,12 +1755,12 @@ public:
         // Output (BFZYX): 2x1x1x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfzyx, { 2, 2, 1, 1, 2 } });
         auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
         auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
         auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
         });
         set_values<int64_t>(begin, {
@@ -1772,7 +1795,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -1788,12 +1811,12 @@ public:
         // Output (BFYX): 2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 2, 2 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
                 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -1828,7 +1851,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1845,9 +1868,9 @@ public:
         // Output (BFYX): 1x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 2, 2, 2 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f,
                 4.0f, 5.0f, 6.0f, 7.0f
         });
@@ -1879,7 +1902,7 @@ public:
         std::vector<float> answers = {
                 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1896,9 +1919,9 @@ public:
         // Output (BFYX): 1x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 2, 2, 2 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f,
                 4.0f, 5.0f, 6.0f, 7.0f
         });
@@ -1930,7 +1953,7 @@ public:
         std::vector<float> answers = {
                 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1947,9 +1970,9 @@ public:
         // Output (BFYX): 1x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 2, 2, 2 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f,
                 4.0f, 5.0f, 6.0f, 7.0f
         });
@@ -1981,7 +2004,7 @@ public:
         std::vector<float> answers = {
                 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -1995,12 +2018,12 @@ public:
         // Output (BFZYX): 2x1x1x1x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfzyx, { 2, 2, 1, 1, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfzyx, { 2, 2, 1, 1, 2 } });
         auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
         auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
         auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
         });
         set_values<int64_t>(begin, {
@@ -2035,7 +2058,7 @@ public:
                 0.0f, 4.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2047,12 +2070,12 @@ public:
         // Input (BFZYX):  1x3x1x3
         // Output (BFZYX): 1x1x1x3
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 3, 1, 3} });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 3, 1, 3} });
         auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
         auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1 } });
         auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 3, 1, 1, 1} });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f,
                 3.0f, 4.0f, 5.0f,
                 6.0f, 7.0f, 8.0f,
@@ -2090,7 +2113,7 @@ public:
                 6.0f, 7.0f, 8.0f,
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2102,12 +2125,12 @@ public:
         // Input (BFZYX):  1x1x1x3
         // Output (BFZYX): 1x1x1x3
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 3, 1} });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 1, 3, 1} });
         auto begin = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
         auto end = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1 } });
         auto strides = engine.allocate_memory({ data_types::i64, format::bfyx, { 4, 1, 1, 1} });
 
-        set_values(input, {
+        set_values<T>(input, {
                 6.0f, 7.0f, 8.0f,
         });
 
@@ -2143,7 +2166,7 @@ public:
                 6.0f, 7.0f, 8.0f,
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2159,12 +2182,12 @@ public:
         // Output (BFYX): 2x2x2x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 2, 2 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 2, 2 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f,
                 8.0f, 9.0f, 10.0f, 11.0f,
                 12.0f, 13.0f, 14.0f, 15.0f
@@ -2200,7 +2223,7 @@ public:
         std::vector<float> answers = {
                 12.f, 13.f, 14.f, 15.f, 8.f, 9.f, 10.f, 11.f, 4.f, 5.f, 6.f, 7.f, 0.f, 1.f, 2.f, 3.f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2217,12 +2240,12 @@ public:
         // Output (BFYX): 1x1x1x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 10, 1 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 1, 10, 1 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f
         });
         set_values<int64_t>(begin, {
@@ -2255,7 +2278,7 @@ public:
 
         std::vector<float> answers = { 5.0f, 3.0f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2272,12 +2295,12 @@ public:
         // Output (BFYX): 1x1x1x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 1, 10, 1 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 1, 10, 1 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f
         });
         set_values<int64_t>(begin, {
@@ -2310,7 +2333,7 @@ public:
 
         std::vector<float> answers = { 5.0f, 3.0f };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), answers.size());
         for (size_t i = 0; i < answers.size(); ++i)
@@ -2320,6 +2343,9 @@ public:
     }
 };
 
+TYPED_TEST_SUITE(strided_slice_gpu_constants, slice_data_types, slice_type_names);
+
+template <typename T>
 class strided_slice_gpu_four_inputs: public ::testing::Test {
 public:
     void test_2x2x4x1_new_axis_mask(bool is_caching_test) {
@@ -2328,12 +2354,12 @@ public:
         // Output (BFYX): 1x2x2x4
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 4 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 1, 4 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         });
@@ -2373,7 +2399,7 @@ public:
                 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2387,12 +2413,12 @@ public:
         // Output (BFYX): 1x2x1x2
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 2, 2, 1, 1 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 1, 1 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 4 }, data_types::i64, format::bfyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f
         });
         set_values<int64_t>(begin, {
@@ -2430,7 +2456,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2438,6 +2464,8 @@ public:
         }
     }
 };
+
+TYPED_TEST_SUITE(strided_slice_gpu_four_inputs, slice_data_types, slice_type_names);
 
 class strided_slice_gpu_i8: public ::testing::Test {
 public:
@@ -2523,19 +2551,20 @@ public:
     }
 };
 
-class strided_slice_gpu_f32_i32: public ::testing::Test {
+template <typename T>
+class strided_slice_gpu_i32_indices: public ::testing::Test {
 public:
     void test_1x1x1x8x1_new_axis_5d(bool is_caching_test) {
         // Input (BFYX): 1x8x1x1
         // Output (BFZYX): 1x1x1x8x1
 
         auto& engine = get_test_engine();
-        auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 8, 1, 1 } });
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 1, 8, 1, 1 } });
         auto begin = engine.allocate_memory({ ov::PartialShape{ 5 }, data_types::i32, format::bfzyx });
         auto end = engine.allocate_memory({ ov::PartialShape{ 5 }, data_types::i32, format::bfzyx });
         auto strides = engine.allocate_memory({ ov::PartialShape{ 5 }, data_types::i32, format::bfzyx });
 
-        set_values(input, {
+        set_values<T>(input, {
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
         });
         set_values(begin, {
@@ -2570,7 +2599,7 @@ public:
                 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f
         };
 
-        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         for (size_t i = 0; i < answers.size(); ++i)
         {
@@ -2579,95 +2608,97 @@ public:
     }
 };
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_full) {
+TYPED_TEST_SUITE(strided_slice_gpu_i32_indices, slice_data_types, slice_type_names);
+
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_full) {
     this->test_2x2x2x2_full(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_full) {
     this->test_2x2x2x2_full(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2x2_full) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2x2_full) {
     this->test_2x2x2x2x2_full(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2x2x2_full) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2x2x2_full) {
     this->test_2x2x2x2x2x2_full(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_full_pad) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_full_pad) {
     this->test_2x2x2x2_full_pad(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_ignore) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_ignore) {
     this->test_2x2x2x2_ignore(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_ignore) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_ignore) {
     this->test_2x2x2x2_ignore(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_single) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_single) {
     this->test_2x2x2x2_single(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_single) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_single) {
     this->test_2x2x2x2_single(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x4x3_stride) {
+TYPED_TEST(strided_slice_gpu, test_2x2x4x3_stride) {
     this->test_2x2x4x3_stride(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x4x3_stride) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x4x3_stride) {
     this->test_2x2x4x3_stride(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x4x4_part_stride) {
+TYPED_TEST(strided_slice_gpu, test_2x2x4x4_part_stride) {
     this->test_2x2x4x4_part_stride(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x4x4_part_stride) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x4x4_part_stride) {
     this->test_2x2x4x4_part_stride(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x4x1_new_axis_mask) {
+TYPED_TEST(strided_slice_gpu, test_2x2x4x1_new_axis_mask) {
     this->test_2x2x4x1_new_axis_mask(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x4x1_new_axis_mask) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x4x1_new_axis_mask) {
     this->test_2x2x4x1_new_axis_mask(false);
 }
 
-TEST_F(strided_slice_gpu_four_inputs, test_2x2x4x1_new_axis_mask) {
+TYPED_TEST(strided_slice_gpu_four_inputs, test_2x2x4x1_new_axis_mask) {
     this->test_2x2x4x1_new_axis_mask(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x1x1_new_axis_mask_2) {
+TYPED_TEST(strided_slice_gpu, test_2x2x1x1_new_axis_mask_2) {
     this->test_2x2x1x1_new_axis_mask_2(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x1x1_new_axis_mask_2) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x1x1_new_axis_mask_2) {
     this->test_2x2x1x1_new_axis_mask_2(false);
 }
 
-TEST_F(strided_slice_gpu_four_inputs, test_2x2x1x1_new_axis_mask_2) {
+TYPED_TEST(strided_slice_gpu_four_inputs, test_2x2x1x1_new_axis_mask_2) {
     this->test_2x2x1x1_new_axis_mask_2(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x1x1) {
+TYPED_TEST(strided_slice_gpu, test_2x2x1x1) {
     this->test_2x2x1x1(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x1x1) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x1x1) {
     this->test_2x2x1x1(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x1x1) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x1x1) {
     this->test_2x2x2x1x1(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x1x1) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x1x1) {
     this->test_2x2x2x1x1(false);
 }
 
@@ -2675,19 +2706,19 @@ TEST_F(strided_slice_gpu_i8, test_2x2x2x1x1) {
     this->test_2x2x2x1x1(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x1x1_2) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x1x1_2) {
     this->test_2x2x2x1x1_2(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x1x1_2) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x1x1_2) {
     this->test_2x2x2x1x1_2(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2x1x1) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2x1x1) {
     this->test_2x2x2x2x1x1(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2x1x1_2) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2x1x1_2) {
     this->test_2x2x2x2x1x1_2(false);
 }
 
@@ -2695,182 +2726,186 @@ TEST_F(strided_slice_gpu_i8, test_2x2x2x2x1x1) {
     this->test_2x2x2x2x1x1(false);
 }
 
-TEST_F(strided_slice_gpu_f32_i32, test_1x1x1x8x1_new_axis_5d) {
+TYPED_TEST(strided_slice_gpu_i32_indices, test_1x1x1x8x1_new_axis_5d) {
     this->test_1x1x1x8x1_new_axis_5d(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_full_negative_stride) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_full_negative_stride) {
     this->test_2x2x2x2_full_negative_stride(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride) {
     this->test_2x2x2x2_full_negative_stride(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_full_negative_stride_pad) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_full_negative_stride_pad) {
     this->test_2x2x2x2_full_negative_stride_pad(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis) {
     this->test_2x2x2x2_full_negative_stride_f_axis(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_negative_begin_f_axis) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_negative_begin_f_axis) {
     this->test_2x2x2x2_full_negative_stride_negative_begin_f_axis(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis_clamp) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis_clamp) {
     this->test_2x2x2x2_full_negative_stride_f_axis_clamp(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x1x1_2_negative_all) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all) {
     this->test_2x2x2x1x1_2_negative_all(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x1x1_2_negative_all) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x1x1_2_negative_all) {
     this->test_2x2x2x1x1_2_negative_all(false);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic) {
     this->test_2x2x2x1x1_2_negative_all_dynamic();
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
     this->test_2x2x2x1x1_2_negative_all_dynamic_begin();
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2_all_dynamic_bcast) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2_all_dynamic_bcast) {
     this->test_2x2x2_all_dynamic_bcast();
 }
 
-class strided_slice_cpu_impl : public strided_slice_gpu {};
-TEST_F(strided_slice_cpu_impl, test_2x2x2x1x1_2_negative_all_dynamic) {
+template <typename T>
+class strided_slice_cpu_impl : public strided_slice_gpu<T> {};
+TYPED_TEST_SUITE(strided_slice_cpu_impl, slice_data_types, slice_type_names);
+TYPED_TEST(strided_slice_cpu_impl, test_2x2x2x1x1_2_negative_all_dynamic) {
     this->test_2x2x2x1x1_2_negative_all_dynamic(impl_types::cpu);
 }
 
-TEST_F(strided_slice_cpu_impl, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
+TYPED_TEST(strided_slice_cpu_impl, test_2x2x2x1x1_2_negative_all_dynamic_begin) {
     this->test_2x2x2x1x1_2_negative_all_dynamic_begin(impl_types::cpu);
 }
 
-TEST_F(strided_slice_cpu_impl, test_2x2x2_all_dynamic_bcast) {
+TYPED_TEST(strided_slice_cpu_impl, test_2x2x2_all_dynamic_bcast) {
     this->test_2x2x2_all_dynamic_bcast(impl_types::cpu);
 }
 
-TEST_F(strided_slice_cpu_impl, test_2x2x1x1) {
+TYPED_TEST(strided_slice_cpu_impl, test_2x2x1x1) {
     this->test_2x2x1x1(false, impl_types::cpu);
 }
 
-TEST_F(strided_slice_cpu_impl, test_2x2x1x1_disable_usm) {
+TYPED_TEST(strided_slice_cpu_impl, test_2x2x1x1_disable_usm) {
     this->test_2x2x1x1(false, impl_types::cpu, true);
 }
 
-TEST_F(strided_slice_cpu_impl, test_2x2x2x1x1_2) {
+TYPED_TEST(strided_slice_cpu_impl, test_2x2x2x1x1_2) {
     this->test_2x2x2x1x1_2(false, impl_types::cpu);
 }
 
-TEST_F(strided_slice_cpu_impl, test_2x2x2x2_single) {
+TYPED_TEST(strided_slice_cpu_impl, test_2x2x2x2_single) {
     this->test_2x2x2x2_single(false, impl_types::cpu);
 }
 
-class strided_slice_cpu_impl_constants : public strided_slice_gpu_constants {};
-TEST_F(strided_slice_cpu_impl_constants, test_2x2x2x2_full) {
+template <typename T>
+class strided_slice_cpu_impl_constants : public strided_slice_gpu_constants<T> {};
+TYPED_TEST_SUITE(strided_slice_cpu_impl_constants, slice_data_types, slice_type_names);
+TYPED_TEST(strided_slice_cpu_impl_constants, test_2x2x2x2_full) {
     this->test_2x2x2x2_full(false, impl_types::cpu);
 }
 
-TEST_F(strided_slice_cpu_impl_constants, test_2x2x2x2_single) {
+TYPED_TEST(strided_slice_cpu_impl_constants, test_2x2x2x2_single) {
     this->test_2x2x2x2_single(false, impl_types::cpu);
 }
 
-TEST_F(strided_slice_cpu_impl_constants, test_2x2x4x3_stride) {
+TYPED_TEST(strided_slice_cpu_impl_constants, test_2x2x4x3_stride) {
     this->test_2x2x4x3_stride(false, impl_types::cpu);
 }
 
-TEST_F(strided_slice_cpu_impl_constants, DISABLED_test_2x2x4x1_new_axis_mask) { // Issue 129991
+TYPED_TEST(strided_slice_cpu_impl_constants, DISABLED_test_2x2x4x1_new_axis_mask) { // Issue 129991
     this->test_2x2x4x1_new_axis_mask(false, impl_types::cpu);
 }
 
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
-TEST_F(strided_slice_gpu, test_2x2x2x2_full_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_full_cached) {
     this->test_2x2x2x2_full(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_full_cached) {
     this->test_2x2x2x2_full(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_full_pad_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_full_pad_cached) {
     this->test_2x2x2x2_full_pad(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_ignore_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_ignore_cached) {
     this->test_2x2x2x2_ignore(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_ignore_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_ignore_cached) {
     this->test_2x2x2x2_ignore(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_single_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_single_cached) {
     this->test_2x2x2x2_single(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_single_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_single_cached) {
     this->test_2x2x2x2_single(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x4x3_stride_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x4x3_stride_cached) {
     this->test_2x2x4x3_stride(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x4x3_stride_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x4x3_stride_cached) {
     this->test_2x2x4x3_stride(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x4x4_part_stride_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x4x4_part_stride_cached) {
     this->test_2x2x4x4_part_stride(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x4x4_part_stride_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x4x4_part_stride_cached) {
     this->test_2x2x4x4_part_stride(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x4x1_new_axis_mask_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x4x1_new_axis_mask_cached) {
     this->test_2x2x4x1_new_axis_mask(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x4x1_new_axis_mask_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x4x1_new_axis_mask_cached) {
     this->test_2x2x4x1_new_axis_mask(true);
 }
 
-TEST_F(strided_slice_gpu_four_inputs, test_2x2x4x1_new_axis_mask_cached) {
+TYPED_TEST(strided_slice_gpu_four_inputs, test_2x2x4x1_new_axis_mask_cached) {
     this->test_2x2x4x1_new_axis_mask(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x1x1_new_axis_mask_2_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x1x1_new_axis_mask_2_cached) {
     this->test_2x2x1x1_new_axis_mask_2(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x1x1_new_axis_mask_2_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x1x1_new_axis_mask_2_cached) {
     this->test_2x2x1x1_new_axis_mask_2(true);
 }
 
-TEST_F(strided_slice_gpu_four_inputs, test_2x2x1x1_new_axis_mask_2_cached) {
+TYPED_TEST(strided_slice_gpu_four_inputs, test_2x2x1x1_new_axis_mask_2_cached) {
     this->test_2x2x1x1_new_axis_mask_2(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x1x1_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x1x1_cached) {
     this->test_2x2x1x1(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x1x1_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x1x1_cached) {
     this->test_2x2x1x1(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x1x1_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x1x1_cached) {
     this->test_2x2x2x1x1(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x1x1_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x1x1_cached) {
     this->test_2x2x2x1x1(true);
 }
 
@@ -2878,81 +2913,81 @@ TEST_F(strided_slice_gpu_i8, test_2x2x2x1x1_cached) {
     this->test_2x2x2x1x1(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x1x1_2_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x1x1_2_cached) {
     this->test_2x2x2x1x1_2(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x1x1_2_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x1x1_2_cached) {
     this->test_2x2x2x1x1_2(true);
 }
 
-TEST_F(strided_slice_gpu_f32_i32, test_1x1x1x8x1_new_axis_5d_cached) {
+TYPED_TEST(strided_slice_gpu_i32_indices, test_1x1x1x8x1_new_axis_5d_cached) {
     this->test_1x1x1x8x1_new_axis_5d(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_full_negative_stride_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_full_negative_stride_cached) {
     this->test_2x2x2x2_full_negative_stride(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_cached) {
     this->test_2x2x2x2_full_negative_stride(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x2_full_negative_stride_pad_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_full_negative_stride_pad_cached) {
     this->test_2x2x2x2_full_negative_stride_pad(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis_cached) {
     this->test_2x2x2x2_full_negative_stride_f_axis(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_negative_begin_f_axis_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_negative_begin_f_axis_cached) {
     this->test_2x2x2x2_full_negative_stride_negative_begin_f_axis(true);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis_clamp_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_full_negative_stride_f_axis_clamp_cached) {
     this->test_2x2x2x2_full_negative_stride_f_axis_clamp(true);
 }
 
-TEST_F(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_cached) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x1x1_2_negative_all_cached) {
     this->test_2x2x2x1x1_2_negative_all(true);
 }
 #endif
-TEST_F(strided_slice_gpu_constants, test_2x2x2x1x1_2_negative_all_cached) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x1x1_2_negative_all_cached) {
     this->test_2x2x2x1x1_2_negative_all(true);
 }
 
 // test_2x2x2x2_full_activation
-TEST_F(strided_slice_gpu, test_2x2x2x2_full_legacy_activation) {
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_full_legacy_activation) {
     this->test_2x2x2x2_full_legacy_activation(true);
 }
 
 
-TEST_F(strided_slice_gpu, test_3d_all_dynamic_with_new_axis) {
+TYPED_TEST(strided_slice_gpu, test_3d_all_dynamic_with_new_axis) {
     this->test_3d_all_dynamic_with_new_axis();
 }
 
-TEST_F(strided_slice_gpu, test_3d_all_dynamic_with_shrink_axis) {
+TYPED_TEST(strided_slice_gpu, test_3d_all_dynamic_with_shrink_axis) {
     this->test_3d_all_dynamic_with_shrink_axis();
 }
 
-TEST_F(strided_slice_gpu_constants, test_1x3x1x3_negative) {
+TYPED_TEST(strided_slice_gpu_constants, test_1x3x1x3_negative) {
     this->test_1x3x1x3_negative(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_1x1x1x3_negative) {
+TYPED_TEST(strided_slice_gpu_constants, test_1x1x1x3_negative) {
     this->test_1x1x1x3_negative(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_2x2x2x2_negative_begin_end_positive_stride) {
+TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_negative_begin_end_positive_stride) {
     this->test_2x2x2x2_negative_begin_end_positive_stride(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_1x1x1x10_pos_begin_end_neg_stride2) {
+TYPED_TEST(strided_slice_gpu_constants, test_1x1x1x10_pos_begin_end_neg_stride2) {
     this->test_1x1x1x10_pos_begin_end_neg_stride2(false);
 }
 
-TEST_F(strided_slice_gpu_constants, test_1x1x1x10_neg_begin_end_neg_stride2) {
+TYPED_TEST(strided_slice_gpu_constants, test_1x1x1x10_neg_begin_end_neg_stride2) {
     this->test_1x1x1x10_neg_begin_end_neg_stride2(false);
 }
 

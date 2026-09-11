@@ -105,6 +105,7 @@ jobs:
       build-additional-python-packages: true
       build-variant: 'levelzero'
       store_artifacts: false
+      build-samples: true
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'

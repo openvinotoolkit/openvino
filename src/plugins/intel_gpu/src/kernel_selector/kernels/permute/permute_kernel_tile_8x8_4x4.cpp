@@ -18,12 +18,14 @@ namespace kernel_selector {
 ParamsKey PermuteKernel_tile_8x8_4x4::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -46,12 +48,14 @@ ParamsKey PermuteKernel_tile_8x8_4x4::GetSupportedKey() const {
 static inline size_t GetTileSize(const permute_params& params) {
     // supports 4x4 or 8x8 tiling
     if (!params.is_shape_agnostic) {
-        if (params.inputs[0].X().v < DEFAULT_TILE_SIZE || params.inputs[0].Feature().v < DEFAULT_TILE_SIZE)
+        if (params.inputs[0].X().v < DEFAULT_TILE_SIZE || params.inputs[0].Feature().v < DEFAULT_TILE_SIZE) {
             return MIN_TILE_SIZE;
+        }
     }
 
-    if ((params.inputs[0].GetDType() == Datatype::INT64) || (params.outputs[0].GetDType() == Datatype::INT64))
+    if ((params.inputs[0].GetDType() == Datatype::INT64) || (params.outputs[0].GetDType() == Datatype::INT64)) {
         return MIN_TILE_SIZE;
+    }
 
     return DEFAULT_TILE_SIZE;
 }
@@ -76,7 +80,7 @@ static inline std::vector<std::string> GetFusedOpOrderVector(size_t size) {
 static inline std::string GetTiledOutputOrder(const permute_params& params) {
     std::pair<size_t, size_t> dim_change = {params.inputs[0].GetDims().size(), params.outputs[0].GetDims().size()};
 
-    std::string order_str = "";
+    std::string order_str;
     int32_t dim_diff = static_cast<int32_t>(dim_change.first) - static_cast<int32_t>(dim_change.second);
 
     if (dim_diff == 0) {
@@ -103,8 +107,8 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
             order_str = "b, w, z * INPUT0_SIZE_Y + y, x * TILE_SIZE + lh, (f * TILE_SIZE)";
         }
     } else {
-        std::string out_y_str = "";
-        std::string out_z_str = "";
+        std::string out_y_str;
+        std::string out_z_str;
         const auto& output = params.outputs[0];
         if (params.has_dynamic_outputs()) {
             DimensionAccessHelperJit dims(output);
@@ -137,7 +141,7 @@ static inline std::string GetTiledOutputOrder(const permute_params& params) {
 }
 
 static inline std::string GetTiledInputOrder(size_t size) {
-    std::string order_str = "";
+    std::string order_str;
     switch (size) {
         case 4 :
             order_str = "b, (f * TILE_SIZE + lh), y, (x * TILE_SIZE)";
@@ -176,7 +180,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
         std::string x_remainder_cond = "true";
         std::string f_remainder_cond = "true";
 
-        if (params.inputs[0].X().v % tile_size) {
+        if ((params.inputs[0].X().v % tile_size) != 0u) {
             jit.AddConstant(MakeJitConstant("X_REMAINDER_ITEM", params.inputs[0].X().v / tile_size));
             jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE", params.inputs[0].X().v % tile_size));
             jit.AddConstant(MakeJitConstant("X_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].X().v % tile_size, vector_width)));
@@ -184,7 +188,7 @@ JitConstants PermuteKernel_tile_8x8_4x4::GetJitConstants(const permute_params& p
             x_remainder_cond += " && (x == X_REMAINDER_ITEM)";
             f_remainder_cond += " && (x < X_REMAINDER_ITEM)";
         }
-        if (params.inputs[0].Feature().v % tile_size) {
+        if ((params.inputs[0].Feature().v % tile_size) != 0u) {
             jit.AddConstant(MakeJitConstant("F_REMAINDER_ITEM", params.inputs[0].Feature().v / tile_size));
             jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE", params.inputs[0].Feature().v % tile_size));
             jit.AddConstant(MakeJitConstant("F_REMAINDER_SIZE_AS_VECTOR", CeilDiv(params.inputs[0].Feature().v % tile_size, vector_width)));
@@ -268,7 +272,8 @@ CommonDispatchData PermuteKernel_tile_8x8_4x4::SetDefault(const permute_params& 
 }
 
 bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) DO_NOT_USE_THIS_KERNEL(p.layerID);
+    if (!Parent::Validate(p)) { DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const permute_params& params = static_cast<const permute_params&>(p);
 
@@ -295,15 +300,17 @@ bool PermuteKernel_tile_8x8_4x4::Validate(const Params& p) const {
     std::function<bool(const permute_params&)> has_fused_op = [] (const permute_params& params) {
         if (!params.fused_ops.empty()) {
             for (auto f : params.fused_ops) {
-                if (f.GetType() != KernelType::REORDER)
+                if (f.GetType() != KernelType::REORDER) {
                     return true;
+                }
             }
         }
         return false;
     };
 
-    if (has_fused_op(params) && params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size())
+    if (has_fused_op(params) && params.inputs[0].GetDims().size() != params.outputs[0].GetDims().size()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -314,10 +321,10 @@ KernelsPriority PermuteKernel_tile_8x8_4x4::GetKernelsPriority(const Params& par
 
     if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) && (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
         return FORCE_PRIORITY_1;
-    } else if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) || (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
-        return FORCE_PRIORITY_2;
-    } else {
-        return FORCE_PRIORITY_3;
     }
+    if ((newParams.inputs[0].Feature().v >= DEFAULT_TILE_SIZE) || (newParams.inputs[0].X().v >= DEFAULT_TILE_SIZE)) {
+        return FORCE_PRIORITY_2;
+    }
+    return FORCE_PRIORITY_3;
 }
 }  // namespace kernel_selector

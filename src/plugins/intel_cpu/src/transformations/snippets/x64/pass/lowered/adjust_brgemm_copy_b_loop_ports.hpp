@@ -4,12 +4,9 @@
 
 #pragma once
 
-#include <unordered_set>
-
 #include "openvino/core/rtti.hpp"
-#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
-#include "snippets/lowered/pass/pass.hpp"
+#include "transformations/snippets/common/pass/lowered/adjust_copy_b_loop_ports.hpp"
 
 namespace ov::intel_cpu::pass {
 
@@ -20,18 +17,18 @@ namespace ov::intel_cpu::pass {
  *        Finds loop ports connected to BrgemmCopyB and sets appropriate pointer increments.
  * @ingroup snippets
  */
-class AdjustBrgemmCopyBLoopPorts : public snippets::lowered::pass::ConstPass {
+class AdjustBrgemmCopyBLoopPorts : public AdjustCopyBLoopPorts {
 public:
-    OPENVINO_RTTI("AdjustBrgemmCopyBLoopPorts", "", ConstPass)
+    OPENVINO_RTTI("AdjustBrgemmCopyBLoopPorts", "", AdjustCopyBLoopPorts)
     AdjustBrgemmCopyBLoopPorts() = default;
-    bool run(const snippets::lowered::LinearIR& linear_ir) override;
     static bool update_loop_info(const snippets::lowered::UnifiedLoopInfoPtr& uni_loop_info);
-    const std::unordered_set<snippets::lowered::UnifiedLoopInfoPtr>& get_affected_loops() {
-        return m_affected_loops;
-    }
 
 private:
-    std::unordered_set<snippets::lowered::UnifiedLoopInfoPtr> m_affected_loops;
+    bool is_target_expr(const snippets::lowered::ExpressionPtr& expr) const override;
+    snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& gemm_expr) const override;
+    bool update_loop_info_impl(const snippets::lowered::UnifiedLoopInfoPtr& loop_info) const override;
+    const char* copy_b_not_found_message() const override;
+    const char* invalid_loop_config_message() const override;
 };
 
 }  // namespace ov::intel_cpu::pass

@@ -56,6 +56,7 @@ This contents explain the internal implementation of dynamic shape support in th
 ## Additional Documentation
 * [How to build with DPC++ support](./docs/gpu_plugin_with_sycl.md)
 * [GPU plugin Level Zero support](./docs/gpu_plugin_with_level_zero.md)
+* [Experimental MLIR execution path in GPU plugin](./docs/mlir/overall_flow.md)
 
 ## Troubleshooting / Debugging
 * [Debug utils](./docs/gpu_debug_utils.md)

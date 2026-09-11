@@ -136,6 +136,7 @@ jobs:
       # See .github/dockerfiles/ov_test/ubuntu_22_04_x64_igpu/Dockerfile.
 
       - name: Verify devices
+        timeout-minutes: 5
         run: clinfo
 
       - name: Setup Python 3.11

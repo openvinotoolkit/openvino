@@ -85,6 +85,8 @@ std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precisio
         return "FP8_E5M2";
     case ov::element::Type_t::f8e8m0:
         return "FP8_E8M0";
+    case ov::element::Type_t::f4e2m1:
+        return "FP4_E2M1";
     case ov::element::Type_t::nf4:
         return "NF4";
     case ov::element::Type_t::i4:
@@ -320,6 +322,7 @@ protected:
         if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
             manager.register_pass<ov::pass::EliminateIdentity>();
         }
+
         manager.run_passes(model);
 
         // Step 2: store the WeightlessCacheAttributes if requested
@@ -698,15 +701,28 @@ std::string serializeIOInfo(const std::shared_ptr<const ov::Model>& model, const
            outputsPrecisionSS.str() + VALUES_SEPARATOR.data() + outputsLayoutSS.str();
 }
 
-std::string serializeConfig(const FilteredConfig& config,
+std::string serializeConfig(const FilteredConfig& originalConfig,
                             const ze_graph_compiler_version_info_t& compilerVersion,
                             const std::function<bool(const std::string&)>& isOptionSupportedByCompiler) {
     Logger logger("serializeConfig", Logger::global().level());
 
+    // Compiler log level decoupling: the compiler only understands the LOG_LEVEL key. When the user explicitly set
+    // NPU_COMPILE_LOG_LEVEL, copy the config and overwrite LOG_LEVEL on the copy with that (resolved) value, then
+    // use the copy for the remainder of this function so every subsequent read observes the compiler-specific
+    // level instead of the plugin one. When NPU_COMPILE_LOG_LEVEL is unset, no copy
+    // is made and the compiler keeps inheriting the plugin LOG_LEVEL exactly as before.
+    std::optional<FilteredConfig> configWithCompileLogLevel;
+    if (originalConfig.has<COMPILE_LOG_LEVEL>()) {
+        std::ostringstream levelStr;
+        levelStr << originalConfig.get<COMPILE_LOG_LEVEL>();
+        configWithCompileLogLevel = originalConfig;
+        configWithCompileLogLevel->update(ov::log::level.name(), levelStr.str());
+    }
+    const FilteredConfig& config = configWithCompileLogLevel.has_value() ? *configWithCompileLogLevel : originalConfig;
+
     std::string content = {};
 
-    content += config.toStringForCompiler();
-    content += config.toStringForCompilerInternal();
+    content += config.toStringForCompiler(isOptionSupportedByCompiler);
 
     logger.debug("Original content of config: %s", content.c_str());
 
@@ -778,35 +794,6 @@ std::string serializeConfig(const FilteredConfig& config,
                                      getTargetRegex(ov::hint::Priority::HIGH),
                                      getStringReplacement(ov::intel_npu::LegacyPriority::HIGH));
     }
-
-    // Special cases
-    const auto& removeOptionIfUnsupported = [&](const std::string& optionName) {
-        if (std::regex_search(content, std::regex(optionName))) {
-            const bool optionSupported =
-                isOptionSupportedByCompiler != nullptr ? isOptionSupportedByCompiler(optionName) : false;
-            if (!optionSupported) {
-                std::ostringstream optionStr;
-                optionStr << optionName << KEY_VALUE_SEPARATOR << VALUE_DELIMITER << "\\S+" << VALUE_DELIMITER;
-                logger.info("%s property is not supported by this compiler. Removing from parameters",
-                            optionName.c_str());
-                content = std::regex_replace(content, std::regex(optionStr.str()), "");
-            }
-        }
-    };
-
-    // Options with OptionMode::Both may be used by the plugin even when the compiler does not support them.
-    // Remove them from the config string before sending it to the compiler if they are unsupported.
-
-    // NPU_TURBO is a special option in the sense that by default it is a
-    //  driver-setting, but certain compilers support and make use of it too If we have turbo in the config string, we
-    //  check if compiler supports it. If it doesn't support it, we remove it
-    removeOptionIfUnsupported(ov::intel_npu::turbo.name());
-    // LOG_LEVEL must not be sent to the compiler if not supported
-    removeOptionIfUnsupported(ov::log::level.name());
-    // PERFORMANCE_HINT must not be sent to the compiler if not supported
-    removeOptionIfUnsupported(ov::hint::performance_mode.name());
-    // PERF_COUNT must not be sent to the compiler if not supported
-    removeOptionIfUnsupported(ov::enable_profiling.name());
 
     // FINAL step to convert prefixes of remaining params, to ensure backwards compatibility
     // From 5.0.0, driver compiler start to use NPU_ prefix, the old version uses VPU_ prefix

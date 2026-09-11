@@ -765,6 +765,8 @@ void Snapshot::earlyRegroup() {
                 HNDL_MOE(GPTOSSRouter);
                 HNDL_MOE(Qwen3Expert);
                 HNDL_MOE(Qwen3Router);
+                HNDL_MOE(Gemma4Expert);
+                HNDL_MOE(Gemma4Router);
                 HNDL_FAKE(FakeConvert);
                 HNDL_FAKE(FakeQuantize);
                 HNDL_ATTN(SDPA);
@@ -1018,7 +1020,12 @@ std::shared_ptr<Repeated> Snapshot::tryMergeTriangles(const std::vector<Group::G
         return {};
     }
 
-    if (prods.size() < m_ctx.keep_blocks) {
+    // Only bypass the keep_blocks size floor for tags the user explicitly asked to preserve via
+    // NPUW_ONLINE_KEEP_BLOCKS_TAGGED
+    const auto& isolate_tag = prods.front()->isolatedTag();
+    const bool has_isolated_tag =
+        !isolate_tag.empty() && m_ctx.keep_block_tags.find(isolate_tag) != m_ctx.keep_block_tags.end();
+    if (!has_isolated_tag && prods.size() < m_ctx.keep_blocks) {
         // In some cases (specifically mixed precision) during MergeUniques() pass we could be left with
         // E.g. 10 repeated blocks with tag AAA and 2 repeated blocks with tag BBB
         // TryMergeTriangles() pass checks that producer and consumer have a different tag to be merged further.
@@ -1307,7 +1314,12 @@ std::shared_ptr<Repeated> Snapshot::tryMergeRepeating(const std::vector<Group::G
         }
     }
 
-    if (prods.size() < m_ctx.keep_blocks) {
+    // Only bypass the keep_blocks size floor for tags the user explicitly asked to preserve via
+    // NPUW_ONLINE_KEEP_BLOCKS_TAGGED
+    const auto& isolate_tag = conss.front()->isolatedTag();
+    const bool has_isolated_tag =
+        !isolate_tag.empty() && m_ctx.keep_block_tags.find(isolate_tag) != m_ctx.keep_block_tags.end();
+    if (!has_isolated_tag && prods.size() < m_ctx.keep_blocks) {
         // In some cases (specifically mixed precision) during MergeUniques() pass we could be left with
         // E.g. 10 repeated blocks with tag AAA and 2 repeated blocks with tag BBB
         // TryMergeRepeating() pass checks that producer and consumer have a different tag to be merged further.

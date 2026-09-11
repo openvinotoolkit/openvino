@@ -1,0 +1,116 @@
+# GGUF per-architecture conversion fixtures -- see gen_arch_fixtures.py (generator, run offline) and
+# test_arch_conversion.cpp (consumer).  Generated from llama.cpp 476c01efe88aad7880a8132d5d3a415f2ca75139 at seed 1.
+#
+# One line per fixture:
+#   <file> <data_bytes> <expectation>
+#
+# <file>         header-only fixture in this directory; the loadable .gguf is <file> followed by
+#                <data_bytes> zero bytes (all fixture tensors are F32, so no dequant is involved).
+# <expectation>  what conversion must do, and the test asserts exactly this:
+#   convert   converts cleanly.  The graph fingerprint is pinned in test_arch_conversion.cpp.
+#   reject    the architecture is not on the builder's accept list, so conversion must fail with
+#             that specific diagnostic -- not a crash, and not a silent wrong-graph success.
+#   broken    a supported architecture that currently fails to convert: a real defect, recorded so
+#             it cannot be forgotten.  The test asserts it STILL FAILS; fixing the defect turns this
+#             line into a failure telling you to promote it to `convert`.
+arcee-dense.gguf.hdr 3944448 reject
+arctic-moe.gguf.hdr 8669440 reject
+baichuan-dense.gguf.hdr 4730752 reject
+bailingmoe-moe.gguf.hdr 9453824 reject
+bailingmoe2-moe.gguf.hdr 7087968 convert
+bloom-dense.gguf.hdr 3958272 reject
+chatglm-dense.gguf.hdr 4730624 reject
+codeshell-dense.gguf.hdr 3956480 reject
+cogvlm-dense.gguf.hdr 9181056 reject
+command-r-dense.gguf.hdr 4597632 reject
+dbrx-moe.gguf.hdr 7087744 reject
+deci-dense.gguf.hdr 4741248 reject
+deepseek-moe.gguf.hdr 7092288 reject
+deepseek2-moe.gguf.hdr 4403296 reject
+deepseek32-moe.gguf.hdr 4733152 reject
+dots1-moe.gguf.hdr 7094368 reject
+dream-dense.gguf.hdr 4731264 reject
+ernie4_5-moe-moe.gguf.hdr 5914528 convert
+ernie4_5-moe.gguf.hdr 4732800 reject
+exaone-dense.gguf.hdr 4731008 reject
+exaone4-dense.gguf.hdr 4733056 convert
+falcon-dense.gguf.hdr 3942912 reject
+falcon-h1-dense.gguf.hdr 8985152 reject
+gemma-dense.gguf.hdr 4599680 convert
+gemma2-dense.gguf.hdr 4603776 convert
+glm-dsa-moe.gguf.hdr 4733152 reject
+glm4-dense.gguf.hdr 4734720 reject
+glm4moe-moe.gguf.hdr 7094368 convert
+gpt-oss-moe.gguf.hdr 7112704 convert
+gpt2-dense.gguf.hdr 4087296 reject
+gptneox-dense.gguf.hdr 3956224 reject
+granite-dense.gguf.hdr 4741248 reject
+granite-moe.gguf.hdr 7096448 reject
+granitehybrid-dense.gguf.hdr 5810272 reject
+granitemoe-dense.gguf.hdr 4741248 reject
+granitemoe-moe.gguf.hdr 7096448 reject
+grok-moe.gguf.hdr 9457920 reject
+grovemoe-moe.gguf.hdr 8669056 reject
+hunyuan-dense-dense.gguf.hdr 4732800 convert
+hunyuan-moe-moe.gguf.hdr 9455872 convert
+hunyuan_vl-dense.gguf.hdr 4732800 reject
+hy_v3-moe.gguf.hdr 11815360 reject
+internlm2-dense.gguf.hdr 4730752 reject
+jais-dense.gguf.hdr 4745856 reject
+jais2-dense.gguf.hdr 3956480 broken
+jamba-dense.gguf.hdr 6061856 reject
+kimi-linear-moe.gguf.hdr 2833984 reject
+lfm2-dense.gguf.hdr 4731520 reject
+lfm2moe-moe.gguf.hdr 5913248 reject
+llada-dense.gguf.hdr 4735104 reject
+llada-moe-moe.gguf.hdr 7096192 reject
+llama-dense.gguf.hdr 4741248 convert
+llama-moe.gguf.hdr 7096448 convert
+llama4-moe.gguf.hdr 13921664 reject
+maincoder-dense.gguf.hdr 4732800 convert
+mamba-dense.gguf.hdr 5029120 reject
+mamba2-dense.gguf.hdr 4509120 reject
+minicpm-dense.gguf.hdr 4741248 convert
+minicpm-moe.gguf.hdr 7096448 convert
+minicpm3-dense.gguf.hdr 7616512 reject
+minimax-m2-moe.gguf.hdr 7098304 convert
+mistral3-dense.gguf.hdr 4741248 convert
+mistral3-moe.gguf.hdr 7096448 convert
+mistral4-moe.gguf.hdr 4403296 reject
+mpt-dense.gguf.hdr 4094464 reject
+nemotron-dense.gguf.hdr 3956480 reject
+nemotron_h-dense.gguf.hdr 4230240 reject
+nemotron_h_moe-dense.gguf.hdr 4230240 reject
+olmo-dense.gguf.hdr 4725632 reject
+olmoe-moe.gguf.hdr 7098240 convert
+openelm-dense.gguf.hdr 4595328 reject
+orion-dense.gguf.hdr 4735872 reject
+paddleocr-moe.gguf.hdr 4732800 reject
+pangu-embedded-dense.gguf.hdr 4733056 reject
+phi2-dense.gguf.hdr 3952896 reject
+phi3-dense.gguf.hdr 4731136 convert
+phimoe-moe.gguf.hdr 7102336 reject
+plamo-dense.gguf.hdr 4728704 reject
+plamo2-dense.gguf.hdr 5920096 reject
+qwen-dense.gguf.hdr 3550848 reject
+qwen2-dense.gguf.hdr 4731264 convert
+qwen2moe-moe.gguf.hdr 9455872 reject
+qwen2vl-dense.gguf.hdr 4731264 reject
+qwen3-dense.gguf.hdr 4733824 convert
+qwen35-dense.gguf.hdr 5271040 convert
+qwen35moe-moe.gguf.hdr 9995904 reject
+qwen3moe-moe.gguf.hdr 7096192 convert
+qwen3next-moe.gguf.hdr 11044416 reject
+qwen3vl-dense.gguf.hdr 4733824 reject
+qwen3vlmoe-moe.gguf.hdr 7096192 reject
+refact-dense.gguf.hdr 4741248 reject
+refact-moe.gguf.hdr 7096448 reject
+rnd1-moe.gguf.hdr 7096192 reject
+seed_oss-dense.gguf.hdr 4730752 reject
+smallthinker-moe.gguf.hdr 7094144 reject
+smollm3-dense.gguf.hdr 4730752 convert
+stablelm-dense.gguf.hdr 4739968 reject
+starcoder-dense.gguf.hdr 4087296 reject
+starcoder2-dense.gguf.hdr 3956480 reject
+talkie-dense.gguf.hdr 4725760 reject
+xverse-dense.gguf.hdr 4730752 reject

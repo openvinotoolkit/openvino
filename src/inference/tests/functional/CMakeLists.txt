@@ -41,7 +41,25 @@ endif()
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/caching_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/get_supported_property_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/import_model.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/local_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/matmul_sr_tests.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_compiled_model_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_core_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_core_threading.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_extension_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_extension_test.hpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_infer_request_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_register_plugin_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_remote_context_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_remote_tensor.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_shared_object_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_variable_state_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/skip_tests_config.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/task_executor_tests.cpp
         DEPENDENCIES
             ${DEPENDENCIES}
         LINK_LIBRARIES
@@ -56,6 +74,7 @@ ov_add_test_target(
         ADD_CLANG_FORMAT
         LABELS
             OV UNIT RUNTIME
+        CHECK_SOURCES_LISTED
 )
 
 ov_set_threading_interface_for(${TARGET_NAME})

@@ -5,7 +5,7 @@
 #pragma once
 
 #include <memory>
-#include <optional>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -29,10 +29,12 @@ public:
     OPENVINO_MODEL_PASS_RTTI("RepackMatMulWeights");
     RepackMatMulWeights(GraphContext::CPtr context,
                         ov::intel_cpu::InputRepackerMap& input_repackers,
-                        std::vector<MemoryPtr>& src_mem_ptrs)
+                        std::vector<MemoryPtr>& src_mem_ptrs,
+                        std::set<size_t> compile_time_repacking_idxs)
         : m_context(std::move(context)),
           m_input_repackers(input_repackers),
-          m_src_mem_ptrs(src_mem_ptrs) {}
+          m_src_mem_ptrs(src_mem_ptrs),
+          m_compile_time_repacking_idxs(std::move(compile_time_repacking_idxs)) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
@@ -58,18 +60,16 @@ protected:
      * @param source Logical weights shape and layout after CopyB extraction. When extraction inserts a graph Reorder,
      * this metadata is not recoverable from @p orig_src_mem_ptr alone.
      * @param orig_src_mem_ptr Original constant weights memory buffer.
-     * @return Repacked weights memory with its CPU descriptor, or std::nullopt when this consumer cannot be repacked.
+     * @return Repacked weights memory with its CPU descriptor.
      */
-    [[nodiscard]] virtual std::optional<RepackedMatMulWeights> repack(const std::shared_ptr<ov::Node>& consumer,
-                                                                      const MatMulWeightsSource& source,
-                                                                      const MemoryPtr& orig_src_mem_ptr) = 0;
-    [[nodiscard]] virtual bool supports_runtime_repacking() const {
-        return true;
-    }
+    [[nodiscard]] virtual RepackedMatMulWeights repack(const std::shared_ptr<ov::Node>& consumer,
+                                                       const MatMulWeightsSource& source,
+                                                       const MemoryPtr& orig_src_mem_ptr) = 0;
 
     const GraphContext::CPtr m_context;
     ov::intel_cpu::InputRepackerMap& m_input_repackers;
     std::vector<MemoryPtr>& m_src_mem_ptrs;
+    const std::set<size_t> m_compile_time_repacking_idxs;
 };
 
 }  // namespace ov::intel_cpu::pass

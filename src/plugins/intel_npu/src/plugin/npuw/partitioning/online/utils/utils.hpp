@@ -109,7 +109,8 @@ static const std::map<std::string, std::string> ISOL_PRESETS = {
      "P:QuantizedSDPAWithGlobalMask/attn,P:GQA/attn,P:SDPACompressed/attn"},
     {"MOE",
      "P:GPTOSSExpert/expert,P:GPTOSSRouter/router,"
-     "P:Qwen3Expert/expert,P:Qwen3Router/router"}};
+     "P:Qwen3Expert/expert,P:Qwen3Router/router,"
+     "P:Gemma4Expert/expert,P:Gemma4Router/router"}};
 }  // namespace util
 
 }  // namespace online

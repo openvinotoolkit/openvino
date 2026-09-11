@@ -4,7 +4,7 @@
 
 #include "jit_gemm_copy_b_emitter.hpp"
 
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#include <xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
@@ -12,7 +12,6 @@
 #include <cstdint>
 #include <memory>
 #include <set>
-#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -25,6 +24,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
@@ -53,6 +53,9 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(
     } else if (input_prc == element::f32) {
         m_kernel_executor =
             kernel_table->register_kernel<GemmCopyBF32KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
+    } else if (input_prc == element::i8) {
+        m_kernel_executor =
+            kernel_table->register_kernel<GemmCopyBI8KaiKernelExecutor>(expr, GemmCopyBKernelKaiConfig());
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unexpected precision for GemmCopyB executor: ", input_prc);
     }
@@ -71,6 +74,9 @@ std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_prec
     std::set<std::vector<element::Type>> result{{element::f32}};
     if (ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         result.insert({element::f16});
+    }
+    if (ov::with_cpu_arm_dotprod() || ov::with_cpu_arm_i8mm()) {
+        result.insert({element::i8});
     }
     return result;
 }
@@ -100,8 +106,8 @@ void jit_gemm_copy_b_emitter::emit_call(const std::shared_ptr<ExecutorT>& kernel
                                         const std::vector<size_t>& mem_ptrs_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(kernel_executor, "GemmCopyB executor is not initialized");
 
-    std::unordered_set<size_t> exclude_spill = {};
-    store_context(exclude_spill);
+    EmitABIRegSpills spill(h);
+    spill.preamble(get_regs_to_spill());
 
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
@@ -132,7 +138,7 @@ void jit_gemm_copy_b_emitter::emit_call(const std::shared_ptr<ExecutorT>& kernel
     h->mov(call_address_reg, reinterpret_cast<uintptr_t>(ExecutorT::execute));
     h->blr(call_address_reg);
 
-    restore_context(exclude_spill);
+    spill.postamble();
 }
 
 bool jit_gemm_copy_b_emitter::is_f16_executor() const {

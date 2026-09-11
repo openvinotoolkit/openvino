@@ -360,6 +360,9 @@ float16 __attribute__((overloadable)) _convert_float16(fp8e8m0_t16 val) {
     );
 }
 
+fp8e5m2_t __attribute__((overloadable)) _convert_fp8e5m2_t(fp8e5m2_t val) {
+    return val;
+}
 fp8e5m2_t __attribute__((overloadable)) _convert_fp8e5m2_t(float val) {
     fp8e5m2_t res;
     res.data = _intel_convert_f16_to_bf8((half)val);
@@ -616,6 +619,9 @@ fp8e5m2_t16 __attribute__((overloadable)) _convert_fp8e5m2_t16_sat(half16 val) {
     return res;
 }
 
+fp8e4m3_t __attribute__((overloadable)) _convert_fp8e4m3_t(fp8e4m3_t val) {
+    return val;
+}
 fp8e4m3_t __attribute__((overloadable)) _convert_fp8e4m3_t(float val) {
     fp8e4m3_t res;
     res.data = _intel_convert_f16_to_hf8((half)val);

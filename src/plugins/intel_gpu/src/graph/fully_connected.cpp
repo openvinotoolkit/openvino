@@ -47,14 +47,16 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
     auto input_layout = impl_param.get_input_layout();
 
     // for 3d output we have to chose bfyx format
-    if (impl_param.typed_desc<fully_connected>()->input_size == 3)
+    if (impl_param.typed_desc<fully_connected>()->input_size == 3) {
         return format::bfyx;
+    }
 
     if (data_type_traits::is_floating_point(input_layout.data_type) &&
         (is_batch_after_spatial(input_layout.format.order()) ||
          input_layout.format == format::bs_f_bsv16 ||
-         input_layout.format == format::bs_fs_fsv8_bsv8))
+         input_layout.format == format::bs_fs_fsv8_bsv8)) {
         return format::yxfb;
+    }
 
     bool no_spatial_padding = true;
     // C++ 11 range loop shouldn't be used here because of incorrect iterator functionality in mutable_array_ref<>
@@ -68,16 +70,18 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
     if (input_layout.data_type == data_types::f32 &&
         one_of<cldnn::format>(input_layout.format, {format::bfyx, format::bfzyx, format::bfwzyx}) &&
         no_spatial_padding &&
-        input_layout.batch() != 8)
+        input_layout.batch() != 8) {
         return input_layout.format;
+    }
 
     auto input_pitches = input_layout.get_pitches();
     if (input_layout.data_type == data_types::f16 &&
         (input_layout.format == format::bfyx || input_layout.format == format::bfzyx || input_layout.format == format::bfwzyx) &&
         no_spatial_padding &&
         input_pitches[0] % 2 == 0 &&
-        input_layout.batch() != 16)
+        input_layout.batch() != 16) {
         return input_layout.format;
+    }
 
     // this condition tests whether our input is batch>1 in bfyx format, if yes there will be
     // extra reorder between input and this fc from bfyx to yxfb format (so
@@ -86,8 +90,9 @@ format::type get_preferred_format(fully_connected_node const& node, const kernel
         input_layout.format == format::bfyx &&
         input_layout.batch() > 1 &&
         input_pitches[2] == 1 &&
-        input_pitches[3] == 1)
+        input_pitches[3] == 1) {
         return format::yxfb;
+    }
 
     return format::bfyx;
 }
@@ -102,8 +107,9 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
     auto weights_layout = *impl_param.weights_layout;
     auto weights_pshape = weights_layout.get_partial_shape();
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0])
+    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0]) {
         output_type = *desc->output_data_types[0];
+    }
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
@@ -115,10 +121,11 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         auto staticShape = shape.to_shape();
         size_t total = std::accumulate(staticShape.begin(), staticShape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
         std::vector<int64_t> reshapeSize;
-        if (desc->weights_transposed)
+        if (desc->weights_transposed) {
             reshapeSize = { static_cast<int64_t>(total) / feature, feature };
-        else
+        } else {
             reshapeSize = { feature, static_cast<int64_t>(total) / feature };
+        }
         return reshapeSize;
     };
 
@@ -131,10 +138,24 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
 
     if (weights_pshape.size() != 2) {
         // Detect 3D weights being passed to oneDNN
-        if (supports_immad && weights_pshape.size() == 4 && weights_layout.batch() > 1 && weights_layout.spatial(1) == feature) {
+        if (supports_immad && desc->weights_rank == 3 && weights_pshape.size() == 4 &&
+            weights_layout.batch() > 1 && weights_layout.spatial(1) == feature) {
             return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
-        } else {
-            weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+        }
+        weights_layout.set_partial_shape(reshape_to_2d(weights_pshape, feature));
+    }
+
+    format output_format = get_preferred_format(node, impl_param);
+
+    const auto& fused_prims = node.get_fused_primitives();
+    for (const auto& f : fused_prims) {
+        if (f.is_type<swiglu>()) {
+            OPENVINO_ASSERT(fused_prims.size() == 1, "[GPU] Other operation is fused in addition to swiglu!");
+            OPENVINO_ASSERT(fused_prims[0].typed_desc<swiglu>()->glu_type == ov::op::internal::GLU::GluType::Swish);
+            ov::PartialShape out_pshape = f.output_layout.get_partial_shape();
+            GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " fused with swiglu so override with its output layout: " << out_pshape.to_string()
+                                    << std::endl;
+            return layout(out_pshape, output_type, output_format);
         }
     }
 
@@ -152,13 +173,11 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
                           input_layout.spatial(2), input_layout.spatial(1), out_features};
         }
 
-        format output_format = get_preferred_format(node, impl_param);
-
         return layout(out_pshape, output_type, output_format);
-    } else {
-        if (desc->input_size > 5) {
-            input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
-        }
+    }
+    if (desc->input_size > 5) {
+        input_layout.set_partial_shape(reshape_to_2d(input_pshape, feature));
+    }
 
         auto out_features = desc->weights_transposed ? weights_layout.batch() : weights_layout.feature();
         auto output_size = tensor(input_layout.batch(), out_features, 1, 1);
@@ -170,10 +189,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
             output_size = tensor(input_layout.batch(), input_layout.feature(), out_features, input_layout.spatial(1), input_layout.spatial(2));
         }
 
-        format output_format = get_preferred_format(node, impl_param);
-
         return layout(output_type, output_format, output_size);
-    }
 }
 
 template<typename ShapeType>
@@ -183,8 +199,9 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     auto weights_layout = *impl_param.weights_layout;
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0])
+    if (data_type_traits::is_i8_u8(input_layout.data_type) && desc->output_data_types[0]) {
         output_type = *desc->output_data_types[0];
+    }
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
@@ -199,7 +216,7 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
 
     std::vector<ShapeType> output_shapes = ov::op::v0::shape_infer(&matmul_op, input_shapes);
     bool has_swiglu = false;
-    auto& fused_prims = node.get_fused_primitives();
+    const auto& fused_prims = node.get_fused_primitives();
     for (auto f : fused_prims) {
         if (f.is_type<swiglu>()) {
             has_swiglu = true;
@@ -222,8 +239,9 @@ std::vector<layout> fully_connected_inst::calc_output_layouts(fully_connected_no
     format::type output_format = is_static && !allow_new_shape_infer ? get_preferred_format(node, impl_param) :
                                               input_layout.format.value;
 
-    if (node.get_preferred_output_fmt() != format::any)
+    if (node.get_preferred_output_fmt() != format::any) {
         output_format = node.get_preferred_output_fmt();
+    }
 
     return { layout{output_shapes[0], output_type, output_format} };
 }
@@ -245,15 +263,17 @@ kernel_impl_params fully_connected_inst::get_fake_aligned_params(kernel_impl_par
 
     // Allow padding only for feature and outermost dimmension
     auto can_apply_fake_alignment = true;
-    if (input_shape.size() == 3)
+    if (input_shape.size() == 3) {
         can_apply_fake_alignment &= orig_input_layout.data_padding._lower_size[1] == 0 &&
                                     orig_input_layout.data_padding._upper_size[1] == 0;
+    }
 
-    if (output_shape.size() == 3)
+    if (output_shape.size() == 3) {
         can_apply_fake_alignment &= orig_output_layout.data_padding._lower_size[1] == 0 &&
                                     orig_output_layout.data_padding._upper_size[1] == 0;
+    }
 
-    for (auto& fused_desc : orig_impl_param.fused_desc) {
+    for (const auto& fused_desc : orig_impl_param.fused_desc) {
         if (fused_desc.has_outer_dep()) {
             auto fused_op_input_layout = orig_impl_param.input_layouts[fused_desc.outer_dep_start_idx];
             // Check fused desc's input is still dynamic, then do not fake alignment
@@ -374,8 +394,9 @@ std::string fully_connected_inst::to_string(fully_connected_node const& node) {
 }
 
 bool fully_connected_inst::can_apply_single_batch_optimization(const kernel_impl_params& impl_param) {
-    if (impl_param.output_layouts.empty() || impl_param.output_layouts[0].is_dynamic())
+    if (impl_param.output_layouts.empty() || impl_param.output_layouts[0].is_dynamic()) {
         return false;
+    }
 
     // Only support i4/u4 weight so far
     if (impl_param.weights_layout) {
@@ -386,10 +407,11 @@ bool fully_connected_inst::can_apply_single_batch_optimization(const kernel_impl
     }
 
     // Don't support swiglu fused
-    if (impl_param.fused_desc.size() > 0) {
+    if (!impl_param.fused_desc.empty()) {
         for (const auto& f : impl_param.fused_desc) {
-            if (f.is_type<swiglu>())
+            if (f.is_type<swiglu>()) {
                 return false;
+            }
         }
     }
 
