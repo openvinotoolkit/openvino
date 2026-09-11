@@ -17,11 +17,16 @@ NamedOutputs argmin(const NodeContext& node) {
 
     if (!flatten) {
         auto axis = node.get_attribute<int64_t>("axis");
-        const auto axis_to_remove = ov::opset6::Constant::create(element::u64, Shape{}, {axis});
         auto node_topk = std::make_shared<ov::opset6::TopK>(data, k, axis, "min", "index", dtype);
-        const auto reshaped_indices = std::make_shared<ov::opset6::Squeeze>(node_topk->output(1), axis_to_remove);
-        return node.default_single_output_mapping({std::make_shared<ov::opset6::Convert>(reshaped_indices, dtype)},
-                                                  {"Out"});
+        auto result = node_topk->output(1);
+        // Paddle drops the reduced axis only when keepdims is false; with keepdims == true the
+        // TopK index output already keeps the axis (size k==1) at the correct position, so the
+        // Squeeze must be skipped.
+        if (!node.get_attribute<bool>("keepdims", false)) {
+            const auto axis_to_remove = ov::opset6::Constant::create(element::u64, Shape{}, {axis});
+            result = std::make_shared<ov::opset6::Squeeze>(result, axis_to_remove);
+        }
+        return node.default_single_output_mapping({std::make_shared<ov::opset6::Convert>(result, dtype)}, {"Out"});
     } else {
         int64_t axis = 0;
         const Output<ov::Node> reshape_flatten = ov::opset6::Constant::create(ov::element::i64, {1}, {-1});
