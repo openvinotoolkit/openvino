@@ -374,8 +374,7 @@ bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_met
             (*cache)[full_path] = mapped_memory;
         }
         tensor_meta_info.m_is_raw = true;
-        tensor_meta_info.m_tensor_data =
-            static_cast<uint8_t*>(static_cast<void*>(mapped_memory->data() + ext_data_offset));
+        tensor_meta_info.m_tensor_data = mapped_memory->data_as<uint8_t>() + ext_data_offset;
         tensor_meta_info.m_tensor_data_size = resolved_data_length;
         return true;
     } else if (memory_mode == External_Stream) {
