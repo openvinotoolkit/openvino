@@ -82,6 +82,7 @@ set(REFERENCE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/bitwise_or.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/bitwise_right_shift.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/bitwise_xor.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/block_sparse_attention.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/broadcast.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/bucketize.hpp
     ${CMAKE_CURRENT_LIST_DIR}/include/openvino/reference/ceiling.hpp
