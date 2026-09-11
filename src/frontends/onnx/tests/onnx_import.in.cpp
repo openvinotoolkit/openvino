@@ -2075,6 +2075,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_resize11_down_scales_linear_asymmetric) {
     test_case.run_with_tolerance_as_fp();
 }
 
+// Test that Resize correctly handles negative axes (e.g. axes=[-2,-1] equivalent to axes=[2,3] for rank-4 input)
+OPENVINO_TEST(${BACKEND_NAME}, onnx_resize11_negative_axes) {
+    const auto model = convert_model("resize11_negative_axes.onnx");
+
+    // Input shape [1,1,2,2], scales=[2.0,2.0] on axes [-2,-1] => output [1,1,4,4]
+    const Shape expected_output_shape{1, 1, 4, 4};
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>({1.0f, 2.0f, 3.0f, 4.0f});
+    test_case.add_expected_output<float>(
+        expected_output_shape,
+        {1.0f, 1.0f, 2.0f, 2.0f, 1.0f, 1.0f, 2.0f, 2.0f, 3.0f, 3.0f, 4.0f, 4.0f, 3.0f, 3.0f, 4.0f, 4.0f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes) {
     const auto model = convert_model("resize11_scales_nearest_asymmetric_floor_dynamic_scales.onnx");
 
