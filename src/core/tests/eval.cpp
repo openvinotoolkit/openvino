@@ -111,6 +111,95 @@ TEST(eval, evaluate_shape_of) {
     ASSERT_EQ(result_shape, arg_shape);
 }
 
+// Regression test: casting NaN/+-Inf float constants to an integral type is C++ UB
+// ([conv.fpint]). This op::v0::Convert::evaluate() path dispatches through element
+// iterators to the reference::convert(InputIt, OutputIt, count) overload, which always
+// resolves to the scalar ov::reference::detail::convert<TI, TO>() cast -- including for
+// destination types (e.g. i32/i16/i64) that have no vectorized JIT kernel. NaN has no
+// ordering and maps to 0; +-Inf saturate to the destination type's min/max.
+TEST(eval, evaluate_convert_f32_nan_inf_to_i32_no_ub) {
+    auto p = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{4});
+    auto convert = make_shared<op::v0::Convert>(p, element::i32);
+    auto model = make_shared<Model>(OutputVector{convert}, ParameterVector{p});
+
+    const float nan_v = std::numeric_limits<float>::quiet_NaN();
+    const float pos_inf = std::numeric_limits<float>::infinity();
+    const float neg_inf = -std::numeric_limits<float>::infinity();
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{4}, {nan_v, pos_inf, neg_inf, 7.0f})};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+    EXPECT_EQ(result.get_element_type(), element::i32);
+    EXPECT_EQ(result.get_shape(), (Shape{4}));
+
+    auto result_val = read_vector<int32_t>(result);
+    EXPECT_EQ(result_val[0], 0);                                    // NaN -> 0
+    EXPECT_EQ(result_val[1], std::numeric_limits<int32_t>::max());  // +Inf -> saturate to max
+    EXPECT_EQ(result_val[2], std::numeric_limits<int32_t>::min());  // -Inf -> saturate to min
+    EXPECT_EQ(result_val[3], 7);                                    // finite in-range value converts normally
+}
+
+// Regression test: [conv.fpint] UB is not limited to NaN/Inf -- a *finite* float value
+// that doesn't fit in the destination integral type (e.g. 1e20f -> i32, or 300.0f -> i8)
+// is equally undefined behaviour. reference::detail::convert<TI, TO>() must saturate such
+// values to the destination type's min/max instead of casting them directly.
+TEST(eval, evaluate_convert_f32_out_of_range_to_i8_saturates) {
+    auto p = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{4});
+    auto convert = make_shared<op::v0::Convert>(p, element::i8);
+    auto model = make_shared<Model>(OutputVector{convert}, ParameterVector{p});
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{make_tensor<element::Type_t::f32>(Shape{4}, {300.0f, -300.0f, 1e20f, 100.0f})};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+    EXPECT_EQ(result.get_element_type(), element::i8);
+    EXPECT_EQ(result.get_shape(), (Shape{4}));
+
+    auto result_val = read_vector<int8_t>(result);
+    EXPECT_EQ(result_val[0], std::numeric_limits<int8_t>::max());  // 300 overflows i8 -> saturate to max
+    EXPECT_EQ(result_val[1], std::numeric_limits<int8_t>::min());  // -300 underflows i8 -> saturate to min
+    EXPECT_EQ(result_val[2], std::numeric_limits<int8_t>::max());  // 1e20 grossly overflows -> saturate to max
+    EXPECT_EQ(result_val[3], 100);                                 // finite in-range value converts normally
+}
+
+// Regression test for reference::convert<float16, int8_t> (src/core/reference/src/op/convert.cpp):
+// this specialization bypasses detail::convert entirely on machines with the AVX2/FP16 JIT path
+// available, via jit_convert_vec<float16, int8_t> -- an unguarded truncating cast with no range
+// check. Also exercises the NaN path through Clamp<float16, int8_t>::apply, which requires
+// float16 to be treated as floating-point-like by detail::convert's SFINAE (float16 is a class
+// type with an implicit operator float(), not std::is_floating_point).
+TEST(eval, evaluate_convert_f16_out_of_range_to_i8_saturates) {
+    auto p = make_shared<ov::op::v0::Parameter>(element::f16, PartialShape{5});
+    auto convert = make_shared<op::v0::Convert>(p, element::i8);
+    auto model = make_shared<Model>(OutputVector{convert}, ParameterVector{p});
+
+    const float16 nan_v = std::numeric_limits<float16>::quiet_NaN();
+    const float16 pos_inf = std::numeric_limits<float16>::infinity();
+    const float16 neg_inf = -std::numeric_limits<float16>::infinity();
+
+    auto result = ov::Tensor();
+    auto out_vector = ov::TensorVector{result};
+    auto in_vector = ov::TensorVector{
+        make_tensor<element::Type_t::f16>(Shape{5}, {nan_v, pos_inf, neg_inf, float16(300.0f), float16(100.0f)})};
+
+    ASSERT_TRUE(model->evaluate(out_vector, in_vector));
+    result = out_vector.at(0);
+    EXPECT_EQ(result.get_element_type(), element::i8);
+    EXPECT_EQ(result.get_shape(), (Shape{5}));
+
+    auto result_val = read_vector<int8_t>(result);
+    EXPECT_EQ(result_val[0], 0);                                   // NaN -> 0
+    EXPECT_EQ(result_val[1], std::numeric_limits<int8_t>::max());  // +Inf -> saturate to max
+    EXPECT_EQ(result_val[2], std::numeric_limits<int8_t>::min());  // -Inf -> saturate to min
+    EXPECT_EQ(result_val[3], std::numeric_limits<int8_t>::max());  // 300 overflows i8 -> saturate to max
+    EXPECT_EQ(result_val[4], 100);                                 // finite in-range value converts normally
+}
+
 TEST(eval, evaluate_dynamic_range_sum) {
     auto p_start = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{});
     auto p_stop = make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{});

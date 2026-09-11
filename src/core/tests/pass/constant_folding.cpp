@@ -651,13 +651,19 @@ TEST(constant_folding, const_convert) {
         test_const_convert<element::u8, element::f32>(in, expected);
     }
     {
+        // -300 and 128 are outside int8_t's range: casting them is undefined behaviour
+        // ([conv.fpint]), so reference::detail::convert() saturates to int8_t's min/max
+        // instead of relying on whatever wraparound a given compiler/platform happens to
+        // produce for the UB cast.
         vector<float> in{-300, -128, -1, 0, 33, 127, 128};
-        vector<int8_t> expected{-44, -128, -1, 0, 33, 127, -128};
+        vector<int8_t> expected{-128, -128, -1, 0, 33, 127, 127};
         test_const_convert<element::f32, element::i8>(in, expected);
     }
     {
+        // 256 is outside uint8_t's range: same UB as above, saturates to uint8_t's max
+        // instead of wrapping around to 0.
         vector<float> in{0, 33, 127, 255, 256};
-        vector<uint8_t> expected{0, 33, 127, 255, 0};
+        vector<uint8_t> expected{0, 33, 127, 255, 255};
         test_const_convert<element::f32, element::u8>(in, expected);
     }
 }
