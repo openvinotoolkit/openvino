@@ -59,6 +59,7 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
         torch.float32: Type.f32,
         torch.float64: Type.f64,
         torch.float16: Type.f16,
+        torch.bfloat16: Type.bf16,
         torch.int64: Type.i64,
         torch.int32: Type.i32,
         torch.uint8: Type.u8,
@@ -128,6 +129,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.float32: Type.f32,
         torch.float64: Type.f64,
         torch.float16: Type.f16,
+        torch.bfloat16: Type.bf16,
         torch.int64: Type.i64,
         torch.int32: Type.i32,
         torch.uint8: Type.u8,
@@ -140,12 +142,21 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     # dimension they denote (which needs gm, for the FX symbol metadata). The
     # hook returns False for non-vLLM graphs, in which case we fall through
     # to the upstream loop below.
+    # Only an ImportError is recoverable here. Once apply_input_shapes starts
+    # it removes the int Parameters from `om`, so om.inputs is no longer 1:1
+    # with args -- falling through to the upstream loop below would then write
+    # each arg's shape onto whichever Parameter now sits at that index,
+    # including the appended __pa__ side-channel ones. The resulting model
+    # fails validation far away from the real cause (e.g. "Rank of
+    # `value_cache` input should be in [dynamic,2,3,4,5], but it is 1"). Let
+    # real failures surface instead.
     _shaped = False
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
-        _shaped = _vh.apply_input_shapes(om, args, options, gm=gm)
-    except Exception as _ee:
+    except ImportError as _ee:
         logger.debug("vllm.apply_input_shapes skipped: %s", _ee)
+    else:
+        _shaped = _vh.apply_input_shapes(om, args, options, gm=gm)
 
     if not _shaped:
         for idx, input_data in enumerate(args):
@@ -166,9 +177,11 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
     # vLLM-specific OV-config defaults (KV cache precision, FC dynamic-
     # quantization group, narrow-float GEMM hint). No-op on non-CPU devices.
+    # `om` is passed so the float precisions can be derived from the model's own
+    # dtype rather than pinned; see compile_hooks.model_float_precision.
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
-        _vh.apply_post_config(config, device, options)
+        _vh.apply_post_config(config, device, options, om=om)
     except Exception as _ee:
         logger.debug("vllm.apply_post_config skipped: %s", _ee)
 

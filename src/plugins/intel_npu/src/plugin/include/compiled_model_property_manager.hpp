@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <map>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -13,14 +13,18 @@
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
+#include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "property_registration.hpp"
 
 namespace intel_npu {
 
-class CompiledModelPropertyManager final {
+class CompiledModelPropertyManager final : private PropertyRegistrationBase {
 public:
     CompiledModelPropertyManager(const FilteredConfig& config,
+                                 const ov::AnyMap& properties,
+                                 const std::shared_ptr<IDevice>& device,
                                  const std::shared_ptr<IGraph>& graph,
                                  const std::optional<int64_t>& batchSize,
                                  Logger& logger);
@@ -28,21 +32,17 @@ public:
     void setProperty(const ov::AnyMap& properties);
     ov::Any getProperty(const std::string& name) const;
 
-    const FilteredConfig& getConfig() const {
-        return _config;
-    }
+    FilteredConfig getConfig() const;
 
 private:
     void registerProperties();
 
     FilteredConfig _config;
 
+    const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;
     std::optional<int64_t> _batchSize;
     Logger& _logger;
-
-    std::map<std::string, PropertyDescriptor> _properties;
-    std::vector<ov::PropertyName> _supportedProperties;
 
     mutable std::mutex _mutex;
 };

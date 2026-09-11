@@ -108,10 +108,10 @@ def _structural_key(gm, args, options=None):
             if n.op == "placeholder":
                 node_id[n] = f"ph{ph_i}"
                 ph_i += 1
-                parts.append(f"placeholder")
+                parts.append("placeholder")
                 continue
             # node target (stable)
-            t = str(n.target) if hasattr(n, 'target') else str(n.op)
+            t = str(n.target) if hasattr(n, "target") else str(n.op)
             # input edge descriptor: refer by node_id if known, else by op
             arg_descs = []
             for a in n.args:
@@ -162,13 +162,41 @@ def execute(
 import numpy as np
 
 
+def _torch_to_numpy(t):
+    """Hand a torch tensor to OV as numpy, preserving bf16.
+
+    `t.numpy()` raises "Got unsupported ScalarType BFloat16" because numpy has
+    no bfloat16 dtype. OV's Python bindings represent a bf16 buffer as a numpy
+    float16 array of the same 2-byte elements (see pyopenvino common.cpp), so
+    re-tag the bits as float16 and pass those through. The OV Parameter is
+    declared bf16, so the bytes land in the right place. `view` is zero-copy;
+    it renames the dtype without touching the data. Inverse of
+    _ov_result_to_torch.
+    """
+    if t.dtype == torch.bfloat16:
+        return t.view(torch.float16).numpy()
+    return t.numpy()
+
+
+def _ov_result_to_torch(res, port):
+    """Rebuild a torch tensor from an OV output, undoing the bf16 re-tag.
+
+    A bf16 output arrives as numpy float16 for the reason above, so consult
+    the port's declared element type rather than the array dtype -- otherwise
+    a genuine bf16 result silently becomes f16 and every downstream op runs at
+    the wrong precision.
+    """
+    t = torch.from_numpy(res[port])
+    if port.get_element_type() == Type.bf16 and t.dtype == torch.float16:
+        t = t.view(torch.bfloat16)
+    return t
 
 
 def execute_cached(compiled_model, *args):
-    ov_inputs = [a.detach().cpu().numpy() for a in args]
+    ov_inputs = [_torch_to_numpy(a.detach().cpu()) for a in args]
     ov_inputs.reverse()
     res = compiled_model(ov_inputs)
-    result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
+    result = [_ov_result_to_torch(res, out) for out in compiled_model.outputs]
     return result
 
 
@@ -262,7 +290,7 @@ def openvino_execute(
         t = arg.detach()
         if not t.is_contiguous():
             t = t.contiguous()
-        ov_inputs.append(t.numpy())
+        ov_inputs.append(_torch_to_numpy(t))
 
     # vLLM PagedAttention side-channel: delegate to the vllm runtime hook.
     # Returns None on non-PA graphs (fall through to positional infer),
@@ -283,7 +311,7 @@ def openvino_execute(
     if res is None:
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
 
-    results1 = [torch.from_numpy(res[out]) for out in compiled.outputs]
+    results1 = [_ov_result_to_torch(res, out) for out in compiled.outputs]
     if len(results1) == 1:
         return results1[0]
     return results1

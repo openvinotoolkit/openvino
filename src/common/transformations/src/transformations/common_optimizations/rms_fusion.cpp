@@ -141,7 +141,14 @@ RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert, bool enable_without_
         }
 
         auto mul_or_div_node = pattern_map.at(mul_or_div).get_node_shared_ptr();
-        bool elementwise_affine = pattern_map.count(rms_mul);
+        // Key off gamma itself, not rms_mul: under enable_without_gamma rms_mul
+        // is an Or, which lands in the map whenever any of its three branches
+        // matched -- including the two that carry no gamma (the bare
+        // mul_or_div form, and Multiply(mul_or_div, dynamic_scale)). Keying off
+        // the Or made at(gamma) below throw map::at for those. In practice the
+        // Constant-gamma branch matches first, so this only surfaced once gamma
+        // arrived as a Parameter rather than a Constant (vLLM bf16 weights).
+        bool elementwise_affine = pattern_map.count(gamma);
 
         std::shared_ptr<ov::Node> gamma_node;
         if (elementwise_affine) {

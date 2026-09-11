@@ -147,7 +147,6 @@ public:
         const DequantizationOperations::Convert& convert2,
         const DequantizationOperations& dequantization2,
         const std::vector<ov::Any>& concatAttributes,
-        const ov::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationAfter,
         const std::int64_t& axis,
         const bool addNotPrecisionPreservedOperation = false);
@@ -165,7 +164,6 @@ public:
         const DequantizationOperations& dequantization2,
         const bool addReshape2,
         const std::vector<ov::Any>& concatAttributes,
-        const ov::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationAfter,
         const std::int64_t& axis,
         const bool addNotPrecisionPreservedOperation = false);
@@ -178,7 +176,6 @@ public:
         const FakeQuantizeOnData& fqOnData3,
         const ov::element::Type precisionBeforeOp,
         const DequantizationOperations& dequantizationBefore,
-        const ov::element::Type precisionAfterOperation,
         const DequantizationOperations& dequantizationOperations1,
         const DequantizationOperations& dequantizationOperations2,
         const std::string& neighborType,
@@ -215,7 +212,6 @@ public:
         const ov::PartialShape& inputShape,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
-        const ov::element::Type precisionBeforeOp,
         const DequantizationOperations& dequantizationBefore1,
         const DequantizationOperations& dequantizationBefore2,
         const ov::element::Type precisionAfterOperation,
@@ -243,7 +239,6 @@ public:
         const FakeQuantizeOnData& fq2,
         const DequantizationOperations& deqBefore,
         const ov::element::Type precisionBeforeConcat,
-        const ov::element::Type precisionAfterConcat,
         const bool ssBeforeConcat,
         const bool ssAfterConcat,
         const DequantizationOperations& deqAfter1,
@@ -252,7 +247,6 @@ public:
     static std::shared_ptr<ov::Model> getReferenceWithDifferentPrecisionOnChildren(
         const ov::element::Type precision,
         const ov::PartialShape& inputShape,
-        const bool multiChannel,
         const std::int64_t axis,
         const FakeQuantizeOnData& fqOnData1,
         const FakeQuantizeOnData& fqOnData2,
@@ -272,8 +266,7 @@ public:
         const ov::element::Type precisionBeforeOp,
         const DequantizationOperations& dequantizationBefore,
         const ov::element::Type precisionAfterOperation,
-        const DequantizationOperations& dequantizationAfter,
-        const ov::element::Type precisionAfterDequantization);
+        const DequantizationOperations& dequantizationAfter);
 
     static std::shared_ptr<ov::Model> getReferenceWithReshapeAtTheEndTransformation(
         const ov::element::Type precision,

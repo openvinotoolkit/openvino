@@ -4,19 +4,14 @@
 
 """vLLM PagedAttention integration for the OV torchdynamo backend.
 
-This module:
-  1. Registers a custom torch op `openvino::paged_attention(q, k, v, layer_name)`
-     that delegates at runtime to vLLM's `unified_attention_with_output`.
-     Its Python impl is the torch-fallback path.
-  2. Provides an FX pre-pass `rewrite_unified_attention_to_paged_attention(gm)`
-     that replaces `auto_functionalized_v2(unified_attention_with_output, ...)`
-     call sites with calls to the custom op above. This turns attention from
-     an untranslatable HOP into an OV-translatable op, enabling the partitioner
-     to keep the attention call inside an OV partition.
+Registers a custom torch op `openvino::paged_attention(q, k, v, layer_name)`
+whose Python impl delegates to vLLM's `unified_attention_with_output`, plus an
+FX pre-pass that rewrites `auto_functionalized_v2(unified_attention_with_output)`
+call sites into it. That turns attention from an untranslatable HOP into an
+op the partitioner can keep inside an OV partition.
 
-The OV frontend emits a PagedAttentionExtension for this op (see C++ translator)
-and the execute-time binding in execute.py fills the KV cache / block tables /
-past_lens etc. from vllm.forward_context.get_forward_context().
+The C++ translator emits a PagedAttentionExtension for the op; side_channel.py
+binds the KV cache, block tables and lengths from vllm.forward_context.
 """
 
 # mypy: ignore-errors
@@ -36,9 +31,6 @@ def _register_custom_op():
         return
     import torch
 
-    # Define the op with a tensor-list-returning signature. We keep a simple
-    # interface: (q, k, v, layer_name) -> output_tensor. The python impl calls
-    # vLLM's own unified_attention so torch-eager fallback stays correct.
     @torch.library.custom_op(
         "openvino::paged_attention",
         mutates_args=(),
@@ -49,10 +41,8 @@ def _register_custom_op():
         value: torch.Tensor,
         layer_name: str,
     ) -> torch.Tensor:
-        # Delegate to vLLM. This is only hit on the torch-eager fallback path;
-        # the OV partition uses a C++ translator to emit PagedAttentionExtension.
-        # vLLM's CPU backend only implements the "_with_output" path, so allocate
-        # an output tensor and pass it in.
+        # Only hit on the torch-eager fallback path. vLLM's CPU backend
+        # implements just the "_with_output" variant, so pass in an output.
         out = torch.empty_like(query).contiguous()
         torch.ops.vllm.unified_attention_with_output(
             query, key, value, out, layer_name
@@ -66,7 +56,6 @@ def _register_custom_op():
         value: torch.Tensor,
         layer_name: str,
     ) -> torch.Tensor:
-        # Output has same leading dim as q (num_tokens), hidden size = q heads*head_dim
         return torch.empty_like(query).contiguous()
 
     _REGISTERED = True
@@ -79,7 +68,6 @@ def _is_unified_attention_with_output(node) -> bool:
     if node.op != "call_function":
         return False
     tgt = node.target
-    # Check the higher-order op wrapper
     try:
         auto_fv2 = torch.ops.higher_order.auto_functionalized_v2
     except Exception:
@@ -89,7 +77,6 @@ def _is_unified_attention_with_output(node) -> bool:
     if not node.args:
         return False
     inner = node.args[0]
-    # inner is a torch.ops.vllm.unified_attention_with_output.default OpOverload
     try:
         ua_overload = torch.ops.vllm.unified_attention_with_output.default
     except Exception:
@@ -98,10 +85,11 @@ def _is_unified_attention_with_output(node) -> bool:
 
 
 def rewrite_unified_attention_to_paged_attention(gm) -> int:
-    """Rewrite every auto_functionalized_v2(unified_attention_with_output, ...)
-    node to a call of torch.ops.openvino.paged_attention.default.
+    """Rewrite every attention HOP node to a call of the OV paged_attention op.
 
-    Returns the number of rewrites performed.
+    Matches auto_functionalized_v2(unified_attention_with_output, ...) nodes
+    and rewrites them to torch.ops.openvino.paged_attention.default. Returns
+    the number of rewrites performed.
     """
     import torch
 
@@ -109,16 +97,13 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
 
     paged_attention_op = torch.ops.openvino.paged_attention.default
 
-    # Collect candidate nodes first (don't mutate while iterating)
+    # Collect first; do not mutate while iterating.
     to_rewrite = [n for n in gm.graph.nodes if _is_unified_attention_with_output(n)]
     if not to_rewrite:
         return 0
 
     rewrites = 0
     for node in to_rewrite:
-        # node.kwargs has: query, key, value, layer_name, output_scale,
-        # kv_cache_dummy_dep, _output_base_index, _output_size, _output_stride,
-        # _output_storage_offset, _output_block_scale_base_index, _all_bases
         kw = dict(node.kwargs)
         q = kw.get("query")
         k = kw.get("key")
@@ -130,25 +115,16 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
             )
             continue
 
-        # auto_functionalized_v2 returns a tuple; conventionally (None, *new_bases)
-        # where new_bases is a copy of _all_bases mutated in place. Consumers of
-        # node typically getitem(node, idx) to pull out the updated base.
-        # Our custom op returns a single tensor (the attention output). We need
-        # to replace every `getitem(node, <any idx>)` consumer with our result.
-
-        # Insert new node just after the original
         with gm.graph.inserting_after(node):
             new_node = gm.graph.call_function(
                 paged_attention_op,
                 args=(q, k, v, layer_name),
             )
 
-        # Find all getitem consumers of the original node
-        # For auto_functionalized_v2, index 0 is the original op return (often
-        # None for ops that return via mutation), index 1..N are the base
-        # tensors mutated in place. For unified_attention_with_output, the
-        # attention output is written to _all_bases[_output_base_index], so the
-        # consumer that matters is getitem(node, 1 + _output_base_index).
+        # auto_functionalized_v2 returns (op_result, *bases_mutated_in_place),
+        # and unified_attention_with_output writes its output to
+        # _all_bases[_output_base_index]. So the one consumer that matters is
+        # getitem(node, 1 + _output_base_index); our op returns that directly.
         output_base_index = kw.get("_output_base_index", 0)
         attn_out_getitem_idx = 1 + (output_base_index or 0)
 
@@ -160,25 +136,16 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
                 and isinstance(user.args[1], int)
             ):
                 if user.args[1] == attn_out_getitem_idx:
-                    # Replace this getitem's uses with new_node
                     user.replace_all_uses_with(new_node)
                     gm.graph.erase_node(user)
-                else:
-                    # Other getitems (e.g., the None at idx 0, or other bases)
-                    # — pass them through as best-effort. For idx 0 (None), we
-                    # leave it; for other bases we leave them wired to the
-                    # original node but strip the op — can't, the node stays.
-                    # Best simplification: if there are no other consumers of
-                    # unrelated indices, we can fully replace.
-                    pass
+                # Getitems of other indices (the op result at 0, other mutated
+                # bases) stay wired to the original node, which then survives.
 
-        # If the original node now has no users, erase it
         if not node.users:
             gm.graph.erase_node(node)
         else:
-            # Still has consumers for other bases we didn't rewrite; leave it.
-            # The partitioner will split here, which is OK — it's a correctness
-            # fallback.
+            # Consumers remain for bases we did not rewrite, so the original
+            # node stays and the partitioner splits here. Correct, just slower.
             logger.debug(
                 f"Left original auto_functionalized_v2 node for layer "
                 f"{layer_name}: it still has {len(node.users)} non-attention "
