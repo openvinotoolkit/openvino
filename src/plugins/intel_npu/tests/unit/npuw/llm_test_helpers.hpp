@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -37,6 +38,21 @@ inline Config make_test_model_config() {
 inline std::shared_ptr<ov::Model> build_llm_test_model() {
     ModelBuilder mb;
     return mb.build_llm(make_test_model_config());
+}
+
+/// Phi-style LongRoPE LLM: the RoPE inverse frequencies are picked from
+/// max(position_ids) + 1 <= context_limit, so extract_longrope_context_limit() finds the
+/// limit and RopeCache rewrites the chain into the host-fed npuw_lr_cos / npuw_lr_sin
+/// model inputs. Compile it with NPUW_LLM_CACHE_ROPE=YES to get that rewrite.
+inline std::shared_ptr<ov::Model> build_longrope_llm_test_model(int64_t context_limit) {
+    auto cfg = make_test_model_config();
+    for (size_t i = 0; i < cfg.head_dim / 2; ++i) {
+        cfg.longrope.inv_freq_short.push_back(1.0f / std::pow(3.0f, static_cast<float>(i)));
+        cfg.longrope.inv_freq_long.push_back(0.6f / std::pow(3.4f, static_cast<float>(i)));
+    }
+    cfg.longrope.context_limit = context_limit;
+    ModelBuilder mb;
+    return mb.build_llm(cfg);
 }
 
 /// Build an LLM test model configured so that Attention::from() can unambiguously

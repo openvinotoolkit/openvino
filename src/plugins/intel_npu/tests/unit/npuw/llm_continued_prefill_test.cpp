@@ -226,6 +226,12 @@ public:
     void on_generate_step_done(uint32_t input_tokens_len) override {
         m_inner->on_generate_step_done(input_tokens_len);
     }
+    void rerotate_longrope_keys(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                const PortsMap& in_ports,
+                                uint32_t num_cached_tokens,
+                                bool to_long) override {
+        m_inner->rerotate_longrope_keys(request, in_ports, num_cached_tokens, to_long);
+    }
     void continue_prefill(uint32_t, uint32_t) override {
         OPENVINO_THROW("Injected continued-prefill failure.");
     }
