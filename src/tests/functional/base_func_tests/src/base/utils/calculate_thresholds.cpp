@@ -15,7 +15,7 @@ namespace ov {
 namespace test {
 namespace utils {
 
-inline std::pair<double, double>
+inline Threshold
 calculate_thresholds_by_whole_model(const std::shared_ptr<ov::Model>& model) {
     double max_abs_threshold = DISABLE_THRESHOLD, max_rel_threshold = DISABLE_THRESHOLD;
 
@@ -49,7 +49,7 @@ calculate_thresholds_by_whole_model(const std::shared_ptr<ov::Model>& model) {
     return {max_abs_threshold, max_rel_threshold};
 }
 
-inline std::pair<double, double>
+inline Threshold
 calculate_thresholds_by_model_results(const std::shared_ptr<ov::Model>& model,
                                       const std::shared_ptr<ov::Model>& ref_model,
                                       const ov::element::Type& inference_precision) {
@@ -72,22 +72,23 @@ calculate_thresholds_by_model_results(const std::shared_ptr<ov::Model>& model,
             max_rel_threshold = rel_value;
         }
     }
-    return { max_abs_threshold, max_rel_threshold };
+    return {max_abs_threshold, max_rel_threshold};
 }
 
-std::pair<double, double>
+Threshold
 calculate_thresholds_by_model(const std::shared_ptr<ov::Model>& model,
                               const std::shared_ptr<ov::Model>& ref_model,
                               const ov::element::Type& inference_precision) {
-    double model_max_abs_threshold = DISABLE_THRESHOLD, model_max_rel_threshold = DISABLE_THRESHOLD,
-           out_max_abs_threshold = DISABLE_THRESHOLD, out_max_rel_threshold = DISABLE_THRESHOLD;
-    std::tie(model_max_abs_threshold, model_max_rel_threshold) = ov::test::utils::calculate_thresholds_by_whole_model(model);
+    const auto model_thresholds = ov::test::utils::calculate_thresholds_by_whole_model(model);
+    auto max_abs_threshold = model_thresholds.abs_threshold;
+    auto max_rel_threshold = model_thresholds.rel_threshold;
     if (ref_model) {
-        std::tie(out_max_abs_threshold, out_max_rel_threshold) =
+        const auto output_thresholds =
             ov::test::utils::calculate_thresholds_by_model_results(model, ref_model, inference_precision);
+        max_abs_threshold = std::max(max_abs_threshold, output_thresholds.abs_threshold);
+        max_rel_threshold = std::max(max_rel_threshold, output_thresholds.rel_threshold);
     }
-    return { std::max(model_max_abs_threshold, out_max_abs_threshold),
-             std::max(model_max_rel_threshold, out_max_rel_threshold) };
+    return {max_abs_threshold, max_rel_threshold};
 }
 
 } // namespace utils

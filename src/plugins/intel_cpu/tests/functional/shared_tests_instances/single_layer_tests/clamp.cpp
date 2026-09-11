@@ -29,6 +29,10 @@ const std::vector<std::pair<double, double>> intervals_unsigned = {
     {10.6, 20.6}
 };
 
+const std::vector<std::pair<double, double>> intervals_i64 = {
+    {static_cast<double>(std::numeric_limits<int64_t>::min()),
+     static_cast<double>(std::numeric_limits<int64_t>::max())}};
+
 const std::vector<ov::element::Type> model_type = {
     ov::element::f32,
     ov::element::f16,
@@ -52,8 +56,7 @@ const auto test_Clamp_unsigned = ::testing::Combine(
 
 const auto test_Clamp_i64 = ::testing::Combine(
     ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(input_shapes_static)),
-    ::testing::Values(std::pair<double, double>({static_cast<double>(std::numeric_limits<int64_t>::min()),
-                                                 static_cast<double>(std::numeric_limits<int64_t>::max())})),
+    ::testing::ValuesIn(intervals_i64),
     ::testing::Values(ov::element::i64),
     ::testing::Values(ov::test::utils::DEVICE_CPU)
 );

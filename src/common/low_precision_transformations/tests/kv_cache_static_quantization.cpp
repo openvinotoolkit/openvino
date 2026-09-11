@@ -4,6 +4,8 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/subgraph_builders/llm_builders.hpp"
 #include "low_precision/concat.hpp"
@@ -229,11 +231,11 @@ std::shared_ptr<ov::Model> KVCacheStaticQuantization::get_model_ref(ov::element:
             const auto [lower_bound, upper_bound] = [&]() {
                 switch (low_precision) {
                 case ov::element::f8e4m3:
-                    return std::make_pair(static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest()),
-                                          static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max()));
+                    return std::array<double, 2>{static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest()),
+                                                 static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max())};
                 case ov::element::f8e5m2:
-                    return std::make_pair(static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest()),
-                                          static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max()));
+                    return std::array<double, 2>{static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest()),
+                                                 static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max())};
                 default:
                     OPENVINO_THROW("Unsupported destination element type: ", low_precision);
                 }

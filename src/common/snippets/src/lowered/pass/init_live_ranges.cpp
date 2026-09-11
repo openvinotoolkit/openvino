@@ -108,7 +108,7 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
                 }
             }
             regs_to_expire[stop].insert(reg);
-            m_reg_manager.set_live_range(reg, std::make_pair(start, stop));
+            m_reg_manager.set_live_range(reg, LiveInterval{start, stop});
         }
     }
 

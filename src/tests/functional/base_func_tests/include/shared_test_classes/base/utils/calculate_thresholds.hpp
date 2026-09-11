@@ -34,7 +34,7 @@ static std::map<ov::NodeTypeInfo, Threshold> custom_op_thresholds = {
         // { ov::op::v0::Add::get_type_info_static(), { 1e-7, 1e-4 }},
 };
 
-std::pair<double, double> calculate_thresholds_by_model(
+Threshold calculate_thresholds_by_model(
     const std::shared_ptr<ov::Model>& model,
     const std::shared_ptr<ov::Model>& ref_model = nullptr,
     const ov::element::Type& inference_precision = ov::element::dynamic);
