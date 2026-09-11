@@ -1129,7 +1129,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_1_opset12) {
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_softmax_axis_2_opset11) {
     // rank-4 input with axis not equal to the last dimension: the opset-11 flattening spans
-    // prod(d_axis..d_rank) = 3 * 4 = 12 elements, not the single dimension 3.
+    // prod(d_axis..d_rank-1) = 3 * 4 = 12 elements, not the single dimension 3.
     auto model = convert_model("softmax_axis_2_opset11.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
