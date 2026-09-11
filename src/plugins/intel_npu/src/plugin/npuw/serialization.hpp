@@ -258,6 +258,12 @@ void serialize(Stream& stream, ov::npuw::compiled::Attention::Param& var);
 void serialize(Stream& stream, ov::npuw::compiled::PyramidAttention& var);
 void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguous& var);
 void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlock& var);
+
+// Validates imported spatial metadata against the concrete model shapes before runtime use.
+void validate_spatial(const ov::npuw::compiled::Spatial& spatial,
+                      const std::vector<ov::Shape>& input_shapes,
+                      const std::vector<ov::Shape>& output_shapes,
+                      std::size_t param_base);
 void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo& var);
 void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo::Param& var);
 void serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var);

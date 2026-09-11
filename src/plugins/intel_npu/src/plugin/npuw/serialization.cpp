@@ -72,6 +72,57 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Spatial::Param
     stream & var.idx & var.dim;
 }
 
+void ov::npuw::orc::validate_spatial(const ov::npuw::compiled::Spatial& spatial,
+                                     const std::vector<ov::Shape>& input_shapes,
+                                     const std::vector<ov::Shape>& output_shapes,
+                                     std::size_t param_base) {
+    if (spatial.nway == 0u) {
+        OPENVINO_THROW("Invalid NPUW spatial metadata: nway must be non-zero");
+    }
+
+    if (spatial.nway_iters != spatial.range / spatial.nway || spatial.tail_size != spatial.range % spatial.nway) {
+        OPENVINO_THROW("Invalid NPUW spatial metadata: inconsistent range, nway, nway_iters, and tail_size");
+    }
+
+    if (input_shapes.size() < param_base) {
+        OPENVINO_THROW("Invalid NPUW spatial metadata: param_base exceeds available inputs");
+    }
+
+    if (output_shapes.empty()) {
+        OPENVINO_THROW("Invalid NPUW spatial metadata: compiled model has no outputs");
+    }
+
+    for (std::size_t out_idx = 0u; out_idx < output_shapes.size(); ++out_idx) {
+        const auto& output_shape = output_shapes[out_idx];
+        if (spatial.out_dim >= output_shape.size()) {
+            OPENVINO_THROW("Invalid NPUW spatial metadata: out_dim is out of range for output ", out_idx);
+        }
+
+        if (output_shape[spatial.out_dim] < spatial.nway) {
+            OPENVINO_THROW("Invalid NPUW spatial metadata: nway exceeds output ", out_idx, " shape");
+        }
+    }
+
+    for (const auto& param : spatial.params) {
+        if (param.idx >= param_base) {
+            OPENVINO_THROW("Invalid NPUW spatial metadata: parameter index is out of range");
+        }
+
+        if (param.idx >= input_shapes.size()) {
+            OPENVINO_THROW("Invalid NPUW spatial metadata: parameter index exceeds available inputs");
+        }
+
+        const auto& input_shape = input_shapes[param.idx];
+        if (param.dim >= input_shape.size()) {
+            OPENVINO_THROW("Invalid NPUW spatial metadata: param dim is out of range");
+        }
+
+        if (input_shape[param.dim] < spatial.nway) {
+            OPENVINO_THROW("Invalid NPUW spatial metadata: nway exceeds input shape");
+        }
+    }
+}
+
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention& var) {
     stream & var.query_size & var.context_size & var.params & var.mask_idx & var.attend_all;
 }

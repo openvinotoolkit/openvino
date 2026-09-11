@@ -468,7 +468,9 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
                                             const ov::npuw::util::View& from,
                                             const ov::npuw::util::View& to) {
     const auto type = src->get_element_type();
+    const auto& shape = src->get_shape();
     NPUW_ASSERT(from.size() == to.size());
+    NPUW_ASSERT(from.size() == shape.size());
 
     // Sub-byte views are not supported here
     NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
@@ -476,6 +478,8 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     const auto num_dims = from.size();
     ov::Shape view_shape;
     for (auto d = 0u; d < num_dims; d++) {
+        NPUW_ASSERT(from[d] <= to[d]);
+        NPUW_ASSERT(to[d] <= shape[d]);
         view_shape.push_back(to[d] - from[d]);
     }
 
@@ -497,6 +501,8 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
                                             std::size_t len) {
     const auto& shape = src->get_shape();
     NPUW_ASSERT(dim < shape.size());
+    NPUW_ASSERT(offset <= shape[dim]);
+    NPUW_ASSERT(len <= shape[dim] - offset);
     View view_start = View(shape.size(), 0u);
     View view_end = shape;
     view_start[dim] = offset;
