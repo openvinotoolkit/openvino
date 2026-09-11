@@ -4,8 +4,10 @@
 
 #include "core_impl.hpp"
 
+#include <filesystem>
 #include <memory>
 #include <optional>
+#include <system_error>
 #include <variant>
 
 #include "check_network_batchable.hpp"
@@ -119,6 +121,22 @@ std::vector<ov::DispatchEntry> build_dispatch_entries(const std::vector<std::fil
     for (size_t n = 0; n < entries.size(); ++n)
         entries[n].canonical_id = std::to_string(n);
     return entries;
+}
+
+// Whether two plugin path spellings denote one and the same library: plugins.xml stores a
+// location resolved next to itself, register_plugin leaves a bare name for the OS loader.
+bool is_same_plugin_library(const std::filesystem::path& lhs, const std::filesystem::path& rhs) {
+    if (lhs == rhs) {
+        return true;
+    }
+    // A bare name has no directory to compare, and under this device it resolves to the
+    // library already registered here.
+    if (!lhs.has_parent_path() || !rhs.has_parent_path()) {
+        return lhs.filename() == rhs.filename();
+    }
+    std::error_code ec;
+    const auto same_file = std::filesystem::equivalent(lhs, rhs, ec);
+    return !ec && same_file;
 }
 
 #ifdef PROXY_PLUGIN_ENABLED
@@ -1673,7 +1691,7 @@ void ov::CoreImpl::register_plugin(const std::filesystem::path& plugin,
         // A duplicated candidate enumerates the same devices with the same scores as the one
         // already registered, so it could only ever shadow itself: reject it.
         for (size_t i = 0; i < it->second.candidate_count(); ++i) {
-            if (it->second.candidate_location(i) == lib_path)
+            if (is_same_plugin_library(it->second.candidate_location(i), lib_path))
                 OPENVINO_THROW("Library \"",
                                lib_path.string(),
                                "\" is already registered as device \"",

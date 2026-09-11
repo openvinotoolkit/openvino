@@ -11,6 +11,8 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <system_error>
+#include <vector>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -48,17 +50,36 @@ std::filesystem::path candidate_lib(const std::string& suffix) {
                                               "mock_dispatch_candidate_" + suffix + OV_BUILD_POSTFIX);
 }
 
+// Moves the working directory away for a scope, so a bare library name cannot resolve against it.
+class CwdGuard {
+public:
+    explicit CwdGuard(const std::filesystem::path& dir) : m_previous(std::filesystem::current_path()) {
+        std::filesystem::current_path(dir);
+    }
+    CwdGuard(const CwdGuard&) = delete;
+    CwdGuard& operator=(const CwdGuard&) = delete;
+    ~CwdGuard() {
+        std::error_code ec;
+        std::filesystem::current_path(m_previous, ec);
+    }
+
+private:
+    const std::filesystem::path m_previous;
+};
+
 // A dispatch-group test fixture: writes a 2-<location> plugins.xml and scripts both probes.
 class DispatchGroupTest : public ::testing::Test {
 protected:
     const std::string device = "FAKE";
     std::filesystem::path xml_path{ov::test::utils::generateTestFilePrefix() + "_test_dispatch_group_plugins.xml"};
 
-    void write_registry() {
+    void write_registry(const std::vector<std::filesystem::path>& locations = {candidate_lib("a"),
+                                                                               candidate_lib("b")}) {
         std::ofstream file(xml_path);
-        file << "<ie><plugins><plugin name=\"" << device << "\">" << "<location>" << candidate_lib("a").string()
-             << "</location>" << "<location>" << candidate_lib("b").string() << "</location>"
-             << "</plugin></plugins></ie>";
+        file << "<ie><plugins><plugin name=\"" << device << "\">";
+        for (const auto& location : locations)
+            file << "<location>" << location.string() << "</location>";
+        file << "</plugin></plugins></ie>";
     }
 
     // Script one triple "id,fingerprint,score" per candidate.
@@ -419,6 +440,31 @@ TEST_F(DispatchGroupTest, register_plugin_same_library_twice_still_throws) {
                     ov::Exception,
                     ::testing::HasSubstr("is already registered as device \"" + device + "\""));
     // Still a single-candidate device: it resolves without any probing.
+    EXPECT_EQ(resolved_tag(core), "A");
+}
+
+// The same library re-registered under its device name must be rejected however its path is
+// spelled, or it is appended as a second candidate and the device stops resolving at all.
+TEST_F(DispatchGroupTest, register_plugin_same_library_other_spelling_still_throws) {
+    write_registry({candidate_lib("a")});  // one location, as an ordinary device is registered
+    script("0,aa," + std::to_string(PREFERRED), "");
+    ov::Core core;
+    core.register_plugins(xml_path.string());
+
+    const auto lib = candidate_lib("a");
+    {
+        // A bare name, as register_plugin is given in practice: left to the loader.
+        const CwdGuard cwd{std::filesystem::temp_directory_path()};
+        OV_EXPECT_THROW(core.register_plugin(lib.filename().string(), device),
+                        ov::Exception,
+                        ::testing::HasSubstr("is already registered as device \"" + device + "\""));
+    }
+    // An absolute but differently spelled path to the same file.
+    OV_EXPECT_THROW(core.register_plugin((lib.parent_path() / "." / lib.filename()).string(), device),
+                    ov::Exception,
+                    ::testing::HasSubstr("is already registered as device \"" + device + "\""));
+
+    // Still the plain single-candidate device it was registered as.
     EXPECT_EQ(resolved_tag(core), "A");
 }
 
