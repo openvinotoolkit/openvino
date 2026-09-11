@@ -37,6 +37,7 @@
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/random_poisson.hpp"
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -472,4 +473,32 @@ TEST(copy, random_uniform) {
     ASSERT_TRUE(ru->get_global_seed() == node_cast->get_global_seed());
     ASSERT_TRUE(ru->get_op_seed() == node_cast->get_op_seed());
     ASSERT_TRUE(ru->get_state() == node_cast->get_state());
+}
+
+TEST(copy, random_poisson) {
+    // Mix of rate==0, Knuth (0 < λ < 10), and Hörmann (λ >= 10).
+    std::vector<float> rates{0.f, 2.f, 9.f, 10.f, 15.f, 25.f};
+    for (const auto alignment : {ov::op::PhiloxAlignment::PYTORCH, ov::op::PhiloxAlignment::TENSORFLOW}) {
+        const auto rates_param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 2, 3});
+        auto rp = std::make_shared<ov::op::v17::RandomPoisson>(rates_param, 150, 10, alignment);
+
+        // Call `evaluate` to update m_state (TensorFlow Skip advances it; PyTorch keeps the previous pair).
+        auto outputs = ov::TensorVector{{element::f32, Shape{1, 2, 3}}};
+        rp->evaluate(outputs, ov::TensorVector{{element::f32, Shape{1, 2, 3}, rates.data()}});
+        if (alignment == ov::op::PhiloxAlignment::TENSORFLOW) {
+            ASSERT_NE(rp->get_state(), (std::pair<uint64_t, uint64_t>{0, 0}));
+        }
+
+        const auto rates_param_c = make_shared<ov::op::v0::Parameter>(element::f32, Shape{4, 3, 2, 1});
+        OutputVector new_args{rates_param_c};
+        auto new_rp = rp->clone_with_new_inputs(new_args);
+        auto node_cast = ov::as_type_ptr<ov::op::v17::RandomPoisson>(new_rp);
+        ASSERT_NE(node_cast, nullptr);
+
+        ASSERT_TRUE(new_args == new_rp->input_values());
+        ASSERT_TRUE(rp->get_global_seed() == node_cast->get_global_seed());
+        ASSERT_TRUE(rp->get_op_seed() == node_cast->get_op_seed());
+        ASSERT_TRUE(alignment == node_cast->get_alignment());
+        ASSERT_TRUE(rp->get_state() == node_cast->get_state());
+    }
 }

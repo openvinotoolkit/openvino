@@ -201,6 +201,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/prior_box_clustered.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/proposal.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/psroi_pooling.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/random_poisson.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/random_uniform.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/range.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/rdft.hpp

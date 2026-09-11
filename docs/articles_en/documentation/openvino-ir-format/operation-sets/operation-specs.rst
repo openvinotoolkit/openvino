@@ -173,6 +173,7 @@ Operation Specifications
    PriorBox-8 <operation-specs/detection/prior-box-8>
    Proposal-1 <operation-specs/detection/proposal-1>
    Proposal-4 <operation-specs/detection/proposal-4>
+   RandomPoisson-17 <operation-specs/generation/random-poisson-17>
    RandomUniform-8 <operation-specs/generation/random-uniform-8>
    Range-1 <operation-specs/generation/range-1>
    Range-4 <operation-specs/generation/range-4>
