@@ -335,7 +335,7 @@ void BrgemmKernel::init_brgemm_copy_a(
     dnnl_data_type_t dt_in0,
     bool transpose,
     size_t copy_A_src_stride) {
-    brgemm_matmul_conf_t brgCopyKernelConf;
+    brgemm_matmul_conf_t brgCopyKernelConf{};
     brgCopyKernelConf.src_tag = dnnl_abcd;
     brgCopyKernelConf.K = K;
     brgCopyKernelConf.K_tail = K_tail;
@@ -378,7 +378,7 @@ void BrgemmKernel::init_brgemm_copy_b(
     dnnl_data_type_t dt_in1,
     bool transpose,
     size_t copy_B_wei_stride) {
-    brgemm_matmul_conf_t brgCopyKernelConf;
+    brgemm_matmul_conf_t brgCopyKernelConf{};
     brgCopyKernelConf.src_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in0;
     brgCopyKernelConf.wei_dt = is_avx_f16_only ? dnnl_data_type_t::dnnl_f32 : dt_in1;
     brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
