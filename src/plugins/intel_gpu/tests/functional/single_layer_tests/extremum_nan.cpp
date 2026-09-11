@@ -104,7 +104,9 @@ protected:
     std::vector<ov::Tensor> calculate_refs() override {
         // Single input model: avoid fragile map lookup by shared_ptr key and
         // derive the output type from the actual input tensor.
-        ASSERT_FALSE(inputs.empty()) << "calculate_refs called before generate_inputs";
+        // OPENVINO_ASSERT instead of a gtest ASSERT_*: those expand to
+        // 'return;', which does not compile in this non-void override.
+        OPENVINO_ASSERT(!inputs.empty(), "calculate_refs called before generate_inputs");
         const auto& in_tensor = inputs.begin()->second;
         ov::Tensor out(in_tensor.get_element_type(), in_tensor.get_shape());
         for (size_t i = 0; i < out.get_size(); ++i) {

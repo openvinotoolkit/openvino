@@ -318,11 +318,12 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                     // plugin propagates it (and returns the second operand for
                     // a NaN in the first one). Select on the second input
                     // explicitly to match the CPU behavior.
-                    // select() is used instead of the ternary operator so the
-                    // code stays valid for vector types (BLOCK_SIZE > 1 or
-                    // vload8), where a vector condition is not allowed in ?:.
-                    op += cast_type + "select(f" + mode + "(" + input0_str + ", " + input1_str + "), " + input1_str +
-                          ", isnan(" + input1_str + "))";
+                    // A ternary is used for the NaN branch instead of select():
+                    // select() requires the condition to be a signed integer of
+                    // the same width as the operands (short for half), while
+                    // isnan() returns int, so f16 kernels do not compile with
+                    // select().
+                    op += cast_type + "(isnan(" + input1_str + ") ? " + input1_str + " : f" + mode + "(" + input0_str + ", " + input1_str + "))";
                 }
             }
         } break;
