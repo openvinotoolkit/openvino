@@ -48,7 +48,9 @@ public:
     event::ptr create_base_event() override;
     std::unique_ptr<surfaces_lock> create_surfaces_lock(const std::vector<memory::ptr> &mem) const override;
     ze_context_resource get_context() const;
+
     bool is_profiling_enabled() const { return m_ev_factory->is_profiling_enabled(); }
+    ze_command_list_resource get_command_list() const { return m_imm_cmd_list; }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     dnnl::stream& get_onednn_stream() override;
