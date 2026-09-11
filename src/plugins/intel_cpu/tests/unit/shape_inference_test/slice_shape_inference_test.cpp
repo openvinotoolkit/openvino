@@ -107,3 +107,18 @@ TEST_F(SliceStaticShapeInferenceTest, forward_step_all_data_in_const_map) {
     EXPECT_EQ(output_shapes.size(), num_of_outputs);
     EXPECT_EQ(output_shapes.front(), StaticShape({10, 3, 0, 4, max_d, max_d, 3}));
 }
+
+TEST(StaticShapeInferenceTest, slice_is_size_preserving_slice_with_static_dimension) {
+    // production instantiates the predicate for ov::Dimension only, keep it compiling for StaticDimension
+    using ov::op::slice::Bounds;
+    using ov::op::slice::is_size_preserving_slice;
+    constexpr auto i64_max = std::numeric_limits<int64_t>::max();
+    constexpr auto i64_min = std::numeric_limits<int64_t>::min();
+    const auto max_d = std::numeric_limits<StaticDimension::value_type>::max();
+
+    EXPECT_TRUE(is_size_preserving_slice(StaticDimension(10), Bounds{0, 0}, Bounds{i64_max, i64_max}, 1));
+    EXPECT_FALSE(is_size_preserving_slice(StaticDimension(10), Bounds{0, 0}, Bounds{i64_max, i64_max}, 2));
+    EXPECT_TRUE(is_size_preserving_slice(StaticDimension(10), Bounds{-1, -1}, Bounds{i64_min, i64_min}, -1));
+    EXPECT_TRUE(is_size_preserving_slice(StaticDimension(max_d), Bounds{0, 0}, Bounds{i64_max, i64_max}, 1));
+    EXPECT_FALSE(is_size_preserving_slice(StaticDimension(max_d), Bounds{0, 0}, Bounds{i64_max, i64_max}, 2));
+}
