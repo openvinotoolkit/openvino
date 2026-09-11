@@ -324,11 +324,11 @@ jobs:
       with:
         device: 'dgpu'
         test_type: ${{ matrix.TEST_TYPE }}
-        runner: "[ 'self-hosted', 'dgpu', 'Arc-B580', 'Battlemage', 'Linux' ]"
+        runner: "[ 'self-hosted', 'dgpu-test', 'Linux' ]"
         runner-group: 'Intel-GPU'
         image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
         options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
-      if: ${{ github.event_name == 'schedule' }}
+      # if: ${{ github.event_name == 'schedule' }}
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
