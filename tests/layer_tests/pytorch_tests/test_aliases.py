@@ -64,3 +64,42 @@ class TestAliases(PytorchLayerTest):
                                        "prim::Loop"],
                    ie_device, precision, ir_version, freeze_model=False,
                    fx_kind=["aten.clone.default", "aten.select.int", "aten.fill_.Tensor"])
+
+
+class TestAliasSchema(PytorchLayerTest):
+    def _prepare_input(self):
+        return (self.random.randn(1, 2, 3, 4).astype("float32"),)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("operation", ["clone", "matmul", "conv2d", "relu", "sigmoid", "slice"])
+    def test_tensor_in_list(self, operation, ie_device, precision, ir_version):
+        class Model(torch.nn.Module):
+            __constants__ = ["operation"]
+
+            def __init__(self, operation):
+                super().__init__()
+                self.operation = operation
+
+            def forward(self, tensor):
+                if self.operation == "clone":
+                    result = tensor.clone()
+                elif self.operation == "matmul":
+                    result = torch.matmul(tensor, tensor.transpose(-1, -2))
+                elif self.operation == "conv2d":
+                    result = torch.conv2d(tensor, torch.ones(2, 2, 1, 1))
+                elif self.operation == "relu":
+                    result = tensor.relu()
+                elif self.operation == "sigmoid":
+                    result = tensor.sigmoid()
+                else:
+                    result = tensor[:, :, :, :2]
+                result.add_(1)
+                # Container use puts even independent tensors in AliasDb's wildcard set.
+                values = [tensor, result]
+                return values[0], values[1]
+
+        self._test(Model(operation), [f"aten::{operation}", "aten::add_", "prim::ListConstruct"],
+                   ie_device, precision, ir_version, freeze_model=False,
+                   fx_kind=[f"aten.{operation}", "aten.add_"])

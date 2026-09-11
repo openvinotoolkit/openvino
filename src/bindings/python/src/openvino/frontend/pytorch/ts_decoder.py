@@ -551,18 +551,16 @@ class TorchScriptPythonDecoder(Decoder):
         return False
 
     def may_produce_alias(self, in_index: int, out_index: int) -> bool:
-        if self.get_op_type() in [
-            "aten::conv1d",
-            "aten::conv2d",
-            "aten::conv3d",
-            "aten::_convolution",
-            "aten::matmul",
-            "aten::clone",
-        ]:
-            # AliasDB::may_contain_alias sometimes return True for tensors produced
-            # by convolution or matmul, we have to workaround that
-            return False
         try:
+            schema_text = self.get_schema()
+            if schema_text != "(no schema)":
+                schema = torch._C.parse_schema(schema_text)
+                if out_index < len(schema.returns):
+                    result = schema.returns[out_index]
+                    # Container use can put independent tensors in AliasDb's wildcard set.
+                    # A tensor return without a schema alias annotation has fresh storage.
+                    if isinstance(result.type, torch.TensorType) and result.alias_info is None:
+                        return False
             return self.alias_db.may_contain_alias(
                 self._raw_input(in_index), self._raw_output(out_index)
             )
