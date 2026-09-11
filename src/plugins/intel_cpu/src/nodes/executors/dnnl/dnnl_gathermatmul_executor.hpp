@@ -9,6 +9,7 @@
 
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/dnnl/dnnl_inner_product_gemm.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/gathermatmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -29,8 +30,7 @@ public:
     [[nodiscard]] impl_desc_type implType() const override;
 
 private:
-    class InnerProduct;
-    using InnerProductPtr = std::shared_ptr<InnerProduct>;
+    using InnerProductPtr = dnnl_utils::InnerProductPtr;
 
     ExecutorContext::CPtr m_context;
 
