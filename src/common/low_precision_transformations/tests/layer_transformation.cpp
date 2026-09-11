@@ -160,6 +160,13 @@ ov::builder::subgraph::DequantizationOperations LayerTransformation::toDequantiz
     return ov::builder::subgraph::DequantizationOperations(convert, subtract, multiply);
 }
 
+void LayerTransformation::setDequantizationOutPrecision(ov::builder::subgraph::DequantizationOperations& dequantization,
+                                                        const ov::element::Type& modelPrecision) {
+    if (!dequantization.multiply.empty()) {
+        dequantization.multiply.outPrecision = modelPrecision;
+    }
+}
+
 bool LayerTransformation::allNamesAreUnique(const std::shared_ptr<ov::Model>& model) {
     const auto& ops = model->get_ops();
     std::set<std::string> opNames;
