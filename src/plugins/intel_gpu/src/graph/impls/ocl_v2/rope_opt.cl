@@ -9,7 +9,7 @@
 #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 
 // an s8 output narrows SDPA's K inside the rotation's own store, which removes a whole
-// f16 read / i8 write pass over an 18 MB tensor. Only the interleaved bodies implement it.
+// f16 read and i8 write pass over the key tensor. Only the interleaved bodies implement it.
 #if defined(OUTPUT_I8) && !defined(RotateInterleaved) && !defined(ROPE_CONTIG)
 #   error "rope_opt.cl - an i8 output is only implemented for the interleaved rotation"
 #endif
