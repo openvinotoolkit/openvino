@@ -64,14 +64,17 @@ bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32::Validate(const Params &p) con
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
-    if (params.inputs[0].Dimentions() != params.outputs[0].Dimentions())
+    if (params.inputs[0].Dimentions() != params.outputs[0].Dimentions()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (params.inputs[0].Feature().v != 3 && params.inputs[0].Feature().v != 4)
+    if (params.inputs[0].Feature().v != 3 && params.inputs[0].Feature().v != 4) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (params.outputs[0].Feature().v % 2 != 0)
+    if (params.outputs[0].Feature().v % 2 != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     if ((params.quantization == QuantizationType::ASYMMETRIC_DATA || params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS)
         && !params.HasCompensation()) {
@@ -142,8 +145,9 @@ static size_t get_slm_byte_size(const convolution_params &cp, size_t lws, size_t
 static size_t get_lws(const convolution_params &cp, size_t blocks_count, size_t block_size_x, size_t block_size_y, size_t max_lws) {
     while (max_lws > 1) {
         if (blocks_count % max_lws == 0) {
-            if (get_slm_byte_size(cp, max_lws, block_size_x, block_size_y) < cp.engineInfo.maxLocalMemSize)
+            if (get_slm_byte_size(cp, max_lws, block_size_x, block_size_y) < cp.engineInfo.maxLocalMemSize) {
                 return max_lws;
+            }
         }
         max_lws--;
     }

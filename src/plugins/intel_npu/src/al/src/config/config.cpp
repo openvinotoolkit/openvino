@@ -264,6 +264,10 @@ bool Config::has(std::string key) const {
     return _impl.count(key) != 0;
 }
 
+void Config::remove(std::string key) {
+    _impl.erase(key);
+}
+
 void Config::update(const ConfigMap& options) {
     for (const auto& p : options) {
         _log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
@@ -282,6 +286,20 @@ void Config::updateAny(const ov::AnyMap& options) {
     }
 }
 
+void Config::update(std::string_view key, std::string_view value) {
+    _log.trace("Update option '%s' to value '%s'", std::string(key).c_str(), std::string(value).c_str());
+
+    const auto opt = _desc->get(key);
+    _impl[opt.key().data()] = opt.validateAndParseFromString(value);
+}
+
+void Config::updateAny(std::string_view key, const ov::Any& value) {
+    _log.trace("Update option '%s' to given 'ov::Any' value", std::string(key).c_str());
+
+    const auto opt = _desc->get(key);
+    _impl[opt.key().data()] = opt.validateAndParseFromAny(value);
+}
+
 std::string Config::toString() const {
     std::stringstream resultStream;
     for (auto it = _impl.cbegin(); it != _impl.cend(); ++it) {
@@ -298,14 +316,13 @@ std::string Config::toString() const {
 }
 
 void Config::fromString(const std::string& str) {
-    std::map<std::string, std::string> config;
     std::string str_cfg(str);
 
     auto parse_token = [&](const std::string& token) {
         auto pos_eq = token.find('=');
         auto key = token.substr(0, pos_eq);
         auto value = token.substr(pos_eq + 2, token.size() - pos_eq - 3);
-        config[key] = std::move(value);
+        update(key, value);
     };
 
     size_t pos = 0;
@@ -318,8 +335,6 @@ void Config::fromString(const std::string& str) {
 
     // Process tail
     parse_token(str_cfg);
-
-    update(config);
 }
 
 //

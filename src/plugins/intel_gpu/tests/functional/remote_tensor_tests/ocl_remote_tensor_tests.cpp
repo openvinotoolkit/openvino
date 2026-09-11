@@ -8,6 +8,12 @@
 #include <filesystem>
 #include <fstream>
 
+#if !defined(_WIN32)
+# include <fcntl.h>
+# include <sys/mman.h>
+# include <unistd.h>
+#endif
+
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -3107,6 +3113,155 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::util::aligned_free(input_ptr);
     ov::util::aligned_free(output_ptr);
 }
+
+TEST(GpuRemoteTensorFromCpu, smoke_reuseImportOfSameCPUMemory) {
+    ov::Core core;
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    ASSERT_GT(cacheline_size, 0u);
+    const ov::Shape shape{cacheline_size / sizeof(float)};
+    const size_t byte_size = ov::shape_size(shape) * sizeof(float);
+    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+    void* input_ptr = ov::util::aligned_alloc(byte_size, cacheline_size);
+
+    {
+        auto first_tensor =
+            ctx.create_tensor(ov::element::f32,
+                              shape,
+                              ov::intel_gpu::VirtualAddressMemory(input_ptr, static_cast<int64_t>(byte_size)));
+        auto second_tensor =
+            ctx.create_tensor(ov::element::f32,
+                              shape,
+                              ov::intel_gpu::VirtualAddressMemory(input_ptr, static_cast<int64_t>(byte_size)));
+
+        // Both tensors are alive, so the second import is expected to be served from the context memory cache.
+        EXPECT_EQ(first_tensor.get(), second_tensor.get());
+    }
+
+    ov::util::aligned_free(input_ptr);
+}
+
+#if !defined(_WIN32)
+// Regression test for a cached host pointer import which outlived every tensor that wrapped it: once the
+// application maps another file over the same virtual address range, the cache key repeats
+// (pointer, size, access mode, shape and element type are all unchanged), so a context lifetime entry
+// would hand out the buffer imported for the previous file instead of importing the new one.
+class GpuRemoteTensorFromRecycledMapping : public ::testing::Test {
+protected:
+    // Page aligned pointer and a size which is a multiple of any device cacheline size, as host pointer import requires
+    static constexpr size_t buffer_size = 64 * 1024;
+
+    std::filesystem::path m_first_file;
+    std::filesystem::path m_second_file;
+    void* m_mapping = nullptr;
+    void* m_output_ptr = nullptr;
+
+    void SetUp() override {
+        const auto prefix = ov::test::utils::generateTestFilePrefix();
+        m_first_file = prefix + "_first.bin";
+        m_second_file = prefix + "_second.bin";
+    }
+
+    void TearDown() override {
+        if (m_mapping != nullptr)
+            munmap(m_mapping, buffer_size);
+        if (m_output_ptr != nullptr)
+            ov::util::aligned_free(m_output_ptr);
+        std::error_code ec;
+        std::filesystem::remove(m_first_file, ec);
+        std::filesystem::remove(m_second_file, ec);
+    }
+
+    static void write_file(const std::filesystem::path& path, const std::vector<float>& values) {
+        std::ofstream file(path, std::ios::binary);
+        file.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
+    }
+
+    // MAP_FIXED replaces the previously mapped file at the very same address atomically, so the pointer the import
+    // is keyed on is guaranteed to be reused and there is no unmapped gap in between.
+    void map_over_reservation(const std::filesystem::path& path) {
+        const int fd = open(path.c_str(), O_RDWR);
+        ASSERT_NE(fd, -1);
+        void* ptr = mmap(m_mapping, buffer_size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, fd, 0);
+        close(fd);
+        ASSERT_NE(ptr, MAP_FAILED);
+        ASSERT_EQ(ptr, m_mapping);
+    }
+};
+
+TEST_F(GpuRemoteTensorFromRecycledMapping, smoke_remappedFileIsNotServedFromCache) {
+    ov::Core core;
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    const ov::Shape shape{buffer_size / sizeof(float)};
+    const size_t element_count = ov::shape_size(shape);
+
+    std::vector<float> first_values(element_count);
+    std::vector<float> second_values(element_count);
+    for (size_t i = 0; i < element_count; ++i) {
+        first_values[i] = static_cast<float>(i + 1);
+        second_values[i] = -static_cast<float>(i + 1);
+    }
+    write_file(m_first_file, first_values);
+    write_file(m_second_file, second_values);
+
+    // Reserve the range once, so both files can be mapped at exactly the same address
+    m_mapping = mmap(nullptr, buffer_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    ASSERT_NE(m_mapping, MAP_FAILED);
+
+    uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    ASSERT_GT(cacheline_size, 0u);
+    ASSERT_EQ(buffer_size % cacheline_size, 0u);
+    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+    m_output_ptr = ov::util::aligned_alloc(buffer_size, cacheline_size);
+
+    // The mapping is imported with CL_MEM_USE_HOST_PTR, so a host side read may return the content of the currently
+    // mapped file even when the device still sees the pages of the previously mapped one.
+    auto copy_mapping_on_device = [&]() {
+        std::fill_n(static_cast<float*>(m_output_ptr), element_count, 0.0f);
+        auto input_tensor = ctx.create_tensor(
+            ov::element::f32,
+            shape,
+            ov::intel_gpu::VirtualAddressMemory(m_mapping,
+                                                static_cast<int64_t>(buffer_size),
+                                                ov::intel_gpu::AccessMode::READ));
+        auto output_tensor =
+            ctx.create_tensor(ov::element::f32,
+                              shape,
+                              ov::intel_gpu::VirtualAddressMemory(m_output_ptr, static_cast<int64_t>(buffer_size)));
+
+        auto model = make_copy_model(shape);
+        auto compiled = core.compile_model(model, ctx);
+        auto infer_req = compiled.create_infer_request();
+        infer_req.set_tensor(compiled.input(), input_tensor);
+        infer_req.set_tensor(compiled.output(), output_tensor);
+        infer_req.infer();
+
+        const auto* output_values = static_cast<const float*>(m_output_ptr);
+        return std::vector<float>(output_values, output_values + element_count);
+    };
+
+    ASSERT_NO_FATAL_FAILURE(map_over_reservation(m_first_file));
+    const auto first_result = copy_mapping_on_device();
+    for (size_t i = 0; i < element_count; ++i) {
+        ASSERT_FLOAT_EQ(first_result[i], first_values[i]) << "Mismatch at index " << i;
+    }
+
+    ASSERT_NO_FATAL_FAILURE(map_over_reservation(m_second_file));
+    const auto second_result = copy_mapping_on_device();
+    for (size_t i = 0; i < element_count; ++i) {
+        ASSERT_FLOAT_EQ(second_result[i], second_values[i]) << "Mismatch at index " << i;
+    }
+
+    // Finally drop the mapping the entries were keyed on while keeping the address reserved and inaccessible.
+    ASSERT_NE(mmap(m_mapping, buffer_size, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0), MAP_FAILED);
+    ASSERT_THROW(ctx.create_tensor(ov::element::f32,
+                                   shape,
+                                   ov::intel_gpu::VirtualAddressMemory(m_mapping,
+                                                                       static_cast<int64_t>(buffer_size),
+                                                                       ov::intel_gpu::AccessMode::READ)),
+                 ov::Exception);
+}
+#endif  // !defined(_WIN32)
 
 
 using MmapFileMemoryParams = std::tuple<std::size_t, std::size_t>;

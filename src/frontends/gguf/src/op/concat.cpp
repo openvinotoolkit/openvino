@@ -43,7 +43,7 @@ OutputVector translate_concat(const NodeContext& context) {
     const auto axis = static_cast<int64_t>(rank - 1 - ggml_dim);
     auto res = std::make_shared<ov::op::v0::Concat>(OutputVector{input_0, input_1}, axis);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op
