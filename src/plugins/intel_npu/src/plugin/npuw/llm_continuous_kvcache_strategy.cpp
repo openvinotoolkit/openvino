@@ -51,11 +51,26 @@ void LLMContinuousKVCacheStrategy::on_initialize() {
                     OPENVINO_ASSERT(largest_past_kv_tensors.find(input_name) != largest_past_kv_tensors.end(),
                                     "Unexpected input name: ",
                                     input_name);
-                    auto shared_tensor =
-                        ov::SoPtr<ov::ITensor>(ov::make_tensor(input_port.get_element_type(),
-                                                               input_port.get_shape(),
-                                                               largest_past_kv_tensors.at(input_name)->data()),
-                                               nullptr);
+                    const auto& source_tensor = largest_past_kv_tensors.at(input_name);
+                    // ov::make_tensor() over a raw pointer builds an unchecked view: it cannot know
+                    // how large the backing allocation is. The view only fits because the variants
+                    // are ordered by ascending KV size, so verify that here rather than trust it.
+                    const auto view_bytes =
+                        (ov::shape_size(input_port.get_shape()) * input_port.get_element_type().bitwidth() + 7) / 8;
+                    OPENVINO_ASSERT(view_bytes <= source_tensor->get_byte_size(),
+                                    "Generate variant ",
+                                    i,
+                                    " needs ",
+                                    view_bytes,
+                                    " bytes for past KV input '",
+                                    input_name,
+                                    "' but the shared allocation only holds ",
+                                    source_tensor->get_byte_size(),
+                                    " bytes. Generate variants must be ordered by ascending KV cache size.");
+                    auto shared_tensor = ov::SoPtr<ov::ITensor>(ov::make_tensor(input_port.get_element_type(),
+                                                                                input_port.get_shape(),
+                                                                                source_tensor->data()),
+                                                                nullptr);
                     variant->set_tensor(input_port, shared_tensor);
                 }
             }
