@@ -367,6 +367,9 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_LIST_DIR}/preprocess/preprocess_steps_impl.hpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/aligned_buffer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/allocator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/runtime/allocator_mmap.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/runtime/allocator_mmap_posix.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/runtime/allocator_mmap_win.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/compute_hash.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/itensor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/runtime/lazy_buffer.cpp

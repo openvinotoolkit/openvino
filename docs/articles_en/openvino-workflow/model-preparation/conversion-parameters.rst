@@ -119,6 +119,32 @@ For details on how plugins handle compressed ``FP16`` models, see
      ``ovc`` does not have ``share_weights`` option and always uses sharing to reduce
      conversion time and consume less amount of memory during the conversion.
 
+- ``enable_mmap_for_constants`` parameter available in Python ``openvino.convert_model``
+  only enables file-backed temporary storage for large constants produced during model
+  conversion and graph transformations. This option is disabled by default. It can reduce
+  peak RAM usage when converting very large models, at the cost of additional temporary disk
+   usage and possible conversion-time slowdown. Temporary ``mmap``-backed storage is supported
+   on Linux, macOS, and Windows.
+
+  The related ``mmap_min_constant_size`` parameter sets the minimum size, in bytes, for a
+  generated constant to use temporary ``mmap``-backed storage. The default value is
+  ``67108864`` bytes (64 MiB). Constants below this limit use the regular allocator to avoid
+  unnecessary overhead for small tensors. If there is not enough free space in the temporary
+  directory, conversion fails with an error.
+
+  Example:
+
+  .. code-block:: py
+
+     import openvino as ov
+
+     ov_model = ov.convert_model(
+         "large_model.onnx",
+         enable_mmap_for_constants=True,
+         mmap_min_constant_size=128 * 1024 * 1024,
+     )
+     ov.save_model(ov_model, "large_model.xml")
+
 - ``output_model`` parameter in ``ovc`` and ``openvino.save_model`` specifies name for
   output ``.xml`` file with the resulting OpenVINO IR. The accompanying ``.bin`` file
   name will be generated automatically by replacing ``.xml`` extension with ``.bin``

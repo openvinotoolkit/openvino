@@ -44,6 +44,8 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_properties, ov::compilation_num_threads, "compilation_num_threads");
     wrap_property_RW(m_properties, ov::force_tbb_terminate, "force_tbb_terminate");
     wrap_property_RW(m_properties, ov::enable_mmap, "enable_mmap");
+    wrap_property_RW(m_properties, ov::enable_mmap_for_constants, "enable_mmap_for_constants");
+    wrap_property_RW(m_properties, ov::mmap_min_constant_size, "mmap_min_constant_size");
     wrap_property_RW(m_properties, ov::weights_path, "weights_path");
     wrap_property_RW(m_properties, ov::key_cache_precision, "key_cache_precision");
     wrap_property_RW(m_properties, ov::value_cache_precision, "value_cache_precision");

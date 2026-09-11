@@ -20,6 +20,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/opsets/opset.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/allocator_mmap.hpp"
 #include "openvino/runtime/compilation_context.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
@@ -215,6 +216,8 @@ static const auto core_properties_names = ov::util::make_array(ov::cache_dir.nam
                                                                ov::cache_model_path.name(),
                                                                ov::cache_blob_id.name(),
                                                                ov::enable_mmap.name(),
+                                                               ov::enable_mmap_for_constants.name(),
+                                                               ov::mmap_min_constant_size.name(),
                                                                ov::force_tbb_terminate.name());
 
 static const auto auto_batch_properties_names =
@@ -1297,6 +1300,12 @@ ov::Any ov::CoreImpl::get_property_for_core(const std::string& name) const {
     } else if (name == ov::enable_mmap.name()) {
         const auto flag = m_core_config.get_enable_mmap();
         return decltype(ov::enable_mmap)::value_type(flag);
+    } else if (name == ov::enable_mmap_for_constants.name()) {
+        const auto flag = m_core_config.get_enable_mmap_for_constants();
+        return decltype(ov::enable_mmap_for_constants)::value_type(flag);
+    } else if (name == ov::mmap_min_constant_size.name()) {
+        const auto min_constant_size = m_core_config.get_mmap_min_constant_size();
+        return decltype(ov::mmap_min_constant_size)::value_type(min_constant_size);
     }
 
     OPENVINO_THROW("Exception is thrown while trying to call get_property with unsupported property: '", name, "'");
@@ -1723,6 +1732,8 @@ ov::CoreConfig::CoreConfig(const CoreConfig& other) {
         m_devices_cache_config = other.m_devices_cache_config;
     }
     m_flag_enable_mmap = other.m_flag_enable_mmap;
+    m_flag_enable_mmap_for_constants = other.m_flag_enable_mmap_for_constants;
+    m_mmap_min_constant_size = other.m_mmap_min_constant_size;
 }
 
 void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_name) {
@@ -1746,6 +1757,14 @@ void ov::CoreConfig::set(const ov::AnyMap& config, const std::string& device_nam
     if (const auto cfg_entry = config.find(ov::enable_mmap.name()); cfg_entry != config.end()) {
         m_flag_enable_mmap = cfg_entry->second.as<bool>();
     }
+
+    if (const auto cfg_entry = config.find(ov::enable_mmap_for_constants.name()); cfg_entry != config.end()) {
+        m_flag_enable_mmap_for_constants = cfg_entry->second.as<bool>();
+    }
+
+    if (const auto cfg_entry = config.find(ov::mmap_min_constant_size.name()); cfg_entry != config.end()) {
+        m_mmap_min_constant_size = cfg_entry->second.as<uint64_t>();
+    }
 }
 
 void ov::CoreConfig::set_and_update(ov::AnyMap& config, const std::string& device_name) {
@@ -1766,6 +1785,14 @@ std::filesystem::path ov::CoreConfig::get_cache_dir() const {
 
 bool ov::CoreConfig::get_enable_mmap() const {
     return m_flag_enable_mmap;
+}
+
+bool ov::CoreConfig::get_enable_mmap_for_constants() const {
+    return m_flag_enable_mmap_for_constants;
+}
+
+uint64_t ov::CoreConfig::get_mmap_min_constant_size() const {
+    return m_mmap_min_constant_size;
 }
 
 ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov::Plugin& plugin) const {
@@ -1804,6 +1831,10 @@ std::shared_ptr<ov::Model> ov::CoreImpl::read_model(const std::filesystem::path&
     OV_ITT_SCOPE(FIRST_INFERENCE, ov::itt::domains::ReadTime, "CoreImpl::read_model from file");
     auto local_core_config = m_core_config;
     local_core_config.set(properties, {});
+    const ov::ScopedMMapConstantsConfig mmap_config_scope({
+        local_core_config.get_enable_mmap_for_constants(),
+        local_core_config.get_mmap_min_constant_size(),
+    });
     return ov::util::read_model(model_path, bin_path, get_extensions_copy(), local_core_config.get_enable_mmap());
 }
 
