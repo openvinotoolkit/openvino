@@ -1111,6 +1111,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.rot90.default", op::translate_rot90},
         {"aten.round.default", op::translate_round},
         {"aten.round.out", op::translate_round},
+        {"aten.round.decimals", op::translate_round},
         {"aten.rsqrt.default", op::translate_rsqrt},
         {"aten.rsub.Scalar", op::translate_rsub_fx},
         {"aten.rsub.Tensor", op::translate_rsub_fx},
