@@ -56,6 +56,11 @@ class TestHistc(PytorchLayerTest):
             ([[1.0, 2.0], [3.0, 4.0]], 4, 1.0, 4.0, np.float32),
             # float64
             ([1.0, 2.0, 3.0], 3, 1.0, 3.0, np.float64),
+            # integer inputs (should convert to float)
+            ([1, 2, 3], 3, 1, 3, np.int32),
+            ([0, 5, 10], 3, 0, 10, np.int64),
+            # single bin
+            ([1.0, 2.0, 3.0], 1, 0.0, 3.0, np.float32),
             # NaN / Inf are excluded
             ([np.nan, 2.0, 3.0], 2, 1.0, 4.0, np.float32),
             ([np.inf, 2.0, 3.0], 2, 1.0, 4.0, np.float32),
