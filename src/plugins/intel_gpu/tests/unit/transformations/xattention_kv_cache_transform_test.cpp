@@ -14,10 +14,14 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
+#include "ov_ops/dynamic_quantize.hpp"
 #include "test_utils.h"
 
 #include "../../../src/plugin/transformations_pipeline.cpp"
@@ -124,7 +128,55 @@ std::shared_ptr<v0::Parameter> find_parameter_by_name(const std::shared_ptr<cons
     return nullptr;
 }
 
+std::shared_ptr<ov::Model> create_compressed_matmul_model(size_t output_features) {
+    auto data = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 4, 128});
+    auto weights = ov::test::utils::initMatMulDecompressionSubgraph(Shape{128, output_features},
+                                                                    64,
+                                                                    element::f16,
+                                                                    element::u4,
+                                                                    element::f16,
+                                                                    element::f16,
+                                                                    false,
+                                                                    ov::test::utils::DecompressionType::full,
+                                                                    ov::test::utils::DecompressionType::scalar,
+                                                                    true,
+                                                                    std::nullopt,
+                                                                    1,
+                                                                    false,
+                                                                    false);
+    auto matmul = std::make_shared<v0::MatMul>(data, weights);
+    return std::make_shared<ov::Model>(OutputVector{matmul}, ParameterVector{data});
+}
+
+bool has_node_type(const std::shared_ptr<const ov::Model>& model, const std::string& type_name) {
+    const auto ordered_ops = model->get_ordered_ops();
+    return std::any_of(ordered_ops.begin(), ordered_ops.end(), [&type_name](const auto& node) {
+        return std::string(node->get_type_name()) == type_name;
+    });
+}
+
 }  // namespace
+
+TEST(DynamicQuantizeTransformPipelineTest, SkipsSingleOutputFeature) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "Dynamic quantization requires IMMAD support";
+    }
+
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::use_onednn(true));
+    config.set_user_property(ov::hint::dynamic_quantization_group_size(64));
+
+    auto model = create_compressed_matmul_model(1);
+    config.finalize(context.get(), model.get());
+
+    ov::intel_gpu::TransformationsPipeline pipeline(config, context);
+    pipeline.apply(model);
+
+    EXPECT_TRUE(has_node_type(model, "FullyConnectedCompressed"));
+    EXPECT_FALSE(has_node_type(model, "DynamicQuantize"));
+}
 
 TEST(XAttentionTransformPipelineTest, NormalizesByTokenFp16RtInfoToCompressedCacheLayout) {
     auto& engine = get_test_engine();
