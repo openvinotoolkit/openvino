@@ -91,15 +91,11 @@ struct HostFlashAttention {
     std::shared_ptr<ov::Model> _final_tile_model;
 
     // Tile configuration.
-    // _past_tile_size ("C"): K/V chunk size used for REGULAR tiles (one NPU call per chunk).
-    // Equal to the KV cache block size in block-split mode, or to _query_size in continuous
-    // (non-block) mode.
+    // _past_tile_size: K/V chunk size for REGULAR tiles. Equal to _query_size, except for
+    // a SWA layer whose past capacity is shrunk below one query chunk.
     int64_t _past_tile_size = 0;
-    // _final_tile_size: K/V length processed by the FINAL tile in a single inference. Equal to
-    // _query_size plus any leftover past length that doesn't divide evenly into
-    // _past_tile_size (a KV "tail"/remainder chunk which is merged with the present KV instead
-    // of getting its own regular-tile call). When there's no remainder, _final_tile_size ==
-    // _query_size (today's behavior).
+    // _final_tile_size: K/V length for the FINAL tile. Always equal to _query_size (HFA only
+    // supports PREFILL, which fills the KV cache in exact _past_tile_size increments).
     int64_t _final_tile_size = 0;
 
     // Query length used for tile_size/PREFILL-GENERATE/context_length logic.
@@ -323,8 +319,8 @@ struct HFARuntimeContext {
     // ============================================================================
 
     /// Initialize mask cache: allocate temporary buffers for REGULAR (past) tile mask extraction,
-    /// plus one dedicated buffer for the FINAL tile (which may be a different length whenever a
-    /// KV remainder is merged into it, _past_tile_size != _final_tile_size).
+    /// plus one dedicated buffer for the FINAL tile (which may be a different length whenever
+    /// _past_tile_size != _final_tile_size, e.g. the SWA short-past case).
     /// Call once during setup before inference.
     template <typename HFADesc>
     void initialize_mask_cache(const HFADesc& hfa_desc, const std::string& device_name, AllocatorFn allocator) {
@@ -361,8 +357,8 @@ struct HFARuntimeContext {
         const auto mask_dtype = mask_port.get_element_type();
 
         // Upper bound on the number of concurrently-cached regular-tile mask tiles. Doesn't need
-        // to be exact — context_size may not divide evenly by past_tile_size once a KV remainder
-        // is merged into the final tile instead of getting its own regular-tile chunk.
+        // to be exact — context_size includes the final tile's present KV, which isn't itself
+        // chunked into past_tile_size units, so the division may not be exact.
         const size_t context_size = hfa_desc._sdpa_attention_info._context_size;
         const size_t max_num_tiles = (context_size + past_tile_size - 1) / past_tile_size;
 
