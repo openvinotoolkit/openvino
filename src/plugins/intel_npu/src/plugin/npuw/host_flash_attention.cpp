@@ -983,15 +983,16 @@ static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::sh
 // chunked into REGULAR tile calls, and how much of it (if any) doesn't evenly divide and must
 // instead be merged with the present KV into a single FINAL tile call.
 //
-// Two KV layouts are distinguished by parameter naming, following the convention used by the
-// SplitKVCacheIntoBlocks transformation (npuw_transformations/split_kvcache_into_blocks.cpp),
-// which names block parameters "<name>_block_<i>" and an optional trailing smaller tail
-// parameter "<name>_block_tail":
-//   - Block-split KV (2+ past Concat inputs): all past inputs must share one uniform block
-//     size ("C") -- HFA only supports PREFILL, where the KV cache is always populated in exact
-//     block-size increments, so no shorter trailing "tail" block is expected.
-//   - Single past Concat input: either block-split with exactly one block, or plain continuous
-//     KV. Disambiguated via the "_block_" name substring; continuous KV uses C = query_size.
+// Two KV layouts are handled, disambiguated purely by past length vs. query_size (block_size is
+// always set to query_size/prefill-chunk-size by construction, see
+// SplitKVCacheIntoBlocks/m_prefill_chunk_size in llm_compiled_model.cpp, so a single block can
+// never exceed one query chunk):
+//   - A lone past input shorter than one query chunk (e.g. a sliding-window layer whose past
+//     capacity was shrunk below query_size): nothing to chunk it with, C = its own length.
+//   - Otherwise (any number of past inputs, block-split or continuous): C = query_size. The
+//     runtime (attn_subgraph.cpp) slices each past input into query_size-sized regular tiles on
+//     its own, so past inputs don't even need to share the same length -- each one just needs to
+//     be an exact multiple of query_size (true for PREFILL, which fills KV in exact increments).
 static int64_t analyze_past_tiling(const std::shared_ptr<ov::Node>& concat_node,
                                    std::size_t seq_dim,
                                    std::size_t query_size) {
@@ -1003,41 +1004,27 @@ static int64_t analyze_past_tiling(const std::shared_ptr<ov::Node>& concat_node,
         auto node = skip_convert_nodes(concat_node->get_input_node_shared_ptr(idx));
         return static_cast<int64_t>(node->get_output_partial_shape(0).to_shape()[seq_dim]);
     };
-    // A past-KV param is "block-named" (block-split, e.g. "..._block_3"/"..._block_tail")
-    // when it does NOT match the plain contiguous naming ("past_key_values.<n>.key/value").
-    auto is_block_named = [&](std::size_t idx) -> bool {
-        auto node = skip_convert_nodes(concat_node->get_input_node_shared_ptr(idx));
-        return !ov::npuw::util::isPastKeyValuesContiguous(node->get_friendly_name()).has_value();
-    };
 
     if (n_past_inputs == 0) {
         // No past at all (e.g. first PREFILL chunk). C is unused; default it to query_size so the
         // (unused) regular tile model still compiles with a valid, non-zero shape.
         return static_cast<int64_t>(query_size);
     }
+
+    const int64_t query_len = static_cast<int64_t>(query_size);
     if (n_past_inputs == 1) {
         const int64_t len = get_len(0);
-        const int64_t query_len = static_cast<int64_t>(query_size);
-        if (is_block_named(0) || len < query_len) {
-            // Either an explicit single block, or a continuous past shorter than one query
-            // chunk (e.g. a sliding-window layer whose past capacity was shrunk below
-            // query_size) -- nothing to chunk it with, so treat it as one regular-tile chunk
-            // of its own size.
+        if (len < query_len) {
             return len;
         }
-        // Continuous (non-block) KV, at least one full query-chunk long: chunk by query_size.
-        NPUW_ASSERT(len % query_len == 0 &&
-                    "HFA: continuous KV length must be a multiple of query_size (PREFILL-only)");
-        return query_len;
     }
-    // Block-split KV with 2+ past inputs: all must share the same block size (PREFILL always
-    // fills the KV cache in exact block-size increments, so there is no shorter tail block).
-    const int64_t past_tile_size = get_len(0);
-    NPUW_ASSERT(past_tile_size > 0 && "HFA: KV block size must be positive");
-    for (std::size_t i = 1; i < n_past_inputs; ++i) {
-        NPUW_ASSERT(get_len(i) == past_tile_size && "HFA: all KV blocks must share the same block size");
+    // Every past input must be an exact multiple of query_size -- the runtime slices each one
+    // independently into query_size-sized regular tiles regardless of block boundaries.
+    for (std::size_t i = 0; i < n_past_inputs; ++i) {
+        NPUW_ASSERT(get_len(i) % query_len == 0 &&
+                    "HFA: every past KV input's length must be a multiple of query_size (PREFILL-only)");
     }
-    return past_tile_size;
+    return query_len;
 }
 
 std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
