@@ -13,6 +13,10 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/transpose.hpp"
 
+namespace ov::pass::pattern {
+class Matcher;
+}
+
 namespace ov::npuw::moe {
 
 // The semantic boundary between routing and expert execution. Selection and
@@ -33,9 +37,31 @@ struct BatchedMoE {
     size_t num_selected = 0;
 };
 
-// Pure analysis; never mutates the graph. Accepts independent batched expert
-// FFNs with an explicit zero-based scatter of TopK indices and arbitrary mixing
-// scores. Rejects cross-expert/token operations and ambiguous layouts.
+// Shared declarative router/mixing/reduction boundary. Callbacks validate only
+// cross-node semantics and the bounded expert body between Tile and Multiply.
+// The pattern owns no matched graph state, so pure queries cannot retain a model.
+class BatchedMoEPattern {
+public:
+    BatchedMoEPattern();
+
+    const std::shared_ptr<ov::Node>& root() const {
+        return m_reduction;
+    }
+
+    std::optional<BatchedMoE> extract(ov::pass::pattern::Matcher& matcher) const;
+    std::optional<BatchedMoE> match(const std::shared_ptr<ov::Node>& reduction) const;
+
+private:
+    std::shared_ptr<ov::Node> m_topk;
+    std::shared_ptr<ov::Node> m_scatter;
+    std::shared_ptr<ov::Node> m_score_transpose;
+    std::shared_ptr<ov::Node> m_expert_output;
+    std::shared_ptr<ov::Node> m_weighted_output;
+    std::shared_ptr<ov::Node> m_reduction;
+};
+
+// Compatibility lookup for legacy router callbacks anchored at Scatter. Only
+// locates the reduction; recognition uses the same declarative boundary above.
 std::optional<BatchedMoE> match_batched_moe(const std::shared_ptr<ov::Node>& scatter);
 
 // Pure eligibility check shared by automatic strategy selection and lowering.

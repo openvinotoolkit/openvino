@@ -30,8 +30,9 @@ enum class Routing { SOFTMAX_TOPK, TOPK_SOFTMAX, SIGMOID_BIAS, SCALED, UNNORMALI
 
 struct Graph {
     std::shared_ptr<ov::Model> model;
-    std::shared_ptr<ov::op::v12::ScatterElementsUpdate> scatter;
+    std::shared_ptr<ov::Node> scatter;
     std::shared_ptr<ov::op::v11::TopK> topk;
+    std::shared_ptr<ov::op::v1::ReduceSum> reduction;
 };
 
 Graph make_moe(Routing routing, bool grouped = false, size_t tokens = 1, int64_t k = 2, bool shared = false) {
@@ -126,10 +127,11 @@ Graph make_moe(Routing routing, bool grouped = false, size_t tokens = 1, int64_t
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, std::vector<size_t>{experts, tokens, hidden}),
         false);
     auto weighted = std::make_shared<ov::op::v1::Multiply>(expert_output, routing_weights);
-    ov::Output<ov::Node> output =
+    auto reduction =
         std::make_shared<ov::op::v1::ReduceSum>(weighted,
                                                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
                                                 false);
+    ov::Output<ov::Node> output = reduction;
     if (shared)
         output = std::make_shared<ov::op::v1::Add>(
             output,
@@ -138,7 +140,10 @@ Graph make_moe(Routing routing, bool grouped = false, size_t tokens = 1, int64_t
                 ov::op::v0::Constant::create(ov::element::f32, ov::Shape{hidden, hidden}, {0.125f}),
                 false,
                 false));
-    return {std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input, logits}), scatter, topk};
+    return {std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input, logits}),
+            scatter,
+            topk,
+            reduction};
 }
 
 ov::TensorVector evaluate(const std::shared_ptr<ov::Model>& original) {
@@ -216,6 +221,206 @@ INSTANTIATE_TEST_SUITE_P(RoutingSemantics,
                                                               Routing::UNNORMALIZED),
                                             ::testing::Bool(),
                                             ::testing::Values(int64_t{1}, int64_t{2}, int64_t{4})));
+
+// Exercise the complete boundary independently of the legacy Scatter lookup.
+// Layout 0: [E,T,1]; layout 1: [E,1,T,1]; layout 2: [E,T,1,1].
+std::shared_ptr<ov::Node> configure_score_boundary(Graph& graph,
+                                                 size_t views,
+                                                 size_t layout,
+                                                 bool reverse_multiply,
+                                                 bool scatter_v3) {
+    auto weighted = ov::as_type_ptr<ov::op::v1::Multiply>(graph.reduction->input_value(0).get_node_shared_ptr());
+    auto transpose = weighted->input_value(1).get_node_shared_ptr()->input_value(0).get_node_shared_ptr();
+    const auto tokens = graph.topk->get_input_shape(0)[0];
+    const ov::Shape score_shape = layout == 0 ? ov::Shape{4, tokens, 1}
+                                            : (layout == 1 ? ov::Shape{4, 1, tokens, 1} : ov::Shape{4, tokens, 1, 1});
+    const std::vector<int64_t> axes = layout == 0 ? std::vector<int64_t>{2}
+                                                : (layout == 1 ? std::vector<int64_t>{1, 3}
+                                                               : std::vector<int64_t>{2, 3});
+    ov::Output<ov::Node> scores = transpose;
+    for (size_t i = 0; i < views; ++i) {
+        if (i == (views == 1 ? 0 : 1)) {
+            scores = std::make_shared<ov::op::v0::Unsqueeze>(
+                scores, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes.size()}, axes));
+        } else {
+            const auto shape = i == 0 ? ov::Shape{4, tokens} : score_shape;
+            scores = std::make_shared<ov::op::v1::Reshape>(
+                scores, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{shape.size()}, shape), false);
+        }
+    }
+    ov::Output<ov::Node> expert = weighted->input_value(0);
+    if (layout != 0) {
+        auto shape = score_shape;
+        shape.back() = 8;
+        expert = std::make_shared<ov::op::v1::Reshape>(
+            expert, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{shape.size()}, shape), false);
+    }
+    weighted->input(0).replace_source_output(reverse_multiply ? scores : expert);
+    weighted->input(1).replace_source_output(reverse_multiply ? expert : scores);
+    std::shared_ptr<ov::Node> scatter = graph.scatter;
+    if (scatter_v3) {
+        scatter = std::make_shared<ov::op::v3::ScatterElementsUpdate>(graph.scatter->input_value(0),
+                                                                   graph.scatter->input_value(1),
+                                                                   graph.scatter->input_value(2),
+                                                                   graph.scatter->input_value(3));
+        ov::replace_node(graph.scatter, scatter);
+        // Do not retain an obsolete consumer of the router outputs: Snapshot
+        // expects every live consumer to belong to the model being partitioned.
+        graph.scatter = scatter;
+    }
+    ov::Output<ov::Node> indices = graph.topk->output(1);
+    for (const auto type : {ov::element::i32, ov::element::i64, ov::element::i32, ov::element::i64})
+        indices = std::make_shared<ov::op::v0::Convert>(indices, type);
+    scatter->input(1).replace_source_output(indices);
+    graph.model->validate_nodes_and_infer_types();
+    return scatter;
+}
+
+class BatchedMoEBoundaryTest : public ::testing::TestWithParam<std::tuple<size_t, size_t, bool, bool>> {};
+
+TEST_P(BatchedMoEBoundaryTest, SharedPatternPreservesHostIsolationAndDeviceNumerics) {
+    const auto [views, layout, reverse_multiply, scatter_v3] = GetParam();
+    const ov::npuw::moe::BatchedMoEPattern pattern;
+    for (const size_t tokens : {size_t{1}, size_t{7}}) {
+        SCOPED_TRACE(tokens);
+        auto graph = make_moe(Routing::SIGMOID_BIAS, true, tokens, 2, true);
+        const auto scatter = configure_score_boundary(graph, views, layout, reverse_multiply, scatter_v3);
+        const auto topology = pattern.match(graph.reduction);
+        ASSERT_TRUE(topology);
+        EXPECT_EQ(topology->topk, graph.topk);
+        EXPECT_EQ(topology->indices, graph.topk->output(1));
+        EXPECT_EQ(topology->scores, scatter->input_value(2));
+        EXPECT_EQ(topology->num_experts, 4u);
+        EXPECT_EQ(topology->num_selected, 2u);
+        EXPECT_EQ(ov::npuw::moe::can_device_route(*topology), tokens == 1);
+
+        auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(graph.model);
+        snapshot->buildGraph();
+        ov::pass::GraphRewrite host;
+        host.add_matcher<ov::npuw::patterns::moe::BatchedExpert>(snapshot, "expert");
+        host.run_on_model(graph.model);
+        EXPECT_EQ(graph.topk->get_rt_info().at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>(), 2u);
+        EXPECT_EQ(snapshot->getNodeToGroupMap()->at(topology->weighted_output)->isolatedTag(), "expert");
+        EXPECT_EQ(snapshot->getNodeToGroupMap()->at(graph.reduction)->isolatedTag() == "expert", tokens == 1);
+        if (tokens == 1) {
+            const auto expected = evaluate(graph.model);
+            ASSERT_TRUE(ov::npuw::ApplyMoEDeviceRoutedTransforms().run_on_model(graph.model));
+            const auto actual = evaluate(graph.model);
+            ASSERT_EQ(actual[0].get_shape(), expected[0].get_shape());
+            for (size_t i = 0; i < actual[0].get_size(); ++i)
+                EXPECT_NEAR(actual[0].data<float>()[i], expected[0].data<float>()[i], 1e-5f);
+        } else {
+            const auto nodes = graph.model->get_ordered_ops();
+            EXPECT_FALSE(ov::npuw::pass::DeviceRoutedMoETransform().run_on_model(graph.model));
+            EXPECT_EQ(nodes, graph.model->get_ordered_ops());
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(ScoreViews,
+                         BatchedMoEBoundaryTest,
+                         ::testing::Combine(::testing::Values(size_t{1}, size_t{2}, size_t{7}),
+                                            ::testing::Values(size_t{0}, size_t{1}, size_t{2}),
+                                            ::testing::Bool(),
+                                            ::testing::Bool()));
+
+TEST(GenericMoETopologyTest, DeclarativeBoundaryRejectsExcessScoreViewsWithoutMutation) {
+    auto graph = make_moe(Routing::TOPK_SOFTMAX);
+    configure_score_boundary(graph, 8, 0, false, false);
+    const auto nodes = graph.model->get_ordered_ops();
+    EXPECT_FALSE(ov::npuw::moe::BatchedMoEPattern().match(graph.reduction));
+    EXPECT_FALSE(ov::npuw::moe::match_batched_moe(graph.scatter));
+    EXPECT_FALSE(ov::npuw::pass::DeviceRoutedMoETransform().run_on_model(graph.model));
+    EXPECT_EQ(nodes, graph.model->get_ordered_ops());
+}
+
+TEST(GenericMoETopologyTest, DeclarativeBoundaryRejectsEscapingValuesWithoutMutation) {
+    const ov::npuw::moe::BatchedMoEPattern pattern;
+    for (size_t boundary = 0; boundary < 5; ++boundary) {
+        SCOPED_TRACE(boundary);
+        auto graph = make_moe(Routing::TOPK_SOFTMAX);
+        const auto topology = pattern.match(graph.reduction);
+        ASSERT_TRUE(topology);
+        const ov::OutputVector values{graph.scatter,
+                                      topology->score_transpose,
+                                      topology->broadcast_scores,
+                                      topology->expert_output,
+                                      topology->weighted_output};
+        graph.model->add_results({std::make_shared<ov::op::v0::Result>(values[boundary])});
+        const auto nodes = graph.model->get_ordered_ops();
+        EXPECT_FALSE(pattern.match(graph.reduction));
+        EXPECT_FALSE(ov::npuw::pass::DeviceRoutedMoETransform().run_on_model(graph.model));
+        EXPECT_EQ(nodes, graph.model->get_ordered_ops());
+    }
+}
+
+TEST(GenericMoETopologyTest, DeclarativeBoundaryRejectsInvalidPermutationAndIndexConversions) {
+    const ov::npuw::moe::BatchedMoEPattern pattern;
+    for (const bool invalid_permutation : {false, true}) {
+        auto graph = make_moe(Routing::TOPK_SOFTMAX, false, 4);
+        const auto topology = pattern.match(graph.reduction);
+        ASSERT_TRUE(topology);
+        if (invalid_permutation) {
+            topology->score_transpose->input(1).replace_source_output(
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1}));
+        } else {
+            graph.scatter->input(1).replace_source_output(std::make_shared<ov::op::v0::Convert>(
+                std::make_shared<ov::op::v0::Convert>(graph.topk->output(1), ov::element::f32), ov::element::i64));
+        }
+        graph.model->validate_nodes_and_infer_types();
+        EXPECT_FALSE(pattern.match(graph.reduction));
+    }
+}
+
+TEST(GenericMoETopologyTest, PureBoundaryPatternDoesNotRetainModelsOrStaleMatches) {
+    const ov::npuw::moe::BatchedMoEPattern pattern;
+    std::weak_ptr<ov::Node> reduction;
+    {
+        auto graph = make_moe(Routing::TOPK_SOFTMAX);
+        reduction = graph.reduction;
+        ASSERT_TRUE(pattern.match(graph.reduction));
+        graph.scatter->input(0).replace_source_output(
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4}, {1.0f}));
+        EXPECT_FALSE(pattern.match(graph.reduction));
+        graph.scatter->input(0).replace_source_output(
+            ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 4}, {0.0f}));
+        EXPECT_TRUE(pattern.match(graph.reduction));
+    }
+    EXPECT_TRUE(reduction.expired());
+}
+
+TEST(GenericMoETopologyTest, SharedPatternCoversGroupedAndPlainWeightsOutsideLegacySkeletons) {
+    for (const bool plain_weights : {false, true}) {
+        auto graph = make_moe(Routing::SIGMOID_BIAS, true, 7);
+        if (plain_weights) {
+            for (const auto& node : graph.model->get_ordered_ops()) {
+                if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node))
+                    matmul->input(1).replace_source_output(
+                        ov::op::v0::Constant::create(ov::element::f32, matmul->get_input_shape(1), {0.125f}));
+            }
+            graph.model->validate_nodes_and_infer_types();
+        }
+        const auto topology = ov::npuw::moe::BatchedMoEPattern().match(graph.reduction);
+        ASSERT_TRUE(topology);
+        auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(graph.model);
+        snapshot->buildGraph();
+        ov::pass::GraphRewrite legacy;
+        legacy.add_matcher<ov::npuw::patterns::moe::GPTOSSExpert>(snapshot, "expert");
+        legacy.add_matcher<ov::npuw::patterns::moe::Qwen3Expert>(snapshot, "expert");
+        legacy.add_matcher<ov::npuw::patterns::moe::Gemma4Expert>(snapshot, "expert");
+        legacy.add_matcher<ov::npuw::patterns::moe::GPTOSSRouter>(snapshot, "router");
+        legacy.add_matcher<ov::npuw::patterns::moe::Qwen3Router>(snapshot, "router");
+        legacy.add_matcher<ov::npuw::patterns::moe::Gemma4Router>(snapshot, "router");
+        legacy.run_on_model(graph.model);
+        EXPECT_NE(snapshot->getNodeToGroupMap()->at(topology->weighted_output)->isolatedTag(), "expert");
+        EXPECT_FALSE(graph.topk->get_rt_info().count(ov::npuw::patterns::moe::RT_INFO_MOE_K));
+        ov::pass::GraphRewrite generic;
+        generic.add_matcher<ov::npuw::patterns::moe::BatchedExpert>(snapshot, "expert");
+        generic.run_on_model(graph.model);
+        EXPECT_EQ(snapshot->getNodeToGroupMap()->at(topology->weighted_output)->isolatedTag(), "expert");
+        EXPECT_EQ(graph.topk->get_rt_info().at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>(), 2u);
+    }
+}
 
 TEST(GenericMoETopologyTest, HostMatcherTagsSigmoidBiasAndGroupedWeightsWithoutNames) {
     auto graph = make_moe(Routing::SIGMOID_BIAS, true, 7);
@@ -313,7 +518,8 @@ TEST(GenericMoETopologyTest, RejectsTopKValuesUsedAsIndices) {
 
 TEST(GenericMoETopologyTest, RejectsReductionScatter) {
     auto graph = make_moe(Routing::TOPK_SOFTMAX);
-    graph.scatter->set_reduction(ov::op::v12::ScatterElementsUpdate::Reduction::PROD);
+    ov::as_type_ptr<ov::op::v12::ScatterElementsUpdate>(graph.scatter)
+        ->set_reduction(ov::op::v12::ScatterElementsUpdate::Reduction::PROD);
     EXPECT_FALSE(ov::npuw::moe::match_batched_moe(graph.scatter));
 }
 

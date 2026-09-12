@@ -9,8 +9,8 @@ every graph containing experts.
 
 The contribution combines:
 
-- Structural matching rather than architecture-specific names or a prescribed
-  softmax/normalization formula.
+- A shared declarative boundary pattern, independent of architecture-specific
+  names or a prescribed softmax/normalization formula.
 - Transactional single-token device lowering that selects compressed expert
   weights before decompression and computes only the selected expert branches.
 - Reuse of NPUW's existing sparse host-prefill and K-expert decode executors,
@@ -18,6 +18,22 @@ The contribution combines:
 
 Host-side expert batching, request caching, and asynchronous prefill already
 existed. They are reused here, not claimed as new algorithms.
+
+The legacy GPT-OSS, Qwen3 and Gemma4 expert matchers already use structural
+patterns. The generic path shares a reduction-rooted pattern for the
+ScatterElementsUpdate, Transpose, score views, Multiply and ReduceSum boundary
+between host isolation, device lowering and eligibility queries. TopK's index
+output is matched separately after validating optional integer conversions;
+the mixing-score expression is not constrained to the selection formula.
+Cross-node shape checks and a bounded traversal of the expert arm retain the
+layout, weight-selection and no-escaping-intermediate safeguards. Device graph
+construction remains separate and transactional. Legacy router callbacks keep
+a bounded Scatter-to-reduction lookup, but reuse the same boundary recognition.
+
+Concrete forms beyond the existing legacy skeletons include grouped weight
+decompression with an intervening Reshape, plain expert weights, and routers
+with sigmoid/bias selection and separately computed mixing scores. These are
+coverage gaps in those implementations, not limitations of the pattern framework.
 
 ### Export and compiler prerequisites
 
@@ -53,7 +69,7 @@ The current graph boundary requires:
    Indices must come from output **1**, optionally through i32/i64 conversions.
 2. ScatterElementsUpdate v3/v12 on expert axis 1 (or -1), with a zero base;
    v12 must use reduction NONE.
-3. Transpose `[1, 0]`, then data-preserving score views to
+3. Transpose `[1, 0]`, then up to seven data-preserving Reshape/Unsqueeze views to
    `[E, tokens, 1]`, `[E, 1, tokens, 1]`, or `[E, tokens, 1, 1]`.
 4. Independent expert-major FFNs, starting with a Tile of `[tokens, hidden]`
    by `[E, 1]`. At least two expert MatMuls, supported pointwise activations,

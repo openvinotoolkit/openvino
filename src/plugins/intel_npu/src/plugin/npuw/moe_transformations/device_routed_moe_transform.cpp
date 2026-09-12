@@ -12,8 +12,9 @@ namespace ov::npuw::pass {
 
 bool DeviceRoutedMoETransform::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool changed = false;
+    const ov::npuw::moe::BatchedMoEPattern pattern;
     for (const auto& node : model->get_ordered_ops()) {
-        const auto topology = ov::npuw::moe::match_batched_moe(node);
+        const auto topology = pattern.match(node);
         if (!topology)
             continue;
         // Build first, replace last: an unsupported expression must never leave

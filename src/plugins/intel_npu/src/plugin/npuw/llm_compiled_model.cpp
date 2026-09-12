@@ -535,8 +535,9 @@ bool has_per_layer_inputs(const std::shared_ptr<ov::Model>& model) {
 // Prefer structural detection. Keep names as a legacy hint for older exports
 // that still need normalization before their batched experts can be matched.
 bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
+    const ov::npuw::moe::BatchedMoEPattern pattern;
     for (const auto& op : model->get_ops()) {
-        if (ov::npuw::moe::match_batched_moe(op))
+        if (pattern.match(op))
             return true;
         const std::string& node_name = op->get_friendly_name();
         // Check for MoE-specific patterns:
@@ -1313,8 +1314,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         if (auto_device_moe && !generate_model_variants.empty()) {
             const auto eligible = [](const std::shared_ptr<ov::Model>& variant) {
                 bool found = false;
+                const ov::npuw::moe::BatchedMoEPattern pattern;
                 for (const auto& node : variant->get_ordered_ops()) {
-                    if (const auto topology = ov::npuw::moe::match_batched_moe(node)) {
+                    if (const auto topology = pattern.match(node)) {
                         if (!ov::npuw::moe::can_device_route(*topology))
                             return false;
                         found = true;

@@ -14,9 +14,16 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 namespace ov::npuw::moe {
 namespace {
+
+// Preserve the original limit: at most seven score views between Transpose
+// and Multiply. TopK index conversions are checked separately without a limit.
+constexpr size_t max_score_views = 7;
 
 std::optional<std::vector<int64_t>> integers(const ov::Output<ov::Node>& value) {
     const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(value.get_node_shared_ptr());
@@ -104,6 +111,8 @@ bool can_gather_weight(const ov::Output<ov::Node>& value, size_t experts) {
     return false;
 }
 
+// Walk only the expert arm, stopping at Tile and constant leaves. Routing and
+// the rest of the model are outside this validation boundary.
 bool collect_experts(BatchedMoE& moe) {
     std::unordered_set<std::shared_ptr<ov::Node>> seen;
     size_t matmuls = 0;
@@ -192,25 +201,62 @@ bool collect_experts(BatchedMoE& moe) {
 
 }  // namespace
 
-std::optional<BatchedMoE> match_batched_moe(const std::shared_ptr<ov::Node>& scatter) {
-    if (!ov::is_type<ov::op::v3::ScatterElementsUpdate>(scatter) &&
-        !ov::is_type<ov::op::v12::ScatterElementsUpdate>(scatter))
-        return std::nullopt;
-    if (auto op = ov::as_type_ptr<ov::op::v12::ScatterElementsUpdate>(scatter)) {
-        if (op->get_reduction() != ov::op::v12::ScatterElementsUpdate::Reduction::NONE)
-            return std::nullopt;
+BatchedMoEPattern::BatchedMoEPattern() {
+    namespace opp = ov::pass::pattern;
+
+    auto k = opp::any_input([](const ov::Output<ov::Node>& value) {
+        const auto data = integers(value);
+        return data && data->size() == 1 && data->front() > 0;
+    });
+    m_topk = opp::wrap_type<ov::op::v11::TopK>(
+        {opp::any_input(), k},
+        opp::output_index_matches(1) && [](const ov::Output<ov::Node>& value) {
+            const auto topk = ov::as_type_ptr<ov::op::v11::TopK>(value.get_node_shared_ptr());
+            return topk->get_mode() == ov::op::v11::TopK::Mode::MAX &&
+                   (topk->get_axis() == 1 || topk->get_axis() == -1);
+        });
+
+    // Indices may have arbitrary i32/i64 Convert chains. Match their unwrapped
+    // source against m_topk in extract(); the score expression stays independent.
+    auto zero = opp::any_input(is_zero);
+    auto expert_axis = opp::any_input([](const ov::Output<ov::Node>& value) {
+        return is_axis(value, 1, 2);
+    });
+    m_scatter = opp::wrap_type<ov::op::v3::ScatterElementsUpdate, ov::op::v12::ScatterElementsUpdate>(
+        {zero, opp::any_input(), opp::any_input(), expert_axis},
+        opp::consumers_count(1) && [](const ov::Output<ov::Node>& value) {
+            const auto scatter = ov::as_type_ptr<ov::op::v12::ScatterElementsUpdate>(value.get_node_shared_ptr());
+            return !scatter || scatter->get_reduction() == ov::op::v12::ScatterElementsUpdate::Reduction::NONE;
+        });
+    auto permutation = opp::any_input([](const ov::Output<ov::Node>& value) {
+        return integers(value) == std::optional<std::vector<int64_t>>{{1, 0}};
+    });
+    m_score_transpose =
+        opp::wrap_type<ov::op::v1::Transpose>({m_scatter, permutation}, opp::consumers_count(1));
+    auto scores = m_score_transpose;
+    for (size_t i = 0; i < max_score_views; ++i) {
+        scores = opp::optional<ov::op::v1::Reshape, ov::op::v0::Unsqueeze>(
+            {scores, opp::any_input()}, opp::consumers_count(1));
     }
-    if (!is_axis(scatter->input_value(3), 1, 2) || !is_zero(scatter->input_value(0)))
-        return std::nullopt;
+    m_expert_output = opp::any_input();
+    m_weighted_output = opp::wrap_type<ov::op::v1::Multiply>(
+        {m_expert_output, scores}, opp::consumers_count(1) && has_supported_broadcast);
+    m_reduction = opp::wrap_type<ov::op::v1::ReduceSum>({m_weighted_output, opp::any_input()});
+}
+
+std::optional<BatchedMoE> BatchedMoEPattern::extract(ov::pass::pattern::Matcher& matcher) const {
+    const auto& matched = matcher.get_pattern_value_map();
+    const auto scatter = matched.at(m_scatter).get_node_shared_ptr();
     auto indices = scatter->input_value(1);
     while (auto convert = ov::as_type_ptr<ov::op::v0::Convert>(indices.get_node_shared_ptr())) {
         if (convert->get_destination_type() != ov::element::i32 && convert->get_destination_type() != ov::element::i64)
             return std::nullopt;
         indices = convert->input_value(0);
     }
-    const auto topk = ov::as_type_ptr<ov::op::v11::TopK>(indices.get_node_shared_ptr());
-    if (!topk || indices.get_index() != 1 || topk->get_mode() != ov::op::v11::TopK::Mode::MAX)
+    ov::pass::pattern::Matcher selection(m_topk, "BatchedMoESelection");
+    if (!selection.match(indices))
         return std::nullopt;
+    const auto topk = ov::as_type_ptr<ov::op::v11::TopK>(indices.get_node_shared_ptr());
     const auto data_shape = scatter->input_value(0).get_partial_shape();
     const auto indices_shape = indices.get_partial_shape();
     const auto selection_shape = topk->input_value(0).get_partial_shape();
@@ -218,8 +264,7 @@ std::optional<BatchedMoE> match_batched_moe(const std::shared_ptr<ov::Node>& sca
     if (data_shape.rank() != ov::Rank(2) || indices_shape.rank() != ov::Rank(2) ||
         selection_shape.rank() != ov::Rank(2) || !selection_shape.compatible(data_shape) ||
         !selection_shape[1].is_static() || selection_shape[1] != data_shape[1] || !data_shape[1].is_static() || !k ||
-        k->size() != 1 || k->front() <= 0 || k->front() > data_shape[1].get_length() ||
-        (topk->get_axis() != 1 && topk->get_axis() != -1) ||
+        k->front() > data_shape[1].get_length() ||
         !scatter->input_value(2).get_partial_shape().compatible(indices_shape))
         return std::nullopt;
     BatchedMoE moe;
@@ -228,27 +273,12 @@ std::optional<BatchedMoE> match_batched_moe(const std::shared_ptr<ov::Node>& sca
     moe.scores = scatter->input_value(2);
     moe.num_experts = static_cast<size_t>(data_shape[1].get_length());
     moe.num_selected = static_cast<size_t>(k->front());
-    moe.score_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(only_consumer(scatter->output(0)));
-    if (!moe.score_transpose ||
-        integers(moe.score_transpose->input_value(1)) != std::optional<std::vector<int64_t>>{{1, 0}})
-        return std::nullopt;
-    ov::Output<ov::Node> current = moe.score_transpose->output(0);
-    for (size_t hop = 0; hop < 8; ++hop) {
-        auto consumer = only_consumer(current);
-        if (auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(consumer)) {
-            moe.weighted_output = multiply;
-            moe.broadcast_scores = current;
-            moe.expert_output = multiply->input_value(multiply->input_value(0) == current ? 1 : 0);
-            break;
-        }
-        if ((!ov::is_type<ov::op::v1::Reshape>(consumer) && !ov::is_type<ov::op::v0::Unsqueeze>(consumer)) ||
-            consumer->input_value(0) != current)
-            return std::nullopt;
-        current = consumer->output(0);
-    }
-    if (!moe.weighted_output || !has_supported_broadcast(moe.weighted_output))
-        return std::nullopt;
-    moe.reduction = ov::as_type_ptr<ov::op::v1::ReduceSum>(only_consumer(moe.weighted_output->output(0)));
+    moe.score_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(matched.at(m_score_transpose).get_node_shared_ptr());
+    moe.expert_output = matched.at(m_expert_output);
+    moe.weighted_output = ov::as_type_ptr<ov::op::v1::Multiply>(matched.at(m_weighted_output).get_node_shared_ptr());
+    moe.broadcast_scores =
+        moe.weighted_output->input_value(moe.weighted_output->input_value(0) == moe.expert_output ? 1 : 0);
+    moe.reduction = ov::as_type_ptr<ov::op::v1::ReduceSum>(matched.at(m_reduction).get_node_shared_ptr());
     const auto expert_shape = moe.expert_output.get_partial_shape();
     const auto score_shape = moe.broadcast_scores.get_partial_shape();
     if (!moe.reduction || !has_expert_axis(expert_shape, moe.num_experts) ||
@@ -270,6 +300,32 @@ std::optional<BatchedMoE> match_batched_moe(const std::shared_ptr<ov::Node>& sca
     if (!collect_experts(moe))
         return std::nullopt;
     return moe;
+}
+
+std::optional<BatchedMoE> BatchedMoEPattern::match(const std::shared_ptr<ov::Node>& reduction) const {
+    if (!ov::is_type<ov::op::v1::ReduceSum>(reduction))
+        return std::nullopt;
+    ov::pass::pattern::Matcher matcher(m_reduction, "BatchedMoEBoundary");
+    return matcher.match(reduction) ? extract(matcher) : std::nullopt;
+}
+
+std::optional<BatchedMoE> match_batched_moe(const std::shared_ptr<ov::Node>& scatter) {
+    if (!ov::is_type<ov::op::v3::ScatterElementsUpdate>(scatter) &&
+        !ov::is_type<ov::op::v12::ScatterElementsUpdate>(scatter))
+        return std::nullopt;
+    // Legacy router callbacks are anchored upstream of the shared pattern.
+    // Locate a candidate only; all topology checks belong to BatchedMoEPattern.
+    auto node = scatter;
+    for (size_t hop = 0; hop < max_score_views + 3; ++hop) {
+        node = only_consumer(node->output(0));
+        if (!node)
+            return std::nullopt;
+        if (ov::is_type<ov::op::v1::ReduceSum>(node)) {
+            const auto moe = BatchedMoEPattern().match(node);
+            return moe && moe->score_transpose->input_value(0).get_node_shared_ptr() == scatter ? moe : std::nullopt;
+        }
+    }
+    return std::nullopt;
 }
 
 bool can_device_route(const BatchedMoE& moe) {

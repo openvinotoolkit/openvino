@@ -264,11 +264,11 @@ std::pair<std::shared_ptr<opp::Matcher>, std::function<bool(opp::Matcher&)>> mak
 }  // namespace
 
 BatchedExpert::BatchedExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
-    auto scatter = opp::wrap_type<ov::op::v3::ScatterElementsUpdate, ov::op::v12::ScatterElementsUpdate>();
+    auto pattern = std::make_shared<ov::npuw::moe::BatchedMoEPattern>();
     auto expected_k = std::make_shared<std::optional<size_t>>();
     const auto node_to_gptr = snapshot->getNodeToGroupMap();
     auto callback = [=](opp::Matcher& matcher) {
-        const auto topology = ov::npuw::moe::match_batched_moe(matcher.get_match_root());
+        const auto topology = pattern->extract(matcher);
         if (!topology || !tag_topk_k(topology->topk, *expected_k))
             return false;
         // Keep the semantic contract with the expert boundary itself. The
@@ -285,7 +285,7 @@ BatchedExpert::BatchedExpert(const std::shared_ptr<ov::npuw::online::Snapshot>& 
                                              << " routed experts for " << topology->reduction->get_friendly_name());
         return false;
     };
-    register_matcher(std::make_shared<opp::Matcher>(scatter, "TagBatchedExpert"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(pattern->root(), "TagBatchedExpert"), std::move(callback));
 }
 
 /*
