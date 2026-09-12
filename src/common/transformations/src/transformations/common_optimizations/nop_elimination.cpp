@@ -409,12 +409,13 @@ EliminateReduceReshape::EliminateReduceReshape() {
 
         auto requested_shape_vec = requested_shape->cast_vector<int64_t>();
         auto axes = reduce->get_reduction_axes();
+        const bool keep_dims = reduce->get_keep_dims();
 
         int cnt_dyn = 0;
         for (size_t i = 0; i < requested_shape_vec.size(); ++i) {
             // if we use reshape special zero or this dim was reduced
             cnt_dyn += !((requested_shape_vec[i] == 0 && reshape->get_special_zero()) ||
-                         (axes.count(i) && requested_shape_vec[i] == 1));
+                         (keep_dims && axes.count(i) && requested_shape_vec[i] == 1));
         }
 
         // if the number of dyn dims here is equal to 0 or 1, we can unambiguously define output shape
