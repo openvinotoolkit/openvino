@@ -923,13 +923,13 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     // K=1 decode still uses EXPERT_BATCH dispatch, but needs no graph unroll.
     // Record the one-to-one closure mapping explicitly rather than treating it
     // as prefill or requiring metadata from a pass that deliberately did not run.
+    // Shared zero points/scales also need a binding; the batch executor only
+    // loads closures present in this mapping, even when they are not sliced.
     if (structure_info->is_expert_batch_mode() && k_value == 1) {
         const auto& original_params = model->get_parameters();
         const auto& compiled_params = first_transformed_model->get_parameters();
         for (size_t i = 0; i < original_params.size(); ++i) {
-            const auto& shape = original_params[i]->get_partial_shape();
-            if (!shape.rank().is_static() || shape.rank().get_length() == 0 || !shape[0].is_static() ||
-                static_cast<size_t>(shape[0].get_length()) != structure_info->num_experts)
+            if (structure_info->expert_input_param_idx == i)
                 continue;
             for (size_t j = 0; j < compiled_params.size(); ++j) {
                 if (compiled_params[j]->get_friendly_name() == original_params[i]->get_friendly_name()) {

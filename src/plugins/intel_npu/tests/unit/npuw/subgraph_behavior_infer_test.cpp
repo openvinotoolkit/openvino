@@ -435,7 +435,7 @@ protected:
     }
 };
 
-std::shared_ptr<ov::Model> build_moe_dispatch_test_model(size_t tokens) {
+std::shared_ptr<ov::Model> build_moe_dispatch_test_model(size_t tokens, bool weight_offsets = false) {
     constexpr size_t experts = 4, hidden = 8, intermediate = 16, k = 2;
     auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, hidden});
     auto router = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{tokens, experts});
@@ -450,11 +450,35 @@ std::shared_ptr<ov::Model> build_moe_dispatch_test_model(size_t tokens) {
                                                     ov::op::v11::TopK::SortType::SORT_VALUES);
     ov::OutputVector outputs;
     for (size_t layer = 0; layer < 2; ++layer) {
-        auto weight = [layer, experts](size_t out, size_t in, size_t seed) {
+        auto weight = [layer, experts, weight_offsets](size_t out, size_t in, size_t seed) -> ov::Output<ov::Node> {
             std::vector<float> values(experts * out * in);
             for (size_t i = 0; i < values.size(); ++i)
                 values[i] = (static_cast<float>((i + seed + layer + i / (out * in)) % 11) - 5.0f) / 16.0f;
-            return ov::op::v0::Constant::create(ov::element::f32, ov::Shape{experts, out, in}, values);
+            if (!weight_offsets)
+                return ov::op::v0::Constant::create(ov::element::f32, ov::Shape{experts, out, in}, values);
+
+            const ov::Shape grouped_shape{experts, out, in / 4, 4};
+            std::vector<int8_t> packed_values(values.size());
+            for (size_t i = 0; i < packed_values.size(); ++i)
+                packed_values[i] = static_cast<int8_t>((i + seed + layer + i / (out * in)) % 8) - 4;
+            auto packed = ov::op::v0::Constant::create(ov::element::i4, grouped_shape, packed_values);
+            const ov::Shape offset_shape{1, out, in / 4, 1};
+            const ov::Shape scale_shape{experts, out, in / 4, 1};
+            std::vector<float> offsets(ov::shape_size(offset_shape)), scales(ov::shape_size(scale_shape));
+            for (size_t i = 0; i < offsets.size(); ++i)
+                offsets[i] = static_cast<float>(1 + (i + layer) % 5) / 8.0f;
+            for (size_t i = 0; i < scales.size(); ++i)
+                scales[i] = static_cast<float>(1 + (i + seed) % 7) / 32.0f;
+            auto zero_point = ov::op::v0::Constant::create(ov::element::f32, offset_shape, offsets);
+            auto shifted = std::make_shared<ov::op::v1::Subtract>(
+                std::make_shared<ov::op::v0::Convert>(packed, ov::element::f32), zero_point);
+            auto scaled = std::make_shared<ov::op::v1::Multiply>(
+                shifted, ov::op::v0::Constant::create(ov::element::f32, scale_shape, scales));
+            auto biased = std::make_shared<ov::op::v1::Add>(scaled, zero_point);
+            return std::make_shared<ov::op::v1::Reshape>(
+                biased,
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {experts, out, in}),
+                false);
         };
         auto tile = std::make_shared<ov::op::v0::Tile>(
             x,
@@ -491,10 +515,12 @@ std::shared_ptr<ov::Model> build_moe_dispatch_test_model(size_t tokens) {
     return std::make_shared<ov::Model>(outputs, ov::ParameterVector{x, router, scores}, "moe_dispatch_regression");
 }
 
-TEST_F(SubgraphBehaviorInferTest, MoESparseDispatchPreservesScoresGlobalInputsAndCachedRequests) {
+class MoEWeightChainDispatchTest : public SubgraphBehaviorInferTest, public ::testing::WithParamInterface<bool> {};
+
+TEST_P(MoEWeightChainDispatchTest, MoESparseDispatchPreservesScoresGlobalInputsAndCachedRequests) {
     for (const size_t tokens : {size_t{1}, size_t{7}}) {
         SCOPED_TRACE(tokens);
-        auto model = build_moe_dispatch_test_model(tokens);
+        auto model = build_moe_dispatch_test_model(tokens, GetParam());
         auto evaluation = std::make_shared<EvaluationLog>();
         auto plugin = std::make_shared<TestPlugin>();
         auto core = make_core(plugin, evaluation);
@@ -616,6 +642,8 @@ TEST_F(SubgraphBehaviorInferTest, MoESparseDispatchPreservesScoresGlobalInputsAn
         }
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(PlainAndOffsetWeights, MoEWeightChainDispatchTest, ::testing::Bool());
 
 TEST_F(SubgraphBehaviorInferTest, SdpaBehaviorCanOverrideStaticLlmSubgraphExecution) {
     auto baseline_model = build_static_llm_model();

@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstring>
 #include <limits>
 #include <unordered_map>
 
@@ -14,6 +15,7 @@
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "moe_transformations/device_routed_moe_transform.hpp"
 #include "moe_transformations/moe_transformation.hpp"
+#include "moe_transformations/moe_unroll_patterns.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -460,6 +462,172 @@ TEST(GenericMoETopologyTest, HostGroupedClosuresAndTopOneDecode) {
             for (const auto& entry : experts->_param_mapping)
                 EXPECT_EQ(entry.second.size(), k);
         }
+    }
+}
+
+enum class WeightOffset { ADD, SUBTRACT, REVERSE_SUBTRACT };
+
+class GenericMoEHostWeightChainTest : public ::testing::TestWithParam<std::tuple<bool, WeightOffset, bool, size_t>> {};
+
+TEST_P(GenericMoEHostWeightChainTest, LowersClosureExpressionsAndPreservesSelectedExpertNumerics) {
+    const auto [grouped, offset_op, shared_metadata, k] = GetParam();
+    auto graph = make_moe(Routing::UNNORMALIZED, grouped, 1, static_cast<int64_t>(k));
+    std::shared_ptr<ov::Node> shared_weight;
+    for (const auto& node : graph.model->get_ordered_ops()) {
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node);
+        if (!matmul)
+            continue;
+        const auto weight_shape = matmul->get_input_shape(1);
+        // Gate/up share a complete expression. A closure reused by two MatMuls
+        // must still have exactly K bindings, not two independently unrolled sets.
+        if (shared_weight && shared_weight->get_output_shape(0) == weight_shape) {
+            matmul->input(1).replace_source_output(shared_weight);
+            continue;
+        }
+        auto dequant = matmul->input_value(1).get_node_shared_ptr()->input_value(0);
+        if (grouped)
+            dequant = dequant.get_node_shared_ptr()->input_value(0);
+        const auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(dequant.get_node_shared_ptr());
+        ASSERT_TRUE(multiply);
+        auto metadata_shape = multiply->get_input_shape(1);
+        if (shared_metadata)
+            metadata_shape[0] = 1;
+        std::vector<float> offsets(ov::shape_size(metadata_shape)), scales(offsets.size());
+        for (size_t i = 0; i < offsets.size(); ++i) {
+            offsets[i] = static_cast<float>(1 + i % 7) / 4.0f;
+            scales[i] = static_cast<float>(1 + i % 5) / 32.0f;
+        }
+        auto zero_point = ov::op::v0::Constant::create(ov::element::f32, metadata_shape, offsets);
+        auto scale = ov::op::v0::Constant::create(ov::element::f32, metadata_shape, scales);
+        ov::Output<ov::Node> shifted;
+        if (offset_op == WeightOffset::ADD)
+            shifted = std::make_shared<ov::op::v1::Add>(multiply->input_value(0), zero_point);
+        else if (offset_op == WeightOffset::SUBTRACT)
+            shifted = std::make_shared<ov::op::v1::Subtract>(multiply->input_value(0), zero_point);
+        else
+            shifted = std::make_shared<ov::op::v1::Subtract>(zero_point, multiply->input_value(0));
+        // Reuse zero_point within the expression as well as across projections.
+        ov::Output<ov::Node> weight = std::make_shared<ov::op::v1::Add>(
+            std::make_shared<ov::op::v1::Multiply>(shifted, scale), zero_point);
+        // A lower-rank constant is shared, even when its feature size equals E
+        // (group_size == E == 4). It must not be sliced as an expert operand.
+        const auto width = weight.get_shape().back();
+        std::vector<float> feature_scales(width);
+        for (size_t i = 0; i < width; ++i)
+            feature_scales[i] = static_cast<float>(i + 1) / static_cast<float>(width);
+        weight = std::make_shared<ov::op::v1::Multiply>(
+            weight, ov::op::v0::Constant::create(ov::element::f32, ov::Shape{width}, feature_scales));
+        if (grouped)
+            weight = std::make_shared<ov::op::v1::Reshape>(
+                weight,
+                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{weight_shape.size()}, weight_shape),
+                false);
+        auto converted = std::make_shared<ov::op::v0::Convert>(weight, ov::element::f32);
+        matmul->input(1).replace_source_output(converted);
+        if (!shared_weight)
+            shared_weight = converted;
+    }
+    graph.model->validate_nodes_and_infer_types();
+    const auto topology = ov::npuw::moe::match_batched_moe(graph.scatter);
+    ASSERT_TRUE(topology) << "The host regression must exercise a supported structural contract";
+
+    auto hidden = graph.model->get_parameters()[0];
+    auto scores = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, topology->broadcast_scores.get_shape());
+    scores->set_friendly_name("router_scores");
+    topology->weighted_output->input(1).replace_source_output(scores);
+    auto reference =
+        std::make_shared<ov::Model>(ov::OutputVector{topology->reduction}, ov::ParameterVector{hidden, scores});
+    auto host = reference->clone();
+    ov::TensorVector inputs{ov::Tensor(ov::element::f32, hidden->get_shape()),
+                           ov::Tensor(ov::element::f32, scores->get_shape())};
+    // Reproduce the host partition boundary: packed weights, zero points and
+    // scales are closure Parameters; small shared constants remain in the body.
+    for (const auto& node : host->get_ordered_ops()) {
+        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+        if (!constant || constant->get_shape().size() < 3)
+            continue;
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(constant->get_element_type(), constant->get_shape());
+        parameter->set_friendly_name(constant->get_friendly_name());
+        host->add_parameters({parameter});
+        ov::Tensor tensor(constant->get_element_type(), constant->get_shape());
+        std::memcpy(tensor.data(), constant->get_data_ptr(), tensor.get_byte_size());
+        inputs.push_back(tensor);
+        ov::replace_node(constant, parameter);
+    }
+    host->validate_nodes_and_infer_types();
+    const auto experts = ov::npuw::function::MoEExperts::from(host, k, 16);
+    ASSERT_TRUE(experts);
+    const auto& transformed = experts->_transformed_models.at(0);
+    ASSERT_EQ(transformed->get_parameters().size(), 1 + k * (host->get_parameters().size() - 1));
+    for (size_t pi = 1; pi < host->get_parameters().size(); ++pi) {
+        ASSERT_TRUE(experts->_param_mapping.count(pi)) << host->get_parameters()[pi]->get_friendly_name();
+        ASSERT_EQ(experts->_param_mapping.at(pi).size(), k);
+        auto shape = host->get_parameters()[pi]->get_shape();
+        if (shape[0] == 4)
+            shape[0] = 1;
+        for (const auto index : experts->_param_mapping.at(pi)) {
+            const auto& parameter = transformed->get_parameters().at(index);
+            EXPECT_EQ(parameter->get_shape(), shape);
+            EXPECT_EQ(parameter->get_element_type(), host->get_parameters()[pi]->get_element_type());
+        }
+    }
+
+    for (const auto& selection : {std::vector<size_t>{3, 1}, std::vector<size_t>{2, 0}}) {
+        for (size_t i = 0; i < inputs[0].get_size(); ++i)
+            inputs[0].data<float>()[i] = static_cast<float>(static_cast<int>(i % 5) - 2) / 8.0f;
+        std::fill_n(inputs[1].data<float>(), inputs[1].get_size(), 0.0f);
+        for (size_t slot = 0; slot < k; ++slot)
+            inputs[1].data<float>()[selection[slot]] = slot == 0 ? 0.75f : -0.25f;
+        ov::TensorVector selected_inputs(transformed->get_parameters().size());
+        selected_inputs.at(experts->_expert_input.compiled.value()) = inputs[0];
+        for (size_t pi = 1; pi < inputs.size(); ++pi) {
+            for (size_t slot = 0; slot < k; ++slot) {
+                const auto& source = inputs[pi];
+                auto selected = source.get_shape()[0] == 4
+                                    ? ov::npuw::moe::slice_expert_weight(source, selection[slot], 4)
+                                    : source;
+                selected_inputs.at(experts->_param_mapping.at(pi)[slot]) = selected;
+            }
+        }
+        ov::TensorVector expected{ov::Tensor(ov::element::f32, reference->get_output_shape(0))};
+        ov::TensorVector actual{ov::Tensor(ov::element::f32, transformed->get_output_shape(0))};
+        ASSERT_TRUE(reference->evaluate(expected, {inputs[0], inputs[1]}));
+        ASSERT_TRUE(transformed->evaluate(actual, selected_inputs));
+        ASSERT_EQ(expected[0].get_shape(), actual[0].get_shape());
+        for (size_t i = 0; i < actual[0].get_size(); ++i)
+            EXPECT_NEAR(actual[0].data<float>()[i], expected[0].data<float>()[i], 1e-5f);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(HostDequantization,
+                         GenericMoEHostWeightChainTest,
+                         ::testing::Combine(::testing::Bool(),
+                                            ::testing::Values(WeightOffset::ADD,
+                                                              WeightOffset::SUBTRACT,
+                                                              WeightOffset::REVERSE_SUBTRACT),
+                                            ::testing::Bool(),
+                                            ::testing::Values(size_t{1}, size_t{2})));
+
+TEST(GenericMoETopologyTest, HostUnrollRejectsUnsupportedWeightArithmeticWithoutMutation) {
+    for (const bool pdpd : {false, true}) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 1, 8});
+        auto weights = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 8, 8});
+        auto scales = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 8, 1});
+        ov::Output<ov::Node> expression;
+        if (pdpd)
+            expression = std::make_shared<ov::op::v1::Multiply>(
+                weights, scales, ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 0));
+        else
+            expression = std::make_shared<ov::op::v1::Divide>(weights, scales);
+        auto matmul = std::make_shared<ov::op::v0::MatMul>(input, expression, false, true);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input, weights, scales});
+        const auto before = model->get_ordered_ops();
+        const auto parameters = model->get_parameters();
+        ov::pass::GraphRewrite rewrite;
+        rewrite.add_matcher<ov::npuw::pass::UnrollMoEMatMul>(model);
+        EXPECT_FALSE(rewrite.run_on_model(model));
+        EXPECT_EQ(before, model->get_ordered_ops());
+        EXPECT_EQ(parameters, model->get_parameters());
     }
 }
 
