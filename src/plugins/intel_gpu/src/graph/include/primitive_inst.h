@@ -300,6 +300,7 @@ public:
     void unset_flag(size_t flag);
     bool get_flag(size_t flag) const;
     void reset_flags();
+    void request_output_reallocation() { _output_reallocation_requested = true; }
 
     void reset_events();
 
@@ -396,6 +397,7 @@ protected:
 
     bool _update_shape_done_by_other = false;
     bool _allocation_done_by_other = false;
+    bool _output_reallocation_requested = false;
     bool _use_shared_kernels = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::shared_ptr<primitive_impl> _impl;
@@ -430,6 +432,7 @@ protected:
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
     std::vector<memory::ptr> _outputs;
+    memory::ptr _remote_permute_output_alias;
 
     std::vector<memory::ptr> _intermediates_memory;
 

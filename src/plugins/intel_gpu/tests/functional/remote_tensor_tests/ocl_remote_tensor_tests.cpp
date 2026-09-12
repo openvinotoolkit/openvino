@@ -18,7 +18,9 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
@@ -72,6 +74,124 @@ std::ostream& operator<<(std::ostream& stream, RemoteTensorSharingType sharing_t
     return stream;
 }
 }  // namespace
+
+class OVRemotePermuteOutput_Test : public ov::test::TestsCommon, public testing::WithParamInterface<bool> {
+protected:
+    void* memory_handle(ov::Tensor tensor) {
+        if (GetParam()) {
+            auto usm_tensor = tensor.as<ov::intel_gpu::ocl::USMTensor>();
+            return usm_tensor.get();
+        }
+        auto buffer_tensor = tensor.as<ov::intel_gpu::ocl::ClBufferTensor>();
+        return buffer_tensor.get();
+    }
+
+    ov::CompiledModel compile_model(ov::Core& core, const ov::RemoteContext& context) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1});
+        auto producer = std::make_shared<ov::op::v0::Relu>(input);
+        auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
+        auto permute = std::make_shared<ov::op::v1::Transpose>(producer, order);
+        permute->set_friendly_name("permute");
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{permute}, ov::ParameterVector{input});
+        return core.compile_model(model, context, {ov::hint::inference_precision(ov::element::f32)});
+    }
+
+    void infer_and_check(ov::InferRequest& request,
+                         const ov::Shape& input_shape,
+                         const std::vector<float>& input_values,
+                         const std::vector<float>& expected) {
+        SCOPED_TRACE(testing::PrintToString(input_shape));
+        ov::Tensor input(ov::element::f32, input_shape);
+        ASSERT_EQ(input.get_size(), input_values.size());
+        std::copy(input_values.begin(), input_values.end(), input.data<float>());
+        request.set_input_tensor(input);
+        request.infer();
+        auto output = request.get_output_tensor();
+        EXPECT_EQ(output.get_shape(), (ov::Shape{input_shape[0], input_shape[2], input_shape[1]}));
+        expect_values(output, expected);
+        for (size_t index = 0; index < input_values.size(); ++index) {
+            EXPECT_FLOAT_EQ(input.data<float>()[index], input_values[index]) << "Input index " << index;
+        }
+    }
+
+    void expect_values(const ov::Tensor& tensor, const std::vector<float>& expected) {
+        ov::Tensor actual(ov::element::f32, tensor.get_shape());
+        tensor.copy_to(actual);
+        ASSERT_EQ(actual.get_size(), expected.size());
+        for (size_t index = 0; index < expected.size(); ++index) {
+            EXPECT_FLOAT_EQ(actual.data<float>()[index], expected[index]) << "Output index " << index;
+        }
+    }
+};
+
+TEST_P(OVRemotePermuteOutput_Test, plugin_owned_output_grows_while_bound) {
+    ov::Core core;
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
+    OpenCL opencl(context);
+    if (GetParam() && !opencl.supports_usm()) {
+        GTEST_SKIP() << "USM is not supported";
+    }
+    auto compiled_model = compile_model(core, context);
+    auto request = compiled_model.create_infer_request();
+    auto output = GetParam() ? context.create_usm_host_tensor(ov::element::f32, {1, 3, 1})
+                             : context.create_tensor(ov::element::f32, {1, 3, 1});
+    request.set_output_tensor(output);
+    infer_and_check(request, {1, 1, 3}, {1, 2, 3}, {1, 2, 3});
+
+    const auto original_handle = memory_handle(output);
+    output.set_shape({1, 3, 2});
+    EXPECT_NE(memory_handle(output), original_handle);
+    infer_and_check(request, {1, 2, 3}, {4, 5, 6, 7, 8, 9}, {4, 7, 5, 8, 6, 9});
+    EXPECT_EQ(memory_handle(request.get_output_tensor()), memory_handle(output));
+
+    output.set_shape({1, 6, 1});
+    infer_and_check(request, {1, 1, 6}, {10, 11, 12, 13, 14, 15}, {10, 11, 12, 13, 14, 15});
+    EXPECT_EQ(memory_handle(request.get_output_tensor()), memory_handle(output));
+}
+
+TEST_P(OVRemotePermuteOutput_Test, imported_output_reshapes_without_reallocation) {
+    ov::Core core;
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
+    OpenCL opencl(context);
+    if (GetParam() && !opencl.supports_usm()) {
+        GTEST_SKIP() << "USM is not supported";
+    }
+    const size_t bytes = 6 * sizeof(float);
+    auto free_usm = [&opencl](void* memory) { opencl.free_mem(memory); };
+    std::unique_ptr<void, decltype(free_usm)> usm(GetParam() ? opencl.allocate_usm_host_buffer(bytes) : nullptr, free_usm);
+    cl::Buffer buffer;
+    if (!GetParam()) {
+        buffer = cl::Buffer(opencl._context, CL_MEM_READ_WRITE, bytes);
+    }
+    auto compiled_model = compile_model(core, context);
+    auto request = compiled_model.create_infer_request();
+    ov::RemoteTensor output;
+    if (GetParam()) {
+        output = context.create_tensor(ov::element::f32, {1, 6, 1}, usm.get());
+    } else {
+        output = context.create_tensor(ov::element::f32, {1, 6, 1}, buffer);
+    }
+    const auto original_handle = memory_handle(output);
+    request.set_output_tensor(output);
+    infer_and_check(request, {1, 1, 6}, {1, 2, 3, 4, 5, 6}, {1, 2, 3, 4, 5, 6});
+
+    output.set_shape({1, 3, 2});
+    infer_and_check(request, {1, 2, 3}, {7, 8, 9, 10, 11, 12}, {7, 10, 8, 11, 9, 12});
+    EXPECT_EQ(memory_handle(output), original_handle);
+    EXPECT_EQ(memory_handle(request.get_output_tensor()), original_handle);
+
+    output.set_shape({1, 6, 1});
+    const std::vector<float> retained_values{13, 14, 15, 16, 17, 18};
+    infer_and_check(request, {1, 1, 6}, retained_values, retained_values);
+    EXPECT_EQ(memory_handle(output), original_handle);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         OVRemotePermuteOutput_Test,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "USMHost" : "OpenCLBuffer";
+                         });
 
 using RemoteTensorSharingTestOptionsParams = std::tuple<RemoteTensorSharingType, bool /*auto-batching*/, bool /*dynamic*/>;
 
