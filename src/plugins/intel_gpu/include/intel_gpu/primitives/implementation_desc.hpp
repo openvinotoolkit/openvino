@@ -22,6 +22,7 @@ enum class impl_types : uint8_t {
     onednn = 1 << 3,
     sycl = 1 << 4,
     cm = 1 << 5,
+    vulkan = 1 << 6,
     any = 0xFF,
 };
 
@@ -48,6 +49,9 @@ inline std::ostream& operator<<(std::ostream& out, const impl_types& impl_type) 
         case impl_types::onednn: out << "onednn"; break;
         case impl_types::cm: out << "cm"; break;
         case impl_types::sycl: out << "sycl"; break;
+        case impl_types::vulkan:
+            out << "vulkan";
+            break;
         case impl_types::any: out << "any"; break;
         default: out << "unknown"; break;
     }
@@ -70,6 +74,8 @@ inline std::istream& operator>>(std::istream& is, impl_types& impl_type) {
         impl_type = impl_types::cm;
     } else if (str == "sycl") {
         impl_type = impl_types::sycl;
+    } else if (str == "vulkan") {
+        impl_type = impl_types::vulkan;
     } else if (str == "any") {
         impl_type = impl_types::any;
     } else {

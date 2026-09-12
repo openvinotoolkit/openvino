@@ -18,8 +18,8 @@
 #    include <iomanip>
 
 #    include "activation_inst.h"
+#    include "common_utils/kernels_cache.hpp"
 #    include "condition_inst.h"
-#    include "impls/ocl/kernels_cache.hpp"
 #    include "loop_inst.h"
 #    include "program_dump_graph.h"
 #    include "to_string_utils.h"

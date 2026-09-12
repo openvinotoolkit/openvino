@@ -9,6 +9,24 @@
 using namespace cldnn;
 
 namespace tests {
+namespace {
+
+std::shared_ptr<cldnn::engine>& test_engine_storage() {
+    static std::shared_ptr<cldnn::engine> test_engine;
+    return test_engine;
+}
+
+std::shared_ptr<cldnn::stream>& test_stream_storage() {
+    static std::shared_ptr<cldnn::stream> test_stream;
+    return test_stream;
+}
+
+}  // namespace
+
+void release_test_runtime() {
+    test_stream_storage().reset();
+    test_engine_storage().reset();
+}
 
 generic_test::generic_test()
     : generic_params(std::get<0>(GetParam()))
@@ -342,7 +360,7 @@ std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_typ
 }
 
 cldnn::engine& get_test_engine() {
-    static std::shared_ptr<cldnn::engine> test_engine = nullptr;
+    auto& test_engine = test_engine_storage();
     if (!test_engine) {
         test_engine = create_test_engine();
     }
@@ -357,7 +375,7 @@ cldnn::stream_ptr get_test_stream_ptr() {
 }
 
 cldnn::stream_ptr get_test_stream_ptr(cldnn::ExecutionConfig cfg) {
-    static std::shared_ptr<cldnn::stream> test_stream = nullptr;
+    auto& test_stream = test_stream_storage();
     if (!test_stream) {
         test_stream = get_test_engine().create_stream(cfg);
     }

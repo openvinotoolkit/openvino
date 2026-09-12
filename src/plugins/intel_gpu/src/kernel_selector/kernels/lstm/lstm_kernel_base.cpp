@@ -111,9 +111,9 @@ KernelsData LSTMKernelBase::GetCommonKernelsData(const Params& params) const {
     auto jit = CreateJit(kernelName, cldnnJit, entryPoint);
     size_t num_hidden_kernels;
     if (sequential) {
-        num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.X().v}));
+        num_hidden_kernels = std::min<size_t>({params.engineInfo.maxWorkGroupSize, out.X().v});
     } else {
-        num_hidden_kernels = static_cast<size_t>(std::min({params.engineInfo.maxWorkGroupSize, out.Feature().v}));
+        num_hidden_kernels = std::min<size_t>({params.engineInfo.maxWorkGroupSize, out.Feature().v});
     }
     kernel.params.workGroups.global = {num_hidden_kernels, out.Batch().v, 1};
     kernel.params.workGroups.local = {num_hidden_kernels, 1, 1};

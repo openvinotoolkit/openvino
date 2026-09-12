@@ -17,6 +17,7 @@
 #include "../primitive_ocl_base.hpp"
 #include "common_tools.h"
 #include "common_utils/jitter.hpp"
+#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "kv_cache_inst.h"
 #include "openvino/core/partial_shape.hpp"

@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-
 #include "intel_gpu/runtime/layout.hpp"
-#include "impls/ocl/kernel_selector_helper.h"
+
+#ifdef OV_GPU_WITH_OCL_IMPLS
+#    include "graph/impls/ocl/kernel_selector_helper.h"
+#endif
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
@@ -341,6 +343,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_transform_test,
         {format::bfzyx, format::bfyx,  ov::PartialShape{1, 2, 3, 4, 5}, ov::PartialShape{1, 2, 3*4, 5}},
     }));
 
+#ifdef OV_GPU_WITH_OCL_IMPLS
 struct layouts_convert_params {
     format::type in_format;
     ov::PartialShape in_shape;
@@ -397,6 +400,7 @@ INSTANTIATE_TEST_SUITE_P(smoke, layout_convert_test,
         {format::g_os_zyx_is_osv32_isv32, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
         {format::g_is_os_zyx_isv16_osv16, ov::PartialShape{1, 2, 3, 4, 5, 6}, false},
     }));
+#endif
 
 struct custom_layout_test_params {
     ov::PartialShape shape;

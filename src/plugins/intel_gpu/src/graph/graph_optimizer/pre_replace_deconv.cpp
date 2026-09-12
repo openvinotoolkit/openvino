@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "program_helpers.h"
-#include "pass_manager.h"
-
-#include "convolution_inst.h"
-#include "deconvolution_inst.h"
-#include "depth_to_space_inst.h"
-#include <vector>
 #include <list>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
+
+#include "activation_inst.h"
+#include "convolution_inst.h"
+#include "deconvolution_inst.h"
+#include "depth_to_space_inst.h"
+#include "pass_manager.h"
+#include "program_helpers.h"
 
 using namespace cldnn;
 

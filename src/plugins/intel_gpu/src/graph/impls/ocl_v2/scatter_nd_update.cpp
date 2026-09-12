@@ -4,6 +4,7 @@
 #include "scatter_nd_update.hpp"
 
 #include "common_utils/jitter.hpp"
+#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/primitives/scatter_nd_update.hpp"
 #include "kernel_selector/jitter.h"
 #include "ocl_v2/utils/fused_ops_jitter.hpp"

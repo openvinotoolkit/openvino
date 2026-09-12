@@ -1,3 +1,7 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
 // Copyright 2006, Google Inc.
 // All rights reserved.
 //
@@ -61,6 +65,7 @@ GTEST_API_ int main(int argc, char** argv) {
     //gtest
     testing::InitGoogleTest(&new_argc, new_argv);
     auto retcode = RUN_ALL_TESTS();
+    tests::release_test_runtime();
     delete[] new_argv;
     return retcode;
 }

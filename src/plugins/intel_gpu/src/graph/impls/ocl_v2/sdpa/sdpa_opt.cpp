@@ -13,6 +13,7 @@
 #include "../primitive_ocl_base.hpp"
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
+#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "kv_cache_inst.h"

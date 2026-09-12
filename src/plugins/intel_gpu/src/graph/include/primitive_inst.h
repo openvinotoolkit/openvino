@@ -3,35 +3,39 @@
 //
 
 #pragma once
+#include <memory>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "common_utils/kernels_cache.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "intel_gpu/primitives/primitive.hpp"
-#include "intel_gpu/primitives/concatenation.hpp"
-#include "intel_gpu/runtime/event.hpp"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/runtime/lru_cache.hpp"
-#include "intel_gpu/runtime/tensor_accessor.hpp"
 #include "intel_gpu/graph/network.hpp"
-#include "intel_gpu/runtime/utils.hpp"
-#include "openvino/core/partial_shape.hpp"
-#include "program_node.h"
-#include "primitive_type.h"
-#include "kernel_dump_info.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
-#include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/graph/serialization/cl_kernel_data_serializer.hpp"
+#include "intel_gpu/graph/serialization/helpers.hpp"
+#include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/polymorphic_serializer.hpp"
 #include "intel_gpu/graph/serialization/string_serializer.hpp"
-#include "intel_gpu/graph/serialization/layout_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
+#include "intel_gpu/graph/serialization/weights_reorder_params.hpp"
+#include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/concatenation.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
+#include "intel_gpu/primitives/primitive.hpp"
+#include "intel_gpu/primitives/quantize.hpp"
+#include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include "impls/ocl/kernels_cache.hpp"
-
-// TODO: add generic interface for weights_reorder_params and get rid of this dependency
-#include "impls/ocl/kernel_selector_helper.h"
-
-#include <memory>
-#include <vector>
-#include <string>
+#include "intel_gpu/runtime/lru_cache.hpp"
+#include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/runtime/tensor_accessor.hpp"
+#include "intel_gpu/runtime/utils.hpp"
+#include "internal_buffer_desc.hpp"
+#include "kernel_dump_info.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "primitive_type.h"
+#include "program_node.h"
 
 namespace cldnn {
 
@@ -45,18 +49,6 @@ class typed_primitive_inst;
 
 class PrimitiveInstTestHelper;
 struct ImplementationManager;
-
-struct BufferDescriptor {
-    explicit BufferDescriptor(const layout& l, bool lockable = false, bool shareable = true)
-        : m_lockable(lockable), m_shareable(shareable), m_layout(l) {}
-    BufferDescriptor(const ov::PartialShape& shape, ov::element::Type type, bool lockable = false, bool shareable = true)
-        : BufferDescriptor(layout(shape, type, format::bfyx), lockable, shareable) {}
-    BufferDescriptor(size_t elements_count, ov::element::Type type, bool lockable = false, bool shareable = true)
-        : BufferDescriptor(layout({static_cast<int64_t>(elements_count)}, type, format::bfyx), lockable, shareable) {}
-    bool m_lockable = false;
-    bool m_shareable = true;  // Whether this buffer can be shared via memory pool across primitives
-    layout m_layout;
-};
 
 /*
     Base class for all implementations.
@@ -77,6 +69,9 @@ struct primitive_impl {
     virtual void set_arguments(primitive_inst& instance, kernel_arguments_data& args) = 0;
     virtual event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) = 0;
     const std::string& get_kernel_name() const { return _kernel_name; }
+    virtual std::optional<format> get_preferred_input_format(size_t input_index) const {
+        return std::nullopt;
+    }
 
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
@@ -95,6 +90,12 @@ struct primitive_impl {
     virtual std::vector<std::shared_ptr<cldnn::kernel_string>> get_kernels_source() { return {}; }
     virtual void reset_kernels_source() {}
     virtual std::vector<kernel::ptr> get_kernels() const { return {}; }
+    // Input indices whose allocations may hold this primitive's output when graph liveness and layouts permit it.
+    // An empty list keeps the ordinary output-allocation path; eligible implementations opt into the memory-pressure
+    // retry and the explicit no-pool in-place policy by returning candidates.
+    virtual std::vector<size_t> get_in_place_input_indices() const {
+        return {};
+    }
     virtual void save(cldnn::BinaryOutputBuffer& ob) const {
         ob << can_reuse_memory;
         ob << _kernel_name;

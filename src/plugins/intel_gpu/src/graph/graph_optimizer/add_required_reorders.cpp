@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
+#include "activation_inst.h"
 #include "assign_inst.h"
 #include "convert_color_inst.h"
 #include "fully_connected_inst.h"

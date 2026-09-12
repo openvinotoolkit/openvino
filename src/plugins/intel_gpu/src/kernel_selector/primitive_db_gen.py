@@ -197,6 +197,11 @@ class Kernels2CHeaders(object):
             if line.startswith('#include'):
                 include_file_name = line.strip().split('"')[1].strip()
                 if ntpath.basename(include_file_name) in self.batch_headers:
+                    # Keep the dependency edge in the embedded kernel. The normal
+                    # driver frontend removes it after prepending its full batch
+                    # preamble; source-to-SPIR-V frontends use it to materialize
+                    # only the transitively referenced batch headers.
+                    res += '{}\n'.format(line.rstrip())
                     continue
                 full_path_include = os.path.abspath(os.path.join(os.path.dirname(filename), include_file_name))
                 if full_path_include not in self.include_files[origin_file] or not optimize_includes:
@@ -223,8 +228,6 @@ class Kernels2CHeaders(object):
             with open(header_file) as f:
                 content += f.readlines()
             for i, line in enumerate(content):
-                if line.startswith('#include'):
-                    continue
                 if (i + 1) % max_lines == 0 or characters + len(line) + 1 > max_characters:
                     res += ')-"\n + (std::string) R"-('
                     characters = 0

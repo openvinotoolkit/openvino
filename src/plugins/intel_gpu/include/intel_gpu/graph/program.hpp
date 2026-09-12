@@ -226,6 +226,9 @@ public:
                     program_node& peer_node,
                     std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history);
 
+    // Moves the public output identity and metadata to a replacement graph node.
+    void transfer_output_identity(program_node& output_node, program_node& replacement_node);
+
     // returns if 'node' has been removed
     bool remove_if_dangling(program_node& node);
 

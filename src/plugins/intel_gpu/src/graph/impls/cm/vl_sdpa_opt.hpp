@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "impls/ocl/kernel_selector_helper.h"
 #include "intel_gpu/runtime/layout.hpp"
 #include "registry/implementation_manager.hpp"
 #include "vl_sdpa_inst.h"

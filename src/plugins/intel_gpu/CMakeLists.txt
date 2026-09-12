@@ -6,7 +6,15 @@ if (NOT ENABLE_INTEL_GPU)
     return()
 endif()
 
+include(cmake/features.cmake)
+
+if(OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED)
+    ov_add_zero_loader()
+endif()
+
 set (TARGET_NAME "openvino_intel_gpu_plugin")
+set(OV_GPU_RT "${GPU_RT_TYPE}")
+set(OV_GPU_SUFFIX "")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 
@@ -94,13 +102,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zc:__cplusplus")
 endif()
 
-if(GPU_RT_TYPE STREQUAL "SYCL" AND NOT OV_GPU_WITH_SYCL)
-    message(FATAL_ERROR "GPU_RT_TYPE is set to SYCL, but SYCL is not available for the selected compiler/environment.")
+if(OV_GPU_RUNTIME_SYCL_ENABLED AND NOT OV_GPU_WITH_SYCL)
+    message(FATAL_ERROR "GPU_RT_TYPE selects SYCL, but SYCL is not available for the selected compiler/environment.")
 endif()
 
 # When -fsycl and -flto are both active, archive members are emitted in a format
 # that the linker cannot read from static libraries ("archive member is neither ET_REL nor LLVM bitcode").
-if(OV_GPU_WITH_SYCL AND ENABLE_LTO)
+if(OV_GPU_RUNTIME_SYCL_ENABLED AND ENABLE_LTO)
     message(FATAL_ERROR "Intel GPU plugin with SYCL is not supported with ENABLE_LTO=ON")
 endif()
 
@@ -114,12 +122,16 @@ if(ENABLE_GPU_DEBUG_CAPS)
 endif()
 
 set(INTEL_GPU_TARGET_OCL_VERSION "300"
-  CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
-
-add_definitions(-DCL_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
+    CACHE STRING "Target version of OpenCL which should be used by GPU plugin")
 
 set(MAIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    # Define the imported loader target at plugin scope so the runtime, graph,
+    # plugin, and tests can attach it only where their backend boundary needs it.
+    find_package(Vulkan 1.3 REQUIRED)
+endif()
 
 add_subdirectory(thirdparty)
 include(thirdparty/cmake/rapidjson.cmake)
@@ -158,10 +170,15 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
     set(OV_GPU_RT "${RT_TYPE}")
     set(OV_GPU_SUFFIX "${SUFFIX}")
 
+    foreach(_ov_gpu_runtime IN LISTS OV_GPU_SUPPORTED_RUNTIMES)
+        set(OV_GPU_RUNTIME_${_ov_gpu_runtime}_ENABLED OFF)
+    endforeach()
+    set(OV_GPU_RUNTIME_${RT_TYPE}_ENABLED ON)
+
     # Distinct binary dirs so the same source dirs can be added twice in a COMBINED build.
-    add_subdirectory(src/runtime         runtime${SUFFIX})
-    add_subdirectory(src/kernel_selector kernel_selector${SUFFIX})
-    add_subdirectory(src/graph           graph${SUFFIX})
+    add_subdirectory(src/runtime         src/runtime${SUFFIX})
+    add_subdirectory(src/kernel_selector src/kernel_selector${SUFFIX})
+    add_subdirectory(src/graph           src/graph${SUFFIX})
 
     # MLIR runs on OpenCL only: ocl_stream is the sole implementer of the ENABLE_MLIR_FOR_GPU
     # stream hooks, so a COMBINED build gives the backend to the OCL twin alone.
@@ -197,6 +214,10 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
                   # Libraries not created via ov_add_plugin call ov_apply_clang_tidy() directly.
                   ADD_CLANG_TIDY
                   ${ARGN})
+
+    if(RT_TYPE MATCHES "^(OCL|ZE|SYCL)$")
+        target_compile_definitions(${MODULE_NAME} PRIVATE OV_GPU_WITH_OCL_IMPLS=1)
+    endif()
 
     target_compile_options(${MODULE_NAME} PRIVATE
         $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
@@ -239,6 +260,14 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
     endif()
 
     ov_build_target_faster(${MODULE_NAME} PCH)
+
+    if(RT_TYPE STREQUAL "VULKAN")
+        get_property(clspv_core_library GLOBAL PROPERTY OV_GPU_CLSPV_CORE_LIBRARY)
+        add_custom_command(TARGET ${MODULE_NAME} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                    "${clspv_core_library}" "$<TARGET_FILE_DIR:${MODULE_NAME}>"
+            COMMENT "Deploying the Vulkan model compiler next to the Intel GPU plugin")
+    endif()
 endfunction()
 
 if(GPU_RT_TYPE STREQUAL "COMBINED")

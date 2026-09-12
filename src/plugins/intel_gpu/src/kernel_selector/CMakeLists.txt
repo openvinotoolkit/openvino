@@ -78,8 +78,24 @@ if (ENABLE_ONEDNN_FOR_GPU)
     target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt${OV_GPU_SUFFIX})
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE OpenCL::OpenCL openvino::runtime::dev)
-ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
+target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE openvino::runtime::dev)
+
+# oneDNN GPU kernel-selector adapters include the oneDNN OpenCL engine API.
+# Keep those headers private and conditional instead of exposing them through
+# backend-neutral kernel metadata or Vulkan-only builds.
+if(ENABLE_ONEDNN_FOR_GPU)
+    # Header-only dependencies must not leak into this installed static
+    # archive's link interface.
+    ov_gpu_use_header_target_for(${TARGET_NAME} OpenCL::NewHeaders)
+    if(OV_GPU_RUNTIME_ZE_ENABLED OR OV_GPU_RUNTIME_SYCL_ENABLED)
+        ov_gpu_use_header_target_for(${TARGET_NAME} LevelZero::Headers)
+    endif()
+    ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
+endif()
+
+ov_gpu_set_runtime_definitions_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
+set_property(SOURCE kernel_selector_params.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+    OV_GPU_TARGET_OPENCL_VERSION=${INTEL_GPU_TARGET_OCL_VERSION})
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -99,7 +115,7 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-if(OV_GPU_RT STREQUAL "SYCL")
+if(OV_GPU_RUNTIME_SYCL_ENABLED)
   # Some sources include oneDNN headers that require SYCL backend support.
   # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
   add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstring>
 #include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
@@ -18,9 +19,9 @@
 #include <openvino/core/except.hpp>
 #include <openvino/reference/adaptive_rkv_diversity.hpp>
 #include <openvino/reference/xattention.hpp>
-#include <cstring>
 #include <optional>
 
+#include "graph/impls/ocl/kernel_selector_helper.h"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "primitive_inst.h"

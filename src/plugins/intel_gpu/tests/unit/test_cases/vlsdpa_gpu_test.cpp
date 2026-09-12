@@ -2,26 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-#include "openvino/util/file_util.hpp"
-
-#include <intel_gpu/runtime/debug_configuration.hpp>
-#include <intel_gpu/primitives/input_layout.hpp>
-
-#include <intel_gpu/primitives/scaled_dot_product_attention.hpp>
-#include <intel_gpu/primitives/vl_sdpa.hpp>
-#include <intel_gpu/primitives/permute.hpp>
+#include <cmath>
+#include <cstddef>
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/data.hpp>
-#include "scaled_dot_product_attention_inst.h"
-#include "vl_sdpa_inst.h"
-
-#include <cstddef>
-#include <vector>
-#include <cmath>
-#include <numeric>
+#include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/permute.hpp>
+#include <intel_gpu/primitives/scaled_dot_product_attention.hpp>
+#include <intel_gpu/primitives/vl_sdpa.hpp>
+#include <intel_gpu/runtime/debug_configuration.hpp>
 #include <iostream>
+#include <numeric>
+#include <vector>
+
+#include "graph/impls/ocl/kernel_selector_helper.h"
+#include "openvino/util/file_util.hpp"
+#include "random_generator.hpp"
+#include "scaled_dot_product_attention_inst.h"
+#include "test_utils.h"
+#include "vl_sdpa_inst.h"
 
 using namespace cldnn;
 using namespace ::tests;

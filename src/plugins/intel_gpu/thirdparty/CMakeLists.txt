@@ -5,6 +5,51 @@
 set(XETLA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/xetla/include/" CACHE PATH "Path to XeTLA headers")
 
 #
+# CLSPV model compiler for the Vulkan runtime
+#
+
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    set(CLSPV_ROOT "" CACHE PATH "Path to a target CLSPV shared-library installation")
+    set(CLSPV_COMPILER_ID "clspv-770b077f8de4ce1018ee907f2f0a69bc41d42192"
+        CACHE STRING "CLSPV identity included in Vulkan kernel cache keys")
+
+    set(clspv_search_options)
+    if(CLSPV_ROOT)
+        # An explicit prefix already names a target installation, outside the cross-toolchain sysroot.
+        set(clspv_search_options NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
+    endif()
+    find_path(CLSPV_INCLUDE_DIR
+        NAMES clspv/Compiler.h
+        HINTS "${CLSPV_ROOT}/include"
+        ${clspv_search_options}
+        REQUIRED)
+    find_library(CLSPV_CORE_LIBRARY
+        NAMES clspv_core
+        HINTS "${CLSPV_ROOT}/lib" "${CLSPV_ROOT}/lib64"
+        ${clspv_search_options}
+        REQUIRED)
+
+    add_library(openvino_intel_gpu_clspv_api INTERFACE)
+    target_include_directories(openvino_intel_gpu_clspv_api SYSTEM INTERFACE "${CLSPV_INCLUDE_DIR}")
+    target_link_libraries(openvino_intel_gpu_clspv_api INTERFACE "${CLSPV_CORE_LIBRARY}")
+    # Reuse the upstream validator for storage-only CLSPV capability declarations.
+    # Do not maintain a second SPIR-V instruction validator in the plugin.
+    find_package(SPIRV-Tools CONFIG REQUIRED)
+    find_path(SPIRV_HEADERS_INCLUDE_DIR NAMES spirv/unified1/NonSemanticClspvReflection.h REQUIRED)
+    get_target_property(spirv_tools_include_dirs SPIRV-Tools-static INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(openvino_intel_gpu_clspv_api SYSTEM INTERFACE
+        "${SPIRV_HEADERS_INCLUDE_DIR}" ${spirv_tools_include_dirs})
+    target_link_libraries(openvino_intel_gpu_clspv_api INTERFACE SPIRV-Tools-static)
+    target_compile_definitions(openvino_intel_gpu_clspv_api INTERFACE
+        OV_GPU_CLSPV_COMPILER_ID="${CLSPV_COMPILER_ID}")
+
+    set_property(GLOBAL PROPERTY OV_GPU_CLSPV_CORE_LIBRARY "${CLSPV_CORE_LIBRARY}")
+    install(FILES "${CLSPV_CORE_LIBRARY}"
+            DESTINATION ${OV_CPACK_RUNTIMEDIR}
+            COMPONENT ${OV_CPACK_COMP_CORE})
+endif()
+
+#
 # oneDNN for GPU plugin
 #
 
