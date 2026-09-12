@@ -1,6 +1,7 @@
 // Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 // GR DPAS pipeline, stage 3/4: low-rank up projection (read gate logits).
 //
 //   G[token, c, d] = sigmoid( W_up[c*D+d, :] . t[token, :] )

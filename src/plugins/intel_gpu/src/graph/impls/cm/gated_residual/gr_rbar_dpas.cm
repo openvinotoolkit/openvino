@@ -1,6 +1,7 @@
 // Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 // GR DPAS pipeline, stage 1/4: branch-wise grouped RMSNorm only.
 //
 // Identical math to gr_read.cm's Phase 1a/1b, but Rbar is written to GLOBAL memory

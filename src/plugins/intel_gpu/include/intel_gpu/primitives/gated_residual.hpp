@@ -71,9 +71,8 @@ struct gated_residual : public primitive_base<gated_residual> {
             return false;
 
         auto rhs_casted = downcast<const gated_residual>(rhs);
-        return mode == rhs_casted.mode && hc_count == rhs_casted.hc_count && hidden_size == rhs_casted.hidden_size &&
-               lowrank == rhs_casted.lowrank && epsilon == rhs_casted.epsilon && norm_gain_plus_one == rhs_casted.norm_gain_plus_one &&
-               produce_write_gate == rhs_casted.produce_write_gate;
+        return mode == rhs_casted.mode && hc_count == rhs_casted.hc_count && hidden_size == rhs_casted.hidden_size && lowrank == rhs_casted.lowrank &&
+               epsilon == rhs_casted.epsilon && norm_gain_plus_one == rhs_casted.norm_gain_plus_one && produce_write_gate == rhs_casted.produce_write_gate;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

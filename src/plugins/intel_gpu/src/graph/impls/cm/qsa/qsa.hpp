@@ -55,14 +55,14 @@ struct QSARuntimeParams : public ImplRuntimeParams {
     QSAStage stage = QSAStage::PREFILL;
     size_t num_tokens = 0;
     size_t num_seqs = 0;
-    size_t max_blocks = 1;        ///< max number of complete QSA blocks over the batch
-    size_t prepare_wg_count = 0;  ///< number of (sequence, QSA block) work items for Q1
-    size_t num_partitions = 1;    ///< block-range partitions for the decode Q2 pass 1
-    size_t score_tile_count = 0;  ///< number of 16-query tiles for the prefill dpas Q2
+    size_t max_blocks = 1;             ///< max number of complete QSA blocks over the batch
+    size_t prepare_wg_count = 0;       ///< number of (sequence, QSA block) work items for Q1
+    size_t num_partitions = 1;         ///< block-range partitions for the decode Q2 pass 1
+    size_t score_tile_count = 0;       ///< number of 16-query tiles for the prefill dpas Q2
     bool use_split_attention = false;  ///< decode: dispatch split-selected-KV Q3 instead of scalar
     std::vector<int32_t> prepare_map;
     std::vector<int32_t> score_tile_map;
-    std::vector<int32_t> token_map;  ///< one (seq, global_token) entry per token, for the GQA dpas Q3
+    std::vector<int32_t> token_map;           ///< one (seq, global_token) entry per token, for the GQA dpas Q3
     std::vector<QSAScoreChunk> score_chunks;  ///< always >= 1 entry, even for num_tokens == 0
     // "Current chunk" scratch, set by QSACmImpl::execute() immediately before each
     // score/topk execute_stage() call in its per-chunk loop; the row-chunk-aware

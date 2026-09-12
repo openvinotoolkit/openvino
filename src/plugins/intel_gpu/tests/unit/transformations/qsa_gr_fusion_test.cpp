@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "plugin/transformations/qsa_gr_fusion.hpp"
+
 #include <gtest/gtest.h>
 
 #include <cmath>
@@ -23,7 +25,6 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/rms.hpp"
-#include "plugin/transformations/qsa_gr_fusion.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;

@@ -75,8 +75,8 @@ std::vector<float> reference_rbar(const gr_ref_params& p, const std::vector<floa
 void reference_read(const gr_ref_params& p,
                     const std::vector<float>& residual,
                     const std::vector<float>& gain,
-                    const std::vector<float>& w_down,  // [L, C*D]
-                    const std::vector<float>& w_up,    // [C*D, L]
+                    const std::vector<float>& w_down,    // [L, C*D]
+                    const std::vector<float>& w_up,      // [C*D, L]
                     const std::vector<float>* w_inject,  // [C, C*D] or null
                     std::vector<float>& mixed,
                     std::vector<float>& write_gate) {
@@ -343,15 +343,8 @@ TEST(gated_residual_gpu_test, write_combines_branches) {
     topology.add(input_layout("residual", residual_mem->get_layout()));
     topology.add(input_layout("y", y_mem->get_layout()));
     topology.add(input_layout("gate", gate_mem->get_layout()));
-    topology.add(gated_residual("gr_write",
-                                {input_info("residual"), input_info("y"), input_info("gate")},
-                                gated_residual::Mode::WRITE,
-                                C,
-                                D,
-                                0,
-                                1e-6f,
-                                false,
-                                false));
+    topology.add(
+        gated_residual("gr_write", {input_info("residual"), input_info("y"), input_info("gate")}, gated_residual::Mode::WRITE, C, D, 0, 1e-6f, false, false));
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::optimize_data(true));
@@ -438,7 +431,8 @@ TEST(gated_residual_gpu_test, unsupported_branch_count_is_rejected) {
     // manager must reject it instead of silently producing wrong results.
     gated_residual prim("gr", {input_info("a"), input_info("b"), input_info("c"), input_info("d")}, gated_residual::Mode::READ, 3, 64, 16, 1e-6f, false, false);
     ASSERT_EQ(prim.hc_count, 3u);
-    gated_residual supported("gr", {input_info("a"), input_info("b"), input_info("c"), input_info("d")}, gated_residual::Mode::READ, 4, 64, 16, 1e-6f, false, false);
+    gated_residual
+        supported("gr", {input_info("a"), input_info("b"), input_info("c"), input_info("d")}, gated_residual::Mode::READ, 4, 64, 16, 1e-6f, false, false);
     ASSERT_FALSE(prim == supported);
 }
 
@@ -518,8 +512,8 @@ double time_primitive_ms(network& net, const std::string& primitive_id, int warm
 }
 
 void print_measurement(const char* phase, size_t tokens, const char* stage, double ms) {
-    std::cout << "ROOFLINE_JSON {\"component\":\"GR\",\"phase\":\"" << phase << "\",\"tokens\":" << tokens
-               << ",\"stage\":\"" << stage << "\",\"ms\":" << ms << "}" << std::endl;
+    std::cout << "ROOFLINE_JSON {\"component\":\"GR\",\"phase\":\"" << phase << "\",\"tokens\":" << tokens << ",\"stage\":\"" << stage << "\",\"ms\":" << ms
+              << "}" << std::endl;
 }
 
 /// `phase == "prefill"` runs the whole context as one call (`rows = tokens`);

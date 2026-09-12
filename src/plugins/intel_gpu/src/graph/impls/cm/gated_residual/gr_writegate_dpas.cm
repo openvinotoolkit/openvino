@@ -1,6 +1,7 @@
 // Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 // GR DPAS pipeline, stage 4a/4 (optional): write-gate low-rank projection.
 //
 //   S[token, c] = 2 * sigmoid( (W_inject[c,:] . Rbar[token,:]) / C )

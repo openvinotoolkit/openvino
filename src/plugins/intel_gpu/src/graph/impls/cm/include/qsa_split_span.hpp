@@ -1,18 +1,6 @@
-/*******************************************************************************
- * Copyright (c) 2018-2026 Intel Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *******************************************************************************/
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 // Private copy of the scalar Q3 helpers from qsa_sparse_attention.cm, not a shared
 // refactor of that kernel. Functions are prefixed qsa_split_ (rather than reusing
@@ -39,15 +27,15 @@ CM_INLINE void qsa_split_softmax_step(float score, float& running_max, float& ru
 
 template <int DH, int DV, int HKV, int PA_BLOCK, int SPAN>
 CM_INLINE void qsa_split_attend_span(vector_ref<float, DH> q,
-                               vector_ref<float, DV> acc,
-                               float& running_max,
-                               float& running_sum,
-                               const half* key_cache ATTR,
-                               const half* value_cache ATTR,
-                               const int32_t* block_indices ATTR,
-                               uint page_begin,
-                               uint kv_head,
-                               uint pos0) {
+                                     vector_ref<float, DV> acc,
+                                     float& running_max,
+                                     float& running_sum,
+                                     const half* key_cache ATTR,
+                                     const half* value_cache ATTR,
+                                     const int32_t* block_indices ATTR,
+                                     uint page_begin,
+                                     uint kv_head,
+                                     uint pos0) {
     const uint page = (uint)block_indices[page_begin + pos0 / (uint)PA_BLOCK];
     const uint tok0 = pos0 % (uint)PA_BLOCK;
 

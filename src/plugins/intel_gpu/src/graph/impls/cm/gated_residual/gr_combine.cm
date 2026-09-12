@@ -1,6 +1,7 @@
 // Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 // GR DPAS pipeline, stage 4b/4: branch reduce-mean combine (no dpas - pure elementwise).
 //
 //   mixed[token, d] = (1/C) * sum_c gate[token, c, d] * Rbar[token, c, d]

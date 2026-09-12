@@ -1,5 +1,7 @@
 // Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 // Q1 projection only: [tokens,D] half * [J,D]^T half -> [tokens,J] float.
 // One work-item owns M=8 output channels, N=16 tokens, K=16 per cm_dpas.
 // Global token tiles may cross sequences: projection has no positional state.

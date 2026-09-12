@@ -8,10 +8,7 @@
 
 namespace ov::intel_gpu::op {
 
-QSA::QSA(const ov::OutputVector& args, const Config& config, const ov::element::Type output_type)
-    : Op(args),
-      m_config(config),
-      m_output_type(output_type) {
+QSA::QSA(const ov::OutputVector& args, const Config& config, const ov::element::Type output_type) : Op(args), m_config(config), m_output_type(output_type) {
     validate_and_infer_types();
 }
 
@@ -89,20 +86,13 @@ bool QSA::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void QSA::validate_and_infer_types() {
-    NODE_VALIDATION_CHECK(this,
-                          get_input_size() == InputIdx::COUNT,
-                          "QSA expects ",
-                          InputIdx::COUNT,
-                          " inputs, got ",
-                          get_input_size());
+    NODE_VALIDATION_CHECK(this, get_input_size() == InputIdx::COUNT, "QSA expects ", InputIdx::COUNT, " inputs, got ", get_input_size());
 
     std::string reason;
     NODE_VALIDATION_CHECK(this, validate_config(m_config, reason), "QSA configuration is invalid: ", reason);
 
     const auto& query_ps = get_input_partial_shape(InputIdx::QUERY);
-    NODE_VALIDATION_CHECK(this,
-                          query_ps.rank().is_dynamic() || query_ps.rank().get_length() == 2,
-                          "QSA expects a rank-2 [tokens, Hq*Dh] query input.");
+    NODE_VALIDATION_CHECK(this, query_ps.rank().is_dynamic() || query_ps.rank().get_length() == 2, "QSA expects a rank-2 [tokens, Hq*Dh] query input.");
 
     auto out_ps = ov::PartialShape::dynamic(2);
     if (query_ps.rank().is_static()) {

@@ -1,18 +1,6 @@
-/*******************************************************************************
- * Copyright (c) 2018-2026 Intel Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *******************************************************************************/
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 // Shared address arithmetic, RoPE / RMSNorm helpers and the deterministic radix
 // top-k selector used by the four QSA CM kernel families.
@@ -28,7 +16,7 @@
 // textual copy - so a guarded definition would leave ATTR undefined for every kernel
 // after the first one in a batched program.
 #ifndef ATTR
-#define ATTR [[type("svmptr_t")]]
+#    define ATTR [[type("svmptr_t")]]
 #endif
 
 // Dense-prefix bypass: rows whose complete-block count does not exceed block_topk
@@ -38,23 +26,23 @@
 // bypass-enabled finalizer. Keep defaults outside the guard, like ATTR, for
 // flattened multi-kernel sources.
 #ifndef QSA_DENSE_BYPASS
-#define QSA_DENSE_BYPASS 1
+#    define QSA_DENSE_BYPASS 1
 #endif
 #ifndef QSA_DENSE_SCORE_BYPASS
-#define QSA_DENSE_SCORE_BYPASS 0
+#    define QSA_DENSE_SCORE_BYPASS 0
 #endif
 #if QSA_DENSE_SCORE_BYPASS && !QSA_DENSE_BYPASS
-#error "Dense score bypass requires QSA_DENSE_BYPASS in the paired finalizer"
+#    error "Dense score bypass requires QSA_DENSE_BYPASS in the paired finalizer"
 #endif
 
 // Classic include guard - see qsa_gr_common.hpp for why `#pragma once` is not usable here.
 #ifndef QSA_COMMON_HPP
-#define QSA_COMMON_HPP
+#    define QSA_COMMON_HPP
 
-#include <cm/cm.h>
-#include <cm/cmtl.h>
+#    include <cm/cm.h>
+#    include <cm/cmtl.h>
 
-#include "qsa_gr_common.hpp"
+#    include "qsa_gr_common.hpp"
 
 namespace qsa {
 
@@ -103,7 +91,7 @@ CM_INLINE void apply_partial_rope(vector_ref<float, HEAD_DIM> v, const half* tab
     if constexpr (ROTARY_DIM > 0) {
         constexpr int HALF = ROTARY_DIM / 2;
         const uint base = position * (uint)ROTARY_DIM;
-#pragma unroll
+#    pragma unroll
         for (int j = 0; j < HALF; j++) {
             const float c = (float)table[base + 2 * j];
             const float s = (float)table[base + 2 * j + 1];
@@ -124,14 +112,14 @@ template <int HEAD_DIM>
 CM_INLINE void rms_norm(vector_ref<float, HEAD_DIM> v, const half* weight ATTR, float eps) {
     static_assert(HEAD_DIM % 16 == 0, "head dim must be a multiple of 16");
     float sumsq = 0.0f;
-#pragma unroll
+#    pragma unroll
     for (int k = 0; k < HEAD_DIM; k += 16) {
         vector<float, 16> chunk = v.template select<16, 1>(k);
         sumsq += cm_sum<float>(chunk * chunk);
     }
     vector<float, 1> denom = sumsq / (float)HEAD_DIM + eps;
     const float inv = cm_rsqrt(denom)[0];
-#pragma unroll
+#    pragma unroll
     for (int k = 0; k < HEAD_DIM; k += 16) {
         vector<float, 16> w = qsa_gr::load_h16(weight, k);
         v.template select<16, 1>(k) = v.template select<16, 1>(k) * inv * w;
@@ -170,7 +158,7 @@ CM_INLINE uint radix_select_topk(const float* scores ATTR, uint n_valid, uint k,
     if (k == 0) {
         return 0;
     }
-#if QSA_DENSE_BYPASS
+#    if QSA_DENSE_BYPASS
     // After clamping k, equality means ALL valid blocks are selected. Do not
     // read scores: a coordinated producer may have left this entire row unwritten.
     if (k == n_valid) {
@@ -179,7 +167,7 @@ CM_INLINE uint radix_select_topk(const float* scores ATTR, uint n_valid, uint k,
         }
         return k;
     }
-#endif
+#    endif
 
     uint prefix = 0;     // resolved high bits of the k-th largest key
     uint hi_shift = 32;  // 32 == no high bits resolved yet

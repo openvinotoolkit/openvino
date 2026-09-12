@@ -120,9 +120,8 @@ struct qsa : public primitive_base<qsa> {
         return heads_num == r.heads_num && kv_heads_num == r.kv_heads_num && k_head_size == r.k_head_size && v_head_size == r.v_head_size &&
                hidden_size == r.hidden_size && indexer_heads == r.indexer_heads && indexer_kv_heads == r.indexer_kv_heads &&
                indexer_head_dim == r.indexer_head_dim && indexer_rotary_dim == r.indexer_rotary_dim && budget == r.budget &&
-               compress_ratio == r.compress_ratio && qsa_block_tokens == r.qsa_block_tokens && pa_block_size == r.pa_block_size &&
-               block_topk == r.block_topk && scale == r.scale && indexer_norm_eps == r.indexer_norm_eps && has_output_gate == r.has_output_gate &&
-               is_causal == r.is_causal;
+               compress_ratio == r.compress_ratio && qsa_block_tokens == r.qsa_block_tokens && pa_block_size == r.pa_block_size && block_topk == r.block_topk &&
+               scale == r.scale && indexer_norm_eps == r.indexer_norm_eps && has_output_gate == r.has_output_gate && is_causal == r.is_causal;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

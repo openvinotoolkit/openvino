@@ -30,17 +30,17 @@ public:
 
     /// @brief Fixed input order of the QSA op / cldnn::qsa primitive.
     struct InputIdx {
-        static constexpr size_t MIXED = 0;                 ///< [tokens, D] GR READ/MIX output
-        static constexpr size_t QUERY = 1;                 ///< [tokens, Hq*Dh] (or [tokens, 2*Hq*Dh] when gate is fused)
-        static constexpr size_t KEY = 2;                   ///< [tokens, Hkv*Dh]
-        static constexpr size_t VALUE = 3;                 ///< [tokens, Hkv*Dv]
-        static constexpr size_t PAST_LENS = 4;             ///< [num_seqs]
-        static constexpr size_t SUBSEQUENCE_BEGINS = 5;    ///< [num_seqs+1]
-        static constexpr size_t BLOCK_INDICES = 6;         ///< [used_blocks]
-        static constexpr size_t BLOCK_INDICES_BEGINS = 7;  ///< [num_seqs+1]
-        static constexpr size_t KEY_CACHE = 8;             ///< [num_blocks, Hkv, PA_BLOCK_SIZE, Dh]
-        static constexpr size_t VALUE_CACHE = 9;           ///< [num_blocks, Hkv, PA_BLOCK_SIZE, Dv]
-        static constexpr size_t INDEXER_RAW_K_CACHE = 10;  ///< [num_blocks, 1, PA_BLOCK_SIZE, Di]
+        static constexpr size_t MIXED = 0;                   ///< [tokens, D] GR READ/MIX output
+        static constexpr size_t QUERY = 1;                   ///< [tokens, Hq*Dh] (or [tokens, 2*Hq*Dh] when gate is fused)
+        static constexpr size_t KEY = 2;                     ///< [tokens, Hkv*Dh]
+        static constexpr size_t VALUE = 3;                   ///< [tokens, Hkv*Dv]
+        static constexpr size_t PAST_LENS = 4;               ///< [num_seqs]
+        static constexpr size_t SUBSEQUENCE_BEGINS = 5;      ///< [num_seqs+1]
+        static constexpr size_t BLOCK_INDICES = 6;           ///< [used_blocks]
+        static constexpr size_t BLOCK_INDICES_BEGINS = 7;    ///< [num_seqs+1]
+        static constexpr size_t KEY_CACHE = 8;               ///< [num_blocks, Hkv, PA_BLOCK_SIZE, Dh]
+        static constexpr size_t VALUE_CACHE = 9;             ///< [num_blocks, Hkv, PA_BLOCK_SIZE, Dv]
+        static constexpr size_t INDEXER_RAW_K_CACHE = 10;    ///< [num_blocks, 1, PA_BLOCK_SIZE, Di]
         static constexpr size_t INDEXER_SUMMARY_CACHE = 11;  ///< [num_blocks, 1, PA_BLOCK_SIZE/r, Di]
         static constexpr size_t INDEXER_QK_WEIGHT = 12;      ///< [Hidx*Di + Di, D] row-major
         static constexpr size_t INDEXER_Q_NORM_WEIGHT = 13;  ///< [Di]
@@ -54,23 +54,23 @@ public:
     QSA() = default;
 
     struct Config {
-        size_t heads_num = 0;             ///< Hq
-        size_t kv_heads_num = 0;          ///< Hkv
-        size_t k_head_size = 0;           ///< Dh
-        size_t v_head_size = 0;           ///< Dv
-        size_t hidden_size = 0;           ///< D (indexer projection input width)
-        size_t indexer_heads = 0;         ///< Hidx
-        size_t indexer_kv_heads = 1;      ///< must be 1 (MQA)
-        size_t indexer_head_dim = 0;      ///< Di
-        size_t indexer_rotary_dim = 0;    ///< <= Di, partial rotary
-        size_t budget = 0;                ///< selected token budget
-        size_t compress_ratio = 0;        ///< r, per-layer; 0 means the layer is not a QSA layer
-        size_t qsa_block_tokens = 0;      ///< == compress_ratio
-        size_t pa_block_size = 0;         ///< PA_BLOCK_SIZE of the paged main KV cache
-        size_t block_topk = 0;            ///< == budget / compress_ratio
-        float scale = 0.0f;               ///< main attention 1/sqrt(Dh)
-        float indexer_norm_eps = 1e-6f;   ///< RMSNorm epsilon of the indexer
-        bool has_output_gate = false;     ///< q_proj emits [query|gate] per head
+        size_t heads_num = 0;            ///< Hq
+        size_t kv_heads_num = 0;         ///< Hkv
+        size_t k_head_size = 0;          ///< Dh
+        size_t v_head_size = 0;          ///< Dv
+        size_t hidden_size = 0;          ///< D (indexer projection input width)
+        size_t indexer_heads = 0;        ///< Hidx
+        size_t indexer_kv_heads = 1;     ///< must be 1 (MQA)
+        size_t indexer_head_dim = 0;     ///< Di
+        size_t indexer_rotary_dim = 0;   ///< <= Di, partial rotary
+        size_t budget = 0;               ///< selected token budget
+        size_t compress_ratio = 0;       ///< r, per-layer; 0 means the layer is not a QSA layer
+        size_t qsa_block_tokens = 0;     ///< == compress_ratio
+        size_t pa_block_size = 0;        ///< PA_BLOCK_SIZE of the paged main KV cache
+        size_t block_topk = 0;           ///< == budget / compress_ratio
+        float scale = 0.0f;              ///< main attention 1/sqrt(Dh)
+        float indexer_norm_eps = 1e-6f;  ///< RMSNorm epsilon of the indexer
+        bool has_output_gate = false;    ///< q_proj emits [query|gate] per head
         bool is_causal = true;
     };
 

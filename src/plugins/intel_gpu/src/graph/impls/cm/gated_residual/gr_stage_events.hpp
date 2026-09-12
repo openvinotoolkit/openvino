@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 // Debug-only hook that lets test code recover the per-CM-kernel GPU events of the last
 // GatedResidualCMImpl::execute() call. The systolic READ/FINAL_MIX path fuses five
 // independent CM kernel dispatches (RBAR, down-proj, up-proj, [write-gate], combine)

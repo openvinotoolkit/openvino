@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 // Separate dispatch on the same in-order queue provides global visibility.
 #ifndef ATTR
 #define ATTR [[type("svmptr_t")]]

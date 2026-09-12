@@ -36,15 +36,15 @@ constexpr size_t partition_blocks = 512;  // summaries scanned per decode Q2 par
 constexpr size_t score_wg_size = 16;      // threads per query tile in the prefill dpas Q2
 constexpr size_t dpas_query_tile = 16;    // dpas N axis == GRF width on Xe2
 constexpr size_t dpas_block_tile = 8;     // dpas RepeatCount (M axis)
-constexpr size_t dpas_k_step = 16;          // fp16 K elements per dpas
-constexpr size_t dpas_wide_cols = 32;       // halfs per 2D block row; the hardware caps a row at 64 B
+constexpr size_t dpas_k_step = 16;        // fp16 K elements per dpas
+constexpr size_t dpas_wide_cols = 32;     // halfs per 2D block row; the hardware caps a row at 64 B
 constexpr size_t max_slm_bytes = 64 * 1024;
-constexpr size_t topk_wg_size = 16;          // qsa_topk_radix_wg cooperative WG size
+constexpr size_t topk_wg_size = 16;  // qsa_topk_radix_wg cooperative WG size
 // This is the kernel's own upper bound: compiled once with the maximum, it degrades to
 // an uncached global scan only above 2048 SIMD64-aligned keys/worker, never producing a
 // wrong selection at any context length.
 constexpr size_t topk_cache_capacity = 2048;
-constexpr size_t split_partitions = 16;      // decode split-selected-KV Q3 partitions
+constexpr size_t split_partitions = 16;  // decode split-selected-KV Q3 partitions
 // Only route decode Q3 through the split path at/above this past length; shorter decode
 // contexts are already cheap on the scalar kernel and do not need the extra reduce pass.
 constexpr size_t split_decode_min_past = 2048;
@@ -792,9 +792,7 @@ protected:
             // tokens, so dimension 1 enumerates (map entry, sub-tile) pairs.
             const size_t workers = std::max<size_t>(1, dpas_attention_workers(*desc));
             const size_t heads_per_tile = dpas_heads_per_tile(*desc);
-            wgs.global = {(desc->heads_num / heads_per_tile) * workers,
-                          std::max<size_t>(1, rtp->score_tile_count) * heads_per_tile,
-                          1};
+            wgs.global = {(desc->heads_num / heads_per_tile) * workers, std::max<size_t>(1, rtp->score_tile_count) * heads_per_tile, 1};
             wgs.local = {workers, 1, 1};
 
             const auto& q_layout = params.get_input_layout(QSAIn::QUERY);
@@ -1429,8 +1427,7 @@ public:
             do {
                 const size_t end = std::min(rtp->num_tokens, begin + scratch_rows);
                 const size_t tile_offset = rtp->score_tile_map.size() / 2;
-                while (seq + 1 < subsequence_begins.size() &&
-                       static_cast<size_t>(subsequence_begins[seq + 1]) <= begin) {
+                while (seq + 1 < subsequence_begins.size() && static_cast<size_t>(subsequence_begins[seq + 1]) <= begin) {
                     seq++;
                 }
                 size_t s = seq;
@@ -1445,8 +1442,7 @@ public:
                     }
                     s++;
                 }
-                rtp->score_chunks.push_back(
-                    QSAScoreChunk{begin, end, tile_offset, rtp->score_tile_map.size() / 2 - tile_offset});
+                rtp->score_chunks.push_back(QSAScoreChunk{begin, end, tile_offset, rtp->score_tile_map.size() / 2 - tile_offset});
                 begin = end;
             } while (begin < rtp->num_tokens);
         }
@@ -1461,13 +1457,11 @@ public:
         // split-selected-KV Q3; short decode is already cheap on the scalar kernel. This
         // is independent of batch size since neither kernel's dispatch grid depends on
         // the number of sequences.
-        rtp->use_split_attention = rtp->stage == QSAStage::GENERATE && any_single &&
-                                   min_past_len != std::numeric_limits<size_t>::max() &&
-                                   min_past_len >= split_decode_min_past;
+        rtp->use_split_attention =
+            rtp->stage == QSAStage::GENERATE && any_single && min_past_len != std::numeric_limits<size_t>::max() && min_past_len >= split_decode_min_past;
     }
 
 private:
-
     static void upload_map(primitive_inst& instance, size_t buf_idx, const std::vector<int32_t>& data, const char* what) {
         if (data.empty()) {
             return;
@@ -1559,8 +1553,7 @@ bool QSACMImplementationManager::validate_impl(const cldnn::program_node& node) 
     return out.data_type == ov::element::f16 && out.format == cldnn::format::bfyx;
 }
 
-std::unique_ptr<cldnn::primitive_impl> QSACMImplementationManager::create_impl(const cldnn::program_node& node,
-                                                                              const cldnn::kernel_impl_params& params) const {
+std::unique_ptr<cldnn::primitive_impl> QSACMImplementationManager::create_impl(const cldnn::program_node& node, const cldnn::kernel_impl_params& params) const {
     OPENVINO_ASSERT(node.is_type<cldnn::qsa>());
     return std::make_unique<QSACmImpl>(params);
 }

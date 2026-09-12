@@ -22,8 +22,8 @@ template <typename ShapeType>
 std::vector<layout> gated_residual_inst::calc_output_layouts(const gated_residual_node& /*node*/, const kernel_impl_params& impl_param) {
     const auto& desc = impl_param.typed_desc<gated_residual>();
     const auto residual_layout = impl_param.get_input_layout(0);
-    const auto out_dt = desc->output_data_types.empty() || !desc->output_data_types[0].has_value() ? residual_layout.data_type
-                                                                                                  : desc->output_data_types[0].value();
+    const auto out_dt =
+        desc->output_data_types.empty() || !desc->output_data_types[0].has_value() ? residual_layout.data_type : desc->output_data_types[0].value();
 
     if (desc->mode == gated_residual::Mode::WRITE) {
         // R' keeps the widened residual layout.
@@ -48,8 +48,7 @@ std::vector<layout> gated_residual_inst::calc_output_layouts(const gated_residua
     return output_layouts;
 }
 
-template std::vector<layout> gated_residual_inst::calc_output_layouts<ov::PartialShape>(const gated_residual_node& node,
-                                                                                       const kernel_impl_params& impl_param);
+template std::vector<layout> gated_residual_inst::calc_output_layouts<ov::PartialShape>(const gated_residual_node& node, const kernel_impl_params& impl_param);
 
 std::string gated_residual_inst::to_string(const gated_residual_node& node) {
     auto node_info = node.desc_to_json();

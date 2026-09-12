@@ -25,10 +25,10 @@ using namespace cldnn;
 namespace {
 
 constexpr size_t gr_wg_size = 16;
-constexpr size_t gr_max_lowrank = 512;      // GR_LOWRANK is kept in registers by gr_read.cm
+constexpr size_t gr_max_lowrank = 512;        // GR_LOWRANK is kept in registers by gr_read.cm
 constexpr size_t gr_max_total_width = 16384;  // C*D must fit into SLM as f16
-constexpr size_t gr_dpas_m = 8;   // dpas RepeatCount (M axis) used by the down/up projections
-constexpr size_t gr_dpas_n = 16;  // dpas N axis == GRF width on Xe2
+constexpr size_t gr_dpas_m = 8;               // dpas RepeatCount (M axis) used by the down/up projections
+constexpr size_t gr_dpas_n = 16;              // dpas N axis == GRF width on Xe2
 
 constexpr auto get_gr_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
@@ -392,7 +392,7 @@ protected:
     [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, GatedResidualInternalBufIdx::RBAR});
-        args.push_back({ArgumentDescriptor::Types::INPUT, 4});  // W_inject
+        args.push_back({ArgumentDescriptor::Types::INPUT, 4});   // W_inject
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});  // write gate S
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // num_rows
         return args;
@@ -628,7 +628,7 @@ bool GatedResidualCMImplementationManager::validate_impl(const cldnn::program_no
 }
 
 std::unique_ptr<cldnn::primitive_impl> GatedResidualCMImplementationManager::create_impl(const cldnn::program_node& node,
-                                                                                        const cldnn::kernel_impl_params& params) const {
+                                                                                         const cldnn::kernel_impl_params& params) const {
     OPENVINO_ASSERT(node.is_type<cldnn::gated_residual>());
     return std::make_unique<GatedResidualCMImpl>(node, params);
 }

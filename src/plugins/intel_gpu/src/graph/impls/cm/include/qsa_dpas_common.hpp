@@ -1,18 +1,6 @@
-/*******************************************************************************
- * Copyright (c) 2018-2026 Intel Corporation
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *******************************************************************************/
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
 
 // Systolic (cm_dpas) tile geometry and operand builders shared by the QSA prefill kernels.
 //
@@ -33,17 +21,17 @@
 // (Same trap as ATTR in qsa_common.hpp.) They are plain constants, so redefining them
 // per kernel is harmless; `#ifndef QSA_REG_K` keeps it idempotent within one kernel.
 #ifndef QSA_REG_K
-#define QSA_SYSTOLIC_DEPTH 8
-#define QSA_VNNI_WIDTH     2
-#define QSA_REG_K          (QSA_SYSTOLIC_DEPTH * QSA_VNNI_WIDTH)  // 16 fp16 K elements per dpas
-#define QSA_REG_M          8                                      // max RepeatCount
-#define QSA_REG_N          (CM_GRF_WIDTH / 32)                    // 8 on Xe1, 16 on Xe2
+#    define QSA_SYSTOLIC_DEPTH 8
+#    define QSA_VNNI_WIDTH     2
+#    define QSA_REG_K          (QSA_SYSTOLIC_DEPTH * QSA_VNNI_WIDTH)  // 16 fp16 K elements per dpas
+#    define QSA_REG_M          8                                      // max RepeatCount
+#    define QSA_REG_N          (CM_GRF_WIDTH / 32)                    // 8 on Xe1, 16 on Xe2
 #endif
 
 #ifndef QSA_DPAS_COMMON_HPP
-#define QSA_DPAS_COMMON_HPP
+#    define QSA_DPAS_COMMON_HPP
 
-#include "qsa_common.hpp"
+#    include "qsa_common.hpp"
 
 namespace qsa_dpas {
 
@@ -51,12 +39,12 @@ namespace qsa_dpas {
 template <typename T1, typename T2>
 CM_INLINE void transpose_8x8(matrix_ref<T1, 8, 8> in, matrix_ref<T2, 8, 8> out) {
     matrix<T2, 8, 8> temp;
-#pragma unroll
+#    pragma unroll
     for (int i = 0; i < 4; ++i) {
         temp.row(i) = in.template select<2, 1, 4, 2>(i * 2, 0);
         temp.row(i + 4) = in.template select<2, 1, 4, 2>(i * 2, 1);
     }
-#pragma unroll
+#    pragma unroll
     for (int i = 0; i < 4; ++i) {
         out.row(i * 2) = temp.template select<4, 1, 2, 4>(0, i);
         out.row(i * 2 + 1) = temp.template select<4, 1, 2, 4>(4, i);
@@ -76,25 +64,25 @@ CM_INLINE void transpose_8x16(matrix_ref<T1, 8, 16> in, matrix_ref<T2, 16, 8> ou
 template <typename T1, typename T2>
 CM_INLINE void transpose_16x16(matrix_ref<T1, 16, 16> in, matrix_ref<T2, 16, 16> out) {
     matrix<T2, 16, 16> buf;
-#pragma unroll
+#    pragma unroll
     for (int k = 0; k < 16; k++) {
         buf.row(k) = in.template select<2, 1, 8, 2>((k * 2) % 16, k / 8);
     }
-#pragma unroll
+#    pragma unroll
     for (int k = 0; k < 16; k++) {
         out.row(k) = buf.template select<2, 1, 8, 2>((k * 2) % 16, k / 8);
     }
-#pragma unroll
+#    pragma unroll
     for (int k = 0; k < 16; k++) {
         buf.row(k) = out.template select<2, 1, 8, 2>((k * 2) % 16, k / 8);
     }
-#pragma unroll
+#    pragma unroll
     for (int k = 0; k < 16; k++) {
         out.row(k) = buf.template select<2, 1, 8, 2>((k * 2) % 16, k / 8);
     }
 }
 
-#ifdef CM_HAS_LSC_UNTYPED_2D
+#    ifdef CM_HAS_LSC_UNTYPED_2D
 
 /// Builds one VNNI B operand tile straight from row-major [rows][K] memory.
 ///
@@ -143,12 +131,7 @@ CM_INLINE void load_vnni_cols(matrix_ref<uint, QSA_REG_K / 2, COLS> dst,
 
 /// Loads an A operand tile: `ROWS` consecutive rows of `QSA_REG_K` halfs from row-major memory.
 template <int ROWS>
-CM_INLINE void load_a_tile(vector_ref<half, ROWS * QSA_REG_K> dst,
-                           const half* base ATTR,
-                           uint rows,
-                           uint row_pitch_bytes,
-                           uint width_bytes,
-                           uint k_offset) {
+CM_INLINE void load_a_tile(vector_ref<half, ROWS * QSA_REG_K> dst, const half* base ATTR, uint rows, uint row_pitch_bytes, uint width_bytes, uint k_offset) {
     lsc::block_2d_desc<half, 1, ROWS, QSA_REG_K> desc(const_cast<half*>(base), rows - 1, width_bytes - 1, row_pitch_bytes - 1, 0, 0);
     cm_load<lsc::Normal>(dst, desc.set_block_x(k_offset));
 }
@@ -163,12 +146,7 @@ CM_INLINE void load_a_tile(vector_ref<half, ROWS * QSA_REG_K> dst,
 /// the whole head dimension in the paged cache, so the worker's entire slice can come in a
 /// single message and be split into dpas tiles in registers.
 template <int ROWS, int COLS>
-CM_INLINE void load_a_wide(matrix_ref<half, ROWS, COLS> dst,
-                           const half* base ATTR,
-                           uint rows,
-                           uint row_pitch_bytes,
-                           uint width_bytes,
-                           uint col_offset) {
+CM_INLINE void load_a_wide(matrix_ref<half, ROWS, COLS> dst, const half* base ATTR, uint rows, uint row_pitch_bytes, uint width_bytes, uint col_offset) {
     lsc::block_2d_desc<half, 1, ROWS, COLS> desc(const_cast<half*>(base), rows - 1, width_bytes - 1, row_pitch_bytes - 1, 0, 0);
     cm_load<lsc::Normal>(dst.template format<half>(), desc.set_block_x(col_offset));
 }
@@ -191,18 +169,13 @@ CM_INLINE void load_vnni_wide(matrix_ref<half, ROWS / 2, COLS * 2> dst,
 /// Loads `ROWS` rows x QSA_REG_N columns and lets the hardware apply the VNNI re-layout,
 /// producing [ROWS/2][QSA_REG_N * 2] halfs - the B operand slice for a PV dpas.
 template <int ROWS>
-CM_INLINE void load_vnni_rows(vector_ref<half, ROWS * QSA_REG_N> dst,
-                              const half* base ATTR,
-                              uint rows,
-                              uint row_pitch_bytes,
-                              uint width_bytes,
-                              uint n_offset) {
+CM_INLINE void load_vnni_rows(vector_ref<half, ROWS * QSA_REG_N> dst, const half* base ATTR, uint rows, uint row_pitch_bytes, uint width_bytes, uint n_offset) {
     static_assert(ROWS % 2 == 0, "VNNI row pairs require an even row count");
     lsc::block_2d_desc<half, 1, ROWS, QSA_REG_N> desc(const_cast<half*>(base), rows - 1, width_bytes - 1, row_pitch_bytes - 1, 0, 0);
     cm_load<lsc::VNNI>(dst, desc.set_block_x(n_offset));
 }
 
-#endif  // CM_HAS_LSC_UNTYPED_2D
+#    endif  // CM_HAS_LSC_UNTYPED_2D
 
 }  // namespace qsa_dpas
 

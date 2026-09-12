@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
+
 // Explicit decode prototype: SIMD64 threshold scans across WG16 workers.
 // No candidate limit; one row per WG, 272 bytes SLM at WG16.
 #ifndef ATTR

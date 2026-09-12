@@ -68,9 +68,7 @@ void GatedResidual::validate_and_infer_types() {
                           (m_produce_write_gate && input_size == 5) || (!m_produce_write_gate && input_size == 4),
                           "GatedResidual (READ/FINAL_MIX) expects 4 inputs (5 with W_inject), got ",
                           input_size);
-    NODE_VALIDATION_CHECK(this,
-                          m_mode != Mode::FINAL_MIX || !m_produce_write_gate,
-                          "GatedResidual (FINAL_MIX) must not produce a write gate.");
+    NODE_VALIDATION_CHECK(this, m_mode != Mode::FINAL_MIX || !m_produce_write_gate, "GatedResidual (FINAL_MIX) must not produce a write gate.");
     NODE_VALIDATION_CHECK(this, m_lowrank > 0, "GatedResidual (READ/FINAL_MIX) requires a positive low rank L.");
 
     auto mixed_ps = residual_ps;

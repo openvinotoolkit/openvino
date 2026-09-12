@@ -127,12 +127,11 @@ qsa_dims prod_gqa_dims(size_t max_positions = 128) {
 /// `block_topk >= n_complete` every visible block is selected and the whole selection
 /// pipeline (projection, RMSNorm, RoPE, scoring, top-k) becomes a no-op that no output
 /// comparison can detect. Every test that means to cover the indexer calls this first.
-#define ASSERT_SELECTION_IS_DISCRIMINATING(d, past_len, q_len)                                          \
-    do {                                                                                                \
-        const size_t n_complete_ = ((past_len) + (q_len)) / (d).r;                                       \
-        ASSERT_GE(n_complete_, 3 * (d).block_topk)                                                       \
-            << "the top-k selects " << (d).block_topk << " of only " << n_complete_                      \
-            << " blocks, so a wrong selection cannot change the output";                                 \
+#define ASSERT_SELECTION_IS_DISCRIMINATING(d, past_len, q_len)                                                             \
+    do {                                                                                                                   \
+        const size_t n_complete_ = ((past_len) + (q_len)) / (d).r;                                                         \
+        ASSERT_GE(n_complete_, 3 * (d).block_topk) << "the top-k selects " << (d).block_topk << " of only " << n_complete_ \
+                                                   << " blocks, so a wrong selection cannot change the output";            \
     } while (0)
 
 ov::intel_gpu::op::QSA::Config make_config(const qsa_dims& d, bool has_gate) {
@@ -232,11 +231,7 @@ std::vector<float> rotate_half(const std::vector<float>& x) {
 /// the lower half). This reference is written against the model formula only - it does
 /// not share the packed (cos, sin) pair layout the kernel consumes, so a regression in
 /// the kernel's channel pairing cannot hide behind a matching reference.
-void apply_rope(std::vector<float>& v,
-                const std::vector<float>& cos_full,
-                const std::vector<float>& sin_full,
-                size_t rotary,
-                size_t position) {
+void apply_rope(std::vector<float>& v, const std::vector<float>& cos_full, const std::vector<float>& sin_full, size_t rotary, size_t position) {
     const std::vector<float> x_rope(v.begin(), v.begin() + rotary);
     const auto rotated = rotate_half(x_rope);
     for (size_t j = 0; j < rotary; j++) {
@@ -512,24 +507,22 @@ std::vector<float> run_qsa(const qsa_reference& ref, bool has_gate) {
     topology.add(data("subsequence_begins", make_i32(engine, {2}, subsequence_begins)));
     topology.add(data("block_indices", make_i32(engine, {static_cast<int64_t>(num_pages)}, block_indices)));
     topology.add(data("block_indices_begins", make_i32(engine, {2}, block_indices_begins)));
-    topology.add(input_layout("key_cache",
-                              layout{{static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                      static_cast<int64_t>(d.Dh)},
-                                     data_types::f16,
-                                     format::bfyx}));
-    topology.add(input_layout("value_cache",
-                              layout{{static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                      static_cast<int64_t>(d.Dv)},
-                                     data_types::f16,
-                                     format::bfyx}));
-    topology.add(input_layout("raw_k_cache",
-                              layout{{static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)},
-                                     data_types::f16,
-                                     format::bfyx}));
-    topology.add(input_layout("summary_cache",
-                              layout{{static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)},
-                                     data_types::f16,
-                                     format::bfyx}));
+    topology.add(
+        input_layout("key_cache",
+                     layout{{static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dh)},
+                            data_types::f16,
+                            format::bfyx}));
+    topology.add(
+        input_layout("value_cache",
+                     layout{{static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dv)},
+                            data_types::f16,
+                            format::bfyx}));
+    topology.add(input_layout(
+        "raw_k_cache",
+        layout{{static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)}, data_types::f16, format::bfyx}));
+    topology.add(input_layout(
+        "summary_cache",
+        layout{{static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)}, data_types::f16, format::bfyx}));
     topology.add(data("idx_w", make_f16(engine, {static_cast<int64_t>(J), static_cast<int64_t>(d.D)}, ref.idx_w)));
     topology.add(data("q_norm", make_f16(engine, {static_cast<int64_t>(d.Di)}, ref.q_norm)));
     topology.add(data("k_norm", make_f16(engine, {static_cast<int64_t>(d.Di)}, ref.k_norm)));
@@ -566,24 +559,21 @@ std::vector<float> run_qsa(const qsa_reference& ref, bool has_gate) {
     network.set_input_data("query", make_f16(engine, {static_cast<int64_t>(ref.q_len), static_cast<int64_t>(q_width)}, ref.query_cur));
     network.set_input_data("key", make_f16(engine, {static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.Hkv * d.Dh)}, cur_key));
     network.set_input_data("value", make_f16(engine, {static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.Hkv * d.Dv)}, cur_value));
-    network.set_input_data("key_cache",
-                           make_f16(engine,
-                                    {static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                     static_cast<int64_t>(d.Dh)},
-                                    key_cache));
-    network.set_input_data("value_cache",
-                           make_f16(engine,
-                                    {static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                     static_cast<int64_t>(d.Dv)},
-                                    value_cache));
+    network.set_input_data(
+        "key_cache",
+        make_f16(engine,
+                 {static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dh)},
+                 key_cache));
+    network.set_input_data(
+        "value_cache",
+        make_f16(engine,
+                 {static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dv)},
+                 value_cache));
     network.set_input_data("raw_k_cache",
-                           make_f16(engine,
-                                    {static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)},
-                                    raw_k_cache));
-    network.set_input_data("summary_cache",
-                           make_f16(engine,
-                                    {static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)},
-                                    summary_cache));
+                           make_f16(engine, {static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)}, raw_k_cache));
+    network.set_input_data(
+        "summary_cache",
+        make_f16(engine, {static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)}, summary_cache));
 
     auto outputs = network.execute();
     cldnn::mem_lock<ov::float16> out(outputs.at("qsa").get_memory(), get_test_stream());
@@ -705,24 +695,22 @@ std::vector<float> run_qsa_batch(const std::vector<qsa_reference>& refs, bool ha
     topology.add(data("subsequence_begins", make_i32(engine, {static_cast<int64_t>(num_seqs + 1)}, subsequence_begins)));
     topology.add(data("block_indices", make_i32(engine, {static_cast<int64_t>(total_pages)}, block_indices)));
     topology.add(data("block_indices_begins", make_i32(engine, {static_cast<int64_t>(num_seqs + 1)}, block_indices_begins)));
-    topology.add(input_layout("key_cache",
-                              layout{{static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                      static_cast<int64_t>(d.Dh)},
-                                     data_types::f16,
-                                     format::bfyx}));
-    topology.add(input_layout("value_cache",
-                              layout{{static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                      static_cast<int64_t>(d.Dv)},
-                                     data_types::f16,
-                                     format::bfyx}));
-    topology.add(input_layout("raw_k_cache",
-                              layout{{static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)},
-                                     data_types::f16,
-                                     format::bfyx}));
-    topology.add(input_layout("summary_cache",
-                              layout{{static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)},
-                                     data_types::f16,
-                                     format::bfyx}));
+    topology.add(
+        input_layout("key_cache",
+                     layout{{static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dh)},
+                            data_types::f16,
+                            format::bfyx}));
+    topology.add(
+        input_layout("value_cache",
+                     layout{{static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dv)},
+                            data_types::f16,
+                            format::bfyx}));
+    topology.add(input_layout(
+        "raw_k_cache",
+        layout{{static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)}, data_types::f16, format::bfyx}));
+    topology.add(input_layout(
+        "summary_cache",
+        layout{{static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)}, data_types::f16, format::bfyx}));
     topology.add(data("idx_w", make_f16(engine, {static_cast<int64_t>(J), static_cast<int64_t>(d.D)}, w.idx_w)));
     topology.add(data("q_norm", make_f16(engine, {static_cast<int64_t>(d.Di)}, w.q_norm)));
     topology.add(data("k_norm", make_f16(engine, {static_cast<int64_t>(d.Di)}, w.k_norm)));
@@ -760,24 +748,21 @@ std::vector<float> run_qsa_batch(const std::vector<qsa_reference>& refs, bool ha
     network.set_input_data("query", make_f16(engine, {static_cast<int64_t>(total_tokens), static_cast<int64_t>(q_width)}, query_cur));
     network.set_input_data("key", make_f16(engine, {static_cast<int64_t>(total_tokens), static_cast<int64_t>(d.Hkv * d.Dh)}, key_cur));
     network.set_input_data("value", make_f16(engine, {static_cast<int64_t>(total_tokens), static_cast<int64_t>(d.Hkv * d.Dv)}, value_cur));
-    network.set_input_data("key_cache",
-                           make_f16(engine,
-                                    {static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                     static_cast<int64_t>(d.Dh)},
-                                    key_cache));
-    network.set_input_data("value_cache",
-                           make_f16(engine,
-                                    {static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                     static_cast<int64_t>(d.Dv)},
-                                    value_cache));
+    network.set_input_data(
+        "key_cache",
+        make_f16(engine,
+                 {static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dh)},
+                 key_cache));
+    network.set_input_data(
+        "value_cache",
+        make_f16(engine,
+                 {static_cast<int64_t>(total_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dv)},
+                 value_cache));
     network.set_input_data("raw_k_cache",
-                           make_f16(engine,
-                                    {static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)},
-                                    raw_k_cache));
-    network.set_input_data("summary_cache",
-                           make_f16(engine,
-                                    {static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)},
-                                    summary_cache));
+                           make_f16(engine, {static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)}, raw_k_cache));
+    network.set_input_data(
+        "summary_cache",
+        make_f16(engine, {static_cast<int64_t>(total_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)}, summary_cache));
 
     auto outputs = network.execute();
     cldnn::mem_lock<ov::float16> out(outputs.at("qsa").get_memory(), get_test_stream());
@@ -1495,9 +1480,8 @@ std::map<std::string, std::vector<double>> time_qsa_stages(network& net, int war
 }
 
 void print_measurement(const char* component, const char* phase, size_t tokens, const std::string& stage, double ms, size_t samples) {
-    std::cout << "ROOFLINE_JSON {\"component\":\"" << component << "\",\"phase\":\"" << phase
-               << "\",\"tokens\":" << tokens << ",\"stage\":\"" << stage << "\",\"ms\":" << ms
-               << ",\"samples\":" << samples << "}" << std::endl;
+    std::cout << "ROOFLINE_JSON {\"component\":\"" << component << "\",\"phase\":\"" << phase << "\",\"tokens\":" << tokens << ",\"stage\":\"" << stage
+              << "\",\"ms\":" << ms << ",\"samples\":" << samples << "}" << std::endl;
 }
 
 /// Builds and times the production-shaped QSA network for one (phase, token_size) point.
@@ -1590,24 +1574,22 @@ void run_point(const char* phase, size_t tokens) {
     topology.add(data("subsequence_begins", make_i32(engine, {2}, subsequence_begins)));
     topology.add(data("block_indices", make_i32(engine, {static_cast<int64_t>(num_pages)}, block_indices)));
     topology.add(data("block_indices_begins", make_i32(engine, {2}, block_indices_begins)));
-    topology.add(input_layout("key_cache",
-                              layout{{static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                      static_cast<int64_t>(d.Dh)},
-                                     data_types::f16,
-                                     format::bfyx}));
-    topology.add(input_layout("value_cache",
-                              layout{{static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                      static_cast<int64_t>(d.Dv)},
-                                     data_types::f16,
-                                     format::bfyx}));
-    topology.add(input_layout("raw_k_cache",
-                              layout{{static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)},
-                                     data_types::f16,
-                                     format::bfyx}));
-    topology.add(input_layout("summary_cache",
-                              layout{{static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)},
-                                     data_types::f16,
-                                     format::bfyx}));
+    topology.add(
+        input_layout("key_cache",
+                     layout{{static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dh)},
+                            data_types::f16,
+                            format::bfyx}));
+    topology.add(
+        input_layout("value_cache",
+                     layout{{static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dv)},
+                            data_types::f16,
+                            format::bfyx}));
+    topology.add(input_layout(
+        "raw_k_cache",
+        layout{{static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)}, data_types::f16, format::bfyx}));
+    topology.add(input_layout(
+        "summary_cache",
+        layout{{static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)}, data_types::f16, format::bfyx}));
     topology.add(data("idx_w", make_f16(engine, {static_cast<int64_t>(J), static_cast<int64_t>(d.D)}, ref.idx_w)));
     topology.add(data("q_norm", make_f16(engine, {static_cast<int64_t>(d.Di)}, ref.q_norm)));
     topology.add(data("k_norm", make_f16(engine, {static_cast<int64_t>(d.Di)}, ref.k_norm)));
@@ -1646,20 +1628,17 @@ void run_point(const char* phase, size_t tokens) {
     net.set_input_data("value", make_f16(engine, {static_cast<int64_t>(ref.q_len), static_cast<int64_t>(d.Hkv * d.Dv)}, cur_value));
     net.set_input_data("key_cache",
                        make_f16(engine,
-                                {static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                 static_cast<int64_t>(d.Dh)},
+                                {static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dh)},
                                 key_cache));
     net.set_input_data("value_cache",
                        make_f16(engine,
-                                {static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block),
-                                 static_cast<int64_t>(d.Dv)},
+                                {static_cast<int64_t>(num_pages), static_cast<int64_t>(d.Hkv), static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Dv)},
                                 value_cache));
     net.set_input_data("raw_k_cache",
                        make_f16(engine, {static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(d.pa_block), static_cast<int64_t>(d.Di)}, raw_k_cache));
-    net.set_input_data("summary_cache",
-                       make_f16(engine,
-                                {static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)},
-                                summary_cache));
+    net.set_input_data(
+        "summary_cache",
+        make_f16(engine, {static_cast<int64_t>(num_pages), 1, static_cast<int64_t>(summaries_per_page), static_cast<int64_t>(d.Di)}, summary_cache));
 
     const auto stage_samples = time_qsa_stages(net, /*warmup=*/2, /*iterations=*/100);
     for (const auto& [stage, samples] : stage_samples) {

@@ -155,8 +155,7 @@ GatedResidualReadFusion::GatedResidualReadFusion() {
         // --- both 1/C scalings are model semantics and must be present ----------
         float low_scale = 0.0f;
         float mix_scale = 0.0f;
-        if (!get_scalar_f32(pm.at(low_scaled).get_node_shared_ptr()->input_value(1), low_scale) ||
-            !get_scalar_f32(root->input_value(1), mix_scale)) {
+        if (!get_scalar_f32(pm.at(low_scaled).get_node_shared_ptr()->input_value(1), low_scale) || !get_scalar_f32(root->input_value(1), mix_scale)) {
             return false;
         }
         const float inv_c = 1.0f / static_cast<float>(C);

@@ -1,6 +1,7 @@
 // Copyright (C) 2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
 // GR DPAS pipeline, stage 2/4: low-rank down projection + 1/C scale + SiLU.
 //
 //   t[token, l] = SiLU( (W_down[l,:] . Rbar[token,:]) / C )
