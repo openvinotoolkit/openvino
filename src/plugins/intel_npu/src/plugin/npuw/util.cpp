@@ -952,6 +952,11 @@ bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
            ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
 }
 
+bool ov::npuw::util::is_swa_kv_cache_name(const std::string& input_name) {
+    // SWA-managed names carry an extra "swa" segment, e.g. "past_key_values.0.swa.key".
+    return input_name.find(".swa.") != std::string::npos;
+}
+
 bool ov::npuw::util::is_pa_kv_cache_name(const std::string& input_name) {
     return ov::npuw::util::starts_with(input_name, "key_cache.") ||
            ov::npuw::util::starts_with(input_name, "value_cache.");
@@ -963,14 +968,20 @@ void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fi
 }
 
 bool ov::npuw::util::isPastKeyParam(const std::string& str) {
-    // Match any past key param: contiguous or block-split (e.g. key_block_3, key_block_tail).
-    static const std::regex pattern(R"(past_key_values\.\d+\.key(_block_(\d+|tail))?)");
+    // Match any past key param:
+    //   - contiguous, e.g. past_key_values.0.key
+    //   - block-split, e.g. past_key_values.0.key_block_3, past_key_values.0.key_block_tail
+    //   - SWA-managed, e.g. past_key_values.0.swa.key
+    static const std::regex pattern(R"(past_key_values\.\d+(?:\.[^.]+)*\.key(_block_(\d+|tail))?)");
     return std::regex_match(str, pattern);
 }
 
 bool ov::npuw::util::isPastValueParam(const std::string& str) {
-    // Match any past value param: contiguous or block-split.
-    static const std::regex pattern(R"(past_key_values\.\d+\.value(_block_(\d+|tail))?)");
+    // Match any past value param:
+    //   - contiguous, e.g. past_key_values.0.value
+    //   - block-split, e.g. past_key_values.0.value_block_3, past_key_values.0.value_block_tail
+    //   - SWA-managed, e.g. past_key_values.0.swa.value
+    static const std::regex pattern(R"(past_key_values\.\d+(?:\.[^.]+)*\.value(_block_(\d+|tail))?)");
     return std::regex_match(str, pattern);
 }
 

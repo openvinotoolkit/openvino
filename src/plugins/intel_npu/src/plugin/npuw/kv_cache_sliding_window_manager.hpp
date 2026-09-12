@@ -21,10 +21,6 @@ namespace ov {
 namespace npuw {
 namespace util {
 
-// rt_info key stamped on SWA-managed past_key_values Parameters whose seq_len
-// axis was shrunk to the SWA window size.
-static constexpr const char* NPUW_KV_CACHE_SLIDING_RT_KEY = "npuw_kv_cache_sliding";
-
 // Fills additive causal sliding-window attention mask tensor in-place:
 // 0.0f for visible positions, -inf for masked ones.
 void fill_causal_sliding_window_mask(ov::SoPtr<ov::ITensor> mask_tensor,
