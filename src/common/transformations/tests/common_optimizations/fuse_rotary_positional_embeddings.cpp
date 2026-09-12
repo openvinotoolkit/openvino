@@ -1581,6 +1581,62 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze) {
     comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
+// Squeeze/Unsqueeze reach this pass already rewritten into Reshape when an earlier pass has run
+// over the same subgraph, which is the spelling a torch unbind+stack RoPE arrives in.
+TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_reshape_reshape) {
+    disable_rt_info_check();
+    const int batch = 2;
+    const int num_heads = 32;
+    const int ndims = 128;
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+
+        auto x1_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 2});
+        auto x1 = std::make_shared<v1::Reshape>(x, x1_shape, true);
+
+        auto split_axis = makeConst(ov::element::i64, ov::Shape(), {-1});
+        auto split = std::make_shared<v1::Split>(x1, split_axis, 2);
+
+        auto minus_one = makeConst(ov::element::f32, ov::Shape({}), {-1.0f});
+        auto x1_1_neg = std::make_shared<v1::Multiply>(split->output(1), minus_one);
+
+        auto squeeze_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, -1});
+        auto squeeze = std::make_shared<v1::Reshape>(x1_1_neg, squeeze_shape, true);
+
+        auto unsqueeze_shape = makeConst(ov::element::i64, ov::Shape({5}), {0, num_heads, 0, -1, 1});
+        auto unsqueeze = std::make_shared<v1::Reshape>(squeeze, unsqueeze_shape, true);
+
+        auto x2 = std::make_shared<v0::Concat>(ov::OutputVector{unsqueeze->output(0), split->output(0)}, -1);
+
+        auto x3_shape = makeConst(ov::element::i64, ov::Shape({4}), {0, num_heads, 0, ndims});
+        auto x3 = std::make_shared<v1::Reshape>(x2, x3_shape, true);
+
+        auto y1 = std::make_shared<v1::Multiply>(x, t_cos);
+        auto y2 = std::make_shared<v1::Multiply>(x3, t_sin);
+        auto y = std::make_shared<v1::Add>(y1, y2);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{y}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto x =
+            std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{batch, num_heads, -1, ndims});
+        auto t_cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        auto t_sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, ndims});
+        ov::op::internal::RoPE::Config config;
+        config.is_interleaved = true;
+        config.rotary_ndims = ndims;
+        config.head_cnt = num_heads;
+        config.head_size = ndims;
+        auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+}
+
 // The num_heads position in converted model with diffusers==0.35.2 is changed from
 // [batch, num_heads, -1, head_size] to [batch, -1, num_heads, head_size]
 TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze_num_heads) {

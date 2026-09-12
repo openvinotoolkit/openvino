@@ -123,6 +123,7 @@
 #include "plugin/transformations/sink_reshape.hpp"
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/sdpa_transpose_fusion.hpp"
+#include "plugin/transformations/rope_sdpa_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/expand_broadcast_reshape_sdpa_fusion.hpp"
 #include "plugin/transformations/disable_fp16_comp_direct_multiply_sin_cos.hpp"
@@ -988,6 +989,21 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
+
+            // A key or value holding quantization codes reaches this op without the scale and
+            // zero-point operands a compressed KV cache carries, so nothing here can define the
+            // mapping from codes to values. Decompose, and let the decomposition report it
+            // against the node by name rather than dispatching a kernel that reads the codes.
+            // The exception is an i8 key or value: the micro-kernel SDPA path contracts those
+            // codes itself and applies the scale in the epilogue (sdpa_gen_micro.cpp).
+            const auto unsupported_quantized_kv = [](const ov::element::Type& t) {
+                return ov::op::v13::ScaledDotProductAttention::is_quantized_kv_type(t) && t != ov::element::i8;
+            };
+            if (unsupported_quantized_kv(sdpa->get_input_element_type(1)) ||
+                unsupported_quantized_kv(sdpa->get_input_element_type(2))) {
+                return false;
+            }
+
             // TODO: sdpa_opt is not supporting sink_input for 1st token case yet
             constexpr size_t sink_idx = cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::SINK;
             if (sdpa->get_input_size() > sink_idx && !device_info.supports_immad) {
@@ -1789,6 +1805,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
         }
         manager.register_pass<ov::intel_gpu::ExpandBroadcastReshapeSDPAFusion>();
+        // Hand SDPA the RoPE cos/sin table so Q is rotated inside the tile load it already does.
+        manager.register_pass<ov::intel_gpu::RoPESDPAFusion>();
 
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
