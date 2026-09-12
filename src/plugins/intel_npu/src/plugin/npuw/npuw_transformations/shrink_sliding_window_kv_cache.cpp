@@ -382,7 +382,27 @@ bool ShrinkSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& 
                     ") exceeds available_past (",
                     available_past,
                     ").");
-    const int64_t new_past = available_past == 0 ? 0 : static_cast<int64_t>(window_size);
+    // Pad the past (window) portion so past+present is 16-aligned -- NPU hardware prefers
+    // KV lengths that are multiples of 16. Present (input_size) is fixed by the chunk/token
+    // count, so all the padding goes into the past side, e.g. window=512 + present=1 (decode)
+    // -> 513 is not 16-aligned, so past is grown to 527 (513 -> 528, 528 - 1 = 527).
+    constexpr int64_t kKvAlignment = 16;
+    int64_t new_past = available_past == 0 ? 0 : static_cast<int64_t>(m_window_size);
+    if (available_past > 0) {
+        const int64_t unaligned_total = static_cast<int64_t>(m_input_size) + new_past;
+        const int64_t aligned_total = ((unaligned_total + kKvAlignment - 1) / kKvAlignment) * kKvAlignment;
+        new_past = aligned_total - static_cast<int64_t>(m_input_size);
+        OPENVINO_ASSERT(new_past <= static_cast<int64_t>(available_past),
+                        "[SWA] 16-aligned past (",
+                        new_past,
+                        ") exceeds available_past (",
+                        available_past,
+                        ") for window_size=",
+                        m_window_size,
+                        ", input_size=",
+                        m_input_size,
+                        ".");
+    }
     const int64_t new_kv_total = static_cast<int64_t>(m_input_size) + new_past;
 
     LOG_INFO("[SWA] ShrinkSlidingWindowKVCache: model='"
