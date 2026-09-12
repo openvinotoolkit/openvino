@@ -44,6 +44,15 @@ project(OpenVINO
         HOMEPAGE_URL "https://docs.openvino.ai/2026/index.html"
         LANGUAGES C CXX)
 
+# Reduce noisy, non-actionable Clang compatibility warnings globally.
+# Keep this narrowly focused on compiler-compatibility warnings so that
+# actionable diagnostics (linker warnings, buffer/UB warnings, logic issues)
+# remain visible. Adjust flags if you want to add/remove suppressed classes.
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(STATUS "Applying global clang-cl (Windows) warning suppressions to reduce noise (C++ only)")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-c++98-compat -Wno-pre-c++14-compat -Wno-pre-c++17-compat -Wno-unknown-warning-option")
+endif()
+
 find_package(OpenVINODeveloperScripts REQUIRED
              PATHS "${OpenVINO_SOURCE_DIR}/cmake/developer_package"
              NO_CMAKE_FIND_ROOT_PATH

@@ -1,0 +1,57 @@
+name: Windows Clang-CL Build
+on:
+  pull_request:
+    branches: [ master, main ]
+
+env:
+  PYTHON_VERSION: '3.14'
+
+permissions: read-all
+
+jobs:
+  build:
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          submodules: recursive
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: ./.github/actions/setup_python
+        with:
+          version: ${{ env.PYTHON_VERSION }}
+          allow-prereleases: 'true'
+          use-pip-proxy: 'true'
+          self-hosted-runner: 'false'
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install -r .\src\bindings\python\wheel\requirements-dev.txt
+
+      - name: Check clang-cl availability
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -products * -version "[18.0,19.0)" -requires Microsoft.VisualStudio.Component.VC.Llvm.Clang -property installationPath
+          if (-not $vsPath) {
+            throw "Visual Studio 2026 with the Clang optional component is not installed."
+          }
+
+          $clang = Get-ChildItem -Path "$vsPath\VC\Tools\Llvm" -Recurse -Filter clang-cl.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $clang) {
+            throw "clang-cl.exe not found under the Visual Studio installation."
+          }
+
+          Write-Host "VS installation: $vsPath"
+          Write-Host "clang-cl path: $($clang.FullName)"
+          & $clang.FullName --version
+
+      - name: Configure CMake
+        run: |
+          cmake -S . -B build-clang-cl -G "Visual Studio 18 2026" `
+            -DCMAKE_COMPILE_WARNING_AS_ERROR=ON `
+            -T ClangCL
+      - name: Build
+        run: cmake --build build-clang-cl --config Release --parallel 4
