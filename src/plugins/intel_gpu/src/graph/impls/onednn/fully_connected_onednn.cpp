@@ -232,9 +232,7 @@ public:
             ob << make_data(&_dzp_data_type, sizeof(dnnl::memory::data_type));
         }
 
-        std::vector<uint8_t> prim_cache;
-        prim_cache = _prim.get_cache_blob();
-        ob << prim_cache;
+        ob << get_cache_blob_or_empty();
 #endif
     }
 
@@ -344,7 +342,7 @@ public:
 
         _scratchpad_md = _pd.scratchpad_desc();
 
-        _prim = dnnl::primitive(_pd, prim_cache);
+        _prim = make_primitive_from_blob(prim_cache);
 #endif
     }
 
