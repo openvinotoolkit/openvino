@@ -149,7 +149,8 @@ No additional options are required; CPU builds statically the same way as the co
 
 ### GPU
 
-GPU builds statically with the default `-DGPU_RT_TYPE=OCL` runtime, no extra flags needed.
+GPU builds statically with the default OCL runtime and require no extra flags. Select another existing runtime
+explicitly with `-DGPU_RT_TYPE=ZE` or `-DGPU_RT_TYPE=SYCL`.
 
 > **NOTE**: `OV_GPU_WITH_SYCL` (SYCL-enabled GPU runtime) is not compatible with `-DENABLE_LTO=ON` and fails CMake configuration with `FATAL_ERROR: Intel GPU plugin with SYCL is not supported with ENABLE_LTO=ON`. If SYCL is enabled for GPU, do not enable `ENABLE_LTO`.
 
