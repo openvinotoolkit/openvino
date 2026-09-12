@@ -81,18 +81,6 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
+            -DCMAKE_VERBOSE_MAKEFILE=ON
             -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
 
-  Overall_Status:
-    name: ci/gha_overall_status_windows_vs2026
-    needs: [ Smart_CI, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

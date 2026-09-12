@@ -44,6 +44,17 @@ on:
         required: false
         default: true
 
+      enable-compile-cache:
+        description: 'Use compiler cache (sccache/ccache) for builds in this job'
+        type: boolean
+        required: false
+        default: false
+      upload-ninja-log:
+        description: 'Whether to upload Ninja .ninja_log from the OpenVINO build directory'
+        type: boolean
+        required: false
+        default: true
+
 permissions: read-all
 
 jobs:
@@ -64,8 +75,8 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: ${{ inputs.cmake-generator }}
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && 'sccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.enable-compile-cache && 'sccache' || '' }}
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
@@ -74,10 +85,12 @@ jobs:
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build
+      NINJA_LOGS_ARCHIVE_DIR: /__w/openvino/openvino/ninja_logs_archive
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-prefix }}
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: ${{ inputs.enable-compile-cache }}
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
           # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
@@ -91,6 +104,9 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'recursive'
+
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
 
       - name: CMake configure
         env:
@@ -106,11 +122,23 @@ jobs:
             -DENABLE_TESTS=OFF \
             -DENABLE_NCC_STYLE=OFF \
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             ${CMAKE_EXTRA_ARGS} \
             -DCMAKE_C_COMPILER_LAUNCHER="${CMAKE_C_COMPILER_LAUNCHER}" \
             -DCMAKE_CXX_COMPILER_LAUNCHER="${CMAKE_CXX_COMPILER_LAUNCHER}" \
             -S "${OPENVINO_REPO}" \
             -B "${BUILD_DIR}"
+
+      - name: Prepare Ninja log collection directory
+        if: ${{ inputs.upload-ninja-log }}
+        run: rm -rf "${NINJA_LOGS_ARCHIVE_DIR}" && mkdir -p "${NINJA_LOGS_ARCHIVE_DIR}"
+
+      - name: Zero compile cache stats (clang-tidy build)
+        if: ${{ inputs.enable-compile-cache && inputs.show-sccache-stats }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          tool: sccache
+          mode: zero-stats
 
       - name: Cmake build with clang-tidy enabled
         env:
@@ -119,10 +147,22 @@ jobs:
         run: |
           cmake \
             --build "${BUILD_DIR}" \
-            --parallel "$(($(nproc) - 1))" \
+            --parallel 15 \
             --config "${CMAKE_BUILD_TYPE}" \
             --target "${BUILD_TARGET}" \
             -- ${BUILD_EXTRA_ARGS}
+
+      - name: Snapshot Ninja logs after clang-tidy build
+        if: ${{ inputs.upload-ninja-log }}
+        run: bash "${OPENVINO_REPO}/.github/scripts/collect_ninja_logs_snapshot.sh" "${NINJA_LOGS_ARCHIVE_DIR}" clang_tidy_build "${BUILD_DIR}"
+
+      - name: Compile cache statistics (clang-tidy build)
+        if: ${{ inputs.show-sccache-stats && inputs.enable-compile-cache }}
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          tool: sccache
+          build-label: clang-tidy-${{ inputs.build-target }}
+          artifact-name: compile-cache-stats-clang-tidy-${{ inputs.compile-commands-artifact }}-${{ inputs.build-target }}
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
@@ -132,6 +172,19 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
-      - name: Show sccache stats
-        if: ${{ inputs.show-sccache-stats }}
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Archive collected Ninja logs
+        if: ${{ always() && inputs.upload-ninja-log }}
+        run: |
+          if [[ ! -d "${NINJA_LOGS_ARCHIVE_DIR}" ]] || [[ -z "$(ls -A "${NINJA_LOGS_ARCHIVE_DIR}" 2>/dev/null)" ]]; then
+            echo "No Ninja log snapshots to archive"
+            exit 0
+          fi
+          tar -czf "${BUILD_DIR}/ninja_logs.tar.gz" -C "${NINJA_LOGS_ARCHIVE_DIR}" .
+
+      - name: Upload Ninja build logs
+        if: ${{ always() && inputs.upload-ninja-log }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: ninja_log_clang-tidy-${{ inputs.compile-commands-artifact }}-${{ inputs.build-target }}
+          path: ${{ env.BUILD_DIR }}/ninja_logs.tar.gz
+          if-no-files-found: warn

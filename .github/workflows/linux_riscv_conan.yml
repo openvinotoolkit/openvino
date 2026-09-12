@@ -107,16 +107,10 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_GENERATOR: 'Ninja'
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
       CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ needs.Smart_CI.outputs.target_branch }}
-      CCACHE_DIR: /__w/openvino/openvino/ccache
-      CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
-      CCACHE_MAXSIZE: 2G
       PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
       PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
     steps:
@@ -133,20 +127,6 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
         
-      - name: Setup ccache
-        id: ccache_restore
-        uses: ./openvino/.github/actions/cache
-        with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-size: 10
-          max-cache-size: 50
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
-
       - name: Init submodules for non-Conan dependencies
         run: |
           pushd ${OPENVINO_REPO}
@@ -208,9 +188,6 @@ jobs:
       #
       # Build
       #
-      - name: Clean ccache stats
-        run: ccache --zero-stats
-
       - name: CMake - Configure
         run: |
           source ${OPENVINO_BUILD_DIR}/env/bin/activate
@@ -232,22 +209,46 @@ jobs:
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DCMAKE_TOOLCHAIN_FILE=${OPENVINO_BUILD_DIR}/dependencies/conan_toolchain.cmake \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
             -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
 
-      - name: Cmake - Build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) -- --quiet
+      - name: Zero compile cache stats (openvino main build)
+        if: false
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          tool: ccache
+          mode: zero-stats
 
-      - name: Show ccache stats
-        run: ccache --show-stats
+      - name: Cmake - Build
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel 15
+      - name: Compile cache statistics (openvino main build)
+        if: false
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          tool: ccache
+          build-label: openvino-main
+          artifact-name: compile-cache-stats-linux-riscv-conan-openvino-main
+
+      - name: Zero compile cache stats (cmake install target)
+        if: false
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          tool: ccache
+          mode: zero-stats
 
       - name: Cmake - Install
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install -- --quiet
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel 15 --target install
+      - name: Compile cache statistics (cmake install target)
+        if: false
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          tool: ccache
+          build-label: cmake-install-target
+          artifact-name: compile-cache-stats-linux-riscv-conan-cmake-install-target
 
       - name: Build OpenVINO C++ samples
         run: |
@@ -257,9 +258,6 @@ jobs:
         env:
           CMAKE_TOOLCHAIN_FILE: ${{ env.OPENVINO_BUILD_DIR }}/dependencies/conan_toolchain.cmake
 
-      - name: Clean ccache
-        run: ccache --cleanup
-
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         if: always()
@@ -268,16 +266,3 @@ jobs:
           path: ${{ env.OPENVINO_BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
-  Overall_Status:
-    name: ci/gha_overall_status_linux_riscv_conan
-    needs: [Smart_CI, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1
