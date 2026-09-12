@@ -12,7 +12,12 @@
 """
 import os
 import sys
-from common.samples_common_test_class import SamplesCommonTestClass
+from pathlib import Path
+
+import openvino as ov
+from openvino import opset8 as opset
+
+from common.samples_common_test_class import SamplesCommonTestClass, get_cmd_output_after_signal
 
 
 class Test_throughput_benchmark_cpp(SamplesCommonTestClass):
@@ -29,3 +34,19 @@ class Test_throughput_benchmark_py(SamplesCommonTestClass):
     def test(self, monkeypatch, cache):
         monkeypatch.setenv('PYTHONCOERCECLOCALE', 'warn')
         self._test({'m': 'bvlcalexnet-12.onnx'}, cache, use_preffix=False)
+
+    def test_continuous_mode(self, tmp_path):
+        model_path = tmp_path / 'model.xml'
+        model_input = opset.parameter([1, 3, 32, 32], ov.Type.f32)
+
+        ov.save_model(ov.Model([opset.relu(model_input)], [model_input]), model_path)
+
+        sample_path = Path(os.environ['IE_APP_PYTHON_PATH']) / 'benchmark'/ self.sample_name / f'{self.sample_name}.py'
+        output = get_cmd_output_after_signal(
+            sys.executable, '-u', sample_path, model_path, '--seconds-to-run', '0',
+            ready_message='Starting inference loop',
+            output_path=tmp_path / 'throughput.log'
+        )
+
+        assert 'Count:' in output, output
+        assert 'Throughput:' in output, output
