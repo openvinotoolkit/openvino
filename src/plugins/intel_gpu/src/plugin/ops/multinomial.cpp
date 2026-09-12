@@ -125,10 +125,11 @@ static void CreateMultinomialOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     OPENVINO_ASSERT(const_num_samples != nullptr, "[GPU] Unsupported num_samples node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     std::int64_t num_samples{};
-    if (const_num_samples->get_output_element_type(0) == ov::element::Type_t::i32)
+    if (const_num_samples->get_output_element_type(0) == ov::element::Type_t::i32) {
         num_samples = const_num_samples->cast_vector<std::int32_t>(1)[0];
-    else
+    } else {
         num_samples = const_num_samples->cast_vector<std::int64_t>(1)[0];
+    }
 
     cldnn::multinomial multinomial_prim {
         layer_type_name_ID(op),

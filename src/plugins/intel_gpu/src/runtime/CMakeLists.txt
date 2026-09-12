@@ -2,7 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# OV_GPU_SUFFIX (empty for single-RT builds) distinguishes the per-runtime target names of a
+# COMBINED build; OV_GPU_RT is this pass's runtime (defaults to the global GPU_RT_TYPE).
 set(TARGET_NAME "openvino_intel_gpu_runtime${OV_GPU_SUFFIX}")
+if(NOT DEFINED OV_GPU_RT)
+    # Reachable only if this directory is added outside ov_gpu_build_stack(), which always sets a
+    # single runtime; COMBINED names two, so a stack built from it would belong to neither.
+    if(GPU_RT_TYPE STREQUAL "COMBINED")
+        message(FATAL_ERROR "OV_GPU_RT must be set to a single runtime before adding this directory; got COMBINED")
+    endif()
+    set(OV_GPU_RT "${GPU_RT_TYPE}")
+endif()
 
 file(GLOB LIBRARY_SOURCES_MAIN
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"

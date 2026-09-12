@@ -9,19 +9,19 @@ set(XETLA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/xetla/include/" CACHE PATH "P
 #
 
 if(ENABLE_ONEDNN_FOR_GPU)
-    # Keep the installed default name stable while allowing a stack-local
-    # suffix to distinguish additional runtime builds.
+    # Cached because the installed OpenVINOConfig.cmake resolves this name; the per-twin names
+    # below derive from it, so it must stay outside the function to reach that scope.
     set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_gpu" CACHE STRING "Name of oneDNN library for Intel GPU Plugin")
-    set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
 
+    # SUFFIX (empty for single-RT) makes all names per-runtime so COMBINED can build oneDNN
+    # twice (ZE and OCL differ, e.g. LTO is disabled for ZE) without colliding.
     function(build_onednn_gpu GPU_RUNTIME SUFFIX)
         include(ExternalProject)
+        # Plain (non-CACHE) locals: a COMBINED build calls this function twice, and CACHE would
+        # freeze the first runtime's values, so the second would reuse them and collide. Anything
+        # the install/export needs is published to the cache explicitly instead (see below).
         set(ONEDNN_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_build${SUFFIX}")
-        if(SUFFIX)
-            set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install${SUFFIX}")
-        else()
-            set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install" CACHE PATH "Installation path for oneDNN GPU library")
-        endif()
+        set(ONEDNN_INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_install${SUFFIX}")
         set(ONEDNN_PREFIX_DIR "${CMAKE_CURRENT_BINARY_DIR}/onednn_gpu_root${SUFFIX}")
         set(ONEDNN_ENABLED_PRIMITIVES "CONCAT;CONVOLUTION;DECONVOLUTION;GATED_MLP;MATMUL;REORDER;POOLING;REDUCTION;RNN")
         set(ONEDNN_ENABLED_ISA "XELP;XEHP;XEHPG;XE2;XE3;XE3P")
@@ -136,11 +136,16 @@ if(ENABLE_ONEDNN_FOR_GPU)
         endif()
 
         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${onednn_lib_name}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+        # This twin's own library: everything below builds, links and installs THIS path, so it
+        # must stay local - sharing it across twins would link one runtime against the other's.
         set(onednn_lib_path "${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib}")
+        # ONEDNN_GPU_LIB_PATH escapes to src/cmake/openvino.cmake (OpenVINOConfig PATH_VARS) so it
+        # must be cached, and it names one library: publish the default twin's, the one whose name
+        # DNNL_GPU_LIBRARY_NAME carries, rather than whichever call ran last.
         if(NOT SUFFIX)
-            set(ONEDNN_GPU_LIB_PATH "${onednn_lib_path}" CACHE FILEPATH "Path to oneDNN GPU library")
-            set(onednn_lib_path "${ONEDNN_GPU_LIB_PATH}")
+            set(ONEDNN_GPU_LIB_PATH "${onednn_lib_path}" CACHE FILEPATH "Path to oneDNN GPU library" FORCE)
         endif()
+        set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu)
         if(GPU_RUNTIME STREQUAL "ZE")
             set(ONEDNN_GPU_RT "ZE")
             # OneDNN is using different version of L0 headers
@@ -244,5 +249,11 @@ if(ENABLE_ONEDNN_FOR_GPU)
                     COMPONENT ${OV_CPACK_COMP_CORE})
         endif()
     endfunction()
-    build_onednn_gpu(${OV_GPU_RT} "${OV_GPU_SUFFIX}")
+    if(GPU_RT_TYPE STREQUAL "COMBINED")
+        # ZE twin keeps the default (empty-suffix) names; OCL twin is suffixed.
+        build_onednn_gpu(ZE "")
+        build_onednn_gpu(OCL "_ocl")
+    else()
+        build_onednn_gpu(${GPU_RT_TYPE} "")
+    endif()
 endif()

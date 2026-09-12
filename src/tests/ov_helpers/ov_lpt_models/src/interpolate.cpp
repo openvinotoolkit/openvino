@@ -52,7 +52,6 @@ std::shared_ptr<ov::Model> InterpolateFunction::getReference(
     const ov::op::v0::Interpolate::Attributes& interpAttrs,
     const ov::element::Type precisionBeforeDequantization,
     const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
-    const ov::element::Type precisionAfterOperation,
     const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 
@@ -113,7 +112,6 @@ std::shared_ptr<ov::Model> InterpolateFunction::getReference(
     const ov::op::v4::Interpolate::InterpolateAttrs& interpAttrs,
     const ov::element::Type precisionBeforeDequantization,
     const ov::builder::subgraph::DequantizationOperations& dequantizationBefore,
-    const ov::element::Type precisionAfterOperation,
     const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     const auto input = std::make_shared<ov::opset1::Parameter>(precisionBeforeDequantization, inputShape);
 

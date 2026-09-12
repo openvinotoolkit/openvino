@@ -71,6 +71,7 @@ public:
 
 // Forward declarations
 class InferRequest;
+struct CompiledModelDescTestAccessor;
 
 namespace v1::subgraphs {
 class Context;
@@ -78,10 +79,6 @@ class Context;
 
 namespace moe {
 class MoEExecutor;
-}
-
-namespace tests {
-struct CompiledModelTestAccess;
 }
 
 class CompiledModel : public ov::npuw::ICompiledModel_v0 {
@@ -140,6 +137,7 @@ public:
 
 private:
     // FIXME: This class has many friends..
+    friend struct CompiledModelDescTestAccessor;
     friend class IBaseInferRequest;
     friend class JustInferRequest;
     friend class UnfoldInferRequest;
@@ -148,7 +146,7 @@ private:
     friend class LLMCompiledModel;
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
-    friend struct tests::CompiledModelTestAccess;
+    friend class CompiledModelDescSerializationAccess;
 
     bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
@@ -325,6 +323,47 @@ private:
     ov::npuw::s11n::WeightsContext m_import_weights_ctx;
 
     std::shared_future<void> m_eval_future;
+
+    static void validate_submodels(const std::vector<CompiledModelDesc>& submodels);
 };
+
+struct CompiledModelDescTestAccessor {
+    using SubmodelDesc = CompiledModel::CompiledModelDesc;
+    using SubmodelVec = std::vector<CompiledModel::CompiledModelDesc>;
+
+    static SubmodelDesc make() {
+        return {};
+    }
+    static auto& compiled_model(SubmodelDesc& desc) {
+        return desc.compiled_model;
+    }
+    static auto& host_gather(SubmodelDesc& desc) {
+        return desc.host_gather;
+    }
+    static auto& quant_unpack_gather(SubmodelDesc& desc) {
+        return desc.quant_unpack_gather;
+    }
+    static auto& param_base(SubmodelDesc& desc) {
+        return desc.param_base;
+    }
+    static auto& closure(SubmodelDesc& desc) {
+        return desc.closure;
+    }
+    static void validate_submodels(const SubmodelVec& submodels) {
+        CompiledModel::validate_submodels(submodels);
+    }
+};
+
+// Validates that submodel routing indices are in bounds. Runs on both export and import.
+// Throws ov::Exception when an index would cause an out-of-bounds vector access
+// in bind_global_params / unpack_closure at inference time.
+// has_compiled_model: true when a compiled_model was loaded (enables input-bounds checks).
+void validate_submodel_indices(const Subgraph::Gather& host_gather,
+                               const Subgraph::QuantUnpackGather& quant_unpack_gather,
+                               std::size_t param_base,
+                               std::size_t closure_size,
+                               bool has_compiled_model,
+                               std::size_t n_model_inputs);
+
 }  // namespace npuw
 }  // namespace ov

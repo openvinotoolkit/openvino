@@ -3,6 +3,14 @@
 #
 
 set(TARGET_NAME "openvino_intel_gpu_graph${OV_GPU_SUFFIX}")
+if(NOT DEFINED OV_GPU_RT)
+    # Reachable only if this directory is added outside ov_gpu_build_stack(), which always sets a
+    # single runtime; COMBINED names two, so a stack built from it would belong to neither.
+    if(GPU_RT_TYPE STREQUAL "COMBINED")
+        message(FATAL_ERROR "OV_GPU_RT must be set to a single runtime before adding this directory; got COMBINED")
+    endif()
+    set(OV_GPU_RT "${GPU_RT_TYPE}")
+endif()
 
 set(OV_GPU_CM_IMPLS_ENABLED OFF)
 if(ENABLE_CM_FOR_GPU AND
