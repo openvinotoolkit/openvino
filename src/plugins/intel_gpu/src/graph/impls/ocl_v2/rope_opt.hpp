@@ -44,6 +44,7 @@ struct RopeOpt : public ImplementationManager {
         static constexpr std::array supported_out_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
             ov::element::i8,
         };
 
