@@ -348,11 +348,9 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         const auto tile_input = hfa->_compiled_tile_model->inputs()[input_idx];
         const auto final_tile_input = hfa->_compiled_final_tile_model->inputs()[input_idx];
 
-        // Regular tile KV inputs (f16) differ from final tile KV inputs (f32), and now also
-        // possibly differ in shape from final tile inputs whenever past_tile_size !=
-        // final_tile_size (e.g. block-mode chunking, or a merged KV remainder). Skip sharing
-        // for mismatched dtype or shape — those ports will be set per-tile in process_tile (or
-        // via the merge path) at runtime instead.
+        // Regular tile KV inputs (f16) differ from final tile KV inputs (f32), and may also
+        // differ in shape whenever past_tile_size < final_tile_size (SWA short-past case).
+        // Skip sharing on mismatch; those ports are set per-tile in process_tile instead.
         if (tile_input.get_element_type() != final_tile_input.get_element_type() ||
             tile_input.get_partial_shape() != final_tile_input.get_partial_shape()) {
             continue;
@@ -1106,16 +1104,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                                                      mask_offset,
                                                                                      tile_length);
                                     if (cached_tile) {
-                                        LOG_WARN("HFA mask cache HIT: tensor="
-                                                 << attention_mask_tensor->data() << " offset=" << mask_offset
-                                                 << " len=" << tile_length
-                                                 << (is_final_tile ? " (final tile)" : " (regular tile)"));
                                         request->set_tensor(model->inputs()[tile_in.mask], cached_tile);
                                     } else {
-                                        LOG_WARN("HFA mask cache MISS: tensor="
-                                                 << attention_mask_tensor->data() << " offset=" << mask_offset
-                                                 << " len=" << tile_length
-                                                 << (is_final_tile ? " (final tile)" : " (regular tile)"));
                                         ov::SoPtr<ov::ITensor> cached_mask_tile =
                                             is_final_tile ? state.hfa_runtime_ctx->get_final_mask_tile_buffer()
                                                           : state.hfa_runtime_ctx->get_mask_tile_buffer(

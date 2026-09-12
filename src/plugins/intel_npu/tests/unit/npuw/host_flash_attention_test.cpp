@@ -9,8 +9,8 @@
 #include <memory>
 #include <string>
 
-#include "npuw_transformations/detect_causal_mask.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "npuw_transformations/detect_causal_mask.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -416,6 +416,38 @@ TEST(HostFlashAttentionFromTest, Fused_ContextSizeIsCorrect) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(result->_context_size, QUERY_SIZE + PAST_LEN);
+}
+
+// ============================================================================
+// analyze_past_tiling (past_tile_size / final_tile_size split for SWA support)
+// ============================================================================
+
+// SWA-shrunk past (past_len < query_size): the single past input has nothing to chunk
+// with, so past_tile_size takes on its own (shorter) length instead of query_size.
+TEST(HostFlashAttentionFromTest, Fused_ShortPastYieldsPastTileSizeEqualToPastLen) {
+    constexpr size_t short_past_len = QUERY_SIZE / 2;
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(QUERY_SIZE, short_past_len), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_past_tile_size, static_cast<int64_t>(short_past_len));
+    EXPECT_EQ(result->_final_tile_size, static_cast<int64_t>(QUERY_SIZE));
+}
+
+// Past length that is an exact multiple of query_size (block-split/continuous, non-SWA):
+// past_tile_size stays equal to query_size regardless of how many multiples the past holds.
+TEST(HostFlashAttentionFromTest, Fused_PastMultipleOfQuerySizeYieldsPastTileSizeEqualToQuerySize) {
+    constexpr size_t multi_past_len = QUERY_SIZE * 3;
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(QUERY_SIZE, multi_past_len), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_past_tile_size, static_cast<int64_t>(QUERY_SIZE));
+    EXPECT_EQ(result->_final_tile_size, static_cast<int64_t>(QUERY_SIZE));
+}
+
+// Past length >= query_size but not an exact multiple of it: analyze_past_tiling must
+// reject this (PREFILL is expected to fill the KV cache in exact query_size increments).
+TEST(HostFlashAttentionFromTest, Fused_PastNotMultipleOfQuerySizeThrows) {
+    constexpr size_t bad_past_len = QUERY_SIZE + QUERY_SIZE / 2;
+    EXPECT_THROW(ov::npuw::function::HostFlashAttention::from(build_sdpa_model(QUERY_SIZE, bad_past_len), true),
+                 ov::Exception);
 }
 
 namespace {

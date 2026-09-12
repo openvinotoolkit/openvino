@@ -977,22 +977,16 @@ static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::sh
 }
 
 // ============================================================================
-// Helper struct/function: Analyze past-KV tiling (past tile size "C" + remainder)
+// Helper function: Analyze past-KV tiling
 // ============================================================================
-// Describes how the past KV (all Concat inputs except the last, present-KV, one) should be
-// chunked into REGULAR tile calls, and how much of it (if any) doesn't evenly divide and must
-// instead be merged with the present KV into a single FINAL tile call.
-//
-// Two KV layouts are handled, disambiguated purely by past length vs. query_size (block_size is
-// always set to query_size/prefill-chunk-size by construction, see
-// SplitKVCacheIntoBlocks/m_prefill_chunk_size in llm_compiled_model.cpp, so a single block can
-// never exceed one query chunk):
-//   - A lone past input shorter than one query chunk (e.g. a sliding-window layer whose past
-//     capacity was shrunk below query_size): nothing to chunk it with, C = its own length.
-//   - Otherwise (any number of past inputs, block-split or continuous): C = query_size. The
-//     runtime (attn_subgraph.cpp) slices each past input into query_size-sized regular tiles on
-//     its own, so past inputs don't even need to share the same length -- each one just needs to
-//     be an exact multiple of query_size (true for PREFILL, which fills KV in exact increments).
+// Determines past_tile_size: the REGULAR tile's K/V chunk size, derived from the past KV
+// Concat inputs (all inputs except the last, present-KV, one).
+//   - No past inputs (first PREFILL chunk): unused, defaults to query_size.
+//   - A single past input shorter than query_size (SWA layer with shrunk past capacity):
+//     past_tile_size = its own length.
+//   - Otherwise: past_tile_size = query_size. The runtime slices each past
+//     input into query_size-sized tiles independently, so inputs need not share a length --
+//     each just needs to be an exact multiple of query_size (guaranteed for PREFILL).
 static int64_t analyze_past_tiling(const std::shared_ptr<ov::Node>& concat_node,
                                    std::size_t seq_dim,
                                    std::size_t query_size) {
@@ -1006,8 +1000,8 @@ static int64_t analyze_past_tiling(const std::shared_ptr<ov::Node>& concat_node,
     };
 
     if (n_past_inputs == 0) {
-        // No past at all (e.g. first PREFILL chunk). C is unused; default it to query_size so the
-        // (unused) regular tile model still compiles with a valid, non-zero shape.
+        // No past at all (e.g. first PREFILL chunk). Return value is unused; default it to
+        // query_size so the (unused) regular tile model still compiles with a valid, non-zero shape.
         return static_cast<int64_t>(query_size);
     }
 
@@ -1151,10 +1145,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
         return std::nullopt;
     }
 
-    // past_tile_size ("C"): chunk size for REGULAR tiles; final_tile_size: K/V length processed
-    // by the single FINAL tile call (query_size plus any past remainder that doesn't divide
-    // evenly into C, merged in instead of getting its own regular-tile call).
-    // past_tile_size ("C"): chunk size for REGULAR tiles. final_tile_size: K/V length processed
+    // past_tile_size: chunk size for REGULAR tiles. final_tile_size: K/V length processed
     // by the single FINAL tile call -- always equal to query_size (HFA only supports PREFILL,
     // where the KV cache is filled in exact past_tile_size increments, so there is never a
     // leftover KV "tail" to merge into the final tile).
@@ -1260,8 +1251,8 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     hfa._final_tile_model = final_tile_model;
     hfa._query_size = query_size;  // Query length for PREFILL/GENERATE logic and context_length
     hfa._context_size = context_size;
-    hfa._past_tile_size = static_cast<int64_t>(past_tile_size);    // Regular tile chunk size ("C")
-    hfa._final_tile_size = static_cast<int64_t>(final_tile_size);  // Final tile K/V length (query + remainder)
+    hfa._past_tile_size = static_cast<int64_t>(past_tile_size);    // Regular tile chunk size
+    hfa._final_tile_size = static_cast<int64_t>(final_tile_size);  // Final tile K/V length (== query_size)
     hfa._k_seq_dim = k_seq_dim;
     hfa._v_seq_dim = v_seq_dim;
 
