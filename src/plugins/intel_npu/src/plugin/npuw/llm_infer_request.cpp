@@ -258,6 +258,25 @@ void process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infe
     infer_req->set_tensor(cos_port_it->second, ov::get_tensor_impl(tables.cos_rows(lut_len, is_long)));
     infer_req->set_tensor(sin_port_it->second, ov::get_tensor_impl(tables.sin_rows(lut_len, is_long)));
 }
+
+void log_lm_head_inputs(const std::shared_ptr<ov::IAsyncInferRequest>& request, const char* phase) {
+    for (std::size_t input_idx = 0; input_idx < request->get_inputs().size(); ++input_idx) {
+        const auto& port = request->get_inputs()[input_idx];
+        const auto tensor = request->get_tensor(port);
+        if (tensor) {
+            LOG_DEBUG("WEIGHT_BUFFER lm_head_input phase=" << phase << " request=" << request.get()
+                                                            << " index=" << input_idx << " port=" << port
+                                                            << " type=" << tensor->get_element_type()
+                                                            << " shape=" << tensor->get_shape()
+                                                            << " bytes=" << tensor->get_byte_size()
+                                                            << " data=" << tensor->data());
+        } else {
+            LOG_DEBUG("WEIGHT_BUFFER lm_head_input phase=" << phase << " request=" << request.get()
+                                                            << " index=" << input_idx << " port=" << port
+                                                            << " initialized=0");
+        }
+    }
+}
 }  // anonymous namespace
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
@@ -403,14 +422,34 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         OPENVINO_ASSERT(m_lm_head_request);
         const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
         m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
+        LOG_DEBUG("WEIGHT_BUFFER lm_head_create llm_request=" << this << " lm_head_request=" << m_lm_head_request.get()
+                                                               << " compiled=" << compiled_model->m_lm_head_compiled.get());
+        log_lm_head_inputs(m_lm_head_request, "create");
         m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
                                       m_lm_head_request->get_tensor(lm_head_embed_port));
+        const auto lm_head_embed_tensor = m_lm_head_request->get_tensor(lm_head_embed_port);
+        if (lm_head_embed_tensor) {
+            LOG_DEBUG("WEIGHT_BUFFER lm_head_prefill_bind request=" << m_lm_head_request.get()
+                                                                      << " data=" << lm_head_embed_tensor->data());
+        } else {
+            LOG_DEBUG("WEIGHT_BUFFER lm_head_prefill_bind request=" << m_lm_head_request.get()
+                                                                      << " initialized=0");
+        }
 
         // Set output_embeds tensor for all generate variants
         for (auto& generate_req : m_generate_requests) {
             const auto& variant_out_ports = m_generate_variant_out_ports.at(generate_req);
             generate_req->set_tensor(variant_out_ports.at(layer_names::output_embeds),
                                      m_lm_head_request->get_tensor(lm_head_embed_port));
+            if (lm_head_embed_tensor) {
+                LOG_DEBUG("WEIGHT_BUFFER lm_head_generate_bind request=" << m_lm_head_request.get()
+                                                                           << " generate_request=" << generate_req.get()
+                                                                           << " data=" << lm_head_embed_tensor->data());
+            } else {
+                LOG_DEBUG("WEIGHT_BUFFER lm_head_generate_bind request=" << m_lm_head_request.get()
+                                                                           << " generate_request=" << generate_req.get()
+                                                                           << " initialized=0");
+            }
         }
     }
 
@@ -1332,8 +1371,15 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     m_llm_profile["1/prefill:4.lm_head"].record([&]() {
         if (m_lm_head_request) {
             LOG_DEBUG("Calling inference for LM head model.");
+            log_lm_head_inputs(m_lm_head_request, "infer");
             m_lm_head_request->infer();
             m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
+            if (m_logits) {
+                LOG_DEBUG("WEIGHT_BUFFER lm_head_output request=" << m_lm_head_request.get()
+                                                                   << " data=" << m_logits->data());
+            } else {
+                LOG_DEBUG("WEIGHT_BUFFER lm_head_output request=" << m_lm_head_request.get() << " initialized=0");
+            }
         } else {
             m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
         }
@@ -1567,6 +1613,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     if (m_lm_head_request) {
         LOG_DEBUG("Calling inference for LM head model asynchronously");
+        log_lm_head_inputs(m_lm_head_request, "start_async");
         m_lm_head_request->start_async();
         do_update_kvcache();
         m_llm_profile["N/generate:4.copy_lincache"].record([&]() {
@@ -1577,6 +1624,13 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             LOG_DEBUG("Calling inference for LM head model -- done.");
 
             m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
+            if (m_logits) {
+                LOG_DEBUG("WEIGHT_BUFFER lm_head_output_async request=" << m_lm_head_request.get()
+                                                                           << " data=" << m_logits->data());
+            } else {
+                LOG_DEBUG("WEIGHT_BUFFER lm_head_output_async request=" << m_lm_head_request.get()
+                                                                           << " initialized=0");
+            }
         });
     } else {
         do_update_kvcache();

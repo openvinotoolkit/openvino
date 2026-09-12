@@ -1789,7 +1789,9 @@ void ov::npuw::util::XARCH::unpack_i8f16_zp(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(zerop->is_continuous());
     NPUW_ASSERT(scale->is_continuous());
     NPUW_ASSERT(to->is_continuous());
-    NPUW_ASSERT(from->get_size() == zerop->get_size());
+    NPUW_ASSERT(zerop->get_shape().size() == 2);
+    NPUW_ASSERT(zerop->get_shape()[0] == from->get_shape()[0]);
+    NPUW_ASSERT(zerop->get_shape()[1] == 1 || zerop->get_shape()[1] == from->get_shape()[1]);
     NPUW_ASSERT(from->get_size() == to->get_size());
     NPUW_ASSERT(from->get_shape().size() == 2);
     NPUW_ASSERT(scale->get_shape().size() == 2);
@@ -1799,6 +1801,7 @@ void ov::npuw::util::XARCH::unpack_i8f16_zp(const ov::SoPtr<ov::ITensor>& from,
 
     const auto rows = from->get_shape()[0];
     const auto columns = from->get_shape()[1];
+    const bool zerop_broadcast = zerop->get_shape()[1] == 1;
     const auto* source = from->data<const int8_t>();
     const auto* zerop_data = zerop->data<const int8_t>();
     auto* result = to->data<ov::float16>();
@@ -1815,7 +1818,9 @@ void ov::npuw::util::XARCH::unpack_i8f16_zp(const ov::SoPtr<ov::ITensor>& from,
         std::size_t column = 0;
         for (; column + vector_size <= columns; column += vector_size) {
             const auto input_vector = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(source + row_offset + column));
-            const auto zerop_vector = _mm_loadl_epi64(reinterpret_cast<const __m128i*>(zerop_data + row_offset + column));
+            const auto zerop_vector = zerop_broadcast
+                                          ? _mm_set1_epi8(zerop_data[row])
+                                          : _mm_loadl_epi64(reinterpret_cast<const __m128i*>(zerop_data + row_offset + column));
             const auto output_vector = avx2_i8f16_zp(input_vector, zerop_vector, scale_vector);
             _mm_storeu_si128(reinterpret_cast<__m128i*>(result + row_offset + column), output_vector);
         }
@@ -1823,7 +1828,8 @@ void ov::npuw::util::XARCH::unpack_i8f16_zp(const ov::SoPtr<ov::ITensor>& from,
         const float scale_value = avx2_load_f32(scale_data + row * scale_element_type.size(), scale_element_type);
         for (; column < columns; ++column) {
             const auto index = row_offset + column;
-            result[index] = ov::float16((source[index] - zerop_data[index]) * scale_value);
+            const auto zerop_value = zerop_broadcast ? zerop_data[row] : zerop_data[index];
+            result[index] = ov::float16((source[index] - zerop_value) * scale_value);
         }
     };
 
@@ -1841,7 +1847,8 @@ void ov::npuw::util::XARCH::unpack_i8f16_zp(const ov::SoPtr<ov::ITensor>& from,
             const float scale_value = static_cast<float>(scale_data[row]);
             for (std::size_t column = 0; column < columns; ++column) {
                 const auto index = row * columns + column;
-                result[index] = ov::float16((source[index] - zerop_data[index]) * scale_value);
+                const auto zerop_value = zerop_broadcast ? zerop_data[row] : zerop_data[index];
+                result[index] = ov::float16((source[index] - zerop_value) * scale_value);
             }
         });
     } else {
@@ -1850,7 +1857,8 @@ void ov::npuw::util::XARCH::unpack_i8f16_zp(const ov::SoPtr<ov::ITensor>& from,
             const float scale_value = scale_data[row];
             for (std::size_t column = 0; column < columns; ++column) {
                 const auto index = row * columns + column;
-                result[index] = ov::float16((source[index] - zerop_data[index]) * scale_value);
+                const auto zerop_value = zerop_broadcast ? zerop_data[row] : zerop_data[index];
+                result[index] = ov::float16((source[index] - zerop_value) * scale_value);
             }
         });
     }

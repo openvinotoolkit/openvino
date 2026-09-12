@@ -733,8 +733,10 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
         auto& generate_variant = generate_model_variants[i];
 
         // Compile the variant
+        LOG_DEBUG("WEIGHT_BUFFER llm_generate_compile_begin index=" << i << " kv_size=" << kv_size);
         auto compiled_variant = m_compiled_model_factory(generate_variant, plugin, generate_config);
         NPUW_ASSERT(compiled_variant && "Can't create ov::npuw::CompiledModel for generate variant!");
+        LOG_DEBUG("WEIGHT_BUFFER llm_generate_compile_done index=" << i << " kv_size=" << kv_size);
 
         m_generate_compiled_variants.push_back(compiled_variant);
         LOG_DEBUG("Successfully compiled generate variant with size: " << kv_size);
@@ -882,10 +884,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
+#if NPUW_VOCAB_SHARING_EXPERIMENTAL
         ov::npuw::InsertVocabSub128 pass;
         if (!pass.run_on_model(kvcache_model)) {
             LOG_INFO("No asymmetric u8 vocab found - graph Sub128 insertion is skipped.");
         }
+#else
+        LOG_INFO("Asymmetric vocabulary sharing experiment is disabled at compile time.");
+#endif
     }
 
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
@@ -1396,11 +1402,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     // Compile multiple generate model variants with different sizes
+    LOG_DEBUG("WEIGHT_BUFFER llm_prefill_compile_begin");
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
+    LOG_DEBUG("WEIGHT_BUFFER llm_prefill_compile_after_generate");
 
     m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
+    LOG_DEBUG("WEIGHT_BUFFER llm_prefill_compile_done");
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);
         merge_config_with(lm_head_config, other_props);
@@ -1409,8 +1418,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
         apply_weights_bank_name(lm_head_config, weights_bank_name);
 
+        LOG_DEBUG("WEIGHT_BUFFER llm_lm_head_compile_begin");
         m_lm_head_compiled = m_compiled_model_factory(lm_head_model, plugin, lm_head_config);
         NPUW_ASSERT(m_lm_head_compiled);
+        LOG_DEBUG("WEIGHT_BUFFER llm_lm_head_compile_done");
     }
 
     implement_properties();

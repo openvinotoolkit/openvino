@@ -50,19 +50,29 @@ Bank::Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& allo
 int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
     const std::string& device_for_alloc = m_alloc_device.empty() ? device : m_alloc_device;
 
+    LOG_INFO("WEIGHT_BUFFER bank_register_begin bank=" << this << " device=" << device_for_alloc
+                                                        << " hash=" << tensor.get_hash());
     std::unique_lock guard(m_mutex);
+    LOG_INFO("WEIGHT_BUFFER bank_register_locked bank=" << this << " device=" << device_for_alloc);
 
     auto& device_bank = m_device_banks[device_for_alloc];
 
+    LOG_INFO("WEIGHT_BUFFER bank_register_find_begin bank=" << this << " device=" << device_for_alloc
+                                                              << " entries=" << device_bank.registered_tensors.size());
     auto iter_registered = device_bank.registered_tensors.find(tensor);
+    LOG_INFO("WEIGHT_BUFFER bank_register_find_done bank=" << this << " device=" << device_for_alloc
+                                                             << " found=" << (iter_registered != device_bank.registered_tensors.end()));
     if (iter_registered == device_bank.registered_tensors.end()) {
         auto uid = uid_count++;
         device_bank.registered_tensors[tensor] = uid;
         device_bank.storage[uid] = {tensor, ov::Tensor()};
         return uid;
     } else {
-        // Already registered - can be safely detach the incoming tensor
+    #if NPUW_VOCAB_SHARING_EXPERIMENTAL
+        // Keep duplicate lazy tensors evaluable while comparing shared weightless leaves.
+    #else
         const_cast<LazyTensor&>(tensor).detach();
+    #endif
     }
 
     return iter_registered->second;
@@ -125,7 +135,9 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         device_bank.storage.at(uid).tensor = ov::Tensor(t.get_element_type(), t.get_shape());
         // Get ownership of the weights, might be a mmaped object during import
         t.copy_to(device_bank.storage.at(uid).tensor);
+    #if !NPUW_VOCAB_SHARING_EXPERIMENTAL
         const_cast<LazyTensor&>(lt).detach();
+    #endif
     });
 }
 
@@ -178,7 +190,9 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         // Detach the evaluated LazyTensor from its memory here - when it is 100%
         // not needed anymore (transformations, if any, and copies are done)
         // Note: this is the non-CPU path!
+    #if !NPUW_VOCAB_SHARING_EXPERIMENTAL
         const_cast<LazyTensor&>(stored_tensor.lt).detach();
+    #endif
     });
 }
 

@@ -4,6 +4,10 @@
 
 #pragma once
 
+#ifndef NPUW_VOCAB_SHARING_EXPERIMENTAL
+#    define NPUW_VOCAB_SHARING_EXPERIMENTAL 1
+#endif
+
 #include <fstream>
 
 #include "openvino/core/log_util.hpp"

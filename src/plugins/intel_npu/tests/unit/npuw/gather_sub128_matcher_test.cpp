@@ -287,6 +287,27 @@ TEST(HostGatherQuantAsymmTest, AcceptsExtractedI8Parameters) {
     ASSERT_EQ(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.size(), 1);
 }
 
+TEST(HostGatherQuantAsymmTest, UsesPairedShiftedParametersWhenRawParametersMatch) {
+    ov::npuw::patterns::opt::Context context;
+    const auto model = make_parameter_gather_model(std::nullopt,
+                                                   std::nullopt,
+                                                   ov::element::u8,
+                                                   ov::element::u8);
+    const auto& parameters = model->get_parameters();
+    const auto shifted_weight = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, parameters[1]->get_shape());
+    const auto shifted_zerop = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, parameters[2]->get_shape());
+    context.params_to_subtract_128.emplace(shifted_weight,
+                                           std::static_pointer_cast<ov::op::v0::Parameter>(parameters[1]));
+    context.params_to_subtract_128.emplace(shifted_zerop,
+                                           std::static_pointer_cast<ov::op::v0::Parameter>(parameters[2]));
+
+    EXPECT_TRUE(run_host_gather(model, context));
+    ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
+    const auto& gather = context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.begin()->second;
+    ASSERT_EQ(gather.w->get_element_type(), ov::element::i8);
+    ASSERT_EQ(gather.z->get_element_type(), ov::element::i8);
+}
+
 TEST(HostGatherQuantAsymmTest, RejectsNon128Subtractions) {
     ov::npuw::patterns::opt::Context context;
     EXPECT_FALSE(run_host_gather(make_parameter_gather_model(127.0f), context));

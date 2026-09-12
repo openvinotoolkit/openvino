@@ -7,6 +7,7 @@
 #include <tuple>
 #include <type_traits>
 #include <variant>
+#include <optional>
 
 #include "logging.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -36,6 +37,9 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
     if (weightless_cache_attr != rt_info.end()) {
         m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+#if NPUW_VOCAB_SHARING_EXPERIMENTAL
+            m_has_weightless_offset = true;
+#endif
     } else {
         // See the comment in serialize() for more details
         LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. We need to "
@@ -45,8 +49,21 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
 }
 
 std::size_t Const::hash() const {
-    std::size_t seed = std::hash<const void*>()(m_cached_ptr) + 0x9e3779b9;
+#if NPUW_VOCAB_SHARING_EXPERIMENTAL
+    std::optional<std::size_t> weightless_offset;
+    if (m_has_weightless_offset) {
+        weightless_offset = m_offset;
+    }
+
+    std::size_t seed = weightless_offset ? std::hash<std::size_t>()(*weightless_offset)
+                                         : std::hash<const void*>()(m_cached_ptr);
+#else
+    std::size_t seed = std::hash<const void*>()(m_cached_ptr);
+#endif
     seed ^= m_cached_type.hash() + 0x9e3779b9;
+#if NPUW_VOCAB_SHARING_EXPERIMENTAL
+    seed ^= std::hash<std::size_t>()(m_byte_size) + 0x9e3779b9;
+#endif
     for (const auto& dim : m_cached_shape) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
     }
@@ -54,8 +71,27 @@ std::size_t Const::hash() const {
 }
 
 bool Const::operator==(const Const& other) const {
-    return (m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
-            m_cached_ptr == other.m_cached_ptr);
+#if NPUW_VOCAB_SHARING_EXPERIMENTAL
+    auto get_weightless_offset = [](const Const& constant) -> std::optional<std::size_t> {
+        if (constant.m_has_weightless_offset) {
+            return constant.m_offset;
+        }
+        return std::nullopt;
+    };
+
+    const auto this_offset = get_weightless_offset(*this);
+    const auto other_offset = get_weightless_offset(other);
+    const bool same_storage = this_offset && other_offset ? *this_offset == *other_offset
+                                                          : !this_offset && !other_offset && m_cached_ptr == other.m_cached_ptr;
+#else
+    const bool same_storage = m_cached_ptr == other.m_cached_ptr;
+#endif
+    return m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
+#if NPUW_VOCAB_SHARING_EXPERIMENTAL
+           m_byte_size == other.m_byte_size && same_storage;
+#else
+           same_storage;
+#endif
 }
 
 ov::Tensor Const::eval() const {
@@ -105,6 +141,9 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         // already deserialized, see the comment in serialize() for more details
         return;
     }
+#if NPUW_VOCAB_SHARING_EXPERIMENTAL
+    m_has_weightless_offset = true;
+#endif
     if (ctx.weights) {
         if (ctx.bf16_consts.find({m_offset, m_byte_size}) != ctx.bf16_consts.end()) {
             NPUW_ASSERT(m_cached_type == ov::element::f16);
@@ -797,9 +836,13 @@ std::vector<LazyTensor::Transform> LazyTensor::get_transformations() const {
 }
 
 void LazyTensor::detach() {
+#if NPUW_VOCAB_SHARING_EXPERIMENTAL
+    return;
+#else
     if (m_impl) {
         m_impl->detach();
     }
+#endif
 }
 
 std::size_t LazyTensor::Hash::operator()(const LazyTensor& lt) const {

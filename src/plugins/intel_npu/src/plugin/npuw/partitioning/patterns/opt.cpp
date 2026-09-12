@@ -1443,8 +1443,44 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
+#if NPUW_VOCAB_SHARING_EXPERIMENTAL
+            auto get_sub128_parameter = [&](const std::shared_ptr<ov::op::v0::Parameter>& source) {
+                if (ctx.get().params_to_subtract_128.count(source) != 0) {
+                    return source;
+                }
+                for (const auto& [shifted, original] : ctx.get().params_to_subtract_128) {
+                    if (original == source) {
+                        return shifted;
+                    }
+                }
+                if (source->get_element_type() == ov::element::u8) {
+                    auto shifted = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, source->get_shape());
+                    shifted->set_friendly_name(source->get_friendly_name() + "_sub128");
+                    ctx.get().params_to_subtract_128.emplace(shifted, source);
+                    return shifted;
+                }
+                return source;
+            };
+
+            const auto gather_weight = get_sub128_parameter(matched_qweight);
+            const auto gather_zerop = get_sub128_parameter(matched_qzerop);
+            const bool weight_is_sub128 = gather_weight != matched_qweight;
+            const bool zerop_is_sub128 = gather_zerop != matched_qzerop;
+#else
+            const auto gather_weight = matched_qweight;
+            const auto gather_zerop = matched_qzerop;
             const bool weight_is_sub128 = ctx.get().params_to_subtract_128.count(matched_qweight) != 0;
             const bool zerop_is_sub128 = ctx.get().params_to_subtract_128.count(matched_qzerop) != 0;
+#endif
+            LOG_DEBUG("WEIGHT_BUFFER host_gather_sources weight=" << matched_qweight
+                                                                   << " selected=" << gather_weight
+                                                                   << " type=" << gather_weight->get_element_type()
+                                                                   << " zerop=" << matched_qzerop
+                                                                   << " selected=" << gather_zerop
+                                                                   << " type=" << gather_zerop->get_element_type()
+                                                                   << " scale=" << matched_qcoeff
+                                                                   << " type=" << matched_qcoeff->get_element_type()
+                                                                   << " sub128_entries=" << ctx.get().params_to_subtract_128.size());
             if (weight_is_sub128 != zerop_is_sub128) {
                 return false;
             }
@@ -1452,8 +1488,8 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with future- unpacked and gathered
             // fp16
             auto new_wi = ctx.get().host_gather_unpack_quant(matched_ids,
-                                                             matched_qweight,
-                                                             matched_qzerop,
+                                                             gather_weight,
+                                                             gather_zerop,
                                                              matched_qcoeff,
                                                              ov::element::f16);
             matched_node_cvt->input(0).replace_source_output(new_wi);
