@@ -66,6 +66,14 @@ public:
 private:
     void update_global_properties(const ov::AnyMap& properties) const;
 
+    /**
+     * @brief Reads the ENFORCE_NATIVE_BLOB option (property "NPU_ENFORCE_NATIVE_BLOB") to determine whether import must
+     * be restricted to native NPU device blobs. When enabled, NPUW-serialized blobs are rejected here on the NPUW
+     * import path, and blobs that declare a host-executable payload (LLVM IR / bytecode) are rejected once their
+     * metadata is parsed.
+     */
+    bool should_enforce_native_blob(const ov::AnyMap& properties) const;
+
     std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;

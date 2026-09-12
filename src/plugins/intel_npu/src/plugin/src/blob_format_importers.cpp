@@ -47,6 +47,27 @@ constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
 const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 
 /**
+ * @brief When native-blob import is enforced, refuses a blob whose metadata declares a payload that is executed on the
+ * host instead of being parsed by the NPU driver.
+ * @details The declared payload format comes from metadata that carries no integrity or origin information, so an
+ * application that only ever produces ELF device blobs must not be re-routed into the host VM runtime by the content
+ * of a blob it was given. Enforcement is opt-in via ov::intel_npu::enforce_native_blob; left disabled (the default),
+ * any declared payload is imported and behavior is unchanged.
+ * @throws ov::AssertFailure if native-blob import is enforced but the blob declares a host-executable payload.
+ */
+void check_declared_blob_type(const std::optional<BlobType>& blob_type, const FilteredConfig& config) {
+    if (!blob_type.has_value() || !is_host_executed(blob_type.value())) {
+        return;
+    }
+
+    OPENVINO_ASSERT(!config.get<ENFORCE_NATIVE_BLOB>(),
+                    "The metadata of the blob provided for import declares a host-executable payload (LLVM IR or "
+                    "bytecode). Such a payload is not parsed by the NPU driver: it is compiled and executed inside "
+                    "this process by the host VM runtime, which makes importing the blob equivalent to loading a "
+                    "shared library. NPU_ENFORCE_NATIVE_BLOB is set, so only native NPU device blobs are accepted.");
+}
+
+/**
  * @brief Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
  */
 void update_compiler_type_if_perf_count(FilteredConfig& config,
@@ -277,6 +298,8 @@ public:
         // it passes the compatibility checks.
         m_metadata = read_metadata_from(npu_formatted_blob);
 
+        check_declared_blob_type(m_metadata->get_blob_type(), m_config);
+
         const size_t compiler_payload_size = m_metadata->get_compiler_payload_size();
         OPENVINO_ASSERT(compiler_payload_size > 0, EMPTY_COMPILER_PAYLOAD_MESSAGE);
 
@@ -492,6 +515,7 @@ std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
     OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);
 
     const Logger logger(HANDLER_FACTORY_LOGGER_NAME.data(), config.get<LOG_LEVEL>());
+
     if (is_raw_blob) {
         logger.info(BLOB_COMPATIBILITY_SKIPPED_MESSAGE.data());
 
