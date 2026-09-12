@@ -52,6 +52,19 @@ bool evaluate_node<ov::op::v13::ScaledDotProductAttention>(std::shared_ptr<ov::N
                                                            const ov::TensorVector& inputs) {
     const auto& element_type = node->get_input_element_type(0);
     const auto& mask_element_type = node->get_input_size() >= 4 ? node->get_input_element_type(3) : element_type;
+    // The op admits a key or value holding quantization codes; this reference reads every operand
+    // as the query's type, so name the unsupported operand instead of tripping a Tensor::data<T>
+    // assert deeper in.
+    for (size_t i = 1; i <= 2; ++i) {
+        const auto& kv_type = node->get_input_element_type(i);
+        OPENVINO_ASSERT(!ov::op::v13::ScaledDotProductAttention::is_quantized_kv_type(kv_type),
+                        "The ScaledDotProductAttention reference does not implement a quantized "
+                        "operand. Input ",
+                        i,
+                        " has element type ",
+                        kv_type,
+                        ".");
+    }
 #define CASE(type)                                                             \
     case ov::element::type: {                                                  \
         if (mask_element_type == ov::element::boolean) {                       \

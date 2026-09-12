@@ -77,6 +77,13 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
             return false;
         }
 
+        // SDPAWithTransposeReshape reads the key and value at the query's precision, so a key or
+        // value holding quantization codes would be widened as magnitudes. Decline, so the graph
+        // reaches ScaledDotProductAttentionDecomposition and is reported against the node by name.
+        if (op::v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
+            return false;
+        }
+
         // Order=[0, 2, 1, 3]
         auto is_expected_transpose = [&](std::shared_ptr<op::v1::Transpose>& transpose) {
             if (transpose) {
