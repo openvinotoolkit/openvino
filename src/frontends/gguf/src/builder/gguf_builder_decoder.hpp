@@ -23,7 +23,11 @@ namespace gguf {
 // the node it is bound to, so no node index is threaded through the interface.
 class GgufBuilderDecoder : public GgufDecoder {
 public:
-    explicit GgufBuilderDecoder(std::shared_ptr<GgufGraph> graph);
+    explicit GgufBuilderDecoder(std::shared_ptr<GgufGraph> graph, int node_index = -1);
+
+    const std::shared_ptr<TensorMap>& values() const {
+        return m_graph->values;
+    }
 
     // Per-node accessors (bound to the node this decoder instance was cloned for).
     ov::Any get_attribute(const std::string& name) const override;

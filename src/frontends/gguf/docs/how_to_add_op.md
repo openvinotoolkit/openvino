@@ -70,18 +70,41 @@ the graph-fingerprint gate rely on.
 | `get_input(idx)` / `get_input(name)` | Operand as `Output<Node>` |
 | `has_input(name)` | Test an optional operand first |
 | `get_input_size()` | Actual operand count |
-| `get_input_shape(idx)` / `get_output_shape()` | **Static ggml** shape — use when the live OV shape is dynamic (KV-cache path) |
+| `get_input(idx).get_partial_shape()` | Shape inferred by OpenVINO, including dynamic dimensions |
+| `get_input_shape(idx)` | Source layout when supplied by a cgraph decoder; otherwise the inferred input shape padded to GGML rank four |
+| `get_output_shape()` | Legacy cgraph destination layout; unavailable for native builder operations |
 | `get_input_view_element_offset(idx)` | Element (not byte) offset for a ggml VIEW operand |
 | `get_op_case()` | Structural variant (convenience wrapper, defaults to 0) |
-| `get_output_type()` | Declared output element type |
 | `get_attribute<T>(name[, default])` | Any other typed op parameter |
 
 Helpers in [`src/utils.hpp`](../src/utils.hpp): `num_inputs_check`, `get_dimensions`,
 `rename_outputs_with_suffix`, `make_sin_cos` (RoPE), `process_view_input`.
 
-Insert a `Convert` to `get_output_type()` when the op may change element type (`CONCAT`, `CPY`,
-`SET_ROWS`, `GET_ROWS`) rather than assuming the input type. Prefer `ov::op::vX::OpName` over
-`opsetX::OpName`, per the repository convention.
+`TOP_K` accepts an `int64_t` attribute `k`; OpenVINO infers the output shape from the input
+and this parameter. For compatibility, decoders that omit `k` must supply a static last
+output dimension, where ggml stores `k`. An unknown `k` is rejected, never inferred from
+the input width.
+
+Converters must infer intermediate shapes from their OpenVINO operands, reading only the axes
+needed for the operation. A dynamic token axis does not prevent reading a static head width.
+Use explicit attributes for operation parameters: `reshape_target` / `special_zero`, `view_slice`,
+`repeats`, and TopK `k`. Source destination shapes may provide compatibility defaults for existing
+cgraph importers; native builders never manufacture them. A new converter also serves `GgufGraphContext::node`
+without a separate shape implementation in the builder.
+
+Result-type rules belong in the converter, not in the builder or architecture. `MUL_MAT` and
+`MUL_MAT_ID` produce F32, `TOP_K`/`ARGSORT` produce I32, and `GET_ROWS` returns I32 for integer
+rows and F32 for floating/quantized rows. Type-preserving operations use their input type;
+`SET`, `SET_ROWS` and `CPY` use the destination operand. Construct the OpenVINO computation in
+the appropriate precision; casting an already-overflowed F16 matrix product to F32 is too late.
+
+Only operations with an explicit destination-type parameter accept `dst_type`: a one-input `CPY`
+represents a cast, and `IM2COL` takes the type chosen by the caller. Those converters also accept
+legacy cgraph `output_type` metadata when no destination type can otherwise be determined.
+Native graph nodes have no output-type field or default-type table. A new converter derives its
+own result type from operation semantics, inputs and attributes.
+
+Prefer `ov::op::vX::OpName` over `opsetX::OpName`, per the repository convention.
 
 ## Test, and the coverage gate
 

@@ -119,7 +119,7 @@ OutputVector translate_div(const NodeContext& context) {
     auto input_0 = context.get_input(0);
     auto input_1 = context.get_input(1);
 
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    const auto output_type = input_0.get_element_type();
 
     if (is_silu_div_pattern(input_0, input_1)) {
         ov::Output<ov::Node> res = std::make_shared<ov::op::v0::Sigmoid>(input_1);

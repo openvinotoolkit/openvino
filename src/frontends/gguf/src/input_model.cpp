@@ -4,6 +4,7 @@
 
 #include "input_model.hpp"
 
+#include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 
 namespace ov {
@@ -13,15 +14,15 @@ namespace gguf {
 InputModel::InputModel(const std::shared_ptr<GgufDecoder>& gdecoder) : m_decoder(gdecoder) {}
 
 const std::map<std::string, std::shared_ptr<ov::Node>>& InputModel::get_model_inputs() const {
-    return m_decoder->get_model_inputs();
+    return get_model_decoder()->get_model_inputs();
 }
 
 std::vector<std::string> InputModel::get_model_output_names() const {
-    return m_decoder->get_model_output_names();
+    return get_model_decoder()->get_model_output_names();
 }
 
 const std::vector<std::pair<std::string, std::string>>& InputModel::get_recurrent_states() const {
-    return m_decoder->get_recurrent_states();
+    return get_model_decoder()->get_recurrent_states();
 }
 
 RopeConfig InputModel::get_rope_config() const {
@@ -30,15 +31,16 @@ RopeConfig InputModel::get_rope_config() const {
     // (n_dims == 0, "model uses no RoPE") in that case, so TranslateSession::preprocess builds no
     // shared rope sin/cos table and the ROPE translator -- if one is even present -- falls back to
     // its own per-op sin/cos. This is what makes a separate naive flag unnecessary.
-    auto cfg = m_decoder->get_attribute("rope_config");
+    auto cfg = get_model_decoder()->get_attribute("rope_config");
     return cfg.empty() ? RopeConfig{} : cfg.as<RopeConfig>();
 }
 
 void InputModel::visit_subgraph(const std::function<void(std::shared_ptr<GgufDecoder>)>& node_visitor) const {
-    m_decoder->visit_subgraph(node_visitor);
+    get_model_decoder()->visit_subgraph(node_visitor);
 }
 
 const std::shared_ptr<GgufDecoder>& InputModel::get_model_decoder() const {
+    FRONT_END_GENERAL_CHECK(m_decoder, "Native GGUF graphs are constructed during convert()");
     return m_decoder;
 }
 

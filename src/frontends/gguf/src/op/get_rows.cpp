@@ -28,9 +28,17 @@ OutputVector translate_get_rows(const NodeContext& context) {
     Output<Node> res;
     auto data = context.get_input(0);
     auto indices = context.get_input(1);
+    // GGML gathers integer rows as I32 and all floating/quantized rows as F32.
+    const auto type = data.get_element_type() == ov::element::i32 ? ov::element::i32 : ov::element::f32;
+    const auto convert_rows = [&](ov::Output<Node> rows) {
+        if (rows.get_element_type() != type) {
+            rows = std::make_shared<ov::op::v0::Convert>(rows, type);
+        }
+        return rows;
+    };
 
     if (op_case == 3) {
-        return {std::move(data)};
+        return {convert_rows(data)};
     }
 
     if (op_case == 4) {
@@ -39,10 +47,7 @@ OutputVector translate_get_rows(const NodeContext& context) {
                                                   ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, 2}));
         auto axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {2});
         res = std::make_shared<ov::op::v8::Gather>(data, flat_indices, axis);
-        if (res.get_element_type() != context.get_output_type()) {
-            res = std::make_shared<ov::op::v0::Convert>(res, context.get_output_type());
-        }
-        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+        return rename_outputs_with_suffix({convert_rows(res)}, context.get_name());
     }
 
     // MoE gating-weight gather (op_case 10): data = probs [1,1,T,E], indices = selected experts
@@ -53,14 +58,15 @@ OutputVector translate_get_rows(const NodeContext& context) {
         // explicit [1,-1,K,1] reshape (K is static, read via PartialShape to avoid .to_shape()
         // throwing when T is dynamic) instead of Squeeze+Unsqueeze, which the CPU plugin
         // implements as a Reshape internally and mis-infers the static pattern when T=1.
-        const int64_t K = context.get_output_shape()[2].get_length();
+        const auto ids_shape = indices.get_partial_shape();
+        const int64_t K = ids_shape[ids_shape.size() - 1].get_length();
         auto idx = std::make_shared<ov::op::v0::Convert>(indices, ov::element::i32);
         auto ge = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);  // [1,1,T,K]
         auto col = std::make_shared<ov::op::v1::Reshape>(
             ge,
             ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, K, 1}),
             false);  // [1,T,K,1]
-        return rename_outputs_with_suffix({std::move(col)}, context.get_name());
+        return rename_outputs_with_suffix({convert_rows(col)}, context.get_name());
     }
 
     if (op_case == 2) {
@@ -90,12 +96,9 @@ OutputVector translate_get_rows(const NodeContext& context) {
         res = std::make_shared<ov::op::v8::Gather>(data, indices, axis);
     }
 
-    if (res.get_element_type() != context.get_output_type()) {
-        res = std::make_shared<ov::op::v0::Convert>(res, context.get_output_type());
-    }
     // The two Squeezes above dropped the leading axes; restore ggml's rank-4 form.
     res = std::make_shared<ov::op::v0::Unsqueeze>(res, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
-    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+    return rename_outputs_with_suffix({convert_rows(res)}, context.get_name());
 }
 
 }  // namespace op

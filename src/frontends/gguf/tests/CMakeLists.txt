@@ -37,6 +37,10 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/arch_registry.cpp"
     "${FE_SRC_DIR}/builder/decoder_config.cpp"
     "${FE_SRC_DIR}/builder/model_kind.cpp"
+    "${FE_SRC_DIR}/extension/architecture.cpp"
+    "${FE_SRC_DIR}/builder/api/graph_context.cpp"
+    "${FE_SRC_DIR}/builder/api/metadata.cpp"
+    "${FE_SRC_DIR}/builder/api/tensor_table.cpp"
     "${FE_SRC_DIR}/builder/arch/decoder_builder.cpp"
     "${FE_SRC_DIR}/builder/blocks/attention.cpp"
     "${FE_SRC_DIR}/builder/blocks/common.cpp"
@@ -89,6 +93,9 @@ set(FRONTEND_SRCS
 set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_adapt_to_genai.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_conversion.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_arch_accuracy.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_architecture_extension.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_builder_api.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_dequant_vs_ggml.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_extensions.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_op_coverage.cpp"
@@ -112,6 +119,7 @@ ov_add_test_target(
     INCLUDES
         "${CMAKE_CURRENT_SOURCE_DIR}/../src"
         "${CMAKE_CURRENT_SOURCE_DIR}/../include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../dev_api"
         # frontend.cpp (compiled into the self-contained test binary) includes the native
         # .gguf load path (get_path_from_any in openvino/frontend/common/path_util.hpp).
         "${OpenVINO_SOURCE_DIR}/src/frontends/common/include"
@@ -136,6 +144,7 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test_data"
         EXCLUDE_FROM_ALL
         FILES_MATCHING
             PATTERN "*.npy"
+            PATTERN "*.npz"
             PATTERN "manifest.txt")
 
 # Sources compiled into the binary: resolve the visibility macros to local definitions, not dllimport.
@@ -155,3 +164,36 @@ target_compile_definitions(${TARGET_NAME} PRIVATE
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+# Test loading an independently compiled architecture module using only builder API headers.
+set(ARCH_EXAMPLE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../examples/architecture_extension")
+add_library(gguf_projector_extension MODULE
+            "${ARCH_EXAMPLE_DIR}/projector.cpp" "${ARCH_EXAMPLE_DIR}/extension.cpp")
+target_link_libraries(gguf_projector_extension PRIVATE openvino::frontend::gguf)
+target_compile_features(gguf_projector_extension PRIVATE cxx_std_17)
+install(TARGETS gguf_projector_extension LIBRARY DESTINATION tests RUNTIME DESTINATION tests
+        COMPONENT tests EXCLUDE_FROM_ALL)
+
+ov_add_test_target(
+    NAME ov_gguf_architecture_library_tests
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/test_architecture_library.cpp" "${ARCH_EXAMPLE_DIR}/projector.cpp"
+    LINK_LIBRARIES gtest gtest_main common_test_utils openvino::runtime openvino::frontend::gguf
+    INCLUDES "${ARCH_EXAMPLE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}"
+    LABELS OV UNIT GGUF_FE)
+target_compile_definitions(ov_gguf_architecture_library_tests PRIVATE
+                           ARCH_EXTENSION_LIBRARY="$<TARGET_FILE_NAME:gguf_projector_extension>")
+add_dependencies(ov_gguf_architecture_library_tests gguf_projector_extension)
+
+# The same definition can be seeded into the native catalog without the plugin entry point.
+target_sources(${TARGET_NAME} PRIVATE "${ARCH_EXAMPLE_DIR}/projector.cpp")
+target_include_directories(${TARGET_NAME} PRIVATE "${ARCH_EXAMPLE_DIR}")
+
+add_library(gguf_devstral_extension MODULE
+            "${CMAKE_CURRENT_SOURCE_DIR}/../examples/devstral_extension/devstral.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/../examples/devstral_extension/extension.cpp")
+target_link_libraries(gguf_devstral_extension PRIVATE openvino::frontend::gguf)
+target_compile_features(gguf_devstral_extension PRIVATE cxx_std_17)
+install(TARGETS gguf_devstral_extension LIBRARY DESTINATION tests RUNTIME DESTINATION tests
+        COMPONENT tests EXCLUDE_FROM_ALL)
+target_compile_definitions(${TARGET_NAME} PRIVATE DEVSTRAL_EXTENSION_LIBRARY="$<TARGET_FILE_NAME:gguf_devstral_extension>")
+add_dependencies(${TARGET_NAME} gguf_devstral_extension)

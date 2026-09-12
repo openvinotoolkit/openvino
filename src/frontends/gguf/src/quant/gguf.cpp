@@ -904,6 +904,11 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
         const bool is_yarn = metadata.count(arch + ".rope.scaling.type") &&
                              std::get<std::string>(metadata.at(arch + ".rope.scaling.type")) == "yarn";
         config["rope_ext_factor"] = is_yarn ? 1.0f : 0.0f;
+        config["rope_yarn_beta_fast"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_beta_fast", 32.0f);
+        config["rope_yarn_beta_slow"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_beta_slow", 1.0f);
+        config["rope_yarn_log_mul"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_log_multiplier", 0.0f);
+        config["attention_temperature_scale"] =
+            metadata_to_float_or(metadata, arch + ".attention.temperature_scale", 0.0f);
 
         // n_ctx_orig: use rope.scaling.original_context_length when present; fall back to
         // context_length (the training context, which is also n_ctx_train in llama.cpp).
@@ -956,7 +961,9 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     const float def_logit_scale = is_minicpm ? 256.0f / static_cast<float>(std::get<int>(config["hidden_size"])) : 1.0f;
     config["embedding_scale"] = metadata_to_float_or(metadata, arch + ".embedding_scale", def_embedding_scale);
     config["residual_scale"] = metadata_to_float_or(metadata, arch + ".residual_scale", def_residual_scale);
-    config["logit_scale"] = metadata_to_float_or(metadata, arch + ".logit_scale", def_logit_scale);
+    const float logit_scale = metadata_to_float_or(metadata, arch + ".logit_scale", def_logit_scale);
+    // MiniCPM shares llama.cpp's Granite graph, which divides logits by this scale.
+    config["logit_scale"] = is_minicpm && logit_scale != 0.0f ? 1.0f / logit_scale : logit_scale;
     // Hybrid linear-attention (Gated DeltaNet) parameters: qwen35 / qwen3next / kimi-linear.
     // 0 for every non-SSM architecture, which is what the builder tests against.
     auto ssm_key = [&](const std::string& k) {
@@ -1007,7 +1014,11 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // Gemma3 (like gemma/gemma2) uses 1/sqrt(n_embd_head_k); llama.cpp applies it as a
     // Qcur pre-scale with build_attn(scale=1.0), which is numerically 1/sqrt(head_size) --
     // exactly the default branch here, so gemma3 must NOT force scale=1.0.
-    const float def_attention_scale = (arch == "gemma4") ? 1.0f : 0.0f;
+    const float def_attention_scale = arch == "gemma4" ? 1.0f
+                                      : arch == "gemma2" && std::get<int>(config["layer_num"]) == 46
+                                          ? 1.0f / std::sqrt(static_cast<float>(std::get<int>(config["hidden_size"]) /
+                                                                                std::get<int>(config["head_num"])))
+                                          : 0.0f;
     config["attention_scale"] = metadata_to_float_or(metadata, arch + ".attention.scale", def_attention_scale);
 
     // gpt-oss SWA: separate RoPE frequency base for sliding-window attention layers.
@@ -1029,7 +1040,8 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // (swa_window_size below): a token at position q may then attend to keys in
     // [q - swa_window_size + 1, q], which AdaptToGenAI needs to build a correctly windowed
     // self_kq_mask_swa instead of reusing the full causal mask.
-    uint32_t swa_window_value = 0;
+    uint32_t swa_window_value =
+        (arch == "gemma2" || (arch == "exaone4" && std::get<int>(config["layer_num"]) == 64)) ? 4096 : 0;
     if (metadata.count(arch + ".attention.sliding_window")) {
         const auto& t = std::get<ov::Tensor>(metadata.at(arch + ".attention.sliding_window"));
         const uint32_t v = *t.data<uint32_t>();
@@ -1070,15 +1082,18 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     } else {
         // No explicit pattern key. gemma3 defaults to period 6 (llama.cpp gemma3 load_arch_hparams
         // passes swa_period=6 to get_key_or_arr); gpt-oss and others default to 2.
-        config["swa_layer_pattern"] = (arch == "gemma3") ? 6 : 2;
+        config["swa_layer_pattern"] = arch == "gemma3" ? 6 : arch == "exaone4" ? 4 : 2;
         config["swa_layer_flags"] = std::vector<int32_t>{};
     }
 
     // gpt-oss MoE: optional per-expert routing weight scale applied after softmax (0 = 1.0 no-op).
     config["expert_weights_scale"] = metadata_to_float_or(metadata, arch + ".expert_weights_scale", 0.0f);
 
-    // qwen3moe/glm4moe/bailingmoe2 MoE: renormalize the selected top-K gate weights to sum to 1
-    // (llama.cpp build_moe_ffn's norm_w / "norm_topk_prob"); absent -> no renormalization.
+    // Routing metadata; architecture-required normalization is resolved in DecoderConfig.
+    config["moe_layer_step"] = metadata_to_int_or(metadata, arch + ".interleave_moe_layer_step", 1);
+    config["expert_groups"] = metadata_to_int_or(metadata, arch + ".expert_group_count", 1);
+    config["expert_groups_used"] = metadata_to_int_or(metadata, arch + ".expert_group_used_count", 1);
+    config["expert_gating_func"] = metadata_to_int_or(metadata, arch + ".expert_gating_func", 1);
     config["expert_weights_norm"] = metadata_to_bool_or(metadata, arch + ".expert_weights_norm", false) ? 1 : 0;
 
     // Gemma2 attention soft-cap: tanh(QK^T * (1/cap)) * cap applied inside the attention.

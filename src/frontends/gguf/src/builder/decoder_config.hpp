@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <map>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "openvino/frontend/gguf/builder/decoder_options.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "quant/gguf.hpp"
@@ -17,23 +17,15 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-// Everything the decoder topology needs to know about ONE model, resolved once up front.
-//
-// This is the GGUF frontend's equivalent of llama.cpp's llama_hparams plus its per-arch
-// load_arch_hparams: a flat, already-decided description of the model, so the topology builder in
-// arch/decoder_builder.cpp never re-derives anything and reads declaratively.
-//
-// Almost every field is DETECTED, not hard-coded per architecture: the presence of a layer-0
-// weight tensor decides whether the model has QK-norm, projection biases, fused QKV, MoE routing,
-// attention sinks, post-norms and so on. That is what lets a new same-family architecture be
-// enabled by adding its name to arch_registry.cpp and writing no code at all. Only a handful of
-// genuinely tensor-table-ambiguous properties (GeGLU vs SwiGLU, gemma4's V-norm) fall back to an
-// architecture-name check; prefer weight presence when adding a new one.
+// Internal configuration resolved from metadata, tensor shapes and architecture semantics.
+// Extensions override ambiguous semantics through DecoderOptions before dependent plans are built.
 struct DecoderConfig {
     // Resolve the whole description from the parsed metadata (already normalized by
     // config_from_meta) and the parser's tensor table.
     DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
-                  const std::unordered_map<std::string, ov::Tensor>& weights);
+                  const std::unordered_map<std::string, ov::Tensor>& weights,
+                  std::optional<RopeMode> rope = {},
+                  const DecoderOptions& options = {});
 
     std::string arch;
 
@@ -48,8 +40,9 @@ struct DecoderConfig {
 
     // ---- auto-detected per-architecture structure ----
     bool has_qk_norm = false;
-    bool qk_norm_full = false;        // norm width is n_head*head_size (OLMoE) rather than per-head
-    bool qk_norm_after_rope = false;  // Hunyuan applies learned per-head Q/K norm after RoPE
+    bool qk_norm_after_rope = false;
+    bool post_norm_only = false;
+    bool qk_norm_full = false;  // norm width is n_head*head_size (OLMoE) rather than per-head
     bool has_qkv_bias = false;
     bool has_attn_out_bias = false;
     bool has_rope_freqs = false;
@@ -69,8 +62,9 @@ struct DecoderConfig {
     // muse-glimmer specifics
     bool has_attn_gate = false;        // sigmoid gate multiplied into the attention output
     bool scaleless_embd_norm = false;  // weightless RMSNorm on the token embeddings
-    bool rope_on_swa_only = false;     // global (non-SWA) layers are NoPE
-    float post_norm_eps = 0.0f;        // eps for post-attn/post-FFN norms (0 -> rms_eps)
+    int rope_skip_period = 0;
+    bool rope_on_swa_only = false;  // global (non-SWA) layers are NoPE
+    float post_norm_eps = 0.0f;     // eps for post-attn/post-FFN norms (0 -> rms_eps)
 
     // ---- qwen35 (hybrid Gated-DeltaNet + full attention) ----
     bool is_qwen35 = false;
@@ -84,7 +78,7 @@ struct DecoderConfig {
     std::vector<int32_t> rope_sections;          // M-RoPE per-axis section widths
     std::vector<int32_t> recurrent_layer_flags;  // explicit per-layer recurrent flags
 
-    // Norm key suffixes; overridden for archs that use non-standard naming (exaone4, gpt-oss).
+    // Pre-norm key suffixes; GPT-OSS uses post_attention_norm for its pre-FFN norm.
     std::string attn_norm_key{"attn_norm.weight"};
     std::string ffn_norm_key{"ffn_norm.weight"};
 
@@ -92,11 +86,15 @@ struct DecoderConfig {
     int n_expert = 0;
     int n_expert_used = 0;
     int n_dense_lead = 0;
-    int n_expert_shared = 0;
+    int moe_layer_step = 1;
+    bool moe_sigmoid_gating = false;
+    int expert_groups = 1;
+    int expert_groups_used = 1;
     float embedding_scale = 1.0f;
     float residual_scale = 1.0f;
     float logit_scale = 1.0f;
-    float attention_scale = 0.0f;       // 0 -> 1/sqrt(head_size)
+    float attention_scale = 0.0f;  // 0 -> 1/sqrt(head_size)
+    float attention_temperature_scale = 0.0f;
     float expert_weights_scale = 0.0f;  // 0 -> 1.0 no-op
     bool expert_weights_norm = false;   // renormalize top-K gate weights to sum to 1 (qwen3moe etc.)
     float attn_soft_cap = 0.0f;
@@ -130,6 +128,7 @@ struct DecoderConfig {
     // boolean array; gpt-oss/gemma3/smollm3 use a period (il is SWA unless it is the last in each
     // period, matching llama.cpp set_swa_pattern(period, dense_first=false)).
     bool layer_is_swa(int il) const;
+    bool layer_is_moe(int il) const;
 
     // Head size for layer `il`. gemma4 SWA layers use a smaller head size than global layers.
     int layer_head_size(int il) const;

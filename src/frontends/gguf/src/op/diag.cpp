@@ -30,8 +30,8 @@ OutputVector translate_diag(const NodeContext& context) {
 
     auto x = context.get_input(0);  // OV shape: [ne3, ne2, 1, ne0]
 
-    auto out_shape = context.get_output_shape().to_shape();
-    size_t n = out_shape[3];  // ne0
+    const auto shape = x.get_partial_shape();
+    const size_t n = shape[shape.size() - 1].get_length();
 
     // Explicit [1, 1, n, n] identity matrix (1.0 on the diagonal, 0.0 elsewhere).
     std::vector<float> identity(n * n, 0.0f);
@@ -39,9 +39,7 @@ OutputVector translate_diag(const NodeContext& context) {
         identity[i * n + i] = 1.0f;
     }
     // Build the mask in the node's own type, or an f16 input gets promoted to f32 by the Multiply.
-    auto eye = ov::op::v0::Constant::create(context.get_attribute<ov::element::Type>("output_type"),
-                                            ov::Shape{1, 1, n, n},
-                                            identity);
+    auto eye = ov::op::v0::Constant::create(x.get_element_type(), ov::Shape{1, 1, n, n}, identity);
 
     // Multiply broadcasts the [ne3,ne2,1,ne0] input over the row axis, zeroing off-diagonal entries.
     auto res = std::make_shared<ov::op::v1::Multiply>(x, eye);

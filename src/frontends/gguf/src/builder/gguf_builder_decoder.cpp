@@ -12,7 +12,9 @@ namespace ov {
 namespace frontend {
 namespace gguf {
 
-GgufBuilderDecoder::GgufBuilderDecoder(std::shared_ptr<GgufGraph> graph) : m_graph(std::move(graph)) {}
+GgufBuilderDecoder::GgufBuilderDecoder(std::shared_ptr<GgufGraph> graph, int node_index)
+    : m_graph(std::move(graph)),
+      m_node_idx(node_index) {}
 
 const GgufOp& GgufBuilderDecoder::node() const {
     OPENVINO_ASSERT(m_node_idx >= 0 && static_cast<size_t>(m_node_idx) < m_graph->nodes.size(),
@@ -21,39 +23,11 @@ const GgufOp& GgufBuilderDecoder::node() const {
     return m_graph->nodes[m_node_idx];
 }
 
-// ---- Per-node typed attribute ----
-//
-// In addition to keys stored in GgufOp::attributes, the following reserved keys are
-// served so external converters can access per-input/output metadata through the public
-// base NodeContext::get_attribute<T>() interface without including internal headers:
-//
-//   "input_shape[N]"       -> ov::PartialShape  for input N (0-based)
-//   "input_type[N]"        -> ov::element::Type for input N
-//   "input_stride[N]"      -> std::vector<size_t> for input N
-//   "input_view_offset[N]" -> int64_t for input N
-//   "output_shape"         -> ov::PartialShape of the node output
-//   "output_type"          -> ov::element::Type of the node output
-//   "rope_config"          -> RopeConfig (model-scope RoPE config; see get_attribute below)
-//   "swa_window_size"      -> int (model-scope sliding-window length in tokens; 0 -> not
-//                              configured in this model's metadata; see get_attribute below)
-
-static bool parse_indexed_key(const std::string& name, const std::string& prefix, size_t& out_idx) {
-    if (name.size() <= prefix.size() + 2)
-        return false;
-    if (name.compare(0, prefix.size(), prefix) != 0)
-        return false;
-    if (name[prefix.size()] != '[' || name.back() != ']')
-        return false;
-    try {
-        out_idx = static_cast<size_t>(std::stoul(name.substr(prefix.size() + 1, name.size() - prefix.size() - 2)));
-        return true;
-    } catch (...) {
-        return false;
-    }
-}
+// Expose operation parameters through the common decoder interface. Native nodes do not
+// carry source shapes; converters infer them from their OpenVINO inputs.
 
 ov::Any GgufBuilderDecoder::get_attribute(const std::string& name) const {
-    // RoPE config is queried at model scope (TranslateSession::preprocess, to build the shared
+    // RoPE config is queried at model scope (prepare_graph_inputs, to build the shared
     // sin/cos table) and at node scope (each ROPE op's own config). At MODEL scope (no bound node)
     // expose the graph's config with per_op / n_dims==0 encoding "no shared table". At NODE scope
     // fall through to the node's own "rope_config" attribute -- the builder stores a per-node
@@ -76,45 +50,9 @@ ov::Any GgufBuilderDecoder::get_attribute(const std::string& name) const {
 
     const auto& n = node();
 
-    // Reserved keys for per-input metadata
-    size_t idx = 0;
-    if (parse_indexed_key(name, "input_shape", idx)) {
-        if (idx < n.input_names.size()) {
-            auto it = n.input_shapes.find(n.input_names[idx]);
-            if (it != n.input_shapes.end())
-                return it->second;
-        }
-        return {};
-    }
-    if (parse_indexed_key(name, "input_type", idx)) {
-        if (idx < n.input_names.size()) {
-            auto it = n.input_types.find(n.input_names[idx]);
-            if (it != n.input_types.end())
-                return it->second;
-        }
-        return {};
-    }
-    if (parse_indexed_key(name, "input_stride", idx)) {
-        if (idx < n.input_names.size()) {
-            auto it = n.input_strides.find(n.input_names[idx]);
-            if (it != n.input_strides.end())
-                return it->second;
-        }
-        return {};
-    }
-    if (parse_indexed_key(name, "input_view_offset", idx)) {
-        if (idx < n.input_names.size()) {
-            auto it = n.input_view_offsets.find(n.input_names[idx]);
-            return it != n.input_view_offsets.end() ? ov::Any(it->second) : ov::Any(int64_t{0});
-        }
-        return {};
-    }
-
-    // Reserved keys for per-output metadata
+    // Legacy source shape metadata is unavailable for native nodes.
     if (name == "output_shape")
-        return n.output_shape;
-    if (name == "output_type")
-        return n.output_type;
+        return ov::PartialShape::dynamic();
 
     // Per-node op case (the op translators read it via get_attribute<int>("op_case", 0)).
     if (name == "op_case")
@@ -127,20 +65,12 @@ ov::Any GgufBuilderDecoder::get_attribute(const std::string& name) const {
 
 // ---- Per-input metadata ----
 
-PartialShape GgufBuilderDecoder::get_input_shape(const std::string& name) const {
-    const auto& m = node().input_shapes;
-    auto it = m.find(name);
-    OPENVINO_ASSERT(it != m.end(), "[gguf] no input shape for '", name, "'");
-    return it->second;
+PartialShape GgufBuilderDecoder::get_input_shape(const std::string&) const {
+    return ov::PartialShape::dynamic();
 }
 
-int64_t GgufBuilderDecoder::get_input_view_element_offset(const std::string& name) const {
-    // The builder does not emit strided VIEW inputs (it materializes slices as explicit ops), so
-    // there is no view offset to convert; the stored offsets, when present, are already in
-    // elements. Return 0 when the input is not a view.
-    const auto& m = node().input_view_offsets;
-    auto it = m.find(name);
-    return it == m.end() ? 0 : it->second;
+int64_t GgufBuilderDecoder::get_input_view_element_offset(const std::string&) const {
+    return 0;
 }
 
 size_t GgufBuilderDecoder::get_input_size() const {
@@ -154,7 +84,7 @@ std::vector<std::string> GgufBuilderDecoder::get_input_names() const {
 // ---- Per-node output metadata ----
 
 PartialShape GgufBuilderDecoder::get_output_shape() const {
-    return node().output_shape;
+    return ov::PartialShape::dynamic();
 }
 
 std::vector<std::string> GgufBuilderDecoder::get_output_names() const {

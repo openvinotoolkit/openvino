@@ -42,7 +42,7 @@ GGML_OPENVINO_DEVICE=CPU GGML_OPENVINO_STATEFUL_EXECUTION=1 \
 
 A run counts as verification only when the output is coherent (e.g. completes
 "...is Paris") and consistent with the pure-ggml CPU backend on the same prompt. A model
-that loads but emits garbage (e.g. `hunyuan`) is **not** counted as supported.
+that loads but emits garbage is **not** counted as supported.
 
 ## Architectures accepted by the native `.gguf` builder
 
@@ -55,113 +55,122 @@ translators but have separate architecture lists.
 The builder's accept-list is the union of two sets, both defined in
 [`src/builder/arch_registry.cpp`](../src/builder/arch_registry.cpp):
 
-- **`verified_archs()`** — convert + compile + generation checked against a reference on a
-  real checkpoint.
+- **`verified_archs()`** — conversion, compilation and decoding checked against a reference
+  on a real checkpoint. Numerical architecture regressions are described below.
 - **`experimental_archs()`** — expected to work via the builder's GGUF-tensor-table
-  auto-detection, but not end-to-end verified. These convert and emit a one-time
-  `OPENVINO_WARN` so callers know they are best-effort.
+  auto-detection, but not end-to-end verified. These convert and emit a
+  warning through `OPENVINO_WARN` so callers know they are best-effort.
 
-Anything not in either set is rejected with an explicit `OPENVINO_ASSERT` at load time
-rather than converting into a silently wrong graph.
+Without additional architecture registrations, names outside these sets are rejected at load
+time. External definitions and custom-family catalog entries extend the same registry.
 
-### `verified_archs()` — 11 architectures
+### `verified_archs()` — 23 architectures
 
 | Architecture | Notes |
 |---|---|
 | `llama` | llama-2 / llama-3 |
 | `qwen2` | qwen2 / qwen2.5 |
-| `qwen3` | QK-norm |
+| `qwen3` | QK-norm before RoPE |
 | `phi3` | fused QKV |
-| `minicpm` | NORMAL rope + scalar embedding/residual/logit scales |
-| `hunyuan-dense` | NEOX rope + learned per-head Q/K norm after RoPE |
-| `olmoe` | OLMoE 1B-7B (MoE) |
-| `qwen35` | Qwen3.5/3.6 (and the Ternary-Bonsai backbone): hybrid Gated-DeltaNet + full attention, M-RoPE, interleaved query+gate projection. Greedy / batch 1 only |
-| `gpt-oss` | MoE + attention sinks + SWA + OAI gated activation |
-| `gemma3` | post-norms + final logit soft-cap |
-| `gemma4` | SWA, per-layer embeddings, shared KV |
+| `minicpm` | NORMAL RoPE; embedding/residual scales and inverse logit scale |
+| `olmoe` | full-width QK-norm and MoE |
+| `qwen35` | hybrid GatedDeltaNet + full attention, interleaved M-RoPE; greedy / batch 1 only |
+| `gpt-oss` | MoE, attention sinks, SWA and OAI gated activation |
+| `gemma3` | post-norms and final logit soft-cap |
+| `gemma4` | SWA, per-layer embeddings and shared KV |
+| `hunyuan-dense` | learned QK-norm after RoPE |
+| `qwen3moe` | NEOX RoPE, per-head QK-norm and normalized expert weights |
+| `gemma` | GeGLU and multi-query attention |
+| `gemma2` | post-norms, SWA, attention and final logit soft-caps |
+| `exaone4` | post-norm-only attention and FFN |
+| `ernie4_5-moe` | interleaved MoE, biased selection, normalized weights and shared experts |
+| `bailingmoe2` | sigmoid routing, biased/grouped expert selection and shared experts |
+| `maincoder` | NORMAL RoPE; learned QK-norm after RoPE |
+| `mistral3` | dense decoder, NORMAL RoPE |
+| `smollm3` | NORMAL RoPE, skipped on every fourth layer |
+| `mellum` | MoE with normalized expert weights |
+| `muse-glimmer` | RoPE on SWA layers, attention output gate, pre/post norms |
+| `deepseek2-ocr` | language backbone: dense lead layers and shared/routed experts |
 
-### `experimental_archs()` — 19 architectures
+### `experimental_archs()` — 7 architectures
 
-| Architecture | Notes |
+| Architecture | Remaining validation |
 |---|---|
-| `llama-embed` | Bidirectional LLaMA (embedding model, no causal mask) |
-| `exaone4` | EXAONE 4.0: NEOX rope, post-norms (attn + ffn) |
-| `plamo3` | PLaMo-3: NEOX rope, post-norms (attn + ffn) |
-| `smollm3` | SmolLM3: NORMAL rope + SWA |
-| `hunyuan-moe` | NEOX rope, MoE routing, QK-norm |
-| `glm4moe` | GLM 4.5 MoE: 1 dense lead layer, MoE + attn post-norm |
-| `exaone-moe` | EXAONE MoE: SWA + MoE, shared expert |
-| `minimax-m2` | Minimax M2: pure MoE |
-| `ernie4_5-moe` | Ernie 4.5 MoE: NORMAL rope, dense lead layers + MoE stride |
-| `bailingmoe2` | BailingMoe V2: MoE + shared expert + QK-norm |
-| `maincoder` | Maincoder-1B: NORMAL rope, QK-norm (auto-detected) |
-| `mistral3` | Ministral-3B: NORMAL rope, dense |
-| `muse-glimmer` | Muse Glimmer (Meta Onyx): NORMAL rope on SWA layers only (global layers are NoPE), sigmoid attention output gate, QK-norm, pre+post norms, final logit soft-cap |
-| `mellum` | JetBrains Mellum: pure MoE |
-| `deepseek2-ocr` | DeepSeekOCR: dense lead layers + MoE |
-| `jais2` | JAIS-2: dense (biases auto-detected) |
-| `qwen3moe` | Qwen3 MoE; same topology as `olmoe`. Demoted: degenerate output through the builder |
-| `gemma` | Gemma 2B / 7B. Demoted: throws through the builder (see below) |
-| `gemma2` | post-norms + attention soft-cap. Demoted: degenerate output through the builder |
+| `llama-embed` | needs embedding-specific numerical and pooling tests; completion is not a suitable test |
+| `plamo3` | native builder disagrees with the real checkpoint reference (0/13 matching choices); post-norm tensors without `.weight` are not recognized |
+| `hunyuan-moe` | small numerical fixture passes; no real checkpoint validated |
+| `glm4moe` | no real checkpoint validated |
+| `exaone-moe` | no real checkpoint validated |
+| `minimax-m2` | no real checkpoint validated |
+| `jais2` | no real checkpoint validated |
 
-RoPE flavor is **not** in these tables because it is a separate switch: archs listed in
-`arch_uses_neox_rope()` use NEOX (rotate-halves), everything else uses NORMAL (rotate
-consecutive pairs). Adding an arch to the accept-list without also classifying its RoPE is
-the most common way to get a model that loads and produces garbage.
+The decoder catalog stores each architecture name, RoPE mode, and maturity together.
+`arch_uses_neox_rope()` is a derived lookup; `qwen35` uses interleaved multimodal RoPE.
+Classify the mode against a reference before registering a new architecture.
 
-### Measured status through OpenVINO GenAI
+### Native architecture regression coverage
 
-Every architecture above was run through GenAI on CPU (`gguf_arch_check`, greedy, SDPA
-backend) on the checkpoint named below. "Generates" means the model answered *"The capital
-of France is"* correctly and coherently; **`llama.cpp` ref** is the same `.gguf` through
-`llama-cli` on the default ggml CPU backend, which distinguishes a frontend bug from a
-model/checkpoint that is simply weak on the prompt.
+`GGUFArchitectureAccuracy` checks 23 small, nonzero F32 models against complete logit
+vectors produced by the real llama.cpp CPU backend. The cases cover all 13 newly
+promoted architectures, Hunyuan MoE, six existing verified architectures, and three Devstral
+configurations. The Devstral cases also run through a loaded external library. Each runs
+multi-token prefill, one-token decode, and a two-token cache append. The normalized MSE
+limit is `1e-5`. F32 inference, F16 KV cache and disabled activation quantization isolate
+architecture behavior from optional CPU approximations.
 
-| Arch | Set | Model used | GenAI | llama.cpp ref |
-|---|---|---|---|---|
-| `llama` | verified | Llama-3.2-1B-Instruct Q4_K_M | generates | generates |
-| `qwen2` | verified | Qwen2.5-0.5B-Instruct Q4_K_M | generates | generates |
-| `qwen3` | verified | Qwen3-0.6B Q8_0 | generates (reasoning preamble) | same |
-| `phi3` | verified | Phi-3-mini-4k-instruct Q4 | generates | generates |
-| `minicpm` | verified | MiniCPM-2B-dpo Q4_K_M | generates | generates |
-| `hunyuan-dense` | verified | Hunyuan-0.5B-Instruct Q8_0 | matches reference | same |
-| `olmoe` | verified | OLMoE-1B-7B-Instruct Q4_K_M | generates | generates |
-| `qwen3moe` | experimental | Qwen3-0.9B-A0.6B Q4_K_M | **degenerate** | generates |
-| `gpt-oss` | verified | gpt-oss-20b MXFP4 | generates (harmony format) | same |
-| `gemma` | experimental | gemma-2b Q4_K_M | **throws** (SDPA shape mismatch) | degenerate too |
-| `gemma2` | experimental | gemma-2-2b-it Q4_K_M | **degenerate** | generates |
-| `gemma3` | verified | gemma-3-1b-it Q4_K_M | generates | generates |
-| `gemma4` | verified | gemma-4-E4B-it Q4_K_M | generates | generates |
-| `llama-embed` | experimental | llama-nemotron-embed-1b-v2 Q4_K_M | repeats (embedding model) | degenerate too |
-| `exaone4` | experimental | EXAONE-4.0-1.2B Q4_K_M | **degenerate** | generates |
-| `plamo3` | experimental | plamo-3-nict-2b-base Q4_K_M | **degenerate** | degenerate too |
-| `smollm3` | experimental | SmolLM3-3B Q4_K_M | generates (reasoning preamble) | same |
-| `maincoder` | experimental | Maincoder-1B Q4_K_M | generates | generates |
-| `mistral3` | experimental | Ministral-3-3B-Instruct-2512 Q4_K_M | generates | generates |
-| `muse-glimmer` | experimental | Muse-Glimmer-30B Q4_0 | generates | generates |
-| `qwen35` | verified | Qwen3.5-0.8B Q8_0 | generates | generates |
-| `qwen35` (Bonsai) | verified | Ternary-Bonsai-27B Q2_g64 | generates | generates |
-| `deepseek2-ocr` | experimental | deepseek-ocr-2 Q4_K_M | generates | generates |
-| `ernie4_5-moe` | experimental | ERNIE-4.5-21B-A3B Q4_K_M | **degenerate** (blank) | generates |
-| `bailingmoe2` | experimental | Ling-mini-2.0 Q2_K | generates | generates |
-| `mellum` | experimental | Mellum2-12B-A2.5B-Instruct Q4_K_M | generates | generates |
-| `hunyuan-moe` | experimental | — | not tested (no checkpoint) | — |
-| `glm4moe` | experimental | — | not tested (smallest GLM-4.5-Air ≈ 40 GiB) | — |
-| `exaone-moe` | experimental | — | not tested (smallest ≈ 9 GiB, 32B) | — |
-| `minimax-m2` | experimental | — | not tested (smallest ≈ 78 GiB) | — |
-| `jais2` | experimental | — | not tested (no checkpoint) | — |
+The fixtures include single-head KV for Gemma, nonuniform QK-norm weights, Gemma2/Muse
+sliding-window boundaries, SmolLM3's fourth NoPE layer, ERNIE shared experts without
+`expert_shared_count`, and Bailing's sigmoid/grouped routing. Configuration tests also
+cover Gemma2-27B's attention scale, EXAONE4's 64-layer SWA defaults and ERNIE's interleaved
+dense/MoE schedule. Existing
+zero-weight conversion fingerprints remain useful structural smoke tests.
 
-Two caveats on reading this table. `llama-embed` is an *embedding* model, so degenerate
-greedy completion is expected of it, not a defect. `gemma` (v1 base) and `plamo3` (base, not
-instruct) are degenerate on the reference too, so those rows are checkpoint/prompt artifacts
-rather than frontend bugs.
+Real checkpoints were additionally checked on the prompt `The capital of France is`
+through native conversion, `GGUFMakeStateful`, `AdaptToGenAI` and CPU compilation.
+The reference's next token is fed back for twelve decode steps, allowing comparison on
+identical histories after a token choice differs. The table counts matching greedy
+choices across prefill and those twelve steps. Q4_K checks use
+`OV_GGUF_Q4_K_ZP_F16=1`; inference uses the precision settings above.
 
-That leaves **4 architectures that generate correctly under llama.cpp but not through the
-builder** — `qwen3moe`, `gemma2`, `exaone4` and `ernie4_5-moe` (blank output) —
-i.e. real conversion defects, plus `gemma`, which throws instead of converting cleanly.
-`qwen3moe`, `gemma2` and `gemma` were previously misclassified as
-`verified_archs()`; they have been moved to `experimental_archs()` (and now emit the one-time
-`OPENVINO_WARN`) until the underlying defects are fixed and re-verified.
+| Promoted architecture | Real checkpoint | Matching choices |
+|---|---|---|
+| `hunyuan-dense` | Hunyuan-0.5B-Instruct Q8_0 | 13/13 |
+| `qwen3moe` | Qwen3-0.9B-A0.6B Q4_K_M | 13/13 |
+| `gemma` | gemma-2b Q4_K_M | 12/13 |
+| `gemma2` | gemma-2-2b-it Q4_K_M | 13/13 |
+| `exaone4` | EXAONE-4.0-1.2B Q4_K_M | 13/13 |
+| `ernie4_5-moe` | ERNIE-4.5-21B-A3B-PT Q4_K_M | 12/13 |
+| `bailingmoe2` | Ling-mini-2.0 Q2_K | 12/13 |
+| `maincoder` | Maincoder-1B Q4_K_M | 13/13 |
+| `mistral3` | Ministral-3-3B-Instruct-2512 Q4_K_M | 13/13 |
+| `smollm3` | SmolLM3-3B Q4_K_M | 12/13 |
+| `mellum` | Mellum2-12B-A2.5B-Instruct Q4_K_M | 12/13 |
+| `muse-glimmer` | Muse-Glimmer-30B Q4_0 | 13/13 |
+| `deepseek2-ocr` | DeepSeek-OCR-2 Q4_K_M | 13/13 |
+
+The real-model check requires the same first prediction and at least 90% matching
+choices. It records full-logit errors but does not apply the F32 fixture tolerance to
+lossy weight conversions. This is bounded decoder validation, not a quality benchmark
+or a guarantee for every checkpoint, context length, quantization or device. In particular,
+default integer-zero-point Q4_K and U8 KV-cache approximations can change output.
+
+See [reference generation and reproduction instructions](../tests/test_data/arch_accuracy/README.md).
+These references are shipped with the frontend tests; no model download or llama.cpp
+build is needed in the regular test run. Real-model hub tests separately exercise
+additional checkpoint/quantization combinations in precommit/nightly jobs.
+
+### Devstral text models
+
+Devstral Small 2507 (`llama`) and Devstral Small 2 (`mistral3`) now have real 24B Q4_K_M
+checkpoint checks and numerical fixtures through both the native builder and an independent
+external `ModelBuilder`. Both real models match all 13 reference choices on the tested prompt.
+The native path uses shared YaRN and attention-temperature fixes; the external example reads
+the metadata and builds those behaviors itself. Devstral 2 has small-fixture
+coverage; its 123B checkpoint is not verified. Vision and tool orchestration are separate.
+See the [external builder example](../examples/devstral_extension) and
+[reference reproduction instructions](../tests/test_data/arch_accuracy/README.md).
+
+### Runtime limitations
 
 **`qwen35` is greedy / batch-1 only.** The recurrent conv and delta states are a single
 static-shaped block with no batch axis, and `MakeStateful` does not reorder them by `beam_idx` the
@@ -179,13 +188,6 @@ does not load in llama.cpp either. It's packed **g128** (one f16 scale per 128 w
 instead. The frontend rejects the mispacked file safely (`data runs past EOF`) rather than
 dequantizing garbage.
 
-`muse-glimmer`'s row was decided by the *tokenizer*, not the graph: the converted graph reproduces
-llama.cpp token-for-token, but GenAI's GGUF tokenizer builder only honored
-`tokenizer.ggml.add_bos_token` on the SentencePiece path, silently dropping the leading BOS on the
-BPE (`gpt2`) path that this (BOS-sensitive) model uses. Same gap affected `llama3`/`mistral3` the
-same way; fixed in `gguf_tokenizer.cpp` by emitting BOS/EOS as a `CombineSegments` segment on every
-tokenizer path.
-
 ## Adding a new architecture
 
 Support for a new architecture is a combination of:
@@ -198,6 +200,5 @@ Support for a new architecture is a combination of:
 
 For the native builder specifically, see
 [`adding_an_architecture.md`](adding_an_architecture.md) — for a same-family arch the change
-is usually just adding the name to `experimental_archs()` plus the `arch_uses_neox_rope()`
-classification, and promotion to `verified_archs()` should require the GenAI-vs-llama.cpp
-comparison above.
+is usually adding a decoder-catalog entry with its name, RoPE mode and experimental maturity.
+Promotion to verified maturity should require the GenAI-vs-llama.cpp comparison above.
