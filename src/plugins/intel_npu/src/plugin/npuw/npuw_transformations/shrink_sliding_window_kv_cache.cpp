@@ -153,26 +153,34 @@ std::shared_ptr<ov::op::v0::Concat> scan_kv_path(const std::shared_ptr<SDPA>& sd
 
             const size_t kv_axis = vals.size() - 2;
             const int64_t old_val = vals[kv_axis];
-            OPENVINO_ASSERT(old_val == kvcache_size || old_val == -1,
-                            "[SWA] ",
-                            cur->get_type_name(),
-                            " target shape kv_axis expected ",
-                            kvcache_size,
-                            " or -1, got ",
-                            old_val,
-                            ".");
-
-            if (old_val == -1) {
+            // Reshape/Broadcast target-shape subgraphs may be shared (CSE'd) across multiple SWA
+            // layers, so a node reached via one layer may already carry new_kv_total from another.
+            if (old_val == new_kv_total) {
                 LOG_DEBUG("[SWA]   " << cur->get_type_name() << " '" << cur->get_friendly_name()
-                                     << "' kv_axis=" << kv_axis << " uses inferred extent (-1); keep it unchanged.");
+                                     << "' already patched (shared across SWA layers); skipping.");
             } else {
-                vals[kv_axis] = new_kv_total;
-                auto priv =
-                    std::make_shared<ov::op::v0::Constant>(src.get_element_type(), ov::Shape{vals.size()}, vals);
-                priv->set_friendly_name(cur->get_friendly_name() + "/swa_kv_patched");
-                cur->input(kShapeInputIdx).replace_source_output(priv);
-                LOG_DEBUG("[SWA]   Patched " << cur->get_type_name() << " '" << cur->get_friendly_name() << "' kv_axis="
-                                             << kv_axis << ": " << kvcache_size << " -> " << new_kv_total);
+                OPENVINO_ASSERT(old_val == kvcache_size || old_val == -1,
+                                "[SWA] ",
+                                cur->get_type_name(),
+                                " target shape kv_axis expected ",
+                                kvcache_size,
+                                " or -1, got ",
+                                old_val,
+                                ".");
+
+                if (old_val == -1) {
+                    LOG_DEBUG("[SWA]   " << cur->get_type_name() << " '" << cur->get_friendly_name() << "' kv_axis="
+                                         << kv_axis << " uses inferred extent (-1); keep it unchanged.");
+                } else {
+                    vals[kv_axis] = new_kv_total;
+                    auto priv =
+                        std::make_shared<ov::op::v0::Constant>(src.get_element_type(), ov::Shape{vals.size()}, vals);
+                    priv->set_friendly_name(cur->get_friendly_name() + "/swa_kv_patched");
+                    cur->input(kShapeInputIdx).replace_source_output(priv);
+                    LOG_DEBUG("[SWA]   Patched " << cur->get_type_name() << " '" << cur->get_friendly_name()
+                                                 << "' kv_axis=" << kv_axis << ": " << kvcache_size << " -> "
+                                                 << new_kv_total);
+                }
             }
         }
         cur = cur->input_value(0).get_node_shared_ptr();
@@ -374,7 +382,27 @@ bool ShrinkSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& 
                     ") exceeds available_past (",
                     available_past,
                     ").");
-    const int64_t new_past = available_past == 0 ? 0 : static_cast<int64_t>(window_size);
+    // Pad the past (window) portion so past+present is 16-aligned -- NPU hardware prefers
+    // KV lengths that are multiples of 16. Present (input_size) is fixed by the chunk/token
+    // count, so all the padding goes into the past side, e.g. window=512 + present=1 (decode)
+    // -> 513 is not 16-aligned, so past is grown to 527 (513 -> 528, 528 - 1 = 527).
+    constexpr int64_t kKvAlignment = 16;
+    int64_t new_past = available_past == 0 ? 0 : static_cast<int64_t>(m_window_size);
+    if (available_past > 0) {
+        const int64_t unaligned_total = static_cast<int64_t>(m_input_size) + new_past;
+        const int64_t aligned_total = ((unaligned_total + kKvAlignment - 1) / kKvAlignment) * kKvAlignment;
+        new_past = aligned_total - static_cast<int64_t>(m_input_size);
+        OPENVINO_ASSERT(new_past <= static_cast<int64_t>(available_past),
+                        "[SWA] 16-aligned past (",
+                        new_past,
+                        ") exceeds available_past (",
+                        available_past,
+                        ") for window_size=",
+                        m_window_size,
+                        ", input_size=",
+                        m_input_size,
+                        ".");
+    }
     const int64_t new_kv_total = static_cast<int64_t>(m_input_size) + new_past;
 
     LOG_INFO("[SWA] ShrinkSlidingWindowKVCache: model='"
