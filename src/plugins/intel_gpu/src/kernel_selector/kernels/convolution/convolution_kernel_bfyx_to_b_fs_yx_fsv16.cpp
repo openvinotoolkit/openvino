@@ -56,6 +56,7 @@ ParamsKey ConvolutionKernel_bfyx_to_bfyx_f16::GetSupportedKey() const {
     k.EnableNonBiasTerm();
     k.EnableBatching();
     k.EnableDifferentTypes();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
@@ -70,30 +71,30 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_bfyx_to_bfyx_f16::SetDefau
                                                                                    int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
-    const auto& out = params.outputs[0];
-
     auto autoTune = GetAutoTuneOptions(params, autoTuneIndex);
     dispatchData.cldnnStyle.blockWidth = autoTune.blockWidth;
 
-    auto x = out.X().v;
-    auto y = out.Y().v;
-    auto f = out.Feature().v;
-    auto b = out.Batch().v;
+    if (!params.has_dynamic_tensors()) {
+        const auto& out = params.outputs[0];
+        auto x = out.X().v;
+        auto y = out.Y().v;
+        auto f = out.Feature().v;
+        auto b = out.Batch().v;
 
-    dispatchData.gws[0] = CeilDiv(x, autoTune.blockWidth) * y;
-    dispatchData.gws[1] = Align(f, sub_group_size);
-    dispatchData.gws[2] = b;
+        dispatchData.gws[0] = CeilDiv(x, autoTune.blockWidth) * y;
+        dispatchData.gws[1] = Align(f, sub_group_size);
+        dispatchData.gws[2] = b;
 
-    dispatchData.lws[0] = 1;
-    dispatchData.lws[1] = sub_group_size;
-    dispatchData.lws[2] = 1;
+        dispatchData.lws[0] = 1;
+        dispatchData.lws[1] = sub_group_size;
+        dispatchData.lws[2] = 1;
+    }
 
     return dispatchData;
 }
 
 KernelsPriority ConvolutionKernel_bfyx_to_bfyx_f16::GetKernelsPriority(const Params& params) const {
     const auto& p = static_cast<const convolution_params&>(params);
-
     return p.inputs[0].Batch().v == 1 ? FORCE_PRIORITY_2 : FORCE_PRIORITY_7;
 }
 
@@ -106,6 +107,14 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p) const {
 
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
+
+    // Only the batch axis may be dynamic. X/Y/feature values are baked into JIT
+    // constants (X_BLOCKS, INPUT_LINE_SIZE, INPUT_BLOCK_SIZE and the line_cache
+    // private array) and are not re-JITed at runtime, so unknown spatial or
+    // feature dimensions would compile an invalid kernel.
+    if (input.X().is_dynamic || input.Y().is_dynamic || input.Feature().is_dynamic) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Up to 4 input features allowed
     if (input.Feature().v > 4) {

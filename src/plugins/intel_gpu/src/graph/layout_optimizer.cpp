@@ -700,7 +700,8 @@ bool layout_optimizer::convolution_b_fs_yx_fsv16_opt(const layout& input_layout,
     int32_t feature_block_size = 16;
     bool correct_data_type = (input_layout.data_type == data_types::f16 || input_layout.data_type == data_types::f32) &&
                              (weights_layout.data_type == input_layout.data_type);
-    bool correct_batch = (input_layout.batch() == 1) || (input_layout.batch() > 1 && input_layout.data_type == data_types::f32);
+    bool correct_batch = (input_layout.batch() == 1) ||
+                         (input_layout.batch() > 1 && input_layout.data_type == data_types::f32);
     bool correct_spatial_dims = input_layout.spatial(2) == 1 && input_layout.spatial(3) == 1;
     int32_t required_feature_num = weak_restrictions ? feature_block_size / 2 : feature_block_size;
     bool correct_in_feature = (input_layout.feature() >= required_feature_num &&
