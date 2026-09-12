@@ -59,6 +59,8 @@ public:
 
     void cpu_reset() override;
 
+    bool get_inline_mode() override;
+
 private:
     struct Impl;
     std::unique_ptr<Impl> _impl;

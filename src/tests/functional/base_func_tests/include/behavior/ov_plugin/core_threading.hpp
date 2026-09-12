@@ -3,6 +3,8 @@
 //
 #pragma once
 
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
@@ -33,6 +35,46 @@ public:
                 }
             });
         }
+
+        for (auto& thread : threads) {
+            if (thread.joinable())
+                thread.join();
+        }
+    }
+
+    // Runs func(threadIndex) once per thread, releasing all threads simultaneously via a
+    // barrier so the callbacks contend on shared runtime state at the same instant.
+    static void runParallelIndexed(std::function<void(size_t)> func, const unsigned int threadsNum = 8) {
+        std::mutex startMutex;
+        std::condition_variable readyCv;
+        std::condition_variable startCv;
+        unsigned int readyThreads = 0;
+        bool start = false;
+
+        std::vector<std::thread> threads;
+        threads.reserve(threadsNum);
+        for (unsigned int i = 0; i < threadsNum; ++i) {
+            threads.emplace_back([&, i]() {
+                {
+                    std::unique_lock<std::mutex> lock(startMutex);
+                    ++readyThreads;
+                    readyCv.notify_one();
+                    startCv.wait(lock, [&] {
+                        return start;
+                    });
+                }
+                OV_ASSERT_NO_THROW(func(i));
+            });
+        }
+
+        {
+            std::unique_lock<std::mutex> lock(startMutex);
+            readyCv.wait(lock, [&] {
+                return readyThreads == threadsNum;
+            });
+            start = true;
+        }
+        startCv.notify_all();
 
         for (auto& thread : threads) {
             if (thread.joinable())
