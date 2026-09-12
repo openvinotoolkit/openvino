@@ -215,6 +215,12 @@ bool RMSKernelBfyxOpt::Validate(const Params& p) const {
     }
 
     const rms_params& params = static_cast<const rms_params&>(p);
+    // bfyx_opt only reduces along the contiguous innermost dimension (X for rank >= 4).
+    // Channel axis (FEATURE) in 4D/5D is non-contiguous across spatial dimensions and must use rms_gpu_ref.
+    if (params.ov_input_rank >= 4 && GetNormalizationAxis(params) != Tensor::DataChannelName::X) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
     if (params.elementwise_affine) {
         const auto& gamma = params.inputs[1];
 

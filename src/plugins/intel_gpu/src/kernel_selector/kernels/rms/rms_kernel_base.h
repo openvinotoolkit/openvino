@@ -15,6 +15,7 @@ struct rms_params : public base_params {
     float epsilon = 0.0f;
     int32_t ov_input_rank = -1;
     bool elementwise_affine = true;
+    int64_t axis = -1;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

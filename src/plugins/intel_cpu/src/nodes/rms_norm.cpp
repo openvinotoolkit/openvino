@@ -21,6 +21,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "ov_ops/rms.hpp"
 #include "shape_inference/custom/rms_norm.hpp"
@@ -214,6 +215,17 @@ bool RMSNorm::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
             const auto& data_rank = op->get_input_partial_shape(0).rank().get_length();
             if (data_rank <= 1) {
                 errorMessage = "RMSNorm data rank must be greater than 1.";
+                return false;
+            }
+            auto norm_axis = rms->get_axis();
+            try {
+                norm_axis = ov::util::normalize_axis(norm_axis, data_rank);
+            } catch (...) {
+                errorMessage = "RMSNorm axis is out of bounds.";
+                return false;
+            }
+            if (norm_axis != data_rank - 1) {
+                errorMessage = "RMSNorm only supports normalization along the last dimension.";
                 return false;
             }
             if (data_pshape[data_rank - 1].is_dynamic()) {
