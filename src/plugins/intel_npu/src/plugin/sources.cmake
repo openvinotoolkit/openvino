@@ -112,6 +112,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_transformation.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_transformation.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_transformation_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_topology.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_topology.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_unroll_patterns.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_transformations/moe_unroll_patterns.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/add_position_ids_param.cpp

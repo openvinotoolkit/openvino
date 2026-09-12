@@ -14,6 +14,7 @@
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
+#include "moe_transformations/moe_topology.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
@@ -533,10 +534,13 @@ bool has_per_layer_inputs(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-// Detect if the model is a Mixture-of-Experts (MoE) architecture
-// by checking if any node name matches MoE patterns: layers.*.mlp.router or layers.*.mlp.experts
+// Prefer structural detection. Keep names as a legacy hint for older exports
+// that still need normalization before their batched experts can be matched.
 bool is_moe_model(const std::shared_ptr<ov::Model>& model) {
+    const ov::npuw::moe::BatchedMoEPattern pattern;
     for (const auto& op : model->get_ops()) {
+        if (pattern.match(op))
+            return true;
         const std::string& node_name = op->get_friendly_name();
         // Check for MoE-specific patterns:
         // - layers.*.mlp.router (router network for expert selection)
@@ -566,6 +570,16 @@ void apply_moe_config(ov::AnyMap& stage_config,
             {"NPUW_UNFOLD_IREQS", "NO"},
         };
         merge_config_with(stage_config, expert_opts);
+        // Sparse execution is not optional merely because a model has fewer
+        // repeated layers than the generic folding profitability threshold.
+        // Preserve the expert tag without changing folding for unrelated ops.
+        const auto keep_key = "NPUW_ONLINE_KEEP_BLOCKS_TAGGED";
+        auto keep = stage_config.find(keep_key);
+        if (keep == stage_config.end() || keep->second.as<std::string>().empty()) {
+            stage_config[keep_key] = "expert";
+        } else {
+            keep->second = keep->second.as<std::string>() + ",expert";
+        }
         auto isol_it = stage_config.find("NPUW_ONLINE_ISOLATE");
         if (isol_it != stage_config.end() && !isol_it->second.as<std::string>().empty()) {
             isol_it->second = isol_it->second.as<std::string>() + ",MOE";
@@ -806,14 +820,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     // Auto-detect MoE model by scanning for router/expert nodes
     const bool is_moe = is_moe_model(model);
-    if (is_moe) {
-        // Enable DEVICE_ROUTED mode by default for MoE models on newer compiler versions, as it's more efficient than
-        // HOST_ROUTED
-        if (npuw_llm_props.find("NPUW_LLM_GENERATE_MOE_HINT") == npuw_llm_props.end() && npudesc->arch == "5010" &&
-            npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29)) {
-            m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
-        }
-    }
+    // Hardware capability is necessary but not sufficient. Defer automatic
+    // selection until the static generate variants can be checked structurally.
+    const bool auto_device_moe = is_moe && npuw_llm_props.count("NPUW_LLM_GENERATE_MOE_HINT") == 0 && npudesc &&
+                                 npudesc->arch == "5010" && npudesc->compiler_ver >= ONEAPI_MAKE_VERSION(7, 29) &&
+                                 m_cfg.get<::intel_npu::NPUW_LLM_MAX_GENERATION_TOKEN_LEN>() == 1;
 
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
@@ -1316,21 +1327,38 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
 
     if (is_moe) {
-        // Apply MoE configuration for prefill stage
-        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
-        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
-
-        // Apply MoE configuration for generate stage
-        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
-        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
-
         // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
         // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
         // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
         ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
+        ov::npuw::patterns::util::FoldStaticMoEMetadata().run_on_model(prefill_model);
         for (auto&& model_variant : generate_model_variants) {
             ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
+            ov::npuw::patterns::util::FoldStaticMoEMetadata().run_on_model(model_variant);
         }
+
+        if (auto_device_moe && !generate_model_variants.empty()) {
+            const auto eligible = [](const std::shared_ptr<ov::Model>& variant) {
+                bool found = false;
+                const ov::npuw::moe::BatchedMoEPattern pattern;
+                for (const auto& node : variant->get_ordered_ops()) {
+                    if (const auto topology = pattern.match(node)) {
+                        if (!ov::npuw::moe::can_device_route(*topology))
+                            return false;
+                        found = true;
+                    }
+                }
+                return found;
+            };
+            if (std::all_of(generate_model_variants.begin(), generate_model_variants.end(), eligible)) {
+                m_cfg.update({{"NPUW_LLM_GENERATE_MOE_HINT", "DEVICE_ROUTED"}});
+            }
+        }
+
+        const auto prefill_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_MOE_HINT>();
+        apply_moe_config(prefill_config, prefill_moe_hint, "PREFILL");
+        const auto generate_moe_hint = m_cfg.get<::intel_npu::NPUW_LLM_GENERATE_MOE_HINT>();
+        apply_moe_config(generate_config, generate_moe_hint, "GENERATE");
 
         if (generate_moe_hint == ::intel_npu::npuw::llm::MoEHint::DEVICE_ROUTED) {
             // Apply model transformations only to GENERATE stage (PREFILL doesn't support DEVICE_ROUTED

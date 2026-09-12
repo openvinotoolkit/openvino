@@ -27,9 +27,8 @@ MoEProfile::MoEProfile() {
 ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts) {
     // Slice weight tensor from batched (num_experts, ...) to single expert (1, ...)
     auto shape = batched_weight.get_shape();
-    if (shape.empty() || shape[0] != num_experts) {
-        NPUW_ASSERT(false && "Expected batched weight with first dimension equal to num_experts");
-    }
+    OPENVINO_ASSERT(num_experts > 0 && !shape.empty() && shape[0] == num_experts && expert_id < num_experts,
+                    "MoE: invalid expert weight shape or expert index");
 
     // Calculate new shape: replace first dimension with 1
     ov::Shape view_shape = shape;
@@ -40,6 +39,8 @@ ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_i
     // by wrapping the data pointer at the correct byte offset
     auto elem_type = batched_weight.get_element_type();
     if (elem_type == ov::element::nf4 || elem_type == ov::element::u4 || elem_type == ov::element::i4) {
+        OPENVINO_ASSERT(ov::shape_size(view_shape) % 2 == 0,
+                "MoE: sub-byte expert weights must have byte-aligned expert boundaries");
         // Calculate byte-level offset for this expert
         size_t total_byte_size = batched_weight.get_byte_size();
         size_t expert_byte_size = total_byte_size / num_experts;

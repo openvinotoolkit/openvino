@@ -113,11 +113,22 @@ TEST(SubgraphPipelineBehaviorTest, MoERegistrationBuildsDeferredPartitionPipelin
     ASSERT_TRUE(static_cast<bool>(function._pipeline.partition_stage));
     ASSERT_TRUE(static_cast<bool>(function._pipeline.compile_stage));
     EXPECT_EQ(function._pipeline.registration.group, ov::npuw::patterns::moe::GPTOSSExpert::group_name());
-    EXPECT_EQ(function._pipeline.registration.name, ov::npuw::patterns::moe::GPTOSSExpert::pattern_name());
+    EXPECT_EQ(function._pipeline.registration.name, ov::npuw::patterns::moe::BatchedExpert::pattern_name());
     EXPECT_NE(std::find(function._pipeline.registration.patterns.begin(),
                         function._pipeline.registration.patterns.end(),
                         ov::npuw::patterns::moe::GPTOSSExpert::pattern_name()),
               function._pipeline.registration.patterns.end());
+}
+
+TEST(SubgraphPipelineBehaviorTest, MissingExpertTopKMetadataDoesNotSilentlyRunDense) {
+    ov::npuw::Function function;
+    function.settag(ov::npuw::patterns::moe::BatchedExpert::isolation_tag());
+    ov::npuw::v1::subgraphs::PatternRegistry registry;
+    auto registrations = ov::npuw::moe::register_patterns(registry, 16u);
+    registry.apply(function);
+
+    ASSERT_TRUE(static_cast<bool>(function._pipeline.partition_stage));
+    EXPECT_THROW(function._pipeline.partition_stage(function, function._pipeline.context), ov::Exception);
 }
 
 // Verify that attn::register_patterns() chains partition_stage and compile_stage on any

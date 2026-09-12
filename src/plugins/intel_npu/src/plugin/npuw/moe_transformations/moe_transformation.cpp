@@ -630,13 +630,9 @@ void MoEModelTransformer::fix_parameters_with_num_experts(const std::shared_ptr<
             bool needs_fix = false;
             size_t fix_dim = 0;
 
-            for (size_t i = 0; i < shape.size(); ++i) {
-                if (shape[i] == num_experts) {
-                    needs_fix = true;
-                    fix_dim = i;
-                    break;
-                }
-            }
+            // The expert axis is explicitly the leading dimension. A hidden
+            // or quantization-group dimension may coincidentally equal E.
+            needs_fix = !shape.empty() && shape[0] == num_experts;
 
             if (needs_fix) {
                 LOG_DEBUG("  Found Parameter '" << param->get_friendly_name() << "' with shape[" << fix_dim
@@ -672,7 +668,7 @@ void MoEModelTransformer::fix_token_count_for_expert_iterative(
     size_t chunk_size,
     const std::shared_ptr<ov::op::v0::Tile>& expert_input_tile_op,
     const std::shared_ptr<ov::op::v1::Multiply>& router_scores_multiply_op) const {
-    if (num_target_experts != 1) {
+    if (!m_structure_info.is_expert_iterative_mode()) {
         return;  // Only apply to EXPERT_ITERATIVE mode (single expert)
     }
 
@@ -684,41 +680,15 @@ void MoEModelTransformer::fix_token_count_for_expert_iterative(
         return;
     }
 
-    // Trace back from Tile input to find Parameters
+    // The structure analysis already identified the two token-bearing inputs.
+    // Traversing all inputs of the final Multiply mistakes expert weights for
+    // token inputs when its expert arm is Convert(Reshape(...)) instead of a
+    // direct Reshape. Cloning preserves the original parameter order here.
     std::set<std::shared_ptr<ov::op::v0::Parameter>> params_to_fix;
-    std::function<void(const ov::Output<ov::Node>&)> trace_to_params;
-    trace_to_params = [&](const ov::Output<ov::Node>& output) {
-        auto node = output.get_node_shared_ptr();
-
-        if (auto param = std::dynamic_pointer_cast<ov::op::v0::Parameter>(node)) {
-            params_to_fix.insert(param);
-            return;
-        }
-
-        // Skip Convert nodes during tracing
-        if (auto convert = std::dynamic_pointer_cast<ov::op::v0::Convert>(node)) {
-            LOG_DEBUG("  Skipping Convert node during trace: " << convert->get_friendly_name());
-        }
-
-        // Recursively trace inputs
-        for (size_t i = 0; i < node->get_input_size(); ++i) {
-            trace_to_params(node->input_value(i));
-        }
-    };
-
-    trace_to_params(expert_input_tile_op->input_value(0));
-
-    // Also find router parameter from the Multiply node
-    LOG_DEBUG("Tracing router parameter from Multiply node");
-    for (size_t i = 0; i < 2; ++i) {
-        auto multiply_input = router_scores_multiply_op->input_value(i).get_node_shared_ptr();
-
-        // Skip Reshape input (that's the expert output)
-        if (std::dynamic_pointer_cast<ov::op::v1::Reshape>(multiply_input)) {
-            continue;
-        }
-
-        trace_to_params(router_scores_multiply_op->input_value(i));
+    for (const auto index : {m_structure_info.expert_input_param_idx, m_structure_info.router_scores_idx}) {
+        OPENVINO_ASSERT(index.has_value() && index.value() < model->get_parameters().size(),
+                        "MoE: token-bearing parameter was not identified");
+        params_to_fix.insert(model->get_parameters().at(index.value()));
     }
 
     // Fix Parameter shapes
@@ -728,14 +698,18 @@ void MoEModelTransformer::fix_token_count_for_expert_iterative(
         if (param_shape.rank().is_static() && param_shape.rank().get_length() >= 2) {
             auto shape = param_shape.to_shape();
 
-            // Find dimension with original token count
-            for (size_t i = 0; i < shape.size(); ++i) {
-                if (shape[i] == original_token_count) {
-                    LOG_DEBUG("  Updating Parameter '" << param->get_friendly_name() << "' shape[" << i << "] from "
-                                                       << original_token_count << " to " << chunk_size);
-                    shape[i] = chunk_size;
-                }
-            }
+            // Activation input: [tokens, hidden]. Router input: [E,tokens,1]
+            // or [E,1,tokens,1]/[E,tokens,1,1]. Never change the hidden/expert
+            // dimension just because its numerical size equals the token count.
+            size_t token_axis = 0;
+            if (shape.size() == 3)
+                token_axis = 1;
+            else if (shape.size() == 4)
+                token_axis = shape[1] == 1 ? 2 : 1;
+            OPENVINO_ASSERT(shape[token_axis] == original_token_count,
+                            "MoE: unexpected token axis for ",
+                            param->get_friendly_name());
+            shape[token_axis] = chunk_size;
 
             param->set_partial_shape(ov::PartialShape(shape));
             param->validate_and_infer_types();
@@ -746,9 +720,15 @@ void MoEModelTransformer::fix_token_count_for_expert_iterative(
     // Scan dims 1..n-2 (skip dim 0 = num_experts and last dim = hidden_dim) and replace any
     // dimension whose value equals original_token_count with chunk_size.
     LOG_DEBUG("Fixing Reshape nodes with token_count in shape...");
+    std::set<const ov::Node*> token_dependent{expert_input_tile_op.get()};
     for (const auto& node : model->get_ordered_ops()) {
+        const auto inputs = node->input_values();
+        if (std::any_of(inputs.begin(), inputs.end(), [&](const auto& input) {
+                return token_dependent.count(input.get_node()) != 0;
+            }))
+            token_dependent.insert(node.get());
         auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(node);
-        if (!reshape_node) {
+        if (!reshape_node || !token_dependent.count(node.get())) {
             continue;
         }
         // Scan middle dims (1..n-2), skip dim 0 (num_experts) and last dim (hidden_dim).
@@ -940,6 +920,26 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
     //       For EXPERT_BATCH mode (K experts), unrolling creates the same mapping structure
     auto param_mapping = build_parameter_mapping_from_rtinfo(model, transformed_models.begin()->second);
 
+    // K=1 decode still uses EXPERT_BATCH dispatch, but needs no graph unroll.
+    // Record the one-to-one closure mapping explicitly rather than treating it
+    // as prefill or requiring metadata from a pass that deliberately did not run.
+    // Shared zero points/scales also need a binding; the batch executor only
+    // loads closures present in this mapping, even when they are not sliced.
+    if (structure_info->is_expert_batch_mode() && k_value == 1) {
+        const auto& original_params = model->get_parameters();
+        const auto& compiled_params = first_transformed_model->get_parameters();
+        for (size_t i = 0; i < original_params.size(); ++i) {
+            if (structure_info->expert_input_param_idx == i)
+                continue;
+            for (size_t j = 0; j < compiled_params.size(); ++j) {
+                if (compiled_params[j]->get_friendly_name() == original_params[i]->get_friendly_name()) {
+                    param_mapping[i] = {j};
+                    break;
+                }
+            }
+        }
+    }
+
     // Step 6: EXPERT_BATCH guard — every param with shape[0]==num_experts must appear in
     // param_mapping with exactly K entries; a missing entry means UnrollMoEMatMul did not
     // recognise the weight chain and inference would produce silently wrong results.
@@ -947,7 +947,7 @@ std::optional<MoEExperts> MoEExperts::from(const std::shared_ptr<ov::Model>& mod
         const auto& orig_params = model->get_parameters();
         for (size_t pi = 0; pi < orig_params.size(); ++pi) {
             const auto& pshape = orig_params[pi]->get_partial_shape();
-            if (!pshape.rank().is_static() || !pshape[0].is_static())
+            if (!pshape.rank().is_static() || pshape.rank().get_length() == 0 || !pshape[0].is_static())
                 continue;
             if (static_cast<size_t>(pshape[0].get_length()) != structure_info->num_experts)
                 continue;
