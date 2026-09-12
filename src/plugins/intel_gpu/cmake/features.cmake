@@ -12,23 +12,32 @@ endif()
 ov_option_enum(GPU_RT_TYPE
                "GPU runtime compiled into the plugin (L0 is accepted as a ZE alias)"
                ${OV_GPU_DEFAULT_RT}
-               ALLOWED_VALUES ${OV_GPU_SUPPORTED_RUNTIMES} L0)
+               ALLOWED_VALUES ${OV_GPU_SUPPORTED_RUNTIMES} L0 COMBINED)
 
 if(GPU_RT_TYPE STREQUAL "L0")
     set(GPU_RT_TYPE ZE CACHE STRING "GPU runtime compiled into the plugin" FORCE)
 endif()
 
-if((APPLE OR ANDROID) AND GPU_RT_TYPE STREQUAL "OCL")
+if((APPLE OR ANDROID) AND GPU_RT_TYPE MATCHES "^(OCL|COMBINED)$")
     message(FATAL_ERROR "GPU OCL runtime is not supported on Apple or Android platforms")
 endif()
 
 foreach(_ov_gpu_runtime IN LISTS OV_GPU_SUPPORTED_RUNTIMES)
     set(OV_GPU_RUNTIME_${_ov_gpu_runtime}_ENABLED OFF)
 endforeach()
-set(OV_GPU_RUNTIME_${GPU_RT_TYPE}_ENABLED ON)
+if(GPU_RT_TYPE STREQUAL "COMBINED")
+    if(NOT BUILD_SHARED_LIBS)
+        message(FATAL_ERROR "GPU_RT_TYPE=COMBINED requires BUILD_SHARED_LIBS=ON. "
+                            "Static/monolithic builds support a single GPU runtime only.")
+    endif()
+    set(OV_GPU_RUNTIME_OCL_ENABLED ON)
+    set(OV_GPU_RUNTIME_ZE_ENABLED ON)
+else()
+    set(OV_GPU_RUNTIME_${GPU_RT_TYPE}_ENABLED ON)
+endif()
 
 set(GPU_ONEDNN_RUNTIME "")
-if(GPU_RT_TYPE MATCHES "^(OCL|ZE|SYCL)$")
+if(GPU_RT_TYPE MATCHES "^(OCL|ZE|SYCL|COMBINED)$")
     set(GPU_ONEDNN_RUNTIME "${GPU_RT_TYPE}")
 endif()
 

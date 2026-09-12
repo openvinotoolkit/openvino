@@ -111,8 +111,9 @@ protected:
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
-        if (_kernel_data.internalBuffers.empty())
+        if (_kernel_data.internalBuffers.empty()) {
             return {};
+        }
 
         std::vector<BufferDescriptor> internal_buffers;
         auto dtype = from_data_type(_kernel_data.internalBufferDataType);
@@ -159,8 +160,9 @@ protected:
         stream& stream = instance.get_network().get_stream();
 
         for (size_t k = 0; k < _kernels.size(); ++k) {
-            if (_kernel_data.kernels[k].skip_execution)
+            if (_kernel_data.kernels[k].skip_execution) {
                 continue;
+            }
 
             stream.set_arguments(*_kernels[k], _kernel_data.kernels[k].params, args);
         }

@@ -63,7 +63,6 @@ kernel_selector::EngineInfo make_kernel_selector_engine_info(const device_info& 
     result.supports_intel_required_subgroup_size = info.supports_intel_required_subgroup_size;
     result.supports_image = info.supports_image;
     result.supports_work_group_collective_functions = info.supports_work_group_collective_functions;
-    result.supports_non_uniform_work_group = info.supports_non_uniform_work_group;
     result.supports_imad = info.supports_imad;
     result.supports_immad = info.supports_immad;
     result.enable_sub_groups_emulation = true;

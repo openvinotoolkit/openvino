@@ -55,7 +55,7 @@ OutputVector translate_<name>(const NodeContext& context) {
 
     std::shared_ptr<ov::Node> res = ...;
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 ```
 

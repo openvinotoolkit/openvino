@@ -4,14 +4,9 @@
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/fetch_data.cl"
-#include "include/batch_headers/bf16_utils.cl"
+#include "selective_ssm_type_utils.cl"
 
 #define SSM_MAX_HEAD_DIM_BLOCK 4
-#if INPUT0_IS_FP
-#    define SSM_TO_FLOAT(v) convert_float(v)
-#else
-#    define SSM_TO_FLOAT(v) _convert_as_bfloat16_float(v)
-#endif
 #define SSM_STATE_ITERATION_TYPE uint
 #define SSM_DT_INDEX(token) GET_DATA_INDEX(INPUT1, token, h, 0, 0)
 #define SSM_B_INDEX(token, state_element) GET_DATA_INDEX(INPUT2, token, g, state_element, 0)
@@ -121,7 +116,7 @@ KERNEL(paged_selective_ssm_opt)(
     ulong write_slot = 1;
     const size_t heads_per_group = num_heads / num_groups;
     const size_t g = h / heads_per_group;
-    const float A_value = SSM_TO_FLOAT(A[GET_DATA_INDEX(INPUT0, h, 0, 0, 0)]);
+    const float A_value = ssm_to_float(A[GET_DATA_INDEX(INPUT0, h, 0, 0, 0)]);
     // Keep recurrent state in FP32 across tokens; cast only when writing output.
     __local float* local_state = work;
     __local float* reduction = work + (size_t)block * state_size;
@@ -136,7 +131,7 @@ KERNEL(paged_selective_ssm_opt)(
             if (state_element >= state_size)
                 break;
             const size_t state_idx = GET_DATA_INDEX(INPUT5, (size_t)first_block, h, p, state_element);
-            local_state[(size_t)p_offset * state_size + state_element] = SSM_TO_FLOAT(recurrent_state_table[state_idx]);
+            local_state[(size_t)p_offset * state_size + state_element] = ssm_to_float(recurrent_state_table[state_idx]);
         }
     }
 
@@ -146,36 +141,33 @@ KERNEL(paged_selective_ssm_opt)(
 #include "selective_ssm_recurrence.cl"
 #undef SSM_TOKEN_INDEX
 
-        if (cache_enabled) {
-            const bool at_boundary = --tokens_until_boundary == 0;
-            const bool at_sequence_end = token + 1 == token_end;
-            if (at_boundary || at_sequence_end) {
-                const ulong block_position = (ulong)block_begin + write_slot++;
-                if (block_position < (ulong)block_end && block_position < (ulong)block_indices_count) {
-                    const long block_id = (long)block_indices[GET_DATA_INDEX(INPUT7, (size_t)block_position, 0, 0, 0)];
-                    if (block_id >= 0 && (size_t)block_id < num_state_blocks) {
-                        for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
-                            const size_t p = p_base + (size_t)p_offset;
-                            for (uint step = 0; step < state_iterations; ++step) {
-                                const uint state_element = step * lws + lane;
-                                if (state_element >= state_size)
-                                    break;
-                                const size_t local_idx = (size_t)p_offset * state_size + state_element;
-                                const size_t state_idx = GET_DATA_INDEX(INPUT5, (size_t)block_id, h, p, state_element);
-                                recurrent_state_table[state_idx] = TO_INPUT5_TYPE(local_state[local_idx]);
-                            }
+        const bool at_boundary = cache_enabled && --tokens_until_boundary == 0;
+        const bool at_sequence_end = token + 1 == token_end;
+        if (at_boundary || at_sequence_end) {
+            const ulong block_position = (ulong)block_begin + write_slot++;
+            if (block_position < (ulong)block_end && block_position < (ulong)block_indices_count) {
+                const long block_id = (long)block_indices[GET_DATA_INDEX(INPUT7, (size_t)block_position, 0, 0, 0)];
+                if (block_id >= 0 && (size_t)block_id < num_state_blocks) {
+                    for (int p_offset = 0; p_offset < valid_head_dim_block; ++p_offset) {
+                        const size_t p = p_base + (size_t)p_offset;
+                        for (uint step = 0; step < state_iterations; ++step) {
+                            const uint state_element = step * lws + lane;
+                            if (state_element >= state_size)
+                                break;
+                            const size_t local_idx = (size_t)p_offset * state_size + state_element;
+                            const size_t state_idx = GET_DATA_INDEX(INPUT5, (size_t)block_id, h, p, state_element);
+                            recurrent_state_table[state_idx] = TO_INPUT5_TYPE(local_state[local_idx]);
                         }
                     }
                 }
-                if (at_boundary)
-                    tokens_until_boundary = positive_interval;
             }
+            if (at_boundary)
+                tokens_until_boundary = positive_interval;
         }
     }
 }
 
 #undef SSM_MAX_HEAD_DIM_BLOCK
-#undef SSM_TO_FLOAT
 #undef SSM_STATE_ITERATION_TYPE
 #undef SSM_DT_INDEX
 #undef SSM_B_INDEX

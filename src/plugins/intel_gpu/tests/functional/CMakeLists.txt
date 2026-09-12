@@ -13,6 +13,12 @@ endif()
 
 list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op.xml")
 
+# Exclude MLIR tests if MLIR support is disabled
+set(EXCLUDED_TEST_PATHS)
+if(NOT ENABLE_MLIR_FOR_GPU)
+    list(APPEND EXCLUDED_TEST_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/mlir_op")
+endif()
+
 ov_add_test_target(
         NAME
             ${TARGET_NAME}
@@ -20,6 +26,8 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}
         ADDITIONAL_SOURCE_DIRS
             ${TEST_COMMON_SOURCE_DIR}
+        EXCLUDED_SOURCE_PATHS
+            ${EXCLUDED_TEST_PATHS}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
             $<TARGET_PROPERTY:openvino_intel_gpu_plugin,SOURCE_DIR>/include/
@@ -36,8 +44,14 @@ ov_add_test_target(
             OV GPU
 )
 
-ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${GPU_RT_TYPE})
-ov_gpu_set_opencl_api_version_for(${TARGET_NAME})
+# Functional tests load the plugin dynamically; OV_GPU_WITH_*_RT only selects which remote-tensor
+# interop tests compile. COMBINED ships both runtimes, so compile both sets; single-RT its own.
+if(GPU_RT_TYPE STREQUAL "COMBINED")
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_ZE_RT=1 OV_GPU_WITH_OCL_RT=1)
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_plugin_ocl)
+else()
+    ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${GPU_RT_TYPE})
+endif()
 
 if(ENABLE_PROXY)
     target_compile_definitions(${TARGET_NAME} PUBLIC PROXY_PLUGIN_ENABLED)

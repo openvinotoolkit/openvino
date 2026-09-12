@@ -50,14 +50,14 @@ struct multi_stage_primitive : public typed_primitive_impl<PType> {
         this->m_manager = other.m_manager;
     }
 
-    multi_stage_primitive(const std::vector<kernel_selector::kernel_data>& kd)
-        : typed_primitive_impl<PType>()
-        , _kernels_data(kd) {
+    multi_stage_primitive(const std::vector<kernel_selector::kernel_data>& kd) : typed_primitive_impl<PType>(), _kernels_data(kd) {
         this->can_reuse_memory = false;
         this->_kernel_name = kd[0].kernelName;
     }
 
-    bool is_cpu() const final { return false; }
+    bool is_cpu() const final {
+        return false;
+    }
 
     // Cache blob format:
     //     [ kernel_selector::kernel_data ]
@@ -125,7 +125,7 @@ protected:
         return _kernels.get_cached_kernel_ids(kernels_cache);
     }
 
-    template<typename ImplType, typename KernelParamsType>
+    template <typename ImplType, typename KernelParamsType>
     static std::unique_ptr<primitive_impl> make_deep_copy(const ImplType& impl_ocl) {
         auto prim_impl = std::make_unique<ImplType>(impl_ocl);
         for (auto& _kernel_data : (*prim_impl)._kernels_data) {
@@ -144,8 +144,9 @@ protected:
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params&) const override {
         std::vector<BufferDescriptor> internal_buffers;
         for (const auto& kd : _kernels_data) {
-            if (kd.internalBuffers.empty())
+            if (kd.internalBuffers.empty()) {
                 continue;
+            }
 
             auto dtype = from_data_type(kd.internalBufferDataType);
             const auto bpp = data_type_traits::size_of(dtype);
@@ -233,7 +234,7 @@ protected:
     }
 
     virtual void update_dispatch_data(const kernel_impl_params& impl_params) {
-        OPENVINO_ASSERT(this->_is_dynamic, "[GPU] update_dispatch_data() is called for static shape implementation ", this-> _kernel_name);
+        OPENVINO_ASSERT(this->_is_dynamic, "[GPU] update_dispatch_data() is called for static shape implementation ", this->_kernel_name);
         OPENVINO_ASSERT(false, "[GPU] update_dispatch_data() is not implemented for dynamic implemenation ", this->_kernel_name);
     }
 };

@@ -167,7 +167,6 @@ void vulkan_device::initialize_info() {
     _info.supports_image = properties.limits.maxImageDimension2D > 0;
     _info.supports_intel_planar_yuv = false;
     _info.supports_work_group_collective_functions = false;
-    _info.supports_non_uniform_work_group = false;
     _info.supports_imad = false;
     _info.supports_immad = false;
     _info.supports_mutable_command_list = false;

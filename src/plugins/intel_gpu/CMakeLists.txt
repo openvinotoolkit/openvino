@@ -140,29 +140,74 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     ov_add_compiler_flags(-Werror)
 endif()
 
+# Directory-wide on purpuse: the macro guards virtual methods in
+# include/intel_gpu/runtime, so ENABLE_MLIR_FOR_GPU must be defined consistently in all targets
+# sharing those headers.
+if(ENABLE_MLIR_FOR_GPU)
+    add_compile_definitions(ENABLE_MLIR_FOR_GPU)
+endif()
+
 file(GLOB_RECURSE PLUGIN_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_gpu/plugin/*.hpp)
 
-# Build one GPU stack for an explicit runtime. The empty suffix preserves every
-# established target and artifact name; a future multi-library composition can
-# invoke the same boundary with distinct suffixes without changing runtime logic.
-function(ov_gpu_build_stack RUNTIME SUFFIX MODULE_NAME)
-    set(OV_GPU_RT "${RUNTIME}")
+# MLIR sources are always excluded from the main plugin target. When
+# ENABLE_MLIR_FOR_GPU=ON they are built into a dedicated OBJECT library
+# (openvino_intel_gpu_mlir_obj) that has MLIR/Graph-Compiler include paths;
+# when OFF they must not be compiled at all.
+set(OV_GPU_MLIR_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin/transformations/mlir)
+file(GLOB_RECURSE GPU_MLIR_SOURCES ${OV_GPU_MLIR_DIR}/*.cpp)
+list(REMOVE_ITEM PLUGIN_SOURCES ${GPU_MLIR_SOURCES})
+
+# Fetches GraphCompiler, so it must run once rather than once per stack.
+if(ENABLE_MLIR_FOR_GPU)
+    include(thirdparty/cmake/graph-compiler.cmake)
+endif()
+
+# Build one full GPU stack (runtime + kernel_selector + graph + plugin) for runtime RT_TYPE.
+# SUFFIX distinguishes a COMBINED build's two stacks (empty for the ZE/default twin, "_ocl"
+# for the OCL twin) and single-RT builds (empty). MODULE_NAME is the plugin library name.
+# EXTRA_PLUGIN_ARGS are forwarded to ov_add_plugin (e.g. DISPATCH_GROUP for COMBINED).
+function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
+    set(OV_GPU_RT "${RT_TYPE}")
     set(OV_GPU_SUFFIX "${SUFFIX}")
 
     foreach(_ov_gpu_runtime IN LISTS OV_GPU_SUPPORTED_RUNTIMES)
         set(OV_GPU_RUNTIME_${_ov_gpu_runtime}_ENABLED OFF)
     endforeach()
-    set(OV_GPU_RUNTIME_${RUNTIME}_ENABLED ON)
+    set(OV_GPU_RUNTIME_${RT_TYPE}_ENABLED ON)
 
-    # Explicit binary directories keep repeated stack construction independent;
-    # an empty suffix retains the existing out-of-tree directory layout.
-    add_subdirectory(src/runtime src/runtime${SUFFIX})
+    # Distinct binary dirs so the same source dirs can be added twice in a COMBINED build.
+    add_subdirectory(src/runtime         src/runtime${SUFFIX})
     add_subdirectory(src/kernel_selector src/kernel_selector${SUFFIX})
-    add_subdirectory(src/graph src/graph${SUFFIX})
+    add_subdirectory(src/graph           src/graph${SUFFIX})
+
+    # MLIR runs on OpenCL only: ocl_stream is the sole implementer of the ENABLE_MLIR_FOR_GPU
+    # stream hooks, so a COMBINED build gives the backend to the OCL twin alone.
+    set(stack_with_mlir ${ENABLE_MLIR_FOR_GPU})
+    if(GPU_RT_TYPE STREQUAL "COMBINED" AND NOT RT_TYPE STREQUAL "OCL")
+        set(stack_with_mlir OFF)
+    endif()
+
+    # One per stack: the objects link this stack's graph library, so a COMBINED build cannot
+    # share a single target between the twins.
+    if(stack_with_mlir)
+        set(mlir_lib openvino_intel_gpu_mlir_obj${SUFFIX})
+        add_library(${mlir_lib} OBJECT ${GPU_MLIR_SOURCES})
+        target_link_libraries(${mlir_lib} PRIVATE openvino::runtime openvino_intel_gpu_graph${SUFFIX} GraphCompiler)
+        target_include_directories(${mlir_lib} PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/include/
+                ${OV_GPU_MLIR_DIR})
+        # Not created via ov_add_plugin, so clang-tidy has to be applied explicitly.
+        ov_apply_clang_tidy(TARGET ${mlir_lib})
+
+        set(GPU_PLUGIN_OBJECT_LIBRARIES ${mlir_lib})
+        set(GPU_PLUGIN_OPTIONS LINKABLE)
+    endif()
 
     ov_add_plugin(NAME ${MODULE_NAME}
                   DEVICE_NAME "GPU"
                   SOURCES ${PLUGIN_SOURCES}
+                  OBJECT_LIBRARIES ${GPU_PLUGIN_OBJECT_LIBRARIES}
+                  ${GPU_PLUGIN_OPTIONS}
                   DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
                   VERSION_DEFINES_FOR src/plugin/plugin.cpp
                   # ADD_CLANG_TIDY makes ov_add_plugin apply clang-tidy to this target.
@@ -170,24 +215,41 @@ function(ov_gpu_build_stack RUNTIME SUFFIX MODULE_NAME)
                   ADD_CLANG_TIDY
                   ${ARGN})
 
-    # The transformation pipeline contains a few feature probes for the Intel
-    # kernel implementations shared by OCL, ZE, and SYCL. Keep their availability
-    # macro local to that composition source so Vulkan-only plugin code has no OCL
-    # symbol dependency.
-    if(RUNTIME MATCHES "^(OCL|ZE|SYCL)$")
+    if(RT_TYPE MATCHES "^(OCL|ZE|SYCL)$")
         target_compile_definitions(${MODULE_NAME} PRIVATE OV_GPU_WITH_OCL_IMPLS=1)
     endif()
 
     target_compile_options(${MODULE_NAME} PRIVATE
         $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
+    # Unloading a .so with SYCL code is unsafe in two ways:
+    #  1. libsycl.so drops the kernel name index on unregister, so kernels provided
+    #     by another loaded module go missing.
+    #  2. libsycl.so's static destructor touches vtables (e.g., SYCLMemObjAllocatorHolder)
+    #     emitted in the unloaded module at process exit (observed on an NVIDIA backend).
+    # Mark the plugin NODELETE so it is never unloaded.
+    if(OV_GPU_WITH_SYCL AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_link_options(${MODULE_NAME} PRIVATE "LINKER:-z,nodelete")
+    endif()
+
     target_link_libraries(${MODULE_NAME} PRIVATE openvino_intel_gpu_graph${SUFFIX} openvino::pugixml)
+
+    if(stack_with_mlir)
+        target_link_libraries(${MODULE_NAME} PRIVATE GraphCompiler)
+        # Per target, unlike ENABLE_MLIR_FOR_GPU: must be defined by everyone linking
+        # openvino_intel_gpu_mlir_obj, since only it provides mlir::transformMLIR().
+        # Workaround to fix tests build: ov_gpu_unit_tests '#includes transformations_pipeline.cpp'
+        # (xattention_kv_cache_transform_test.cpp) but links neither the MLIR objects nor the plugin's
+        # hidden symbols, so guarding the call with ENABLE_MLIR_FOR_GPU alone breaks that link with an
+        # undefined reference to transformMLIR().
+        target_compile_definitions(${MODULE_NAME} PRIVATE OV_GPU_MLIR_BACKEND_LINKED)
+    endif()
 
     target_include_directories(${MODULE_NAME} PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
     ov_set_threading_interface_for(${MODULE_NAME})
-    ov_gpu_set_runtime_interface_for(${MODULE_NAME} RUNTIME ${RUNTIME})
+    ov_gpu_set_runtime_interface_for(${MODULE_NAME} RUNTIME ${RT_TYPE})
 
     set_target_properties(${MODULE_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
@@ -199,7 +261,7 @@ function(ov_gpu_build_stack RUNTIME SUFFIX MODULE_NAME)
 
     ov_build_target_faster(${MODULE_NAME} PCH)
 
-    if(RUNTIME STREQUAL "VULKAN")
+    if(RT_TYPE STREQUAL "VULKAN")
         get_property(clspv_core_library GLOBAL PROPERTY OV_GPU_CLSPV_CORE_LIBRARY)
         add_custom_command(TARGET ${MODULE_NAME} POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different
@@ -208,7 +270,14 @@ function(ov_gpu_build_stack RUNTIME SUFFIX MODULE_NAME)
     endif()
 endfunction()
 
-ov_gpu_build_stack(${GPU_RT_TYPE} "" ${TARGET_NAME})
+if(GPU_RT_TYPE STREQUAL "COMBINED")
+    # Two libraries under one device name (a dispatch group). OCL is registered first so the merged
+    # device ids follow its enumeration, as today; ZE keeps the default-named targets tests link.
+    ov_gpu_build_stack(OCL "_ocl" ${TARGET_NAME}_ocl  DISPATCH_GROUP)
+    ov_gpu_build_stack(ZE  ""     ${TARGET_NAME}      DISPATCH_GROUP)
+else()
+    ov_gpu_build_stack(${GPU_RT_TYPE} "" ${TARGET_NAME})
+endif()
 
 if(ENABLE_TESTS)
   add_subdirectory(tests)

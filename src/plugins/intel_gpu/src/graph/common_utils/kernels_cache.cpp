@@ -108,7 +108,7 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
     context.dump_sources_path = GPU_DEBUG_VALUE_OR(_config.get_dump_sources_path(), "");
     context.batch_headers = &batch_headers;
     context.source_headers = compiler_info.source_headers;
-    context.compiler_cache_identity = compiler_info.cache_identity;
+    context.compiler_cache_identity = std::string(to_cache_tag(_device->get_runtime_type())) + compiler_info.cache_identity;
     kernel_cache_frontend::prepare(kernels_source_code, context, *all_batches);
 }
 

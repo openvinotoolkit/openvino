@@ -24,6 +24,7 @@
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
+#include "intel_gpu/runtime/dispatch_probe.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
 #include "intel_gpu/runtime/itt.hpp"
@@ -43,6 +44,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/weightless_properties_utils.hpp"
+#include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
@@ -127,8 +129,9 @@ bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::
             auto& rtInfo = node->get_rt_info();
             const auto& it = rtInfo.find(type_info);
 
-            if (it != rtInfo.end())
+            if (it != rtInfo.end()) {
                 return true;
+            }
         }
     }
 
@@ -216,8 +219,9 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
     if (config_copy.get_enable_weightless()) {
         const auto weight_path = ov::util::make_path(config.get_weights_path());
 
-        if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model))
+        if (weight_path.extension() != ".bin" && !is_weightless_cache_attributes_set(cloned_model)) {
             set_weightless_cache_attributes(cloned_model);
+        }
     }
     transform_model(cloned_model, config_copy, context);
 
@@ -354,8 +358,9 @@ std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string
     OPENVINO_ASSERT(contexts.count(resolved_device_id), "[GPU] Context was not initialized for ", device_id, " device");
 
     auto context = contexts.at(resolved_device_id);
-    if (initialize)
+    if (initialize) {
         context->initialize();
+    }
 
     return context;
 }
@@ -363,10 +368,28 @@ std::shared_ptr<RemoteContextImpl> Plugin::get_default_context(const std::string
 ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const AnyMap& params) const {
     std::string device_id;
 
-    if (params.find(ov::device::id.name()) != params.end())
+    if (params.find(ov::device::id.name()) != params.end()) {
         device_id = resolve_device_id(params.at(ov::device::id.name()).as<std::string>());
+    }
 
     return get_default_context(device_id);
+}
+
+void Plugin::apply_device_id_map(const std::map<std::string, std::string>& id_map) {
+    // Core owns the numbering when several libraries share a device name; adopt its ids for every
+    // device we enumerated, so nothing downstream (contexts, configs, metrics) sees our own.
+    std::map<std::string, cldnn::device::ptr> renamed_devices;
+    std::map<std::string, ExecutionConfig> renamed_configs;
+    for (const auto& [internal_id, device] : m_device_map) {
+        const auto it = id_map.find(internal_id);
+        OPENVINO_ASSERT(it != id_map.end(), "[GPU] Core did not assign an id for enumerated device \"", internal_id, "\", so it could not be addressed.");
+        renamed_devices[it->second] = device;
+        renamed_configs.emplace(it->second, ExecutionConfig(ov::device::id(it->second)));
+    }
+    m_device_map = std::move(renamed_devices);
+    m_configs_map = std::move(renamed_configs);
+    // The assigned ids need not contain "0": another member may hold the device Core numbered 0.
+    m_default_device_id = m_device_map.empty() ? std::string("0") : m_device_map.begin()->first;
 }
 
 void Plugin::set_property(const ov::AnyMap &config) {
@@ -379,6 +402,15 @@ void Plugin::set_property(const ov::AnyMap &config) {
             CustomLayer::LoadFromFile(custom_layers_config, custom_layers, custom_layers_config.empty());
         }
     };
+
+    auto rest = config;
+    if (auto id_map = rest.extract(ov::internal::device_id_map.name()); !id_map.empty()) {
+        apply_device_id_map(id_map.mapped().as<std::map<std::string, std::string>>());
+        if (!rest.empty()) {
+            set_property(rest);
+        }
+        return;
+    }
 
     if (config.find(ov::internal::config_device_id.name()) != config.end()) {
         std::string device_id = resolve_device_id(config.at(ov::internal::config_device_id.name()).as<std::string>());
@@ -546,8 +578,9 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
     }
     if (name == ov::available_devices) {
         std::vector<std::string> available_devices = { };
-        for (const auto& dev : m_device_map)
+        for (const auto& dev : m_device_map) {
             available_devices.push_back(dev.first);
+        }
         return decltype(ov::available_devices)::value_type {available_devices};
     }
     if (name == ov::internal::caching_properties) {
@@ -733,6 +766,9 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
     if (name == ov::max_batch_size) {
         return decltype(ov::max_batch_size)::value_type {get_max_batch_size(options)};
     }
+    if (name == ov::intel_gpu::runtime_type) {
+        return decltype(ov::intel_gpu::runtime_type)::value_type {std::string(cldnn::get_runtime_cache_tag())};
+    }
     if (name == ov::intel_gpu::driver_version) {
         return decltype(ov::intel_gpu::driver_version)::value_type {device_info.driver_version};
     }
@@ -787,6 +823,7 @@ std::vector<ov::PropertyName> Plugin::get_caching_properties() const {
         ov::PropertyName{ov::hint::performance_mode.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::dynamic_quantization_group_size.name(), PropertyMutability::RW},
         ov::PropertyName{ov::hint::activations_scale_factor.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::intel_gpu::runtime_type.name(), PropertyMutability::RO},
     };
 
     return caching_properties;
@@ -855,14 +892,15 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
 
 std::vector<ov::PropertyName> Plugin::get_supported_internal_properties() const {
     static const std::vector<ov::PropertyName> supported_internal_properties = {
-            ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
-            ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
-            ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO},
-            ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO}};
+        ov::PropertyName{ov::internal::caching_properties.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::internal::config_device_id.name(), ov::PropertyMutability::WO},
+        ov::PropertyName{ov::internal::exclusive_async_requests.name(), ov::PropertyMutability::RW},
+        ov::PropertyName{ov::internal::compiled_model_runtime_properties.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::internal::compiled_model_runtime_properties_supported.name(), ov::PropertyMutability::RO},
+        ov::PropertyName{ov::internal::query_model_ratio.name(), PropertyMutability::RW},
+        ov::PropertyName{ov::internal::caching_with_mmap.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::internal::cache_header_alignment.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::internal::device_id_map.name(), ov::PropertyMutability::WO}};
     return supported_internal_properties;
 }
 
@@ -871,14 +909,18 @@ std::vector<std::string> Plugin::get_device_capabilities(const cldnn::device_inf
 
     capabilities.emplace_back(ov::device::capability::FP32);
     capabilities.emplace_back(ov::device::capability::BIN);
-    if (info.supports_fp16)
+    if (info.supports_fp16) {
         capabilities.emplace_back(ov::device::capability::FP16);
-    if (info.supports_imad || info.supports_immad)
+    }
+    if (info.supports_imad || info.supports_immad) {
         capabilities.emplace_back(ov::device::capability::INT8);
-    if (info.supports_immad)
+    }
+    if (info.supports_immad) {
         capabilities.emplace_back(ov::intel_gpu::capability::HW_MATMUL);
-    if (info.supports_usm)
+    }
+    if (info.supports_usm) {
         capabilities.emplace_back(ov::intel_gpu::capability::USM_MEMORY);
+    }
     capabilities.emplace_back(ov::device::capability::EXPORT_IMPORT);
 
     return capabilities;
@@ -1000,8 +1042,9 @@ uint32_t Plugin::get_max_batch_size(const ov::AnyMap& options) const {
                 const auto& param = params[input_id];
                 shapes[input_id] = param->get_output_partial_shape(0);
             }
-            for (const auto& input : batched_inputs)
+            for (const auto& input : batched_inputs) {
                 shapes[input.first][input.second] = base_batch_size;
+            }
             cloned_model->reshape(shapes);
         } catch (...) {
             GPU_DEBUG_INFO << "[MAX_BATCH_SIZE] Error at reshape to " << base_batch_size << std::endl;
@@ -1075,8 +1118,9 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
     auto cloned_model = clone_and_transform_model(model, config, context);
     ov::MemBandwidthPressure memPressure = ov::mem_bandwidth_pressure_tolerance(cloned_model, L3_cache_size);
     uint32_t batch = 1;
-    if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN)
+    if (memPressure.max_mem_tolerance != ov::MemBandwidthPressure::UNKNOWN) {
         batch = static_cast<uint32_t>(std::max(1.0, 16 * closest_pow_of_2(memPressure.max_mem_tolerance)));
+    }
     ov::AnyMap options_for_max_batch;
     options_for_max_batch[ov::hint::model.name()] = model;
     options_for_max_batch[ov::num_streams.name()] = ov::streams::AUTO;
@@ -1093,5 +1137,31 @@ uint32_t Plugin::get_optimal_batch_size(const ov::AnyMap& options) const {
 
 }  // namespace ov::intel_gpu
 
+namespace {
+
+void enumerate_dispatch_devices(std::vector<ov::EnumeratedDevice>& out) {
+    out.clear();  // The probe reports, it does not append: repeated calls must be idempotent.
+    try {
+        // Read once per process: the debug override cannot change while the library is loaded.
+        static const std::string forced = ov::util::getenv_string("OV_GPU_RUNTIME");
+
+        for (const auto& d : cldnn::lightweight_enumerate()) {
+            ov::EnumeratedDevice e;
+            e.internal_id = d.map_id;
+            e.fingerprint = cldnn::make_fingerprint(d.info);
+            e.score = cldnn::probe_score(cldnn::get_default_runtime_type(), d.info, forced);
+            out.push_back(std::move(e));
+        }
+    } catch (...) {
+        out.clear();  // Any failure -> "I serve nothing"; the probe never throws.
+    }
+}
+
+}  // namespace
+
 static const ov::Version version = { CI_BUILD_NUMBER, "Intel GPU plugin" };
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::intel_gpu::Plugin, version)
+
+// Real implementation of the plugin-ABI enumeration probe (the GPU plugin participates
+// in device-name dispatch); mirrors the stub every other plugin exports.
+OV_DEFINE_PLUGIN_ENUMERATE_FUNCTION(enumerate_dispatch_devices)
