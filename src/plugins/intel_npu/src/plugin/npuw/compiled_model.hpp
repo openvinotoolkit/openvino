@@ -38,6 +38,12 @@ public:
     static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
                                                             const std::shared_ptr<const ov::IPlugin>& plugin,
                                                             const ov::AnyMap& properties);
+    // Imports any indicator-headed NPUW blob: peeks the compiled-model indicator
+    // that follows the NPUW serialization indicator and routes the stream to the
+    // matching implementation's import_model(). The import counterpart of create().
+    static std::shared_ptr<ov::npuw::ICompiledModel> import_model(std::istream& stream,
+                                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                  const ov::AnyMap& properties);
     ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
 };
 

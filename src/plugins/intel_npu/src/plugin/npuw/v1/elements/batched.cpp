@@ -1,0 +1,289 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "batched.hpp"
+
+#include <algorithm>
+#include <memory>
+#include <utility>
+
+#include "../../logging.hpp"
+#include "../../serialization.hpp"
+#include "../../util.hpp"
+#include "../../variable_state.hpp"
+#include "intel_npu/npuw_private_properties.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/version.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
+
+namespace {
+// A port name for error messages. get_any_name() throws on a tensor with no
+// names, so fall back to the node's friendly name.
+std::string port_name(const ov::Output<const ov::Node>& port) {
+    const auto& names = port.get_names();
+    return names.empty() ? port.get_node()->get_friendly_name() : port.get_any_name();
+}
+}  // anonymous namespace
+
+ov::npuw::batched::ScoringTags ov::npuw::batched::scoring_tags(const ov::AnyMap& properties) {
+    const auto is_enabled = [&properties](const std::string& key) {
+        const auto it = properties.find(key);
+        return it != properties.end() && it->second.as<bool>();
+    };
+    ScoringTags tags;
+    tags.text_rerank = is_enabled(ov::intel_npu::npuw::text_rerank::enabled.name());
+    tags.text_embed = is_enabled(ov::intel_npu::npuw::text_embed::enabled.name());
+    return tags;
+}
+
+ov::npuw::batched::CompiledModel::CompiledModel(const std::shared_ptr<ov::npuw::ICompiledModel>& inner,
+                                                const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                const ScoringTags& tags)
+    : ov::npuw::ICompiledModel(nullptr, plugin),  // I/O comes from the inner via inputs()/outputs()
+      m_inner(inner),
+      m_tags(tags) {
+    OPENVINO_ASSERT(m_inner != nullptr, "Batched compiled model requires an inner compiled model");
+}
+
+const std::vector<ov::Output<const ov::Node>>& ov::npuw::batched::CompiledModel::inputs() const {
+    return m_inner->inputs();
+}
+
+const std::vector<ov::Output<const ov::Node>>& ov::npuw::batched::CompiledModel::outputs() const {
+    return m_inner->outputs();
+}
+
+void ov::npuw::batched::CompiledModel::export_model(std::ostream& stream) const {
+    // The wrap is part of the blob. A batched header goes first, the complete inner
+    // blob follows with its own header, and import reconstructs the wrapper from the
+    // header alone.
+    // The inner blob checks its own versions, but the wrapper header needs a
+    // version of its own in case its format ever changes.
+    ov::npuw::s11n::write_header(stream, NPUW_BATCHED_COMPILED_MODEL_INDICATOR);
+    // The scoring tags are wrapper state, so they ride the wrapper's own header.
+    ov::npuw::s11n::write(stream, m_tags.text_rerank);
+    ov::npuw::s11n::write(stream, m_tags.text_embed);
+    m_inner->export_model(stream);
+}
+
+std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::batched::CompiledModel::import_model(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    LOG_INFO("Deserializing batched::CompiledModel...");
+
+    ov::npuw::s11n::read_and_check_header(stream, NPUW_BATCHED_COMPILED_MODEL_INDICATOR, "batched::CompiledModel");
+
+    ScoringTags tags;
+    ov::npuw::s11n::read(stream, tags.text_rerank);
+    ov::npuw::s11n::read(stream, tags.text_embed);
+
+    // The inner blob carries its own indicator header - the common NPUW dispatch
+    // picks the right implementation, so the wrapper stays agnostic of what it wraps.
+    auto inner = ov::npuw::ICompiledModel::import_model(stream, plugin, properties);
+    return std::make_shared<CompiledModel>(inner, plugin, tags);
+}
+
+std::shared_ptr<const ov::Model> ov::npuw::batched::CompiledModel::get_runtime_model() const {
+    return m_inner->get_runtime_model();
+}
+
+void ov::npuw::batched::CompiledModel::set_property(const ov::AnyMap& properties) {
+    m_inner->set_property(properties);
+}
+
+ov::Any ov::npuw::batched::CompiledModel::get_property(const std::string& name) const {
+    // The scoring tags live with the wrapper, not the inner model, which stays
+    // unaware of the wrap. Answer them here so the public compiled model reports
+    // them truthfully, on compile and after import alike.
+    if (name == ov::intel_npu::npuw::text_rerank::enabled.name()) {
+        return m_tags.text_rerank;
+    }
+    if (name == ov::intel_npu::npuw::text_embed::enabled.name()) {
+        return m_tags.text_embed;
+    }
+    return m_inner->get_property(name);
+}
+
+void ov::npuw::batched::CompiledModel::release_memory() {
+    m_inner->release_memory();
+}
+
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::batched::CompiledModel::create_sync_infer_request() const {
+    auto self = std::static_pointer_cast<const ov::ICompiledModel>(shared_from_this());
+    auto inner_request = m_inner->create_infer_request();
+    OPENVINO_ASSERT(inner_request != nullptr, "Batched element: inner compiled model returned a null request");
+    return std::make_shared<InferRequest>(self, std::move(inner_request));
+}
+
+ov::npuw::batched::InferRequest::InferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
+                                              std::shared_ptr<ov::IAsyncInferRequest> inner_request)
+    : ov::ISyncInferRequest(compiled_model),
+      m_inner(std::move(inner_request)) {
+    OPENVINO_ASSERT(m_inner != nullptr, "Batched element requires a non-null inner request");
+
+    m_profile.report_on_die = ov::npuw::profiling_enabled();
+    m_profile.area = "batched/execution";
+
+    // Surface the inner request's own tensors as the public defaults (the ports are
+    // the same objects, see CompiledModel::inputs()). Nothing is allocated here: a
+    // batch-1 caller works directly on the inner's tensors, and a batched caller
+    // replaces them with its [N, ...] tensors via set_tensor().
+    for (const auto& port : get_inputs()) {
+        if (auto tensor = m_inner->get_tensor(port)) {
+            set_tensor(port, tensor);
+        }
+    }
+}
+
+ov::npuw::batched::InferRequest::BatchedInputs ov::npuw::batched::InferRequest::extract_batch() const {
+    const auto& in_ports = get_inputs();
+    OPENVINO_ASSERT(!in_ports.empty(), "Batched element: the wrapped model has no inputs");
+
+    // The batch contract: every input's leading dimension is either the batch size
+    // N (the input carries per-row data, sliced by infer()) or exactly 1 (the input
+    // is broadcast, bound whole to every row). N is whatever the batched inputs
+    // agree on - two inputs with different leading dimensions > 1 are an error -
+    // and with every input at 1 the infer is a plain batch-1 one.
+    BatchedInputs inputs;
+    inputs.tensors.reserve(in_ports.size());
+    for (const auto& port : in_ports) {
+        auto tensor = get_tensor(port);
+        OPENVINO_ASSERT(tensor, "Batched element: no tensor is set for input '", port_name(port), "'");
+        const auto& shape = tensor->get_shape();
+        OPENVINO_ASSERT(!shape.empty(),
+                        "Batched element: input '",
+                        port_name(port),
+                        "' has no leading (batch) dimension");
+        OPENVINO_ASSERT(shape[0] > 0,
+                        "Batched element: input '",
+                        port_name(port),
+                        "' has a zero-sized batch dimension - batch size must be > 0");
+        if (shape[0] > 1) {
+            OPENVINO_ASSERT(inputs.batch == 1 || inputs.batch == shape[0],
+                            "Batched element: input '",
+                            port_name(port),
+                            "' has batch dimension ",
+                            shape[0],
+                            " which is neither the inferred batch size ",
+                            inputs.batch,
+                            " nor 1 (broadcast).");
+            inputs.batch = shape[0];
+        }
+        inputs.tensors.push_back(std::move(tensor));
+    }
+    return inputs;
+}
+
+void ov::npuw::batched::InferRequest::infer() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    const auto& in_ports = get_inputs();
+    const auto& out_ports = get_outputs();
+
+    BatchedInputs inputs;
+    m_profile["1.extract_batch"].record([&]() {
+        inputs = extract_batch();
+    });
+    const std::size_t batch = inputs.batch;
+
+    // Broadcast inputs are bound whole, once. Batched inputs are rebound per row
+    // to the row's [1, ...] view below.
+    for (std::size_t i = 0; i < in_ports.size(); ++i) {
+        if (inputs.tensors[i]->get_shape()[0] == 1) {
+            m_inner->set_tensor(in_ports[i], inputs.tensors[i]);
+        }
+    }
+
+    // States the inner exposes as ov::npuw::VariableState are kept out of the
+    // per-row reset: that type holds data bound for the model's lifetime, not
+    // per-inference data, so it must survive the row loop and by design
+    // implements no reset().
+    auto inner_states = m_inner->query_state();
+    inner_states.erase(std::remove_if(inner_states.begin(),
+                                      inner_states.end(),
+                                      [](const ov::SoPtr<ov::IVariableState>& state) {
+                                          return std::dynamic_pointer_cast<ov::npuw::VariableState>(state._ptr) !=
+                                                 nullptr;
+                                      }),
+                       inner_states.end());
+
+    // Unroll row by row: reset the inner state so each row is scored as an
+    // independent prompt, bind the row's view of every batched input, run the
+    // batch-1 inner request, and copy its outputs into row `row` of the [N, ...]
+    // public outputs.
+    for (std::size_t row = 0; row < batch; ++row) {
+        m_profile["2.bind_row"].record([&]() {
+            for (const auto& state : inner_states) {
+                state->reset();
+            }
+            for (std::size_t i = 0; i < in_ports.size(); ++i) {
+                const auto& full = inputs.tensors[i];
+                if (full->get_shape()[0] != 1) {
+                    m_inner->set_tensor(in_ports[i], ov::npuw::util::view(full, 0, row, 1));
+                }
+            }
+        });
+        m_profile["3.inner_infer"].record([&]() {
+            m_inner->infer();
+        });
+        if (row == 0) {
+            // The wrapped model's ports are dynamic - the output shapes are only
+            // known once the first row has been scored.
+            prepare_outputs(batch);
+        }
+        m_profile["4.copy_row_out"].record([&]() {
+            for (const auto& port : out_ports) {
+                m_inner->get_tensor(port)->copy_to(ov::npuw::util::view(get_tensor(port), 0, row, 1)._ptr);
+            }
+        });
+    }
+}
+
+void ov::npuw::batched::InferRequest::prepare_outputs(std::size_t batch) {
+    for (const auto& port : get_outputs()) {
+        const auto inner_out = m_inner->get_tensor(port);
+        OPENVINO_ASSERT(inner_out && !inner_out->get_shape().empty() && inner_out->get_shape()[0] == 1,
+                        "Batched element: output '",
+                        port_name(port),
+                        "' of the inner request is not a [1, ...] tensor");
+        ov::Shape shape = inner_out->get_shape();
+        shape[0] = batch;
+
+        const auto current = get_tensor(port);
+        if (!current) {
+            set_tensor(port, ov::get_tensor_impl(ov::Tensor(inner_out->get_element_type(), shape)));
+            continue;
+        }
+        // Whatever is bound stays bound and is written into, the way plugins treat
+        // dynamic outputs: set_shape() resizes an owning tensor when the produced
+        // shape differs and throws for a fixed view too small for the data.
+        OPENVINO_ASSERT(current->get_element_type() == inner_out->get_element_type(),
+                        "Batched element: output '",
+                        port_name(port),
+                        "' is bound to a tensor of type ",
+                        current->get_element_type(),
+                        ", but this inference produces type ",
+                        inner_out->get_element_type(),
+                        " - bind a tensor of the produced type or leave the output unset.");
+        current->set_shape(shape);
+    }
+}
+
+void ov::npuw::batched::InferRequest::check_tensors() const {
+    // No-op: the public outputs are sized on infer once the batch is known, and
+    // the batched inputs are validated and then unrolled by infer() - the per-row
+    // [1, ...] tensors are checked by the inner request.
+}
+
+std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::batched::InferRequest::query_state() const {
+    // The batched element resets inner state between rows and exposes no
+    // cross-call state of its own, so it presents an empty state list.
+    return {};
+}
+
+std::vector<ov::ProfilingInfo> ov::npuw::batched::InferRequest::get_profiling_info() const {
+    return m_inner->get_profiling_info();
+}

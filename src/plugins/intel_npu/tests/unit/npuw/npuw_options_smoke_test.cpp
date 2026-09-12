@@ -215,4 +215,16 @@ TEST(NPUWConfigOptionsSmokeTest, AttentionHintDefaultsCanDifferPerOption) {
     EXPECT_EQ(cfg.getString<::intel_npu::NPUW_LLM_GENERATE_ATTENTION_HINT>(), "STATIC");
 }
 
+// The scoring tags are ordinary exposed options and must parse and survive a
+// config string round trip like any other.
+TEST(NPUWConfigOptionsSmokeTest, ScoringTagsSurviveConfigStringRoundTrip) {
+    const auto cfg = make_config({{"NPUW_TEXT_RERANK", "YES"}, {"NPUW_TEXT_EMBED", "YES"}});
+
+    ::intel_npu::Config restored(make_options_desc());
+    restored.fromString(cfg.toString());
+
+    EXPECT_TRUE(restored.get<::intel_npu::NPUW_TEXT_RERANK>());
+    EXPECT_TRUE(restored.get<::intel_npu::NPUW_TEXT_EMBED>());
+}
+
 }  // namespace
