@@ -115,9 +115,8 @@ void transform_gather_to_2d(const GatherInfo& info) {
     auto experts_start = std::make_shared<ov::op::v1::Multiply>(reshaped_indices, m_const);
     experts_start->set_friendly_name(gather_name + "/experts_start");
 
-    // A singleton row broadcasts against [I,1]; materializing a constant-only
-    // Tile creates a separate function that the NPU cannot execute. Keep this
-    // index metadata in the function body and let Add perform the broadcast.
+    // Step 3: Broadcast the singleton row of offsets against [I, 1] expert
+    // starting positions, avoiding an explicit Tile.
     std::vector<int64_t> range_values(info.M);
     std::iota(range_values.begin(), range_values.end(), 0);
     auto range_m_tiled =
