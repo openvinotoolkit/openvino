@@ -27,7 +27,20 @@ thread binding -- and guessing wrong costs up to 28%. On OV, OMP_NUM_THREADS=1
 won at every core count and model measured, which is what vLLM's own
 ``set_torch_threads_for_runtime()`` wants to set anyway.
 
-Set OV_LM_HEAD=0 to keep the previous oneDNN behaviour.
+Opt-in only: this path is OFF by default (OV_LM_HEAD=0), because the win above
+is outweighed by a cost the isolated kernel timings do not show. Installing it
+adds a second compiled OV model whose InferRequest is invoked between
+main-graph infers, and that interleaving roughly doubles the *main graph's*
+per-step time -- reproduced on Llama-3.2-1B and Mistral-7B. The penalty is not
+in the lm_head GEMM (still competitive, as above) and survives capping the
+second model's thread count, disabling its CPU pinning, and forcing both
+models onto one ov.Core, so it is not tunable from this layer; it looks like
+per-InferRequest state in the CPU plugin. Until that is fixed, tuning
+OMP_NUM_THREADS for oneDNN costs less than the interleaving does.
+
+Set OV_LM_HEAD=1 to enable this path. Doing so makes OMP_NUM_THREADS
+irrelevant, per the paragraphs above -- useful where that knob cannot be
+tuned per model and per machine.
 """
 
 import logging

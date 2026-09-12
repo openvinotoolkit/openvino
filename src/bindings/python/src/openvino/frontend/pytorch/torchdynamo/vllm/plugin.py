@@ -49,6 +49,15 @@ def _install_ov_lm_head(model) -> None:
     update_weights patches below: build_ov_lm_head bakes the weight into an OV
     constant, so any later in-place weight mutation needs this re-run or the
     OV lm_head keeps serving logits off the stale copy with no error.
+
+    Defaults to the oneDNN dispatch (OV_LM_HEAD=0). The OV lm_head is a second
+    compiled model whose InferRequest is invoked between main-graph infers,
+    and that interleaving roughly doubles the main graph's per-step time --
+    measured on Llama-3.2-1B and Mistral-7B alike, and far larger than the
+    OMP_NUM_THREADS sensitivity the OV path was introduced to avoid. The cost
+    is not in the lm_head kernel itself (which is competitive) and does not
+    respond to the second model's thread count or CPU pinning, so it is not
+    tunable from here. Set OV_LM_HEAD=1 to opt back in.
     """
     try:
         import vllm._custom_ops as _ops
@@ -57,7 +66,7 @@ def _install_ov_lm_head(model) -> None:
         lm_head = getattr(model, "lm_head", None)
         if lm_head is not None and hasattr(lm_head, "weight") and not lm_head.weight.is_meta:
             fn = None
-            if os.environ.get("OV_LM_HEAD", "1") != "0":
+            if os.environ.get("OV_LM_HEAD", "0") != "0":
                 try:
                     fn = build_ov_lm_head(lm_head.weight.data)
                 except Exception as _e:
