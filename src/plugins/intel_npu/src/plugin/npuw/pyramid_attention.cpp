@@ -786,8 +786,13 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     bool is_generate = query_length == 1;
     size_t kv_step = full_context_length - full_past_kv_length;
     size_t pyramid_step = is_generate ? 1024u : kv_step;
-    // FIXME: Check all the right alignments
-    size_t num_models = full_context_length / pyramid_step;
+    // Round up: floor division would drop the remainder tier entirely (e.g.
+    // full_context_length=1536, pyramid_step=1024 -> 1 model, i.e. no tiering at all --
+    // every call would run the full-size model). The last model_idx (num_models - 1) below
+    // always reuses the original model directly (context = full_context_length) regardless
+    // of how num_models is computed, so a non-multiple remainder is still handled correctly
+    // -- rounding up just ensures we also get the smaller intermediate tier(s).
+    size_t num_models = (full_context_length + pyramid_step - 1) / pyramid_step;
     LOG_INFO("Creating " << num_models << " pyramid attention models");
 
     // Store Attention instances for each model
