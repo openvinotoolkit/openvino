@@ -3,7 +3,7 @@
 
 """Manual benchmarking/smoke-test CLI: vLLM + OpenVINO backend vs vLLM eager.
 
-This is the operational tool documented in docs/test.md for ad-hoc perf and
+This is the operational tool documented in the vllm README for ad-hoc perf and
 correctness checks against arbitrary models -- not a pytest test. The
 CI-facing correctness regression check lives at
 tests/vllm_tests/test_run.py (fixed TinyLlama model, small token count).

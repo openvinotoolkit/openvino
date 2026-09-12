@@ -14,7 +14,7 @@ Uses dtype=float32, not the project-wide bfloat16 default: at bf16, eager,
 Inductor, and the OV backend all disagree with each other from the very
 first generated token for this model/prompt (verified manually) -- a
 generic compiled-vs-eager bf16 rounding difference, not an OV bug (see
-"match" note in docs/test.md). float32 is the only dtype where all three
+"match" note in the vllm README). float32 is the only dtype where all three
 backends agree, so it's the only regime where byte-for-byte equality is a
 meaningful correctness signal here. Both paths share a process so the
 comparison is meaningful (same tokenizer state, same prompt encoding); the
