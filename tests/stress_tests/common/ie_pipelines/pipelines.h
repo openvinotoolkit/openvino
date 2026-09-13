@@ -15,19 +15,19 @@ std::function<void()> cnnnetwork_reshape_batch_x2(const std::string &model, cons
 std::function<void()> set_input_params(const std::string &model);
 
 std::function<void()>
-create_compiled_model(const std::string &model, const std::string &target_device);
+create_compiled_model(const std::string &model, const std::string &target_device, const ov::AnyMap &properties = {});
 
 std::function<void()>
-create_infer_request(const std::string &model, const std::string &target_device);
+create_infer_request(const std::string &model, const std::string &target_device, const ov::AnyMap &properties = {});
 
 std::function<void()>
-infer_request_inference(const std::string &model, const std::string &target_device);
+infer_request_inference(const std::string &model, const std::string &target_device, const ov::AnyMap &properties = {});
 
 std::function<void()>
-inference_with_streams(const std::string &model, const std::string &target_device, const int &nstreams);
+inference_with_streams(const std::string &model, const std::string &target_device, const int &nstreams, const ov::AnyMap &properties = {});
 
 std::function<void()>
-recreate_compiled_model(std::shared_ptr<InferApiBase> &ie_wrapper, const std::string &target_device);
+recreate_compiled_model(std::shared_ptr<InferApiBase> &ie_wrapper, const std::string &target_device, const ov::AnyMap &properties = {});
 
 std::function<void()> recreate_infer_request(std::shared_ptr<InferApiBase> &ie_wrapper);
 

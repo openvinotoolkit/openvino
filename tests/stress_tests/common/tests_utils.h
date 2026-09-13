@@ -28,6 +28,7 @@ public:
     std::string test_case_name;
     std::string model_name;
     std::string device;
+    std::string compilation_config_file;
 
 protected:
     // Replace non-alphabetic/numeric symbols with "_" to prevent logging errors
@@ -46,12 +47,17 @@ public:
 
     TestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device,
              const std::string &_model,
-             const std::string &_model_name, const std::string &_precision) {
+             const std::string &_model_name, const std::string &_precision,
+             const std::string &_compilation_config_file = "") {
         numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters,
-        device = _device, model = _model, model_name = _model_name, precision = _precision;
+        device = _device, model = _model, model_name = _model_name, precision = _precision,
+        compilation_config_file = _compilation_config_file;
         test_case_name = "NP" + std::to_string(numprocesses) + "_NT" + std::to_string(numthreads) +
                          "_NI" + std::to_string(numiters) + safe_string(device) +
                          safe_string(precision) + "_M" + safe_string(model_name);
+        if (!compilation_config_file.empty()) {
+            test_case_name += "_Config_" + safe_string(fileNameNoExt(compilation_config_file));
+        }
     }
 };
 
@@ -60,15 +66,19 @@ public:
     std::vector<std::map<std::string, std::string>> models;
 
     MemLeaksTestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device,
-                     std::vector<std::map<std::string, std::string>> _models) {
+                     std::vector<std::map<std::string, std::string>> _models,
+                     const std::string &_compilation_config_file = "") {
         numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters,
-        device = _device, models = _models;
+        device = _device, models = _models, compilation_config_file = _compilation_config_file;
         test_case_name = "NP" + std::to_string(numprocesses) + "_NT" + std::to_string(numthreads) +
                          "_NI" + std::to_string(numiters) + safe_string(device);
         for (size_t i = 0; i < models.size(); i++) {
             test_case_name += "_Model" + std::to_string(i + 1) + "_" + safe_string(models[i]["name"]) + "_" +
                               safe_string(models[i]["precision"]);
             model_name += "\"" + models[i]["path"] + "\"" + (i < models.size() - 1 ? ", " : "");
+        }
+        if (!compilation_config_file.empty()) {
+            test_case_name += "_Config_" + safe_string(fileNameNoExt(compilation_config_file));
         }
     }
 };
@@ -79,22 +89,31 @@ public:
     std::string model2;
     std::string model1_name;
     std::string model2_name;
+    std::string compilation_config_file2;
 
     MultiModelTestCase(int _numprocesses, int _numthreads, int _numiters, std::string _device,
                        const std::string &_model1, const std::string &_model1_name,
-                       const std::string &_model2, const std::string &_model2_name) {
+                       const std::string &_model2, const std::string &_model2_name,
+                       const std::string &_compilation_config_file = "",
+                       const std::string &_compilation_config_file2 = "") {
         numprocesses = _numprocesses, numthreads = _numthreads, numiters = _numiters,
         device = _device, model1 = _model1, model1_name = _model1_name,
-        model2 = _model2, model2_name = _model2_name;
+        model2 = _model2, model2_name = _model2_name,
+        compilation_config_file = _compilation_config_file,
+        compilation_config_file2 = _compilation_config_file2;
         test_case_name = "NP" + std::to_string(numprocesses) + "_NT" + std::to_string(numthreads) +
                          "_NI" + std::to_string(numiters) + safe_string(device) +
                          "_M1_" + safe_string(model1_name) + "_M2_" + safe_string(model2_name);
+        if (!compilation_config_file.empty()) {
+            test_case_name += "_Config_" + safe_string(fileNameNoExt(compilation_config_file));
+        }
     }
 };
 
 class Environment {
 private:
     pugi::xml_document _test_config;
+    std::string _compilation_config_file;
     bool _collect_results_only = false;
 
     Environment() = default;
@@ -112,6 +131,10 @@ public:
     const pugi::xml_document &getTestConfig();
 
     void setTestConfig(const pugi::xml_document &test_config);
+
+    const std::string &getCompilationConfigFile() const;
+
+    void setCompilationConfigFile(const std::string &compilation_config_file);
 };
 
 std::vector<TestCase> generateTestsParams(std::initializer_list<std::string> items);
@@ -128,6 +151,8 @@ std::string getMultiModelTestCaseName(const testing::TestParamInfo<MultiModelTes
 
 void runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 
+void runTest(const std::function<void(std::string, std::string, int, std::string)> &tests_pipeline, const TestCase &params);
+
 void runStressTest(const std::string& scenario, const TestCase& params);
 
 void runMultiModelStressTest(const std::string& scenario, const MultiModelTestCase& params);
@@ -136,5 +161,10 @@ void runMultiModelProcessesStressTest(const MultiModelTestCase& params);
 
 void _runTest(const std::function<void(std::string, std::string, int)> &tests_pipeline, const TestCase &params);
 
+void _runTest(const std::function<void(std::string, std::string, int, std::string)> &tests_pipeline, const TestCase &params);
+
 void test_wrapper(const std::function<void(std::string, std::string, int)> &tests_pipeline,
+                  const TestCase &params);
+
+void test_wrapper(const std::function<void(std::string, std::string, int, std::string)> &tests_pipeline,
                   const TestCase &params);

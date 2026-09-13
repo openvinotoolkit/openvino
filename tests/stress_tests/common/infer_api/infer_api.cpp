@@ -27,8 +27,12 @@ void InferAPI2::read_network(const std::string &model) {
     }
 }
 
-void InferAPI2::load_network(const std::string &device) {
-    compiled_model = ie.compile_model(network, device);
+void InferAPI2::load_network(const std::string &device, const ov::AnyMap &properties) {
+    ov::AnyMap props = properties;
+    if (props.find(ov::hint::performance_mode.name()) == props.end()) {
+        props[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
+    }
+    compiled_model = ie.compile_model(network, device, props);
 }
 
 void InferAPI2::create_infer_request() {

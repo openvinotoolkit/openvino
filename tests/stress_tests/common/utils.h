@@ -9,6 +9,8 @@
 #include <vector>
 #include <thread>
 #include <functional>
+#include <openvino/openvino.hpp>
+#include <openvino/runtime/properties.hpp>
 
 #ifdef _WIN32
 #define OS_SEP std::string("\\")
@@ -57,3 +59,5 @@ inline void run_in_threads(const int &numthreads, Function const &function, Args
 
 void auto_expand_env_vars(std::string &input);
 std::string expand_env_vars(const std::string &input);
+
+ov::AnyMap load_compilation_config(const std::string &config_file, const std::string &device = "");

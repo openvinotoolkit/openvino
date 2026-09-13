@@ -16,7 +16,7 @@ public:
 
     virtual void read_network(const std::string &model) = 0;
 
-    virtual void load_network(const std::string &device) = 0;
+    virtual void load_network(const std::string &device, const ov::AnyMap &properties = {}) = 0;
 
     virtual void create_infer_request() = 0;
 
@@ -45,7 +45,7 @@ public:
 
     void read_network(const std::string &model) override;
 
-    void load_network(const std::string &device) override;
+    void load_network(const std::string &device, const ov::AnyMap &properties = {}) override;
 
     void create_infer_request() override;
 

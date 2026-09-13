@@ -46,28 +46,29 @@ std::function<void()> set_input_params(const std::string &model) {
 }
 
 std::function<void()>
-create_compiled_model(const std::string &model, const std::string &target_device) {
-    return [&] {
+create_compiled_model(const std::string &model, const std::string &target_device, const ov::AnyMap &properties) {
+    return [model, target_device, properties] {
         auto ie_api_wrapper = create_infer_api_wrapper();
         ie_api_wrapper->read_network(model);
-        ie_api_wrapper->load_network(target_device);
+        ie_api_wrapper->load_network(target_device, properties);
     };
 }
 
 std::function<void()> recreate_compiled_model(std::shared_ptr<InferApiBase> &ie_wrapper,
-                                              const std::string &target_device) {
+                                              const std::string &target_device,
+                                              const ov::AnyMap &properties) {
     return [=] {
-        ie_wrapper->load_network(target_device);
+        ie_wrapper->load_network(target_device, properties);
     };
 }
 
 
 std::function<void()>
-create_infer_request(const std::string &model, const std::string &target_device) {
-    return [&] {
+create_infer_request(const std::string &model, const std::string &target_device, const ov::AnyMap &properties) {
+    return [model, target_device, properties] {
         auto ie_api_wrapper = create_infer_api_wrapper();
         ie_api_wrapper->read_network(model);
-        ie_api_wrapper->load_network(target_device);
+        ie_api_wrapper->load_network(target_device, properties);
         ie_api_wrapper->create_infer_request();
     };
 }
@@ -81,11 +82,11 @@ std::function<void()> recreate_infer_request(std::shared_ptr<InferApiBase> &ie_w
 
 
 std::function<void()>
-infer_request_inference(const std::string &model, const std::string &target_device) {
-    return [&] {
+infer_request_inference(const std::string &model, const std::string &target_device, const ov::AnyMap &properties) {
+    return [model, target_device, properties] {
         auto ie_api_wrapper = create_infer_api_wrapper();
         ie_api_wrapper->read_network(model);
-        ie_api_wrapper->load_network(target_device);
+        ie_api_wrapper->load_network(target_device, properties);
         ie_api_wrapper->create_infer_request();
         ie_api_wrapper->prepare_input();
         ie_api_wrapper->infer();
@@ -110,14 +111,14 @@ std::function<void()> recreate_and_infer_in_thread(std::shared_ptr<InferApiBase>
 }
 
 std::function<void()>
-inference_with_streams(const std::string &model, const std::string &target_device, const int &nstreams) {
-    return [&] {
+inference_with_streams(const std::string &model, const std::string &target_device, const int &nstreams, const ov::AnyMap &properties) {
+    return [model, target_device, nstreams, properties] {
         unsigned int nireq = nstreams;
         auto ie_api_wrapper = create_infer_api_wrapper();
         ie_api_wrapper->load_plugin(target_device);
         ie_api_wrapper->set_config(target_device, ov::AnyMap{ov::num_streams(nstreams)});
         ie_api_wrapper->read_network(model);
-        ie_api_wrapper->load_network(target_device);
+        ie_api_wrapper->load_network(target_device, properties);
         try {
             nireq = ie_api_wrapper->get_property(ov::optimal_number_of_infer_requests.name());
         } catch (const std::exception &ex) {

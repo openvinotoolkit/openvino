@@ -31,3 +31,6 @@ DEFINE_string(stress_model2, "", "Second stress scenario model path for multi-mo
 DEFINE_string(stress_device, "", "Stress scenario device name");
 DEFINE_int32(stress_iterations, 0, "Stress scenario iteration count");
 DEFINE_int32(stress_threads, 0, "Stress scenario thread count");
+DEFINE_string(compilation_config_file, "", "Optional. Path to a compilation config file");
+DEFINE_string(stress_compilation_config, "", "Compilation config file path for stress scenario");
+DEFINE_string(stress_compilation_config2, "", "Second compilation config file path for multi-model stress scenario");

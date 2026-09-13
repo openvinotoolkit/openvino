@@ -147,6 +147,18 @@ StressUnitTests --test_conf=<npu_test_config.xml> \
 	--gtest_filter='StressUnitTests/UnitTestSuite.stress_multiple_cores/*'
 ```
 
+### Compilation Configuration
+
+By default, test cases compile models using `PERFORMANCE_HINT = LATENCY`.
+You can specify custom compilation properties globally or per-model via `test_config.xml` or via command-line flags:
+
+- In `test_config.xml`: Add `<compilation_config_file>/path/to/config.txt</compilation_config_file>` under `<attributes>` or `compilation_config="/path/to/config.txt"` to a `<model>` element.
+- Via CLI override: Add `--compilation_config_file=/path/to/config.txt` to `StressUnitTests` or `StressMemLeaksTests`.
+- For standalone child execution: Use `--stress_compilation_config=/path/to/config.txt`.
+
+For detailed configuration schema, examples, and heterogeneous testing scenarios, see
+[CONFIG_AND_RUN_GUIDE.md](CONFIG_AND_RUN_GUIDE.md).
+
 For MemCheckTests preferable way is:
 ``` bash
 python ./scripts/run_memcheck.py --gtest_parallel <gtest_parallel_py_path> 

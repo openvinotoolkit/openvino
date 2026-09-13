@@ -23,3 +23,5 @@ static const char test_conf_message[] = "Optional. Path to a test config with de
 /// @brief Define parameter for set test's configuration <br>
 /// test_conf is an optional parameter
 DEFINE_string(test_conf, OS_PATH_JOIN({"stress_tests_configs", "memleaks_tests", "test_config.xml"}), test_conf_message);
+
+DEFINE_string(compilation_config_file, "", "Optional. Path to a compilation config file");

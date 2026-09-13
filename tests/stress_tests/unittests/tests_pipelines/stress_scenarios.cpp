@@ -3,6 +3,7 @@
 //
 
 #include "stress_scenarios.h"
+#include "../../common/utils.h"
 
 #include <algorithm>
 #include <atomic>
@@ -210,12 +211,14 @@ bool supports_export_import(ov::Core& core, const std::string& device) {
 void stress_load_unload(const std::string& model,
                         const std::string& device,
                         int iterations,
-                        int threads) {
+                        int threads,
+                        const std::string& compilation_config) {
     ov::Core core;
     const auto network = core.read_model(model);
+    const auto config = load_compilation_config(compilation_config, device);
     run_workers(normalized_threads(threads), [&](int) {
         for (int iteration = 0; iteration < normalized_iterations(iterations); ++iteration) {
-            auto compiled_model = core.compile_model(network, device);
+            auto compiled_model = core.compile_model(network, device, config);
             auto request = compiled_model.create_infer_request();
             set_inputs(request, compiled_model);
             request.infer();
@@ -227,9 +230,11 @@ void stress_load_unload(const std::string& model,
 void stress_parallel_infer(const std::string& model,
                            const std::string& device,
                            int iterations,
-                           int threads) {
+                           int threads,
+                           const std::string& compilation_config) {
     ov::Core core;
-    auto compiled_model = core.compile_model(model, device);
+    const auto config = load_compilation_config(compilation_config, device);
+    auto compiled_model = core.compile_model(model, device, config);
     const bool language_model = is_language_model(compiled_model);
     run_workers(normalized_threads(threads), [&](int thread_index) {
         auto request = compiled_model.create_infer_request();
@@ -246,10 +251,12 @@ void stress_parallel_infer(const std::string& model,
 void stress_concurrent_load_infer(const std::string& model,
                                   const std::string& device,
                                   int iterations,
-                                  int threads) {
+                                  int threads,
+                                  const std::string& compilation_config) {
     ov::Core core;
     const auto network = core.read_model(model);
-    auto stable_model = core.compile_model(network, device);
+    const auto config = load_compilation_config(compilation_config, device);
+    auto stable_model = core.compile_model(network, device, config);
     const int worker_count = normalized_threads(threads);
     const int load_workers = std::max(1, worker_count / 2);
     const int infer_workers = std::max(1, worker_count - load_workers);
@@ -264,7 +271,7 @@ void stress_concurrent_load_infer(const std::string& model,
                     std::this_thread::yield();
                 }
                 for (int iteration = 0; iteration < normalized_iterations(iterations); ++iteration) {
-                    auto temporary_model = core.compile_model(network, device);
+                    auto temporary_model = core.compile_model(network, device, config);
                     static_cast<void>(temporary_model);
                 }
             });
@@ -296,13 +303,15 @@ void stress_concurrent_load_infer(const std::string& model,
 void stress_import_export(const std::string& model,
                           const std::string& device,
                           int iterations,
-                          int threads) {
+                          int threads,
+                          const std::string& compilation_config) {
     ov::Core core;
     if (!supports_export_import(core, device)) {
         return;
     }
 
-    auto compiled_model = core.compile_model(model, device);
+    const auto config = load_compilation_config(compilation_config, device);
+    auto compiled_model = core.compile_model(model, device, config);
     std::ostringstream output;
     compiled_model.export_model(output);
     const std::string blob = output.str();
@@ -310,7 +319,7 @@ void stress_import_export(const std::string& model,
     run_workers(normalized_threads(threads), [&](int) {
         for (int iteration = 0; iteration < normalized_iterations(iterations); ++iteration) {
             std::istringstream input(blob);
-            auto imported_model = core.import_model(input, device);
+            auto imported_model = core.import_model(input, device, config);
             auto request = imported_model.create_infer_request();
             set_inputs(request, imported_model);
             request.infer();
@@ -322,9 +331,11 @@ void stress_import_export(const std::string& model,
 void stress_mid_flight_cancel(const std::string& model,
                               const std::string& device,
                               int iterations,
-                              int threads) {
+                              int threads,
+                              const std::string& compilation_config) {
     ov::Core core;
-    auto compiled_model = core.compile_model(model, device);
+    const auto config = load_compilation_config(compilation_config, device);
+    auto compiled_model = core.compile_model(model, device, config);
     const int request_count = std::max(2, normalized_threads(threads));
 
     for (int iteration = 0; iteration < normalized_iterations(iterations); ++iteration) {
@@ -369,15 +380,17 @@ void stress_mid_flight_cancel(const std::string& model,
 void stress_memory_pressure(const std::string& model,
                             const std::string& device,
                             int iterations,
-                            int threads) {
+                            int threads,
+                            const std::string& compilation_config) {
     ov::Core core;
     const auto network = core.read_model(model);
+    const auto config = load_compilation_config(compilation_config, device);
     const int model_count = normalized_threads(threads);
     for (int iteration = 0; iteration < normalized_iterations(iterations); ++iteration) {
         std::vector<ov::CompiledModel> compiled_models;
         compiled_models.reserve(static_cast<size_t>(model_count));
         for (int index = 0; index < model_count; ++index) {
-            compiled_models.emplace_back(core.compile_model(network, device));
+            compiled_models.emplace_back(core.compile_model(network, device, config));
         }
         run_workers(model_count, [&](int index) {
             auto& compiled_model = compiled_models[static_cast<size_t>(index)];
@@ -392,13 +405,15 @@ void stress_memory_pressure(const std::string& model,
 void stress_destroy_compiled_model(const std::string& model,
                                    const std::string& device,
                                    int iterations,
-                                   int threads) {
+                                   int threads,
+                                   const std::string& compilation_config) {
     ov::Core core;
     const auto network = core.read_model(model);
+    const auto config = load_compilation_config(compilation_config, device);
     run_workers(normalized_threads(threads), [&](int) {
         for (int iteration = 0; iteration < normalized_iterations(iterations); ++iteration) {
             auto compiled_model = std::make_shared<ov::CompiledModel>(
-                core.compile_model(network, device));
+                core.compile_model(network, device, config));
             auto request = compiled_model->create_infer_request();
             set_inputs(request, *compiled_model);
             ThreadErrors errors;
@@ -418,11 +433,13 @@ void stress_destroy_compiled_model(const std::string& model,
 void stress_multiple_cores(const std::string& model,
                            const std::string& device,
                            int iterations,
-                           int threads) {
+                           int threads,
+                           const std::string& compilation_config) {
     run_workers(normalized_threads(threads), [&](int) {
         for (int iteration = 0; iteration < normalized_iterations(iterations); ++iteration) {
             ov::Core core;
-            auto compiled_model = core.compile_model(model, device);
+            const auto config = load_compilation_config(compilation_config, device);
+            auto compiled_model = core.compile_model(model, device, config);
             auto request = compiled_model.create_infer_request();
             set_inputs(request, compiled_model);
             request.infer();
@@ -435,11 +452,15 @@ void stress_heterogeneous_concurrent_infer(const std::string& model_heavy,
                                            const std::string& model_light,
                                            const std::string& device,
                                            int iterations,
-                                           int threads) {
+                                           int threads,
+                                           const std::string& compilation_config_heavy,
+                                           const std::string& compilation_config_light) {
     ov::Core core;
     const std::string light_path = !model_light.empty() ? model_light : model_heavy;
-    auto compiled_heavy = core.compile_model(model_heavy, device);
-    auto compiled_light = core.compile_model(light_path, device);
+    const auto config_heavy = load_compilation_config(compilation_config_heavy, device);
+    const auto config_light = load_compilation_config(!compilation_config_light.empty() ? compilation_config_light : compilation_config_heavy, device);
+    auto compiled_heavy = core.compile_model(model_heavy, device, config_heavy);
+    auto compiled_light = core.compile_model(light_path, device, config_light);
 
     const bool heavy_is_lm = is_language_model(compiled_heavy);
     const bool light_is_lm = is_language_model(compiled_light);
@@ -506,25 +527,28 @@ void run_stress_scenario(const std::string& scenario,
                          const std::string& device,
                          int iterations,
                          int threads,
-                         const std::string& model2) {
+                         const std::string& model2,
+                         const std::string& compilation_config,
+                         const std::string& compilation_config2) {
     if (scenario == "stress_load_unload") {
-        stress_load_unload(model, device, iterations, threads);
+        stress_load_unload(model, device, iterations, threads, compilation_config);
     } else if (scenario == "stress_parallel_infer") {
-        stress_parallel_infer(model, device, iterations, threads);
+        stress_parallel_infer(model, device, iterations, threads, compilation_config);
     } else if (scenario == "stress_concurrent_load_infer") {
-        stress_concurrent_load_infer(model, device, iterations, threads);
+        stress_concurrent_load_infer(model, device, iterations, threads, compilation_config);
     } else if (scenario == "stress_import_export") {
-        stress_import_export(model, device, iterations, threads);
+        stress_import_export(model, device, iterations, threads, compilation_config);
     } else if (scenario == "stress_mid_flight_cancel") {
-        stress_mid_flight_cancel(model, device, iterations, threads);
+        stress_mid_flight_cancel(model, device, iterations, threads, compilation_config);
     } else if (scenario == "stress_memory_pressure") {
-        stress_memory_pressure(model, device, iterations, threads);
+        stress_memory_pressure(model, device, iterations, threads, compilation_config);
     } else if (scenario == "stress_destroy_compiled_model") {
-        stress_destroy_compiled_model(model, device, iterations, threads);
+        stress_destroy_compiled_model(model, device, iterations, threads, compilation_config);
     } else if (scenario == "stress_multiple_cores") {
-        stress_multiple_cores(model, device, iterations, threads);
+        stress_multiple_cores(model, device, iterations, threads, compilation_config);
     } else if (scenario == "stress_heterogeneous_concurrent_infer") {
-        stress_heterogeneous_concurrent_infer(model, model2, device, iterations, threads);
+        stress_heterogeneous_concurrent_infer(model, model2, device, iterations, threads,
+                                              compilation_config, compilation_config2);
     } else {
         throw std::invalid_argument("Unknown stress scenario: " + scenario);
     }

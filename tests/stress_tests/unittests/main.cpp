@@ -57,7 +57,9 @@ int main(int argc, char **argv) {
                                 FLAGS_stress_device,
                                 FLAGS_stress_iterations,
                                 FLAGS_stress_threads,
-                                FLAGS_stress_model2);
+                                FLAGS_stress_model2,
+                                FLAGS_stress_compilation_config,
+                                FLAGS_stress_compilation_config2);
         } catch (const std::exception& error) {
             log_err("Stress child failed: " << error.what());
             return 1;
@@ -68,6 +70,9 @@ int main(int argc, char **argv) {
     pugi::xml_document config;
     config.load_file(FLAGS_test_conf.c_str());
     Environment::Instance().setTestConfig(config);
+    if (!FLAGS_compilation_config_file.empty()) {
+        Environment::Instance().setCompilationConfigFile(FLAGS_compilation_config_file);
+    }
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

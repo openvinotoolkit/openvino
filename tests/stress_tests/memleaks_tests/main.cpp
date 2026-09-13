@@ -52,6 +52,9 @@ int main(int argc, char **argv) {
     pugi::xml_document config;
     config.load_file(FLAGS_test_conf.c_str());
     Environment::Instance().setTestConfig(config);
+    if (!FLAGS_compilation_config_file.empty()) {
+        Environment::Instance().setCompilationConfigFile(FLAGS_compilation_config_file);
+    }
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
 }

@@ -34,9 +34,12 @@ The configuration file defines the test parameters matrix. The test harness gene
         <value>GPU</value>
     </devices>
 
+    <!-- Optional global compilation configuration file (defaults to PERFORMANCE_HINT LATENCY if omitted) -->
+    <compilation_config_file>/path/to/global_compilation_config.txt</compilation_config_file>
+
     <!-- Model IR definitions -->
     <models>
-        <model name="heavy_model" path="heavy_model" full_path="/path/to/heavy_model.xml" precision="FP32" />
+        <model name="heavy_model" path="heavy_model" full_path="/path/to/heavy_model.xml" precision="FP32" compilation_config="/path/to/heavy_compilation_config.txt" />
         <model name="light_model" path="light_model" full_path="/path/to/light_model.xml" precision="FP32" />
     </models>
 </attributes>
@@ -50,6 +53,7 @@ The configuration file defines the test parameters matrix. The test harness gene
 | `<threads>` | `<value>N</value>` | Number of worker threads per process. Default is `1`. |
 | `<iterations>` | `<value>N</value>` | Number of iterations/loops each worker runs. Default is `1`. |
 | `<devices>` | `<value>DEV</value>` | OpenVINO plugin device: `CPU`, `GPU`, `NPU`, `AUTO`, `HETERO`, etc. |
+| `<compilation_config_file>` | *Path string* | (*Optional*) Path to compilation configuration file applied globally across models. |
 | `<models>` | `<model ... />` | List of OpenVINO IR models to test. |
 
 #### `<model>` Attributes:
@@ -57,6 +61,29 @@ The configuration file defines the test parameters matrix. The test harness gene
 - **`path`** (*Required*): Short identifier used for GoogleTest test case naming.
 - **`name`** (*Optional*): Model name, used during automated Open Model Zoo (OMZ) acquisition.
 - **`precision`** (*Optional*): Precision descriptor (e.g. `FP32`, `FP16`, `INT8`).
+- **`compilation_config`** (*Optional*): Path to a model-specific compilation config file. Overrides the global `<compilation_config_file>`.
+
+### Compilation Configuration File Format
+
+The compilation configuration file defines properties passed to `ov::Core::compile_model()`. If no configuration file is provided, tests default to `PERFORMANCE_HINT LATENCY`.
+
+Sample configuration file format (`compilation_config.txt`):
+```text
+# Global properties (applied to all devices)
+PERFORMANCE_HINT LATENCY
+NUM_STREAMS 2
+INFERENCE_NUM_THREADS 4
+
+# Or device-scoped properties:
+# NPU PERFORMANCE_HINT LATENCY
+# CPU NUM_STREAMS 4
+```
+
+Supported syntax:
+- `KEY VALUE` or `KEY=VALUE`
+- `DEVICE KEY VALUE`
+- Comments starting with `#` or `//`
+- Quoted string values (e.g. `PERFORMANCE_HINT "LATENCY"`)
 
 ---
 
@@ -97,16 +124,24 @@ $BIN_DIR/StressUnitTests \
 
 ### B. Run All Coordinated Single-Model Stress Tests
 ```bash
+# Run with default LATENCY performance hint
 $BIN_DIR/StressUnitTests \
     --test_conf=/path/to/test_config.xml \
+    --gtest_filter='StressUnitTests/UnitTestSuite.stress_*'
+
+# Run with custom compilation configuration file override
+$BIN_DIR/StressUnitTests \
+    --test_conf=/path/to/test_config.xml \
+    --compilation_config_file=/path/to/compilation_config.txt \
     --gtest_filter='StressUnitTests/UnitTestSuite.stress_*'
 ```
 
 ### C. Run Specific Single-Model Scenarios on NPU / CPU / GPU
 ```bash
-# Parallel inference on NPU
+# Parallel inference on NPU with compilation config
 $BIN_DIR/StressUnitTests \
     --test_conf=/path/to/test_config.xml \
+    --compilation_config_file=/path/to/npu_compilation_config.txt \
     --gtest_filter='StressUnitTests/UnitTestSuite.stress_parallel_infer/*NPU*'
 
 # Concurrent compile & infer on CPU
@@ -135,7 +170,7 @@ $BIN_DIR/StressUnitTests \
 Direct execution without XML parsing:
 
 ```bash
-# Single model standalone run
+# Single model standalone run (default LATENCY hint)
 $BIN_DIR/StressUnitTests \
     --stress_child \
     --stress_scenario=stress_parallel_infer \
@@ -143,6 +178,16 @@ $BIN_DIR/StressUnitTests \
     --stress_device=NPU \
     --stress_iterations=200 \
     --stress_threads=4
+
+# Single model standalone run with custom compilation config
+$BIN_DIR/StressUnitTests \
+    --stress_child \
+    --stress_scenario=stress_parallel_infer \
+    --stress_model=/path/to/model.xml \
+    --stress_device=NPU \
+    --stress_iterations=200 \
+    --stress_threads=4 \
+    --stress_compilation_config=/path/to/compilation_config.txt
 
 # Multi-model concurrent standalone run
 $BIN_DIR/StressUnitTests \
@@ -152,5 +197,7 @@ $BIN_DIR/StressUnitTests \
     --stress_model2=/path/to/light_model.xml \
     --stress_device=NPU \
     --stress_iterations=200 \
-    --stress_threads=4
+    --stress_threads=4 \
+    --stress_compilation_config=/path/to/heavy_config.txt \
+    --stress_compilation_config2=/path/to/light_config.txt
 ```

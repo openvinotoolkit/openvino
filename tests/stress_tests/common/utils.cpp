@@ -34,9 +34,11 @@ std::string OS_PATH_JOIN(std::initializer_list<std::string> list) {
 }
 
 std::string fileNameNoExt(const std::string &filepath) {
-    auto pos = filepath.rfind('.');
-    if (pos == std::string::npos) return filepath;
-    return filepath.substr(0, pos);
+    auto slash_pos = filepath.find_last_of("/\\");
+    std::string filename = (slash_pos == std::string::npos) ? filepath : filepath.substr(slash_pos + 1);
+    auto pos = filename.rfind('.');
+    if (pos == std::string::npos) return filename;
+    return filename.substr(0, pos);
 }
 
 #ifdef _WIN32
@@ -268,4 +270,73 @@ std::string expand_env_vars(const std::string &input) {
     std::string _input = input;
     auto_expand_env_vars(_input);
     return _input;
+}
+
+ov::AnyMap load_compilation_config(const std::string &config_file, const std::string &device) {
+    ov::AnyMap config;
+
+    if (!config_file.empty()) {
+        const std::string resolved_path = expand_env_vars(config_file);
+        std::ifstream file(resolved_path);
+        if (!file.is_open()) {
+            throw std::runtime_error("Can't open compilation config file: \"" + config_file + "\"");
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            size_t first = line.find_first_not_of(" \t\r\n");
+            if (first == std::string::npos) continue;
+            size_t last = line.find_last_not_of(" \t\r\n");
+            line = line.substr(first, last - first + 1);
+
+            if (line.empty() || line[0] == '#' || (line.size() >= 2 && line.substr(0, 2) == "//")) {
+                continue;
+            }
+
+            auto eq_pos = line.find('=');
+            if (eq_pos != std::string::npos) {
+                std::string key = line.substr(0, eq_pos);
+                std::string value = line.substr(eq_pos + 1);
+
+                size_t k_start = key.find_first_not_of(" \t");
+                size_t k_end = key.find_last_not_of(" \t");
+                size_t v_start = value.find_first_not_of(" \t");
+                size_t v_end = value.find_last_not_of(" \t");
+                if (k_start != std::string::npos && v_start != std::string::npos) {
+                    key = key.substr(k_start, k_end - k_start + 1);
+                    value = value.substr(v_start, v_end - v_start + 1);
+                    if (value.size() >= 2 && ((value.front() == '"' && value.back() == '"') ||
+                                              (value.front() == '\'' && value.back() == '\''))) {
+                        value = value.substr(1, value.size() - 2);
+                    }
+                    config[key] = value;
+                }
+            } else {
+                std::istringstream iss(line);
+                std::string token1, token2, token3;
+                iss >> token1 >> token2 >> token3;
+                if (!token3.empty()) {
+                    if (device.empty() || token1 == device) {
+                        if (token3.size() >= 2 && ((token3.front() == '"' && token3.back() == '"') ||
+                                                  (token3.front() == '\'' && token3.back() == '\''))) {
+                            token3 = token3.substr(1, token3.size() - 2);
+                        }
+                        config[token2] = token3;
+                    }
+                } else if (!token2.empty()) {
+                    if (token2.size() >= 2 && ((token2.front() == '"' && token2.back() == '"') ||
+                                              (token2.front() == '\'' && token2.back() == '\''))) {
+                        token2 = token2.substr(1, token2.size() - 2);
+                    }
+                    config[token1] = token2;
+                }
+            }
+        }
+    }
+
+    if (config.find(ov::hint::performance_mode.name()) == config.end()) {
+        config[ov::hint::performance_mode.name()] = ov::hint::PerformanceMode::LATENCY;
+    }
+
+    return config;
 }

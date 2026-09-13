@@ -31,7 +31,8 @@
     else                                                                \
         throw std::logic_error("Reshape wasn't applied for a model.");
 
-void test_load_unload_plugin_full_pipeline(const std::string &model, const std::string &target_device, const int &n) {
+void test_load_unload_plugin_full_pipeline(const std::string &model, const std::string &target_device, const int &n, const std::string &config_file) {
+    auto props = load_compilation_config(config_file, target_device);
     log_info("Load/unload plugin for device: " << target_device << " for " << n << " times");
     auto ie_api_wrapper = create_infer_api_wrapper();
     for (int i = 0; i < n; i++) {
@@ -44,13 +45,14 @@ void test_load_unload_plugin_full_pipeline(const std::string &model, const std::
         ie_api_wrapper->unload_plugin(target_device);
     }
     ie_api_wrapper->read_network(model);
-    ie_api_wrapper->load_network(target_device);
+    ie_api_wrapper->load_network(target_device, props);
     ie_api_wrapper->create_infer_request();
     ie_api_wrapper->prepare_input();
     ie_api_wrapper->infer();
 }
 
-void test_read_network_full_pipeline(const std::string &model, const std::string &target_device, const int &n) {
+void test_read_network_full_pipeline(const std::string &model, const std::string &target_device, const int &n, const std::string &config_file) {
+    auto props = load_compilation_config(config_file, target_device);
     auto ie_api_wrapper = create_infer_api_wrapper();
     log_info("Read network: \"" << model << "\" for " << n << " times");
     for (int i = 0; i < n; i++) {
@@ -59,13 +61,14 @@ void test_read_network_full_pipeline(const std::string &model, const std::string
         }
         ie_api_wrapper->read_network(model);
     }
-    ie_api_wrapper->load_network(target_device);
+    ie_api_wrapper->load_network(target_device, props);
     ie_api_wrapper->create_infer_request();
     ie_api_wrapper->prepare_input();
     ie_api_wrapper->infer();
 }
 
-void test_set_input_params_full_pipeline(const std::string &model, const std::string &target_device, const int &n) {
+void test_set_input_params_full_pipeline(const std::string &model, const std::string &target_device, const int &n, const std::string &config_file) {
+    auto props = load_compilation_config(config_file, target_device);
     auto ie_api_wrapper = create_infer_api_wrapper();
     log_info("Apply preprocessing for CNNNetwork from network: \"" << model << "\" for " << n << " times");
     for (int i = 0; i < n; i++) {
@@ -74,14 +77,15 @@ void test_set_input_params_full_pipeline(const std::string &model, const std::st
         }
         ie_api_wrapper->set_input_params(model);
     }
-    ie_api_wrapper->load_network(target_device);
+    ie_api_wrapper->load_network(target_device, props);
     ie_api_wrapper->create_infer_request();
     ie_api_wrapper->prepare_input();
     ie_api_wrapper->infer();
 }
 
 void test_cnnnetwork_reshape_batch_x2_full_pipeline(const std::string &model, const std::string &target_device,
-                                                    const int &n) {
+                                                    const int &n, const std::string &config_file) {
+    auto props = load_compilation_config(config_file, target_device);
     auto ie_api_wrapper = create_infer_api_wrapper();
     log_info("Reshape to batch*=2 of CNNNetwork created from network: \"" << model << "\" for " << n << " times");
     ie_api_wrapper->read_network(model);
@@ -91,13 +95,14 @@ void test_cnnnetwork_reshape_batch_x2_full_pipeline(const std::string &model, co
         }
         ie_api_wrapper->change_batch_size(2, i);
     }
-    ie_api_wrapper->load_network(target_device);
+    ie_api_wrapper->load_network(target_device, props);
     ie_api_wrapper->create_infer_request();
     ie_api_wrapper->prepare_input();
     ie_api_wrapper->infer();
 }
 
-void test_create_exenetwork_full_pipeline(const std::string &model, const std::string &target_device, const int &n) {
+void test_create_exenetwork_full_pipeline(const std::string &model, const std::string &target_device, const int &n, const std::string &config_file) {
+    auto props = load_compilation_config(config_file, target_device);
     auto ie_api_wrapper = create_infer_api_wrapper();
     log_info("Create ExecutableNetwork from network: \"" << model
                                                          << "\" for device: \"" << target_device << "\" for " << n
@@ -107,20 +112,21 @@ void test_create_exenetwork_full_pipeline(const std::string &model, const std::s
         if (i == n / 2) {
             log_info("Half of the test have already passed");
         }
-        ie_api_wrapper->load_network(target_device);
+        ie_api_wrapper->load_network(target_device, props);
     }
     ie_api_wrapper->create_infer_request();
     ie_api_wrapper->prepare_input();
     ie_api_wrapper->infer();
 }
 
-void test_create_infer_request_full_pipeline(const std::string &model, const std::string &target_device, const int &n) {
+void test_create_infer_request_full_pipeline(const std::string &model, const std::string &target_device, const int &n, const std::string &config_file) {
+    auto props = load_compilation_config(config_file, target_device);
     auto ie_api_wrapper = create_infer_api_wrapper();
     log_info("Create InferRequest from network: \"" << model
                                                     << "\" for device: \"" << target_device << "\" for " << n
                                                     << " times");
     ie_api_wrapper->read_network(model);
-    ie_api_wrapper->load_network(target_device);
+    ie_api_wrapper->load_network(target_device, props);
     for (int i = 0; i < n; i++) {
         if (i == n / 2) {
             log_info("Half of the test have already passed");
@@ -133,13 +139,14 @@ void test_create_infer_request_full_pipeline(const std::string &model, const std
 
 
 void test_infer_request_inference_full_pipeline(const std::string &model, const std::string &target_device,
-                                                const int &n) {
+                                                const int &n, const std::string &config_file) {
+    auto props = load_compilation_config(config_file, target_device);
     auto ie_api_wrapper = create_infer_api_wrapper();
     log_info("Inference of InferRequest from network: \"" << model
                                                           << "\" for device: \"" << target_device << "\" for " << n
                                                           << " times");
     ie_api_wrapper->read_network(model);
-    ie_api_wrapper->load_network(target_device);
+    ie_api_wrapper->load_network(target_device, props);
     ie_api_wrapper->create_infer_request();
     ie_api_wrapper->prepare_input();
     for (int i = 0; i < n; i++) {
