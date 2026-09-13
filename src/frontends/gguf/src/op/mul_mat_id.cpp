@@ -372,7 +372,7 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
     } else {
         result = translate_mul_mat_id_generic(context, expert_weights, activations, ids);
     }
-    return rename_outputs_with_suffix({result}, context.get_name());
+    return rename_outputs_with_suffix({std::move(result)}, context.get_name());
 }
 
 }  // namespace op

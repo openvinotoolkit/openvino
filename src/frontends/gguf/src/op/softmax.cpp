@@ -107,10 +107,10 @@ OutputVector translate_soft_max(const NodeContext& context) {
     if (!has_mask) {
         if (has_sinks) {
             res = apply_sinks(context, scaled_input, context.get_input(sinks_input_idx));
-            return rename_outputs_with_suffix({res}, context.get_name());
+            return rename_outputs_with_suffix({std::move(res)}, context.get_name());
         }
         res = std::make_shared<ov::op::v8::Softmax>(scaled_input, softmax_axis);
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     ov::Output<ov::Node> mask_node_sliced;
@@ -161,12 +161,12 @@ OutputVector translate_soft_max(const NodeContext& context) {
 
     if (has_sinks) {
         res = apply_sinks(context, biased_input, context.get_input(sinks_input_idx));
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     res = std::make_shared<ov::op::v8::Softmax>(biased_input, softmax_axis);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

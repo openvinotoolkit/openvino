@@ -8,6 +8,8 @@
 #include "pass_manager.h"
 #include "program_node.h"
 #include "permute_inst.h"
+#include "reorder_inst.h"
+#include "reshape_inst.h"
 #include "openvino/core/except.hpp"
 #include "intel_gpu/primitives/deconvolution.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -64,26 +66,31 @@ static void optimize_conv_permute(program_node& node) {
 
 static void optimize_permute_conv(program_node& node) {
     // Goal: Eliminate the Reorder by aligning connection to byxf
-    if (node.get_dependencies().empty())
+    if (node.get_dependencies().empty()) {
         return;
+    }
 
     auto& dep = node.get_dependency(0);
 
     // Dependency must be a Permute node (not network output)
-    if (!dep.is_type<permute>() || dep.is_output())
+    if (!dep.is_type<permute>() || dep.is_output()) {
         return;
+    }
 
-    if ((node.get_users().size() != 1) || (node.get_output_layout().get_rank() != 4))
+    if ((node.get_users().size() != 1) || (node.get_output_layout().get_rank() != 4)) {
         return;
+    }
 
     auto& pnode = dep.as<permute>();
 
-    if (pnode.get_output_layout().data_type != node.get_output_layout().data_type)
+    if (pnode.get_output_layout().data_type != node.get_output_layout().data_type) {
         return;
+    }
 
     // NHWC <-> NCHW (ensures reverse rotation pattern)
-    if (!pnode.is_reverse_rotating_except_batch())
+    if (!pnode.is_reverse_rotating_except_batch()) {
         return;
+    }
 
     auto pnode_upstream_fmt = pnode.get_dependency(0).get_preferred_output_fmt();
     auto node_fmt = node.get_preferred_output_fmt();
@@ -91,8 +98,9 @@ static void optimize_permute_conv(program_node& node) {
     bool is_compatible_format = ((pnode_upstream_fmt == format::bfyx || pnode_upstream_fmt == format::any)
                                 && (node_fmt == format::byxf));
 
-    if (!is_compatible_format)
+    if (!is_compatible_format) {
         return;
+    }
 
     // Set the layouts so that the memory buffer is re-interpreted rather than physically shuffled.
     node.set_preferred_input_fmt(0, format::byxf);
@@ -112,6 +120,49 @@ static void optimize_permute_conv(program_node& node) {
     if (!pnode.has_fused_primitives()) {
         pnode.can_be_optimized(true);
     }
+}
+
+static void optimize_conv_reshape_reorder(program_node& node) {
+    // A rank-changing ov::Reshape is lowered to "reorder(planar) -> reshape" at plugin build time
+    // (see CreateCommonReshapeOp in plugin/ops/reshape.cpp), because cldnn reshape assumes a planar
+    // input. If the producing convolution emits that planar format itself, the reorder becomes a
+    // pure buffer reinterpret and remove_redundant_reorders drops it.
+    // ex) conv (b_fs_yx_fsv16 [b:6, f:256, y:108, x:108]) -> reorder (bfyx [b:6, f:256, y:11664, x:1]) -> reshape
+    //     becomes conv (bfyx) -> (reorder optimized out) -> reshape
+    if (node.is_output() || node.get_users().size() != 1)
+        return;
+
+    auto& user = *node.get_users().front();
+    if (!user.is_type<reorder>() || user.is_output() || user.get_users().size() != 1)
+        return;
+
+    auto& r_node = user.as<reorder>();
+    if (!r_node.is_simple_reorder() || !r_node.get_users().front()->is_type<reshape>())
+        return;
+
+    const auto& conv_layout = node.get_output_layout(false);
+    const auto& reorder_layout = r_node.get_output_layout(false);
+    if (conv_layout.is_dynamic() || reorder_layout.is_dynamic())
+        return;
+
+    // Mirror the default-format branch of layout::compatible(), which is what lets
+    // remove_redundant_reorders reinterpret the buffer instead of copying it.
+    if (!format::is_default_format(reorder_layout.format))
+        return;
+
+    if (conv_layout.get_rank() != reorder_layout.format.dimension())
+        return;
+
+    if (conv_layout.data_type != reorder_layout.data_type)
+        return;
+
+    if (conv_layout.data_padding || reorder_layout.data_padding)
+        return;
+
+    if (conv_layout.get_linear_size() != reorder_layout.get_linear_size())
+        return;
+
+    node.set_preferred_output_fmt(0, reorder_layout.format);
 }
 
 } // namespace
@@ -172,6 +223,7 @@ void select_preferred_formats::run(program& p) {
                 if (factory->get_impl_type() == impl_types::onednn && (n->is_type<convolution>() || n->is_type<deconvolution>())) {
                     optimize_conv_permute(*n);
                     optimize_permute_conv(*n);
+                    optimize_conv_reshape_reorder(*n);
                 }
             } catch (std::exception& exception) {
                 GPU_DEBUG_LOG << "WARNING(select_preferred_formats): " << exception.what() << std::endl;
