@@ -4,6 +4,7 @@
 
 #include "low_precision/pad.hpp"
 
+#include <cmath>
 #include <memory>
 
 #include "itt.hpp"
@@ -53,6 +54,25 @@ namespace {
         };
         return std::any_of(padsBegin.begin(), padsBegin.end(), pred) ||
                std::any_of(padsEnd.begin(), padsEnd.end(), pred);
+    }
+
+    // Returns true when every constant Pad value is finite and fits the requested precision.
+    // Types without configured limits are checked only for finite values.
+    bool padValueIsRepresentable(const std::shared_ptr<ov::op::util::PadBase>& pad, const element::Type& precision) {
+        const auto padValueNode = pad->get_input_node_shared_ptr(padValueInputIndex);
+        if (!NetworkHelper::checkConstantNotInf(padValueNode)) {
+            return false;
+        }
+
+        const auto limits = NetworkHelper::getPrecisionLimits(precision);
+        const auto values = ov::as_type_ptr<ov::opset1::Constant>(padValueNode)->cast_vector<float>();
+        
+        return std::all_of(values.begin(), values.end(), [&limits](const float value) {
+            const bool isFinite = std::isfinite(value);
+            const bool isWithinPrecisionLimits =
+                !limits.has_value() || (value >= limits->first && value <= limits->second);
+            return isFinite && isWithinPrecisionLimits;
+        });
     }
 } // namespace
 
@@ -194,13 +214,13 @@ bool PadTransformation::canBeTransformed(const std::shared_ptr<Node>& op) const 
         return false;
     }
 
-    if (mode == op::PadMode::CONSTANT &&
-        !NetworkHelper::checkConstantNotInf(pad->get_input_node_shared_ptr(padValueInputIndex))) {
+    const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
+    if (dequantization.empty()) {
         return false;
     }
 
-    const auto dequantization = NetworkHelper::getDequantization(op, defaultPrecisions);
-    if (dequantization.empty()) {
+    if (mode == op::PadMode::CONSTANT &&
+        !padValueIsRepresentable(pad, dequantization.data.get_element_type())) {
         return false;
     }
 
