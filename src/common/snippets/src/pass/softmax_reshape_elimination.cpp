@@ -4,6 +4,7 @@
 
 #include "snippets/pass/softmax_reshape_elimination.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 
@@ -28,31 +29,35 @@ bool ov::snippets::pass::SoftmaxReshapeElimination::eliminate(const std::shared_
     const auto input_shape = reshape0->get_input_partial_shape(0);
     const auto output_shape = reshape1->get_output_partial_shape(0);
     const auto softmax_shape = softmax->get_input_partial_shape(0);
-    const auto shape_of = ov::as_type_ptr<ov::op::util::ShapeOfBase>(reshape1->input_value(1).get_node_shared_ptr());
-    const bool shape_of_input =
-        shape_of && shape_of->input_value(0).get_node_shared_ptr() == reshape0->input_value(0).get_node_shared_ptr();
-    if ((!input_shape.compatible(output_shape) && !shape_of_input) || input_shape.rank() != output_shape.rank()) {
+    if (input_shape.rank().is_dynamic() || output_shape.rank().is_dynamic() || softmax_shape.rank().is_dynamic() ||
+        input_shape.rank().get_length() == 0 || softmax_shape.rank().get_length() == 0 ||
+        input_shape.rank() != output_shape.rank()) {
         return false;
     }
 
-    const auto softmax_rank = softmax_shape.rank();
+    const auto dims_equal = [](const ov::Dimension& lhs, const ov::Dimension& rhs) {
+        return (lhs.is_static() && rhs.is_static() && lhs == rhs) ||
+               ov::symbol::are_equal(lhs.get_symbol(), rhs.get_symbol());
+    };
+    const auto shape_of = ov::as_type_ptr<ov::op::util::ShapeOfBase>(reshape1->input_value(1).get_node_shared_ptr());
+    const bool shape_of_input = shape_of && shape_of->input_value(0) == reshape0->input_value(0);
+    const bool constant_patterns = ov::is_type<ov::op::v0::Constant>(reshape0->get_input_node_ptr(1)) &&
+                                   ov::is_type<ov::op::v0::Constant>(reshape1->get_input_node_ptr(1));
+    if (!shape_of_input && !(constant_patterns && input_shape == output_shape) &&
+        !std::equal(input_shape.begin(), input_shape.end(), output_shape.begin(), dims_equal)) {
+        return false;
+    }
+
     const auto axis = ov::snippets::utils::get_softmax_axis(softmax);
     // Supports only the last axis.
-    if (!axis || *axis != static_cast<int64_t>(softmax_rank.get_length()) - 1) {
+    if (!axis || *axis != softmax_shape.rank().get_length() - 1) {
         return false;
     }
 
-    // Dimensions by reduction axis should be equal.
-    const auto in_last_dim = *input_shape.crbegin();
-    const auto out_last_dim = *output_shape.crbegin();
-    const auto softmax_last_dim = *softmax_shape.crbegin();
-    if ((!shape_of_input &&
-         (!in_last_dim.is_static() && !ov::symbol::are_equal(in_last_dim.get_symbol(), out_last_dim.get_symbol()))) ||
-        (in_last_dim.is_static() && in_last_dim != out_last_dim) ||
-        (softmax_last_dim.is_static() &&
-         ((in_last_dim.is_static() && in_last_dim != softmax_last_dim) ||
-          (!in_last_dim.is_static() &&
-           !ov::symbol::are_equal(in_last_dim.get_symbol(), softmax_last_dim.get_symbol()))))) {
+    // An unknown reduction dimension is not proof that the reshape preserves it.
+    const auto& in_last_dim = *input_shape.crbegin();
+    if (!dims_equal(in_last_dim, *softmax_shape.crbegin()) ||
+        (!shape_of_input && !dims_equal(in_last_dim, *output_shape.crbegin()))) {
         return false;
     }
 

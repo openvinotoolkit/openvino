@@ -79,8 +79,9 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_reshape_shapes(const 
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{rank - 1}, prefix_indices_data);
     const auto prefix_shape = std::make_shared<ov::opset1::Gather>(shape_of, prefix_indices, axis);
     const auto batch = std::make_shared<ov::opset1::ReduceProd>(prefix_shape, axis, true);
-    const auto minus_one = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-    const auto shape_before_softmax = std::make_shared<ov::opset1::Concat>(ov::OutputVector{batch, minus_one}, 0);
+    const auto last_index = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {rank - 1});
+    const auto last_dim = std::make_shared<ov::opset1::Gather>(shape_of, last_index, axis);
+    const auto shape_before_softmax = std::make_shared<ov::opset1::Concat>(ov::OutputVector{batch, last_dim}, 0);
     const auto shape_after_softmax = shape_of;
 
     return {shape_before_softmax, shape_after_softmax};
@@ -152,7 +153,7 @@ std::shared_ptr<ov::Model> init_mha_original(const std::vector<PartialShape>& in
         ov::Output<ov::Node> reshape0Const;
         ov::Output<ov::Node> reshape1Const;
         if (with_shape_of) {
-            const auto reshape_shapes = make_reshape_shapes(matMul0, rank);
+            const auto reshape_shapes = make_reshape_shapes(add, rank);
             reshape0Const = reshape_shapes.first;
             reshape1Const = reshape_shapes.second;
         } else {

@@ -9,11 +9,13 @@
 #include <pass/mha_tokenization.hpp>
 #include <subgraph_mha.hpp>
 
+#include "openvino/op/gather.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "snippets/pass/common_optimizations.hpp"
 #include "snippets/pass/extract_reshapes_from_mha.hpp"
 #include "snippets/pass/tokenization.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 namespace ov {
 namespace test {
@@ -98,6 +100,46 @@ TEST_F(TokenizeMHASnippetsTests, ShapeOfExternalConsumer) {
     }
     ASSERT_EQ(model->get_results().size(), 2);
     run();
+}
+
+class ShapeOfReshapeExternalConsumer : public TokenizeMHASnippetsTests, public testing::WithParamInterface<bool> {};
+
+TEST_P(ShapeOfReshapeExternalConsumer, RejectWithoutRewiring) {
+    const auto f = MHAFunction(
+        std::vector<PartialShape>{{-1, 128, 12, 64}, {-1, 128, 12, 64}, {-1, 12, 128, 128}, {-1, 128, 12, 64}},
+        std::vector<ov::element::Type>(4, ov::element::f32),
+        false,
+        true,
+        false,
+        true);
+    model = f.getOriginal();
+    for (const auto& node : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v3::ShapeOf>(node)) {
+            node->set_argument(0, node->get_input_node_shared_ptr(0)->input_value(0));
+            if (!GetParam()) {
+                model->add_results({std::make_shared<ov::op::v0::Result>(node)});
+                break;
+            }
+        } else if (GetParam() && ov::is_type<ov::op::v1::Gather>(node)) {
+            model->add_results({std::make_shared<ov::op::v0::Result>(node)});
+            break;
+        }
+    }
+    ASSERT_EQ(model->get_results().size(), 2);
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets, ShapeOfReshapeExternalConsumer, testing::Values(false, true));
+
+TEST_F(TokenizeMHASnippetsTests, ShapeOfReshapeDynamicReduction) {
+    const auto f = MHAFunction(std::vector<PartialShape>(4, PartialShape::dynamic(4)),
+                               std::vector<ov::element::Type>(4, ov::element::f32),
+                               false,
+                               true,
+                               false,
+                               true);
+    manager.register_pass<ov::pass::SymbolicPropagation>();
+    execute_and_validate_function(*this, f);
 }
 
 TEST_F(TokenizeMHASnippetsTests, smoke_Snippets_MHA_4D_V3_Broadcast) {
