@@ -568,6 +568,32 @@ struct MODEL_PRIORITY final : OptionBase<MODEL_PRIORITY, ov::hint::Priority> {
     }
 };
 
+struct MODEL_PTR final : OptionBase<MODEL_PTR, std::weak_ptr<const ov::Model>> {
+    static std::string_view key() {
+        return ov::hint::model.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "std::weak_ptr<const ov::Model>";
+    }
+
+    static std::weak_ptr<const ov::Model> defaultValue() {
+        return {};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+
+    static std::string toString(const std::weak_ptr<const ov::Model>&) {
+        OPENVINO_THROW("Option ", ov::hint::model.name(), " cannot be converted to string");
+    }
+
+    static std::weak_ptr<const ov::Model> parse(std::string_view) {
+        OPENVINO_THROW("Option ", ov::hint::model.name(), " cannot be parsed from string");
+    }
+};
+
 struct CREATE_EXECUTOR final : OptionBase<CREATE_EXECUTOR, int64_t> {
     static std::string_view key() {
         return ov::intel_npu::create_executor.name();
@@ -1496,69 +1522,6 @@ struct CACHE_ENCRYPTION_CALLBACKS final : OptionBase<CACHE_ENCRYPTION_CALLBACKS,
 
     static ov::PropertyMutability mutability() {
         return ov::PropertyMutability::WO;
-    }
-};
-
-struct RUNTIME_REQUIREMENTS final : OptionBase<RUNTIME_REQUIREMENTS, std::string> {
-    static std::string_view key() {
-        return ov::runtime_requirements.name();
-    }
-
-    static std::string defaultValue() {
-        return {};
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-
-    static bool isPublic() {
-        return true;
-    }
-
-    static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RO;
-    }
-};
-
-struct COMPATIBILITY_CHECK final : OptionBase<COMPATIBILITY_CHECK, ov::CompatibilityCheck> {
-    static std::string_view key() {
-        return ov::compatibility_check.name();
-    }
-
-    static constexpr std::string_view getTypeName() {
-        return "ov::CompatibilityCheck";
-    }
-
-    static ov::CompatibilityCheck defaultValue() {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::RunTime;
-    }
-
-    static ov::CompatibilityCheck parse(std::string_view val) {
-        std::istringstream stringStream = std::istringstream(std::string(val));
-        ov::CompatibilityCheck check_result;
-        stringStream >> check_result;
-
-        return check_result;
-    }
-
-    static std::string toString(const ov::CompatibilityCheck& val) {
-        std::ostringstream stringStream;
-        stringStream << val;
-
-        return stringStream.str();
-    }
-
-    static bool isPublic() {
-        return true;
-    }
-
-    static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RO;
     }
 };
 

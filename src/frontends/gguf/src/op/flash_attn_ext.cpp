@@ -199,7 +199,7 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     if (kq_soft_cap == 0.0f) {
         res = std::make_shared<ov::op::v0::Convert>(res, ov::element::f32);
     }
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

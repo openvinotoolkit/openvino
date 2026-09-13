@@ -64,8 +64,9 @@ struct gemm : public primitive_base<gemm> {
         auto get_transposed_order = [] (size_t rank, bool transposed) {
             std::vector<int64_t> order(rank);
             std::iota(order.begin(), order.end(), 0);
-            if (transposed && rank > 1)
+            if (transposed && rank > 1) {
                 std::swap(order[rank - 1], order[rank - 2]);
+            }
             return order;
         };
 
@@ -179,8 +180,9 @@ struct gemm : public primitive_base<gemm> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const gemm>(rhs);
 
@@ -236,8 +238,9 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (beam_table.is_valid())
+        if (beam_table.is_valid()) {
             ret[idx++] = &beam_table;
+        }
 
         return ret;
     }

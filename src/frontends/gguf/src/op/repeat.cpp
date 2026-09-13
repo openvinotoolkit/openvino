@@ -66,7 +66,7 @@ OutputVector translate_repeat(const NodeContext& context) {
         if (resolved) {
             auto repeats_node = ov::op::v0::Constant::create(ov::element::i64, {repeats.size()}, repeats);
             ov::Output<ov::Node> res = std::make_shared<ov::op::v0::Tile>(input, repeats_node);
-            return rename_outputs_with_suffix({res}, context.get_name());
+            return rename_outputs_with_suffix({std::move(res)}, context.get_name());
         }
     }
 
@@ -85,7 +85,7 @@ OutputVector translate_repeat(const NodeContext& context) {
     }
     auto repeats_node = std::make_shared<ov::op::v1::Divide>(target_shape_node, input_shape_node);
     ov::Output<ov::Node> res = std::make_shared<ov::op::v0::Tile>(input, repeats_node);
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op
