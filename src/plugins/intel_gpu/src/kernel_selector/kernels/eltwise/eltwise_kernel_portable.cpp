@@ -12,10 +12,21 @@
 namespace kernel_selector {
 
 bool EltwiseKernelPortable::IsDense(const eltwise_params& params) const {
-    return !params.is_shape_agnostic && !params.has_dynamic_tensors() && !params.broadcast && !params.layoutBased && params.stride.empty() &&
-           params.fused_ops.empty() && params.updateInputIds.empty() && params.engineInfo.maxWorkGroupSize != 0 && params.outputs[0].LogicalSize() != 0 &&
-           params.outputs[0].LogicalSize() <= std::numeric_limits<uint32_t>::max() && params.outputs[0].PhysicalSize() == params.outputs[0].LogicalSize() &&
-           CheckInputsOutputNoPitchSameDims(params);
+    if (params.is_shape_agnostic || params.has_dynamic_tensors() || params.layoutBased || !params.stride.empty() || !params.fused_ops.empty() ||
+        !params.updateInputIds.empty() || params.engineInfo.maxWorkGroupSize == 0 || params.outputs[0].LogicalSize() == 0 ||
+        params.outputs[0].LogicalSize() > std::numeric_limits<uint32_t>::max() || params.outputs[0].PhysicalSize() != params.outputs[0].LogicalSize()) {
+        return false;
+    }
+    // Reuse the common layout check; scalar buffers do not advance with the output.
+    auto dense_params = params;
+    auto& inputs = dense_params.inputs;
+    inputs.erase(std::remove_if(inputs.begin(),
+                                inputs.end(),
+                                [](const DataTensor& input) {
+                                    return input.LogicalSize() == 1;
+                                }),
+                 inputs.end());
+    return CheckInputsOutputNoPitchSameDims(dense_params);
 }
 
 EltwiseKernelBase::DispatchData EltwiseKernelPortable::SetDefault(const eltwise_params& params) const {
