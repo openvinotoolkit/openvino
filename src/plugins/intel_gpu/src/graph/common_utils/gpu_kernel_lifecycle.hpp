@@ -14,19 +14,11 @@ namespace cldnn {
 
 /// Owns compiled kernel handles and the compilation/cache lifecycle shared by GPU implementations.
 ///
-/// Execution code accesses the precomputed vector directly through kernels(); this helper performs
-/// no work in the dispatch path.
+/// Execution code accesses precomputed kernel handles by index; this helper performs no work in the dispatch path.
 class gpu_kernel_lifecycle final {
 public:
     using container_type = std::vector<kernel::ptr>;
-    using iterator = container_type::iterator;
     using const_iterator = container_type::const_iterator;
-
-    gpu_kernel_lifecycle() = default;
-    gpu_kernel_lifecycle(const gpu_kernel_lifecycle&) = default;
-    gpu_kernel_lifecycle(gpu_kernel_lifecycle&&) = default;
-    gpu_kernel_lifecycle& operator=(const gpu_kernel_lifecycle&) = default;
-    gpu_kernel_lifecycle& operator=(gpu_kernel_lifecycle&&) = default;
 
     void clone_from(const gpu_kernel_lifecycle& other, bool share_kernel_handles) {
         _kernels.clear();
@@ -68,59 +60,27 @@ public:
         }
     }
 
-    const container_type& kernels() const noexcept {
-        return _kernels;
-    }
-
-    container_type& kernels() noexcept {
-        return _kernels;
-    }
-
     container_type copy_kernels() const {
         return _kernels;
     }
 
-    bool empty() const noexcept {
-        return _kernels.empty();
-    }
     size_t size() const noexcept {
         return _kernels.size();
     }
     void clear() noexcept {
         _kernels.clear();
     }
-    void reserve(size_t count) {
-        _kernels.reserve(count);
-    }
-    void resize(size_t count) {
-        _kernels.resize(count);
-    }
-    iterator begin() noexcept {
-        return _kernels.begin();
-    }
     const_iterator begin() const noexcept {
         return _kernels.begin();
-    }
-    iterator end() noexcept {
-        return _kernels.end();
     }
     const_iterator end() const noexcept {
         return _kernels.end();
     }
-    kernel::ptr& operator[](size_t index) {
-        return _kernels[index];
-    }
     const kernel::ptr& operator[](size_t index) const {
         return _kernels[index];
     }
-    kernel::ptr& at(size_t index) {
-        return _kernels.at(index);
-    }
     const kernel::ptr& at(size_t index) const {
         return _kernels.at(index);
-    }
-    kernel::ptr& front() {
-        return _kernels.front();
     }
     const kernel::ptr& front() const {
         return _kernels.front();

@@ -9,7 +9,6 @@
 #include "activation_inst.h"
 #include "adaptive_pooling_inst.h"
 #include "arg_max_min_inst.h"
-#include "backend_graph_optimizer.hpp"
 #include "border_inst.h"
 #include "common_utils/parallel_mem_streambuf.hpp"
 #include "concatenation_inst.h"
@@ -66,6 +65,7 @@
 #include "quantize_inst.h"
 #include "reduce_inst.h"
 #include "region_yolo_inst.h"
+#include "registry/backend_implementation_registry.hpp"
 #include "registry/implementation_manager.hpp"
 #include "reorder_inst.h"
 #include "reorg_yolo_inst.h"
@@ -565,7 +565,7 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<prepare_primitive_fusing>(primitive_fusing_stage::graph_cleanup);
 
-        if (!run_backend_fusion_optimizations(*this)) {
+        if (ov::intel_gpu::backend_extensions::supports_implementation_fusions(get_engine().runtime_type())) {
             apply_opt_pass<prepare_primitive_fusing>(primitive_fusing_stage::implementation_fusions);
         }
 

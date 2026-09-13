@@ -6,6 +6,16 @@ if(NOT OV_GPU_RUNTIME_VULKAN_ENABLED)
     return()
 endif()
 
+set(TARGET_NAME "openvino_intel_gpu_vulkan_obj${OV_GPU_SUFFIX}")
+ov_gpu_add_backend_target(NAME ${TARGET_NAME} LINK_LIBRARIES Vulkan::Vulkan)
+ov_build_target_faster(${TARGET_NAME} PCH)
+
+# Production kernels use the target CLSPV library during model compilation.
+# Host compilers and generated bootstrap modules are needed only for tests.
+if(NOT ENABLE_TESTS)
+    return()
+endif()
+
 find_host_program(OV_GPU_CLSPV_EXECUTABLE NAMES clspv REQUIRED)
 find_host_program(OV_GPU_CLSPV_REFLECTION_EXECUTABLE NAMES clspv-reflection REQUIRED)
 find_host_program(OV_GPU_SLANGC_EXECUTABLE NAMES slangc REQUIRED)
@@ -127,13 +137,4 @@ get_property(VULKAN_GENERATED_HEADERS GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_HE
 set_property(SOURCE ${VULKAN_GENERATED_HEADERS} PROPERTY GENERATED TRUE)
 add_custom_target(openvino_intel_gpu_vulkan_shaders${OV_GPU_SUFFIX} DEPENDS ${VULKAN_GENERATED_HEADERS})
 
-set(TARGET_NAME "openvino_intel_gpu_vulkan_obj${OV_GPU_SUFFIX}")
-
-ov_gpu_add_backend_target(
-    NAME ${TARGET_NAME}
-    INCLUDES "${VULKAN_GENERATED_INCLUDE_DIR}"
-    LINK_LIBRARIES Vulkan::Vulkan
-)
 add_dependencies(${TARGET_NAME} openvino_intel_gpu_vulkan_shaders${OV_GPU_SUFFIX})
-
-ov_build_target_faster(${TARGET_NAME} PCH)

@@ -87,10 +87,6 @@ public:
         _zero_size = suppress;
     }
 
-    bool zero_size_suppressed() const noexcept {
-        return _zero_size;
-    }
-
     template <typename BindingProvider>
     event::ptr execute(stream& command_stream,
                        const gpu_kernel_lifecycle& lifecycle,

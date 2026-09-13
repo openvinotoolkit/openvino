@@ -4,16 +4,17 @@
 
 #include "backend_implementation_registry.hpp"
 
-namespace ov::intel_gpu {
+#ifndef OV_GPU_WITH_OPTIONAL_IMPLEMENTATION_PROVIDER
+namespace ov::intel_gpu::backend_extensions {
 
-const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& backend_implementation_registry::get(std::type_index primitive_type) {
-#ifdef OV_GPU_WITH_OPTIONAL_IMPLEMENTATION_PROVIDER
-    return backend_extensions::get_compiled_implementations(primitive_type);
-#else
-    using implementations = std::vector<std::shared_ptr<cldnn::ImplementationManager>>;
+const implementations& get_compiled_implementations(std::type_index) {
     static const implementations empty;
     return empty;
-#endif
 }
 
-}  // namespace ov::intel_gpu
+bool supports_implementation_fusions(cldnn::runtime_types) {
+    return true;
+}
+
+}  // namespace ov::intel_gpu::backend_extensions
+#endif
