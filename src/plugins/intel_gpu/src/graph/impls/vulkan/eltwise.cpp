@@ -9,7 +9,7 @@
 
 #include "common_utils/eltwise_kernel_params.hpp"
 #include "common_utils/kernel_selector_primitive_impl.hpp"
-#include "kernel_selector/kernels/eltwise/eltwise_kernel_ref.h"
+#include "kernel_selector/kernels/eltwise/eltwise_kernel_portable.h"
 #include "openvino/core/except.hpp"
 #include "storage_type_jit.hpp"
 
@@ -17,7 +17,7 @@ namespace cldnn::vulkan {
 namespace {
 
 const kernel_selector::KernelBase& get_reference_kernel() {
-    static const kernel_selector::EltwiseKernelRef kernel;
+    static const kernel_selector::EltwiseKernelPortable kernel;
     return kernel;
 }
 
@@ -55,7 +55,7 @@ kernel_selector::KernelsData get_reference_kernels_data(const kernel_impl_params
     auto canonical_params = canonicalize_eltwise_shapes(params);
     auto kernel_params = make_unfused_eltwise_kernel_params(canonical_params, params.is_dynamic());
     const auto& device = static_cast<const vulkan_device&>(*params.get_program().get_engine().get_device());
-    const StorageTypeKernel<kernel_selector::EltwiseKernelRef, kernel_selector::eltwise_params> kernel(device);
+    const StorageTypeKernel<kernel_selector::EltwiseKernelPortable, kernel_selector::eltwise_params> kernel(device);
     auto candidates = kernel.GetKernelsData(kernel_params);
     for (auto& candidate : candidates) {
         candidate.kernelName = get_reference_kernel().GetName();
