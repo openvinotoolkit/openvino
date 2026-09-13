@@ -1881,18 +1881,18 @@ bool NetworkHelper::checkConstantNotInf(const std::shared_ptr<Node> constant_nod
 
 namespace {
 template <ov::element::Type_t precision>
-std::pair<float, float> makeIntegralPrecisionLimits() {
+std::pair<double, double> makeIntegralPrecisionLimits() {
     using FundamentalType = ov::fundamental_type_for<precision>;
-    return std::make_pair(static_cast<float>(std::numeric_limits<FundamentalType>::lowest()),
-                          static_cast<float>(std::numeric_limits<FundamentalType>::max()));
+    return std::make_pair(static_cast<double>(std::numeric_limits<FundamentalType>::lowest()),
+                          static_cast<double>(std::numeric_limits<FundamentalType>::max()));
 }
 }  // namespace
 
-std::optional<std::pair<float, float>> NetworkHelper::getPrecisionLimits(const element::Type_t precision) {
-    static const std::map<ov::element::Type_t, std::pair<float, float>> limits{
+std::optional<std::pair<double, double>> NetworkHelper::getPrecisionLimits(const element::Type_t precision) {
+    static const std::map<ov::element::Type_t, std::pair<double, double>> limits{
         // Sub-byte types use byte-sized storage types, so their narrower ranges are specified explicitly.
-        {ov::element::i4, {-8.f, 7.f}},
-        {ov::element::u4, {0.f, 15.f}},
+        {ov::element::i4, {-8.0, 7.0}},
+        {ov::element::u4, {0.0, 15.0}},
         {ov::element::i8, makeIntegralPrecisionLimits<ov::element::i8>()},
         {ov::element::u8, makeIntegralPrecisionLimits<ov::element::u8>()},
         {ov::element::i16, makeIntegralPrecisionLimits<ov::element::i16>()},
@@ -1901,7 +1901,7 @@ std::optional<std::pair<float, float>> NetworkHelper::getPrecisionLimits(const e
         {ov::element::u32, makeIntegralPrecisionLimits<ov::element::u32>()}};
 
     const auto it = limits.find(precision);
-    return it == limits.end() ? std::nullopt : std::optional<std::pair<float, float>>(it->second);
+    return it == limits.end() ? std::nullopt : std::optional<std::pair<double, double>>(it->second);
 }
 } // namespace low_precision
 } // namespace pass
