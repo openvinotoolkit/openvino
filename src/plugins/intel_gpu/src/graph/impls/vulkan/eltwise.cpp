@@ -43,8 +43,8 @@ bool has_portable_contract(const program_node& node) {
     if (node.has_fused_primitives() || !is_portable_type(node.get_output_layout(0).data_type)) {
         return false;
     }
-    for (const auto& dependency : node.get_dependencies()) {
-        if (!is_portable_type(dependency.first->get_output_layout(dependency.second).data_type)) {
+    for (size_t input_index = 0; input_index < node.get_dependencies().size(); ++input_index) {
+        if (!is_portable_type(node.get_input_layout(input_index).data_type)) {
             return false;
         }
     }

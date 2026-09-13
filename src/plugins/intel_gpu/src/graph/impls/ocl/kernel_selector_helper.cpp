@@ -815,7 +815,6 @@ cldnn::format::type from_weights_layout(kernel_selector::weights_layout l) {
     }
 }
 
-
 kernel_selector::weights_tensor convert_weights_tensor(const layout& l, bool is_grouped) {
     const auto ks_type = to_weights_type(l.data_type);
     const auto ks_layout = to_weights_layout(l.format, is_grouped);

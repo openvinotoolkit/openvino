@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-
 #include <utility>
 
 #include "common_utils/eltwise_kernel_params.hpp"
-#include "eltwise_inst.h"
-#include "eltwise/eltwise_kernel_selector.h"
 #include "eltwise/eltwise_kernel_base.h"
+#include "eltwise/eltwise_kernel_selector.h"
+#include "eltwise_inst.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {

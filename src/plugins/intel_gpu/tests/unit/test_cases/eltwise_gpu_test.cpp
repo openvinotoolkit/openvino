@@ -18,7 +18,7 @@
 #include "reshape_inst.h"
 
 #ifdef OV_GPU_TESTS_WITH_VULKAN
-#include "vulkan/vulkan_device.hpp"
+#    include "vulkan/vulkan_device.hpp"
 #endif
 
 using namespace cldnn;

@@ -15,8 +15,7 @@ namespace cldnn::vulkan {
 // Keep the shared kernel's storage types and expressions. On storage-only
 // devices, qualify its existing scalar conversion/accumulator hooks so LLVM
 // cannot fold the promoted arithmetic back to unsupported 8/16-bit operations.
-inline kernel_selector::JitConstants storage_type_jit(const kernel_selector::JitConstants& jit,
-                                                     const vulkan_device& device) {
+inline kernel_selector::JitConstants storage_type_jit(const kernel_selector::JitConstants& jit, const vulkan_device& device) {
     const auto wide_type = [&](const std::string& type) -> std::string {
         if ((type == "char" || type == "uchar") && !device.supports_arithmetic_type(data_types::i8)) {
             return "int";
@@ -33,8 +32,7 @@ inline kernel_selector::JitConstants storage_type_jit(const kernel_selector::Jit
     std::map<std::string, std::string> values(definitions.begin(), definitions.end());
     bool needs_storage_types = false;
     for (const auto& definition : definitions) {
-        if ((definition.first.rfind("INPUT", 0) == 0 || definition.first.rfind("OUTPUT", 0) == 0) &&
-            !wide_type(definition.second).empty()) {
+        if ((definition.first.rfind("INPUT", 0) == 0 || definition.first.rfind("OUTPUT", 0) == 0) && !wide_type(definition.second).empty()) {
             needs_storage_types = true;
             break;
         }
@@ -69,12 +67,10 @@ inline kernel_selector::JitConstants storage_type_jit(const kernel_selector::Jit
                 }
                 value = temporary(promoted, value);
             }
-        } else if (name.rfind("TO_", 0) == 0 &&
-                   (name.find("_TYPE(v)") != std::string::npos || name.find("_TYPE_SAT(v)") != std::string::npos)) {
+        } else if (name.rfind("TO_", 0) == 0 && (name.find("_TYPE(v)") != std::string::npos || name.find("_TYPE_SAT(v)") != std::string::npos)) {
             for (const std::string type : {"char", "uchar", "short", "ushort"}) {
                 const auto conversion = "convert_" + type;
-                if (wide_type(type).empty() || value.rfind(conversion, 0) != 0 ||
-                    value.size() < 3 || value.substr(value.size() - 3) != "(v)") {
+                if (wide_type(type).empty() || value.rfind(conversion, 0) != 0 || value.size() < 3 || value.substr(value.size() - 3) != "(v)") {
                     continue;
                 }
                 const auto function = value.substr(0, value.size() - 3);

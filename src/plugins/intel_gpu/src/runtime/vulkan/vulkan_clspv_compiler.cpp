@@ -5,14 +5,14 @@
 #include "vulkan_clspv_compiler.hpp"
 
 #include <clspv/Compiler.h>
-#include <spirv-tools/libspirv.hpp>
 #include <spirv/unified1/NonSemanticClspvReflection.h>
-#include <spirv/unified1/spirv.hpp>
 
 #include <cstring>
 #include <map>
 #include <mutex>
 #include <set>
+#include <spirv-tools/libspirv.hpp>
+#include <spirv/unified1/spirv.hpp>
 #include <sstream>
 #include <utility>
 
@@ -63,10 +63,8 @@ void validate_clspv_reflection(spvtools::SpirvTools& tools,
             } else if (instruction.opcode == spv::OpConstant && instruction.type_id == uint_type) {
                 constants.emplace(instruction.result_id, operand(2));
             } else if (instruction.opcode == spv::OpString) {
-                strings.emplace(instruction.result_id,
-                                reinterpret_cast<const char*>(instruction.words + instruction.operands[1].offset));
-            } else if (instruction.opcode == spv::OpExtInst &&
-                       instruction.ext_inst_type == SPV_EXT_INST_TYPE_NONSEMANTIC_CLSPVREFLECTION) {
+                strings.emplace(instruction.result_id, reinterpret_cast<const char*>(instruction.words + instruction.operands[1].offset));
+            } else if (instruction.opcode == spv::OpExtInst && instruction.ext_inst_type == SPV_EXT_INST_TYPE_NONSEMANTIC_CLSPVREFLECTION) {
                 // Skip OpExtInst's type, result, instruction set and instruction number.
                 const auto argument = [&](size_t index) {
                     return operand(4 + index);
@@ -80,8 +78,7 @@ void validate_clspv_reflection(spvtools::SpirvTools& tools,
                                     "[GPU][Vulkan] CLSPV reflection must describe only entry point '",
                                     entry_point,
                                     "'");
-                    OPENVINO_ASSERT(instruction.num_operands >= 7,
-                                    "[GPU][Vulkan] CLSPV reflection lacks the argument count");
+                    OPENVINO_ASSERT(instruction.num_operands >= 7, "[GPU][Vulkan] CLSPV reflection lacks the argument count");
                     kernel_declaration = instruction.result_id;
                     argument_count = value(2);
                     break;
@@ -97,38 +94,32 @@ void validate_clspv_reflection(spvtools::SpirvTools& tools,
                         layout.offset = value(2);
                         layout.size = value(3);
                     }
-                    OPENVINO_ASSERT(arguments.emplace(value(1), layout).second,
-                                    "[GPU][Vulkan] CLSPV reflection repeats an argument ordinal");
+                    OPENVINO_ASSERT(arguments.emplace(value(1), layout).second, "[GPU][Vulkan] CLSPV reflection repeats an argument ordinal");
                     break;
                 }
                 case NonSemanticClspvReflectionSpecConstantWorkgroupSize:
-                    for (size_t dimension = 0; dimension < interface.local_size_specialization_ids.size();
-                         ++dimension) {
-                        OPENVINO_ASSERT(
-                            interface.local_size_specialization_ids[dimension] == value(dimension),
-                            "[GPU][Vulkan] CLSPV workgroup specialization does not match the SPIR-V interface");
+                    for (size_t dimension = 0; dimension < interface.local_size_specialization_ids.size(); ++dimension) {
+                        OPENVINO_ASSERT(interface.local_size_specialization_ids[dimension] == value(dimension),
+                                        "[GPU][Vulkan] CLSPV workgroup specialization does not match the SPIR-V interface");
                     }
                     has_workgroup_size = true;
                     break;
                 case NonSemanticClspvReflectionPropertyRequiredWorkgroupSize:
-                    OPENVINO_ASSERT(argument(0) == kernel_declaration,
-                                    "[GPU][Vulkan] Unexpected CLSPV workgroup owner");
+                    OPENVINO_ASSERT(argument(0) == kernel_declaration, "[GPU][Vulkan] Unexpected CLSPV workgroup owner");
                     for (size_t dimension = 0; dimension < interface.local_size_defaults.size(); ++dimension) {
                         OPENVINO_ASSERT(
-                            !interface.local_size_specialization_ids[dimension].has_value() &&
-                                interface.local_size_defaults[dimension] == value(dimension + 1),
+                            !interface.local_size_specialization_ids[dimension].has_value() && interface.local_size_defaults[dimension] == value(dimension + 1),
                             "[GPU][Vulkan] CLSPV required workgroup size does not match the SPIR-V interface");
                     }
                     has_workgroup_size = true;
                     break;
                 case NonSemanticClspvReflectionArgumentWorkgroup:
-                    OPENVINO_THROW(
-                        "[GPU][Vulkan] CLSPV local-memory arguments are outside the canonical ABI: argument ",
-                        value(1),
-                        ", specialization ",
-                        value(2),
-                        ", element bytes ",
-                        value(3));
+                    OPENVINO_THROW("[GPU][Vulkan] CLSPV local-memory arguments are outside the canonical ABI: argument ",
+                                   value(1),
+                                   ", specialization ",
+                                   value(2),
+                                   ", element bytes ",
+                                   value(3));
                 case NonSemanticClspvReflectionArgumentInfo:
                     break;  // Names and source-language qualifiers do not affect the runtime ABI.
                 default:
@@ -154,8 +145,7 @@ void validate_clspv_reflection(spvtools::SpirvTools& tools,
     for (const auto& [argument_ordinal, layout] : arguments) {
         OPENVINO_ASSERT(argument_ordinal == ordinal++, "[GPU][Vulkan] CLSPV argument ordinals are not contiguous");
         if (layout.is_buffer) {
-            OPENVINO_ASSERT(layout.binding == binding++,
-                            "[GPU][Vulkan] CLSPV bindings must follow buffer argument order");
+            OPENVINO_ASSERT(layout.binding == binding++, "[GPU][Vulkan] CLSPV bindings must follow buffer argument order");
         } else {
             OPENVINO_ASSERT(layout.size == sizeof(uint32_t) && layout.offset == pod_size,
                             "[GPU][Vulkan] CLSPV POD arguments must be consecutive 32-bit scalars");
@@ -175,11 +165,7 @@ void validate_spirv(const std::vector<uint8_t>& spirv, const std::string& entry_
     tools.SetMessageConsumer([&](spv_message_level_t, const char*, const spv_position_t& position, const char* message) {
         diagnostics += "instruction " + std::to_string(position.index) + ": " + message + "\n";
     });
-    OPENVINO_ASSERT(tools.Validate(words),
-                    "[GPU][Vulkan] CLSPV produced invalid Vulkan 1.3 SPIR-V for entry point '",
-                    entry_point,
-                    "':\n",
-                    diagnostics);
+    OPENVINO_ASSERT(tools.Validate(words), "[GPU][Vulkan] CLSPV produced invalid Vulkan 1.3 SPIR-V for entry point '", entry_point, "':\n", diagnostics);
     const auto interface = vulkan_kernel_interface::reflect(spirv, entry_point);
     interface.validate_canonical_compute_abi(entry_point);
     validate_clspv_reflection(tools, words, interface, entry_point);
@@ -200,7 +186,8 @@ void normalize_storage_capabilities(std::vector<uint8_t>& spirv, const vulkan_de
     });
     std::string assembly;
     OPENVINO_ASSERT(tools.Disassemble(words, &assembly, SPV_BINARY_TO_TEXT_OPTION_NO_HEADER),
-                    "[GPU][Vulkan] Cannot inspect CLSPV storage requirements: ", diagnostics);
+                    "[GPU][Vulkan] Cannot inspect CLSPV storage requirements: ",
+                    diagnostics);
     struct storage_capability {
         data_types type;
         const char* arithmetic;
@@ -215,8 +202,7 @@ void normalize_storage_capabilities(std::vector<uint8_t>& spirv, const vulkan_de
         if (device.supports_arithmetic_type(capability.type) || position == std::string::npos) {
             continue;
         }
-        OPENVINO_ASSERT(capability.type == data_types::i8 || device.supports_16bit_storage(),
-                        "[GPU][Vulkan] Device lacks required 16-bit storage");
+        OPENVINO_ASSERT(capability.type == data_types::i8 || device.supports_16bit_storage(), "[GPU][Vulkan] Device lacks required 16-bit storage");
         const auto storage = std::string("OpCapability ") + capability.storage + "\n";
         assembly.replace(position, declaration.size(), assembly.find(storage) == std::string::npos ? storage : "");
         changed = true;
@@ -228,7 +214,8 @@ void normalize_storage_capabilities(std::vector<uint8_t>& spirv, const vulkan_de
     // Only accept storage-only declarations if the unchanged instructions meet
     // the upstream Vulkan validator's complete contract. Never strip and submit.
     OPENVINO_ASSERT(tools.Assemble(assembly, &words, SPV_TEXT_TO_BINARY_OPTION_PRESERVE_NUMERIC_IDS) && tools.Validate(words),
-                    "[GPU][Vulkan] Kernel still requires unsupported narrow arithmetic: ", diagnostics);
+                    "[GPU][Vulkan] Kernel still requires unsupported narrow arithmetic: ",
+                    diagnostics);
     spirv.resize(words.size() * sizeof(uint32_t));
     std::memcpy(spirv.data(), words.data(), spirv.size());
 }
@@ -267,8 +254,10 @@ std::string vulkan_clspv_compiler::canonical_options(const std::string& source_o
            translate_source_options(source_options);
 }
 
-vulkan_clspv_compilation vulkan_clspv_compiler::compile(const std::string& source, const std::string& source_options, const std::string& entry_point,
-                                                     const vulkan_device& device) const {
+vulkan_clspv_compilation vulkan_clspv_compiler::compile(const std::string& source,
+                                                        const std::string& source_options,
+                                                        const std::string& entry_point,
+                                                        const vulkan_device& device) const {
     OPENVINO_ASSERT(!source.empty(), "[GPU][Vulkan] CLSPV cannot compile an empty translation unit");
     OPENVINO_ASSERT(!entry_point.empty(), "[GPU][Vulkan] CLSPV requires an explicit entry point");
 

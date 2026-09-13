@@ -168,8 +168,8 @@ TEST(vulkan_clspv_bootstrap, rejects_empty_compilation_inputs) {
 }
 
 TEST(vulkan_clspv_bootstrap, preserves_semantic_options_without_intel_driver_flags) {
-    const auto options = vulkan_clspv_compiler::canonical_options(
-        "-cl-mad-enable -cl-intel-256-GRF-per-thread -cl-intel-greater-than-4GB-buffer-required -DTYPE=float");
+    const auto options =
+        vulkan_clspv_compiler::canonical_options("-cl-mad-enable -cl-intel-256-GRF-per-thread -cl-intel-greater-than-4GB-buffer-required -DTYPE=float");
     EXPECT_NE(options.find("-cl-mad-enable"), std::string::npos);
     EXPECT_NE(options.find("-DTYPE=float"), std::string::npos);
     EXPECT_EQ(options.find("-cl-intel-"), std::string::npos);
@@ -224,8 +224,7 @@ TEST(vulkan_clspv_bootstrap, executes_interleaved_buffer_and_pod_arguments) {
                                                             {workgroup_size_y_spec_id, 1},
                                                             {workgroup_size_z_spec_id, 1}};
     auto& vulkan_command_stream = dynamic_cast<vulkan_stream&>(*command_stream);
-    const auto completion =
-        vulkan_command_stream.enqueue_kernel(*kernels.front(), descriptor, arguments, specialization, {}, true);
+    const auto completion = vulkan_command_stream.enqueue_kernel(*kernels.front(), descriptor, arguments, specialization, {}, true);
     ASSERT_NE(completion, nullptr);
     completion->wait();
     std::vector<float> actual(element_count);
@@ -238,17 +237,17 @@ TEST(vulkan_clspv_bootstrap, executes_interleaved_buffer_and_pod_arguments) {
 TEST(vulkan_clspv_bootstrap, rejects_non_scalar_pod_and_local_memory_arguments) {
     auto target_engine = create_test_engine(engine_types::vulkan, runtime_types::vulkan);
     const auto& device = dynamic_cast<const vulkan_device&>(*target_engine->get_device());
-    for (const auto& contract : std::array<std::pair<const char*, const char*>, 2>{
-             {{R"(kernel void unsupported_pod(global float* output, float2 value) {
+    for (const auto& contract :
+         std::array<std::pair<const char*, const char*>, 2>{{{R"(kernel void unsupported_pod(global float* output, float2 value) {
                     output[get_global_id(0)] = value.x + value.y;
                 })",
-               "POD arguments must be consecutive 32-bit scalars"},
-              {R"(kernel void unsupported_pod(global float* output, local float* scratch) {
+                                                              "POD arguments must be consecutive 32-bit scalars"},
+                                                             {R"(kernel void unsupported_pod(global float* output, local float* scratch) {
                     scratch[get_local_id(0)] = (float)get_local_id(0);
                     barrier(CLK_LOCAL_MEM_FENCE);
                     output[get_global_id(0)] = scratch[0];
                 })",
-               "local-memory arguments are outside the canonical ABI"}}}) {
+                                                              "local-memory arguments are outside the canonical ABI"}}}) {
         SCOPED_TRACE(contract.second);
         try {
             (void)vulkan_clspv_compiler{}.compile(contract.first, {}, "unsupported_pod", device);

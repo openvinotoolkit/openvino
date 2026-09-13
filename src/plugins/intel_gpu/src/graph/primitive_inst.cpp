@@ -739,8 +739,7 @@ void primitive_inst::realloc_intermediates() {
             i < _intermediates_memory.size() && _intermediates_memory[i] ? _intermediates_memory[i]->get_allocation_type() : allocation_type::unknown;
         bool can_reuse = true;
         can_reuse &= alloc_type != allocation_type::unknown && buffer_descs[i].m_layout.bytes_count() <= _max_intermediates_memory_sizes[i];
-        can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) ||
-                        (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
+        can_reuse &= (need_lockable && alloc_type != cldnn::allocation_type::usm_device) || (!need_lockable && alloc_type != cldnn::allocation_type::usm_host);
 
         if (can_reuse) {
             _intermediates_memory[i] = get_network().get_engine().reinterpret_buffer(*_intermediates_memory[i], buffer_descs[i].m_layout);

@@ -23,8 +23,10 @@ public:
     static std::string identity();
     static std::string canonical_options(const std::string& source_options);
 
-    vulkan_clspv_compilation compile(const std::string& source, const std::string& source_options, const std::string& entry_point,
-                                    const vulkan_device& device) const;
+    vulkan_clspv_compilation compile(const std::string& source,
+                                     const std::string& source_options,
+                                     const std::string& entry_point,
+                                     const vulkan_device& device) const;
 };
 
 }  // namespace cldnn::vulkan

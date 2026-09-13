@@ -100,8 +100,8 @@ protected:
     void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) override {
         _kernels.clear();
         if (!_kernels_data.empty() && !_kernels_data[0].kernels.empty()) {
-            size_t total_kernels = std::accumulate(_kernels_data.begin(), _kernels_data.end(), (size_t)0,
-                [](size_t acc, const kernel_selector::kernel_data& kd) {
+            size_t total_kernels =
+                std::accumulate(_kernels_data.begin(), _kernels_data.end(), (size_t)0, [](size_t acc, const kernel_selector::kernel_data& kd) {
                     return acc + kd.kernels.size();
                 });
             _kernels.initialize(kernels_cache, params);

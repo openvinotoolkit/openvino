@@ -31,8 +31,7 @@ public:
             jit.AddConstant(kernel_selector::MakeJitConstant(name, value));
         };
         for (const auto* prefix : {"CALC", "INPUT_REORDER", "OUTPUT_REORDER"}) {
-            for (const auto& definition :
-                 kernel_selector::MakeTypeJitConstants(kernel_selector::Datatype::INT32, prefix).GetDefinitions()) {
+            for (const auto& definition : kernel_selector::MakeTypeJitConstants(kernel_selector::Datatype::INT32, prefix).GetDefinitions()) {
                 replace(definition.first, definition.second);
             }
         }
@@ -59,8 +58,7 @@ const kernel_selector::KernelBase& get_reference_kernel() {
 bool needs_i64_boundary(const kernel_impl_params& params) {
     const auto input_type = params.get_input_layout(0).data_type;
     const auto output_type = params.get_output_layout(0).data_type;
-    if ((input_type == data_types::i64 && output_type == data_types::i32) ||
-        (input_type == data_types::i32 && output_type == data_types::i64)) {
+    if ((input_type == data_types::i64 && output_type == data_types::i32) || (input_type == data_types::i32 && output_type == data_types::i64)) {
         const auto& device = static_cast<const vulkan_device&>(*params.get_program().get_engine().get_device());
         return !device.supports_arithmetic_type(data_types::i64);
     }

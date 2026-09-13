@@ -22,7 +22,8 @@ std::string_view to_cache_tag(runtime_types type) {
     case runtime_types::ocl: return "OCL";
     case runtime_types::ze: return "ZE";
     case runtime_types::sycl: return "SYCL";
-    case runtime_types::vulkan: return "VULKAN";
+    case runtime_types::vulkan:
+        return "VULKAN";
     default: return "UNKNOWN";
     }
 }
