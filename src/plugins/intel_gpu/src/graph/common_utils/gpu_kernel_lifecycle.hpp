@@ -18,12 +18,11 @@ namespace cldnn {
 class gpu_kernel_lifecycle final {
 public:
     using container_type = std::vector<kernel::ptr>;
-    using const_iterator = container_type::const_iterator;
 
     void clone_from(const gpu_kernel_lifecycle& other, bool share_kernel_handles) {
         _kernels.clear();
         _kernels.reserve(other.size());
-        for (const auto& kernel : other) {
+        for (const auto& kernel : other._kernels) {
             _kernels.emplace_back(kernel->clone(share_kernel_handles));
         }
     }
@@ -69,12 +68,6 @@ public:
     }
     void clear() noexcept {
         _kernels.clear();
-    }
-    const_iterator begin() const noexcept {
-        return _kernels.begin();
-    }
-    const_iterator end() const noexcept {
-        return _kernels.end();
     }
     const kernel::ptr& operator[](size_t index) const {
         return _kernels[index];

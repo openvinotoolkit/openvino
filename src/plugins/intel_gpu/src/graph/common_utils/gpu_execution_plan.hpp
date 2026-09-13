@@ -63,14 +63,6 @@ public:
         _event_scratch.reserve(dispatch_count);
     }
 
-    size_t size() const noexcept {
-        return _dispatches.size();
-    }
-
-    bool empty() const noexcept {
-        return _dispatches.empty();
-    }
-
     gpu_dispatch_plan& operator[](size_t index) {
         return _dispatches.at(index);
     }

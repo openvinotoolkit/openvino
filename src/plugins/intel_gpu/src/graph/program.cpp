@@ -1043,33 +1043,6 @@ void program::swap_names(program_node& node1, program_node& node2) {
     std::swap(node1.desc->id, node2.desc->id);
 }
 
-void program::transfer_output_identity(program_node& output_node, program_node& replacement_node) {
-    if (!output_node.is_output()) {
-        throw std::invalid_argument("Output identity can only be transferred from an output node");
-    }
-    if (replacement_node.is_output()) {
-        throw std::invalid_argument("Output identity cannot replace another program output");
-    }
-
-    const auto output = std::find(outputs.begin(), outputs.end(), &output_node);
-    if (output == outputs.end()) {
-        throw std::runtime_error("Output node is missing from the program output list");
-    }
-
-    const auto origin_op_name = output_node.desc->origin_op_name;
-    const auto origin_op_type_name = output_node.desc->origin_op_type_name;
-    const auto user_mark = output_node.user_mark;
-
-    output_node.set_output(false);
-    replacement_node.set_output(true);
-    *output = &replacement_node;
-    swap_names(replacement_node, output_node);
-
-    replacement_node.desc->origin_op_name = origin_op_name;
-    replacement_node.desc->origin_op_type_name = origin_op_type_name;
-    replacement_node.user_mark = user_mark;
-}
-
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
     return replace_all_usages(old_node, std::make_pair(&new_node, 0), remove_if_dangling);
 }
