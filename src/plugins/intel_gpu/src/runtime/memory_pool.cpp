@@ -39,8 +39,9 @@ memory_pool::~memory_pool() = default;
 bool memory_pool::has_conflict(const memory_set& mem_cand,
                                const memory_restricter<uint32_t>& restrictions) {
     for (const auto& mem_usr : mem_cand) {
-        if (restrictions.contains(static_cast<uint32_t>(mem_usr._unique_id)))
+        if (restrictions.contains(static_cast<uint32_t>(mem_usr._unique_id))) {
             return true;
+        }
     }
     return false;
 }
@@ -72,8 +73,9 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                     GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                         auto released_mem_size = it->first;
                         total_mem_size_non_padded_pool -= released_mem_size;
-                        if (type == allocation_type::usm_host)
+                        if (type == allocation_type::usm_host) {
                             mem_size_non_padded_pool_host -= released_mem_size;
+                        }
                     }
 #endif
                     // if this was the only user of the memory, then free it up
@@ -108,8 +110,9 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
                         GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                             auto released_mem_size = mem->size();
                             total_mem_size_padded_pool -= released_mem_size;
-                            if (type == allocation_type::usm_host)
+                            if (type == allocation_type::usm_host) {
                                 mem_size_padded_pool_host -= released_mem_size;
+                            }
                         }
 #endif
                         // if this was the only user of the memory, then free it up
@@ -138,8 +141,9 @@ void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive
             GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                 auto released_mem_size = iter->_users.begin()->_mem_size;
                 total_mem_size_no_reusable -= released_mem_size;
-                if (type == allocation_type::usm_host)
+                if (type == allocation_type::usm_host) {
                     mem_size_no_reusable_host -= released_mem_size;
+                }
             }
             iter->_users.clear();
             _no_reusable_mems.erase(iter);
@@ -207,8 +211,9 @@ memory::ptr memory_pool::get_from_non_padded_pool(const layout& layout,
         {
             GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                 total_mem_size_non_padded_pool += layout_bytes_count;
-                if (type == allocation_type::usm_host)
+                if (type == allocation_type::usm_host) {
                     mem_size_non_padded_pool_host += layout_bytes_count;
+                }
             }
         }
 #endif
@@ -257,8 +262,9 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
             GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                 const auto allocated_mem_size = mem->size();
                 total_mem_size_padded_pool += allocated_mem_size;
-                if (type == allocation_type::usm_host)
+                if (type == allocation_type::usm_host) {
                     mem_size_padded_pool_host += allocated_mem_size;
+                }
             }
         }
 #endif
@@ -273,8 +279,9 @@ memory::ptr memory_pool::get_from_padded_pool(const layout& layout,
         GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
             const auto allocated_mem_size = mem->size();
             total_mem_size_padded_pool += allocated_mem_size;
-            if (type == allocation_type::usm_host)
+            if (type == allocation_type::usm_host) {
                 mem_size_padded_pool_host += allocated_mem_size;
+            }
         }
     }
 #endif
@@ -308,8 +315,9 @@ memory::ptr memory_pool::get_memory(const layout& layout,
             _no_reusable_mems.push_back(
                                     memory_record({{MEM_USER(unique_id, network_id, prim_id, allocated_mem_size)}}, mem, network_id, type));
             total_mem_size_no_reusable += allocated_mem_size;
-            if (type == allocation_type::usm_host)
+            if (type == allocation_type::usm_host) {
                 mem_size_no_reusable_host += allocated_mem_size;
+            }
         }
 #endif
         return mem;
@@ -334,8 +342,9 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
                 GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                     auto released_mem_size = itr->first;
                     total_mem_size_non_padded_pool -= released_mem_size;
-                    if (record._type == allocation_type::usm_host)
+                    if (record._type == allocation_type::usm_host) {
                         mem_size_non_padded_pool_host -= released_mem_size;
+                    }
                 }
 #endif
                 itr = _non_padded_pool.erase(itr);
@@ -368,8 +377,9 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
                 GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                     auto released_mem_size = itr->first.bytes_count();
                     total_mem_size_padded_pool -= released_mem_size;
-                    if (type == allocation_type::usm_host)
+                    if (type == allocation_type::usm_host) {
                         mem_size_padded_pool_host -= released_mem_size;
+                    }
                 }
 #endif
                 itr = _padded_pool.erase(itr);
@@ -389,8 +399,9 @@ void memory_pool::clear_pool_for_network(uint32_t network_id) {
                 GPU_DEBUG_IF(_config.get_dump_memory_pool()) {
                     auto released_mem_size = itr->_users.begin()->_mem_size;
                     total_mem_size_no_reusable -= released_mem_size;
-                    if (record._type == allocation_type::usm_host)
+                    if (record._type == allocation_type::usm_host) {
                         mem_size_no_reusable_host -= released_mem_size;
+                    }
                 }
                 itr = _no_reusable_mems.erase(itr);
             } else {
@@ -413,8 +424,9 @@ memory_pool::memory_pool(engine& engine, const ExecutionConfig& config) : _engin
 
 #ifdef GPU_DEBUG_CONFIG
 inline std::string get_mb_size(size_t size) {
-    if (size == 0)
+    if (size == 0) {
         return "0 MB";
+    }
     return std::to_string(static_cast<float>(size) / (1024.f * 1024.f)) + " MB";
 }
 
@@ -439,8 +451,9 @@ size_t memory_pool::get_total_mem_pool_size(allocation_type type) {
 
 void memory_pool::dump(uint32_t net_id, int64_t iter, std::string dump_dir_path) {
     dump_to_screen(net_id, iter);
-    if (!dump_dir_path.empty())
+    if (!dump_dir_path.empty()) {
         dump_to_file(net_id, iter, dump_dir_path);
+    }
 }
 
 void memory_pool::dump_to_file(uint32_t net_id, int64_t iter, std::string dump_dir_path) {
