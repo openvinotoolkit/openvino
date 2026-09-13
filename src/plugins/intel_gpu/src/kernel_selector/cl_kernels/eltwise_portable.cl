@@ -6,8 +6,8 @@
 
 #if ELTWISE_PORTABLE_DENSE
 
-// The selector requires identical dense physical indexing for all tensors.
-#define GET_INDEX(prefix, num, idx_order) (CAT(CAT(prefix, num), _OFFSET) + element)
+// Non-scalar tensors share dense physical indexing; a scalar uses its own offset.
+#    define GET_INDEX(prefix, num, idx_order) (CAT(CAT(prefix, num), _OFFSET) + (CAT(CAT(prefix, num), _LENGTH) == 1 ? 0 : element))
 
 KERNEL(eltwise_portable)(INPUTS_DECLS __global OUTPUT_TYPE* output)
 {
