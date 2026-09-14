@@ -32,7 +32,10 @@ using ov::test::npuw::RecordingFactory;
 
 class ArchAwarePlugin final : public NullPlugin {
 public:
-    ArchAwarePlugin(std::string arch, int64_t max_tiles) : m_arch(std::move(arch)), m_max_tiles(max_tiles) {}
+    ArchAwarePlugin(std::string arch, int64_t max_tiles, int64_t compiler_version = 0)
+        : m_arch(std::move(arch)),
+          m_max_tiles(max_tiles),
+          m_compiler_version(compiler_version) {}
 
     ov::Any get_property(const std::string& name, const ov::AnyMap&) const override {
         if (name == ov::device::architecture.name()) {
@@ -42,7 +45,7 @@ public:
             return m_max_tiles;
         }
         if (name == ov::intel_npu::compiler_version.name()) {
-            return static_cast<int64_t>(0);
+            return m_compiler_version;
         }
         if (name == ov::supported_properties.name()) {
             return std::vector<ov::PropertyName>{};
@@ -53,6 +56,7 @@ public:
 private:
     std::string m_arch;
     int64_t m_max_tiles;
+    int64_t m_compiler_version;
 };
 
 std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(
@@ -69,6 +73,151 @@ std::shared_ptr<ov::MockICore> attach_mock_core_with_npu_device(
             return ov::Any(device_list);
         });
     return core;
+}
+
+TEST(LLMMoEAutoRoutingTest, UsesDeviceOnlyForSupportedSingleTokenGraphs) {
+    constexpr int64_t compiler_8_3 = (8 << 16) | 3;
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, compiler_8_3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    for (const size_t tokens : {size_t{1}, size_t{8}}) {
+        SCOPED_TRACE(tokens);
+        ov::AnyMap props{{"NPUW_LLM", "YES"},
+                         {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                         {"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", std::to_string(tokens)}};
+        RecordingFactory recorder;
+        ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                            plugin,
+                                            props,
+                                            recorder.make_factory());
+        const auto* generate = recorder.find_contains("_kv");
+        ASSERT_NE(generate, nullptr);
+        EXPECT_EQ(generate->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), tokens == 1 ? "YES" : "NO");
+        if (tokens == 8) {
+            props["NPUW_LLM_GENERATE_MOE_HINT"] = "DEVICE_ROUTED";
+            EXPECT_THROW(ov::npuw::LLMCompiledModel(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                                    plugin,
+                                                    props,
+                                                    recorder.make_factory()),
+                         ov::Exception);
+        }
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, NameHintAloneDoesNotSelectDeviceRouting) {
+    constexpr int64_t compiler_8_3 = (8 << 16) | 3;
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, compiler_8_3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    auto model = ov::test::npuw::build_llm_test_model();
+    model->get_parameters()[0]->set_friendly_name("legacy.expert_name_without_supported_topology");
+    ov::AnyMap props{{"NPUW_LLM", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "128"}, {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
+    RecordingFactory recorder;
+    ov::npuw::LLMCompiledModel compiled(model, plugin, props, recorder.make_factory());
+    const auto* generate = recorder.find_contains("_kv");
+    ASSERT_NE(generate, nullptr);
+    EXPECT_EQ(generate->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+}
+
+TEST(LLMMoEAutoRoutingTest, RetainsArchitectureAndCompilerEligibilityGates) {
+    struct Case {
+        std::string arch;
+        int64_t compiler;
+        bool device_routed;
+    };
+    for (const auto& test : {Case{"5010", (7 << 16) | 28, false},
+                             Case{"5010", (7 << 16) | 29, true},
+                             Case{"4000", (8 << 16) | 3, false}}) {
+        SCOPED_TRACE(test.arch + "/" + std::to_string(test.compiler));
+        auto plugin = std::make_shared<ArchAwarePlugin>(test.arch, 3, test.compiler);
+        auto core = attach_mock_core_with_npu_device(plugin);
+        ov::AnyMap props{{"NPUW_LLM", "YES"},
+                         {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                         {"NPUW_LLM_MIN_RESPONSE_LEN", "64"}};
+        RecordingFactory recorder;
+        ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                           plugin,
+                                           props,
+                                           recorder.make_factory());
+        const auto* generate = recorder.find_contains("_kv");
+        ASSERT_NE(generate, nullptr);
+        EXPECT_EQ(generate->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), test.device_routed ? "YES" : "NO");
+        const auto* prefill = recorder.find_suffix("_prefill");
+        ASSERT_NE(prefill, nullptr);
+        EXPECT_EQ(prefill->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, ExplicitHostHintPreservesOtherStageProperties) {
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, (8 << 16) | 3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                     {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                     {"NPUW_LLM_GENERATE_MOE_HINT", "HOST_ROUTED"},
+                     {"NPUW_LLM_PREFILL_MOE_HINT", "HOST_ROUTED"},
+                     {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "attn,custom"},
+                     {"NPUW_FALLBACK_EXEC", "NO"},
+                     {"NPUW_FUNCALL_ASYNC", "NO"}};
+    RecordingFactory recorder;
+    ov::npuw::LLMCompiledModel compiled(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                       plugin,
+                                       props,
+                                       recorder.make_factory());
+    for (const auto* call : {recorder.find_suffix("_prefill"), recorder.find_contains("_kv")}) {
+        ASSERT_NE(call, nullptr);
+        EXPECT_EQ(call->props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "NO");
+        EXPECT_EQ(call->props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "attn,custom,expert");
+        EXPECT_EQ(call->props.at("NPUW_FALLBACK_EXEC").as<std::string>(), "NO");
+        EXPECT_EQ(call->props.at("NPUW_FUNCALL_ASYNC").as<std::string>(), "NO");
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, DetectsUnnamedTopologyAndPreparesEveryGenerateVariant) {
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, (8 << 16) | 3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    auto model = ov::test::npuw::build_qwen3_moe_llm_test_model();
+    size_t renamed = 0;
+    for (const auto& op : model->get_ops()) {
+        const auto name = op->get_friendly_name();
+        if (name.find(".expert") != std::string::npos || name.find(".router") != std::string::npos)
+            op->set_friendly_name("unnamed_mlp_" + std::to_string(renamed++));
+    }
+    ASSERT_GT(renamed, 0u);
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_LLM_SHARED_HEAD", "NO"},
+                     {"NPUW_LLM_MAX_PROMPT_LEN", "2048"},
+                     {"NPUW_LLM_MIN_RESPONSE_LEN", "128"},
+                     {"NPUW_LLM_GENERATE_PYRAMID", "YES"}};
+    RecordingFactory recorder;
+    ov::npuw::LLMCompiledModel compiled(model, plugin, props, recorder.make_factory());
+    ASSERT_EQ(recorder.count_contains("_kv"), 2u);
+    const auto* prefill = recorder.find_suffix("_prefill");
+    ASSERT_NE(prefill, nullptr);
+    EXPECT_EQ(prefill->props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "expert");
+    for (const auto& call : recorder.calls()) {
+        if (call.model->get_friendly_name().find("_kv") != std::string::npos)
+            EXPECT_EQ(call.props.at("NPUW_UNFOLD_IREQS").as<std::string>(), "YES");
+    }
+}
+
+TEST(LLMMoEAutoRoutingTest, RejectsExplicitDevicePrefillAndUnsupportedDecode) {
+    auto plugin = std::make_shared<ArchAwarePlugin>("5010", 3, (8 << 16) | 3);
+    auto core = attach_mock_core_with_npu_device(plugin);
+    ov::AnyMap props{{"NPUW_LLM", "YES"},
+                     {"NPUW_LLM_MAX_PROMPT_LEN", "128"},
+                     {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
+                     {"NPUW_LLM_PREFILL_MOE_HINT", "DEVICE_ROUTED"}};
+    RecordingFactory recorder;
+    EXPECT_THROW(ov::npuw::LLMCompiledModel(ov::test::npuw::build_qwen3_moe_llm_test_model(),
+                                           plugin,
+                                           props,
+                                           recorder.make_factory()),
+                 ov::Exception);
+    props["NPUW_LLM_PREFILL_MOE_HINT"] = "HOST_ROUTED";
+    props["NPUW_LLM_GENERATE_MOE_HINT"] = "DEVICE_ROUTED";
+    auto model = ov::test::npuw::build_llm_test_model();
+    model->get_parameters()[0]->set_friendly_name("legacy.expert_without_supported_topology");
+    EXPECT_THROW(ov::npuw::LLMCompiledModel(model, plugin, props, recorder.make_factory()), ov::Exception);
 }
 
 class LLMCompiledModelFactoryOptionsTest : public ::testing::Test {

@@ -21,7 +21,8 @@ Host expert batching, request caching, and asynchronous prefill already existed.
 The [runtime score and cleanup guarantees](moe-runtime-semantics.md) are a
 separate prerequisite, not new algorithms introduced by the topology matcher.
 Automatic LLM model detection, stage configuration and strategy selection are a
-separate integration layer; the core passes do not themselves enable them.
+separate integration layer described below; the core passes do not themselves
+enable them.
 
 The legacy GPT-OSS, Qwen3 and Gemma4 expert matchers already use structural
 patterns. The generic path shares a reduction-rooted pattern for
@@ -134,7 +135,7 @@ selection TopK rather than a different TopK in the mixing-score expression.
 Callers must retain expert-tagged blocks independently of ordinary repeated-block
 profitability thresholds when configuring isolation, for example through
 `NPUW_ONLINE_KEEP_BLOCKS_TAGGED=expert`. Automatic preservation in LLM stage
-configuration belongs to the separate LLM integration.
+configuration is provided by the LLM integration below.
 
 Decode uses the existing K-expert single-inference executable; prefill uses
 the existing token-to-expert grouping, chunk requests and output accumulator.
@@ -166,6 +167,39 @@ Repeated-function metadata distinguishes constant from runtime integer/boolean
 operands. Otherwise constant and runtime attention masks could be grouped into
 a function with an inconsistent constant bank. Floating-point closure
 compatibility remains unchanged. LLM-stage pass invocation is provided separately.
+
+## LLMCompiledModel integration
+
+The LLM wrapper uses the shared structural pattern to detect compatible batched
+MoE blocks while retaining existing legacy router/expert name hints. A name hint
+alone does not establish device-lowering eligibility.
+
+After stage shapes are prepared, both `FoldShapeComputeChain` and
+`FoldStaticMoEMetadata` run on prefill and every generate variant, before online
+partitioning. Host-routed stage configuration appends the `expert` keep tag to
+existing tags (including attention tags), rather than replacing them. This keeps
+small expert partitions eligible for sparse execution without changing ordinary
+repeated-block profitability thresholds. Existing isolation presets and unrelated
+user properties remain in the stage configuration.
+
+When no explicit generate MoE hint is supplied, automatic device routing retains
+the architecture `5010` and compiler-version-at-least-7.29 gates and additionally
+requires a generation-token length of one and eligible supported topology in
+**every prepared generate variant**. Otherwise the existing host-routed default
+remains. An explicit host hint is not replaced by automatic selection.
+
+Stage configuration is applied after these checks. Device transforms run only
+on generate variants. Explicit device prefill and unsupported device decode
+requests fail rather than silently selecting a different strategy. Device
+prefill remains unsupported, and the existing dense hint remains CPU-only.
+For a mixed graph, eligibility is not a claim that every unrecognized block was
+lowered: verify transformed-layer counts and placement as described below.
+
+The integration tests cover single-/multi-token generation, architecture/compiler
+gates, explicit hints, name-only rejection, unnamed structural detection, multiple
+generate variants, small expert blocks, and preservation of other stage settings.
+They record prepared models and properties through a test compilation factory;
+core tests separately check numerical lowering and actual executor dispatch.
 
 ## Validation and diagnostics
 
