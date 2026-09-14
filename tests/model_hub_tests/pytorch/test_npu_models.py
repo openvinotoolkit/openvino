@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+import warnings
 
 import pytest
 import torch
@@ -101,6 +102,12 @@ def skip_if_not_enough_ram(model_name, need_gb):
                     f"only {available_gb:.1f} GB available")
 
 
+def skip_if_unsupported_platform(model_name, unsupported_platforms):
+    npu_platform = os.environ.get("NPU_PLATFORM")
+    if npu_platform and npu_platform in (unsupported_platforms or []):
+        pytest.skip(f"{model_name}: known NPU compilation failure on platform {npu_platform}")
+
+
 def make_inputs(spec, dtype):
     inputs = {}
     for name, shape in spec.items():
@@ -159,7 +166,11 @@ class TestNpuModels(TestTorchConvertModel):
             "easyocr": self._load_easyocr,
         }[case["source"]]
 
-        model = loader(case)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore",
+                                    message=r".*copying from a non-meta parameter.*",
+                                    category=UserWarning)
+            model = loader(case)
         model.eval()
         if isinstance(self.example, dict):
             names = list(self.example)
@@ -240,7 +251,7 @@ class TestNpuModels(TestTorchConvertModel):
     def _load_easyocr(self, case):
         import easyocr
 
-        reader = easyocr.Reader(["en"], quantize=False)
+        reader = easyocr.Reader(["en"], quantize=False, verbose=False)
         if case["repo"] == "detector":
             model = reader.detector
             self.example = (torch.rand([1, 3, 608, 800], dtype=case["dtype"]),)
@@ -271,4 +282,5 @@ class TestNpuModels(TestTorchConvertModel):
     def test_compile_model(self, model_id, ie_device):
         case = get_case(model_id)
         skip_if_not_enough_ram(model_id, case["ram_gb"])
+        skip_if_unsupported_platform(model_id, case.get("unsupported_platforms"))
         self.run(model_id, case["repo"], ie_device)
