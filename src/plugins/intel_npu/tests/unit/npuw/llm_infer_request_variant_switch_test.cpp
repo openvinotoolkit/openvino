@@ -97,6 +97,16 @@ struct LLMVariantSwitchTestAccess {
     static void drop_last_declared_kvcache_size(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
         compiled->m_kvcache_sizes.pop_back();
     }
+
+    // Emulates a blob that stores two non-last variants in the wrong order. The declared sizes
+    // stay ascending and the last variant stays the largest, so only an ordering check that
+    // compares adjacent variants can catch it.
+    static void swap_generate_variants(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                       std::size_t lhs,
+                                       std::size_t rhs) {
+        std::swap(compiled->m_generate_compiled_variants.at(lhs), compiled->m_generate_compiled_variants.at(rhs));
+        compiled->m_kvcache_compiled = compiled->m_generate_compiled_variants.back();
+    }
 };
 
 }  // namespace ov::test::npuw
@@ -381,6 +391,22 @@ TEST_F(LLMInferRequestVariantSwitchTest, ImportedVariantCountMismatchIsRejected)
     ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
 
     LLMVariantSwitchTestAccess::drop_last_declared_kvcache_size(compiled);
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled), ov::Exception);
+}
+
+// A swap that leaves the last variant in place keeps the declared sizes ascending and every
+// footprint within back()'s, so only an adjacent-pair ordering check rejects it. Position, not
+// just the maximum, matters: m_kvcache_sizes is indexed by variant position by both
+// select_generate_request() and get_current_variant_capacity().
+TEST_F(LLMInferRequestVariantSwitchTest, ImportedNonLastVariantsOutOfOrderAreRejected) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({{"NPUW_LLM_MAX_PROMPT_LEN", "4096"}}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 3u);
+    ASSERT_NO_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled));
+
+    LLMVariantSwitchTestAccess::swap_generate_variants(compiled, 0u, 1u);
 
     EXPECT_THROW(LLMVariantSwitchTestAccess::validate_imported_kv_variants(compiled), ov::Exception);
 }
