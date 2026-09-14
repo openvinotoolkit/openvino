@@ -921,11 +921,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         // assumes past_total_length always divides evenly by past_tile_size --
                         // true for PREFILL chunking, but not for GENERATE, where the actual past
                         // length grows one token at a time and can land in the middle of a block.
-                        NPUW_ASSERT(state.hfa_selector->this_case() ==
-                                        runtime::host_flash_attention::Selector::Case::PREFILL &&
-                                    "HFA does not support GENERATE (decoding) yet — use Pyramid or Dynamic attention "
-                                    "for the generate stage.");
-                        // past_tile_size ("C"): chunk size for REGULAR tiles -- e.g. the SWA window
+                        OPENVINO_ASSERT(
+                            state.hfa_selector->this_case() == runtime::host_flash_attention::Selector::Case::PREFILL &&
+                            "HFA does not support GENERATE (decoding) yet — use Pyramid or Dynamic attention "
+                            "for the generate stage.");
+                        // past_tile_size: chunk size for REGULAR tiles -- e.g. the SWA window
                         // capacity for a sliding-window layer, which may differ from the query
                         // chunk size shared by every layer (present_tile_size / final_tile_size).
                         const int64_t past_tile_size = hfa_desc->_past_tile_size;
