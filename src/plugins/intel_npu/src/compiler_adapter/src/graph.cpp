@@ -186,17 +186,21 @@ void Graph::initialize_impl(const FilteredConfig& config) {
         return;
     }
 
+    bool sharedCommonQueue = config.get<SHARED_COMMON_QUEUE>();
     uint32_t commandQueueOptions = 0;
-    if (config.has<TURBO>() && config.get<TURBO>()) {
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
-            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
-            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-        }
+    if (config.get<TURBO>() && _zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
     }
-    if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
-        config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
+            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
+            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+        } else {
+            OPENVINO_ASSERT(!sharedCommonQueue,
+                            "RUN_INFERENCES_SEQUENTIALLY requires a command queue with device-sync support when "
+                            "SHARED_COMMON_QUEUE is enabled");
+        }
     }
 
     {
@@ -206,10 +210,10 @@ void Graph::initialize_impl(const FilteredConfig& config) {
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
             this,
-            config.get<SHARED_COMMON_QUEUE>(),
+            sharedCommonQueue,
         };
 
-        if (config.get<SHARED_COMMON_QUEUE>() == false) {
+        if (sharedCommonQueue == false) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
             _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
         }
@@ -227,8 +231,8 @@ void Graph::initialize_impl(const FilteredConfig& config) {
         _batchSize = determine_batch_size();
     }
 
-    if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-        config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (config.get<RUN_INFERENCES_SEQUENTIALLY>() &&
+        _zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
         auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
 
         _lastSubmittedEvent.resize(numberOfCommandLists);
