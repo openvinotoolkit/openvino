@@ -45,6 +45,8 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
 
     ov::Output<ov::Node> nchwInput = input;
     if (nhwcLayout) {
+        // set_tensors()/batched inference requires the batch (N) dimension to be identifiable via layout.
+        input->set_layout("NHWC");
         auto transposeOrder = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
         nchwInput = std::make_shared<ov::op::v1::Transpose>(input, transposeOrder);
     } else {
@@ -556,13 +558,15 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
     logCapture.clear();
-    auto outputTensorFromReq = testContext.reqDynamic.get_tensor(model->output());
+    // ESPCN_x2_gh upsamples 2x and its output is NCHW, so it cannot be reused as an NHWC input tensor;
+    // reuse another request's input tensor instead to still exercise pointer-change detection.
+    auto inputTensorFromReq = testContext.reqDynamic.get_tensor(model->input());
     setInputInferAndCompare(model,
                             reqDynamic1,
                             reqReference1,
-                            outputTensorFromReq,
+                            inputTensorFromReq,
                             "CompileAndInferWithZeroTensor_third");
-    // Feeding an imported output tensor, ptr change detected and rebuild runtime
+    // Feeding an imported tensor from another infer request, ptr change detected and rebuild runtime
     // TODO: Update commandlist once dynamic stride supported
     ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
         << "Expected log to contain 'Reset command list to run with runtime' for third inference, but got: "
