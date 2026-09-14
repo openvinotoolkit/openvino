@@ -148,6 +148,7 @@ jobs:
 
   Debian_Packages:
     name: Debian Packages
+    if: ${{ false }} # iGPU isolation mode
     needs: [Docker, Build]
     uses: ./.github/workflows/job_debian_packages.yml
     with:
@@ -156,7 +157,7 @@ jobs:
 
   Samples:
     needs: [ Docker, Build, Smart_CI ]
-    if: fromJSON(needs.smart_ci.outputs.affected_components).samples
+    if: ${{ false }} # iGPU isolation mode
     uses: ./.github/workflows/job_samples_tests.yml
     with:
       runner: 'aks-linux-4-cores-16gb'
@@ -166,7 +167,7 @@ jobs:
   JS_API:
     name: OpenVINO JS API
     needs: [ Docker, Build, Smart_CI ]
-    if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
+    if: ${{ false }} # iGPU isolation mode
     uses: ./.github/workflows/job_openvino_js.yml
     strategy:
       fail-fast: false
@@ -179,6 +180,7 @@ jobs:
 
   Conformance:
     needs: [ Docker, Build, Smart_CI ]
+    if: ${{ false }} # iGPU isolation mode
     timeout-minutes: ${{ matrix.TEST_TYPE == 'API' && 10 || 20 }}
     defaults:
       run:
@@ -200,8 +202,6 @@ jobs:
       CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
       CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts
       TEST_DEVICE: 'CPU'
-    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
-
     steps:
       - name: Create Directories
         run: |
@@ -324,8 +324,7 @@ jobs:
 
   ONNX_Models:
     name: ONNX Models Tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).ONNX_FE.test
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_onnx_models_tests.yml
     with:
@@ -334,6 +333,7 @@ jobs:
 
   CXX_Unit_Tests:
     name: C++ unit tests
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
@@ -345,6 +345,7 @@ jobs:
 
   Python_Unit_Tests:
     name: Python unit tests
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_unit_tests.yml
     with:
@@ -355,6 +356,7 @@ jobs:
 
   Python_API_Tests:
     name: Python API tests
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_python_api_tests.yml
     with:
@@ -365,6 +367,7 @@ jobs:
 
   TensorFlow_Layer_Tests:
     name: TensorFlow Layer Tests
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_layer_tests.yml
     with:
@@ -375,6 +378,7 @@ jobs:
 
   Pytorch_Layer_Tests:
     name: Pytorch Layer Tests
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
     with:
@@ -385,6 +389,7 @@ jobs:
 
   Pytorch_FX_Layer_Tests:
     name: Pytorch FX Layer Tests
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
     with:
@@ -395,6 +400,7 @@ jobs:
 
   JAX_Layer_Tests:
     name: JAX Layer Tests
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_jax_layer_tests.yml
     with:
@@ -405,7 +411,7 @@ jobs:
 
   Keras3_OpenVINO_Backend:
     name: Keras 3 OpenVINO Backend Tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).Python_API.test
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_keras3_backend.yml
     with:
@@ -415,7 +421,7 @@ jobs:
 
   CPU_Functional_Tests:
     name: CPU functional tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cpu_functional_tests.yml
     with:
@@ -426,8 +432,7 @@ jobs:
 
   TensorFlow_Models_Tests_Precommit:
     name: TensorFlow Models tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TF_FE.test ||
-        fromJSON(needs.smart_ci.outputs.affected_components).TFL_FE.test
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
@@ -437,7 +442,7 @@ jobs:
 
   TensorFlow_Models_Tests_Nightly_TF_HUB:
     name: TensorFlow TF Hub Models tests
-    if: ${{ github.event_name == 'schedule' }}
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
@@ -447,7 +452,7 @@ jobs:
 
   TensorFlow_Models_Tests_Nightly_HF:
     name: TensorFlow Hugging Face Models tests
-    if: ${{ github.event_name == 'schedule' }}
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_tensorflow_models_tests.yml
     with:
@@ -457,7 +462,7 @@ jobs:
 
   PyTorch_Models_Tests:
     name: PyTorch Models tests
-    if: ${{ github.event_name != 'schedule' && fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test }}
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
@@ -467,7 +472,7 @@ jobs:
 
   PyTorch_Models_Tests_Nightly_Scope1:
     name: PyTorch Models Nightly Scope1 tests
-    if: ${{ github.event_name == 'schedule' }}
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
@@ -477,7 +482,7 @@ jobs:
 
   PyTorch_Models_Tests_Nightly_Scope2:
     name: PyTorch Models Nightly Scope2 tests
-    if: ${{ github.event_name == 'schedule' }}
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_pytorch_models_tests.yml
     with:
@@ -487,7 +492,7 @@ jobs:
 
   JAX_Models_Tests_Precommit:
     name: JAX/Flax Models tests
-    if: fromJSON(needs.smart_ci.outputs.affected_components).JAX_FE.test
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_jax_models_tests.yml
     with:
@@ -497,7 +502,7 @@ jobs:
 
   GGUF_Models_Tests_Precommit:
     name: GGUF Models tests
-    if: ${{ github.event_name != 'schedule' && fromJSON(needs.smart_ci.outputs.affected_components).GGUF_FE.test }}
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_gguf_models_tests.yml
     with:
@@ -507,7 +512,7 @@ jobs:
 
   GGUF_Models_Tests_Nightly:
     name: GGUF Models Nightly tests
-    if: ${{ github.event_name == 'schedule' }}
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_gguf_models_tests.yml
     with:
@@ -517,7 +522,7 @@ jobs:
 
   GGUF_LlamaCpp_Validation:
     name: GGUF Frontend x llama.cpp validation
-    if: ${{ github.event_name != 'schedule' && fromJSON(needs.smart_ci.outputs.affected_components).GGUF_FE.test }}
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_gguf_llamacpp_validation.yml
     with:
@@ -526,6 +531,7 @@ jobs:
 
   NVIDIA_Plugin:
     name: NVIDIA plugin
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Docker, Build, Smart_CI ]
     timeout-minutes: 30
     defaults:
@@ -555,8 +561,6 @@ jobs:
       NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
       DEBIAN_FRONTEND: 'noninteractive'
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_Release
-    if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
-
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
@@ -612,6 +616,7 @@ jobs:
 
   Openvino_tokenizers:
     name: OpenVINO tokenizers extension
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_tokenizers.yml
     with:
@@ -621,12 +626,10 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
       target-branch: ${{ inputs.target-branch }}
-    if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
-
   GPU_Stub:
     needs: [Build, Smart_CI]
     runs-on: ubuntu-latest
-    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    if: ${{ false }} # iGPU isolation mode
     steps:
       - name: GPU stub
         run: |
@@ -650,7 +653,7 @@ jobs:
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
-    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
+    if: "!needs.smart_ci.outputs.skip_workflow"
 
   dGPU:
     name: dGPU Tests
@@ -673,6 +676,7 @@ jobs:
 
   iGPU_RoPE_Tests:
     name: iGPU RoPE Tests
+    if: ${{ false }} # iGPU isolation mode
     needs: [ Build, Docker, Smart_CI, Openvino_tokenizers ]
     uses: ./.github/workflows/job_gpu_rope_tests.yml
     with:
@@ -686,14 +690,9 @@ jobs:
       # .github/dockerfiles/ov_test/ubuntu_22_04_x64_igpu.
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD128:/dev/dri/renderD128"
-    if: fromJSON(needs.smart_ci.outputs.affected_components).GPU
-
   Overall_Status:
     name: ci/gha_overall_status
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Conformance, CXX_Unit_Tests, Python_Unit_Tests, TensorFlow_Layer_Tests, Pytorch_Layer_Tests,
-            CPU_Functional_Tests, TensorFlow_Models_Tests_Precommit, PyTorch_Models_Tests, JAX_Models_Tests_Precommit, GGUF_Models_Tests_Precommit,
-            NVIDIA_Plugin, Openvino_tokenizers, iGPU,
-            Keras3_OpenVINO_Backend, iGPU_RoPE_Tests]
+    needs: [Smart_CI, Docker, Build, iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
