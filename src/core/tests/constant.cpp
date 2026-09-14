@@ -2034,7 +2034,7 @@ TEST(constant, f4e2m1_write_then_cast_custom_type) {
 
 TEST(constant, empty_tensor) {
     auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
-    
+
     ASSERT_EQ(c->get_data_ptr(), nullptr);
     ASSERT_EQ(c->get_byte_size(), 0);
     ASSERT_EQ(c->cast_vector<int32_t>().size(), 0);
@@ -2042,26 +2042,26 @@ TEST(constant, empty_tensor) {
 
 TEST(constant, empty_tensor_get_data_ptr_nc) {
     auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
-    
+
     // Attempting to access non-const data ptr for an empty tensor.
     // It should return nullptr to avoid segfaults when copying to it using size 0
     void* ptr = c->get_data_ptr_nc();
     ASSERT_EQ(ptr, nullptr);
-    
+
     // Writing 0 bytes shouldn't do anything, but let's test it safely
     if (ptr != nullptr) {
         // Technically shouldn't reach here since we enforced nullptr above
-        std::memset(ptr, 0, 0); 
+        std::memset(ptr, 0, 0);
     }
 }
 
 TEST(constant, empty_tensor_set_data) {
     auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0});
-    
+
     // Test that accessing the non-const data pointer of an empty constant doesn't throw or segfault.
     const void* ptr_nc = c->get_data_ptr_nc();
     ASSERT_EQ(ptr_nc, nullptr);
-    
+
     // And size is 0
     ASSERT_EQ(c->get_byte_size(), 0);
 }
@@ -2070,23 +2070,23 @@ TEST(constant, empty_tensor_from_empty_constant) {
     auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0});
     // Create an empty constant from another empty constant
     auto another = std::make_shared<op::v0::Constant>(*c);
-    
+
     EXPECT_EQ(another->get_data_ptr(), nullptr);
     EXPECT_EQ(another->get_data_ptr_nc(), nullptr);
     EXPECT_EQ(another->get_byte_size(), 0);
     EXPECT_EQ(another->get_shape(), Shape{0});
     EXPECT_EQ(another->get_element_type(), element::i32);
-    
+
     // test data access
     EXPECT_TRUE(another->cast_vector<int32_t>().empty());
     EXPECT_TRUE(another->get_vector<int32_t>().empty());
-    
+
     // test evaluation
     ov::TensorVector outputs;
-    EXPECT_FALSE(another->evaluate_upper(outputs)); 
+    EXPECT_FALSE(another->evaluate_upper(outputs));
     EXPECT_FALSE(another->evaluate_lower(outputs));
-    EXPECT_FALSE(another->evaluate(outputs, {})); 
-    
+    EXPECT_FALSE(another->evaluate(outputs, {}));
+
     // Check tensor view behavior
     auto tensor = another->get_tensor_view();
     EXPECT_FALSE(tensor);

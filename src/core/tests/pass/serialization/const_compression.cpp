@@ -328,10 +328,10 @@ TEST_F(SerializationConstantCompressionTest, EmptyConstants) {
     ASSERT_EQ(file_size(bin_1), 0);
 
     ASSERT_EQ(file_size(bin_1), 0);
-    
+
     ov::Core core;
     auto model_imported = core.read_model(m_out_xml_path_1, m_out_bin_path_1);
-    
+
     bool success;
     std::string message;
     std::tie(success, message) = compare_functions(model_initial, model_imported, true, true, false, true, true);
