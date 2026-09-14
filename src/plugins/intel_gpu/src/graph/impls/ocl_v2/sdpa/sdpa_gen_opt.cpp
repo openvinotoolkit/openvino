@@ -31,6 +31,7 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
 
     constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
     jit.add(make_type_jit_constants("SOFTMAX_ACCUMULATOR", softmax_accumulator_type));
+
     constexpr size_t subgroup_size = 16;
     jit.make("SUBGROUP_SIZE", subgroup_size);
 
@@ -160,10 +161,12 @@ Arguments SDPAOptGeneratorBase::get_arguments_desc_impl(const kernel_impl_params
     const size_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
     const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
     for (uint32_t i = 0; i < data_inputs_num; i++) {
-        if (i == attn_mask_idx && !has_attn_mask_input)
+        if (i == attn_mask_idx && !has_attn_mask_input) {
             continue;
-        if (i == scale_idx && desc->scale_val.has_value())
+        }
+        if (i == scale_idx && desc->scale_val.has_value()) {
             continue;
+        }
         args.push_back({ArgumentDescriptor::Types::INPUT, i});
     }
     args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});

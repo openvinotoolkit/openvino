@@ -32,8 +32,9 @@ void OtdPerfCounters::dump() const {
 
 OtdPerfCounters* get_perf_counters() {
     static bool enabled = std::getenv("MOE_OTD_PERF_LOG") != nullptr;
-    if (!enabled)
+    if (!enabled) {
         return nullptr;
+    }
 
     static OtdPerfCounters counters;
     static bool registered = [] {
@@ -193,8 +194,9 @@ void fill_weights_memory(cldnn::stream& exec_stream,
     for (uint32_t expert : experts_list) {
         auto make_tensor_fill_plan = [&](size_t base_offset, cldnn::memory_ptr mem, size_t expert_no, size_t lru_expert_no, const char* tensor_name) {
             tensor_fill_plan plan;
-            if (!mem)
+            if (!mem) {
                 return plan;
+            }
             const auto total_bytes = mem->get_layout().bytes_count();
             OPENVINO_ASSERT(num_expert > 0, "Invalid expert count");
             plan.per_expert_size = total_bytes / num_expert;
