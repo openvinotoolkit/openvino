@@ -429,20 +429,17 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         // Apply CPU workaround only for the largest variant since all variants share its past KV tensors
         auto& largest_kvcache_req = m_generate_requests.back();
         const auto& variant_in_ports = m_generate_variant_in_ports.at(largest_kvcache_req);
-        for (const auto& kv_past_name : m_kvcache_past_names) {
-            auto kvcache_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(kv_past_name));
-            // NB: Use fill_tensor_bytes to zero-fill regardless of element type.
-            // fill_tensor<ov::float16> would fail with a type mismatch error for i8 kv-cache
-            ov::npuw::util::fill_tensor_bytes(kvcache_in_tensor, 0u);
-        }
-        for (const auto& lincache_past_name : m_lincache_past_names) {
-            auto lincache_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(lincache_past_name));
-            ov::npuw::util::fill_tensor_bytes(lincache_in_tensor, 0u);
-        }
-        for (const auto& swa_past_name : m_swa_past_names) {
-            auto swa_in_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(swa_past_name));
-            ov::npuw::util::fill_tensor_bytes(swa_in_tensor, 0u);
-        }
+        // NB: Use fill_tensor_bytes to zero-fill regardless of element type.
+        // fill_tensor<ov::float16> would fail with a type mismatch error for i8 kv-cache
+        auto zero_fill_past_tensors = [&](const std::vector<std::string>& past_names) {
+            for (const auto& past_name : past_names) {
+                auto past_tensor = largest_kvcache_req->get_tensor(variant_in_ports.at(past_name));
+                ov::npuw::util::fill_tensor_bytes(past_tensor, 0u);
+            }
+        };
+        zero_fill_past_tensors(m_kvcache_past_names);
+        zero_fill_past_tensors(m_lincache_past_names);
+        zero_fill_past_tensors(m_swa_past_names);
     }
 
     m_generate_initialized = false;

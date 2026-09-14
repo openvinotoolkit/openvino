@@ -16,6 +16,7 @@ namespace npuw {
 struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMContinuedPrefillTestAccess;
+struct LLMSwaCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -95,6 +96,7 @@ private:
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMSwaCacheTestAccess;
     friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();

@@ -701,7 +701,7 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
             .run_on_model(generate_variant);
 
-        if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA>()) {
+        if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
             // Must run after ReshapeToStatic, before OptimizeValueTensors (V-tensor optimization).
             // No-op (returns false) for models without sliding-window attention layers.
             ov::npuw::ShrinkSlidingWindowKVCache swa_pass(kv_size, max_generation_token_len, axes);
@@ -983,7 +983,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     //    the KV cache still keeps the full context (no memory/perf savings).
     //  - ShrinkSlidingWindowKVCache: shrinks the KV cache to the window size and
     //    manages it as a sliding buffer at runtime for better memory/perf.
-    if (!m_is_whisper && !m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA>()) {
+    if (!m_is_whisper && !m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
     }
@@ -1050,7 +1050,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
-    if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA>()) {
+    if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
         // Must run after ReshapeToStatic, before OptimizeValueTensors (V-tensor optimization).
         // No-op (returns false) for models without sliding-window attention layers.
         const uint32_t prefill_input_size =
@@ -1061,6 +1061,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             LOG_INFO("ShrinkSlidingWindowKVCache applied to prefill model (max_prompt_size="
                      << m_kvcache_desc.max_prompt_size << ", prefill_input_size=" << prefill_input_size
                      << ", window_size=" << m_swa_window_size << ")");
+            OPENVINO_ASSERT(!m_enable_prefix_caching,
+                            "NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK and NPUW_LLM_ENABLE_PREFIX_CACHING cannot be enabled "
+                            "simultaneously: the prefix cache restores KV blocks at offsets sized against "
+                            "the full prompt capacity, which does not fit the window-shrunk SWA KV tensors.");
         }
     }
 
@@ -1887,6 +1891,9 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
     if (m_longrope_context_limit > 0u) {
         return false;  // LongRoPE threshold can be crossed mid-generation
     }
+    if (m_swa_window_size > 0u) {
+        return false;
+    }
     OPENVINO_ASSERT(m_prefill_compiled, "Continuous prefill probe requires a compiled prefill model.");
     const auto& prefill_inputs = m_prefill_compiled->inputs();
     for (const auto& input : prefill_inputs) {
@@ -2003,7 +2010,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
-                          BIND(npuw::llm::enable_swa, NPUW_LLM_ENABLE_SWA, get),
+                          BIND(npuw::llm::enable_swa_kv_cache_shrink, NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK, get),
                           BIND(npuw::llm::enable_continuous_prefill, NPUW_LLM_ENABLE_CONTINUOUS_PREFILL, get),
                           BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
