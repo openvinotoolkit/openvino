@@ -2,19 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "snippets/pass/collapse_subgraph.hpp"
+
 #include <gtest/gtest.h>
+
+#include <pass/collapse_subgraph.hpp>
+#include <subgraph_common_parent.hpp>
+#include <subgraph_converts.hpp>
+#include <subgraph_fq.hpp>
+#include <subgraph_simple.hpp>
+
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
-#include <pass/collapse_subgraph.hpp>
-#include <subgraph_simple.hpp>
-#include <subgraph_fq.hpp>
-#include <subgraph_converts.hpp>
 #include "snippets/op/subgraph.hpp"
 #include "snippets/pass/tokenization.hpp"
-#include "snippets/pass/collapse_subgraph.hpp"
-#include "utils.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace test {
@@ -114,6 +118,11 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_EltwiseTwoResultsFunction) {
 
 TEST_F(CollapseSubgraphTests, smoke_Snippets_ThreeFQFunction) {
     const auto& f = ThreeFQFunction(std::vector<PartialShape>{});
+    execute_and_validate_function(*this, f);
+}
+
+TEST_F(CollapseSubgraphTests, smoke_Snippets_CommonParentTokenization) {
+    const auto& f = CommonParentTokenizationFunction(std::vector<PartialShape>{{4}});
     execute_and_validate_function(*this, f);
 }
 
