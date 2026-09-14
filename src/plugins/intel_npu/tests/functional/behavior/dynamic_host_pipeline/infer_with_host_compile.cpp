@@ -241,6 +241,7 @@ public:
         if (isTinyDynamicModel(selectedModelName)) {
             // Workaround a compiler crash (MultiClusterStrategyAssignment computes an invalid output tile)
             // when tiling the tiny, single-channel ESPCN_x2 tensors across multiple NPU compute tiles.
+            // TODO: check need this issue
             configuration[ov::intel_npu::tiles.name()] = 1;
             /*
             [ RUN      ] smoke_BehaviorTests/InferWithHostCompileTests.DynamicNHWUsesOneVMExecution/targetDevice=NPU.4000_configItem=NPU_COMPILATION_MODE_HostCompile_Interpreter_configItem=NPU_COMPILER_TYPE_PLUGIN_configItem=NPU_CREATE_EXECUTOR_0_model=ESPCN_x2_gh_targetPlatform=NPU4000
