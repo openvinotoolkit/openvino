@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "npuw_transformations/propagate_slice.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -560,22 +561,27 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
 
     LOG_INFO("Found SDPA pattern: MatMul -> Add -> Softmax -> MatMul");
 
-    // Extract query_length and full_context_length from Softmax output shape
+    // Extract query_length and full_context_length
+    // Strategy 1: Check if PropagateSliceUp has marked the SDPA (MatMul2) with original query_length
+    // Strategy 2: Fall back to Softmax output shape
     auto softmax_output_shape = pattern_nodes.softmax_node->get_output_shape(0);
     size_t query_length = 0;
     size_t full_context_length = 0;
 
+    // First, get full_context_length and the default (fallback) query_length from Softmax output
     if (softmax_output_shape.size() >= 2) {
-        full_context_length = softmax_output_shape.back();                     // Last dimension
+        full_context_length = softmax_output_shape.back();                     // Last dimension (context length)
         query_length = softmax_output_shape[softmax_output_shape.size() - 2];  // Second-to-last dimension
-
-        LOG_DEBUG("Extracted from Softmax output shape:");
-        LOG_DEBUG("  Query length: " << query_length);
-        LOG_DEBUG("  Full context length: " << full_context_length);
     } else {
         LOG_WARN("Softmax output shape has insufficient dimensions: " << softmax_output_shape.size());
         return std::nullopt;
     }
+
+    // Try to get query_length from PropagateSliceUp rt_info (more reliable after slice propagation)
+    query_length = ov::npuw::resolve_original_query_length(query_length, pattern_nodes.matmul2_node);
+
+    LOG_DEBUG("Pyramid attention parameters: query_length=" << query_length
+                                                            << ", full_context_length=" << full_context_length);
 
     // Early return for invalid parameters
     if (query_length == 0 || full_context_length == 0 || full_context_length < query_length) {

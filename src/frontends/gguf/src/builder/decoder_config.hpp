@@ -48,7 +48,8 @@ struct DecoderConfig {
 
     // ---- auto-detected per-architecture structure ----
     bool has_qk_norm = false;
-    bool qk_norm_full = false;  // norm width is n_head*head_size (OLMoE) rather than per-head
+    bool qk_norm_full = false;        // norm width is n_head*head_size (OLMoE) rather than per-head
+    bool qk_norm_after_rope = false;  // Hunyuan applies learned per-head Q/K norm after RoPE
     bool has_qkv_bias = false;
     bool has_attn_out_bias = false;
     bool has_rope_freqs = false;

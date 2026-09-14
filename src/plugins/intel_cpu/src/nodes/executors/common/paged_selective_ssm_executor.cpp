@@ -180,6 +180,7 @@ void PagedSelectiveSSMExecutor::execute(const MemoryArgs& memory) {
         m_cached_projection_elements != projection_elements) {
         OPENVINO_ASSERT(update_scratchpad(memory));
     }
+    OPENVINO_ASSERT(m_scratch != nullptr, "PagedSelectiveSSM scratch memory is not initialized.");
 
     const node::kernel::PagedSelectiveSSMShape shape{x_dims[0],
                                                      x_dims[1],

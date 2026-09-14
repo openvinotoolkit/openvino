@@ -146,6 +146,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 // CPU specific transformations
+#include "transformations/cpu_opset/common/pass/disable_bf16_comp_cumsum_sin_gen.hpp"
 #include "transformations/cpu_opset/common/pass/insert_convert_after_extension.hpp"
 #include "transformations/cpu_opset/common/pass/ngram_fusion.hpp"
 #include "transformations/cpu_opset/common/pass/permute_slice_n_interpolation.hpp"
@@ -1137,7 +1138,6 @@ void Transformations::PostLpt() {
 
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
-    CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionFlux);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionCohere);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
@@ -1214,6 +1214,7 @@ void Transformations::PostLpt() {
     // ConvertPrecision, and marking it there regresses accuracy.
     if (config.inferencePrecision == ov::element::bf16) {
         CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::DisableBF16CompForLtxVideoRopePattern);
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::intel_cpu::DisableBF16CompCumSumSinGen);
     }
 
     // Should be before Snippets pipeline because Ngram pattern contains eltwise nodes that can be tokenized by
