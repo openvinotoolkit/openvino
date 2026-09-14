@@ -49,12 +49,28 @@ set(OV_BOM_PLATFORM "${_ov_bom_platform}" CACHE STRING "Platform sub-folder / su
 unset(_ov_bom_platform)
 
 #
-# ov_add_bom_targets(<list of components>)
+# ov_register_bom_components(<list of components>)
 #
-# Registers one 'ov_bom_<component>' custom target per CPack component (plus an aggregate
-# 'bom' target which depends on all of them). Building a target (re)generates the BOM
-# manifest for the corresponding component under
-#   ${OV_BOM_OUTPUT_DIR}/${OV_BOM_PLATFORM}/<component>.json
+# Accumulates components from every ov_cpack() invocation. Extra modules invoke ov_cpack()
+# before the top-level project does, so target creation must be deferred until the end of
+# top-level directory processing.
+#
+function(ov_register_bom_components components)
+    if(NOT ENABLE_BOM_GENERATION OR NOT components)
+        return()
+    endif()
+
+    get_property(registered_components GLOBAL PROPERTY OV_BOM_COMPONENTS)
+    list(APPEND registered_components ${components})
+    list(REMOVE_DUPLICATES registered_components)
+    set_property(GLOBAL PROPERTY OV_BOM_COMPONENTS "${registered_components}")
+
+    get_property(generation_scheduled GLOBAL PROPERTY OV_BOM_GENERATION_SCHEDULED)
+    if(NOT generation_scheduled)
+        set_property(GLOBAL PROPERTY OV_BOM_GENERATION_SCHEDULED TRUE)
+        cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL ov_add_bom_targets)
+    endif()
+endfunction()
 #
 function(_ov_collect_bom_build_targets directory output)
     get_property(targets DIRECTORY "${directory}" PROPERTY BUILDSYSTEM_TARGETS)
@@ -73,7 +89,9 @@ function(_ov_collect_bom_build_targets directory output)
         get_target_property(type "${target}" TYPE)
         get_target_property(imported "${target}" IMPORTED)
         get_target_property(exclude_from_all "${target}" EXCLUDE_FROM_ALL)
-        if(NOT imported AND NOT exclude_from_all AND NOT type STREQUAL "INTERFACE_LIBRARY")
+        if(NOT imported AND
+           NOT exclude_from_all AND
+           type MATCHES "^(EXECUTABLE|STATIC_LIBRARY|SHARED_LIBRARY|MODULE_LIBRARY|OBJECT_LIBRARY)$")
             list(APPEND build_targets "${target}")
         endif()
     endforeach()
@@ -81,14 +99,14 @@ function(_ov_collect_bom_build_targets directory output)
     set(${output} "${build_targets}" PARENT_SCOPE)
 endfunction()
 
-function(ov_add_bom_targets components)
-    if(NOT ENABLE_BOM_GENERATION OR NOT components)
-        return()
-    endif()
-
-    if(TARGET bom)
-        # ov_add_bom_targets() has already been called once (e.g. ov_cpack() invoked
-        # multiple times); nothing else to do
+#
+# Creates one 'ov_bom_<component>' custom target per registered CPack component and an
+# aggregate 'bom' target which is part of the default build. Manifests are written to
+#   ${OV_BOM_OUTPUT_DIR}/${OV_BOM_PLATFORM}/<component>.json
+#
+function(ov_add_bom_targets)
+    get_property(components GLOBAL PROPERTY OV_BOM_COMPONENTS)
+    if(NOT components)
         return()
     endif()
 
