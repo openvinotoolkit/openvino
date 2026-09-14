@@ -7,8 +7,12 @@
 #include "ze_test_context.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
+#include "openvino/util/memory.hpp"
 #include "ze/ze_memory.hpp"
 
+#include <algorithm>
+#include <cstdint>
 #include <numeric>
 #include <vector>
 
@@ -33,6 +37,66 @@ std::vector<allocation_type> get_supported_ze_alloc_types(const std::shared_ptr<
 }
 
 } // namespace
+
+class ze_host_buffer_cache_test : public ::testing::TestWithParam<size_t> {};
+
+TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
+	ze_test_context ctx;
+	try {
+		ctx = create_ze_test_context();
+	} catch (const std::exception& e) {
+		GTEST_SKIP() << "No usable Level Zero GPU device found: " << e.what();
+	}
+	if (!ctx.ze_test_engine->can_use_host_usm_zero_copy()) {
+		GTEST_SKIP() << "Device does not support zero-copy cache loading";
+	}
+
+	const size_t data_size = GetParam();
+	const size_t alignment = std::max(ov::util::min_page_alignment,
+	                                  static_cast<size_t>(ctx.ze_test_engine->get_device_info().cacheline_size.value_or(0)));
+	ov::AlignedBuffer cache_buffer(data_size, alignment);
+	auto* cache_data = cache_buffer.get_ptr<uint8_t>();
+	// Fill the whole cache buffer with a deterministic, non-trivial pattern so a full
+	// readback can catch any corruption/mis-offset introduced by the zero-copy wrapping,
+	// not just a handful of sampled positions.
+	for (size_t i = 0; i < data_size; ++i) {
+		cache_data[i] = static_cast<uint8_t>((i * 2654435761u) % 251u);
+	}
+
+	const layout cache_layout = {{static_cast<int64_t>(data_size)}, data_types::u8, format::bfyx};
+	auto memory = ctx.ze_test_engine->create_hostbuffer(cache_data,
+	                                                   data_size,
+	                                                   allocation_type::cl_mem,
+	                                                   cache_layout,
+	                                                   true);
+
+	ASSERT_NE(memory, nullptr);
+	ASSERT_EQ(memory->buffer_ptr(), cache_data);
+	ASSERT_EQ(memory->size(), data_size);
+	ASSERT_EQ(memory->get_allocation_type(), allocation_type::cl_mem);
+
+	// Zero-copy wrapping must expose the exact same host memory: verify by reading the
+	// full buffer back through the memory object (not just a few sample offsets) and
+	// comparing it byte-for-byte against what was actually written into the cache buffer.
+	// Large buffers are verified in chunks to keep the extra host-side readback allocation
+	// bounded regardless of the tested cache size (up to 1 GB).
+	constexpr size_t verify_chunk_size = 4 * 1024 * 1024;
+	std::vector<uint8_t> readback(std::min(data_size, verify_chunk_size));
+	for (size_t offset = 0; offset < data_size; offset += verify_chunk_size) {
+		const size_t chunk = std::min(verify_chunk_size, data_size - offset);
+		OV_ASSERT_NO_THROW(memory->copy_to(*ctx.ze_test_stream, readback.data(), offset, 0, chunk, true));
+		ASSERT_TRUE(std::equal(readback.begin(), readback.begin() + chunk, cache_data + offset))
+		    << "Cache data mismatch in chunk starting at offset " << offset;
+	}
+}
+
+INSTANTIATE_TEST_SUITE_P(cache_buffer_sizes,
+                         ze_host_buffer_cache_test,
+                         ::testing::Values(size_t{2} * 1024,
+                                           size_t{4} * 1024,
+                                           size_t{1} * 1024 * 1024,
+                                           size_t{2} * 1024 * 1024,
+                                           size_t{1} * 1024 * 1024 * 1024));
 
 TEST(ze_usm_memory, copy_and_read_buffer) {
 	auto ctx = create_ze_test_context();

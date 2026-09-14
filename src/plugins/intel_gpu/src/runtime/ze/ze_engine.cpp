@@ -176,11 +176,52 @@ memory_ptr ze_engine::create_subbuffer(const memory& memory, const layout& new_l
 }
 
 memory_ptr ze_engine::create_hostbuffer(void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout) {
-    OPENVINO_NOT_IMPLEMENTED;
+    return create_hostbuffer_impl(cpu_address, data_size, _allocation_type, output_layout, CL_MEM_READ_WRITE);
 }
 
 memory_ptr ze_engine::create_hostbuffer(const void* cpu_address, size_t data_size, allocation_type _allocation_type, const layout output_layout, bool host_read_only) {
-    OPENVINO_NOT_IMPLEMENTED;
+    const cl_mem_flags flags = host_read_only ? (CL_MEM_READ_ONLY | CL_MEM_HOST_READ_ONLY) : CL_MEM_READ_ONLY;
+    return create_hostbuffer_impl(const_cast<void*>(cpu_address), data_size, _allocation_type, output_layout, flags);
+}
+
+memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
+                                             size_t data_size,
+                                             allocation_type allocation,
+                                             const layout& output_layout,
+                                             cl_mem_flags access_flags) {
+    const size_t minimal_alignment = static_cast<size_t>(get_device_info().cacheline_size.value_or(0));
+    OPENVINO_ASSERT(minimal_alignment > 0, "[GPU] cacheline_size must be > 0 for host pointer import");
+    OPENVINO_ASSERT(cpu_address != nullptr, "[GPU] shared buffer pointer is invalid");
+    OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % minimal_alignment) == 0,
+                    "[GPU] shared buffer pointer must be ",
+                    minimal_alignment,
+                    "-byte aligned");
+    OPENVINO_ASSERT((data_size % minimal_alignment) == 0,
+                    "[GPU] shared buffer size must be a multiple of ",
+                    minimal_alignment,
+                    " bytes");
+
+    auto ctx = get_context();
+    ze_export_ocl_context(ctx, get_device());
+    cl_int err = CL_SUCCESS;
+    cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    flags |= CL_MEM_FORCE_HOST_MEMORY_INTEL;
+#endif
+    cl_mem ocl_buffer =
+        clCreateBuffer(ctx.ocl_handle<ocl_resource_type::context>(), flags, data_size, cpu_address, &err);
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    OPENVINO_ASSERT(err == CL_SUCCESS && ocl_buffer != nullptr,
+                    "[GPU] clCreateBuffer with CL_MEM_USE_HOST_PTR and CL_MEM_FORCE_HOST_MEMORY_INTEL failed: ",
+                    err);
+#else
+    OPENVINO_ASSERT(err == CL_SUCCESS && ocl_buffer != nullptr,
+                    "[GPU] clCreateBuffer with CL_MEM_USE_HOST_PTR failed: ",
+                    err);
+#endif
+
+    auto imported_buffer = ze_import_usm(ocl_buffer, ctx, false);
+    return std::make_shared<ze::gpu_usm>(this, output_layout, imported_buffer, allocation, nullptr);
 }
 
 bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
