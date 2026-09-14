@@ -56,8 +56,9 @@ UnsqueezeBroadcastReshapeMatmulFusion::UnsqueezeBroadcastReshapeMatmulFusion() {
         auto target_shape_constant = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1));
         if (target_shape_constant) {
             auto target_shape_val = target_shape_constant->cast_vector<int32_t>();
-            if (!valid_broadcast_target_shape(target_shape_val))
+            if (!valid_broadcast_target_shape(target_shape_val)) {
                 return false;
+            }
         }
 
         auto input_a = pattern_map.at(input_a_m).get_node_shared_ptr();

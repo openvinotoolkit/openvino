@@ -801,3 +801,125 @@ TEST(rms_gpu_test, in_place_crop_rms_spatial_split) {
         ASSERT_NEAR(out1[i], ref1[i], 1e-4f) << "Branch 1 mismatch at index=" << i;
     }
 }
+
+// ============================================================================
+// BF16 RMS: reference is computed in FP32 via rms_ref<ov::bfloat16> (reuses the
+// generic template). GPU BF16 output is compared with relative tolerance to
+// account for native_rsqrt approximation in the opt kernel.
+// ============================================================================
+static void run_rms_bf16(const std::string& kernel_name, const ov::PartialShape& in_shape,
+                         bool with_gamma, bool dynamic, float epsilon = 1e-5f,
+                         float in_min = 7.f, float in_max = 100.f,
+                         float abs_floor = 0.01f, float rel_tol = 0.02f) {
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({in_shape, data_types::bf16, format::bfyx});
+    // Rank-3 input [1, C, W] normalizes over the last dim W; gamma covers W elements.
+    const size_t W = in_shape[in_shape.size() - 1].get_length();
+    memory::ptr gamma = nullptr;
+    if (with_gamma)
+        gamma = engine.allocate_memory({ov::PartialShape{1, static_cast<int64_t>(W)}, data_types::bf16, format::bfyx});
+    auto output_ref = engine.allocate_memory({in_shape, data_types::bf16, format::bfyx});
+
+    std::mt19937 rnd_gen;
+    auto fill_uniform = [&](memory::ptr mem, float lo, float hi) {
+        std::uniform_real_distribution<float> dist(lo, hi);
+        cldnn::mem_lock<ov::bfloat16> ptr(mem, get_test_stream());
+        for (auto it = ptr.begin(); it != ptr.end(); ++it)
+            *it = ov::bfloat16(dist(rnd_gen));
+    };
+    fill_uniform(input, in_min, in_max);
+    if (with_gamma)
+        fill_uniform(gamma, 0.5f, 1.5f);
+
+    rms_ref<ov::bfloat16>(input, gamma, output_ref, epsilon);
+
+    topology topology;
+    auto input_layout_dyn = layout{ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+                                   data_types::bf16, format::bfyx};
+    topology.add(input_layout("input", dynamic ? input_layout_dyn : input->get_layout()));
+    if (with_gamma) {
+        topology.add(input_layout("gamma", gamma->get_layout()));
+        topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon));
+    } else {
+        topology.add(rms("rms", input_info("input"), epsilon));
+    }
+
+    ExecutionConfig config = get_test_default_config(engine);
+    if (dynamic)
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplForcingMap forced{
+        {"rms", ov::intel_gpu::ImplementationDesc{format::bfyx, kernel_name}},
+    };
+    config.set_property(ov::intel_gpu::force_implementations(forced));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    if (with_gamma)
+        network.set_input_data("gamma", gamma);
+
+    if (dynamic) {
+        auto inst = network.get_primitive("rms");
+        ASSERT_TRUE(inst->get_impl() != nullptr);
+        ASSERT_TRUE(inst->get_impl()->is_dynamic());
+    }
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "rms");
+
+    auto output = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::bfloat16> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<ov::bfloat16> output_ref_ptr(output_ref, get_test_stream());
+
+    // BF16 has ~7 mantissa bits; relative tolerance accounts for native_rsqrt.
+    for (size_t i = 0; i < output_ref->count(); ++i) {
+        float gpu_val = static_cast<float>(output_ptr[i]);
+        float ref_val = static_cast<float>(output_ref_ptr[i]);
+        float diff = std::abs(gpu_val - ref_val);
+        float tolerance = std::max(abs_floor, std::abs(ref_val) * rel_tol);
+        ASSERT_LE(diff, tolerance) << "Mismatch at i=" << i
+            << " gpu=" << gpu_val << " ref=" << ref_val << " diff=" << diff;
+    }
+}
+
+// BF16 RMS on the ref kernel, small rank-3 shape, with gamma
+TEST(rms_gpu_test, rms_test_bf16_bfyx_ref) {
+    run_rms_bf16("rms_gpu_ref", ov::PartialShape{1, 2, 6}, /*with_gamma=*/true, /*dynamic=*/false);
+}
+
+// BF16 RMS on the ref kernel, small rank-3 shape, without gamma
+TEST(rms_gpu_test, rms_test_bf16_without_gamma_ref) {
+    run_rms_bf16("rms_gpu_ref", ov::PartialShape{1, 2, 6}, /*with_gamma=*/false, /*dynamic=*/false);
+}
+
+// BF16 RMS on the opt kernel, 16-wide (subgroup-aligned), with gamma
+TEST(rms_gpu_test, rms_test_bf16_bfyx_opt) {
+    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{1, 2, 16}, /*with_gamma=*/true, /*dynamic=*/false);
+}
+
+// BF16 RMS on the opt kernel, 18-wide (leftovers path), with gamma
+TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_leftovers) {
+    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{1, 2, 18}, /*with_gamma=*/true, /*dynamic=*/false);
+}
+
+// BF16 RMS on the opt kernel, 16-wide, without gamma
+TEST(rms_gpu_test, rms_test_bf16_without_gamma_opt) {
+    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{1, 2, 16}, /*with_gamma=*/false, /*dynamic=*/false);
+}
+
+// BF16 RMS, dynamic shape 4096-wide (auto kernel selection), with gamma
+TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_dyn) {
+    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{2, 1, 4096}, /*with_gamma=*/true, /*dynamic=*/true);
+}
+
+// BF16 RMS, dynamic shape 3083-wide (unaligned leftovers), with gamma
+TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_unaligned_dyn) {
+    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{2, 1, 3083}, /*with_gamma=*/true, /*dynamic=*/true);
+}
+
+TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_near_zero) {
+    run_rms_bf16("rms_gpu_bfyx_opt", ov::PartialShape{1, 1, 4096}, /*with_gamma=*/true, /*dynamic=*/false,
+                 /*epsilon=*/1e-5f, /*in_min=*/0.001f, /*in_max=*/0.003f,
+                 /*abs_floor=*/0.01f, /*rel_tol=*/0.05f);
+}

@@ -103,6 +103,10 @@ public:
     void serialize(ov::npuw::orc::Stream& stream);
 
 private:
+    // Checks the deserialized weight description (type/shape/offset/byte_size) against the
+    // size of the weights storage it is about to be read from. Throws if it does not fit.
+    void validate_weight_range(std::size_t weights_size) const;
+
     std::shared_ptr<ov::op::v0::Constant> m_node = nullptr;
     ov::element::Type m_cached_type;
     ov::Shape m_cached_shape;

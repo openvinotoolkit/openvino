@@ -5,6 +5,7 @@
 #include "include/fetch_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
+#include "include/batch_headers/bf16_utils.cl"
 
 // Check alignment restrictions for using block writes on output.
 #define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * OUTPUT_FEATURE_PITCH) & 0xF == 0)
@@ -19,7 +20,7 @@
 #define BLOCK_READ(ptr, offset) CAT(DT_INPUT_BLOCK_READ, SUBGROUP_BLOCK_SIZE)(ptr, offset)
 #define BLOCK_WRITE(ptr, offset, val) CAT(DT_OUTPUT_BLOCK_WRITE, SUBGROUP_BLOCK_SIZE)(ptr, offset, val)
 #define ACC_TYPE MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, SUBGROUP_BLOCK_SIZE)
-#define TO_ACC_TYPE(x) CAT(convert_, ACC_TYPE)(x)
+#define TO_ACC_TYPE(x) TO_ACCUMULATOR_VECTOR_TYPE(x, SUBGROUP_BLOCK_SIZE)
 #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, SUBGROUP_BLOCK_SIZE)
 #endif
 
@@ -124,7 +125,7 @@ KERNEL(rms_gpu_bfyx_opt)(
 
     if (in_data_idx == 0) {
         rms = slm_buf[0] / data_size;
-        slm_buf[0] = native_powr(sqrt(rms + TO_ACCUMULATOR_TYPE(EPSILON)), -1);
+        slm_buf[0] = native_powr(sqrt(rms + EPSILON), -1);
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 

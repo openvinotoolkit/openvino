@@ -22,6 +22,20 @@ std::string strip_weight_suffix(const std::string& name) {
     return ends_with_weight ? name.substr(0, name.size() - suffix.size()) : name;
 }
 
+WeightTensors find_weight_tensors(const std::unordered_map<std::string, ov::Tensor>& weights, const std::string& base) {
+    WeightTensors tensors;
+    if (auto it = weights.find(base + ".weight"); it != weights.end()) {
+        tensors.weight = it->second;
+    }
+    if (auto it = weights.find(base + ".scales"); it != weights.end()) {
+        tensors.scales = it->second;
+    }
+    if (auto it = weights.find(base + ".zp"); it != weights.end()) {
+        tensors.zero_point = it->second;
+    }
+    return tensors;
+}
+
 }  // namespace
 
 GraphEmitter::GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
@@ -127,7 +141,7 @@ void GraphEmitter::add_extra_input_node(const std::string& name, const std::shar
 }
 
 void GraphEmitter::emit_weight_op(const std::string& node_name,
-                                  const std::unordered_map<std::string, ov::Tensor>& extracted,
+                                  const WeightTensors& tensors,
                                   GgufTensorType qtype,
                                   const ov::PartialShape& shape_4d) {
     if (m_emitted_weights.count(node_name)) {
@@ -141,15 +155,16 @@ void GraphEmitter::emit_weight_op(const std::string& node_name,
     op.output_name = node_name;
     op.output_shape = shape_4d;
     op.output_type = ov::element::f32;
-    // translate_weight rebuilds the make_weight_node(base, weights, qtypes) inputs from these:
+    // translate_weight reads these into a WeightTensors payload:
     // "gguf.blob.<sub>" -> extracted tensor (<sub> in {weight, scales, zp}), and the qtype id.
     op.attributes["gguf_weight"] = true;  // marks this GGML_OP_NONE leaf as a weight
     op.attributes["gguf_qtype"] = static_cast<int>(qtype);
-    for (const auto& kv : extracted) {
-        const std::string& full = kv.first;  // "<base>.weight" / ".scales" / ".zp"
-        auto dot = full.rfind('.');
-        std::string sub = (dot == std::string::npos) ? full : full.substr(dot + 1);
-        op.attributes["gguf.blob." + sub] = kv.second;
+    op.attributes["gguf.blob.weight"] = tensors.weight;
+    if (tensors.scales) {
+        op.attributes["gguf.blob.scales"] = tensors.scales;
+    }
+    if (tensors.zero_point) {
+        op.attributes["gguf.blob.zp"] = tensors.zero_point;
     }
     m_graph->nodes.push_back(std::move(op));
 
@@ -163,14 +178,7 @@ void GraphEmitter::add_weight(const std::string& ggml_name) {
     }
     const std::string base = strip_weight_suffix(ggml_name);
 
-    // Collect the parser's extracted tensors for this weight (weight [+ scales [+ zp]]).
-    std::unordered_map<std::string, ov::Tensor> extracted;
-    for (const char* sub : {".weight", ".scales", ".zp"}) {
-        auto it = m_weights.find(base + sub);
-        if (it != m_weights.end()) {
-            extracted[base + sub] = it->second;
-        }
-    }
+    auto tensors = find_weight_tensors(m_weights, base);
     GgufTensorType qtype = GGUF_TYPE_F16;
     if (auto it = m_qtypes.find(base + ".qtype"); it != m_qtypes.end()) {
         qtype = it->second;
@@ -184,21 +192,14 @@ void GraphEmitter::add_weight(const std::string& ggml_name) {
         rows = s.size() >= 1 ? static_cast<int64_t>(s[0]) : 1;
         cols = s.size() >= 2 ? static_cast<int64_t>(s[1]) : 1;
     }
-    emit_weight_op(ggml_name, extracted, qtype, ov::PartialShape({1, 1, rows, cols}));
+    emit_weight_op(ggml_name, tensors, qtype, ov::PartialShape({1, 1, rows, cols}));
 }
 
 void GraphEmitter::add_weight_from(const std::string& node_name, const std::string& src_base) {
     if (m_emitted_weights.count(node_name)) {
         return;
     }
-    const std::string dst_base = strip_weight_suffix(node_name);
-    std::unordered_map<std::string, ov::Tensor> extracted;
-    for (const char* sub : {".weight", ".scales", ".zp"}) {
-        auto it = m_weights.find(src_base + sub);
-        if (it != m_weights.end()) {
-            extracted[dst_base + sub] = it->second;
-        }
-    }
+    auto tensors = find_weight_tensors(m_weights, src_base);
     GgufTensorType qtype = GGUF_TYPE_F16;
     if (auto it = m_qtypes.find(src_base + ".qtype"); it != m_qtypes.end()) {
         qtype = it->second;
@@ -209,7 +210,7 @@ void GraphEmitter::add_weight_from(const std::string& node_name, const std::stri
         rows = s.size() >= 1 ? static_cast<int64_t>(s[0]) : 1;
         cols = s.size() >= 2 ? static_cast<int64_t>(s[1]) : 1;
     }
-    emit_weight_op(node_name, extracted, qtype, ov::PartialShape({1, 1, rows, cols}));
+    emit_weight_op(node_name, tensors, qtype, ov::PartialShape({1, 1, rows, cols}));
 }
 
 void GraphEmitter::add_named_weight(const std::string& ggml_name) {
@@ -224,15 +225,12 @@ void GraphEmitter::add_named_weight(const std::string& ggml_name) {
     GgufTensorType qtype = w.get_element_type() == ov::element::f32    ? GGUF_TYPE_F32
                            : w.get_element_type() == ov::element::bf16 ? GGUF_TYPE_BF16
                                                                        : GGUF_TYPE_F16;
-    // emit_weight_op re-keys by the last '.'; a bias ends in ".bias", so key it as ".weight"
-    // explicitly (make_weight_node's plain-Constant path reads "<base>.weight").
-    std::unordered_map<std::string, ov::Tensor> extracted{{ggml_name + ".weight", w}};
     const auto& s = w.get_shape();
     int64_t n = s.empty() ? 1 : static_cast<int64_t>(s[0]);
     // 2-D plain weights (qwen35's ssm_conv1d, OV [conv_dim, d_conv]) keep both extents;
     // 1-D ones (biases, norm scales) are the common case and stay a trailing vector.
     const ov::PartialShape shape = s.size() == 2 ? ps({1, 1, n, static_cast<int64_t>(s[1])}) : ps({1, 1, 1, n});
-    emit_weight_op(ggml_name, extracted, qtype, shape);
+    emit_weight_op(ggml_name, {w, {}, {}}, qtype, shape);
 }
 
 }  // namespace gguf

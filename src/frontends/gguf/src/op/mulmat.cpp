@@ -97,7 +97,7 @@ OutputVector translate_mulmat(const NodeContext& context) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op
