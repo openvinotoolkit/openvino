@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/broadcast.hpp>
 #include <intel_gpu/primitives/gather.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/resample.hpp>
 #include <intel_gpu/primitives/shape_of.hpp>
@@ -19,12 +20,17 @@ class remote_output_lifecycle : public testing::TestWithParam<cldnn::allocation_
 
 class RemoteOutputLifecycle {
 public:
+    // producer_is_whitelisted_user tracks whether "producer"'s single user is a type on the
+    // is_remote_output_whitelisted_type() list (permute/reorder). Only then may the producer's own
+    // output alias directly onto the remote destination when that user is skipped at runtime.
     explicit RemoteOutputLifecycle(cldnn::network& network,
                                                                      cldnn::allocation_type output_allocation,
                                    bool require_direct_output = true,
-                                   const cldnn::primitive_id& operation_id = "operation")
+                                   const cldnn::primitive_id& operation_id = "operation",
+                                   bool producer_is_whitelisted_user = false)
                 : network(network), engine(network.get_engine()), output_allocation(output_allocation),
-                    require_direct_output(require_direct_output), operation_id(operation_id) {}
+                    require_direct_output(require_direct_output), operation_id(operation_id),
+                    producer_is_whitelisted_user(producer_is_whitelisted_user) {}
 
     void run(const ov::Shape& input_shape,
              const ov::Shape& output_shape,
@@ -54,6 +60,17 @@ public:
         const bool direct_output = engine.is_the_same_buffer(*result, *destination);
         if (require_direct_output) {
             EXPECT_TRUE(direct_output);
+        }
+        if (is_remote) {
+            const bool producer_aliases_remote = engine.is_the_same_buffer(network.get_primitive("producer")->output_memory(), *destination);
+            if (producer_is_whitelisted_user) {
+                EXPECT_EQ(producer_aliases_remote, expect_skip)
+                    << "producer aliasing must track the runtime skip decision of its whitelisted user";
+            } else {
+                // Excluded-type guard: a non-whitelisted runtime-skippable primitive must never let its
+                // producer alias the remote output, whether it is skipped at runtime or not.
+                EXPECT_FALSE(producer_aliases_remote);
+            }
         }
         expect_values(result, expected);
         expect_values(input, input_values);
@@ -88,6 +105,7 @@ private:
     cldnn::allocation_type output_allocation;
     bool require_direct_output;
     cldnn::primitive_id operation_id;
+    bool producer_is_whitelisted_user;
     cldnn::memory::ptr last_output;
     std::vector<std::pair<cldnn::memory::ptr, std::vector<float>>> retained_outputs;
     size_t iteration = 0;
@@ -110,6 +128,9 @@ TEST_P(remote_output_lifecycle, gather) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network network(engine, topology, config);
     ASSERT_TRUE(network.get_primitive("operation")->get_node().is_runtime_skippable());
+    // Excluded-type guard: gather is runtime-skippable but not on the remote-output whitelist, so the
+    // remote chain must not stop at it.
+    ASSERT_FALSE(network.get_primitive("operation")->is_remote_output_chain_boundary());
     auto indices = engine.allocate_memory({{6}, cldnn::data_types::i32, cldnn::format::bfyx});
     network.set_input_data("indices", indices);
     RemoteOutputLifecycle lifecycle(network, GetParam(), false);
@@ -142,6 +163,9 @@ TEST_P(remote_output_lifecycle, broadcast) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network network(engine, topology, config);
     ASSERT_TRUE(network.get_primitive("operation")->get_node().is_runtime_skippable());
+    // Excluded-type guard: broadcast is runtime-skippable but not on the remote-output whitelist, so
+    // the remote chain must not stop at it.
+    ASSERT_FALSE(network.get_primitive("operation")->is_remote_output_chain_boundary());
     RemoteOutputLifecycle lifecycle(network, GetParam(), false);
     lifecycle.run({1, 2, 3}, {1, 2, 3}, {1, 2, 3, 4, 5, 6}, {1, 2, 3, 4, 5, 6}, true);
     lifecycle.run({1, 1, 3}, {1, 2, 3}, {7, 8, 9}, {7, 8, 9, 7, 8, 9}, false);
@@ -165,7 +189,7 @@ TEST_P(remote_output_lifecycle, reorder) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network network(engine, topology, config);
     ASSERT_TRUE(network.get_primitive("output")->get_node().is_runtime_skippable());
-    RemoteOutputLifecycle lifecycle(network, GetParam(), true, "output");
+    RemoteOutputLifecycle lifecycle(network, GetParam(), true, "output", /*producer_is_whitelisted_user=*/true);
     lifecycle.run({1, 1, 2, 3}, {1, 1, 2, 3}, {1, 2, 3, 4, 5, 6}, {1, 2, 3, 4, 5, 6}, true);
     lifecycle.run({1, 1, 1, 6}, {1, 1, 1, 6}, {7, 8, 9, 10, 11, 12}, {7, 8, 9, 10, 11, 12}, true);
     lifecycle.run({1, 1, 1, 6}, {1, 1, 1, 6}, {2, 3, 4, 5, 6, 7}, {2, 3, 4, 5, 6, 7}, true, true);
@@ -194,6 +218,9 @@ TEST_P(remote_output_lifecycle, resample) {
     config.set_property(ov::intel_gpu::optimize_data(true));
     cldnn::network network(engine, topology, config);
     ASSERT_TRUE(network.get_primitive("operation")->get_node().is_runtime_skippable());
+    // Excluded-type guard: resample is runtime-skippable but not on the remote-output whitelist, so
+    // the remote chain must not stop at it.
+    ASSERT_FALSE(network.get_primitive("operation")->is_remote_output_chain_boundary());
     RemoteOutputLifecycle lifecycle(network, GetParam());
     lifecycle.run({1, 1, 2, 3}, {1, 1, 2, 3}, {1, 2, 3, 4, 5, 6}, {1, 2, 3, 4, 5, 6}, true);
     lifecycle.run({1, 1, 1, 6}, {1, 1, 2, 3}, {7, 8, 9, 10, 11, 12}, {7, 9, 11, 7, 9, 11}, false);
@@ -202,8 +229,64 @@ TEST_P(remote_output_lifecycle, resample) {
     lifecycle.run({1, 1, 2, 3}, {1, 1, 2, 3}, {4, 5, 6, 7, 8, 9}, {4, 5, 6, 7, 8, 9}, true, false, false);
 }
 
+TEST_P(remote_output_lifecycle, permute) {
+    auto& engine = tests::get_test_engine();
+    if (!engine.supports_allocation(GetParam())) {
+        GTEST_SKIP() << "Output allocation type is not supported";
+    }
+    const auto input_layout = cldnn::layout{ov::PartialShape::dynamic(3), cldnn::data_types::f32, cldnn::format::bfyx};
+    cldnn::topology topology(cldnn::input_layout("input", input_layout),
+                            cldnn::activation("producer", cldnn::input_info("input"), cldnn::activation_func::relu),
+                            cldnn::permute("operation", cldnn::input_info("producer"), {0, 2, 1}),
+                            cldnn::reorder("output", cldnn::input_info("operation"), cldnn::format::bfyx, cldnn::data_types::f32));
+    auto config = tests::get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    cldnn::network network(engine, topology, config);
+    ASSERT_TRUE(network.get_primitive("operation")->get_node().is_runtime_skippable());
+    // permute is on the remote-output whitelist and is the late-decision role: the chain stops at it,
+    // and its producer only binds to the remote tensor once the runtime skip decision confirms it.
+    ASSERT_TRUE(network.get_primitive("operation")->is_remote_output_chain_boundary());
+    RemoteOutputLifecycle lifecycle(network, GetParam(), true, "operation", /*producer_is_whitelisted_user=*/true);
+    lifecycle.run({1, 1, 3}, {1, 3, 1}, {6, 7, 8}, {6, 7, 8}, true);
+    lifecycle.run({1, 1, 3}, {1, 3, 1}, {9, 10, 11}, {9, 10, 11}, true);
+    lifecycle.run({1, 1, 6}, {1, 6, 1}, {6, 7, 8, 9, 10, 11}, {6, 7, 8, 9, 10, 11}, true);
+    lifecycle.run({1, 2, 3}, {1, 3, 2}, {0, 1, 2, 3, 4, 5}, {0, 3, 1, 4, 2, 5}, false);
+    lifecycle.run({1, 1, 6}, {1, 6, 1}, {6, 7, 8, 9, 10, 11}, {6, 7, 8, 9, 10, 11}, true, true);
+    lifecycle.run({1, 1, 6}, {1, 6, 1}, {12, 13, 14, 15, 16, 17}, {12, 13, 14, 15, 16, 17}, true, true);
+    lifecycle.run({1, 2, 3}, {1, 3, 2}, {0, 1, 2, 3, 4, 5}, {0, 3, 1, 4, 2, 5}, false, true);
+    lifecycle.run({1, 1, 3}, {1, 3, 1}, {12, 13, 14}, {12, 13, 14}, true);
+}
+
 INSTANTIATE_TEST_SUITE_P(smoke,
                          remote_output_lifecycle,
                          testing::Values(cldnn::allocation_type::cl_mem, cldnn::allocation_type::usm_host));
+
+// The remote output chain must stop at a permute (late-decision role): at set_output_memory() time,
+// before any execute(), its producer must NOT yet hold the remote buffer.
+TEST(remote_output_lifecycle, permute_chain_boundary_defers_producer_binding) {
+    auto& engine = tests::get_test_engine();
+    const auto input_layout = cldnn::layout{ov::PartialShape::dynamic(3), cldnn::data_types::f32, cldnn::format::bfyx};
+    cldnn::topology topology(cldnn::input_layout("input", input_layout),
+                            cldnn::activation("producer", cldnn::input_info("input"), cldnn::activation_func::relu),
+                            cldnn::permute("operation", cldnn::input_info("producer"), {0, 2, 1}),
+                            cldnn::reorder("output", cldnn::input_info("operation"), cldnn::format::bfyx, cldnn::data_types::f32));
+    auto config = tests::get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    cldnn::network network(engine, topology, config);
+    ASSERT_TRUE(network.get_primitive("operation")->is_remote_output_chain_boundary());
+
+    auto input_mem = engine.allocate_memory({{1, 1, 3}, cldnn::data_types::f32, cldnn::format::bfyx});
+    tests::set_values(input_mem, std::vector<float>{6.f, 7.f, 8.f});
+    auto remote_output = engine.allocate_memory({{1, 3, 1}, cldnn::data_types::f32, cldnn::format::bfyx});
+    network.set_input_data("input", input_mem);
+    network.set_output_memory("output", remote_output, true);
+
+    auto* producer = network.get_primitive("producer").get();
+    if (producer->outputs_allocated()) {
+        ASSERT_FALSE(engine.is_the_same_buffer(*producer->output_memory_ptr(), *remote_output));
+    }
+}
 
 }  // namespace

@@ -546,7 +546,7 @@ std::vector<primitive_inst*> network::build_output_chain(std::shared_ptr<primiti
 
         // A runtime-skippable permute may need to execute after its concrete shape is known.
         // Keep a remote output bound to the permute without aliasing its input producer.
-        if (is_remote && cand->get_node().is_type<permute>() && cand->get_node().is_runtime_skippable())
+        if (is_remote && cand->is_remote_output_chain_boundary())
             continue;
 
         for (const auto& dep : cand->dependencies()) {
@@ -611,9 +611,11 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
 
     if (is_remote) {
         for (auto* prim : o_iter->second) {
-            if (!prim->get_node().is_type<permute>() || !prim->get_node().is_runtime_skippable() || prim->dependencies().empty())
+            if (!prim->is_remote_output_chain_boundary())
                 continue;
 
+            // The chain boundary node's producer was left out of the chain above, so if its destination
+            // changed (a new remote tensor was bound), it needs reallocation requested explicitly here.
             auto producer = find_primitive(prim->dependencies().front().first->id());
             if (producer->is_dynamic() && !producer->can_be_optimized() && !producer->has_inner_networks() &&
                 (!producer->output_memory_ptr() || !eng.is_the_same_buffer(*producer->output_memory_ptr(), *mem_new))) {

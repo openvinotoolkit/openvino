@@ -245,6 +245,9 @@ public:
     network& get_network() const { return _network; }
     uint32_t get_network_id() const;
     const ExecutionConfig& get_config() const { return get_network().get_config(); }
+    // True for a runtime-skippable node whose own (late) skip decision forces the remote output chain
+    // to stop before its producer, so the producer must not be committed into the chain yet.
+    bool is_remote_output_chain_boundary() const;
 
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
     /**
@@ -355,7 +358,6 @@ public:
                                        bool runtime_alloc = false);
 
     const std::vector<memory::ptr>& get_intermediates_memories() const { return _intermediates_memory; }
-    size_t get_max_output_layout_count(size_t idx = 0) const { return _max_output_layout_count[idx]; }
 
     std::string get_implementation_name() const;
 
@@ -432,7 +434,7 @@ protected:
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
     std::vector<memory::ptr> _outputs;
-    memory::ptr _remote_permute_output_alias;
+    memory::ptr _remote_output_alias;
 
     std::vector<memory::ptr> _intermediates_memory;
 
@@ -531,6 +533,15 @@ protected:
     std::unordered_map<size_t, instrumentation::perf_counter_key> _profiling_info;
 
 private:
+    // Entry criterion: a type may join only if verified safe to re-decide skip/execute after a remote
+    // output tensor has already been bound. This is the single place the supported type list lives.
+    bool is_remote_output_whitelisted_type() const;
+    // True when the type decides its own skip after the output chain is built, which is what forces
+    // the chain boundary.
+    bool has_late_remote_output_skip_decision() const;
+    // Returns true when _outputs[0] was bound onto the remote output tensor owned by a runtime-skippable user.
+    bool try_bind_remote_output_via_skippable_user(const layout& output_layout);
+    void detach_remote_output_alias();
     void update_paddings();
     void do_runtime_skip_reorder();
     void do_runtime_skip_gather();
