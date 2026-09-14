@@ -359,6 +359,10 @@ private:
             _prim = PrimType(_pd);
         } else {
             std::vector<uint8_t> key = _pd.get_cache_blob_id();
+            if (key.empty()) {  // runtime does not support cache blobs (e.g. SYCL)
+                _prim = PrimType(_pd);
+                return;
+            }
             assert(!key.empty());
 
             std::vector<uint8_t> cache;
@@ -369,7 +373,7 @@ private:
 
             if (cache.empty()) {
                 _prim = PrimType(_pd);
-                cache = get_cache_blob_or_empty();
+                cache = _prim.get_cache_blob();
 
                 {
                     std::lock_guard<std::mutex> lock(cacheAccessMutex);
