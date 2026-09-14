@@ -153,34 +153,10 @@ SyncInferRequest::~SyncInferRequest() {
 void SyncInferRequest::infer() {
     // String can be constructed once in the constructor
     OV_ITT_SCOPED_TASK_BASE(itt::domains::intel_gpu_inference, m_itt_infer_request_str.c_str());
-    // DIAG: setting GPU_PROF_ITER=1 prints per-iter host-side breakdown
-    // (setup_stream_graph / mutex / enqueue / wait) directly to stderr.  Used
-    // to localize iter-to-iter slowdowns down to the specific phase that
-    // grew between iters.  Cheap (a handful of clock reads per infer) and
-    // unconditional, unlike the existing GPU_HOST_TIME_PROFILING which only
-    // prints aggregates on graph destruction.
-    static const bool prof_iter = std::getenv("GPU_PROF_ITER") != nullptr;
-    using clk = std::chrono::high_resolution_clock;
-    auto t_begin = prof_iter ? clk::now() : clk::time_point{};
     setup_stream_graph();
-    auto t_setup = prof_iter ? clk::now() : clk::time_point{};
     std::lock_guard<std::mutex> lk(m_graph->get_mutex());
-    auto t_lock = prof_iter ? clk::now() : clk::time_point{};
     enqueue();
-    auto t_enq = prof_iter ? clk::now() : clk::time_point{};
     wait();
-    if (prof_iter) {
-        auto t_end = clk::now();
-        auto us = [](clk::time_point a, clk::time_point b) {
-            return std::chrono::duration_cast<std::chrono::microseconds>(b - a).count();
-        };
-        std::cerr << "[GPU][PROF] infer setup=" << us(t_begin, t_setup)
-                  << "us mutex=" << us(t_setup, t_lock)
-                  << "us enqueue=" << us(t_lock, t_enq)
-                  << "us wait=" << us(t_enq, t_end)
-                  << "us total=" << us(t_begin, t_end)
-                  << "us  this=" << static_cast<const void*>(this) << "\n";
-    }
 }
 
 std::vector<ov::ProfilingInfo> SyncInferRequest::get_profiling_info() const {
@@ -352,9 +328,6 @@ void SyncInferRequest::wait_notify() {
 void SyncInferRequest::enqueue() {
     int64_t network_enqueue_time = 0;
     auto enqueue_start = std::chrono::high_resolution_clock::now();
-    static const bool prof_iter_inner = std::getenv("GPU_PROF_ITER") != nullptr;
-    using clk2 = std::chrono::high_resolution_clock;
-    auto p_t0 = prof_iter_inner ? clk2::now() : clk2::time_point{};
 
     // set input and output memory from request blob maps
     // into the network object primitives
@@ -466,19 +439,8 @@ void SyncInferRequest::enqueue() {
     m_internal_outputs.clear();
 
     auto network_enqueue_start = std::chrono::high_resolution_clock::now();
-    auto p_t_pre_exec = prof_iter_inner ? clk2::now() : clk2::time_point{};
     m_internal_outputs = network->execute(dependencies);
     auto network_enqueue_end = std::chrono::high_resolution_clock::now();
-    if (prof_iter_inner) {
-        auto p_t_post_exec = clk2::now();
-        auto us = [](clk2::time_point a, clk2::time_point b) {
-            return std::chrono::duration_cast<std::chrono::microseconds>(b - a).count();
-        };
-        std::cerr << "[GPU][PROF] enqueue.inner: pre_exec="
-                  << us(p_t0, p_t_pre_exec)
-                  << "us network_execute=" << us(p_t_pre_exec, p_t_post_exec)
-                  << "us  this=" << static_cast<const void*>(this) << "\n";
-    }
 
     [[maybe_unused]] const auto& config = network->get_config();
 
