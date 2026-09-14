@@ -226,7 +226,7 @@ constexpr SectionTag runtime_requirements_tag() noexcept {
  * @param is_inline true for inline-mode, false for pointer-mode.
  */
 constexpr SectionTag make_device_tag(uint32_t local_id, bool is_inline) noexcept {
-    OPENVINO_DEBUG_ASSERT(local_id <= max_tag_id - core_tag_id_range_end, "local_id overflows the SectionTag id space");
+    OPENVINO_DEBUG_ASSERT(local_id <= max_tag_id - core_tag_id_range_end);
     return SectionTag::make(core_tag_id_range_end + local_id, is_inline);
 }
 
@@ -361,8 +361,8 @@ public:
         const auto* entries = &manifest();
         for (size_t i = 0, count = manifest_count(); i < count; ++i) {
             const auto& entry = entries[i];
-            if (entry.tag.is_pointer() &&
-                (entry.offset > hdr.total_size || hdr.total_size - entry.offset < entry.size)) {
+            if (entry.tag.is_pointer() && (entry.offset < sizeof(HSMHeader) || entry.offset > hdr.manifest_offset ||
+                                           hdr.manifest_offset - entry.offset < entry.size)) {
                 return false;
             }
         }
@@ -449,6 +449,9 @@ private:
     static std::optional<NextContainer> advance_container(const ov::util::MemoryView& view) noexcept {
         const auto& hdr = HSMHeader::view(reinterpret_cast<const uint8_t*>(view.data()));
         if (hdr.magic != BlobMagic::single && hdr.magic != BlobMagic::multi) {
+            return std::nullopt;
+        }
+        if (hdr.version_major != HSMFormatVersion::major) {
             return std::nullopt;
         }
         if (hdr.total_size < sizeof(HSMHeader) || hdr.total_size > view.size()) {

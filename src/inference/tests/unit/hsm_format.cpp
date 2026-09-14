@@ -30,7 +30,6 @@ std::vector<uint8_t> make_container(const runtime::BlobMagic& magic,
     header.manifest_size = manifest.size();
     header.total_size = header.manifest_offset + header.manifest_size;
 
-    // insert(), not memcpy(data() + offset, ...): avoids a GCC -Wstringop-overflow false positive on ARM64 cross-compile.
     std::vector<uint8_t> buffer;
     buffer.reserve(header.total_size);
     const auto* header_bytes = reinterpret_cast<const uint8_t*>(&header);
@@ -396,6 +395,22 @@ TEST(HsmContainerViewValidateTest, rejects_out_of_bounds_section_offset) {
     EXPECT_FALSE(view.validate());
 }
 
+TEST(HsmContainerViewValidateTest, rejects_section_overlapping_header) {
+    auto blob = make_sample_container_with_entries();
+    const auto header = runtime::HSMHeader::view(blob.data());
+
+    // Second manifest entry is the pointer-mode "model" tag; point it at the header itself.
+    const auto entry_offset = header.manifest_offset + sizeof(runtime::ManifestEntry);
+    runtime::ManifestEntry entry{};
+    std::memcpy(&entry, blob.data() + entry_offset, sizeof(entry));
+    entry.offset = 0;
+    entry.size = 4;
+    std::memcpy(blob.data() + entry_offset, &entry, sizeof(entry));
+
+    const runtime::HSMContainerView view(blob.data(), blob.size());
+    EXPECT_FALSE(view.validate());
+}
+
 TEST(HsmMultiBlobViewTest, empty_buffer_has_no_blobs) {
     const runtime::HSMMultiBlobView view(static_cast<const uint8_t*>(nullptr), 0);
     EXPECT_EQ(view.blob_count(), 0u);
@@ -466,6 +481,18 @@ TEST(HsmMultiBlobViewTest, blob_view_excludes_following_containers) {
     const auto view0 = view.blob_at(0);
     EXPECT_EQ(view0.size(), blob0.size());  // must not leak into blob1's bytes
     EXPECT_TRUE(view0.validate());
+}
+
+TEST(HsmMultiBlobViewTest, stops_on_mismatched_major_version) {
+    auto buffer = make_multi_container({}, {});  // mandatory shared context
+    auto header = runtime::HSMHeader::view(buffer.data());
+    header.version_major = runtime::HSMFormatVersion::major + 1;
+    std::memcpy(buffer.data(), &header, sizeof(header));
+    const auto blob0 = make_single_blob_container({}, {});
+    buffer.insert(buffer.end(), blob0.begin(), blob0.end());
+
+    const runtime::HSMMultiBlobView view(buffer.data(), buffer.size());
+    EXPECT_EQ(view.blob_count(), 0u);  // can't trust framing past an unsupported major version
 }
 
 TEST(IHsmSectionExtensionTest, recognizes_own_device_and_tag) {
