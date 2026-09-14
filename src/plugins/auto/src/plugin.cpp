@@ -76,6 +76,12 @@ namespace {
         }
         return result;
     }
+    // Matches by exact device name (e.g. "NPU.5010") first, then falls back to the base device
+    // name (e.g. "NPU").
+    bool device_name_matches(const std::string& device_name, const std::string& target_device) {
+        return device_name == target_device ||
+               ov::DeviceIDParser(device_name).get_device_name() == target_device;
+    }
 }  // namespace
 
 namespace ov {
@@ -616,6 +622,11 @@ std::optional<bool> Plugin::get_low_power_mode() {
     return m_telemetry_client->is_low_power_mode();
 }
 
+bool Plugin::is_low_power_device(const std::string& device_name, const std::string& low_power_device) {
+    return !low_power_device.empty() && device_name_matches(device_name, low_power_device) &&
+           get_low_power_mode().value_or(false);
+}
+
 std::list<DeviceInformation> Plugin::get_valid_device(const std::vector<DeviceInformation>& meta_devices,
                                                       const std::string& model_precision) const {
     if (meta_devices.empty()) {
@@ -805,10 +816,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
             return nullptr;
         }
         auto it = std::find_if(valid_devices.begin(), valid_devices.end(), [&](const DeviceInformation& device) {
-            if (device.device_name == low_power_device) {
-                return true;
-            }
-            return ov::DeviceIDParser(device.device_name).get_device_name() == low_power_device;
+            return device_name_matches(device.device_name, low_power_device);
         });
         if (it == valid_devices.end() || !get_low_power_mode().value_or(false)) {
             return nullptr;
