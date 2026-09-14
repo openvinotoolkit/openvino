@@ -100,6 +100,7 @@
 #include "snippets/op/vector_buffer.hpp"
 #include "snippets/target_machine.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/load_convert.hpp"
 #include "transformations/snippets/common/op/store_convert.hpp"
 #include "utils.hpp"
@@ -355,6 +356,7 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[ov::op::v0::Sigmoid::get_type_info_static()] = emitter_factory.from_node<jit_sigmoid_emitter>();
     jitters[ov::op::v9::SoftSign::get_type_info_static()] = emitter_factory.from_node<jit_softsign_emitter>();
     jitters[ov::op::v0::Sqrt::get_type_info_static()] = emitter_factory.from_node<jit_sqrt_emitter>();
+    jitters[ov::intel_cpu::SwishNode::get_type_info_static()] = emitter_factory.from_node<jit_swish_emitter>();
     jitters[ov::op::v0::Tanh::get_type_info_static()] = emitter_factory.from_node<jit_tanh_emitter>();
 }
 
@@ -449,7 +451,7 @@ std::shared_ptr<ov::snippets::Generator> CPUGenerator::clone() const {
 
 ov::snippets::RegType CPUGenerator::get_specific_op_out_reg_type(const ov::Output<ov::Node>& out) const {
     const auto op = out.get_node_shared_ptr();
-    if (ov::is_type<intel_cpu::FusedMulAdd>(op)) {
+    if (ov::is_type_any_of<intel_cpu::FusedMulAdd, intel_cpu::SwishNode>(op)) {
         return ov::snippets::RegType::vec;
     }
     return ov::snippets::RegType::undefined;

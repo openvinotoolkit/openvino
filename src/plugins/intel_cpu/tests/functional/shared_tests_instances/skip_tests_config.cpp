@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/skip_tests_config.hpp"
-
 #include "openvino/core/visibility.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/runtime/system_conf.hpp"
-#include "snippets/utils.hpp"
-#include "utils/arm_isa_support.h"
 #include "utils/precision_support.h"
+#include "snippets/utils.hpp"
 #if defined(OPENVINO_ARCH_RISCV64)
-#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#   include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #endif
 #include <string>
 #include <vector>
@@ -143,7 +141,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Issue: 129931
             std::regex(R"(smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[.*,3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ .*18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[6,1,1,1\]_\{ .*1.52806e.*39, .*0.2, .*0.3, .*0.3, .*0.2, .*0.1 \}_\{ 1.52806e.*39, 0.2, 0.3, 0.3, 0.2, 0.1 \}\})"),
             // TODO: 141068
-            std::regex(R"(smoke_Snippets_FQDecomposition.*netPRC=f16_D=CPU.*)"),
+            std::regex(R"((?!.*Swish).*smoke_Snippets_FQDecomposition.*netPRC=f16_D=CPU.*)"),
             // Issue: 160734
             std::regex(R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -18.7 \}_output_high\{ 18.8 \}_precision=\}_fq_on_weights=\{_255_\[1\]_\{ -18.7 \}_\{ 18.7 \}\}.*)"),
             // Issue: 160735
@@ -312,7 +310,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // Ticket: 162434
             std::regex(R"(smoke_LPT/MatMulTransformation.*)"),
             // Ticket: 162260
-            std::regex(R"(smoke_Snippets_FQDecomposition.*netPRC=f32_D=CPU.*)"),
+            std::regex(R"((?!.*Swish).*smoke_Snippets_FQDecomposition.*netPRC=f32_D=CPU.*)"),
             // Ticket: 166771
             std::regex(R"(.*smoke_BroadcastEltwise/BroadcastEltwise.smoke_CompareWithRefs.*)"),
             // Ticket: 168863
@@ -340,8 +338,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*WeightlessCacheAccuracy.*)"),
 #endif
 #if defined(OPENVINO_ARCH_ARM)
-            // GatherMatmul is not supported on 32-bit ARM
-            std::regex(R"(.*smoke_GroupedMatMul.*)"),
             // Issue: 144998
             std::regex(R"(.*smoke_CachingSupportCase_CPU.*_(i8|u8).*)"),
             std::regex(R"(.*smoke_Hetero_CachingSupportCase.*_(i8|u8).*)"),
@@ -495,7 +491,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_Snippets_FQDecomposition.*Swish.*)"),
             std::regex(R"(.*smoke_Snippets_GroupNormalization.*)"),
             std::regex(R"(.*smoke_Snippets_TransposeMatMulBias/ExplicitTransposeMatMulBias.*)"),
-            std::regex(R"(.*_enforceSnippets=1.*)"),
+            std::regex(R"((?!.*Swish).*_enforceSnippets=1.*)"),
 #endif
 #if !defined(OPENVINO_ARCH_X86_64)
             // very time-consuming test
@@ -544,7 +540,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             // TPP performs precision conversion implicitly, it makes all Convert tests irrelevant
             std::regex(R"(.*smoke_Snippets_Convert.*)"),
             // ABS and ROUND operations are needed for TPP support. Disable, since low precisions are not supported by TPP yet.
-            std::regex(R"(.*smoke_Snippets_FQ.*)"),
+            std::regex(R"((?!.*Swish).*smoke_Snippets_FQ.*)"),
             std::regex(R"(.*smoke_Snippets_TransposeMatMulFQ.*)"),
             // TPP doesn't support op with 2 outs, when one of them is Result (ticket: 130642)
             std::regex(R"(.*smoke_Snippets_MaxNumParamsEltwise.*)"),

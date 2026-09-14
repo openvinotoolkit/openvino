@@ -470,6 +470,16 @@ struct EltwiseEmitter<jit_relu_emitter> {
         ctx.emitter = std::make_shared<jit_relu_emitter>(ctx.host, ctx.host_isa, ctx.opData.alpha, ctx.exec_prc);
     }
 };
+
+template <>
+struct EltwiseEmitter<jit_swish_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_swish_emitter>(ctx.host,
+                                                          ctx.opData.alpha,
+                                                          ctx.host_isa,
+                                                          ctx.exec_prc);
+    }
+};
 }  // namespace
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
@@ -525,6 +535,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseRoundHalfToEven, jit_round_half_to_even_emitter),
               OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
+              OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
               OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
               OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
               OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
@@ -689,7 +700,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseRoundHalfToEven, jit_round_half_to_even_emitter),
               OV_CASE(Algorithm::EltwiseSelect, jit_select_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
-              OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
+              OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
               OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
               OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
               OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
