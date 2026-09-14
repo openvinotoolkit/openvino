@@ -61,8 +61,11 @@ function(_ov_collect_bom_build_targets directory output)
     get_property(subdirectories DIRECTORY "${directory}" PROPERTY SUBDIRECTORIES)
 
     foreach(subdirectory IN LISTS subdirectories)
-        _ov_collect_bom_build_targets("${subdirectory}" subdirectory_targets)
-        list(APPEND targets ${subdirectory_targets})
+        get_property(exclude_subdirectory DIRECTORY "${subdirectory}" PROPERTY EXCLUDE_FROM_ALL)
+        if(NOT exclude_subdirectory)
+            _ov_collect_bom_build_targets("${subdirectory}" subdirectory_targets)
+            list(APPEND targets ${subdirectory_targets})
+        endif()
     endforeach()
 
     set(build_targets)
