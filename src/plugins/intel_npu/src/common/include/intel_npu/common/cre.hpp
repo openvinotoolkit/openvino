@@ -84,7 +84,10 @@ public:
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
         const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators) const;
 
-    std::string to_string();
+    std::string to_string() const;
+
+    // TODO test these
+    static CRE from_string(const std::string_view cre, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     // TODO reconsider these
     // Some "globals" for convenience
@@ -149,8 +152,5 @@ private:
 
     Logger m_logger;
 };
-
-// TODO test these
-CRE cre_from_string(std::string_view cre, const ov::log::Level log_level = ov::log::Level::WARNING);
 
 }  // namespace intel_npu

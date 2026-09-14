@@ -77,7 +77,7 @@ std::unordered_map<SectionID, SectionInstanceEvaluator> RuntimeRequirements::bui
         const SectionType section_type = m_section_id_to_type.at(section_id);
         OPENVINO_ASSERT(instance_evaluators.count(section_type),
                         "Missing instance evaluator for section type ",
-                        section_type_to_string(section_type));
+                        section_type.to_string());
 
         m_logger.trace("Building an instance evaluator for section %s",
                        section_type_and_id_to_string(section_type, section_id).data());
@@ -146,7 +146,7 @@ void RuntimeRequirementsSection::write(BlobWriterInterface& writer) {
 
     // TODO logs?
     // Version
-    write_requirements_entry(writer, VERSION_KEY, major_minor_version_to_string(CURRENT_RUNTIME_REQUIREMENTS_VERSION));
+    write_requirements_entry(writer, VERSION_KEY, CURRENT_RUNTIME_REQUIREMENTS_VERSION.to_string());
 
     // CRE
     write_requirements_entry(writer, CRE_KEY, m_runtime_requirements.get_cre().to_string());
@@ -191,7 +191,7 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
     }
 
     // Check the format version
-    const MajorMinorVersion parsed_version = major_minor_version_from_string(parsed_content.at(VERSION_KEY.data()));
+    const MajorMinorVersion parsed_version = MajorMinorVersion::from_string(parsed_content.at(VERSION_KEY.data()));
     OPENVINO_ASSERT(parsed_version == CURRENT_RUNTIME_REQUIREMENTS_VERSION,
                     "Unsupported runtime requirements version: ",
                     parsed_version);
@@ -199,7 +199,7 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
 
     // Parse the CRE
     logger.debug("Parsing the CRE");
-    const CRE cre = cre_from_string(parsed_content.at(CRE_KEY.data()), logger.level());
+    const CRE cre = CRE::from_string(parsed_content.at(CRE_KEY.data()), logger.level());
     parsed_content.erase(CRE_KEY.data());
 
     // All other entries should have the key format "<section type name>_<id>"

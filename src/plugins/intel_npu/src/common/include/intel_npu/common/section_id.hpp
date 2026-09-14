@@ -30,6 +30,10 @@ public:
      */
     bool operator<(const SectionID& other) const;
 
+    std::string to_string() const;
+
+    static SectionID from_string(const std::string_view id);
+
 private:
     /**
      * @note The size needs to be fixed (2 bytes) since this value is written inside the blob manifest
@@ -40,11 +44,6 @@ private:
 std::ostream& operator<<(std::ostream& os, const SectionID& id);
 
 std::istream& operator>>(std::istream& is, SectionID& id);
-
-// TODO put inside the section id class
-std::string section_id_to_string(const SectionID id);
-
-SectionID section_id_from_string(std::string_view id);
 
 bool is_section_id(const std::shared_ptr<CREToken>& token);
 

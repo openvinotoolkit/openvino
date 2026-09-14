@@ -207,7 +207,7 @@ std::string cre_special_token_to_string(const CRESpecialToken token) {
     }
 }
 
-std::shared_ptr<CREToken> cre_special_token_from_string(std::string_view token) {
+std::shared_ptr<CREToken> cre_special_token_from_string(const std::string_view token) {
     if (token == AND_TOKEN_NAME) {
         return CRE::AND_PTR;
     }
@@ -552,7 +552,7 @@ ov::CompatibilityCheck CRE::check_compatibility(
     return result;
 }
 
-std::string CRE::to_string() {
+std::string CRE::to_string() const {
     const std::vector<std::shared_ptr<CREToken>> expression = get_expression();
     OPENVINO_ASSERT(is_expression_valid(expression), "Invalid CRE");
     std::string result("");
@@ -565,7 +565,7 @@ std::string CRE::to_string() {
             }
             is_first_token = false;
 
-            result += section_type_to_string(*std::dynamic_pointer_cast<SectionType>(token));
+            result += std::dynamic_pointer_cast<SectionType>(token)->to_string();
             continue;
         }
         if (is_cre_special_token(token)) {
@@ -581,14 +581,14 @@ std::string CRE::to_string() {
         // Last case remaining: the token is a section ID following a section type
         OPENVINO_ASSERT(!is_first_token);
         result += SECTION_TYPE_AND_INSTANCE_SEPARATOR;
-        result += section_id_to_string(*std::dynamic_pointer_cast<SectionID>(token));
+        result += std::dynamic_pointer_cast<SectionID>(token)->to_string();
     }
 
     return result;
 }
 
-CRE cre_from_string(std::string_view cre, const ov::log::Level log_level) {
-    Logger logger("cre_from_string", log_level);
+CRE CRE::from_string(const std::string_view cre, const ov::log::Level log_level) {
+    Logger logger("CRE::from_string", log_level);
 
     std::vector<std::shared_ptr<CREToken>> expression;
     std::string_view remaining = cre;

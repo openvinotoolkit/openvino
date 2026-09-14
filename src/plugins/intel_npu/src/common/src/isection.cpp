@@ -57,7 +57,7 @@ bool ISection::evaluate_compatibility_based_on_section_content(BlobReaderInterfa
 
 // TODO test these
 std::string section_type_and_id_to_string(const SectionType type, const SectionID id) {
-    return section_type_to_string(type) + TYPE_AND_ID_DELIMITER.data() + section_id_to_string(id);
+    return type.to_string() + TYPE_AND_ID_DELIMITER.data() + id.to_string();
 }
 
 // TODO note about optional
@@ -66,12 +66,12 @@ std::pair<SectionType, std::optional<SectionID>> section_type_and_id_from_string
     if (search_result == std::string::npos ||
         !has_only_digits(type_and_id.substr(search_result + 1, std::string::npos))) {
         // There's only a section type
-        return std::make_pair(section_type_from_string(type_and_id), std::nullopt);
+        return std::make_pair(SectionType::from_string(type_and_id), std::nullopt);
     }
 
     // Both section type & id are present
-    const SectionType type = section_type_from_string(type_and_id.substr(0, search_result));
-    const SectionID id = section_id_from_string(type_and_id.substr(search_result + 1, std::string::npos));
+    const SectionType type = SectionType::from_string(type_and_id.substr(0, search_result));
+    const SectionID id = SectionID::from_string(type_and_id.substr(search_result + 1, std::string::npos));
     return std::make_pair(type, std::make_optional(id));
 }
 

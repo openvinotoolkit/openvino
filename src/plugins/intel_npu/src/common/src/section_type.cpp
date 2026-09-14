@@ -49,8 +49,8 @@ bool SectionType::operator<(const SectionType& other) const {
 }
 
 // TODO test these
-std::string section_type_to_string(const SectionType type) {
-    switch (type.get_code()) {
+std::string SectionType::to_string() const {
+    switch (m_code) {
     case SectionTypeCode::RUNTIME_REQUIREMENTS:
         return RUNTIME_REQUIREMENTS_SECTION_NAME.data();
     case SectionTypeCode::MANIFEST:
@@ -74,9 +74,9 @@ std::string section_type_to_string(const SectionType type) {
     }
 }
 
-SectionType section_type_from_string(std::string_view type) {
+SectionType SectionType::from_string(const std::string_view type) {
     // TODO initializing using .data() only is not safe; check all other cases
-    std::string type_upper(type.begin(), type.end());
+    std::string type_upper(type);
     string_to_upper(type_upper);
 
     if (type_upper == RUNTIME_REQUIREMENTS_SECTION_NAME) {
@@ -111,13 +111,13 @@ SectionType section_type_from_string(std::string_view type) {
 }
 
 std::ostream& operator<<(std::ostream& os, const SectionType& type) {
-    return os << section_type_to_string(type);
+    return os << type.to_string();
 }
 
 std::istream& operator>>(std::istream& is, SectionType& type) {
     std::string str;
     is >> str;
-    type = section_type_from_string(str);
+    type = SectionType::from_string(str);
     return is;
 }
 

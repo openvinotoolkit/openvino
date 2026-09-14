@@ -46,6 +46,10 @@ public:
 
     bool operator<(const SectionType& other) const;
 
+    std::string to_string() const;
+
+    static SectionType from_string(const std::string_view type);
+
 private:
     SectionTypeCode m_code;
 };
@@ -53,10 +57,6 @@ private:
 std::ostream& operator<<(std::ostream& os, const SectionType& type);
 
 std::istream& operator>>(std::istream& is, SectionType& type);
-
-std::string section_type_to_string(const SectionType type);
-
-SectionType section_type_from_string(std::string_view type);
 
 bool is_section_type(const std::shared_ptr<CREToken>& token);
 

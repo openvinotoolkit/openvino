@@ -53,25 +53,25 @@ bool MajorMinorVersion::operator<=(const MajorMinorVersion& other) const {
     return !(*this > other);
 }
 
-std::string major_minor_version_to_string(const MajorMinorVersion& version) {
-    return std::to_string(version.get_major()) + VERSION_SEPARATOR + std::to_string(version.get_minor());
+std::string MajorMinorVersion::to_string() const {
+    return std::to_string(m_major) + VERSION_SEPARATOR + std::to_string(m_minor);
 }
 
-MajorMinorVersion major_minor_version_from_string(std::string version) {
+MajorMinorVersion MajorMinorVersion::from_string(const std::string_view version) {
     const std::vector<uint16_t> parsed_version_numbers = parse_dotted_version(version, NUMBER_OF_VERSION_NUMBERS);
     return MajorMinorVersion(parsed_version_numbers.at(MAJOR_VERSION_INDEX),
                              parsed_version_numbers.at(MINOR_VERSION_INDEX));
 }
 
 std::ostream& operator<<(std::ostream& out, const MajorMinorVersion& version) {
-    out << major_minor_version_to_string(version);
+    out << version.to_string();
     return out;
 }
 
 std::istream& operator>>(std::istream& in, MajorMinorVersion& version) {
     std::string str;
     in >> str;
-    version = major_minor_version_from_string(str);
+    version = MajorMinorVersion::from_string(str);
     return in;
 }
 

@@ -44,7 +44,6 @@ public:
      * size. This method avoids copying the content of the compiled model.
      */
     const void* read_view(const size_t size);
-    // TODO implement is_contiguous
 
     /**
      * @brief Returns an RoI tensor pointing to the current position of the cursor, then advances the cursor according

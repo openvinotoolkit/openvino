@@ -39,11 +39,11 @@ bool SectionID::operator<(const SectionID& other) const {
     return m_id < other.get_id();
 }
 
-std::string section_id_to_string(const SectionID id) {
-    return std::to_string(id.get_id());
+std::string SectionID::to_string() const {
+    return std::to_string(m_id);
 }
 
-SectionID section_id_from_string(std::string_view id) {
+SectionID SectionID::from_string(const std::string_view id) {
     OPENVINO_ASSERT(has_only_digits(id),
                     "Cannot convert to integer: the id ",
                     id,
@@ -57,13 +57,13 @@ SectionID section_id_from_string(std::string_view id) {
 }
 
 std::ostream& operator<<(std::ostream& os, const SectionID& id) {
-    return os << section_id_to_string(id);
+    return os << id.to_string();
 }
 
 std::istream& operator>>(std::istream& is, SectionID& id) {
     std::string str;
     is >> str;
-    id = section_id_from_string(str);
+    id = SectionID::from_string(str);
     return is;
 }
 

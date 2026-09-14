@@ -30,6 +30,11 @@ public:
 
     bool operator<=(const MajorMinorVersion& other) const;
 
+    // TODO test these
+    std::string to_string() const;
+
+    static MajorMinorVersion from_string(const std::string_view version);
+
 private:
     uint16_t m_major;
     uint16_t m_minor;
@@ -37,11 +42,6 @@ private:
 
 const MajorMinorVersion CURRENT_BLOB_FORMAT_VERSION(3, 0);
 const MajorMinorVersion CURRENT_RUNTIME_REQUIREMENTS_VERSION(3, 0);
-
-// TODO test these
-std::string major_minor_version_to_string(const MajorMinorVersion& version);
-
-MajorMinorVersion major_minor_version_from_string(std::string version);
 
 std::ostream& operator<<(std::ostream& out, const MajorMinorVersion& version);
 

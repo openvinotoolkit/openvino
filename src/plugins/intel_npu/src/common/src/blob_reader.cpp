@@ -70,7 +70,7 @@ void BlobReader::register_section_type_evaluator(const SectionType section_type,
 void BlobReader::register_section_instance_evaluator(const SectionType type,
                                                      const std::shared_ptr<ISectionInstanceEvaluator>& evaluator) {
     m_section_instance_evaluators[type] = evaluator;
-    m_logger.debug("Registered a section instance evaluator for section type %s", section_type_to_string(type));
+    m_logger.debug("Registered a section instance evaluator for section type %s", type.to_string());
 }
 
 bool BlobReader::has_section_of_type(const SectionType section_type) const {
@@ -122,7 +122,7 @@ std::shared_ptr<ISection> BlobReader::parse_next_section(BlobSource& source,
                                                          const size_t length,
                                                          const size_t npu_region_start,
                                                          const size_t npu_region_size) {
-    m_logger.debug("Parsing section type %s", section_type_to_string(type).data());
+    m_logger.debug("Parsing section type %s", type.to_string().data());
     BlobReaderInterface interface(source, npu_region_start, npu_region_size, source.tellg(), length, m_config);
     const std::shared_ptr<ISection> parsed_section = m_readers.at(type)(interface);
     m_type_to_parsed_sections[type].insert(parsed_section);
