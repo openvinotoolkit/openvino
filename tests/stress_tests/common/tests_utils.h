@@ -110,6 +110,38 @@ public:
     }
 };
 
+inline void PrintTo(const TestCase &param, std::ostream *os) {
+    *os << "{processes: " << param.numprocesses
+        << ", threads: " << param.numthreads
+        << ", iterations: " << param.numiters
+        << ", device: \"" << param.device << "\""
+        << ", model: \"" << param.model_name << "\""
+        << (param.compilation_config_file.empty() ? "" : ", compilation_config: \"" + param.compilation_config_file + "\"")
+        << "}";
+}
+
+inline void PrintTo(const MemLeaksTestCase &param, std::ostream *os) {
+    *os << "{processes: " << param.numprocesses
+        << ", threads: " << param.numthreads
+        << ", iterations: " << param.numiters
+        << ", device: \"" << param.device << "\""
+        << ", models: [" << param.model_name << "]"
+        << (param.compilation_config_file.empty() ? "" : ", compilation_config: \"" + param.compilation_config_file + "\"")
+        << "}";
+}
+
+inline void PrintTo(const MultiModelTestCase &param, std::ostream *os) {
+    *os << "{processes: " << param.numprocesses
+        << ", threads: " << param.numthreads
+        << ", iterations: " << param.numiters
+        << ", device: \"" << param.device << "\""
+        << ", model1: \"" << param.model1_name << "\""
+        << (param.compilation_config_file.empty() ? "" : ", compilation_config1: \"" + param.compilation_config_file + "\"")
+        << ", model2: \"" << param.model2_name << "\""
+        << (param.compilation_config_file2.empty() ? "" : ", compilation_config2: \"" + param.compilation_config_file2 + "\"")
+        << "}";
+}
+
 class Environment {
 private:
     pugi::xml_document _test_config;
