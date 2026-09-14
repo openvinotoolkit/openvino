@@ -2346,9 +2346,12 @@ public:
         const auto& intermediates_memories = instance.get_intermediates_memories();
 
         OPENVINO_ASSERT(intermediates_memories.size() > MOE_INTERNAL_BUFFER_ROW_LUT,
-                        "Grouped GEMM path requires buffer ", MOE_INTERNAL_BUFFER_ROW_LUT,
-                        " (ROW_LUT) but only ", intermediates_memories.size(),
-                        " buffers allocated. use_grouped_gemm_prefill=", use_grouped_gemm_prefill);
+                        "Grouped GEMM path requires buffer ",
+                        MOE_INTERNAL_BUFFER_ROW_LUT,
+                        " (ROW_LUT) but only ",
+                        intermediates_memories.size(),
+                        " buffers allocated. use_grouped_gemm_prefill=",
+                        use_grouped_gemm_prefill);
 
         int num_total_experts = static_cast<int>(config.num_expert);
         int max_topk = static_cast<int>(config.top_k);
