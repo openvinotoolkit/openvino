@@ -16,6 +16,7 @@
 #include "npuw_transformations/untangle_dq_scale.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
@@ -24,37 +25,64 @@
 namespace {
 
 // Static capacity (in tokens) a dynamic KV-cache is reshaped to for NPU compilation.
-constexpr size_t kMaxSeqLen = 32768;
+constexpr size_t kMaxSeqLen = 2*1024 /*32768*/;
 
 // Scans `model`'s past_key/past_value Parameters for a dynamic dimension and returns the
 // axis to pin to kMaxSeqLen, keyed by Parameter friendly name. A KV-cache Parameter with
 // more than one dynamic dimension is ambiguous and not something we can safely resolve.
 std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::shared_ptr<const ov::Model>& model) {
     std::unordered_map<std::string, size_t> result;
+
+    const auto resolve_dynamic_axis =
+        [](const std::shared_ptr<ov::op::v0::Parameter>& parameter) -> std::optional<size_t> {
+        const auto& partial_shape = parameter->get_partial_shape();
+        if (partial_shape.rank().is_dynamic()) {
+            return std::nullopt;
+        }
+        std::optional<size_t> dynamic_axis;
+        for (size_t i = 0; i < partial_shape.size(); ++i) {
+            if (partial_shape[i].is_dynamic()) {
+                OPENVINO_ASSERT(!dynamic_axis.has_value(),
+                                "GQA parameter '",
+                                parameter->get_friendly_name(),
+                                "' has more than one dynamic dimension; can't resolve its max_seq_len axis");
+                dynamic_axis = i;
+            }
+        }
+        return dynamic_axis;
+    };
+
     for (const auto& parameter : model->get_parameters()) {
         const auto& name = parameter->get_friendly_name();
         if (!ov::npuw::util::contains_ignore_case(name, "past_key") &&
             !ov::npuw::util::contains_ignore_case(name, "past_value")) {
             continue;
         }
-        const auto& partial_shape = parameter->get_partial_shape();
-        if (partial_shape.rank().is_dynamic()) {
-            continue;
-        }
-        std::optional<size_t> dynamic_axis;
-        for (size_t i = 0; i < partial_shape.size(); ++i) {
-            if (partial_shape[i].is_dynamic()) {
-                OPENVINO_ASSERT(!dynamic_axis.has_value(),
-                                "GQA KV-cache parameter '",
-                                name,
-                                "' has more than one dynamic dimension; can't resolve its max_seq_len axis");
-                dynamic_axis = i;
-            }
-        }
-        if (dynamic_axis.has_value()) {
-            result.emplace(name, *dynamic_axis);
+        if (auto axis = resolve_dynamic_axis(parameter)) {
+            result.emplace(name, *axis);
         }
     }
+
+    // The attention bias/mask shares the KV-cache's max_seq_len dimension but isn't named
+    // consistently across exporters, so it's located via the GQA op's ATTENTION_BIAS input
+    // instead of by Parameter name.
+    using ov::op::internal::GroupQueryAttention;
+    using ov::op::internal::GroupQueryAttentionInputs;
+    for (const auto& node : model->get_ordered_ops()) {
+        auto gqa = ov::as_type_ptr<GroupQueryAttention>(node);
+        if (!gqa || gqa->get_input_size() <= static_cast<size_t>(GroupQueryAttentionInputs::ATTENTION_BIAS)) {
+            continue;
+        }
+        auto bias_parameter = ov::as_type_ptr<ov::op::v0::Parameter>(
+            gqa->input_value(static_cast<size_t>(GroupQueryAttentionInputs::ATTENTION_BIAS)).get_node_shared_ptr());
+        if (!bias_parameter) {
+            continue;  // not fed directly by a Parameter; nothing we can reshape here
+        }
+        if (auto axis = resolve_dynamic_axis(bias_parameter)) {
+            result.emplace(bias_parameter->get_friendly_name(), *axis);
+        }
+    }
+
     return result;
 }
 
@@ -159,16 +187,15 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
 
         return false;
     };
-    
-    // Disable partitioning in V1 case.
-    const auto gqa_case = ov::npuw::GQACompiledModel::identify_case(model);
-    const char* online_pipeline = gqa_case == ov::npuw::GQACompiledModel::Case::V1 ? "NONE" : "REP";
-    ov::AnyMap config = {
-        {"NPUW_ONLINE_PIPELINE", online_pipeline},
-        {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
-        {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
-        {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
-    };
+
+    // with_gqa_defaults() only runs once identify_case() already confirmed V0 or V1,
+    // so online partitioning is disabled for both.
+    ov::AnyMap config = {{"NPUW_ONLINE_PIPELINE", "NONE"},
+                         {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
+                         {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
+                         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
+                         {"NPU_COMPILER_TYPE", "DRIVER"},
+                         {"LOG_LEVEL", "LOG_INFO"}};
 
     const auto stage = detect_gqa_model_stage();
     if (stage == GQAModelStage::PREFILL) {
@@ -209,10 +236,14 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                                                                               const ov::AnyMap& properties) {
     auto [prepared_properties, stage] = with_gqa_defaults(model, properties);
 
+    static std::size_t mcount = 0u;
+
     model->set_friendly_name(model->get_friendly_name() + "_gqa_" +
                              (stage == GQAModelStage::PREFILL    ? "prefill"
                               : stage == GQAModelStage::GENERATE ? "generate"
-                                                                 : "unknown"));
+                                                                 : "unknown") +
+                             std::to_string(mcount++));
+    // ov::save_model(model, model->get_friendly_name() + ".xml");
 
     // Untangle shared scale constants so every DequantizeLinear Multiply
     // gets its own copy.  Some exporters reuse a single scale node across
@@ -370,6 +401,19 @@ bool ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(const std::shared_ptr<c
                 }
             }
         }
+        // The attention bias/mask (if present) carries the same max_seq_len dimension as
+        // the KV-cache and must be reshaped alongside it.
+        if (gqa->get_input_size() > static_cast<size_t>(GroupQueryAttentionInputs::ATTENTION_BIAS)) {
+            const auto& bias_shape =
+                gqa->input_value(static_cast<size_t>(GroupQueryAttentionInputs::ATTENTION_BIAS)).get_partial_shape();
+            if (bias_shape.rank().is_static()) {
+                for (const auto& dim : bias_shape) {
+                    if (dim.is_dynamic()) {
+                        return true;
+                    }
+                }
+            }
+        }
     }
     return false;
 }
@@ -422,6 +466,8 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
 }
 
 void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
+    LOG_INFO("Exporting GQACompiledModel...");
+    LOG_BLOCK();
     using namespace ov::npuw::s11n;
     write(stream, NPUW_SERIALIZATION_INDICATOR);
     write(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR);
@@ -430,6 +476,7 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     write(stream, OPENVINO_VERSION_PATCH);
     write(stream, std::string(NPUW_SERIALIZATION_VERSION));
     m_compiled_model->export_model(stream);
+    LOG_INFO("Done");
 }
 
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_model(

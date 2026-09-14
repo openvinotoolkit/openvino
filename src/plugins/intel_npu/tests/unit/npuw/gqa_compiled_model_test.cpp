@@ -162,6 +162,80 @@ std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_kv_cache(size_t axis) {
     return model;
 }
 
+// Same wiring as build_full_gqa_transformer_model(), but with an extra `attention_mask`
+// Parameter feeding the GQA op's ATTENTION_BIAS input (index 10) with a dynamic last
+// dimension -- mirroring speculative-decode dumps where the mask's own max_seq_len
+// dimension must be reshaped alongside (or instead of) the KV-cache's. POSITION_IDS
+// (index 9) is left "not provided" via a zero-size Constant, matching the V0 wiring.
+std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_attention_bias(bool dynamic_kv_cache = false) {
+    auto input_hidden_states = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 16});
+    input_hidden_states->set_friendly_name("input_hidden_states");
+
+    auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 4, 1, 16});
+    auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+    auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 2, 1, 16});
+
+    ov::PartialShape kv_shape{1, 2, 8, 16};
+    if (dynamic_kv_cache) {
+        kv_shape[2] = ov::Dimension::dynamic();
+    }
+    auto past_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, kv_shape);
+    past_key->set_friendly_name("past_keys_0");
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, kv_shape);
+    past_value->set_friendly_name("past_values_0");
+
+    auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    seqlens_k->set_friendly_name("past_seq_len");
+    auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    total_sequence_length->set_friendly_name("total_seq_len");
+    auto cos_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+    auto sin_cache = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{32, 8});
+
+    auto position_ids_placeholder = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{0}, {});
+    auto attention_mask =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 1, 4, ov::Dimension::dynamic()});
+    attention_mask->set_friendly_name("attention_mask");
+
+    auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(
+        ov::OutputVector{query,
+                        key,
+                        value,
+                        past_key,
+                        past_value,
+                        seqlens_k,
+                        total_sequence_length,
+                        cos_cache,
+                        sin_cache,
+                        position_ids_placeholder,
+                        attention_mask},
+        4,
+        2,
+        0.0f,
+        true,
+        false);
+
+    auto present_key = std::make_shared<ov::op::v0::Result>(gqa->output(1));
+    present_key->set_friendly_name("present_keys_0");
+    auto present_value = std::make_shared<ov::op::v0::Result>(gqa->output(2));
+    present_value->set_friendly_name("present_values_0");
+
+    ov::ResultVector results = {std::make_shared<ov::op::v0::Result>(gqa->output(0)), present_key, present_value};
+    ov::ParameterVector params = {input_hidden_states,
+                                 query,
+                                 key,
+                                 value,
+                                 past_key,
+                                 past_value,
+                                 seqlens_k,
+                                 total_sequence_length,
+                                 cos_cache,
+                                 sin_cache,
+                                 attention_mask};
+    auto model = std::make_shared<ov::Model>(results, params, "gqa_attention_bias_model");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
 std::shared_ptr<ov::Model> build_unqdq_model(const ov::element::Type& input_type = ov::element::f32) {
     auto input = std::make_shared<ov::op::v0::Parameter>(input_type, ov::Shape{1, 4});
     auto input_low = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {-1.0f});
@@ -363,7 +437,7 @@ TEST_F(GQACompiledModelTest, AddsExpectedNpuwDefaultsBeforeInnerCompilation) {
     ASSERT_NE(compiled, nullptr);
 
     const auto& call = recorder.only_call();
-    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
     EXPECT_EQ(call.props.at("NPUW_DEVICES").as<std::string>(), "NPU");
     EXPECT_EQ(call.props.at("NPUW_ONLINE_ISOLATE").as<std::string>(), "ATTN");
     EXPECT_EQ(call.props.at("NPUW_ONLINE_KEEP_BLOCKS_TAGGED").as<std::string>(), "attn");
@@ -389,7 +463,7 @@ TEST_F(GQACompiledModelTest, DisablesOnlinePipelineForCaseV1Models) {
     EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
 }
 
-TEST_F(GQACompiledModelTest, KeepsOnlinePipelineForCaseV0Models) {
+TEST_F(GQACompiledModelTest, DisablesOnlinePipelineForCaseV0Models) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
 
@@ -400,7 +474,7 @@ TEST_F(GQACompiledModelTest, KeepsOnlinePipelineForCaseV0Models) {
     ASSERT_NE(compiled, nullptr);
 
     const auto& call = recorder.only_call();
-    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
 }
 
 TEST_F(GQACompiledModelTest, AppliesFoldOnlyAttnForGenerateStyleModels) {
@@ -411,7 +485,7 @@ TEST_F(GQACompiledModelTest, AppliesFoldOnlyAttnForGenerateStyleModels) {
     ASSERT_NE(compiled, nullptr);
 
     const auto& call = recorder.only_call();
-    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "REP");
+    EXPECT_EQ(call.props.at("NPUW_ONLINE_PIPELINE").as<std::string>(), "NONE");
     EXPECT_EQ(call.props.at("NPUW_DEVICES").as<std::string>(), "NPU");
     EXPECT_EQ(call.props.at("NPUW_FOLD").as<std::string>(), "YES");
     EXPECT_EQ(call.props.at(ov::cache_mode.name()).as<ov::CacheMode>(), ov::CacheMode::OPTIMIZE_SPEED);
@@ -636,6 +710,24 @@ TEST(GQACompiledModelDynamicKvCacheTest, DetectsDynamicSeqLenAtAxis3) {
     EXPECT_TRUE(ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(model));
 }
 
+TEST(GQACompiledModelDynamicKvCacheTest, DetectsDynamicAttentionBias) {
+    // Speculative-decode-style wiring: the KV-cache itself is static, only the
+    // attention mask/bias fed into ATTENTION_BIAS carries a dynamic max_seq_len.
+    auto model = build_gqa_model_with_dynamic_attention_bias();
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(model));
+}
+
+TEST(GQACompiledModelDynamicKvCacheTest, ReturnsFalseWhenAttentionBiasIsFullyStatic) {
+    auto model = build_gqa_model_with_dynamic_attention_bias();
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_friendly_name() == "attention_mask") {
+            parameter->set_partial_shape(ov::PartialShape{1, 1, 4, 8});
+        }
+    }
+    model->validate_nodes_and_infer_types();
+    EXPECT_FALSE(ov::npuw::GQACompiledModel::has_dynamic_max_seq_len(model));
+}
+
 TEST_F(GQACompiledModelTest, ReshapesDynamicKvCacheToStaticCapacityAtAxis2) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
@@ -649,7 +741,7 @@ TEST_F(GQACompiledModelTest, ReshapesDynamicKvCacheToStaticCapacityAtAxis2) {
     for (const auto& parameter : call.model->get_parameters()) {
         const auto& name = parameter->get_friendly_name();
         if (name == "past_keys_0" || name == "past_values_0") {
-            EXPECT_EQ(parameter->get_shape().at(2), 32768u);
+            EXPECT_EQ(parameter->get_shape().at(2), 8192u);
         }
     }
 
@@ -674,7 +766,27 @@ TEST_F(GQACompiledModelTest, ReshapesDynamicKvCacheToStaticCapacityAtAxis3) {
     for (const auto& parameter : call.model->get_parameters()) {
         const auto& name = parameter->get_friendly_name();
         if (name == "past_keys_0" || name == "past_values_0") {
-            EXPECT_EQ(parameter->get_shape().at(3), 32768u);
+            EXPECT_EQ(parameter->get_shape().at(3), 8192u);
+        }
+    }
+}
+
+TEST_F(GQACompiledModelTest, ReshapesDynamicAttentionBiasToStaticCapacity) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::GQACompiledModel> compiled;
+    auto model = build_gqa_model_with_dynamic_attention_bias(/*dynamic_kv_cache=*/true);
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(model, {}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& call = recorder.only_call();
+    EXPECT_FALSE(call.model->is_dynamic());
+    for (const auto& parameter : call.model->get_parameters()) {
+        const auto& name = parameter->get_friendly_name();
+        if (name == "attention_mask") {
+            EXPECT_EQ(parameter->get_shape().at(3), 8192u);
+        } else if (name == "past_keys_0" || name == "past_values_0") {
+            EXPECT_EQ(parameter->get_shape().at(2), 8192u);
         }
     }
 }
