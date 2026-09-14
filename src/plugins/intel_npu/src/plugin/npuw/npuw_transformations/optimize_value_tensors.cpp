@@ -5,6 +5,7 @@
 #include "optimize_value_tensors.hpp"
 
 #include <transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp>
+#include <unordered_set>
 
 #include "../llm_compiled_model_utils.hpp"
 #include "../logging.hpp"
@@ -31,6 +32,7 @@ public:
     struct Context {
         using Ref = std::reference_wrapper<Context>;
         bool bTransposed = false;
+        std::unordered_set<const ov::op::v0::Parameter*> transposed_params;
     };
 
 protected:
@@ -131,13 +133,16 @@ public:
                 return false;
             }
 
-            auto shape = matched_param->get_partial_shape();
+            const auto shape = matched_param->get_partial_shape();
             if (shape.rank().is_dynamic() || shape.rank().get_length() != 4) {
                 return false;
             }
 
-            std::swap(shape[2], shape[3]);
-            matched_param->set_partial_shape(shape);
+            if (ctx.get().transposed_params.insert(matched_param.get()).second) {
+                auto transposed_shape = shape;
+                std::swap(transposed_shape[2], transposed_shape[3]);
+                matched_param->set_partial_shape(transposed_shape);
+            }
             matched_matmul->set_transpose_b(true);
             ctx.get().bTransposed = true;
             return true;

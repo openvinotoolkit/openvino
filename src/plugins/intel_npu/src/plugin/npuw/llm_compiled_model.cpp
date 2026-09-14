@@ -468,13 +468,6 @@ void update_config_for_whisper(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
 }
 
-void disable_ws_for_whisper(ov::AnyMap& config) {
-    config.erase("NPUW_FUNCALL_FOR_ALL");
-    config.erase("NPUW_FOLD");
-    config.erase("NPUW_FOLD_ONLY");
-    config.erase("NPUW_CWAI");
-}
-
 void update_config_for_text_embed(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
 }
@@ -1215,9 +1208,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
-        disable_ws_for_whisper(prefill_config);
-        disable_ws_for_whisper(generate_config);
-        LOG_INFO("NPUW_FOLD and NPUW_FUNCALL_FOR_ALL are disabled for Whisper model.");
     }
 
     if (m_is_embedding) {

@@ -857,7 +857,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionOptimizesSelfAndCrossAtt
     EXPECT_EQ(encoder_value_shape[3], whisper_config.get_encoder_seq_len());
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDisablesFoldAndFuncallStageOptions) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreservesFoldAndFuncallStageOptions) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
@@ -872,11 +872,11 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDisablesFoldAndFuncallStageOpt
 
     const auto& prefill = require_call(recorder, "_prefill");
     const auto& generate = require_call_containing(recorder, "_kv");
-    expect_missing_prop(prefill.props, "NPUW_FOLD");
-    expect_missing_prop(prefill.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(prefill.props, "NPUW_FOLD", "YES");
+    expect_prop(prefill.props, "NPUW_FUNCALL_FOR_ALL", "YES");
     expect_prop(prefill.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
-    expect_missing_prop(generate.props, "NPUW_FOLD");
-    expect_missing_prop(generate.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(generate.props, "NPUW_FOLD", "YES");
+    expect_prop(generate.props, "NPUW_FUNCALL_FOR_ALL", "YES");
     expect_prop(generate.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
 }
 
