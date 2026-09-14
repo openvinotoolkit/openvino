@@ -120,7 +120,7 @@ struct HSMHeader {
 #pragma pack(pop)
 static_assert(sizeof(HSMHeader) == 32,
               "HSMHeader layout changed - bump HSMFormatVersion::major/document the change before touching "
-              "this struct, readers and writers (Story 1/2/3) must be updated together.");
+              "this struct; readers and writers must be updated together.");
 
 /**
  * @brief Device/plugin that owns a ManifestEntry's section. Device catalog and collision rules follow later.
@@ -192,7 +192,7 @@ enum class HSMTags : uint32_t {
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
 };
 static_assert(static_cast<uint32_t>(HSMTags::sentinel_count) <= core_tag_id_range_end,
-              "Too many Core tags defined for core_tag_id_range_end - widen the boundary (Story 4).");
+              "Too many Core tags defined for core_tag_id_range_end - widen the boundary.");
 
 inline constexpr uint32_t model_id = static_cast<uint32_t>(HSMTags::model_id);  //!< Model identifier (e.g. a hash).
 inline constexpr uint32_t model = static_cast<uint32_t>(HSMTags::model);  //!< The serialized compiled model itself.
@@ -213,7 +213,7 @@ constexpr SectionTag model_tag() noexcept {
  * reader/format: this contract only reserves the tag and its bounds (like any pointer-mode section) -
  * interpreting and enforcing the encoded requirements is entirely the emitting device/plugin's
  * responsibility, typically via #IHsmSectionExtension. No expression scheme is defined at this layer
- * (out of scope for Story 1; a richer format, if any, belongs to the tag registry - Story 5).
+ * (out of scope here; a richer format, if any, belongs to the tag registry).
  */
 constexpr SectionTag runtime_requirements_tag() noexcept {
     return SectionTag::make(runtime_requirements, /*is_inline=*/false);
@@ -278,7 +278,7 @@ static_assert(sizeof(ManifestEntry) == 32, "ManifestEntry layout changed.");
  * self-dispatches by checking `(entry.device, entry.tag)` and returning whether it recognized it - per the
  * unknown-tag rule on #SectionTag, the reader must skip any entry no extension recognizes, never fail
  * import.
- * @note Forward-looking contract only (Story 1 scope) - not yet wired to a real reader (Story 2).
+ * @note Forward-looking contract only - not yet wired to a real reader.
  */
 class IHsmSectionExtension {
 public:
@@ -386,7 +386,7 @@ private:
  * ("shared context" - mandatory as the very first container, optional afterwards; carries data shared by
  * the blobs that follow it, until the next one) and #BlobMagic::single (an actual model blob). #blob_at()
  * only counts/returns the #BlobMagic::single containers - shared-context containers are skipped over.
- * Exact multi-blob framing is still evolving (Story 12/13).
+ * Exact multi-blob framing is still evolving.
  */
 class HSMMultiBlobView {
 public:
