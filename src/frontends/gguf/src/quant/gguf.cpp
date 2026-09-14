@@ -392,8 +392,14 @@ std::vector<int32_t> metadata_to_i32_vector(const std::unordered_map<std::string
     const size_t n = std::min(t->get_size(), max_n);
     out.reserve(n);
     for (size_t i = 0; i < n; ++i) {
-        if (et.size() == 1) {
+        if (et == ov::element::boolean) {
+            // Only a boolean array normalizes to 0/1. A byte-sized INTEGER array keeps its
+            // value: these keys carry counts and widths (a rope section of 32 must not
+            // become 1), not just flags.
             out.push_back(bytes[i] ? 1 : 0);
+        } else if (et.size() == 1) {
+            out.push_back(et.is_signed() ? static_cast<int32_t>(static_cast<int8_t>(bytes[i]))
+                                         : static_cast<int32_t>(bytes[i]));
         } else {
             int32_t v = 0;
             std::memcpy(&v, bytes + i * 4, sizeof(v));
