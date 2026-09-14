@@ -160,7 +160,15 @@ TEST(NpuwImportRoutingBlobValidation, RejectsOutOfBoundsInterSubmodelIndexDuring
     auto bytes = make_forged_blob();
     std::stringstream stream(bytes, std::ios::in | std::ios::out | std::ios::binary);
 
-    EXPECT_THROW(CompiledModel::import_model(stream, plugin, {}), ov::Exception);
+    try {
+        CompiledModel::import_model(stream, plugin, {});
+        FAIL() << "Expected forged routing table to be rejected during import";
+    } catch (const ov::Exception& ex) {
+        const std::string message = ex.what();
+        EXPECT_NE(message.find("m_submodels_input_to_prev_output[0] input submodel index 1048576"),
+                  std::string::npos)
+            << message;
+    }
 }
 
 }  // namespace
