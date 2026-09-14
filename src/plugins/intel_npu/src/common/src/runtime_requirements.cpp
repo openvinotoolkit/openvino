@@ -80,7 +80,7 @@ std::unordered_map<SectionID, SectionInstanceEvaluator> RuntimeRequirements::bui
                         section_type_to_string(section_type));
 
         m_logger.trace("Building an instance evaluator for section %s",
-                       section_type_and_id_to_string(section_type, section_id));
+                       section_type_and_id_to_string(section_type, section_id).data());
 
         per_instance_evaluators.emplace(
             section_id,
@@ -103,7 +103,6 @@ ov::CompatibilityCheck RuntimeRequirements::get_compatibility_check_result(
         m_instance_evaluators = build_section_instance_evaluators(instance_evaluators);
         m_compatibility_check_result = m_cre.check_compatibility(type_evaluators, m_instance_evaluators);
     }
-    m_logger.debug("Returning the cached result for the runtime requirements evaluation");
     return m_compatibility_check_result.value();
 }
 
