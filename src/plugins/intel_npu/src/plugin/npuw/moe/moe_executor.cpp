@@ -4,6 +4,7 @@
 
 #include "moe_executor.hpp"
 
+#include <exception>
 #include <optional>
 
 #include "../compiled_model.hpp"  // For CompiledModel::CompiledModelDesc
@@ -228,9 +229,6 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
                                                                                  m_token_to_experts,
                                                                                  m_expert_to_tokens);
         });
-        if (selected_experts.empty()) {
-            OPENVINO_THROW("MoE: No experts selected by router");
-        }
         m_profile->batch[tags::kTotalExpertBatch].record([&]() {
             run_expert_batch(idx, real_idx, selected_experts);
         });
@@ -250,8 +248,25 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
     const auto& io = m_moe_io[idx];
 
     // Validate expert count
-    if (selected_experts.size() != num_active_experts) {
-        OPENVINO_THROW("MoE Batch experts: number of selected experts does not match num_active_experts");
+    if (selected_experts.size() > num_active_experts) {
+        OPENVINO_THROW("MoE Batch experts: nonzero scores exceed the configured top-k");
+    }
+    if (selected_experts.empty()) {
+        for (const auto& output : io.outputs) {
+            OPENVINO_ASSERT(output && output->is_continuous(), "MoE: expected a contiguous expert output");
+            std::memset(output->data(), 0, output->get_byte_size());
+        }
+        return;
+    }
+    // A selected score may be exactly zero. Fill unused compiled slots with an
+    // already selected expert, then bind a zero score for those slots. This
+    // retains the fixed-K executable without reading any unselected weights.
+    std::vector<size_t> padded_experts;
+    const auto* bound_experts = &selected_experts;
+    if (selected_experts.size() < num_active_experts) {
+        padded_experts = selected_experts;
+        padded_experts.resize(num_active_experts, selected_experts.front());
+        bound_experts = &padded_experts;
     }
 
     // Step 1: Try to find cached request (O(1) lookup) - if cache is enabled
@@ -262,7 +277,7 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
     const bool cache_enabled = (m_resources.request_cache != nullptr);
 
     if (cache_enabled) {
-        request = m_resources.request_cache->find(idx, selected_experts);
+        request = m_resources.request_cache->find(idx, *bound_experts);
     }
 
     if (!request) {
@@ -283,7 +298,7 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
 
         // Step 3: Register to cache for future hits (only if cache enabled)
         if (cache_enabled) {
-            m_resources.request_cache->register_request(idx, pool_idx, selected_experts);
+            m_resources.request_cache->register_request(idx, pool_idx, *bound_experts);
         }
     }
 
@@ -605,21 +620,35 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
         }
     };
 
-    const auto elem_type = io.router_scores->get_element_type();
-    if (elem_type == ov::element::f32) {
-        stream_and_run(io.router_scores->data<float>());
-    } else if (elem_type == ov::element::f16) {
-        stream_and_run(io.router_scores->data<ov::float16>());
-    } else {
-        OPENVINO_THROW("MoE: Unsupported router element type for iterative inference");
+    try {
+        const auto elem_type = io.router_scores->get_element_type();
+        if (elem_type == ov::element::f32) {
+            stream_and_run(io.router_scores->data<float>());
+        } else if (elem_type == ov::element::f16) {
+            stream_and_run(io.router_scores->data<ov::float16>());
+        } else {
+            OPENVINO_THROW("MoE: Unsupported router element type for iterative inference");
+        }
+        if (inflight)
+            do_drain();
+        // Otherwise all mixing scores were zero; the accumulator is clear.
+    } catch (...) {
+        const auto original_error = std::current_exception();
+        // A later router row can fail validation while a previous chunk is
+        // running. A second request may also be in flight if draining the
+        // first throws. Finish both slots before buffers/requests can be reused;
+        // preserve the original error and never scatter partial results here.
+        for (auto& [chunk_size, requests] : m_resources.chunk_infer_requests) {
+            for (auto& request : requests) {
+                try {
+                    request->wait();
+                } catch (...) {
+                    // Do not replace the original inference/validation error.
+                }
+            }
+        }
+        std::rethrow_exception(original_error);
     }
-
-    if (!inflight) {
-        OPENVINO_THROW("MoE: No experts selected by router");
-    }
-
-    // Drain the last in-flight item
-    do_drain();
 }
 
 void MoEExecutor::set_router_scores(size_t idx,
@@ -664,7 +693,8 @@ void MoEExecutor::set_router_scores(size_t idx,
 
     // Set each unrolled router score parameter
     for (size_t k = 0; k < num_active_experts; ++k) {
-        size_t expert_id = selected_experts[k];
+        const bool active = k < selected_experts.size();
+        size_t expert_id = active ? selected_experts[k] : 0;
         size_t unrolled_param_idx = unrolled_router_indices[k];
 
         const auto& router_iport = desc.compiled_model->inputs()[unrolled_param_idx];
@@ -674,11 +704,11 @@ void MoEExecutor::set_router_scores(size_t idx,
         if (elem_type == ov::element::f16) {
             auto* src = router_scores_source->data<ov::float16>();
             auto* dst = router_tensor->data<ov::float16>();
-            dst[0] = src[expert_id];
+            dst[0] = active ? src[expert_id] : ov::float16{0.0f};
         } else if (elem_type == ov::element::f32) {
             auto* src = router_scores_source->data<float>();
             auto* dst = router_tensor->data<float>();
-            dst[0] = src[expert_id];
+            dst[0] = active ? src[expert_id] : 0.0f;
         } else {
             OPENVINO_THROW("Unsupported router scores element type: ", elem_type);
         }
