@@ -10,7 +10,7 @@
 
 // an s8 output narrows SDPA's K inside the rotation's own store, which removes a whole
 // f16 read and i8 write pass over the key tensor. Only the interleaved bodies implement it.
-#if defined(OUTPUT_I8) && !defined(RotateInterleaved) && !defined(ROPE_CONTIG)
+#if defined(OUTPUT_I8) && !defined(RotateInterleaved)
 #   error "rope_opt.cl - an i8 output is only implemented for the interleaved rotation"
 #endif
 
@@ -779,60 +779,6 @@ KERNEL(rope_opt)(
     *(half16*)(output + output_idx + r) = outputv1;
     *(half16*)(output + output_idx + r + VEC_SIZE) = outputv2;
     #endif
-#endif
-}
-#endif
-
-#ifdef ROPE_CONTIG
-// Flat-dispatch interleaved RoPE for a fully packed bfyx tensor.
-//
-// The REVERSED_GWS body above gives each work item two VEC_SIZE loads that are 32 B apart, so
-// consecutive lanes are VEC_SIZE*2 elements apart and the compiler cannot lower either load to
-// a subgroup block read -- it issues two scattered messages that touch every cache line twice.
-// Here lane i owns exactly one contiguous run of VEC_SIZE elements, so the address is
-// base + lane*VEC_SIZE and the rotation pairs (2j, 2j+1) both live inside that run. The pairing
-// therefore becomes an in-register swap of adjacent components, which is a source-region swizzle
-// on Gen, and both the load and the store are block-shaped.
-//
-// Requires: rotary_ndims == head_size, a power of two, a row of HEAD_COUNT*ROTARY_NDIMS
-// elements, and no padding anywhere. rope_opt.cpp checks all of that before enabling this.
-KERNEL(rope_opt)(
-    OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
-    const __global INPUT1_TYPE* cos,
-    const __global INPUT2_TYPE* sin,
-    __global OUTPUT_TYPE* output) {
-    const uint elem = (uint)get_global_id(0) * VEC_SIZE;
-    // elem / (HEAD_COUNT*ROTARY_NDIMS) is the flattened (batch, token) index; the offset inside
-    // the head is elem % ROTARY_NDIMS because ROTARY_NDIMS divides the row width.
-    const uint cs = (elem / (HEAD_COUNT * ROTARY_NDIMS)) * ROTARY_NDIMS + (elem & (ROTARY_NDIMS - 1));
-
-    INPUT_VEC_TYPE v = *(const INPUT_VEC_TYPE*)(input + elem);
-#ifdef ROPE_CONTIG_COPY
-#ifdef OUTPUT_I8
-    *(OUTPUT_VEC_TYPE*)(output + elem) = CAT(CAT(convert_char, VEC_SIZE), _sat_rte)(v);
-#else
-    *(OUTPUT_VEC_TYPE*)(output + elem) = v;
-#endif
-#else
-    INPUT_VEC_TYPE c = *(const INPUT_VEC_TYPE*)(cos + cs);
-    INPUT_VEC_TYPE s = *(const INPUT_VEC_TYPE*)(sin + cs);
-#if VEC_SIZE == 16
-    INPUT_VEC_TYPE sw = (INPUT_VEC_TYPE)(v.s1, v.s0, v.s3, v.s2, v.s5, v.s4, v.s7, v.s6,
-                                         v.s9, v.s8, v.sb, v.sa, v.sd, v.sc, v.sf, v.se);
-    const INPUT_VEC_TYPE sgn = (INPUT_VEC_TYPE)(-1, 1, -1, 1, -1, 1, -1, 1,
-                                                -1, 1, -1, 1, -1, 1, -1, 1);
-#elif VEC_SIZE == 8
-    INPUT_VEC_TYPE sw = (INPUT_VEC_TYPE)(v.s1, v.s0, v.s3, v.s2, v.s5, v.s4, v.s7, v.s6);
-    const INPUT_VEC_TYPE sgn = (INPUT_VEC_TYPE)(-1, 1, -1, 1, -1, 1, -1, 1);
-#else
-#   error "rope_opt.cl - ROPE_CONTIG needs VEC_SIZE 8 or 16"
-#endif
-#ifdef OUTPUT_I8
-    *(OUTPUT_VEC_TYPE*)(output + elem) =
-        CAT(CAT(convert_char, VEC_SIZE), _sat_rte)(c * v + (sgn * s) * sw);
-#else
-    *(OUTPUT_VEC_TYPE*)(output + elem) = c * v + (sgn * s) * sw;
-#endif
 #endif
 }
 #endif
