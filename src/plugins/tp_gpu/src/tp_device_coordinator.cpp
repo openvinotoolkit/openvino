@@ -26,26 +26,6 @@
 #include "tp_embedded_kernels.h"
 #include "tp_l0_shared_context.hpp"
 
-// ---- Inline declarations for the Intel L0 counter-based event extension
-//      (zexCounterBasedEventCreate2).  Mirrors the public headers shipped
-//      in intel/compute-runtime; vendored here to avoid build-time
-//      dependency on the intel_gpu plugin source tree.
-namespace {
-constexpr uint32_t kZexStructureCounterBasedEventDesc = 0x0003001C;
-
-constexpr uint32_t kZexCbEventFlagImmediate    = 1u << 0;
-constexpr uint32_t kZexCbEventFlagNonImmediate = 1u << 1;
-constexpr uint32_t kZexCbEventFlagHostVisible  = 1u << 2;
-
-struct zex_counter_based_event_desc_t {
-    uint32_t                stype;
-    const void*             pNext;
-    uint32_t                flags;
-    ze_event_scope_flags_t  signalScope;
-    ze_event_scope_flags_t  waitScope;
-};
-}  // namespace
-
 namespace ov {
 namespace tp_gpu {
 
@@ -57,23 +37,6 @@ inline void ze_throw(ze_result_t r, const char* what) {
     }
 }
 #define ZE_THROW(expr) ::ov::tp_gpu::ze_throw((expr), #expr)
-
-// Lazily resolved Intel L0 extension entry point for counter-based events.
-// Resolved on first init_rank when m_use_immediate is true.
-using pfn_zexCounterBasedEventCreate2 =
-    ze_result_t (*)(ze_context_handle_t, ze_device_handle_t,
-                    const zex_counter_based_event_desc_t*, ze_event_handle_t*);
-pfn_zexCounterBasedEventCreate2 g_zexCounterBasedEventCreate2 = nullptr;
-std::once_flag g_cb_ev_init_flag;
-
-void resolve_counter_based_event_create(ze_driver_handle_t driver) {
-    void* fp = nullptr;
-    ze_result_t r = ov::zeDriverGetExtensionFunctionAddress(
-        driver, "zexCounterBasedEventCreate2", &fp);
-    OPENVINO_ASSERT(r == ZE_RESULT_SUCCESS && fp,
-                    "[TP][L0] zexCounterBasedEventCreate2 extension not available");
-    g_zexCounterBasedEventCreate2 = reinterpret_cast<pfn_zexCounterBasedEventCreate2>(fp);
-}
 
 // Per-process gate for kernel-timestamp event creation/reset/query.  When
 // disabled (the default), allreduce skips per-call zeEventHostReset on
@@ -339,9 +302,6 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     OPENVINO_ASSERT(world_size >= 2, "[TP][L0] coordinator requires at least 2 ranks");
     OPENVINO_ASSERT(m_collective_timeout.count() >= 0, "[TP][L0] collective timeout must not be negative");
 
-    if (const char* v = std::getenv("TP_USE_IMMEDIATE")) {
-        m_use_immediate = std::atoi(v) != 0;
-    }
     m_profiling_enabled = tp_profiling_enabled();
     if (const char* v = std::getenv("TP_DEVICE_EVENT_RESET")) {
         m_device_event_reset = std::atoi(v) != 0;
@@ -351,9 +311,6 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     m_use_ring = world_size > 2;
     if (const char* v = std::getenv("TP_RING")) {
         m_use_ring = m_use_ring && std::atoi(v) != 0;
-    }
-    if (const char* v = std::getenv("TP_RING_IN_ORDER")) {
-        m_ring_in_order = std::atoi(v) != 0;
     }
 
     m_ranks.resize(world_size);
@@ -437,7 +394,6 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     if (tp_profiling_enabled()) {
         std::cerr << "[TP][L0] coordinator ready: " << world_size << " ranks, "
                   << num_collectives << " collective slots"
-                  << (m_use_immediate ? " (immediate cmdlists)" : " (regular cmdlists)")
                   << std::endl;
     }
 }
@@ -491,27 +447,19 @@ void TPDeviceCoordinator::init_rank(RankState& rs) {
     qd.mode     = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
     qd.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
 
-    if (m_use_immediate) {
-        // Immediate cmdlist: appended commands begin executing as soon as
-        // they are recorded; there is no queue and no ExecuteCommandLists
-        // submission step.  The qd descriptor is reused to specify ordinal
-        // and async semantics for the underlying execution engine.
-        ZE_THROW(ov::zeCommandListCreateImmediate(ctx, dev, &qd, &rs.compute_list));
-    } else {
-        ZE_THROW(ov::zeCommandQueueCreate(ctx, dev, &qd, &rs.compute_queue));
+    ZE_THROW(ov::zeCommandQueueCreate(ctx, dev, &qd, &rs.compute_queue));
 
-        // No rank-wide command list on the regular path: each collective owns
-        // its own, so a recording is not clobbered by the next collective.
+    // No rank-wide command list: each collective owns its own, so a
+    // recording is not clobbered by the next collective.
 
-        // Optional dedicated copy engine for the cross-device memcpy step.
-        if (tp_use_copy_engine() && select_copy_ordinal(dev, rs.copy_ordinal)) {
-            rs.has_dedicated_copy = true;
-            ze_command_queue_desc_t cqd{ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr};
-            cqd.ordinal  = rs.copy_ordinal;
-            cqd.mode     = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
-            cqd.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
-            ZE_THROW(ov::zeCommandQueueCreate(ctx, dev, &cqd, &rs.copy_queue));
-        }
+    // Optional dedicated copy engine for the cross-device memcpy step.
+    if (tp_use_copy_engine() && select_copy_ordinal(dev, rs.copy_ordinal)) {
+        rs.has_dedicated_copy = true;
+        ze_command_queue_desc_t cqd{ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr};
+        cqd.ordinal  = rs.copy_ordinal;
+        cqd.mode     = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
+        cqd.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
+        ZE_THROW(ov::zeCommandQueueCreate(ctx, dev, &cqd, &rs.copy_queue));
     }
 
     // Build kernel module.
@@ -566,24 +514,9 @@ void TPDeviceCoordinator::init_rank(RankState& rs) {
 
     kd.pKernelName = "allreduce_sum_f32";
     ZE_THROW(ov::zeKernelCreate(rs.module, &kd, &rs.kernel_f32));
-
-    if (m_use_immediate) {
-        std::call_once(g_cb_ev_init_flag,
-                       resolve_counter_based_event_create, m_shared->driver);
-        zex_counter_based_event_desc_t cd{};
-        cd.stype = kZexStructureCounterBasedEventDesc;
-        cd.pNext = nullptr;
-        // IMMEDIATE flag selects the immediate-cmdlist signaling fast path
-        // in the driver; HOST_VISIBLE makes the event observable by host.
-        cd.flags = kZexCbEventFlagImmediate | kZexCbEventFlagHostVisible;
-        cd.signalScope = ZE_EVENT_SCOPE_FLAG_HOST;
-        cd.waitScope   = ZE_EVENT_SCOPE_FLAG_DEVICE;
-        ZE_THROW(g_zexCounterBasedEventCreate2(ctx, dev, &cd, &rs.cb_event_done));
-    }
 }
 
 void TPDeviceCoordinator::destroy_rank(RankState& rs) {
-    if (rs.cb_event_done){ ov::zeEventDestroy(rs.cb_event_done);  rs.cb_event_done = nullptr; }
     if (rs.kernel_f16)   { ov::zeKernelDestroy(rs.kernel_f16);   rs.kernel_f16 = nullptr; }
     if (rs.kernel_f32)   { ov::zeKernelDestroy(rs.kernel_f32);   rs.kernel_f32 = nullptr; }
     if (rs.module)       { ov::zeModuleDestroy(rs.module);       rs.module = nullptr; }
@@ -1068,9 +1001,7 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
 }
 
 void TPDeviceCoordinator::ensure_plan_lists(Plan& plan) {
-    // The immediate path records nothing ahead of time and keeps using the
-    // rank's immediate list.
-    if (m_use_immediate || !plan.compute_lists.empty()) {
+    if (!plan.compute_lists.empty()) {
         return;
     }
 
@@ -1081,13 +1012,6 @@ void TPDeviceCoordinator::ensure_plan_lists(Plan& plan) {
         auto& rs = m_ranks[r];
         ze_command_list_desc_t ld{ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr};
         ld.commandQueueGroupOrdinal = rs.compute_ordinal;
-        // The ring is a linear dependency chain inside each rank's list: the
-        // copy of step s+1 reads what the kernel of step s produced.  Asking
-        // the driver for in-order execution expresses that for free, instead
-        // of a barrier per step whose cost would scale with 2*(N-1).
-        if (m_use_ring) {
-            ld.flags = m_ring_in_order ? ZE_COMMAND_LIST_FLAG_IN_ORDER : 0;
-        }
         ZE_THROW(ov::zeCommandListCreate(ctx, rs.device, &ld, &plan.compute_lists[r]));
         if (rs.has_dedicated_copy) {
             ze_command_list_desc_t cld{ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr};
@@ -1112,13 +1036,11 @@ void TPDeviceCoordinator::record_ring_rank(Plan& plan, int r) {
     auto byte_at = [elem](void* base, std::size_t offset_elems) -> void* {
         return static_cast<uint8_t*>(base) + offset_elems * elem;
     };
-    // Without in-order lists the chain has to be spelled out: the send of the
-    // next step reads what this step's kernel produced, and the tail resets
-    // must not overtake the waits that consumed those events.
+    // The chain has to be spelled out: the send of the next step reads what
+    // this step's kernel produced, and the tail resets must not overtake the
+    // waits that consumed those events.
     auto order = [&](ze_command_list_handle_t list) {
-        if (!m_ring_in_order) {
-            ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
-        }
+        ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
     };
 
     auto& self = m_ranks[r];
@@ -1290,9 +1212,7 @@ void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
         return static_cast<uint8_t*>(base) + offset_elems * elem;
     };
     auto order = [&](ze_command_list_handle_t list) {
-        if (!m_ring_in_order) {
-            ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
-        }
+        ZE_THROW(ze_api()->zeCommandListAppendBarrier(list, nullptr, 0, nullptr));
     };
 
     auto& self = m_ranks[r];
@@ -1426,8 +1346,7 @@ void TPDeviceCoordinator::sync_rank(Plan& plan, int rank) {
     // it happens.
     const std::string what = "allreduce: queue rank " + std::to_string(rank) +
                              " (n=" + std::to_string(plan.n) +
-                             (m_use_ring ? (m_ring_in_order ? ", ring in-order" : ", ring barriers")
-                                         : "") +
+                             (m_use_ring ? ", ring" : "") +
                              ")";
     sync_queue(rs.compute_queue, what.c_str());
     // On the two-rank exchange the compute queue's first command waits on the
@@ -1436,12 +1355,6 @@ void TPDeviceCoordinator::sync_rank(Plan& plan, int rank) {
 }
 
 void TPDeviceCoordinator::record_rank(Plan& plan, int rank) {
-    // On the immediate path nothing is recorded ahead of time -- cmdlists are
-    // appended to and consumed inside execute_plan, and zeCommandListReset is
-    // not allowed on them.
-    if (m_use_immediate) {
-        return;
-    }
     OPENVINO_ASSERT(per_rank_schedule(),
                     "[TP][L0] this schedule cannot be recorded one rank at a time");
 
@@ -1566,12 +1479,6 @@ void TPDeviceCoordinator::record_plan(Plan& plan) {
     const std::size_t n = plan.n;
     const std::size_t bytes = collective_payload_bytes(n, plan.dtype);
 
-    // On the immediate path nothing is recorded ahead of time \u2014 cmdlists
-    // are appended to and consumed inside execute_plan.  zeCommandListReset
-    // is also not allowed on immediate cmdlists.
-    if (m_use_immediate) {
-        return;
-    }
     // Only the funnel is left here: it writes into peer output buffers, so a
     // recording needs every rank's pointers at once and cannot be split.
     OPENVINO_ASSERT(!per_rank_schedule(),
@@ -1752,7 +1659,7 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
     auto tr0 = clk::now();
     // Reset events on host (they are signal-once, must be reset between calls).
     // When the recorded lists clear them on the device there is nothing left
-    // to do here; the immediate and profiling paths still need the host reset.
+    // to do here; the profiling path still needs the host reset.
     trace("execute: reset events");
     const bool device_reset = use_device_event_reset();
     if (!device_reset) {
@@ -1780,127 +1687,6 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
             stats->copy_bytes = payload;
             stats->copy_bytes_total = payload * transfers;
         }
-    }
-
-    if (m_world_size == 2 && m_use_immediate) {
-        // Immediate path: append memcpy + wait + kernel + barrier-signal
-        // directly into each rank's immediate cmdlist.  The cmdlist
-        // executes commands as they are appended; the host waits on the
-        // counter-based event signaled by the tail barrier on each rank.
-        constexpr uint32_t kGroupSize = 256;
-        const std::size_t bytes = collective_payload_bytes(plan.n, plan.dtype);
-        ze_group_count_t gc{launch_groups(plan.n, kGroupSize), 1, 1};
-        uint64_t cn64 = plan.n;
-
-        auto step = [](const char* what) {
-            if (dbg) {
-                std::cerr << "[TP][IMM] " << what << std::endl << std::flush;
-            }
-        };
-
-        auto ts0 = clk::now();
-        // Phase A: each rank pushes its `in` to peer's local staging.
-        // We append both copies before any wait so they overlap maximally.
-        for (int r = 0; r < 2; ++r) {
-            auto& self = m_ranks[r];
-            const int peer = 1 - r;
-            step(r == 0 ? "memcpy r0" : "memcpy r1");
-            ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
-                self.compute_list,
-                scratch_buffer(peer, plan.buffer),
-                plan.in_ptrs[r],
-                bytes,
-                plan.ev_recv[r],
-                0, nullptr));
-        }
-        // Phase B: wait for peer's push, run reduce, signal tail.
-        for (int r = 0; r < 2; ++r) {
-            auto& self = m_ranks[r];
-            const int peer = 1 - r;
-            ze_kernel_handle_t kernel =
-                (plan.dtype == ov::element::f16) ? self.kernel_f16 : self.kernel_f32;
-            ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, kGroupSize, 1, 1));
-
-            step(r == 0 ? "wait r0" : "wait r1");
-            ZE_THROW(ze_api()->zeCommandListAppendWaitOnEvents(self.compute_list,
-                                                              1, &plan.ev_recv[peer]));
-
-            void* dst   = plan.out_ptrs[r];
-            void* src0  = plan.in_ptrs[r];
-            void* src1  = scratch_buffer(r, plan.buffer);
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 0, sizeof(void*), &dst));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 1, sizeof(void*), &src0));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 2, sizeof(void*), &src1));
-            ZE_THROW(ze_api()->zeKernelSetArgumentValue(kernel, 3, sizeof(cn64), &cn64));
-            // Signal the counter-based host-sync event directly from the
-            // reduce kernel completion.  Avoids AppendBarrier, which on
-            // shared multi-device contexts can attempt cross-device
-            // synchronization and deadlock on immediate cmdlists.  Drop
-            // ev_ts_kernel on the immediate path \u2014 a single-event signal
-            // is what counter-based events are designed for.
-            step(r == 0 ? "kernel r0 (signal cb)" : "kernel r1 (signal cb)");
-            ZE_THROW(ze_api()->zeCommandListAppendLaunchKernel(self.compute_list,
-                                                              kernel, &gc,
-                                                              self.cb_event_done,
-                                                              0, nullptr));
-        }
-        step("all appended; host-sync r0");
-        auto ts1 = clk::now();
-        // Bounded wait instead of UINT64_MAX so a deadlock on the immediate
-        // path surfaces as a thrown error rather than a freeze.
-        const uint64_t sync_timeout_ns = timeout_ns();
-        ze_result_t s0 = ze_api()->zeEventHostSynchronize(m_ranks[0].cb_event_done, sync_timeout_ns);
-        if (s0 == ZE_RESULT_NOT_READY) {
-            OPENVINO_THROW("[TP][L0] immediate path: rank 0 cb_event_done did not signal within ",
-                           m_collective_timeout.count(), " ms");
-        }
-        ZE_THROW(s0);
-        auto ts2 = clk::now();
-        ze_result_t s1 = ze_api()->zeEventHostSynchronize(m_ranks[1].cb_event_done, sync_timeout_ns);
-        if (s1 == ZE_RESULT_NOT_READY) {
-            OPENVINO_THROW("[TP][L0] immediate path: rank 1 cb_event_done did not signal within ",
-                           m_collective_timeout.count(), " ms");
-        }
-        ZE_THROW(s1);
-        auto ts3 = clk::now();
-        if (stats) {
-            stats->submit = ts1 - ts0;
-            stats->sync_first = ts2 - ts1;
-            stats->sync_rest  = ts3 - ts2;
-
-            auto tq0 = clk::now();
-            auto ticks_to_ns = [](uint64_t start, uint64_t end,
-                                  uint64_t mask, uint64_t ns_per_tick) -> uint64_t {
-                const uint64_t s = start & mask;
-                const uint64_t e = end   & mask;
-                const uint64_t delta = (e >= s) ? (e - s) : ((mask + 1 - s) + e);
-                return delta * ns_per_tick;
-            };
-            uint64_t copy_ns_max = 0;
-            uint64_t kern_ns_max = 0;
-            for (int r = 0; r < 2; ++r) {
-                ze_kernel_timestamp_result_t kt{};
-                if (ze_api()->zeEventQueryKernelTimestamp(plan.ev_recv[r], &kt) == ZE_RESULT_SUCCESS) {
-                    uint64_t ns = ticks_to_ns(kt.global.kernelStart, kt.global.kernelEnd,
-                                              m_ranks[r].timestamp_mask,
-                                              m_ranks[r].timer_ns_per_tick);
-                    if (ns > copy_ns_max) copy_ns_max = ns;
-                }
-                if (plan.ev_ts_kernel[r] &&
-                    ze_api()->zeEventQueryKernelTimestamp(plan.ev_ts_kernel[r], &kt) == ZE_RESULT_SUCCESS) {
-                    uint64_t ns = ticks_to_ns(kt.global.kernelStart, kt.global.kernelEnd,
-                                              m_ranks[r].timestamp_mask,
-                                              m_ranks[r].timer_ns_per_tick);
-                    if (ns > kern_ns_max) kern_ns_max = ns;
-                }
-            }
-            stats->dev_copy   = std::chrono::nanoseconds{copy_ns_max};
-            stats->dev_kernel = std::chrono::nanoseconds{kern_ns_max};
-            auto tq1 = clk::now();
-            stats->dev_ts_query = tq1 - tq0;
-        }
-        trace("execute: done (immediate)");
-        return;
     }
 
     if (m_use_ring) {
@@ -2466,8 +2252,6 @@ void TPDeviceCoordinator::run_gather(int collective_id,
                     "[TP][L0] gather called with a null destination on the root rank");
     OPENVINO_ASSERT(rows > 0 && slice_elems > 0,
                     "[TP][L0] gather of an empty slice (rows=", rows, ", slice=", slice_elems, ")");
-    OPENVINO_ASSERT(!m_use_immediate,
-                    "[TP][L0] gather is not implemented on the immediate command list path");
     throw_if_aborted();
 
     auto& rdz = *m_rendezvous[collective_id];
@@ -2829,10 +2613,8 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             std::all_of(slot->recorded_scratch_generation.begin(),
                         slot->recorded_scratch_generation.end(),
                         [this](uint64_t g) { return g == m_scratch.generation; });
-        const bool recorded_matches = !m_use_immediate &&
-                                      all_ranks_recorded &&
-                                      signature_matches;
-        const bool need_record = !m_use_immediate && !recorded_matches;
+        const bool recorded_matches = all_ranks_recorded && signature_matches;
+        const bool need_record = !recorded_matches;
 
         trace(scratch_grew ? "phase2: grow scratch and re-record"
                            : need_record ? "phase2: re-record" : "phase2: reuse recording");
