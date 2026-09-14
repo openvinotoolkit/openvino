@@ -49,6 +49,20 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         auto wei_dt = wei_layout.data_type;
         auto out_dt = out_layout.data_type;
 
+#ifdef OV_GPU_VENDOR_NVIDIA
+        // On NVIDIA the only available oneDNN forward convolutions are the generic SYCL reference kernel,
+        // which requires every memory descriptor to be plain (check_convolution_formats()), and cuDNN,
+        // which requires inner_nblks == 0 (memory_format_ok()). A blocked layout such as b_fs_yx_fsv16
+        // makes primitive descriptor creation fail, and compile_graph has no fallback to the OCL
+        // implementation. Advertise only the plain formats, following the deconvolution/pooling pattern.
+        static const std::vector<format> supported_formats = {
+            format::any,
+            format::bfyx,
+            format::bfzyx,
+            format::byxf,
+            format::bzyxf,
+        };
+#else
         static const std::vector<format> supported_formats = {
             format::any,
             format::bfyx,
@@ -83,6 +97,7 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             format::bs_fs_yx_bsv32_fsv32,
             format::bs_fs_zyx_bsv32_fsv32,
         };
+#endif
 
         if (!one_of(in_fmt, supported_formats) || !one_of(out_fmt, supported_formats)) {
             return false;
