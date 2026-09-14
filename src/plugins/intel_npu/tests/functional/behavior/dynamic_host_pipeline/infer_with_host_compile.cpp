@@ -180,7 +180,7 @@ public:
         return result.str();
     }
 
-    void SetUp() {
+    void SetUp() override {
         // Skip test according to plugin specific disabledTestPatterns() (if any)
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
@@ -215,8 +215,9 @@ public:
         APIBaseTest::SetUp();
     }
 
-    void TearDown() {
+    void TearDown() override {
         core->set_property("NPU", ov::log::level(originalLogLevel));
+        APIBaseTest::TearDown();
     }
 
     static void compareInferenceResult(const std::shared_ptr<ov::Model>& model,
@@ -271,7 +272,6 @@ std::string InferWithHostCompileTests::ScopedLogCapture::str() const {
 void InferWithHostCompileTests::compareInferenceResult(const std::shared_ptr<ov::Model>& model,
                                                        ov::InferRequest& reqDynamic,
                                                        ov::InferRequest& reqReference) {
-    const auto inputTensor = reqDynamic.get_input_tensor(0);
     const auto npuOutputTensor = reqDynamic.get_tensor(model->output());
     const auto referenceOutputTensor = reqReference.get_tensor(model->output());
 
@@ -345,7 +345,7 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
         result.context.referenceCompiledModel = core->compile_model(model, ov::test::utils::DEVICE_TEMPLATE);
     } catch (const ov::Exception& e) {
         result.status = RuntimeCompareStatus::skip;
-        result.message = std::string("CPU plugin is not available for reference comparison: ") + e.what();
+        result.message = std::string("TEMPLATE plugin is not available for reference comparison: ") + e.what();
         return result;
     }
 
@@ -367,12 +367,15 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
     return result;
 }
 
-TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (!isTargetDevice) {
-        GTEST_SKIP() << "Skip test for current device";
+// GTEST_SKIP() must return from the test body, so the shared device guard lives in a macro rather than a helper.
+#define SKIP_IF_NOT_TARGET_DEVICE()                     \
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()                  \
+    if (!isTargetDevice) {                              \
+        GTEST_SKIP() << "Skip test for current device"; \
     }
+
+TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
+    SKIP_IF_NOT_TARGET_DEVICE()
     if (isESPCNX2Model(selectedModelName)) {
         GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
     }
@@ -395,11 +398,7 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
 // Compile, infer with a large shape, then shrink the input shape and verify both output correctness and command-list
 // reuse behavior.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (!isTargetDevice) {
-        GTEST_SKIP() << "Skip test for current device";
-    }
+    SKIP_IF_NOT_TARGET_DEVICE()
     if (isESPCNX2Model(selectedModelName)) {
         GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
     }
@@ -462,11 +461,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
 // Compile, infer with a small shape, then grow the input shape and verify both output correctness and command-list
 // reuse behavior.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (!isTargetDevice) {
-        GTEST_SKIP() << "Skip test for current device";
-    }
+    SKIP_IF_NOT_TARGET_DEVICE()
     if (isESPCNX2Model(selectedModelName)) {
         GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
     }
@@ -529,11 +524,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
 
 // Exercise imported Level Zero tensors and verify both output correctness and command-list pointer updates.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (!isTargetDevice) {
-        GTEST_SKIP() << "Skip test for current device";
-    }
+    SKIP_IF_NOT_TARGET_DEVICE()
     if (isESPCNX2Model(selectedModelName)) {
         GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
     }
@@ -610,9 +601,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
     logCapture.clear();
     auto outputShape = reqDynamic1.get_tensor(model->output()).get_shape();
-    auto zeroOutputTensorForFifthInfer = zeroContext.create_host_tensor(model->input().get_element_type(), outputShape);
+    auto zeroOutputTensorForFifthInfer =
+        zeroContext.create_host_tensor(model->output().get_element_type(), outputShape);
     auto hostTensorSourceForOutputForFifthInfer =
-        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), outputShape, 100, 0);
+        ov::test::utils::create_and_fill_tensor(model->output().get_element_type(), outputShape, 100, 0);
     ASSERT_EQ(hostTensorSourceForOutputForFifthInfer.get_byte_size(), zeroOutputTensorForFifthInfer.get_byte_size())
         << "Source and destination tensors must have identical byte sizes for copy";
     std::memcpy(zeroOutputTensorForFifthInfer.data(),
@@ -635,9 +627,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
     auto outputShapeForSixthInfer = reqDynamic1.get_tensor(model->output()).get_shape();
     auto zeroOutputTensorForSixthInfer =
-        zeroContext.create_host_tensor(model->input().get_element_type(), outputShapeForSixthInfer);
+        zeroContext.create_host_tensor(model->output().get_element_type(), outputShapeForSixthInfer);
     auto hostTensorSourceForOutputForSixthInfer =
-        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), outputShapeForSixthInfer, 100, 0);
+        ov::test::utils::create_and_fill_tensor(model->output().get_element_type(), outputShapeForSixthInfer, 100, 0);
     ASSERT_EQ(hostTensorSourceForOutputForSixthInfer.get_byte_size(), zeroOutputTensorForSixthInfer.get_byte_size())
         << "Source and destination tensors must have identical byte sizes for copy";
     std::memcpy(zeroOutputTensorForSixthInfer.data(),
@@ -657,10 +649,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 }
 
 TEST_P(InferWithHostCompileTests, DynamicNHWUsesOneVMExecution) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (!isTargetDevice) {
-        GTEST_SKIP() << "Skip test for current device";
-    }
+    SKIP_IF_NOT_TARGET_DEVICE()
     // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
     // CustomNet_DynBatch is used to verify aggregation of N=1 tensors into one N=2 VM execution.
     if (selectedModelName != "CustomNet_DynBatch" && !isESPCNX2Model(selectedModelName)) {
@@ -731,10 +720,7 @@ TEST_P(InferWithHostCompileTests, DynamicNHWUsesOneVMExecution) {
 // Grow N, H and W simultaneously (still within the model's declared bounds: N in [1,10], H in [1,1080], W in
 // [10,1920]) and verify both output correctness and command-list reconfiguration behavior.
 TEST_P(InferWithHostCompileTests, DynamicNHWIncreasedSize) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (!isTargetDevice) {
-        GTEST_SKIP() << "Skip test for current device";
-    }
+    SKIP_IF_NOT_TARGET_DEVICE()
     // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
     if (selectedModelName != "CustomNet_DynBatch" && !isESPCNX2Model(selectedModelName)) {
         GTEST_SKIP() << "Only applies to the dynamic-batch model";
@@ -785,10 +771,7 @@ TEST_P(InferWithHostCompileTests, DynamicNHWIncreasedSize) {
 
 // Shrink N, H and W simultaneously and verify both output correctness and command-list reconfiguration behavior.
 TEST_P(InferWithHostCompileTests, DynamicNHWDecreasedSize) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (!isTargetDevice) {
-        GTEST_SKIP() << "Skip test for current device";
-    }
+    SKIP_IF_NOT_TARGET_DEVICE()
     // MaxPool dynamic models contain operators that are not yet supported by the dynamic pipeline.
     if (selectedModelName != "CustomNet_DynBatch" && !isESPCNX2Model(selectedModelName)) {
         GTEST_SKIP() << "Only applies to the dynamic-batch model";
@@ -852,11 +835,7 @@ inline bool isElfBlob(const std::string& blob) {
 };
 
 TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMode) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-    if (!isTargetDevice) {
-        GTEST_SKIP() << "Skip test for current device";
-    }
+    SKIP_IF_NOT_TARGET_DEVICE()
 
     auto model = createModelByName(selectedModelName);
 
@@ -891,6 +870,8 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
 
     OV_ASSERT_NO_THROW(reqDynamic.infer());
 }
+
+#undef SKIP_IF_NOT_TARGET_DEVICE
 
 }  // namespace behavior
 }  // namespace test
