@@ -26,10 +26,15 @@ struct ConvolutionImplementationManager : public ImplementationManager {
     bool validate_impl(const program_node& node) const override {
         assert(node.is_type<convolution>());
         const auto& config = node.get_program().get_config();
-        const auto& info = node.get_program().get_engine().get_device_info();
-        if (!info.supports_immad || info.arch == gpu_arch::unknown || !config.get_use_onednn()) {
+        if (!config.get_use_onednn()) {
             return false;
         }
+
+#ifdef OV_GPU_VENDOR_INTEL
+        const auto& info = node.get_program().get_engine().get_device_info();
+        if (!info.supports_immad || info.arch == gpu_arch::unknown)
+            return false;
+#endif
 
         const auto& conv_node = node.as<convolution>();
 
