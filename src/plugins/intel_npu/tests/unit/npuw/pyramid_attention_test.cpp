@@ -1237,7 +1237,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         src.past_key_block_global_param_indices = {0};
@@ -1251,7 +1251,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         src.past_key_block_global_param_indices = {0};
@@ -1265,7 +1265,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         src.past_key_block_global_param_indices = {0};
@@ -1279,7 +1279,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         BlockInfo info;
@@ -1297,7 +1297,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionContiguous src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         ContigInfo info;
         info.mask_idx_local = 0;
@@ -1307,7 +1307,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src.past_key_block_global_param_indices = {0};
         src.past_value_block_global_param_indices = {0};
@@ -1319,7 +1319,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionContiguous src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         src.global_mask_idx = 0xFF;
@@ -1331,7 +1331,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         src.past_key_block_global_param_indices = {0};
@@ -1345,7 +1345,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionContiguous src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         ContigInfo info;
@@ -1357,7 +1357,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         src.past_key_block_global_param_indices = {0};
@@ -1391,7 +1391,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionContiguous src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         ContigInfo info;
