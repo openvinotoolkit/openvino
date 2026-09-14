@@ -28,9 +28,9 @@ std::optional<DriverType> parseDriverType(const std::string& str);
  */
 class NpuTestEnvConfig {
 public:
-    // CLI argument: --driver_type={pv|release|latest}
+    // CLI argument: --driver_release={pv|release|latest}
     // Defaults to LATEST when not provided. Set in main.cpp before tests run
-    mutable DriverType driver_type = DriverType::LATEST;
+    mutable DriverType driver_release = DriverType::LATEST;
 
     std::string IE_NPU_TESTS_DEVICE_NAME;
     std::string IE_NPU_TESTS_DUMP_PATH;

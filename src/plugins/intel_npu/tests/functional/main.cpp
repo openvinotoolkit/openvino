@@ -83,16 +83,16 @@ int main(int argc, char** argv, char** envp) {
 
     for (int i = 1; i < argc; i++) {
         std::string arg(argv[i]);
-        const std::string prefix = "--driver_type=";
+        const std::string prefix = "--driver_release=";
         if (arg.find(prefix) == 0) {
             std::string value = arg.substr(prefix.length());
             auto parsed = ov::test::utils::parseDriverType(value);
             if (parsed.has_value()) {
-                cfg.driver_type = *parsed;
-                std::cout << "Driver type set to: " << ov::test::utils::driverTypeToString(cfg.driver_type)
+                cfg.driver_release = *parsed;
+                std::cout << "Driver type set to: " << ov::test::utils::driverTypeToString(cfg.driver_release)
                           << std::endl;
             } else {
-                std::cerr << "WARNING: Invalid --driver_type value: '" << value
+                std::cerr << "WARNING: Invalid --driver_release value: '" << value
                           << "' (expected pv, release, or latest)." << std::endl;
             }
             break;
