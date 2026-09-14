@@ -289,6 +289,8 @@ public:
     /// @return Constant's strides in bytes.
     const Strides& get_strides() const;
 
+    void* get_data_ptr_nc();
+
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
 
@@ -302,8 +304,6 @@ private:
     void set_unused_bits(void* buffer) const;
 
     void allocate_buffer(bool memset_allocation);
-
-    void* get_data_ptr_nc();
 
     template <element::Type_t ET>
     typename ov::fundamental_type_for<ET>* get_data_ptr_nc() {

@@ -315,7 +315,6 @@ TEST_F(SerializationConstantCompressionTest, IdenticalConstantsDifferentTypesI32
 }
 
 TEST_F(SerializationConstantCompressionTest, EmptyConstants) {
-    constexpr int unique_const_count = 1;
     auto A = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
     auto B = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{0}, std::vector<int32_t>{});
 

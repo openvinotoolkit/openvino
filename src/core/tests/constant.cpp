@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 
 #include "common_test_utils/test_assertions.hpp"
@@ -2108,21 +2109,11 @@ TEST(constant, empty_tensor_move_constructor) {
 }
 
 TEST(constant, empty_tensor_copy_assignment) {
-    auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
-    op::v0::Constant c_assign(element::i32, Shape{1}, std::vector<int32_t>{1});
-    c_assign = *c;
-    ASSERT_EQ(c_assign.get_data_ptr(), nullptr);
-    ASSERT_EQ(c_assign.get_byte_size(), 0);
-    ASSERT_EQ(c_assign.cast_vector<int32_t>().size(), 0);
+    static_assert(!std::is_copy_assignable_v<op::v0::Constant>);
 }
 
 TEST(constant, empty_tensor_move_assignment) {
-    auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
-    op::v0::Constant c_assign(element::i32, Shape{1}, std::vector<int32_t>{1});
-    c_assign = std::move(*c);
-    ASSERT_EQ(c_assign.get_data_ptr(), nullptr);
-    ASSERT_EQ(c_assign.get_byte_size(), 0);
-    ASSERT_EQ(c_assign.cast_vector<int32_t>().size(), 0);
+    static_assert(!std::is_move_assignable_v<op::v0::Constant>);
 }
 
 //
