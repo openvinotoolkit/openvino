@@ -819,7 +819,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                     if (const auto* pyramid = ov::npuw::attn::get_compiled_pyramid(pipeline.context)) {
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
                         const std::size_t mask_idx_local = pyramid->mask_idx_local_at(pyramid_id);
-                        const std::size_t dyn_query_size = pyramid->query_size_at(pyramid_id);
                         auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs()[mask_idx_local];
                         // io.inputs is indexed by the *global* (original model) input_idx — the same
                         // index bind_function_input used when it deferred the mask tensor via
@@ -828,7 +827,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         // surplus KV block parameters, so local != global in general).
                         const auto& graph_mask = io.inputs.at(pyramid->global_mask_idx);
                         const auto this_case = state.pyramid_selector->this_case();
-                        const auto present_len = dyn_query_size;
+                        // Original (pre-PropagateSliceUp) query/chunk size. Safe to use for GENERATE
+                        // too: decode graphs are never touched by PropagateSliceUp, so the per-tier
+                        // query axis and this top-level value are always equal there.
+                        const auto present_len = pyramid->query_size;
                         const auto& dst = ctx.target_request->get_tensor(mask_iport);
 
                         auto copy_mask_segment = [&](std::size_t dst_offset,
@@ -877,8 +879,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             } else {
                                 // Clamp past_len to this SWA tier's window
                                 const auto context_length = pyramid->get_context_length(pyramid_id);
-                                const auto effective_past_len = std::min<std::size_t>(
-                                    static_cast<std::size_t>(past_len), context_length - present_len);
+                                const auto effective_past_len =
+                                    std::min<std::size_t>(static_cast<std::size_t>(past_len),
+                                                          context_length - present_len);
                                 copy_mask_segment(effective_past_len,
                                                   full_mask_shape[ATTN_KV_DIM] - present_len,
                                                   present_len);
