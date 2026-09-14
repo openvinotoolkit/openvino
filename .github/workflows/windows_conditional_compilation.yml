@@ -84,6 +84,9 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '31'
 
       # TODO: specify version of compiler here
     if: ${{ !needs.smart_ci.outputs.skip_workflow && github.event_name != 'merge_group' }}
@@ -176,8 +179,8 @@ jobs:
 
       - name: Cmake build - CC COLLECT
         run: |
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet && `
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
+          cmake --build ${{ env.BUILD_DIR }} --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet && `
+          cmake --build ${{ env.BUILD_DIR }} --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
       - name: Show ccache stats
         run: '& ccache --show-stats'
@@ -190,7 +193,7 @@ jobs:
       - name: Build C++ samples - OpenVINO build tree
         run: |
           cmake -G "${{ env.CMAKE_GENERATOR }}" -DOpenVINO_DIR=${{ env.BUILD_DIR }} -S ${{ env.INSTALL_DIR }}/samples/cpp -B ${{ env.BUILD_DIR }}/cpp_samples
-          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
+          cmake --build ${{ env.BUILD_DIR }}/cpp_samples --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL --config ${{ env.CMAKE_BUILD_TYPE }} --target hello_query_device -- --quiet
 
       - name: Perform code tracing via ITT collector
         shell: cmd
@@ -245,7 +248,7 @@ jobs:
           # install PDB files to OpenVINO main installation folder to ensure that they are used instead of PDB files from build folder
           cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pdb
           # then, we need to clean build tree to remove PDB files
-          cmake --build ${{ env.BUILD_DIR }} --parallel $ENV:NUMBER_OF_PROCESSORS --config ${{ env.CMAKE_BUILD_TYPE }} --target clean -- /verbosity:minimal
+          cmake --build ${{ env.BUILD_DIR }} --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL --config ${{ env.CMAKE_BUILD_TYPE }} --target clean -- /verbosity:minimal
           & ${{ env.INSTALL_DIR }}/samples/c/build_samples.ps1 -i ${{ env.INSTALL_DIR }} -b ${{ env.BUILD_DIR }}/c_samples
         env:
           CXXFLAGS: "/Zi"
@@ -304,6 +307,9 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -362,7 +368,7 @@ jobs:
         # Number of threads is hardcoded due to OutOfMemory issues. Unless we switch CMake's generator to Ninja, we can't
         # set number of jobs separately for compilation and linking. The issue most likely occurs during linking.
       - name: Cmake build - CC ON
-        run: cmake --build ${{ env.BUILD_DIR }} --parallel 8 --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
+        run: cmake --build ${{ env.BUILD_DIR }} --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
 
       - name: List bin files
         shell: cmd
