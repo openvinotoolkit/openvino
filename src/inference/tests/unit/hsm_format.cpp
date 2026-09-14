@@ -302,6 +302,42 @@ TEST(HsmContainerViewTest, reads_pointer_section) {
     EXPECT_EQ(std::string(reinterpret_cast<const char*>(section.data()), section.size()), "OV");
 }
 
+TEST(HsmContainerViewTest, section_rejects_inline_mode_entry) {
+    const auto blob = make_sample_container_with_entries();
+    const runtime::HSMContainerView view(blob.data(), blob.size());
+
+    runtime::ManifestEntry entry{};
+    entry.tag = runtime::model_id_tag();  // inline-mode: offset/size below don't refer to a real section
+    entry.offset = sizeof(runtime::HSMHeader);
+    entry.size = 2;
+
+    EXPECT_EQ(view.section(entry).size(), 0u);
+}
+
+TEST(HsmContainerViewTest, section_rejects_out_of_bounds_offset) {
+    const auto blob = make_sample_container_with_entries();
+    const runtime::HSMContainerView view(blob.data(), blob.size());
+
+    runtime::ManifestEntry entry{};
+    entry.tag = runtime::model_tag();
+    entry.offset = view.size() + 1;
+    entry.size = 1;
+
+    EXPECT_EQ(view.section(entry).size(), 0u);
+}
+
+TEST(HsmContainerViewTest, section_rejects_out_of_bounds_size) {
+    const auto blob = make_sample_container_with_entries();
+    const runtime::HSMContainerView view(blob.data(), blob.size());
+
+    runtime::ManifestEntry entry{};
+    entry.tag = runtime::model_tag();
+    entry.offset = 0;
+    entry.size = view.size() + 1;  // fits at offset 0 alone, but overruns the buffer
+
+    EXPECT_EQ(view.section(entry).size(), 0u);
+}
+
 TEST(HsmContainerViewValidateTest, accepts_well_formed_container) {
     const auto blob = make_sample_container_with_entries();
     const runtime::HSMContainerView view(blob.data(), blob.size());
@@ -340,6 +376,23 @@ TEST(HsmContainerViewValidateTest, rejects_out_of_bounds_manifest_offset) {
 
     const runtime::HSMContainerView view(blob.data(), blob.size());
     EXPECT_FALSE(view.validate());
+}
+
+TEST(HsmContainerViewValidateTest, rejects_manifest_offset_inside_header) {
+    auto blob = make_sample_container_with_entries();
+    auto header = runtime::HSMHeader::view(blob.data());
+    header.manifest_offset = sizeof(runtime::HSMHeader) - 1;  // would start reading manifest inside the header
+    std::memcpy(blob.data(), &header, sizeof(header));
+
+    const runtime::HSMContainerView view(blob.data(), blob.size());
+    EXPECT_FALSE(view.validate());
+}
+
+TEST(HsmContainerViewValidateTest, accepts_container_with_empty_manifest) {
+    const auto blob = make_single_blob_container({}, {});  // no section payload, no manifest entries
+    const runtime::HSMContainerView view(blob.data(), blob.size());
+    ASSERT_EQ(view.manifest_count(), 0u);
+    EXPECT_TRUE(view.validate());
 }
 
 TEST(HsmContainerViewValidateTest, rejects_out_of_bounds_section_offset) {
@@ -414,6 +467,21 @@ TEST(HsmMultiBlobViewTest, stops_on_invalid_magic) {
     EXPECT_EQ(view.blob_count(), 0u);  // shared context is skipped fine, but the blob itself is unreadable
 }
 
+TEST(HsmMultiBlobViewTest, blob_view_excludes_following_containers) {
+    auto buffer = make_multi_container({}, {});  // mandatory shared context
+    const auto blob0 = make_single_blob_container({}, {});
+    const auto blob1 = make_single_blob_container({'O', 'V'}, {});  // different size than blob0
+    buffer.insert(buffer.end(), blob0.begin(), blob0.end());
+    buffer.insert(buffer.end(), blob1.begin(), blob1.end());
+
+    const runtime::HSMMultiBlobView view(buffer.data(), buffer.size());
+    ASSERT_EQ(view.blob_count(), 2u);
+
+    const auto view0 = view.blob_at(0);
+    EXPECT_EQ(view0.size(), blob0.size());  // must not leak into blob1's bytes
+    EXPECT_TRUE(view0.validate());
+}
+
 TEST(IHsmSectionExtensionTest, recognizes_own_device_and_tag) {
     runtime::ManifestEntry entry{};
     entry.device = RecordingExtension::owned_device;
@@ -434,5 +502,13 @@ TEST(IHsmSectionExtensionTest, skips_entry_it_does_not_own) {
     EXPECT_FALSE(extension.read_section(entry, ov::util::MemoryView{}));
     EXPECT_EQ(extension.last_section_size, 0u);  // never called
 }
+
+// OPENVINO_DEBUG_ASSERT compiles out entirely under NDEBUG (Release builds), so this only runs in debug builds.
+#ifndef NDEBUG
+TEST(MakeDeviceTagTest, debug_asserts_on_id_overflow) {
+    const auto out_of_range_id = runtime::max_tag_id - runtime::core_tag_id_range_end + 1;
+    EXPECT_DEATH(runtime::make_device_tag(out_of_range_id, false), "");
+}
+#endif
 
 }  // namespace ov::test

@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "openvino/core/except.hpp"
 #include "openvino/util/container_util.hpp"
 #include "openvino/util/memory.hpp"
 
@@ -171,6 +172,9 @@ struct SectionTag {
  */
 inline constexpr uint32_t core_tag_id_range_end = 0x1000;
 
+/// Highest id representable by the 23-bit #SectionTag id space.
+inline constexpr uint32_t max_tag_id = 0x7FFFFF;
+
 /**
  * @brief Core-owned tag ids. `invalid` (0) is reserved and never assigned to a real tag; mode is fixed per
  * tag (model id always inlines, model data never does) - use the `_tag()` factories below rather than
@@ -218,10 +222,11 @@ constexpr SectionTag runtime_requirements_tag() noexcept {
 /**
  * @brief Builds a device-specific wire #SectionTag from a device-local id; always lands at/above
  * #core_tag_id_range_end, so it can never collide with a Core tag.
- * @param local_id Device-local id, starting at 0.
+ * @param local_id Device-local id, starting at 0; must be `<= max_tag_id - core_tag_id_range_end`
  * @param is_inline true for inline-mode, false for pointer-mode.
  */
 constexpr SectionTag make_device_tag(uint32_t local_id, bool is_inline) noexcept {
+    OPENVINO_DEBUG_ASSERT(local_id <= max_tag_id - core_tag_id_range_end, "local_id overflows the SectionTag id space");
     return SectionTag::make(core_tag_id_range_end + local_id, is_inline);
 }
 
@@ -317,9 +322,12 @@ public:
         return static_cast<size_t>(header().manifest_size / sizeof(ManifestEntry));
     }
 
-    /// Payload bytes of a pointer-mode manifest entry.
+    /// Bounds-checked payload bytes of a pointer-mode manifest entry; empty view for an invalid or inline entry.
     constexpr ov::util::MemoryView section(const ManifestEntry& entry) const noexcept {
-        return {begin() + entry.offset, static_cast<size_t>(entry.size)};
+        if (!entry.tag.is_pointer() || entry.offset > size() || entry.size > size() - entry.offset) {
+            return {};
+        }
+        return {begin() + static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size)};
     }
 
     /**
@@ -343,8 +351,12 @@ public:
         if (hdr.manifest_size % sizeof(ManifestEntry) != 0) {
             return false;
         }
-        if (hdr.manifest_offset > hdr.total_size || hdr.total_size - hdr.manifest_offset < hdr.manifest_size) {
+        if (hdr.manifest_offset < sizeof(HSMHeader) || hdr.manifest_offset > hdr.total_size ||
+            hdr.total_size - hdr.manifest_offset < hdr.manifest_size) {
             return false;
+        }
+        if (hdr.manifest_size == 0) {
+            return true;
         }
         const auto* entries = &manifest();
         for (size_t i = 0, count = manifest_count(); i < count; ++i) {
@@ -417,7 +429,7 @@ public:
             view = next->remaining;
             if (next->is_blob) {
                 if (index == 0) {
-                    return HSMContainerView{container_view.data(), container_view.size()};
+                    return HSMContainerView{container_view.data(), container_view.size() - next->remaining.size()};
                 }
                 --index;
             }
@@ -439,10 +451,10 @@ private:
         if (hdr.magic != BlobMagic::single && hdr.magic != BlobMagic::multi) {
             return std::nullopt;
         }
-        const auto container_size = static_cast<size_t>(hdr.total_size);
-        if (container_size < sizeof(HSMHeader) || container_size > view.size()) {
+        if (hdr.total_size < sizeof(HSMHeader) || hdr.total_size > view.size()) {
             return std::nullopt;
         }
+        const auto container_size = static_cast<size_t>(hdr.total_size);
         return NextContainer{{view.data() + container_size, view.size() - container_size},
                              hdr.magic == BlobMagic::single};
     }
