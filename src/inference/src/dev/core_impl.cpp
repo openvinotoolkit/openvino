@@ -1242,6 +1242,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
         get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
                                                           cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
+            const auto model_hash_lock = m_cache_guard.get_hash_lock(util::path_to_string(model_path));
             return ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
         });
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);
