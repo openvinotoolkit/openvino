@@ -19,7 +19,8 @@ covers sigmoid routing, biased selection, group filtering, and a shared expert.
 Devstral adds three configurations under the existing `llama` and `mistral3` families.
 Small models use unequal embedding/query widths. Devstral Small 2 crosses reduced original-context
 boundaries at positions 2 and 4 to exercise attention temperature; Devstral 2 uses non-default
-YaRN correction parameters. Each runs through the native frontend.
+YaRN correction parameters. Each runs through the native frontend. Devstral 2's real
+123B checkpoint and full-context workloads are not verified by these small fixtures.
 
 `GGUFArchitectureAccuracy` compiles the native frontend graph on CPU with F32 inference,
 F16 KV state and dynamic activation quantization disabled. It checks every logit using
