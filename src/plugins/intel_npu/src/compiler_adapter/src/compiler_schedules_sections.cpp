@@ -91,8 +91,9 @@ ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor&& main_schedule,
 std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
-    m_logger.debug("Added the ELF_MAIN_SCHEDULE section type to the CRE");
-    return {std::make_shared<SectionType>(get_type())};
+    OPENVINO_ASSERT(get_id().has_value());
+    m_logger.debug("Added the ELF_MAIN_SCHEDULE_<ID> to the CRE");
+    return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
 }
 
 void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
@@ -165,7 +166,7 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
     logger.debug("Skipped %lu padding from offset %lu", padding_size, blob_reader.get_offset_relative_to_npu_region());
 
     // TODO check this is secure
-    const size_t main_schedule_size = blob_reader.get_section_length() - padding_size;
+    const size_t main_schedule_size = blob_reader.get_section_length() - sizeof(padding_size) - padding_size;
 
     if (!blob_reader.source_is_contiguous()) {
         ov::Tensor main_schedule = allocate_aligned_tensor(main_schedule_size);
@@ -368,8 +369,9 @@ DynamicScheduleSection::DynamicScheduleSection(ov::Tensor&& main_schedule,
 std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
-    m_logger.debug("Added the DYNAMIC_SCHEDULE section type to the CRE");
-    return {std::make_shared<SectionType>(get_type())};
+    OPENVINO_ASSERT(get_id().has_value());
+    m_logger.debug("Added the DYNAMIC_SCHEDULE_<ID> to the CRE");
+    return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
 }
 
 void DynamicScheduleSection::write(BlobWriterInterface& writer) {

@@ -646,16 +646,29 @@ private:
     }
 
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
-        const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
-        if (main_schedule_section) {
-            return main_schedule_section->get_individual_compatibility_requirements();
+        const auto runtime_requirements_section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(
+            m_blob_reader.retrieve_first_section(SectionTypeCode::RUNTIME_REQUIREMENTS));
+        if (runtime_requirements_section == nullptr) {
+            m_logger.warning("The runtime requirements section was not found. The imported compiled model will not "
+                             "have any compiler requirements attached to it.");
+            return std::nullopt;
         }
 
-        const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::DYNAMIC_SCHEDULE));
-        OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
-        return dynamic_schedule_section->get_individual_compatibility_requirements();
+        // Look for the runtime requirements of the ELF main/dynamic schedule. The checks performed previously should
+        // already guarantee that only one instance of these section types exists
+        const RuntimeRequirements runtime_requirements = runtime_requirements_section->get_runtime_requirements();
+        const std::map<SectionID, std::string> sections_requirements = runtime_requirements.get_sections_requirements();
+        const std::unordered_map<SectionID, SectionType> section_id_to_type_mapping =
+            runtime_requirements.get_section_id_to_type_mapping();
+
+        for (const auto& [section_id, section_requirements] : sections_requirements) {
+            if (section_id_to_type_mapping.at(section_id) == SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE) ||
+                section_id_to_type_mapping.at(section_id) == SectionType(SectionTypeCode::DYNAMIC_SCHEDULE)) {
+                return section_requirements;
+            }
+        }
+
+        return std::nullopt;
     }
 
     std::optional<BlobType> extract_blob_type() const override {

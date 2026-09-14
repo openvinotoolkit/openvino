@@ -6,6 +6,10 @@
 
 namespace {
 
+constexpr size_t LIST_DELIMITERS_SIZE = 2;
+constexpr char LIST_START_DELIMITER = '[';
+constexpr char LIST_END_DELIMITER = ']';
+
 ov::CompatibilityCheck bool_to_compatibility_check(const bool input) {
     return input ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
 }
@@ -26,6 +30,10 @@ CompilerScheduleInstanceEvaluator::CompilerScheduleInstanceEvaluator(
 }
 
 ov::CompatibilityCheck CompilerScheduleInstanceEvaluator::evaluate(std::string_view runtime_requirements) const {
+    if (runtime_requirements.size() >= LIST_DELIMITERS_SIZE && runtime_requirements.front() == LIST_START_DELIMITER &&
+        runtime_requirements.back() == LIST_END_DELIMITER) {
+        runtime_requirements = runtime_requirements.substr(1, runtime_requirements.size() - 2);
+    }
     if (runtime_requirements.empty()) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
@@ -34,7 +42,7 @@ ov::CompatibilityCheck CompilerScheduleInstanceEvaluator::evaluate(std::string_v
     const auto init_structs = m_backend->getInitStructs();
 
     if (device != nullptr && init_structs != nullptr && init_structs->getZeDrvApiVersion() >= ZE_MAKE_VERSION(1, 16)) {
-        return bool_to_compatibility_check(device->validateCompatibilityDescriptor(runtime_requirements.data()));
+        return bool_to_compatibility_check(device->validateCompatibilityDescriptor(std::string(runtime_requirements)));
     }
 
     // Fallback routed through the option support helper
