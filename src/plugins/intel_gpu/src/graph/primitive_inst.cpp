@@ -281,6 +281,7 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     // skip all the buzz if no action actually required
     event::ptr ev = nullptr;
     if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx])) {
+        // Only output 0 can carry a borrowed remote alias, so rebinding it drops the borrow.
         if (idx == 0)
             _remote_output_alias.reset();
         return nullptr;

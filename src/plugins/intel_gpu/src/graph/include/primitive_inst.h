@@ -434,6 +434,8 @@ protected:
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
     std::vector<memory::ptr> _outputs;
+    // Borrowed view of a user's remote output tensor. Only output 0 can hold one, so any rebinding of
+    // _outputs[0] invalidates it.
     memory::ptr _remote_output_alias;
 
     std::vector<memory::ptr> _intermediates_memory;
@@ -539,7 +541,9 @@ private:
     // True when the type decides its own skip after the output chain is built, which is what forces
     // the chain boundary.
     bool has_late_remote_output_skip_decision() const;
-    // Returns true when _outputs[0] was bound onto the remote output tensor owned by a runtime-skippable user.
+    // Binds _outputs[0] onto the remote output tensor held by a runtime-skippable user, so the producer
+    // writes straight into the user's destination and no copy is needed once the user is skipped.
+    // Returns true when the binding was made and realloc_outputs() should stop.
     bool try_bind_remote_output_via_skippable_user(const layout& output_layout);
     void detach_remote_output_alias();
     void update_paddings();
