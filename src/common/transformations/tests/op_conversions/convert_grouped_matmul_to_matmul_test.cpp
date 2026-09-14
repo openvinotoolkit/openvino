@@ -35,22 +35,22 @@ ov::Output<ov::Node> ref_2dx3d_decomposition(const ov::Output<ov::Node>& mat_a,
                                              const ov::Output<ov::Node>& mat_b,
                                              const ov::Output<ov::Node>& offsets,
                                              int64_t num_groups) {
-    ov::Output<ov::Node> offsets_i64 = offsets;
-    if (offsets.get_element_type() != i64) {
-        offsets_i64 = std::make_shared<v0::Convert>(offsets, i64);
+    ov::Output<ov::Node> offsets_i32 = offsets;
+    if (offsets.get_element_type() != i32) {
+        offsets_i32 = std::make_shared<v0::Convert>(offsets, i32);
     }
 
-    auto step = v0::Constant::create(i64, ov::Shape{1}, {1});
-    auto slice_axis = v0::Constant::create(i64, ov::Shape{1}, {0});
-    auto gather_axis = v0::Constant::create(i64, ov::Shape{}, {0});
+    auto step = v0::Constant::create(i32, ov::Shape{1}, {1});
+    auto slice_axis = v0::Constant::create(i32, ov::Shape{1}, {0});
+    auto gather_axis = v0::Constant::create(i32, ov::Shape{}, {0});
 
     ov::OutputVector group_outputs;
-    ov::Output<ov::Node> start = v0::Constant::create(i64, ov::Shape{1}, {0});
+    ov::Output<ov::Node> start = v0::Constant::create(i32, ov::Shape{1}, {0});
     for (int64_t g = 0; g < num_groups; ++g) {
-        auto end_index = v0::Constant::create(i64, ov::Shape{1}, {g});
-        ov::Output<ov::Node> end = std::make_shared<v8::Gather>(offsets_i64, end_index, gather_axis);
+        auto end_index = v0::Constant::create(i32, ov::Shape{1}, {g});
+        ov::Output<ov::Node> end = std::make_shared<v8::Gather>(offsets_i32, end_index, gather_axis);
         auto a_g = std::make_shared<v8::Slice>(mat_a, start, end, step, slice_axis);
-        auto b_index = v0::Constant::create(i64, ov::Shape{}, {g});
+        auto b_index = v0::Constant::create(i32, ov::Shape{}, {g});
         auto b_g = std::make_shared<v8::Gather>(mat_b, b_index, gather_axis);
         auto mm = std::make_shared<v0::MatMul>(a_g, b_g, /*transpose_a=*/false, /*transpose_b=*/true);
         group_outputs.push_back(mm);
@@ -64,6 +64,7 @@ ov::Output<ov::Node> ref_2dx3d_decomposition(const ov::Output<ov::Node>& mat_a,
 // 3Dx3D: A:[G,M,K] B:[G,N,K] -> MatMul(A, B, transpose_b=true)
 TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_3Dx3D) {
     constexpr size_t G = 2, M = 4, K = 8, N = 16;
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 
     {
         auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{G, M, K});
@@ -84,6 +85,7 @@ TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_3Dx3D) {
 // 2Dx3D with i32 offsets: no Convert is inserted
 TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_i32Offsets) {
     constexpr size_t T = 6, K = 8, G = 2, N = 16;
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 
     {
         auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{T, K});
@@ -103,9 +105,10 @@ TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_i32Offsets) {
     }
 }
 
-// 2Dx3D with i64 offsets: a Convert to i64 is a no-op and must not be inserted
+// 2Dx3D with i64 offsets: a Convert to the i32 index type is inserted
 TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_i64Offsets) {
     constexpr size_t T = 6, K = 8, G = 2, N = 16;
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 
     {
         auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{T, K});
