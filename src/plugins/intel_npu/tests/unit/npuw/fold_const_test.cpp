@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "openvino/op/ops.hpp"
+#include "openvino/pass/constant_folding.hpp"
 
 // Tests for ov::npuw::patterns::util::FoldShapeComputeChain.
 //
@@ -33,6 +34,88 @@
 namespace {
 
 using namespace ov;
+
+TEST(StaticMoEMetadataTest, FoldsRangesAndMultipleOutputShapeNodes) {
+    auto zero = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto one = op::v0::Constant::create(element::i64, Shape{}, {1});
+    auto dimensions = op::v0::Constant::create(element::i64, Shape{2}, {1, 7});
+    auto split = std::make_shared<op::v1::Split>(dimensions, zero, 2);
+    auto end = std::make_shared<op::v0::Squeeze>(split->output(1));
+    auto range = std::make_shared<op::v4::Range>(zero, end, one, element::i64);
+    auto mask = std::make_shared<op::v1::LessEqual>(range, one);
+    auto model = std::make_shared<Model>(OutputVector{range, mask}, ParameterVector{});
+    EXPECT_TRUE(ov::npuw::patterns::util::FoldStaticMoEMetadata().run_on_model(model));
+    model->validate_nodes_and_infer_types();
+    auto values = ov::as_type_ptr<op::v0::Constant>(model->get_results()[0]->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(values);
+    EXPECT_EQ(values->cast_vector<int64_t>(), (std::vector<int64_t>{0, 1, 2, 3, 4, 5, 6}));
+    EXPECT_TRUE(ov::is_type<op::v0::Constant>(model->get_results()[1]->input_value(0).get_node_shared_ptr()));
+}
+
+TEST(StaticMoEMetadataTest, LeavesWeightDecompressionAndDynamicMetadataUntouched) {
+    auto weight = op::v0::Constant::create(element::i4, Shape{4, 16}, {1});
+    auto convert = std::make_shared<op::v0::Convert>(weight, element::f32);
+    auto end = std::make_shared<op::v0::Parameter>(element::i64, Shape{});
+    auto range = std::make_shared<op::v4::Range>(op::v0::Constant::create(element::i64, Shape{}, {0}),
+                                                 end,
+                                                 op::v0::Constant::create(element::i64, Shape{}, {1}),
+                                                 element::i64);
+    auto model = std::make_shared<Model>(OutputVector{convert, range}, ParameterVector{end});
+    EXPECT_FALSE(ov::npuw::patterns::util::FoldStaticMoEMetadata().run_on_model(model));
+    EXPECT_EQ(model->get_results()[0]->input_value(0).get_node_shared_ptr(), convert);
+    EXPECT_EQ(model->get_results()[1]->input_value(0).get_node_shared_ptr(), range);
+}
+
+TEST(StaticMoEMetadataTest, SharedFoldedMaskRetainsOneConstantForAllConsumers) {
+    auto zero = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto one = op::v0::Constant::create(element::i64, Shape{}, {1});
+    auto range =
+        std::make_shared<op::v4::Range>(zero, op::v0::Constant::create(element::i64, Shape{}, {7}), one, element::i64);
+    auto mask = std::make_shared<op::v1::LessEqual>(range, one);
+    auto lhs = std::make_shared<op::v0::Parameter>(element::boolean, Shape{7});
+    auto rhs = std::make_shared<op::v0::Parameter>(element::boolean, Shape{7});
+    auto first = std::make_shared<op::v1::LogicalAnd>(mask, lhs);
+    auto second = std::make_shared<op::v1::LogicalAnd>(mask, rhs);
+    auto model = std::make_shared<Model>(OutputVector{first, second}, ParameterVector{lhs, rhs});
+    ASSERT_TRUE(ov::npuw::patterns::util::FoldStaticMoEMetadata().run_on_model(model));
+    auto a = ov::as_type_ptr<op::v0::Constant>(first->input_value(0).get_node_shared_ptr());
+    auto b = ov::as_type_ptr<op::v0::Constant>(second->input_value(0).get_node_shared_ptr());
+    ASSERT_TRUE(a);
+    ASSERT_TRUE(b);
+    EXPECT_EQ(a, b);
+    EXPECT_EQ(a->get_data_ptr(), b->get_data_ptr());
+}
+
+TEST(StaticMoEMetadataTest, DoesNotEvaluateAnOperationThatProhibitsConstantFolding) {
+    auto random = std::make_shared<ov::op::v8::RandomUniform>(
+        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 8}),
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0}),
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {100}),
+        ov::element::i32,
+        19,
+        23);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{random}, ov::ParameterVector{});
+    const auto state = random->get_state();
+    ASSERT_FALSE(random->can_constant_fold(random->input_values()));
+    EXPECT_FALSE(ov::npuw::patterns::util::FoldStaticMoEMetadata().run_on_model(model));
+    EXPECT_EQ(model->get_results()[0]->input_value(0).get_node_shared_ptr(), random);
+    EXPECT_EQ(random->get_state(), state);
+}
+
+TEST(StaticMoEMetadataTest, RespectsDisabledFoldingAndOutputSizeLimit) {
+    for (const int64_t size : {7, 65537}) {
+        auto range =
+            std::make_shared<ov::op::v4::Range>(ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}),
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {size}),
+                                                ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {1}),
+                                                ov::element::i64);
+        if (size == 7)
+            ov::pass::disable_constant_folding(range);
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{range}, ov::ParameterVector{});
+        EXPECT_FALSE(ov::npuw::patterns::util::FoldStaticMoEMetadata().run_on_model(model));
+        EXPECT_EQ(model->get_results()[0]->input_value(0).get_node_shared_ptr(), range);
+    }
+}
 
 static std::shared_ptr<ov::Model> make_gptoss_router_model() {
     constexpr size_t seq_len = 1024;

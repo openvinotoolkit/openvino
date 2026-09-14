@@ -106,14 +106,15 @@ void transform_experts(ov::npuw::Function& function,
                        ov::npuw::v1::subgraphs::Context& ctx,
                        const std::size_t moe_chunk_size) {
     auto k_value = find_moe_k_value(ctx);
-    if (!k_value.has_value()) {
-        LOG_WARN("MoE K value not found in context; skipping expert transformation");
-        return;
-    }
+    OPENVINO_ASSERT(k_value.has_value(),
+                    "NPUW sparse expert partition is missing its top-k metadata. "
+                    "Refusing to execute an expert partition densely.");
     auto experts = ov::npuw::function::MoEExperts::from(function._model, k_value.value(), moe_chunk_size);
-    if (experts.has_value()) {
-        ctx.put<ov::npuw::function::MoEExperts>(std::move(experts.value()));
-    }
+    OPENVINO_ASSERT(experts.has_value(),
+                    "NPUW could not lower the isolated expert partition to sparse execution: ",
+                    function._model->get_friendly_name(),
+                    ". Check the expert weight layout and export representation.");
+    ctx.put<ov::npuw::function::MoEExperts>(std::move(experts.value()));
 }
 
 void compile_transformed_expert_models(const CompiledExpertsState& runtime_experts,
@@ -342,44 +343,29 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     ov::npuw::v1::subgraphs::PatternRegistry& registry,
     const std::size_t moe_chunk_size) {
     std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> registrations;
-    registrations.reserve(7);
+    registrations.reserve(8);
+
+    registrations.emplace_back(
+        registry.on<ov::npuw::patterns::moe::BatchedExpert>()
+            .at_partition([moe_chunk_size](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
+                transform_experts(function, ctx, moe_chunk_size);
+            })
+            .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
+                           ov::npuw::v1::subgraphs::Context& compiled_context) {
+                configure_expert_compile(compiled_pipeline, compiled_context);
+            })
+            .scoped());
 
     registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSRouter>().scoped());
     registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Qwen3Router>().scoped());
     registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Gemma4Router>().scoped());
 
-    registrations.emplace_back(
-        registry.on<ov::npuw::patterns::moe::GPTOSSExpert>()
-            .at_partition([moe_chunk_size](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
-                transform_experts(function, ctx, moe_chunk_size);
-            })
-            .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
-                           ov::npuw::v1::subgraphs::Context& compiled_context) {
-                configure_expert_compile(compiled_pipeline, compiled_context);
-            })
-            .scoped());
-
-    registrations.emplace_back(
-        registry.on<ov::npuw::patterns::moe::Qwen3Expert>()
-            .at_partition([moe_chunk_size](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
-                transform_experts(function, ctx, moe_chunk_size);
-            })
-            .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
-                           ov::npuw::v1::subgraphs::Context& compiled_context) {
-                configure_expert_compile(compiled_pipeline, compiled_context);
-            })
-            .scoped());
-
-    registrations.emplace_back(
-        registry.on<ov::npuw::patterns::moe::Gemma4Expert>()
-            .at_partition([moe_chunk_size](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {
-                transform_experts(function, ctx, moe_chunk_size);
-            })
-            .at_compile([](ov::npuw::v1::subgraphs::CompiledPipeline& compiled_pipeline,
-                           ov::npuw::v1::subgraphs::Context& compiled_context) {
-                configure_expert_compile(compiled_pipeline, compiled_context);
-            })
-            .scoped());
+    // Keep explicit legacy matcher names, but attach the expert-tag pipeline
+    // only once. Registering identical callbacks for each matcher transforms
+    // the same function repeatedly, even when only one topology matched.
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::GPTOSSExpert>().scoped());
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Qwen3Expert>().scoped());
+    registrations.emplace_back(registry.on<ov::npuw::patterns::moe::Gemma4Expert>().scoped());
 
     ov::npuw::v1::subgraphs::PatternRegistration downstream_registration;
     downstream_registration.partition_stage = [](ov::npuw::Function& function, ov::npuw::v1::subgraphs::Context& ctx) {

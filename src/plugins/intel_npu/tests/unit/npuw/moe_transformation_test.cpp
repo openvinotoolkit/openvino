@@ -23,6 +23,7 @@
 #include "partitioning/online/compiler.hpp"
 #include "partitioning/online/snapshot.hpp"
 #include "partitioning/partitioning.hpp"
+#include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/moe.hpp"
 
 /*
@@ -797,6 +798,61 @@ TEST_F(MoETransformationTest, Qwen3MoE_OnlinePartitionerIsolatesExpert) {
     // Qwen3Expert bound -> at least one expert group. (Exact count depends on the
     // partitioner's fusion heuristics, so we don't couple the assertion to layer count.)
     EXPECT_GE(count_groups_with_tag(ens, "expert"), 1u) << "Qwen3Expert did not isolate any expert group";
+}
+
+TEST_F(MoETransformationTest, GenericPresetPreservesLegacyExpertCoverageForPrefillAndDecode) {
+    const std::vector<std::pair<std::string, std::function<std::shared_ptr<ov::Model>()>>> builders{
+        {"GPTOSS", ov::test::npuw::build_moe_llm_test_model},
+        {"Qwen3", ov::test::npuw::build_qwen3_moe_llm_test_model},
+        {"Gemma4", ov::test::npuw::build_gemma4_moe_llm_test_model}};
+    const auto expert_layers = [](const ov::npuw::Ensemble& ensemble) {
+        std::set<std::string> layers;
+        for (const auto& group : ensemble.groups) {
+            if (group.gettag() == "expert")
+                layers.insert(group.all_layers.begin(), group.all_layers.end());
+        }
+        return layers;
+    };
+    for (const auto& [name, build] : builders) {
+        for (const int64_t tokens : {1, 8}) {
+            SCOPED_TRACE(name + "/tokens=" + std::to_string(tokens));
+            auto model = build();
+            ov::pass::StatefulToStateless().run_on_model(model);
+            std::map<std::string, ov::PartialShape> shapes;
+            for (const auto& input : model->inputs()) {
+                const auto input_name = input.get_any_name();
+                auto shape = input.get_partial_shape();
+                shape[0] = 1;
+                // Empty past keeps Gemma's token-type mask aligned with the
+                // current sequence; this test compares expert isolation only.
+                if (input_name.find("past_key_values") != std::string::npos)
+                    shape[2] = 0;
+                else
+                    shape[1] = tokens;
+                shapes[input_name] = shape;
+            }
+            model->reshape(shapes);
+            ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model);
+            auto legacy_config = make_moe_isolate_cfg();
+            legacy_config.update({{"NPUW_ONLINE_ISOLATE",
+                                   "P:GPTOSSExpert/expert,P:GPTOSSRouter/router,P:Qwen3Expert/expert,"
+                                   "P:Qwen3Router/router,P:Gemma4Expert/expert,P:Gemma4Router/router"}});
+            const auto baseline = expert_layers(ov::npuw::online::buildPartitioning(model->clone(), legacy_config));
+            ASSERT_FALSE(baseline.empty());
+            const auto combined = expert_layers(ov::npuw::online::buildPartitioning(model, make_moe_isolate_cfg()));
+            for (const auto& layer : baseline)
+                EXPECT_TRUE(combined.count(layer)) << "Lost legacy expert layer " << layer;
+            size_t tagged = 0;
+            for (const auto& node : model->get_ordered_ops()) {
+                if (ov::is_type<ov::op::v11::TopK>(node)) {
+                    ASSERT_TRUE(node->get_rt_info().count(ov::npuw::patterns::moe::RT_INFO_MOE_K));
+                    EXPECT_EQ(node->get_rt_info().at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>(), 2u);
+                    ++tagged;
+                }
+            }
+            EXPECT_EQ(tagged, 2u);
+        }
+    }
 }
 
 // End-to-end against the *production* MoE pipeline (not just the matchers): the full
