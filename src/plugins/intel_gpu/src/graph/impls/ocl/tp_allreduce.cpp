@@ -102,16 +102,15 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
         // input and before whatever reads our output -- `events` and
         // stream.finish() were both only ever standing in for that.
         const auto& coordinator = coordinator_of(instance);
-        const bool async = coordinator->async_supported() &&
-                           std::getenv("TP_SYNC_COLLECTIVE") == nullptr;
+        const bool async = coordinator->run_spliced();
 
-        if (std::getenv("TP_PROF") != nullptr) {
+        if (TP_VERBOSE_AT_LEAST(ov::log::Level::INFO)) {
             static std::once_flag reported;
             std::call_once(reported, [&] {
-                std::cerr << "[TP] collective rides "
-                          << (async ? "in the model queue" : "on its own queue (synchronous)")
-                          << ", in-order=" << (stream.get_queue_type() == QueueTypes::in_order)
-                          << std::endl;
+                TP_LOG_INFO << "[TP] collective rides "
+                            << (async ? "in the model queue" : "on its own queue (synchronous)")
+                            << ", in-order=" << (stream.get_queue_type() == QueueTypes::in_order)
+                            << std::endl;
             });
         }
 
@@ -142,7 +141,7 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
         // The ranks arrive at the next collective ~90 us apart and the group
         // moves at the speed of the last one, so which side of this seam the
         // spread comes from decides whether anything can be done about it.
-        static const bool skew_enabled = std::getenv("TP_SKEW") != nullptr;
+        const bool skew_enabled = coordinator_of(instance)->profiling_host();
         const auto t_fin = std::chrono::steady_clock::now();
         stream.finish();
         if (skew_enabled) {
@@ -166,13 +165,13 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
                     if (fin_calls[i] == 0) {
                         continue;
                     }
-                    std::cerr << "[TP][SKEW] stream.finish rank " << i << " over "
-                              << fin_calls[i] << " calls: mean="
-                              << (static_cast<double>(fin_sum[i]) / 1.0e3 /
-                                  static_cast<double>(fin_calls[i]))
-                              << "us min=" << (static_cast<double>(fin_min[i]) / 1.0e3)
-                              << "us max=" << (static_cast<double>(fin_max[i]) / 1.0e3) << "us"
-                              << std::endl;
+                    TP_REPORT << "[TP][SKEW] stream.finish rank " << i << " over "
+                                 << fin_calls[i] << " calls: mean="
+                                 << (static_cast<double>(fin_sum[i]) / 1.0e3 /
+                                     static_cast<double>(fin_calls[i]))
+                                 << "us min=" << (static_cast<double>(fin_min[i]) / 1.0e3)
+                                 << "us max=" << (static_cast<double>(fin_max[i]) / 1.0e3) << "us"
+                                 << std::endl;
                 }
             }
         }

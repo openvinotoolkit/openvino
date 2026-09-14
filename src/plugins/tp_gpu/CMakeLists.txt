@@ -8,6 +8,10 @@ endif()
 
 set(TARGET_NAME openvino_tp_gpu_plugin)
 
+if(ENABLE_TP_GPU_DEBUG_CAPS)
+    add_definitions(-DTP_DEBUG_CONFIG=1)
+endif()
+
 # Generate embedded OpenCL kernels header at configure time.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_kernels.cmake)
 

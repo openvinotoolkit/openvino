@@ -37,16 +37,32 @@ for the current file layout. Key entry points:
 | `src/infer_request.cpp` | `std::async` fan-out over ranks; collects rank 0 output. |
 | `src/plugins/intel_gpu/src/graph/impls/ocl/tp_allreduce.cpp` | OCL primitive that calls into `TPDeviceCoordinator::allreduce`. |
 
-## Tunables (all opt-in via env var)
+## Tunables
 
-| Env var | Effect | When to enable |
+They are plugin options, not bare environment reads: the table lives in
+`include/tp_gpu/options.inl` and the X-macro there gives each entry a typed
+getter, a default, validation, and environment and config-file support. An
+option's environment variable is `OV_` plus its property key.
+
+The debug tier needs `-DENABLE_TP_GPU_DEBUG_CAPS=ON` (implied by
+`-DENABLE_DEBUG_CAPS=ON`). Without it those options have no getters at all,
+so the guarded code folds away instead of costing a branch.
+
+| Environment variable | Effect | When to enable |
 |---|---|---|
-| `TP_PROF=N` | After every Nth rank-0 call, print aggregated profile: rendezvous phases, exec breakdown (reset / submit / sync_r0 / sync_r1), device-side memcpy & kernel time from `zeEventQueryKernelTimestamp`, and PCIe throughput. | Always when measuring. Pick `N = 2 × num_layers` to get one report per inference. |
-| `TP_DBG=1` | Extremely verbose `[TP][L0]` step-by-step tracing inside `execute_plan` and `record_rank`. | Only when chasing a hang or correctness crash. |
-| `TP_COPY_ENGINE=1` | Route the cross-device memcpy onto the dedicated copy ordinal (when the device exposes one). | Only for prefill-bound benchmarks. Net-negative for warm decode (extra `ExecuteCommandLists` per rank). |
+| `OV_TP_VERBOSE=LOG_INFO` | One-line summaries per compile: sharding plan, shared context, per-rank op counts, which queue the collective rides. | First thing to reach for when something looks wrong. |
+| `OV_TP_VERBOSE=LOG_TRACE` | Per-call `[TP][L0]` step-by-step tracing. | Only when chasing a hang or a correctness crash. |
+| `OV_TP_PROFILING=HOST` | Host-side measurement: rendezvous phases, per-phase splits per rank, record breakdown, scratch arena. Costs about 0.6 ms a token and leaves the execution schedule alone. | The default choice when measuring. |
+| `OV_TP_PROFILING=DEVICE` | Device-side kernel timestamps: memcpy and kernel durations, PCIe throughput. Needs timestamp event pools, which forbid the device-side event reset and move the group onto the single-threaded rank-0 schedule -- about 2.4 ms a token, and what it measures is **not** a production run. | Only when the device-side numbers are the question. |
+| `OV_TP_PROFILING=ALL` | Both of the above. | |
+| `OV_TP_DUMP_PERIOD=N` | Rank-0 collectives between two dumps. Unset means one dump per inference. | When one report per inference is too coarse or too noisy. |
+| `OV_TP_USE_COPY_ENGINE=1` | Route the cross-device memcpy onto the dedicated copy ordinal (when the device exposes one). | Only for prefill-bound benchmarks. Net-negative for warm decode (extra `ExecuteCommandLists` per rank). |
 
-Profile output anatomy (one line per inference at `TP_PROF=44` for a
-22-layer Llama):
+Verbosity and profiling are deliberately separate: raising the verbosity to see
+what a run is doing should not start timing it, and asking for timings should
+not require guessing which log level carries them.
+
+Profile output anatomy (one line per inference):
 
 ```
 [TP][PROF] r0 calls=44 rebuilds=0  totals: ph1=… ph2=… (record=… exec=…) ph3=…  per-call: …

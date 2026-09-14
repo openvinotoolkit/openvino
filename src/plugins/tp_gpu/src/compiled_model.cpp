@@ -19,14 +19,16 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              TPL0SharedContextPtr shared_l0_ctx,
                              TPDeviceCoordinatorPtr device_coordinator,
                              std::vector<std::string>&& sharded_state_ids,
-                             bool loaded_from_cache)
+                             bool loaded_from_cache,
+                             const TPConfig& config)
     : ov::ICompiledModel(model, plugin),
       m_shared_l0_ctx(std::move(shared_l0_ctx)),
       m_device_coordinator(std::move(device_coordinator)),
       m_rank_compiled(std::move(rank_compiled)),
       m_device_names(std::move(device_names)),
       m_sharded_state_ids(std::move(sharded_state_ids)),
-      m_loaded_from_cache(loaded_from_cache) {
+      m_loaded_from_cache(loaded_from_cache),
+      m_config(config) {
     OPENVINO_ASSERT(!m_rank_compiled.empty(), "[TP_GPU] compiled model has no ranks");
     OPENVINO_ASSERT(m_rank_compiled.size() == m_device_names.size(),
                     "[TP_GPU] ", m_rank_compiled.size(), " rank models against ",

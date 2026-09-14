@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "openvino/runtime/iplugin.hpp"
+#include "tp_gpu/tp_config.hpp"
 #include "tp_l0_shared_context.hpp"
 
 namespace ov {
@@ -80,7 +81,19 @@ private:
     /// Answers a GPU-owned property on behalf of the whole rank set.
     ov::Any aggregate_rank_property(const std::string& name, const ov::AnyMap& arguments) const;
 
-    mutable ov::AnyMap m_config;
+    /// Builds the configuration of one call: what the plugin was configured
+    /// with, overridden by what the call passed, finalized so the environment
+    /// and the config file get their say.  Everything that is not ours lands
+    /// in `forwarded`, ready to be handed to the per-rank GPU compilations.
+    void build_call_config(const ov::AnyMap& properties, TPConfig& config, ov::AnyMap& forwarded) const;
+
+    /// Options this plugin owns.  Only ever holds what was explicitly set --
+    /// defaults, environment and config file are resolved per call.
+    TPConfig m_config;
+
+    /// Everything else that was set on the plugin, forwarded verbatim to the
+    /// per-rank GPU compilations.
+    ov::AnyMap m_gpu_config;
 };
 
 }  // namespace tp_gpu

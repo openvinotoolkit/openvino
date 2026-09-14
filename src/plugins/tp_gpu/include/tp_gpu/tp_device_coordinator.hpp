@@ -18,6 +18,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/zero_api.hpp"
+#include "tp_gpu/tp_config.hpp"
 
 namespace ov {
 namespace tp_gpu {
@@ -49,7 +50,8 @@ public:
     TPDeviceCoordinator(TPL0SharedContextPtr shared,
                         int world_size,
                         int num_collectives,
-                        std::chrono::milliseconds collective_timeout = std::chrono::milliseconds{5000});
+                        std::chrono::milliseconds collective_timeout = std::chrono::milliseconds{5000},
+                        const TPConfig& config = TPConfig{});
 
     TPDeviceCoordinator(const TPDeviceCoordinator&) = delete;
     TPDeviceCoordinator& operator=(const TPDeviceCoordinator&) = delete;
@@ -107,6 +109,23 @@ public:
 
     /// Whether allreduce_async can do anything but forward to allreduce().
     virtual bool async_supported() const;
+
+    /// Whether the collectives should run spliced into the model's queue.
+    /// False either because the driver has no splice extension or because a
+    /// debug option asked for the synchronous path.  Read by the primitives
+    /// living in the intel_gpu plugin, which have no config object of their
+    /// own -- and reading it here is also what keeps a `getenv` off the hot
+    /// path, where it used to run on every collective of every inference.
+    bool run_spliced() const {
+        return async_supported() && !m_config.force_sync_collective();
+    }
+
+    /// Whether host-side timings are being kept.  Read by the primitives in
+    /// the intel_gpu plugin for the same reason as `run_spliced`: the
+    /// coordinator is the only handle they have on the configuration.
+    bool profiling_host() const {
+        return m_config.profiling_host();
+    }
 
 
     /// Marks the group as failed, wakes every waiting rank and makes all
@@ -562,13 +581,18 @@ private:
     /// every collective (64 per model step); the device-side reset is one
     /// command-processor slot on a list that is already being drained.  The
     /// saving grows with the world size: N=2 has 2 events, the N>2 ring has
-    /// one per (step, rank).  Excluded is profiling, which reads kernel
+    /// one per (step, rank).  Excluded is device profiling, which reads kernel
     /// timestamps back from those same events after the sync and would find
     /// them wiped.
-    /// TP_DEVICE_EVENT_RESET=0 forces the host reset back on so the two can
-    /// be compared in one build.
     bool use_device_event_reset() const {
-        return m_device_event_reset && !m_profiling_enabled;
+        return !m_config.profiling_device();
+    }
+
+    /// How many rank-0 collectives pass between two measurement dumps, or 0
+    /// when nothing is being measured.  One inference issues one call per
+    /// collective slot, so that count is what an unset period resolves to.
+    std::size_t dump_period() const {
+        return m_config.dump_period(static_cast<std::size_t>(m_num_collectives));
     }
 
     bool ensure_scratch_capacity(std::size_t payload_bytes);
@@ -669,14 +693,8 @@ private:
     std::condition_variable         m_watchdog_cv;
     bool                            m_watchdog_stop{false};
 
-    // Latched TP_PROF state.  Kernel-timestamp events are only created when
-    // this is set, and their values must survive until execute_plan reads
-    // them back, which forbids the device-side event reset.
-    bool                            m_profiling_enabled{false};
-
-    // Latched TP_DEVICE_EVENT_RESET.  On by default; exists so the host and
-    // device reset schemes can be compared without a rebuild.
-    bool                            m_device_event_reset{true};
+    // Resolved from the plugin configuration at construction time.
+    TPConfig                        m_config;
 
     // Ring reduce-scatter + all-gather for N>2; two ranks exchange directly,
     // which is what the ring degenerates to minus a round of latency.

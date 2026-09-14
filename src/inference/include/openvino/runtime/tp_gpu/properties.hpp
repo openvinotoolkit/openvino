@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+/**
+ * @brief Public properties of the TP_GPU tensor-parallel plugin.
+ * @file openvino/runtime/tp_gpu/properties.hpp
+ */
 #pragma once
 
 #include <string>

@@ -341,11 +341,34 @@ caching properties are aggregated across the rank devices and joined with
 
 ## Tunables
 
-| Env var             | Default | Effect |
-|---------------------|---------|--------|
-| `TP_COPY_ENGINE`    | unset   | Route the cross-device memcpy onto the dedicated copy ordinal. Net negative on small (decode) transfers due to extra `ExecuteCommandLists` overhead per rank; useful only for prefill-bound benchmarks. |
-| `TP_PROF`           | unset   | If set to a positive integer N, every Nth call from rank 0 prints aggregated host-side and device-side timings (rendezvous phases, exec breakdown, kernel-timestamp memcpy/kernel durations, PCIe throughput). |
-| `TP_DBG`            | unset   | Verbose tracing of every L0 step taken by `execute_plan`. Very noisy; for crash investigation only. |
+Every knob is a plugin option declared in `include/tp_gpu/options.inl`, not a
+bare `getenv`. The environment variable of an option is `OV_` followed by its
+property key, so `TP_HALVING_MAX_BYTES` is set through
+`OV_TP_HALVING_MAX_BYTES`. A JSON plugin config file works too.
+
+Available in every build, through the environment or the config file but not
+through the public API:
+
+| Property | Default | Effect |
+|---|---|---|
+| `TP_ENABLE_HALVING` | `true` | Recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes. |
+| `TP_HALVING_MAX_BYTES` | `262144` | Payload ceiling above which halving falls back to the ring. |
+| `TP_USE_COPY_ENGINE` | `false` | Route cross-device transfers onto the dedicated copy ordinal. Net negative on small (decode) transfers due to the extra `ExecuteCommandLists` per rank; useful only for prefill-bound benchmarks. |
+| `TP_INPUT_STAGE_MAX_BYTES` | `4096` | Size ceiling for staging a user input through plugin-owned host memory. `0` always stages on the device. |
+
+Only in builds configured with `-DENABLE_TP_GPU_DEBUG_CAPS=ON`. In a release
+build these options do not exist: passing one throws and the environment
+variable is ignored.
+
+| Property | Default | Effect |
+|---|---|---|
+| `TP_VERBOSE` | `LOG_NONE` | Verbosity of the plugin's diagnostics. Takes the `ov::log::Level` names: `LOG_ERROR`, `LOG_WARNING`, `LOG_INFO`, `LOG_DEBUG`, `LOG_TRACE`. Diagnostics only -- it does not start any measurement. |
+| `TP_PROFILING` | `NONE` | What to measure: `NONE`, `HOST`, `DEVICE`, `ALL`. Reports print whenever this is not `NONE`, whatever the verbosity. `DEVICE` needs kernel-timestamp event pools, which forbid the device-side event reset and so move the group onto the single-threaded rank-0 schedule -- it measures something other than a production run. `HOST` does not. |
+| `TP_DUMP_PERIOD` | `0` | Rank-0 collectives between two measurement dumps. `0` means one dump per inference, derived from the collective count of the compiled model. |
+| `TP_FORCE_SYNC_COLLECTIVE` | `false` | Force collectives off the spliced model queue onto their own queue with a full drain. |
+| `TP_DISABLE_LM_HEAD_SHARDING` | `false` | Leave the vocabulary projection unsharded. Changes the collective count baked into an exported blob. |
+| `TP_SHARD_ONLY` | `false` | **Wrong results by construction.** Compile one rank's shard with every collective stripped. |
+| `TP_SKIP_COLLECTIVE` | `false` | **Wrong results by construction.** Return from every AllReduce without doing anything. |
 
 ## Validated Configurations
 

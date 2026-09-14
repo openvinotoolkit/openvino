@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "openvino/core/model.hpp"
+#include "tp_gpu/tp_config.hpp"
 
 namespace ov {
 namespace tp_gpu {
@@ -87,20 +88,31 @@ public:
     ///
     /// The result carries no runtime state: which coordinator runs a collective
     /// is a property of the compiled model, not of the graph.
+    ///
+    /// Takes the whole configuration rather than the individual options it
+    /// happens to consult, so that adding one does not ripple through three
+    /// signatures and every call site again.
     static std::shared_ptr<ov::Model> rewrite(const std::shared_ptr<const ov::Model>& model,
                                               const ShardingPlan& plan,
                                               uint32_t rank,
-                                              uint32_t tp_degree);
+                                              uint32_t tp_degree,
+                                              const TPConfig& config = TPConfig{});
 
     /// Count how many AllReduce collectives will be created (= number of row-parallel linears).
-    static int count_collectives(const ShardingPlan& plan, int tp_degree);
+    static int count_collectives(const ShardingPlan& plan, int tp_degree, const TPConfig& config = TPConfig{});
 
     /// Whether the vocabulary projection is split across `tp_degree` ranks.
     /// The gather that collects the slices moves an equal band from each rank,
     /// so an indivisible vocabulary is left replicated rather than special
     /// cased.  Both the collective count and the rewrite ask this, so they
     /// cannot disagree about whether the gather exists.
-    static bool shards_lm_head(const ShardingPlan& plan, int tp_degree);
+    ///
+    /// That is also why the `disable_lm_head_sharding` policy is applied here
+    /// rather than by the callers: the gather takes the collective id right
+    /// after the last AllReduce, so a caller that remembered the option while
+    /// the other forgot would size the coordinator for one count and index it
+    /// with another.
+    static bool shards_lm_head(const ShardingPlan& plan, int tp_degree, const TPConfig& config = TPConfig{});
 
     /// Ids of the variables `rewrite` shards along the kv-head axis.
     ///

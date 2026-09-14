@@ -21,7 +21,7 @@
 
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/runtime/core.hpp"
-#include "tp_gpu/properties.hpp"
+#include "openvino/runtime/tp_gpu/properties.hpp"
 #include "tp_test_models.hpp"
 
 namespace ov::tp_gpu::tests {

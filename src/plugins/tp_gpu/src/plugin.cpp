@@ -16,7 +16,8 @@
 #include "graph_rewriter.hpp"
 #include "tp_blob.hpp"
 #include "tp_l0_shared_context.hpp"
-#include "tp_gpu/properties.hpp"
+#include "tp_gpu/tp_config.hpp"
+#include "tp_gpu/tp_debug.hpp"
 #include "intel_gpu/runtime/collective_comm_registry.hpp"
 #include "tp_gpu/tp_device_coordinator.hpp"
 #include "openvino/runtime/icore.hpp"
@@ -114,81 +115,9 @@ void strip_collectives(const std::shared_ptr<ov::Model>& shard) {
     }
     shard->validate_nodes_and_infer_types();
 
-    std::cerr << "[TP] TP_SHARD_ONLY: " << dropped << " collectives short-circuited, "
-              << widened << " replaced by a self-concat" << std::endl;
-}
-
-/// \brief Resolves the per-rank device list.
-///
-/// The number of ranks is whatever this returns: `DEVICE_IDS` wins when given,
-/// otherwise `TP_SIZE` ranks are mapped onto GPU.0 .. GPU.{TP_SIZE - 1}. When
-/// both are set they must agree.
-std::vector<std::string> get_device_names(const ov::AnyMap& config) {
-    std::vector<std::string> device_names;
-
-    auto it_devices = config.find(device_ids.name());
-    if (it_devices != config.end()) {
-        device_names = it_devices->second.as<std::vector<std::string>>();
-    }
-
-    size_t devices_count = device_names.size();
-    auto it_size = config.find(tp_size.name());
-    if (it_size != config.end()) {
-        devices_count = it_size->second.as<uint32_t>();
-    }
-
-    OPENVINO_ASSERT(it_devices != config.end() || it_size != config.end(),
-                    "[TP_GPU] Neither TP_SIZE nor DEVICE_IDS was set, at least one of them must be specified");
-
-    if (device_names.empty()) {
-        device_names.reserve(devices_count);
-        for (uint32_t i = 0; i < devices_count; ++i) {
-            device_names.push_back("GPU." + std::to_string(i));
-        }
-    } else {
-        OPENVINO_ASSERT(device_names.size() == devices_count,
-                        "[TP_GPU] ", device_ids.name(), " lists ", device_names.size(),
-                        " devices, which does not match ", tp_size.name(), "=", devices_count);
-    }
-
-    OPENVINO_ASSERT(device_names.size() >= 2,
-                    "[TP_GPU] Need at least 2 devices, got ", device_names.size());
-
-    return device_names;
-}
-
-/// \brief Same as `get_device_names`, but tolerates a config that says nothing
-/// about the topology.
-///
-/// On import the topology comes from the blob; the config only gets a say when
-/// the caller explicitly asked for one, and then it has to agree.
-std::vector<std::string> get_requested_device_names(const ov::AnyMap& config) {
-    if (config.count(tp_size.name()) == 0 && config.count(device_ids.name()) == 0) {
-        return {};
-    }
-    return get_device_names(config);
-}
-
-/// \brief Reads the collective timeout, in milliseconds.
-///
-/// Zero disables the bound entirely, which is only useful when stepping
-/// through a collective under a debugger.
-std::chrono::milliseconds get_collective_timeout(const ov::AnyMap& config) {
-    auto it = config.find(communication_timeout_ms.name());
-    if (it == config.end()) {
-        return std::chrono::milliseconds{5000};
-    }
-    return std::chrono::milliseconds{it->second.as<uint32_t>()};
-}
-
-/// \brief Drops the keys owned by this plugin.
-///
-/// Whatever is left in the config is forwarded to the GPU plugin verbatim, and
-/// it rejects properties it does not recognize.
-void erase_tp_keys(ov::AnyMap& config) {
-    config.erase(tp_size.name());
-    config.erase(device_ids.name());
-    config.erase(communication_timeout_ms.name());
+    TP_WARN_ALWAYS << "[TP_GPU] " << ov::tp_gpu::shard_only.name() << ": " << dropped
+                   << " collectives short-circuited, " << widened
+                   << " replaced by a self-concat. Results of this model are meaningless.";
 }
 
 /// \brief Read-only, seekable stream over an already materialized blob.
@@ -299,10 +228,8 @@ Plugin::SharedL0Setup Plugin::create_shared_l0(const std::vector<std::string>& d
         setup.rank_ctx[rank] = get_core()->create_context(device_names[rank], rank_params);
     }
 
-    if (std::getenv("TP_PROF") != nullptr) {
-        std::cerr << "[TP] Created shared L0 context across " << tp_degree << " devices (ctx=" << shared_ctx_h
-                  << ")" << std::endl;
-    }
+    TP_LOG_INFO << "[TP] Created shared L0 context across " << tp_degree << " devices (ctx="
+                << shared_ctx_h << ")" << std::endl;
 
     return setup;
 }
@@ -326,24 +253,45 @@ static void attach_collective_registry(const std::vector<ov::SoPtr<ov::ICompiled
     }
 }
 
+void Plugin::build_call_config(const ov::AnyMap& properties, TPConfig& config, ov::AnyMap& forwarded) const {
+    // Whatever the plugin was configured with first, so the call can override
+    // it rather than lose to it -- the old insert-into-a-map did the opposite
+    // and silently kept the older value.
+    config.set_user_property(m_config.user_properties(), ov::OptionVisibility::RELEASE);
+
+    forwarded = m_gpu_config;
+    ov::AnyMap own;
+    for (const auto& entry : properties) {
+        if (config.owns(entry.first)) {
+            own.insert(entry);
+        } else {
+            forwarded[entry.first] = entry.second;
+        }
+    }
+    config.set_user_property(own, ov::OptionVisibility::RELEASE);
+
+    // Reads the environment and the config file, then locks the values down.
+    config.finalize(nullptr, nullptr);
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
-    auto config = properties;
-    config.insert(m_config.begin(), m_config.end());
+    TPConfig cfg;
+    ov::AnyMap config;
+    build_call_config(properties, cfg, config);
 
     // ---- Extract TP configuration ----
-    auto device_names = get_device_names(config);
+    auto device_names = cfg.resolve_device_names();
     // Weights are always divided by however many devices were asked for.  Under
-    // TP_SHARD_ONLY only the first rank is built and run, so the execution
+    // shard_only only the first rank is built and run, so the execution
     // degree drops to one while the sharding degree does not.
     const auto shard_degree = static_cast<uint32_t>(device_names.size());
-    const bool shard_only = std::getenv("TP_SHARD_ONLY") != nullptr;
+    const bool shard_only = cfg.shard_only();
     if (shard_only) {
         device_names.resize(1);
     }
     const auto tp_degree = static_cast<uint32_t>(device_names.size());
-    const auto collective_timeout = get_collective_timeout(config);
-    erase_tp_keys(config);
+    const std::chrono::milliseconds collective_timeout{cfg.get_communication_timeout_ms()};
 
     // ---- Build execution plan ----
     //
@@ -357,22 +305,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     int num_collectives = shard_only
                               ? 0
                               : GraphRewriter::count_collectives(sharding_plan,
-                                                                 static_cast<int>(shard_degree));
+                                                                 static_cast<int>(shard_degree),
+                                                                 cfg);
 
-    if (std::getenv("TP_PROF") != nullptr) {
-        const auto column_count = sharding_plan.linears.size() - static_cast<size_t>(num_collectives);
-        const auto biased = std::count_if(sharding_plan.linears.begin(), sharding_plan.linears.end(),
-                                          [](const ShardingPlan::LinearDesc& l) { return l.has_bias; });
-        std::cerr << "[TP] Sharding plan: layers=" << sharding_plan.num_layers
-                  << " linears=" << sharding_plan.linears.size()
-                  << " (column=" << column_count << " row=" << num_collectives
-                  << " biased=" << biased << ")"
-                  << " heads=" << sharding_plan.num_heads
-                  << " kv_heads=" << sharding_plan.num_kv_heads
-                  << " head_dim=" << sharding_plan.head_dim
-                  << " hidden=" << sharding_plan.hidden_size
-                  << " intermediate=" << sharding_plan.intermediate_size << std::endl;
-    }
+    TP_LOG_INFO << "[TP] Sharding plan: layers=" << sharding_plan.num_layers
+                << " linears=" << sharding_plan.linears.size()
+                << " (column=" << (sharding_plan.linears.size() - static_cast<size_t>(num_collectives))
+                << " row=" << num_collectives
+                << " biased=" << std::count_if(sharding_plan.linears.begin(), sharding_plan.linears.end(),
+                                               [](const ShardingPlan::LinearDesc& l) { return l.has_bias; })
+                << ")"
+                << " heads=" << sharding_plan.num_heads
+                << " kv_heads=" << sharding_plan.num_kv_heads
+                << " head_dim=" << sharding_plan.head_dim
+                << " hidden=" << sharding_plan.hidden_size
+                << " intermediate=" << sharding_plan.intermediate_size << std::endl;
 
     // Attention is split by KV head.  When they do not divide evenly the first
     // ranks take one extra each, and since every layer ends in a collective the
@@ -382,10 +329,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const int base = sharding_plan.num_kv_heads / static_cast<int>(tp_degree);
         const int imbalance_pct = 100 / (base + 1);
         if (imbalance_pct > 10) {
-            std::cerr << "[TP_GPU] Warning: " << sharding_plan.num_kv_heads
-                      << " KV heads do not divide evenly across " << tp_degree << " ranks ("
-                      << remainder << " rank(s) get " << (base + 1) << ", the rest " << base
-                      << "), about " << imbalance_pct << "% load imbalance." << std::endl;
+            TP_WARN_ALWAYS << "[TP_GPU] Warning: " << sharding_plan.num_kv_heads
+                           << " KV heads do not divide evenly across " << tp_degree << " ranks ("
+                           << remainder << " rank(s) get " << (base + 1) << ", the rest " << base
+                           << "), about " << imbalance_pct << "% load imbalance.";
         }
     }
 
@@ -398,18 +345,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         coordinator = std::make_shared<TPDeviceCoordinator>(setup.shared,
                                                             static_cast<int>(tp_degree),
                                                             num_collectives,
-                                                            collective_timeout);
+                                                            collective_timeout,
+                                                            cfg);
     }
 
     std::vector<ov::SoPtr<ov::ICompiledModel>> rank_compiled(tp_degree);
 
     for (uint32_t rank = 0; rank < tp_degree; ++rank) {
-        auto rank_model = GraphRewriter::rewrite(model, sharding_plan, rank, shard_degree);
+        auto rank_model = GraphRewriter::rewrite(model, sharding_plan, rank, shard_degree, cfg);
 
-        if (std::getenv("TP_PROF") != nullptr) {
-            std::cerr << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size() << " ops, "
-                      << num_collectives << " AllReduce points" << std::endl;
-        }
+        TP_LOG_INFO << "[TP] Rank " << rank << ": " << rank_model->get_ordered_ops().size() << " ops, "
+                    << num_collectives << " AllReduce points" << std::endl;
 
         if (shard_only) {
             strip_collectives(rank_model);
@@ -427,7 +373,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                            std::move(device_names),
                                            std::move(setup.shared),
                                            std::move(coordinator),
-                                           GraphRewriter::sharded_state_ids(model, sharding_plan));
+                                           GraphRewriter::sharded_state_ids(model, sharding_plan),
+                                           /*loaded_from_cache=*/false,
+                                           cfg);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
@@ -437,29 +385,27 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 }
 
 void Plugin::set_property(const ov::AnyMap& properties) {
-    m_config.insert(properties.begin(), properties.end());
+    ov::AnyMap own;
+    for (const auto& entry : properties) {
+        if (m_config.owns(entry.first)) {
+            own.insert(entry);
+        } else {
+            m_gpu_config[entry.first] = entry.second;
+        }
+    }
+    // Validated here rather than at the next compile, and overwriting rather
+    // than losing to whatever was set first.
+    m_config.set_user_property(own, ov::OptionVisibility::RELEASE);
 }
 
 std::vector<std::string> Plugin::query_devices(const ov::AnyMap& arguments) const {
-    ov::AnyMap merged = arguments;
-    merged.insert(m_config.begin(), m_config.end());
+    TPConfig cfg;
+    ov::AnyMap forwarded;
+    build_call_config(arguments, cfg, forwarded);
 
-    if (auto it = merged.find(device_ids.name()); it != merged.end()) {
-        auto names = it->second.as<std::vector<std::string>>();
-        if (!names.empty()) {
-            return names;
-        }
-    }
-    if (auto it = merged.find(tp_size.name()); it != merged.end()) {
-        const auto count = it->second.as<uint32_t>();
-        std::vector<std::string> names;
-        names.reserve(count);
-        for (uint32_t i = 0; i < count; ++i) {
-            names.push_back("GPU." + std::to_string(i));
-        }
-        if (!names.empty()) {
-            return names;
-        }
+    auto names = cfg.requested_device_names();
+    if (!names.empty()) {
+        return names;
     }
     // Nothing to go on yet -- the caller is asking about the plugin, not about
     // a particular run. The GPU plugin's own default device answers for it.
@@ -488,14 +434,16 @@ ov::Any Plugin::aggregate_rank_property(const std::string& name, const ov::AnyMa
 
 ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& arguments) const {
     if (name == ov::supported_properties.name()) {
-        return std::vector<ov::PropertyName>{
+        std::vector<ov::PropertyName> properties{
             ov::PropertyName{ov::supported_properties.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::full_name.name(), ov::PropertyMutability::RO},
             ov::PropertyName{ov::device::capabilities.name(), ov::PropertyMutability::RO},
-            ov::PropertyName{ov::tp_gpu::tp_size.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::tp_gpu::device_ids.name(), ov::PropertyMutability::RW},
-            ov::PropertyName{ov::tp_gpu::communication_timeout_ms.name(), ov::PropertyMutability::RW},
         };
+        // Derived from the option table rather than repeated by hand, so the
+        // two cannot drift apart.
+        const auto own = m_config.supported_properties();
+        properties.insert(properties.end(), own.begin(), own.end());
+        return properties;
     } else if (name == ov::device::full_name.name()) {
         return std::string("TP_GPU");
     } else if (name == ov::device::capabilities.name()) {
@@ -511,18 +459,11 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
         properties.emplace_back(ov::tp_gpu::tp_size.name(), ov::PropertyMutability::RW);
         properties.emplace_back(ov::tp_gpu::device_ids.name(), ov::PropertyMutability::RW);
         return properties;
-    } else if (name == ov::tp_gpu::communication_timeout_ms.name()) {
-        auto it = m_config.find(name);
-        return it != m_config.end() ? it->second : ov::Any{uint32_t{5000}};
-    } else if (name == ov::tp_gpu::tp_size.name()) {
-        // Reported as "unset" instead of refused: the cache hash queries every
-        // caching property before any topology has been chosen, and a throw
-        // there would disable caching outright.
-        auto it = m_config.find(name);
-        return it != m_config.end() ? it->second : ov::Any{uint32_t{0}};
-    } else if (name == ov::tp_gpu::device_ids.name()) {
-        auto it = m_config.find(name);
-        return it != m_config.end() ? it->second : ov::Any{std::vector<std::string>{}};
+    } else if (m_config.owns(name)) {
+        // Unset options answer with their default rather than refusing: the
+        // cache hash queries every caching property before any topology has
+        // been chosen, and a throw there would disable caching outright.
+        return m_config.get_property(name, ov::OptionVisibility::RELEASE);
     }
 
     // Everything the GPU plugin folds into its cache hash has to be answerable
@@ -545,11 +486,11 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
                                         const ov::AnyMap& properties) const {
     OPENVINO_ASSERT(model != nullptr, "[TP_GPU] query_model: model is null");
 
-    auto config = properties;
-    config.insert(m_config.begin(), m_config.end());
+    TPConfig cfg;
+    ov::AnyMap config;
+    build_call_config(properties, cfg, config);
 
-    const auto device_names = get_device_names(config);
-    erase_tp_keys(config);
+    const auto device_names = cfg.resolve_device_names();
 
     // Every rank compiles the same op set, so whatever the GPU plugin supports
     // on one rank is what TP_GPU supports as a whole. The collectives inserted
@@ -562,12 +503,12 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, const ov::AnyMap& properties) const {
-    auto config = properties;
-    config.insert(m_config.begin(), m_config.end());
+    TPConfig cfg;
+    ov::AnyMap config;
+    build_call_config(properties, cfg, config);
 
-    const auto collective_timeout = get_collective_timeout(config);
-    const auto requested_devices = get_requested_device_names(config);
-    erase_tp_keys(config);
+    const std::chrono::milliseconds collective_timeout{cfg.get_communication_timeout_ms()};
+    const auto requested_devices = cfg.requested_device_names();
 
     // The TP container is what we are reading right now. Forwarding it would
     // make the GPU plugin try to import the outer blob instead of its own.
@@ -626,7 +567,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
         coordinator = std::make_shared<TPDeviceCoordinator>(setup.shared,
                                                             static_cast<int>(world_size),
                                                             static_cast<int>(num_collectives),
-                                                            collective_timeout);
+                                                            collective_timeout,
+                                                            cfg);
     }
 
     std::vector<ov::SoPtr<ov::ICompiledModel>> rank_compiled(world_size);
@@ -663,7 +605,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_blob(std::istream& blob, cons
                                            std::move(setup.shared),
                                            std::move(coordinator),
                                            std::move(sharded_state_ids),
-                                           /*loaded_from_cache=*/true);
+                                           /*loaded_from_cache=*/true,
+                                           cfg);
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model, const ov::AnyMap& properties) const {

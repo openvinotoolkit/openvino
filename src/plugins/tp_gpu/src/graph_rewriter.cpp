@@ -14,6 +14,7 @@
 
 #include "tp_gpu/op/tp_all_reduce.hpp"
 #include "tp_gpu/op/tp_gather.hpp"
+#include "tp_gpu/tp_debug.hpp"
 #include "tp_gpu/tp_device_coordinator.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/paged_attention.hpp"
@@ -977,7 +978,8 @@ std::vector<std::shared_ptr<ov::op::util::Variable>> collect_kv_cache_variables(
 std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov::Model>& model,
                                                   const ShardingPlan& plan,
                                                   uint32_t rank,
-                                                  uint32_t tp_degree) {
+                                                  uint32_t tp_degree,
+                                                  const TPConfig& config) {
     OPENVINO_ASSERT(tp_degree >= 2, "[TP_GPU] tp_degree must be >= 2");
 
     // KV heads are the unit attention is split by, so they -- not the query
@@ -1092,10 +1094,14 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
         }
     }
 
-    if (runtime_sliced != 0 && std::getenv("TP_PROF") != nullptr) {
-        std::cerr << "[TP] Rank " << rank << ": " << runtime_sliced << " of " << plan.linears.size()
-                  << " weights could not be pre-sliced and fall back to a runtime Slice"
-                  << " (this dominates compile time)" << std::endl;
+    if (runtime_sliced != 0) {
+        // Not gated behind a verbosity level: a runtime Slice per weight is a
+        // compile-time cliff, and whoever hits it needs to know without having
+        // been told to look.
+        TP_WARN_ALWAYS << "[TP_GPU] Warning: rank " << rank << ": " << runtime_sliced << " of "
+                       << plan.linears.size()
+                       << " weights could not be pre-sliced and fall back to a runtime Slice"
+                       << " (this dominates compile time)";
     }
 
     // ------------------------------------------------------------------
@@ -1414,7 +1420,7 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
     //     the collective count consults too; the two must agree, because the
     //     gather occupies the id right after the last AllReduce.
     // ------------------------------------------------------------------
-    if (GraphRewriter::shards_lm_head(plan, tp_degree)) {
+    if (GraphRewriter::shards_lm_head(plan, tp_degree, config)) {
         auto it = name_map.find(plan.lm_head_name);
         OPENVINO_ASSERT(it != name_map.end(),
                         "[TP_GPU] The vocabulary projection '", plan.lm_head_name,
@@ -1459,11 +1465,9 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
             target.replace_source_output(gather->output(0));
         }
 
-        if (std::getenv("TP_PROF") != nullptr) {
-            std::cerr << "[TP] Rank " << rank << ": vocabulary projection '" << plan.lm_head_name
-                      << "' split " << vocab << " -> " << band << " rows, gathered by collective "
-                      << gather_id << std::endl;
-        }
+        TP_LOG_INFO << "[TP] Rank " << rank << ": vocabulary projection '" << plan.lm_head_name
+                    << "' split " << vocab << " -> " << band << " rows, gathered by collective "
+                    << gather_id << std::endl;
     }
 
     // ------------------------------------------------------------------
@@ -1474,23 +1478,23 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
     return cloned;
 }
 
-bool GraphRewriter::shards_lm_head(const ShardingPlan& plan, int tp_degree) {
+bool GraphRewriter::shards_lm_head(const ShardingPlan& plan, int tp_degree, const TPConfig& config) {
     if (plan.lm_head_name.empty() || tp_degree <= 1) {
         return false;
     }
-    if (std::getenv("TP_LM_HEAD_ALL_RANKS") != nullptr) {
+    if (config.disable_lm_head_sharding()) {
         return false;
     }
     return plan.lm_head_vocab % static_cast<int64_t>(tp_degree) == 0;
 }
 
-int GraphRewriter::count_collectives(const ShardingPlan& plan, int tp_degree) {
+int GraphRewriter::count_collectives(const ShardingPlan& plan, int tp_degree, const TPConfig& config) {
     int count = 0;
     for (const auto& desc : plan.linears) {
         if (!desc.is_column_parallel)
             ++count;
     }
-    if (shards_lm_head(plan, tp_degree)) {
+    if (shards_lm_head(plan, tp_degree, config)) {
         ++count;
     }
     return count;
