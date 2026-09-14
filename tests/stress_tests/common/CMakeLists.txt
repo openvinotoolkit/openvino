@@ -9,7 +9,9 @@ file (GLOB_RECURSE HDR *.h)
 
 add_library(${TARGET_NAME} STATIC ${SRC} ${HDR})
 
-target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(${TARGET_NAME} PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${OpenVINO_SOURCE_DIR}/thirdparty/json/nlohmann_json/single_include)
 
 add_subdirectory(${OpenVINO_SOURCE_DIR}/thirdparty/gflags
                  ${CMAKE_CURRENT_BINARY_DIR}/gflags_build

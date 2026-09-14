@@ -71,7 +71,36 @@ The configuration file defines the test parameters matrix. The test harness gene
 
 The compilation configuration file defines properties passed to `ov::Core::compile_model()`. If no configuration file is provided, tests default to `PERFORMANCE_HINT LATENCY`.
 
-Sample configuration file format (`compilation_config.txt`):
+Both **JSON** (`.json`) and **plain text** (`.txt`) configuration file formats are supported.
+
+#### A. JSON Format (Recommended for Multi-Device Configs)
+
+Supports device-scoped blocks (`"NPU"`, `"GPU"`, `"CPU"`) as well as global top-level properties:
+
+```json
+{
+    "PERFORMANCE_HINT": "LATENCY",
+    "NPU": {
+        "NPU_USE_NPUW": "YES",
+        "NPUW_DEVICES": "NPU",
+        "NPUW_FUNCALL_FOR_ALL": "YES",
+        "NPU_COMPILER_DYNAMIC_QUANTIZATION": "YES",
+        "NPU_QDQ_OPTIMIZATION": "NO",
+        "NPUW_ENSURE_COMPATIBILITY": "YES",
+        "NPU_ENABLE_STRIDES_FOR": "past_key_values.0.key,past_key_values.1.key"
+    },
+    "GPU": {
+        "INFERENCE_PRECISION_HINT": "f16"
+    },
+    "CPU": {
+        "NUM_STREAMS": "1",
+        "INFERENCE_NUM_THREADS": "4"
+    }
+}
+```
+
+#### B. Plain Text Format (`compilation_config.txt`)
+
 ```text
 # Global properties (applied to all devices)
 PERFORMANCE_HINT LATENCY
@@ -84,8 +113,9 @@ INFERENCE_NUM_THREADS 4
 ```
 
 Supported syntax:
-- `KEY VALUE` or `KEY=VALUE`
-- `DEVICE KEY VALUE`
+- JSON with device-scoped objects (`"NPU": { ... }`) or flat JSON object
+- Plain text `KEY VALUE` or `KEY=VALUE`
+- Plain text `DEVICE KEY VALUE`
 - Comments starting with `#` or `//`
 - Quoted string values (e.g. `PERFORMANCE_HINT "LATENCY"`)
 
@@ -222,4 +252,64 @@ When a test fails, the harness automatically writes the following files to `./te
 - **`--collect_failure_logs=true|false`**: Enable/disable automatic failure log collection (default: `true`).
 - **`--failure_logs_dir=/path/to/dir`**: Custom destination directory for logs (default: `./test_failure_logs`).
 - **`--fw_log_path=/path/to/fw_log`**: Explicit path to NPU firmware log (defaults to auto-detecting `/sys/kernel/debug/accel/*/fw_log`).
+
+---
+
+## 5. Workload Execution & Hardware Utilization Guide (NPU vs Host CPU)
+
+When executing tests on target accelerators such as the **NPU**, understanding where each test phase executes is critical for diagnosing hardware utilization and performance:
+
+### A. Host CPU Model Compilation vs NPU Hardware Execution
+- **`create_compiled_model` (`Create ExecutableNetwork`)**:
+  - The test invokes `ov::Core::compile_model(..., "NPU")`.
+  - The OpenVINO NPU compiler plugin (`libopenvino_intel_npu_compiler.so`) executes **entirely on the host CPU** to parse IR layers, perform graph optimization/quantization transformations, and produce the compiled binary blob.
+  - **Expected Hardware Activity:** NPU execution engines remain idle (~0% utilization) while host CPU utilization increases.
+- **`infer_request_inference` & `stress_*` Scenarios**:
+  - Dispatches inference execution requests to the NPU driver and VPU hardware engine via the Level-Zero / UMD driver (`libze_intel_npu.so`).
+  - **Expected Hardware Activity:** High NPU engine/memory utilization visible in monitoring tools.
+
+### B. Test Suite Workload Breakdown
+
+| Test Name / Scenario | Host CPU Compilation | Buffer Allocation | NPU Hardware Inference | Notes |
+|---|:---:|:---:|:---:|---|
+| `load_unload_plugin` | ❌ | ❌ | ❌ | Tests plugin library load & unload lifecycle. |
+| `read_network` | ❌ | ❌ | ❌ | Tests IR XML/BIN parsing and frontend reading. |
+| `cnnnetwork_reshape_*` | ❌ | ❌ | ❌ | Tests dynamic/static shape propagation. |
+| `create_compiled_model` | ✔️ (Host CPU) | ❌ | ❌ | Compiles model to blob on CPU; no NPU infer. |
+| `create_infer_request` | ✔️ (Host CPU) | ✔️ | ❌ | Compiles and allocates IO memory buffers only. |
+| `infer_request_inference` | ✔️ (Host CPU) | ✔️ | ✔️ (NPU) | Executes synchronous/asynchronous inference on NPU. |
+| `stress_parallel_infer` | ✔️ (1x Init) | ✔️ | ✔️ (NPU) | Parallel worker threads dispatching NPU inferences. |
+| `stress_load_unload` | ✔️ (Repeated) | ✔️ | ✔️ (NPU) | Continuous compile, infer on NPU, and teardown. |
+| `stress_concurrent_load_infer` | ✔️ (Background) | ✔️ | ✔️ (NPU) | Background thread compiles while workers infer on NPU. |
+| `stress_heterogeneous_*` | ✔️ | ✔️ | ✔️ (NPU) | Multi-model concurrent inference across threads/procs. |
+
+### C. Monitoring NPU Utilization in Real Time
+
+To verify active NPU hardware execution during inference stress runs:
+
+1. **Launch Real-Time NPU Hardware Monitor (in a separate terminal):**
+   ```bash
+   # Using intel-npu-smi tool:
+   watch -n 0.5 /path/to/release/intel-npu-smi
+
+   # Or using npu-utilization script:
+   /path/to/release/npu-utilization.sh
+   ```
+
+2. **Execute Inference Workload on NPU:**
+   ```bash
+   export LD_LIBRARY_PATH=/path/to/release:$LD_LIBRARY_PATH
+
+   # Run multi-threaded parallel inference
+   StressUnitTests --test_conf=/path/to/test_config.xml \
+       --gtest_filter='StressUnitTests/UnitTestSuite.stress_parallel_infer/*NPU*'
+
+   # Run multi-model concurrent inference
+   StressUnitTests --test_conf=/path/to/test_config.xml \
+       --gtest_filter='StressUnitTests/UnitTestSuiteMultiModel.stress_heterogeneous_concurrent_infer/*'
+   ```
+
+### D. Understanding Progress Logs
+- **`"[ INFO ] Half of the test have already passed"`**: Emitted at iteration $N / 2$ of each test loop (e.g., at iteration 25 for `<iterations><value>50</value></iterations>`) to signal test liveness and 50% completion checkpoint.
+
 

@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <string.h>
+#include <nlohmann/json.hpp>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -282,53 +283,114 @@ ov::AnyMap load_compilation_config(const std::string &config_file, const std::st
             throw std::runtime_error("Can't open compilation config file: \"" + config_file + "\"");
         }
 
-        std::string line;
-        while (std::getline(file, line)) {
-            size_t first = line.find_first_not_of(" \t\r\n");
-            if (first == std::string::npos) continue;
-            size_t last = line.find_last_not_of(" \t\r\n");
-            line = line.substr(first, last - first + 1);
-
-            if (line.empty() || line[0] == '#' || (line.size() >= 2 && line.substr(0, 2) == "//")) {
-                continue;
-            }
-
-            auto eq_pos = line.find('=');
-            if (eq_pos != std::string::npos) {
-                std::string key = line.substr(0, eq_pos);
-                std::string value = line.substr(eq_pos + 1);
-
-                size_t k_start = key.find_first_not_of(" \t");
-                size_t k_end = key.find_last_not_of(" \t");
-                size_t v_start = value.find_first_not_of(" \t");
-                size_t v_end = value.find_last_not_of(" \t");
-                if (k_start != std::string::npos && v_start != std::string::npos) {
-                    key = key.substr(k_start, k_end - k_start + 1);
-                    value = value.substr(v_start, v_end - v_start + 1);
-                    if (value.size() >= 2 && ((value.front() == '"' && value.back() == '"') ||
-                                              (value.front() == '\'' && value.back() == '\''))) {
-                        value = value.substr(1, value.size() - 2);
-                    }
-                    config[key] = value;
+        // Check if file is JSON formatted
+        bool is_json = false;
+        if (resolved_path.size() >= 5 && resolved_path.substr(resolved_path.size() - 5) == ".json") {
+            is_json = true;
+        } else {
+            char first_char = 0;
+            while (file >> first_char) {
+                if (!isspace(first_char)) {
+                    if (first_char == '{') is_json = true;
+                    break;
                 }
-            } else {
-                std::istringstream iss(line);
-                std::string token1, token2, token3;
-                iss >> token1 >> token2 >> token3;
-                if (!token3.empty()) {
-                    if (device.empty() || token1 == device) {
-                        if (token3.size() >= 2 && ((token3.front() == '"' && token3.back() == '"') ||
-                                                  (token3.front() == '\'' && token3.back() == '\''))) {
-                            token3 = token3.substr(1, token3.size() - 2);
+            }
+            file.clear();
+            file.seekg(0, std::ios::beg);
+        }
+
+        if (is_json) {
+            try {
+                nlohmann::json root;
+                file >> root;
+
+                auto parse_json_object = [&](const nlohmann::json &obj) {
+                    for (auto it = obj.begin(); it != obj.end(); ++it) {
+                        if (it.value().is_primitive()) {
+                            if (it.value().is_string()) {
+                                config[it.key()] = it.value().get<std::string>();
+                            } else if (it.value().is_boolean()) {
+                                config[it.key()] = it.value().get<bool>() ? "YES" : "NO";
+                            } else if (it.value().is_number_integer()) {
+                                config[it.key()] = std::to_string(it.value().get<int64_t>());
+                            } else if (it.value().is_number_float()) {
+                                config[it.key()] = std::to_string(it.value().get<double>());
+                            }
                         }
-                        config[token2] = token3;
                     }
-                } else if (!token2.empty()) {
-                    if (token2.size() >= 2 && ((token2.front() == '"' && token2.back() == '"') ||
-                                              (token2.front() == '\'' && token2.back() == '\''))) {
-                        token2 = token2.substr(1, token2.size() - 2);
+                };
+
+                // 1. If target device section exists (e.g. root["NPU"]), parse its inner properties
+                if (!device.empty() && root.contains(device) && root[device].is_object()) {
+                    parse_json_object(root[device]);
+                }
+
+                // 2. Also parse any top-level properties that are primitive (global settings)
+                for (auto it = root.begin(); it != root.end(); ++it) {
+                    if (it.value().is_primitive()) {
+                        if (it.value().is_string()) {
+                            config[it.key()] = it.value().get<std::string>();
+                        } else if (it.value().is_boolean()) {
+                            config[it.key()] = it.value().get<bool>() ? "YES" : "NO";
+                        } else if (it.value().is_number_integer()) {
+                            config[it.key()] = std::to_string(it.value().get<int64_t>());
+                        } else if (it.value().is_number_float()) {
+                            config[it.key()] = std::to_string(it.value().get<double>());
+                        }
                     }
-                    config[token1] = token2;
+                }
+            } catch (const std::exception &e) {
+                throw std::runtime_error("Error parsing JSON compilation config file \"" + config_file + "\": " + e.what());
+            }
+        } else {
+            std::string line;
+            while (std::getline(file, line)) {
+                size_t first = line.find_first_not_of(" \t\r\n");
+                if (first == std::string::npos) continue;
+                size_t last = line.find_last_not_of(" \t\r\n");
+                line = line.substr(first, last - first + 1);
+
+                if (line.empty() || line[0] == '#' || (line.size() >= 2 && line.substr(0, 2) == "//")) {
+                    continue;
+                }
+
+                auto eq_pos = line.find('=');
+                if (eq_pos != std::string::npos) {
+                    std::string key = line.substr(0, eq_pos);
+                    std::string value = line.substr(eq_pos + 1);
+
+                    size_t k_start = key.find_first_not_of(" \t");
+                    size_t k_end = key.find_last_not_of(" \t");
+                    size_t v_start = value.find_first_not_of(" \t");
+                    size_t v_end = value.find_last_not_of(" \t");
+                    if (k_start != std::string::npos && v_start != std::string::npos) {
+                        key = key.substr(k_start, k_end - k_start + 1);
+                        value = value.substr(v_start, v_end - v_start + 1);
+                        if (value.size() >= 2 && ((value.front() == '"' && value.back() == '"') ||
+                                                  (value.front() == '\'' && value.back() == '\''))) {
+                            value = value.substr(1, value.size() - 2);
+                        }
+                        config[key] = value;
+                    }
+                } else {
+                    std::istringstream iss(line);
+                    std::string token1, token2, token3;
+                    iss >> token1 >> token2 >> token3;
+                    if (!token3.empty()) {
+                        if (device.empty() || token1 == device) {
+                            if (token3.size() >= 2 && ((token3.front() == '"' && token3.back() == '"') ||
+                                                      (token3.front() == '\'' && token3.back() == '\''))) {
+                                token3 = token3.substr(1, token3.size() - 2);
+                            }
+                            config[token2] = token3;
+                        }
+                    } else if (!token2.empty()) {
+                        if (token2.size() >= 2 && ((token2.front() == '"' && token2.back() == '"') ||
+                                                  (token2.front() == '\'' && token2.back() == '\''))) {
+                            token2 = token2.substr(1, token2.size() - 2);
+                        }
+                        config[token1] = token2;
+                    }
                 }
             }
         }
