@@ -683,7 +683,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                         } else if (use_tensor_view) {
                                             const auto model_past_len =
                                                 static_cast<int64_t>(pyramid->get_context_length(pyramid_id)) -
-                                                static_cast<int64_t>(pyramid->query_size_at(pyramid_id));
+                                                static_cast<int64_t>(pyramid->compiled_query_size_at(pyramid_id));
                                             LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len="
                                                                                    << model_past_len);
                                             ctx.target_request->set_tensor(
@@ -830,7 +830,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         // Original (pre-PropagateSliceUp) query/chunk size. Safe to use for GENERATE
                         // too: decode graphs are never touched by PropagateSliceUp, so the per-tier
                         // query axis and this top-level value are always equal there.
-                        const auto present_len = pyramid->query_size;
+                        const auto present_len = pyramid->original_query_length;
                         const auto& dst = ctx.target_request->get_tensor(mask_iport);
 
                         auto copy_mask_segment = [&](std::size_t dst_offset,

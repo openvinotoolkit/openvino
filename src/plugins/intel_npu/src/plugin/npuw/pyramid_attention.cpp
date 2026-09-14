@@ -1118,7 +1118,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
 
     if (!is_block) {
         auto obj = std::make_shared<PyramidAttentionContiguous>();
-        obj->query_size = func_pyramid._query_length;
+        obj->original_query_length = func_pyramid._query_length;
         obj->full_context_size = func_pyramid._full_context_length;
         obj->_models_to_compile = func_pyramid._models;
         obj->_data_left_aligned = func_pyramid._data_left_aligned;
@@ -1134,7 +1134,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
                 info.params.push_back({static_cast<std::size_t>(model->get_parameter_index(input.param)), input.dim});
             }
             info.mask_idx_local = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
-            info.query_size = func_attn.query_len();
+            info.compiled_query_size = func_attn.query_len();
             info.context_length = func_attn.context_len();
             obj->_context_lengths.push_back(info.context_length);
             obj->_attention_infos.push_back(std::move(info));
@@ -1147,7 +1147,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
         return obj;
     } else {
         auto obj = std::make_shared<PyramidAttentionBlock>();
-        obj->query_size = func_pyramid._query_length;
+        obj->original_query_length = func_pyramid._query_length;
         obj->full_context_size = func_pyramid._full_context_length;
         obj->_models_to_compile = func_pyramid._models;
         obj->past_key_block_global_param_indices = gk;
@@ -1163,7 +1163,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
             const auto& model = func_pyramid._models[i];
             PyramidAttentionBlockInfo info;
             info.mask_idx_local = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
-            info.query_size = func_attn.query_len();
+            info.compiled_query_size = func_attn.query_len();
             info.context_length = func_attn.context_len();
             // Covers every retained parameter (mask, retained KV blocks, everything else).
             // A dropped KV block simply has no entry here; see
@@ -1208,7 +1208,7 @@ namespace pyramid_attention {
 // Pyramid Attention PositionIDs implementation
 PositionIDs::PositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
-      m_query_size(d.query_size),
+      m_query_size(d.original_query_length),
       m_pyramid_attention(&d),
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!
@@ -1299,8 +1299,8 @@ GlobalPositionIDs::GlobalPositionIDs(std::size_t param_idx,
                                      const compiled::PyramidAttention& d,
                                      const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
-      m_query_size(d.query_size),
-      m_pyramid_step(d._context_lengths.empty() ? d.query_size : d._context_lengths[0]),
+      m_query_size(d.original_query_length),
+      m_pyramid_step(d._context_lengths.empty() ? d.original_query_length : d._context_lengths[0]),
       m_pyramid_attention(&d),
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!
