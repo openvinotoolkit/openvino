@@ -42,6 +42,7 @@
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/pa_kv_reorder.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_sum.hpp"
@@ -131,6 +132,7 @@
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
 #include "transformations/paged_attention/convert_pagedattn_inputs.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "utils/general_utils.h"
@@ -347,6 +349,14 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     return are_converts_from_decompression(consumers);
 }
 
+bool Transformations::is_pa_kv_reorder_cache(const std::shared_ptr<ov::op::v0::Parameter>& parameter) {
+    const auto consumers = parameter->output(0).get_target_inputs();
+    return !consumers.empty() &&
+           std::all_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& input) {
+               return ov::is_type<ov::op::internal::PaKVReorder>(input.get_node()) && input.get_index() < 2;
+           });
+}
+
 bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node);
     if (!fq) {
@@ -525,6 +535,12 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             // 2. Strip FQ layers with unsupported levels
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
             qdq_stripping_manager.run_passes(model);
+        }
+    }
+
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_element_type() == ov::element::f16 && is_pa_kv_reorder_cache(parameter)) {
+            ov::disable_conversion(parameter, ov::element::f16, ov::element::f32);
         }
     }
 
