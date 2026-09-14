@@ -73,6 +73,11 @@ public:
         return expectedWeightFormat;
     }
 
+protected:
+    std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
+                                                            const arm_compute::DataType& dataType,
+                                                            const arm_compute::DataLayout& dataLayout) override;
+
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;
     arm_compute::WeightsInfo weightsInfo;

@@ -52,6 +52,7 @@
 #include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -279,6 +280,14 @@ MemoryPtr acl_fc_executor::prepareWeightMemory(const MemoryArgs& memory,
     bool isNeededReorder = aclWeightsRepack->update(memoryArgs);
     expectedWeightFormat =
         isNeededReorder ? aclWeightsRepack->getOptImplWeightFormat() : arm_compute::WeightFormat::UNSPECIFIED;
+    // UNSPECIFIED/ANY are not concrete layouts (interleave_by()/block_by() are 0), so
+    // reorder_to_weight_format() would build a zero-sized weights descriptor. Skip repacking.
+    if (isNeededReorder &&
+        any_of(expectedWeightFormat, arm_compute::WeightFormat::UNSPECIFIED, arm_compute::WeightFormat::ANY)) {
+        DEBUG_LOG("ACLFullyConnectedExecutor: ACL reported no concrete optimized weight format, skipping repacking");
+        isNeededReorder = false;
+        expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
+    }
     weiTensorInfo = aclWeightsRepack->getTensorInfo(ACLArgs::ACL_WEI);
 
     if (isNeededReorder) {
@@ -374,6 +383,13 @@ acl_fc_executor::ACLWeightFormatGenerator::ACLWeightFormatGenerator(const FCAttr
 
 void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
     updateFCTensorsShapes(aclMemoryShapes);
+}
+
+std::shared_ptr<arm_compute::TensorInfo> acl_fc_executor::ACLWeightFormatGenerator::initTensorInfo(
+    const arm_compute::TensorShape& tensorShape,
+    const arm_compute::DataType& dataType,
+    const arm_compute::DataLayout& dataLayout) {
+    return ACLCommonExecutor::initTensorInfo(tensorShape, convertToQuantizedType(dataType), dataLayout);
 }
 
 arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
