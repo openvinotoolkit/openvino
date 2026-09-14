@@ -138,6 +138,9 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_android_${{ matrix.arch }}_release
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
@@ -184,6 +187,7 @@ jobs:
         uses: ./openvino/.github/actions/system_info
 
       #
+      #
       # Build
       #
 
@@ -218,7 +222,7 @@ jobs:
             -B ${TBB_BUILD}
 
       - name: Build OneTBB project
-        run: cmake --build ${TBB_BUILD} --parallel $(nproc) -- --quiet
+        run: cmake --build ${TBB_BUILD} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
 
       - name: Install OneTBB project
         run: cmake --install ${TBB_BUILD}
@@ -256,7 +260,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: CMake - build OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
