@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "Failed to ListArtifacts non-retryable error 403 Forbidden|Infrastructure",
+  "signature_hash": "94ac5e158bc45b5a",
+  "title": "openvino_wheels artifact download fails with ListArtifacts 403 Forbidden on Linux ARM64",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-14T15:16:25Z",
+  "last_seen": "2026-09-14T15:16:25Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34855105856"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38077"
+  ],
+  "recent_timestamps": [
+    "2026-09-14T15:16:25Z"
+  ],
+  "rerun_search_string": "Failed to ListArtifacts Received non retryable error Failed request 403 Forbidden Error from intermediary with HTTP status code 403 Forbidden"
+}

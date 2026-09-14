@@ -1,0 +1,57 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-14-15-16-25-694-34855105856",
+  "timestamp": "2026-09-14T15:16:25Z",
+  "run_id": "34855105856",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34855105856",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38077",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38077",
+  "author": "ababushk",
+  "category": "Infrastructure",
+  "title": "openvino_wheels artifact download fails with ListArtifacts 403 Forbidden on Linux ARM64",
+  "signature": "Failed to ListArtifacts non-retryable error 403 Forbidden|Infrastructure",
+  "signature_hash": "94ac5e158bc45b5a",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "akashchi/download-artifact step for 'openvino_wheels' failed: ListArtifacts non-retryable 403 Forbidden from intermediary"
+    },
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "akashchi/download-artifact step for 'openvino_wheels' failed: ListArtifacts non-retryable 403 Forbidden from intermediary; subsequent test-result upload also failed (no TEST-torch* files produced)"
+    },
+    {
+      "name": "TensorFlow Models tests / TensorFlow Models tests",
+      "conclusion": "failure",
+      "symptom": "akashchi/download-artifact step for 'openvino_wheels' failed: ListArtifacts non-retryable 403 Forbidden from intermediary; subsequent test-result upload also failed (no TEST*.html files produced)"
+    },
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Unrelated known flaky test: smoke_FC_3D_FP32/MatMulDecompressConvertTest.CompareWithRefs failed primTypeCheck(primType) assertion (undef_f32 vs expected acl_f32) in cpu_test_utils.cpp:248"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Aggregate status job failed because of the four job failures above"
+    }
+  ],
+  "key_errors": [
+    "2026-09-14T14:48:44.0117966Z ##[error]Action failed with error: Failed to ListArtifacts: Received non-retryable error: Failed request: (403) Forbidden: Error from intermediary with HTTP status code 403 \"Forbidden\"\n2026-09-14T14:48:44.0129169Z ##[error]Unable to download artifact(s): Failed to ListArtifacts: Received non-retryable error: Failed request: (403) Forbidden: Error from intermediary with HTTP status code 403 \"Forbidden\"",
+    "2026-09-14T14:52:22.2841571Z src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32"
+  ],
+  "root_cause": "The three failing test jobs (TensorFlow Layer Tests, PyTorch Models tests, TensorFlow Models tests) all failed at the same step: downloading the 'openvino_wheels' artifact produced earlier in this same run via akashchi/download-artifact. The GitHub Actions artifact service returned a non-retryable 403 Forbidden 'from intermediary', which is a transient infra-side rejection unrelated to the artifact's actual availability - the upstream 'Build / Build' job completed successfully and uploaded the wheel artifact normally. This is unrelated to the PR under test (#38077), which only edits job_build_linux.yml to gate upload steps on producer step outcome; none of the failing jobs' logs reference that workflow file. Confirming the transient nature, run_attempt 2 of this same run re-ran the failed jobs without any code change and TensorFlow Layer Tests, TensorFlow Models tests, and (in progress) PyTorch Models tests all passed. The CPU functional tests failure is a separate, already-tracked flaky ACL primitive-type assertion (smoke_FC_3D_FP32/MatMulDecompressConvertTest, primTypeCheck undef_f32 vs acl_f32), matching a pattern seen previously on 2026-09-11 for a different test case, and unrelated to this PR.",
+  "reproduction_steps": "N/A - not reproducible locally; requires the GitHub Actions Artifacts v4 backend returning a transient 403 from an intermediary proxy while downloading a same-run artifact.",
+  "recommended_actions": [
+    "No code change required in PR #38077 - the failure is unrelated to the workflow-gating change under review.",
+    "Rely on the already-in-flight run_attempt 2, which is resolving the artifact-download failures without intervention.",
+    "If ListArtifacts 403 Forbidden recurs frequently across PRs, escalate to GitHub Support referencing the intermediary 403 error and the affected run IDs.",
+    "Track the CPU functional tests smoke_FC_3D_FP32/MatMulDecompressConvertTest ACL primType flake (undef_f32 vs acl_f32) alongside the existing similar case from 2026-09-11 for potential test-stabilization or disablement."
+  ],
+  "prevention_strategies": "Add bounded retry/backoff around the download-artifact action for non-retryable 403 'from intermediary' responses (they are often transient despite being reported as non-retryable by the client library), so a single flaky artifact-service response does not fail an entire merge-queue run.",
+  "historical_context": "Prior Infrastructure-category artifact-download failures exist for related but distinct errors: FinalizeArtifact 403 Forbidden (pattern 602c52a223d7ebfe, 2 occurrences) and ListArtifacts ECONNREFUSED (patterns 1808e665f1f70825/b889d24cd154d2dd, self-hosted runner network issue). This exact 'ListArtifacts ... 403 Forbidden' signature is being recorded as a new pattern. The CPU functional tests primTypeCheck flake matches pattern eb0b94c864ee1a85 (smoke_MaxPoolV8_CPU_4D, 2026-09-11) which reported the identical undef_f32 vs acl_f32 mismatch on a different test case."
+}
