@@ -26,24 +26,6 @@ namespace tp_gpu {
 
 namespace {
 
-// Byte ceiling for routing a user input through plugin-owned USM-host memory
-// instead of letting the GPU plugin stage it through a device copy.  Small by
-// design: what the staging removes is a fixed per-copy wait, so it pays for
-// scalars and index vectors and stops paying once the payload is large enough
-// for device residency to matter.  Zero turns the staging off entirely.
-size_t input_stage_max_bytes() {
-    static const size_t n = [] {
-        if (const char* v = std::getenv("TP_INPUT_STAGE_MAX_BYTES")) {
-            const long long x = std::atoll(v);
-            if (x >= 0) {
-                return static_cast<size_t>(x);
-            }
-        }
-        return static_cast<size_t>(4096);
-    }();
-    return n;
-}
-
 // Fan-out wrapper that broadcasts reset()/set_state() to every per-rank state
 // sharing the same variable_id.  Without this, calling state.reset() only
 // affects rank 0 — rank 1's KV cache silently keeps accumulating across
@@ -58,36 +40,26 @@ class FanOutVariableState : public ov::IVariableState {
 public:
     FanOutVariableState(const std::string& name,
                         std::vector<ov::SoPtr<ov::IVariableState>> per_rank,
-                        bool sharded)
-        : ov::IVariableState(name), m_per_rank(std::move(per_rank)), m_sharded(sharded) {}
+                        bool sharded,
+                        bool profiling)
+        : ov::IVariableState(name),
+          m_per_rank(std::move(per_rank)),
+          m_sharded(sharded),
+          m_profiling(profiling) {}
 
     void reset() override {
-        static const bool dbg = std::getenv("TP_DBG") != nullptr;
-        if (dbg) {
+        if (TP_VERBOSE_AT_LEAST(ov::log::Level::DEBUG)) {
             // Verify the per-rank wrappers are distinct objects (paired by
             // name, not aliased to a single rank).  If two pointers ever
-            // matched, reset() would only affect one rank — a critical bug.
+            // matched, reset() would only affect one rank -- a critical bug,
+            // which is why this reports at error level rather than as a note.
             for (size_t r = 1; r < m_per_rank.size(); ++r) {
                 if (m_per_rank[r]._ptr == m_per_rank[0]._ptr) {
-                    std::cerr << "[TP][STATE][BUG] FanOut '" << get_name()
-                              << "' rank " << r
-                              << " aliases rank 0 (same pointer)\n";
+                    TP_LOG_ERR << "[TP][STATE][BUG] FanOut '" << get_name() << "' rank " << r
+                               << " aliases rank 0 (same pointer)" << std::endl;
                 }
             }
         }
-        // Diagnostic toggle: TP_NO_RESET=1 makes reset() a complete no-op
-        // on every rank.  Used only to verify whether the iter-to-iter
-        // slowdown is caused by reset() side-effects (e.g. the GPU plugin's
-        // VariableState::reset() invokes m_shape_predictor->reset(), which
-        // wipes prefetch shape history for ALL primitives in the network,
-        // forcing the next infer through the cold dynamic-allocation path).
-        // If iter2 is fast with TP_NO_RESET=1, the slowdown is reset-induced
-        // and not an actual model-state issue.
-        static const bool no_reset = std::getenv("TP_NO_RESET") != nullptr;
-        if (no_reset) {
-            return;
-        }
-        static const bool prof = std::getenv("TP_PROF") != nullptr;
         using clk = std::chrono::steady_clock;
         // Aggregate reset timings across all variables, dump once per
         // batch (state.reset() is typically called for ~num_layers states
@@ -97,14 +69,14 @@ public:
         auto t0 = clk::now();
         for (auto& s : m_per_rank)
             s->reset();
-        if (prof) {
+        if (m_profiling) {
             double ms = std::chrono::duration<double, std::milli>(clk::now() - t0).count();
             if (agg_ms.size() < m_per_rank.size()) agg_ms.assign(m_per_rank.size(), 0.0);
             agg_ms[0] += ms; // single timer covers all ranks (sequential calls)
             ++agg_n;
             if (agg_n % 32 == 0) {
-                std::cerr << "[TP][STATE] reset agg over " << agg_n
-                          << " calls: total_ms=" << agg_ms[0] << "\n";
+                TP_REPORT << "[TP][STATE] reset agg over " << agg_n
+                          << " calls: total_ms=" << agg_ms[0] << std::endl;
             }
         }
     }
@@ -251,6 +223,7 @@ private:
 
     std::vector<ov::SoPtr<ov::IVariableState>> m_per_rank;
     bool m_sharded;
+    bool m_profiling;
     mutable std::vector<size_t> m_rank_heads;
 };
 
@@ -332,7 +305,7 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
 ov::SoPtr<ov::ITensor> InferRequest::stage_input(size_t rank,
                                                  size_t input_idx,
                                                  const ov::SoPtr<ov::ITensor>& user_tensor) {
-    const size_t limit = input_stage_max_bytes();
+    const size_t limit = m_compiled_model->config().get_input_stage_max_bytes();
     if (limit == 0 || !user_tensor) {
         return {};
     }
@@ -439,7 +412,7 @@ void InferRequest::infer() {
 
     const auto& rank_compiled = m_compiled_model->get_rank_compiled();
     const size_t num_ranks = rank_compiled.size();
-    static const bool profiling_enabled = std::getenv("TP_PROF") != nullptr;
+    const bool profiling_enabled = m_compiled_model->config().profiling_host();
 
     using clock = std::chrono::steady_clock;
     auto t0 = clock::now();
@@ -479,7 +452,7 @@ void InferRequest::infer() {
         // every AllReduce point, so the group moves at the speed of whichever
         // rank started last, 64 times per token.  start_us records that spread
         // so the two schemes can be compared on the same footing.
-        static const bool skew_enabled = std::getenv("TP_SKEW") != nullptr;
+        const bool skew_enabled = m_compiled_model->config().profiling_host();
         static std::mutex skew_mutex;
         static uint64_t skew_calls = 0;
         static double skew_spread_us = 0.0;
@@ -507,7 +480,7 @@ void InferRequest::infer() {
             skew_spread_us += hi - lo;
             skew_first_us += lo;
             if ((++skew_calls % 500) == 0) {
-                std::cerr << "[TP][SKEW] rank dispatch over " << skew_calls
+                TP_REPORT << "[TP][SKEW] rank dispatch over " << skew_calls
                           << " inferences: first rank starts after "
                           << (skew_first_us / static_cast<double>(skew_calls)) << "us"
                           << ", spread between ranks "
@@ -535,14 +508,14 @@ void InferRequest::infer() {
         double ms_infer = std::chrono::duration<double, std::milli>(t2 - t1).count();
         double ms_collect = std::chrono::duration<double, std::milli>(t3 - t2).count();
 
-        std::cerr << "[TP] Infer breakdown: set_inputs=" << ms_set
+        TP_REPORT << "[TP] Infer breakdown: set_inputs=" << ms_set
                   << "ms  infer=" << ms_infer
                   << "ms  collect=" << ms_collect
                   << "ms  total=" << (ms_set + ms_infer + ms_collect) << "ms";
         for (size_t r = 0; r < per_rank_ms.size(); ++r) {
-            std::cerr << "  r" << r << "=" << per_rank_ms[r] << "ms";
+            TP_REPORT << "  r" << r << "=" << per_rank_ms[r] << "ms";
         }
-        std::cerr << "\n";
+        TP_REPORT << std::endl;
     }
 }
 
@@ -585,7 +558,8 @@ std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
                         "' present on only ", kv.second.size(),
                         " of ", m_rank_requests.size(), " ranks");
         m_fanout_states.emplace_back(std::make_shared<FanOutVariableState>(
-            kv.first, std::move(kv.second), sharded.count(kv.first) != 0));
+            kv.first, std::move(kv.second), sharded.count(kv.first) != 0,
+            m_compiled_model->config().profiling_host()));
     }
     return m_fanout_states;
 }

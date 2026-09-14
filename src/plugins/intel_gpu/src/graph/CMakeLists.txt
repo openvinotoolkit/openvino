@@ -42,6 +42,9 @@ set(COMMON_INCLUDE_DIRS $<BUILD_INTERFACE:${MAIN_DIR}/src>
 
 if(ENABLE_TP_GPU)
     add_definitions(-DENABLE_TP_GPU)
+    if(ENABLE_TP_GPU_DEBUG_CAPS)
+        add_definitions(-DTP_DEBUG_CONFIG=1)
+    endif()
 endif()
 
 set(COMMON_LINK_LIBRARIES openvino::shape_inference # for tensor accessor

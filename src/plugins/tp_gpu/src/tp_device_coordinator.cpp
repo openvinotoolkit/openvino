@@ -42,25 +42,6 @@ inline void ze_throw(ze_result_t r, const char* what) {
 // disabled (the default), allreduce skips per-call zeEventHostReset on
 // timestamp events and avoids signalling the kernel timestamp probe in
 // AppendLaunchKernel.  Enabled by setting any non-empty TP_PROF env var.
-bool tp_profiling_enabled() {
-    static const bool on = std::getenv("TP_PROF") != nullptr;
-    return on;
-}
-
-// Dump period for the arrival-skew report, or 0 when TP_SKEW is unset.  Kept
-// apart from TP_PROF so the imbalance can be observed on an otherwise
-// undistorted run.
-int tp_skew_period() {
-    static const int n = [] {
-        if (const char* v = std::getenv("TP_SKEW")) {
-            const int x = std::atoi(v);
-            return x > 0 ? x : 64;
-        }
-        return 0;
-    }();
-    return n;
-}
-
 std::size_t checked_multiply(std::size_t lhs, std::size_t rhs, const char* what) {
     OPENVINO_ASSERT(rhs == 0 || lhs <= std::numeric_limits<std::size_t>::max() / rhs,
                     "[TP][L0] ", what, " byte count overflow: ", lhs, " * ", rhs);
@@ -86,7 +67,7 @@ const std::shared_ptr<ov::ZeroApi>& ze_api() {
 // the reduce kernel.
 constexpr std::size_t kRingAlignElems = 128;
 
-// Payload ceiling for recursive halving, in bytes (TP_HALVING_MAX_BYTES).
+// Payload ceiling for recursive halving, in bytes.
 //
 // Halving and the ring move the same 1.5*S per rank, but they place it
 // differently: the ring sends one way around the loop, so every link carries
@@ -96,30 +77,6 @@ constexpr std::size_t kRingAlignElems = 128;
 // first token against the ring's 90.  So the schedule is chosen by payload,
 // which is also where the two algorithms genuinely differ: latency-bound
 // versus bandwidth-bound.
-std::size_t tp_halving_max_bytes() {
-    static const std::size_t n = [] {
-        if (const char* v = std::getenv("TP_HALVING_MAX_BYTES")) {
-            const long long x = std::atoll(v);
-            if (x >= 0) {
-                return static_cast<std::size_t>(x);
-            }
-        }
-        return static_cast<std::size_t>(256 * 1024);
-    }();
-    return n;
-}
-
-// Whether a power-of-two world uses recursive halving/doubling instead of the
-// ring (TP_HALVING=0 falls back to the ring).  On by default: at decode sizes
-// it holds the queue for 17.9 us against the ring's 26.0, and the payload
-// ceiling above keeps it away from the sizes where the ring wins.
-bool tp_halving() {
-    static const bool on = [] {
-        const char* v = std::getenv("TP_HALVING");
-        return v == nullptr || std::atoi(v) != 0;
-    }();
-    return on;
-}
 
 // Elements folded by one work item of the reduce kernel; must match TP_VEC in
 // kernels/allreduce_sum.cl.
@@ -174,18 +131,6 @@ bool select_copy_ordinal(ze_device_handle_t dev, uint32_t& ordinal) {
         }
     }
     return false;
-}
-
-bool tp_use_copy_engine() {
-    // Default: disabled.  On dual-Arc the dedicated copy engine yields a
-    // small (~5%) drop in PCIe memcpy time for large prefill transfers,
-    // but each call also costs an extra zeCommandQueueExecuteCommandLists
-    // (~15us host overhead per rank) which dominates on small decode
-    // transfers (n=1) and ends up net-negative for a typical 1-prefill /
-    // many-decodes workload.  Set TP_COPY_ENGINE=1 to opt in (useful for
-    // prefill-bound benchmarks or workloads with large per-call transfers).
-    static const bool on = std::getenv("TP_COPY_ENGINE") != nullptr;
-    return on;
 }
 
 // cl_khr_device_uuid: clGetDeviceInfo with this name returns 16 bytes.
@@ -292,20 +237,18 @@ std::vector<uint8_t> compile_via_ocl(ze_device_handle_t ze_dev,
 TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
                                          int world_size,
                                          int num_collectives,
-                                         std::chrono::milliseconds collective_timeout)
+                                         std::chrono::milliseconds collective_timeout,
+                                         const TPConfig& config)
     : m_shared(std::move(shared)),
       m_world_size(world_size),
       m_num_collectives(num_collectives),
-      m_collective_timeout(collective_timeout) {
+      m_collective_timeout(collective_timeout),
+      m_config(config) {
     OPENVINO_ASSERT(m_shared && m_shared->context && static_cast<int>(m_shared->devices.size()) == world_size,
                     "[TP][L0] coordinator requires a valid shared L0 context with ", world_size, " devices");
     OPENVINO_ASSERT(world_size >= 2, "[TP][L0] coordinator requires at least 2 ranks");
     OPENVINO_ASSERT(m_collective_timeout.count() >= 0, "[TP][L0] collective timeout must not be negative");
 
-    m_profiling_enabled = tp_profiling_enabled();
-    if (const char* v = std::getenv("TP_DEVICE_EVENT_RESET")) {
-        m_device_event_reset = std::atoi(v) != 0;
-    }
     // The ring only exists for N>2; two ranks already exchange directly,
     // which is what the ring degenerates to minus a round of latency.
     m_use_ring = world_size > 2;
@@ -388,11 +331,8 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
     }
 
     m_ready = true;
-    if (tp_profiling_enabled()) {
-        std::cerr << "[TP][L0] coordinator ready: " << world_size << " ranks, "
-                  << num_collectives << " collective slots"
-                  << std::endl;
-    }
+    TP_LOG_INFO << "[TP][L0] coordinator ready: " << world_size << " ranks, "
+                << num_collectives << " collective slots" << std::endl;
 }
 
 TPDeviceCoordinator::~TPDeviceCoordinator() {
@@ -450,7 +390,7 @@ void TPDeviceCoordinator::init_rank(RankState& rs) {
     // recording is not clobbered by the next collective.
 
     // Optional dedicated copy engine for the cross-device memcpy step.
-    if (tp_use_copy_engine() && select_copy_ordinal(dev, rs.copy_ordinal)) {
+    if (m_config.get_use_copy_engine() && select_copy_ordinal(dev, rs.copy_ordinal)) {
         rs.has_dedicated_copy = true;
         ze_command_queue_desc_t cqd{ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr};
         cqd.ordinal  = rs.copy_ordinal;
@@ -671,14 +611,14 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
     ++m_scratch.growth_count;
     m_scratch.allocation_count += m_world_size;
 
-    if (tp_profiling_enabled()) {
-        std::cerr << "[TP][MEM] scratch grow generation=" << m_scratch.generation
-                  << " payload_capacity=" << m_scratch.payload_capacity_bytes
-                  << " total=" << m_scratch.total_allocated_bytes;
+    if (TP_VERBOSE_AT_LEAST(ov::log::Level::INFO)) {
+        ov::tp_gpu::log_stream() << "[TP][MEM] scratch grow generation=" << m_scratch.generation
+                                 << " payload_capacity=" << m_scratch.payload_capacity_bytes
+                                 << " total=" << m_scratch.total_allocated_bytes;
         for (int rank = 0; rank < m_world_size; ++rank) {
-            std::cerr << " r" << rank << "=" << m_scratch.bytes_per_rank[rank];
+            ov::tp_gpu::log_stream() << " r" << rank << "=" << m_scratch.bytes_per_rank[rank];
         }
-        std::cerr << std::endl;
+        ov::tp_gpu::log_stream() << std::endl;
     }
     return true;
 }
@@ -826,7 +766,7 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
         // record a start and an end on every signal, so it is only asked for
         // when someone is going to read them.
         epd.flags = ZE_EVENT_POOL_FLAG_HOST_VISIBLE;
-        if (tp_skew_period() > 0) {
+        if (m_config.profiling_device()) {
             epd.flags |= ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP;
         }
         epd.count = static_cast<uint32_t>(N);
@@ -870,7 +810,7 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
         // The actual P-6 win comes from skipping ev_ts_kernel events.
         epd.flags = ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP;
         // ev_recv[2] always; ev_ts_kernel[2] only when profiling is enabled.
-        const bool prof_on = tp_profiling_enabled();
+        const bool prof_on = m_config.profiling_device();
         epd.count = prof_on ? 4u : 2u;
         std::vector<ze_device_handle_t> devs_nc(m_shared->devices.begin(), m_shared->devices.end());
         ZE_THROW(ov::zeEventPoolCreate(ctx, &epd,
@@ -911,7 +851,7 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
     // the only other schedule there is.
     const int steps = 2 * (N - 1);
     ze_event_pool_desc_t epd{ZE_STRUCTURE_TYPE_EVENT_POOL_DESC, nullptr};
-    epd.flags = tp_profiling_enabled() ? ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP : 0;
+    epd.flags = m_config.profiling_device() ? ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP : 0;
     // One event per (step, rank), plus one "reduce-scatter finished" per
     // rank in a trailing row.
     epd.count = static_cast<uint32_t>((steps + 1) * N);
@@ -1321,10 +1261,10 @@ void TPDeviceCoordinator::record_rank(Plan& plan, int rank) {
     if (m_use_ring) {
         // Halving needs the world to be a power of two; anything else stays
         // on the ring, which has no such requirement.  Large payloads stay on
-        // the ring too -- see tp_halving_max_bytes().
+        // the ring too -- see halving_max_bytes.
         const bool power_of_two = (m_world_size & (m_world_size - 1)) == 0;
         const std::size_t payload = plan.n * plan.dtype.size();
-        if (tp_halving() && power_of_two && payload <= tp_halving_max_bytes()) {
+        if (m_config.get_enable_halving() && power_of_two && payload <= m_config.get_halving_max_bytes()) {
             record_halving_rank(plan, rank);
         } else {
             record_ring_rank(plan, rank);
@@ -1409,9 +1349,8 @@ void TPDeviceCoordinator::record_pair_rank(Plan& plan, int r) {
 }
 
 void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
-    static const bool dbg = std::getenv("TP_DBG") != nullptr;
-    auto trace = [&](const char* msg) {
-        if (dbg) std::cerr << "[TP][L0] " << msg << std::endl;
+    auto trace = [](const char* msg) {
+        TP_LOG_TRACE << "[TP][L0] " << msg << std::endl;
     };
 
     using clk = std::chrono::steady_clock;
@@ -1467,7 +1406,7 @@ void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
         if (stats) {
             stats->submit = tg1 - tg0;
         }
-        if (stats && m_profiling_enabled) {
+        if (stats && m_config.profiling_device()) {
             // The steps are sequential and every rank runs them in lockstep,
             // so the critical path is the sum over steps of the slowest rank.
             auto tq0 = clk::now();
@@ -2113,29 +2052,21 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
     // sync and transfer -- which is otherwise impossible to separate from the
     // per-rank execution time.  Output buffers are left untouched, so results
     // are meaningless and only timings may be read from such a run.
-    static const bool skip_collective = std::getenv("TP_SKIP_COLLECTIVE") != nullptr;
-    if (skip_collective) {
+    if (m_config.skip_collective()) {
         static std::once_flag warned;
         std::call_once(warned, [] {
-            std::cerr << "[TP][L0] TP_SKIP_COLLECTIVE is set: AllReduce is a no-op, "
-                         "outputs are invalid. Timing-only mode." << std::endl;
+            TP_WARN_ALWAYS << "[TP_GPU] " << ov::tp_gpu::skip_collective.name()
+                           << " is set: AllReduce is a no-op, outputs are invalid. Timing-only mode.";
         });
         return;
     }
 
-    static const bool dbg = std::getenv("TP_DBG") != nullptr;
-    auto trace = [&](const char* msg) {
-        if (dbg) std::cerr << "[TP][L0] r" << rank << " " << msg << std::endl;
+    auto trace = [rank](const char* msg) {
+        TP_LOG_TRACE << "[TP][L0] r" << rank << " " << msg << std::endl;
     };
 
-    // ---- Profiling (env TP_PROF=N: dump aggregated timings every N calls of rank 0) ----
-    static const int prof_every = []() -> int {
-        if (const char* v = std::getenv("TP_PROF")) {
-            int x = std::atoi(v);
-            return x > 0 ? x : 0;
-        }
-        return 0;
-    }();
+    // Aggregated timings are dumped every `dump_period` calls of rank 0.
+    const std::size_t prof_every = dump_period();
     using clk = std::chrono::steady_clock;
     // Not thread_local: InferRequest launches every rank through std::async,
     // so rank 0's collectives run on a fresh thread each inference.  With
@@ -2164,7 +2095,10 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
     // Uses a generation counter so the wait predicate is monotonic and the
     // last-in resets `arrived` immediately for the next epoch.
     trace("phase1: enter");
-    static const int skew_period = tp_skew_period();
+    const std::size_t skew_period = dump_period();
+    // Kernel timestamps only exist when the event pools were created with the
+    // timestamp flag, which is what device profiling turns on.
+    const bool device_prof = m_config.profiling_device();
     auto elapsed_ns = [](clk::time_point a, clk::time_point b) -> uint64_t {
         return static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count());
@@ -2296,13 +2230,13 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
         }
 
         const auto previous_max_payload = slot->max_payload_bytes;
-        if (tp_profiling_enabled() && payload_bytes > previous_max_payload) {
-            std::cerr << "[TP][MEM] collective cid=" << collective_id
-                      << " n=" << n
-                      << " dtype=" << dtype
-                      << " payload=" << payload_bytes
-                      << " previous_max=" << previous_max_payload
-                      << std::endl;
+        if (payload_bytes > previous_max_payload) {
+            TP_LOG_INFO << "[TP][MEM] collective cid=" << collective_id
+                        << " n=" << n
+                        << " dtype=" << dtype
+                        << " payload=" << payload_bytes
+                        << " previous_max=" << previous_max_payload
+                        << std::endl;
         }
 
         if (!signature_matches) {
@@ -2415,9 +2349,13 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                 }
                 ZE_THROW(r);
                 const auto w1 = clk::now();
-                if (skew_period > 0) {
+                if (device_prof) {
                     // The event still holds the timestamps of the splice that
-                    // just finished; the reset below clears them.
+                    // just finished; the reset below clears them.  Gated on
+                    // device profiling rather than on the dump period because
+                    // that is what put ZE_EVENT_POOL_FLAG_KERNEL_TIMESTAMP on
+                    // the pool: asking an event without it for a timestamp
+                    // measured 77 ms a call on the validated driver.
                     ze_kernel_timestamp_result_t kt{};
                     if (ze_api()->zeEventQueryKernelTimestamp(slot->ev_done[rank], &kt) ==
                         ZE_RESULT_SUCCESS) {
@@ -2531,7 +2469,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
         if (rank == 0 && (++m_skew.calls % static_cast<uint64_t>(skew_period)) == 0) {
             const double c = static_cast<double>(m_skew.calls);
             auto us = [c](uint64_t v) { return static_cast<double>(v) / 1.0e3 / c; };
-            std::cerr << "[TP][SKEW] calls=" << m_skew.calls
+            TP_REPORT << "[TP][SKEW] calls=" << m_skew.calls
                       << " arrival spread=" << us(m_skew.spread_ns) << "us/call"
                       << std::endl;
             for (int r = 0; r < m_world_size; ++r) {
@@ -2539,7 +2477,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                     100.0 * static_cast<double>(m_skew.last_count[r]) / c;
                 const double sc =
                     std::max<double>(1.0, static_cast<double>(m_skew.seg_count[r]));
-                std::cerr << "[TP][SKEW]   rank " << r
+                TP_REPORT << "[TP][SKEW]   rank " << r
                           << ": late=" << us(m_skew.late_ns[r]) << "us"
                           << " arrived_last=" << last_share << "%"
                           << "  ph1=" << us(m_skew.ph1_ns[r]) << "us"
@@ -2553,7 +2491,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                 const uint64_t p2_known =
                     m_skew.p2_gate_ns[r] + m_skew.p2_rec_ns[r] + m_skew.p2_wait_ns[r] +
                     m_skew.p2_reset_ns[r] + m_skew.p2_append_ns[r];
-                std::cerr << "[TP][SKEW]     ph2 split: gate=" << us(m_skew.p2_gate_ns[r]) << "us"
+                TP_REPORT << "[TP][SKEW]     ph2 split: gate=" << us(m_skew.p2_gate_ns[r]) << "us"
                           << " record=" << us(m_skew.p2_rec_ns[r]) << "us"
                           << "(" << m_skew.p2_rec_count[r] << "x)"
                           << " evt_wait=" << us(m_skew.p2_wait_ns[r]) << "us"
@@ -2565,7 +2503,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                           << "us" << std::endl;
                 const double dc =
                     std::max<double>(1.0, static_cast<double>(m_skew.p2_dev_count[r]));
-                std::cerr << "[TP][SKEW]     device: collective holds the queue for "
+                TP_REPORT << "[TP][SKEW]     device: collective holds the queue for "
                           << (static_cast<double>(m_skew.p2_dev_ns[r]) / 1.0e3 / dc) << "us"
                           << " max=" << (static_cast<double>(m_skew.p2_dev_max_ns[r]) / 1.0e3)
                           << "us (" << m_skew.p2_dev_count[r] << " samples)" << std::endl;
@@ -2577,7 +2515,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
         if ((c % prof_every) == 0) {
             using ms = std::chrono::duration<double, std::milli>;
             const double cf = static_cast<double>(c);
-            std::cerr << "[TP][PROF] r0 calls=" << c
+            TP_REPORT << "[TP][PROF] r0 calls=" << c
                       << " rebuilds=" << n_rebuild.load()
                       << " records=" << n_record.load()
                       << "  totals: ph1=" << ms(t_phase1).count() << "ms"
@@ -2600,7 +2538,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             const double s_pct = exec_total > 0 ? 100.0 * ms(t_submit).count() / exec_total : 0;
             const double a_pct = exec_total > 0 ? 100.0 * ms(t_sync_first).count() / exec_total : 0;
             const double b_pct = exec_total > 0 ? 100.0 * ms(t_sync_rest).count()  / exec_total : 0;
-            std::cerr << "[TP][PROF]   exec breakdown (world=" << m_world_size << "):"
+            TP_REPORT << "[TP][PROF]   exec breakdown (world=" << m_world_size << "):"
                       << " reset="  << ms(t_reset).count()  / cf << "ms (" << r_pct << "%)"
                       << " submit=" << ms(t_submit).count() / cf << "ms (" << s_pct << "%)"
                       << " sync_first=" << ms(t_sync_first).count() / cf << "ms (" << a_pct << "%)"
@@ -2608,7 +2546,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                       << std::endl;
             // Device-side per-step timing along the critical path.
             const double ts_query_per = ms(t_dev_ts_query).count() / cf;
-            std::cerr << "[TP][PROF]   device steps:"
+            TP_REPORT << "[TP][PROF]   device steps:"
                       << " memcpy=" << ms(t_dev_copy).count()   / cf << "ms"
                       << " kernel=" << ms(t_dev_kernel).count() / cf << "ms"
                       << " (sum=" << (ms(t_dev_copy).count() + ms(t_dev_kernel).count()) / cf << "ms)"
@@ -2625,7 +2563,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             const double bw_aggregate_gbs= dev_copy_s > 0 ? (bytes_total / 1.0e9) / dev_copy_s : 0.0;
             const double exec_per_s      = ms(t_exec).count() / cf / 1.0e3;
             const double bw_walltime_gbs = exec_per_s > 0 ? (bytes_total / 1.0e9) / exec_per_s : 0.0;
-            std::cerr << "[TP][PROF]   throughput:"
+            TP_REPORT << "[TP][PROF]   throughput:"
                       << " bytes/link=" << (bytes_per_link / (1024.0 * 1024.0)) << "MB"
                       << " bytes/call=" << (bytes_total / (1024.0 * 1024.0)) << "MB"
                       << "  per-link(dev_copy)=" << bw_per_dir_gbs << " GB/s"
@@ -2639,7 +2577,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             auto rec_ms = [](const std::atomic<uint64_t>& v) {
                 return static_cast<double>(v.load(std::memory_order_relaxed)) / 1.0e6;
             };
-            std::cerr << "[TP][PROF]   record breakdown: records=" << n_record.load()
+            TP_REPORT << "[TP][PROF]   record breakdown: records=" << n_record.load()
                       << " per-record=" << ms(t_record).count() / rc << "ms"
                       << " (drain=" << rec_ms(m_rec_drain_ns) / rc << "ms"
                       << " reset=" << rec_ms(m_rec_reset_ns) / rc << "ms"
@@ -2648,7 +2586,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                       << " close=" << rec_ms(m_rec_close_ns) / rc << "ms)"
                       << std::endl;
             const auto scratch = get_scratch_stats();
-            std::cerr << "[TP][PROF]   scratch: payload_capacity="
+            TP_REPORT << "[TP][PROF]   scratch: payload_capacity="
                       << (scratch.payload_capacity_bytes / (1024.0 * 1024.0)) << "MB"
                       << " total=" << (scratch.total_allocated_bytes / (1024.0 * 1024.0)) << "MB"
                       << " generation=" << scratch.generation

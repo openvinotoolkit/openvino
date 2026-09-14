@@ -128,8 +128,7 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
         // here.  Draining is only the fallback: on its own queue the copy has
         // no ordering against the model at all, and the drain is what supplies
         // it.
-        const bool async = coordinator->async_supported() &&
-                           std::getenv("TP_SYNC_COLLECTIVE") == nullptr;
+        const bool async = coordinator->run_spliced();
         if (!async) {
             if (!events.empty()) {
                 stream.wait_for_events(events);

@@ -30,7 +30,13 @@ public:
                   TPL0SharedContextPtr shared_l0_ctx = nullptr,
                   TPDeviceCoordinatorPtr device_coordinator = nullptr,
                   std::vector<std::string>&& sharded_state_ids = {},
-                  bool loaded_from_cache = false);
+                  bool loaded_from_cache = false,
+                  const TPConfig& config = TPConfig{});
+
+    /// The resolved configuration of this compiled model.
+    const TPConfig& config() const {
+        return m_config;
+    }
 
     const std::vector<ov::Output<const ov::Node>>& inputs() const override;
 
@@ -93,6 +99,7 @@ private:
     std::vector<std::string> m_sharded_state_ids;
     CacheControllerPtr m_cache_controller;
     bool m_loaded_from_cache{false};
+    TPConfig m_config;
     mutable std::mutex m_inference_mutex;
     // Declared last so it is destroyed first: the worker threads must be
     // joined before anything they might still be touching goes away.
