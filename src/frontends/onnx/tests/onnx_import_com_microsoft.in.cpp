@@ -2478,6 +2478,79 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_no_zp_block_size) 
     test_case.run_with_tolerance_as_fp(0.1f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_group_idx) {
+    // g_idx (group_idx) reorders which block/scale each K-element uses instead of the usual
+    // floor(k / block_size) assignment. K=32, block_size=16 -> 2 groups: group0 has raw quantized
+    // value 138 (dequant 10 with default 8-bit zp=128) and scale 1.0; group1 has raw value 148
+    // (dequant 20) and scale 2.0. g_idx swaps the group assignment of the two halves of K (first
+    // 16 elements use group1, last 16 use group0), so every dequantized element becomes
+    // 10*2.0 = 20*1.0 = 20. With A all-ones, the matmul reduces to sum(20 for 32 elements) = 640.
+    // If g_idx were ignored (falling back to sequential grouping) the result would instead be
+    // 16*10 + 16*40 = 800, so this test fails loudly on a regression.
+    const auto model = convert_model("com.microsoft/matmulnbits_group_idx.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(std::vector<float>(32, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 1}, {640.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_group_idx_k_boundary_full) {
+    // K=17 is not block-aligned (block_size=16 -> n_blocks_per_col=2, k_padded=32). group_idx here
+    // is sized exactly K=17, exercising the "trim B to K before gather" branch. k0..8 (9 elems, raw
+    // block0 dequant=10) use group1 (scale=2.0) => 20; k9..15 (7 elems, raw block0) use group0
+    // (scale=1.0) => 10; k16 (1 elem, raw block1 dequant=20) uses group0 => 20.
+    // Expected sum = 9*20 + 7*10 + 1*20 = 270.
+    const auto model = convert_model("com.microsoft/matmulnbits_group_idx_k_boundary_full.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(std::vector<float>(17, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 1}, {270.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_group_idx_k_boundary_padded) {
+    // Same K=17 scenario as the _full variant above, but group_idx is sized block-padded K=32
+    // instead (trailing 15 entries are discarded by the post-gather Slice), exercising the other
+    // Slice branch. Must produce the identical result: 270.
+    const auto model = convert_model("com.microsoft/matmulnbits_group_idx_k_boundary_padded.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(std::vector<float>(17, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 1}, {270.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_group_idx_explicit_zp) {
+    // Same group_idx swap as onnx_com_microsoft_matmulnbits_group_idx, but with explicit non-default
+    // same-type-as-A zero_points (group0 zp=100, group1 zp=140), exercising the zero_points Gather
+    // branch that group_idx dequantization was missing test coverage for. k0..15 (raw block0=138)
+    // use group1 (scale2.0, zp140) => (138-140)*2=-4; k16..31 (raw block1=148) use group0 (scale1.0,
+    // zp100) => (148-100)*1=48. Expected sum = 16*-4 + 16*48 = 704.
+    const auto model = convert_model("com.microsoft/matmulnbits_group_idx_explicit_zp.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(std::vector<float>(32, 1.f));
+    test_case.add_expected_output<float>(Shape{1, 1}, {704.f});
+
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_bf16) {
+    // bfloat16 A/scales/zero_points/output (spec parity: T1/T3 allow bfloat16). Values are chosen
+    // to be exactly representable in bf16 so the comparison can be bit-exact.
+    const auto model = convert_model("com.microsoft/matmulnbits_bf16.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<ov::bfloat16>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<ov::bfloat16>(Shape{1, 1}, {80.f});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
     const auto model = convert_model("com.microsoft/quick_gelu.onnx");
     auto test_case = ov::test::TestCase(model, s_device);

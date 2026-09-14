@@ -93,6 +93,8 @@ void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
 
     for (const auto& property : properties) {
         const auto propertyIt = _properties.find(property.first);
+        // This should never happen due to the previous check, fixing potential issue with missing property
+        OPENVINO_ASSERT(propertyIt != _properties.end(), "Unsupported configuration key: ", property.first);
         propertyIt->second.set(property.second);
     }
 }
@@ -137,7 +139,8 @@ void CompiledModelPropertyManager::registerProperties() {
         OPENVINO_THROW("READ-ONLY configuration key");
     };
 
-    const auto registerConfigProperty = [this, hasPropertyValue](const auto optionTag, bool requireValue) {
+    const auto registerConfigProperty = [this,
+                                         hasPropertyValue](const auto optionTag, bool isPublic, bool requireValue) {
         using OptionType = std::decay_t<decltype(optionTag)>;
         const auto propertyName = std::string(OptionType::key());
         const auto isSupported = [this, propertyName, hasPropertyValue, requireValue](const ov::AnyMap&) {
@@ -145,7 +148,7 @@ void CompiledModelPropertyManager::registerProperties() {
         };
         register_property(
             propertyName,
-            true,
+            isPublic,
             ov::PropertyMutability::RO,
             isSupported,
             [this](const ov::AnyMap&) {
@@ -156,61 +159,77 @@ void CompiledModelPropertyManager::registerProperties() {
             });
     };
 
-    registerConfigProperty(LOADED_FROM_CACHE{}, false);
-    registerConfigProperty(LOG_LEVEL{}, false);
-    registerConfigProperty(PERFORMANCE_HINT{}, false);
-    registerConfigProperty(PERFORMANCE_HINT_NUM_REQUESTS{}, false);
-    registerConfigProperty(NUM_STREAMS{}, false);
+    registerConfigProperty(LOADED_FROM_CACHE{}, true, false);
+    registerConfigProperty(LOG_LEVEL{}, true, false);
+    registerConfigProperty(PERFORMANCE_HINT{}, true, false);
+    registerConfigProperty(PERFORMANCE_HINT_NUM_REQUESTS{}, true, false);
+    registerConfigProperty(NUM_STREAMS{}, true, false);
 
-    registerConfigProperty(BYPASS_UMD_CACHING{}, true);
-    registerConfigProperty(CACHE_DIR{}, true);
-    registerConfigProperty(CACHE_MODE{}, true);
-    registerConfigProperty(COMPILATION_MODE_PARAMS{}, true);
-    registerConfigProperty(COMPILATION_NUM_THREADS{}, true);
-    registerConfigProperty(COMPILER_DYNAMIC_QUANTIZATION{}, true);
-    registerConfigProperty(COMPILER_TYPE{}, true);
-    registerConfigProperty(COMPILER_VERSION{}, true);
-    registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true);
-    registerConfigProperty(ENABLE_STRIDES_FOR{}, true);
-    registerConfigProperty(EXECUTION_MODE_HINT{}, true);
-    registerConfigProperty(PERF_COUNT{}, true);
-    registerConfigProperty(PLATFORM{}, true);
-    registerConfigProperty(QDQ_OPTIMIZATION{}, true);
-    registerConfigProperty(QDQ_OPTIMIZATION_AGGRESSIVE{}, true);
-    registerConfigProperty(RUN_INFERENCES_SEQUENTIALLY{}, true);
-    registerConfigProperty(TILES{}, true);
-    registerConfigProperty(TURBO{}, true);
-    registerConfigProperty(WEIGHTS_PATH{}, true);
-    registerConfigProperty(BACKEND_COMPILATION_PARAMS{}, true);
-    registerConfigProperty(BATCH_COMPILER_MODE_SETTINGS{}, true);
-    registerConfigProperty(BATCH_MODE{}, true);
-    registerConfigProperty(COMPILATION_MODE{}, true);
-    registerConfigProperty(COMPILE_LOG_LEVEL{}, true);
-    registerConfigProperty(DISABLE_VERSION_CHECK{}, true);
-    registerConfigProperty(DMA_ENGINES{}, true);
-    registerConfigProperty(DYNAMIC_SHAPE_TO_STATIC{}, true);
-    registerConfigProperty(ENABLE_WEIGHTLESS{}, true);
-    registerConfigProperty(EXPORT_RAW_BLOB{}, true);
-    registerConfigProperty(IMPORT_RAW_BLOB{}, true);
-    registerConfigProperty(INFERENCE_PRECISION_HINT{}, true);
-    registerConfigProperty(PROFILING_TYPE{}, true);
-    registerConfigProperty(SEPARATE_WEIGHTS_VERSION{}, true);
-    registerConfigProperty(SHARED_COMMON_QUEUE{}, true);
+    registerConfigProperty(BACKEND_COMPILATION_PARAMS{}, true, true);
+    registerConfigProperty(BATCH_COMPILER_MODE_SETTINGS{}, true, true);
+    registerConfigProperty(BYPASS_UMD_CACHING{}, true, true);
+    registerConfigProperty(CACHE_DIR{}, true, true);
+    registerConfigProperty(CACHE_MODE{}, true, true);
+    registerConfigProperty(COMPILATION_MODE{}, true, true);
+    registerConfigProperty(COMPILATION_MODE_PARAMS{}, true, true);
+    registerConfigProperty(COMPILATION_NUM_THREADS{}, true, true);
+    registerConfigProperty(COMPILE_LOG_LEVEL{}, true, true);
+    registerConfigProperty(COMPILER_DYNAMIC_QUANTIZATION{}, true, true);
+    registerConfigProperty(COMPILER_TYPE{}, true, true);
+    registerConfigProperty(COMPILER_VERSION{}, true, true);
+    registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true, true);
+    registerConfigProperty(DISABLE_VERSION_CHECK{}, true, true);
+    registerConfigProperty(DMA_ENGINES{}, true, true);
+    registerConfigProperty(DYNAMIC_SHAPE_TO_STATIC{}, false, true);
+    registerConfigProperty(ENABLE_STRIDES_FOR{}, true, true);
+    registerConfigProperty(ENABLE_WEIGHTLESS{}, true, true);
+    registerConfigProperty(EXPORT_RAW_BLOB{}, true, true);
+    registerConfigProperty(IMPORT_RAW_BLOB{}, true, true);
+    registerConfigProperty(PERF_COUNT{}, true, true);
+    registerConfigProperty(PLATFORM{}, true, true);
+    registerConfigProperty(PROFILING_TYPE{}, true, true);
+    registerConfigProperty(QDQ_OPTIMIZATION{}, true, true);
+    registerConfigProperty(QDQ_OPTIMIZATION_AGGRESSIVE{}, true, true);
+    registerConfigProperty(RUN_INFERENCES_SEQUENTIALLY{}, true, true);
+    registerConfigProperty(TILES{}, true, true);
+    registerConfigProperty(TURBO{}, true, true);
+    registerConfigProperty(SEPARATE_WEIGHTS_VERSION{}, true, true);
+    registerConfigProperty(SHARED_COMMON_QUEUE{}, true, true);
+    registerConfigProperty(WEIGHTS_PATH{}, true, true);
+
+    registerConfigProperty(BATCH_MODE{}, false, false);
+
+    OPENVINO_SUPPRESS_DEPRECATED_START
+    registerConfigProperty(ENABLE_CPU_PINNING{}, false, false);
+    OPENVINO_SUPPRESS_DEPRECATED_END
 
     // clang-format off
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    register_property(ov::hint::enable_cpu_pinning.name(), false, ov::PropertyMutability::RO,
+    // INFERENCE_PRECISION_HINT and EXECUTION_MODE_HINT are used by the compiler, but their values aren't guaranteed to
+    // be correct if the user doesn't set it explicitly when compiling a model. Even if it is set when compiling a
+    // model, importing the same model, it can again produce a wrong value.
+    register_property(ov::hint::inference_precision.name(), _config.has<INFERENCE_PRECISION_HINT>(), ov::PropertyMutability::RO,
         [this](const ov::AnyMap&) {
-            return _config.hasOpt(ov::hint::enable_cpu_pinning.name());
+            return _config.hasOpt(ov::hint::inference_precision.name());
         },
         [this](const ov::AnyMap&) {
-            return _config.get<ENABLE_CPU_PINNING>();
+            return _config.get<INFERENCE_PRECISION_HINT>();
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key");
         }
     );
-    OPENVINO_SUPPRESS_DEPRECATED_END
+    register_property(ov::hint::execution_mode.name(), _config.has<EXECUTION_MODE_HINT>(), ov::PropertyMutability::RO,
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::hint::execution_mode.name());
+        },
+        [this](const ov::AnyMap&) {
+            return _config.get<EXECUTION_MODE_HINT>();
+        },
+        [](const ov::Any&) {
+            OPENVINO_THROW("READ-ONLY configuration key");
+        }
+    );
+
     register_property(ov::hint::model_priority.name(), true, ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::hint::model_priority.name());
@@ -255,7 +274,9 @@ void CompiledModelPropertyManager::registerProperties() {
             return true;
         },
         [this](const ov::AnyMap&) {
-            return _config.get<MODEL_PTR>().lock();
+            // Retrieve the weak pointer to the model and lock it to get a shared pointer. Fix potential dangling pointer issue.
+            const auto model = _config.get<MODEL_PTR>();
+            return model.lock();
         },
         readOnlySetter
     );
