@@ -66,14 +66,7 @@ RoPESDPAFusion::RoPESDPAFusion() {
     auto sdpa_m =
         std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{sdpa_qkv_m, sdpa_mask_m, sdpa_scale_m});
 
-    const bool enabled = [] {
-        const char* disable = std::getenv("OV_ROPE_SDPA");
-        return !disable || std::string(disable) != "0";
-    }();
-
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-        if (!enabled)
-            return false;
         auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(m.get_match_root());
         auto rope = ov::as_type_ptr<ov::op::internal::RoPE>(
             m.get_pattern_value_map().at(rope_m).get_node_shared_ptr());
