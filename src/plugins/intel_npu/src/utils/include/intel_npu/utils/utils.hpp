@@ -48,6 +48,12 @@ static inline size_t align_size_to_standard_page_size(size_t size) {
     return (size + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
 }
 
+static inline bool has_only_digits(const std::string_view sv) {
+    return !sv.empty() && std::all_of(sv.begin(), sv.end(), [](unsigned char c) {
+        return std::isdigit(c);
+    });
+};
+
 }  // namespace utils
 
 }  // namespace intel_npu

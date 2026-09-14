@@ -182,6 +182,9 @@ void BlobReader::read(BlobSource& source) {
     const Manifest manifest = std::dynamic_pointer_cast<ManifestSection>(manifest_section)->get_manifest();
     m_logger.debug("Parsed the manifest");
 
+    OPENVINO_ASSERT(manifest.lookup_section_ids(SectionType(SectionTypeCode::MANIFEST)).empty(),
+                    "The manifest should not contain a manifest entry");
+
     // Step 2: Look for the runtime requirements and evaluate them
     std::optional<RuntimeRequirements> runtime_requirements;
     std::optional<uint64_t> requirements_location;
@@ -189,7 +192,6 @@ void BlobReader::read(BlobSource& source) {
     std::optional<SectionID> runtime_requirements_id = get_runtime_requirements_id(manifest);
 
     // TODO test the negative branch as well
-    // TODO safeguards for multiple manifests/CREs?
     if (runtime_requirements_id.has_value()) {
         requirements_location = manifest.lookup_offset(runtime_requirements_id.value());
         requirements_length = manifest.lookup_length(runtime_requirements_id.value());

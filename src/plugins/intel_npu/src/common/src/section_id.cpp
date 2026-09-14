@@ -6,17 +6,8 @@
 
 #include <functional>
 
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/core/except.hpp"
-
-namespace {
-
-bool has_only_digits(std::string_view sv) {
-    return !sv.empty() && std::all_of(sv.begin(), sv.end(), [](unsigned char c) {
-        return std::isdigit(c);
-    });
-};
-
-}  // namespace
 
 namespace intel_npu {
 
@@ -44,7 +35,7 @@ std::string SectionID::to_string() const {
 }
 
 SectionID SectionID::from_string(const std::string_view id) {
-    OPENVINO_ASSERT(has_only_digits(id),
+    OPENVINO_ASSERT(utils::has_only_digits(id),
                     "Cannot convert to integer: the id ",
                     id,
                     " is not made exclusively out of digits");

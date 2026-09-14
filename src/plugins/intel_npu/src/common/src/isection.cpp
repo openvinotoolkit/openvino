@@ -4,16 +4,11 @@
 
 #include "intel_npu/common/isection.hpp"
 
+#include "intel_npu/utils/utils.hpp"
+
 namespace {
 
 constexpr std::string_view TYPE_AND_ID_DELIMITER = "_";
-
-// TODO move to utility
-bool has_only_digits(std::string_view sv) {
-    return !sv.empty() && std::all_of(sv.begin(), sv.end(), [](unsigned char c) {
-        return std::isdigit(c);
-    });
-};
 
 }  // namespace
 
@@ -64,7 +59,7 @@ std::string section_type_and_id_to_string(const SectionType type, const SectionI
 std::pair<SectionType, std::optional<SectionID>> section_type_and_id_from_string(std::string_view type_and_id) {
     const size_t search_result = type_and_id.rfind(TYPE_AND_ID_DELIMITER);
     if (search_result == std::string::npos ||
-        !has_only_digits(type_and_id.substr(search_result + 1, std::string::npos))) {
+        !utils::has_only_digits(type_and_id.substr(search_result + 1, std::string::npos))) {
         // There's only a section type
         return std::make_pair(SectionType::from_string(type_and_id), std::nullopt);
     }

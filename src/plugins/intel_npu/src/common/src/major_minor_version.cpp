@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/core/except.hpp"
 
 namespace {
@@ -76,19 +77,13 @@ std::istream& operator>>(std::istream& in, MajorMinorVersion& version) {
 }
 
 std::vector<uint16_t> parse_dotted_version(std::string_view version_string, const size_t number_of_parts) {
-    const auto has_only_digits = [](std::string_view sv) {
-        return !sv.empty() && std::all_of(sv.begin(), sv.end(), [](unsigned char c) {
-            return std::isdigit(c);
-        });
-    };
-
     std::vector<uint16_t> parts;
     std::string_view remaining = version_string;
 
     while (true) {
         const size_t dot_location = remaining.find('.');
         const std::string_view part = remaining.substr(0, dot_location);
-        OPENVINO_ASSERT(has_only_digits(part),
+        OPENVINO_ASSERT(utils::has_only_digits(part),
                         "Failure while parsing the version \"",
                         version_string,
                         "\": the part \"",

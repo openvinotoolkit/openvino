@@ -6,8 +6,7 @@
 
 #include <functional>
 
-#define CRE_EVAL_ASSERT(...) \
-    OPENVINO_ASSERT_HELPER(::intel_npu::InvalidCRE, ::ov::AssertFailure::default_msg, __VA_ARGS__)
+#define CRE_ASSERT(...) OPENVINO_ASSERT_HELPER(::intel_npu::InvalidCRE, ::ov::AssertFailure::default_msg, __VA_ARGS__)
 
 namespace {
 
@@ -277,8 +276,7 @@ bool CRE::subexpression_already_registered(const std::vector<std::shared_ptr<CRE
 }
 
 void CRE::append_to_expression(const std::shared_ptr<CREToken> requirement_token) {
-    // TODO use InvalidCRE?
-    OPENVINO_ASSERT(is_section_type(requirement_token), "Invalid subexpression");
+    CRE_ASSERT(is_section_type(requirement_token), "Invalid subexpression");
 
     const std::vector<std::shared_ptr<CREToken>> subexpression{requirement_token};
     if (subexpression_already_registered(subexpression)) {
@@ -295,7 +293,7 @@ void CRE::append_to_expression(const std::vector<std::shared_ptr<CREToken>>& sub
     if (!subexpression_size) {
         return;
     }
-    OPENVINO_ASSERT(is_expression_valid(subexpression), "Received an invalid subexpression to append to the CRE");
+    CRE_ASSERT(is_expression_valid(subexpression), "Received an invalid subexpression to append to the CRE");
 
     // Add brackets to ensure the correct order of evaluation. Required only if the current subexpression is not the
     // first one
@@ -366,7 +364,7 @@ bool CRE::is_expression_valid(const std::vector<std::shared_ptr<CREToken>>& expr
 
         // Force all evaluations to thorougly check the expression
         evaluate(expression_iterator, expression_end, {}, {}, Delimiter::SIZE, false, true);
-        CRE_EVAL_ASSERT(expression_iterator == expression.end());
+        CRE_ASSERT(expression_iterator == expression.end());
         return true;
     } catch (const InvalidCRE&) {
         return false;
@@ -375,7 +373,7 @@ bool CRE::is_expression_valid(const std::vector<std::shared_ptr<CREToken>>& expr
 
 void CRE::advance_iterator(std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
                            const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end) const {
-    CRE_EVAL_ASSERT(expression_iterator != expression_end, "The CRE ended unexpectedly");
+    CRE_ASSERT(expression_iterator != expression_end, "The CRE ended unexpectedly");
     expression_iterator++;
 }
 
@@ -412,14 +410,14 @@ ov::CompatibilityCheck CRE::evaluate(
     ov::CompatibilityCheck subexpression_result;
 
     while (!end_condition(expression_iterator, expression_end, end_delimiter)) {
-        CRE_EVAL_ASSERT(!is_section_id(*expression_iterator), "Unexpected section ID token");
-        CRE_EVAL_ASSERT(!is_close_special_token(*expression_iterator),
-                        "Found a closed parrenthesis without any matching open token");
+        CRE_ASSERT(!is_section_id(*expression_iterator), "Unexpected section ID token");
+        CRE_ASSERT(!is_close_special_token(*expression_iterator),
+                   "Found a closed parrenthesis without any matching open token");
 
         at_least_one_iteration = true;
 
         if (is_section_type(*expression_iterator)) {
-            CRE_EVAL_ASSERT(!expect_binary_operator, "An operand was found when a binary operator was expected");
+            CRE_ASSERT(!expect_binary_operator, "An operand was found when a binary operator was expected");
             expect_binary_operator = true;  // An operand should be followed by a binary operator
 
             if (force_all_evaluations || (!skip_all_evaluations && !skip_next_evaluation)) {
@@ -439,9 +437,7 @@ ov::CompatibilityCheck CRE::evaluate(
                     // Found a section ID; there's no point in evaluating it if its section type is unsupported
                     if (operand != ov::CompatibilityCheck::UNSUPPORTED) {
                         const auto section_id = std::dynamic_pointer_cast<SectionID>(*expression_iterator);
-                        CRE_EVAL_ASSERT(section_id,
-                                        "Expected a section ID token to follow the section type",
-                                        *section_type);
+                        CRE_ASSERT(section_id, "Expected a section ID token to follow the section type", *section_type);
 
                         operand = section_instance_evaluators.count(*section_id)
                                       ? section_instance_evaluators.at(*section_id).get_result()
@@ -470,12 +466,11 @@ ov::CompatibilityCheck CRE::evaluate(
         // TODO comments
         switch (special_token->get_code()) {
         case CRESpecialTokenCode::NOT:
-            CRE_EVAL_ASSERT(!expect_binary_operator, "A \"NOT\" token was found when a binary operator was expected");
+            CRE_ASSERT(!expect_binary_operator, "A \"NOT\" token was found when a binary operator was expected");
             negate = !negate;
             break;
         case CRESpecialTokenCode::OPEN:
-            CRE_EVAL_ASSERT(!expect_binary_operator,
-                            "An open parrenthesis was found when a binary operator was expected");
+            CRE_ASSERT(!expect_binary_operator, "An open parrenthesis was found when a binary operator was expected");
             // A subexpression is also an operand, and it should be followed by an operator
             expect_binary_operator = true;
 
@@ -489,9 +484,9 @@ ov::CompatibilityCheck CRE::evaluate(
                                             Delimiter::PARRENTHESIS,
                                             skip_all_evaluations || skip_next_evaluation,
                                             force_all_evaluations);
-            CRE_EVAL_ASSERT(is_close_special_token(*expression_iterator),
-                            "Expected a closed parrenthesis token during CRE evaluation. Received: ",
-                            *expression_iterator);
+            CRE_ASSERT(is_close_special_token(*expression_iterator),
+                       "Expected a closed parrenthesis token during CRE evaluation. Received: ",
+                       *expression_iterator);
 
             subexpression_result = negate ? not_function(subexpression_result) : subexpression_result;
             negate = false;
@@ -499,7 +494,7 @@ ov::CompatibilityCheck CRE::evaluate(
             result = logical_function(result, subexpression_result);
             break;
         case CRESpecialTokenCode::AND:
-            CRE_EVAL_ASSERT(expect_binary_operator, "A binary operator was found when an operand was expected");
+            CRE_ASSERT(expect_binary_operator, "A binary operator was found when an operand was expected");
             expect_binary_operator = false;  // A binary operator should not be followed by another binary op
 
             logical_function = and_function;
@@ -507,7 +502,7 @@ ov::CompatibilityCheck CRE::evaluate(
             skip_next_evaluation = result == ov::CompatibilityCheck::UNSUPPORTED ? true : false;
             break;
         case CRESpecialTokenCode::OR:
-            CRE_EVAL_ASSERT(expect_binary_operator, "A binary operator was found when an operand was expected");
+            CRE_ASSERT(expect_binary_operator, "A binary operator was found when an operand was expected");
             expect_binary_operator = false;  // A binary operator should not be followed by another binary op
 
             logical_function = or_function;
@@ -522,9 +517,9 @@ ov::CompatibilityCheck CRE::evaluate(
         advance_iterator(expression_iterator, expression_end);
     }
 
-    CRE_EVAL_ASSERT(at_least_one_iteration, "Cannot evaluate empty subexpressions");
-    CRE_EVAL_ASSERT(expect_binary_operator,
-                    "The CRE did not end with an operand. This means the final operator is missing its operand");
+    CRE_ASSERT(at_least_one_iteration, "Cannot evaluate empty subexpressions");
+    CRE_ASSERT(expect_binary_operator,
+               "The CRE did not end with an operand. This means the final operator is missing its operand");
 
     return result;
 }
@@ -545,8 +540,7 @@ ov::CompatibilityCheck CRE::check_compatibility(
                                                    section_type_evaluators,
                                                    section_instance_evaluators,
                                                    Delimiter::SIZE);
-    CRE_EVAL_ASSERT(expression_iterator == expression.end(),
-                    "CRE evaluation ended before parsing the whole expression");
+    CRE_ASSERT(expression_iterator == expression.end(), "CRE evaluation ended before parsing the whole expression");
 
     m_logger.debug("Expression evaluated to %d", result);
     return result;
