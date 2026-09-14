@@ -263,12 +263,6 @@ protected:
                                                                         "[GPU] Compiled kernels count: ", _kernels.size(), "\n",
                                                                         "[GPU] KernelData count: ", _kernel_data.kernels.size(), "\n",
                                                                         "[GPU] Likely some issue with empty tensor handling happened");
-        // DIAG: GPU_PROF_KERNEL=1 wraps the per-kernel get_arguments+enqueue
-        // to identify whether slow primitives spend time in argument binding
-        // or in the actual L0 stream.enqueue_kernel call (driver-side).
-        static const bool prof_k = std::getenv("GPU_PROF_KERNEL") != nullptr;
-        using clk_k = std::chrono::high_resolution_clock;
-        int64_t args_us = 0, enq_us = 0;
         for (size_t kd_idx = 0; kd_idx < _kernel_data.kernels.size(); ++kd_idx) {
             if (_kernel_data.kernels[kd_idx].skip_execution) {
                 continue;
@@ -277,14 +271,12 @@ protected:
             bool needs_completion_event = instance.needs_completion_event();
 
             auto& params = _kernel_data.kernels[kd_idx].params;
-            auto t_args0 = prof_k ? clk_k::now() : clk_k::time_point{};
             auto args = get_arguments(instance);
             args.scalars = &params.scalars;
 
             for (const auto& m : instance.get_intermediates_memories()) {
                 args.intermediates.push_back(m);
             }
-            auto t_args1 = prof_k ? clk_k::now() : clk_k::time_point{};
 
             const auto& gws = params.workGroups.global;
             const auto& lws = params.workGroups.local;
@@ -294,21 +286,12 @@ protected:
                                    << (needs_completion_event ? " has_completion_event=true" : "") << std::endl;
 
             auto ev = stream.enqueue_kernel(*_kernels[kd_idx], params, args, tmp_events, needs_completion_event);
-            if (prof_k) {
-                auto t_enq1 = clk_k::now();
-                args_us += std::chrono::duration_cast<std::chrono::microseconds>(t_args1 - t_args0).count();
-                enq_us += std::chrono::duration_cast<std::chrono::microseconds>(t_enq1 - t_args1).count();
-            }
             if (_kernel_data.needs_sub_kernels_sync) {
                 tmp_events = {ev};
             }
             all_events.push_back(ev);
 
             kernel_dump_info.add_entry_point(_kernels[kd_idx]->get_id());
-        }
-        if (prof_k && (args_us + enq_us) > 50000) {  // > 50ms only
-            std::cerr << "[GPU][KPROF] " << instance.id()
-                      << "  args=" << args_us << "us enqueue=" << enq_us << "us\n";
         }
 
         if ((all_events.empty()) && (!tmp_events.empty())) {
