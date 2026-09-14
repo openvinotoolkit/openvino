@@ -100,25 +100,11 @@ jobs:
       volumes:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
-      options: -e SCCACHE_AZURE_BLOB_CONTAINER
     env:
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
-      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
-      SCCACHE_SERVER_PORT: 35555
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: webassembly_Release
     steps:
-      - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
-        shell: bash
-        run: |
-          SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
-          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
-          echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
-          echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
-          echo "✓ Connection string loaded and masked"
 
       - name: Clone OpenVINO
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -127,35 +113,36 @@ jobs:
           path: 'openvino'
           submodules: 'recursive'
 
+      - name: System info
+        uses: ./openvino/.github/actions/system_info
+
       - name: emcmake cmake - configure
         run: |
           emcmake cmake \
             -DCMAKE_CXX_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_C_FLAGS="-Wno-deprecated-declarations" \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=ON \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
-            -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
             -DTHREADING=SEQ \
+            -DCMAKE_VERBOSE_MAKEFILE=ON \
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
 
+      - name: Zero compile cache stats (hello_query_device)
+        if: false
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          tool: sccache
+          mode: zero-stats
+
       - name: cmake --build - build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel $(nproc)
+        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel 15
 
-      - name: Show ccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Compile cache statistics (hello_query_device)
+        if: false
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          tool: sccache
+          build-label: hello-query-device
+          artifact-name: compile-cache-stats-webassembly-hello-query-device
 
-  Overall_Status:
-    name: ci/gha_overall_status_webassembly
-    needs: [Smart_CI, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

@@ -115,12 +115,13 @@ jobs:
             --html=${LLM_TEST_DIR}/llm_accuracy.html \
             --self-contained-html
 
-      - name: Upload LLM accuracy test results
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
-        with:
-          name: test-results-llm-accuracy-${{ inputs.test-suffix }}
-          path: |
-            ${{ env.LLM_TEST_DIR }}/llm_accuracy.xml
-            ${{ env.LLM_TEST_DIR }}/llm_accuracy.html
-          if-no-files-found: 'ignore'
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload LLM accuracy test results
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        if: always()
+#        with:
+#          name: test-results-llm-accuracy-${{ inputs.test-suffix }}
+#          path: |
+#            ${{ env.LLM_TEST_DIR }}/llm_accuracy.xml
+#            ${{ env.LLM_TEST_DIR }}/llm_accuracy.html
+#          if-no-files-found: 'ignore'

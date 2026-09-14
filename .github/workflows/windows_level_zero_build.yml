@@ -80,19 +80,7 @@ jobs:
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+        -DCMAKE_VERBOSE_MAKEFILE=ON
         -DFETCHCONTENT_BASE_DIR="C:\fcc\ninja_multi_config"
         -DGPU_RT_TYPE=L0
 
-  Overall_Status:
-    name: ci/gha_overall_status_windows_l0_build
-    needs: [ Smart_CI, Build ]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

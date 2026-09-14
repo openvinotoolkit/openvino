@@ -247,11 +247,12 @@ jobs:
           echo "Available storage:"
           df -h
 
-      - name: Upload Test Results
-        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: ${{ !cancelled() }}
-        with:
-          name: test-results-torch-models-${{ inputs.model_scope }}
-          path: |
-            ${{ env.INSTALL_TEST_DIR }}/TEST-torch*
-          if-no-files-found: 'error'
+      # build_profiling: disabled artifact upload to save CI/storage resources
+#      - name: Upload Test Results
+#        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+#        if: ${{ !cancelled() }}
+#        with:
+#          name: test-results-torch-models-${{ inputs.model_scope }}
+#          path: |
+#            ${{ env.INSTALL_TEST_DIR }}/TEST-torch*
+#          if-no-files-found: 'error'

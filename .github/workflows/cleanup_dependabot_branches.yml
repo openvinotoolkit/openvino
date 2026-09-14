@@ -48,7 +48,6 @@ jobs:
           # was read from, so pinning this workflow with @<sha> pins the workflow
           # but not the script it runs.
           repository: openvinotoolkit/openvino
-          ref: ${{ github.repository == 'openvinotoolkit/openvino' && github.ref || 'master' }}
           sparse-checkout: '.github/scripts/dependabot_cleanup'
 
       - name: Setup Python
