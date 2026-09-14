@@ -24,7 +24,10 @@ that they share.
 * [Workflows at a glance](#workflows-at-a-glance)
 * [CI Doctor (pull request, on-demand)](#ci-doctor-pull-request-on-demand)
 * [CI Doctor — Merge Queue (automatic)](#ci-doctor--merge-queue-automatic)
-* [Shared reusable jobs](#shared-reusable-jobs)
+* [CI Doctor — Post-Commit (automatic)](#ci-doctor--post-commit-automatic)
+* [Shared reusable jobs and prompt fragments](#shared-reusable-jobs-and-prompt-fragments)
+  * [Shared jobs and steps](#shared-jobs-and-steps)
+  * [Shared prompt fragments](#shared-prompt-fragments)
 * [Setup and infrastructure](#setup-and-infrastructure)
   * [Log pre-download and caching](#log-pre-download-and-caching)
   * [Repo-memory and the pattern database](#repo-memory-and-the-pattern-database)
@@ -60,10 +63,14 @@ A `gh-aw` workflow is a Markdown file with a YAML frontmatter block and a natura
   * `safe-outputs:` — the only side effects the agent is allowed to produce. The agent cannot post a
     comment or send a notification directly; it emits a structured *safe output* that a trusted,
     non-agent job then acts on.
-  * `imports:` — shared job/step fragments pulled in from
-    [`.github/workflows/shared`](../../../../.github/workflows/shared/agentic-workflows).
+  * `imports:` — shared fragments pulled in from
+    [`.github/workflows/shared`](../../../../.github/workflows/shared/agentic-workflows): step/job
+    fragments *and* parameterised prompt fragments (see
+    [Shared reusable jobs and prompt fragments](#shared-reusable-jobs-and-prompt-fragments)).
 * **Body** is the agent's prompt: the mission, the investigation protocol, the output format, and the
   guardrails (for example, "read at most 10 source files" or "never write to the knowledge base").
+  For the two automatic doctors most of the prompt is imported from shared fragments; the body of the
+  workflow file itself only holds the workflow-specific additions.
 
 ### Source files and compiled lock files
 
@@ -232,14 +239,22 @@ and output validation. Its pattern schema drops the `rerun_search_string` field 
 integration) and tracks `affected_commits` instead of `affected_prs`. The run always ends by calling
 exactly one of `notify_teams` (with `source: "post_commit"`), `noop`, or `missing_data`.
 
-## Shared reusable jobs
+## Shared reusable jobs and prompt fragments
 
-Common steps and safe-output jobs are factored into
+Everything the doctors have in common is factored into
 [`.github/workflows/shared/agentic-workflows`](../../../../.github/workflows/shared/agentic-workflows)
-and pulled into a workflow via the `imports:` key. Imported `steps:` are prepended to the importing
-workflow, and imported `safe-outputs.jobs:` become callable safe outputs for the agent.
+and pulled into a workflow via the `imports:` key. Two kinds of shared file live there:
 
-Each shared `.md` file defines only the job *interface and wiring* — its inputs, `permissions:`, and the
+* **Jobs and steps** — `download-failure-logs.md`, `collect-pr-info.md`, `notify-teams*.md`,
+  `remediate-transient-failure.md`. Imported `steps:` are prepended to the importing workflow, and
+  imported `safe-outputs.jobs:` become callable safe outputs for the agent.
+* **Prompt fragments** — `ci-doctor-*.md`. Their Markdown body is the shared part of the agent prompt;
+  it is parameterised with an `import-schema` and inlined into the importing workflow's prompt at
+  compile time.
+
+### Shared jobs and steps
+
+Each shared job/step `.md` file defines only the job *interface and wiring* — its inputs, `permissions:`, and the
 sequence of steps. The actual **logic lives in standalone Python scripts** under
 [`.github/scripts/agentic-workflows`](../../../../.github/scripts/agentic-workflows) (one script per job,
 plus a shared [`common.py`](../../../../.github/scripts/agentic-workflows/common.py)). A shared job step
@@ -265,6 +280,7 @@ inputs, permissions, or step wiring, edit the shared `.md` and recompile.
 | Shared file | Kind | Used by | Purpose |
 | --- | --- | --- | --- |
 | [`download-failure-logs.md`](../../../../.github/workflows/shared/agentic-workflows/download-failure-logs.md) | Pre-agent step | all | Pre-download failed logs and pre-locate error hints before the agent starts. |
+| [`collect-pr-info.md`](../../../../.github/workflows/shared/agentic-workflows/collect-pr-info.md) | Pre-agent step | CI Doctor, MQ | Resolve the pull request under investigation and pre-collect its metadata (`pr-info.json` / `pr-info.txt`). |
 | [`notify-teams.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams.md) | Safe-output job | MQ, Post-Commit | Send the investigation summary to Microsoft Teams; upload the statistics artifact. A `source` input selects the `[MQ]` / `[PC]` badge and the artifact name. |
 | [`notify-teams-recurring.md`](../../../../.github/workflows/shared/agentic-workflows/notify-teams-recurring.md) | Safe-output job | MQ | Send a recurring-failure escalation alert to Teams. |
 | [`remediate-transient-failure.md`](../../../../.github/workflows/shared/agentic-workflows/remediate-transient-failure.md) | Safe-output job | MQ | Remediate a transient failure: the job resolves the PR's live merge-queue status and either re-runs the failed jobs (still queued) or re-adds the dropped PR (dropped). |
@@ -295,6 +311,58 @@ dropped PR** to the queue (via `gh pr merge`, idempotent: it skips PRs that are 
 already carry the CI Doctor re-add marker comment). It uses the default `GITHUB_TOKEN` (with
 `actions: write`) for the re-run and status reads, and the `MERGE_QUEUE_TOKEN` secret for the re-queue
 (the default `GITHUB_TOKEN` cannot re-trigger `merge_group` check runs).
+
+### Shared prompt fragments
+
+The Merge Queue and Post-Commit doctors run the *same* investigation protocol; they differ only in the
+trigger event, the repo-memory branch/subdirectory and schema directory, the field that scopes a failure
+(PR vs commit), the Teams `source` badge, and the extra merge-queue-only remediation tooling. Rather than
+maintaining two ~600-line prompts, the common protocol is split into three **parameterised prompt
+fragments**. Each declares an
+[`import-schema`](https://github.github.com/gh-aw/reference/imports/#import-schema-import-schema); the
+importing workflow passes its flavour via `uses:`/`with:`, and `gh aw compile` substitutes
+`${{ github.aw.import-inputs.<key> }}` in the fragment's frontmatter **and** body before inlining it:
+
+| Fragment | Content | Inputs | Also wires |
+| --- | --- | --- | --- |
+| [`ci-doctor-investigation-protocol.md`](../../../../.github/workflows/shared/agentic-workflows/ci-doctor-investigation-protocol.md) | Mission, run context, pre-downloaded log layout, trigger detection, Phases 1–4 (triage, log analysis, historical context, bounded root-cause investigation). | `name`, `kind`, `event`, `slug` | `tools.github` toolsets |
+| [`ci-doctor-knowledge-base.md`](../../../../.github/workflows/shared/agentic-workflows/ci-doctor-knowledge-base.md) | Phase 5: schema-validated investigation records, append-only index, read-modify-write pattern records, statistics snapshot. | `slug`, `index_scope_field`, `pattern_scope_field`, `scope_ref` | `tools.repo-memory` on `memory/ci-doctor-<slug>`; `post-steps` uploading the `ci-doctor-<slug>-investigations` artifact |
+| [`ci-doctor-reporting.md`](../../../../.github/workflows/shared/agentic-workflows/ci-doctor-reporting.md) | Phases 6–7, `notify_teams` field guidance and Teams description template, common guidelines, mandatory safe-output rule, memory strategy. | `name`, `kind`, `event`, `source`, `slug` | — |
+
+For example, the Merge Queue doctor imports them as:
+
+```yaml
+imports:
+  - uses: shared/agentic-workflows/ci-doctor-investigation-protocol.md
+    with: { name: Merge Queue, kind: merge-queue, event: merge_group, slug: mq }
+  - uses: shared/agentic-workflows/ci-doctor-knowledge-base.md
+    with: { slug: mq, index_scope_field: pr_number, pattern_scope_field: affected_prs, scope_ref: "the PR URL (or null if no PR)" }
+  - uses: shared/agentic-workflows/ci-doctor-reporting.md
+    with: { name: Merge Queue, kind: merge-queue, event: merge_group, source: merge_queue, slug: mq }
+```
+
+and the Post-Commit doctor passes `slug: post-commit`, `event: push`, `source: post_commit`,
+`index_scope_field: commit_sha`, `pattern_scope_field: affected_commits`.
+
+**How the prompt is assembled.** `gh-aw` inlines the body of every frontmatter import *before* the
+importing workflow's own body, in import order. The effective prompt of each automatic doctor is
+therefore: *investigation protocol → knowledge base → reporting → workflow-specific instructions*.
+The shared fragments explicitly point the agent at the trailing
+`# CI Failure Doctor — <name>: Workflow-Specific Instructions` section, which extends the shared phases
+and takes precedence on conflict. The workflow `.md` bodies hold only those additions:
+
+* [`ci-doctor-mq.md`](../../../../.github/workflows/ci-doctor-mq.md): the pre-collected PR context, the
+  `rerun_search_string` pattern field (compute, verify, backfill), Phase 5.5 recurrence escalation, and
+  the `add_comment` / `notify_teams_recurring` / `remediate_transient_failure` safe-output guidance and
+  valid call combinations.
+* [`ci-doctor-post-commit.md`](../../../../.github/workflows/ci-doctor-post-commit.md): the
+  `master`-only scope, the report-only rule, how PR context may be inferred from the commit, and the
+  "exactly one safe output" rule.
+
+Because imported prompt text is inlined at compile time, **editing a `ci-doctor-*.md` fragment requires
+recompiling every importing workflow** (`gh aw compile`), unlike edits to a workflow's own body, which
+is loaded at runtime. The workflow `name:` is pinned in each workflow's frontmatter so the H1 of the
+shared fragment does not affect the GitHub Actions workflow name.
 
 ## Setup and infrastructure
 
@@ -395,9 +463,14 @@ only the narrow permission it needs. The workflows rely on the following secrets
    gh aw compile
    ```
 
-   This regenerates `ci-doctor.lock.yml` / `ci-doctor-mq.lock.yml`. The lock file carries a hash of the
-   frontmatter and body, so unrelated edits will not always change it.
+   This regenerates `ci-doctor.lock.yml` / `ci-doctor-mq.lock.yml` / `ci-doctor-post-commit.lock.yml`.
+   The lock file carries a hash of the frontmatter and body, so unrelated edits will not always change it.
 3. Commit **both** the `.md` and the regenerated `.lock.yml` together.
+
+When changing the shared investigation protocol, edit the relevant
+[`ci-doctor-*.md` prompt fragment](#shared-prompt-fragments) once rather than both workflow bodies, keep
+any new flavour-dependent wording behind an `import-schema` input, and recompile **both** importing
+workflows. Put behaviour that applies to only one doctor in that workflow's own body.
 
 When changing the merge-queue knowledge-base format, update the matching schema under
 [`.github/ci-doctor-mq/schemas`](../../../../.github/ci-doctor-mq/schemas) so the in-workflow validation
