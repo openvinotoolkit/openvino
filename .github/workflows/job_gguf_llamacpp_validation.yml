@@ -86,10 +86,9 @@ jobs:
 
       - name: Run llama.cpp tests against the ggml-openvino backend
         env:
-          # Q4_K's zero-point defaults to an integer (u8) constant for production (genai) speed.
-          # llama.cpp's test-backend-ops compares against an f32 CPU reference within a tolerance
-          # the rounded u8 zero-point can miss, so request the faithful f16 zero-point here. See
-          # gguf_zero_point_type in src/frontends/gguf/src/quant/weights.cpp.
+          # The production Q4_K path requantizes weights to OpenVINO u4 and is necessarily lossy.
+          # llama.cpp's test-backend-ops uses a strict f32-oracle tolerance, so validate the
+          # frontend's faithful Q4_K decode path here. The requantized path has dedicated tests.
           OV_GGUF_Q4_K_ZP_F16: "1"
         run: |
           source ${{ env.INSTALL_DIR }}/setupvars.sh

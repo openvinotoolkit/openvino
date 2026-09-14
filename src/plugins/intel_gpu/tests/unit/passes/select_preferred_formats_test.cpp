@@ -10,6 +10,7 @@
 #include "intel_gpu/primitives/convolution.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/permute.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include "convolution_inst.h"
@@ -288,4 +289,57 @@ TEST(test_select_preferred_formats, permute_conv_accuracy) {
         ASSERT_TRUE(perm_node.has_fused_primitives());
         ASSERT_FALSE(perm_node.can_be_optimized());
     }
+}
+
+TEST(test_select_preferred_formats, conv_reshape_reorder_planar_output) {
+    // optimize_conv_reshape_reorder: a rank-changing ov::Reshape is lowered to
+    // "reorder(planar) -> reshape" at plugin build time, so the reorder is a full copy of the
+    // convolution output. Letting the oneDNN convolution emit that planar format itself makes
+    // the reorder a buffer reinterpret that remove_redundant_reorders can drop.
+    //
+    //   conv [1,32,16,16] -> flatten_reorder (bfyx [1,32,256,1]) -> flatten (reshape) -> out
+    //
+    // The negative case drops the reshape so the pattern must not trigger, and the convolution
+    // keeps the forced blocked output format. Like optimize_conv_permute, the pattern
+    // optimization takes precedence over an explicitly forced output format.
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    auto build = [&engine](bool with_reshape) {
+        auto input = engine.allocate_memory({data_types::f16, format::bfyx, {1, 32, 16, 16}});
+        auto weights = engine.allocate_memory({data_types::f16, format::bfyx, {32, 32, 1, 1}});
+
+        // Same element count as the convolution output, flattened over the spatial axes.
+        const auto flat_layout = layout{data_types::f16, format::bfyx, tensor{1, 32, 1, 256}};
+
+        topology topo;
+        topo.add(data("weights", weights));
+        topo.add(input_layout("input", input->get_layout()));
+        topo.add(convolution("conv1", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+        topo.add(reorder("flatten_reorder", input_info("conv1"), flat_layout));
+        if (with_reshape) {
+            topo.add(reshape("flatten", input_info("flatten_reorder"), tensor{1, 32, 1, 256}));
+            topo.add(reorder("out", input_info("flatten"), format::bfyx, data_types::f32));
+        } else {
+            topo.add(reorder("out", input_info("flatten_reorder"), format::bfyx, data_types::f32));
+        }
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        ov::intel_gpu::ImplementationDesc impl = {format::b_fs_yx_fsv16, std::string(""), impl_types::onednn};
+        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv1", impl}}));
+
+        auto prog = program::build_program(engine, topo, config, false, true);
+        prog->get_layout_optimizer().add_all_onednn_impls_optimization_attribute();
+
+        // Initializes output_layout, necessary because this test runs the pass alone.
+        prog->get_node("conv1").get_output_layouts(false);
+        prog->get_node("flatten_reorder").get_output_layouts(false);
+        program_wrapper::apply_opt_pass<select_preferred_formats>(*prog);
+        return prog;
+    };
+
+    ASSERT_EQ(build(true)->get_node("conv1").get_preferred_output_fmt(0), format::bfyx);
+    ASSERT_EQ(build(false)->get_node("conv1").get_preferred_output_fmt(0), format::b_fs_yx_fsv16);
 }

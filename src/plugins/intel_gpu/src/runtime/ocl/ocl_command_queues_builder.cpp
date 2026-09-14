@@ -62,9 +62,10 @@ std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl
             }
         }
 
-        if (num_queues)
+        if (num_queues) {
             properties.insert(properties.end(), {CL_QUEUE_FAMILY_INTEL, family,
                                                  CL_QUEUE_INDEX_INTEL, stream_id % num_queues});
+        }
     }
 
     bool out_of_order = _out_of_order;
