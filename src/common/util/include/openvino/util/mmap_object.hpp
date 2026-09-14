@@ -66,7 +66,7 @@ public:
     virtual size_t size() const noexcept override = 0;
     const util::MemoryProperties& get_properties() const noexcept override final;
 
-    virtual void hint_evict(size_t offset = 0, size_t size = auto_size) noexcept = 0;
+    virtual void hint_evict(size_t offset, size_t size) noexcept = 0;
     void hint_evict() noexcept override final;
 
     /**
@@ -76,8 +76,8 @@ public:
      * @param size   Number of bytes to prefetch. Defaults to the rest of the
      *               mapping when set to auto_size.
      */
-    virtual void hint_prefetch(size_t offset = 0, size_t size = auto_size) = 0;
-    void hint_prefetch() const override final;
+    virtual void hint_prefetch(size_t offset, size_t size) noexcept = 0;
+    void hint_prefetch() noexcept override final;
 
     /**
      * @brief Asynchronous variant of @ref hint_prefetch: starts populating the region in the

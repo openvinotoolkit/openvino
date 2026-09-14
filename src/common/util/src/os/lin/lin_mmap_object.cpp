@@ -221,7 +221,7 @@ public:
         }
     }
 
-    void hint_prefetch(size_t offset, size_t size) override {
+    void hint_prefetch(size_t offset, size_t size) noexcept override {
         constexpr size_t one_mb = 1024 * 1024;
         // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
         if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 4 * one_mb) {

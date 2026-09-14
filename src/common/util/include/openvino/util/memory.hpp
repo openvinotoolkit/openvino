@@ -161,7 +161,7 @@ public:
     /// @brief Hint to release the underlying memory if possible (e.g. unmaps/decommits).
     virtual void hint_evict() noexcept = 0;
     /// @brief Hint to fetch the data to memory.
-    virtual void hint_prefetch() const = 0;
+    virtual void hint_prefetch() noexcept = 0;
 };
 
 /**

@@ -314,7 +314,7 @@ public:
 
     void hint_evict(size_t offset, size_t size) noexcept override;
 
-    void hint_prefetch(size_t offset, size_t size) override;
+    void hint_prefetch(size_t offset, size_t size) noexcept override;
 
     void hint_prefetch_async(size_t offset, size_t size) override;
 
@@ -827,7 +827,7 @@ void MapHolder::wait_for_pending_prefetch() noexcept {
     m_pending_prefetch.clear();
 }
 
-void MapHolder::hint_prefetch(size_t offset, size_t size) {
+void MapHolder::hint_prefetch(size_t offset, size_t size) noexcept {
     // Below 4 MiB the overhead of spawning threads exceeds the benefit; skip.
     if (const auto region = clamp_align_region(m_data, m_size, offset, size); region.m_length > 4 * util::one_mib) {
         const auto num_threads = std::min<size_t>(10, std::thread::hardware_concurrency());

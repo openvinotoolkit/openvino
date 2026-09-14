@@ -543,7 +543,7 @@ public:
 
     MOCK_METHOD(void, hint_evict_mock, (size_t offset, size_t size));
 
-    MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (override));
+    MOCK_METHOD(void, hint_prefetch, (size_t offset, size_t size), (noexcept, override));
 
     MOCK_METHOD(void, hint_prefetch_async, (size_t offset, size_t size), (override));
 

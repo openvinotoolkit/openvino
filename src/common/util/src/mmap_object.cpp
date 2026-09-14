@@ -15,7 +15,8 @@ void MappedMemory::hint_evict() noexcept {
     hint_evict(0, auto_size);
 }
 
-// A hint may always no-op; the ranged, stateful hint_prefetch(offset, size) is the real API.
-void MappedMemory::hint_prefetch() const {}
+void MappedMemory::hint_prefetch() noexcept {
+    hint_prefetch(0, auto_size);
+}
 
 }  // namespace ov
