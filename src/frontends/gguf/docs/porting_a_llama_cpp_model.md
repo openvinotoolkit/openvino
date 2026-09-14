@@ -9,9 +9,6 @@ compatibility across releases. Loading an extension does not require rebuilding 
 
 ## Choose the smallest implementation
 
-The [Devstral extension](../examples/devstral_extension) implements YaRN and position-dependent
-attention scaling directly from metadata, without using the shared decoder resolver or blocks.
-
 | Requirement | Implementation |
 |---|---|
 | Existing decoder topology, new architecture name | `make_decoder_architecture(name, rope)` |
