@@ -161,6 +161,7 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
+      - name: Setup ccache
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
