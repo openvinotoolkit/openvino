@@ -3,22 +3,19 @@
 //
 
 #include "ocl_user_event.hpp"
-#include "CL/cl.h"
+#include <chrono>
 #include <list>
+#include <memory>
+#include <utility>
 
 using namespace cldnn::ocl;
 
 ocl_user_event::ocl_user_event(const cl::Context& ctx,
                                bool is_set,
-                               const cl::Device& device)
-    : _ctx(ctx)
+                               std::shared_ptr<device_clock_sync> device_clock)
+    : _device_clock(std::move(device_clock))
+    , _ctx(ctx)
     , _event(_ctx) {
-#if defined(CL_VERSION_2_1)
-    if (device.get() != nullptr) {
-        _device = device;
-    }
-#endif
-
     if (is_set) {
         set();
     }
@@ -32,15 +29,12 @@ void ocl_user_event::set_impl() {
     static_cast<cl::UserEvent&&>(get()).setStatus(CL_COMPLETE);
     _duration = std::unique_ptr<cldnn::instrumentation::profiling_period_basic>(
         new cldnn::instrumentation::profiling_period_basic(_timer.uptime()));
-#if defined(CL_VERSION_2_1)
-    if (_device.get() != nullptr) {
-        cl_ulong device_ts = 0;
-        cl_ulong host_ts = 0;
-        if (clGetDeviceAndHostTimer(_device.get(), &device_ts, &host_ts) == CL_SUCCESS) {
-            _exec_start = std::chrono::nanoseconds(static_cast<long long>(device_ts)) - _duration->value();
-        }
+
+    // Capture only the host clock here; device correlation is shared and refreshed
+    // periodically while profiling information is collected.
+    if (_device_clock) {
+        _host_end = device_clock_sync::host_now();
     }
-#endif
 }
 
 bool ocl_user_event::get_profiling_info_impl(std::list<cldnn::instrumentation::profiling_interval>& info) {
@@ -51,13 +45,20 @@ bool ocl_user_event::get_profiling_info_impl(std::list<cldnn::instrumentation::p
     auto period = std::make_shared<instrumentation::profiling_period_basic>(_duration->value());
     info.push_back({ instrumentation::profiling_stage::duration, period });
 
-    if (_device.get() != nullptr) {
-        auto zero_period = std::make_shared<instrumentation::profiling_period_basic>(std::chrono::nanoseconds::zero());
-        info.push_back({ instrumentation::profiling_stage::starting, zero_period, _exec_start, true });
-        info.push_back({ instrumentation::profiling_stage::executing, period, _exec_start, true });
-    } else {
-        info.push_back({ instrumentation::profiling_stage::executing, period });
+    // The stream-level rate limit amortizes refresh_if_stale() across user events.
+    if (_device_clock) {
+        _device_clock->refresh_if_stale();
+
+        if (const auto mapped = _device_clock->to_device(_host_end)) {
+            const auto exec_start = *mapped - _duration->value();
+            auto zero_period = std::make_shared<instrumentation::profiling_period_basic>(std::chrono::nanoseconds::zero());
+            info.push_back({ instrumentation::profiling_stage::starting, zero_period, exec_start, true });
+            info.push_back({ instrumentation::profiling_stage::executing, period, exec_start, true });
+            return true;
+        }
     }
+
+    info.push_back({ instrumentation::profiling_stage::executing, period });
 
     return true;
 }

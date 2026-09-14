@@ -58,20 +58,20 @@ KERNEL(swiglu_gpu_opt)(
 #endif
 
 #if GATE_IDX == 0
-    ACCUMULATOR_TYPE gate = input[y];
+    ACCUMULATOR_TYPE gate = DECODE_INPUT0_COMPUTE_TYPE(input[y]);
     #if GLU_STRIDE == 2
-        ACCUMULATOR_TYPE value = input[y + 1];
+        ACCUMULATOR_TYPE value = DECODE_INPUT0_COMPUTE_TYPE(input[y + 1]);
     #else
-        ACCUMULATOR_TYPE value = input[y + GLU_STRIDE];
+        ACCUMULATOR_TYPE value = DECODE_INPUT0_COMPUTE_TYPE(input[y + GLU_STRIDE]);
     #endif
 #else
     #if GLU_STRIDE == 2
         // alternating mode: pair is at positions y, y+1 — gate is the odd neighbor
-        ACCUMULATOR_TYPE gate = input[y + 1];
+        ACCUMULATOR_TYPE gate = DECODE_INPUT0_COMPUTE_TYPE(input[y + 1]);
     #else
-        ACCUMULATOR_TYPE gate = input[y + GLU_STRIDE];
+        ACCUMULATOR_TYPE gate = DECODE_INPUT0_COMPUTE_TYPE(input[y + GLU_STRIDE]);
     #endif
-    ACCUMULATOR_TYPE value = input[y];
+    ACCUMULATOR_TYPE value = DECODE_INPUT0_COMPUTE_TYPE(input[y]);
 #endif
 #ifdef SCALE_FACTOR
     // Restore original scale before clamp / swish / up_add_val so that
@@ -82,8 +82,8 @@ KERNEL(swiglu_gpu_opt)(
 #endif
     #if GLU_TYPE == 0   // Swish
     #if defined(CLAMP_MAX) && defined(CLAMP_MIN)
-    gate = ACCUMULATOR_MIN_FUNC(TO_OUTPUT_TYPE(CLAMP_MAX), gate);
-    value = ACCUMULATOR_MIN_FUNC(ACCUMULATOR_MAX_FUNC(TO_OUTPUT_TYPE(CLAMP_MIN), value), TO_OUTPUT_TYPE(CLAMP_MAX));
+    gate = ACCUMULATOR_MIN_FUNC(TO_OUTPUT_COMPUTE_TYPE(CLAMP_MAX), gate);
+    value = ACCUMULATOR_MIN_FUNC(ACCUMULATOR_MAX_FUNC(TO_OUTPUT_COMPUTE_TYPE(CLAMP_MIN), value), TO_OUTPUT_COMPUTE_TYPE(CLAMP_MAX));
     #endif
     gate /= (ACCUMULATOR_VAL_ONE + native_exp(-SWISH_BETA * gate));
     #elif GLU_TYPE == 1 // Gelu

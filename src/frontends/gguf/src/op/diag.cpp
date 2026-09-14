@@ -6,11 +6,10 @@
 #include <memory>
 #include <vector>
 
-#include "openvino/op/constant.hpp"
-#include "openvino/op/multiply.hpp"
-
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -47,7 +46,7 @@ OutputVector translate_diag(const NodeContext& context) {
     // Multiply broadcasts the [ne3,ne2,1,ne0] input over the row axis, zeroing off-diagonal entries.
     auto res = std::make_shared<ov::op::v1::Multiply>(x, eye);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

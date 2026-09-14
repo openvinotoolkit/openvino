@@ -43,11 +43,7 @@ struct SegmentMax : public ImplementationManager {
             return false;
         }
 
-        if (node.has_fused_primitives()) {
-            return false;
-        }
-
-        return true;
+        return !node.has_fused_primitives();
     }
 };
 

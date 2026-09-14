@@ -11,6 +11,7 @@ ParamsKey reorder_biplanar_nv12::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableDifferentTypes();
     k.EnableInputLayout(DataLayout::nv12);

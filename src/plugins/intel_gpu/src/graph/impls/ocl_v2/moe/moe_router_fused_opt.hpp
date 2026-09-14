@@ -24,10 +24,7 @@ struct MoeRouterFusedOpt : public ImplementationManager {
         };
 
         const auto& in_layout = node.get_input_layout(0);
-        if (!one_of(in_layout.data_type, supported_types))
-            return false;
-
-        return true;
+        return one_of(in_layout.data_type, supported_types);
     }
 };
 

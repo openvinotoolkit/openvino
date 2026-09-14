@@ -9,7 +9,7 @@
 
 namespace cldnn {
     struct WeightsReorderParams {
-        WeightsReorderParams() {}
+        WeightsReorderParams() = default;
 
         WeightsReorderParams(const layout& in_layout, const layout& out_layout, bool transposed = false, bool grouped = false)
             : _in_layout(in_layout),
@@ -25,8 +25,9 @@ namespace cldnn {
         }
 
         bool operator==(const WeightsReorderParams& rhs) const {
-            if (typeid(*this) != typeid(rhs))
+            if (typeid(*this) != typeid(rhs)) {
                 return false;
+            }
 
             return _in_layout == rhs._in_layout &&
                    _out_layout == rhs._out_layout &&
@@ -66,7 +67,7 @@ namespace cldnn {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     namespace onednn {
         struct WeightsReorderParamsOneDNN : public cldnn::WeightsReorderParams {
-            WeightsReorderParamsOneDNN() {}
+            WeightsReorderParamsOneDNN() = default;
             WeightsReorderParamsOneDNN(const layout& in_layout,
                                        const layout& out_layout,
                                        const dnnl::memory::desc& in_desc,
@@ -99,6 +100,6 @@ namespace cldnn {
                 _out_desc = std::make_shared<dnnl::memory::desc>(out);
             }
         };
-    }
+    }  // namespace onednn
 #endif
-}
+}  // namespace cldnn

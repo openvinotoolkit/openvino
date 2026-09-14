@@ -1,6 +1,6 @@
 # OpenVINO Operation Enabling Flow
 
-1. Implement operation "shell" in the `src/core/[src|include]/op/`:
+1. Implement operation "shell" in the `src/core/[src|include/openvino]/op/`:
    * Implement constructor(s)
    * Implement `validate_and_infer_types` method which should support dynamic input tensor(s) (with partially dynamic shapes). For more information read [OpenVINO Shape propagation guide](./shape_propagation.md)
    * Implement `visit_attributes` method

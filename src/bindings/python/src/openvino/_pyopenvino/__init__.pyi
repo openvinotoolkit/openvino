@@ -431,12 +431,14 @@ class ConstOutput:
                         :return: Copy of PartialShape of the output.
                         :rtype: openvino.PartialShape
         """
-    def get_rt_info(self) -> RTMap:
+    def get_rt_info(self) -> typing.Any:
         """
-                        Returns RTMap which is a dictionary of user defined runtime info.
+                    Returns a view of the RTMap for this output.
+                    Reads are transparent; writes are deprecated (to be removed in 2027.0).
+                    Use a non-const output to modify runtime info.
         
-                        :return: A dictionary of user defined data.
-                        :rtype: openvino.RTMap
+                    :return: View of runtime info dictionary.
+                    :rtype: openvino.RTMap
         """
     def get_shape(self) -> Shape:
         """
@@ -479,7 +481,7 @@ class ConstOutput:
     def partial_shape(self) -> PartialShape:
         ...
     @property
-    def rt_info(self) -> RTMap:
+    def rt_info(self) -> typing.Any:
         ...
     @property
     def shape(self) -> Shape:
@@ -3779,10 +3781,10 @@ class Output:
         """
     def get_rt_info(self) -> RTMap:
         """
-                        Returns RTMap which is a dictionary of user defined runtime info.
+                    Returns RTMap which is a dictionary of user defined runtime info.
         
-                        :return: A dictionary of user defined data.
-                        :rtype: openvino.RTMap
+                    :return: A dictionary of user defined data.
+                    :rtype: openvino.RTMap
         """
     def get_shape(self) -> Shape:
         """
@@ -5221,6 +5223,33 @@ class Version:
                     :return: OpenVINO's version patch.
                     :rtype: int
         """
+class _ConstRTMapView(RTMap):
+    def __bool__(self) -> bool:
+        ...
+    def __contains__(self, arg0: str) -> bool:
+        ...
+    def __delitem__(self, arg0: str) -> None:
+        ...
+    def __getitem__(self, arg0: str) -> typing.Any:
+        ...
+    def __iter__(self) -> collections.abc.Iterator[str]:
+        ...
+    def __len__(self) -> int:
+        ...
+    def __repr__(self) -> str:
+        ...
+    @typing.overload
+    def __setitem__(self, arg0: str, arg1: str) -> None:
+        ...
+    @typing.overload
+    def __setitem__(self, arg0: str, arg1: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    def items(self) -> typing.Any:
+        ...
+    def keys(self) -> collections.abc.Iterator[str]:
+        ...
+    def values(self) -> typing.Any:
+        ...
 class _ConversionExtension(ConversionExtensionBase):
     pass
 class _IDecoder:

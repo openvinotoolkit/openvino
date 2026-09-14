@@ -129,6 +129,7 @@ jobs:
           ${{ env.INSTALL_TEST_DIR }}/ov_ir_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-IRFrontend.xml
 
       - name: GGUF frontend tests
+        if: fromJSON(inputs.affected-components).GGUF_FE.test
         run: |
           ${{ env.SOURCE_COMMAND }} ${{ env.SETUPVARS }}
           ${{ env.INSTALL_TEST_DIR }}/ov_gguf_frontend_tests --gtest_print_time=1 --gtest_output=xml:${{ env.INSTALL_TEST_DIR }}/TEST-GGUFFrontend.xml

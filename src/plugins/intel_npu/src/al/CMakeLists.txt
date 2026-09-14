@@ -9,7 +9,6 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/config/config.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/config/npuw.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/config/options.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/npu_mlir_runtime.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/npu_private_properties.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/npuw_private_properties.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/intel_npu/prefix.hpp

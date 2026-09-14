@@ -9,7 +9,8 @@ import os
 from pathlib import Path
 import shlex
 import shutil
-import subprocess
+# Coverage CI: pytest/coverage/python invoked as argv lists in the workflow workspace.
+import subprocess  # nosec B404
 import time
 import xml.etree.ElementTree as ET
 

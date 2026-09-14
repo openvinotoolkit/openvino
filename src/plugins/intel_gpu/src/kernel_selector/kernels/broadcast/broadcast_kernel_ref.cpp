@@ -9,6 +9,7 @@ ParamsKey BroadcastKernelRef::GetSupportedKey() const {
     ParamsKey k;
 
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
@@ -17,6 +18,7 @@ ParamsKey BroadcastKernelRef::GetSupportedKey() const {
 
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT32);

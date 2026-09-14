@@ -89,7 +89,7 @@ KERNEL (permute_tile_8x8_4x4)(
                 FUSED_OPS;
                 transpose_buf[dst][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[dst][lh] = ACTIVATION(read_data[i], ACTIVATION_PARAMS);
+                transpose_buf[dst][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -112,7 +112,7 @@ KERNEL (permute_tile_8x8_4x4)(
                 FUSED_OPS;
                 transpose_buf[local_buf_offset + i][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[local_buf_offset + i][lh] = ACTIVATION(read_data[i], ACTIVATION_PARAMS);
+                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -138,7 +138,7 @@ KERNEL (permute_tile_8x8_4x4)(
                 FUSED_OPS;
                 transpose_buf[local_buf_offset + i][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[local_buf_offset + i][lh] = ACTIVATION(read_data[i], ACTIVATION_PARAMS);
+                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -168,7 +168,7 @@ KERNEL (permute_tile_8x8_4x4)(
                 FUSED_OPS;
                 transpose_buf[local_buf_offset + i][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[local_buf_offset + i][lh] = ACTIVATION(read_data[i], ACTIVATION_PARAMS);
+                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -195,7 +195,7 @@ KERNEL (permute_tile_8x8_4x4)(
                 FUSED_OPS;
                 transpose_buf[local_buf_offset + i][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[local_buf_offset + i][lh] = ACTIVATION(read_data[i], ACTIVATION_PARAMS);
+                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -224,7 +224,7 @@ KERNEL (permute_tile_8x8_4x4)(
                 FUSED_OPS;
                 transpose_buf[local_buf_offset + i][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[local_buf_offset + i][lh] = ACTIVATION(read_data[i], ACTIVATION_PARAMS);
+                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
 #endif
             }
         }
@@ -254,7 +254,7 @@ KERNEL (permute_tile_8x8_4x4)(
                 FUSED_OPS;
                 transpose_buf[local_buf_offset + i][lh] = FUSED_OPS_RESULT;
 #else
-                transpose_buf[local_buf_offset + i][lh] = ACTIVATION(read_data[i], ACTIVATION_PARAMS);
+                transpose_buf[local_buf_offset + i][lh] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(read_data[i]), ACTIVATION_PARAMS));
 #endif
             }
         }

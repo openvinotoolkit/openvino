@@ -16,7 +16,7 @@ public:
 
     normalize_kernel_selector();
 
-    ~normalize_kernel_selector() override {}
+    ~normalize_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

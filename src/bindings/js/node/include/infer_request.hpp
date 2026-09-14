@@ -124,5 +124,3 @@ private:
 };
 
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context);
-
-void performInferenceThread(TsfnContext* context);

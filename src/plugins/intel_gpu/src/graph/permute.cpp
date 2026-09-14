@@ -60,7 +60,7 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, 
 
     if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
-        for (auto& desc : impl_param.fused_desc) {
+        for (const auto& desc : impl_param.fused_desc) {
             if (desc.is_type<reorder>()) {
                 output_fmt = desc.output_layout.format;
             }
@@ -125,8 +125,9 @@ permute_inst::typed_primitive_inst(network& network, permute_node const& node) :
     auto required_order_values_size = static_cast<uint32_t>(permute_order.size());
 
     for (decltype(required_order_values_size) i = 0; i < required_order_values_size; i++) {
-        if (!(std::find(permute_order.begin(), permute_order.end(), i) != permute_order.end()))
+        if (!(std::find(permute_order.begin(), permute_order.end(), i) != permute_order.end())) {
             CLDNN_ERROR_MESSAGE(node.id(), "Permute order does not contain all of required values.");
+        }
     }
 
     update_output_memory();
@@ -138,17 +139,20 @@ void permute_inst::on_execute() {
 
 
 void permute_inst::update_output_memory() {
-    if (!can_be_optimized() || _impl_params->is_dynamic())
+    if (!can_be_optimized() || _impl_params->is_dynamic()) {
         return;
+    }
 
     build_deps();
 
-    if (input_memory_ptr() == nullptr)
+    if (input_memory_ptr() == nullptr) {
         return;
+    }
 
     if (!_outputs.empty() && static_cast<bool>(_outputs[0])
-        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory()))
+        && _network.get_engine().is_the_same_buffer(output_memory(), input_memory())) {
         return;
+    }
 
     GPU_DEBUG_TRACE_DETAIL << id() << " : update_output_memory with mem of input " << get_node().get_dependency(0).id()
                            << " : " << input_memory_ptr()->buffer_ptr() << std::endl;

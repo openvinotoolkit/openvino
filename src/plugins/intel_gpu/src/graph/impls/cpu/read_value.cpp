@@ -65,8 +65,8 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
                 variable.get_memory()->fill(stream);
             }
             if (!instance.get_user_insts().empty()) {
-                auto user_inst = instance.get_user_insts().front();
-                if (!(user_inst->get_node().is_type<assign>() || user_inst->get_node().is_type<kv_cache>()) &&
+                auto* user_inst = instance.get_user_insts().front();
+                if (!user_inst->get_node().is_type<assign>() && !user_inst->get_node().is_type<kv_cache>() &&
                     instance.get_network().contains_state(variable_id)) {
                     variable.set();
                 }
@@ -78,7 +78,7 @@ struct read_value_impl : public typed_primitive_impl<read_value> {
             std::vector<cldnn::event::ptr> res_events;
             res_events.push_back(instance.output_memory(0).copy_from(stream, *variable.get_memory(), false));
 
-            if (auto compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+            if (auto* compressed_cache_variable = dynamic_cast<ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
                 auto scales_state = compressed_cache_variable->get_compression_scale_state();
                 res_events.push_back(instance.output_memory(1).copy_from(stream, *scales_state->get_memory(), false));
 

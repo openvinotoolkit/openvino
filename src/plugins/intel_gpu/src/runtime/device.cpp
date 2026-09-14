@@ -45,7 +45,8 @@ struct DeviceOps {
 
         if (gfx_version_list.size() == 1) {
             return info.gfx_ver == gfx_version_list[0];
-        } else if (gfx_version_list.size() == 2) {
+        }
+        if (gfx_version_list.size() == 2) {
             return info.gfx_ver >= gfx_version_list[0] && info.gfx_ver <= gfx_version_list[1];
         }
         return false;
@@ -73,9 +74,8 @@ struct DeviceOps {
         auto it = ops_mad.find(dt);
         if (it != ops_mad.end()) {
             return it->second;
-        } else {
-            return 0;
         }
+        return 0;
     }
 };
 
@@ -154,10 +154,7 @@ bool device::use_unified_shared_memory() const {
     GPU_DEBUG_IF(ExecutionConfig::get_disable_usm()) {
         return false;
     }
-    if (get_mem_caps().supports_usm()) {
-        return true;
-    }
-    return false;
+    return get_mem_caps().supports_usm();
 }
 
 }  // namespace cldnn

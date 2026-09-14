@@ -16,7 +16,7 @@ public:
 
     space_to_batch_kernel_selector();
 
-    ~space_to_batch_kernel_selector() override {}
+    ~space_to_batch_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

@@ -6,12 +6,11 @@
 #include <memory>
 #include <vector>
 
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -48,10 +47,18 @@ OutputVector translate_tri(const NodeContext& context) {
         for (size_t col = 0; col < n; ++col) {
             bool keep = false;
             switch (tri_type) {
-            case 0: keep = col >= row; break;  // UPPER_DIAG
-            case 1: keep = col > row;  break;  // UPPER
-            case 2: keep = col <= row; break;  // LOWER_DIAG
-            case 3: keep = col < row;  break;  // LOWER
+            case 0:
+                keep = col >= row;
+                break;  // UPPER_DIAG
+            case 1:
+                keep = col > row;
+                break;  // UPPER
+            case 2:
+                keep = col <= row;
+                break;  // LOWER_DIAG
+            case 3:
+                keep = col < row;
+                break;  // LOWER
             default:
                 FRONT_END_GENERAL_CHECK(false, "translate_tri: invalid tri_type ", tri_type);
             }
@@ -65,7 +72,7 @@ OutputVector translate_tri(const NodeContext& context) {
 
     auto res = std::make_shared<ov::op::v1::Multiply>(x, keep_mask);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

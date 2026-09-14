@@ -13,7 +13,7 @@ class MVNKernel_b_fs_yx_fsv16 : public MVNKernelBase {
 public:
     using Parent = MVNKernelBase;
     MVNKernel_b_fs_yx_fsv16() : MVNKernelBase("mvn_gpu_b_fs_yx_fsv16") {}
-    ~MVNKernel_b_fs_yx_fsv16() override {}
+    ~MVNKernel_b_fs_yx_fsv16() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
