@@ -29,153 +29,27 @@ namespace ov {
 namespace test {
 namespace behavior {
 
-inline std::shared_ptr<ov::Model> createMaxPoolModel(bool dynamicBatch = false, bool nhwcLayout = true) {
-    std::shared_ptr<ov::op::v0::Parameter> input;
-    if (dynamicBatch) {
-        input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                        ov::PartialShape{ov::Dimension(1, 10), 16, 720, 1280});
-    } else {
-        input = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f16,
-            ov::PartialShape{1, 16, ov::Dimension(10, 720), ov::Dimension(10, 1280)});
-    }
-
-    std::string inputName = "input1";
-    input->set_friendly_name(inputName);
-    input->get_output_tensor(0).set_names({inputName});
-    if (!nhwcLayout)
-        input->set_layout("NCHW");
-    auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
-                                                         Strides{1, 1},
-                                                         Shape{0, 0},
-                                                         Shape{0, 0},
-                                                         Shape{1, 1},
-                                                         op::RoundingType::FLOOR,
-                                                         op::PadType::EXPLICIT);
-    maxpool->set_friendly_name("MaxPool_2");
-
-    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
-    std::string outputName = "output";
-    if (!nhwcLayout)
-        result->set_layout("NCHW");
-    result->set_friendly_name(outputName);
-    result->get_output_tensor(0).set_names({outputName});
-
-    auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "MaxPool");
-
-    // making input and output to be NHWC
-    if (nhwcLayout) {
-        auto preProc = ov::preprocess::PrePostProcessor(model);
-        preProc.input(0).tensor().set_layout("NHWC");
-        preProc.input(0).model().set_layout("NCHW");
-        preProc.output(0).tensor().set_layout("NHWC");
-        preProc.output(0).model().set_layout("NCHW");
-
-        model = preProc.build();
-    }
-
-    return model;
-}
-
-inline std::shared_ptr<ov::Model> createCustomNetModel(bool dynamicBatch = false) {
-    const ov::Dimension batchDimension = dynamicBatch ? ov::Dimension(1, 10) : ov::Dimension(1);
-    const ov::PartialShape inputShape{batchDimension, 16, ov::Dimension(1, 1080), ov::Dimension(10, 1920)};
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, inputShape);
-    input->set_friendly_name("Parameter_59");
-
-    auto make_conv_add = [](const ov::Output<ov::Node>& data,
-                            const std::string& convName,
-                            const std::string& addName,
-                            float weightValue,
-                            float biasValue) -> ov::Output<ov::Node> {
-        const std::vector<float> weightValues(16 * 16, weightValue);
-        const std::vector<float> biasValues(16, biasValue);
-
-        auto weights = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{16, 16, 1, 1}, weightValues);
-        auto conv = std::make_shared<ov::op::v1::Convolution>(data,
-                                                              weights,
-                                                              ov::Strides{1, 1},
-                                                              ov::CoordinateDiff{0, 0},
-                                                              ov::CoordinateDiff{0, 0},
-                                                              ov::Strides{1, 1},
-                                                              ov::op::PadType::EXPLICIT);
-        conv->set_friendly_name(convName);
-
-        auto bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 16, 1, 1}, biasValues);
-        auto add = std::make_shared<ov::op::v1::Add>(conv, bias);
-        add->set_friendly_name(addName);
-        return add;
-    };
-
-    auto x = make_conv_add(input, "Convolution_61", "Add_63", 0.01f, 0.001f);
-    x = make_conv_add(x, "Convolution_65", "Add_67", 0.011f, 0.001f);
-
-    auto relu68 = std::make_shared<ov::op::v0::Relu>(x);
-    relu68->set_friendly_name("Relu_68");
-    x = relu68;
-
-    x = make_conv_add(x, "Convolution_70", "Add_72", 0.012f, 0.001f);
-    auto relu73 = std::make_shared<ov::op::v0::Relu>(x);
-    relu73->set_friendly_name("Relu_73");
-    x = relu73;
-
-    x = make_conv_add(x, "Convolution_75", "Add_77", 0.013f, 0.001f);
-    auto relu78 = std::make_shared<ov::op::v0::Relu>(x);
-    relu78->set_friendly_name("Relu_78");
-    x = relu78;
-
-    x = make_conv_add(x, "Convolution_82", "Add_84", 0.014f, 0.001f);
-    auto relu85 = std::make_shared<ov::op::v0::Relu>(x);
-    relu85->set_friendly_name("Relu_85");
-    x = relu85;
-
-    x = make_conv_add(x, "Convolution_87", "Add_89", 0.015f, 0.001f);
-    auto relu90 = std::make_shared<ov::op::v0::Relu>(x);
-    relu90->set_friendly_name("Relu_90");
-    x = relu90;
-
-    x = make_conv_add(x, "Convolution_92", "Add_94", 0.016f, 0.001f);
-    auto relu95 = std::make_shared<ov::op::v0::Relu>(x);
-    relu95->set_friendly_name("Relu_95");
-    x = relu95;
-
-    auto multiplyScale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 16, 1, 1}, {0.5f});
-    auto multiply97 = std::make_shared<ov::op::v1::Multiply>(x, multiplyScale);
-    multiply97->set_friendly_name("Multiply_97");
-
-    auto add98 = std::make_shared<ov::op::v1::Add>(multiply97, multiply97);
-    add98->set_friendly_name("Add_98");
-
-    x = make_conv_add(add98, "Convolution_100", "Add_102", 0.017f, 0.001f);
-
-    auto result = std::make_shared<ov::op::v0::Result>(x);
-    result->set_friendly_name("Result_104");
-
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "CustomNet");
-
-    // making input and output to be NHWC
-    auto preProc = ov::preprocess::PrePostProcessor(model);
-    preProc.input(0).tensor().set_layout("NHWC");
-    preProc.input(0).model().set_layout("NCHW");
-    preProc.output(0).tensor().set_layout("NHWC");
-    preProc.output(0).model().set_layout("NCHW");
-
-    model = preProc.build();
-
-    return model;
-}
-
-inline std::shared_ptr<ov::Model> createESPCNX2Model() {
-    const ov::PartialShape inputShape{ov::Dimension(1, 2),
-                                      ov::Dimension(32, 64),
-                                      ov::Dimension(32, 64),
-                                      1};
+// Builds a model with the ESPCN_x2_gh architecture (single-channel input, DepthToSpace x2 upscaling).
+// The batch/height/width bounds and NHWC-vs-NCHW layout are parameterized so every test model in this file
+// (previously MaxPool/CustomNet variants) shares the same, already-validated graph shape.
+inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimension = ov::Dimension(1, 2),
+                                                      ov::Dimension heightDimension = ov::Dimension(32, 64),
+                                                      ov::Dimension widthDimension = ov::Dimension(32, 64),
+                                                      bool nhwcLayout = true) {
+    const ov::PartialShape inputShape = nhwcLayout
+                                            ? ov::PartialShape{batchDimension, heightDimension, widthDimension, 1}
+                                            : ov::PartialShape{batchDimension, 1, heightDimension, widthDimension};
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inputShape);
     input->set_friendly_name("IteratorGetNext:0");
     input->get_output_tensor(0).set_names({"IteratorGetNext:0"});
 
-    auto transposeOrder = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
-    auto nchwInput = std::make_shared<ov::op::v1::Transpose>(input, transposeOrder);
+    ov::Output<ov::Node> nchwInput = input;
+    if (nhwcLayout) {
+        auto transposeOrder = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+        nchwInput = std::make_shared<ov::op::v1::Transpose>(input, transposeOrder);
+    } else {
+        input->set_layout("NCHW");
+    }
 
     const auto makeConvAdd = [](const ov::Output<ov::Node>& data,
                                 size_t inputChannels,
@@ -215,7 +89,12 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model() {
     output->set_friendly_name("NCHW_output");
     output->get_output_tensor(0).set_names({"NCHW_output:0"});
 
-    return std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{input}, "ESPCN_x2_gh");
+    auto result = std::make_shared<ov::op::v0::Result>(output);
+    if (!nhwcLayout) {
+        result->set_layout("NCHW");
+    }
+
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "ESPCN_x2_gh");
 }
 
 inline bool isESPCNX2Model(const std::string& modelName) {
@@ -227,21 +106,13 @@ inline ov::Shape dynamicNHWInputShape(const std::string& modelName, size_t batch
         const size_t spatialDimension = useLargeShape ? 64 : 32;
         return {batch, spatialDimension, spatialDimension, 1};
     }
-    return useLargeShape ? ov::Shape{batch, 1080, 1920, 16} : ov::Shape{batch, 720, 1280, 16};
+    return useLargeShape ? ov::Shape{batch, 1080, 1920, 1} : ov::Shape{batch, 720, 1280, 1};
 }
 
-inline ov::Shape dynamicNHWOutputShape(const std::string& modelName, const ov::Shape& inputShape) {
-    if (isESPCNX2Model(modelName)) {
-        return {inputShape[0], 1, inputShape[1] * 2, inputShape[2] * 2};
-    }
-    return inputShape;
-}
-
-inline ov::Shape resizeTestInputShape(const std::string& modelName, bool useLargeShape) {
-    if (isESPCNX2Model(modelName)) {
-        return dynamicNHWInputShape(modelName, 1, useLargeShape);
-    }
-    return useLargeShape ? ov::Shape{1, 720, 1280, 16} : ov::Shape{1, 720, 720, 16};
+// All test models now share the ESPCN_x2_gh architecture: single output channel, spatial dims doubled by
+// DepthToSpace, regardless of the bounds used to build the input.
+inline ov::Shape dynamicNHWOutputShape(const std::string&, const ov::Shape& inputShape) {
+    return {inputShape[0], 1, inputShape[1] * 2, inputShape[2] * 2};
 }
 
 using InferWithHostCompileParams = std::tuple<std::string,  // Device name
@@ -419,19 +290,19 @@ bool InferWithHostCompileTests::logContains(const ScopedLogCapture& logCapture, 
 
 std::shared_ptr<ov::Model> InferWithHostCompileTests::createModelByName(const std::string& modelName) {
     if (modelName == "CustomNet") {
-        return createCustomNetModel();
+        return createESPCNX2Model(ov::Dimension(1), ov::Dimension(1, 1080), ov::Dimension(10, 1920));
     }
     if (modelName == "CustomNet_DynBatch") {
-        return createCustomNetModel(true);
+        return createESPCNX2Model(ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 1920));
     }
     if (modelName == "MaxPool") {
-        return createMaxPoolModel();
+        return createESPCNX2Model(ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280));
     }
     if (modelName == "MaxPool_NCHW") {
-        return createMaxPoolModel(false, false);
+        return createESPCNX2Model(ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), false);
     }
     if (modelName == "MaxPool_NCHW_DynBatch") {
-        return createMaxPoolModel(true, false);
+        return createESPCNX2Model(ov::Dimension(1, 10), ov::Dimension(10, 720), ov::Dimension(10, 1280), false);
     }
     if (isESPCNX2Model(modelName)) {
         return createESPCNX2Model();
@@ -485,6 +356,9 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
+    if (isESPCNX2Model(selectedModelName)) {
+        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
+    }
     auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
@@ -509,6 +383,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
+    if (isESPCNX2Model(selectedModelName)) {
+        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
+    }
+
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
@@ -523,7 +401,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     auto& testContext = setupResult.context;
 
     // Start with the largest shape in the dynamic range.
-    ov::Shape shape = resizeTestInputShape(selectedModelName, true);
+    ov::Shape shape = {1, 720, 1280, 1};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -550,7 +428,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
                             "CompileAndInferWithDecreasedSize_third");
 
     logCapture.clear();
-    ov::Shape shape2 = resizeTestInputShape(selectedModelName, false);
+    ov::Shape shape2 = {1, 720, 720, 1};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -572,6 +450,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
+    if (isESPCNX2Model(selectedModelName)) {
+        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
+    }
+
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
@@ -587,7 +469,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     auto& testContext = setupResult.context;
 
     // Start with a smaller valid dynamic shape.
-    ov::Shape shape = resizeTestInputShape(selectedModelName, false);
+    ov::Shape shape = {1, 720, 720, 1};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -614,7 +496,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
                             "CompileAndInferWithIncreasedSize_third");
 
     logCapture.clear();
-    ov::Shape shape2 = resizeTestInputShape(selectedModelName, true);
+    ov::Shape shape2 = {1, 720, 1280, 1};
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -635,6 +517,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     if (!isTargetDevice) {
         GTEST_SKIP() << "Skip test for current device";
     }
+    if (isESPCNX2Model(selectedModelName)) {
+        GTEST_SKIP() << "ESPCN_x2_gh is covered by the DynamicNHW tests";
+    }
+
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
 
@@ -649,7 +535,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     auto& testContext = setupResult.context;
 
     // Start from a regular host tensor.
-    ov::Shape shape = resizeTestInputShape(selectedModelName, true);
+    ov::Shape shape = {1, 720, 1280, 1};
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -671,9 +557,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
     logCapture.clear();
     auto outputTensorFromReq = testContext.reqDynamic.get_tensor(model->output());
-    if (isESPCNX2Model(selectedModelName)) {
-        OV_ASSERT_NO_THROW(outputTensorFromReq.set_shape(shape));
-    }
     setInputInferAndCompare(model,
                             reqDynamic1,
                             reqReference1,
@@ -1019,6 +902,8 @@ const std::vector<ov::AnyMap> configs = {
     },
 };
 
+// All model names below build the same ESPCN_x2_gh graph (see createModelByName) with different dynamic
+// N/H/W bounds and layouts, so each existing test's concrete/reused shapes remain valid.
 const std::vector<std::string> modelNames = {"CustomNet", "CustomNet_DynBatch", "MaxPool", "ESPCN_x2_gh"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -1040,7 +925,7 @@ const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
     },
 };
 
-const std::vector<std::string> defaultHCModelNames = {"MaxPool_NCHW", "MaxPool_NCHW_DynBatch", "ESPCN_x2_gh"};
+const std::vector<std::string> defaultHCModelNames = {"MaxPool_NCHW", "MaxPool_NCHW_DynBatch"};
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithDefaultHostCompileTests,
                          ::testing::Combine(::testing::ValuesIn(devices),

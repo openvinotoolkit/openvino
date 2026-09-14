@@ -79,7 +79,6 @@ protected:
         desc->add<COMPILATION_MODE>();
         desc->add<DYNAMIC_SHAPE_TO_STATIC>();
         config = std::make_unique<FilteredConfig>(desc);
-        config->enableAll();
         config->update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
     }
 
