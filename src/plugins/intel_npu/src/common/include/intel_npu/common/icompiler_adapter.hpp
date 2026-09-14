@@ -34,7 +34,7 @@ public:
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
                                       const FilteredConfig& config) const = 0;
     virtual uint32_t get_version() const = 0;
-    virtual std::optional<std::vector<std::string>> get_supported_options() const = 0;
+    virtual std::vector<std::string> get_supported_options() const = 0;
     virtual bool is_option_supported(const std::string& optName,
                                      const std::optional<std::string>& optValue = std::nullopt) const = 0;
 

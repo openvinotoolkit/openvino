@@ -19,24 +19,27 @@ static inline kernel_selector::gather_elements_axis convert_axis(int64_t axis, s
         case 0: return kernel_selector::gather_elements_axis::BATCH;
         case 1: return kernel_selector::gather_elements_axis::FEATURE;
         case 2:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::gather_elements_axis::W;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::gather_elements_axis::Z;
-            else
+            } else {
                 return kernel_selector::gather_elements_axis::Y;
+            }
         case 3:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::gather_elements_axis::Z;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::gather_elements_axis::Y;
-            else
+            } else {
                 return kernel_selector::gather_elements_axis::X;
+            }
         case 4:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::gather_elements_axis::Y;
-            else
+            } else {
                 return kernel_selector::gather_elements_axis::X;
+            }
         case 5: return kernel_selector::gather_elements_axis::X;
         default: OPENVINO_THROW("Incorrect gather_elements axis.");
     }
@@ -56,7 +59,7 @@ struct gather_elements_impl : typed_primitive_impl_ocl<gather_elements> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);

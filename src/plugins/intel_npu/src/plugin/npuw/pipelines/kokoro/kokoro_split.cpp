@@ -63,8 +63,6 @@ void replace_text_mask_with_parameter(std::shared_ptr<ov::Model>& model) {
     model->validate_nodes_and_infer_types();
 }
 
-// TODO Should be replaced with proper LSTMSequence implementation which can accept such inputs.
-//
 // Replace the input_lengths value (derived from ShapeOf(input_ids)) with a Parameter input.
 // In the static model, ShapeOf(input_ids) always returns the padded size (e.g. 512), which
 // feeds as sequence_lengths into all LSTMSequence ops (from pack_padded_sequence in PyTorch).
@@ -74,9 +72,14 @@ void replace_text_mask_with_parameter(std::shared_ptr<ov::Model>& model) {
 //
 // NOTE: The NPU compiler frontend (IE.cpp) only accepts sequence_lengths that is either
 // a Constant or a Parameter node for a static model — any intermediate op (like TopK) causes
-// a rejection. Therefore we must connect ALL LSTMSequence port 3 inputs directly to the Parameter.
+// a rejection. Therefore we connect LSTMSequence port 3 inputs directly to the Parameter.
+// TODO: Should be replaced with proper LSTMSequence implementation which can accept such inputs.
+//
+// NOTE: Only the LSTM sequence_lengths must switch to the real (unpadded) length. Other
+// consumers of the same ShapeOf(input_ids)[1] value — notably the BERT token_type_ids slice —
+// must keep the padded static length so they stay aligned with the padded word-embeddings.
 void replace_input_lengths_with_parameter(std::shared_ptr<ov::Model>& model) {
-    // Find the Broadcast node whose output tensor has the name "input_lengths".
+    // Find the node with a tensor named "input_lengths".
     // This is the node that broadcasts ShapeOf(input_ids)[1] → [batch_size].
     std::shared_ptr<ov::Node> input_lengths_node;
     for (const auto& op : model->get_ops()) {
@@ -95,21 +98,18 @@ void replace_input_lengths_with_parameter(std::shared_ptr<ov::Model>& model) {
         return;
     }
 
-    LOG_DEBUG("replacing input_lengths (ShapeOf-derived) with Parameter input");
+    LOG_DEBUG("adding input_lengths_param for LSTM sequence_lengths");
 
-    // input_lengths shape is [1] (batch_size) with element type I64
+    // The injected input_lengths_param shape is [1] (batch_size) with element type I64.
     auto input_lengths_param = std::make_shared<ov::op::v0::Parameter>(input_lengths_node->get_output_element_type(0),
                                                                        input_lengths_node->get_output_partial_shape(0));
-    input_lengths_param->set_friendly_name("input_lengths");
-    input_lengths_param->output(0).get_tensor().set_names({"input_lengths"});
+    input_lengths_param->set_friendly_name("input_lengths_param");
+    input_lengths_param->output(0).get_tensor().set_names({"input_lengths_param"});
 
-    // Replace the main Broadcast output with the Parameter
-    input_lengths_node->output(0).replace(input_lengths_param->output(0));
-
-    // Connect ALL LSTMSequence sequence_lengths (port 3) directly to the Parameter.
-    // Some LSTMs receive it through TopK (sort for pack_padded_sequence), others
-    // through a separate ShapeOf chain — but the NPU compiler requires the source
-    // to be exactly a Parameter or Constant, not an intermediate op.
+    // Connect the LSTMSequence sequence_lengths (port 3) directly to the Parameter.
+    // Some LSTMs receive the value through TopK (sort for pack_padded_sequence), others
+    // through a separate ShapeOf chain — but the NPU compiler requires the source to be
+    // exactly a Parameter or Constant, not an intermediate op.
     for (const auto& op : model->get_ops()) {
         if (std::string(op->get_type_info().name) != "LSTMSequence")
             continue;
@@ -121,6 +121,8 @@ void replace_input_lengths_with_parameter(std::shared_ptr<ov::Model>& model) {
             op->input(3).replace_source_output(input_lengths_param->output(0));
         }
     }
+    // Every other consumer of the original inputs_length value — e.g. the BERT token_type_ids slice —
+    // keeps the padded static length.
 
     model->add_parameters({input_lengths_param});
     model->validate_nodes_and_infer_types();

@@ -7,11 +7,13 @@
 #include <cassert>
 #include <cerrno>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
-#include <cstring>
 #include <tuple>
 
+#include "memory_prefetch.hpp"
 #include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 namespace ov::util {
 
@@ -23,8 +25,6 @@ void madvise_hint(void* ptr, size_t size) noexcept {
 }
 
 }  // namespace
-
-void populate_pages(void* ptr, size_t size, size_t num_threads) noexcept;
 
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
     if (alignment == 0) {
@@ -79,9 +79,17 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept {
     if (num_threads == 0) {
         madvise_hint(ptr, size);
     } else {
-        // blocks until every page has been faulted in.
-        populate_pages(ptr, size, num_threads);
+        PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads)).wait();
     }
+}
+
+PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept {
+    assert(ptr != nullptr && size > 0);
+    if (num_threads == 0) {
+        madvise_hint(ptr, size);
+        return {};
+    }
+    return PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads));
 }
 
 }  // namespace ov::util

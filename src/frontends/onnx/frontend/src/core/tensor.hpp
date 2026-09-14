@@ -183,8 +183,10 @@ public:
         bfloat16 = TensorProto_DataType::TensorProto_DataType_BFLOAT16,
         complex64 = TensorProto_DataType::TensorProto_DataType_COMPLEX64,
         complex128 = TensorProto_DataType::TensorProto_DataType_COMPLEX128,
+        float4e2m1 = TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1,
         float8e4m3fn = TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN,
         float8e5m2 = TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2,
+        float8e8m0 = TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0,
     };
 
     Tensor() = delete;
@@ -282,10 +284,14 @@ public:
             return ov::element::u64;
         case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
             return ov::element::bf16;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1:
+            return ov::element::f4e2m1;
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
             return ov::element::f8e4m3;
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
             return ov::element::f8e5m2;
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0:
+            return ov::element::f8e8m0;
         case TensorProto_DataType::TensorProto_DataType_STRING:
             return ov::element::string;
         case TensorProto_DataType::TensorProto_DataType_UNDEFINED:
@@ -293,8 +299,8 @@ public:
         default:
             ONNX_UNSUPPORTED_DATA_TYPE(
                 m_tensor_proto->data_type(),
-                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-                "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
+                "BOOL, BFLOAT16, FLOAT4E2M1, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT8E8M0, FLOAT, FLOAT16, DOUBLE, INT4, INT8, "
+                "INT16, INT32, INT64, UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
     }
 
@@ -408,15 +414,19 @@ private:
             [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT16:
             [[fallthrough]];
+        case TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1:
+            [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
             [[fallthrough]];
         case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
+            [[fallthrough]];
+        case TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0:
             return m_tensor_proto->int32_data_size();
         default: {
             ONNX_INVALID_DATA_TYPE(
                 m_tensor_proto->data_type(),
-                "BOOL, BFLOAT16, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT, FLOAT16, DOUBLE, INT4, INT8, INT16, INT32, INT64, "
-                "UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
+                "BOOL, BFLOAT16, FLOAT4E2M1, FLOAT8E4M3FN, FLOAT8E5M2, FLOAT8E8M0, FLOAT, FLOAT16, DOUBLE, INT4, INT8, "
+                "INT16, INT32, INT64, UINT4, UINT8, UINT16, UINT32, UINT64, STRING");
         }
         }
     }

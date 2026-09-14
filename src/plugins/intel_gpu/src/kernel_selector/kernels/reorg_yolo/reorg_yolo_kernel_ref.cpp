@@ -82,9 +82,9 @@ bool ReorgYoloKernelRef::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    if (!(input.Feature().v >= params.stride * params.stride
-            && input.X().v % params.stride == 0
-            && input.Y().v % params.stride == 0)) {
+    if (input.Feature().v < params.stride * params.stride
+            || input.X().v % params.stride != 0
+            || input.Y().v % params.stride != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 

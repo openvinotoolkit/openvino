@@ -17,40 +17,58 @@ enum class DynQuanMode {
     PER_TOKEN = 3
 };
 
-static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params& params) {
+// Length of the dimension the quantization groups are formed along. Returns 0 when the layout keeps that
+// dimension dynamic and it could not be resolved from the consuming fully connected either, in which case
+// the group count is unknown and this kernel is not applicable.
+static size_t get_input_f_size(const dynamic_quantize_params& params) {
     size_t input_f = params.inputs[0].Feature().v;
-    size_t input_batch = params.inputs[0].Batch().v;
     // 3D input
     if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         input_f = params.inputs[0].Y().v * params.inputs[0].X().v;
-        input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
     }
 
     // In Some model, input_f could be dynamic in input0. It refers to IFM value of weight.
     if (params.inputs[0].is_dynamic() && input_f == 0) {
-        OPENVINO_ASSERT(params.fc_ifm_size != 0, "[GPU] Invalid fc_ifm_size value");
-        input_f = params.fc_ifm_size;
+        return params.fc_ifm_size;
     }
+
+    return input_f;
+}
+
+static std::pair<size_t, size_t> get_input_bf_size(const dynamic_quantize_params& params) {
+    size_t input_batch = params.inputs[0].Batch().v;
+    // 3D input
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
+        input_batch = params.inputs[0].Batch().v * params.inputs[0].Feature().v;
+    }
+
+    // Validate() rejects this kernel when the size cannot be resolved, so it is known to be set here
+    const auto input_f = get_input_f_size(params);
+    OPENVINO_ASSERT(input_f != 0, "[GPU] Invalid fc_ifm_size value");
 
     return {input_batch, input_f};
 }
 
 static DynQuanMode get_dynamic_quantize_mode(const dynamic_quantize_params& params) {
-    if (params.group_sizes.back() <= 64)
-        return DynQuanMode::SMALL_GS;
-    else if (params.group_sizes.back() == std::numeric_limits<uint64_t>::max())
+    auto gs = params.group_sizes.back();
+    if (gs == std::numeric_limits<uint64_t>::max()) {
         return DynQuanMode::PER_TOKEN;
-    else
+    }
+    if (gs > simd * 2) {
         return DynQuanMode::LARGE_GS;
+    }
+    return DynQuanMode::SMALL_GS;
 }
 
 static size_t get_match_vector_size(const dynamic_quantize_params& params) {
     auto block_sizes = { 8, 4, 2 };
     auto bf = get_input_bf_size(params);
     auto f = bf.second;
+    auto gs = params.group_sizes.back();
+    size_t max_vec_size = (gs != std::numeric_limits<uint64_t>::max()) ? gs / simd : 8;
 
     for (auto block_size : block_sizes) {
-        if ((f / simd) % block_size == 0) {
+        if (static_cast<size_t>(block_size) <= max_vec_size && (f / simd) % block_size == 0) {
             return block_size;
         }
     }
@@ -63,6 +81,7 @@ ParamsKey DynamicQuantizeKernelOpt::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
+    k.EnableOutputDataType(Datatype::F4E2M1);
     k.EnableOutputDataType(Datatype::F8E4M3);
     k.EnableOutputDataType(Datatype::F8E5M2);
     k.EnableOutputDataType(Datatype::F8E8M0);
@@ -89,12 +108,14 @@ JitConstants DynamicQuantizeKernelOpt::GetJitConstants(const dynamic_quantize_pa
     jit.AddConstant(MakeJitConstant("VEC_SIZE", vec_size));
     jit.AddConstant(MakeJitConstant("SIMD", simd));
     jit.AddConstant(MakeJitConstant("QUANTIZE_GROUP_SIZE", params.group_sizes.back()));
+    jit.AddConstant(MakeJitConstant("BLOCKS_PER_GROUP", params.group_sizes.back() / simd / vec_size));
     jit.AddConstant(MakeJitConstant("ASYMMETRIC_QUANTIZATION", params.use_asymmetric_quantization));
     jit.AddConstant(MakeJitConstant("GENERATE_PRECOMPUTED_REDUCTION", params.generate_precomputed_reduction));
     jit.AddConstant(MakeJitConstant("DYNAMIC_QUANTIZAION_IMPL_MODE", static_cast<int>(mode)));
     jit.AddConstant(MakeJitConstant("MODE_SMALL_GS", static_cast<int>(DynQuanMode::SMALL_GS)));
     jit.AddConstant(MakeJitConstant("MODE_LARGE_GS", static_cast<int>(DynQuanMode::LARGE_GS)));
     jit.AddConstant(MakeJitConstant("MODE_PER_TOKEN", static_cast<int>(DynQuanMode::PER_TOKEN)));
+    jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.outputs[0].GetDType() == Datatype::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("IS_MXFP", params.outputs[1].GetDType() == Datatype::F8E8M0 ? 1 : 0));
@@ -122,11 +143,14 @@ CommonDispatchData DynamicQuantizeKernelOpt::SetDefault(const dynamic_quantize_p
     } else if (mode == DynQuanMode::LARGE_GS) {
         auto vec_size = get_match_vector_size(params);
         auto bf_size = get_input_bf_size(params);
-        size_t total_block_num = bf_size.second / (simd * vec_size);
+        const size_t total_block_num = bf_size.second / (simd * vec_size);
         size_t batch = bf_size.first;
         size_t block_num = (total_block_num > 32) ? 32 : total_block_num;
+        // Pad up to a multiple of block_num so GWS stays divisible by LWS; the kernel
+        // ignores out-of-range work-items via its is_valid_block check.
+        size_t dispatch_block_num = Align(total_block_num, block_num);
 
-        dispatchData.gws = {simd, total_block_num, batch};
+        dispatchData.gws = {simd, dispatch_block_num, batch};
         dispatchData.lws = {simd, block_num, 1};
     } else if (mode == DynQuanMode::PER_TOKEN) {
         auto vec_size = get_match_vector_size(params);
@@ -161,8 +185,9 @@ void DynamicQuantizeKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) const {
 KernelsData DynamicQuantizeKernelOpt::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::DYNAMIC_QUANTIZE);
 
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const dynamic_quantize_params& prim_params = static_cast<const dynamic_quantize_params&>(params);
     auto dispatchData = SetDefault(prim_params);
@@ -198,21 +223,30 @@ KernelsPriority DynamicQuantizeKernelOpt::GetKernelsPriority(const Params& /*par
 }
 
 bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
-    if (!KernelBaseOpenCL::Validate(params))
+    if (!KernelBaseOpenCL::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
-    if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::PER_TOKEN && dq_params.generate_precomputed_reduction)
+    // The group count is baked into the kernel at compile time, so it cannot be built without knowing
+    // the length of the dimension the groups are formed along
+    if (get_input_f_size(dq_params) == 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
+
+    if (get_dynamic_quantize_mode(dq_params) == DynQuanMode::PER_TOKEN && dq_params.generate_precomputed_reduction) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     if (dq_params.generate_precomputed_reduction && cldnn::one_of(dq_params.outputs[0].GetDType(), {Datatype::F8E4M3, Datatype::F8E5M2})) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     auto bf = get_input_bf_size(dq_params);
-    if (((bf.second) % (simd * 2)) != 0)
+    if (((bf.second) % (simd * 2)) != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // For MODE_LARGE_GS, ensure the quantization group fits within a single work_group
     // There is no cross work_group synchronization.
@@ -228,30 +262,37 @@ bool DynamicQuantizeKernelOpt::Validate(const Params& params) const {
         }
     }
 
-    if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0)
+    if (dq_params.inputs[0].GetPaddedVal() != 0 || dq_params.outputs[0].GetPaddedVal() != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (dq_params.append_axis != -1)
+    if (dq_params.append_axis != -1) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     for (size_t i = 0; i < dq_params.group_sizes.size() - 1; i++) {
-        if (dq_params.group_sizes[i] != 1)
+        if (dq_params.group_sizes[i] != 1) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     // Allow only default scales order
     const auto& scales_output_order = dq_params.scales_output_order;
     if (!scales_output_order.empty()) {
-        for (size_t i = 0; i < scales_output_order.size(); i++)
-            if (scales_output_order[i] != i)
+        for (size_t i = 0; i < scales_output_order.size(); i++) {
+            if (scales_output_order[i] != i) {
                 DO_NOT_USE_THIS_KERNEL(params.layerID);
+            }
+        }
     }
 
     if (dq_params.use_asymmetric_quantization) {
-        if (dq_params.combine_scales_and_zp)
+        if (dq_params.combine_scales_and_zp) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
-        if (dq_params.outputs[0].GetDType() != Datatype::UINT8)
+        }
+        if (dq_params.outputs[0].GetDType() != Datatype::UINT8) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     return true;

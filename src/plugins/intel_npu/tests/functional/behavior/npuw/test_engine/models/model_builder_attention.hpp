@@ -80,7 +80,8 @@ ov::Output<ov::Node> make_attention_output(const ov::Output<ov::Node>& sdpa_outp
                                            ov::element::Type precision,
                                            const WeightFn& weight_fn,
                                            const WeightFn& bias_fn = {},
-                                           const ov::Output<ov::Node>& output_gate = {});
+                                           const ov::Output<ov::Node>& output_gate = {},
+                                           const LoRAInjector* lora = nullptr);
 
 /// Takes pre-projected Q, K, V. Handles reshape, QK-norm, RoPE, KV cache, GQA, SDPA, O proj.
 struct Attention {
@@ -94,6 +95,7 @@ struct Attention {
 
     ov::Output<ov::Node> sdpa_mask;
     ov::Output<ov::Node> shared_broadcast_shape;
+    const LoRAInjector* lora = nullptr;
 
     /// Qwen3.5-style gated attention: q_proj carries [q | gate] per head (2x width),
     /// split after the per-head reshape; Sigmoid(gate) scales the flattened SDPA output.

@@ -536,6 +536,9 @@ bool can_eliminate_eltwise_node(const std::shared_ptr<Node>& eltwise,
     case element::f16:
         actual_const = reinterpret_cast<const ov::float16*>(data_ptr)[0];
         break;
+    case element::bf16:
+        actual_const = reinterpret_cast<const ov::bfloat16*>(data_ptr)[0];
+        break;
     case element::i32:
         actual_const = static_cast<float>(reinterpret_cast<const int32_t*>(data_ptr)[0]);
         break;

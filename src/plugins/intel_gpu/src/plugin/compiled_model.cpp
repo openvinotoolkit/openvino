@@ -9,6 +9,7 @@
 #include "openvino/core/version.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
+#include "intel_gpu/runtime/engine_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/plugin/graph.hpp"
 #include "intel_gpu/plugin/compiled_model.hpp"
@@ -26,8 +27,8 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
         // exclusive_async_requests essentially disables the streams (and hence should be checked first) => aligned with
         // the CPU behavior
         return plugin->get_executor_manager()->get_executor("GPU");
-    } else if (config.get_enable_cpu_pinning() ||
-               config.get_enable_cpu_reservation()) {
+    }
+    if (config.get_enable_cpu_pinning() || config.get_enable_cpu_reservation()) {
         bool enable_cpu_pinning = config.get_enable_cpu_pinning();
         bool enable_cpu_reservation = config.get_enable_cpu_reservation();
         return std::make_shared<ov::threading::CPUStreamsExecutor>(
@@ -37,16 +38,14 @@ std::shared_ptr<ov::threading::ITaskExecutor> create_task_executor(const std::sh
                                                     ov::hint::SchedulingCoreType::PCORE_ONLY,
                                                     enable_cpu_reservation,
                                                     enable_cpu_pinning});
-    } else {
-        return std::make_shared<ov::threading::CPUStreamsExecutor>(
-            ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
-                                                    config.get_num_streams(),
-                                                    0,
-                                                    ov::hint::SchedulingCoreType::ANY_CORE,
-                                                    false,
-                                                    false,
-                                                    false});
     }
+    return std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin executor",
+                                                                                                       config.get_num_streams(),
+                                                                                                       0,
+                                                                                                       ov::hint::SchedulingCoreType::ANY_CORE,
+                                                                                                       false,
+                                                                                                       false,
+                                                                                                       false});
 }
 }  // namespace
 
@@ -84,7 +83,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     , m_context(context)
     , m_config(config)
     , m_wait_executor(std::make_shared<ov::threading::CPUStreamsExecutor>(ov::threading::IStreamsExecutor::Config{"Intel GPU plugin wait executor"}))
-    , m_model_name("")
     , m_loaded_from_cache(loaded_from_cache) {
     // The compiled blob starts (after ov::CacheMode) with a magic-guarded, versioned
     // compatibility descriptor. Any rejection below throws ov::Exception;
@@ -284,13 +282,15 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 }
 
 std::string CompiledModel::build_runtime_requirements(const cldnn::device_info& info) {
-    // v1 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
+    // v2 GPU compatibility descriptor: meta=<schema>;ov=<major.minor.patch>;desc=[<device props>].
     // The desc fields are the device properties that invalidate a compiled blob if changed:
-    //   driver (owns the kernel binaries), ip (GFX IP hardware version), eus (execution units).
+    //   rt (compile-time runtime - OCL/ZE store incompatible kernel binaries), driver (owns the
+    //   kernel binaries), ip (GFX IP hardware version), eus (execution units).
     std::ostringstream ss;
     ss << "meta=1.0"
        << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
-       << ";desc=[driver=" << info.driver_version
+       << ";desc=[rt=" << cldnn::get_runtime_cache_tag()
+       << ";driver=" << info.driver_version
        << ";ip=" << info.gfx_ver.major << "." << static_cast<uint32_t>(info.gfx_ver.minor) << "."
        << static_cast<uint32_t>(info.gfx_ver.revision)
        << ";eus=" << info.execution_units_count << "]";
@@ -346,18 +346,24 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
             ov::PropertyName{ov::runtime_requirements.name(), PropertyMutability::RO},
         };
-    } else if (name == ov::model_name) {
+    }
+    if (name == ov::model_name) {
         return decltype(ov::model_name)::value_type {m_model_name};
-    } else if (name == ov::loaded_from_cache) {
+    }
+    if (name == ov::loaded_from_cache) {
         return decltype(ov::loaded_from_cache)::value_type {m_loaded_from_cache};
-    } else if (name == ov::optimal_number_of_infer_requests) {
+    }
+    if (name == ov::optimal_number_of_infer_requests) {
         unsigned int nr = m_config.get_num_streams();
-        if (m_config.get_performance_mode() != ov::hint::PerformanceMode::LATENCY)
+        if (m_config.get_performance_mode() != ov::hint::PerformanceMode::LATENCY) {
             nr *= 2;
+        }
         return decltype(ov::optimal_number_of_infer_requests)::value_type {nr};
-    } else if (name == ov::execution_devices) {
+    }
+    if (name == ov::execution_devices) {
         return decltype(ov::execution_devices)::value_type{m_context->get_device_name()};
-    } else if (name == ov::runtime_requirements) {
+    }
+    if (name == ov::runtime_requirements) {
         return decltype(ov::runtime_requirements)::value_type{m_runtime_requirements};
     }
 
@@ -368,7 +374,7 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "CompiledModel::create_sync_infer_request");
     OPENVINO_ASSERT(!m_graphs.empty(), "[GPU] Model not loaded");
 
-    for (auto& graph : m_graphs) {
+    for (const auto& graph : m_graphs) {
         OPENVINO_ASSERT(graph != nullptr, "[GPU] Model not loaded: graph is nullptr");
         OPENVINO_ASSERT(graph->is_loaded(), "[GPU] Model not loaded: invalid graph");
     }

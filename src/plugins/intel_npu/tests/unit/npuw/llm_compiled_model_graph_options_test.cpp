@@ -230,6 +230,52 @@ TEST_F(LLMCompiledModelGraphOptionsTest, GeneratePyramidBuildsTwoStaticGenerateV
                 ::testing::UnorderedElementsAre(ov::Shape({1, 1152}), ov::Shape({1, 2176})));
 }
 
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillOptionAndCapabilitySurface) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                                      {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_ENABLE_CONTINUOUS_PREFILL").as<bool>());
+    // The capability read must never throw. With the contiguous delta prefill
+    // path in place, an eligible chunked model advertises support.
+    ov::Any supported;
+    ASSERT_NO_THROW(supported = compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED"));
+    EXPECT_TRUE(supported.as<bool>());
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillUnsupportedForStaticPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Whole (STATIC) prefill has no continuation path, so the option is accepted
+    // but the capability reports false.
+    ASSERT_NO_THROW(compiled = create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
+                                                      {"NPUW_LLM_PREFILL_HINT", "STATIC"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    ov::Any supported;
+    ASSERT_NO_THROW(supported = compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED"));
+    EXPECT_FALSE(supported.as<bool>());
+}
+
+TEST_F(LLMCompiledModelGraphOptionsTest, ContinuousPrefillRejectsPrefixCaching) {
+    RecordingFactory recorder;
+    // The hash prefix cache cannot process delta-only inputs, so the combination
+    // fails compilation instead of silently misbehaving.
+    EXPECT_THROW(create_compiled_model({{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"},
+                                        {"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"},
+                                        {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                                        {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
+                                       recorder),
+                 ov::Exception);
+}
+
 TEST(HybridModelBuilderTest, HybridLinearAttnModelBuilds) {
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = ov::test::npuw::build_hybrid_llm_test_model());

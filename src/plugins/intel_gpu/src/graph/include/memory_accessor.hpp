@@ -23,9 +23,7 @@ struct MemoryAccessor : public ov::ITensorAccessor {
      */
     MemoryAccessor(const container_type* ptrs, const stream& stream)
         : m_ptrs{ptrs},
-          m_stream{stream},
-          m_clbk{},
-          m_accessed_data{} {}
+          m_stream {stream} {}
 
     /**
      * @brief Construct a new Memory Accessor with custom callback function.
@@ -37,8 +35,7 @@ struct MemoryAccessor : public ov::ITensorAccessor {
     MemoryAccessor(const container_type* ptrs, const stream& stream, std::function<ov::Tensor(size_t)> clbk)
         : m_ptrs{ptrs},
           m_stream{stream},
-          m_clbk{std::move(clbk)},
-          m_accessed_data{} {}
+          m_clbk {std::move(clbk)} {}
 
     ~MemoryAccessor() {
         unlock_current_data();
@@ -63,11 +60,11 @@ struct MemoryAccessor : public ov::ITensorAccessor {
             return {m_accessed_data->get_layout().data_type,
                     m_accessed_data->get_layout().get_shape(),
                     m_accessed_data->lock(m_stream, mem_lock_type::read)};
-        } else if (m_clbk) {
-            return m_clbk(port);
-        } else {
-            return ov::make_tensor_accessor()(port);
         }
+        if (m_clbk) {
+            return m_clbk(port);
+        }
+        return ov::make_tensor_accessor()(port);
     }
 
 private:

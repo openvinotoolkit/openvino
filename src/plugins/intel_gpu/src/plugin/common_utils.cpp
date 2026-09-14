@@ -62,8 +62,9 @@ static inline void convert_and_copy_padded_source_fast(const src_t* src, dst_t* 
                             int64_t element_sizes[6] = {b, f, x, y, z, w};
                             size_t offset = element_sizes[axes_map[0]];
 
-                            for (size_t i = 1; i < map_len; i++)
+                            for (size_t i = 1; i < map_len; i++) {
                                 offset = offset * padded_sizes[i] + element_sizes[axes_map[i]];
+                            }
 
                             *dst++ = static_cast<dst_t>(src[offset]);
                         }
@@ -99,8 +100,9 @@ void convert_and_copy_padded_source(const src_t* src, dst_t* dst, layout& layout
 template <typename src_t, typename dst_t>
 void convert_and_copy_no_pad(const src_t* src, dst_t* dst, size_t size) {
     OPENVINO_ASSERT(src && dst, "[GPU] Src or Dst ptr is null");
-    for (size_t i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++) {
         dst[i] = static_cast<dst_t>(src[i]);
+    }
 }
 
 template <typename src_t, typename dst_t>
@@ -123,8 +125,9 @@ void convert_and_copy_transposed(const src_t* src, dst_t* dst, ov::Shape shape) 
 
 void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_ptr, ov::element::Type dst_et,
                       size_t size, cldnn::layout layout, bool transpose = false) {
-    if (size == 0)
+    if (size == 0) {
         return;
+    }
 
     if (src_et == dst_et && !layout.data_padding && !transpose) {
         std::memcpy(dst_ptr, src_ptr, size * src_et.size());
@@ -135,11 +138,11 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
         if (src_et == s_et && dst_et == d_et) {                                                                                             \
             if (static_cast<bool>(layout.data_padding)) {                                                                                   \
                 return convert_and_copy_padded_source(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout);          \
-            } else if (transpose) {                                                                                                         \
-                return convert_and_copy_transposed(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout.get_shape()); \
-            } else {                                                                                                                        \
-                return convert_and_copy_no_pad(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), size);                   \
             }                                                                                                                               \
+            if (transpose) {                                                                                                                \
+                return convert_and_copy_transposed(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), layout.get_shape()); \
+            }                                                                                                                               \
+            return convert_and_copy_no_pad(static_cast<const s_type*>(src_ptr), static_cast<d_type*>(dst_ptr), size);                        \
         }
 
     // For unsupported inputs
@@ -169,6 +172,9 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
     CASE(ov::element::f16, ov::element::f16, ov::float16, ov::float16);
     CASE(ov::element::bf16, ov::element::f32, ov::bfloat16, float);
     CASE(ov::element::bf16, ov::element::f16, ov::bfloat16, ov::float16);
+    CASE(ov::element::bf16, ov::element::bf16, ov::bfloat16, ov::bfloat16);
+    CASE(ov::element::f32, ov::element::bf16, float, ov::bfloat16);
+    CASE(ov::element::f16, ov::element::bf16, ov::float16, ov::bfloat16);
     CASE(ov::element::boolean, ov::element::u8, bool, uint8_t);
 
     OPENVINO_THROW("[GPU] Unsupported element types combination for copy: ", src_et, " -> ", dst_et);
@@ -201,6 +207,7 @@ bool is_supported(ov::element::Type_t et) {
         case ov::element::Type_t::u32: return true; // converted to i32
         case ov::element::Type_t::u64: return true; // converted to i32
         case ov::element::Type_t::nf4: return false;
+        case ov::element::Type_t::f4e2m1: return true;
         case ov::element::Type_t::f8e4m3: return true;
         case ov::element::Type_t::f8e5m2: return true;
         case ov::element::Type_t::string: return false;
@@ -212,13 +219,15 @@ bool is_supported(ov::element::Type_t et) {
 
 bool data_types_are_supported(const ov::Node* node) {
     for (size_t i = 0; i < node->get_input_size(); i++) {
-        if (!is_supported(node->get_input_element_type(i)))
+        if (!is_supported(node->get_input_element_type(i))) {
             return false;
+        }
     }
 
     for (size_t i = 0; i < node->get_output_size(); i++) {
-        if (!is_supported(node->get_output_element_type(i)))
+        if (!is_supported(node->get_output_element_type(i))) {
             return false;
+        }
     }
 
     return true;
@@ -230,13 +239,13 @@ void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::str
     auto dst_et = dst->get_layout().data_type;
 
     if (dst_et == src_et && !transpose) {
-        if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
+        if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
             auto mem = remote->get_original_memory();
             dst->copy_from(stream, *mem, blocking);
         } else {
             dst->copy_from(stream, src->data(), blocking);
-            return;
         }
+        return;
     }
 
     size_t size = ov::shape_size(src->get_shape());
@@ -257,7 +266,7 @@ void convert_and_copy(const cldnn::memory::ptr src, ov::ITensor* dst, const cldn
     const void* src_ptr = src_lock.data();
     void* dst_ptr = nullptr;
 
-    if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(dst)) {
+    if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(dst)) {
         auto mem = remote->get_original_memory();
         dst_lock.reset(new cldnn::mem_lock<uint8_t>(mem, stream));
         dst_ptr = dst_lock->data();
@@ -295,7 +304,7 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::str
     std::unique_ptr<cldnn::mem_lock<uint8_t>> dst_lock = nullptr;
     ov::Tensor tmp_tensor;
 
-    if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
+    if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
         auto mem = remote->get_original_memory();
         src_lock.reset(new cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read>(mem, stream));
         src_ptr = src_lock->data();
@@ -307,11 +316,11 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::str
         src_ptr = src->data();
     }
 
-    if (auto remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(dst)) {
+    if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(dst)) {
         auto mem = remote->get_original_memory();
         dst_lock.reset(new cldnn::mem_lock<uint8_t>(mem, stream));
         dst_ptr = dst_lock->data();
-    } else if (auto remote = dynamic_cast<ov::IRemoteTensor*>(dst)) {
+    } else if (auto* remote = dynamic_cast<ov::IRemoteTensor*>(dst)) {
         tmp_tensor = ov::Tensor(dst_et, src->get_shape());
         ::convert_and_copy(src_ptr,
                            src_et,
@@ -337,8 +346,9 @@ std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op,
     std::vector<cldnn::optional_data_type> output_data_types;
     for (size_t i = 0; i < op->get_output_size(); i++) {
         auto type = op->get_output_element_type(i);
-        if (precision_map.find(type) != precision_map.end())
+        if (precision_map.find(type) != precision_map.end()) {
             type = precision_map.at(type);
+        }
         output_data_types.push_back(cldnn::element_type_to_data_type(type));
     }
     return output_data_types;

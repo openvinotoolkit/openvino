@@ -25,12 +25,10 @@ jobs:
         with:
           submodules: 'false'
 
-      - name: Install gh aw extension
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh extension install github/gh-aw
-          gh aw --version
+      - name: Install gh-aw
+        uses: github/gh-aw/actions/setup-cli@57c8c22d3eefb88d996ec6e49a461944adfee625
+        with:
+          version: v0.87.4
 
       - name: Compile and verify agentic workflows
         env:

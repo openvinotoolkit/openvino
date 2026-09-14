@@ -23,14 +23,14 @@ namespace ocl {
 class ocl_kernel_builder : public kernel_builder{
     public:
         ocl_kernel_builder(const ocl_device &device) : m_device(device) {}
-        virtual ~ocl_kernel_builder() = default;
+        ~ocl_kernel_builder() override = default;
 
         void build_kernels(const void *src,
             size_t src_bytes,
             KernelFormat src_format,
             const std::string &options,
             std::vector<kernel::ptr> &out) const override {
-            auto context = m_device.get_context().get();
+            auto* context = m_device.get_context().get();
 
             cl_program program_handle;
             cl_int err = CL_INVALID_VALUE;

@@ -83,7 +83,7 @@ jobs:
       - uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          submodules: 'true'
+          submodules: 'recursive'
 
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
@@ -115,7 +115,7 @@ jobs:
       - uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          submodules: 'true'
+          submodules: 'recursive'
 
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
@@ -147,7 +147,7 @@ jobs:
       - uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: CMake configure
         run: cmake -DENABLE_CLANG_FORMAT=ON -DENABLE_TESTS=ON -DENABLE_PROFILING_ITT=FULL -DSELECTIVE_BUILD=COLLECT -DTHREADING=SEQ -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/riscv64.linux.toolchain.cmake -B build_riscv64
@@ -176,7 +176,7 @@ jobs:
       - uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: CMake configure
         run: cmake -B build
@@ -212,7 +212,7 @@ jobs:
       - uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
         timeout-minutes: 15
         with:
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: Install Python-based dependencies
         run: python3 -m pip install -r cmake/developer_package/ncc_naming_style/requirements_dev.txt

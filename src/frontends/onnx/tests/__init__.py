@@ -50,8 +50,6 @@ xfail_issue_38701 = xfail_test(reason="RuntimeError: unsupported element type: S
 xfail_issue_38706 = xfail_test(reason="RuntimeError: output_3.0 has zero dimension which is not allowed")
 xfail_issue_38708 = xfail_test(reason="RuntimeError: While validating ONNX node '<Node(Slice): y>': "
                                       "Axes input must be constant")
-skip_bitwise_ui64 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
-xfail_issue_99950 = xfail_test(reason="CenterCropPad func is not supported")
 xfail_issue_99952 = xfail_test(reason="Col2Im operator is not supported 5 dimensions")
 xfail_issue_99955 = xfail_test(reason="GroupNorm is not supported")
 xfail_issue_99957 = xfail_test(reason="LayerNorm - RuntimeError: While validating node '<Node(Reshape): Mean>'")
@@ -115,7 +113,6 @@ xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rt
 skip_issue_58676 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
 
-xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
@@ -132,8 +129,6 @@ xfail_issue_86911 = xfail_test(reason="LSTM_Seq_len_unpacked - AssertionError: z
 xfail_issue_101965 = xfail_test(reason="Mismatch with numpy-based expected results.")
 xfail_issue_113506 = xfail_test(reason="Unsupported operation of type: LSTMSequence Node expects 7 inputs. Actual: 8")
 
-skip_dynamic_model = pytest.mark.skip(reason="CPU plug-in can't load a model with dynamic output shapes via legacy API")
-
 # ONNX 1.14
 xfail_issue_119896 = xfail_test(reason="Unsupported element type: FLOAT8", strict=False)
 xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize): Y>': "
@@ -142,7 +137,6 @@ xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize
                                        "tf_half_pixel_for_nn, asymmetric, align_corners, pytorch_half_pixel, "
                                        "half_pixel")
 xfail_issue_119903 = xfail_test(reason="DeformConv operation is not supported")
-xfail_issue_119906 = xfail_test(reason="LpPool operation is not supported")
 xfail_issue_119919 = xfail_test(reason="While validating ONNX node '<Node(Pad): y>': Unsupported padding mode: [wrap]")
 xfail_issue_119922 = xfail_test(reason="ai.onnx.ml operators domain isn't supported")
 xfail_issue_119925 = xfail_test(reason="AveragePool AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
@@ -152,9 +146,7 @@ xfail_issue_119926 = xfail_test(reason="ROIAlign AssertionError: Not equal to to
 xfail_issue_125485 = xfail_test(reason="AffineGrid operation is not supported")
 xfail_issue_125488 = xfail_test(reason="ImageDecoder operation is not supported")
 skip_issue_125487 = pytest.mark.skip(reason="GridSample doesn't support volumetric (5D) inputs")
-skip_issue_125489 = pytest.mark.skip(reason="IsInf changed behavior since opset-20") # Need to enable after opset-20 will be released
 skip_issue_124587 = pytest.mark.skip(reason="Fail on new macos machines")
-xfail_issue_125491 = xfail_test(reason="AveragePool mismatch with differences in shapes")
 xfail_issue_125492 = xfail_test(reason="DFT mismatch")
 xfail_issue_125493 = xfail_test(reason="Reduce* mismatch")
 xfail_issue_122776 = xfail_test(reason="test_mish_expanded_cpu - "
@@ -168,8 +160,6 @@ skip_issue_127649 = pytest.mark.skip(reason="Not equal to tolerance rtol=0.001, 
 skip_misalignment = pytest.mark.skip(reason="Misalignment between onnx versions") # Need to enable after bumping to 1.16
 xfail_issue_139934 = xfail_test(reason = "Int4 isn't supported")
 xfail_issue_139936 = xfail_test(reason = "MaxPool accuracy fails")
-xfail_issue_139937 = xfail_test(reason = "GroupNorm, QLinearMatMul, DequantizeLinear translation failed")
-xfail_issue_139938 = xfail_test(reason = "QLinearMatMul accuracy fails")
 
 # ONNX 1.17
 skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")
@@ -177,7 +167,6 @@ skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")
 # ONNX 1.18
 xfail_issue_171767 = pytest.mark.skip(reason="Unsupported element type: FLOAT4E2M1")
 xfail_issue_171771 = pytest.mark.skip(reason="Mismatches in tests: Top K values")
-xfail_issue_171772 = pytest.mark.skip(reason="Mismatches in tests: AveragePool")
 
 # Attention op (ONNX opset 23/24) -- requires ONNX >= 1.23; CI uses ONNX 1.18.
 # Tests pass locally when ONNX >= 1.23 is installed.
@@ -185,3 +174,33 @@ xfail_attention_onnx_version = pytest.mark.skip(reason="Attention op tests requi
 
 # Attention op fully-masked-row / NaN-robustness tests that do not yet pass:
 xfail_attention_nan_robustness = pytest.mark.skip(reason="Attention fully-masked-row NaN robustness not yet handled in expanded/SDPA paths")
+
+# ONNX 1.22 (opset 24-27) — operators and data types not yet implemented in the
+# OpenVINO ONNX frontend, and reference-data changes exposed by the newer opset.
+# These were surfaced when bumping the bundled ONNX submodule to 1.22.0.
+xfail_issue_onnx122_linearattention = xfail_test(
+    reason="OV ONNX FE does not support LinearAttention-27 (new in ONNX opset 27)")
+xfail_issue_onnx122_causalconv = xfail_test(
+    reason="OV ONNX FE does not support CausalConvWithState-27 (new in ONNX opset 27)")
+xfail_issue_onnx122_flexattention = xfail_test(
+    reason="OV ONNX FE does not support ai.onnx.preview.FlexAttention (new preview op in ONNX 1.22)")
+xfail_issue_onnx122_bitcast = xfail_test(
+    reason="OV ONNX FE does not support BitCast-26 (new in ONNX opset 26)")
+xfail_issue_onnx122_cumprod = xfail_test(
+    reason="OV ONNX FE does not support CumProd-26 (new in ONNX opset 26)")
+xfail_issue_onnx122_tensorscatter = xfail_test(
+    reason="OV ONNX FE does not support TensorScatter-24 (new in ONNX opset 24)")
+xfail_issue_onnx122_attention = xfail_test(
+    reason="OV ONNX FE does not fully support Attention-24 for these cases (ONNX opset 24)")
+xfail_issue_onnx122_newdtype = xfail_test(
+    reason="OV ONNX FE does not support new sub-byte / float8 data types "
+           "(INT2/UINT2, INT4/UINT4, FLOAT4E2M1, FLOAT8E8M0, FLOAT8E*FNUZ) in Cast/CastLike/Quantize")
+xfail_issue_onnx122_accuracy = xfail_test(
+    reason="Accuracy / reference-data mismatch exposed by ONNX 1.22 (e.g. Cast inf-vs-FLT_MAX "
+           "saturation, DFT rfft/irfft shape, NonMaxSuppression boundary, Range bfloat16)")
+# Plain float-width Cast/CastLike overflow: ONNX 1.22 expects +/-inf while OV core Cast saturates
+# to +/-FLT_MAX (infinity handling in OV core). Non-strict so the tests are not required to fail
+# and will not XPASS-fail once the core behavior is aligned.
+xfail_issue_onnx122_cast_infinity = xfail_test(
+    reason="Cast/CastLike float-width overflow: infinity handling in OV core (saturates to FLT_MAX)",
+    strict=False)

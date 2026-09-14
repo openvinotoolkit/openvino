@@ -16,7 +16,8 @@
         "last_seen",
         "recent_run_urls",
         "affected_prs",
-        "recent_timestamps"
+        "recent_timestamps",
+        "rerun_search_string"
     ],
     "properties": {
         "schema_version": {
@@ -94,6 +95,14 @@
                 "type": "string",
                 "format": "date-time"
             }
+        },
+        "rerun_search_string": {
+            "type": [
+                "string",
+                "null"
+            ],
+            "minLength": 1,
+            "description": "Stable, job-agnostic substring of the raw error (with absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, and UUIDs stripped) that uniquely identifies this failure in run logs. Consumed by the workflow_rerunner (.github/scripts/workflow_rerun) to auto-rerun transient failures, similar to entries in errors_to_look_for.json. Populated only for transient, rerunnable categories (Flaky Test, Infrastructure, Network, External Service); null for all other categories where a plain rerun cannot fix the failure."
         }
     }
 }

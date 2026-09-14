@@ -17,13 +17,14 @@
 #include <numeric>
 #include <string>
 #include <string_view>
-#include <thread>
 #include <tuple>
 #include <vector>
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
+#include "openvino/util/native_stream.hpp"
+#include "openvino/util/parallel_read_streambuf.hpp"
 
 #ifdef __linux__
 #    include <fcntl.h>
@@ -198,7 +199,7 @@ namespace strategy {
 // Note: the mmap destructor (munmap + close) runs inside the timed window;
 void sync_vm_prefetch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
-    util::vm_prefetch(mapped->data(), mapped->size(), std::thread::hardware_concurrency());
+    mapped->hint_prefetch();
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
@@ -211,38 +212,37 @@ void loop_touch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
 }
 
-void parallel_loop_sync_then_memcpy(const std::filesystem::path& path, size_t file_size) {
-    auto mapped = load_mmap_object(path);
-    util::vm_prefetch(mapped->data(), mapped->size(), std::thread::hardware_concurrency());
-    constexpr size_t chunk_size = 128 * util::one_mib;
-    std::vector<char> buffer(std::min(chunk_size, file_size));
-    volatile char sink = 0;
+// --- "compute" scenario -----------------------------------------------------------------
+// Instead of a raw memcpy or mlock(), run a std::transform pass over the mapped bytes (e.g.
+// mimicking a dequantization/dtype-conversion pass over model weights).
+void compute_over_mapped(const std::shared_ptr<ov::MappedMemory>& mapped) {
+    constexpr size_t chunk_size = 128 * util::one_mib;  // 128 MiB chunks
+    const size_t file_size = mapped->size();
+    std::vector<uint64_t> out(std::min(chunk_size, file_size) / sizeof(uint64_t));
+    uint64_t acc = 0;
     for (size_t offset = 0; offset < file_size; offset += chunk_size) {
-        const size_t copy_size = std::min(chunk_size, file_size - offset);
-        std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
-        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];  // prevents optimization
+        const size_t n = std::min(chunk_size, file_size - offset);
+        const size_t n_words = n / sizeof(uint64_t);
+        const auto* first = reinterpret_cast<const uint64_t*>(mapped->data() + offset);
+        std::transform(first, first + n_words, out.begin(), [](uint64_t v) {
+            return v * 3u + 7u;
+        });
+        if (n_words > 0)
+            acc += out[0] + out[n_words / 2] + out[n_words - 1];  // prevents optimization
     }
-}
-
-void mmap_then_memcpy(const std::filesystem::path& path, size_t file_size) {
-    auto mapped = load_mmap_object(path);
-    constexpr size_t chunk_size = 128 * util::one_mib;
-    std::vector<char> buffer(std::min(chunk_size, file_size));
-    volatile char sink = 0;
-    for (size_t offset = 0; offset < file_size; offset += chunk_size) {
-        const size_t copy_size = std::min(chunk_size, file_size - offset);
-        std::memcpy(buffer.data(), mapped->data() + offset, copy_size);
-        sink += buffer[0] + buffer[copy_size / 2] + buffer[copy_size - 1];  // prevents optimization
-    }
-}
-
-// Strategy: ifstream into a single pre-allocated buffer — one kernel→user copy
-void ifstream_read(const std::filesystem::path& path, size_t file_size) {
-    std::vector<char> read_buffer(file_size);
-    std::ifstream f(path, std::ios::binary);
-    f.read(read_buffer.data(), static_cast<std::streamsize>(file_size));
-    volatile char sink = read_buffer[0] + read_buffer[file_size / 2] + read_buffer[file_size - 1];
+    volatile uint64_t sink = acc;
     (void)sink;
+}
+
+void mmap_then_compute(const std::filesystem::path& path, size_t /*file_size*/) {
+    auto mapped = load_mmap_object(path);
+    compute_over_mapped(mapped);
+}
+
+void mmap_prefetch_then_compute(const std::filesystem::path& path, size_t /*file_size*/) {
+    auto mapped = load_mmap_object(path);
+    mapped->hint_prefetch();
+    compute_over_mapped(mapped);
 }
 
 void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
@@ -263,15 +263,98 @@ void mmap_prefetch_then_memcpy_partial(const std::filesystem::path& path,
     }
 }
 
+void parallel_stream_read(const std::filesystem::path& path, size_t file_size) {
+    std::vector<char> destination(file_size);
+    util::ParallelReadStreamBuf buffer(path);
+    std::istream stream(&buffer);
+    ASSERT_TRUE(stream.read(destination.data(), static_cast<std::streamsize>(destination.size())));
+}
+
+void native_stream_read(const std::filesystem::path& path, size_t file_size) {
+    std::vector<char> destination(file_size);
+    util::NativeIfstream stream(path);
+    ASSERT_TRUE(stream.read(destination.data(), static_cast<std::streamsize>(destination.size())));
+}
+
 }  // namespace strategy
 
 }  // namespace
 
-// See developer_benchmarks.md for build/run instructions.
+// See file_load_benchmark_guide.md for build/run instructions.
 
-class FileLoadBenchmark : public ::testing::Test {};
+class FileLoadBenchmark : public ::testing::Test {
+protected:
+    void SetUp() override {
+#ifndef NDEBUG
+        // These benchmarks measure wall-clock timing and are meaningless (and extremely slow for
+        // multi-GB files) in a Debug (-O0) build. Build in Release for meaningful results.
+        GTEST_SKIP() << "FileLoadBenchmark is a Release-only benchmark; rebuild with -DCMAKE_BUILD_TYPE=Release, or "
+                        "remove the skip to run it in Debug.";
+#endif
+    }
+};
 
-TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
+TEST_F(FileLoadBenchmark, native_stream_vs_parallel_stream) {
+    const std::vector<size_t> sizes_bytes = {2 * util::one_mib,
+                                             4 * util::one_mib,
+                                             32 * util::one_mib,
+                                             500 * util::one_mib,
+                                             700 * util::one_mib,
+                                             1000 * util::one_mib,
+                                             5000 * util::one_mib};
+    constexpr int warmup = 0;
+    constexpr int runs = 3;
+
+    struct Row {
+        size_t size_mib;
+        long long parallel_cold_ms;
+        long long native_cold_ms;
+    };
+    std::vector<Row> results;
+
+    for (const auto size_bytes : sizes_bytes) {
+        const auto size_mib = size_bytes / util::one_mib;
+        TestFile test_file{size_bytes / util::one_mib, {}};
+        const auto path = generate_test_file(test_file);
+        evict_cache(path, size_bytes);
+        const auto parallel_ms = bench(
+            [&]() {
+                strategy::parallel_stream_read(path, size_bytes);
+            },
+            path,
+            size_bytes,
+            warmup,
+            runs);
+        const auto native_ms = bench(
+            [&]() {
+                strategy::native_stream_read(path, size_bytes);
+            },
+            path,
+            size_bytes,
+            warmup,
+            runs);
+        results.push_back({size_mib, parallel_ms, native_ms});
+    }
+
+    printf("\n--- Cold-cache latency (ms, mean of %d runs) ---\n", runs);
+    printf("%-12s | %16s | %16s\n", "Size (MiB)", "ParallelRead", "NativeStream");
+    printf("%-12s-|-%16s-|-%16s\n", "------------", "----------------", "----------------");
+    for (const auto& row : results) {
+        printf("%-12zu | %13lld ms | %13lld ms\n", row.size_mib, row.parallel_cold_ms, row.native_cold_ms);
+    }
+
+    printf("\n--- Cold-cache throughput (MiB/s, mean of %d runs) ---\n", runs);
+    printf("%-12s | %16s | %16s\n", "Size (MiB)", "ParallelRead", "NativeStream");
+    printf("%-12s-|-%16s-|-%16s\n", "------------", "----------------", "----------------");
+    for (const auto& row : results) {
+        printf("%-12zu | %16.1f | %16.1f\n",
+               row.size_mib,
+               throughput_mibs(row.size_mib, row.parallel_cold_ms),
+               throughput_mibs(row.size_mib, row.native_cold_ms));
+    }
+}
+
+TEST_F(FileLoadBenchmark, read_into_mmap_and_compute) {
     const std::vector<size_t> sizes_mib = {10, 100, 500, 1000};
     constexpr int warmup = 0;
     constexpr int runs = 3;
@@ -285,37 +368,28 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
         files.push_back(tf);
     }
 
-    // Collect results: [file_idx] -> {mmap_prefetch_memcpy, mmap_memcpy, ifstream}
+    // Collect results: [file_idx] -> {no hint, sync prefetch}
     struct Row {
         size_t mib;
-        long long t_hint_prefetch;
-        long long t_no_prefault;
-        long long t_ifstream;
+        long long t_no_hint;
+        long long t_sync_prefetch;
     };
     std::vector<Row> results;
 
     for (const auto& tf : files) {
         Row r{};
         r.mib = tf.size_mib;
-        r.t_ifstream = bench(
+        r.t_no_hint = bench(
             [&]() {
-                strategy::ifstream_read(tf.path, tf.size_bytes());
+                strategy::mmap_then_compute(tf.path, tf.size_bytes());
             },
             tf.path,
             tf.size_bytes(),
             warmup,
             runs);
-        r.t_no_prefault = bench(
+        r.t_sync_prefetch = bench(
             [&]() {
-                strategy::mmap_then_memcpy(tf.path, tf.size_bytes());
-            },
-            tf.path,
-            tf.size_bytes(),
-            warmup,
-            runs);
-        r.t_hint_prefetch = bench(
-            [&]() {
-                strategy::parallel_loop_sync_then_memcpy(tf.path, tf.size_bytes());
+                strategy::mmap_prefetch_then_compute(tf.path, tf.size_bytes());
             },
             tf.path,
             tf.size_bytes(),
@@ -325,10 +399,20 @@ TEST_F(FileLoadBenchmark, strategies_read_memcpy) {
     }
 
     printf("\n--- Latency (ms, mean of %d runs, cold cache) ---\n", runs);
-    printf("%-10s | %18s | %13s | %13s\n", "Size (MiB)", "parallel loop sync", "default mmap", "ifstream");
-    printf("%-10s-|-%18s-|-%13s-|-%13s\n", "----------", "------------------", "-------------", "-------------");
+    printf("%-10s | %17s | %13s\n", "Size (MiB)", "sync prefetch", "mmap+compute");
+    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
     for (const auto& r : results) {
-        printf("%-10zu | %15lld ms | %10lld ms | %10lld ms\n", r.mib, r.t_hint_prefetch, r.t_no_prefault, r.t_ifstream);
+        printf("%-10zu | %14lld ms | %10lld ms\n", r.mib, r.t_sync_prefetch, r.t_no_hint);
+    }
+
+    printf("\n--- Throughput (MiB/s) ---\n");
+    printf("%-10s | %17s | %13s\n", "Size (MiB)", "sync prefetch", "mmap+compute");
+    printf("%-10s-|-%17s-|-%13s\n", "----------", "-----------------", "-------------");
+    for (const auto& r : results) {
+        printf("%-10zu | %12.0f MiB/s | %8.0f MiB/s\n",
+               r.mib,
+               throughput_mibs(r.mib, r.t_sync_prefetch),
+               throughput_mibs(r.mib, r.t_no_hint));
     }
 }
 

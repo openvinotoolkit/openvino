@@ -19,6 +19,7 @@ detailed instructions where necessary.
 * [How to add new tests](#adding-new-tests)
 * [Optimizing workflow based on PR changes](#optimizing-workflows-based-on-PR-changes)
 * [Merge Queue](#merge-queue)
+* [Agentic Workflows](#agentic-workflows)
 
 ## Workflows
 
@@ -315,6 +316,14 @@ Merge Queue has several settings that are configured on a per-repository basis. 
 
 If you would like to enable Merge Queue for another repository in the OpenVINO GitHub organisation, use these settings as the default ones and adjust if needed.  
 
+## Agentic Workflows
+
+OpenVINO CI also includes **agentic workflows** — GitHub Actions workflows that delegate an
+investigative or maintenance task to an AI agent instead of running a fixed script. Currently these are
+the two CI failure doctors: an on-demand pull request investigator (`/ci-doctor`) and an automatic
+merge-queue failure investigator. Learn more in the [Agentic Workflows](./agentic_workflows.md) document.
+
 ## See also
 
+* [Agentic Workflows](./agentic_workflows.md)
 * [GitHub Actions official documentation](https://docs.github.com/en/actions)
