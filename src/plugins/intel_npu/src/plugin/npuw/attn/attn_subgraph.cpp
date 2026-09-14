@@ -1224,7 +1224,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                          0,
                                          final_mask_offset,
                                          final_tile_length,
-                                         true);
+                                         !attention_sink_tensor);
                         }
 
                         if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
