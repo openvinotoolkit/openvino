@@ -414,6 +414,14 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Upload CPack component BOM
+        if: always()
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: bom_windows_${{ inputs.build-variant }}_${{ inputs.build-type }}
+          path: ${{ env.BUILD_DIR }}/bom
+          if-no-files-found: 'error'
+
       - name: Upload OpenVINO package
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
