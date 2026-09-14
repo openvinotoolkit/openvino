@@ -1374,7 +1374,7 @@ public:
 
         GPU_DEBUG_TRACE_DETAIL << "[DEBUG] get_internal_buffer_descs(): use_micro_gemm_prefill=" << use_micro_gemm_prefill
                                << ", use_grouped_gemm_prefill=" << use_grouped_gemm_prefill << std::endl;
-        // for micro_gemm
+        // for micro_gemm: scatter_reduce via moe_scatter_reduction_opt (buffers all of 7-11)
         if (use_micro_gemm_prefill && token_num > 1) {
             layout layout_micro_gemm(ov::Shape{expert_num, token_num}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_micro_gemm, false);  // 7: experts_ids for each activated expert
@@ -1385,7 +1385,7 @@ public:
             layout layout_actual_used_expert_num(ov::Shape{1}, ov::element::i32, cldnn::format::bfyx);
             internal_buffers.emplace_back(layout_actual_used_expert_num, false);  // 11: actual_used_expert_num
         }
-        // for grouped_gemm: shared metadata buffers (7-11) + int32_t expert-row-offsets (12) + row_lut (13)
+        // for grouped_gemm: scatter_reduce via moe_scatter_reduction_row_lut (13); gather uses 10, OneDNN desc uses 12
         if (use_grouped_gemm_prefill && token_num > 1) {
             // Buffers 7-9 and 11 fed the base scatter_reduce kernel, which the grouped path replaced
             // with the row_lut kernel. The slots stay to keep the shared indices, the storage does not.
@@ -2345,17 +2345,10 @@ public:
         auto routing_mem_ptr = scratch.topk_weights;
         const auto& intermediates_memories = instance.get_intermediates_memories();
 
-        // SAFETY CHECK: Verify internal buffers exist before accessing
-        if (intermediates_memories.size() <= MOE_INTERNAL_BUFFER_ROW_LUT) {
-            OPENVINO_THROW("[MOE_3GEMM_GROUPED_BUG] Grouped GEMM path requires buffer ",
-                           MOE_INTERNAL_BUFFER_ROW_LUT,
-                           " (ROW_LUT) but only ",
-                           intermediates_memories.size(),
-                           " buffers allocated. ",
-                           "This indicates a mismatch between buffer allocation and execution path. ",
-                           "use_grouped_gemm_prefill=",
-                           use_grouped_gemm_prefill);
-        }
+        OPENVINO_ASSERT(intermediates_memories.size() > MOE_INTERNAL_BUFFER_ROW_LUT,
+                        "Grouped GEMM path requires buffer ", MOE_INTERNAL_BUFFER_ROW_LUT,
+                        " (ROW_LUT) but only ", intermediates_memories.size(),
+                        " buffers allocated. use_grouped_gemm_prefill=", use_grouped_gemm_prefill);
 
         int num_total_experts = static_cast<int>(config.num_expert);
         int max_topk = static_cast<int>(config.top_k);
@@ -2423,7 +2416,7 @@ public:
 
         int total_gathered_tokens = static_cast<int>(token_num) * max_topk;
 
-        intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]->copy_from(stream, row_lut_cpu.data(), 0, 0, row_lut_cpu.size() * sizeof(int32_t), true);
+        intermediates_memories[MOE_INTERNAL_BUFFER_ROW_LUT]->copy_from(stream, row_lut_cpu.data(), 0, 0, row_lut_cpu.size() * sizeof(row_lut_cpu[0]), true);
 
         // Compute actual max tokens assigned to any single expert.
         int max_tokens_per_expert = 0;
@@ -2437,9 +2430,9 @@ public:
 
         // Upload metadata: token list for gather, end-offsets for OneDNN. row_lut was uploaded above.
         intermediates_memories[MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT]
-            ->copy_from(stream, tokens_per_expert_cpu.data(), 0, 0, tokens_per_expert_cpu.size() * sizeof(int32_t), true);
+            ->copy_from(stream, tokens_per_expert_cpu.data(), 0, 0, tokens_per_expert_cpu.size() * sizeof(tokens_per_expert_cpu[0]), true);
         intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]
-            ->copy_from(stream, grouped_offsets_cpu.data(), 0, 0, grouped_offsets_cpu.size() * sizeof(int32_t), true);
+            ->copy_from(stream, grouped_offsets_cpu.data(), 0, 0, grouped_offsets_cpu.size() * sizeof(grouped_offsets_cpu[0]), true);
 
         // ----------------------------------------------------------------
         // Step 2: GPU gather – reorder input tokens sorted by expert
