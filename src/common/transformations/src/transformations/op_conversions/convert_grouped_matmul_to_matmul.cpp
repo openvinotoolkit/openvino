@@ -75,28 +75,31 @@ ConvertGroupedMatMulToMatMul::ConvertGroupedMatMulToMatMul() {
             }
             const auto num_groups = b_partial_shape[0].get_length();
 
-            const auto i64 = ov::element::i64;
+            const auto i32 = ov::element::i32;
 
             const auto offsets_in = gmm->input_value(2);
-            ov::Output<ov::Node> offsets_i64 = offsets_in;
-            if (offsets_in.get_element_type() != i64) {
-                offsets_i64 = rg.make<v0::Convert>(offsets_in, i64);
+            const auto offsets_et = offsets_in.get_element_type();
+            ov::Output<ov::Node> offsets_i32 = offsets_in;
+            if (offsets_et == ov::element::i64) {
+                offsets_i32 = rg.make<v0::Convert>(offsets_in, i32);
+            } else if (offsets_et != i32) {
+                return false;
             }
 
-            auto step = rg.make<v0::Constant>(i64, ov::Shape{1}, 1);
-            auto slice_axis = rg.make<v0::Constant>(i64, ov::Shape{1}, 0);
-            auto gather_axis = rg.make<v0::Constant>(i64, ov::Shape{}, 0);
+            auto step = rg.make<v0::Constant>(i32, ov::Shape{1}, 1);
+            auto slice_axis = rg.make<v0::Constant>(i32, ov::Shape{1}, 0);
+            auto gather_axis = rg.make<v0::Constant>(i32, ov::Shape{}, 0);
 
             ov::OutputVector group_outputs;
             group_outputs.reserve(static_cast<size_t>(num_groups));
 
-            ov::Output<ov::Node> start = rg.make<v0::Constant>(i64, ov::Shape{1}, 0);
+            ov::Output<ov::Node> start = rg.make<v0::Constant>(i32, ov::Shape{1}, 0);
             for (int64_t g = 0; g < num_groups; ++g) {
-                auto end_index = rg.make<v0::Constant>(i64, ov::Shape{1}, g);
-                ov::Output<ov::Node> end = rg.make<v8::Gather>(offsets_i64, end_index, gather_axis);
+                auto end_index = rg.make<v0::Constant>(i32, ov::Shape{1}, g);
+                ov::Output<ov::Node> end = rg.make<v8::Gather>(offsets_i32, end_index, gather_axis);
 
                 auto a_g = rg.make<v8::Slice>(mat_a, start, end, step, slice_axis);  // [Mg, K]
-                auto b_index = rg.make<v0::Constant>(i64, ov::Shape{}, g);
+                auto b_index = rg.make<v0::Constant>(i32, ov::Shape{}, g);
                 auto b_g = rg.make<v8::Gather>(mat_b, b_index, gather_axis);  // [N, K]
                 auto mm = rg.make<v0::MatMul>(a_g, b_g, false, true);  // [Mg, N]
                 group_outputs.push_back(mm);
