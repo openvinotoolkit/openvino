@@ -111,7 +111,7 @@ public:
         ob << typed_pd->get_padding_l();
         ob << typed_pd->get_padding_r();
 
-        ob << get_cache_blob_or_empty();
+        ob << get_cache_blob();
 #endif
     }
 

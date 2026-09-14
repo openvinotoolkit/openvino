@@ -157,7 +157,7 @@ public:
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<lstm_seq>();
         ob << static_cast<int>(prim->direction);
-        ob << get_cache_blob_or_empty();
+        ob << get_cache_blob();
 #endif
     }
 

@@ -175,7 +175,7 @@ void save(BinaryOutputBuffer& ob) const override {
     auto prim = impl_params->typed_desc<gru_seq>();
     ob << prim->linear_before_reset;
     ob << static_cast<int>(prim->direction);
-    ob << get_cache_blob_or_empty();
+    ob << get_cache_blob();
 #endif
     }
 

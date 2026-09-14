@@ -119,7 +119,7 @@ public:
         ob << typed_pd->get_p();
         ob << typed_pd->get_epsilon();
 
-        ob << get_cache_blob_or_empty();
+        ob << get_cache_blob();
 #endif
     }
 

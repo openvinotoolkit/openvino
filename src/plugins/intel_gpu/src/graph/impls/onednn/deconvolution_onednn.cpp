@@ -154,7 +154,7 @@ public:
         ob << typed_pd->get_padding_r();
         ob << typed_pd->bias_desc().is_zero();
 
-        ob << get_cache_blob_or_empty();
+        ob << get_cache_blob();
 #endif
     }
 

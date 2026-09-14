@@ -306,7 +306,7 @@ public:
             ob << make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
         }
 
-        ob << get_cache_blob_or_empty();
+        ob << get_cache_blob();
 #endif
     }
 

@@ -348,7 +348,7 @@ public:
             ob << make_data(&bias_fmt, sizeof(dnnl::memory::format_tag));
         }
 
-        ob << get_cache_blob_or_empty();
+        ob << get_cache_blob();
 #endif
     }
 

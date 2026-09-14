@@ -387,7 +387,7 @@ private:
 
 protected:
     // Returns an empty blob if the primitive does not support cache blob serialization.
-    std::vector<uint8_t> get_cache_blob_or_empty() const {
+    std::vector<uint8_t> get_cache_blob() const {
         std::vector<uint8_t> cache;
         try {
             cache = _prim.get_cache_blob();
