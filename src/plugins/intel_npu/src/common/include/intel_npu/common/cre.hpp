@@ -10,8 +10,8 @@
 #include "intel_npu/common/isection.hpp"
 #include "intel_npu/common/isection_type_evaluator.hpp"
 #include "intel_npu/common/section_id.hpp"
-#include "intel_npu/common/section_instance_evaluator.hpp"
 #include "intel_npu/common/section_type.hpp"
+#include "intel_npu/common/single_section_instance_evaluator.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/except.hpp"
 
@@ -82,7 +82,7 @@ public:
      */
     ov::CompatibilityCheck check_compatibility(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-        const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators) const;
+        const std::unordered_map<SectionID, SingleSectionInstanceEvaluator>& section_instance_evaluators) const;
 
     std::string to_string() const;
 
@@ -143,7 +143,7 @@ private:
         std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
         const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end,
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-        const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators,
+        const std::unordered_map<SectionID, SingleSectionInstanceEvaluator>& section_instance_evaluators,
         const Delimiter end_delimiter,
         const bool skip_all_evaluations = false,
         const bool force_all_evaluations = false) const;

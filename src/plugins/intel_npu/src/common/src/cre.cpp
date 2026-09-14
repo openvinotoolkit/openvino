@@ -396,7 +396,7 @@ ov::CompatibilityCheck CRE::evaluate(
     std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,
     const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end,
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-    const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators,
+    const std::unordered_map<SectionID, SingleSectionInstanceEvaluator>& section_instance_evaluators,
     const Delimiter end_delimiter,
     const bool skip_all_evaluations,
     const bool force_all_evaluations) const {
@@ -526,7 +526,7 @@ ov::CompatibilityCheck CRE::evaluate(
 
 ov::CompatibilityCheck CRE::check_compatibility(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
-    const std::unordered_map<SectionID, SectionInstanceEvaluator>& section_instance_evaluators) const {
+    const std::unordered_map<SectionID, SingleSectionInstanceEvaluator>& section_instance_evaluators) const {
     m_logger.debug("Evaluating the CRE");
     if (m_subexpressions.empty()) {
         return ov::CompatibilityCheck::SUPPORTED;
@@ -590,7 +590,7 @@ CRE CRE::from_string(const std::string_view cre, const ov::log::Level log_level)
     while (true) {
         const size_t dot_location = remaining.find(OPERAND_AND_SPECIAL_TOKEN_SEPARATOR);
         const std::string_view token_string = remaining.substr(0, dot_location);
-        logger.trace("Parsing the token %s", token_string.data());
+        logger.trace("Parsing the token %s", std::string(token_string).data());
 
         const std::shared_ptr<CREToken> special_token = cre_special_token_from_string(token_string);
         if (special_token) {

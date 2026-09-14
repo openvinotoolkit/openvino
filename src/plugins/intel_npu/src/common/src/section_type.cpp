@@ -75,7 +75,6 @@ std::string SectionType::to_string() const {
 }
 
 SectionType SectionType::from_string(const std::string_view type) {
-    // TODO initializing using .data() only is not safe; check all other cases
     std::string type_upper(type);
     string_to_upper(type_upper);
 

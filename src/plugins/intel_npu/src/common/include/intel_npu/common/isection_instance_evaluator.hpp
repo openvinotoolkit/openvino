@@ -15,8 +15,8 @@ namespace intel_npu {
  * how to evaluate the section instances of a given type based on some runtime requirements. Section types that do not
  * have special requirements per instance don't need any inherited instance evaluator.
  * @note TODO different from type evaluator
- * @see `SectionInstanceEvaluator`, the class that wraps this class and stores the evaluation result of every single
- * section instance.
+ * @see `SingleSectionInstanceEvaluator`, the class that wraps this class and stores the evaluation result of every
+ * single section instance.
  */
 class ISectionInstanceEvaluator {
 public:

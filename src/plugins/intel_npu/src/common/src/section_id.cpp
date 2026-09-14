@@ -41,7 +41,7 @@ SectionID SectionID::from_string(const std::string_view id) {
                     " is not made exclusively out of digits");
 
     try {
-        return std::stoul(id.data());
+        return std::stoul(std::string(id));
     } catch (const std::exception&) {
         OPENVINO_THROW("Failed to convert the section id ", id, " to integer");
     }

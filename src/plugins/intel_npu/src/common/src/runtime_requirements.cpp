@@ -64,14 +64,13 @@ std::unordered_map<SectionID, SectionType> RuntimeRequirements::get_section_id_t
     return m_section_id_to_type;
 }
 
-// TODO how to distinguish names
-std::unordered_map<SectionID, SectionInstanceEvaluator> RuntimeRequirements::build_section_instance_evaluators(
+std::unordered_map<SectionID, SingleSectionInstanceEvaluator> RuntimeRequirements::build_section_instance_evaluators(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     m_logger.debug("Building the instance evaluators");
-    std::unordered_map<SectionID, SectionInstanceEvaluator> per_instance_evaluators;
+    std::unordered_map<SectionID, SingleSectionInstanceEvaluator> single_instance_evaluators;
 
     for (const auto& [section_id, section_runtime_requirements] : m_sections_requirements) {
-        OPENVINO_ASSERT(!per_instance_evaluators.count(section_id),
+        OPENVINO_ASSERT(!single_instance_evaluators.count(section_id),
                         "Found a section that has at least two entries within the runtime requirements");
         OPENVINO_ASSERT(m_section_id_to_type.count(section_id));
         const SectionType section_type = m_section_id_to_type.at(section_id);
@@ -82,12 +81,12 @@ std::unordered_map<SectionID, SectionInstanceEvaluator> RuntimeRequirements::bui
         m_logger.trace("Building an instance evaluator for section %s",
                        section_type_and_id_to_string(section_type, section_id).data());
 
-        per_instance_evaluators.emplace(
+        single_instance_evaluators.emplace(
             section_id,
-            SectionInstanceEvaluator(instance_evaluators.at(section_type), section_runtime_requirements));
+            SingleSectionInstanceEvaluator(instance_evaluators.at(section_type), section_runtime_requirements));
     }
 
-    return per_instance_evaluators;
+    return single_instance_evaluators;
 }
 
 ov::CompatibilityCheck RuntimeRequirements::get_compatibility_check_result(

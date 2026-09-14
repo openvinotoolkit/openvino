@@ -15,10 +15,10 @@ namespace intel_npu {
 /**
  * @brief Interface that standardizes the evaluation of section types support.
  */
-class SectionInstanceEvaluator {
+class SingleSectionInstanceEvaluator {
 public:
-    SectionInstanceEvaluator(const std::shared_ptr<ISectionInstanceEvaluator>& impl,
-                             std::string_view runtime_requirements);
+    SingleSectionInstanceEvaluator(const std::shared_ptr<ISectionInstanceEvaluator>& impl,
+                                   std::string_view runtime_requirements);
 
     /**
      * @brief Checks whether or not the NPU plugin supports the section instance.

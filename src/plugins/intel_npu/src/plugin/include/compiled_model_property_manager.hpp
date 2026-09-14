@@ -39,7 +39,6 @@ private:
     FilteredConfig _config;
 
     std::shared_ptr<IGraph> _graph;
-    // TODO is this reference safe?
     std::shared_ptr<BlobWriter> _blobWriter;
     Logger& _logger;
 

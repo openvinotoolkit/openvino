@@ -8,7 +8,7 @@
 #include "intel_npu/common/isection.hpp"
 #include "isection_instance_evaluator.hpp"
 #include "isection_type_evaluator.hpp"
-#include "section_instance_evaluator.hpp"
+#include "single_section_instance_evaluator.hpp"
 
 namespace intel_npu {
 
@@ -36,7 +36,7 @@ public:
     std::optional<bool> get_instance_evaluation_result(const SectionID id) const;
 
 private:
-    std::unordered_map<SectionID, SectionInstanceEvaluator> build_section_instance_evaluators(
+    std::unordered_map<SectionID, SingleSectionInstanceEvaluator> build_section_instance_evaluators(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators);
 
     std::map<SectionID, std::string> m_sections_requirements;
@@ -44,7 +44,7 @@ private:
     std::unordered_map<SectionID, SectionType> m_section_id_to_type;
 
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> m_type_evaluators;
-    std::unordered_map<SectionID, SectionInstanceEvaluator> m_instance_evaluators;
+    std::unordered_map<SectionID, SingleSectionInstanceEvaluator> m_instance_evaluators;
 
     std::optional<ov::CompatibilityCheck> m_compatibility_check_result;
 
