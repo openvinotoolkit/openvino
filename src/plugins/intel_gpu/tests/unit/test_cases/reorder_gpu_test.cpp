@@ -3289,11 +3289,15 @@ static void check_imad_isv4_weight_padding(format input_format,
     network network(engine, topology, config);
     network.set_input_data("input", input);
 
+    auto output = engine.allocate_memory(output_weights_layout);
+    std::vector<int8_t> sentinel_values(output_weights_layout.get_linear_size(), static_cast<int8_t>(42));
+    set_values(output, sentinel_values);
+    network.set_output_memory("reorder", output);
+
     auto outputs = network.execute();
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "reorder");
-
-    auto output = outputs.begin()->second.get_memory();
+    ASSERT_TRUE(engine.is_the_same_buffer(*output, *outputs.begin()->second.get_memory()));
     cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     const size_t output_features_per_group = output_features / groups;
