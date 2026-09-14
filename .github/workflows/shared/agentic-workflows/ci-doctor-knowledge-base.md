@@ -2,8 +2,11 @@
 description: |
   Shared prompt fragment for the automatic CI Doctor workflows (Merge Queue and
   Post-Commit): Phase 5 — the persistent knowledge base kept on a dedicated
-  repo-memory branch (investigation records, append-only investigations index,
-  per-signature pattern records, statistics snapshot).
+  repo-memory branch (investigation records, rolling-retention investigations
+  index, per-signature pattern records, statistics snapshot). The permanent
+  recurrence signal lives in the pattern records; bulky per-run investigation
+  records and the index are pruned to rolling windows (Phase 5, step 5) so
+  persistence stays under the repo-memory caps below.
 
   Besides the prompt text this fragment also wires the `repo-memory` tool onto
   the `memory/ci-doctor-<slug>` branch and uploads the investigations/patterns
@@ -37,9 +40,15 @@ tools:
   repo-memory:
     branch-name: memory/ci-doctor-${{ github.aw.import-inputs.slug }}
     allowed-extensions: [".md", ".json", ".jsonl"]
-    max-file-size: 1048576 # 1MB max
+    # Hard caps enforced by repo-memory on every push; once exceeded the whole
+    # push is rejected and the doctor silently stops recording history. The
+    # Phase 5 retention/compaction step (step 5) keeps the working set safely
+    # under them: per-signature pattern records hold the permanent recurrence
+    # signal, while per-run investigation records and the index are pruned to
+    # rolling windows (INVESTIGATION_RETENTION_MAX / INDEX_RETENTION_MAX).
+    max-file-size: 1048576 # 1MB max — index stays well under this via its rolling window
     max-patch-size: 1048576 # 1MB max
-    max-file-count: 500
+    max-file-count: 1000 # max allowed; pattern records + capped investigation-record window + index + stats
 post-steps:
   - name: Upload CI Doctor investigations and patterns (${{ github.aw.import-inputs.slug }})
     if: always()
@@ -90,11 +99,11 @@ Rules that apply to all artefact types:
      - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)
      - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not safe in filenames
    - Store error patterns in `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`), each conforming to the **pattern schema** (`pattern.schema.json`)
-   - Update the investigations index at `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/investigations/index.json` following the **MANDATORY append-only read-modify-write procedure** in step 1a below. Never recreate this file from scratch.
+   - Update the investigations index at `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/investigations/index.json` following the **MANDATORY read-modify-write procedure** in step 1a below (it appends the current run and preserves existing entries; the only sanctioned place the index ever shrinks is the retention prune in step 5). Never recreate this file from scratch.
 
-1a. **Update Investigations Index — MANDATORY append-only read-modify-write procedure**:
+1a. **Update Investigations Index — MANDATORY read-modify-write procedure**:
 
-   The index at `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/investigations/index.json` is a single **append-only** aggregate that references every investigation ever recorded. It MUST conform to the **index schema** (`index.schema.json`). Losing or overwriting previously recorded entries is a **critical data-loss bug** — the following procedure exists specifically to prevent it, and you MUST follow it exactly.
+   The index at `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/investigations/index.json` is a single rolling-retention aggregate that references the most recent `INDEX_RETENTION_MAX` investigations (older references are trimmed by the retention step, step 5 — the *permanent* recurrence signal lives in the per-signature pattern records, not here). It MUST conform to the **index schema** (`index.schema.json`). Accidentally losing or overwriting entries **during this read-modify-write** is a **critical data-loss bug** — the following procedure exists specifically to prevent it, and you MUST follow it exactly. Deliberate trimming of the oldest entries happens ONLY in step 5, never here.
 
    **Step A — Read the existing index (never skip):**
    - Attempt to read `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/investigations/index.json`.
@@ -106,11 +115,11 @@ Rules that apply to all artefact types:
    **Step B — Append the current investigation (never remove or replace prior entries):**
    - Build the new entry from the investigation you just wrote, using the fields defined in `index.schema.json`: `investigation_id`, `run_id` (string), `timestamp`, `title`, `category`, `signature_hash`, and `${{ github.aw.import-inputs.index_scope_field }}` (string or null).
    - If an entry with the same `investigation_id` already exists, update that one entry in place; otherwise **append** the new entry to the end of `existing.entries`.
-   - Under no circumstances truncate, replace wholesale, reorder-destructively, or shrink `existing.entries`. The only allowed mutations are: appending a new entry, or updating a single matching existing entry in place.
+   - Under no circumstances truncate, replace wholesale, reorder-destructively, or shrink `existing.entries` **in this step**. The only allowed mutations here are: appending a new entry, or updating a single matching existing entry in place. (Bounded pruning of the oldest entries happens later, in the retention step 5.)
 
    **Step C — Recompute and write:**
    - Set `total = length(entries)`.
-   - Assert the **never-shrink invariant**: `total >= PREV_COUNT`. If this assertion fails, you have a bug — stop, re-read the existing file, and redo from Step A. Do NOT write a smaller index.
+   - Assert the **in-run never-shrink invariant**: `total >= PREV_COUNT` (this step only appends/updates; it must not drop entries). If this assertion fails, you have a bug — stop, re-read the existing file, and redo from Step A. Do NOT write a smaller index **here** — the retention step 5 is the only place the index is deliberately trimmed.
    - Write the object `{ schema_version: "1.0", total, entries }` back to `index.json`, overwriting the file with the **superset** you just computed.
 
    **Step D — MANDATORY verification (read-back check):**
@@ -123,7 +132,7 @@ Rules that apply to all artefact types:
    **Common failure modes to avoid:**
    - Recreating `index.json` from scratch (e.g., writing only the current entry) — this destroys all history.
    - Skipping Step A and overwriting instead of appending.
-   - Writing a `total` smaller than the previous run's `total`.
+   - Writing a `total` smaller than the `PREV_COUNT` you read in Step A of **this** step (deliberate retention trimming happens only in step 5, never during the append).
    - Dropping the deprecated `investigations` array's contents instead of merging them into `entries`.
 
 2. **Update Pattern Database — MANDATORY read-modify-write procedure**:
@@ -219,3 +228,26 @@ Rules that apply to all artefact types:
    **Validation before calling notify_teams:** Read back the current pattern file one more time. The `count` field in the file MUST equal the `occurrence_count` value you are about to pass to `notify_teams`. If they differ, go back to Step B and redo the update.
 
 4. **Save Artifacts**: Store detailed logs and analysis in the cached directories.
+
+5. **Retention & Compaction (MANDATORY — keeps the knowledge base under the repo-memory caps)**:
+
+   The repo-memory branch enforces hard `max-file-count` (1000) and `max-file-size` (1 MiB) caps on every push; once either is exceeded, **the entire push is rejected** and this run's investigation — and all future ones — silently fail to persist. To stay under them, prune the two unbounded, low-value-over-time datasets down to rolling windows **after** writing this run's artefacts (steps 1–3). No permanent signal is lost: long-term recurrence lives in the per-signature `patterns/*.json` `count`/`first_seen`/`last_seen` fields, which are **never** pruned.
+
+   Constants:
+   - `INVESTIGATION_RETENTION_MAX = 300` — max per-run investigation record files to keep under `investigations/`.
+   - `INDEX_RETENTION_MAX = 2000` — max entries to keep in `index.json` (≈600 KiB, comfortably under the 1 MiB file cap).
+
+   **Step A — Prune raw investigation records:**
+   - List every `*.json` file under `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/investigations/` **except** `index.json`.
+   - If the count exceeds `INVESTIGATION_RETENTION_MAX`, delete the oldest files (order by the `YYYY-MM-DD-HH-MM-SS-sss` timestamp in the filename, oldest first) until exactly `INVESTIGATION_RETENTION_MAX` remain. **Never** delete the record you wrote in this run.
+   - Deleting a raw record does not erase the failure from history: its lightweight reference stays in `index.json` (until the index prune below) and its recurrence is already folded into the pattern record.
+
+   **Step B — Compact the index to its rolling window:**
+   - Re-read `index.json` (the superset written in step 1a).
+   - If `length(entries) > INDEX_RETENTION_MAX`, keep only the newest `INDEX_RETENTION_MAX` entries (sort by `timestamp` descending, take the first `INDEX_RETENTION_MAX`). This is the ONLY sanctioned place the index shrinks.
+   - Set `total = length(entries)`, write the object back, then validate against `index.schema.json` and confirm this run's `investigation_id` is still present (it is one of the newest, so it must survive the trim).
+
+   **Step C — Verify headroom (monitoring):**
+   - Count all persisted files under `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/` and confirm the total is `< max-file-count` (1000).
+   - Confirm `index.json` on disk is `< max-file-size` (1 MiB). If it is within ~10% of the cap despite the entry trim, lower the effective `INDEX_RETENTION_MAX` for this write and note it in the investigation.
+   - Never leave the branch over any cap — an over-cap push is rejected wholesale and this run's investigation is lost. If pattern records alone approach `max-file-count`, flag it in the Teams report so a maintainer can raise the cap or archive old signatures.

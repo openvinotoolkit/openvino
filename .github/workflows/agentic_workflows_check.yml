@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/*.md'
       - '.github/workflows/*.lock.yml'
+      - '.github/workflows/shared/**/*.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

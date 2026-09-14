@@ -12,10 +12,9 @@ safe-outputs:
         contents: read
       inputs:
         source:
-          description: "Which CI Doctor produced this notification: 'merge_queue' for the Merge Queue investigator or 'post_commit' for the Post-Commit investigator. Controls the badge shown in the Teams card ([MQ] / [PC]) and the uploaded statistics artifact name. Defaults to 'merge_queue'."
-          required: false
+          description: "Which CI Doctor produced this notification: 'merge_queue' for the Merge Queue investigator or 'post_commit' for the Post-Commit investigator. Controls the badge shown in the Teams card ([MQ] / [PC]) and the uploaded statistics artifact name."
+          required: true
           type: string
-          default: "merge_queue"
         title:
           description: "Short, searchable description of the failure (e.g. 'smoke_Bucketize tests fail on comparison'). No PR/run numbers."
           required: true
