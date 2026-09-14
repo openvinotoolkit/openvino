@@ -51,21 +51,24 @@ struct MemRefTypeImpl {
 
     bool UpdateMemRefHandleStatus(MemRefType& memref, bool useV2Api = false) {
         // Update current MemRef handle to use latest metadata
-        const bool handleCreated = _memRef == nullptr;
+        bool newMemRefHandleCreated = false;
         if (_memRef == nullptr) {
             createMemRef(memref._dimsCount);
+            newMemRefHandleCreated = true;
         }
-
-        const uint32_t dirtyFlag = handleCreated ? MemRefType::ALL_DIRTY : memref.getDirtyFlag();
+        // Determine the dirty flag based on whether a new MemRef handle was created or existing metadata was modified.
+        const uint32_t dirtyFlag = newMemRefHandleCreated ? MemRefType::ALL_DIRTY : memref.getDirtyFlag();
         if (dirtyFlag != 0) {
-            auto result = npuVMRuntimeSetMemRef(
-                _memRef,
-                memref._basePtr,
-                memref._data,
-                memref._offset,
-                useV2Api && !(dirtyFlag & MemRefType::SHAPE_DIRTY) ? nullptr : memref._sizes.data(),
-                useV2Api && !(dirtyFlag & MemRefType::STRIDE_DIRTY) ? nullptr : memref._strides.data(),
-                memref._dimsCount);
+            // V2 runtime accepts nullptr for metadata fields that were not changed.
+            const auto sizes = useV2Api && !(dirtyFlag & MemRefType::SHAPE_DIRTY) ? nullptr : memref._sizes.data();
+            const auto strides = useV2Api && !(dirtyFlag & MemRefType::STRIDE_DIRTY) ? nullptr : memref._strides.data();
+            auto result = npuVMRuntimeSetMemRef(_memRef,
+                                                memref._basePtr,
+                                                memref._data,
+                                                memref._offset,
+                                                sizes,
+                                                strides,
+                                                memref._dimsCount);
             if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
                 memref.markDirty(dirtyFlag);
                 OPENVINO_THROW("Failed to update MemRef handle");
@@ -79,9 +82,7 @@ private:
     void createMemRef(int64_t dimsCount) {
         if (_memRef == nullptr) {
             auto result = npuVMRuntimeCreateMemRef(dimsCount, &_memRef);
-            if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-                OPENVINO_THROW("Failed to create MemRef handle");
-            }
+            OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS, "Failed to create MemRef handle");
         }
     }
 
@@ -103,9 +104,7 @@ VMExecutionContext::~VMExecutionContext() {
 npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensure(npu_vm_runtime_handle_t vmRuntime) {
     if (_handle == nullptr) {
         const npu_vm_runtime_result_t result = npuVMRuntimeCreateExecutionContext(vmRuntime, &_handle);
-        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-            OPENVINO_THROW("Failed to create a VM execution context");
-        }
+        OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS, "Failed to create a VM execution context");
     }
     return _handle;
 }
@@ -124,9 +123,7 @@ npu_vm_runtime_execution_context_handle_t VMExecutionContext::ensureV2(
                                                                    graphDdiTableExt,
                                                                    queueDdiTableExt};
         const npu_vm_runtime_result_t result = npuVMRuntimeCreateExecutionContext2(vmRuntime, &params, &_handle);
-        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-            OPENVINO_THROW("Failed to create a VM execution context (v2)");
-        }
+        OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS, "Failed to create a VM execution context (v2)");
     }
     return _handle;
 }
@@ -137,12 +134,11 @@ void DynamicArguments::setArgumentProperties(uint32_t argi,
                                              const ov::Shape& sizes,
                                              const std::vector<size_t>& strides) {
     auto assign_slot = [&](MemRefType& slot) {
-        if (strides.size() != sizes.size()) {
-            OPENVINO_THROW("Updated shape and stride count mismatch: shape rank and stride count differ. Shape rank: ",
-                           sizes.size(),
-                           ", stride count: ",
-                           strides.size());
-        }
+        OPENVINO_ASSERT(strides.size() == sizes.size(),
+                        "Updated shape and stride count mismatch: shape rank and stride count differ. Shape rank: ",
+                        sizes.size(),
+                        ", stride count: ",
+                        strides.size());
         slot.setArg(argv);
         slot.setSize(sizes);
         slot.setStrides(ov::Strides(strides));
@@ -171,9 +167,9 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
     _logger.debug("Initialization started");
 
     const auto versionResult = npuVMRuntimeGetAPIVersion(&_apiVersion);
-    if (versionResult != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to get VM runtime version, error code: ", versionResult);
-    }
+    OPENVINO_ASSERT(versionResult == NPU_VM_RUNTIME_RESULT_SUCCESS,
+                    "Failed to get VM runtime version, error code: ",
+                    versionResult);
 
     if (use_npu_vm_runtime_v2_api(_apiVersion)) {
         _logger.debug("DynamicPipeline: using v2.0 VM runtime API");
@@ -372,9 +368,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
                                                         static_cast<uint32_t>(commandLists.size()),
                                                         commandLists.data(),
                                                         fence);
-        if (result != ZE_RESULT_SUCCESS) {
-            OPENVINO_THROW("Failed to submit command lists");
-        }
+        OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS, "Failed to submit command lists");
         return;
     }
 
@@ -383,9 +377,7 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     // list with update
     for (auto& cmdList : commandLists) {
         const auto result = zeCommandListReset(cmdList);
-        if (result != ZE_RESULT_SUCCESS) {
-            OPENVINO_THROW("Failed to reset command list");
-        }
+        OPENVINO_ASSERT(result == ZE_RESULT_SUCCESS, "Failed to reset command list");
     }
 
     npu_vm_runtime_execute_params_t params = {};
@@ -404,9 +396,10 @@ void DynamicPipeline::execute_vm_runtime(npu_vm_runtime_handle_t vmRuntime,
     params.event = event;
 
     _logger.debug("Execute graph with runtime engine");
-    if (npuVMRuntimeExecute(vmRuntime, &params) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to execute VM runtime engine");
-    }
+    const auto result = npuVMRuntimeExecute(vmRuntime, &params);
+    OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS,
+                    "Failed to execute VM runtime engine, error code: ",
+                    result);
     _logger.debug("Execution runtime engine is created successfully.");
 
     args._commandListsRecorded = true;
@@ -447,9 +440,9 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
 
     _logger.debug("execute_vm_runtime_v2 - calling npuVMRuntimeExecute2");
     const auto result = npuVMRuntimeExecute2(vmRuntime, &params);
-    if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to execute VM runtime engine (v2), error code: ", result);
-    }
+    OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS,
+                    "Failed to execute VM runtime engine (v2), error code: ",
+                    result);
 
     _logger.debug("execute_vm_runtime_v2 - completed");
 }
@@ -545,16 +538,16 @@ std::vector<ov::Shape> DynamicPipeline::predict_output_shapes(
         result = npuVMRuntimePredictOutputShape2(vmRuntime, &params);
     }
 
-    if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-        OPENVINO_THROW("Failed to predict output shape with VM runtime engine, error code: ", result);
-    } else {
+    OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS,
+                    "Failed to predict output shape with VM runtime engine, error code: ",
+                    result);
+    {
         for (size_t i = 0; i < outputsMemRefs.size(); ++i) {
             auto& out = outputsMemRefs[i];
             auto outImpl = std::static_pointer_cast<MemRefTypeImpl>(out._impl);
 
-            if (outImpl == nullptr) {
-                OPENVINO_THROW("MemRefType implementation is broken, unknown error happens in shape prediction.");
-            }
+            OPENVINO_ASSERT(outImpl != nullptr,
+                            "MemRefType implementation is broken, unknown error happens in shape prediction.");
             outImpl->alignWithHandle(out);
         }
         _logger.debug("Output shape prediction is done successfully.");
@@ -601,9 +594,7 @@ void DynamicPipeline::pull() {
     if (use_npu_vm_runtime_v2_api(_apiVersion)) {
         auto& dynamicArguments = _command_list_group->getArguments();
         const auto result = npuVMRuntimeHostSync(vmRuntime, &dynamicArguments._executeParams2);
-        if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
-            OPENVINO_THROW("npuVMRuntimeHostSync failed, error code: ", result);
-        }
+        OPENVINO_ASSERT(result == NPU_VM_RUNTIME_RESULT_SUCCESS, "npuVMRuntimeHostSync failed, error code: ", result);
     } else if (_sync_output_with_fences) {
         _fences.front()->hostSynchronize();
     } else {
