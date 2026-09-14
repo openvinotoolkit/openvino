@@ -182,6 +182,7 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_to_compressed_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_upgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_grouped_matmul_to_gather_matmul_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_grouped_matmul_to_matmul_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_interpolate11_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_interpolate1_to_interpolate4_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_matrix_nms_to_matrix_nms_ie_internal.cpp
