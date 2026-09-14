@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 238,
+  "total": 239,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2336,6 +2336,15 @@
       "title": "openvino_wheels artifact download fails with ListArtifacts 403 Forbidden on Linux ARM64",
       "category": "Infrastructure",
       "signature_hash": "94ac5e158bc45b5a",
+      "pr_number": "38077"
+    },
+    {
+      "investigation_id": "2026-09-14-15-56-01-000-34855105961",
+      "run_id": "34855105961",
+      "timestamp": "2026-09-14T15:56:01Z",
+      "title": "EasyOCR model download fails with HTTP 504 Gateway Time-out in PyTorch Models tests",
+      "category": "External Service",
+      "signature_hash": "9cb03e077ef3024a",
       "pr_number": "38077"
     }
   ]

@@ -4,17 +4,19 @@
   "signature_hash": "9cb03e077ef3024a",
   "title": "EasyOCR model download fails with HTTP 504 Gateway Time-out in PyTorch Models tests",
   "category": "External Service",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-07-09T16:59:02Z",
-  "last_seen": "2026-07-09T16:59:02Z",
+  "last_seen": "2026-09-14T15:56:01Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34855105961",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29030218412"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38077",
     "https://github.com/openvinotoolkit/openvino/pull/36773"
   ],
   "recent_timestamps": [
-    "2026-07-09T16:59:02Z"
+    "2026-09-14T15:56:01Z"
   ],
   "rerun_search_string": "HTTPError: HTTP Error 504: Gateway Time-out"
 }

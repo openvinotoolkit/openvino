@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-14-15-56-01-000-34855105961",
+  "timestamp": "2026-09-14T15:56:01Z",
+  "run_id": "34855105961",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34855105961",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38077",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38077",
+  "author": "ababushk",
+  "category": "External Service",
+  "title": "EasyOCR model download fails with HTTP 504 Gateway Time-out in PyTorch Models tests",
+  "signature": "HTTPError: HTTP Error 504: Gateway Time-out|External Service",
+  "signature_hash": "9cb03e077ef3024a",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "test_easyocr.py::TestEasyOCRConvertModel::test_convert_model[CPU-detector] and [CPU-recognizer] fail downloading EasyOCR model weights."
+    },
+    {
+      "name": "ci/gha_overall_status",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the PyTorch Models tests job failed."
+    }
+  ],
+  "key_errors": [
+    "install/tests/model_hub_tests/pytorch/test_easyocr.py:24: in load_model\n    model = easyocr.Reader([\"en\"], quantize=False).detector\nE   HTTPError: HTTP Error 504: Gateway Time-out",
+    "install/tests/model_hub_tests/models_hub_common/multiprocessing_utils.py:73: ProcessError\ndetector running failed:\n...urlretrieve(url, zip_path, reporthook=reporthook)... HTTPError: HTTP Error 504: Gateway Time-out"
+  ],
+  "root_cause": "The EasyOCR test loads its detector/recognizer models by downloading them at test time from an external model-storage host via easyocr's own download_and_unzip/urlretrieve helper. That external host returned an HTTP 504 Gateway Time-out for both the detector and recognizer URLs, causing both parametrized test cases to fail. The PR under test (#38077) only touches .github/workflows/job_build_linux.yml artifact-upload gating and has no relationship to PyTorch model tests or EasyOCR; the failure is caused entirely by an unavailable/overloaded third-party download endpoint outside repository control, consistent with the same signature seen once before on 2026-07-09.",
+  "reproduction_steps": "N/A (depends on transient availability of the external EasyOCR model-download endpoint at test time). Locally: run `pytest install/tests/model_hub_tests/pytorch/test_easyocr.py -k test_convert_model` and observe failure only if the remote host returns 5xx.",
+  "recommended_actions": [
+    "Re-run the failed job/PR through the merge queue once the external EasyOCR model host recovers (handled automatically via remediate_transient_failure).",
+    "Consider caching EasyOCR model weights in the OpenVINO-controlled model cache/mirror (similar to the HF_HUB_CACHE mechanism already used for other models) to avoid depending on easyocr's own download path.",
+    "Add a retry/backoff wrapper around easyocr.Reader() initialization in test_easyocr.py so transient 5xx responses do not immediately fail the test."
+  ],
+  "prevention_strategies": "Mirror or pre-cache third-party model weights (EasyOCR detector/recognizer) into the CI-controlled cache directory instead of relying on live downloads from the upstream host during test execution; add retry logic with backoff for external downloads in model_hub_tests.",
+  "historical_context": "Identical signature (HTTPError: HTTP Error 504: Gateway Time-out | External Service) was previously recorded once on 2026-07-09 (run 29030218412, PR #36773). This is the 2nd occurrence; below the 3-in-12h recurring-escalation threshold."
+}
