@@ -15,14 +15,10 @@
 namespace ov::test {
 namespace {
 
-// Fixed size of a single manifest entry (see @ref ov::runtime::HSMHeader::manifest_size). ManifestEntry itself
-// isn't defined in hsm_format.hpp right now, so tests use this plain byte count instead of sizeof(...).
+// Byte size of one manifest entry; used for raw placeholder manifest bytes below.
 constexpr size_t k_manifest_entry_size = 32;
 
-// Builds the raw bytes of a structurally-valid HSM container: HSMHeader, then `section_payload` (if any),
-// then `manifest` (raw, pre-built manifest table bytes). Only lays out the container's top-level regions
-// (header / section payload / manifest); doesn't know or care what any given section payload or manifest
-// entry means - callers pass already-serialized bytes, not typed ManifestEntry objects.
+// Raw bytes of an HSM container: header, then section_payload, then manifest (already-serialized).
 std::vector<uint8_t> make_container(const runtime::BlobMagic& magic,
                                     const std::vector<uint8_t>& section_payload,
                                     const std::vector<uint8_t>& manifest) {
@@ -34,14 +30,13 @@ std::vector<uint8_t> make_container(const runtime::BlobMagic& magic,
     header.manifest_size = manifest.size();
     header.total_size = header.manifest_offset + header.manifest_size;
 
-    std::vector<uint8_t> buffer(header.total_size);
-    std::memcpy(buffer.data(), &header, sizeof(header));
-    if (!section_payload.empty()) {
-        std::memcpy(buffer.data() + sizeof(header), section_payload.data(), section_payload.size());
-    }
-    if (!manifest.empty()) {
-        std::memcpy(buffer.data() + header.manifest_offset, manifest.data(), manifest.size());
-    }
+    // insert(), not memcpy(data() + offset, ...): avoids a GCC -Wstringop-overflow false positive on ARM64 cross-compile.
+    std::vector<uint8_t> buffer;
+    buffer.reserve(header.total_size);
+    const auto* header_bytes = reinterpret_cast<const uint8_t*>(&header);
+    buffer.insert(buffer.end(), header_bytes, header_bytes + sizeof(header));
+    buffer.insert(buffer.end(), section_payload.begin(), section_payload.end());
+    buffer.insert(buffer.end(), manifest.begin(), manifest.end());
     return buffer;
 }
 
@@ -51,17 +46,13 @@ std::vector<uint8_t> make_single_blob_container(const std::vector<uint8_t>& sect
     return make_container(runtime::BlobMagic::single, section_payload, manifest);
 }
 
-// One container tagged as part of a multi-blob file (Story 12/13, forward-looking).
+// One container tagged as part of a multi-blob file.
 std::vector<uint8_t> make_multi_container(const std::vector<uint8_t>& section_payload,
                                           const std::vector<uint8_t>& manifest) {
     return make_container(runtime::BlobMagic::multi, section_payload, manifest);
 }
 
-// A multi-blob file: `blob_count` independent MULTI-magic containers concatenated back-to-back, each with
-// its own header/manifest. The exact multi-container framing isn't finalized yet (Story 12/13), but every
-// container is self-describing via `total_size`, so a reader can hop from one to the next by adding it to
-// the current container's start offset - back-to-back concatenation is enough to exercise that here.
-// `blob_count == 1` is a valid (degenerate) multi-blob file containing a single blob.
+// blob_count MULTI-magic containers concatenated back-to-back
 std::vector<uint8_t> make_multi_blob_container(size_t blob_count) {
     std::vector<uint8_t> buffer;
     for (size_t i = 0; i < blob_count; ++i) {
@@ -71,9 +62,7 @@ std::vector<uint8_t> make_multi_blob_container(size_t blob_count) {
     return buffer;
 }
 
-// A multi-blob file matching HSMMultiBlobView's model: one mandatory shared-context container
-// (BlobMagic::multi, empty) followed by `blob_count` actual model containers (BlobMagic::single, empty
-// payload/manifest).
+// Mandatory shared-context container (MULTI) followed by blob_count model containers (SINGLE).
 std::vector<uint8_t> make_multi_blob_file(size_t blob_count) {
     std::vector<uint8_t> buffer = make_multi_container({}, {});
     for (size_t i = 0; i < blob_count; ++i) {
@@ -83,16 +72,13 @@ std::vector<uint8_t> make_multi_blob_file(size_t blob_count) {
     return buffer;
 }
 
-// Sample container shared by the HsmHeaderTest.* tests below: a header describing 2 manifest entries and a
-// 2-byte "OV" section payload. Manifest content is dummy placeholder bytes (just the correct byte count,
-// `2 * kManifestEntrySize`) - no test here reads specific entry field values.
+// Sample container for HsmHeaderTest: 2-byte "OV" section payload, 2 dummy manifest entries.
 std::vector<uint8_t> make_sample_single_blob_container() {
     const std::vector<uint8_t> manifest(2 * k_manifest_entry_size, 0xCD);
     return make_single_blob_container({'O', 'V'}, manifest);
 }
 
-// Sample container with real entries: a Core "model_id" inline entry, and a "model" pointer entry pointing
-// at a 2-byte "OV" section payload - used to exercise HSMContainerView's header/manifest/section access.
+// Sample container with real entries: inline model_id tag + pointer-mode model tag ("OV" payload).
 std::vector<uint8_t> make_sample_container_with_entries() {
     runtime::ManifestEntry id_entry{};
     id_entry.tag = runtime::model_id_tag();
