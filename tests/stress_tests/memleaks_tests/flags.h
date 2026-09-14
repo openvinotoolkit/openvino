@@ -25,3 +25,7 @@ static const char test_conf_message[] = "Optional. Path to a test config with de
 DEFINE_string(test_conf, OS_PATH_JOIN({"stress_tests_configs", "memleaks_tests", "test_config.xml"}), test_conf_message);
 
 DEFINE_string(compilation_config_file, "", "Optional. Path to a compilation config file");
+
+DEFINE_bool(collect_failure_logs, true, "Automatically capture dmesg and NPU fw_log on test failure");
+DEFINE_string(failure_logs_dir, "./test_failure_logs", "Directory to store failure debug logs");
+DEFINE_string(fw_log_path, "", "Path to NPU firmware log (auto-detected from /sys/kernel/debug/accel/*/fw_log if empty)");

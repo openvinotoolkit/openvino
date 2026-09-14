@@ -5,6 +5,7 @@
 #include "flags.h"
 #include "../common/utils.h"
 #include "../common/tests_utils.h"
+#include "../common/failure_log_collector.h"
 #include "tests_pipelines/stress_scenarios.h"
 
 #include <gtest/gtest.h>
@@ -74,5 +75,32 @@ int main(int argc, char **argv) {
         Environment::Instance().setCompilationConfigFile(FLAGS_compilation_config_file);
     }
     ::testing::InitGoogleTest(&argc, argv);
+
+    auto &collector = stress_tests::FailureLogCollector::Instance();
+    collector.setEnabled(FLAGS_collect_failure_logs);
+    if (!FLAGS_failure_logs_dir.empty()) {
+        collector.setLogDir(FLAGS_failure_logs_dir);
+    }
+    if (!FLAGS_fw_log_path.empty()) {
+        collector.setFwLogPath(FLAGS_fw_log_path);
+    }
+
+    pugi::xml_node log_dir_node = config.child("attributes").child("failure_logs_dir");
+    if (!log_dir_node) {
+        log_dir_node = config.child("attributes").child("log_dump_dir");
+    }
+    if (log_dir_node && FLAGS_failure_logs_dir == "./test_failure_logs") {
+        collector.setLogDir(log_dir_node.text().as_string());
+    }
+
+    pugi::xml_node fw_log_node = config.child("attributes").child("fw_log_path");
+    if (fw_log_node && FLAGS_fw_log_path.empty()) {
+        collector.setFwLogPath(fw_log_node.text().as_string());
+    }
+
+    if (collector.isEnabled()) {
+        ::testing::UnitTest::GetInstance()->listeners().Append(new stress_tests::FailureLogTestListener());
+    }
+
     return RUN_ALL_TESTS();
 }

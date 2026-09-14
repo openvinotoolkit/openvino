@@ -156,6 +156,13 @@ You can specify custom compilation properties globally or per-model via `test_co
 - Via CLI override: Add `--compilation_config_file=/path/to/config.txt` to `StressUnitTests` or `StressMemLeaksTests`.
 - For standalone child execution: Use `--stress_compilation_config=/path/to/config.txt`.
 
+### Automated Failure Diagnostics Collection
+
+The test harness automatically captures `dmesg` and NPU firmware logs (`/sys/kernel/debug/accel/*/fw_log`) into `./test_failure_logs/` whenever a test fails:
+- Disable or enable via `--collect_failure_logs=false`
+- Customize output path via `--failure_logs_dir=/path/to/dir`
+- Specify custom firmware log path via `--fw_log_path=/path/to/fw_log`
+
 For detailed configuration schema, examples, and heterogeneous testing scenarios, see
 [CONFIG_AND_RUN_GUIDE.md](CONFIG_AND_RUN_GUIDE.md).
 

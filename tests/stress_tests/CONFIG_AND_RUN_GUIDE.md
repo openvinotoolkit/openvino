@@ -37,6 +37,10 @@ The configuration file defines the test parameters matrix. The test harness gene
     <!-- Optional global compilation configuration file (defaults to PERFORMANCE_HINT LATENCY if omitted) -->
     <compilation_config_file>/path/to/global_compilation_config.txt</compilation_config_file>
 
+    <!-- Optional failure log collection settings -->
+    <failure_logs_dir>/path/to/failure_logs</failure_logs_dir>
+    <fw_log_path>/sys/kernel/debug/accel/0000:00:0b.0/fw_log</fw_log_path>
+
     <!-- Model IR definitions -->
     <models>
         <model name="heavy_model" path="heavy_model" full_path="/path/to/heavy_model.xml" precision="FP32" compilation_config="/path/to/heavy_compilation_config.txt" />
@@ -201,3 +205,21 @@ $BIN_DIR/StressUnitTests \
     --stress_compilation_config=/path/to/heavy_config.txt \
     --stress_compilation_config2=/path/to/light_config.txt
 ```
+
+---
+
+## 4. Automated Failure Diagnostics & Log Collection
+
+`StressUnitTests` and `StressMemLeaksTests` automatically monitor each test in the background and capture kernel `dmesg` logs, NPU firmware logs (`/sys/kernel/debug/accel/*/fw_log`), and test failure reports whenever any test fails.
+
+### Output Files on Failure:
+When a test fails, the harness automatically writes the following files to `./test_failure_logs/` (or the configured directory):
+- `<test_name>_report.txt`: Test duration, start/end timestamps, and GTest assertion / crash failure details.
+- `<test_name>_dmesg.log`: Kernel ring buffer message snapshot for kernel driver inspection.
+- `<test_name>_fw_log.log`: NPU firmware debugfs log delta generated during the test execution window.
+
+### Configuration & CLI Options:
+- **`--collect_failure_logs=true|false`**: Enable/disable automatic failure log collection (default: `true`).
+- **`--failure_logs_dir=/path/to/dir`**: Custom destination directory for logs (default: `./test_failure_logs`).
+- **`--fw_log_path=/path/to/fw_log`**: Explicit path to NPU firmware log (defaults to auto-detecting `/sys/kernel/debug/accel/*/fw_log`).
+

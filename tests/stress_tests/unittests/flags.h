@@ -34,3 +34,7 @@ DEFINE_int32(stress_threads, 0, "Stress scenario thread count");
 DEFINE_string(compilation_config_file, "", "Optional. Path to a compilation config file");
 DEFINE_string(stress_compilation_config, "", "Compilation config file path for stress scenario");
 DEFINE_string(stress_compilation_config2, "", "Second compilation config file path for multi-model stress scenario");
+
+DEFINE_bool(collect_failure_logs, true, "Automatically capture dmesg and NPU fw_log on test failure");
+DEFINE_string(failure_logs_dir, "./test_failure_logs", "Directory to store failure debug logs");
+DEFINE_string(fw_log_path, "", "Path to NPU firmware log (auto-detected from /sys/kernel/debug/accel/*/fw_log if empty)");
