@@ -205,8 +205,8 @@ Things to know:
   context is rejected.
 - **Dynamic quantization is force-disabled** (see above).
 - **TP degree 2 is the validated production path.** Larger world sizes
-  (3–4) build and run, but use a legacy funnel topology and have not
-  been performance-tuned.
+  (3–4) build and run on the ring collective, but have not been
+  performance-tuned.
 
 ## Troubleshooting
 

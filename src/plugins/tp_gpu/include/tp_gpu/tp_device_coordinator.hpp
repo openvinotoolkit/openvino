@@ -250,9 +250,8 @@ private:
 
         // Resources
         ze_event_pool_handle_t      pool{nullptr};
-        std::vector<ze_event_handle_t> ev_recv;     // [N-1]
-        ze_event_handle_t           ev_reduce{nullptr};
-        std::vector<ze_event_handle_t> ev_bcast;    // [N-1]
+        // Pair schedule only: [r] = "rank r finished pushing its payload".
+        std::vector<ze_event_handle_t> ev_recv;     // [2]
 
         // Signalled when this rank's spliced recording has finished on the
         // device.  Host-visible, unlike everything else here, because two
@@ -329,10 +328,7 @@ private:
     //   * Ring (N>2): N chunk slots per rank, so every step of the
     //     reduce-scatter lands in a slot of its own and no cross-rank
     //     back-pressure is needed between steps.  Total per rank is one
-    //     payload, the same order as TP=2 -- unlike the funnel, which piled
-    //     (N-1) payloads onto rank 0 alone.
-    //   * Funnel (N>2 fallback): allocations[0] holds N-1 packed worker
-    //     contributions on rank 0; other entries are null.
+    //     payload, the same order as TP=2.
     //
     // Collectives are synchronous and outer InferRequests are serialized, so
     // only one plan uses the arena at a time.
@@ -455,16 +451,8 @@ private:
     /// pool creations on the first inference, which is the one whose latency
     /// users measure as time to first token.
     void create_plan_events(Plan& plan);
-    void record_plan(Plan& plan);
 
-    /// True when the schedule records every rank from that rank's own
-    /// pointers plus the coordinator's staging, and so can be driven one rank
-    /// at a time.  The funnel cannot: it writes into peer output buffers, so
-    /// recording it needs every rank's pointers at once.
-    bool per_rank_schedule() const { return m_use_ring || m_world_size == 2; }
-
-    /// Drains, resets and re-records one rank's lists.  Only valid for a
-    /// per-rank schedule.
+    /// Drains, resets and re-records one rank's lists.
     void record_rank(Plan& plan, int rank);
 
     /// Submits one rank's lists.  Every rank must be submitted before any of
@@ -477,8 +465,8 @@ private:
 
     /// Records the ring schedule for one rank: N-1 reduce-scatter steps
     /// followed by N-1 all-gather steps, sending only to its successor.  Each
-    /// link carries 2*(N-1)/N of the payload instead of the funnel's (N-1)
-    /// copies in and out of rank 0, so the cost per link stops growing with N.
+    /// link carries 2*(N-1)/N of the payload, so the cost per link does not
+    /// grow with N.
     void record_ring_rank(Plan& plan, int rank);
 
     /// Records one rank's contribution to a gather: a single strided copy of
@@ -553,9 +541,8 @@ private:
     /// neighbours are still executing the previous instance, and the ring
     /// writes into a neighbour's staging.  Alternating between two sets means
     /// the recording being laid down and the one still running never share a
-    /// command list, an event or a byte of the arena.  The funnel keeps one
-    /// set: rank 0 drives it from a single thread and nothing overlaps.
-    int plan_buffers() const { return per_rank_schedule() ? 2 : 1; }
+    /// command list, an event or a byte of the arena.
+    int plan_buffers() const { return 2; }
 
     /// The plan holding `collective_id` in the given buffer.
     Plan& plan_at(int collective_id, int buffer) const {
@@ -574,9 +561,10 @@ private:
     /// in execute_plan.  The host reset is one driver round-trip per event on
     /// every collective (64 per model step); the device-side reset is one
     /// command-processor slot on a list that is already being drained.  The
-    /// saving grows with the world size: N=2 has 2 events, the N>2 funnel has
-    /// 2*(N-1)+1.  Excluded is profiling, which reads kernel timestamps back
-    /// from those same events after the sync and would find them wiped.
+    /// saving grows with the world size: N=2 has 2 events, the N>2 ring has
+    /// one per (step, rank).  Excluded is profiling, which reads kernel
+    /// timestamps back from those same events after the sync and would find
+    /// them wiped.
     /// TP_DEVICE_EVENT_RESET=0 forces the host reset back on so the two can
     /// be compared in one build.
     bool use_device_event_reset() const {
@@ -613,8 +601,8 @@ private:
         // per-link bandwidth, which is what the hardware limit is expressed in.
         std::size_t              copy_bytes{0};
         // Every byte that crosses a device boundary during the collective.
-        // N=2 moves 2*payload (one transfer each way); the N>2 funnel moves
-        // 2*(N-1)*payload, all of it through rank 0's links.
+        // N=2 moves 2*payload (one transfer each way); the N>2 ring moves
+        // 2*(N-1)*payload spread evenly over the N links.
         std::size_t              copy_bytes_total{0};
     };
 
@@ -690,8 +678,10 @@ private:
     // device reset schemes can be compared without a rebuild.
     bool                            m_device_event_reset{true};
 
-    // Ring instead of the rank-0 funnel for N>2.  Latched at construction
-    // because it decides the scratch layout.  TP_RING=0 restores the funnel.
+    // Ring reduce-scatter + all-gather for N>2; two ranks exchange directly,
+    // which is what the ring degenerates to minus a round of latency.
+    // Derived from the world size alone and latched at construction because
+    // it decides the scratch layout.
     bool                            m_use_ring{false};
 
     std::vector<RankState>          m_ranks;        // [N]

@@ -245,21 +245,22 @@ When no dedicated copy engine is configured, the memcpy and reduce live
 on the same compute command list. Source-side enqueue is mandatory — a
 peer-pull memcpy silently transfers zeros on the validated driver.
 
-### N>2 funnel path (legacy)
+### N>2 ring path
 
-For world sizes greater than 2, the original funnel topology is retained:
-- Workers (ranks 1..N-1) push their `in` to per-worker staging buffers
-  on rank 0's device.
-- Rank 0 waits on all `ev_recv[w]`, then folds the staging buffers into
-  the running output via successive reduce kernel launches, signaling
-  `ev_reduce` on the last fold.  Each fold reads and writes the same
-  output buffer, and the command list is not created in-order, so the
-  launches are separated by `zeCommandListAppendBarrier`.
-- Rank 0 scatters the result back to each worker's `out_ptr`.
+For world sizes greater than 2 the collective is a ring reduce-scatter
+followed by an all-gather, `2*(N-1)` steps in total. Each rank forwards
+one chunk to its successor and folds the chunk arriving from its
+predecessor, so every link carries `2*payload` regardless of N, instead
+of the `2*(N-1)*payload` a single coordinating rank would have to absorb.
 
-The funnel routes every contribution through rank 0, so its traffic grows
-as O(N).  For TP=2 the symmetric path above is used instead -- it removes
-one round trip per call.
+When the world size is a power of two and the payload stays under
+`TP_HALVING_MAX_BYTES`, recursive halving/doubling replaces the ring:
+`2*log2(N)` steps instead of `2*(N-1)`, which is what decode-sized
+payloads care about, since there latency dominates and bandwidth does
+not.
+
+For TP=2 the symmetric path above is used instead -- it removes one
+round trip per call.
 
 ## intel_gpu Integration
 
@@ -356,7 +357,6 @@ caching properties are aggregated across the rank devices and joined with
   structurally, anchored on the attention op, so layer naming does not
   matter.
 - **TP degree**: 2, 3 and 4 are covered by `ov_tp_gpu_func_tests`.
-  N>2 uses the legacy funnel topology.
 
 ## Known Limitations
 

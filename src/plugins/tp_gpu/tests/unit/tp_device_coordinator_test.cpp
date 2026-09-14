@@ -665,10 +665,10 @@ TEST_F(TPDeviceCoordinatorTest, AllReduceAcrossWiderWorlds) {
             outs[r] = rs[r].alloc(bytes);
         }
 
-        // Several iterations on the same collective slot: the funnel clears
-        // its recv/reduce/bcast events from the recorded command lists, and a
-        // reset that lands in the wrong list only shows up from the second
-        // call on, when a stale signal lets a wait through early.
+        // Several iterations on the same collective slot: the recordings clear
+        // their own events from the recorded command lists, and a reset that
+        // lands in the wrong list only shows up from the second call on, when
+        // a stale signal lets a wait through early.
         for (int k = 0; k < 5; ++k) {
             SCOPED_TRACE("iteration " + std::to_string(k));
             float expected = 0.0f;

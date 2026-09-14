@@ -42,7 +42,7 @@ for the current file layout. Key entry points:
 | Env var | Effect | When to enable |
 |---|---|---|
 | `TP_PROF=N` | After every Nth rank-0 call, print aggregated profile: rendezvous phases, exec breakdown (reset / submit / sync_r0 / sync_r1), device-side memcpy & kernel time from `zeEventQueryKernelTimestamp`, and PCIe throughput. | Always when measuring. Pick `N = 2 × num_layers` to get one report per inference. |
-| `TP_DBG=1` | Extremely verbose `[TP][L0]` step-by-step tracing inside `execute_plan` and `record_plan`. | Only when chasing a hang or correctness crash. |
+| `TP_DBG=1` | Extremely verbose `[TP][L0]` step-by-step tracing inside `execute_plan` and `record_rank`. | Only when chasing a hang or correctness crash. |
 | `TP_COPY_ENGINE=1` | Route the cross-device memcpy onto the dedicated copy ordinal (when the device exposes one). | Only for prefill-bound benchmarks. Net-negative for warm decode (extra `ExecuteCommandLists` per rank). |
 
 Profile output anatomy (one line per inference at `TP_PROF=44` for a
@@ -190,7 +190,7 @@ coordinator currently guards against this in three places:
 
 - `destroy_plan` syncs every rank's compute_queue (and copy_queue when
   set) before calling `zeMemFree`/`zeEventDestroy`.
-- `record_plan` syncs queues before `zeCommandListReset`.
+- `record_rank` syncs queues before `zeCommandListReset`.
 - `~TPDeviceCoordinator` indirectly relies on the same syncs via
   `destroy_plan`.
 
@@ -203,9 +203,9 @@ Most common root causes (in order of frequency):
 
 1. **Memcpy enqueued on the wrong rank's cmdlist.** L0 silently drops
    transfers when the source device is not the one issuing the copy
-   command. Source-side enqueue is mandatory; verify in `record_plan`
-   that the memcpy lives on `self.copy_list` or `self.compute_list`,
-   not on the peer's.
+   command. Source-side enqueue is mandatory; verify in `record_ring_rank`
+   or `record_pair_rank` that the memcpy lives on `self.copy_list` or
+   `self.compute_list`, not on the peer's.
 2. **Cross-device wait on a non-timestamp pool.** The Intel L0 driver
    has shipped versions where event-wait across devices only resolves
    reliably when the source pool was created with
