@@ -9,6 +9,7 @@
 #include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
 
@@ -55,13 +56,23 @@ void LLMContinuousKVCacheStrategy::on_initialize() {
                     // ov::make_tensor() over a raw pointer builds an unchecked view: it cannot know
                     // how large the backing allocation is. The view only fits because the variants
                     // are ordered by ascending KV size, so verify that here rather than trust it.
+                    // The overflow checking size helper is used deliberately: for an imported model
+                    // the shape comes from the blob, and a wrapping product must not compare small.
                     const auto view_bytes =
-                        (ov::shape_size(input_port.get_shape()) * input_port.get_element_type().bitwidth() + 7) / 8;
-                    OPENVINO_ASSERT(view_bytes <= source_tensor->get_byte_size(),
+                        ov::util::get_memory_size_safe(input_port.get_element_type(), input_port.get_shape());
+                    OPENVINO_ASSERT(view_bytes.has_value(),
+                                    "Past KV input '",
+                                    input_name,
+                                    "' of generate variant ",
+                                    i,
+                                    " declares shape ",
+                                    input_port.get_shape(),
+                                    " whose size in bytes overflows.");
+                    OPENVINO_ASSERT(*view_bytes <= source_tensor->get_byte_size(),
                                     "Generate variant ",
                                     i,
                                     " needs ",
-                                    view_bytes,
+                                    *view_bytes,
                                     " bytes for past KV input '",
                                     input_name,
                                     "' but the shared allocation only holds ",
