@@ -57,16 +57,18 @@ namespace intel_gpu {
             const auto& pattern_map = m.get_pattern_value_map();
             auto swish_node_ptr = ov::as_type_ptr<ov::op::v4::Swish>(pattern_map.at(swish_m).get_node_shared_ptr());
             auto mul_node_ptr = ov::as_type_ptr<ov::op::v1::Multiply>(pattern_map.at(multiply1_m).get_node_shared_ptr());
-            if (!mul_node_ptr || transformation_callback(mul_node_ptr))
+            if (!mul_node_ptr || transformation_callback(mul_node_ptr)) {
                 return false;
+            }
 
             auto clamp_node = ov::as_type_ptr<ov::op::v0::Clamp>(pattern_map.at(clamp_m).get_node_shared_ptr());
             auto clamp_min_value = static_cast<float>(clamp_node->get_min());
             auto clamp_max_value = static_cast<float>(clamp_node->get_max());
 
             size_t gate_idx = 0;
-            if (ov::is_type<ov::op::v4::Swish>(mul_node_ptr->get_input_node_shared_ptr(1)))
+            if (ov::is_type<ov::op::v4::Swish>(mul_node_ptr->get_input_node_shared_ptr(1))) {
                 gate_idx = 1;
+            }
 
             auto slice1_node_ptr = ov::as_type_ptr<ov::op::v8::Slice>(pattern_map.at(slice1_m).get_node_shared_ptr());
             auto slice1_in_ps = slice1_node_ptr->get_input_partial_shape(0);
@@ -76,8 +78,9 @@ namespace intel_gpu {
             bool valid_axis_const_values = ov::op::util::has_constant_value<int64_t>(axis_node_ptr, -1)
                                             || ov::op::util::has_constant_value<int64_t>(axis_node_ptr, last_dim);
             // only innermost axis supported
-            if (!valid_axis_const_values)
+            if (!valid_axis_const_values) {
                 return false;
+            }
             auto axis_dim = axis_node_ptr->cast_vector<int64_t>()[0];
 
             auto slice1_start_node_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(slice1_start_const_m).get_node_shared_ptr());
@@ -98,8 +101,9 @@ namespace intel_gpu {
             } else {
                 return false;
             }
-            if (pattern_map.find(swish_beta_m) == pattern_map.end())
+            if (pattern_map.find(swish_beta_m) == pattern_map.end()) {
                 return false;
+            }
             auto swish_beta_node_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(swish_beta_m).get_node_shared_ptr());
             auto swish_beta_val = static_cast<float>(swish_beta_node_ptr->cast_vector<double>()[0]);
             auto add_const_node_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(added_const_m).get_node_shared_ptr());

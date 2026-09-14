@@ -107,8 +107,9 @@ struct gather : public primitive_base<gather> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const gather>(rhs);
 
@@ -171,11 +172,13 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (decompression_scale.is_valid())
+        if (decompression_scale.is_valid()) {
             ret[idx++] = &decompression_scale;
+        }
 
-        if (decompression_zero_point.is_valid())
+        if (decompression_zero_point.is_valid()) {
             ret[idx++] = &decompression_zero_point;
+        }
 
         return ret;
     }

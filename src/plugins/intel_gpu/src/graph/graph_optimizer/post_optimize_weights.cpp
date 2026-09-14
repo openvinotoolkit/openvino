@@ -46,8 +46,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
     auto impl = node.get_selected_impl();
 
     // Skip load-time weights reordering if impl is not selected
-    if (!impl)
+    if (!impl) {
         return;
+    }
 
     if (impl->is_dynamic()) {
         // TODO: To relax current limitation w.r.t the future optimization of weight reorder process
@@ -56,12 +57,15 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
         // Also we skip weight reorder for onednn impl because onednn fully connected layer is using simple format, therefore
         // reordering to cldnn shape_agnostic_kernel's preferred blocked format at build time does not helpful for the performance.
         // This situation might be changed once onednn shape agnostic kernel is used in the future.
-        if (p.is_internal_program())
+        if (p.is_internal_program()) {
             return;
-        if (node.get_preferred_impl_type() == impl_types::onednn)
+        }
+        if (node.get_preferred_impl_type() == impl_types::onednn) {
             return;
-        if (node.type() != fully_connected::type_id())
+        }
+        if (node.type() != fully_connected::type_id()) {
             return;
+        }
     }
     // Don't run impl selection to avoid double compilation of reorder kernels
     // in main program and internal program for constant propagation
@@ -322,7 +326,8 @@ void post_optimize_weights::run(program& p) {
             optimize_weights(node->as<gru_seq>(), p);
         }
     }
-    if (found_lstm)
+    if (found_lstm) {
         p.get_processing_order().calc_processing_order(p);
+    }
 }
 }  // namespace cldnn
