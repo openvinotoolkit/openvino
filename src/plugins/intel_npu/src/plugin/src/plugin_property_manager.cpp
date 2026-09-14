@@ -138,17 +138,6 @@ PluginPropertyManager::PluginPropertyManager(const std::shared_ptr<OptionsDesc>&
     }
 
     _config.parseEnvVars();
-    if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::PREFER_PLUGIN && _backend != nullptr) {
-        auto device = _backend->getDevice();
-        if (device) {
-            auto platformName = device->getName();
-            CompilerAdapterFactory compilerFactory;
-            auto compileType = compilerFactory.determineAppropriateCompilerTypeBasedOnPlatform(platformName);
-            if (compileType == ov::intel_npu::CompilerType::DRIVER) {
-                _config.update(ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compileType));
-            }
-        }
-    }
 
     registerProperties();
 }
@@ -837,7 +826,9 @@ void PluginPropertyManager::registerProperties() {
             return _config.hasOpt(ov::hint::model.name());
         },
         [this](const ov::AnyMap&) -> ov::Any {
-            return _config.get<MODEL_PTR>().lock();
+            // Retrieve the weak pointer to the model and lock it to get a shared pointer. Fix potential dangling pointer issue.
+            const auto model = _config.get<MODEL_PTR>();
+            return model.lock();
         },
         [](const ov::Any&) {
             OPENVINO_THROW("Property '", ov::hint::model.name(),"' can only be provided when importing a compiled model, it cannot be set otherwise");

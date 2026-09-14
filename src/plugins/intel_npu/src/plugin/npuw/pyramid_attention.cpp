@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "npuw_transformations/propagate_slice.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -560,22 +561,27 @@ std::optional<PyramidValidationResult> validate_and_setup_pyramid_attention(cons
 
     LOG_INFO("Found SDPA pattern: MatMul -> Add -> Softmax -> MatMul");
 
-    // Extract query_length and full_context_length from Softmax output shape
+    // Extract query_length and full_context_length
+    // Strategy 1: Check if PropagateSliceUp has marked the SDPA (MatMul2) with original query_length
+    // Strategy 2: Fall back to Softmax output shape
     auto softmax_output_shape = pattern_nodes.softmax_node->get_output_shape(0);
     size_t query_length = 0;
     size_t full_context_length = 0;
 
+    // First, get full_context_length and the default (fallback) query_length from Softmax output
     if (softmax_output_shape.size() >= 2) {
-        full_context_length = softmax_output_shape.back();                     // Last dimension
+        full_context_length = softmax_output_shape.back();                     // Last dimension (context length)
         query_length = softmax_output_shape[softmax_output_shape.size() - 2];  // Second-to-last dimension
-
-        LOG_DEBUG("Extracted from Softmax output shape:");
-        LOG_DEBUG("  Query length: " << query_length);
-        LOG_DEBUG("  Full context length: " << full_context_length);
     } else {
         LOG_WARN("Softmax output shape has insufficient dimensions: " << softmax_output_shape.size());
         return std::nullopt;
     }
+
+    // Try to get query_length from PropagateSliceUp rt_info (more reliable after slice propagation)
+    query_length = ov::npuw::resolve_original_query_length(query_length, pattern_nodes.matmul2_node);
+
+    LOG_DEBUG("Pyramid attention parameters: query_length=" << query_length
+                                                            << ", full_context_length=" << full_context_length);
 
     // Early return for invalid parameters
     if (query_length == 0 || full_context_length == 0 || full_context_length < query_length) {
@@ -906,12 +912,36 @@ void PyramidAttentionContiguous::collect_strided_input_names(const ov::Model& mo
 }
 
 void PyramidAttentionContiguous::validate_port_indices() const {
+    if (_compiled_models.empty()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention has no compiled models");
+    }
     if (_attention_infos.size() != _compiled_models.size()) {
         OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
                        _attention_infos.size(),
                        ") does not match compiled model count (",
                        _compiled_models.size(),
                        ")");
+    }
+    if (_context_lengths.size() != _compiled_models.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention context length count (",
+                       _context_lengths.size(),
+                       ") does not match compiled model count (",
+                       _compiled_models.size(),
+                       ")");
+    }
+    const auto main_model_idx = _compiled_models.size() - 1;
+    if (!_compiled_models[main_model_idx]) {
+        OPENVINO_THROW("NPU NPUW: main compiled model at index ",
+                       main_model_idx,
+                       " is null while validating pyramid attention metadata");
+    }
+    const auto main_inputs_size = _compiled_models[main_model_idx]->inputs().size();
+    if (global_mask_idx >= main_inputs_size) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention global_mask_idx (",
+                       global_mask_idx,
+                       ") out of bounds for main compiled model with ",
+                       main_inputs_size,
+                       " inputs");
     }
     for (size_t i = 0; i < _compiled_models.size(); ++i) {
         if (!_compiled_models[i]) {
@@ -938,11 +968,25 @@ void PyramidAttentionContiguous::validate_port_indices() const {
                                inputs_size,
                                " inputs");
             }
+            const auto& rank = _compiled_models[i]->inputs()[param.idx].get_partial_shape().rank();
+            if (rank.is_static() && param.dim >= static_cast<size_t>(rank.get_length())) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention param dim (",
+                               param.dim,
+                               ") out of bounds for model ",
+                               i,
+                               " input ",
+                               param.idx,
+                               " with rank ",
+                               rank.get_length());
+            }
         }
     }
 }
 
 void PyramidAttentionBlock::validate_port_indices() const {
+    if (_compiled_models.empty()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention has no compiled models");
+    }
     if (_attention_infos.size() != _compiled_models.size()) {
         OPENVINO_THROW("NPU NPUW: pyramid attention info count (",
                        _attention_infos.size(),
@@ -950,13 +994,21 @@ void PyramidAttentionBlock::validate_port_indices() const {
                        _compiled_models.size(),
                        ")");
     }
-
-    if (past_key_block_global_param_indices.size() != past_value_block_global_param_indices.size()) {
-        OPENVINO_THROW("NPU NPUW: pyramid attention block global metadata mismatch: key indices count (",
-                       past_key_block_global_param_indices.size(),
-                       ") does not match value indices count (",
-                       past_value_block_global_param_indices.size(),
+    if (_context_lengths.size() != _compiled_models.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention context length count (",
+                       _context_lengths.size(),
+                       ") does not match compiled model count (",
+                       _compiled_models.size(),
                        ")");
+    }
+
+    if (past_key_block_global_param_indices.empty() ||
+        past_key_block_global_param_indices.size() != past_value_block_global_param_indices.size()) {
+        OPENVINO_THROW("NPU NPUW: pyramid attention block global metadata invalid: key indices count (",
+                       past_key_block_global_param_indices.size(),
+                       "), value indices count (",
+                       past_value_block_global_param_indices.size(),
+                       ") must be non-empty and equal");
     }
 
     if (!_compiled_models.empty()) {
@@ -968,6 +1020,13 @@ void PyramidAttentionBlock::validate_port_indices() const {
         }
 
         const auto main_inputs_size = _compiled_models[main_model_idx]->inputs().size();
+        if (global_mask_idx >= main_inputs_size) {
+            OPENVINO_THROW("NPU NPUW: pyramid attention global_mask_idx (",
+                           global_mask_idx,
+                           ") out of bounds for main compiled model with ",
+                           main_inputs_size,
+                           " inputs");
+        }
         for (const auto global_idx : past_key_block_global_param_indices) {
             if (global_idx >= main_inputs_size) {
                 OPENVINO_THROW("NPU NPUW: pyramid attention key block global param idx (",
@@ -1002,6 +1061,39 @@ void PyramidAttentionBlock::validate_port_indices() const {
                            " with ",
                            inputs_size,
                            " inputs");
+        }
+        for (const auto& kv : info.param_port_map) {
+            if (kv.second >= inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention param_port_map value (",
+                               kv.second,
+                               ") out of bounds for model ",
+                               i,
+                               " with ",
+                               inputs_size,
+                               " inputs");
+            }
+        }
+        for (const auto port : info.past_key_block_port_set) {
+            if (port >= inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention key block port (",
+                               port,
+                               ") out of bounds for model ",
+                               i,
+                               " with ",
+                               inputs_size,
+                               " inputs");
+            }
+        }
+        for (const auto port : info.past_value_block_port_set) {
+            if (port >= inputs_size) {
+                OPENVINO_THROW("NPU NPUW: pyramid attention value block port (",
+                               port,
+                               ") out of bounds for model ",
+                               i,
+                               " with ",
+                               inputs_size,
+                               " inputs");
+            }
         }
     }
 }
