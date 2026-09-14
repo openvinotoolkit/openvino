@@ -44,7 +44,6 @@ for the current file layout. Key entry points:
 | `TP_PROF=N` | After every Nth rank-0 call, print aggregated profile: rendezvous phases, exec breakdown (reset / submit / sync_r0 / sync_r1), device-side memcpy & kernel time from `zeEventQueryKernelTimestamp`, and PCIe throughput. | Always when measuring. Pick `N = 2 × num_layers` to get one report per inference. |
 | `TP_DBG=1` | Extremely verbose `[TP][L0]` step-by-step tracing inside `execute_plan` and `record_plan`. | Only when chasing a hang or correctness crash. |
 | `TP_COPY_ENGINE=1` | Route the cross-device memcpy onto the dedicated copy ordinal (when the device exposes one). | Only for prefill-bound benchmarks. Net-negative for warm decode (extra `ExecuteCommandLists` per rank). |
-| `TP_USE_IMMEDIATE=1` | Use immediate cmdlists + counter-based events for host-sync. | Currently does **not** work end-to-end on the validated driver — fix in progress. Do not enable for production. |
 
 Profile output anatomy (one line per inference at `TP_PROF=44` for a
 22-layer Llama):
@@ -131,12 +130,39 @@ Output includes:
 - One `[TP][PROF]` block per `TP_PROF` window if the env var is set.
 - Top-K logits comparison between TP and the single-GPU baseline.
 
-### `tp_allreduce_l0` — raw peer-copy bandwidth
+## Level Zero Pitfalls
 
-A standalone Level Zero reproducer that measures cross-device bandwidth
-without OpenVINO in the loop. Useful for telling "the collective is slow"
-apart from "the link is slow". It compiles the plugin's own
-`src/kernels/allreduce_sum.cl`, so the two cannot drift apart.
+### Copies must be enqueued on the source device
+
+`zeCommandListAppendMemoryCopy` has to go on the command list of the
+device that **owns the source memory**. Enqueue it on the destination
+device's list and the driver reports `ZE_RESULT_SUCCESS` while silently
+transferring nothing. This is why every peer copy in
+`tp_device_coordinator.cpp` is recorded onto the sending rank's list,
+never the receiving one. A collective that returns stale data with no
+error anywhere is almost always this rule being violated.
+
+### One shared context spans every device
+
+Cross-device copies and events only work when the USM allocations and
+the event pool come from a single `ze_context` created over all
+participating devices (`zeContextCreateEx`). The plugin builds it once
+in `plugin.cpp` and hands it to every rank.
+
+### Dedicated copy engines are optional
+
+Discrete GPUs expose a copy-only command queue group (Link Copy Engine)
+that lets transfers overlap with kernel work; integrated GPUs usually do
+not. Code that selects a copy ordinal must fall back to the compute
+ordinal rather than assume the group exists — see `select_copy_ordinal`.
+
+### Topology cost
+
+A gather/scatter through one coordinating rank costs `2*(N-1)*bytes`
+over that rank's link, so the coordinator becomes the bottleneck from
+N >= 3. The ring reduce-scatter + all-gather the plugin uses costs
+`2*bytes` per link independently of N, which is why it is the default
+above two ranks.
 
 ## Debugging Recipes
 
@@ -229,15 +255,14 @@ that doesn't expose `layers.{N}.self_attn.q_proj` etc., extend
 
 ## Adding a New TP Op
 
-Mostly historical at this point — `TPReduceScatter`, `TPAllGather`,
-`TPBroadcast` exist for future Sequence Parallel work, but none of them
-are emitted by the current rewriter. If you wire one up:
+The plugin defines exactly two ops, `TPAllReduce` and `TPGather`, and
+both are emitted by the rewriter. To add a third:
 
 1. Header in `include/tp_gpu/op/`, source in `src/op/`.
 2. Inherit `ov::op::Op`, declare with
    `OPENVINO_OP("TPMyOp", "tp_gpu", Op)`.
 3. Implement constructors, `validate_and_infer_types`,
-   `clone_with_new_inputs`, `visit_attributes`. The four existing ops
+   `clone_with_new_inputs`, `visit_attributes`. The two existing ops
    are good templates.
 4. Add an OCL primitive in
    `src/plugins/intel_gpu/src/graph/impls/ocl/`. Keep the primitive POD:

@@ -196,9 +196,6 @@ private:
     struct RankState {
         ze_device_handle_t          device{nullptr};
         uint32_t                    compute_ordinal{0};
-        // Regular path: queue + recordable cmdlist.  Immediate path:
-        // compute_queue stays null and compute_list is created via
-        // zeCommandListCreateImmediate (append-on-execute).
         ze_command_queue_handle_t   compute_queue{nullptr};
         ze_command_list_handle_t    compute_list{nullptr};
 
@@ -222,13 +219,6 @@ private:
         // wrap raw kernel-timestamp counter values.
         uint64_t                    timer_ns_per_tick{0};
         uint64_t                    timestamp_mask{~uint64_t{0}};
-
-        // Persistent counter-based event used as the host-sync target on
-        // the immediate path.  Counter-based events (Intel L0 extension)
-        // are designed for host-sync on immediate cmdlists without the
-        // queue-tracking round-trip incurred by zeCommandQueueSynchronize.
-        // Null on the regular path.
-        ze_event_handle_t           cb_event_done{nullptr};
     };
 
     // Cached plan for a single AllReduce collective.
@@ -576,7 +566,7 @@ private:
 
     /// Creates the plan's per-rank command lists if it has none.  Called at
     /// setup so the cost does not land on the first inference, and again from
-    /// build_plan for safety.  No-op on the immediate path.
+    /// build_plan for safety.
     void ensure_plan_lists(Plan& plan);
 
     /// True when the collective's events are cleared by commands appended to
@@ -585,12 +575,12 @@ private:
     /// every collective (64 per model step); the device-side reset is one
     /// command-processor slot on a list that is already being drained.  The
     /// saving grows with the world size: N=2 has 2 events, the N>2 funnel has
-    /// 2*(N-1)+1.  Excluded are the immediate path, which records nothing, and
-    /// profiling, which reads kernel timestamps back from those same events
-    /// after the sync and would find them wiped.  TP_DEVICE_EVENT_RESET=0
-    /// forces the host reset back on so the two can be compared in one build.
+    /// 2*(N-1)+1.  Excluded is profiling, which reads kernel timestamps back
+    /// from those same events after the sync and would find them wiped.
+    /// TP_DEVICE_EVENT_RESET=0 forces the host reset back on so the two can
+    /// be compared in one build.
     bool use_device_event_reset() const {
-        return m_device_event_reset && !m_use_immediate && !m_profiling_enabled;
+        return m_device_event_reset && !m_profiling_enabled;
     }
 
     bool ensure_scratch_capacity(std::size_t payload_bytes);
@@ -690,10 +680,6 @@ private:
     std::mutex                      m_watchdog_mutex;
     std::condition_variable         m_watchdog_cv;
     bool                            m_watchdog_stop{false};
-    // Toggle between regular-cmdlist + queue-sync (false) and
-    // immediate-cmdlist + counter-based event sync (true).  Driven by
-    // env var TP_USE_IMMEDIATE.  Latched at construction time.
-    bool                            m_use_immediate{false};
 
     // Latched TP_PROF state.  Kernel-timestamp events are only created when
     // this is set, and their values must survive until execute_plan reads
@@ -707,16 +693,6 @@ private:
     // Ring instead of the rank-0 funnel for N>2.  Latched at construction
     // because it decides the scratch layout.  TP_RING=0 restores the funnel.
     bool                            m_use_ring{false};
-
-    // Whether the ring's command lists are created with
-    // ZE_COMMAND_LIST_FLAG_IN_ORDER.  In-order execution would express the
-    // ring's linear chain for free, but combining it with the explicit
-    // cross-device events the ring needs makes queues intermittently fail to
-    // drain -- reproduced as a 5 s timeout on one rank's queue while the
-    // barrier variant passed in the same session.  Default is therefore the
-    // explicit barriers; TP_RING_IN_ORDER=1 re-enables the flag for
-    // experiments once the driver behaviour is understood.
-    bool                            m_ring_in_order{false};
 
     std::vector<RankState>          m_ranks;        // [N]
 

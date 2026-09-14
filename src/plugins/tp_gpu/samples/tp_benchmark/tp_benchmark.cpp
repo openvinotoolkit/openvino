@@ -731,7 +731,6 @@ int main(int argc, char* argv[]) {
         std::cerr << "  --no-onednn           Disable oneDNN (use OCL kernels)" << std::endl;
         std::cerr << "  --prefill-len N       Prefill seq_len (default: positional seq_len)" << std::endl;
         std::cerr << "  --gen-len M           Run M decode steps (seq_len=1) after prefill, no reset" << std::endl;
-        std::cerr << "  Env: OV_TP_DUMP_AR=1  Dump per-AllReduce rank divergence to stderr" << std::endl;
         return 1;
     }
 

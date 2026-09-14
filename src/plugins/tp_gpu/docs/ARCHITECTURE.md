@@ -159,14 +159,11 @@ src/plugins/tp_gpu/
 │   │                                        a private "tp_gpu")
 │   └── tp_device_coordinator.hpp          ← TPDeviceCoordinator public API
 ├── samples/
-│   ├── tp_benchmark/                      ← prefill+decode comparator vs GPU
-│   └── tp_allreduce_l0/                   ← standalone L0 reproducer / BW test
+│   └── tp_benchmark/                      ← prefill+decode comparator vs GPU
 ├── cmake/embed_kernels.cmake              ← bakes the .cl into the plugin
 ├── src/
-│   ├── op/                                ← TPAllReduce, TPReduceScatter,
-│   │                                        TPAllGather, TPBroadcast op classes
-│   ├── kernels/allreduce_sum.cl           ← reduce kernel source (single copy;
-│   │                                        the sample compiles this one too)
+│   ├── op/                                ← TPAllReduce, TPGather op classes
+│   ├── kernels/allreduce_sum.cl           ← reduce kernel source
 │   ├── plugin.{hpp,cpp}                   ← IPlugin entry point; builds
 │   │                                        shared L0 context + DC
 │   ├── compiled_model.{hpp,cpp}           ← ICompiledModel
@@ -195,9 +192,7 @@ real work on rank 0's thread; non-zero ranks rendezvous and wait.
 ### Per-rank state
 
 For every rank, the coordinator creates:
-- A compute queue + recordable command list on the compute ordinal
-  (regular path), or an immediate command list (immediate path, gated by
-  `TP_USE_IMMEDIATE`).
+- A compute queue + recordable command list on the compute ordinal.
 - Optionally a copy queue + command list on a copy-only ordinal when
   `TP_COPY_ENGINE=1` is set (off by default — see "Tunables" below).
 - An `allreduce_sum_f16` and `allreduce_sum_f32` kernel compiled from
@@ -205,9 +200,6 @@ For every rank, the coordinator creates:
   (`clBuildProgram`) on the device matched by UUID, then re-loaded into
   the shared L0 context as `ZE_MODULE_FORMAT_NATIVE`. This works around
   the lack of OCLC support in the L0 driver on the validated stack.
-- For the immediate path, a per-rank counter-based event
-  (`zexCounterBasedEventCreate2`, Intel L0 extension) used as a host-sync
-  target without `zeCommandQueueSynchronize`.
 
 ### Plan caching
 
@@ -231,7 +223,6 @@ inference at the maximum expected sequence length amortizes all rebuild
 cost; subsequent prefill/decode shapes only re-record.
 
 ### N=2 execute path (regular cmdlists)
-
 ```
 rank 0                              rank 1
   |                                   |
@@ -253,18 +244,6 @@ rank 0                              rank 1
 When no dedicated copy engine is configured, the memcpy and reduce live
 on the same compute command list. Source-side enqueue is mandatory — a
 peer-pull memcpy silently transfers zeros on the validated driver.
-
-### N=2 execute path (immediate cmdlists, opt-in)
-
-When `TP_USE_IMMEDIATE=1`:
-- Each rank's commands are appended to its immediate cmdlist, which
-  starts executing as soon as commands are enqueued.
-- The reduce kernel signals a counter-based event (`cb_event_done`) at
-  completion; the host syncs with `zeEventHostSynchronize(cb)`.
-- `zeCommandListReset` cannot be issued on immediate cmdlists, so plan
-  re-record uses a different path (commands are appended fresh per
-  call). **This path is currently disabled by default** while a
-  cross-device wait deadlock on the validated driver is being fixed.
 
 ### N>2 funnel path (legacy)
 
@@ -363,7 +342,6 @@ caching properties are aggregated across the rank devices and joined with
 
 | Env var             | Default | Effect |
 |---------------------|---------|--------|
-| `TP_USE_IMMEDIATE`  | `0`     | Immediate cmdlists + counter events. Currently broken on the validated driver; do not enable unless you are debugging it. |
 | `TP_COPY_ENGINE`    | unset   | Route the cross-device memcpy onto the dedicated copy ordinal. Net negative on small (decode) transfers due to extra `ExecuteCommandLists` overhead per rank; useful only for prefill-bound benchmarks. |
 | `TP_PROF`           | unset   | If set to a positive integer N, every Nth call from rank 0 prints aggregated host-side and device-side timings (rendezvous phases, exec breakdown, kernel-timestamp memcpy/kernel durations, PCIe throughput). |
 | `TP_DBG`            | unset   | Verbose tracing of every L0 step taken by `execute_plan`. Very noisy; for crash investigation only. |
