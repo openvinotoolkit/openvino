@@ -60,7 +60,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-ab
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -94,7 +94,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-ab
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.webassembly }}
       volumes:
@@ -140,22 +140,17 @@ jobs:
             -S ${OPENVINO_REPO} \
             -B ${OPENVINO_BUILD_DIR}
 
+      - name: Zero compile cache stats (hello_query_device)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          mode: zero-stats
+
       - name: cmake --build - build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel $(nproc)
+        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel 15
 
-      - name: Show ccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Compile cache statistics (hello_query_device)
+        uses: ./openvino/.github/actions/compile_cache_stats
+        with:
+          build-label: hello-query-device
+          artifact-name: compile-cache-stats-webassembly-hello-query-device
 
-  Overall_Status:
-    name: ci/gha_overall_status_webassembly
-    needs: [Smart_CI, Build]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check status of all jobs
-        if: >-
-          ${{
-            contains(needs.*.result, 'failure') ||
-            contains(needs.*.result, 'cancelled')
-          }}
-        run: exit 1

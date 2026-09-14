@@ -35,7 +35,6 @@ env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
-
   Smart_CI:
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false || github.run_attempt > 1
@@ -65,7 +64,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-linux-4-cores-16gb-docker-build-ab
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -92,7 +91,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-linux-16-cores-32gb-ab
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_20_04_x64 }}
@@ -167,7 +166,7 @@ jobs:
           popd
 
       - name: Cmake build - OpenVINO with Coverity
-        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+        run: ${COVERITY_TOOL_DIR}/cov-analysis*/bin/cov-build --dir ${BUILD_DIR}/cov-int cmake --build ${BUILD_DIR} --parallel 15 --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Pack Artefacts
         run: tar -cvf - cov-int | pigz > openvino.tgz
