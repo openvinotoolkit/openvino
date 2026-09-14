@@ -875,15 +875,10 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             if (pyramid->_data_left_aligned) {
                                 copy_mask_segment(0, 0, pyramid->get_context_length(pyramid_id));
                             } else {
-                                // past_len comes from the shared pyramid_selector, sized for the
-                                // global/non-SWA context growth. An SWA tier's context_length is
-                                // capped at its window size, which can be smaller than past_len --
-                                // clamp here too (mirrors the effective_past_len clamp in
-                                // bind_function_input) to avoid an unsigned underflow in present_len.
-                                const auto effective_past_len =
-                                    std::min<std::size_t>(static_cast<std::size_t>(past_len),
-                                                          pyramid->get_context_length(pyramid_id));
-                                const auto present_len = pyramid->get_context_length(pyramid_id) - effective_past_len;
+                                // Clamp past_len to this SWA tier's window
+                                const auto context_length = pyramid->get_context_length(pyramid_id);
+                                const auto effective_past_len = std::min<std::size_t>(
+                                    static_cast<std::size_t>(past_len), context_length - present_len);
                                 copy_mask_segment(effective_past_len,
                                                   full_mask_shape[ATTN_KV_DIM] - present_len,
                                                   present_len);

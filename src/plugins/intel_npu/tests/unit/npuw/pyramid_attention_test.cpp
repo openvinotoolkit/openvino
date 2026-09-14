@@ -469,6 +469,43 @@ TEST(PyramidAttentionTest, FromSucceedsOnValidPrefillModel) {
     EXPECT_EQ(pyramid->num_models(), 2u);
 }
 
+// Regression test for num_models rounding: with a non-multiple full_context_length/pyramid_step
+// (generate: 1536/1024), floor division would yield 1 model (no tiering at all), silently
+// dropping the smaller intermediate tier.
+TEST(PyramidAttentionTest, FromRoundsUpNumModelsForNonMultipleGenerateContext) {
+    AttentionModelConfig cfg;
+    cfg.query_len = 1;
+    cfg.past_len = 1535;  // context = 1536, step = 1024 -> ceil(1536/1024) = 2 models
+    auto model = build_isolated_attention_model(cfg);
+
+    auto pyramid = ov::npuw::function::PyramidAttention::from(model);
+
+    ASSERT_TRUE(pyramid.has_value());
+    EXPECT_TRUE(pyramid->is_valid());
+    EXPECT_EQ(pyramid->_full_context_length, 1536u);
+    ASSERT_EQ(pyramid->num_models(), 2u);
+    EXPECT_EQ(pyramid->_attentions[0].context_len(), 1024u);
+    EXPECT_EQ(pyramid->_attentions[1].context_len(), 1536u);
+}
+
+// Same rounding check for prefill (pyramid_step == query_len): a past length that is not a
+// multiple of query_len must still produce a rounded-up intermediate tier.
+TEST(PyramidAttentionTest, FromRoundsUpNumModelsForNonMultiplePrefillContext) {
+    AttentionModelConfig cfg;
+    cfg.query_len = 128;
+    cfg.past_len = 100;  // context = 228, step = 128 -> ceil(228/128) = 2 models
+    auto model = build_isolated_attention_model(cfg);
+
+    auto pyramid = ov::npuw::function::PyramidAttention::from(model);
+
+    ASSERT_TRUE(pyramid.has_value());
+    EXPECT_TRUE(pyramid->is_valid());
+    EXPECT_EQ(pyramid->_full_context_length, 228u);
+    ASSERT_EQ(pyramid->num_models(), 2u);
+    EXPECT_EQ(pyramid->_attentions[0].context_len(), 128u);
+    EXPECT_EQ(pyramid->_attentions[1].context_len(), 228u);
+}
+
 TEST(PyramidAttentionTest, FromReusesOriginalModelForLastPyramidModel) {
     AttentionModelConfig cfg;
     cfg.query_len = 1;
