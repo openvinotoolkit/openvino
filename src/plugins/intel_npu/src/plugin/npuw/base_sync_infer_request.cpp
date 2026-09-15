@@ -396,22 +396,22 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
 
         // FIXME: zerops are stored with absolute indexing, this needs to be aligned
         auto& closure = desc_closure[cidx];
+        const auto scale = cidx < comp_model_desc.scales.size() ? comp_model_desc.scales[cidx] : ov::Tensor{};
+        const auto zerop = cidx < comp_model_desc.zerops.size() ? comp_model_desc.zerops[cidx] : ov::Tensor{};
 
         const auto closure_param_id = comp_model_desc.param_base + cidx;
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
         auto clparam = request->get_tensor(iport);
 
-        if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx] && comp_model_desc.zerops[cidx]) {
+        if (scale && zerop) {
             // Unpacking this weight requires scaling with zero points...
             ov::npuw::util::unpack(ov::get_tensor_impl(closure),
-                                   ov::get_tensor_impl(comp_model_desc.zerops[cidx]),
-                                   ov::get_tensor_impl(comp_model_desc.scales[cidx]),
+                                   ov::get_tensor_impl(zerop),
+                                   ov::get_tensor_impl(scale),
                                    clparam);
-        } else if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx]) {
+        } else if (scale) {
             // Unpacking this weight requires scaling
-            ov::npuw::util::unpack(ov::get_tensor_impl(closure),
-                                   ov::get_tensor_impl(comp_model_desc.scales[cidx]),
-                                   clparam);
+            ov::npuw::util::unpack(ov::get_tensor_impl(closure), ov::get_tensor_impl(scale), clparam);
         } else {
             // Unpacking this weight doesn't require scaling
             ov::npuw::util::unpack(ov::get_tensor_impl(closure), clparam);
