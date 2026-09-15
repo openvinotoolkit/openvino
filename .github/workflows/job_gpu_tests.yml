@@ -162,22 +162,21 @@ jobs:
           if [[ "${TEST_TYPE}" == 'unit' ]]; then
             log="shard_${{ inputs.shard_index }}_$(date +%Y%m%d_%H%M%S).log"
             set +e
-            /usr/bin/time -v env \
-              GTEST_TOTAL_SHARDS=${{ inputs.total_shards }} \
-              GTEST_SHARD_INDEX=${{ inputs.shard_index }} \
-              LD_PRELOAD=/lib/x86_64-linux-gnu/libze_loader.so.1 \
-              LD_LIBRARY_PATH="$PWD:/opt/home/sys_ovwindev/openvino/temp/Linux_x86_64/tbb/lib" \
-              ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests \
-                --report_unique_name \
-                --gtest_print_time=1 \
-                --gtest_filter="${test_filter}" \
+            GTEST_TOTAL_SHARDS=${{ inputs.total_shards }} \
+            GTEST_SHARD_INDEX=${{ inputs.shard_index }} \
+            LD_PRELOAD=/lib/x86_64-linux-gnu/libze_loader.so.1 \
+            LD_LIBRARY_PATH="$PWD:/opt/home/sys_ovwindev/openvino/temp/Linux_x86_64/tbb/lib" \
+            ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests \
+              --report_unique_name \
+              --gtest_print_time=1 \
+              --gtest_filter="${test_filter}" \
               2>&1 | tee "$log"
             test_status=${PIPESTATUS[0]}
             set -e
 
             echo
             echo "Res:"
-            grep -E '^\[==========\]|^\[  PASSED|^\[  FAILED|Elapsed \(wall clock\)|Maximum resident set size|User time|System time' "$log" || true
+            grep -E '^\[==========\]|^\[  PASSED|^\[  FAILED' "$log" || true
             echo "Log: $PWD/$log"
             exit "$test_status"
           fi
