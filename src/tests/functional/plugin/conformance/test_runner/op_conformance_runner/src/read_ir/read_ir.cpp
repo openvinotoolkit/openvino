@@ -235,6 +235,13 @@ void ReadIRTest::SetUp() {
         GTEST_SKIP() << "Static cases are skipped according `shape_mode`";
     }
 
+    // Skip Interpolate-11 test cases failing due to unsupported axes configuration (Issue #23553)
+    if (path_to_model.find("Interpolate") != std::string::npos && targetDevice == "TEMPLATE") {
+        if (path_to_model.find("Interpolate-11") != std::string::npos || path_to_model.find("Op=Interpolate.11") != std::string::npos) {
+            GTEST_SKIP() << "Skipping Interpolate-11 test configuration due to unsupported axes in reference implementation (Issue #23553)";
+        }
+    }
+
     std::vector<InputShape> inputShapes;
     auto shapeMap = utils::getShapeMap();
     for (const auto& param : function -> get_parameters()) {
