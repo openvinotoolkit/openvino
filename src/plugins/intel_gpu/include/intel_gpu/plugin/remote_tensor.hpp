@@ -8,13 +8,14 @@
 # define NOMINMAX
 #endif
 
-
-#ifdef _WIN32
-# include <openvino/runtime/intel_gpu/ocl/dx.hpp>
-#else
-# include <openvino/runtime/intel_gpu/ocl/va.hpp>
+// DirectX / VA wrappers are part of the public OpenCL interoperability API.
+#ifdef OV_GPU_WITH_OCL_RT
+#    ifdef _WIN32
+#        include <openvino/runtime/intel_gpu/ocl/dx.hpp>
+#    else
+#        include <openvino/runtime/intel_gpu/ocl/va.hpp>
+#    endif
 #endif
-
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
 #include "openvino/runtime/tensor.hpp"

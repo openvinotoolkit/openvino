@@ -98,8 +98,8 @@ private:
     ov::intel_gpu::gpu_handle_param m_va_display = nullptr;
     ov::intel_gpu::gpu_handle_param m_external_queue = nullptr;
 
-
-    ContextType m_type;
+    ContextType m_type = ContextType::NATIVE;
+    bool m_has_explicit_context_type = false;
     std::string m_device_name;
     static const size_t cache_capacity = 100;
     cldnn::LruCache<size_t, std::weak_ptr<cldnn::memory>> m_memory_cache =

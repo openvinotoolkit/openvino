@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "gated_delta_net_inst.h"
+#include "graph/impls/ocl/kernel_selector_helper.h"
 #include "openvino/util/file_util.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"

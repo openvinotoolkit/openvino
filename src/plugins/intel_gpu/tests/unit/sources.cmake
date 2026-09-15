@@ -4,6 +4,12 @@
 
 # Main GPU unit test sources, always compiled regardless of GPU_RT_TYPE/ENABLE_ONEDNN_FOR_GPU.
 set(GPU_UNIT_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/gpu_execution_plan_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/gpu_kernel_lifecycle_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/kernel_artifact_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/kernel_cache_frontend_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/runtime_backend_policy_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/runtime_backend_registry_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/bounded_shape_mem_alloc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/deconv_quantize_kernel_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/is_valid_fusion_test.cpp
@@ -63,7 +69,6 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/graph_manipulation_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/impls_registry_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/impls_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/module_tests/jitter_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/kernel_impl_params_relevance_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/layout_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/mem_reset_test.cpp
@@ -212,10 +217,8 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_gemm_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_mask_gen_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_constant_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_lru_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_primitive_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_property_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_weight_provider_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_router_fused_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_scatter_reduction_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/multiclass_nms_gpu_test.cpp
@@ -477,6 +480,28 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/ops/moe_offload_constant.cpp
 )
 list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS})
+list(APPEND GPU_UNIT_TESTS_SRCS
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_logical_xor_to_not_equal.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_logical_xor_to_not_equal.hpp
+)
+
+set(GPU_UNIT_TESTS_VULKAN_RT_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/vulkan/vulkan_clspv_bootstrap_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/vulkan/vulkan_execution_plan_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/vulkan/vulkan_kernel_interface_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/vulkan/vulkan_required_device_profile_test.cpp
+)
+if(OV_GPU_TESTS_RT STREQUAL "VULKAN")
+    list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_VULKAN_RT_SRCS})
+endif()
+
+set(GPU_UNIT_TESTS_OCL_IMPLS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/gated_delta_net.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/pa_kv_reorder_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/paged_attention_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/paged_attention_token_type_gpu_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/vlsdpa_gpu_test.cpp
+)
 
 # oneDNN-specific tests - only compiled when oneDNN is enabled for the GPU plugin.
 set(GPU_UNIT_TESTS_ONEDNN_SRCS
@@ -489,6 +514,9 @@ endif()
 
 # Tests with a dependency on the OpenCL runtime - excluded from the build with a different runtime.
 set(GPU_UNIT_TESTS_OCL_RT_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/jitter_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_lru_cache_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_weight_provider_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/device_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/engine_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/events_test.cpp

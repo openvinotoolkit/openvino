@@ -4,9 +4,11 @@
 
 #pragma once
 
-#include "layout.hpp"
-
 #include <deque>
+#include <istream>
+#include <ostream>
+
+#include "layout.hpp"
 
 namespace cldnn {
 
@@ -72,6 +74,16 @@ private:
 
     const Settings _settings;
 };
+
+inline std::ostream& operator<<(std::ostream& os, const ShapePredictor::Settings& settings) {
+    os << settings.next_iters_preallocation_count << ' ' << settings.max_per_iter_size << ' ';
+    return os << settings.max_per_dim_diff << ' ' << settings.buffers_preallocation_ratio;
+}
+
+inline std::istream& operator>>(std::istream& is, ShapePredictor::Settings& settings) {
+    is >> settings.next_iters_preallocation_count >> settings.max_per_iter_size;
+    return is >> settings.max_per_dim_diff >> settings.buffers_preallocation_ratio;
+}
 
 }  // namespace cldnn
 

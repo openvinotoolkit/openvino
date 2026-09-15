@@ -18,14 +18,13 @@
     }                                                                      \
     const std::string& get_type_info() const override {  return get_type_info_s(); }
 
-#define BIND_TO_BUFFER(buffer, type)                                                       \
-        template <>                                                                        \
-        class bind_creator<buffer, type> {                                                 \
-        private:                                                                           \
-            static const instance_creator<buffer, type>& creator;                          \
-        };                                                                                 \
-        const instance_creator<buffer, type>& bind_creator<buffer, type>::creator =        \
-            static_instance<instance_creator<buffer, type>>::get_instance().instantiate();
+#define BIND_TO_BUFFER(buffer, type)                                           \
+    template <>                                                                \
+    class bind_creator<buffer, type> {                                         \
+    private:                                                                   \
+        [[maybe_unused]] static const instance_creator<buffer, type>& creator; \
+    };                                                                         \
+    const instance_creator<buffer, type>& bind_creator<buffer, type>::creator = static_instance<instance_creator<buffer, type>>::get_instance().instantiate();
 
 namespace cldnn {
 

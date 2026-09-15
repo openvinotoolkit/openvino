@@ -148,9 +148,17 @@ public:
     void run(program& p) override;
 };
 
+enum class primitive_fusing_stage {
+    all,
+    graph_cleanup,
+    implementation_fusions,
+};
+
 class prepare_primitive_fusing : public base_pass {
 public:
-    explicit prepare_primitive_fusing() : base_pass("prepare_primitive_fusing") {}
+    explicit prepare_primitive_fusing(primitive_fusing_stage stage = primitive_fusing_stage::all)
+        : base_pass(stage == primitive_fusing_stage::graph_cleanup ? "prepare_primitive_fusing_cleanup" : "prepare_primitive_fusing"),
+          _stage(stage) {}
 
 private:
     void run(program& p) override;
@@ -161,6 +169,8 @@ private:
     void fuse_constant_transposes(program& p);
     void optimize_fused_ops(program& p);
     void remove_redundant_reshape(program& p);
+
+    primitive_fusing_stage _stage;
 };
 
 class pre_replace_deconv : public base_pass {

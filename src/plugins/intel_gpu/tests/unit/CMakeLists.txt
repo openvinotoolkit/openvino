@@ -43,6 +43,13 @@ endif()
 if(NOT OV_GPU_TESTS_RT STREQUAL "SYCL")
     list(APPEND GPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES ${GPU_UNIT_TESTS_SYCL_RT_SRCS})
 endif()
+if(NOT OV_GPU_TESTS_RT STREQUAL "VULKAN")
+    list(APPEND GPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES ${GPU_UNIT_TESTS_VULKAN_RT_SRCS})
+endif()
+if(NOT TARGET openvino_intel_gpu_ocl_obj)
+    list(REMOVE_ITEM GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_OCL_IMPLS_SRCS})
+    list(APPEND GPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES ${GPU_UNIT_TESTS_OCL_IMPLS_SRCS})
+endif()
 
 if (MSVC)
   set(SOURCES_NATVIS "${CMAKE_CURRENT_SOURCE_DIR}/float16.natvis")
@@ -81,6 +88,9 @@ ov_add_test_target(
 
 ov_set_threading_interface_for(${TARGET_NAME})
 ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_TESTS_RT})
+if(TARGET openvino_intel_gpu_ocl_obj)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_GPU_WITH_OCL_IMPLS=1)
+endif()
 
 # Workaround to avoid warnings during LTO build
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -88,6 +98,15 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+if(OV_GPU_RUNTIME_VULKAN_ENABLED)
+    # Restrict the device-capability query to this test source, not shared GPU code.
+    set_property(SOURCE test_cases/eltwise_gpu_test.cpp APPEND PROPERTY
+        COMPILE_DEFINITIONS OV_GPU_TESTS_WITH_VULKAN=1)
+    get_property(OV_GPU_VULKAN_GENERATED_INCLUDE_DIR GLOBAL PROPERTY OV_GPU_VULKAN_GENERATED_INCLUDE_DIR)
+    target_include_directories(${TARGET_NAME} PRIVATE "${OV_GPU_VULKAN_GENERATED_INCLUDE_DIR}")
+    add_dependencies(${TARGET_NAME} openvino_intel_gpu_vulkan_shaders${OV_GPU_SUFFIX})
+endif()
 
 if(WIN32)
   target_link_libraries(${TARGET_NAME} PRIVATE setupapi)
