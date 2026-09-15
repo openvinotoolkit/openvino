@@ -189,6 +189,17 @@ JitConstants ConvolutionKernel_bfyx_to_bfyx_f16::GetJitConstants(const convoluti
     return jit;
 }
 
+void ConvolutionKernel_bfyx_to_bfyx_f16::GetUpdateDispatchDataFunc(KernelData& kd) const {
+    kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
+        const auto& prim_params = static_cast<const convolution_params&>(params);
+        auto dispatchData = SetDefault(prim_params, kd.autoTuneIndex);
+        OPENVINO_ASSERT(kd.kernels.size() == 1, "[GPU] Invalid kernels size for update dispatch data func");
+        kd.kernels[0].params.workGroups.global = dispatchData.gws;
+        kd.kernels[0].params.workGroups.local = dispatchData.lws;
+        kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+    };
+}
+
 KernelsData ConvolutionKernel_bfyx_to_bfyx_f16::GetTunedKernelsDataByIndex(const Params& params,
                                                                            const int autoTuneIndex) const {
     auto tuneOptions = GetAutoTuneOptions(params, autoTuneIndex);
