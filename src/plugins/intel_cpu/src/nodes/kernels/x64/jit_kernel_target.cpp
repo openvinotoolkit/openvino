@@ -7,6 +7,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 
 #include <cstdlib>
+#include <limits>
 #include <string>
 
 namespace ov::intel_cpu {
@@ -59,6 +60,13 @@ struct avx512_target final : vector_target {
         return tail_folding_override().value_or(tail_folding::mask);
     }
 
+    // Any displacement an unrolled loop can produce rides in the SIB byte.
+    [[nodiscard]] bool is_legal_access_offset(std::size_t /*elem_bytes*/,
+                                              std::size_t /*vectors*/,
+                                              std::size_t bytes) const override {
+        return bytes <= std::numeric_limits<std::int32_t>::max();
+    }
+
     // k1..k7: k0 exists but cannot be used as a write-mask.
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {
         static const std::vector<std::uint32_t> pool{1, 2, 3, 4, 5, 6, 7};
@@ -77,6 +85,12 @@ struct legacy_x86_target final : vector_target {
     [[nodiscard]] bool supports_masked_interleaved_access() const override { return false; }
     [[nodiscard]] tail_folding preferred_tail_folding() const override {
         return tail_folding_override().value_or(tail_folding::epilogue);
+    }
+
+    [[nodiscard]] bool is_legal_access_offset(std::size_t /*elem_bytes*/,
+                                              std::size_t /*vectors*/,
+                                              std::size_t bytes) const override {
+        return bytes <= std::numeric_limits<std::int32_t>::max();
     }
 
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {

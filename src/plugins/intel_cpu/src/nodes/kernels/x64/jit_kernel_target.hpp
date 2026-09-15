@@ -65,6 +65,30 @@ struct vector_target {
     // LLVM: TargetTransformInfo::getPreferredTailFoldingStyle.
     [[nodiscard]] virtual tail_folding preferred_tail_folding() const = 0;
 
+    // Can a load/store of `elem_bytes`-wide elements carry this constant
+    // displacement in its addressing mode, or does the pointer have to be
+    // incremented instead? Asked once per peeled iteration, so that
+    // straight-line code addresses off one base instead of bumping four
+    // pointers per body.
+    //
+    // LLVM: TargetLowering::isLegalAddressingMode, restricted to the
+    // base+displacement form. The displacement arrives twice because the
+    // targets disagree about what it even is:
+    //
+    //   x86   : `bytes`, signed 32-bit, free in the encoding
+    //           (X86AddressMode::Disp)
+    //   NEON  : `bytes`, 9-bit signed or size-scaled 12-bit unsigned
+    //   SVE   : `vectors` only — [x, #imm, MUL VL], imm in -8..7. A byte
+    //           offset is illegal for a scalable type, which is why this
+    //           is not a byte-only query (AArch64ISelLowering, the
+    //           ScalableOffset path)
+    //   RVV   : neither. "RVV instructions only support register
+    //           addressing" — a vector access takes a base register and
+    //           nothing else, so the increment must stay (RISCVISelLowering)
+    [[nodiscard]] virtual bool is_legal_access_offset(std::size_t elem_bytes,
+                                                      std::size_t vectors,
+                                                      std::size_t bytes) const = 0;
+
     // Allocation order for the predicate register file: the physical
     // registers the allocator may use for Mask values, in preference
     // order. Empty when the ISA has no predicates (SSE, AVX2, NEON).

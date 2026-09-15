@@ -96,20 +96,20 @@ void jit_rotary_kernel_ir::rotary_half_ir() {
     // an immediate mask.
     foreach_vec<N>(half_rotary_ndims, [&](const vlen& vl) {
         auto v_src0 = ir_load<N>(src, vl);
-        auto v_src1 = ir_load<N>(src.ptr, half_byte_offset, vl);
+        auto v_src1 = ir_load<N>(src, half_byte_offset, vl);
         auto v_cos = ir_load<N>(cos, vl);
         auto v_sin = ir_load<N>(sin, vl);
 
         auto v_dst0 = fmsub(v_cos, v_src0, v_sin * v_src1);
-        ir_store(dst.ptr, size_t{0}, v_dst0, vl);
+        ir_store<N>(dst, size_t{0}, v_dst0, vl);
 
         if (shift_cos_sin) {
-            v_cos = ir_load<N>(cos.ptr, half_rotary_ndims * sizeof(float), vl);
-            v_sin = ir_load<N>(sin.ptr, half_rotary_ndims * sizeof(float), vl);
+            v_cos = ir_load<N>(cos, half_rotary_ndims * sizeof(float), vl);
+            v_sin = ir_load<N>(sin, half_rotary_ndims * sizeof(float), vl);
         }
 
         auto v_dst1 = fma(v_sin, v_src0, v_cos * v_src1);
-        ir_store(dst.ptr, half_byte_offset, v_dst1, vl);
+        ir_store<N>(dst, half_byte_offset, v_dst1, vl);
 
         ir_advance(src, vl);
         ir_advance(cos, vl);

@@ -1403,6 +1403,25 @@ public:
         variable<T*> ptr;
         size_t stride;  // elements per iteration (N for full, N/2 for subsampled, etc.)
 
+        // Constant byte displacement accumulated by ir_advance() in
+        // straight-line code, added to every access off this pointer. The
+        // address is a base register plus a displacement, which is what a
+        // target's addressing mode is — LLVM carries the same two fields in
+        // X86AddressMode{Base, Disp} and asks isLegalAddressingMode whether
+        // a given Disp is free.
+        //
+        // Nonzero only where the target says the displacement rides in the
+        // instruction (see vector_target::is_legal_access_offset); otherwise
+        // ir_advance emits a real increment and this stays 0.
+        size_t disp = 0;
+
+        // The displacement in whole vector registers, which is the only
+        // form SVE can encode ([x, #imm, MUL VL]).
+        [[nodiscard]] size_t disp_vectors() const {
+            const size_t vec_bytes = stride * sizeof(T);
+            return vec_bytes != 0 ? disp / vec_bytes : 0;
+        }
+
         jit_kernel_ir::value_id vid() const { return ptr.vid(); }
     };
 
@@ -1456,9 +1475,25 @@ public:
 
     // ir_load from ir_ptr: the stride scales the active length, so a
     // subsampled plane (stride N/2) loads half as many elements as the
-    // main plane for the same iteration.
+    // main plane for the same iteration. `extra_byte_offset` is added on
+    // top of the pointer's accumulated displacement, for kernels that
+    // address a second region off the same base (RoPE's two halves).
+    //
+    // Prefer these over `ir_load(p.ptr, off, vl)`: going through the raw
+    // `variable<T*>` bypasses the displacement, so a peeled iteration
+    // would read the first iteration's data.
     template <size_t N, typename T>
-    variable<float[N]> ir_load(const ir_ptr<T>& src, const vlen& vl = vlen::all());
+    variable<float[N]> ir_load(const ir_ptr<T>& src, size_t extra_byte_offset,
+                               const vlen& vl = vlen::all());
+
+    template <size_t N, typename T>
+    variable<float[N]> ir_load(const ir_ptr<T>& src, const vlen& vl = vlen::all()) {
+        return ir_load<N>(src, size_t{0}, vl);
+    }
+
+    template <size_t N, typename T, typename ElemT>
+    void ir_store(const ir_ptr<T>& dst, size_t extra_byte_offset,
+                  const variable<ElemT[N]>& val, const vlen& vl = vlen::all());
 
     template <typename T, size_t N>
     void store_interleaved3(const ir_ptr<T>& dst,
@@ -1469,8 +1504,15 @@ public:
 
     // Pointer advance by one iteration's worth of elements. A no-op when
     // `vl` is a tail (the tail runs once, nothing follows it).
+    //
+    // In straight-line code this folds into the pointer's displacement
+    // instead of emitting anything, where the target says a displacement
+    // that large is free (`is_legal_access_offset`). Inside a loop body it
+    // always emits the increment: the body is recorded once and runs many
+    // times, so its induction update cannot be a constant. Non-const
+    // because the fold mutates `ptr.disp`.
     template <typename T>
-    void ir_advance(const ir_ptr<T>& ptr, const vlen& vl = vlen::all());
+    void ir_advance(ir_ptr<T>& ptr, const vlen& vl = vlen::all());
 
     // Raw pointer advance with an explicit byte step.
     template <typename PtrT>
@@ -2467,12 +2509,15 @@ void jit_kernel::ir_advance(const variable<PtrT>& ptr, size_t bytes, const vlen&
 // ── ir_ptr overloads ──────────────────────────────────────────────────
 
 template <size_t N, typename T>
-jit_kernel::variable<float[N]> jit_kernel::ir_load(const ir_ptr<T>& src, const vlen& vl) {
+jit_kernel::variable<float[N]> jit_kernel::ir_load(const ir_ptr<T>& src, size_t extra_byte_offset,
+                                                   const vlen& vl) {
+    const size_t offset = src.disp + extra_byte_offset;
+
     // This pointer consumes a full vector per iteration, so the loop's
     // active length applies unchanged — including its predicate, which
     // must not be re-derived.
     if (src.stride >= N) {
-        return ir_load<N>(src.ptr, size_t{0}, vl);
+        return ir_load<N>(src.ptr, offset, vl);
     }
 
     // Otherwise the active length is scaled to this pointer's stride: a
@@ -2493,12 +2538,47 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load(const ir_ptr<T>& src, const v
         return ir_shr(variable<size_t>(*this, vl.count()),
                       static_cast<int>(std::log2(N / src.stride))).vid();
     }();
-    return ir_load<N>(src.ptr, size_t{0}, vlen::elements(count_vid));
+    return ir_load<N>(src.ptr, offset, vlen::elements(count_vid));
+}
+
+template <size_t N, typename T, typename ElemT>
+void jit_kernel::ir_store(const ir_ptr<T>& dst, size_t extra_byte_offset,
+                          const variable<ElemT[N]>& val, const vlen& vl) {
+    ir_store(dst.ptr, dst.disp + extra_byte_offset, val, vl);
 }
 
 template <typename T>
-void jit_kernel::ir_advance(const ir_ptr<T>& ptr, const vlen& vl) {
-    ir_advance(ptr.ptr, ptr.stride * sizeof(T), vl);
+void jit_kernel::ir_advance(ir_ptr<T>& ptr, const vlen& vl) {
+    if (vl.is_terminal()) {
+        return;  // last iteration: nothing after it reads the pointer
+    }
+
+    const size_t step = ptr.stride * sizeof(T);
+    const size_t folded = ptr.disp + step;
+
+    // A loop body is recorded once and executed many times, so its
+    // induction update has to be a real increment. Straight-line code can
+    // fold it into the following accesses instead, exactly as LLVM's
+    // unroller leaves constant-offset GEPs behind and instruction
+    // selection folds them into the addressing mode.
+    //
+    // @todo claude: the legality question is asked about the iteration
+    // displacement alone. An access that adds a further fixed offset on
+    // top (RoPE's second half) can therefore exceed what the target can
+    // encode without this noticing. Harmless on x86, where any
+    // displacement we produce is encodable; a target with a bounded
+    // offset field needs the check moved to the access, which in turn
+    // needs somewhere to put the increment the access cannot fold.
+    if (!_ir->recording_in_loop() &&
+        target().is_legal_access_offset(sizeof(T), folded / (step != 0 ? step : 1), folded)) {
+        ptr.disp = folded;
+        return;
+    }
+
+    // Flushing: the increment has to cover the displacement accumulated so
+    // far as well, since the accesses that used it read off the old base.
+    ir_advance(ptr.ptr, folded, vl);
+    ptr.disp = 0;
 }
 
 template <typename T, size_t N>
@@ -2507,6 +2587,13 @@ void jit_kernel::store_interleaved3(const ir_ptr<T>& dst,
                                     const variable<float[N]>& b,
                                     const variable<float[N]>& c,
                                     const vlen& vl) {
+    // The interleave expands into three stores at fixed sub-offsets, so it
+    // takes its base as a pointer rather than a base+displacement pair.
+    // ir_offset_ptr folds a zero displacement away, which is every
+    // interleaved store in a rolled loop; a peeled one pays one lea
+    // instead of the pointer bumps it saved.
+    auto base = variable<T*>(*this, ir_offset_ptr(dst.ptr, dst.disp));
+
     // x86 has no predicated interleaved store (the target says so), so a
     // short iteration goes through the counted form: build the interleave
     // in a stack slot and copy count*3 elements out. On SVE/RVV the same
@@ -2514,9 +2601,9 @@ void jit_kernel::store_interleaved3(const ir_ptr<T>& dst,
     if (!vl.is_all()) {
         OPENVINO_ASSERT(vl.has_count(),
                         "store_interleaved3: this target needs an element count, not just a mask");
-        store_interleaved3(dst.ptr, a, b, c, variable<size_t>(*this, vl.count()));
+        store_interleaved3(base, a, b, c, variable<size_t>(*this, vl.count()));
     } else {
-        store_interleaved3(dst.ptr, a, b, c);
+        store_interleaved3(base, a, b, c);
     }
 }
 

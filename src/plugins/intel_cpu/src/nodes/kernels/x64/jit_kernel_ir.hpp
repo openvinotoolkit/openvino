@@ -250,7 +250,9 @@ public:
         // don't clobber the outer cursor.
         auto* saved_cursor = _cursor;
         _cursor = &body->_ops;
+        _loop_depth += static_cast<unsigned>(is_loop);
         body_builder();
+        _loop_depth -= static_cast<unsigned>(is_loop);
         _cursor = saved_cursor;
 
         Op op;
@@ -279,6 +281,13 @@ public:
         region({}, std::move(emit), std::forward<BodyBuilder>(body_builder), /*is_loop=*/true);
     }
 
+    // Is the recording cursor inside a loop body? A body recorded once and
+    // executed many times cannot have induction updates folded into
+    // constants, so anything that wants to constant-fold an update has to
+    // ask first. LLVM answers the same question with LoopInfo; here the
+    // cursor already knows, because control flow is structural.
+    [[nodiscard]] bool recording_in_loop() const { return _loop_depth > 0; }
+
     // The op just recorded. Builder-style annotation for the properties a
     // recording site knows but the generic builders do not take — memory
     // effects and the foldable-operand pair. Mirrors MachineInstrBuilder
@@ -297,6 +306,7 @@ private:
 
     std::list<Op> _ops;
     std::list<Op>* _cursor = nullptr;    // non-null = recording into a body
+    unsigned _loop_depth = 0;            // enclosing loop regions at the cursor
     value_id _next_value = 0;
 };
 

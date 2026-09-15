@@ -2128,7 +2128,7 @@ struct jit_ir_fma_epilogue_kernel : public jit_kernel {
             auto va = ir_load<N>(a, vl);
             auto vb = ir_load<N>(b, vl);
             auto vc = ir_load<N>(c, vl);
-            ir_store<N>(dst.ptr, size_t{0}, fma(va, vb, vc), vl);
+            ir_store<N>(dst, size_t{0}, fma(va, vb, vc), vl);
 
             ir_advance(a, vl);
             ir_advance(b, vl);
@@ -2250,7 +2250,7 @@ struct jit_ir_fma_peel_kernel : public jit_kernel {
             auto va = ir_load<N>(a, vl);
             auto vb = ir_load<N>(b, vl);
             auto vc = ir_load<N>(c, vl);
-            ir_store<N>(dst.ptr, size_t{0}, fma(va, vb, vc), vl);
+            ir_store<N>(dst, size_t{0}, fma(va, vb, vc), vl);
 
             ir_advance(a, vl);
             ir_advance(b, vl);
