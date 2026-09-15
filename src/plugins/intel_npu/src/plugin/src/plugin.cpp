@@ -144,7 +144,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(PLATFORM);
     REGISTER_OPTION(CREATE_EXECUTOR);
     REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
-    REGISTER_OPTION(INFER_PROFILING);
+    REGISTER_OPTION(PROFILING_TYPE);
     REGISTER_OPTION(BACKEND_COMPILATION_PARAMS);
     REGISTER_OPTION(BATCH_MODE);
     REGISTER_OPTION(BYPASS_UMD_CACHING);
@@ -510,7 +510,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
                                             localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
         const bool shouldDisablePerfCountForInferProfiling =
-            localConfig.has<INFER_PROFILING>() && localConfig.get<INFER_PROFILING>() &&
+            localConfig.has<PROFILING_TYPE>() &&
+            localConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER &&
             localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>();
 
         std::optional<FilteredConfig> modifiedConfig;  // Copy only when needed
@@ -520,8 +521,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         FilteredConfig& compilerConfig = modifiedConfig.has_value() ? *modifiedConfig : localConfig;
 
         if (shouldDisablePerfCountForInferProfiling) {
-            _logger.info("%s is enabled, disabling %s for this compilation",
-                         ov::intel_npu::infer_profiling.name(),
+            _logger.info("%s is set to INFER, disabling %s for this compilation",
+                         ov::intel_npu::profiling_type.name(),
                          ov::enable_profiling.name());
             compilerConfig.update(ov::enable_profiling.name(), PERF_COUNT::toString(false));
         }
