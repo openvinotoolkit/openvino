@@ -15,6 +15,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_redundant_reorder_at_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_scatter_update_at_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/stateful_model.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/stateless_kv.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/update_shape_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/zero_copy_output_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fake_alignment/fc_fake_alignment_test.cpp
@@ -146,6 +147,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/shape_of_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/softmax_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/space_to_depth_si_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_infer/stateless_kv_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/strided_slice_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/tile_si_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_infer/transpose_si_test.cpp
@@ -338,6 +340,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sdpa_opt_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sdpa_transpose_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/sink_reshape_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/stateless_kv_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/swish_with_clamp_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_matmul_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/transpose_sdpa_fusion_test.cpp
@@ -445,6 +448,7 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sdpa_transpose_fusion.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sink_reshape.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/sink_reshape.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/stateless_kv_fusion.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/swiglu_fusion_with_clamp.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/swiglu_fusion_with_clamp.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/transpose_fusion.cpp
@@ -466,6 +470,7 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/placeholder.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/read_value.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/sdpa.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/stateless_kv.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/op/swiglu_with_clamp.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/variable_state.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/multi_tensor_variable_state.cpp

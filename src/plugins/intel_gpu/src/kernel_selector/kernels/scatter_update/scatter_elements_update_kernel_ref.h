@@ -16,6 +16,7 @@ struct scatter_elements_update_params : public base_params {
     ScatterUpdateAxis axis{ScatterUpdateAxis::BATCH};
     ScatterUpdateReduction mode{ScatterUpdateReduction::NONE};
     bool use_init_val{true};
+    bool is_inplace{false};
 };
 
 class ScatterElementsUpdateKernelRef : public KernelBaseOpenCL {
