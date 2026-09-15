@@ -18,15 +18,17 @@ inline uint FUNC(calc_linear_offset)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
     return index;
 }
 
-KERNEL(reduce_ref)(
-    OPTIONAL_SHAPE_INFO_ARG
-    const __global INPUT0_TYPE* data,
-    __global OUTPUT_TYPE* output
-#if HAS_FUSED_OPS_DECLS
-    , FUSED_OPS_DECLS
+KERNEL(reduce_ref)
+(OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* data,
+#if WEIGHTED_REDUCE
+ const __global INPUT1_TYPE* weights,
 #endif
-)
-{
+ __global OUTPUT_TYPE* output
+#if HAS_FUSED_OPS_DECLS
+ ,
+ FUSED_OPS_DECLS
+#endif
+) {
     const uint xy     = (uint)get_global_id(0);
     const uint wzuv   = (uint)get_global_id(1);
     const uint bf     = (uint)get_global_id(2);
@@ -183,53 +185,65 @@ KERNEL(reduce_ref)(
                                     const uint input_idx = INPUT0_GET_INDEX(bi, fi, yi, xi);
 
 #endif
+#if WEIGHTED_REDUCE
+                                    const uint weight_idx = INPUT1_GET_INDEX_SAFE(bi, fi, yi, xi);
+#    if INPUT0_TYPE_SIZE == 2
+                                    volatile ushort product_bits = as_ushort(data[input_idx] * weights[weight_idx]);
+                                    const INPUT0_TYPE reduce_value = as_half(product_bits);
+#    else
+                                    volatile uint product_bits = as_uint(data[input_idx] * weights[weight_idx]);
+                                    const INPUT0_TYPE reduce_value = as_float(product_bits);
+#    endif
+#else
+                                    const INPUT0_TYPE reduce_value = data[input_idx];
+#endif
 #ifdef REDUCE_SUM_MODE
-                                    acc += data[input_idx];
+                                    acc += reduce_value;
 #elif REDUCE_MAX_MODE
                                     if (counter == 0)
-                                        acc = data[input_idx];
+                                        acc = reduce_value;
                                     else
-                                        acc = data[input_idx] > acc ? data[input_idx] : acc;
+                                        acc = reduce_value > acc ? reduce_value : acc;
 #elif REDUCE_MIN_MODE
                                     if (counter == 0)
-                                        acc = data[input_idx];
+                                        acc = reduce_value;
                                     else
-                                        acc = data[input_idx] < acc ? data[input_idx] : acc;
+                                        acc = reduce_value < acc ? reduce_value : acc;
 #elif REDUCE_MEAN_MODE
-                                    acc += data[input_idx];
+                                    acc += reduce_value;
 #elif REDUCE_PROD_MODE
                                     if (counter == 0)
-                                        acc = data[input_idx];
+                                        acc = reduce_value;
                                     else
-                                        acc *= data[input_idx];
+                                        acc *= reduce_value;
 #elif REDUCE_AND_MODE
                                     if (counter == 0)
-                                        acc = data[input_idx];
+                                        acc = reduce_value;
                                     else
-                                        acc = acc && data[input_idx];
+                                        acc = acc && reduce_value;
 #elif REDUCE_OR_MODE
                                     if (counter == 0)
-                                        acc = data[input_idx];
+                                        acc = reduce_value;
                                     else
-                                        acc = acc || data[input_idx];
+                                        acc = acc || reduce_value;
 #elif REDUCE_SUM_SQUARE_MODE
-                                    acc += data[input_idx] * data[input_idx];
+                                    acc += reduce_value * reduce_value;
 #elif REDUCE_L1_MODE
                                 #if !INPUT0_IS_FP
-                                    acc += TO_ACCUMULATOR_TYPE(fabs(TO_FINAL_ACCUMULATOR_TYPE(data[input_idx])));
-                                #else
-                                    acc += fabs(data[input_idx]);
-                                #endif
+                                    acc += TO_ACCUMULATOR_TYPE(fabs(TO_FINAL_ACCUMULATOR_TYPE(reduce_value)));
+#    else
+                                    acc += fabs(reduce_value);
+#    endif
 #elif REDUCE_L2_MODE
-                                    acc += data[input_idx] * data[input_idx];
+                                    acc += reduce_value * reduce_value;
 #elif REDUCE_LOG_SUM_MODE
-                                    acc += data[input_idx];
+                                    acc += reduce_value;
 #elif REDUCE_LOG_SUM_EXP_MODE
                                 #if !INPUT0_IS_FP
-                                    acc += TO_ACCUMULATOR_TYPE(exp(TO_FINAL_ACCUMULATOR_TYPE(data[input_idx])));
-                                #else
-                                        acc += exp(data[input_idx]);
-                                #endif
+                                    acc += TO_ACCUMULATOR_TYPE(exp(TO_FINAL_ACCUMULATOR_TYPE(reduce_value)));
+#    else
+                                    acc += exp(reduce_value);
+#    endif
 #endif
                                     counter++;
                                 }
