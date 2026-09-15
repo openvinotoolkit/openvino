@@ -127,11 +127,7 @@ public:
         clenup_transformer.commonGraphRewrite->add_matcher<ov::pass::low_precision::FuseMultiplyToFakeQuantizeTransformation>(params);
         clenup_transformer.transform(actualFunction);
 
-        // dequantization output precision depends on input precision
-        // to avoid huge amount of tests cases let's define dequantization output precision as input precision
-        if (!testValues.result.dequantizationAfter.multiply.empty()) {
-            testValues.result.dequantizationAfter.multiply.outPrecision = precision;
-        }
+        setDequantizationOutPrecision(testValues.result.dequantizationAfter, precision);
 
         referenceFunction =
             ov::builder::subgraph::RecurrentCellFunction::get(precision,
