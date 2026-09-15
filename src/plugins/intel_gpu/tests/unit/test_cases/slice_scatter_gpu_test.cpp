@@ -26,6 +26,11 @@ data_types ToDataType<float>() {
 }
 
 template <>
+data_types ToDataType<uint8_t>() {
+    return data_types::boolean;
+}
+
+template <>
 data_types ToDataType<int32_t>() {
     return data_types::i32;
 }
@@ -76,6 +81,16 @@ public:
         memory::ptr tensor = this->engine_.allocate_memory(lo);
         set_values<TDataType>(tensor, data);
         return tensor;
+    }
+
+    void FillWithBooleanOptData(SliceScatterTestParams& params) {
+        const ov::PartialShape data_shape{1, 1, 1, 16};
+        params.data = AllocateTensor<uint8_t>(data_shape, format::bfyx, {0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1});
+        params.updates = AllocateTensor<uint8_t>(ov::PartialShape{1, 1, 1, 8}, format::bfyx, {1, 0, 1, 0, 1, 0, 1, 0});
+        params.start = AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {0, 0, 0, 4});
+        params.stop = AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {1, 1, 1, 12});
+        params.step = AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {1, 1, 1, 1});
+        params.wanted_output = AllocateTensor<uint8_t>(data_shape, format::bfyx, {0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1});
     }
 
     // Test case: basic bfyx with positive step, no axes
@@ -429,6 +444,50 @@ private:
 using testing::Types;
 typedef Types<float, int32_t, int64_t> DataTypes;
 TYPED_TEST_SUITE(SliceScatterTest, DataTypes);
+
+using BooleanSliceScatterTest = SliceScatterTest<uint8_t>;
+
+TEST_F(BooleanSliceScatterTest, basic_bfyx) {
+    SliceScatterTestParams params;
+    FillWithBasicBfyxData<uint8_t>(params);
+    RunAllTestCasesForParams(params);
+}
+
+TEST_F(BooleanSliceScatterTest, basic_bfyx_caching) {
+    SliceScatterTestParams params;
+    FillWithBasicBfyxData<uint8_t>(params);
+    params.is_caching_test = true;
+    RunAllTestCasesForParams(params);
+}
+
+TEST_F(BooleanSliceScatterTest, with_step) {
+    SliceScatterTestParams params;
+    FillWithStepData<uint8_t>(params);
+    RunAllTestCasesForParams(params);
+}
+
+TEST_F(BooleanSliceScatterTest, bfzyx) {
+    SliceScatterTestParams params;
+    FillWithBfzyxData<uint8_t>(params);
+    RunAllTestCasesForParams(params);
+}
+
+TEST_F(BooleanSliceScatterTest, basic_bfyx_all_dynamic) {
+    SliceScatterTestParams params;
+    FillWithBasicBfyxData<uint8_t>(params);
+    params.is_data_dynamic = true;
+    params.is_updates_dynamic = true;
+    params.is_start_dynamic = true;
+    params.is_stop_dynamic = true;
+    params.is_step_dynamic = true;
+    RunAllTestCasesForParams(params);
+}
+
+TEST_F(BooleanSliceScatterTest, optimized_stage) {
+    SliceScatterTestParams params;
+    FillWithBooleanOptData(params);
+    RunAllTestCasesForParams(params);
+}
 
 // ===== Static shape tests =====
 
