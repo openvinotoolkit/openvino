@@ -724,7 +724,8 @@ ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const o
             config.rope =
                 PartialRotationRoPE(config.head_dim, config.rotary_dim, config.precision, position_ids_output);
         } else {
-            config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
+            config.rope =
+                HalfRotationRoPE(config.head_dim, config.precision, position_ids_output, {}, config.longrope);
         }
     }
 

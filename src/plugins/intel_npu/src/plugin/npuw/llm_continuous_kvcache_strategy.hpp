@@ -39,6 +39,11 @@ public:
                                     const PortsMap& new_in_ports) override;
     void on_generate_step_done(uint32_t input_tokens_len) override;
 
+    void rerotate_longrope_keys(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                const PortsMap& in_ports,
+                                uint32_t num_cached_tokens,
+                                bool to_long) override;
+
     // Continuous prefill. Repack the preserved KV prefix [0, keep) into the prefill
     // model's past KV layout so the chunked prefill can resume from `keep`.
     void continue_prefill(uint32_t keep, uint32_t delta_len) override;
