@@ -74,61 +74,16 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
     const uint b = GET_GLOBAL_ID(2) / INPUT0_FEATURE_SLICE_NUM;
     const uint f = fsv + fs * FSV_ALIGNMENT;
 
-    // Pitches must span the padded output, and every coordinate must skip its own lower padding,
-    // otherwise a padded consumer (e.g. an in-place concat input) writes over a neighbouring slice.
-    const uint x_total = OUTPUT_PAD_BEFORE_SIZE_X + OUTPUT_SIZE_X + OUTPUT_PAD_AFTER_SIZE_X;
-    const uint y_total = OUTPUT_PAD_BEFORE_SIZE_Y + OUTPUT_SIZE_Y + OUTPUT_PAD_AFTER_SIZE_Y;
-    const uint fs_total = (OUTPUT_PAD_BEFORE_FEATURE_NUM + OUTPUT_FEATURE_NUM + OUTPUT_PAD_AFTER_FEATURE_NUM + FSV_ALIGNMENT - 1) / FSV_ALIGNMENT;
-    const uint fs_pad_before = OUTPUT_PAD_BEFORE_FEATURE_NUM / FSV_ALIGNMENT;
-
 #if DOUBLE_BLOCKED_FORMAT
-    const uint b_padded = b + OUTPUT_PAD_BEFORE_BATCH_NUM;
-    const uint bs = b_padded / BSV_ALIGNMENT;
-    const uint bsv = b_padded % BSV_ALIGNMENT;
     const uint x_pitch = BSV_ALIGNMENT * FSV_ALIGNMENT;
 #else
     const uint x_pitch = FSV_ALIGNMENT;
 #endif
-    const uint y_pitch = x_pitch * x_total;
 
 #if INPUT0_DIMS == 4
-    #if DOUBLE_BLOCKED_FORMAT
-        const uint bsv_pitch = FSV_ALIGNMENT;
-        const uint fs_pitch = y_pitch * y_total;
-        const uint bs_pitch = fs_pitch * fs_total;
-        const uint output_idx_tile = (bs * bs_pitch) + ((fs + fs_pad_before) * fs_pitch)
-                                   + ((y + OUTPUT_PAD_BEFORE_SIZE_Y) * y_pitch) + ((x + OUTPUT_PAD_BEFORE_SIZE_X) * x_pitch)
-                                   + (bsv * bsv_pitch) + (fsv);
-    #else
-        #if FS_B_YX_FSV
-        const uint b_pitch = y_pitch * y_total;
-        const uint fs_pitch = b_pitch * (OUTPUT_PAD_BEFORE_BATCH_NUM + OUTPUT_BATCH_NUM + OUTPUT_PAD_AFTER_BATCH_NUM);
-        #else
-        const uint fs_pitch = y_pitch * y_total;
-        const uint b_pitch = fs_pitch * fs_total;
-        #endif
-        const uint output_idx_tile = ((b + OUTPUT_PAD_BEFORE_BATCH_NUM) * b_pitch) + ((fs + fs_pad_before) * fs_pitch)
-                                   + ((y + OUTPUT_PAD_BEFORE_SIZE_Y) * y_pitch) + ((x + OUTPUT_PAD_BEFORE_SIZE_X) * x_pitch)
-                                   + (fsv);
-    #endif
+    const uint output_idx_tile = OUTPUT_GET_INDEX(b, f, y, x);
 #elif INPUT0_DIMS == 5
-     const uint z_total = OUTPUT_PAD_BEFORE_SIZE_Z + OUTPUT_SIZE_Z + OUTPUT_PAD_AFTER_SIZE_Z;
-     #if DOUBLE_BLOCKED_FORMAT
-        const uint bsv_pitch = FSV_ALIGNMENT;
-        const uint z_pitch = y_pitch * y_total;
-        const uint fs_pitch = z_pitch * z_total;
-        const uint bs_pitch = fs_pitch * fs_total;
-        const uint output_idx_tile = (bs * bs_pitch) + ((fs + fs_pad_before) * fs_pitch) + ((z + OUTPUT_PAD_BEFORE_SIZE_Z) * z_pitch)
-                                   + ((y + OUTPUT_PAD_BEFORE_SIZE_Y) * y_pitch) + ((x + OUTPUT_PAD_BEFORE_SIZE_X) * x_pitch)
-                                   + (bsv * bsv_pitch) + (fsv);
-    #else
-        const uint z_pitch = y_pitch * y_total;
-        const uint fs_pitch = z_pitch * z_total;
-        const uint b_pitch = fs_pitch * fs_total;
-        const uint output_idx_tile = ((b + OUTPUT_PAD_BEFORE_BATCH_NUM) * b_pitch) + ((fs + fs_pad_before) * fs_pitch)
-                                   + ((z + OUTPUT_PAD_BEFORE_SIZE_Z) * z_pitch) + ((y + OUTPUT_PAD_BEFORE_SIZE_Y) * y_pitch)
-                                   + ((x + OUTPUT_PAD_BEFORE_SIZE_X) * x_pitch) + (fsv);
-    #endif
+    const uint output_idx_tile = OUTPUT_GET_INDEX(b, f, z, y, x);
 #endif
 
     // get local buf offset
