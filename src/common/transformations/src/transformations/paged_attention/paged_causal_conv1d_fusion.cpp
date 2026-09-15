@@ -201,4 +201,80 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
     register_matcher(matcher, callback);
 }
 
+PagedCausalConv1DUnpaddedFusion::PagedCausalConv1DUnpaddedFusion(ov::pass::paged_attention::PaParams& pa_params,
+                                                                 std::unordered_set<std::string>& var_ids_to_remove) {
+    auto state = wrap_type<ov::op::util::ReadValueBase>(has_static_shape() && rank_equals(4));
+    auto tokens = any_input(rank_equals(4));
+    auto window = wrap_type<v0::Concat>({state, tokens}, {{"axis", 3}});
+    auto reshape = wrap_type<v1::Reshape>({window, any_input()});
+    auto weights = any_input(has_static_shape() && rank_equals(4));
+    auto convolution = wrap_type<v1::GroupConvolution>({reshape, weights});
+    ov::matcher_pass_callback callback = [=, &pa_params, &var_ids_to_remove](ov::pass::pattern::Matcher& matcher) {
+        const auto conv = ov::as_type_ptr<v1::GroupConvolution>(matcher.get_match_root());
+        if (transformation_callback(conv))
+            return false;
+        const auto& values = matcher.get_pattern_value_map();
+        const auto rv = ov::as_type_ptr<ov::op::util::ReadValueBase>(values.at(state).get_node_shared_ptr());
+        const auto state_shape = rv->get_output_shape(0);
+        const auto weight_shape = values.at(weights).get_shape();
+        const auto channels = weight_shape[0];
+        const auto kernel = weight_shape[3];
+        const auto conv_shape = conv->get_input_partial_shape(0);
+        if (kernel < 2 || weight_shape[1] != 1 || weight_shape[2] != 1 ||
+            state_shape != ov::Shape{1, 1, channels, kernel - 1} || conv_shape.rank() != 3 || conv_shape[0] != 1 ||
+            conv_shape[1] != channels || conv->get_strides() != ov::Strides{1} ||
+            conv->get_dilations() != ov::Strides{1} || conv->get_pads_begin() != ov::CoordinateDiff{0} ||
+            conv->get_pads_end() != ov::CoordinateDiff{0} || conv->get_auto_pad() != ov::op::PadType::EXPLICIT)
+            return false;
+
+        pa_params.add("subsequence_begins", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.block_indices", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.block_indices_begins", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.past_lens", ov::element::i32, ov::PartialShape{-1});
+        pa_params.add("la.cache_interval", ov::element::i32, ov::PartialShape{-1});
+        size_t layer_index = 0;
+        while (pa_params.get("conv_state_table." + std::to_string(layer_index)))
+            ++layer_index;
+        const auto table =
+            pa_params.add("conv_state_table." + std::to_string(layer_index),
+                          ov::element::dynamic,
+                          ov::PartialShape{-1, static_cast<int64_t>(channels), static_cast<int64_t>(kernel)});
+        enable_keep_const_precision(table);
+        const auto order = v0::Constant::create(ov::element::i64, {4}, {0, 1, 3, 2});
+        const auto token_major = std::make_shared<v1::Transpose>(values.at(tokens), order);
+        const auto token_shape =
+            v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{-1, static_cast<int64_t>(channels)});
+        const auto flat_tokens = std::make_shared<v1::Reshape>(token_major, token_shape, false);
+        const auto weight_pattern =
+            v0::Constant::create(ov::element::i64,
+                                 {3},
+                                 std::vector<int64_t>{static_cast<int64_t>(channels), 1, static_cast<int64_t>(kernel)});
+        const auto flat_weights = std::make_shared<v1::Reshape>(values.at(weights), weight_pattern, false);
+        const auto bias = v0::Constant::create(conv->get_element_type(), {0}, std::vector<float>{});
+        const auto paged = std::make_shared<ov::op::internal::PagedCausalConv1D>(flat_tokens,
+                                                                                 table,
+                                                                                 flat_weights,
+                                                                                 bias,
+                                                                                 pa_params["subsequence_begins"],
+                                                                                 pa_params["la.block_indices"],
+                                                                                 pa_params["la.block_indices_begins"],
+                                                                                 pa_params["la.past_lens"],
+                                                                                 pa_params["la.cache_interval"]);
+        // Restore the original convolution output [1, C, tokens]. The surrounding
+        // transpose/view restores the activation layout selected by the caller.
+        const auto transposed =
+            std::make_shared<v1::Transpose>(paged, v0::Constant::create(ov::element::i64, {2}, {1, 0}));
+        const auto result =
+            std::make_shared<v0::Unsqueeze>(transposed, v0::Constant::create(ov::element::i64, {1}, {0}));
+        result->set_friendly_name(conv->get_friendly_name());
+        ov::copy_runtime_info(matcher.get_matched_nodes(),
+                              {token_major, flat_tokens, flat_weights, paged, transposed, result});
+        ov::replace_node(conv, result);
+        var_ids_to_remove.insert(rv->get_variable_id());
+        return true;
+    };
+    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(convolution, "PagedCausalConv1DUnpaddedFusion"),
+                     callback);
+}
+
 }  // namespace ov::pass

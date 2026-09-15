@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 
@@ -16,12 +17,21 @@
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_causal_conv1d.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
+#include "openvino/op/selective_ssm.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 
 namespace {
-class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
+class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {
+protected:
+    void compare(bool paged);
+};
 
-TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
+void GGUFArchitectureAccuracy::compare(bool paged) {
     const char* override_dir = std::getenv("OV_GGUF_ACCURACY_DATA");
     const auto directory = override_dir ? std::filesystem::path(override_dir)
                                         : std::filesystem::path(ov_gguf_test::test_data_dir()) / "arch_accuracy";
@@ -90,6 +100,47 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     fe.add_extension(
         std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
     auto model = fe.convert(fe.load(model_path));
+    const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()) == "nemotron_h";
+    if (mamba) {
+        EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{1, -1}));
+        EXPECT_NO_THROW(model->input("beam_idx"));
+    }
+    if (paged) {
+        size_t expected_scans = 0;
+        for (const auto& node : model->get_ops())
+            expected_scans += ov::is_type<ov::op::internal::SelectiveSSM>(node);
+        ASSERT_GT(expected_scans, 0);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        ASSERT_NO_THROW(manager.run_passes(model));
+        size_t scans = 0, convolutions = 0;
+        for (const auto& node : model->get_ops()) {
+            scans += ov::is_type<ov::op::internal::PagedSelectiveSSM>(node);
+            convolutions += ov::is_type<ov::op::internal::PagedCausalConv1D>(node);
+            EXPECT_NE(std::string(node->get_type_name()), "ReadValue");
+            EXPECT_FALSE(ov::is_type<ov::op::internal::SelectiveSSM>(node));
+            if (const auto attention = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+                const auto& info = attention->get_rt_info();
+                for (const size_t port : {3, 4}) {
+                    const bool key = port == 3;
+                    const auto heads = info.at(key ? "num_k_heads" : "num_v_heads").as<int64_t>();
+                    const auto width = info.at(key ? "k_head_size" : "v_head_size").as<int64_t>();
+                    const auto cache =
+                        ov::as_type_ptr<ov::op::v0::Parameter>(attention->get_input_node_shared_ptr(port));
+                    ASSERT_TRUE(cache);
+                    cache->set_partial_shape({8, heads, 32, width});
+                    cache->set_element_type(ov::element::f16);
+                }
+            }
+        }
+        EXPECT_EQ(scans, expected_scans);
+        EXPECT_EQ(convolutions, expected_scans);
+        for (const auto& parameter : model->get_parameters()) {
+            if (parameter->get_element_type().is_dynamic())
+                parameter->set_element_type(ov::element::f32);
+        }
+        model->validate_nodes_and_infer_types();
+    }
     ov::Core core;
     auto compiled = core.compile_model(model,
                                        "CPU",
@@ -99,14 +150,41 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
                                        ov::hint::dynamic_quantization_group_size(0),
                                        ov::hint::kv_cache_precision(ov::element::f16));
     auto request = compiled.create_infer_request();
+    const auto set_i32 = [&](const std::string& name, const std::vector<int32_t>& values, bool scalar = false) {
+        ov::Tensor tensor(ov::element::i32, scalar ? ov::Shape{} : ov::Shape{values.size()});
+        std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+        request.set_tensor(name, tensor);
+    };
+    std::vector<ov::Tensor> tables;
+    if (paged) {
+        for (const auto& input : compiled.inputs()) {
+            const auto name = input.get_any_name();
+            const bool recurrent = name.find("state_table.") != std::string::npos;
+            const bool kv = name.find("key_cache.") == 0 || name.find("value_cache.") == 0;
+            if (!recurrent && !kv)
+                continue;
+            auto shape = input.get_partial_shape();
+            shape[0] = recurrent ? 2 : 8;
+            ov::Tensor table(input.get_element_type(), shape.to_shape());
+            std::memset(table.data(), 0, table.get_byte_size());
+            request.set_tensor(name, table);
+            tables.push_back(table);
+        }
+        set_i32("la.block_indices", {0, 0});
+        set_i32("la.block_indices_begins", {0, 2});
+        set_i32("la.cache_interval", {128});
+        set_i32("block_indices", {0, 1, 2, 3});
+        set_i32("block_indices_begins", {0, 4});
+        set_i32("max_context_len", {128}, true);
+    }
     size_t past = 0;
     size_t step = 0;
     size_t matching_tokens = 0;
     for (const auto& tokens : schedule) {
         const auto count = tokens.size();
         SCOPED_TRACE("past=" + std::to_string(past) + ", tokens=" + std::to_string(count));
-        ov::Tensor ids(ov::element::i64, {1, count});
-        ov::Tensor positions(ov::element::i64, {1, count});
+        ov::Tensor ids(ov::element::i64, paged ? ov::Shape{count} : ov::Shape{1, count});
+        ov::Tensor positions(ov::element::i64, ids.get_shape());
         ov::Tensor mask(ov::element::i64, {1, past + count});
         ov::Tensor beam(ov::element::i32, {1});
         *beam.data<int32_t>() = 0;
@@ -117,7 +195,13 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
         request.set_tensor("input_ids", ids);
         request.set_tensor("position_ids", positions);
-        request.set_tensor("attention_mask", mask);
+        if (paged) {
+            set_i32("subsequence_begins", {0, static_cast<int32_t>(count)});
+            set_i32("la.past_lens", {static_cast<int32_t>(past)});
+            set_i32("past_lens", {static_cast<int32_t>(past)});
+        } else {
+            request.set_tensor("attention_mask", mask);
+        }
         if (std::any_of(compiled.inputs().begin(), compiled.inputs().end(), [](const ov::Output<const ov::Node>& p) {
                 return p.get_names().count("beam_idx");
             }))
@@ -152,14 +236,109 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         }
         past += count;
     }
+    if (mamba && !paged) {
+        const auto states = request.query_state();
+        ASSERT_FALSE(states.empty());
+        for (auto state : states)
+            state.reset();
+        const auto& tokens = schedule.front();
+        ov::Tensor ids(ov::element::i64, {1, tokens.size()});
+        ov::Tensor positions(ov::element::i64, ids.get_shape());
+        ov::Tensor mask(ov::element::i64, ids.get_shape());
+        for (size_t i = 0; i < tokens.size(); ++i) {
+            ids.data<int64_t>()[i] = tokens[i];
+            positions.data<int64_t>()[i] = i;
+            mask.data<int64_t>()[i] = 1;
+        }
+        request.set_tensor("input_ids", ids);
+        request.set_tensor("position_ids", positions);
+        request.set_tensor("attention_mask", mask);
+        request.infer();
+        const auto logits = request.get_output_tensor();
+        const auto* actual = logits.data<const float>() + logits.get_size() - vocab;
+        double error = 0, norm = 0;
+        for (int32_t i = 0; i < vocab; ++i) {
+            ASSERT_TRUE(std::isfinite(actual[i]));
+            error += std::pow(actual[i] - reference[i], 2);
+            norm += reference[i] * reference[i];
+        }
+        if (override_dir)
+            EXPECT_EQ(std::max_element(actual, actual + vocab) - actual,
+                      std::max_element(reference.begin(), reference.begin() + vocab) - reference.begin());
+        else
+            EXPECT_LT(error / norm, 1e-5) << "Fresh prefill after resetting recurrent states";
+    }
+    if (paged && !override_dir) {
+        // Two independent histories packed with unequal lengths. Reverse their physical
+        // state rows and reuse the same request after the preceding single-sequence run.
+        for (auto& table : tables)
+            std::memset(table.data(), 0, table.get_byte_size());
+        set_i32("la.block_indices", {1, 1, 0, 0});
+        set_i32("la.block_indices_begins", {0, 2, 4});
+        set_i32("la.cache_interval", {128, 128});
+        set_i32("block_indices", {0, 1, 2, 3, 4, 5, 6, 7});
+        set_i32("block_indices_begins", {0, 4, 8});
+        for (const bool decode : {false, true}) {
+            const std::vector<int64_t> tokens =
+                decode ? std::vector<int64_t>{4, 5, 6} : std::vector<int64_t>{1, 2, 3, 1, 2, 3, 4};
+            const size_t first_count = decode ? 1 : 3;
+            ov::Tensor ids(ov::element::i64, {tokens.size()});
+            std::copy(tokens.begin(), tokens.end(), ids.data<int64_t>());
+            request.set_tensor("input_ids", ids);
+            ov::Tensor positions(ov::element::i64, {tokens.size()});
+            for (size_t i = 0; i < tokens.size(); ++i)
+                positions.data<int64_t>()[i] =
+                    i < first_count ? i + (decode ? 3 : 0) : i - first_count + (decode ? 4 : 0);
+            request.set_tensor("position_ids", positions);
+            set_i32("subsequence_begins", {0, static_cast<int32_t>(first_count), static_cast<int32_t>(tokens.size())});
+            set_i32("la.past_lens", decode ? std::vector<int32_t>{3, 4} : std::vector<int32_t>{0, 0});
+            set_i32("past_lens", decode ? std::vector<int32_t>{3, 4} : std::vector<int32_t>{0, 0});
+            request.infer();
+            const auto logits = request.get_output_tensor();
+            ASSERT_EQ(logits.get_shape(), (ov::Shape{1, tokens.size(), static_cast<size_t>(vocab)}));
+            for (size_t sequence = 0; sequence < 2; ++sequence) {
+                const size_t last_token = sequence == 0 ? first_count - 1 : tokens.size() - 1;
+                const auto* actual = logits.data<const float>() + last_token * vocab;
+                const auto* expected = reference.data() + (sequence + (decode ? 1 : 0)) * vocab;
+                double error = 0, norm = 0;
+                for (int32_t i = 0; i < vocab; ++i) {
+                    ASSERT_TRUE(std::isfinite(actual[i]));
+                    error += std::pow(actual[i] - expected[i], 2);
+                    norm += expected[i] * expected[i];
+                }
+                EXPECT_LT(error / norm, 1e-5) << "Packed sequence " << sequence << ", decode=" << decode;
+            }
+        }
+    }
+
     if (override_dir) {
         EXPECT_GE(matching_tokens * 10, schedule.size() * 9) << "Fewer than 90% of greedy choices match";
     }
 }
 
+TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
+    compare(false);
+}
+
+class GGUFMambaPagedAccuracy : public GGUFArchitectureAccuracy {};
+TEST_P(GGUFMambaPagedAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
+    compare(true);
+}
+INSTANTIATE_TEST_SUITE_P(Architectures,
+                         GGUFMambaPagedAccuracy,
+                         ::testing::Values("mamba2", "mamba2-tied", "nemotron_h"),
+                         [](const ::testing::TestParamInfo<const char*>& info) {
+                             std::string name = info.param;
+                             std::replace(name.begin(), name.end(), '-', '_');
+                             return name;
+                         });
+
 INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
-                         ::testing::Values("llama",
+                         ::testing::Values("nemotron_h",
+                                           "mamba2",
+                                           "mamba2-tied",
+                                           "llama",
                                            "qwen2",
                                            "qwen3",
                                            "phi3",

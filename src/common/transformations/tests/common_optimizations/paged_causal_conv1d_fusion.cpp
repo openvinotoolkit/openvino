@@ -11,6 +11,7 @@
 #include <unordered_set>
 
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -595,4 +596,124 @@ TEST_F(PagedCausalConv1DFusionTest, FusesNoBiasUsesEmptyBiasConstant) {
     run_paged_causal_conv1d_fusion(model);
 
     model_ref = build_fused_reference_model(false);
+}
+
+namespace {
+std::shared_ptr<ov::Model> build_unpadded_causal_conv(size_t state_width) {
+    auto tokens = std::make_shared<v0::Parameter>(element::f32, PartialShape{1, 1, 3, -1});
+    const auto initial = v0::Constant::create(element::f32, {1, 1, 3, state_width}, {0.f});
+    const auto state = std::make_shared<ov::op::v3::ReadValue>(initial, "unpadded_conv");
+    const auto window = std::make_shared<v0::Concat>(OutputVector{state, tokens}, 3);
+    const auto flat = std::make_shared<v1::Reshape>(window, v0::Constant::create(element::i64, {3}, {1, 3, -1}), false);
+    const auto weights =
+        v0::Constant::create(element::f32,
+                             {3, 1, 1, 4},
+                             {0.1f, -0.2f, 0.3f, 0.4f, 0.5f, 0.2f, -0.3f, 0.1f, -0.4f, 0.3f, 0.2f, 0.5f});
+    const auto conv = std::make_shared<v1::GroupConvolution>(flat,
+                                                             weights,
+                                                             Strides{1},
+                                                             CoordinateDiff{0},
+                                                             CoordinateDiff{0},
+                                                             Strides{1});
+    return std::make_shared<ov::Model>(OutputVector{conv}, ParameterVector{tokens});
+}
+
+std::unordered_set<std::string> run_unpadded_fusion(const std::shared_ptr<ov::Model>& model) {
+    ov::pass::paged_attention::PaParams params{model->get_parameters()};
+    std::unordered_set<std::string> variables;
+    ov::pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<ov::pass::PagedCausalConv1DUnpaddedFusion>(params, variables);
+    manager.run_passes(model);
+    model->add_parameters(params.items());
+    model->validate_nodes_and_infer_types();
+    return variables;
+}
+}  // namespace
+
+TEST_F(PagedCausalConv1DFusionTest, UnpaddedKernelMinusOneState) {
+    model = build_unpadded_causal_conv(3);
+    const auto removed = run_unpadded_fusion(model);
+    EXPECT_EQ(removed.count("unpadded_conv"), 1);
+    size_t count = 0;
+    for (const auto& node : model->get_ops()) {
+        if (const auto paged = ov::as_type_ptr<ov::op::internal::PagedCausalConv1D>(node)) {
+            ++count;
+            EXPECT_EQ(paged->get_input_partial_shape(0), (PartialShape{-1, 3}));
+            EXPECT_EQ(paged->get_input_partial_shape(1), (PartialShape{-1, 3, 4}));
+            EXPECT_EQ(paged->get_input_shape(2), (Shape{3, 1, 4}));
+            EXPECT_EQ(paged->get_input_shape(3), (Shape{0}));
+        }
+        EXPECT_FALSE(ov::is_type<v1::GroupConvolution>(node));
+    }
+    EXPECT_EQ(count, 1);
+    EXPECT_EQ(model->output().get_partial_shape(), (PartialShape{1, 3, -1}));
+}
+
+TEST_F(PagedCausalConv1DFusionTest, UnpaddedRejectsFullKernelState) {
+    model = build_unpadded_causal_conv(4);
+    EXPECT_TRUE(run_unpadded_fusion(model).empty());
+    size_t convolutions = 0;
+    for (const auto& node : model->get_ops()) {
+        convolutions += ov::is_type<v1::GroupConvolution>(node);
+        EXPECT_FALSE(ov::is_type<ov::op::internal::PagedCausalConv1D>(node));
+    }
+    EXPECT_EQ(convolutions, 1);
+}
+
+TEST(PagedCausalConv1DUnpaddedAccuracy, PrefillAndDecodeMatchUnfusedConvolution) {
+    auto original = build_unpadded_causal_conv(3);
+    auto paged = original->clone();
+    run_unpadded_fusion(paged);
+    // The reference computes all six tokens from a fresh state in one call.
+    for (const auto& node : original->get_ops()) {
+        if (const auto read = ov::as_type_ptr<ov::op::util::ReadValueBase>(node))
+            ov::replace_node(read, read->get_input_node_shared_ptr(0));
+    }
+    for (const auto& parameter : paged->get_parameters()) {
+        if (parameter->get_element_type().is_dynamic())
+            parameter->set_element_type(element::f32);
+    }
+    paged->validate_nodes_and_infer_types();
+    ov::Core core;
+    const auto devices = core.get_available_devices();
+    if (std::find(devices.begin(), devices.end(), "CPU") == devices.end())
+        GTEST_SKIP() << "CPU plugin is required for numerical validation";
+    auto reference_request = core.compile_model(original, "CPU").create_infer_request();
+    ov::Tensor all_tokens(element::f32, {1, 1, 3, 6});
+    for (size_t i = 0; i < all_tokens.get_size(); ++i)
+        all_tokens.data<float>()[i] = static_cast<float>(i + 1) * .1f;
+    reference_request.set_input_tensor(all_tokens);
+    reference_request.infer();
+    const auto reference = reference_request.get_output_tensor();
+
+    auto request = core.compile_model(paged, "CPU").create_infer_request();
+    const auto set_indices = [&](const std::string& name, const std::vector<int32_t>& values) {
+        ov::Tensor tensor(element::i32, {values.size()});
+        std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+        request.set_tensor(name, tensor);
+    };
+    ov::Tensor table(element::f32, {1, 3, 4});
+    std::fill_n(table.data<float>(), table.get_size(), 0.f);
+    request.set_tensor("conv_state_table.0", table);
+    set_indices("la.block_indices", {0, 0});
+    set_indices("la.block_indices_begins", {0, 2});
+    set_indices("la.cache_interval", {6});
+    for (size_t past : {0, 5}) {
+        const size_t count = past == 0 ? 5 : 1;
+        ov::Tensor tokens(element::f32, {1, 1, 3, count});
+        for (size_t channel = 0; channel < 3; ++channel)
+            std::copy_n(all_tokens.data<float>() + channel * 6 + past, count, tokens.data<float>() + channel * count);
+        request.set_tensor(paged->input(0), tokens);
+        set_indices("subsequence_begins", {0, static_cast<int32_t>(count)});
+        set_indices("la.past_lens", {static_cast<int32_t>(past)});
+        request.infer();
+        const auto output = request.get_output_tensor();
+        ASSERT_EQ(output.get_shape(), (Shape{1, 3, count}));
+        for (size_t channel = 0; channel < 3; ++channel)
+            for (size_t token = 0; token < count; ++token)
+                EXPECT_NEAR(output.data<float>()[channel * count + token],
+                            reference.data<float>()[channel * 6 + past + token],
+                            1e-5f);
+    }
 }

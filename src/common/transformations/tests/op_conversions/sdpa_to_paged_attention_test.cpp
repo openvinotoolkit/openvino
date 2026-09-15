@@ -64,6 +64,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "transformations/common_optimizations/fuse_ssm.hpp"
 #include "transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp"
 #include "transformations/paged_attention/position_ids_replacer.hpp"
 #include "transformations/paged_attention/prev_sequence_length_pattern.hpp"
@@ -7496,6 +7497,28 @@ TEST(SDPAToPA_SelectiveSSM_Unconvertible, StatefulSSMLeftInGraphThrows) {
     OV_EXPECT_THROW(manager.run_passes(model),
                     ov::Exception,
                     ::testing::HasSubstr("Stateful SSM nodes cannot be left in the graph"));
+}
+
+// Frontends can emit SelectiveSSM directly, before the paged pipeline's loop fusion.
+TEST(SDPAToPA_SelectiveSSM, ConvertsPreexistingFusedOperation) {
+    auto model = make_single_layer_sdpa_model(false, false, false);
+    auto ssm_model = ov::test::ssm::build_looped_ssm(4, 2, 8, 16);
+    ov::pass::Manager fusion;
+    fusion.register_pass<ov::pass::SelectiveSSMFusion>();
+    fusion.run_passes(ssm_model);
+    model->add_parameters(ssm_model->get_parameters());
+    model->add_results(ssm_model->get_results());
+    model->add_sinks(ssm_model->get_sinks());
+    model->add_variables(ssm_model->get_variables());
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    ASSERT_NO_THROW(manager.run_passes(model));
+    size_t paged = 0;
+    for (const auto& node : model->get_ops()) {
+        paged += std::string(node->get_type_name()) == "PagedSelectiveSSM";
+        EXPECT_NE(std::string(node->get_type_name()), "SelectiveSSM");
+    }
+    EXPECT_EQ(paged, 1);
 }
 
 /*
