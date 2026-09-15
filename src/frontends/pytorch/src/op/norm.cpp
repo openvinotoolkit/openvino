@@ -54,9 +54,6 @@ Output<Node> norm_vector(const NodeContext& context,
         auto abs = context.mark_node(std::make_shared<v0::Abs>(input_tensor));
         res = context.mark_node(std::make_shared<v1::ReduceMin>(abs, dim, keep_dim));
     } else if (p == 0) {
-        auto input_rank = input_tensor.get_partial_shape().rank();
-        PYTORCH_OP_CONVERSION_CHECK(input_rank.is_dynamic() || input_rank.get_length() == 1,
-                                    "ord=0 supported only for vector norm");
         auto zero = context.mark_node(v0::Constant::create(element::f32, Shape{}, {0}));
         zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, input_tensor));
         auto cond = context.mark_node(std::make_shared<v1::NotEqual>(input_tensor, zero));
@@ -201,7 +198,9 @@ OutputVector translate_linalg_vector_norm(const NodeContext& context) {
     }
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
     // linalg.vector_norm(x.to(dtype))
-    if (!context.input_is_none(4)) {
+    if (context.has_attribute("dtype")) {
+        x = context.mark_node(std::make_shared<v0::Convert>(x, context.get_attribute<element::Type>("dtype")));
+    } else if (!context.input_is_none(4)) {
         x = apply_dtype(context, 4, x);
     }
     result = norm_vector(context, x, dim, ord, keep_dim);
@@ -217,7 +216,7 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
     // dtype=None, Tensor(a!) out) -> Tensor(a!) aten::linalg_matrix_norm(Tensor self, Scalar ord, int[] dim=[-2, -1],
     // bool keepdim=False, *, ScalarType? dtype=None) aten::linalg_matrix_norm.str_ord(Tensor self, str ord="fro", int[]
     // dim=[-2, -1], bool keepdim=False, *, ScalarType? dtype=None)
-    num_inputs_check(context, 5, 6);
+    num_inputs_check(context, 4, 6);
     auto x = context.get_input(0);
     // ord defines the vector norm that is computed can be string or number
     auto ord_type = context.get_input_type(1);
@@ -227,7 +226,9 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
 
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
     // linalg.matrix_norm(x.to(dtype))
-    if (!context.input_is_none(4)) {
+    if (context.has_attribute("dtype")) {
+        x = context.mark_node(std::make_shared<v0::Convert>(x, context.get_attribute<element::Type>("dtype")));
+    } else if (!context.input_is_none(4)) {
         x = apply_dtype(context, 4, x);
     }
     if (ord_type.is<type::Str>()) {
@@ -253,14 +254,16 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     // aten::linalg_norm.ord_str(Tensor self, str ord, int[1]? dim=None, bool keepdim=False, *, ScalarType? dtype=None)
     // aten::linalg_norm.ord_str_out(Tensor self, str ord, int[1]? dim=None, bool keepdim=False, *, ScalarType?
     // dtype=None, Tensor(a!) out) -> Tensor(a!)
-    num_inputs_check(context, 5, 6);
+    num_inputs_check(context, 4, 6);
     auto x = context.get_input(0);
     bool keep_dim = context.const_input<bool>(3);
     Output<Node> result;
     Output<Node> dim;
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
     // linalg.norm(x.to(dtype))
-    if (!context.input_is_none(4)) {
+    if (context.has_attribute("dtype")) {
+        x = context.mark_node(std::make_shared<v0::Convert>(x, context.get_attribute<element::Type>("dtype")));
+    } else if (!context.input_is_none(4)) {
         x = apply_dtype(context, 4, x);
     }
     // If dim=None apply for all dimensions

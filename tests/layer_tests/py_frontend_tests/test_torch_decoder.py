@@ -778,3 +778,30 @@ def test_pytorch_fx_decoder_extracts_signature():
     assert nc_decoder.get_input_signature_name(0) == "a"
     assert nc_decoder.get_input_signature_name(1) == "b"
     assert nc_decoder._input_signature == ["a", "b"]
+
+
+@pytest.mark.precommit
+@pytest.mark.parametrize("return_indices", [False, True])
+def test_pytorch_fx_pool_without_output_metadata(return_indices):
+    import numpy as np
+    from torch.fx.experimental.proxy_tensor import make_fx
+    from openvino import Core, convert_model
+    from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+    def model(data):
+        return torch.nn.functional.max_pool2d(data, 2, return_indices=return_indices)
+
+    data = torch.arange(16, dtype=torch.float32).reshape(1, 1, 4, 4)
+    graph = make_fx(model)(data)
+    for node in graph.graph.nodes:
+        if node.target == torch.ops.aten.max_pool2d_with_indices.default:
+            node.meta.clear()
+    converted = convert_model(TorchFXPythonDecoder(graph))
+    compiled = Core().compile_model(converted, "CPU")
+    actual = compiled([data.numpy()])
+    expected = model(data)
+    if not return_indices:
+        expected = (expected,)
+    assert len(actual) == len(expected)
+    for index, value in enumerate(expected):
+        np.testing.assert_array_equal(actual[index], value.numpy())

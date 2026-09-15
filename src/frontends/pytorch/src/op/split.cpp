@@ -4,8 +4,17 @@
 
 #include "openvino/op/split.hpp"
 
+#include "helper_ops/internal_op.hpp"
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/framework_node.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -18,60 +27,77 @@ namespace op {
 
 using namespace ov::op;
 
-OutputVector translate_chunk_fx(const NodeContext& context) {
-    num_inputs_check(context, 3, 3);
-    auto num_chunks = context.const_input<int>(1);
-    auto dim = context.get_input(2);
-    std::shared_ptr<ov::Node> chunk;
-
-    auto shape = context.get_input(0).get_partial_shape();
-    if (shape.rank().is_dynamic()) {
-        size_t num_splits = context.get_decoder()->output_list_size();
-        std::vector<int32_t> split_lengths_vec;
-        for (size_t i = 0; i < num_splits - 1; i++) {
-            split_lengths_vec.push_back(num_chunks);
+OutputVector translate_list_view_fx(const NodeContext& context) {
+    const auto& name = context.get_op_type();
+    const auto count = context.get_decoder()->output_list_size();
+    const auto data = context.get_input(0);
+    const auto zero = v0::Constant::create(element::i64, Shape{1}, {0});
+    const auto one = v0::Constant::create(element::i64, Shape{1}, {1});
+    const auto dim_index = name == "aten.unbind.int" ? 1 : 2;
+    const auto axis = context.const_input<int64_t>(dim_index);
+    const auto dim = v0::Constant::create(element::i64, Shape{1}, {axis});
+    const auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(data));
+    const auto size = context.mark_node(std::make_shared<v8::Gather>(shape, dim, zero));
+    Output<Node> step;
+    Output<Node> remainder;
+    std::vector<int64_t> indices;
+    const bool sections = name == "aten.tensor_split.sections";
+    if (name == "aten.tensor_split.indices") {
+        indices = context.const_input<std::vector<int64_t>>(1);
+    } else if (name != "aten.unbind.int") {
+        const auto amount = context.const_input<int64_t>(1);
+        const auto divisor = v0::Constant::create(element::i64, Shape{1}, {amount});
+        if (sections) {
+            step = context.mark_node(std::make_shared<v1::Divide>(size, divisor, true));
+            remainder = context.mark_node(std::make_shared<v1::Mod>(size, divisor));
+        } else if (name == "aten.split.Tensor") {
+            step = divisor;
+        } else {
+            const auto offset = v0::Constant::create(element::i64, Shape{1}, {amount - 1});
+            const auto rounded = context.mark_node(std::make_shared<v1::Add>(size, offset));
+            step = context.mark_node(std::make_shared<v1::Divide>(rounded, divisor, true));
         }
-        split_lengths_vec.push_back(-1);
-        auto split_lengths =
-            context.mark_node(v0::Constant::create(element::i32, Shape{num_splits}, split_lengths_vec));
-        auto split = context.mark_node(std::make_shared<v1::VariadicSplit>(context.get_input(0), dim, split_lengths));
-        return {context.mark_node(make_list_construct(split->outputs()))};
     }
-    auto dim_val = context.const_input<int>(2);
-    if (dim_val < 0) {
-        dim_val = static_cast<int>(shape.rank().get_length()) + dim_val;
+    OutputVector outputs;
+    Output<Node> start = zero;
+    for (size_t i = 0; i < count; ++i) {
+        if (name == "aten.unbind.int") {
+            const auto index = v0::Constant::create(element::i64, Shape{}, {i});
+            outputs.push_back(context.mark_node(std::make_shared<v8::Gather>(data, index, dim)));
+            continue;
+        }
+        Output<Node> end;
+        if (i + 1 == count) {
+            end = size;
+        } else if (!indices.empty()) {
+            end = v0::Constant::create(element::i64, Shape{1}, {indices[i]});
+        } else {
+            const auto index = v0::Constant::create(element::i64, Shape{1}, {i + 1});
+            end = context.mark_node(std::make_shared<v1::Multiply>(step, index));
+            if (sections) {
+                const auto extra = context.mark_node(std::make_shared<v1::Minimum>(index, remainder));
+                end = context.mark_node(std::make_shared<v1::Add>(end, extra));
+            }
+        }
+        outputs.push_back(context.mark_node(std::make_shared<v8::Slice>(data, start, end, one, dim)));
+        start = end;
     }
-    int num_splits = static_cast<int>(shape[dim_val].get_length()) / num_chunks;
-
-    chunk = context.mark_node(std::make_shared<v1::Split>(context.get_input(0), dim, num_splits));
-
-    return {context.mark_node(make_list_construct(chunk->outputs()))};
+    return {context.mark_node(make_list_construct(outputs))};
 }
 
-OutputVector translate_unbind_int_fx(const NodeContext& context) {
-    num_inputs_check(context, 1, 3);
-    auto input = context.get_input(0);
-    Output<Node> dim;
-    int64_t dim_val = 0;
-    if (context.input_is_none(1)) {
-        dim = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
-    } else {
-        dim = context.get_input(1);
-        dim_val = context.const_input<int>(1);
-    }
-    auto shape = input.get_shape();
-    if (dim_val < 0) {
-        dim_val = static_cast<int>(shape.size()) + dim_val;
-    }
-
-    auto num_splits = static_cast<int>(shape[dim_val]);
-    auto chunk = context.mark_node(std::make_shared<v1::Split>(input, dim, num_splits));
-
-    ov::OutputVector out_vec;
-    for (auto& out : chunk->outputs())
-        out_vec.push_back(std::make_shared<v0::Squeeze>(out, dim));
-
-    return {context.mark_node(make_list_construct(out_vec))};
+OutputVector translate_list_unpack_fx(const NodeContext& context) {
+    // Reuse TorchScript's list-unpack normalization for ATen list operations.
+    // Export fixes the list length, even when the tensor dimensions are dynamic.
+    const auto& fx_name = context.get_op_type();
+    const auto overload = fx_name.find('.', 5);
+    const auto ts_name = "aten::" + fx_name.substr(5, overload - 5);
+    const auto count = context.get_decoder()->output_list_size();
+    auto operation = context.mark_node(
+        std::make_shared<PtFrameworkNode>(std::make_shared<InternalOpDecoder>(ts_name, 1), context.inputs()));
+    auto unpack = context.mark_node(
+        std::make_shared<PtFrameworkNode>(std::make_shared<InternalOpDecoder>("prim::ListUnpack", count),
+                                          OutputVector{operation}));
+    return {context.mark_node(make_list_construct(unpack->outputs()))};
 }
 
 OutputVector translate_split_with_sizes(const NodeContext& context) {

@@ -215,6 +215,7 @@ class TestLinalgVectorNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
+    @pytest.mark.precommit_torch_export
     def test_linalg_vector_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
@@ -290,6 +291,7 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 122715')
+    @pytest.mark.precommit_torch_export
     def test_linalg_matrix_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
@@ -385,6 +387,7 @@ class TestLinalgNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
+    @pytest.mark.precommit_torch_export
     def test_linalg_norm(self, p, dim, keepdim, dtype, out, prim_dtype, input_shape, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
