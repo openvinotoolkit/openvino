@@ -1093,17 +1093,6 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
         ASSERT_TRUE(has_nonzero_ref) << "Reference output is all zeros";
         ASSERT_TRUE(has_nonzero_opt) << "Optimized output is all zeros";
 
-        std::cout << "  ref[0..4]: " << static_cast<float>(ref_data[0]) << ", "
-                  << static_cast<float>(ref_data[1]) << ", "
-                  << static_cast<float>(ref_data[2]) << ", "
-                  << static_cast<float>(ref_data[3]) << ", "
-                  << static_cast<float>(ref_data[4]) << std::endl;
-        std::cout << "  opt[0..4]: " << static_cast<float>(opt_data[0]) << ", "
-                  << static_cast<float>(opt_data[1]) << ", "
-                  << static_cast<float>(opt_data[2]) << ", "
-                  << static_cast<float>(opt_data[3]) << ", "
-                  << static_cast<float>(opt_data[4]) << std::endl;
-
         auto similarity = cosineSimilarity(ref_data, opt_data);
         ASSERT_GE(similarity, 0.95f) << "Cosine similarity too low: " << similarity;
     }
