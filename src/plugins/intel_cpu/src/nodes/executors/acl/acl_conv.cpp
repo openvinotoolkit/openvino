@@ -39,7 +39,8 @@ namespace ov::intel_cpu {
 ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                const MemoryArgs& memory,
                                                [[maybe_unused]] const ExecutorContext::CPtr& context)
-    : weightScale(attrs.dqScales) {
+    : srcZeroPoint(attrs.inputZeroPoint),
+      weightScale(attrs.dqScales) {
     aclTensorAttrs.hasLayoutTypeNHWC = memory.at(ARG_SRC)->getDescPtr()->hasLayoutType(LayoutType::nspc);
 
     MemoryDescPtr srcMemPtr = memory.at(ARG_SRC_0)->getDescPtr();
@@ -158,7 +159,7 @@ arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& 
     //            shift is not supported
     // - destination: scale is formed based on requantization FakeQuantize parameters: scale = 1.0 / input scale
     //                shift = input shift. Skipped for f32 dst (dequantize-to-float path).
-    aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0));
+    aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0F, srcZeroPoint));
     aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(
         weightScale.empty() ? arm_compute::QuantizationInfo(1.0F) : arm_compute::QuantizationInfo(weightScale));
     if (aclMemoryInfos[ACLArgs::ACL_DST]->data_type() != arm_compute::DataType::F32) {
