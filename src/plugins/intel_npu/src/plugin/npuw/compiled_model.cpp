@@ -1087,7 +1087,8 @@ void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModel
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Stream& stream,
                                                            const ov::npuw::s11n::WeightsContext& ctx,
                                                            std::optional<std::size_t> orc_device_index,
-                                                           const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
+                                                           const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx,
+                                                           ov::npuw::orc::Version version) {
     using namespace ov::npuw::s11n;
 
     if (stream.output()) {
@@ -1096,6 +1097,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         LOG_DEBUG("Deserializing CompiledModelDesc...");
     }
     LOG_BLOCK();
+    OPENVINO_ASSERT(version == kOrcVersion, "Unsupported ORC NPUW subgraph version ", version);
 
     ov::SoPtr<ov::ICompiledModel> imported_compiled_model;
     std::optional<ov::npuw::s11n::SubmodelDeserializeCtx> resolved_submodel_ctx;
@@ -1546,7 +1548,11 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
             [&](const std::string& device) {
                 return make_submodel_import_config(device, compiled->m_cfg);
             });
-        submodel.serialize(child_stream, compiled->m_import_weights_ctx, std::nullopt, &submodel_ctx);
+        submodel.serialize(child_stream,
+                           compiled->m_import_weights_ctx,
+                           std::nullopt,
+                           &submodel_ctx,
+                           child.header().version);
         child.expect_end();
     };
 

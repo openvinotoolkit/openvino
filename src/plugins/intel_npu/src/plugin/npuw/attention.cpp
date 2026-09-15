@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "attention.hpp"
 
@@ -62,8 +63,12 @@ void ov::npuw::function::patch_reshape_constants(const std::shared_ptr<ov::Model
             continue;
         }
 
-        // Check if MatMul's input 0 is from Softmax
+        // The attention-sink SDPA decomposition removes the extra sink probability
+        // through Slice before the value MatMul.
         auto matmul_input0 = matmul_node->input(0).get_source_output().get_node_shared_ptr();
+        if (ov::is_type<ov::op::v8::Slice>(matmul_input0)) {
+            matmul_input0 = matmul_input0->input(0).get_source_output().get_node_shared_ptr();
+        }
         if (!ov::is_type<ov::op::v8::Softmax>(matmul_input0)) {
             continue;
         }
