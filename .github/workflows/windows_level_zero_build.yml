@@ -65,7 +65,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-16-cores-32gb-build-st'
+      runner: 'aks-win-x64-build-16c32gb-st'
       cmake-build-parallel-level: '15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
