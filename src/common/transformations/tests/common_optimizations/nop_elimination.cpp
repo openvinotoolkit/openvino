@@ -314,7 +314,7 @@ TEST(nop_elimination, reshape_arithmetical_reduce_elimination_dynamic) {
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 0);
 }
 
-TEST(nop_elimination, reshape_arithmetical_reduce_elimination_keep_dims_false_negative) {
+TEST_F(TransformationTestsF, reshape_arithmetical_reduce_elimination_keep_dims_false_negative) {
     auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 11, 4});
     auto axes = op::v0::Constant::create<int64_t>(element::i64, Shape{1}, {1});
 
@@ -322,13 +322,9 @@ TEST(nop_elimination, reshape_arithmetical_reduce_elimination_keep_dims_false_ne
     auto reshape_pattern = op::v0::Constant::create<int64_t>(element::i64, Shape{2}, {16, 1});
     auto reshape = std::make_shared<op::v1::Reshape>(reduce, reshape_pattern, false);
 
-    auto model = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{data});
+    model = std::make_shared<ov::Model>(OutputVector{reshape}, ParameterVector{data});
 
-    pass::Manager manager;
     manager.register_pass<ov::pass::NopElimination>(false);
-    manager.run_passes(model);
-
-    ASSERT_EQ(count_ops_of_type<op::v1::Reshape>(model), 1);
 }
 
 TEST(nop_elimination, reshape_logical_reduce_elimination_dynamic) {
