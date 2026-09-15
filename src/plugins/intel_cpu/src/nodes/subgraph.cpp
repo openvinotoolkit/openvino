@@ -95,6 +95,7 @@
 #    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_loops.hpp"
 #    include "snippets/pass/fuse_transpose_brgemm.hpp"
+#    include "snippets/pass/softmax_decomposition.hpp"
 #    include "transformations/snippets/common/pass/enforce_precision.hpp"
 #    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
@@ -103,6 +104,7 @@
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
 #    include "transformations/snippets/x64/pass/lowered/parallelize_gated_mlp_n_loops.hpp"
+#    include "transformations/snippets/x64/pass/mark_approximate_softmax_exp.hpp"
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
 #    include "transformations/snippets/x64/pass/repack_matmul_weights.hpp"
 #endif
@@ -630,6 +632,14 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
         SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                                pass::EnforcePrecision,
                                                ov::snippets::pass::FuseTransposeBrgemm);
+    }
+
+    if (context->getConfig().snippetsApproximateSoftmaxExp && has_domain_sensitive_ops()) {
+        // Relative to SoftmaxDecomposition, which is registered only for domain-sensitive bodies --
+        // a PassPosition whose anchor is absent throws. See the pass for why it has to run there.
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                               ov::snippets::pass::SoftmaxDecomposition,
+                                               ov::intel_cpu::pass::MarkApproximateSoftmaxExp);
     }
 
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
