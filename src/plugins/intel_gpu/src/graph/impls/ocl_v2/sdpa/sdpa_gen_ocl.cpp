@@ -885,6 +885,22 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
 
     const auto ocl_config = choose_config(device_info.arch, d_max, vd_max);
 
+    // Diagnostic for the minicpm4-8b prefill comparison: reproduce sdpa_micro's softmax
+    // and per-key-tile PV accumulation order. Matching its tile boundaries still requires
+    // the SDPA_OCL_KQ_* overrides. Keep the arithmetic change opt-in and scoped to plain
+    // causal FP16 prefill; sink initialization, mixed and decode use other paths.
+    if (config.is_paged_attention && m_is_prefill && //k_head_size > 64 && v_head_size > 64 &&
+        Q.data_type == data_types::f16 && K.data_type == data_types::f16 &&
+        V.data_type == data_types::f16 && out.data_type == data_types::f16) {
+        const auto desc = params.typed_desc<paged_attention>();
+        if (const char* env = std::getenv("SDPA_OCL_MICRO_MATH")) {
+            if (std::atoi(env) != 0 && !desc->has_sink_input && !desc->has_alibi &&
+                desc->sliding_window == 0 && !desc->has_token_type_ids) {
+                jit.make("MICRO_MATH", 1);
+            }
+        }
+    }
+
     jit.make("DPAS_K", 16);          // intel_sub_group_f16_f16_matrix_mad_k16 only supports KSTEP of 16
     jit.make("DPAS_ROWS", 8);
     jit.make("kq_sg_tile_keys", ocl_config.kq_sg_tile_keys);
