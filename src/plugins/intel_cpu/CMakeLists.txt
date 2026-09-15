@@ -175,7 +175,7 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
 endif()
 
-if(X86_64 OR AARCH64)
+if(X86_64 OR AARCH64 OR RISCV64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/common/shape_inference_fallback.cpp)
 endif()
 
@@ -199,7 +199,8 @@ if (NOT RISCV64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/riscv64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/riscv64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/riscv64/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/riscv64/*)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
