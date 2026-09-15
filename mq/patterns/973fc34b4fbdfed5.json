@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "warning failed to find package tools sdkmanager exit code 1 setup android sdk|Configuration",
+  "signature_hash": "973fc34b4fbdfed5",
+  "title": "Setup Android SDK fails - sdkmanager cannot find deprecated 'tools' package",
+  "category": "Configuration",
+  "count": 1,
+  "first_seen": "2026-09-15T17:47:38Z",
+  "last_seen": "2026-09-15T17:47:38Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/35000889493"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/38131"],
+  "recent_timestamps": ["2026-09-15T17:47:38Z"],
+  "rerun_search_string": null
+}

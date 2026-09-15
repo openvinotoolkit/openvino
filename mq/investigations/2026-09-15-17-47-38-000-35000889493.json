@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-15-17-47-38-000-35000889493",
+  "timestamp": "2026-09-15T17:47:38Z",
+  "run_id": "35000889493",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35000889493",
+  "workflow_name": "Android",
+  "pr_number": "38131",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38131",
+  "author": "michalzx",
+  "category": "Configuration",
+  "title": "Setup Android SDK fails - sdkmanager cannot find deprecated 'tools' package",
+  "signature": "warning failed to find package tools sdkmanager exit code 1 setup android sdk|Configuration",
+  "signature_hash": "973fc34b4fbdfed5",
+  "confidence": "High",
+  "failed_jobs": [
+    {"name": "CXX_Unit_Tests", "conclusion": "failure", "symptom": "Setup Android SDK step fails: sdkmanager exits with code 1 after 'Failed to find package tools'"},
+    {"name": "CXX_Func_Tests", "conclusion": "failure", "symptom": "Setup Android SDK step fails: sdkmanager exits with code 1 after 'Failed to find package tools'"},
+    {"name": "ci/gha_overall_status_android", "conclusion": "failure", "symptom": "Aggregate status check fails because upstream jobs failed"}
+  ],
+  "key_errors": [
+    "Warning: Failed to find package 'tools'\nError: The process '/opt/android-sdk/cmdline-tools/20.0/bin/sdkmanager' failed with exit code 1",
+    "packages: tools platform-tools"
+  ],
+  "root_cause": "The 'Setup Android SDK' step invokes android-actions/setup-android with packages: 'tools platform-tools'. The legacy 'tools' package has been removed from the Android SDK repository (dl.google.com), so sdkmanager cannot resolve it and exits with code 1, failing the step in both CXX_Unit_Tests and CXX_Func_Tests. This is a pre-existing CI configuration issue in the releases/2026/4 branch's android.yml workflow; it is unrelated to the PR's own changes (docs-only). Master's android.yml (commit d7055662, '[GGUF FE] Runtime extension mechanism for adding architectures') already fixed this by requesting only 'platform-tools' with a comment noting the legacy tools package was removed.",
+  "reproduction_steps": "Run 'sdkmanager tools' with a recent Android SDK cmdline-tools version (20.0) against the current SDK repository; it returns 'Warning: Failed to find package tools' and exits non-zero, matching the CI log.",
+  "recommended_actions": [
+    "Edit .github/workflows/android.yml on releases/2026/4 (or in this sync PR) to change 'packages: tools platform-tools' to 'packages: platform-tools' for the Setup Android SDK step(s), matching master's fix in commit d7055662.",
+    "Re-run the merge-queue check once the workflow file is corrected."
+  ],
+  "prevention_strategies": "When syncing master into a release branch, diff CI workflow files (.github/workflows/*.yml) explicitly for config drift, since docs-only PR scopes can silently miss CI-relevant fixes already applied on master.",
+  "historical_context": "No prior CI Doctor MQ pattern recorded for this specific 'tools' package removal; a related but distinct pattern (7eb75d0b5dca4a63) covers a transient 'Connection reset' failure during Android SDK Build-Tools installation, which is a different (Network) root cause."
+}
