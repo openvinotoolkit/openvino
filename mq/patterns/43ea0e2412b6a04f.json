@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "LLM accuracy iGPU tests job cancelled with no logs generated, causing overall status failure|Infrastructure",
+  "signature_hash": "43ea0e2412b6a04f",
+  "title": "LLM accuracy iGPU tests job cancelled with no logs generated, causing overall status failure",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-15T10:01:18Z",
+  "last_seen": "2026-09-15T10:01:18Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/34946901491"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37919"
+  ],
+  "recent_timestamps": [
+    "2026-09-15T10:01:18Z"
+  ],
+  "rerun_search_string": null
+}

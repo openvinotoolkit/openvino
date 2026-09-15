@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-15-10-01-18-510-34946901491",
+  "timestamp": "2026-09-15T10:01:18Z",
+  "run_id": "34946901491",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/34946901491",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37919",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37919",
+  "author": "dmenig",
+  "category": "Infrastructure",
+  "title": "LLM accuracy iGPU tests job cancelled with no logs generated, causing overall status failure",
+  "signature": "LLM accuracy iGPU tests job cancelled with no logs generated, causing overall status failure|Infrastructure",
+  "signature_hash": "43ea0e2412b6a04f",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "cancelled",
+      "symptom": "Job cancelled on the self-hosted igpu/Linux runner; no job log content is retrievable (HTTP 404 on log download), indicating the job never produced output before being cancelled"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "'Check status of all jobs' step exits 1 because the upstream iGPU job's conclusion is 'cancelled' rather than success/skipped"
+    }
+  ],
+  "key_errors": [
+    "get_job_logs(job_id=104333003022): \"failed to get job logs: failed to download log content for job 104333003022: failed to download logs: HTTP 404\"",
+    "ci/gha_overall_status_ubuntu_24 log: 2026-09-15T09:51:27.1531950Z exit 1 -> ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "This is run_attempt 2 of a merge-queue run for PR #37919. In this attempt, 17 of 19 jobs (Smart_CI, Build, Docker, all layer/unit test suites, LLM accuracy CPU tests, Debian Packages) completed successfully; two GPU-tier jobs (dGPU Arc-B580/B50 Nightly, LLM accuracy dGPU tests) were skipped as expected. Only 'LLM accuracy iGPU tests / LLM accuracy GPU tests' shows conclusion=cancelled with no downloadable log content (HTTP 404), meaning the job was cancelled before or immediately after runner assignment on the self-hosted igpu/Linux pool without emitting any output — consistent with the self-hosted iGPU runner pool being unavailable, reclaimed, or the job being externally cancelled (e.g., a workflow-level cancellation signal from a subsequent merge-queue re-run, GitHub Actions cancelling a stale job on the attempt boundary, or the specific iGPU runner going offline). Because 'ci/gha_overall_status_ubuntu_24' treats any non-success/non-skipped upstream conclusion as an overall failure, the single cancelled iGPU job caused the whole run to report failure even though the code change itself (a one-line addition to the avx2_vnni_2 supported-precision list plus a unit test) was not exercised by, and had no bearing on, the iGPU job. Since the PR only touches src/plugins/intel_cpu (CPU snippets emitter code, no iGPU/OpenCL code paths), a causal link between the diff and the iGPU cancellation is implausible.",
+  "reproduction_steps": "N/A — this is a self-hosted-runner infrastructure/scheduling failure external to the PR's code changes; it is not reproducible via local build or test commands.",
+  "recommended_actions": [
+    "Re-run only the failed jobs for run 34946901491 (or re-add PR #37919 to the merge queue) — this is the standard remedy for a single cancelled self-hosted job with no accompanying log content.",
+    "If the 'LLM accuracy iGPU tests' job continues to cancel with no logs across multiple merge-queue runs (not just this PR), escalate to the self-hosted iGPU runner pool maintainers to check runner availability/health, since a 404 on log download for a job that reports 'cancelled' typically means it was pulled from the queue before starting.",
+    "No code change to src/plugins/intel_cpu/src/emitters/snippets/x64/jit_brgemm_emitter.cpp or the accompanying unit test is required; the PR's diff is unrelated to the iGPU test infrastructure."
+  ],
+  "prevention_strategies": "Cancellations of self-hosted GPU-tier jobs with no log output are driven by runner-pool availability and are not preventable from the PR side. Repository maintainers could consider making a single missing/cancelled optional-hardware job (iGPU) non-blocking for 'ci/gha_overall_status' when its conclusion is 'cancelled' with zero elapsed run time, to avoid failing an otherwise fully green merge-queue run purely due to a self-hosted runner pool hiccup.",
+  "historical_context": "The pattern database records several prior iGPU-runner infrastructure failures with related but distinct signatures: 'iGPU func tests fail — runner exposes no OpenCL/GPU device (clinfo reports 0 platforms)' (count=1), 'iGPU RoPE Tests fail — runner exposes only CPU, no GPU device available' (Infrastructure), 'LLM accuracy iGPU tests fail uploading test results - artifact blob storage returns HTML error page' (count=1), and 'LLM accuracy iGPU tests checkout fails with curl 56 Connection died' (Network, count=1). A separate but structurally similar pattern, 'ci/gha_overall_status job cancelled before runner assignment in merge queue run' (count=1, first seen 2026-07-09 on PR #36780), shows the same overall-status-cascades-from-a-single-cancelled-job dynamic, but for the summary job itself rather than an upstream test job. This is the first recorded instance of the iGPU accuracy job itself being cancelled with zero retrievable logs; it has been recorded as a new pattern."
+}
