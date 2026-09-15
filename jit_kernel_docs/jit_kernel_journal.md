@@ -9,7 +9,8 @@ Sources of truth:
 - `src/plugins/intel_cpu/src/nodes/kernels/x64/rope_kernel_ir.{hpp,cpp}` — RoPE kernel on IR mode
 - `src/plugins/intel_cpu/src/nodes/color_convert.cpp` — NV12/I420 converters on IR mode
 - `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel_target.{hpp,cpp}` — target capability queries (TTI analogue)
-- `src/plugins/intel_cpu/tests/unit/jit_kernel_ir_test.cpp` — 54 tests
+- `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel_emit.hpp` — the arch emission interface (TargetInstrInfo analogue)
+- `src/plugins/intel_cpu/tests/unit/jit_kernel_ir_test.cpp` — 55 tests
 - `src/plugins/intel_cpu/tests/unit/jit_kernel_test.cpp` — 4 tests
 
 ## Where the implementation stands relative to the design docs
@@ -286,12 +287,44 @@ interleaved store (`supports_masked_interleaved_access()` is false), so it
 uses the counted path even under mask folding — SVE's `ST3` and RVV's
 segment stores would take the predicate directly.
 
+### Arch emission interface
+
+`arch_emitter` (`jit_kernel_emit.hpp`) is what the portable constructs
+emit through — the counterpart of the capability queries, and the analogue
+of LLVM's `TargetInstrInfo`. Sixteen primitives, derived by reading what
+`foreach_vec`, the active-length realization and the `ir_ptr` arithmetic
+actually call rather than by guessing what an architecture might want:
+scalar copy/set/add/shr/and/imul/bump/offset/compare, the clamped active
+length, the lane-mask bits and the move into the predicate file, and
+labels plus branches.
+
+Each primitive is a **factory for an emit closure**, not an emitter. The
+portable layer keeps every IR-modelling decision — read operands, tied
+operands, early-clobber defs, register class — because that is where the
+correctness lives and none of it is arch-specific; the arch supplies only
+which instruction realizes the operation, and gets its operands as
+already-allocated registers. Two consequences: a recording-only generator
+is a set of no-op closures, and the hard-won constraints (the
+early-clobber on the mask computation, the tie on `ir_add`) cannot be got
+wrong per target because no target states them.
+
+Vector operations only kernels call — permutes, shuffles, conversions,
+interleaves — deliberately stay on `jit_kernel` rather than being hoisted
+speculatively. They move when a second target needs them.
+
+`ir_if` takes a portable `cond`, and branch targets are an opaque
+`label_ref` the arch owns, so neither appears in a portable signature.
+
 ### Target capability queries
 
 `vector_target` (`jit_kernel_target.hpp`) is the DSL's
 `TargetTransformInfo`: `supports_masked_access(elem_bytes)`,
 `supports_masked_interleaved_access()`, `preferred_tail_folding()`,
-`predicate_pool()`. Selected from the host ISA at kernel construction.
+`predicate_pool()`. Defaults to the host ISA at kernel construction and is **injectable**
+(`set_target`), the way LLVM treats a triple and subtarget features as
+inputs rather than properties of the machine running the compiler. That is
+what makes a decision taken for a capability this host lacks testable at
+all.
 Queries only — instruction emission stays in the arch's `jit_kernel`, so a
 second architecture adds a sibling generator rather than editing this
 interface.
@@ -452,8 +485,18 @@ comparison against the peeled kernel. Findings:
 6. **No predicated interleaved store on x86.** `store_interleaved3` under
    a short active length still builds the interleave in a stack slot and
    copies `count*3` elements out. Three separately-derived masks would fix
-   it on AVX-512; SVE (`ST3`) and RVV (segment stores) take the predicate
+   it on AVX-512 — output element `j` is active iff `j < 3*count`, so the
+   three stores want masks for `min(3c, N)`, `clamp(3c-N, 0, N)` and
+   `clamp(3c-2N, 0, N)`, all expressible with the primitives that already
+   exist. SVE (`ST3`) and RVV (segment stores) take the predicate
    directly. `supports_masked_interleaved_access()` is the switch.
+
+   **This is now also the route to Phase A's second exit criterion.** The
+   plan was to test the predicated branch with a mock target, but there is
+   nothing to test: the branch does not exist, so a mock would assert on
+   code that throws. Implementing it for real on AVX-512 makes the query
+   return true natively and the branch reachable without a mock, which is
+   strictly better than mocking it.
 7. **The epilogue strategy records the body twice** — inherent to it, and
    now only chosen on targets without predication (AVX2, SSE, NEON). The
    masked strategy records once and is 36% smaller on the NV12 converter.
@@ -461,9 +504,11 @@ comparison against the peeled kernel. Findings:
    RISC-V generator and `vl` modelled as machine state with `vsetvli`
    insertion in the loop header. `foreach_vec` throws instead of
    approximating it.
-9. **Only an x86-64 generator exists**, and the DSL has no arch boundary.
-   See "Multi-architecture plan" below for the measurement, the three real
-   gaps and the phasing.
+9. **Only an x86-64 generator exists.** The DSL now has an arch boundary
+   for the portable constructs (`arch_emitter`, 16 primitives) but not for
+   the ~50 vector operations kernels call directly, and `variable<T>` still
+   names an Xbyak register type through `reg_traits`. See
+   "Multi-architecture plan" below.
 10. **`bf16` store truncates** instead of rounding to nearest even
    (`vcvtneps2bf16` where available).
 11. **GPR-hungry scalarized access.** `ir_load_partial` /
@@ -631,7 +676,8 @@ the coupling was measured rather than assumed:
 |---|---|---|
 | `jit_kernel_ir.{hpp,cpp}` — IR, CFG/liveness, allocator, remat, verifier, passes | 0 xbyak references in the `.cpp`; 3 in the `.hpp`, all inside comments | as-is |
 | `jit_kernel_target.{hpp,cpp}` — capability queries | none | as-is |
-| `jit_kernel.{hpp,cpp}` — DSL + emit closures | 207 xbyak/x86 references across 63 emit closures | no |
+| `jit_kernel_emit.hpp` — arch emission interface | none | as-is |
+| `jit_kernel.{hpp,cpp}` — DSL + emit closures | the portable constructs now go through `arch_emitter`; ~50 vector emit closures remain x86 | partly |
 | DSL type surface | 184 sites templated on `size_t N` / `float[N]` | blocks scalable vectors |
 | Register tuples (consecutive registers) | not modelled anywhere | blocks SVE `ST3`, RVV segment ops |
 
@@ -675,16 +721,34 @@ Evidence the abstraction is not merely x86 with different names:
 ### Phasing
 
 **Phase A — prove separability on x86 (no cross toolchain).**
-Extract the arch-neutral layer: move `vlen` out of the x86 `jit_kernel`,
-split the DSL surface from the emit closures (`jit_kernel_base` +
-`jit_kernel_x64`), and add a mock `vector_target` plus a recording-only
-generator so the *decisions* can be tested without emitting anything.
-Exit criteria: a test with a target reporting
-`supports_masked_interleaved_access() == true` records a predicated
-interleaved store instead of alloca + memcpy — a branch no x86 target can
-reach today, hence currently untested; and `jit_kernel_ir` +
-`jit_kernel_target` compile with no reference to the x64 generator.
-This is the cheapest measurement of how much of gap 2 we actually need.
+*Partly done, 2026-09-16, and it produced the measurement it was for.*
+
+Done:
+- `arch_emitter` — the portable constructs emit through 16 primitives
+  instead of x86 directly. Verified behaviour-preserving the only way
+  worth trusting: the generated RoPE kernels are **byte-identical** to
+  the commit before the refactor.
+- `ir_if` and branch targets no longer name Xbyak in a signature.
+- The target is injectable, so decisions taken for capabilities this host
+  lacks can be tested.
+- First such branch covered: a target refusing displacements (RVV's
+  answer) keeps its pointer increments, and computes the same results as
+  the folding one.
+
+**Not done, and now known to be blocked rather than merely pending:**
+splitting the DSL surface from the emit closures into
+`jit_kernel_base` + `jit_kernel_x64`. `variable<T>` names an Xbyak
+register type through `reg_traits` (42 sites: byte size -> `Reg8` ...
+`Zmm`), so moving the portable constructs to a base class drags
+`reg_traits` with them. **The class split needs gap 2 solved first, not
+the other way round** — which is exactly what this phase existed to find
+out, and it inverts the assumed order.
+
+Second exit criterion revised: the predicated-interleaved-store branch
+cannot be tested with a mock, because the branch does not exist — a mock
+would assert on code that throws. Implement it for real on AVX-512
+instead (hazard 6); that makes the query return true natively and needs
+no mock.
 
 **Phase B — AArch64/NEON, fixed `N = 4`, one kernel.**
 No predication, so the target reports `epilogue` folding — the path
@@ -838,8 +902,8 @@ Every suite run in all **eight** combinations of `OV_JIT_IR_PEEL` ×
 strategies are env-selected, and `OV_JIT_TAIL_FOLDING=epilogue` is the
 only way to exercise the AVX2/NEON-shaped path on an AVX-512 machine:
 
-- `ov_cpu_unit_tests --gtest_filter='JitKernel*'`: **58/58 pass**
-  (54 `JitKernelIR.*`, 4 `JitKernel.*`).
+- `ov_cpu_unit_tests --gtest_filter='JitKernel*'`: **59/59 pass**
+  (55 `JitKernelIR.*`, 4 `JitKernel.*`).
 - `ov_cpu_func_tests --gtest_filter='smoke_TestsConvertColor*'`: **26/26
   pass**, including the `u8` accuracy case (144×16).
 - `OV_JIT_IR_ROPE=1 ov_cpu_func_tests --gtest_filter='smoke_RoPETest*'`:
