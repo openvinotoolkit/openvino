@@ -145,7 +145,7 @@ layout fully_connected_inst::calc_output_layout(fully_connected_node const& node
         if (f.is_type<swiglu>()) {
             OPENVINO_ASSERT(fused_prims.size() == 1, "[GPU] Other operation is fused in addition to swiglu!");
             OPENVINO_ASSERT(fused_prims[0].typed_desc<swiglu>()->glu_type == ov::op::internal::GLU::GluType::Swish);
-            ov::PartialShape out_pshape = f.output_layout.get_partial_shape();
+            ov::PartialShape out_pshape = f.output_layouts[0].get_partial_shape();
             GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " fused with swiglu so override with its output layout: " << out_pshape.to_string()
                                     << std::endl;
             return layout(out_pshape, output_type, output_format);

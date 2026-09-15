@@ -435,11 +435,18 @@ public:
 
     bool has_fused_primitives() const { return !get_fused_primitives().empty(); }
 
-    layout get_fused_output_layout() const {
+    layout get_fused_output_layout(size_t idx = 0) const {
         auto fp = get_fused_primitives();
         if (fp.empty())
             return layout(data_types::f32, format::bfyx, tensor());
-        return fp.back().output_layout;
+        return fp.back().output_layouts[idx];
+    }
+
+    std::vector<layout> get_fused_output_layouts() const {
+        auto fp = get_fused_primitives();
+        if (fp.empty())
+            return {layout(data_types::f32, format::bfyx, tensor())};
+        return fp.back().output_layouts;
     }
 
     bool need_lockable_memory() const;

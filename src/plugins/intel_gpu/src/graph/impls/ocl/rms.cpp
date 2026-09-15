@@ -71,7 +71,9 @@ attach_rms_impl::attach_rms_impl() {
         data_types::f32,
         data_types::f16,
         data_types::bf16,
-        data_types::i32
+        data_types::i32,
+        data_types::f8e4m3,
+        data_types::f8e5m2
     };
 
     auto formats = {

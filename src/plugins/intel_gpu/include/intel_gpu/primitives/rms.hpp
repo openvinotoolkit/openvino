@@ -22,8 +22,9 @@ struct rms : public primitive_base<rms> {
     rms(const primitive_id& id,
         const input_info& input,
         const input_info& gamma,
-        const float epsilon)
-        : primitive_base(id, {input, gamma}),
+        const float epsilon,
+        const size_t num_outputs = 1)
+        : primitive_base(id, {input, gamma}, num_outputs),
           epsilon(epsilon),
           elementwise_affine(true) {}
 
@@ -33,8 +34,9 @@ struct rms : public primitive_base<rms> {
     /// @param epsilon Epsilon for not dividing by zero while normalizing
     rms(const primitive_id& id,
         const input_info& input,
-        const float epsilon)
-        : primitive_base(id, {input}),
+        const float epsilon,
+        const size_t num_outputs = 1)
+        : primitive_base(id, {input}, num_outputs),
           epsilon(epsilon),
           elementwise_affine(false) {}
 

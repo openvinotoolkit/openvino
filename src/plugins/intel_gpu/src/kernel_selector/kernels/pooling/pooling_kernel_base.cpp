@@ -125,7 +125,7 @@ bool PoolingKernelBase::EnableRound(const kernel_selector::pooling_params& param
     bool has_fused_quantize_to_int8 = false;
     for (const auto& op : params.fused_ops) {
         if (op.GetType() == FusedOpType::QUANTIZE &&
-            (op.output_tensor.GetDType() == Datatype::INT8 || op.output_tensor.GetDType() == Datatype::UINT8)) {
+            (op.output_tensors[0].GetDType() == Datatype::INT8 || op.output_tensors[0].GetDType() == Datatype::UINT8)) {
             has_fused_quantize_to_int8 = true;
         }
     }

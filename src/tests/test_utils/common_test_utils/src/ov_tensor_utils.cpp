@@ -672,6 +672,7 @@ void compare(const ov::Tensor& expected,
             CASE0(X, ov::element::Type_t::u64)           \
             CASE0(X, ov::element::Type_t::f8e4m3)        \
             CASE0(X, ov::element::Type_t::f8e5m2)        \
+            CASE0(X, ov::element::Type_t::f8e8m0)        \
         default:                                         \
             OPENVINO_THROW("Unsupported element type: ", \
                            "expected ",                  \
@@ -700,6 +701,7 @@ void compare(const ov::Tensor& expected,
         CASE(ov::element::Type_t::u64)
         CASE(ov::element::Type_t::f8e4m3)
         CASE(ov::element::Type_t::f8e5m2)
+        CASE(ov::element::Type_t::f8e8m0)
     case ov::element::Type_t::string:
         compare_str(expected, actual);
         break;

@@ -194,7 +194,8 @@ public:
                 };
 
                 for (auto& desc : cp.fused_ops) {
-                    if (!can_swap(desc.output_tensor)) {
+                    OPENVINO_ASSERT(desc.output_tensors.size() == 1);
+                    if (!can_swap(desc.output_tensors[0])) {
                         return false;
                     }
                     for (size_t i = 0; i < desc.tensors.size(); i++) {
@@ -214,7 +215,7 @@ public:
             conv_params.outputs[0].SwapXY();
             conv_params.weights.SwapXY();
             for (auto& desc : conv_params.fused_ops) {
-                desc.output_tensor.SwapXY();
+                desc.output_tensors[0].SwapXY();
                 for (size_t i = 0; i < desc.tensors.size(); i++) {
                     desc.tensors[i].SwapXY();
                 }

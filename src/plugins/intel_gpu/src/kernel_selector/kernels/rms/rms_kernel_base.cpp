@@ -112,6 +112,9 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
 
     auto& kernel = kd.kernels[0];
     auto inputs_count = orgParams.elementwise_affine ? 2 : 1;
+    const bool has_dynamic_quantize = std::any_of(orgParams.fused_ops.begin(), orgParams.fused_ops.end(), [](const fused_operation_desc& fused_op) {
+        return fused_op.GetType() == KernelType::DYNAMIC_QUANTIZE;
+    });
     FillCLKernelData(kernel,
                      dispatchData,
                      params.engineInfo,
@@ -123,7 +126,7 @@ KernelsData RMSKernelBase::GetCommonKernelsData(const Params& params) const {
                      false,
                      inputs_count,
                      GetFusedPrimitiveInputsCount(params),
-                     1,
+                     has_dynamic_quantize ? 2 : 1,
                      orgParams.is_shape_agnostic);
 
     return {kd};

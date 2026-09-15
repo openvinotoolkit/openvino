@@ -3,15 +3,17 @@
 //
 
 #include "program_node.h"
-#include "program_helpers.h"
-#include "primitive_inst.h"
-#include "loop_inst.h"
-#include "shape_of_inst.h"
+
 #include "activation_inst.h"
-#include "reorder_inst.h"
-#include "quantize_inst.h"
-#include "swiglu_inst.h"
+#include "dynamic_quantize_inst.h"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "loop_inst.h"
+#include "primitive_inst.h"
+#include "program_helpers.h"
+#include "quantize_inst.h"
+#include "reorder_inst.h"
+#include "shape_of_inst.h"
+#include "swiglu_inst.h"
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include "convolution_inst.h"
 #include "gemm_inst.h"
@@ -172,7 +174,7 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
 
 void program_node::replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i)
-        if (dependencies[i].first == &old_dep)
+        if (dependencies[i].first == &old_dep  && dependencies[i].second == new_dep.second)
             return replace_dependency(i, new_dep, remove_if_dangling);
 }
 
@@ -252,7 +254,9 @@ std::unique_ptr<json_composite> program_node::desc_to_json() const {
         fused_node_info.add("dependencies", dep_ids);
         fused_node_info.add("dep start_idx", fused_desc.outer_dep_start_idx);
         json_composite info;
-        info.add("data type", dt_to_str(fused_desc.output_layout.data_type));
+        for (size_t i = 0; i < fused_desc.output_layouts.size(); ++i) {
+            info.add("data type" + std::to_string(i), dt_to_str(fused_desc.output_layouts[i].data_type));
+        }
         info.add("format", output_layouts[0].format.to_string());
         info.add("size", output_layouts[0].to_short_string());
         fused_node_info.add("output layout", info);
@@ -734,7 +738,11 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
                 ob << f_desc.desc;
             }
             ob << f_desc.input_layout;
-            ob << f_desc.output_layout;
+            size_t num_output_layouts = f_desc.output_layouts.size();
+            ob << num_output_layouts;
+            for (auto& output_layout : f_desc.output_layouts) {
+                ob << output_layout;
+            }
             ob << cldnn::prim_map_storage::instance().get_type_string(f_desc.f_param->type());
             if (f_desc.f_param->type() == activation::type_id()) {
                 auto casted = std::dynamic_pointer_cast<ActivationFuseParams>(f_desc.f_param);
@@ -920,7 +928,13 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
             }
             auto f_desc = fused_primitive_desc(desc);
             ib >> f_desc.input_layout;
-            ib >> f_desc.output_layout;
+            size_t num_output_layouts;
+            ib >> num_output_layouts;
+            for (size_t i = 0; i < num_output_layouts; ++i) {
+                layout layout;
+                ib >> layout;
+                f_desc.output_layouts.push_back(layout);
+            }
 
             std::string f_param_type_str;
             ib >> f_param_type_str;
@@ -1744,7 +1758,8 @@ void program_node::create_onednn_primitive_attributes(
                 }
 
                 // 2. round
-                auto out_dt = desc.output_layout.data_type;
+                OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+                auto out_dt = desc.output_layouts[0].data_type;
                 {
                     bool output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
                     if (!output_type_is_int8) {
@@ -1900,6 +1915,8 @@ void program_node::create_onednn_primitive_attributes(
                     }
                 }
             }
+        } else if (desc.is_type<dynamic_quantize>()) {
+            continue;
         } else if (desc.is_type<reorder>()) {
             continue;
         } else {

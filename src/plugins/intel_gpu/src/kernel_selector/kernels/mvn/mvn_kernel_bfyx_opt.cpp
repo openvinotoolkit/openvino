@@ -141,7 +141,8 @@ JitConstants MVNKernelBfyxOpt::GetJitConstants(const mvn_params& params, MVNKern
             boundary_check = BoundaryCheck::ENABLED;
         } else {
             for (const auto& fused_op : params.fused_ops) {
-                if (!fused_op.output_tensor.SameDims(params.outputs[0])) {
+                OPENVINO_ASSERT(fused_op.output_tensors.size() == 1);
+                if (!fused_op.output_tensors[0].SameDims(params.outputs[0])) {
                     boundary_check = BoundaryCheck::ENABLED;
                     break;
                 }

@@ -498,7 +498,9 @@ void primitive_inst::update_shape() {
     // Update descriptors of fused operations and set output_layout's shape to all fused ops
     // It's legal as long as fused ops don't change the shape
     for (auto& fused_prim : _impl_params->fused_desc) {
-        fused_prim.output_layout.set_partial_shape(_impl_params->get_output_layout().get_partial_shape());
+        for (size_t i = 0; i < fused_prim.output_layouts.size(); ++i) {
+            fused_prim.output_layouts[i].set_partial_shape(_impl_params->get_output_layout(i).get_partial_shape());
+        }
     }
 
     if (get_node().is_type<assign>()) {
@@ -3050,7 +3052,7 @@ bool primitive_inst::is_valid_fusion() const {
         if (fd.is_type<eltwise>() || fd.is_type<activation>()) {
             fused_eltwise_prims.push_back(fd);
         } else {
-            if (fd.is_type<reorder>() || fd.is_type<quantize>())
+            if (fd.is_type<reorder>() || fd.is_type<quantize>() || fd.is_type<dynamic_quantize>())
                 continue;
             if (fd.is_type<swiglu>()) {
                 OPENVINO_ASSERT(get_node().is_type<fully_connected>() && get_node().get_preferred_impl_type() == impl_types::ocl);
