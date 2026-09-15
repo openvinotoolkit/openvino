@@ -568,6 +568,7 @@ static const std::vector<std::string> models{
     std::string("softmax/softmax.pdmodel"),
     std::string("softmax_minus/softmax_minus.pdmodel"),
     std::string("softplus_default_params/softplus_default_params.pdmodel"),
+    std::string("softplus_beta2_threshold30/softplus_beta2_threshold30.pdmodel"),
     std::string("softshrink_default_params/softshrink_default_params.pdmodel"),
     std::string("softshrink_threshold_0.6/softshrink_threshold_0.6.pdmodel"),
     std::string("split_test1/split_test1.pdmodel"),
