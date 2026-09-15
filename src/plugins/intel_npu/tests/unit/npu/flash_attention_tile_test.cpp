@@ -499,6 +499,39 @@ TEST_F(FlashAttentionTileTest, NextStateBufferUsesFixedInitialStateWithoutSink) 
     EXPECT_FLOAT_EQ(next_state.acc->data<const float>()[0], 0.0f);
 }
 
+TEST_F(FlashAttentionTileTest, NextStateBufferAfterSinkUsesFixedInitialState) {
+    ov::Tensor initial_acc(ov::element::f32, {1, 2, 2, 4});
+    ov::Tensor initial_max(ov::element::f32, {1, 2, 2, 1});
+    ov::Tensor initial_sum(ov::element::f32, {1, 2, 2, 1});
+    auto initial_acc_impl = ov::get_tensor_impl(initial_acc);
+    auto initial_max_impl = ov::get_tensor_impl(initial_max);
+    auto initial_sum_impl = ov::get_tensor_impl(initial_sum);
+    ov::Tensor sink(ov::element::f32, {1, 2, 1, 1});
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(initial_acc_impl,
+                                                                                         initial_max_impl,
+                                                                                         initial_sum_impl,
+                                                                                         ov::get_tensor_impl(sink));
+
+    ov::npuw::runtime::host_flash_attention::HFARuntimeContext context;
+    context.initialize_state_buffers({initial_acc_impl, initial_max_impl, initial_sum_impl},
+                                     0,
+                                     "",
+                                     [](const ov::element::Type& type, const ov::Shape& shape, const std::string&) {
+                                         return ov::get_tensor_impl(ov::Tensor(type, shape));
+                                     });
+    context.prepare_next_state_buffers();
+    context.switch_buffers();
+
+    const auto& next_state = context.get_current_state_buffers();
+    for (size_t index = 0; index < next_state.max->get_size(); ++index) {
+        EXPECT_FLOAT_EQ(next_state.max->data<const float>()[index], std::numeric_limits<float>::lowest());
+    }
+    for (size_t index = 0; index < next_state.sum->get_size(); ++index) {
+        EXPECT_FLOAT_EQ(next_state.sum->data<const float>()[index], 0.0f);
+    }
+    EXPECT_FLOAT_EQ(next_state.acc->data<const float>()[0], 0.0f);
+}
+
 // ============================================================================
 // 3. GQA (Grouped Query Attention)
 // ============================================================================

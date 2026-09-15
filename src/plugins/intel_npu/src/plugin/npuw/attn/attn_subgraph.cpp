@@ -1286,6 +1286,11 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         }
 
                         if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
+                            if (attention_sink_tensor) {
+                                // Sink final tiles are synchronous, so prepare the next fixed no-sink state
+                                // before switching to it for the next invocation.
+                                state.hfa_runtime_ctx->prepare_next_state_buffers();
+                            }
                             state.hfa_runtime_ctx->switch_buffers();
                         }
                         return;
