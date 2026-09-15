@@ -13,6 +13,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/group_normalization.hpp"
@@ -21,10 +22,12 @@
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/moe_compressed.hpp"
+#include "ov_ops/rms.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
@@ -335,6 +338,204 @@ TEST_F(TransformationTestsF, EliminateScalarMulTest) {
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, EliminateScalarMulTest_ConvertBeforeNorm) {
+    double epsilon = 1.f;
+    float scale_factor = 8.f;
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
+        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+        auto convert = std::make_shared<v0::Convert>(mul, ov::element::f32);
+        auto norm_scale_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        auto norm_bias_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        auto group_norm =
+            std::make_shared<v12::GroupNormalization>(convert, norm_scale_const, norm_bias_const, 1, epsilon);
+        auto result = std::make_shared<v0::Result>(group_norm);
+
+        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::activations_scaling::EliminateScalarMul>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto convert = std::make_shared<v0::Convert>(input, ov::element::f32);
+        auto norm_scale_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        auto norm_bias_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        epsilon /= scale_factor * scale_factor;
+        auto group_norm =
+            std::make_shared<v12::GroupNormalization>(convert, norm_scale_const, norm_bias_const, 1, epsilon);
+        auto result = std::make_shared<v0::Result>(group_norm);
+
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, EliminateScalarMulTest_SharedConvertBeforeNorm) {
+    double epsilon = 1.f;
+    float scale_factor = 8.f;
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
+        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+        auto convert = std::make_shared<v0::Convert>(mul, ov::element::f32);
+        auto norm_scale_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        auto norm_bias_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        auto group_norm =
+            std::make_shared<v12::GroupNormalization>(convert, norm_scale_const, norm_bias_const, 1, epsilon);
+        auto result0 = std::make_shared<v0::Result>(group_norm);
+        auto result1 = std::make_shared<v0::Result>(convert);
+
+        model = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::activations_scaling::EliminateScalarMul>();
+    }
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto norm_convert = std::make_shared<v0::Convert>(input, ov::element::f32);
+        auto norm_scale_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        auto norm_bias_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        epsilon /= scale_factor * scale_factor;
+        auto group_norm =
+            std::make_shared<v12::GroupNormalization>(norm_convert, norm_scale_const, norm_bias_const, 1, epsilon);
+        auto result0 = std::make_shared<v0::Result>(group_norm);
+        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
+        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+        auto convert = std::make_shared<v0::Convert>(mul, ov::element::f32);
+        auto result1 = std::make_shared<v0::Result>(convert);
+
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{input});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+}
+
+TEST_F(TransformationTestsF, EliminateScalarMulTest_ScaleBelowOneIsKept) {
+    {
+        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {0.5f});
+        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+        auto convert = std::make_shared<v0::Convert>(mul, ov::element::f32);
+        auto norm_scale_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        auto norm_bias_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        auto group_norm = std::make_shared<v12::GroupNormalization>(convert, norm_scale_const, norm_bias_const, 1, 1.f);
+        auto result = std::make_shared<v0::Result>(group_norm);
+
+        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+        manager.register_pass<ov::pass::activations_scaling::EliminateScalarMul>();
+    }
+}
+
+namespace {
+constexpr size_t kBlockHidden = 16;
+
+// Convert as inserted by ConvertPrecision in front of a subgraph kept in f32
+ov::Output<ov::Node> make_f32_convert(const ov::Output<ov::Node>& x) {
+    auto convert = std::make_shared<v0::Convert>(x, ov::element::f32);
+    disable_conversion(convert, ov::element::f16);
+    disable_constant_folding(convert);
+    return convert;
+}
+
+ov::Output<ov::Node> make_rms(const ov::Output<ov::Node>& x) {
+    const auto& prec = x.get_element_type();
+    auto gamma = v0::Constant::create(prec, ov::Shape{kBlockHidden}, {1.5f});
+    return std::make_shared<ov::op::internal::RMS>(x, gamma, 1e-5, prec);
+}
+
+// RMS -> MatMul -> MatMul -> Add(residual) -> RMS; mixed: norms and residual Add kept in f32
+std::shared_ptr<ov::Model> make_residual_block(bool mixed) {
+    auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 4, kBlockHidden});
+    ov::Output<ov::Node> norm0 = make_rms(mixed ? make_f32_convert(input) : input);
+    if (mixed)
+        norm0 = std::make_shared<v0::Convert>(norm0, ov::element::f16);
+    auto weights0 = v0::Constant::create(ov::element::f16, ov::Shape{kBlockHidden, kBlockHidden}, {0.1f});
+    auto matmul0 = std::make_shared<v0::MatMul>(norm0, weights0);
+    auto weights1 = v0::Constant::create(ov::element::f16, ov::Shape{kBlockHidden, kBlockHidden}, {0.1f});
+    ov::Output<ov::Node> matmul1 = std::make_shared<v0::MatMul>(matmul0, weights1);
+    ov::Output<ov::Node> residual = input;
+    if (mixed) {
+        matmul1 = make_f32_convert(matmul1);
+        residual = make_f32_convert(residual);
+    }
+    auto add = std::make_shared<v1::Add>(residual, matmul1);
+    ov::Output<ov::Node> norm1 = make_rms(add);
+    if (mixed)
+        norm1 = std::make_shared<v0::Convert>(norm1, ov::element::f16);
+    auto result = std::make_shared<v0::Result>(norm1);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+}
+
+// scale_up Multiply in front of a norm, directly or through a Convert
+bool has_scale_up_before_norm(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ops()) {
+        if (!ov::is_type<ov::op::internal::RMS>(op))
+            continue;
+        auto src = op->get_input_node_shared_ptr(0);
+        if (ov::is_type<v0::Convert>(src))
+            src = src->get_input_node_shared_ptr(0);
+        if (!ov::is_type<v1::Multiply>(src))
+            continue;
+        for (const auto& in : src->input_values()) {
+            auto scale = ov::as_type_ptr<v0::Constant>(in.get_node_shared_ptr());
+            if (scale && ov::shape_size(scale->get_shape()) == 1 && scale->cast_vector<float>()[0] > 1.f)
+                return true;
+        }
+    }
+    return false;
+}
+
+bool has_scale_down_before_matmul(const std::shared_ptr<ov::Model>& model, float scale_factor) {
+    for (const auto& op : model->get_ops()) {
+        if (!ov::is_type<v0::MatMul>(op))
+            continue;
+        auto src = op->get_input_node_shared_ptr(0);
+        if (!ov::is_type<v1::Multiply>(src))
+            continue;
+        for (const auto& in : src->input_values()) {
+            auto scale = ov::as_type_ptr<v0::Constant>(in.get_node_shared_ptr());
+            if (scale && ov::shape_size(scale->get_shape()) == 1 &&
+                scale->cast_vector<float>()[0] == 1.f / scale_factor)
+                return true;
+        }
+    }
+    return false;
+}
+
+void check_accuracy(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::Model>& model_ref) {
+    auto comparator = FunctionsComparator::no_default().enable(FunctionsComparator::CmpValues::ACCURACY);
+    comparator.set_accuracy_thresholds(0.05f, 0.05f);
+    auto res = comparator.compare(model, model_ref);
+    ASSERT_TRUE(res.valid) << res.message;
+}
+}  // namespace
+
+TEST(TransformationTests, ActivationsScalingDisabled) {
+    for (float scale_factor : {0.f, -1.f}) {
+        auto model = make_residual_block(true);
+        auto model_ref = model->clone();
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::ActivationsScaling>(scale_factor, ov::element::f16);
+        manager.run_passes(model);
+
+        auto res = FunctionsComparator::with_default().compare(model, model_ref);
+        ASSERT_TRUE(res.valid) << res.message;
+    }
+}
+
+TEST(TransformationTests, ActivationsScalingResidualStream) {
+    for (bool mixed : {false, true}) {
+        auto model = make_residual_block(mixed);
+        auto model_ref = model->clone();
+
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::ActivationsScaling>(8.f, ov::element::f16);
+        manager.run_passes(model);
+
+        ASSERT_TRUE(has_scale_down_before_matmul(model, 8.f)) << "mixed=" << mixed;
+        ASSERT_FALSE(has_scale_up_before_norm(model)) << "mixed=" << mixed;
+        check_accuracy(model, model_ref);
+    }
 }
 
 TEST_F(TransformationTestsF, MoveDownScalarMulTest) {

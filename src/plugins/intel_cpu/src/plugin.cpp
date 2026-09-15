@@ -528,6 +528,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
             engConfig.fcDynamicQuantizationGroupSize);
     }
 
+    if (name == ov::hint::activations_scale_factor) {
+        return static_cast<decltype(ov::hint::activations_scale_factor)::value_type>(engConfig.activationsScaleFactor);
+    }
+
     if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(engConfig.kvCachePrecision);
     }
@@ -604,6 +608,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
                                                    RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
                                                    RW_property(ov::intel_cpu::tbb_partitioner.name()),
                                                    RW_property(ov::hint::dynamic_quantization_group_size.name()),
+                                                   RW_property(ov::hint::activations_scale_factor.name()),
                                                    RW_property(ov::hint::kv_cache_precision.name()),
                                                    RW_property(ov::key_cache_precision.name()),
                                                    RW_property(ov::value_cache_precision.name()),

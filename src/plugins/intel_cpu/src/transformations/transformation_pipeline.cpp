@@ -206,6 +206,7 @@
 #    include "openvino/op/subtract.hpp"
 #    include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
 #    include "snippets/pass/common_optimizations.hpp"
+#    include "transformations/common_optimizations/activations_scaling.hpp"
 #    include "transformations/common_optimizations/rms_fusion.hpp"
 #    include "transformations/common_optimizations/strided_slice_reshape_concat_fusion.hpp"
 #    include "transformations/cpu_opset/common/op/sdpa.hpp"
@@ -1193,6 +1194,15 @@ void Transformations::PostLpt() {
                           ov::pass::RMSFusion,
                           false /* force_tail_convert */,
                           enable_without_gamma);
+#if defined(OPENVINO_ARCH_X86_64)
+    // before DecomposeRMSNorm: scale_up multiplies are dropped only in front of fused RMS
+    if (config.inferencePrecision == ov::element::f16 && config.activationsScaleFactor > 0.F) {
+        CPU_REGISTER_PASS_X64(postLPTPassManager,
+                              ov::pass::ActivationsScaling,
+                              config.activationsScaleFactor,
+                              config.inferencePrecision);
+    }
+#endif  // OPENVINO_ARCH_X86_64
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::intel_cpu::DecomposeRMSNorm);
     CPU_SET_CALLBACK_X64(
         postLPTPassManager,

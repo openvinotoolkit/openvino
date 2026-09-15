@@ -6,7 +6,9 @@
 
 #include <memory>
 
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -29,6 +31,18 @@ class TRANSFORMATIONS_API MoveDownScalarMul;
 // This feature is controlled by ov::hint::activations_scale_factor.
 // For example, when this property is set as 16, activations are divided by 16.
 // If ov::hint::activations_scale_factor is less than or equal to zero, it is disabled.
+
+// Adds scale_down/scale_up layers around Conv/MatMul and moves the scale_up layers down the graph
+class ov::pass::ActivationsScaling : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("ActivationsScaling");
+    ActivationsScaling(float scale_factor, ov::element::Type scaled_prec);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+
+private:
+    float m_scale_factor;
+    ov::element::Type m_scaled_prec;
+};
 
 // Add scale_down and scale_up layers around Convolution and MatMul nodes
 // Conv/MatMul
