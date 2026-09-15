@@ -5,7 +5,9 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
+#include <limits>
 
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_iterator.hpp"
@@ -34,8 +36,43 @@ constexpr bool is_nf4_iterator() {
 namespace reference {
 namespace detail {
 
+// float16/bfloat16 are class types (implicit operator float()), not std::is_floating_point,
+// but are equally subject to [conv.fpint] UB when cast to an integral type.
+template <typename T>
+struct is_floating_point_like
+    : std::integral_constant<bool,
+                             std::is_floating_point<T>::value || std::is_same<T, float16>::value ||
+                                 std::is_same<T, bfloat16>::value> {};
+
+// char has its own overload below; bool follows [conv.bool] (zero -> false, else -> true,
+// including NaN/Inf -- never UB), so it must not go through the range-check overload below
+// (doing so also trips MSVC C4804 on relational comparisons with TO=bool).
+template <typename TO>
+struct is_saturating_integral_target
+    : std::integral_constant<bool,
+                             std::is_integral<TO>::value && !std::is_same<TO, char>::value &&
+                                 !std::is_same<TO, bool>::value> {};
+
 template <typename TI, typename TO>
-constexpr typename std::enable_if<!std::is_same<TO, char>::value, TO>::type convert(const TI v) {
+constexpr typename std::enable_if<!std::is_same<TO, char>::value &&
+                                      !(is_saturating_integral_target<TO>::value && is_floating_point_like<TI>::value),
+                                  TO>::type
+convert(const TI v) {
+    return static_cast<TO>(v);
+}
+
+// [conv.fpint]: casting NaN, +-Inf, or an out-of-range finite value to an integral type is UB.
+// NaN has no ordering (comparisons are always false) so it needs an explicit check; +-Inf and
+// out-of-range finite values fail the range checks below the same way and saturate naturally.
+template <typename TI, typename TO>
+typename std::enable_if<is_saturating_integral_target<TO>::value && is_floating_point_like<TI>::value, TO>::type
+convert(const TI v) {
+    if (std::isnan(v))
+        return static_cast<TO>(0);
+    if (v < std::numeric_limits<TO>::lowest())
+        return std::numeric_limits<TO>::lowest();
+    if (v > std::numeric_limits<TO>::max())
+        return std::numeric_limits<TO>::max();
     return static_cast<TO>(v);
 }
 

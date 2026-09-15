@@ -887,12 +887,16 @@ void convert<float, float16>(const float* arg, float16* out, size_t count) {
 
 template <>
 void convert<float, int8_t>(const float* arg, int8_t* out, size_t count) {
-    convert_impl<NoClamp>(arg, out, count);
+    // No clamped JIT kernel exists for float->int8; convert_impl<Clamp<...>> would silently
+    // select the empty jit_convert_vec<..., clamp=true> primary template. Bypass the JIT
+    // dispatch and call the scalar path directly (same pattern as convert<int32_t, float16>).
+    Converter<float, int8_t>::apply<Clamp<float, int8_t>>(arg, out, count);
 }
 
 template <>
 void convert<float16, int8_t>(const float16* arg, int8_t* out, size_t count) {
-    convert_impl<NoClamp>(arg, out, count);
+    // See convert<float, int8_t> above.
+    Converter<float16, int8_t>::apply<Clamp<float16, int8_t>>(arg, out, count);
 }
 
 template <>
