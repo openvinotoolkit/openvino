@@ -92,10 +92,12 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
     output->set_friendly_name("NCHW_output");
     output->get_output_tensor(0).set_names({"NCHW_output:0"});
 
+    // The output is always NCHW-shaped (DepthToSpace produces NCHW). Tagging the result with an N-carrying
+    // layout lets the compiler's batch auto-detection collect a batch coefficient for the output, which is
+    // required (together with the input) to employ the debatch/host_pipeline method for the dynamic batch.
+    // Without it the dynamic N reaches the NCE pipeline and crashes DepthToSpace/SplitNCEOpsOntoWorkloads.
     auto result = std::make_shared<ov::op::v0::Result>(output);
-    if (!nhwcLayout) {
-        result->set_layout("NCHW");
-    }
+    result->set_layout("NCHW");
 
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "ESPCN_x2_gh");
 }
