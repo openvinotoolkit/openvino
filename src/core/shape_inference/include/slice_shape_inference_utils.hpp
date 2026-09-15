@@ -170,8 +170,6 @@ TDim make_dim(const TDim& dim, const Bounds& start, const Bounds& stop, int64_t 
  * True only if the step is +/-1 and start/stop cover the whole dimension for every length within `dim` and every
  * start/stop value within their bounds; interval equality is not enough.
  *
- * \tparam TDim   Type of dimension.
- *
  * \param dim    Input dimension.
  * \param start  Slice start bounds.
  * \param stop   Slice stop bounds.
@@ -179,28 +177,33 @@ TDim make_dim(const TDim& dim, const Bounds& start, const Bounds& stop, int64_t 
  *
  * \return True if the slice is size preserving, otherwise false.
  */
-template <class TDim>
-bool is_size_preserving_slice(const TDim& dim, const Bounds& start, const Bounds& stop, const int64_t step) {
+inline bool is_size_preserving_slice(const ov::Dimension& dim,
+                                     const Bounds& start,
+                                     const Bounds& stop,
+                                     const int64_t step) {
     if (step != 1 && step != -1) {
+        // |step| >= 2 gives ceil(L / |step|) < L for every length L >= 2, so the size can never be preserved
         return false;
     }
-    const auto dim_max = ov::util::dim::value_convert(dim.get_max_length());
-    const auto is_inf = ov::util::dim::is_inf_bound(dim_max);
-    if (step > 0) {
-        // start clips to 0 and stop to the length for every length within the dimension
-        const auto start_at_begin = (start.first == 0 && start.second == 0) ||
-                                    (ov::util::is_min(start.first) && ov::util::is_min(start.second)) ||
-                                    (!is_inf && start.second < 0 && start.second <= -dim_max);
-        const auto stop_at_end =
-            (ov::util::is_max(stop.first) && ov::util::is_max(stop.second)) || (!is_inf && stop.first >= dim_max);
+
+    // The max length of an unbounded dimension is Interval::s_max (INT64_MAX), same normalization make_dim uses via
+    // value_convert; a negative start/stop bound b means index L + b for a length L within the dimension, so the
+    // worst case (start.second, the largest possible start; stop.second, the smallest magnitude negative stop) is
+    // the one that must still clip for every L up to max_length.
+    const auto max_length = dim.get_interval().get_max_val();
+    if (step == 1) {
+        // start clips to the first element for every L: start == 0, or start.second <= -max_length (so
+        // start.second + L <= -max_length + L <= 0 for every L <= max_length);
+        // stop clips to the last element (or past it) for every L: stop.first >= max_length.
+        const auto start_at_begin = start == Bounds{0, 0} || start.second <= -max_length;
+        const auto stop_at_end = stop.first >= max_length;
         return start_at_begin && stop_at_end;
     }
-    // start clips to the last index and stop to before the first one for every length within the dimension
-    const auto start_at_last = (ov::util::is_max(start.first) && ov::util::is_max(start.second)) ||
-                               (start.first == -1 && start.second == -1) ||
-                               (!is_inf && start.first >= 0 && start.first >= dim_max - 1);
-    const auto stop_before_begin =
-        (ov::util::is_min(stop.first) && ov::util::is_min(stop.second)) || (!is_inf && stop.second <= -dim_max - 1);
+    // start clips to the last element for every L: start == -1, or start.first >= max_length - 1 (so
+    // start.first >= L - 1 for every L <= max_length);
+    // stop clips to before the first element for every L: stop.second <= -max_length - 1.
+    const auto start_at_last = start == Bounds{-1, -1} || start.first >= max_length - 1;
+    const auto stop_before_begin = stop.second <= -max_length - 1;
     return start_at_last && stop_before_begin;
 }
 
