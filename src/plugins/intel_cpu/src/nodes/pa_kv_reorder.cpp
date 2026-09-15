@@ -4,7 +4,6 @@
 
 #include "pa_kv_reorder.hpp"
 
-#include <cstring>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <string>
@@ -39,8 +38,8 @@ bool PaKVReorder::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
             return false;
         }
 
-        if (op->get_output_size() != 1) {
-            errorMessage = "PaKVReorder expects 1 output.";
+        if (op->get_output_size() != 2) {
+            errorMessage = "PaKVReorder expects 2 outputs.";
             return false;
         }
     } catch (...) {
@@ -75,14 +74,15 @@ void PaKVReorder::initSupportedPrimitiveDescriptors() {
     const auto key_cache_precision = getOriginalInputPrecisionAtPort(0);
     const auto value_cache_precision = getOriginalInputPrecisionAtPort(1);
 
-    addSupportedPrimDesc({{LayoutType::ncsp, key_cache_precision},
-                          {LayoutType::ncsp, value_cache_precision},
-                          {LayoutType::ncsp, ov::element::i32},
-                          {LayoutType::ncsp, ov::element::i32},
-                          {LayoutType::ncsp, ov::element::i32},
-                          {LayoutType::ncsp, ov::element::i32}},
-                         {{LayoutType::ncsp, ov::element::u8}},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc(
+        {{LayoutType::ncsp, key_cache_precision, false, 0},
+         {LayoutType::ncsp, value_cache_precision, false, 1},
+         {LayoutType::ncsp, ov::element::i32},
+         {LayoutType::ncsp, ov::element::i32},
+         {LayoutType::ncsp, ov::element::i32},
+         {LayoutType::ncsp, ov::element::i32}},
+        {{LayoutType::ncsp, key_cache_precision, false, 0}, {LayoutType::ncsp, value_cache_precision, false, 1}},
+        impl_desc_type::ref_any);
 }
 
 void PaKVReorder::createPrimitive() {
@@ -117,10 +117,6 @@ void PaKVReorder::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(block_indices_begins.size(0) == block_update_indices_begins.size(0),
                     "expects block_indices_begins and block_update_indices_begins to have same length");
 
-    // The KV cache tensors are modified in-place: PaKVReorder rewrites tokens within key_cache and
-    // value_cache and produces only a dummy [1] u8 status output. This violates the usual immutable-input
-    // contract and is a special case intended exclusively for the GenAI paged-attention backend, where the
-    // cache is owned by the runtime and the reorder is applied between main/draft decoding steps.
     ov::Extensions::Cpu::XARCH::reorder_kv_cache(key_cache,
                                                  value_cache,
                                                  block_indices,
@@ -130,19 +126,6 @@ void PaKVReorder::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                  m_key_by_channel,
                                                  m_value_by_channel,
                                                  context->getCpuParallel());
-
-    if (getChildEdges().empty()) {
-        return;
-    }
-
-    auto* out = getDstDataAtPort(0);
-    const auto& outputMemory = getDstMemoryAtPort(0);
-    const auto& outputShape = outputMemory->getShape();
-    if (out != nullptr && outputShape.isStatic() && !outputShape.hasZeroDims()) {
-        const auto outputSize = outputMemory->getDesc().getCurrentMemSize();
-        CPU_NODE_ASSERT(outputSize != MemoryDesc::UNDEFINED_SIZE, "KV output tensor size is undefined");
-        std::memset(out, 0, outputSize);
-    }
 }
 
 void PaKVReorder::executeDynamicImpl(const dnnl::stream& strm) {
