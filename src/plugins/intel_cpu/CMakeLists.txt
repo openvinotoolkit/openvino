@@ -270,6 +270,7 @@ endif()
 
 if(RISCV64)
     # Set `XBYAK_RISCV_V=1` to compile Xbyak-code for RVV-related instructions
+    # Set `XBYAK_RISCV_VSETV_DEFAULT_OLD=0` to use the new vsetvli API without default arguments
     target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1 XBYAK_RISCV_VSETV_DEFAULT_OLD=0)
     target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
     target_include_directories(${TARGET_NAME} SYSTEM INTERFACE $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)

@@ -53,15 +53,18 @@ struct ScatterUpdateImplementationManager : public ImplementationManager {
         const auto& in1_layout = node.get_input_layout(1);
         const auto& out_layout = node.get_output_layout(0);
         if (m_shape_type == shape_types::dynamic_shape) {
-            if (!one_of(in0_layout.format, supported_dynamic_fmts) || !one_of(out_layout.format, supported_dynamic_fmts))
+            if (!one_of(in0_layout.format, supported_dynamic_fmts) || !one_of(out_layout.format, supported_dynamic_fmts)) {
                 return false;
+            }
         } else {
-            if (!one_of(in0_layout.format, supported_static_fmts) || !one_of(out_layout.format, supported_static_fmts))
+            if (!one_of(in0_layout.format, supported_static_fmts) || !one_of(out_layout.format, supported_static_fmts)) {
                 return false;
+            }
         }
 
-        if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types))
+        if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types)) {
             return false;
+        }
 
         return one_of(out_layout.data_type, supported_out_types);
     }

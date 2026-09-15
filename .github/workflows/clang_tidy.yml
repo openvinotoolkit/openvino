@@ -123,6 +123,7 @@ jobs:
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
       runner: aks-linux-16-cores-32gb
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy
@@ -136,6 +137,7 @@ jobs:
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
       runner: aks-linux-16-cores-32gb-arm
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker_arm.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       cmake-generator: 'Unix Makefiles'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_aarch64
@@ -151,6 +153,7 @@ jobs:
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
       runner: aks-linux-16-cores-32gb
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       cmake-generator: 'Unix Makefiles'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_riscv64
@@ -167,6 +170,7 @@ jobs:
     uses: ./.github/workflows/job_clang_tidy.yml
     with:
       runner: aks-linux-16-cores-32gb
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       cmake-generator: 'Ninja Multi-Config'
       sccache-prefix: ubuntu24_x86_64_Release_itt_faster_build_clang_tidy_gpu

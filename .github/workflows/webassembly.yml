@@ -110,6 +110,9 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: webassembly_Release
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
@@ -141,7 +144,7 @@ jobs:
             -B ${OPENVINO_BUILD_DIR}
 
       - name: cmake --build - build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel $(nproc)
+        run: cmake --build ${OPENVINO_BUILD_DIR} --target hello_query_device --parallel ${CMAKE_BUILD_PARALLEL_LEVEL}
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
