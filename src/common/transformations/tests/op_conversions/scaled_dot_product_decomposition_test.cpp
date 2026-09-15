@@ -12,12 +12,14 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/equal.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_not.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_max.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -304,10 +306,12 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
 
     Output<Node> mask;
     Output<Node> atten_mask;
+    bool has_bool_mask = false;
     if (!casual) {
         mask = attention_mask;
         if (mask.get_element_type() == element::boolean) {
             atten_mask = std::make_shared<v1::Select>(mask, zero_f, minus_inf);
+            has_bool_mask = true;
         } else {
             atten_mask = mask;
         }
@@ -328,6 +332,14 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
     }
     scaled_atten = std::make_shared<v1::Add>(scaled_atten, atten_mask);
 
+    Output<Node> fully_masked_rows;
+    const bool needs_fully_masked_guard = has_bool_mask && !sinks;
+    if (needs_fully_masked_guard) {
+        const auto reduce_axis = v0::Constant::create(element::i64, Shape{1}, {-1});
+        const auto row_max = std::make_shared<v1::ReduceMax>(scaled_atten, reduce_axis, true);
+        fully_masked_rows = std::make_shared<v1::Equal>(row_max, minus_inf);
+    }
+
     if (sinks) {
         auto minus_two = v0::Constant::create(element::i32, Shape{1}, {-2});
         auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
@@ -347,6 +359,10 @@ const std::shared_ptr<ov::Node> scaled_dot_product_attention_decomposition(std::
         scaled_atten = std::make_shared<v8::Slice>(scaled_atten, zero_i, prev_seq_len, one_i, minus_one);
     } else {
         scaled_atten = std::make_shared<v8::Softmax>(scaled_atten, -1);
+    }
+
+    if (needs_fully_masked_guard) {
+        scaled_atten = std::make_shared<v1::Select>(fully_masked_rows, zero_f, scaled_atten);
     }
 
     const std::shared_ptr<ov::Node> result = std::make_shared<v0::MatMul>(scaled_atten, value);
@@ -393,6 +409,52 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_PreScaledQue
             scaled_dot_product_attention_decomposition(query_prescaled, key, value, attention_mask, sdpa_scale, casual);
         model_ref =
             std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{raw_query, key, value, attention_mask});
+    }
+}
+
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionBooleanMaskAddsFullyMaskedGuard) {
+    const PartialShape query_shape{1, 1, 3, 4};
+    const PartialShape key_shape{1, 1, 3, 4};
+    const PartialShape value_shape{1, 1, 3, 4};
+    const PartialShape attention_mask_shape{1, 1, 3, 3};
+
+    const auto query = std::make_shared<v0::Parameter>(element::f32, query_shape);
+    const auto key = std::make_shared<v0::Parameter>(element::f32, key_shape);
+    const auto value = std::make_shared<v0::Parameter>(element::f32, value_shape);
+    const auto attention_mask = std::make_shared<v0::Parameter>(element::boolean, attention_mask_shape);
+    const auto casual = false;
+    {
+        const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query, key, value, attention_mask, casual);
+        model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, attention_mask});
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+    }
+    {
+        const auto ref =
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, nullptr, casual);
+        model_ref = std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{query, key, value, attention_mask});
+    }
+}
+
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionFloatMaskSkipsFullyMaskedGuard) {
+    const PartialShape query_shape{1, 1, 3, 4};
+    const PartialShape key_shape{1, 1, 3, 4};
+    const PartialShape value_shape{1, 1, 3, 4};
+    const PartialShape attention_mask_shape{1, 1, 3, 3};
+
+    const auto query = std::make_shared<v0::Parameter>(element::f32, query_shape);
+    const auto key = std::make_shared<v0::Parameter>(element::f32, key_shape);
+    const auto value = std::make_shared<v0::Parameter>(element::f32, value_shape);
+    const auto attention_mask = std::make_shared<v0::Parameter>(element::f32, attention_mask_shape);
+    const auto casual = false;
+    {
+        const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query, key, value, attention_mask, casual);
+        model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, attention_mask});
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+    }
+    {
+        const auto ref =
+            scaled_dot_product_attention_decomposition(query, key, value, attention_mask, nullptr, casual);
+        model_ref = std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{query, key, value, attention_mask});
     }
 }
 
