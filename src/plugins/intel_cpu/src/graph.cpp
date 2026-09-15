@@ -62,6 +62,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/assign.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/runtime/exception.hpp"
 #include "openvino/runtime/itensor.hpp"
@@ -75,6 +76,7 @@
 #include "utils/node_dumper.h"
 #include "utils/verbose.h"
 #include "weights_cache.hpp"
+#include "weights_prefetch.hpp"
 #ifdef CPU_DEBUG_CAPS
 #    include "openvino/core/partial_shape.hpp"
 #endif
@@ -225,7 +227,22 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     inputNodes.resize(model->get_parameters().size());
     outputNodes.resize(model->get_results().size());
 
-    for (const auto& op : model->get_ordered_ops()) {
+    const auto orderedOps = model->get_ordered_ops();
+
+    // OV_CPU_DISABLE_WEIGHTS_PREFETCH=1 turns this off for A/B measurements.
+    static const bool disable_weights_prefetch = std::getenv("OV_CPU_DISABLE_WEIGHTS_PREFETCH") != nullptr;
+    if (const auto& weightsPrefetch = m_context->getWeightsPrefetch(); weightsPrefetch && !disable_weights_prefetch) {
+        // Collected here only to reuse the orderedOps walk; the prefetch itself is deferred to the first infer.
+        std::vector<std::shared_ptr<const op::v0::Constant>> constants;
+        for (const auto& op : orderedOps) {
+            if (auto constant = ov::as_type_ptr<op::v0::Constant>(op)) {
+                constants.push_back(std::move(constant));
+            }
+        }
+        weightsPrefetch->registerConstants(constants);
+    }
+
+    for (const auto& op : orderedOps) {
         const NodePtr node = createNode(op);
 
         AddNode(node);
@@ -1657,6 +1674,10 @@ static int GetNumaNodeId([[maybe_unused]] const GraphContext::CPtr& context) {
 void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
     const int numaId = GetNumaNodeId(m_context);
+
+    if (const auto& weightsPrefetch = m_context->getWeightsPrefetch()) {
+        weightsPrefetch->prefetchOnce();
+    }
 
     m_context->allocateMemory();
 

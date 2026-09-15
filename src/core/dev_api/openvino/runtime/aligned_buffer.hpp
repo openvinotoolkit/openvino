@@ -77,11 +77,18 @@ public:
     /// \brief Ensures the buffer is available and populated with actual data.
     virtual void hint_prefetch() const;
 
+    /// \brief Asynchronous variant of hint_prefetch(): starts populating the buffer in the background and
+    /// returns immediately. Background work is joined before the underlying data source is released.
+    virtual void hint_prefetch_async() const;
+
 protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
     static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
 
     static void invoke_hint_prefetch(const AlignedBuffer& buffer);
+
+    virtual void hint_prefetch_async(size_t offset, size_t size) const;
+    static void invoke_hint_prefetch_async(const AlignedBuffer& buffer, size_t offset, size_t size);
 
     char* m_aligned_buffer;
     size_t m_byte_size;
