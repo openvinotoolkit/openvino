@@ -20,6 +20,7 @@
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "jit_kernel_emit.hpp"
 #include "jit_kernel_ir.hpp"
 #include "jit_kernel_target.hpp"
 #include "openvino/core/type/bfloat16.hpp"
@@ -748,7 +749,7 @@ private:
 
 }  // namespace internal
 
-struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
+struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t, public arch_emitter {
     using reg_indices = std::vector<int>;
     template <typename T>
     using reg_traits = internal::reg_traits<T>;
@@ -1097,15 +1098,36 @@ public:
 
     // IR-mode conditional: records then/else bodies as nested regions.
     // Condition must be set via ir_cmp() before calling this.
-    // `jcc` is the jump type for the ELSE case (e.g. jge, jne).
+    // `skip_on` is the condition that skips the THEN body.
     template <typename ThenFn, typename ElseFn>
-    void ir_if(void (Xbyak::CodeGenerator::*jcc)(const Xbyak::Label&, Xbyak::CodeGenerator::LabelType),
-               ThenFn&& then_fn, ElseFn&& else_fn);
+    void ir_if(cond skip_on, ThenFn&& then_fn, ElseFn&& else_fn);
 
     // Overload without else branch.
     template <typename ThenFn>
-    void ir_if(void (Xbyak::CodeGenerator::*jcc)(const Xbyak::Label&, Xbyak::CodeGenerator::LabelType),
-               ThenFn&& then_fn);
+    void ir_if(cond skip_on, ThenFn&& then_fn);
+
+    // ── arch_emitter: the x86 realization ─────────────────────────────
+    // One instruction (or one short expansion) per portable operation.
+    // Nothing here decides anything — the IR shape of each operation is
+    // fixed by the portable caller; see jit_kernel_emit.hpp.
+
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_copy() const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_set(std::uint64_t imm) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_add_imm(std::uint64_t imm) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_shr_imm(unsigned shift) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_and_imm(std::uint64_t imm) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_imul_imm(std::uint64_t imm) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_bump(std::int64_t delta) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_offset(std::size_t imm) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_cmp_imm(std::uint64_t imm) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_cmp_reg() const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn clamped_len(std::size_t lanes) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn lane_mask_bits(std::size_t lanes) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn mask_from_bits(std::size_t lanes) const override;
+    [[nodiscard]] label_ref make_label() const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn place_label(const label_ref& at) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn branch(cond on, const label_ref& to) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn branch_always(const label_ref& to) const override;
 
     void uni_vpermps(const Xbyak::Xmm& x1, const uint8_t mask[4], const Xbyak::Operand& op);
     void uni_vpermps(const Xbyak::Ymm& y1, const uint8_t mask[8], const Xbyak::Operand& op);
@@ -1700,9 +1722,7 @@ void jit_kernel::foreach (const B& begin,
     } else {
         auto bvid = begin.vid();
         if (bvid != jit_kernel_ir::invalid_value) {
-            idx_vid = ir_def_gpr({bvid}, [this](const jit_kernel_ir::EmitContext& ctx) {
-                mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
-            }, "loop_idx");
+            idx_vid = ir_def_gpr({bvid}, gpr_copy(), "loop_idx");
         } else {
             auto bi = static_cast<std::uint32_t>(begin.reg().getIdx());
             idx_vid = ir_def_gpr({}, [this, bi](const jit_kernel_ir::EmitContext& ctx) {
@@ -1717,10 +1737,7 @@ void jit_kernel::foreach (const B& begin,
     // Build compare closure. ctx.reads[0] = idx, ctx.reads[1] = end (if IR).
     std::function<void(const jit_kernel_ir::EmitContext&)> cmp_fn;
     if constexpr (std::is_integral_v<std::decay_t<E>>) {
-        auto end_val = static_cast<size_t>(end);
-        cmp_fn = [this, end_val](const jit_kernel_ir::EmitContext& ctx) {
-            cmp(Reg64(ctx.reads[0].idx), end_val);
-        };
+        cmp_fn = gpr_cmp_imm(static_cast<size_t>(end));
     } else if constexpr (std::is_base_of_v<Xbyak::Reg, std::decay_t<E>>) {
         auto end_reg_idx = end.getIdx();
         cmp_fn = [this, end_reg_idx](const jit_kernel_ir::EmitContext& ctx) {
@@ -1730,9 +1747,7 @@ void jit_kernel::foreach (const B& begin,
         auto evid = end.vid();
         if (evid != jit_kernel_ir::invalid_value) {
             header_reads.push_back(evid);
-            cmp_fn = [this](const jit_kernel_ir::EmitContext& ctx) {
-                cmp(Reg64(ctx.reads[0].idx), Reg64(ctx.reads[1].idx));
-            };
+            cmp_fn = gpr_cmp_reg();
         } else {
             auto end_reg_idx = static_cast<std::uint32_t>(end.reg().getIdx());
             cmp_fn = [this, end_reg_idx](const jit_kernel_ir::EmitContext& ctx) {
@@ -1741,30 +1756,34 @@ void jit_kernel::foreach (const B& begin,
         }
     }
 
-    auto loop_label = std::make_shared<Xbyak::Label>();
-    auto exit_label = std::make_shared<Xbyak::Label>();
+    auto loop_label = make_label();
+    auto exit_label = make_label();
     auto step_val = static_cast<size_t>(step);
     auto idx_var = variable<size_t>(*this, idx_vid);
 
     _ir->loop(
         std::move(header_reads),
-        // Header: L(loop); cmp(idx, end); jge(exit)
-        [this, loop_label, exit_label, cmp_fn](const jit_kernel_ir::EmitContext& ctx) {
-            L(*loop_label);
+        // Header: place(loop); cmp(idx, end); branch(>=, exit)
+        [mark = place_label(loop_label), cmp_fn, leave = branch(cond::greater_equal, exit_label)](
+            const jit_kernel_ir::EmitContext& ctx) {
+            mark(ctx);
             cmp_fn(ctx);
-            jge(*exit_label, Xbyak::CodeGenerator::T_NEAR);
+            leave(ctx);
         },
         // Body builder
         [&]() {
             fn(idx_var);
 
-            // Footer: add(idx, step); jmp(loop); L(exit)
-            _ir->use({idx_vid}, [this, loop_label, exit_label, step_val](
-                                    const jit_kernel_ir::EmitContext& ctx) {
-                add(Reg64(ctx.reads[0].idx), step_val);
-                jmp(*loop_label, Xbyak::CodeGenerator::T_NEAR);
-                L(*exit_label);
-            }, "loop_footer");
+            // Footer: idx += step; branch(loop); place(exit)
+            _ir->use({idx_vid},
+                     [bump = gpr_bump(static_cast<std::int64_t>(step_val)),
+                      again = branch_always(loop_label), mark = place_label(exit_label)](
+                         const jit_kernel_ir::EmitContext& ctx) {
+                         bump(ctx);
+                         again(ctx);
+                         mark(ctx);
+                     },
+                     "loop_footer");
         });
 }
 
@@ -2117,10 +2136,7 @@ jit_kernel_ir::value_id jit_kernel::ir_offset_ptr(const variable<PtrT>& base,
     if (byte_offset == 0) {
         return pvid;
     }
-    return ir_def_gpr({pvid}, [this, byte_offset](const jit_kernel_ir::EmitContext& ctx) {
-        lea(Xbyak::Reg64(ctx.def->idx),
-            address_frame(sizeof(size_t))[Xbyak::Reg64(ctx.reads[0].idx) + byte_offset]);
-    }, "offset_ptr");
+    return ir_def_gpr({pvid}, gpr_offset(byte_offset), "offset_ptr");
 }
 
 template <size_t N, typename PtrT>
@@ -2425,15 +2441,11 @@ template <size_t N>
 void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
                                     const std::function<void(const vlen&)>& fn,
                                     size_t unroll) {
-    using namespace Xbyak;
-
     auto tc_vid = total_count.vid();
     OPENVINO_ASSERT(tc_vid != jit_kernel_ir::invalid_value,
                     "foreach_predicated: count is not an IR value (call arg() after begin_ir())");
 
-    auto remaining_vid = ir_def_gpr({tc_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
-        mov(Reg64(ctx.def->idx), Reg64(ctx.reads[0].idx));
-    }, "remaining");
+    auto remaining_vid = ir_def_gpr({tc_vid}, gpr_copy(), "remaining");
 
     auto remaining_var = variable<size_t>(*this, remaining_vid);
     auto iter_count_var = ir_shr(ir_add(remaining_var, N * unroll - 1),
@@ -2444,14 +2456,13 @@ void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
             // Active length of this iteration: min(remaining, N). Consumers
             // that cannot take a predicate (interleaved stores on x86) need
             // the clamped count, not the remaining total.
-            auto active_vid = _ir->def_early_clobber({remaining_vid},
-                [this](const jit_kernel_ir::EmitContext& ctx) {
-                    auto len = Reg64(ctx.def->idx);
-                    auto rem = Reg64(ctx.reads[0].idx);
-                    mov(len, N);
-                    cmp(rem, N);
-                    cmovb(len, rem);   // remaining < N on the final iteration
-                }, "active_len", jit_kernel_ir::RegisterClass::GPR);
+            //
+            // Early-clobber: the expansion writes its destination before
+            // consuming the count, which dies here, so the allocator must
+            // not hand it the count's register.
+            auto active_vid = _ir->def_early_clobber({remaining_vid}, clamped_len(N),
+                                                     "active_len",
+                                                     jit_kernel_ir::RegisterClass::GPR);
 
             // The predicate is materialized once per iteration and passed
             // to every access; on SVE this is whilelt, on RVV the loop
@@ -2460,9 +2471,7 @@ void jit_kernel::foreach_predicated(const variable<size_t>& total_count,
             auto mask = ir_active_lane_mask<N>(variable<size_t>(*this, active_vid));
             fn(vlen::predicated(mask, active_vid));
 
-            ir_use({remaining_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
-                sub(Reg64(ctx.reads[0].idx), N);
-            }, "remaining_dec");
+            ir_use({remaining_vid}, gpr_bump(-static_cast<std::int64_t>(N)), "remaining_dec");
         }
     });
 }
@@ -2487,7 +2496,7 @@ void jit_kernel::foreach_with_epilogue(const variable<size_t>& width,
     });
 
     ir_cmp(tail_count, size_t{0});
-    ir_if(&CodeGenerator::je, [&]() {
+    ir_if(cond::equal, [&]() {
         const lane_mask_scope masks(*this);
         body(vlen::elements(tail_count.vid(), /*terminal=*/true));
     });
@@ -2501,9 +2510,7 @@ void jit_kernel::ir_advance(const variable<PtrT>& ptr, size_t bytes, const vlen&
     auto pvid = ptr.vid();
     OPENVINO_ASSERT(pvid != jit_kernel_ir::invalid_value,
                     "ir_advance: pointer is not an IR value (call arg() after begin_ir())");
-    ir_use({pvid}, [this, bytes](const jit_kernel_ir::EmitContext& ctx) {
-        add(Xbyak::Reg64(ctx.reads[0].idx), bytes);
-    }, "ptr_advance");
+    ir_use({pvid}, gpr_bump(static_cast<std::int64_t>(bytes)), "ptr_advance");
 }
 
 // ── ir_ptr overloads ──────────────────────────────────────────────────
@@ -2647,7 +2654,6 @@ jit_kernel::variable<float[N]> jit_kernel::ir_broadcast(const variable<PtrT>& pt
 // predicate are allocated rather than borrowed.
 template <size_t N>
 jit_kernel_ir::value_id jit_kernel::ir_active_lane_mask(const variable<size_t>& count) {
-    using namespace Xbyak;
     static_assert(N <= 64, "active lane mask supports up to 64 lanes");
 
     auto count_vid = count.vid();
@@ -2660,38 +2666,15 @@ jit_kernel_ir::value_id jit_kernel::ir_active_lane_mask(const variable<size_t>& 
         return cached->second;
     }
 
-    // Early clobber: the sequence zeroes the destination before reading
+    // Early clobber: the expansion writes its destination before reading
     // the count, so the destination must not be the count's register. The
     // allocator would otherwise be free to reuse it — the count often dies
     // at this op.
-    auto bits_vid = _ir->def_early_clobber({count_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
-        auto bits = Reg64(ctx.def->idx);
-        auto cnt = Reg64(ctx.reads[0].idx);
-        Label all_lanes;
-        Label done;
+    auto bits_vid = _ir->def_early_clobber({count_vid}, lane_mask_bits(N),
+                                           "lane_mask_bits",
+                                           jit_kernel_ir::RegisterClass::GPR);
 
-        cmp(cnt, N);
-        jge(all_lanes, CodeGenerator::T_NEAR);
-        // (1 << count) - 1; count == 0 yields 0, which is what we want.
-        xor_(bits, bits);
-        bts(bits, cnt);
-        dec(bits);
-        jmp(done, CodeGenerator::T_NEAR);
-
-        L(all_lanes);
-        mov(bits, (N == 64) ? ~uint64_t{0} : ((uint64_t{1} << N) - 1));
-
-        L(done);
-    }, "lane_mask_bits", jit_kernel_ir::RegisterClass::GPR);
-
-    auto mask_vid = ir_def_mask({bits_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
-        auto mask = Opmask(ctx.def->idx);
-        if constexpr (N <= 16) {
-            kmovw(mask, Reg32(ctx.reads[0].idx));
-        } else {
-            kmovq(mask, Reg64(ctx.reads[0].idx));
-        }
-    }, "active_lane_mask");
+    auto mask_vid = ir_def_mask({bits_vid}, mask_from_bits(N), "active_lane_mask");
 
     _lane_masks.emplace(count_vid, mask_vid);
     return mask_vid;
@@ -2703,25 +2686,17 @@ jit_kernel_ir::value_id jit_kernel::ir_active_lane_mask(const variable<size_t>& 
 // hence no early-clobber constraint either.
 template <size_t N>
 jit_kernel_ir::value_id jit_kernel::ir_const_lane_mask(size_t active) {
-    using namespace Xbyak;
     static_assert(N <= 64, "active lane mask supports up to 64 lanes");
     OPENVINO_ASSERT(active > 0, "ir_const_lane_mask: empty predicate");
 
     const uint64_t all_lanes = (N == 64) ? ~uint64_t{0} : ((uint64_t{1} << N) - 1);
     const uint64_t bits = (active >= N) ? all_lanes : ((uint64_t{1} << active) - 1);
 
-    auto bits_vid = _ir->def({}, [this, bits](const jit_kernel_ir::EmitContext& ctx) {
-        mov(Reg64(ctx.def->idx), bits);
-    }, "const_lane_mask_bits", jit_kernel_ir::RegisterClass::GPR);
+    // No reads, so no early-clobber constraint: the bits are an immediate.
+    auto bits_vid = _ir->def({}, gpr_set(bits), "const_lane_mask_bits",
+                             jit_kernel_ir::RegisterClass::GPR);
 
-    return ir_def_mask({bits_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
-        auto mask = Opmask(ctx.def->idx);
-        if constexpr (N <= 16) {
-            kmovw(mask, Reg32(ctx.reads[0].idx));
-        } else {
-            kmovq(mask, Reg64(ctx.reads[0].idx));
-        }
-    }, "const_lane_mask");
+    return ir_def_mask({bits_vid}, mask_from_bits(N), "const_lane_mask");
 }
 
 template <size_t N>
@@ -2769,45 +2744,27 @@ void jit_kernel::ir_cmp(const A& a, const B& b) {
 }
 
 template <typename ThenFn, typename ElseFn>
-void jit_kernel::ir_if(
-        void (Xbyak::CodeGenerator::*jcc)(const Xbyak::Label&, Xbyak::CodeGenerator::LabelType),
-        ThenFn&& then_fn, ElseFn&& else_fn) {
-    auto else_label = std::make_shared<Xbyak::Label>();
-    auto exit_label = std::make_shared<Xbyak::Label>();
+void jit_kernel::ir_if(cond skip_on, ThenFn&& then_fn, ElseFn&& else_fn) {
+    auto else_label = make_label();
+    auto exit_label = make_label();
 
-    _ir->region(
-        [this, jcc, else_label](const jit_kernel_ir::EmitContext&) {
-            (this->*jcc)(*else_label, Xbyak::CodeGenerator::T_NEAR);
-        },
-        [&]() { then_fn(); });
+    _ir->region(branch(skip_on, else_label), [&]() { then_fn(); });
 
-    _ir->region(
-        [this, else_label, exit_label](const jit_kernel_ir::EmitContext&) {
-            jmp(*exit_label, Xbyak::CodeGenerator::T_NEAR);
-            L(*else_label);
-        },
-        [&]() { else_fn(); });
+    auto enter_else = [jump = branch_always(exit_label), mark = place_label(else_label)](
+                          const jit_kernel_ir::EmitContext& ctx) {
+        jump(ctx);
+        mark(ctx);
+    };
+    _ir->region(std::move(enter_else), [&]() { else_fn(); });
 
-    _ir->use({}, [this, exit_label](const jit_kernel_ir::EmitContext&) {
-        L(*exit_label);
-    }, "label");
+    _ir->use({}, place_label(exit_label), "label");
 }
 
 template <typename ThenFn>
-void jit_kernel::ir_if(
-        void (Xbyak::CodeGenerator::*jcc)(const Xbyak::Label&, Xbyak::CodeGenerator::LabelType),
-        ThenFn&& then_fn) {
-    auto exit_label = std::make_shared<Xbyak::Label>();
-
-    _ir->region(
-        [this, jcc, exit_label](const jit_kernel_ir::EmitContext&) {
-            (this->*jcc)(*exit_label, Xbyak::CodeGenerator::T_NEAR);
-        },
-        [&]() { then_fn(); });
-
-    _ir->use({}, [this, exit_label](const jit_kernel_ir::EmitContext&) {
-        L(*exit_label);
-    }, "label");
+void jit_kernel::ir_if(cond skip_on, ThenFn&& then_fn) {
+    auto exit_label = make_label();
+    _ir->region(branch(skip_on, exit_label), [&]() { then_fn(); });
+    _ir->use({}, place_label(exit_label), "label");
 }
 
 // ── 2-way deinterleave / interleave ────────────────────────────────────

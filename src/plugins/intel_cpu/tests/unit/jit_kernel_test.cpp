@@ -242,7 +242,7 @@ private:
                     and_(Xbyak::Reg64(tmp_reg), 3);
                 }, "tmp_and");
                 ir_cmp(tmp, a);
-                ir_if(&Xbyak::CodeGenerator::je, [&, s_reg, idx_vid] {
+                ir_if(cond::equal, [&, s_reg, idx_vid] {
                     // (idx & 3) != a: s += idx + 3
                     ir_use({idx_vid}, [this, s_reg](const jit_kernel_ir::EmitContext& ctx) {
                         add(Xbyak::Reg64(s_reg), Xbyak::Reg64(ctx.reads[0].idx));

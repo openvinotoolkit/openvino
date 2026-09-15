@@ -1485,7 +1485,7 @@ struct jit_ir_foreach_branch_interleave3_kernel : public jit_kernel {
             b = b.clamp(clamp_lo, clamp_hi);
 
             ir_cmp(flag, size_t{0});
-            ir_if(&Xbyak::CodeGenerator::jne,
+            ir_if(cond::not_equal,
                   [&]() { store_interleaved3(dst_ptr, r, g, b); },
                   [&]() { store_interleaved3(dst_ptr, b, g, r); });
 
@@ -1532,7 +1532,7 @@ struct jit_ir_if_else_kernel : public jit_kernel {
 
         // if (flag == 0) result = a + b; else result = a - b;
         ir_cmp(flag, size_t{0});
-        ir_if(&Xbyak::CodeGenerator::jne,
+        ir_if(cond::not_equal,
             [&]() {
                 // then: flag == 0 → store a + b
                 auto sum = vaddps(a, b);

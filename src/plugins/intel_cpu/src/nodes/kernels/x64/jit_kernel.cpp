@@ -550,40 +550,208 @@ jit_kernel_ir::value_id jit_kernel::ir_def_mask(std::vector<jit_kernel_ir::value
 // when the source dies, producing mov-free code like hand-written asm.
 
 jit_kernel::variable<size_t> jit_kernel::ir_gpr_imm(size_t value) {
-    return variable<size_t>(*this, _ir->def({},
-        [this, value](const jit_kernel_ir::EmitContext& ctx) {
-            mov(Xbyak::Reg64(ctx.def->idx), value);
-        }, "imm", jit_kernel_ir::RegisterClass::GPR));
+    return variable<size_t>(*this, _ir->def({}, gpr_set(value), "imm",
+                                            jit_kernel_ir::RegisterClass::GPR));
+}
+
+// ── arch_emitter: x86 ──────────────────────────────────────────────────
+//
+// Each factory returns the closure that realizes one portable operation.
+// Operands arrive as allocated registers, so nothing here looks at
+// liveness, allocates, or decides an IR shape — that all happened in the
+// caller. LLVM's TargetInstrInfo, minus the parts we have no instruction
+// selection for.
+
+namespace {
+
+// Mapping from the portable condition codes to x86 branch mnemonics. The
+// portable layer names the condition that *skips* a body, so the sense is
+// already resolved by the time it gets here.
+Xbyak::Label& as_label(const label_ref& l);
+
+struct x64_label final : arch_label {
+    Xbyak::Label label;
+};
+
+Xbyak::Label& as_label(const label_ref& l) {
+    return static_cast<x64_label*>(l.get())->label;
+}
+
+}  // namespace
+
+jit_kernel_ir::EmitFn jit_kernel::gpr_copy() const {
+    return [this](const jit_kernel_ir::EmitContext& ctx) {
+        const_cast<jit_kernel*>(this)->mov(Xbyak::Reg64(ctx.def->idx), Xbyak::Reg64(ctx.reads[0].idx));
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::gpr_set(std::uint64_t imm) const {
+    return [this, imm](const jit_kernel_ir::EmitContext& ctx) {
+        const_cast<jit_kernel*>(this)->mov(Xbyak::Reg64(ctx.def->idx), imm);
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::gpr_add_imm(std::uint64_t imm) const {
+    return [this, imm](const jit_kernel_ir::EmitContext& ctx) {
+        const_cast<jit_kernel*>(this)->add(Xbyak::Reg64(ctx.def->idx), imm);
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::gpr_shr_imm(unsigned shift) const {
+    return [this, shift](const jit_kernel_ir::EmitContext& ctx) {
+        const_cast<jit_kernel*>(this)->shr(Xbyak::Reg64(ctx.def->idx), static_cast<int>(shift));
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::gpr_and_imm(std::uint64_t imm) const {
+    return [this, imm](const jit_kernel_ir::EmitContext& ctx) {
+        const_cast<jit_kernel*>(this)->and_(Xbyak::Reg64(ctx.def->idx), imm);
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::gpr_imul_imm(std::uint64_t imm) const {
+    // Three-operand form, so the def does not have to be tied.
+    return [this, imm](const jit_kernel_ir::EmitContext& ctx) {
+        const_cast<jit_kernel*>(this)->imul(Xbyak::Reg64(ctx.def->idx),
+                                            Xbyak::Reg64(ctx.reads[0].idx),
+                                            static_cast<int>(imm));
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::gpr_bump(std::int64_t delta) const {
+    return [this, delta](const jit_kernel_ir::EmitContext& ctx) {
+        auto* self = const_cast<jit_kernel*>(this);
+        auto reg = Xbyak::Reg64(ctx.reads[0].idx);
+        if (delta >= 0) {
+            self->add(reg, static_cast<std::uint64_t>(delta));
+        } else {
+            self->sub(reg, static_cast<std::uint64_t>(-delta));
+        }
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::gpr_offset(std::size_t imm) const {
+    return [this, imm](const jit_kernel_ir::EmitContext& ctx) {
+        auto* self = const_cast<jit_kernel*>(this);
+        self->lea(Xbyak::Reg64(ctx.def->idx),
+                  self->address_frame(sizeof(size_t))[Xbyak::Reg64(ctx.reads[0].idx) + imm]);
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::gpr_cmp_imm(std::uint64_t imm) const {
+    return [this, imm](const jit_kernel_ir::EmitContext& ctx) {
+        const_cast<jit_kernel*>(this)->cmp(Xbyak::Reg64(ctx.reads[0].idx), imm);
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::gpr_cmp_reg() const {
+    return [this](const jit_kernel_ir::EmitContext& ctx) {
+        const_cast<jit_kernel*>(this)->cmp(Xbyak::Reg64(ctx.reads[0].idx),
+                                           Xbyak::Reg64(ctx.reads[1].idx));
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::clamped_len(std::size_t lanes) const {
+    return [this, lanes](const jit_kernel_ir::EmitContext& ctx) {
+        auto* self = const_cast<jit_kernel*>(this);
+        auto len = Xbyak::Reg64(ctx.def->idx);
+        auto rem = Xbyak::Reg64(ctx.reads[0].idx);
+        self->mov(len, lanes);
+        self->cmp(rem, lanes);
+        self->cmovb(len, rem);  // remaining < lanes on the final iteration
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::lane_mask_bits(std::size_t lanes) const {
+    return [this, lanes](const jit_kernel_ir::EmitContext& ctx) {
+        auto* self = const_cast<jit_kernel*>(this);
+        auto bits = Xbyak::Reg64(ctx.def->idx);
+        auto cnt = Xbyak::Reg64(ctx.reads[0].idx);
+        Xbyak::Label all_lanes;
+        Xbyak::Label done;
+
+        self->cmp(cnt, lanes);
+        self->jge(all_lanes, Xbyak::CodeGenerator::T_NEAR);
+        // (1 << count) - 1; count == 0 yields 0, which is what we want.
+        self->xor_(bits, bits);
+        self->bts(bits, cnt);
+        self->dec(bits);
+        self->jmp(done, Xbyak::CodeGenerator::T_NEAR);
+
+        self->L(all_lanes);
+        self->mov(bits, (lanes >= 64) ? ~std::uint64_t{0} : ((std::uint64_t{1} << lanes) - 1));
+
+        self->L(done);
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::mask_from_bits(std::size_t lanes) const {
+    return [this, lanes](const jit_kernel_ir::EmitContext& ctx) {
+        auto* self = const_cast<jit_kernel*>(this);
+        auto mask = Xbyak::Opmask(ctx.def->idx);
+        if (lanes <= 16) {
+            self->kmovw(mask, Xbyak::Reg32(ctx.reads[0].idx));
+        } else {
+            self->kmovq(mask, Xbyak::Reg64(ctx.reads[0].idx));
+        }
+    };
+}
+
+label_ref jit_kernel::make_label() const {
+    return std::make_shared<x64_label>();
+}
+
+jit_kernel_ir::EmitFn jit_kernel::place_label(const label_ref& at) const {
+    return [this, at](const jit_kernel_ir::EmitContext&) {
+        const_cast<jit_kernel*>(this)->L(as_label(at));
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::branch(cond on, const label_ref& to) const {
+    return [this, on, to](const jit_kernel_ir::EmitContext&) {
+        auto* self = const_cast<jit_kernel*>(this);
+        auto& target_label = as_label(to);
+        switch (on) {
+        case cond::equal:
+            self->je(target_label, Xbyak::CodeGenerator::T_NEAR);
+            return;
+        case cond::not_equal:
+            self->jne(target_label, Xbyak::CodeGenerator::T_NEAR);
+            return;
+        case cond::greater_equal:
+            self->jge(target_label, Xbyak::CodeGenerator::T_NEAR);
+            return;
+        }
+        OPENVINO_THROW("jit_kernel::branch: unknown condition");
+    };
+}
+
+jit_kernel_ir::EmitFn jit_kernel::branch_always(const label_ref& to) const {
+    return [this, to](const jit_kernel_ir::EmitContext&) {
+        const_cast<jit_kernel*>(this)->jmp(as_label(to), Xbyak::CodeGenerator::T_NEAR);
+    };
 }
 
 jit_kernel::variable<size_t> jit_kernel::ir_shr(const variable<size_t>& src, int shift) {
     return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0,
-        [this, shift](const jit_kernel_ir::EmitContext& ctx) {
-            shr(Xbyak::Reg64(ctx.def->idx), shift);
-        }, "shr", jit_kernel_ir::RegisterClass::GPR));
+                                                 gpr_shr_imm(static_cast<unsigned>(shift)),
+                                                 "shr", jit_kernel_ir::RegisterClass::GPR));
 }
 
 jit_kernel::variable<size_t> jit_kernel::ir_and(const variable<size_t>& src, size_t mask) {
-    return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0,
-        [this, mask](const jit_kernel_ir::EmitContext& ctx) {
-            and_(Xbyak::Reg64(ctx.def->idx), mask);
-        }, "and", jit_kernel_ir::RegisterClass::GPR));
+    return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0, gpr_and_imm(mask),
+                                                 "and", jit_kernel_ir::RegisterClass::GPR));
 }
 
 jit_kernel::variable<size_t> jit_kernel::ir_add(const variable<size_t>& src, size_t val) {
-    return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0,
-        [this, val](const jit_kernel_ir::EmitContext& ctx) {
-            add(Xbyak::Reg64(ctx.def->idx), val);
-        }, "add", jit_kernel_ir::RegisterClass::GPR));
+    return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0, gpr_add_imm(val),
+                                                 "add", jit_kernel_ir::RegisterClass::GPR));
 }
 
 jit_kernel::variable<size_t> jit_kernel::ir_imul(const variable<size_t>& src, size_t val) {
     // imul is 3-operand (non-destructive) — no tied constraint needed.
-    return variable<size_t>(*this, _ir->def({src.vid()},
-        [this, val](const jit_kernel_ir::EmitContext& ctx) {
-            imul(Xbyak::Reg64(ctx.def->idx), Xbyak::Reg64(ctx.reads[0].idx),
-                 static_cast<int>(val));
-        }, "imul", jit_kernel_ir::RegisterClass::GPR));
+    return variable<size_t>(*this, _ir->def({src.vid()}, gpr_imul_imm(val), "imul",
+                                            jit_kernel_ir::RegisterClass::GPR));
 }
 
 jit_kernel_ir::value_id jit_kernel::ir_alloca(size_t size, size_t alignment) {

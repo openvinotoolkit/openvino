@@ -407,7 +407,7 @@ void JitConverter<T[N]>::generate() {
         auto b = fma(u_to_b, u, yy).clamp(clamp_lo, clamp_hi);
 
         ir_cmp(colorFormat, size_t{0});
-        ir_if(&Xbyak::CodeGenerator::jne,
+        ir_if(cond::not_equal,
             [&]() { store_interleaved3(dst, r, g, b, vl); },
             [&]() { store_interleaved3(dst, b, g, r, vl); });
 
@@ -747,7 +747,7 @@ void JitConverter<T[N]>::generate() {
         auto b = fma(u_to_b, uu, yy).clamp(clamp_lo, clamp_hi);
 
         ir_cmp(colorFormat, size_t{0});
-        ir_if(&Xbyak::CodeGenerator::jne,
+        ir_if(cond::not_equal,
             [&]() { store_interleaved3(dst, r, g, b, vl); },
             [&]() { store_interleaved3(dst, b, g, r, vl); });
 
