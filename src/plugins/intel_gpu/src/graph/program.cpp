@@ -1223,7 +1223,7 @@ program_node* program::maybe_update_fused_node(program_node &fused_node, program
         OPENVINO_ASSERT(num_inputs == 1 || num_inputs == 2);
         const size_t num_outputs = 2;
 
-	auto new_rms = &get_or_create(
+        auto new_rms = &get_or_create(
             orig_rms->input.size() == 1
                 ? std::make_shared<rms>(orig_rms->id + "_fused",
                                         orig_rms->input[0],
@@ -1239,7 +1239,7 @@ program_node* program::maybe_update_fused_node(program_node &fused_node, program
         replace(fused_node, *new_rms);
         new_rms->output_layouts.emplace_back();
         new_rms->valid_output_layouts.emplace_back();
-	return new_rms;
+        return new_rms;
     }
     return &fused_node;
 }
@@ -1274,7 +1274,7 @@ void program::fuse_nodes(program_node &fused_node,
             local_desc.fused_deps.emplace(id.first, id.second);
         }
     }
-    // Add new dependencies to the cur_fused_node
+    // Add new dependencies to the fused_node_ptr
     size_t deps_idx = 0;
     for (size_t i = 0; i < peer_node.get_dependencies().size(); i++) {
         auto [dep, port] = peer_node.get_dependency_with_port(i);
