@@ -326,10 +326,15 @@ std::optional<TShape> get_input_const_data_as_shape(const ov::Node* op,
     } else if (port < op->get_input_size()) {
         PartialShape s;
         if (auto c = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(port))) {
-            shape.emplace(get_raw_data_as<TDimValue>(c->get_element_type(),
-                                                     c->get_data_ptr(),
-                                                     shape_size(c->get_shape()),
-                                                     std::forward<UnaryOperation>(func)));
+            // Empty constant has no allocated buffer to read the dimensions from.
+            if (const auto num_elements = shape_size(c->get_shape()); num_elements == 0) {
+                shape.emplace();
+            } else {
+                shape.emplace(get_raw_data_as<TDimValue>(c->get_element_type(),
+                                                         c->get_data_ptr(),
+                                                         num_elements,
+                                                         std::forward<UnaryOperation>(func)));
+            }
         } else if (ov::util::evaluate_as_partial_shape(op->input_value(port), s)) {
             shape = std::move(s);
         }

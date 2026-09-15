@@ -2040,56 +2040,75 @@ TEST(constant, empty_tensor) {
     ASSERT_EQ(c->cast_vector<int32_t>().size(), 0);
 }
 
-TEST(constant, empty_tensor_get_data_ptr_nc) {
-    auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
+// Covers fill_data(), which writes through the non-const data pointer.
+TEST(constant, empty_tensor_filled_with_single_value) {
+    const auto c = op::v0::Constant(element::i32, Shape{0}, 42);
 
-    // Attempting to access non-const data ptr for an empty tensor.
-    // It should return nullptr to avoid segfaults when copying to it using size 0
-    void* ptr = c->get_data_ptr_nc();
-    ASSERT_EQ(ptr, nullptr);
+    EXPECT_EQ(c.get_data_ptr(), nullptr);
+    EXPECT_EQ(c.get_byte_size(), 0);
+    EXPECT_TRUE(c.cast_vector<int32_t>().empty());
+}
 
-    // Writing 0 bytes shouldn't do anything, but let's test it safely
-    if (ptr != nullptr) {
-        // Technically shouldn't reach here since we enforced nullptr above
-        std::memset(ptr, 0, 0);
+// Covers the memory copying constructor, whose source pointer is null for an empty vector.
+TEST(constant, empty_tensor_from_memory_ptr) {
+    const std::vector<int32_t> source{};
+    const auto c = op::v0::Constant(element::i32, Shape{0}, source.data());
+
+    EXPECT_EQ(c.get_data_ptr(), nullptr);
+    EXPECT_EQ(c.get_byte_size(), 0);
+    EXPECT_TRUE(c.cast_vector<int32_t>().empty());
+}
+
+TEST(constant, empty_tensor_low_precision) {
+    for (const auto& et : {element::u1, element::u4, element::i4}) {
+        const auto c = op::v0::Constant(et, Shape{0});
+
+        EXPECT_EQ(c.get_data_ptr(), nullptr) << et;
+        EXPECT_EQ(c.get_byte_size(), 0) << et;
+        EXPECT_TRUE(c.cast_vector<int32_t>().empty()) << et;
     }
 }
 
-TEST(constant, empty_tensor_set_data) {
-    auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0});
+TEST(constant, empty_tensor_string) {
+    const auto c = op::v0::Constant(element::string, Shape{0}, std::vector<std::string>{});
 
-    // Test that accessing the non-const data pointer of an empty constant doesn't throw or segfault.
-    const void* ptr_nc = c->get_data_ptr_nc();
-    ASSERT_EQ(ptr_nc, nullptr);
-
-    // And size is 0
-    ASSERT_EQ(c->get_byte_size(), 0);
+    EXPECT_EQ(c.get_byte_size(), 0);
+    EXPECT_TRUE(c.get_vector<std::string>().empty());
+    EXPECT_TRUE(c.cast_vector<std::string>().empty());
 }
 
 TEST(constant, empty_tensor_from_empty_constant) {
     auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0});
-    // Create an empty constant from another empty constant
     auto another = std::make_shared<op::v0::Constant>(*c);
 
     EXPECT_EQ(another->get_data_ptr(), nullptr);
-    EXPECT_EQ(another->get_data_ptr_nc(), nullptr);
     EXPECT_EQ(another->get_byte_size(), 0);
     EXPECT_EQ(another->get_shape(), Shape{0});
     EXPECT_EQ(another->get_element_type(), element::i32);
 
-    // test data access
     EXPECT_TRUE(another->cast_vector<int32_t>().empty());
     EXPECT_TRUE(another->get_vector<int32_t>().empty());
 
-    // test evaluation
     ov::TensorVector outputs;
-    EXPECT_FALSE(another->evaluate_upper(outputs));
-    EXPECT_FALSE(another->evaluate_lower(outputs));
-    EXPECT_FALSE(another->evaluate(outputs, {}));
+    EXPECT_TRUE(another->evaluate_upper(outputs));
+    ASSERT_EQ(outputs.size(), 1);
+    EXPECT_EQ(outputs[0].get_element_type(), element::i32);
+    EXPECT_EQ(outputs[0].get_shape(), Shape{0});
 
-    // Check tensor view behavior
+    EXPECT_TRUE(another->evaluate_lower(outputs));
+    ASSERT_EQ(outputs.size(), 1);
+    EXPECT_EQ(outputs[0].get_element_type(), element::i32);
+    EXPECT_EQ(outputs[0].get_shape(), Shape{0});
+
+    EXPECT_TRUE(another->evaluate(outputs, {}));
+    ASSERT_EQ(outputs.size(), 1);
+    EXPECT_EQ(outputs[0].get_element_type(), element::i32);
+    EXPECT_EQ(outputs[0].get_shape(), Shape{0});
+
     auto tensor = another->get_tensor_view();
-    EXPECT_FALSE(tensor);
+    EXPECT_TRUE(tensor);
+    EXPECT_EQ(tensor.get_element_type(), element::i32);
+    EXPECT_EQ(tensor.get_shape(), Shape{0});
 }
 
 TEST(constant, empty_tensor_copy_constructor) {

@@ -215,6 +215,10 @@ public:
     /// @return Vector of N elements of Type T.
     template <typename T, typename std::enable_if<!std::is_same<bool, T>::value>::type* = nullptr>
     std::vector<T> get_vector() const {
+        if (has_no_elements()) {
+            return {};
+        }
+
         const auto p = get_data_ptr<T>();
         OPENVINO_ASSERT(p != nullptr, "Cannot create vector! Buffer is not allocated.");
         auto v = std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
@@ -227,6 +231,10 @@ public:
 
     template <typename T, typename std::enable_if<std::is_same<bool, T>::value>::type* = nullptr>
     std::vector<T> get_vector() const {
+        if (has_no_elements()) {
+            return {};
+        }
+
         const auto p = get_data_ptr<T>();
         OPENVINO_ASSERT(p != nullptr, "Cannot create vector! Buffer is not allocated.");
         auto v = std::vector<T>(p, p + (get_byte_size() / sizeof(T)));
@@ -289,10 +297,11 @@ public:
     /// @return Constant's strides in bytes.
     const Strides& get_strides() const;
 
-    void* get_data_ptr_nc();
-
 private:
     Constant(bool memset_allocation, const element::Type& type, const Shape& shape);
+
+    /// \brief Checks if Constant is valid and holds zero elements, so no buffer is allocated for it.
+    bool has_no_elements() const;
 
     size_t get_num_elements_to_cast(const int64_t n) const;
 
@@ -304,6 +313,8 @@ private:
     void set_unused_bits(void* buffer) const;
 
     void allocate_buffer(bool memset_allocation);
+
+    void* get_data_ptr_nc();
 
     template <element::Type_t ET>
     typename ov::fundamental_type_for<ET>* get_data_ptr_nc() {

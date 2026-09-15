@@ -746,9 +746,11 @@ void XmlSerializer::on_adapter(const std::string& name, ov::ValueAccessor<void>&
         }
     } else if (const auto& a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
         if (name == "value" && translate_type_name(m_node_type_name) == "Const") {
-            const auto size = a->get()->size();
+            const auto& buffer = a->get();
+            const char* data_ptr = buffer ? static_cast<const char*>(buffer->get_ptr()) : nullptr;
+            const auto size = buffer ? buffer->size() : 0;
             size_t new_size = 0lu;
-            int64_t offset = get_constant_write_handler().write(static_cast<const char*>(a->get()->get_ptr()),
+            int64_t offset = get_constant_write_handler().write(data_ptr,
                                                                 size,
                                                                 new_size,
                                                                 m_compress_to_fp16,
