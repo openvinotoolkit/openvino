@@ -694,7 +694,8 @@ void primitive_inst::realloc_intermediates() {
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
     // intermediate memory allocation is required for primitives consisting of multiple kernels in dynamic case
 
-    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr) {
+    const bool has_non_allocated_output = std::any_of(_outputs.begin(), _outputs.end(), [](const auto& output) { return output == nullptr; });
+    if (_impl == nullptr || _outputs.empty() || has_non_allocated_output) {
         return;
     }
 
@@ -2703,7 +2704,8 @@ memory::ptr primitive_inst::allocate_internal_buffer(const layout& layout, size_
 }
 
 void primitive_inst::allocate_internal_buffers(bool reset) {
-    if (_impl == nullptr || _outputs.empty() || _outputs[0] == nullptr) {
+    const bool has_non_allocated_output = std::any_of(_outputs.begin(), _outputs.end(), [](const auto& output) { return output == nullptr; });
+    if (_impl == nullptr || _outputs.empty() || has_non_allocated_output) {
         return;
     }
     const auto& buffer_descs = _impl->get_internal_buffer_descs(*_impl_params);
