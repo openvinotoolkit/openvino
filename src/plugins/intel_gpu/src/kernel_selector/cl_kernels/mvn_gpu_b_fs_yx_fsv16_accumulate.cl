@@ -50,8 +50,9 @@
 //
 // ==============================================================================================================================
 
-#define ACCUMULATE_SUM(a, b, idx)       ((a) + (b))
-#define ACCUMULATE_SUM_SQ(a, b, idx)    ((a) + ((b) * (b)))
+#define ACCUMULATE_SUM(a, b, idx)       ((a) + DECODE_INPUT0_COMPUTE_TYPE(b))
+#define ACCUMULATE_SUM_SQ(a, b, idx)    ((a) + ((DECODE_INPUT0_COMPUTE_TYPE(b)) * (DECODE_INPUT0_COMPUTE_TYPE(b))))
+#define ACCUMULATE_SUM_IDENTITY(a, b, idx)  ((a) + (b))
 
 #define DECLARE_PACKED_ACCUMULATE_EARGS(Name, AccT, InputT, SliceSize, SlicePitch, Items, Workers, AccOp, ExtraArgsDecl, ExtraArgs)     \
 inline MAKE_VECTOR_TYPE(AccT, SliceSize) FUNC(Name)(const __global InputT* input,                                                       \

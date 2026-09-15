@@ -55,7 +55,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_CLDNN_TestsMVN,
 
 std::vector<ov::element::Type> dataPrecisions = {
     ov::element::f32,
-    ov::element::f16
+    ov::element::f16,
+    ov::element::bf16
 };
 
 std::vector<ov::element::Type> idxPrecisions = {
