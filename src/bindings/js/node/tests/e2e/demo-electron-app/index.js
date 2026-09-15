@@ -29,7 +29,10 @@ async function main() {
   } catch (error) {
     console.error("Error:", error);
     app.exit(1);
+
+    return;
   }
 
-  app.exit(0);
+  await new Promise((resolve) => setImmediate(resolve));
+  app.quit();
 }

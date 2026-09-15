@@ -498,6 +498,34 @@ describe("GC safety infer() / inferAsync()", () => {
     }
   });
 
+  it("native InferRequest is alive during inferAsync()", async () => {
+    const requestCount = 16;
+    let finalizedRequests = 0;
+    const registry = new FinalizationRegistry(() => {
+      finalizedRequests += 1;
+    });
+    const inputData = new Float32Array(elementCount).fill(128.0);
+    const tensor = new ov.Tensor(ov.element.f32, reluLargeModel.inputShape, inputData);
+
+    function startInference() {
+      const request = compiledModel.createInferRequest();
+      registry.register(request, undefined);
+      return request.inferAsync({ [reluLargeModel.inputName]: tensor });
+    }
+
+    const resultsPromise = Promise.allSettled(
+      Array.from({ length: requestCount }, () => startInference()),
+    );
+    for (let pass = 0; pass < 20 && finalizedRequests === 0; pass += 1) {
+      global.gc();
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    assert.ok(finalizedRequests > 0, "InferRequest wrappers should be collected during inference");
+    const results = await resultsPromise;
+    assert.ok(results.every(({ status }) => status === "fulfilled"));
+  });
+
   it("Full-cycle tensor converting test", () => {
     function fillInferRequest(inferRequest) {
       // 1. TypedArray → TensorWrap
