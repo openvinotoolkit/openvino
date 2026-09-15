@@ -972,6 +972,9 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
 
     void execute(const sdpa_sliding_window_test_params& p) {
         auto& engine = get_test_engine();
+        if (!engine.get_device_info().supports_immad) {
+            GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+        }
 
         const auto head_size = p.head_size;
         const auto num_heads = p.num_heads;
@@ -1068,13 +1071,8 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
             topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
 
             ExecutionConfig cfg = config_common;
-            if (engine.get_device_info().supports_immad) {
-                cfg.set_property(ov::intel_gpu::force_implementations(
-                    ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
-            } else {
-                cfg.set_property(ov::intel_gpu::force_implementations(
-                    ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_opt"}}}));
-            }
+            cfg.set_property(ov::intel_gpu::force_implementations(
+                ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
 
             auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
             net->set_input_data("q", q_mem);
@@ -1141,6 +1139,9 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad) {
+        GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
+    }
 
     const int head_size = 64, num_heads = 8, seq_q = 128, seq_kv = 128, batch = 1, window = 32;
 
@@ -1215,10 +1216,8 @@ TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
         topo.add(prim);
         topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
         ExecutionConfig cfg = config_common;
-        if (engine.get_device_info().supports_immad) {
-            cfg.set_property(ov::intel_gpu::force_implementations(
-                ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
-        }
+        cfg.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
         auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
         net->set_input_data("q", q_mem);
         net->set_input_data("k", k_mem);
