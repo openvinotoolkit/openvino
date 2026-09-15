@@ -17,6 +17,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <tuple>
 #include <vector>
 
@@ -312,6 +313,63 @@ TEST_P(MoEExecutorRuntimeTest, PreservesScoresAndBindingsAcrossSelections) {
         ASSERT_EQ(harness.log->calls.size(), 7u);
         EXPECT_EQ(harness.log->calls[0], harness.log->calls[2]);
         EXPECT_NE(harness.log->calls[0], harness.log->calls[1]);
+    }
+}
+
+TEST_P(MoEExecutorRuntimeTest, RejectsNonfiniteScoresInsteadOfReturningZeroAndRemainsReusable) {
+    const auto [half_scores, tokens, pool] = GetParam();
+    ExecutorHarness harness(tokens, half_scores ? ov::element::f16 : ov::element::f32, pool);
+    for (const float invalid : {std::numeric_limits<float>::quiet_NaN(),
+                                std::numeric_limits<float>::infinity(),
+                                -std::numeric_limits<float>::infinity()}) {
+        SCOPED_TRACE(invalid);
+        for (const bool all_nonfinite : {true, false}) {
+            SCOPED_TRACE(all_nonfinite);
+            std::memset(harness.scores.data(), 0, harness.scores.get_byte_size());
+            if (all_nonfinite) {
+                for (size_t expert = 0; expert < ExecutorHarness::experts; ++expert) {
+                    for (size_t token = 0; token < tokens; ++token)
+                        harness.set_score(expert, token, invalid);
+                }
+            } else {
+                // Prefill can already have work in flight when a later expert's
+                // row fails validation; decode must validate before dispatch.
+                for (size_t token = 0; token < tokens; ++token) {
+                    harness.set_score(0, token, 0.5f);
+                    harness.set_score(1, token, invalid);
+                }
+            }
+            harness.bind(0.5f);
+            const auto before = harness.log->calls.size();
+            try {
+                harness.executor->run(0, 0);
+                FAIL() << "Non-finite routing scores must not return a successful zero result";
+            } catch (const ov::Exception& error) {
+                EXPECT_NE(std::string(error.what()).find("MoE router produced a non-finite mixing score"),
+                          std::string::npos);
+            }
+            EXPECT_EQ(harness.log->pending.load(), 0u);
+            if (tokens == 1 || all_nonfinite)
+                EXPECT_EQ(harness.log->calls.size(), before);
+            else
+                EXPECT_GT(harness.log->calls.size(), before);
+
+            // A finite all-zero tensor remains a valid, no-inference case.
+            const auto after_failure = harness.log->calls.size();
+            std::memset(harness.scores.data(), 0, harness.scores.get_byte_size());
+            harness.bind(0.25f);
+            harness.check();
+            EXPECT_EQ(harness.log->calls.size(), after_failure);
+
+            // Reuse the same executor/requests with new bindings and selections.
+            for (size_t token = 0; token < tokens; ++token) {
+                harness.set_score(2, token, 0.25f);
+                harness.set_score(3, token, -0.5f);
+            }
+            harness.bind(0.75f);
+            harness.check();
+            EXPECT_GT(harness.log->calls.size(), after_failure);
+        }
     }
 }
 

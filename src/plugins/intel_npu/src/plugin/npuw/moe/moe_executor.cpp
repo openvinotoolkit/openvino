@@ -251,6 +251,8 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
     if (selected_experts.size() > num_active_experts) {
         OPENVINO_THROW("MoE Batch experts: nonzero scores exceed the configured top-k");
     }
+    // Router parsing has already rejected every non-finite score. An empty
+    // selection therefore means all mixing coefficients are finite and zero.
     if (selected_experts.empty()) {
         for (const auto& output : io.outputs) {
             OPENVINO_ASSERT(output && output->is_continuous(), "MoE: expected a contiguous expert output");
