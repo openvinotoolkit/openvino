@@ -17,30 +17,37 @@ record_replay_session::record_replay_session(stream& s)
     : _stream(s), _recorder(*s.get_recorder()),
     _cmd_list(_recorder.create_command_list()) {}
 
-network_exec_mode record_replay_session::begin_iteration(const std::vector<std::shared_ptr<event>>& deps,
-                              const std::list<std::shared_ptr<primitive_inst>>& order) {
+void record_replay_session::begin_recording(const std::vector<std::shared_ptr<event>>& deps) {
     if (!deps.empty()) {
-        // Ensure dependencies complete before recording or replaying
+        // Ensure dependencies complete before recording
         _stream.enqueue_barrier(deps);
     }
-    if (_valid) {
-        _cmd_list->wait();
-        for (const auto& inst : order) {
-            inst->reset_out_event();
-        }
-        _cmd_list->enqueue();
-        GPU_DEBUG_TRACE_DETAIL << "[GPU][REC] Replayed last iteration" << std::endl;
-        return network_exec_mode::replay;
-    }
     _recorder.start_recording(_cmd_list);
-    GPU_DEBUG_TRACE_DETAIL << "[GPU][REC] Started recording iteration" << std::endl;
-    return network_exec_mode::record;
+    GPU_DEBUG_TRACE_DETAIL << "[REC] Started recording command list" << std::endl;
 }
 
-void record_replay_session::end_iteration() {
+void record_replay_session::end_recording() {
     auto finished = _recorder.stop_recording();
     _valid = (finished == _cmd_list);
-    GPU_DEBUG_TRACE_DETAIL << "[GPU][REC] Stream recording " << (_valid ? "succeeded" : "failed") << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "[REC] Command list recording " << (_valid ? "succeeded" : "failed") << std::endl;
+}
+
+bool record_replay_session::replay(const std::vector<std::shared_ptr<event>>& deps, const std::list<std::shared_ptr<primitive_inst>>& primitives) {
+    if (!_valid) {
+        return false;
+    }
+    if (!deps.empty()) {
+        // Ensure dependencies complete before replaying
+        _stream.enqueue_barrier(deps);
+    }
+    _cmd_list->wait();
+    for (const auto& inst : primitives) {
+        inst->reset_out_event();
+    }
+    _cmd_list->enqueue();
+    GPU_DEBUG_TRACE_DETAIL << "[REC] Replayed command list" << std::endl;
+
+    return true;
 }
 
 }  // namespace cldnn

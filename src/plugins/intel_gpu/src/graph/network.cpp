@@ -986,12 +986,13 @@ bool network::has_event(const primitive_id& id) const {
 }
 
 void network::execute_impl(const std::vector<event::ptr>& events) {
-    auto &net_stream = get_stream();
-    auto exec_mode = network_exec_mode::immediate;
+    bool is_recording = false;
     if (_record_replay_session) {
-        exec_mode =_record_replay_session->begin_iteration(events, _exec_order);
-        if (exec_mode == network_exec_mode::replay) {
+        if (_record_replay_session->replay(events, _exec_order)) {
             return;
+        } else {
+            _record_replay_session->begin_recording(events);
+            is_recording = true;
         }
     }
     set_arguments();
@@ -1009,7 +1010,10 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         inst->clear_events();
 
-        if (exec_mode == network_exec_mode::immediate && inst->is_input()) {
+        // Dependency events should not be recorded to the command list
+        // As they could propagate to the subsequent replay iteration
+        // Instead events were passed to begin_recording()
+        if (!is_recording && inst->is_input()) {
             inst->add_dep_events(events);
         }
 
@@ -1018,17 +1022,17 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
 
         executed_prims++;
         if (needs_flushing && executed_prims % flush_frequency == 0) {
-            net_stream.flush();
+            get_stream().flush();
         }
     }
-    if (exec_mode == network_exec_mode::record) {
-        _record_replay_session->end_iteration();
+    if (is_recording) {
+        _record_replay_session->end_recording();
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
     // In scenarios with a big number of very small networks it can provide performance drop.
-    net_stream.flush();
+    get_stream().flush();
 
     // Reset all flags for the next execution
     for (auto& inst : _exec_order) {

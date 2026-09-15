@@ -426,7 +426,7 @@ void ze_stream::flush() const {
 
 void ze_stream::finish() const {
     if (get_recorder()->stop_recording()) {
-        GPU_DEBUG_TRACE << "[GPU][REC] Stream finish interrupted recording" << std::endl;
+        GPU_DEBUG_TRACE << "[REC] Recording interrupted by stream::finish" << std::endl;
     }
     OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(m_imm_cmd_list.handle(), endless_wait));
 }

@@ -18,34 +18,32 @@ class command_list;
 class primitive_inst;
 struct event;
 
-/// @brief Defines the execution mode of a network within a record-replay session.
-enum class network_exec_mode {
-    immediate,  ///< Execute commands immediately without recording.
-    record,     ///< Record commands for later replay.
-    replay      ///< Replay previously recorded commands.
-};
-
 /// @brief Manages the record and replay of GPU command streams for a network execution session.
 class record_replay_session {
 public:
     using ptr = std::shared_ptr<record_replay_session>;
     explicit record_replay_session(stream& s);
 
-    /// @brief Begins an iteration of network execution within the record-replay session.
-    /// @param deps A list of events that the current iteration depends on.
-    /// @param order The execution order of primitives for this iteration.
-    /// @return The execution mode used for this iteration.
-    network_exec_mode begin_iteration(const std::vector<std::shared_ptr<event>>& deps,
-                              const std::list<std::shared_ptr<primitive_inst>>& order);
+    /// @brief Start recording commands on the associated stream.
+    /// @param deps Events that must complete before recorded commands are executed.
+    /// @note Events from deps are not added to the command list.
+    /// @note For each begin_recording() there must be corresponding call to end_recording().
+    void begin_recording(const std::vector<std::shared_ptr<event>>& deps);
 
-    /// @brief Ends the current iteration within the record-replay session.
-    /// @note Must be called after each iteration with network_exec_mode::record
-    void end_iteration();
+    /// @brief Ends the current recording session and executes recorded commands.
+    void end_recording();
+
+    /// @brief Attempt to replay previosuly recorded command list.
+    /// @param deps Events that must complete before commands are replayed.
+    /// @param primitives A list of primitives to replay. Must be the same as the list used for the recording.
+    /// @return True if replay was successful, false otherwise.
+    bool replay(const std::vector<std::shared_ptr<event>>& deps,
+                const std::list<std::shared_ptr<primitive_inst>>& primitives);
 
     /// @brief Invalidates the recorded command list.
     void invalidate() {
         _valid = false;
-        GPU_DEBUG_TRACE_DETAIL << "[GPU][REC] Recorded command list was invalidated";
+        GPU_DEBUG_TRACE_DETAIL << "[REC] Recorded command list was invalidated";
     }
 
 private:

@@ -30,7 +30,7 @@ struct lockable_gpu_mem : public memory {
 
     void* lock(const stream& stream, mem_lock_type type) override final {
         if (stream.get_recorder()->stop_recording()) {
-            GPU_DEBUG_TRACE << "[GPU][REC] Memory lock interrupted recording" << std::endl;
+            GPU_DEBUG_TRACE << "[REC] Recording interrupted by memory::lock" << std::endl;
         }
         return lock_impl(stream, type);
     }
