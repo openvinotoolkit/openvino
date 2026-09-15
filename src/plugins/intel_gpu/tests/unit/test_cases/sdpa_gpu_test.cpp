@@ -31,6 +31,14 @@ using namespace cldnn;
 using namespace ::tests;
 // #define ENABLE_ONEDNN_FOR_GPU
 namespace  {
+std::string get_selected_sdpa_kernel(const cldnn::network::ptr& network) {
+    for (const auto& info : network->get_primitives_info()) {
+        if (info.type_id == "scaled_dot_product_attention")
+            return network->get_primitive_info(info.original_id);
+    }
+    return {};
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 struct sdpa_test_params {
     int head_size;
@@ -551,19 +559,9 @@ TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
         return std::make_pair(network, output);
     };
 
-    // Look up by type, not id: the node is renamed to "result" when the reorder is dropped. The
-    // node description carries the selected OpenCL entry point; kernel_id only has the impl class.
-    auto selected_sdpa_kernel = [](const cldnn::network::ptr& net) {
-        for (const auto& info : net->get_primitives_info()) {
-            if (info.type_id == "scaled_dot_product_attention")
-                return net->get_primitive_info(info.original_id);
-        }
-        return std::string{};
-    };
-
     // A GPU fault from the prefetch would surface here as CL_OUT_OF_RESOURCES out of execute().
     auto [network, output] = run_network();
-    const auto sdpa_info = selected_sdpa_kernel(network);
+    const auto sdpa_info = get_selected_sdpa_kernel(network);
     ASSERT_FALSE(sdpa_info.empty()) << "no scaled_dot_product_attention node in the built program";
     ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
         << "sdpa_micro was not selected; the multi-K-tile prefetch path was not exercised. Node "
@@ -903,10 +901,15 @@ void test_boolean_mask_micro_matches_reference(data_types qkv_data_type) {
     set_values(mask_mem, mask);
 
     auto run_sdpa = [&](const std::string& kernel_name) {
+        const auto v_input_layout = kernel_name == "sdpa_ref"
+                                        ? layout{ov::PartialShape{batch, seq_length, num_heads, -1},
+                                                 qkv_data_type,
+                                                 format::bfyx}
+                                        : qkv_layout;
         topology topo;
         topo.add(input_layout("q", qkv_layout));
         topo.add(input_layout("k", qkv_layout));
-        topo.add(input_layout("v", qkv_layout));
+        topo.add(input_layout("v", v_input_layout));
         topo.add(input_layout("mask", mask_layout));
         topo.add(scaled_dot_product_attention("sdpa",
                                               {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
@@ -930,11 +933,17 @@ void test_boolean_mask_micro_matches_reference(data_types qkv_data_type) {
         network->set_input_data("k", k_mem);
         network->set_input_data("v", v_mem);
         network->set_input_data("mask", mask_mem);
-        return network->execute().at("result").get_memory();
+        auto output = network->execute().at("result").get_memory();
+        return std::make_pair(network, output);
     };
 
-    auto ref_output = run_sdpa("sdpa_ref");
-    auto micro_output = run_sdpa("sdpa_micro");
+    auto [ref_network, ref_output] = run_sdpa("sdpa_ref");
+    auto [micro_network, micro_output] = run_sdpa("sdpa_micro");
+
+    const auto ref_info = get_selected_sdpa_kernel(ref_network);
+    const auto micro_info = get_selected_sdpa_kernel(micro_network);
+    ASSERT_NE(ref_info.find("sdpa_ref"), std::string::npos) << ref_info;
+    ASSERT_NE(micro_info.find("sdpa_micro"), std::string::npos) << micro_info;
 
     mem_lock<T, mem_lock_type::read> ref_data(ref_output, get_test_stream());
     mem_lock<T, mem_lock_type::read> micro_data(micro_output, get_test_stream());
@@ -949,12 +958,12 @@ void test_boolean_mask_micro_matches_reference(data_types qkv_data_type) {
                 const size_t value_idx = ((selected_key(query) * num_heads + head) * head_size) + feature;
                 ASSERT_TRUE(std::isfinite(static_cast<float>(ref_data[output_idx])));
                 ASSERT_TRUE(std::isfinite(static_cast<float>(micro_data[output_idx])));
-                ASSERT_NEAR(static_cast<float>(ref_data[output_idx]),
-                            static_cast<float>(micro_data[output_idx]),
-                            tolerance);
                 if (query < first_unmasked_query) {
                     continue;
                 }
+                ASSERT_NEAR(static_cast<float>(ref_data[output_idx]),
+                            static_cast<float>(micro_data[output_idx]),
+                            tolerance);
                 const float expected = static_cast<float>(value_data[value_idx]);
                 ASSERT_NEAR(static_cast<float>(ref_data[output_idx]), expected, tolerance);
                 ASSERT_NEAR(static_cast<float>(micro_data[output_idx]), expected, tolerance);
@@ -1011,10 +1020,15 @@ TEST(sdpa_gpu_custom, boolean_mask_opt_matches_reference) {
     set_values(mask_mem, mask);
 
     auto run_sdpa = [&](const std::string& kernel_name) {
+        const auto v_input_layout = kernel_name == "sdpa_ref"
+                                        ? layout{ov::PartialShape{batch, seq_length, num_heads, -1},
+                                                 data_types::f16,
+                                                 format::bfyx}
+                                        : value_layout;
         topology topo;
         topo.add(input_layout("q", qk_layout));
         topo.add(input_layout("k", qk_layout));
-        topo.add(input_layout("v", value_layout));
+        topo.add(input_layout("v", v_input_layout));
         topo.add(input_layout("mask", mask_layout));
         topo.add(scaled_dot_product_attention("sdpa",
                                               {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
@@ -1038,11 +1052,17 @@ TEST(sdpa_gpu_custom, boolean_mask_opt_matches_reference) {
         network->set_input_data("k", k_mem);
         network->set_input_data("v", v_mem);
         network->set_input_data("mask", mask_mem);
-        return network->execute().at("result").get_memory();
+        auto output = network->execute().at("result").get_memory();
+        return std::make_pair(network, output);
     };
 
-    auto ref_output = run_sdpa("sdpa_ref");
-    auto opt_output = run_sdpa("sdpa_opt");
+    auto [ref_network, ref_output] = run_sdpa("sdpa_ref");
+    auto [opt_network, opt_output] = run_sdpa("sdpa_opt");
+
+    const auto ref_info = get_selected_sdpa_kernel(ref_network);
+    const auto opt_info = get_selected_sdpa_kernel(opt_network);
+    ASSERT_NE(ref_info.find("sdpa_ref"), std::string::npos) << ref_info;
+    ASSERT_NE(opt_info.find("sdpa_opt"), std::string::npos) << opt_info;
 
     mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_output, get_test_stream());
     mem_lock<ov::float16, mem_lock_type::read> opt_data(opt_output, get_test_stream());

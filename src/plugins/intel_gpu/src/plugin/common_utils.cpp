@@ -175,6 +175,7 @@ void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_p
     CASE(ov::element::bf16, ov::element::bf16, ov::bfloat16, ov::bfloat16);
     CASE(ov::element::f32, ov::element::bf16, float, ov::bfloat16);
     CASE(ov::element::f16, ov::element::bf16, ov::float16, ov::bfloat16);
+    CASE(ov::element::boolean, ov::element::boolean, bool, bool);
     CASE(ov::element::boolean, ov::element::u8, bool, uint8_t);
     CASE(ov::element::u8, ov::element::boolean, uint8_t, bool);
 
