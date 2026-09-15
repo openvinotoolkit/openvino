@@ -796,6 +796,17 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
         behavior_ctx.emplace(make_behavior_context(real_idx, idx));
     }
 
+    // A standalone expert block (or a first-layer MoE) can consume global
+    // inputs directly. The generic binder deliberately skips expert models
+    // because their parameters are remapped/unrolled; route those tensors
+    // through the same executor contract as inter-subgraph inputs.
+    if (is_moe) {
+        for (const auto& [global_idx, input_idx] : m_subrequests_gio.at(idx).global_params) {
+            const auto& tensor = get_tensor(m_npuw_model->inputs()[global_idx]);
+            m_moe_executor->function_prologue_moe_input(idx, real_idx, input_idx, tensor);
+        }
+    }
+
     // Function call prologue:
     // 1. Walk through function dependencies and set the respective tensors
     //    as parameters
