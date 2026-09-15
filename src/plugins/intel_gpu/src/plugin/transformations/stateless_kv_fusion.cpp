@@ -29,8 +29,12 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/variadic_split.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/scatter_base.hpp"
+#include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
@@ -40,44 +44,42 @@ namespace ov::intel_gpu {
 StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
     using namespace ov::pass::pattern;
     using namespace ov::op;
+    using ov::pass::operator|;
 
     auto past = wrap_type<ov::op::v0::Parameter>();
     auto new_token_data = any_input();
 
     auto total_seqlen = wrap_type<ov::op::v0::Parameter>(shape_matches("[1]"));
-    auto total_seqlen_cvt = wrap_type<ov::op::v0::Convert>({total_seqlen});
-    auto total_seqlen_actual = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{total_seqlen, total_seqlen_cvt});
+    auto total_seqlen_actual = optional<ov::op::v0::Convert>({total_seqlen});
     auto seqlens_k = wrap_type<ov::op::v0::Parameter>(shape_matches("[1,1]"));
-    auto seqlens_k_cvt = wrap_type<ov::op::v0::Convert>({seqlens_k});
-    auto seqlens_k_actual = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{seqlens_k, seqlens_k_cvt});
+    auto seqlens_k_actual = optional<ov::op::v0::Convert>({seqlens_k});
     auto real_seqlens = wrap_type<ov::op::v1::Add>({seqlens_k_actual, 1});
     auto seqlens_1d = wrap_type<ov::op::v1::Reshape>({real_seqlens, 1});
-    auto concat_kv_len = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{total_seqlen, total_seqlen_cvt, seqlens_1d});
+    auto concat_kv_len = total_seqlen_actual | seqlens_1d;
 
-    auto cur_seqlen_shapeof = wrap_type<ov::op::v3::ShapeOf>({any_input()});
+    auto cur_seqlen_shapeof = wrap_type<ov::op::util::ShapeOfBase>({any_input()});
     auto seqlen_dim = wrap_type<ov::op::v0::Constant>(shape_matches("[1]"));
-    auto cur_seqlen = wrap_type<ov::op::v8::Gather>({cur_seqlen_shapeof, seqlen_dim, 0});
+    auto cur_seqlen = wrap_type<ov::op::util::GatherBase>({cur_seqlen_shapeof, seqlen_dim, 0});
     auto cur_seqlen_neg = wrap_type<ov::op::v1::Multiply>({cur_seqlen, -1});
-    auto cur_seqlen_neg_const = wrap_type<ov::op::v0::Constant>(shape_matches("[?]"));
-    auto past_seqlen_add =
-        wrap_type<ov::op::v1::Add>({concat_kv_len, std::make_shared<ov::pass::pattern::op::Or>(OutputVector{cur_seqlen_neg, cur_seqlen_neg_const})});
+    auto cur_seqlen_neg_const = wrap_type<ov::op::v0::Constant>(rank_equals(1));
+    auto past_seqlen_add = wrap_type<ov::op::v1::Add>({concat_kv_len, cur_seqlen_neg | cur_seqlen_neg_const});
     auto past_seqlen_sub = wrap_type<ov::op::v1::Subtract>({concat_kv_len, cur_seqlen});
 
     auto range_cur = wrap_type<ov::op::v4::Range>({0, any_input(), 1});
-    auto const_range_cur = wrap_type<ov::op::v0::Constant>(shape_matches("[?]"));
-    auto pos_idx_base = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{range_cur, const_range_cur});
+    auto const_range_cur = wrap_type<ov::op::v0::Constant>(rank_equals(1));
+    auto pos_idx_base = range_cur | const_range_cur;
     auto past_seqlen_from_param = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past_seqlen_add, past_seqlen_sub, any_input()});
     auto shifted_pos_idx = wrap_type<ov::op::v1::Add>({pos_idx_base, past_seqlen_from_param});
-    auto pos_idx = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{shifted_pos_idx, any_input()});
+    auto pos_idx = shifted_pos_idx | any_input();
     auto scatter_axis = wrap_type<ov::op::v0::Constant>(shape_matches("[1]"));
-    auto scatter_update = wrap_type<ov::op::v3::ScatterUpdate>({past, pos_idx, new_token_data, scatter_axis});
+    auto scatter_update = wrap_type<ov::op::util::ScatterBase>({past, pos_idx, new_token_data, scatter_axis});
 
     auto slice_axis = wrap_type<ov::op::v0::Constant>();
     auto past_seqlen_actual = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past_seqlen_add, past_seqlen_sub, any_input()});
     auto slice = wrap_type<ov::op::v8::Slice>({past, 0, past_seqlen_actual, 1, slice_axis});
     auto concat = wrap_type<ov::op::v0::Concat>({slice, new_token_data});
 
-    auto kv_actual = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{scatter_update, concat});
+    auto kv_actual = scatter_update | concat;
     auto result = wrap_type<ov::op::v0::Result>({kv_actual});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -109,7 +111,7 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
                 continue;
             }
             // first non shape-of will be treated as the input to SDPA
-            if (!ov::as_type<ov::op::v3::ShapeOf>(input.get_node()) && !kv_to_sdpa_input.has_value()) {
+            if (!ov::is_type<ov::op::util::ShapeOfBase>(input.get_node()) && !kv_to_sdpa_input.has_value()) {
                 kv_to_sdpa_input.emplace(input);
             } else {
                 other_inputs.push_back(input);
@@ -202,7 +204,7 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
         } else {
             auto scatter_axis_node = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(scatter_axis).get_node_shared_ptr());
             target_axis = scatter_axis_node->cast_vector<int64_t>()[0];
-            auto update_node = ov::as_type_ptr<ov::op::v3::ScatterUpdate>(pattern_map.at(scatter_update).get_node_shared_ptr());
+            auto update_node = pattern_map.at(scatter_update).get_node_shared_ptr();
             pos_idx_output = pattern_map.at(pos_idx);
             node_infos.push_back(update_node);
 

@@ -61,6 +61,16 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_past_cur_seqlens(cons
     return {past_seqlen->output(0), current_seqlen->output(0)};
 }
 
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> make_past_cur_seqlens_older(const ov::Output<ov::Node>& present_seqlen,
+                                                                                  const ov::Output<ov::Node>& query,
+                                                                                  const ov::Output<ov::Node>& axis) {
+    auto query_shape = std::make_shared<ov::op::v0::ShapeOf>(query);
+    auto gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
+    auto current_seqlen = std::make_shared<ov::op::v7::Gather>(query_shape, axis, gather_axis);
+    auto past_seqlen = std::make_shared<ov::op::v1::Subtract>(present_seqlen, current_seqlen);
+    return {past_seqlen->output(0), current_seqlen->output(0)};
+}
+
 ov::Output<ov::Node> make_position_ids(const ov::Output<ov::Node>& past_seqlen, size_t current_seqlen) {
     std::vector<int64_t> position_values(current_seqlen);
     std::iota(position_values.begin(), position_values.end(), 0);
@@ -182,6 +192,65 @@ TEST_F(TransformationTestsF, StatelessKVFusion_UpdateSplit) {
         const auto [real_seqlen, present_seqlen] = make_sequence_lengths(seqlens_k);
         auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
         auto [past_seqlen, current_seqlen] = make_past_cur_seqlens(present_seqlen, query, axis);
+        auto position_ids = make_position_ids(past_seqlen, current_seqlen);
+        auto key_cache = std::make_shared<ov::intel_gpu::op::StatelessKV>(past_key, key, real_seqlen, position_ids, 2, true);
+        auto value_cache = std::make_shared<ov::intel_gpu::op::StatelessKV>(past_value, value, real_seqlen, position_ids, 2, true);
+
+        auto sdpa =
+            std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{query, key_cache->output(1), value_cache->output(1)}, true, order, order, order, order);
+        model_ref = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(sdpa),
+                                                                 std::make_shared<ov::op::v0::Result>(key_cache->output(0)),
+                                                                 std::make_shared<ov::op::v0::Result>(value_cache->output(0))},
+                                                ov::ParameterVector{query, key, value, past_key, past_value, seqlens_k});
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+    }
+}
+
+TEST_F(TransformationTestsF, StatelessKVFusion_UpdateSplit_Older) {
+    const ov::PartialShape current_shape{1, 2, -1, 4};
+    const ov::PartialShape past_shape{1, 2, 8, 4};
+    const auto order = ov::intel_gpu::op::SDPA::default_order(4);
+
+    {
+        auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, current_shape);
+        auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, current_shape);
+        auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, current_shape);
+        auto past_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, past_shape);
+        auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, past_shape);
+        auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1});
+
+        const auto [real_seqlen, present_seqlen] = make_sequence_lengths(seqlens_k);
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto [past_seqlen, current_seqlen] = make_past_cur_seqlens_older(present_seqlen, query, axis);
+        auto position_ids = make_position_ids(past_seqlen, current_seqlen);
+        auto present_key = std::make_shared<ov::op::v3::ScatterUpdate>(past_key, position_ids, key, axis);
+        auto present_value = std::make_shared<ov::op::v3::ScatterUpdate>(past_value, position_ids, value, axis);
+        auto split_tail = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+        auto split_lengths = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{present_seqlen, split_tail}, 0);
+        auto key_split = std::make_shared<ov::op::v1::VariadicSplit>(present_key, axis, split_lengths);
+        auto value_split = std::make_shared<ov::op::v1::VariadicSplit>(present_value, axis, split_lengths);
+
+        auto sdpa =
+            std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{query, key_split->output(0), value_split->output(0)}, true, order, order, order, order);
+        model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(sdpa),
+                                                             std::make_shared<ov::op::v0::Result>(present_key),
+                                                             std::make_shared<ov::op::v0::Result>(present_value)},
+                                            ov::ParameterVector{query, key, value, past_key, past_value, seqlens_k});
+        manager.register_pass<StatelessKVFusion>();
+        disable_result_friendly_names_check();
+    }
+    {
+        auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, current_shape);
+        auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, current_shape);
+        auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, current_shape);
+        auto past_key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, past_shape);
+        auto past_value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, past_shape);
+        auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1});
+
+        const auto [real_seqlen, present_seqlen] = make_sequence_lengths(seqlens_k);
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto [past_seqlen, current_seqlen] = make_past_cur_seqlens_older(present_seqlen, query, axis);
         auto position_ids = make_position_ids(past_seqlen, current_seqlen);
         auto key_cache = std::make_shared<ov::intel_gpu::op::StatelessKV>(past_key, key, real_seqlen, position_ids, 2, true);
         auto value_cache = std::make_shared<ov::intel_gpu::op::StatelessKV>(past_value, value, real_seqlen, position_ids, 2, true);
