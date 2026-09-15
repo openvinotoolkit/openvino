@@ -2,7 +2,7 @@
   "name": "demo-electron-app",
   "main": "index.js",
   "scripts": {
-    "start": "electron --disable-gpu --no-sandbox --no-zygote ."
+    "start": "electron --disable-gpu --no-sandbox --in-process-gpu ."
   },
   "devDependencies": {
     "electron": "43.0.0"
