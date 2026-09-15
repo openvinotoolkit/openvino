@@ -5,6 +5,7 @@
 #include "roi_pooling.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <common/float16.hpp>
 #include <common/utils.hpp>
@@ -986,16 +987,16 @@ std::tuple<int, int, int, int> ROIPooling::ROIPoolingExecutor::getBordersForMaxM
     return std::make_tuple(hstart, hend, wstart, wend);
 }
 
-std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(const float roi_start_h,
-                                                                             const float roi_end_h,
-                                                                             const float roi_start_w,
-                                                                             const float roi_end_w,
-                                                                             const int ih,
-                                                                             const int oh,
-                                                                             const int iw,
-                                                                             const int ow,
-                                                                             const int pooled_h,
-                                                                             const int pooled_w) {
+std::array<float, 2> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(const float roi_start_h,
+                                                                          const float roi_end_h,
+                                                                          const float roi_start_w,
+                                                                          const float roi_end_w,
+                                                                          const int ih,
+                                                                          const int oh,
+                                                                          const int iw,
+                                                                          const int ow,
+                                                                          const int pooled_h,
+                                                                          const int pooled_w) {
     float height_scale =
         (pooled_h > 1 ? ((roi_end_h - roi_start_h) * static_cast<float>(ih - 1)) / static_cast<float>(pooled_h - 1)
                       : 0.0F);
@@ -1023,7 +1024,7 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
         in_x = 0.5F * (roi_start_w + roi_end_w) * static_cast<float>(iw - 1);
     }
 
-    return std::make_pair(in_x, in_y);
+    return {in_x, in_y};
 }
 
 template <typename T>
