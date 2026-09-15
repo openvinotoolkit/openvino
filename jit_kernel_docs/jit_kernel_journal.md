@@ -350,16 +350,21 @@ been failing since the kernel was written.
 
 ### Generated code (Llama2, rotary_ndims=128, f32, AVX-512)
 
-| | Legacy | IR rolled | IR peeled | Clang -O3 |
-|---|--------|-----------|-----------|-----------|
-| Code size | 446 B | 227 B | 303 B | ~280 B |
-| Data tables | 640 B | 0 | 0 | 0 |
-| Vector insns/iter | 12 | 8 | **6** | 10* |
-| Branches | 0 | 3 | **0** | — |
-| Registers | 5 | 4 | 4 | 3 |
+| | Legacy | IR rolled | IR peeled | gcc 13 | clang 18 |
+|---|--------|-----------|-----------|--------|----------|
+| Code size | 446 B | 248 B | 303 B | 243 B | 239 B |
+| Data tables | 640 B | 0 | 0 | 0 | 0 |
+| Vector insns/iter | 12 | 12 | **8** | **8** | **8** |
+| Branches | 0 | 3 | 0 | 0 | 0 |
+| Pointer bumps | — | 4/iter | 12 total | **0** | **0** |
+| Prologue push/pop | 12 | 12 | 12 | **0** | **0** |
 
-\* Clang folds loads into FMA memory operands; so do we now, and the
-peeled bodies fold more because they are unmasked.
+The rolled loop cannot fold: its loads are masked, and a masked load must
+not feed unmasked arithmetic. Peeling makes the full iterations unmasked,
+at which point folding brings the vector count to exactly what both
+compilers emit. Compilers built `-O3 -march=native
+-mprefer-vector-width=512`; without that last flag neither uses `zmm` at
+all on this host.
 
 The legacy figure is code only — `jit_rotary_kernel.*.bin` is code
 followed by constant tables, so the 1088 B this table used to quote was
@@ -402,7 +407,10 @@ Conclusions, none of them flattering to instruction counting:
 ### Reference: what a compiler produces
 
 `rope_intrinsics.cpp` (untracked, repo root) holds the same kernel in
-intrinsics and in plain C++, for gcc 13 and clang 18. Findings:
+intrinsics and in plain C++, for gcc 13 and clang 18. Built standalone,
+not part of the plugin, so it answers assembly questions and not runtime
+ones — see "What is left against the compiler" for the instruction-level
+comparison against the peeled kernel. Findings:
 - Both compilers fold four of six loads into their consumers, giving 8
   vector ops per iteration — the number our folding pass now reaches.
 - Given plain C++ and `-mprefer-vector-width=512`, gcc handles a
@@ -492,7 +500,7 @@ header's emit closure.
 | | rolled | peeled |
 |---|---|---|
 | Size | 248 B | 304 B |
-| Vector ops per full iteration | 8 | **6** |
+| Vector ops per full iteration | 12 | **8** |
 | Branches | 3 | **0** |
 | Per-iteration scalar setup | ~13 insns | **0** |
 
@@ -530,6 +538,27 @@ Llama2 no change"):
 - color_convert: unchanged, its width is a runtime value so it keeps the
   rolled loop.
 
+### What is left against the compiler
+
+Counted instruction by instruction against `rope_intrinsics.cpp` built
+with both compilers (`jit_kernel_validation.md` item 2 — an intrinsics
+baseline exists precisely so this comparison is possible).
+
+Llama2, half=64: **the vector work is already identical** — 32
+instructions, same mix, every foldable load folded. The whole difference
+is 26 scalar instructions: 12 pointer bumps, 12 push/pop, 2 extra arg
+movs.
+
+QwenVL, half=40, vector instruction totals: ours 28, clang masked 28, gcc
+narrow 28, **clang narrow 24**. The only variant that beats us is the one
+using a narrower unpredicated remainder.
+
+| Gap | Cost | Ours to fix |
+|---|---|---|
+| Pointer bumps instead of displacements | 12 (Llama2) / 8 (QwenVL) `add`s against zero | yes — item 1 below |
+| Masked remainder | 8 vector ops for 8 elements, because masked loads cannot fold; clang's `ymm` step is 4 | yes — item 2 below |
+| Prologue/epilogue | 12 `push`/`pop` per call, plus `rbp` reserved for EVEX displacement compression | **no** — oneDNN's `preamble()` saves all six callee-saved GPRs unconditionally. The legacy kernel pays exactly the same 6/6, so this is a JIT-vs-compiler gap, not a regression. It matters because RoPE calls the kernel once per (batch, head, position) row, so on a 40-element row it is about a third of the stream |
+
 ### Two things deliberately not done
 
 Both were in the original plan; both are what the residual 2 µs on QwenVL
@@ -546,7 +575,11 @@ is now attributed to.
    worth making before measuring whether the `add`s matter.
 2. **Width reduction for the remainder.** Legacy and gcc both use one
    full `ymm` step for an 8-float remainder where we use a predicated
-   `zmm`. This stays a `vector_target` query when it lands — on AVX-512 a
+   `zmm`. Measuring against clang showed this buys more than the avoided
+   predicate: an unpredicated remainder can *fold its loads*, which a
+   masked one cannot, so clang's narrow variant lands at 24 vector
+   instructions against our 28. This stays a `vector_target` query when
+   it lands — on AVX-512 a
    narrower unpredicated access beats building a mask, on SVE/RVV the
    predicate is free and narrowing is meaningless. The obstacle is not
    the query: the body is a `std::function<void(const vlen&)>` with `N`
