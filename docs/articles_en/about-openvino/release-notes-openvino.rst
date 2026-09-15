@@ -1060,9 +1060,9 @@ Previous 2026 releases
 	* Extended 4-bit compression data-aware methods (AWQ, Scale Estimation, GPTQ) to support 3D matmuls for more accurate compression of such models as GPT-OSS-20B and Qwen3-30B-A3B.
 	* Preview support for per-layer and per-block codebooks has been introduced for 4-bit weight compression (ADAPTIVE_CODEBOOK data type), which helps to reduce the quantization error in the case of per-channel weight compression. See the `example <https://github.com/openvinotoolkit/nncf/tree/develop/examples/llm_compression/openvino/smollm2_360m_adaptive_codebook>`__ for more details.
 	* Added NNCF Profiler for layer-by-layer profiling of OpenVINO™ model activations. This is useful for debugging quantization and compression issues, comparing model variants, and understanding activation distributions. See more details in `Readme <https://github.com/openvinotoolkit/nncf/blob/develop/tools/activation_profiler/README.md>`__ and `Jupyter notebook <https://github.com/openvinotoolkit/nncf/blob/develop/tools/activation_profiler/nncf_profiler_example.ipynb>`__.
-	* Added new API method, ``nncf.prune()``, for unstructured pruning of PyTorch models previously supported with the deprecated and removed ``nncf.create_compressed_model()`` method.
-	* NNCF optimization methods for TensorFlow models and TensorFlow backend in NNCF are deprecated and removed in 2026. It is recommended to use PyTorch analogous models for training-aware optimization methods and OpenVINO IR, PyTorch, and ONNX models for post-training optimization methods from NNCF.
-	* The following experimental NNCF methods are deprecated and removed: NAS, Structural Pruning, AutoML, Knowledge Distillation, Mixed-Precision Quantization, Movement Sparsity.
+	* Added new API method, ``nncf.prune()``, for unstructured pruning of PyTorch models previously supported with the removed ``nncf.create_compressed_model()`` method.
+	* NNCF optimization methods for TensorFlow models and the TensorFlow backend in NNCF were removed in NNCF 3.0. It is recommended to use PyTorch analogous models for training-aware optimization methods and OpenVINO IR, PyTorch, and ONNX models for post-training optimization methods from NNCF.
+	* The following experimental NNCF methods were removed in NNCF 3.0: NAS, Structural Pruning, AutoML, Knowledge Distillation, Mixed-Precision Quantization, Movement Sparsity.
 
 	**OpenVINO Tokenizers**
 
@@ -1184,17 +1184,19 @@ Discontinued in 2026
 
 * The deprecated OpenVINO GenAI StreamerBase ``put`` method, ``bool`` return type for callbacks, and ``ChunkStreamer`` class has been removed.
 
-* NNCF ``create_compressed_model()`` method is now deprecated and removed in 2026. Please use ``nncf.prune()`` method for unstructured pruning and ``nncf.quantize()`` for INT8 quantization.
+* NNCF ``create_compressed_model()`` method was removed in NNCF 3.0. Please use ``nncf.prune()`` for unstructured pruning and ``nncf.quantize()`` for INT8 quantization.
 
-* NNCF optimization methods for TensorFlow models and TensorFlow backend in NNCF are deprecated and removed in 2026. It is recommended to use PyTorch analogous models for training-aware optimization methods and OpenVINO™ IR, PyTorch, and ONNX models for post-training optimization methods from NNCF.
+* NNCF optimization methods for TensorFlow models and the TensorFlow backend in NNCF were removed in NNCF 3.0. It is recommended to use PyTorch analogous models for training-aware optimization methods and OpenVINO™ IR, PyTorch, and ONNX models for post-training optimization methods from NNCF.
 
-* The following experimental NNCF methods are deprecated and removed: NAS, Structural Pruning, AutoML, Knowledge Distillation, Mixed-Precision Quantization, Movement Sparsity.
+* The following experimental NNCF methods were removed in NNCF 3.0: NAS, Structural Pruning, AutoML, Knowledge Distillation, Mixed-Precision Quantization, Movement Sparsity.
 
 * CPU plugin now requires support for the AVX2 instruction set as a minimum system requirement. The SSE instruction set will no longer be supported.
 
 * OpenVINO™ migrated builds based on RHEL 8 to RHEL 9.
 
 * Dropped support for the TensorFlow Serving (TFS) API in OpenVINO Model Server 2026.3. KServe API is recommended for classic model deployments.
+
+* Support for Stateful Models was removed in OpenVINO Model Server 2026.3. These capabilities were originally introduced for Kaldi audio models which are no longer applicable. Current audio model support relies on the OpenAI API and pipelines implemented with the OpenVINO™ GenAI library.
 
 * Support for Python 3.10 will be discontinued in OpenVINO 2026.5, due to its end-of-life (EOL) status.
 
@@ -1208,8 +1210,6 @@ Deprecated and to be removed in the future
 * OpenVINO Model Server:
 
   * The dedicated OpenVINO operator for Kubernetes and OpenShift is now deprecated in favor of the recommended KServe operator. The OpenVINO operator will remain functional in upcoming OpenVINO™ Model Server releases but will no longer be actively developed. Since KServe provides broader capabilities, no loss of functionality is expected. On the contrary, more functionalities will be accessible and migration between other serving solutions and OpenVINO Model Server will be much easier.
-
-  * Support for `Stateful models <https://docs.openvino.ai/2025/model-server/ovms_docs_stateful_models.html>`__ will be deprecated. These capabilities were originally introduced for Kaldi audio models which are no longer applicable. Current audio models support relies on the OpenAI API, and pipelines implemented via OpenVINO™ GenAI library.
 
   * `Directed Acyclic Graph Scheduler <https://docs.openvino.ai/2025/model-server/ovms_docs_dag.html>`__ will be deprecated in favor of pipelines managed by MediaPipe scheduler and will be removed in 2026.3. That approach gives more flexibility, includes wider range of calculators and has support for using processing accelerators.
 
