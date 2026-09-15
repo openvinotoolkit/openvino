@@ -187,6 +187,14 @@ OpenVINO Model Server
 
   * Security related improvements.
 
+* Internal changes and improvements:
+
+  * Updated Azure SDK and removed boost dependency from the Linux build.
+
+  * Refactored tool parsers and reasoning parsers with streaming oriented processing with extra flexibility.
+
+  * Enhanced debug information in logs related to execution performance in VLM models.
+
 Neural Network Compression Framework
 ++++++++++++++++++++++++++++++++++++
 
@@ -261,6 +269,14 @@ Jupyter Notebooks
   * `InternVL2 <https://openvinotoolkit.github.io/openvino_notebooks/?search=internvl2>`__
 
   * `Gemma-3 <https://openvinotoolkit.github.io/openvino_notebooks/?search=gemma-3>`__
+
+Known Issues
+------------
+
+| **Component: GPU Plugin**
+| ID: CVS-194267
+| Description:
+| On Intel® Core™ Ultra Series 3 platforms, the initial compilation of the INT4-compressed ``ibm-granite/granite-4.0-h-tiny`` model may take longer than expected when using the GPU plugin. This behavior applies to both SDPA and PA attention backends. The ``granite-4.0-h-micro`` variant is not affected. As a workaround, using ``granite-4.0-h-micro`` instead is recommended.
 
 Previous 2026 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1179,6 +1195,8 @@ Discontinued in 2026
 * OpenVINO™ migrated builds based on RHEL 8 to RHEL 9.
 
 * Dropped support for the TensorFlow Serving (TFS) API in OpenVINO Model Server 2026.3. KServe API is recommended for classic model deployments.
+
+* Support for Python 3.10 will be discontinued in OpenVINO 2026.5, due to its end-of-life (EOL) status.
 
 Deprecated and to be removed in the future
 ------------------------------------------
