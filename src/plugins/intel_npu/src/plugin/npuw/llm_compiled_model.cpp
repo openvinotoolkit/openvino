@@ -706,7 +706,13 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
             // No-op (returns false) for models without sliding-window attention layers.
             ov::npuw::ShrinkSlidingWindowKVCache swa_pass(kv_size, max_generation_token_len, axes);
             if (swa_pass.run_on_model(generate_variant)) {
-                m_swa_window_size = swa_pass.window_size();
+                // m_swa_window_size was already set from the prefill model earlier in the
+                // constructor; here we only verify every generate variant agrees with it.
+                OPENVINO_ASSERT(m_swa_window_size == swa_pass.window_size(),
+                                "SWA window size mismatch: ",
+                                m_swa_window_size,
+                                " vs ",
+                                swa_pass.window_size());
                 LOG_INFO("ShrinkSlidingWindowKVCache applied to generate variant (kv_size="
                          << kv_size << ", max_generation_token_len=" << max_generation_token_len
                          << ", window_size=" << m_swa_window_size << ")");
