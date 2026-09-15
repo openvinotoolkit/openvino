@@ -52,6 +52,7 @@
 #include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -243,7 +244,8 @@ MemoryPtr acl_fc_executor::prepareWeightMemory(const MemoryArgs& memory,
                                                const FCAttrs& attrs,
                                                ACLFCAttrs& aclfcAttrs,
                                                arm_compute::WeightFormat& expectedWeightFormat,
-                                               arm_compute::TensorInfo& weiTensorInfo) {
+                                               arm_compute::TensorInfo& weiTensorInfo,
+                                               bool enableFixedFormat) {
     MemoryArgs memoryArgs;
     memoryArgs[ARG_BIAS] = memory.at(ARG_BIAS);
     memoryArgs[ARG_WEI] = memory.at(ARG_WEI);
@@ -275,11 +277,15 @@ MemoryPtr acl_fc_executor::prepareWeightMemory(const MemoryArgs& memory,
     }
     // TODO: ACLWeightFormatGenerator should be replaced with Reorder executor
     // that calls ACL NEReorder + NETranspose or dnnl::reorder depending on backend availability
-    auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, memoryArgs);
-    bool isNeededReorder = aclWeightsRepack->update(memoryArgs);
-    expectedWeightFormat =
-        isNeededReorder ? aclWeightsRepack->getOptImplWeightFormat() : arm_compute::WeightFormat::UNSPECIFIED;
-    weiTensorInfo = aclWeightsRepack->getTensorInfo(ACLArgs::ACL_WEI);
+    bool isNeededReorder = false;
+    expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
+    if (enableFixedFormat) {
+        auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, memoryArgs);
+        isNeededReorder = aclWeightsRepack->update(memoryArgs);
+        expectedWeightFormat =
+            isNeededReorder ? aclWeightsRepack->getOptImplWeightFormat() : arm_compute::WeightFormat::UNSPECIFIED;
+        weiTensorInfo = aclWeightsRepack->getTensorInfo(ACLArgs::ACL_WEI);
+    }
 
     if (isNeededReorder) {
         dnnl::impl::dim_t o_dim = 0;
@@ -377,11 +383,13 @@ void acl_fc_executor::ACLWeightFormatGenerator::updateTensorsShapes(ACLShapes& a
 }
 
 arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
-    if (aclfcAttrs.isConvertedWeights) {
+    if (aclfcAttrs.isConvertedWeights && any_of(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type(),
+                                                arm_compute::DataType::F16,
+                                                arm_compute::DataType::F32)) {
         aclMemoryInfos[ACLArgs::ACL_WEI]->set_data_type(aclMemoryInfos[ACLArgs::ACL_SRC_0]->data_type());
     }
     int icTotal = aclMemoryInfos[ACLArgs::ACL_SRC_0]->dimension(0);
-    return arm_compute::NEFullyConnectedLayer::has_opt_impl(
+    const auto status = arm_compute::NEFullyConnectedLayer::has_opt_impl(
         expectedWeightFormat,
         aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
         aclMemoryInfos[ACLArgs::ACL_WEI].get(),
@@ -389,6 +397,17 @@ arm_compute::Status acl_fc_executor::ACLWeightFormatGenerator::validateTensorsIn
         aclMemoryInfos[ACLArgs::ACL_DST].get(),
         fullyConnectedLayerInfo,
         arm_compute::WeightsInfo(false, 1, 1, icTotal, false, arm_compute::WeightFormat::ANY));
+    if (!status) {
+        return status;
+    }
+    // UNSPECIFIED/ANY are not concrete layouts (interleave_by()/block_by() are 0), so
+    // reorder_to_weight_format() would build a zero-sized weights descriptor
+    if (any_of(expectedWeightFormat, arm_compute::WeightFormat::UNSPECIFIED, arm_compute::WeightFormat::ANY)) {
+        expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
+        return arm_compute::Status(arm_compute::ErrorCode::RUNTIME_ERROR,
+                                   "no concrete optimized weight format reported");
+    }
+    return status;
 }
 
 ACLFunction acl_fc_executor::ACLWeightFormatGenerator::configureFunction(
