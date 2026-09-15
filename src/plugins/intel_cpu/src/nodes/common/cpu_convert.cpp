@@ -937,6 +937,49 @@ struct ConvertFrom2BitPrecision<std::tuple<src_t, dst_t>> {
     }
 };
 
+#define INTEL_CPU_CVT_FROM_3BIT_LIST                                                                 \
+    INTEL_CPU_CVT(u3, f32), INTEL_CPU_CVT(u3, f16), INTEL_CPU_CVT(u3, bf16), INTEL_CPU_CVT(u3, i32), \
+        INTEL_CPU_CVT(u3, u8), INTEL_CPU_CVT(u3, i8)
+
+template <typename LoopPolicy>
+struct ConvertFrom3BitContext {
+    using loop_policy = LoopPolicy;
+
+    const void* srcPtr;
+    void* dstPtr;
+    size_t size;
+    bool converted;
+};
+
+template <typename T>
+struct ConvertFrom3BitPrecision;
+
+// U3 is tightly packed LSB-first
+[[maybe_unused]] static uint8_t get_u3(const uint8_t* src, size_t i) {
+    const size_t bit = 3 * i;
+    const size_t byte = bit >> 3;
+    const size_t shift = bit & 7U;
+    uint16_t bits = static_cast<uint16_t>(src[byte]);
+    if (shift + 3U > 8U) {
+        bits |= static_cast<uint16_t>(src[byte + 1]) << 8U;
+    }
+    return static_cast<uint8_t>((bits >> shift) & 0x7U);
+}
+
+template <typename src_t, typename dst_t>
+struct ConvertFrom3BitPrecision<std::tuple<src_t, dst_t>> {
+    template <typename Ctx>
+    void operator()(Ctx& ctx) {
+        using LoopPolicy = typename Ctx::loop_policy;
+        const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
+        auto dst = static_cast<dst_t*>(ctx.dstPtr);
+        LoopPolicy::run(ctx.size, [&](size_t i) {
+            dst[i] = static_cast<dst_t>(get_u3(src, i));
+        });
+        ctx.converted = true;
+    }
+};
+
 #define INTEL_CPU_CVT_FROM_4BIT_LIST                                                                                 \
     INTEL_CPU_CVT(u4, f32), INTEL_CPU_CVT(u4, i32), INTEL_CPU_CVT(u4, bf16), INTEL_CPU_CVT(u4, f16),                 \
         INTEL_CPU_CVT(u4, i8), INTEL_CPU_CVT(u4, u8), INTEL_CPU_CVT(i4, f32), INTEL_CPU_CVT(i4, i32),                \
@@ -1178,6 +1221,10 @@ static void do_cpu_convert(const void* srcPtr,
         ConvertFrom2BitContext<LoopPolicy> ctx{srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFrom2BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_2BIT_LIST);
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
+    } else if (srcPrc == ov::element::u3) {
+        ConvertFrom3BitContext<LoopPolicy> ctx{srcPtr, dstPtr, size, false};
+        OV_SWITCH(intel_cpu, ConvertFrom3BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_3BIT_LIST);
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else if (srcPrc.bitwidth() == 4U) {
         ConvertFrom4BitContext<LoopPolicy> ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFrom4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
@@ -1259,6 +1306,7 @@ bool is_supported_convert([[maybe_unused]] ov::element::Type srcPrc, [[maybe_unu
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_2BIT_LIST);
+    OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_3BIT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BYTE_FP_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);
