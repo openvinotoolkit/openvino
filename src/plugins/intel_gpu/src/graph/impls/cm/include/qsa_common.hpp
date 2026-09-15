@@ -39,10 +39,10 @@
 #ifndef QSA_COMMON_HPP
 #    define QSA_COMMON_HPP
 
-#    include <cm/cm.h>
-#    include <cm/cmtl.h>
+#include <cm/cm.h>
+#include <cm/cmtl.h>
 
-#    include "qsa_gr_common.hpp"
+#include "qsa_gr_common.hpp"
 
 namespace qsa {
 

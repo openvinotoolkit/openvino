@@ -31,7 +31,7 @@
 #ifndef QSA_DPAS_COMMON_HPP
 #    define QSA_DPAS_COMMON_HPP
 
-#    include "qsa_common.hpp"
+#include "qsa_common.hpp"
 
 namespace qsa_dpas {
 
