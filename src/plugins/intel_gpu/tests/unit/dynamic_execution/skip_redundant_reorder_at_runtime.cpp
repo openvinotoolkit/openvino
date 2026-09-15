@@ -209,7 +209,9 @@ TEST(skip_reorder_at_runtime, non_remote_to_remote_to_non_remote_preserves_remot
     // Phase 2: same-shape remote destination.
     auto remote_output = engine.allocate_memory(out_layout);
     network.set_output_memory("reorder", remote_output, true);
-    network.execute();
+    auto outputs = network.execute();
+    // The remote buffer is read directly below instead of through the outputs map, so wait for execution here.
+    outputs.at("reorder").get_memory();
 
     std::vector<float> remote_values(out_count);
     {
@@ -232,7 +234,8 @@ TEST(skip_reorder_at_runtime, non_remote_to_remote_to_non_remote_preserves_remot
     std::iota(second_input.begin(), second_input.end(), 1000.5f);
     set_values(input_mem, second_input);
     network.set_input_data("input", input_mem);
-    network.execute();
+    outputs = network.execute();
+    outputs.at("reorder").get_memory();
 
     ASSERT_TRUE(fc_inst->output_memory_ptr());
     ASSERT_FALSE(engine.is_the_same_buffer(*fc_inst->output_memory_ptr(), *remote_output));
