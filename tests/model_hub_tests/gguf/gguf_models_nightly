@@ -16,6 +16,7 @@
 # resident memory recorded in that document's memory table (the largest entry kept here,
 # muse-glimmer, peaks around 37 GiB) -- hence the 16-core/64 GiB nightly runner.
 olmoe,allenai/OLMoE-1B-7B-0924-Instruct-GGUF,olmoe-1b-7b-0924-instruct-q4_0.gguf
+qwen3-q1_0,prism-ml/Bonsai-8B-gguf,Bonsai-8B-Q1_0.gguf
 muse-glimmer,unsloth/Muse-Glimmer-30B-GGUF,Muse-Glimmer-30B-UD-Q4_K_XL.gguf
 qwen35-bonsai,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-Q2_g64.gguf
 ernie4_5-moe,bartowski/baidu_ERNIE-4.5-21B-A3B-PT-GGUF,baidu_ERNIE-4.5-21B-A3B-PT-Q4_K_M.gguf
