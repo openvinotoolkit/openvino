@@ -38,7 +38,7 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
-  NODEJS_VERSION: '21'
+  NODEJS_VERSION: '22'
   MANIFEST_FILE: manifest.yml
   PRODUCT_TYPE: public_macos_arm64_release
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
@@ -405,7 +405,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        nodejs-version: [21, 22, 24, 26]
+        nodejs-version: [22, 24, 26]
     with:
       runner: 'macos-15'
       nodejs-version: ${{ matrix.nodejs-version }}
