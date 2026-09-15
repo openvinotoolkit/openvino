@@ -240,22 +240,6 @@ public:
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
 
         configuration[ov::intel_npu::compile_log_level.name()] = ov::log::Level::ERR;
-        if (isTinyDynamicModel(selectedModelName)) {
-            // Workaround a compiler crash (MultiClusterStrategyAssignment computes an invalid output tile)
-            // when tiling the tiny, single-channel ESPCN_x2 tensors across multiple NPU compute tiles.
-            // TODO: check need this issue
-            configuration[ov::intel_npu::tiles.name()] = 1;
-            /*
-            [ RUN      ] smoke_BehaviorTests/InferWithHostCompileTests.DynamicNHWUsesOneVMExecution/targetDevice=NPU.4000_configItem=NPU_COMPILATION_MODE_HostCompile_Interpreter_configItem=NPU_COMPILER_TYPE_PLUGIN_configItem=NPU_CREATE_EXECUTOR_0_model=ESPCN_x2_gh_targetPlatform=NPU4000
-            [INFO] 14:58:05.833 [NPU_VCL] Current compiler ID: 2026.4.0-1-d8047fb380b-0820.073301-DCI-4d683512f7b.7.10
-            [INFO] 14:58:05.833 [NPU_VCL] Current compiler ID: 2026.4.0-1-d8047fb380b-0820.073301-DCI-4d683512f7b.7.10
-            [INFO] 14:58:05.834 [NPU_VCL] Current compiler ID: 2026.4.0-1-d8047fb380b-0820.073301-DCI-4d683512f7b.7.10
-            [INFO] 14:58:05.834 [NPU_VCL] Current compiler ID: 2026.4.0-1-d8047fb380b-0820.073301-DCI-4d683512f7b.7.10
-            [INFO] 14:58:05.834 [NPU_VCL] Current compiler ID: 2026.4.0-1-d8047fb380b-0820.073301-DCI-4d683512f7b.7.10
-            [ERROR] 14:58:05.874 [vpux-compiler] MultiClusterStrategyAssignment Pass failed : Wrong output tile 'DimRange [0, -9223372036854775808)'
-            [ERROR] 14:58:05.875 [vpux-compiler] Failed Pass MultiClusterStrategyAssignment on Operation loc(fused<{name = "main", type = "Func"}>["main", "fn1_block1"])
-            */
-        }
         std::vector<std::string> deviceNames =
             core->get_property("NPU", ov::available_devices.name()).as<std::vector<std::string>>();
         for (auto name : deviceNames) {
