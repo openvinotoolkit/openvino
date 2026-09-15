@@ -284,6 +284,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         window_k_begin = MAX(0, k - SLIDING_WINDOW_SIZE);
     #elif IS_PAGED_ATTENTION && !IS_PREFILL
         window_k_begin = MAX(0, past_len + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
+    #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        /* causal_offset (declared above, still in scope here since IS_CAUSAL implies it was
+           set) shifts wg_j0 to its true whole-sequence position -- without it wg_j0 alone
+           (bounded by this chunk's size) can never exceed SLIDING_WINDOW_SIZE and this always
+           clamps to 0, silently disabling the K-range skip for any chunked prefill call. */
+        window_k_begin = MAX(0, causal_offset + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
     #else
         window_k_begin = MAX(0, (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
     #endif

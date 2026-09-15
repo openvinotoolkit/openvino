@@ -997,17 +997,22 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
         set_values(k_mem, k_data);
         set_values(v_mem, v_data);
 
-        // Build mask: causal + sliding window
+        // Build mask: causal + sliding window, LOWER_RIGHT-aligned (query q maps to absolute
+        // key position q + (seq_kv - seq_q), matching op::SDPA::CausalMaskAlignment::LOWER_RIGHT
+        // used whenever is_causal=true with seq_kv > seq_q, e.g. a prefill chunk continuing on
+        // top of prior KV history).
         {
             std::vector<ov::float16> mask(batch * num_heads * seq_q * seq_kv);
             const ov::float16 neg_big = ov::float16(std::numeric_limits<ov::float16>::lowest());
+            const int causal_offset = seq_kv - seq_q;
             for (int b = 0; b < batch; b++) {
                 for (int h = 0; h < num_heads; h++) {
                     for (int q = 0; q < seq_q; q++) {
+                        const int abs_q = q + causal_offset;
                         for (int k = 0; k < seq_kv; k++) {
                             size_t idx = ((b * num_heads + h) * seq_q + q) * seq_kv + k;
-                            bool future = k > q;
-                            bool too_old = (q - k) >= window;
+                            bool future = k > abs_q;
+                            bool too_old = (abs_q - k) >= window;
                             mask[idx] = (future || too_old) ? neg_big : ov::float16(0.0f);
                         }
                     }
@@ -1054,7 +1059,8 @@ struct sdpa_sliding_window_test : public ::testing::TestWithParam<sdpa_sliding_w
 
             auto prim = scaled_dot_product_attention("sdpa",
                 {input_info("q"), input_info("k"), input_info("v")},
-                true, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3});
+                true, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3},
+                {}, false, /*causal_lower_right=*/true);
             prim.sliding_window = window;
             topo.add(prim);
             topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
@@ -1110,7 +1116,11 @@ INSTANTIATE_TEST_SUITE_P(smoke, sdpa_sliding_window_test,
         sdpa_sliding_window_test_params{64, 8, 64, 64, 1, 256},
         sdpa_sliding_window_test_params{64, 8, 1, 512, 1, 128},
         sdpa_sliding_window_test_params{64, 8, 512, 512, 1, 64},
-        sdpa_sliding_window_test_params{128, 4, 256, 256, 2, 64}
+        sdpa_sliding_window_test_params{128, 4, 256, 256, 2, 64},
+        // Chunked-prefill case: seq_q < seq_kv, i.e. a prefill chunk (128 new tokens) on top of
+        // already-accumulated KV history (640 prior tokens), with a window smaller than the total
+        // history.
+        sdpa_sliding_window_test_params{64, 8, 128, 768, 1, 512}
     ),
     [](const testing::TestParamInfo<sdpa_sliding_window_test_params>& info) {
         return "h" + std::to_string(info.param.head_size)
@@ -1120,6 +1130,110 @@ INSTANTIATE_TEST_SUITE_P(smoke, sdpa_sliding_window_test,
              + "_b" + std::to_string(info.param.batch)
              + "_w" + std::to_string(info.param.sliding_window);
     });
+
+// is_causal=true together with an explicit attention_mask input, for a SWA-style (causal +
+// window) mask: verifies sdpa_micro's WITH_ATTN_MASK path still produces the same result as the
+// is_causal=false + explicit-mask reference (see the #elif chain in sdpa_micro.cl, which doesn't
+// gate WITH_ATTN_MASK on !IS_CAUSAL the way sdpa_opt.cl does).
+TEST(sdpa_sliding_window_test, causal_true_with_explicit_mask) {
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    const int head_size = 64, num_heads = 8, seq_q = 128, seq_kv = 128, batch = 1, window = 32;
+
+    auto q_layout = cldnn::layout({batch, seq_q, num_heads, head_size}, data_types::f16, format::bfyx);
+    auto k_layout = cldnn::layout({batch, seq_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+    auto v_layout = cldnn::layout({batch, seq_kv, num_heads, head_size}, data_types::f16, format::bfyx);
+    auto mask_layout = cldnn::layout({batch, num_heads, seq_q, seq_kv}, data_types::f16, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(k_layout);
+    auto v_mem = engine.allocate_memory(v_layout);
+    auto mask_mem = engine.allocate_memory(mask_layout);
+
+    set_values(q_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(q_layout.get_shape()), -1.0f, 1.0f));
+    set_values(k_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(k_layout.get_shape()), -1.0f, 1.0f));
+    set_values(v_mem, rg.generate_random_1d<ov::float16>(ov::shape_size(v_layout.get_shape()), -1.0f, 1.0f));
+
+    const ov::float16 neg_big = ov::float16(std::numeric_limits<ov::float16>::lowest());
+    const int causal_offset = seq_kv - seq_q;
+    std::vector<ov::float16> mask(batch * num_heads * seq_q * seq_kv);
+    for (int h = 0; h < num_heads; h++) {
+        for (int q = 0; q < seq_q; q++) {
+            const int abs_q = q + causal_offset;
+            for (int k = 0; k < seq_kv; k++) {
+                size_t idx = (h * seq_q + q) * seq_kv + k;
+                bool future = k > abs_q;
+                bool too_old = (abs_q - k) >= window;
+                mask[idx] = (future || too_old) ? neg_big : ov::float16(0.0f);
+            }
+        }
+    }
+    set_values(mask_mem, mask);
+
+    ExecutionConfig config_common = get_test_default_config(engine);
+    config_common.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    // Ground truth: is_causal=false, explicit mask (known-correct from the parameterized suite above)
+    auto run_mask_only = [&]() {
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        topo.add(input_layout("v", v_layout));
+        topo.add(input_layout("mask", mask_layout));
+        auto prim = scaled_dot_product_attention("sdpa",
+            {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+            false, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3});
+        topo.add(prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+        ExecutionConfig cfg = config_common;
+        cfg.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_ref"}}}));
+        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        net->set_input_data("mask", mask_mem);
+        return net->execute().at("result").get_memory();
+    };
+
+    // Under test: is_causal=true AND sliding_window set AND explicit mask input, all at once
+    auto run_causal_and_mask = [&]() {
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        topo.add(input_layout("v", v_layout));
+        topo.add(input_layout("mask", mask_layout));
+        auto prim = scaled_dot_product_attention("sdpa",
+            {input_info("q"), input_info("k"), input_info("v"), input_info("mask")},
+            true, -1, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 2, 1, 3}, {0, 1, 2, 3},
+            {}, false, /*causal_lower_right=*/true);
+        prim.sliding_window = window;
+        topo.add(prim);
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+        ExecutionConfig cfg = config_common;
+        if (engine.get_device_info().supports_immad) {
+            cfg.set_property(ov::intel_gpu::force_implementations(
+                ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+        }
+        auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+        net->set_input_data("q", q_mem);
+        net->set_input_data("k", k_mem);
+        net->set_input_data("v", v_mem);
+        net->set_input_data("mask", mask_mem);
+        return net->execute().at("result").get_memory();
+    };
+
+    auto ref_mem = run_mask_only();
+    auto hybrid_mem = run_causal_and_mask();
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_mem, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> hybrid_data(hybrid_mem, get_test_stream());
+
+    auto similarity = cosineSimilarity(ref_data, hybrid_data);
+    ASSERT_GE(similarity, 0.95f) << "Cosine similarity too low: " << similarity;
+}
 #endif
 
 // Op-level test: verify op::SDPA sliding_window attribute survives clone and visit_attributes
