@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -49,8 +48,7 @@ bool has_compiled_state(const v1::subgraphs::CompiledPipeline& pipeline);
 
 void serialize_compiled_state(v1::subgraphs::Context& context,
                               ov::npuw::s11n::Stream& stream,
-                              const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx,
-                              std::uint16_t subgraph_version = 1u);
+                              const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx);
 
 std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_patterns(
     ov::npuw::v1::subgraphs::PatternRegistry& registry);

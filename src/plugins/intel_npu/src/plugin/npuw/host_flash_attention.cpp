@@ -1348,6 +1348,11 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
         }
         return it->second;
     };
+    auto get_optional_tile_input_idx = [](const std::map<HFATileInputId, std::size_t>& mapping,
+                                          HFATileInputId input_id) -> std::optional<std::size_t> {
+        auto it = mapping.find(input_id);
+        return it == mapping.end() ? std::nullopt : std::optional<std::size_t>{it->second};
+    };
 
     auto get_tile_output_idx = [&](HFATileOutputId output_id) -> std::size_t {
         auto it = func_hfa._tile_output_index_map.find(output_id);
@@ -1361,8 +1366,8 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     regular_tile_indices.q = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::Q);
     regular_tile_indices.k = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::K_TILE);
     regular_tile_indices.v = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::V_TILE);
-    if (func_hfa._tile_param_index_map.find(HFATileInputId::MASK_TILE) != func_hfa._tile_param_index_map.end()) {
-        regular_tile_indices.mask = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::MASK_TILE);
+    if (const auto mask_idx = get_optional_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::MASK_TILE)) {
+        regular_tile_indices.mask = *mask_idx;
     }
     regular_tile_indices.acc = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::PAST_ACC);
     regular_tile_indices.max = get_tile_input_idx(func_hfa._tile_param_index_map, HFATileInputId::PAST_MAX);
@@ -1552,6 +1557,27 @@ void broadcast_attention_sink_to_state_max(ov::SoPtr<ov::ITensor>& max, const ov
 
     auto* state_data = max->data<StateType>();
     const auto* sink_data = attention_sink->data<const SinkType>();
+
+    // Prefill normally uses [B, H, Q, 1] state max and [B, H, 1, 1] sinks.
+    // Fill one contiguous query slice per head instead of recomputing broadcast
+    // coordinates for every state element.
+    if (state_shape.size() == 4u && sink_shape.size() == 4u && state_shape[3] == 1u && sink_shape[2] == 1u &&
+        sink_shape[3] == 1u && (sink_shape[0] == 1u || sink_shape[0] == state_shape[0]) &&
+        (sink_shape[1] == 1u || sink_shape[1] == state_shape[1])) {
+        const size_t state_heads = state_shape[1];
+        const size_t state_query = state_shape[2];
+        for (size_t batch = 0u; batch < state_shape[0]; ++batch) {
+            const size_t sink_batch = sink_shape[0] == 1u ? 0u : batch;
+            for (size_t head = 0u; head < state_heads; ++head) {
+                const size_t sink_head = sink_shape[1] == 1u ? 0u : head;
+                const auto sink_index = sink_batch * sink_shape[1] + sink_head;
+                const auto state_index = (batch * state_heads + head) * state_query;
+                std::fill_n(state_data + state_index, state_query, static_cast<StateType>(sink_data[sink_index]));
+            }
+        }
+        return;
+    }
+
     for (size_t state_index = 0u; state_index < max->get_size(); ++state_index) {
         size_t sink_index = 0u;
         for (size_t sink_axis = 0u; sink_axis < sink_shape.size(); ++sink_axis) {

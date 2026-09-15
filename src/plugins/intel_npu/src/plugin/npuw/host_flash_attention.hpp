@@ -189,8 +189,7 @@ struct HostFlashAttentionInfo {
         std::optional<std::size_t> attention_sink;
     } _sdpa_indices;
 
-    // Pre-cached tile input indices
-    struct {
+    struct HFATileInputIndices {
         std::size_t q = 0u;
         std::size_t k = 0u;
         std::size_t v = 0u;
@@ -199,18 +198,11 @@ struct HostFlashAttentionInfo {
         std::size_t max = 0u;
         std::size_t d = 0u;
         std::optional<std::size_t> scale;
-    } _tile_input_indices;
+    };
 
-    struct {
-        std::size_t q = 0u;
-        std::size_t k = 0u;
-        std::size_t v = 0u;
-        std::size_t mask = 0u;
-        std::size_t acc = 0u;
-        std::size_t max = 0u;
-        std::size_t d = 0u;
-        std::optional<std::size_t> scale;
-    } _final_tile_input_indices;
+    // Pre-cached tile input indices
+    HFATileInputIndices _tile_input_indices;
+    HFATileInputIndices _final_tile_input_indices;
 
     // Pre-cached tile output indices
     struct {

@@ -256,8 +256,7 @@ private:
     struct CompiledModelDesc {
         static constexpr ov::npuw::orc::TypeId kOrcType =
             static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::Subgraph::ID);
-        // Version 0 is retained for importing blobs written before the HFA
-        // regular/final tile input maps were serialized separately.
+        // Version 1 includes separate regular/final HFA tile input maps.
         static constexpr ov::npuw::orc::Version kOrcVersion = 1u;
 
         std::set<std::string> devices_to_avoid;

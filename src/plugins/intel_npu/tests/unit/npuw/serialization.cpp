@@ -1184,35 +1184,6 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     expect_host_flash_attention_equal(var, res);
 }
 
-TEST(SerializationTest, OVTypes_HostFlashAttentionV0RestoresSharedTileMap) {
-    using namespace ov::npuw::s11n;
-
-    ov::npuw::compiled::HostFlashAttention var;
-    var._sdpa_attention_info._query_size = 8;
-    var._sdpa_attention_info._context_size = 32;
-    var._sdpa_attention_info._k_seq_dim = 1;
-    var._sdpa_attention_info._v_seq_dim = 2;
-    var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
-    var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
-    var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
-    var._tile_size = 64;
-    var._can_use_tensor_view = true;
-
-    ov::npuw::compiled::HostFlashAttention res;
-    std::stringstream ss;
-    auto writer = Stream::writer(ss);
-    ov::npuw::orc::serialize_host_flash_attention_v0(writer, var);
-    auto reader = Stream::reader(ss);
-    ov::npuw::orc::serialize_host_flash_attention_v0(reader, res);
-
-    EXPECT_EQ(res._sdpa_attention_info._tile_input_indices.q, 9u);
-    EXPECT_EQ(res._sdpa_attention_info._tile_input_indices.mask, 12u);
-    EXPECT_EQ(res._sdpa_attention_info._final_tile_input_indices.q, 9u);
-    EXPECT_EQ(res._sdpa_attention_info._final_tile_input_indices.mask, 12u);
-    EXPECT_FALSE(res._sdpa_attention_info._sdpa_indices.attention_scale.has_value());
-    EXPECT_FALSE(res._sdpa_attention_info._sdpa_indices.attention_sink.has_value());
-}
-
 /**
  * @brief Raw tile indices deserialize without validation; SIZE_MAX would OOB-index
  * _compiled_tile_model->inputs() at attn_subgraph.cpp:372/915.

@@ -415,6 +415,8 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     auto state_sum = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(
         hfa->_compiled_tile_model->inputs()[tile_in.d]);
 
+    // The initial state is fixed when no sink is present. Sink-enabled invocations
+    // overwrite the active state with the current request's sink before the first tile.
     runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(state_acc, state_max, state_sum);
     runtime::host_flash_attention::HFARuntimeContext::StateBuffers initial_buffers{state_acc, state_max, state_sum};
     state.hfa_runtime_ctx->initialize_state_buffers(
@@ -1290,8 +1292,7 @@ bool has_compiled_state(const v1::subgraphs::CompiledPipeline& pipeline) {
 
 void serialize_compiled_state(v1::subgraphs::Context& context,
                               ov::npuw::s11n::Stream& stream,
-                              const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx,
-                              std::uint16_t subgraph_version) {
+                              const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
     std::optional<ov::npuw::compiled::Attention> dynamic;
     if (const auto* state = get_compiled_dynamic(context)) {
         dynamic = *state;
@@ -1363,13 +1364,7 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
         hfa.emplace();
     }
     if (has_hfa) {
-        if (subgraph_version == 0u) {
-            ov::npuw::orc::serialize_host_flash_attention_v0(stream, hfa.value());
-        } else if (subgraph_version == 1u) {
-            ov::npuw::orc::serialize(stream, hfa.value());
-        } else {
-            OPENVINO_THROW("Unsupported ORC NPUW subgraph version ", subgraph_version);
-        }
+        ov::npuw::orc::serialize(stream, hfa.value());
         if (stream.input()) {
             put_compiled_hfa(context, std::make_shared<ov::npuw::compiled::HostFlashAttention>(hfa.value()));
         }
