@@ -161,13 +161,10 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         return kv;
     };
 
-    // Use the static ggml input shapes (get_input_shape), not the live OV node shapes: on the
-    // stateful KV-cache path the OV node's batch/seq dims are dynamic (K/V are fed by the cache
-    // concat), but the head-count / head-size dims are static ggml facts the decoder knows.
-    auto q_shape = context.get_input_shape(0).to_shape();
-    auto k_shape = context.get_input_shape(1).to_shape();
-    k = tile_kv(q_shape[head_axis], k_shape[head_axis], q_shape[3], k);
-    v = tile_kv(q_shape[head_axis], k_shape[head_axis], q_shape[3], v);
+    auto q_shape = context.get_input_shape(0);
+    auto k_shape = context.get_input_shape(1);
+    k = tile_kv(q_shape[head_axis].get_length(), k_shape[head_axis].get_length(), q_shape[3].get_length(), k);
+    v = tile_kv(q_shape[head_axis].get_length(), k_shape[head_axis].get_length(), q_shape[3].get_length(), v);
 
     // SDPA requires q/k/v to share an element type; match k/v to q (ConvertConvertLike lowers these).
     k = std::make_shared<ov::op::v1::ConvertLike>(k, q);
@@ -227,7 +224,7 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     } else if (!has_sinks) {
         // The maskless SDPA overload has no explicit scale input and applies 1/sqrt(D). Fold the
         // requested ggml scale into Q so the resulting score multiplier is exactly `scale`.
-        const float q_compensation = scale * std::sqrt(static_cast<float>(q_shape[3]));
+        const float q_compensation = scale * std::sqrt(static_cast<float>(q_shape[3].get_length()));
         auto compensation = ov::op::v0::Constant::create(sdpa_type, ov::Shape{}, {q_compensation});
         auto q_scaled = std::make_shared<ov::op::v1::Multiply>(q_t, compensation);
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_scaled, k_t, v_t, false);
@@ -242,8 +239,9 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         auto sink_f16 = sink.get_element_type() != element::f16
                             ? std::make_shared<v0::Convert>(sink, element::f16)->output(0)
                             : sink;
-        auto sink_shape =
-            v0::Constant::create(element::i64, {4}, std::vector<int64_t>{1, (int64_t)q_shape[head_axis], 1, 1});
+        auto sink_shape = v0::Constant::create(element::i64,
+                                               {4},
+                                               std::vector<int64_t>{1, (int64_t)q_shape[head_axis].get_length(), 1, 1});
         auto sink_r = std::make_shared<v1::Reshape>(sink_f16, sink_shape, false);
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_t,
                                                                         k_t,

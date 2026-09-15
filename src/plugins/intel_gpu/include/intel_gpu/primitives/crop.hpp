@@ -139,8 +139,9 @@ struct crop : public primitive_base<crop> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const crop>(rhs);
 

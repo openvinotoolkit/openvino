@@ -25,12 +25,12 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     auto sx = context.get_input(0);  // conv state + input: OV [1, n_s, d_inner, ncs]
     auto c = context.get_input(1);   // conv1d weight:      OV [1, 1, d_inner, d_conv]
 
-    auto sx_shape = context.get_input_shape(0).to_shape();
-    auto c_shape = context.get_input_shape(1).to_shape();
+    auto sx_shape = context.get_input_shape(0);
+    auto c_shape = context.get_input_shape(1);
 
-    int64_t n_s = sx_shape[1];
-    int64_t d_inner = sx_shape[2];
-    int64_t d_conv = c_shape[3];
+    int64_t n_s = sx_shape[1].get_length();
+    int64_t d_inner = sx_shape[2].get_length();
+    int64_t d_conv = c_shape[3].get_length();
 
     // The conv-window length ncs (= n_t + d_conv - 1) and the token count n_t are token-dependent: the
     // stateful model is compiled once and reused across token counts, so keep those axes dynamic (-1)

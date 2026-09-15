@@ -50,8 +50,9 @@ OutputVector translate_pool_2d(const NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported POOL_2D mode");
     }
 
-    if (result.get_element_type() != context.get_output_type()) {
-        result = std::make_shared<ov::op::v0::Convert>(result, context.get_output_type());
+    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    if (result.get_element_type() != output_type) {
+        result = std::make_shared<ov::op::v0::Convert>(result, output_type);
     }
 
     return rename_outputs_with_suffix({std::move(result)}, context.get_name());

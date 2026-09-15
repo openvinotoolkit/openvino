@@ -29,9 +29,7 @@ OutputVector translate_fill(const NodeContext& context) {
     float fill_value = context.get_attribute<float>("fill_value");
 
     // ggml FILL keeps the tensor's own type (f32 or f16), so do not hardcode f32 here.
-    auto val = ov::op::v0::Constant::create(context.get_attribute<ov::element::Type>("output_type"),
-                                            ov::Shape{},
-                                            {fill_value});
+    auto val = ov::op::v0::Constant::create(x.get_element_type(), ov::Shape{}, {fill_value});
     auto target_shape = std::make_shared<ov::op::v3::ShapeOf>(x, ov::element::i64);
     auto res = std::make_shared<ov::op::v3::Broadcast>(val, target_shape);
 

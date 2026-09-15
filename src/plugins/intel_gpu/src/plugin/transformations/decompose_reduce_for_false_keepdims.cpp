@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporationc
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -38,8 +38,9 @@ DecomposeReduceForFalseKeepDims::DecomposeReduceForFalseKeepDims() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto reduce =
             as_type_ptr<op::util::ArithmeticReductionKeepDims>(pattern_map.at(reduce_pattern).get_node_shared_ptr());
-        if (!reduce)
+        if (!reduce) {
             return false;
+        }
 
         auto input = reduce->input_value(0);
         const auto input_shape = input.get_shape();
@@ -59,18 +60,19 @@ DecomposeReduceForFalseKeepDims::DecomposeReduceForFalseKeepDims() {
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes_vector.size()}, axes_vector);
 
             // Add each reduce mode supported by oneDNN
-            if (ov::is_type<ov::op::v1::ReduceSum>(reduce))
+            if (ov::is_type<ov::op::v1::ReduceSum>(reduce)) {
                 input = std::make_shared<ov::op::v1::ReduceSum>(input, reduce_const, true);
-            else if (ov::is_type<ov::op::v1::ReduceMean>(reduce))
+            } else if (ov::is_type<ov::op::v1::ReduceMean>(reduce)) {
                 input = std::make_shared<ov::op::v1::ReduceMean>(input, reduce_const, true);
-            else if (ov::is_type<ov::op::v1::ReduceMin>(reduce))
+            } else if (ov::is_type<ov::op::v1::ReduceMin>(reduce)) {
                 input = std::make_shared<ov::op::v1::ReduceMin>(input, reduce_const, true);
-            else if (ov::is_type<ov::op::v1::ReduceMax>(reduce))
+            } else if (ov::is_type<ov::op::v1::ReduceMax>(reduce)) {
                 input = std::make_shared<ov::op::v1::ReduceMax>(input, reduce_const, true);
-            else if (ov::is_type<ov::op::v1::ReduceProd>(reduce))
+            } else if (ov::is_type<ov::op::v1::ReduceProd>(reduce)) {
                 input = std::make_shared<ov::op::v1::ReduceProd>(input, reduce_const, true);
-            else
+            } else {
                 return false;
+            }
 
             input.get_node_shared_ptr()->set_friendly_name(reduce->get_friendly_name());
             new_ops.push_back(input.get_node_shared_ptr());

@@ -19,24 +19,27 @@ static inline kernel_selector::gather_elements_axis convert_axis(int64_t axis, s
         case 0: return kernel_selector::gather_elements_axis::BATCH;
         case 1: return kernel_selector::gather_elements_axis::FEATURE;
         case 2:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::gather_elements_axis::W;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::gather_elements_axis::Z;
-            else
+            } else {
                 return kernel_selector::gather_elements_axis::Y;
+            }
         case 3:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::gather_elements_axis::Z;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::gather_elements_axis::Y;
-            else
+            } else {
                 return kernel_selector::gather_elements_axis::X;
+            }
         case 4:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::gather_elements_axis::Y;
-            else
+            } else {
                 return kernel_selector::gather_elements_axis::X;
+            }
         case 5: return kernel_selector::gather_elements_axis::X;
         default: OPENVINO_THROW("Incorrect gather_elements axis.");
     }

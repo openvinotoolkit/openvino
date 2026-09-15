@@ -33,10 +33,12 @@ struct SDPAOpt : public ImplementationManager {
         static constexpr std::array supported_q_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
         };
         static constexpr std::array supported_kv_types = {
             ov::element::f32,
             ov::element::f16,
+            ov::element::bf16,
             ov::element::i8,
         };
         const auto& q_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::QUERY);
@@ -64,8 +66,9 @@ struct SDPAOpt : public ImplementationManager {
         if (desc->has_sink_input) {
             auto sink_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::SINK);
             auto q_heads_num = q_layout.get_partial_shape()[1].get_length();
-            if (sink_layout.count() != static_cast<size_t>(q_heads_num))
+            if (sink_layout.count() != static_cast<size_t>(q_heads_num)) {
                 OPENVINO_THROW("Currently only supporting per-head sink.Sink_layout : ", sink_layout.to_short_string(), " heads_num  :", q_heads_num);
+            }
         }
 
         const bool use_asymmetric_quantization =
