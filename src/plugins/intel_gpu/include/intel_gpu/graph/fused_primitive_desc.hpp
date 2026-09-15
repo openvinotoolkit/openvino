@@ -75,7 +75,7 @@ struct fused_primitive_desc {
     std::shared_ptr<NodeFuseParams> f_param;
 
     layout input_layout;
-    layout output_layout;
+    std::vector<layout> output_layouts;
 
     struct InputDescriptor {
         InputDescriptor(FusedInputType type, size_t idx, ov::element::Type_t element_type) : m_type(type), m_idx(idx), m_element_type(element_type) {};
