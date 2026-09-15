@@ -14,13 +14,8 @@
 
 namespace {
 
-// Constant with no elements has no allocated buffer.
-std::shared_ptr<ov::IBufferDescriptor> get_descriptor(const ov::wsh::WeightBuffer& buffer) {
-    return buffer ? buffer->get_descriptor() : nullptr;
-}
-
 bool set_source_buffer(ov::wsh::WeightSourceRegistry& sources, const ov::wsh::WeightBuffer& buffer) {
-    const auto& desc = get_descriptor(buffer);
+    const auto& desc = buffer ? buffer->get_descriptor() : nullptr;
     const auto source_id = desc ? desc->get_id() : ov::wsh::invalid_source_id;
     if (source_id != ov::wsh::invalid_source_id) {
         sources[source_id] = ov::wsh::WeightSource{{}, buffer};
@@ -45,7 +40,7 @@ const ov::wsh::WeightMetaData* get_constant_meta(const ov::wsh::WeightRegistry& 
 namespace ov::weight_sharing {
 
 bool Extension::set_constant_in_weight_registry(WeightRegistry& weight_registry, const ov::op::v0::Constant& constant) {
-    if (const auto desc = get_descriptor(constant.m_data)) {
+    if (const auto desc = constant.m_data->get_descriptor()) {
         const auto c_id = Extension::get_constant_id(constant);
         weight_registry[desc->get_id()][c_id] =
             WeightMetaData{desc->get_offset(), constant.get_byte_size(), constant.get_element_type()};
@@ -58,7 +53,7 @@ WeightSourceRegistry Extension::get_weight_sources(const Model& model) {
     WeightSourceRegistry src_map;
     for (const auto& node : model.get_ops()) {
         if (const auto const_node = ov::as_type<ov::op::v0::Constant>(node.get())) {
-            if (const auto desc = get_descriptor(const_node->m_data)) {
+            if (const auto desc = const_node->m_data->get_descriptor()) {
                 if (auto src_buffer = desc->get_source_buffer()) {
                     src_map.emplace(desc->get_id(), WeightSource{{}, src_buffer});
                 }
@@ -79,12 +74,12 @@ WeightRegistry Extension::get_weight_registry(const Model& model) {
 }
 
 DataID Extension::get_constant_source_id(const ov::op::v0::Constant& constant) {
-    const auto desc = get_descriptor(constant.m_data);
+    const auto desc = constant.m_data->get_descriptor();
     return desc ? desc->get_id() : invalid_source_id;
 }
 
 DataID Extension::get_constant_id(const ov::op::v0::Constant& constant) {
-    const auto desc = get_descriptor(constant.m_data);
+    const auto desc = constant.m_data->get_descriptor();
     return desc ? desc->get_offset() : invalid_constant_id;
 }
 
@@ -100,7 +95,7 @@ std::optional<WeightOriginMetaData> Extension::get_constant_origin(const ov::op:
 }
 
 std::shared_ptr<ov::AlignedBuffer> Extension::get_constant_source_buffer(const ov::op::v0::Constant& constant) {
-    const auto desc = get_descriptor(constant.m_data);
+    const auto desc = constant.m_data->get_descriptor();
     return desc ? desc->get_source_buffer() : nullptr;
 }
 

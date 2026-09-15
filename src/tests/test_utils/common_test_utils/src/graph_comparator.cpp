@@ -948,14 +948,9 @@ void ReadAndStoreAttributes::on_adapter(const std::string& name, ov::ValueAccess
         // drop comparison, no more info than port indexes which will be check in
         // subgraph::compare_io
     } else if (auto a = ov::as_type<ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>>(&adapter)) {
-        const auto& buffer = a->get();
-        if (buffer) {
-            const auto beg = static_cast<unsigned char*>(buffer->get_ptr());
-            const auto end = beg + buffer->size();
-            insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
-        } else {
-            insert(name, storage::MemoryChunk{storage::MemoryChunk::Data{}});
-        }
+        const auto beg = static_cast<unsigned char*>(a->get()->get_ptr());
+        const auto end = beg + a->get()->size();
+        insert(name, storage::MemoryChunk{storage::MemoryChunk::Data(beg, end)});
     } else if (auto framework_node_attr =
                    ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
         insert(name, framework_node_attr->get());
@@ -1004,10 +999,8 @@ void ReadAndCompareAttributes::verify_mem_buf(const std::string& name,
         return;
     }
 
-    const auto buffer_size = buffer ? buffer->size() : 0;
-    const auto buffer_ptr = buffer ? buffer->get_ptr() : nullptr;
-    if (buffer_size != ref_value->size() ||
-        (buffer_size != 0 && std::memcmp(ref_value->data(), buffer_ptr, ref_value->size()) != 0)) {
+    if (buffer->size() != ref_value->size() ||
+        std::memcmp(ref_value->data(), buffer->get_ptr(), ref_value->size()) != 0) {
         m_cmp_result += "mismatch in value: '" + name + "' : look in to the mem buffer";
         return;
     }

@@ -271,13 +271,11 @@ void Constant::allocate_buffer(bool memset_allocation) {
     if (m_element_type == ov::element::string) {
         const auto num_elements = shape_size(m_shape);
         m_data = std::make_shared<StringAlignedBuffer>(num_elements, *byte_size, host_alignment(), memset_allocation);
-    } else if (*byte_size == 0) {
-        m_data = nullptr;
     } else {
         constexpr uint8_t init_value = 0;
         m_data = std::make_shared<AlignedBuffer>(*byte_size, host_alignment());
 
-        if (memset_allocation) {
+        if (memset_allocation && *byte_size > 0) {
             std::memset(m_data->get_ptr(), init_value, m_data->size());
         } else {
             set_unused_bits(m_data->get_ptr());
@@ -335,6 +333,10 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::sha
                     *constant_size,
                     " != ",
                     data_size);
+    // Keep the buffer valid so that a zero-size Constant is indistinguishable from any other.
+    if (!m_data) {
+        m_data = std::make_shared<AlignedBuffer>();
+    }
     constructor_validate_and_infer_types();
 }
 
