@@ -894,7 +894,7 @@ void test_boolean_mask_micro_matches_reference(data_types qkv_data_type) {
 
     std::vector<uint8_t> mask(batch * seq_length * seq_length, 0);
     // Keep one row fully masked to cover finite softmax behavior for this edge case.
-    const int first_unmasked_query = qkv_data_type == data_types::bf16 ? 0 : 1;
+    const int first_unmasked_query = 1;
     for (int query = first_unmasked_query; query < seq_length; ++query) {
         mask[query * seq_length + selected_key(query)] = 1;
     }

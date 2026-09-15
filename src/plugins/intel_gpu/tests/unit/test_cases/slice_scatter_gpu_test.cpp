@@ -93,6 +93,43 @@ public:
         params.wanted_output = AllocateTensor<uint8_t>(data_shape, format::bfyx, {0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1});
     }
 
+    void FillWithBooleanBasicBfyxData(SliceScatterTestParams& params) {
+        const ov::PartialShape data_shape{1, 1, 3, 4};
+        params.data = AllocateTensor<uint8_t>(data_shape, format::bfyx, {0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1});
+        params.updates = AllocateTensor<uint8_t>(ov::PartialShape{1, 1, 2, 2}, format::bfyx, {0, 1, 0, 1});
+        params.start = AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {0, 0, 0, 1});
+        params.stop = AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {1, 1, 2, 3});
+        params.step = AllocateTensor<int64_t>(ov::PartialShape{4}, format::bfyx, {1, 1, 1, 1});
+        params.wanted_output = AllocateTensor<uint8_t>(data_shape, format::bfyx, {0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1});
+    }
+
+    void FillWithBooleanStepData(SliceScatterTestParams& params) {
+        const ov::PartialShape data_shape{1, 1, 1, 8};
+        params.data = AllocateTensor<uint8_t>(data_shape, format::bfyx, {0, 1, 0, 1, 0, 1, 0, 1});
+        params.updates = AllocateTensor<uint8_t>(ov::PartialShape{1, 1, 1, 4}, format::bfyx, {1, 1, 1, 1});
+        params.start = AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {0});
+        params.stop = AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {8});
+        params.step = AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {2});
+        params.axes = AllocateTensor<int64_t>(ov::PartialShape{1}, format::bfyx, {3});
+        params.wanted_output = AllocateTensor<uint8_t>(data_shape, format::bfyx, {1, 1, 1, 1, 1, 1, 1, 1});
+    }
+
+    void FillWithBooleanBfzyxData(SliceScatterTestParams& params) {
+        const ov::PartialShape data_shape{1, 2, 2, 2, 3};
+        params.data = AllocateTensor<uint8_t>(data_shape,
+                                              format::bfzyx,
+                                              {0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+                                               0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1});
+        params.updates = AllocateTensor<uint8_t>(ov::PartialShape{1, 1, 1, 2, 3}, format::bfzyx, {1, 0, 1, 0, 1, 0});
+        params.start = AllocateTensor<int64_t>(ov::PartialShape{5}, format::bfzyx, {0, 0, 0, 0, 0});
+        params.stop = AllocateTensor<int64_t>(ov::PartialShape{5}, format::bfzyx, {1, 1, 1, 2, 3});
+        params.step = AllocateTensor<int64_t>(ov::PartialShape{5}, format::bfzyx, {1, 1, 1, 1, 1});
+        params.wanted_output = AllocateTensor<uint8_t>(data_shape,
+                                                       format::bfzyx,
+                                                       {1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1,
+                                                        0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1});
+    }
+
     // Test case: basic bfyx with positive step, no axes
     // data [1,1,3,4] = GenInput(0..11)
     // updates [1,1,2,2] = [20,21,22,23]
@@ -449,32 +486,32 @@ using BooleanSliceScatterTest = SliceScatterTest<uint8_t>;
 
 TEST_F(BooleanSliceScatterTest, basic_bfyx) {
     SliceScatterTestParams params;
-    FillWithBasicBfyxData<uint8_t>(params);
+    FillWithBooleanBasicBfyxData(params);
     RunAllTestCasesForParams(params);
 }
 
 TEST_F(BooleanSliceScatterTest, basic_bfyx_caching) {
     SliceScatterTestParams params;
-    FillWithBasicBfyxData<uint8_t>(params);
+    FillWithBooleanBasicBfyxData(params);
     params.is_caching_test = true;
     RunAllTestCasesForParams(params);
 }
 
 TEST_F(BooleanSliceScatterTest, with_step) {
     SliceScatterTestParams params;
-    FillWithStepData<uint8_t>(params);
+    FillWithBooleanStepData(params);
     RunAllTestCasesForParams(params);
 }
 
 TEST_F(BooleanSliceScatterTest, bfzyx) {
     SliceScatterTestParams params;
-    FillWithBfzyxData<uint8_t>(params);
+    FillWithBooleanBfzyxData(params);
     RunAllTestCasesForParams(params);
 }
 
 TEST_F(BooleanSliceScatterTest, basic_bfyx_all_dynamic) {
     SliceScatterTestParams params;
-    FillWithBasicBfyxData<uint8_t>(params);
+    FillWithBooleanBasicBfyxData(params);
     params.is_data_dynamic = true;
     params.is_updates_dynamic = true;
     params.is_start_dynamic = true;

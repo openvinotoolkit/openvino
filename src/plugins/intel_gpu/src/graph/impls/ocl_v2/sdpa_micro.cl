@@ -976,8 +976,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_elementwise(mask_tile_float, boolean_to_additive_mask);
 #endif
 #ifdef LOG_2_E_MUL_SCALE
+#ifndef BOOLEAN_ATTN_MASK
 #define unscale(x) ((x)*iscale)
         tile_elementwise(mask_tile_float, unscale);
+#endif
 #else
 #define scale(x) ((x)* scale)
         tile_elementwise(S_tile, scale);
