@@ -39,13 +39,26 @@ void DynamicGraph::create_execution_engine() {
  * the referenced attribute.
  * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
  */
-static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
-                                    const std::optional<ze_graph_argument_metadata_t>& metadata) {
+IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
+                             const std::optional<ze_graph_argument_metadata_t>& metadata) {
     auto logger = Logger::global().clone("getIODescriptor");
     ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
     ov::Shape shapeFromCompiler;
     ov::PartialShape shapeFromIRModel;
     std::unordered_set<std::string> outputTensorNames;
+
+    if (arg.associated_tensor_names_count > std::size(arg.associated_tensor_names)) {
+        OPENVINO_THROW("Associated tensor name count exceeds dynamic graph metadata capacity");
+    }
+    if (arg.dims_count > std::size(arg.dims)) {
+        OPENVINO_THROW("Compiler shape rank exceeds dynamic graph metadata capacity");
+    }
+    if (metadata.has_value() && metadata->shape_size > std::size(metadata->shape)) {
+        OPENVINO_THROW("IR shape rank exceeds dynamic graph metadata capacity");
+    }
+    if (metadata.has_value() && metadata->shape_size != arg.dims_count) {
+        OPENVINO_THROW("Inconsistent tensor ranks in dynamic graph metadata");
+    }
 
     for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
         outputTensorNames.insert(arg.associated_tensor_names[id]);

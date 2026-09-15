@@ -16,6 +16,10 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
+
+IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
+                             const std::optional<ze_graph_argument_metadata_t>& metadata);
+
 class DynamicGraph final : public IGraph {
 public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
