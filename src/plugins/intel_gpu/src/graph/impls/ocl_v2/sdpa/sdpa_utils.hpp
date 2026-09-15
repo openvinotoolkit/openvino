@@ -64,8 +64,9 @@ inline size_t get_key_cache_id(const cldnn::scaled_dot_product_attention& desc) 
         return -1;
     }
 
-    if (desc.indirect_axis != -1)
+    if (desc.indirect_axis != -1) {
         key_cache_id -= 1;  // beam_table
+    }
     if (desc.get_compression_zp_inputs_num() > 0) {
         key_cache_id -= 4;
     } else {
@@ -82,8 +83,9 @@ inline size_t get_value_cache_id(const cldnn::scaled_dot_product_attention& desc
         return -1;
     }
 
-    if (desc.indirect_axis != -1)
+    if (desc.indirect_axis != -1) {
         value_cache_id -= 1;  // beam_table
+    }
     if (desc.get_compression_zp_inputs_num() > 0) {
         value_cache_id -= 3;  // Scales and zp
     } else {
@@ -114,8 +116,9 @@ inline std::vector<int64_t> extend_order_in_num_heads_dim(const std::vector<int6
 
 inline int64_t get_batch_size(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
     const auto& dim = qkv.get_partial_shape()[order[0]];
-    if (dim.is_dynamic())
+    if (dim.is_dynamic()) {
         return -1;
+    }
     return dim.get_length();
 }
 
@@ -127,16 +130,18 @@ inline int64_t get_num_heads(const cldnn::layout& qkv, const std::vector<int64_t
         return 1;
     }
     const auto& dim = qkv.get_partial_shape()[order[order_rank - 3]];
-    if (dim.is_dynamic())
+    if (dim.is_dynamic()) {
         return -1;
+    }
     return dim.get_length();
 }
 
 inline int64_t get_head_size(const cldnn::layout& qkv, const std::vector<int64_t>& order) {
     const auto order_rank = order.size();
     const auto& dim = qkv.get_partial_shape()[order[order_rank - 1]];
-    if (dim.is_dynamic())
+    if (dim.is_dynamic()) {
         return -1;
+    }
     return dim.get_length();
 }
 
