@@ -114,6 +114,9 @@ jobs:
       INSTALL_TEST_DIR: /__w/openvino/openvino/tests_install
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ubuntu20_x86_64_Release
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -161,7 +164,7 @@ jobs:
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
