@@ -789,7 +789,14 @@ public:
     // MIR level (a predicate register operand).
     class vlen {
     public:
-        static vlen all() { return {}; }
+        // Every lane active. `terminal` is orthogonal to the active length:
+        // a fully-active iteration can still be the last one, which is the
+        // case for the final peeled step of a constant trip count.
+        static vlen all(bool terminal = false) {
+            vlen v;
+            v._terminal = terminal;
+            return v;
+        }
 
         static vlen elements(jit_kernel_ir::value_id count, bool terminal = false) {
             vlen v;
@@ -1211,6 +1218,12 @@ public:
     template <size_t N>
     jit_kernel_ir::value_id ir_active_lane_mask(const variable<size_t>& count);
 
+    // Same, for an active length known at kernel-build time: the lane bits
+    // are an immediate, so the runtime compare/bts/dec disappears and no
+    // early-clobber constraint is needed (the def has no reads).
+    template <size_t N>
+    jit_kernel_ir::value_id ir_const_lane_mask(size_t active);
+
     // A compile-time constant in a GPR IR value.
     variable<size_t> ir_gpr_imm(size_t value);
 
@@ -1375,6 +1388,11 @@ private:
     };
     std::vector<AllocaRequest> _alloca_requests;
 
+    // See set_peel_limit(). Initialized from OV_JIT_IR_PEEL.
+    size_t _peel_limit = default_peel_limit();
+
+    static size_t default_peel_limit();
+
 public:
     // Pointer with stride — carries the number of elements accessed per
     // vector iteration. foreach_with_epilogue uses the stride to compute
@@ -1408,6 +1426,25 @@ public:
     void foreach_vec(const variable<size_t>& count,
                      const std::function<void(const vlen&)>& body,
                      size_t unroll = 1);
+
+    // Same loop, for a trip count known while the kernel is being built.
+    // The full iterations are then emitted straight-line and the remainder
+    // once, so nothing pays for a counter, a compare, a branch or a
+    // per-iteration active length. LLVM reaches the same shape when SCEV
+    // gives the vectorizer a constant trip count: the vector loop is fully
+    // unrolled and a single epilogue handles what is left.
+    //
+    // Falls back to the rolled loop above `peel_limit()` full iterations,
+    // since the code grows by one body per iteration.
+    template <size_t N>
+    void foreach_vec(size_t count, const std::function<void(const vlen&)>& body);
+
+    // Maximum number of full iterations `foreach_vec` will emit
+    // straight-line. LLVM's -force-vector-interleave / unroll thresholds;
+    // 0 forces the rolled loop, which is how the two shapes are A/B'd in
+    // one process. Defaults from OV_JIT_IR_PEEL.
+    void set_peel_limit(size_t limit) { _peel_limit = limit; }
+    [[nodiscard]] size_t peel_limit() const { return _peel_limit; }
 
     // Single-body loop with automatic epilogue. The body builder runs twice
     // — once for the main loop with vlen::all(), once for the tail with
@@ -2279,6 +2316,61 @@ void jit_kernel::foreach_vec(const variable<size_t>& count,
     OPENVINO_THROW("foreach_vec: unknown tail folding style");
 }
 
+// ── foreach_vec, constant trip count ───────────────────────────────────
+//
+// `count` is a C++ value here, not a register, so the induction variable
+// is a compile-time constant and everything derived from it can be folded
+// away: the full iterations become straight-line code and the remainder is
+// handled once, with an immediate active length.
+//
+// The remainder still asks the target how tails are folded — a predicate
+// built from an immediate on AVX-512/SVE, a counted (scalarized) step
+// where there is no predication. What it never does is *derive* the
+// active length at run time, which is the per-iteration cost the rolled
+// loop pays.
+
+template <size_t N>
+void jit_kernel::foreach_vec(size_t count, const std::function<void(const vlen&)>& body) {
+    const size_t full = count / N;
+    const size_t rem = count % N;
+
+    // One body per iteration of code. Past the limit the rolled loop is
+    // the better trade, and a dynamic count has no choice anyway.
+    if (full > peel_limit()) {
+        foreach_vec<N>(ir_gpr_imm(count), body);
+        return;
+    }
+
+    for (size_t i = 0; i < full; ++i) {
+        const lane_mask_scope masks(*this);
+        // Nothing reads the pointers after the last recorded step, so its
+        // advances are dead. Same contract as an epilogue tail.
+        const bool terminal = (i + 1 == full) && rem == 0;
+        body(vlen::all(terminal));
+    }
+
+    if (rem == 0) {
+        return;
+    }
+
+    const lane_mask_scope masks(*this);
+    // Consumers that cannot take a predicate (interleaved stores on x86)
+    // read the count instead, so both forms carry it.
+    auto count_var = ir_gpr_imm(rem);
+
+    switch (target().preferred_tail_folding()) {
+    case vector_target::tail_folding::mask:
+        body(vlen::predicated(ir_const_lane_mask<N>(rem), count_var.vid(), /*terminal=*/true));
+        return;
+    case vector_target::tail_folding::epilogue:
+        body(vlen::elements(count_var.vid(), /*terminal=*/true));
+        return;
+    case vector_target::tail_folding::length:
+        OPENVINO_THROW("foreach_vec: vector-length tail folding needs a target that sets vl");
+    }
+    OPENVINO_THROW("foreach_vec: unknown tail folding style");
+}
+
 // ── foreach_predicated ─────────────────────────────────────────────────
 //
 // One loop, no tail: each iteration computes how many elements are left
@@ -2516,6 +2608,33 @@ jit_kernel_ir::value_id jit_kernel::ir_active_lane_mask(const variable<size_t>& 
 
     _lane_masks.emplace(count_vid, mask_vid);
     return mask_vid;
+}
+
+// Same predicate, constant-folded: with the active length known at
+// kernel-build time the lane bits are an immediate, so the runtime
+// cmp/bts/dec sequence collapses to one mov and the def has no reads —
+// hence no early-clobber constraint either.
+template <size_t N>
+jit_kernel_ir::value_id jit_kernel::ir_const_lane_mask(size_t active) {
+    using namespace Xbyak;
+    static_assert(N <= 64, "active lane mask supports up to 64 lanes");
+    OPENVINO_ASSERT(active > 0, "ir_const_lane_mask: empty predicate");
+
+    const uint64_t all_lanes = (N == 64) ? ~uint64_t{0} : ((uint64_t{1} << N) - 1);
+    const uint64_t bits = (active >= N) ? all_lanes : ((uint64_t{1} << active) - 1);
+
+    auto bits_vid = _ir->def({}, [this, bits](const jit_kernel_ir::EmitContext& ctx) {
+        mov(Reg64(ctx.def->idx), bits);
+    }, "const_lane_mask_bits", jit_kernel_ir::RegisterClass::GPR);
+
+    return ir_def_mask({bits_vid}, [this](const jit_kernel_ir::EmitContext& ctx) {
+        auto mask = Opmask(ctx.def->idx);
+        if constexpr (N <= 16) {
+            kmovw(mask, Reg32(ctx.reads[0].idx));
+        } else {
+            kmovq(mask, Reg64(ctx.reads[0].idx));
+        }
+    }, "const_lane_mask");
 }
 
 template <size_t N>

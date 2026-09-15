@@ -623,6 +623,82 @@ bool run_folding(IR& ir) {
 
 }  // namespace
 
+// ── Dead def elimination ───────────────────────────────────────────────
+
+namespace {
+
+bool run_dce(IR& ir) {
+    PassContext ctx;
+    DeadDefElimPass pass;
+    return pass.run(ir, ctx);
+}
+
+}  // namespace
+
+TEST(JitKernelIR, DeadDefChainDiesInOneSweep) {
+    IR ir;
+    const value_id a = ir.def({}, stub(), "a");
+    const value_id b = ir.def({a}, stub(), "b");
+    ir.def({b}, stub(), "c");  // nothing reads c, so a, b and c are all dead
+
+    EXPECT_TRUE(run_dce(ir));
+    EXPECT_EQ(count_ops_recursive(ir.ops()), 0U) << "the whole chain is dead";
+}
+
+TEST(JitKernelIR, KeepsLiveDefsAndDefLessOps) {
+    IR ir;
+    const value_id live = ir.def({}, stub(), "live");
+    ir.use({live}, stub(), "sink");       // def-less: the side-effecting form
+    ir.use({}, stub(), "barrier");        // def-less with no reads either
+
+    EXPECT_FALSE(run_dce(ir));
+    EXPECT_EQ(count_ops_recursive(ir.ops()), 3U);
+}
+
+// Differs from the obvious guess, and matches LLVM: MachineInstr::isDead
+// refuses only ordered/volatile accesses, so a plain dead load goes. It
+// can only remove a fault, never introduce one.
+TEST(JitKernelIR, RemovesDeadLoadButKeepsStore) {
+    IR ir;
+    const value_id ptr = ir.def({}, stub(), "ptr", RegisterClass::GPR);
+    record_load(ir, ptr);  // result unread
+
+    ir.use({ptr}, stub(), "store");
+    ir.ops().back().may_store = true;
+
+    EXPECT_TRUE(run_dce(ir));
+    // The load is gone; the pointer stays because the store reads it, and
+    // the store stays because it may write memory.
+    EXPECT_EQ(count_ops_recursive(ir.ops()), 2U);
+    for (const auto& op : ir.ops()) {
+        EXPECT_FALSE(op.may_load) << "dead load survived";
+    }
+}
+
+TEST(JitKernelIR, DefUsedOnlyInsideLoopBodyIsLive) {
+    IR ir;
+    const value_id outer = ir.def({}, stub(), "outer");
+    const value_id carried = ir.def({}, stub(), "carried");
+
+    ir.loop({carried}, stub(), [&] {
+        // Reads a value defined before the loop, and derives a dead value
+        // from the loop-carried one.
+        ir.use({outer}, stub(), "body_use");
+        ir.def({carried}, stub(), "body_def");
+    });
+
+    EXPECT_TRUE(run_dce(ir)) << "body_def's result is unread";
+    // outer and carried both survive: their uses are inside the region.
+    bool saw_outer_def = false;
+    bool saw_carried_def = false;
+    for (const auto& op : ir.ops()) {
+        saw_outer_def |= (op.def == outer);
+        saw_carried_def |= (op.def == carried);
+    }
+    EXPECT_TRUE(saw_outer_def);
+    EXPECT_TRUE(saw_carried_def);
+}
+
 TEST(JitKernelIR, FoldsSingleUseLoadIntoItsConsumer) {
     IR ir;
     const value_id ptr = ir.def({}, stub(), "ptr", RegisterClass::GPR);
@@ -2120,6 +2196,166 @@ TEST(JitKernelIR, DifferentialFmaWithEpilogue) {
     } else {
         GTEST_SKIP() << "requires AVX2 or AVX-512";
     }
+}
+
+// ── Differential: peeled constant trip count vs scalar reference ───────
+//
+// Same kernel as above, but the trip count is a C++ value, so foreach_vec
+// emits the full iterations straight-line and the remainder once. Every
+// count is run twice — peeled and (with peel_limit 0) rolled — against the
+// same reference, so the two shapes are checked to agree rather than each
+// being checked in isolation. Sentinels catch a peeled step storing past
+// the count, which is the failure mode of getting the remainder wrong.
+
+namespace {
+
+struct FmaPeelParams {
+    const float* a;
+    const float* b;
+    const float* c;
+    float* dst;
+};
+
+template <size_t N>
+struct jit_ir_fma_peel_kernel : public jit_kernel {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_fma_peel_kernel)
+
+    jit_ir_fma_peel_kernel(size_t count, size_t limit)
+        : jit_kernel(jit_name()), _count(count) {
+        set_peel_limit(limit);
+    }
+
+    using fn_t = void (*)(const FmaPeelParams*);
+    fn_t fn_ = nullptr;
+
+    void init() {
+        if (create_kernel() != dnnl::impl::status::success) {
+            OPENVINO_THROW("Can't generate jit kernel");
+        }
+        fn_ = (fn_t)(jit_ker());  // NOLINT
+    }
+
+    void operator()(const FmaPeelParams& args) const { fn_(&args); }
+
+    void generate() override {
+        preamble();
+        begin_ir();
+
+        auto a = make_ir_ptr(arg<const float*>(&FmaPeelParams::a), N);
+        auto b = make_ir_ptr(arg<const float*>(&FmaPeelParams::b), N);
+        auto c = make_ir_ptr(arg<const float*>(&FmaPeelParams::c), N);
+        auto dst = make_ir_ptr(arg<float*>(&FmaPeelParams::dst), N);
+
+        foreach_vec<N>(_count, [&](const vlen& vl) {
+            auto va = ir_load<N>(a, vl);
+            auto vb = ir_load<N>(b, vl);
+            auto vc = ir_load<N>(c, vl);
+            ir_store<N>(dst.ptr, size_t{0}, fma(va, vb, vc), vl);
+
+            ir_advance(a, vl);
+            ir_advance(b, vl);
+            ir_advance(c, vl);
+            ir_advance(dst, vl);
+        });
+
+        end_ir();
+        postamble();
+    }
+
+private:
+    size_t _count;
+};
+
+template <size_t N>
+void run_fma_peel_differential() {
+    constexpr float sentinel = -123456.0f;
+    constexpr size_t pad = 2 * N;
+
+    std::vector<size_t> counts = {1, 2, 3, N - 1, N, N + 1, 2 * N, 2 * N + 3,
+                                  3 * N, 4 * N, 4 * N + 1, 4 * N + N - 1};
+    std::mt19937 rng(20260915);
+    std::uniform_int_distribution<size_t> count_dist(1, 6 * N);
+    for (int extra = 0; extra < 8; ++extra) {
+        counts.push_back(count_dist(rng));
+    }
+
+    std::uniform_real_distribution<float> val_dist(-4.0f, 4.0f);
+
+    for (auto count : counts) {
+        // peel_limit 0 forces the rolled loop; 64 peels every count here.
+        for (size_t limit : {size_t{0}, size_t{64}}) {
+            jit_ir_fma_peel_kernel<N> kernel(count, limit);
+            kernel.init();
+
+            std::vector<float> a(count + pad);
+            std::vector<float> b(count + pad);
+            std::vector<float> c(count + pad);
+            std::vector<float> dst(count + pad, sentinel);
+            for (size_t i = 0; i < count + pad; ++i) {
+                a[i] = val_dist(rng);
+                b[i] = val_dist(rng);
+                c[i] = val_dist(rng);
+            }
+
+            FmaPeelParams args{a.data(), b.data(), c.data(), dst.data()};
+            kernel(args);
+
+            for (size_t i = 0; i < count; ++i) {
+                EXPECT_FLOAT_EQ(dst[i], std::fma(a[i], b[i], c[i]))
+                    << "count=" << count << " limit=" << limit << " index=" << i;
+            }
+            for (size_t i = count; i < count + pad; ++i) {
+                EXPECT_FLOAT_EQ(dst[i], sentinel)
+                    << "store past count=" << count << " limit=" << limit
+                    << " at index=" << i;
+            }
+        }
+    }
+}
+
+}  // namespace
+
+TEST(JitKernelIR, DifferentialFmaPeeledConstantCount) {
+    using namespace dnnl::impl::cpu::x64;
+
+    if (mayiuse(cpu_isa_t::avx512_core)) {
+        run_fma_peel_differential<16>();
+    } else if (mayiuse(cpu_isa_t::avx2)) {
+        run_fma_peel_differential<8>();
+    } else {
+        GTEST_SKIP() << "requires AVX2 or AVX-512";
+    }
+}
+
+// Shape check, not a correctness check: peeling must emit one body per
+// full iteration, straight-line. Counts that are exact multiples of N have
+// no remainder, so each step up adds exactly one body and the size
+// increments must be equal. A silent fallback to the rolled loop would
+// flatten them.
+//
+// Deliberately not "peeled is bigger than rolled": under the epilogue
+// style the rolled form records a scalarized partial tail that dwarfs four
+// peeled bodies, so that comparison says nothing.
+TEST(JitKernelIR, PeelingEmitsOneBodyPerIteration) {
+    using namespace dnnl::impl::cpu::x64;
+    if (!mayiuse(cpu_isa_t::avx512_core) && !mayiuse(cpu_isa_t::avx2)) {
+        GTEST_SKIP() << "requires AVX2 or AVX-512";
+    }
+    constexpr size_t N = 16;
+
+    std::array<size_t, 4> sizes{};
+    for (size_t full = 1; full <= sizes.size(); ++full) {
+        jit_ir_fma_peel_kernel<N> kernel(full * N, /*limit=*/8);
+        kernel.init();
+        sizes[full - 1] = kernel.getSize();
+    }
+
+    const size_t body = sizes[1] - sizes[0];
+    EXPECT_GT(body, 0U);
+    EXPECT_EQ(sizes[2] - sizes[1], body) << "sizes: " << sizes[0] << " " << sizes[1]
+                                         << " " << sizes[2] << " " << sizes[3];
+    EXPECT_EQ(sizes[3] - sizes[2], body) << "sizes: " << sizes[0] << " " << sizes[1]
+                                         << " " << sizes[2] << " " << sizes[3];
 }
 
 // ── Type-converting store must not clobber its source ──────────────────

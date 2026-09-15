@@ -90,12 +90,11 @@ void jit_rotary_kernel_ir::rotary_half_ir() {
     auto sin = make_ir_ptr(arg<const float*>(&Params::sin), N);
     auto dst = make_ir_ptr(arg<T*>(&Params::dst), N);
 
-    // Element count for the loop. foreach_vec handles a count that is not
-    // a multiple of the vector width, so shapes like QwenVL's half=40 need
-    // no special casing here.
-    auto count = ir_gpr_imm(half_rotary_ndims);
-
-    foreach_vec<N>(count, [&](const vlen& vl) {
+    // The trip count is a C++ value here, so foreach_vec peels: the full
+    // iterations come out straight-line and a count that is not a multiple
+    // of the vector width (QwenVL's half=40) costs one predicated step with
+    // an immediate mask.
+    foreach_vec<N>(half_rotary_ndims, [&](const vlen& vl) {
         auto v_src0 = ir_load<N>(src, vl);
         auto v_src1 = ir_load<N>(src.ptr, half_byte_offset, vl);
         auto v_cos = ir_load<N>(cos, vl);

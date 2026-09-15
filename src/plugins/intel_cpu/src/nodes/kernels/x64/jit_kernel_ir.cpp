@@ -15,6 +15,7 @@
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -1036,6 +1037,80 @@ bool FoldMemoryOperandsPass::run(IR& ir, PassContext& ctx) {
     return fold_recursive(ir.ops(), ir) != 0;
 }
 
+namespace {
+
+using use_counts = std::unordered_map<value_id, std::uint32_t>;
+
+void count_uses(const std::list<Op>& ops, use_counts& uses) {
+    for (const auto& op : ops) {
+        for (auto read : op.reads) {
+            ++uses[read];
+        }
+        if (op.body) {
+            count_uses(op.body->ops(), uses);
+        }
+    }
+}
+
+// MachineInstr::isDead, restricted to what this IR models: the def must be
+// unused, and the op must have no effect beyond it. Region ops are the
+// branch instructions of their headers (LLVM: terminators) and def-less
+// ops are the DSL's side-effecting form, so neither is a candidate.
+bool is_dead(const Op& op, const use_counts& uses) {
+    if (op.body || op.def == invalid_value || op.may_store) {
+        return false;
+    }
+    auto it = uses.find(op.def);
+    return it == uses.end() || it->second == 0;
+}
+
+// Backwards, decrementing use counts as ops die, so an op that only fed a
+// dead op dies in the same sweep.
+std::uint32_t erase_dead(std::list<Op>& ops, use_counts& uses) {
+    std::uint32_t erased = 0;
+    for (auto it = ops.end(); it != ops.begin();) {
+        --it;
+        if (it->body) {
+            erased += erase_dead(it->body->ops(), uses);
+            continue;
+        }
+        if (!is_dead(*it, uses)) {
+            continue;
+        }
+        for (auto read : it->reads) {
+            auto found = uses.find(read);
+            if (found != uses.end() && found->second > 0) {
+                --found->second;
+            }
+        }
+        // erase() returns the following op; the loop's --it steps back to
+        // the one before the erased op, which is where to continue.
+        it = ops.erase(it);
+        ++erased;
+    }
+    return erased;
+}
+
+}  // namespace
+
+bool DeadDefElimPass::run(IR& ir, PassContext& ctx) {
+    use_counts uses;
+    count_uses(ir.ops(), uses);
+
+    std::uint32_t erased = erase_dead(ir.ops(), uses);
+    if (erased == 0) {
+        return false;
+    }
+    // LLVM re-runs the sweep while anything changed; the backwards walk
+    // already catches chains, so this only picks up cross-region leftovers.
+    while (erase_dead(ir.ops(), uses) != 0) {
+    }
+    if (ctx.trace) {
+        std::cout << "[jit_ir] DeadDefElim: erased " << erased << " dead def(s)\n";
+    }
+    return true;
+}
+
 // Recursive helper for TwoAddressPass.
 static bool two_address_rewrite(std::list<Op>& ops, IR& ir) {
     bool modified = false;
@@ -1144,6 +1219,7 @@ PassManager build_default_pipeline() {
     PassManager pm;
     pm.add<TwoAddressPass>();
     pm.add<FoldMemoryOperandsPass>();
+    pm.add<DeadDefElimPass>();
     pm.add<LiveRangeAnalysis>();
     pm.add<DumpPass>("IR before allocation");
     pm.add<RegisterAllocator>();

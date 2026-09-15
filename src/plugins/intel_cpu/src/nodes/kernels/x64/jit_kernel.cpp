@@ -11,6 +11,7 @@
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <iostream>
@@ -308,6 +309,18 @@ const void* consts_table::store(const void* data, size_t size) {
 }
 
 }  // namespace internal
+
+// How many full iterations foreach_vec() may emit straight-line for a
+// constant trip count. Four is one cache line of bodies for the kernels we
+// have; OV_JIT_IR_PEEL overrides it, and 0 forces the rolled loop, which is
+// how the two shapes get compared without a rebuild.
+size_t jit_kernel::default_peel_limit() {
+    static const size_t value = [] {
+        const char* env = std::getenv("OV_JIT_IR_PEEL");
+        return env != nullptr ? std::strtoul(env, nullptr, 10) : 4U;
+    }();
+    return value;
+}
 
 jit_kernel::jit_kernel(const char* name) : jit_generator_t(name) {
     for (int reg = Operand::Code::RAX; reg <= Operand::Code::R15; ++reg) {
