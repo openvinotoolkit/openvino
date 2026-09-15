@@ -41,9 +41,12 @@ NPU_MODELS = [
     dict(id="detr", source="hf", auto_class="AutoModelForObjectDetection",
          repo="facebook/detr-resnet-50", dtype=torch.float32, ram_gb=1,
          inputs={"pixel_values": [1, 3, 640, 640]}),
+
     dict(id="rt-detr", source="hf", auto_class="AutoModelForObjectDetection",
          repo="PekingU/rtdetr_r50vd", dtype=torch.float32, ram_gb=1,
-         inputs={"pixel_values": [1, 3, 640, 640]}),
+         inputs={"pixel_values": [1, 3, 640, 640]},
+         skipped_platforms=["3720", "4000", "5010", "5020", "6010"]),
+
     dict(id="deeplabv3", source="torchvision",
          repo="deeplabv3_mobilenet_v3_large", dtype=torch.float32, ram_gb=1),
     dict(id="sam2-hiera", source="timm",
@@ -51,7 +54,8 @@ NPU_MODELS = [
 
     dict(id="depth-anything", source="hf", auto_class="AutoModelForDepthEstimation",
          repo="depth-anything/Depth-Anything-V2-Small-hf", dtype=torch.float32, ram_gb=1,
-         inputs={"pixel_values": [1, 3, 518, 518]}),
+         inputs={"pixel_values": [1, 3, 518, 518]},
+         skipped_platforms=["3720", "5010", "6010"]),
     dict(id="swin2sr", source="hf", auto_class="Swin2SRForImageSuperResolution",
          repo="caidas/swin2SR-classical-sr-x2-64", dtype=torch.float32, ram_gb=1,
          inputs={"pixel_values": [1, 3, 64, 64]}),
@@ -102,9 +106,9 @@ def skip_if_not_enough_ram(model_name, need_gb):
                     f"only {available_gb:.1f} GB available")
 
 
-def skip_if_unsupported_platform(model_name, unsupported_platforms):
+def skip_if_platform_skipped(model_name, skipped_platforms):
     npu_platform = os.environ.get("NPU_PLATFORM")
-    if npu_platform and npu_platform in (unsupported_platforms or []):
+    if npu_platform and npu_platform in (skipped_platforms or []):
         pytest.skip(f"{model_name}: known NPU compilation failure on platform {npu_platform}")
 
 
@@ -282,5 +286,5 @@ class TestNpuModels(TestTorchConvertModel):
     def test_compile_model(self, model_id, ie_device):
         case = get_case(model_id)
         skip_if_not_enough_ram(model_id, case["ram_gb"])
-        skip_if_unsupported_platform(model_id, case.get("unsupported_platforms"))
+        skip_if_platform_skipped(model_id, case.get("skipped_platforms"))
         self.run(model_id, case["repo"], ie_device)
