@@ -10,6 +10,229 @@ typedef INPUT0_TYPE data_et;
 typedef float grid_et;
 typedef OUTPUT_TYPE output_et;
 
+#ifdef VOLUMETRIC
+
+// ---------------------------------------------------------------------------
+// 5D (volumetric) GridSample. data: [N, C, D, H, W], grid: [N, D_out, H_out, W_out, 3]
+// where the last grid dimension stores (x, y, z) with x->W, y->H, z->D.
+// ---------------------------------------------------------------------------
+
+inline const data_et FUNC(get_data_single_value)(const data_t* buffer,
+                                                  const size_t n,
+                                                  const size_t c,
+                                                  const size_t z,
+                                                  const size_t y,
+                                                  const size_t x) {
+    const size_t idx = INPUT0_GET_INDEX(n, c, z, y, x);
+    return buffer[idx];
+}
+#define get_data_single_value FUNC_CALL(get_data_single_value)
+
+inline const grid_et FUNC(get_grid_single_value)(const grid_t* buffer,
+                                                  const size_t n,
+                                                  const size_t coord,
+                                                  const size_t z,
+                                                  const size_t y,
+                                                  const size_t x) {
+    const size_t idx = INPUT1_GET_INDEX(n, z, y, x, coord);
+    return buffer[idx];
+}
+#define get_grid_single_value FUNC_CALL(get_grid_single_value)
+
+inline void FUNC(set_output_single_value)(const output_et value,
+                                          output_t* buffer,
+                                          const size_t n,
+                                          const size_t c,
+                                          const size_t z,
+                                          const size_t y,
+                                          const size_t x) {
+    const size_t idx = OUTPUT_GET_INDEX(n, c, z, y, x);
+    buffer[idx] = value;
+}
+#define set_output_single_value FUNC_CALL(set_output_single_value)
+
+#if defined(ALIGN_CORNERS)
+#define rescale_align FUNC(denormalize)
+inline grid_et rescale_align(const grid_et value, const size_t range) {
+    return (value + 1) * ((grid_et)(range)-1) / 2;
+}
+#else
+#define rescale_noalign FUNC(denormalize)
+inline grid_et rescale_noalign(const grid_et value, const size_t range) {
+    return ((value + 1) * (grid_et)(range)-1) / 2;
+}
+#endif
+#define denormalize FUNC_CALL(denormalize)
+
+#if defined(PADDING_MODE_ZEROS)
+#define zeros_padding FUNC(get_padded)
+inline data_et zeros_padding(const data_t* data,
+                             const size_t n,
+                             const size_t c,
+                             const long z_d,
+                             const long y_d,
+                             const long x_d) {
+    const long D = convert_long(INPUT0_SIZE_Z);
+    const long H = convert_long(INPUT0_SIZE_Y);
+    const long W = convert_long(INPUT0_SIZE_X);
+    if (z_d < 0 || y_d < 0 || x_d < 0 || z_d >= D || y_d >= H || x_d >= W) {
+        return 0;
+    } else {
+        return get_data_single_value(data, n, c, (size_t)(z_d), (size_t)(y_d), (size_t)(x_d));
+    }
+}
+#undef zeros_padding
+
+#elif defined(PADDING_MODE_BORDER)
+#define border_padding FUNC(get_padded)
+inline data_et border_padding(const data_t* data,
+                              const size_t n,
+                              const size_t c,
+                              const long z_d,
+                              const long y_d,
+                              const long x_d) {
+    const long D = convert_long(INPUT0_SIZE_Z);
+    const long H = convert_long(INPUT0_SIZE_Y);
+    const long W = convert_long(INPUT0_SIZE_X);
+    const size_t z = (size_t)(clamp(z_d, 0l, D - 1));
+    const size_t y = (size_t)(clamp(y_d, 0l, H - 1));
+    const size_t x = (size_t)(clamp(x_d, 0l, W - 1));
+    return get_data_single_value(data, n, c, z, y, x);
+}
+#undef border_padding
+
+#elif defined(PADDING_MODE_REFLECTION)
+
+#if defined(ALIGN_CORNERS)
+inline long FUNC(reflect_axis)(long coord, const long size) {
+    const long span = size == 1 ? 1 : 2 * (size - 1);
+    coord = abs(coord) % span;
+    return coord >= size ? span - coord : coord;
+}
+#else
+inline long FUNC(reflect_axis)(long coord, const long size) {
+    const long span = size * 2l;
+    coord = (coord % span + span) % span;
+    return coord >= size ? span - 1 - coord : coord;
+}
+#endif
+#define reflect_axis FUNC_CALL(reflect_axis)
+
+#define reflection_padding FUNC(get_padded)
+inline data_et reflection_padding(const data_t* data,
+                                  const size_t n,
+                                  const size_t c,
+                                  long z_d,
+                                  long y_d,
+                                  long x_d) {
+    const size_t z = (size_t)reflect_axis(z_d, convert_long(INPUT0_SIZE_Z));
+    const size_t y = (size_t)reflect_axis(y_d, convert_long(INPUT0_SIZE_Y));
+    const size_t x = (size_t)reflect_axis(x_d, convert_long(INPUT0_SIZE_X));
+    return get_data_single_value(data, n, c, z, y, x);
+}
+#undef reflection_padding
+#else
+#error [clDNN grid_sample_ref.cl]: undefined padding mode
+#endif
+
+#define get_padded FUNC_CALL(get_padded)
+
+#if defined(INTERPOLATION_MODE_BILINEAR)
+#define trilinear FUNC(interpolate)
+inline data_et trilinear(const data_t* data,
+                         const size_t n,
+                         const size_t c,
+                         const grid_et z_n,
+                         const grid_et y_n,
+                         const grid_et x_n) {
+    const grid_et z_d = denormalize(z_n, INPUT0_SIZE_Z);
+    const grid_et y_d = denormalize(y_n, INPUT0_SIZE_Y);
+    const grid_et x_d = denormalize(x_n, INPUT0_SIZE_X);
+    const grid_et z0 = floor(z_d);
+    const grid_et y0 = floor(y_d);
+    const grid_et x0 = floor(x_d);
+    const grid_et dz = z_d - z0;
+    const grid_et dy = y_d - y0;
+    const grid_et dx = x_d - x0;
+
+    const data_et v000 = get_padded(data, n, c, z0, y0, x0);
+    const data_et v001 = get_padded(data, n, c, z0, y0, x0 + 1);
+    const data_et v010 = get_padded(data, n, c, z0, y0 + 1, x0);
+    const data_et v011 = get_padded(data, n, c, z0, y0 + 1, x0 + 1);
+    const data_et v100 = get_padded(data, n, c, z0 + 1, y0, x0);
+    const data_et v101 = get_padded(data, n, c, z0 + 1, y0, x0 + 1);
+    const data_et v110 = get_padded(data, n, c, z0 + 1, y0 + 1, x0);
+    const data_et v111 = get_padded(data, n, c, z0 + 1, y0 + 1, x0 + 1);
+
+    const data_et c00 = (1 - dx) * v000 + dx * v001;
+    const data_et c01 = (1 - dx) * v010 + dx * v011;
+    const data_et c10 = (1 - dx) * v100 + dx * v101;
+    const data_et c11 = (1 - dx) * v110 + dx * v111;
+
+    const data_et c0 = (1 - dy) * c00 + dy * c01;
+    const data_et c1 = (1 - dy) * c10 + dy * c11;
+
+    return (1 - dz) * c0 + dz * c1;
+}
+#undef trilinear
+
+#elif defined(INTERPOLATION_MODE_NEAREST)
+#define nearest3d FUNC(interpolate)
+inline data_et nearest3d(const data_t* data,
+                         const size_t n,
+                         const size_t c,
+                         const grid_et z_n,
+                         const grid_et y_n,
+                         const grid_et x_n) {
+    const grid_et z_nearest = rint(denormalize(z_n, INPUT0_SIZE_Z));
+    const grid_et y_nearest = rint(denormalize(y_n, INPUT0_SIZE_Y));
+    const grid_et x_nearest = rint(denormalize(x_n, INPUT0_SIZE_X));
+    return get_padded(data, n, c, z_nearest, y_nearest, x_nearest);
+}
+#undef nearest3d
+#else
+#error [clDNN grid_sample_ref.cl]: unsupported interpolation mode for volumetric GridSample
+#endif
+
+#define interpolate FUNC_CALL(interpolate)
+
+KERNEL(grid_sample_ref)(const data_t * data,
+                        const grid_t * grid,
+                        output_t * output
+                        #if HAS_FUSED_OPS_DECLS
+                        , FUSED_OPS_DECLS
+                        #endif
+                       ) {
+#if INPUT0_BATCH_NUM != INPUT1_BATCH_NUM
+#error [clDNN grid_sample_ref.cl]: the batch dimension in the input data tensor's shape doesn't match the batch dimension in the grid tensor's shape
+#endif
+
+#if INPUT1_SIZE_X != 3
+#error [clDNN grid_sample_ref.cl]: the last dimension of the grid tensor must be 3 for volumetric GridSample
+#endif
+
+    const uint nc = get_global_id(0);
+    const uint n = nc % OUTPUT_BATCH_NUM;
+    const uint c = nc / OUTPUT_BATCH_NUM;
+    const uint zy = get_global_id(1);
+    const uint z = zy / OUTPUT_SIZE_Y;
+    const uint y = zy % OUTPUT_SIZE_Y;
+    const uint x = get_global_id(2);
+
+    const grid_et x_n = get_grid_single_value(grid, n, 0, z, y, x);
+    const grid_et y_n = get_grid_single_value(grid, n, 1, z, y, x);
+    const grid_et z_n = get_grid_single_value(grid, n, 2, z, y, x);
+
+    const output_et out = interpolate(data, n, c, z_n, y_n, x_n);
+
+    set_output_single_value(out, output, n, c, z, y, x);
+}
+#undef interpolate
+#undef get_padded
+#undef denormalize
+
+#else  // !VOLUMETRIC  (original 4D path - unchanged)
+
 inline const data_et FUNC(
     get_data_single_value)(const data_t* buffer, const size_t n, const size_t c, const size_t h, const size_t w) {
     const size_t idx = INPUT0_GET_INDEX(n, c, h, w);
@@ -244,3 +467,5 @@ KERNEL(grid_sample_ref)(const data_t * data,
 #undef interpolate
 #undef get_padded
 #undef denormalize
+
+#endif  // VOLUMETRIC

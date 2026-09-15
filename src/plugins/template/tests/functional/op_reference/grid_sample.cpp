@@ -572,6 +572,92 @@ std::vector<GridSampleParams> generateCornerCaseData1x1Params() {
     return params;
 }
 
+// 5D (volumetric) reference cases. Expected values produced with
+// torch.nn.functional.grid_sample (5D) which defines the GridSample volumetric semantics.
+template <ov::element::Type_t DATA_ET,
+          ov::element::Type_t GRID_ET,
+          class DT = ov::fundamental_type_for<DATA_ET>,
+          class GT = ov::fundamental_type_for<GRID_ET>>
+std::vector<GridSampleParams> generate5DParams() {
+    std::vector<GridSampleParams> params;
+    const auto types_str = param_types_str(DATA_ET, GRID_ET);
+
+    // Case 1: data [1, 1, 2, 3, 4] ramp, grid [1, 2, 2, 2, 3].
+    reference_tests::Tensor data1{{1, 1, 2, 3, 4}, DATA_ET, std::vector<DT>{1,  2,  3,  4,  5,  6,  7,  8,
+                                                                            9,  10, 11, 12, 13, 14, 15, 16,
+                                                                            17, 18, 19, 20, 21, 22, 23, 24}};
+    reference_tests::Tensor grid1{{1, 2, 2, 2, 3},
+                                  GRID_ET,
+                                  std::vector<GT>{-0.8, -0.8, -0.8, 0.7,  -0.6, -0.9, 0.1,  0.2,
+                                                  -0.3, -0.4, 0.5,  -0.6, -0.5, 0.9,  0.8,  0.3,
+                                                  -0.2, 0.4,  1.2,  -1.3, 0.5,  -1.1, 1.4,  -0.7}};
+    const Shape out1_shape{1, 1, 2, 2, 2};
+
+    params.emplace_back(
+        data1,
+        grid1,
+        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_ZEROS},
+        reference_tests::Tensor{out1_shape, DATA_ET, std::vector<DT>{0.504, 2.58, 10.3, 7.83, 9.782502, 16.7, 0.08, 0.0}},
+        "trilinear_zeros_noalign_5d" + types_str);
+    params.emplace_back(
+        data1,
+        grid1,
+        op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_BORDER},
+        reference_tests::Tensor{out1_shape,
+                                DATA_ET,
+                                std::vector<DT>{3.3, 5.75, 11.65, 10.3, 20.15, 14.55, 13.0, 10.8}},
+        "trilinear_border_align_5d" + types_str);
+    params.emplace_back(
+        data1,
+        grid1,
+        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_REFLECTION},
+        reference_tests::Tensor{out1_shape, DATA_ET, std::vector<DT>{1.0, 4.3, 10.3, 8.7, 21.5, 16.7, 16.0, 8.6}},
+        "trilinear_reflection_noalign_5d" + types_str);
+    params.emplace_back(
+        data1,
+        grid1,
+        op::v9::GridSample::Attributes{true, GS_BILINEAR, GS_REFLECTION},
+        reference_tests::Tensor{out1_shape,
+                                DATA_ET,
+                                std::vector<DT>{3.3, 5.75, 11.65, 10.3, 20.15, 14.55, 13.9, 9.35}},
+        "trilinear_reflection_align_5d" + types_str);
+    params.emplace_back(
+        data1,
+        grid1,
+        op::v9::GridSample::Attributes{false, GS_NEAREST, GS_ZEROS},
+        reference_tests::Tensor{out1_shape, DATA_ET, std::vector<DT>{1.0, 4.0, 7.0, 10.0, 21.0, 19.0, 0.0, 0.0}},
+        "nearest_zeros_noalign_5d" + types_str);
+    params.emplace_back(
+        data1,
+        grid1,
+        op::v9::GridSample::Attributes{true, GS_NEAREST, GS_BORDER},
+        reference_tests::Tensor{out1_shape, DATA_ET, std::vector<DT>{1.0, 4.0, 7.0, 10.0, 22.0, 19.0, 16.0, 9.0}},
+        "nearest_border_align_5d" + types_str);
+
+    // Case 2: multi-channel data [1, 2, 2, 2, 2], grid [1, 1, 2, 2, 3] -> output [1, 2, 1, 2, 2].
+    reference_tests::Tensor data2{{1, 2, 2, 2, 2},
+                                  DATA_ET,
+                                  std::vector<DT>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}};
+    reference_tests::Tensor grid2{{1, 1, 2, 2, 3},
+                                  GRID_ET,
+                                  std::vector<GT>{-0.5, -0.5, -0.5, 0.5, 0.5, 0.5, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0}};
+    const Shape out2_shape{1, 2, 1, 2, 2};
+    params.emplace_back(
+        data2,
+        grid2,
+        op::v9::GridSample::Attributes{false, GS_BILINEAR, GS_ZEROS},
+        reference_tests::Tensor{out2_shape, DATA_ET, std::vector<DT>{1.0, 8.0, 4.5, 1.0, 9.0, 16.0, 12.5, 2.0}},
+        "trilinear_zeros_noalign_multichannel_5d" + types_str);
+    params.emplace_back(
+        data2,
+        grid2,
+        op::v9::GridSample::Attributes{false, GS_NEAREST, GS_ZEROS},
+        reference_tests::Tensor{out2_shape, DATA_ET, std::vector<DT>{1.0, 8.0, 1.0, 0.0, 9.0, 16.0, 9.0, 0.0}},
+        "nearest_zeros_noalign_multichannel_5d" + types_str);
+
+    return params;
+}
+
 std::vector<GridSampleParams> generateGridSampleParams() {
     using namespace ov::element;
     std::vector<std::vector<GridSampleParams>> combo_params{generateNearestParamsOddDimensionsInnerGrids<f32, f32>(),
@@ -604,7 +690,9 @@ std::vector<GridSampleParams> generateGridSampleParams() {
 
                                                             generateCornerCaseData1x1Params<f32, f32>(),
                                                             generateCornerCaseData1x1Params<f32, bf16>(),
-                                                            generateCornerCaseData1x1Params<f32, f16>()};
+                                                            generateCornerCaseData1x1Params<f32, f16>(),
+
+                                                            generate5DParams<f32, f32>()};
     std::vector<GridSampleParams> test_params;
     for (auto& params : combo_params)
         std::move(params.begin(), params.end(), std::back_inserter(test_params));
