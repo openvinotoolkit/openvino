@@ -93,8 +93,23 @@ std::vector<TRShape> shape_infer(const util::MulticlassNmsBase* op,
             const auto& num_images = has_rois_num ? rois_num_shape[0] : scores_shape[0];
 
             auto& selected_boxes = output_shapes[0][0];
-            selected_boxes =
-                (nms_top_k > -1) ? TDim(std::min<V>(boxes_shape[1].get_max_length(), nms_top_k)) : boxes_shape[1];
+            if (nms_top_k > -1) {
+                const auto& num_boxes = boxes_shape[1];
+                const auto boxes_upper_bound = num_boxes.get_max_length();
+                // nms_top_k is only an upper bound on the per-class box count, not the actual
+                // value. When num_boxes is unknown, the real value may turn out smaller once the
+                // shape becomes static, so the dimension must stay dynamic (bounded by
+                // nms_top_k) instead of being collapsed to a static nms_top_k.
+                if (num_boxes.is_static()) {
+                    selected_boxes = TDim(std::min<V>(boxes_upper_bound, nms_top_k));
+                } else if (boxes_upper_bound < 0) {
+                    selected_boxes = TDim(0, nms_top_k);
+                } else {
+                    selected_boxes = TDim(0, std::min<V>(boxes_upper_bound, nms_top_k));
+                }
+            } else {
+                selected_boxes = boxes_shape[1];
+            }
 
             if (ignore_bg_class && (background_class > -1) && (background_class < num_classes.get_max_length())) {
                 selected_boxes *= std::max<V>(1, num_classes.get_max_length() - 1);
@@ -102,8 +117,12 @@ std::vector<TRShape> shape_infer(const util::MulticlassNmsBase* op,
                 selected_boxes *= num_classes;
             }
 
-            if (keep_top_k > -1 && (keep_top_k < selected_boxes.get_max_length())) {
-                selected_boxes = TDim(keep_top_k);
+            if (keep_top_k > -1 &&
+                (selected_boxes.get_max_length() < 0 || keep_top_k < selected_boxes.get_max_length())) {
+                // Same reasoning as above: only collapse to a static keep_top_k when
+                // selected_boxes is already static (a known worst-case count being tightened);
+                // otherwise keep it dynamic, bounded by keep_top_k.
+                selected_boxes = selected_boxes.is_static() ? TDim(keep_top_k) : TDim(0, keep_top_k);
             }
 
             selected_boxes *= num_images;
