@@ -1207,6 +1207,8 @@ Deprecated and to be removed in the future
 
 * Starting with 2026.0 release major internal refactoring of the graph iteration mechanism has been implemented for improved performance and maintainability. The legacy path can be enabled by setting the ``ONNX_ITERATOR=0`` environment variable. This legacy path is deprecated and will be removed in future releases.
 
+* Modifying runtime information (``RTMap``) through read-only ``ConstOutput`` objects in the Python API is deprecated and will be removed in a 2027.0 release. Users should use non-const outputs when updating runtime metadata; attempts to modify ``RTMap`` through ``ConstOutput`` now emit a deprecation warning to ease migration.
+
 * OpenVINO Model Server:
 
   * The dedicated OpenVINO operator for Kubernetes and OpenShift is now deprecated in favor of the recommended KServe operator. The OpenVINO operator will remain functional in upcoming OpenVINO™ Model Server releases but will no longer be actively developed. Since KServe provides broader capabilities, no loss of functionality is expected. On the contrary, more functionalities will be accessible and migration between other serving solutions and OpenVINO Model Server will be much easier.
