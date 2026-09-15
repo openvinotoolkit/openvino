@@ -1687,6 +1687,76 @@ TEST(convolution_f32_fw_gpu, input_f32_output_f16_dynamic_ref_kernel) {
     ASSERT_EQ(outputs.at("permute").get_layout().data_type, data_types::f16);
 }
 
+TEST(convolution_f16_fw_gpu, dynamic_batch_bfyx_small_channel_fsv16)
+{
+    auto& engine = get_test_engine();
+    const size_t ic = 3, oc = 16, iy = 8, ix = 8, oy = iy - 2, ox = ix - 2;
+    const ov::Shape weights_shape = { oc, ic, 3, 3 };
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto weights_data = rg.generate_random_1d<ov::float16>(ov::shape_size(weights_shape), -1, 1);
+    auto weights_mem = engine.allocate_memory({ weights_shape, data_types::f16, format::bfyx });
+    set_values(weights_mem, weights_data);
+
+    ov::PartialShape input_shape = { -1, ic, iy, ix };
+    auto in_dyn_layout = layout{ input_shape, data_types::f16, format::bfyx };
+
+    topology target_topology(
+        input_layout("input", in_dyn_layout),
+        data("weights", weights_mem),
+        convolution("conv1", input_info("input"), "weights", "", 1, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, false),
+        reorder("out", input_info("conv1"), format::bfyx, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc impl = { format::b_fs_yx_fsv16, "convolution_gpu_bfyx_to_bfyx_f16", impl_types::ocl };
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv1", impl } }));
+
+    network target_network(engine, target_topology, config);
+
+    for (size_t b : { size_t(1), size_t(4) }) {
+        const ov::Shape current_input_shape = { b, ic, iy, ix };
+        auto input_data = rg.generate_random_1d<ov::float16>(ov::shape_size(current_input_shape), -1, 1);
+        auto input = engine.allocate_memory({ current_input_shape, data_types::f16, format::bfyx });
+        set_values(input, input_data);
+        target_network.set_input_data("input", input);
+
+        auto outputs = target_network.execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        const auto& out = outputs.at("out").get_memory();
+        ASSERT_EQ(out->get_layout().batch(), b);
+        ASSERT_EQ(out->get_layout().count(), b * oc * oy * ox);
+
+        topology reference_topology(
+            input_layout("input", input->get_layout()),
+            data("weights", weights_mem),
+            convolution("conv1", input_info("input"), "weights", "", 1, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 0, 0 }, false),
+            reorder("out", input_info("conv1"), format::bfyx, data_types::f16));
+        ExecutionConfig reference_config = get_test_default_config(engine);
+        reference_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        reference_config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{ { "conv1", { format::bfyx, "convolution_gpu_ref", impl_types::ocl } } }));
+        network reference_network(engine, reference_topology, reference_config);
+        reference_network.set_input_data("input", input);
+
+        auto reference_outputs = reference_network.execute();
+        auto output_values = get_output_values_to_float(target_network, outputs.at("out"));
+        auto reference_values = get_output_values_to_float(reference_network, reference_outputs.at("out"));
+        ASSERT_EQ(output_values.size(), reference_values.size());
+        for (size_t i = 0; i < output_values.size(); ++i) {
+            ASSERT_NEAR(output_values[i], reference_values[i], 1e-2f) << "batch=" << b << " idx=" << i;
+        }
+    }
+
+    const auto primitives_info = target_network.get_primitives_info();
+    const auto conv_info = std::find_if(primitives_info.begin(), primitives_info.end(), [](const primitive_info& info) {
+        return info.original_id == "conv1";
+    });
+    ASSERT_NE(conv_info, primitives_info.end());
+    EXPECT_EQ(conv_info->kernel_id, "convolution_gpu_bfyx_to_bfyx_f16__f16");
+    EXPECT_EQ(target_network.get_primitive("conv1")->get_output_layout(0).format, format::b_fs_yx_fsv16);
+}
+
 TEST(convolution_f32_fw_gpu, convolution_big_size_weights) {
     auto& engine = get_test_engine();
 

@@ -1534,16 +1534,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             auto &conv = prim.as<convolution>();
             if (conv.get_primitive()->groups > 1)
                 lo.set_optimization_attribute(layout_optimizer::optimization_attributes_type::group_convolution, 1);
-#ifdef ENABLE_ONEDNN_FOR_GPU
-            if (conv.is_dynamic()) {
-                bool is_dynamic_batch = !node->get_output_layout().get_partial_shape()[0].is_static();
-                bool is_fp32_conv = (node->get_input_layout().data_type == data_types::f32) &&
-                                    (node->get_output_layout().data_type == data_types::f32);
-                is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
-                if (is_dynamic_batch_onednn_conv)
-                    dynamic_batch_onednn_conv_count++;
-            } else {
-#endif
+            if (!node->get_input_layout(0).is_dynamic()) {
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16) {
@@ -1557,7 +1548,15 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
                     total_1x1_fm_conv_layers++;
+            }
 #ifdef ENABLE_ONEDNN_FOR_GPU
+            else {
+                bool is_dynamic_batch = !node->get_output_layout().get_partial_shape()[0].is_static();
+                bool is_fp32_conv = (node->get_input_layout(0).data_type == data_types::f32) &&
+                                    (node->get_output_layout().data_type == data_types::f32);
+                is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
+                if (is_dynamic_batch_onednn_conv)
+                    dynamic_batch_onednn_conv_count++;
             }
 #endif
             lo.update_formats_map(conv);
@@ -2216,4 +2215,3 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 }
-

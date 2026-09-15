@@ -39,6 +39,7 @@ protected:
     bool Validate(const Params& p) const override;
     DispatchData SetDefault(const convolution_params& arg, int autoTuneIndex = -1) const override;
     JitConstants GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const override;
+    void GetUpdateDispatchDataFunc(KernelData& kd) const override;
     struct AutoTuneOption {
         size_t blockWidth;
         std::string exeMode;
