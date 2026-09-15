@@ -473,6 +473,13 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     // Sub-byte views are not supported here
     NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
 
+    // Bounds guard: from[d] <= to[d] <= shape[d] (prevents OOB views and unsigned wrap below).
+    const auto& shape = src->get_shape();
+    NPUW_ASSERT(from.size() == shape.size());
+    for (std::size_t d = 0; d < from.size(); ++d) {
+        NPUW_ASSERT(from[d] <= to[d] && to[d] <= shape[d]);
+    }
+
     const auto num_dims = from.size();
     ov::Shape view_shape;
     for (auto d = 0u; d < num_dims; d++) {
