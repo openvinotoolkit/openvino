@@ -372,7 +372,7 @@ jobs:
             -DCMAKE_C_FLAGS="/cgthreads4 /MP4" `
             -DCMAKE_EXE_LINKER_FLAGS="/CGTHREADS:4" `
             -DCMAKE_SHARED_LINKER_FLAGS="/CGTHREADS:4" `
-            -DCMAKE_MODULE_LINKER_FLAGS="/CGTHREADS:4" `            
+            -DCMAKE_MODULE_LINKER_FLAGS="/CGTHREADS:4" `
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
