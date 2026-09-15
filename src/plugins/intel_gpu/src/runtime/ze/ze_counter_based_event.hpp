@@ -25,7 +25,7 @@ public:
         OPENVINO_ASSERT(!m_event.is_empty(), "[GPU] Attempt to create counter based event with empty holder");
     }
 
-    void wait_impl() override;
+    void ze_wait_impl() override;
     void set_impl() override;
     bool is_set_impl() override;
     ze_event_handle_t get_handle() const override;

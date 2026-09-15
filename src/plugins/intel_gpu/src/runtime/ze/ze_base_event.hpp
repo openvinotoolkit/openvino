@@ -56,6 +56,12 @@ protected:
         }
     }
 
+    void wait_impl() override final {
+        stop_recording();
+        ze_wait_impl();
+    }
+    virtual void ze_wait_impl() = 0;
+
     static std::chrono::nanoseconds timestamp_to_duration(const device_info &info, const ze_kernel_timestamp_data_t& timestamp) {
         constexpr double NS_IN_SEC = 1000000000.0;
         const double timestamp_freq = NS_IN_SEC / info.timer_resolution;

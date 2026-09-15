@@ -18,8 +18,7 @@ void ze_event::reset() {
     OV_ZE_EXPECT(ze::zeEventHostReset(m_event.handle()));
 }
 
-void ze_event::wait_impl() {
-    stop_recording();
+void ze_event::ze_wait_impl() {
     OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.handle(), endless_wait));
 }
 

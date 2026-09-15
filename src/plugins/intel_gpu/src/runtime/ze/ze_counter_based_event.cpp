@@ -13,8 +13,7 @@
 using namespace cldnn;
 using namespace ze;
 
-void ze_counter_based_event::wait_impl() {
-    stop_recording();
+void ze_counter_based_event::ze_wait_impl() {
     OV_ZE_EXPECT(ze::zeEventHostSynchronize(m_event.handle(), endless_wait));
 }
 
