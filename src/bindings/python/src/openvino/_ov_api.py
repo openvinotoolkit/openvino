@@ -308,6 +308,15 @@ class CompiledModel(CompiledModelBase):
     def get_runtime_model(self) -> Model:
         return Model(super().get_runtime_model())
 
+    def get_rt_info(self, *args: Any) -> Any:
+        """Gets runtime information from the compiled model's runtime model."""
+        return self.get_runtime_model().get_rt_info(*args)
+
+    @property
+    def rt_info(self) -> Any:
+        """Gets runtime information dictionary from the compiled model's runtime model."""
+        return self.get_runtime_model().rt_info
+
     def create_infer_request(self) -> InferRequest:
         """Creates an inference request object used to infer the compiled model.
 

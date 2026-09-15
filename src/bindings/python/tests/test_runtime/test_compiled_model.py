@@ -18,7 +18,7 @@ from tests.utils.helpers import (
     decrypt_base64,
     create_filenames_for_ir,
     create_filename_for_test)
-from openvino import Model, Shape, Core, Tensor, serialize
+from openvino import Model, Shape, Core, Tensor, serialize, RTMap
 from openvino import ConstOutput
 
 import openvino.properties as props
@@ -37,6 +37,10 @@ def test_get_runtime_model(device):
     compiled_model = generate_relu_compiled_model(device)
     runtime_model = compiled_model.get_runtime_model()
     assert isinstance(runtime_model, Model)
+    assert isinstance(compiled_model.get_rt_info(), RTMap)
+    assert isinstance(compiled_model.rt_info, RTMap)
+    assert dict(compiled_model.get_rt_info().items()) == dict(runtime_model.get_rt_info().items())
+    assert dict(compiled_model.rt_info.items()) == dict(runtime_model.rt_info.items())
 
 
 def test_export_import_stream(device):
