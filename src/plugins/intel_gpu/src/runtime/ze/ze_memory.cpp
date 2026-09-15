@@ -319,8 +319,7 @@ allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, ze_usm_
 }
 
 gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem()
-    , memory(engine, new_layout, type, mem_tracker)
+    : lockable_gpu_mem(engine, new_layout, type, mem_tracker)
     , _buffer(std::move(buffer)) {
     auto ctx_handle = engine->get_context().handle();
     auto ptr = _buffer.handle().ptr;
@@ -333,8 +332,7 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource bu
     : gpu_usm(engine, new_layout, std::move(buffer), detect_allocation_type(engine, buffer), mem_tracker) {}
 
 gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
-    : lockable_gpu_mem()
-    , memory(engine, layout, type, nullptr) {
+    : lockable_gpu_mem(engine, layout, type, nullptr) {
     auto actual_bytes_count = _bytes_count;
     if (actual_bytes_count == 0)
         actual_bytes_count = 1;
@@ -358,11 +356,7 @@ gpu_usm::gpu_usm(ze_engine* engine, const layout& layout, allocation_type type)
     m_mem_tracker = std::make_shared<MemoryTracker>(engine, _buffer.handle().ptr, actual_bytes_count, type);
 }
 
-void* gpu_usm::lock(const stream& stream, mem_lock_type type) {
-    if (stream.get_recorder()->stop_recording()) {
-        GPU_DEBUG_TRACE << "[GPU][REC] Memory lock interrupted recording" << std::endl;
-    }
-
+void* gpu_usm::lock_impl(const stream& stream, mem_lock_type type) {
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         auto& _ze_stream = downcast<const ze_stream>(stream);
@@ -585,8 +579,7 @@ shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
 }
 
 gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
-    : lockable_gpu_mem()
-    , memory(engine, layout, allocation_type::ze_image, nullptr)
+    : lockable_gpu_mem(engine, layout, allocation_type::ze_image, nullptr)
     , _width(0)
     , _height(0) {
     ze_image_desc_t image_desc = {};
@@ -685,18 +678,13 @@ gpu_image2d::gpu_image2d(ze_engine* engine, const layout& layout)
 }
 
 gpu_image2d::gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_resource image, std::shared_ptr<MemoryTracker> mem_tracker)
-    : lockable_gpu_mem()
-    , memory(engine, new_layout, allocation_type::ze_image, mem_tracker)
+    : lockable_gpu_mem(engine, new_layout, allocation_type::ze_image, mem_tracker)
     , _image_holder(std::move(image)) {
     // No way to get width and height from Level Zero so we have to assume layout is correct
     std::tie(_width, _height) = get_width_height(new_layout);
 }
 
-void* gpu_image2d::lock(const stream& stream, mem_lock_type type) {
-    if (stream.get_recorder()->stop_recording()) {
-        GPU_DEBUG_TRACE << "[GPU][REC] Memory lock interrupted recording" << std::endl;
-    }
-
+void* gpu_image2d::lock_impl(const stream& stream, mem_lock_type type) {
     auto& zero_stream = downcast<const ze_stream>(stream);
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {

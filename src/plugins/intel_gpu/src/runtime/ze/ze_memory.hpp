@@ -21,11 +21,20 @@ class SharedSurfLock;
 
 namespace cldnn {
 namespace ze {
-struct lockable_gpu_mem {
-    lockable_gpu_mem() :
+struct lockable_gpu_mem : public memory {
+    lockable_gpu_mem(engine* engine, const layout& layout, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker) :
+        memory(engine, layout, type, mem_tracker),
         _lock_count(0),
         _mapped_ptr(nullptr),
         _copy_back_to_device(false) {}
+
+    void* lock(const stream& stream, mem_lock_type type) override final {
+        if (stream.get_recorder()->stop_recording()) {
+            GPU_DEBUG_TRACE << "[GPU][REC] Memory lock interrupted recording" << std::endl;
+        }
+        return lock_impl(stream, type);
+    }
+    virtual void* lock_impl(const stream& stream, mem_lock_type type) = 0;
 
     std::mutex _mutex;
     unsigned _lock_count;
@@ -33,12 +42,12 @@ struct lockable_gpu_mem {
     bool _copy_back_to_device;
 };
 
-struct gpu_usm : public lockable_gpu_mem, public memory {
+struct gpu_usm : public lockable_gpu_mem{
     gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource usm_buffer, allocation_type type, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_usm(ze_engine* engine, const layout& layout, allocation_type type);
 
-    void* lock(const stream& stream, mem_lock_type type) override;
+    void* lock_impl(const stream& stream, mem_lock_type type) override;
     void unlock(const stream& stream) override;
 
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
@@ -63,11 +72,11 @@ protected:
     ze_usm_resource _host_buffer;
 };
 
-struct gpu_image2d : public lockable_gpu_mem, public memory {
+struct gpu_image2d : public lockable_gpu_mem {
     gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_resource image, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_image2d(ze_engine* engine, const layout& layout);
 
-    void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
+    void* lock_impl(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     shared_mem_params get_internal_params(runtime_types rt_type) const override;
