@@ -1874,18 +1874,36 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // remainder/causal/window masks or a fully masked row. In that case m_new is
             // -inf, and unguarded max rescaling would form -inf - -inf and poison S/A.
             const bool ok = isfinite(m_new);
+#if MICRO_MATH
+            // sdpa_micro keeps raw QK maxima and subtracts before scaling. The default
+            // path stores scaled maxima, which changes rounding in both exp2 arguments.
+            const float a = ok ? native_exp2((S_max_tile[qb] - m_new) * scale) : 1.0f;
+            float lsum = 0.0f;
+
+            S_max_tile[qb] = ok ? m_new : S_max_tile[qb];
+#else
             const float m_log2 = ok ? m_new * scale : 0.0f;
             const float a = ok ? native_exp2(S_max_tile[qb] - m_log2) : 1.0f;
             float lsum = 0.0f;
 
             S_max_tile[qb] = ok ? m_log2 : S_max_tile[qb];
+#endif
             alpha[qb] = a;
 
             #pragma unroll
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
+#if MICRO_MATH
+                float8 exp_tile = ok ? native_exp2((S_tile[mb][qb] - m_new) * scale) : (float8)0.0f;
+                // tile_vreduce_add in sdpa_micro accumulates keys in order, including
+                // across the two DPAS row blocks of each 16-key subgroup tile.
+                #pragma unroll
+                for (int mm = 0; mm < DPAS_ROWS; ++mm)
+                    lsum += exp_tile[mm];
+#else
                 float8 exp_tile = ok ? native_exp2(S_tile[mb][qb] * scale - m_log2) : (float8)0.0f;
                 lsum += exp_tile[0] + exp_tile[1] + exp_tile[2] + exp_tile[3]
                       + exp_tile[4] + exp_tile[5] + exp_tile[6] + exp_tile[7];
+#endif
 
                 const int key = sg_i0_kq + mb * 8;
                 const int key_block = key / SUBGROUP_SIZE;
@@ -1893,7 +1911,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 const int s_half_offset = (key_block * kq_wg_tile_queries + query) * SUBGROUP_SIZE + key_lane;
                 vstore4(as_uint4(convert_half8(exp_tile)), 0, &S_slm[s_half_offset >> 1]);
             }
+#if MICRO_MATH
+            if (!first)
+                S_sum_tile[qb] *= a;
+            S_sum_tile[qb] += lsum;
+#else
             S_sum_tile[qb] = a * S_sum_tile[qb] + lsum;
+#endif
         }
 
         if (last) {
@@ -1937,6 +1961,17 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         }
 
         intel_work_group_barrier_wait(CLK_LOCAL_MEM_FENCE);
+
+#if MICRO_MATH
+        // ugemm_vs starts each key tile at zero. Adding that partial result after the
+        // DPAS loop rounds differently from feeding the previous A_tile into DPAS.
+        float8 A_tile1[sv_score_blocks][sv_value_blocks];
+        #pragma unroll
+        for (int r = 0; r < sv_score_blocks; ++r)
+            #pragma unroll
+            for (int cd = 0; cd < sv_value_blocks; ++cd)
+                A_tile1[r][cd] = (float8)0.0f;
+#endif
 
         #if USE_2D_BLOCK_IO_V_I8
             // Declared outside the cp loop because with V_I8_PAIRED_READ one read serves two
@@ -2492,8 +2527,19 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             for (int r = 0; r < sv_score_blocks; ++r)
                 #pragma unroll
                 for (int cd = 0; cd < sv_value_blocks; ++cd)
+#if MICRO_MATH
+                    A_tile1[r][cd] = intel_sub_group_f16_f16_matrix_mad_k16(pA[r], vb[cd], A_tile1[r][cd]);
+#else
                     A_tile[r][cd] = intel_sub_group_f16_f16_matrix_mad_k16(pA[r], vb[cd], A_tile[r][cd]);
+#endif
         }
+#if MICRO_MATH
+        #pragma unroll
+        for (int r = 0; r < sv_score_blocks; ++r)
+            #pragma unroll
+            for (int cd = 0; cd < sv_value_blocks; ++cd)
+                A_tile[r][cd] += A_tile1[r][cd];
+#endif
 #if PA_CUR_KV_F16 && PA_CUR_KV_GRAN
         k0 += k_chunk;
 #endif
