@@ -40,6 +40,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "thread_pool_imp.hpp"
 #include "utils/general_utils.h"
 
@@ -53,6 +54,8 @@ struct InnerProductKey {
     dnnl::memory::desc bias_md;
     VectorDims scale_shape;
     VectorDims zp_shape;
+    dnnl::memory::data_type zp_dt = dnnl::memory::data_type::f32;
+    size_t src_dyn_quant_group_size = 0;
 
     [[nodiscard]] size_t hash() const {
         using namespace dnnl::impl;
@@ -64,14 +67,49 @@ struct InnerProductKey {
         seed = hash_combine(seed, get_md_hash(*bias_md.get()));
         seed = get_vector_hash(seed, scale_shape);
         seed = get_vector_hash(seed, zp_shape);
+        seed = hash_combine(seed, static_cast<size_t>(zp_dt));
+        seed = hash_combine(seed, src_dyn_quant_group_size);
         return seed;
     }
 
     bool operator==(const InnerProductKey& rhs) const {
         return src_md == rhs.src_md && weights_md == rhs.weights_md && bias_md == rhs.bias_md &&
-               scale_shape == rhs.scale_shape && zp_shape == rhs.zp_shape;
+               scale_shape == rhs.scale_shape && zp_shape == rhs.zp_shape && zp_dt == rhs.zp_dt &&
+               src_dyn_quant_group_size == rhs.src_dyn_quant_group_size;
     }
 };
+
+static std::pair<size_t, dnnl::memory::data_type> u3DynQuantParams(bool is_u3_weights,
+                                                                   ov::element::Type src_precision,
+                                                                   ov::element::Type zp_precision,
+                                                                   size_t K,
+                                                                   const VectorDims& scale_shape,
+                                                                   const VectorDims& zp_shape) {
+    constexpr size_t default_group_size = 32;
+    const auto disabled = std::make_pair(size_t{0}, dnnl::memory::data_type::f32);
+    if (!is_u3_weights ||
+        !any_of(zp_precision, ov::element::u8, ov::element::u2, ov::element::u3, ov::element::u4, ov::element::dynamic)) {
+        return disabled;
+    }
+    if (K < default_group_size) {
+        return disabled;
+    }
+    for (const auto* shape : {&scale_shape, &zp_shape}) {
+        if (shape->size() >= 2 && (*shape)[1] > 1 && (K / (*shape)[1]) % default_group_size) {
+            return disabled;
+        }
+    }
+    if (src_precision == ov::element::bf16) {
+        if (!ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx512_core_amx()) {
+            return disabled;
+        }
+    } else if (!ov::with_cpu_x86_avx2_vnni() && !ov::with_cpu_x86_avx512_core_vnni()) {
+        return disabled;
+    }
+    const auto zp_dt =
+        zp_precision == ov::element::dynamic ? dnnl::memory::data_type::f32 : dnnl::memory::data_type::u8;
+    return {default_group_size, zp_dt};
+}
 
 // ---- InnerProduct (oneDNN inner_product wrapper) ----------------------------
 
@@ -90,8 +128,9 @@ public:
         auto scale_shape = key.scale_shape;
         auto zp_shape = key.zp_shape;
 
-        const auto K = weights_md.get_dims()[1];
-        const auto N = weights_md.get_dims()[0];
+        const auto weiDims = weights_md.get_dims();
+        const auto K = weiDims[1];
+        const auto N = weiDims[0];
         const auto M = src_md.get_dims()[0];
 
         if (!scale_shape.empty()) {
@@ -107,8 +146,12 @@ public:
                     zp_shape.push_back(1);
                 }
                 OPENVINO_ASSERT(zp_shape.size() == 2, "Unsupported zero points shape ", vec2str(zp_shape));
-                init_w_zp(zp_shape);
+                init_w_zp(zp_shape, key.src_dyn_quant_group_size > 0 ? key.zp_dt : dnnl::memory::data_type::f32);
             }
+        }
+
+        if (key.src_dyn_quant_group_size > 0) {
+            m_attr.set_src_dyn_quant_params(key.src_dyn_quant_group_size);
         }
 
         m_input_md = src_md;
@@ -184,8 +227,7 @@ private:
         m_scale_md = dnnl::memory::desc(scale_dims, data_type, dnnl::memory::format_tag::ba);
     }
 
-    void init_w_zp(const VectorDims& zp_shape) {
-        constexpr auto data_type = dnnl::memory::data_type::f32;
+    void init_w_zp(const VectorDims& zp_shape, dnnl::memory::data_type data_type) {
         const auto zp_dims = DnnlExtensionUtils::convertToDnnlDims(zp_shape);
         m_attr.set_zero_points_dims(DNNL_ARG_WEIGHTS, zp_dims, data_type);
         m_zp_md = dnnl::memory::desc(zp_dims, data_type, dnnl::memory::format_tag::ba);
@@ -265,7 +307,12 @@ bool GatherMatmulDnnlExecutor::supports([[maybe_unused]] const GatherMatmulConfi
     // For compressed (int) weights, require AVX2
     if ((config.descs.count(ARG_WEI) != 0U) && !config.descs.at(ARG_WEI)->empty()) {
         const auto wei_prc = config.descs.at(ARG_WEI)->getPrecision();
-        if (any_of(wei_prc, ov::element::u8, ov::element::i8, ov::element::u4, ov::element::i4)) {
+        if (any_of(wei_prc,
+                   ov::element::u8,
+                   ov::element::i8,
+                   ov::element::u4,
+                   ov::element::i4,
+                   ov::element::u3)) {
             if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
                 return false;
             }
@@ -311,7 +358,9 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
     }
 
     const auto& zpMem = memory.at(ARG_SRC_4);
+    ov::element::Type zp_precision = ov::element::dynamic;
     if (zpMem && !zpMem->getDesc().empty()) {
+        zp_precision = zpMem->getDesc().getPrecision();
         const auto& fullZpShape = zpMem->getShape().getStaticDims();
         if (1 == fullZpShape.size()) {
             OPENVINO_ASSERT(fullZpShape[0] == 1, "Expect broadcastable zero points shape.");
@@ -328,7 +377,21 @@ GatherMatmulDnnlExecutor::GatherMatmulDnnlExecutor([[maybe_unused]] const Gather
                                   DnnlExtensionUtils::ElementTypeToDataType(weights_precision),
                                   dnnl::memory::format_tag::any);
 
-    InnerProductKey key{src_md, weights_md, makeBiasMd(N, memory.at(ARG_BIAS)), scale_shape, zp_shape};
+    const auto [src_dyn_quant_group_size, zp_dt] =
+        u3DynQuantParams(weights_precision == ov::element::u3,
+                         src_precision,
+                         zp_precision,
+                         static_cast<size_t>(K),
+                         scale_shape,
+                         zp_shape);
+
+    InnerProductKey key{src_md,
+                       weights_md,
+                       makeBiasMd(N, memory.at(ARG_BIAS)),
+                       scale_shape,
+                       zp_shape,
+                       zp_dt,
+                       src_dyn_quant_group_size};
 
     const auto& eng = context->getEngine();
     const auto threadPool = context->getThreadPool();
@@ -445,7 +508,9 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
             scale_shape.assign(fullScaleDims.begin() + 1, fullScaleDims.end());
         }
     }
+    ov::element::Type zp_precision = ov::element::dynamic;
     if (m_zpMemory) {
+        zp_precision = m_zpMemory->getDesc().getPrecision();
         const auto& fullZpDims = m_zpMemory->getStaticDims();
         if (1 == fullZpDims.size()) {
             zp_shape.push_back(fullZpDims[0]);
@@ -454,11 +519,21 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
         }
     }
 
+    const auto [src_dyn_quant_group_size, zp_dt] =
+        u3DynQuantParams(weights_md.get_data_type() == dnnl::memory::data_type::u3,
+                         srcPrc,
+                         zp_precision,
+                         static_cast<size_t>(srcShape[2]),
+                         scale_shape,
+                         zp_shape);
+
     InnerProductKey key{src_md,
                         weights_md,
                         makeBiasMd(static_cast<dnnl::memory::dim>(weights_md.get_dims()[0]), memory.at(ARG_BIAS)),
                         scale_shape,
-                        zp_shape};
+                        zp_shape,
+                        zp_dt,
+                        src_dyn_quant_group_size};
     const auto& eng = m_context->getEngine();
     const auto threadPool = m_context->getThreadPool();
     auto cache = m_context->getRuntimeCache();

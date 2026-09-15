@@ -74,6 +74,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights,
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
 
+const std::vector<ov::test::ElementType> weights_precisions_u3 = {ov::element::u3};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_u3,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::ValuesIn(weights_precisions_u3),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(16, 32),
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_3gemm_gelu,
                          MoECompressedWeightsSubgraphTest,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
@@ -88,6 +106,23 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_3gemm_gelu,
                                             ::testing::Values(16),     // decompression group size
                                             ::testing::ValuesIn(generate_additional_config()),
                                             ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+// See the smoke_MoeCompressedWeights_u3 comment above for the u3 group sizes.
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_3gemm_gelu_u3,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
+                                            ::testing::Values(MoEType::MoE3GeMM),
+                                            ::testing::Values(MoEActivationType::GELU),
+                                            ::testing::ValuesIn(weights_precisions_u3),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::Values(16, 32),
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),
                          MoECompressedWeightsSubgraphTest::getTestCaseName);
 
 }  // namespace test

@@ -13,6 +13,7 @@
 #include "nodes/executors/gathermatmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
