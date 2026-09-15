@@ -133,6 +133,7 @@ aten::expand_as,
 aten::expm1,
 aten::expm1_,
 aten::eye,
+aten::_fake_quantize_learnable_per_channel_affine,grad_factor is ignored: it only affects gradients.
 aten::fake_quantize_per_channel_affine,
 aten::fake_quantize_per_tensor_affine,
 aten::feature_dropout,
