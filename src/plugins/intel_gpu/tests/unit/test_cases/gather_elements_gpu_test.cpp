@@ -6,6 +6,7 @@
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/gather_elements.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/runtime/memory.hpp>
 #include <intel_gpu/graph/topology.hpp>
 #include <intel_gpu/graph/network.hpp>
@@ -24,20 +25,46 @@ inline void DoTest(engine& engine,
     const std::vector<float>& expected_results,
     const tensor& output_tensor,
     const int64_t axis,
-    bool is_caching_test=false) {
+    bool is_caching_test=false,
+    format blocked_format = format::any) {
     topology topology;
     topology.add(input_layout("InputData", input0->get_layout()));
     topology.add(input_layout("InputIndices", input1->get_layout()));
+
+    input_info data_input("InputData");
+    input_info indices_input("InputIndices");
+    format gather_format = input1->get_layout().format;
+
+    if (blocked_format != format::any) {
+        topology.add(reorder("InputData_reordered", data_input, blocked_format, input0->get_layout().data_type));
+        topology.add(reorder("InputIndices_reordered", indices_input, blocked_format, input1->get_layout().data_type));
+        data_input = input_info("InputData_reordered");
+        indices_input = input_info("InputIndices_reordered");
+        gather_format = blocked_format;
+    }
+
     topology.add(
-        gather_elements("gather_elements", input_info("InputData"), input_info("InputIndices"), input1->get_layout().format, output_tensor, axis)
+        gather_elements("gather_elements", data_input, indices_input, gather_format, output_tensor, axis)
     );
+
+    primitive_id output_id = "gather_elements";
+    if (blocked_format != format::any) {
+        topology.add(reorder("gather_elements_to_bfyx", input_info("gather_elements"), format::bfyx, input0->get_layout().data_type));
+        output_id = "gather_elements_to_bfyx";
+    }
 
     cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
 
     network->set_input_data("InputData", input0);
     network->set_input_data("InputIndices", input1);
     auto outputs = network->execute();
-    auto output = outputs.at("gather_elements").get_memory();
+
+    if (blocked_format != format::any) {
+        ASSERT_EQ(network->get_primitive("gather_elements")->get_impl_params()->get_output_layout().format,
+                  format::b_fs_yx_fsv16);
+    }
+
+    auto output = outputs.at(output_id).get_memory();
     cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < expected_results.size(); ++i) {
@@ -281,6 +308,48 @@ TEST(gather_elements_gpu_fp16, d1329_i1359_an1) {
     };
 
     DoTest(engine, input0, input1, expected_results, tensor(1, 3, 5, 9), axis);
+}
+
+TEST(gather_elements_gpu_fp16, d13212_i13212_a1_b_fs_yx_fsv16) {
+    auto& engine = get_test_engine();
+
+    auto axis = 1;
+    auto input0 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 1, 2 } }); // data
+    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, { 1, 32, 1, 2 } }); // indices
+    set_values(input0, {
+        ov::float16(53), ov::float16(29), ov::float16(39), ov::float16(24), ov::float16(13), ov::float16(46), ov::float16(27), ov::float16(26),
+        ov::float16(36), ov::float16(21), ov::float16(37), ov::float16(14), ov::float16(11), ov::float16(4), ov::float16(34), ov::float16(58),
+        ov::float16(35), ov::float16(55), ov::float16(25), ov::float16(41), ov::float16(9), ov::float16(47), ov::float16(19), ov::float16(17),
+        ov::float16(28), ov::float16(56), ov::float16(20), ov::float16(64), ov::float16(15), ov::float16(18), ov::float16(22), ov::float16(5),
+        ov::float16(60), ov::float16(32), ov::float16(33), ov::float16(62), ov::float16(63), ov::float16(12), ov::float16(54), ov::float16(10),
+        ov::float16(30), ov::float16(44), ov::float16(31), ov::float16(40), ov::float16(42), ov::float16(51), ov::float16(48), ov::float16(49),
+        ov::float16(2), ov::float16(16), ov::float16(23), ov::float16(50), ov::float16(7), ov::float16(61), ov::float16(45), ov::float16(43),
+        ov::float16(3), ov::float16(38), ov::float16(52), ov::float16(59), ov::float16(6), ov::float16(1), ov::float16(8), ov::float16(57),
+    });
+
+    set_values(input1, {
+        ov::float16(10), ov::float16(3), ov::float16(4), ov::float16(31), ov::float16(10), ov::float16(4), ov::float16(13), ov::float16(9),
+        ov::float16(1), ov::float16(22), ov::float16(7), ov::float16(9), ov::float16(19), ov::float16(29), ov::float16(2), ov::float16(26),
+        ov::float16(17), ov::float16(2), ov::float16(11), ov::float16(17), ov::float16(9), ov::float16(19), ov::float16(9), ov::float16(29),
+        ov::float16(2), ov::float16(24), ov::float16(22), ov::float16(31), ov::float16(21), ov::float16(29), ov::float16(30), ov::float16(2),
+        ov::float16(30), ov::float16(10), ov::float16(28), ov::float16(28), ov::float16(18), ov::float16(17), ov::float16(7), ov::float16(11),
+        ov::float16(26), ov::float16(27), ov::float16(7), ov::float16(6), ov::float16(31), ov::float16(24), ov::float16(16), ov::float16(12),
+        ov::float16(22), ov::float16(6), ov::float16(10), ov::float16(17), ov::float16(9), ov::float16(20), ov::float16(28), ov::float16(4),
+        ov::float16(5), ov::float16(25), ov::float16(13), ov::float16(3), ov::float16(18), ov::float16(2), ov::float16(14), ov::float16(5),
+    });
+
+    std::vector<float> expected_results = {
+        ov::float16(9), ov::float16(26), ov::float16(36), ov::float16(57), ov::float16(9), ov::float16(21), ov::float16(20), ov::float16(41),
+        ov::float16(39), ov::float16(51), ov::float16(34), ov::float16(41), ov::float16(54), ov::float16(59), ov::float16(13), ov::float16(61),
+        ov::float16(33), ov::float16(46), ov::float16(19), ov::float16(62), ov::float16(25), ov::float16(10), ov::float16(25), ov::float16(59),
+        ov::float16(13), ov::float16(16), ov::float16(42), ov::float16(57), ov::float16(31), ov::float16(59), ov::float16(6), ov::float16(46),
+        ov::float16(6), ov::float16(47), ov::float16(3), ov::float16(38), ov::float16(63), ov::float16(62), ov::float16(34), ov::float16(17),
+        ov::float16(7), ov::float16(43), ov::float16(34), ov::float16(4), ov::float16(8), ov::float16(16), ov::float16(60), ov::float16(56),
+        ov::float16(42), ov::float16(4), ov::float16(9), ov::float16(62), ov::float16(25), ov::float16(44), ov::float16(3), ov::float16(21),
+        ov::float16(37), ov::float16(50), ov::float16(20), ov::float16(26), ov::float16(63), ov::float16(46), ov::float16(15), ov::float16(14),
+    };
+
+    DoTest(engine, input0, input1, expected_results, tensor(1, 32, 1, 2), axis, false, format::b_fs_yx_fsv16);
 }
 
 TEST(gather_elements_gpu_fp16, d12853_i12923_a3) {
