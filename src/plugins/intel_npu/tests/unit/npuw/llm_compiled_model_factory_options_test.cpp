@@ -17,6 +17,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/subtract.hpp"
@@ -29,6 +30,17 @@ namespace {
 using ov::test::npuw::CompileCall;
 using ov::test::npuw::NullPlugin;
 using ov::test::npuw::RecordingFactory;
+
+bool has_transposed_value_matmul(const std::shared_ptr<ov::Model>& model, std::string_view attention_kind) {
+    for (const auto& op : model->get_ops()) {
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op);
+        if (matmul != nullptr && matmul->get_transpose_b() &&
+            matmul->get_friendly_name().find(attention_kind) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
 
 class ArchAwarePlugin final : public NullPlugin {
 public:
@@ -812,6 +824,60 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionCompilesSyntheticDecoder
     EXPECT_GE(recorder.calls().size(), 2u);
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionOptimizesSelfAndCrossAttentionValueTensors) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
+                                                     {{"NPUW_WHISPER", "YES"}, {"NPUW_WHISPER_EOS_TOKEN", "42"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    ASSERT_NE(prefill, nullptr);
+
+    EXPECT_TRUE(has_transposed_value_matmul(prefill->model, "self_attn"));
+    EXPECT_TRUE(has_transposed_value_matmul(prefill->model, "encoder_attn"));
+    EXPECT_TRUE(has_transposed_value_matmul(generate.model, "self_attn"));
+    EXPECT_TRUE(has_transposed_value_matmul(generate.model, "encoder_attn"));
+
+    const auto whisper_config = ov::test::npuw::make_test_model_config<ov::test::npuw::WhisperConfig>();
+    const auto& decoder_value = generate.model->input("past_key_values.0.decoder.value");
+    const auto& decoder_value_shape = decoder_value.get_shape();
+    ASSERT_EQ(decoder_value_shape.size(), 4u);
+    EXPECT_EQ(decoder_value_shape[2], whisper_config.head_dim);
+
+    const auto& encoder_value = generate.model->input("past_key_values.0.encoder.value");
+    const auto& encoder_value_shape = encoder_value.get_shape();
+    ASSERT_EQ(encoder_value_shape.size(), 4u);
+    EXPECT_EQ(encoder_value_shape[2], whisper_config.head_dim);
+    EXPECT_EQ(encoder_value_shape[3], whisper_config.get_encoder_seq_len());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDisablesFoldAndFuncallStageOptions) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
+                                                     {{"NPUW_WHISPER", "YES"},
+                                                      {"NPUW_WHISPER_EOS_TOKEN", "42"},
+                                                      {"NPUW_FOLD", "YES"},
+                                                      {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                                                      {"NPUW_WEIGHTS_BANK", "whisper-shared"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    expect_missing_prop(prefill.props, "NPUW_FOLD");
+    expect_missing_prop(prefill.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(prefill.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
+    expect_missing_prop(generate.props, "NPUW_FOLD");
+    expect_missing_prop(generate.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(generate.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
