@@ -7,6 +7,7 @@
 #ifdef OV_AUTO_ENABLE_IPF
 
 #    include <atomic>
+#    include <chrono>
 #    include <cmath>
 #    include <memory>
 #    include <mutex>
@@ -36,6 +37,9 @@ constexpr const char* k_dtt_current_gear_path = "Platform.Features.DTT.Policy.EP
 constexpr const char* k_dtt_gear_changed_path = "Platform.Features.DTT.Policy.EPO.OnEpoGearChanged";
 
 void gear_changed_callback(const char* path, const char* event, void* context);
+
+// TTL for the cached AISelector JSON snapshot; see TelemetryClient::Impl::get_aiselector_json().
+constexpr std::chrono::milliseconds k_aiselector_cache_ttl{20};
 
 namespace {
 
@@ -181,7 +185,7 @@ public:
         }
         const std::string metric_key{metric_key_view};
         LOG_DEBUG_TAG("TelemetryClient::utilization(%s): querying IPF for metric_key=%s", device_name.c_str(), metric_key.c_str());
-        const std::string json_str = get_node("Platform.Features.AISelector");
+        const std::string json_str = get_aiselector_json();
         if (json_str.empty()) {
             return std::nullopt;
         }
@@ -257,35 +261,42 @@ private:
 
     using IpfQueryFn = ipf_err_t (*)(void*, const char*, char*, size_t*);
 
-    // Query IPF node/value data with the two-call buffer-size protocol.
+    // Queries IPF node/value data with the two-call buffer-size protocol; logs each round trip's duration.
     std::string query_ipf_string(IpfQueryFn query_fn, const char* path) {
+        const auto query_start = std::chrono::steady_clock::now();
+        auto elapsed_ms = [query_start]() {
+            return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - query_start).count();
+        };
         size_t len = 0;
         ipf_err_t status = query_fn(m_handle, path, nullptr, &len);
         if (status != IpfError::IPF_ERR_BUFFERTOOSMALL) {
             // IpfGetLastErrorMessage() is only meaningful for a real failure; do not report it otherwise.
-            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) size query failed: %s: %s",
+            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) size query failed: %s: %s (took %lf ms)",
                             path,
                             ipf_ef_error_str(status),
-                            IpfGetLastErrorMessage());
+                            IpfGetLastErrorMessage(),
+                            elapsed_ms());
             return {};
         }
         if (len == 0) {
-            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) returned an empty value", path);
+            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) returned an empty value (took %lf ms)", path, elapsed_ms());
             return {};
         }
         std::vector<char> buf(len);
         status = query_fn(m_handle, path, buf.data(), &len);
         if (status != IpfError::IPF_ERR_OK) {
-            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) failed: %s: %s",
+            LOG_WARNING_TAG("TelemetryClient: IPF query(%s) failed: %s: %s (took %lf ms)",
                             path,
                             ipf_ef_error_str(status),
-                            IpfGetLastErrorMessage());
+                            IpfGetLastErrorMessage(),
+                            elapsed_ms());
             return {};
         }
         std::string result(buf.data(), len);
         if (!result.empty() && result.back() == '\0') {
             result.pop_back();
         }
+        LOG_DEBUG_TAG("TelemetryClient: IPF query(%s) took %lf ms", path, elapsed_ms());
         return result;
     }
 
@@ -295,6 +306,26 @@ private:
 
     std::string get_value(const char* path) {
         return query_ipf_string(&IpfGetValue, path);
+    }
+
+    // Returns the "Platform.Features.AISelector" JSON, cached for k_aiselector_cache_ttl.
+    std::string get_aiselector_json() {
+        const auto now = std::chrono::steady_clock::now();
+        {
+            std::lock_guard<std::mutex> lock(m_aiselector_cache_mutex);
+            if (m_aiselector_cache && (now - m_aiselector_cache->first) < k_aiselector_cache_ttl) {
+                LOG_DEBUG_TAG("TelemetryClient: AISelector snapshot cache hit, age=%lf ms",
+                              std::chrono::duration<double, std::milli>(now - m_aiselector_cache->first).count());
+                return m_aiselector_cache->second;
+            }
+        }
+        // query_ipf_string() already logs the real IPC round-trip duration.
+        std::string json_str = get_node("Platform.Features.AISelector");
+        {
+            std::lock_guard<std::mutex> lock(m_aiselector_cache_mutex);
+            m_aiselector_cache = {std::chrono::steady_clock::now(), json_str};
+        }
+        return json_str;
     }
 
     // DTT requires reading its root node once to refresh the subtree before individual value queries.
@@ -374,6 +405,8 @@ private:
     std::shared_ptr<std::atomic<int>> m_shared_gear;
     // Owns the heap-allocated shared_ptr passed to IpfRegisterEvent; freed only after confirmed unregister.
     std::unique_ptr<std::shared_ptr<std::atomic<int>>> m_callback_context;
+    std::mutex m_aiselector_cache_mutex;
+    std::optional<std::pair<std::chrono::steady_clock::time_point, std::string>> m_aiselector_cache;
 };
 
 void gear_changed_callback(const char* path, const char* event, void* context) {
