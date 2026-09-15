@@ -226,15 +226,15 @@ void perform_inference_thread(TsfnContext* context) {
     try {
         const std::lock_guard<std::mutex> lock(infer_mutex);
         for (size_t i = 0; i < context->_inputs.size(); ++i) {
-            context->_ir->set_input_tensor(i, context->_inputs[i]);
+            context->_ir.set_input_tensor(i, context->_inputs[i]);
         }
-        context->_ir->infer();
+        context->_ir.infer();
 
-        auto compiled_model = context->_ir->get_compiled_model().outputs();
+        auto compiled_model = context->_ir.get_compiled_model().outputs();
         std::map<std::string, ov::Tensor> outputs;
 
         for (auto& node : compiled_model) {
-            const auto& tensor = context->_ir->get_tensor(node);
+            const auto& tensor = context->_ir.get_tensor(node);
             auto new_tensor = ov::Tensor(tensor.get_element_type(), tensor.get_shape());
             tensor.copy_to(new_tensor);
             outputs.insert({node.get_any_name(), new_tensor});
@@ -276,8 +276,7 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     try {
         OPENVINO_ASSERT(info.Length() == 1, "InferAsync method takes as an argument an array or an object.");
 
-        context = new TsfnContext(env);
-        context->_ir = &_infer_request;
+        context = new TsfnContext(env, _infer_request);
         context->_inputs = parse_input_data(info[0]);
 
         context->tsfn = Napi::ThreadSafeFunction::New(env,
