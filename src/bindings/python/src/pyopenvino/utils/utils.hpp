@@ -81,7 +81,7 @@ private:
     py::object m_py_stream;
 };
 
-    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE, MODEL_DISTRIBUTION_POLICY };
+    enum class PY_TYPE : int { UNKNOWN = 0, STR, INT, FLOAT, BOOL, PARTIAL_SHAPE, MODEL_DISTRIBUTION_POLICY, DICT };
 
     struct EmptyList {};
 

@@ -46,6 +46,14 @@ void mha_kv_cache(ov::intel_cpu::PlainTensor& q_input,
                   size_t per_thread_head_stride,
                   const ov::intel_cpu::PlainTensor& k_quant_meta_data,
                   const ov::intel_cpu::PlainTensor& v_quant_meta_data,
-                  const ov::intel_cpu::PlainTensor& wht_signs);
+                  const ov::intel_cpu::PlainTensor& wht_signs,
+                  const ov::intel_cpu::PlainTensor& oscar_k_residual,
+                  const ov::intel_cpu::PlainTensor& oscar_v_residual,
+                  const ov::intel_cpu::PlainTensor& oscar_k_residual_norms,
+                  const ov::intel_cpu::PlainTensor& oscar_v_residual_norms,
+                  const ov::intel_cpu::PlainTensor& oscar_k_params,
+                  const ov::intel_cpu::PlainTensor& oscar_v_params,
+                  size_t oscar_k_residual_count,
+                  size_t oscar_v_residual_count);
 
 }  // namespace ov::Extensions::Cpu::XARCH

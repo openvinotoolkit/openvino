@@ -8,7 +8,9 @@
 #include <istream>
 #include <ostream>
 #include <string>
+#include <vector>
 
+#include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/properties.hpp"
 
@@ -79,5 +81,20 @@ static constexpr Property<bool, PropertyMutability::RW> enable_tensor_parallel{"
  * @param false - disable
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_sage_attn{"ENABLE_SAGE_ATTN"};
+
+/**
+ * @brief Per-SDPA-layer KV cache compression override (experimental).
+ *
+ * Positional vector — entry i applies to the i-th SDPA layer in topological
+ * order (matches `ov::Model::get_ordered_ops()` traversal). Each entry is a
+ * sub-AnyMap that may contain any of: KEY_CACHE_PRECISION, VALUE_CACHE_PRECISION,
+ * KEY_CACHE_QUANT_ALG, VALUE_CACHE_QUANT_ALG, KEY_CACHE_GROUP_SIZE,
+ * VALUE_CACHE_GROUP_SIZE, KEY_CACHE_QUANT_MODE, VALUE_CACHE_QUANT_MODE.
+ * Missing keys inherit from the global plugin config. Empty sub-map = use
+ * global defaults for that layer. Vector length must equal the SDPA layer
+ * count of the model.
+ */
+static constexpr Property<std::vector<ov::AnyMap>, PropertyMutability::RW> kv_cache_per_layer_config{
+    "KV_CACHE_PER_LAYER_CONFIG"};
 
 }  // namespace ov::intel_cpu
