@@ -107,6 +107,10 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         return false;
     }
 
+    bool supports_replay() const override {
+        return true;
+    }
+
     void save(cldnn::BinaryOutputBuffer& ob) const override {
         primitive_impl::save(ob);
         ob << _order;

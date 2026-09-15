@@ -78,6 +78,11 @@ class PagedAttentionCmImpl : public PrimitiveImplCM {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::PagedAttentionCmImpl)
 
+    // Dispatch is decided by reading sequence-length/block-mapping tensor contents on the host
+    bool supports_replay() const override {
+        return false;
+    }
+
     Stage::Ptr kv_cache_update = make_stage<PagedAttentionGeneratorKVCacheUpdate>();
     Stage::Ptr pa_single_token = make_stage<PagedAttentionGeneratorSingleToken>();
     Stage::Ptr pa_single_token_finalization = make_stage<PagedAttentionGeneratorSingleTokenFinalization>();
