@@ -24,7 +24,7 @@ ov::OutputVector cast(const ov::frontend::onnx::Node& node) {
     // truncating.
     const ov::element::Type data_type = data.get_element_type();
     if (data_type.is_real() && (elem_type == ov::element::i4 || elem_type == ov::element::u4)) {
-        auto data_rounded = std::make_shared<v5::Round>(data, v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+        auto data_rounded = std::make_shared<v5::Round>(data, v5::Round::RoundMode::HALF_TO_EVEN);
         return {std::make_shared<v0::Convert>(data_rounded, elem_type)};
     }
 
