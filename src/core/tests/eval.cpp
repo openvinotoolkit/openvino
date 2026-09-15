@@ -4345,4 +4345,112 @@ TEST(eval, interpolate_padding_overflow) {
 
     OV_EXPECT_THROW(std::ignore = op->evaluate(outputs, inputs), ov::Exception, _);
 }
+
+TEST(eval, evaluate_concat_u2_axis0) {
+    const auto data_shape = Shape{2, 4};
+    const auto exp_out_shape = Shape{4, 4};
+    std::vector<uint8_t> in_a = {0x12, 0x34};
+    std::vector<uint8_t> in_b = {0x56, 0x78};
+    std::vector<uint8_t> expected = {0x12, 0x34, 0x56, 0x78};
+
+    auto data_a = make_shared<ov::op::v0::Parameter>(element::u2, data_shape);
+    auto data_b = make_shared<ov::op::v0::Parameter>(element::u2, data_shape);
+    auto op = make_shared<op::v0::Concat>(OutputVector{data_a, data_b}, 0);
+
+    auto result = ov::Tensor(element::u2, exp_out_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor_a = ov::Tensor(element::u2, data_shape, in_a.data());
+    auto in_tensor_b = ov::Tensor(element::u2, data_shape, in_b.data());
+    auto in_vector = ov::TensorVector{in_tensor_a, in_tensor_b};
+
+    ASSERT_TRUE(op->evaluate(out_vector, in_vector));
+    EXPECT_EQ(out_vector.at(0).get_element_type(), element::u2);
+    EXPECT_EQ(out_vector.at(0).get_shape(), exp_out_shape);
+    EXPECT_EQ(out_vector.at(0).get_byte_size(), expected.size());
+
+    const auto* out_data = static_cast<const uint8_t*>(out_vector.at(0).data());
+    std::vector<uint8_t> actual(out_data, out_data + out_vector.at(0).get_byte_size());
+    EXPECT_EQ(actual, expected);
+}
+
+TEST(eval, evaluate_concat_u2_axis1) {
+    const auto data_shape = Shape{2, 4};
+    const auto exp_out_shape = Shape{2, 8};
+    std::vector<uint8_t> in_a = {0x11, 0x22};
+    std::vector<uint8_t> in_b = {0xAA, 0xBB};
+    std::vector<uint8_t> expected = {0x11, 0xAA, 0x22, 0xBB};
+
+    auto data_a = make_shared<ov::op::v0::Parameter>(element::u2, data_shape);
+    auto data_b = make_shared<ov::op::v0::Parameter>(element::u2, data_shape);
+    auto op = make_shared<op::v0::Concat>(OutputVector{data_a, data_b}, 1);
+
+    auto result = ov::Tensor(element::u2, exp_out_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor_a = ov::Tensor(element::u2, data_shape, in_a.data());
+    auto in_tensor_b = ov::Tensor(element::u2, data_shape, in_b.data());
+    auto in_vector = ov::TensorVector{in_tensor_a, in_tensor_b};
+
+    ASSERT_TRUE(op->evaluate(out_vector, in_vector));
+    EXPECT_EQ(out_vector.at(0).get_element_type(), element::u2);
+    EXPECT_EQ(out_vector.at(0).get_shape(), exp_out_shape);
+    EXPECT_EQ(out_vector.at(0).get_byte_size(), expected.size());
+
+    const auto* out_data = static_cast<const uint8_t*>(out_vector.at(0).data());
+    std::vector<uint8_t> actual(out_data, out_data + out_vector.at(0).get_byte_size());
+    EXPECT_EQ(actual, expected);
+}
+
+TEST(eval, evaluate_concat_u4_axis0) {
+    const auto data_shape = Shape{2, 2};
+    const auto exp_out_shape = Shape{4, 2};
+    std::vector<uint8_t> in_a = {0x12, 0x34};
+    std::vector<uint8_t> in_b = {0x56, 0x78};
+    std::vector<uint8_t> expected = {0x12, 0x34, 0x56, 0x78};
+
+    auto data_a = make_shared<ov::op::v0::Parameter>(element::u4, data_shape);
+    auto data_b = make_shared<ov::op::v0::Parameter>(element::u4, data_shape);
+    auto op = make_shared<op::v0::Concat>(OutputVector{data_a, data_b}, 0);
+
+    auto result = ov::Tensor(element::u4, exp_out_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor_a = ov::Tensor(element::u4, data_shape, in_a.data());
+    auto in_tensor_b = ov::Tensor(element::u4, data_shape, in_b.data());
+    auto in_vector = ov::TensorVector{in_tensor_a, in_tensor_b};
+
+    ASSERT_TRUE(op->evaluate(out_vector, in_vector));
+    EXPECT_EQ(out_vector.at(0).get_element_type(), element::u4);
+    EXPECT_EQ(out_vector.at(0).get_shape(), exp_out_shape);
+    EXPECT_EQ(out_vector.at(0).get_byte_size(), expected.size());
+
+    const auto* out_data = static_cast<const uint8_t*>(out_vector.at(0).data());
+    std::vector<uint8_t> actual(out_data, out_data + out_vector.at(0).get_byte_size());
+    EXPECT_EQ(actual, expected);
+}
+
+TEST(eval, evaluate_concat_u1_axis0) {
+    const auto data_shape = Shape{1, 8};
+    const auto exp_out_shape = Shape{2, 8};
+    std::vector<uint8_t> in_a = {0xF0};
+    std::vector<uint8_t> in_b = {0x0F};
+    std::vector<uint8_t> expected = {0xF0, 0x0F};
+
+    auto data_a = make_shared<ov::op::v0::Parameter>(element::u1, data_shape);
+    auto data_b = make_shared<ov::op::v0::Parameter>(element::u1, data_shape);
+    auto op = make_shared<op::v0::Concat>(OutputVector{data_a, data_b}, 0);
+
+    auto result = ov::Tensor(element::u1, exp_out_shape);
+    auto out_vector = ov::TensorVector{result};
+    auto in_tensor_a = ov::Tensor(element::u1, data_shape, in_a.data());
+    auto in_tensor_b = ov::Tensor(element::u1, data_shape, in_b.data());
+    auto in_vector = ov::TensorVector{in_tensor_a, in_tensor_b};
+
+    ASSERT_TRUE(op->evaluate(out_vector, in_vector));
+    EXPECT_EQ(out_vector.at(0).get_element_type(), element::u1);
+    EXPECT_EQ(out_vector.at(0).get_shape(), exp_out_shape);
+    EXPECT_EQ(out_vector.at(0).get_byte_size(), expected.size());
+
+    const auto* out_data = static_cast<const uint8_t*>(out_vector.at(0).data());
+    std::vector<uint8_t> actual(out_data, out_data + out_vector.at(0).get_byte_size());
+    EXPECT_EQ(actual, expected);
+}
 }  // namespace ov::test
