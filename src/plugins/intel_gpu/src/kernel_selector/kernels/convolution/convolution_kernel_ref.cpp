@@ -114,8 +114,9 @@ KernelsPriority ConvolutionKernel_Ref::GetKernelsPriority(const Params& /*params
 }
 
 bool ConvolutionKernel_Ref::Validate(const Params& params) const {
-    if (!ConvolutionKernelBase::Validate(params))
+    if (!ConvolutionKernelBase::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& conv_params = static_cast<const convolution_params&>(params);
     auto input_type = conv_params.inputs[0].GetDType();
@@ -125,12 +126,14 @@ bool ConvolutionKernel_Ref::Validate(const Params& params) const {
     // int8/uint8 inputs (quantization case) require additional checks
     // require some additional checks.
     if (input_type != Datatype::UINT8 && input_type != Datatype::INT8 &&
-        output_type != Datatype::UINT8 && output_type != Datatype::INT8)
+        output_type != Datatype::UINT8 && output_type != Datatype::INT8) {
         return true;
+    }
 
     // (u)int8 input + fp weights
-    if (weights_type == WeightsType::F32 || weights_type == WeightsType::F16)
+    if (weights_type == WeightsType::F32 || weights_type == WeightsType::F16) {
         return true;
+    }
 
     bool is_quantization = (input_type == Datatype::INT8 || input_type == Datatype::UINT8) &&
                            (output_type == Datatype::INT8 || output_type == Datatype::UINT8 ||
@@ -141,21 +144,26 @@ bool ConvolutionKernel_Ref::Validate(const Params& params) const {
                         !conv_params.fused_ops.empty() &&
                         (output_type == Datatype::INT8 || output_type == Datatype::UINT8);
 
-    if (!is_quantization && !has_fused_op)
+    if (!is_quantization && !has_fused_op) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA_AND_WEIGHTS) {
-        if (conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty())
+        if (conv_params.activations_zero_points.empty() || conv_params.weights_zero_points.empty()) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_DATA) {
-        if (conv_params.activations_zero_points.empty())
+        if (conv_params.activations_zero_points.empty()) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else if (conv_params.quantization == QuantizationType::ASYMMETRIC_WEIGHTS) {
-        if (conv_params.weights_zero_points.empty())
+        if (conv_params.weights_zero_points.empty()) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else {
-        if (!conv_params.activations_zero_points.empty() || !conv_params.weights_zero_points.empty())
+        if (!conv_params.activations_zero_points.empty() || !conv_params.weights_zero_points.empty()) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     return true;

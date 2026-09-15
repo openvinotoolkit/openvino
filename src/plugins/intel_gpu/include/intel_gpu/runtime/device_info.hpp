@@ -113,7 +113,6 @@ struct device_info {
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
     bool supports_intel_planar_yuv;             ///< Does engine support cl_intel_planar_yuv extension.
     bool supports_work_group_collective_functions; ///< Does engine support CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT.
-    bool supports_non_uniform_work_group;       ///< Does engine support non-uniform work-group sizes.
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
@@ -161,27 +160,33 @@ struct device_info {
         // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
         // where the UUID may be missing or incorrectly generated
         // Therefore, we also validate other attributes
-        if (uuid.uuid != other.uuid.uuid)
+        if (uuid.uuid != other.uuid.uuid) {
             return false;
+        }
 
-        if (pci_info != other.pci_info)
+        if (pci_info != other.pci_info) {
             return false;
+        }
 
-        if (sub_device_idx != other.sub_device_idx)
+        if (sub_device_idx != other.sub_device_idx) {
             return false;
+        }
 
         if (vendor_id != other.vendor_id ||
             dev_name != other.dev_name ||
-            driver_version != other.driver_version)
+            driver_version != other.driver_version) {
             return false;
+        }
 
         if (dev_type != other.dev_type ||
             gfx_ver != other.gfx_ver ||
-            arch != other.arch)
+            arch != other.arch) {
             return false;
+        }
 
-        if (ip_version != other.ip_version || device_id != other.device_id)
+        if (ip_version != other.ip_version || device_id != other.device_id) {
             return false;
+        }
 
         return execution_units_count == other.execution_units_count && max_global_mem_size == other.max_global_mem_size;
     }
