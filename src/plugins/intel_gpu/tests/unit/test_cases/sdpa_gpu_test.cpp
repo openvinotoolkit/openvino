@@ -859,7 +859,8 @@ TEST(sdpa_gpu_custom, single_token_cond_attn_mask_clamp) {
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
+template <typename T>
+void test_boolean_mask_micro_matches_reference(data_types qkv_data_type) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad) {
         GTEST_SKIP() << "Micro SDPA requires IMMAD support";
@@ -873,7 +874,7 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
     const int num_heads = 16;
     const int head_size = 96;
 
-    const layout qkv_layout({batch, seq_length, num_heads, head_size}, data_types::f16, format::bfyx);
+    const layout qkv_layout({batch, seq_length, num_heads, head_size}, qkv_data_type, format::bfyx);
     const layout mask_layout({batch, 1, seq_length, seq_length}, data_types::boolean, format::bfyx);
 
     auto q_mem = engine.allocate_memory(qkv_layout);
@@ -883,7 +884,7 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
 
     auto fill_random = [&](const memory::ptr& mem) {
         const auto size = ov::shape_size(mem->get_layout().get_shape());
-        set_values(mem, rg.generate_random_1d<ov::float16>(size, -1.0f, 1.0f));
+        set_values(mem, rg.generate_random_1d<T>(size, -1.0f, 1.0f));
     };
     fill_random(q_mem);
     fill_random(k_mem);
@@ -895,7 +896,8 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
 
     std::vector<uint8_t> mask(batch * seq_length * seq_length, 0);
     // Keep one row fully masked to cover finite softmax behavior for this edge case.
-    for (int query = 1; query < seq_length; ++query) {
+    const int first_unmasked_query = qkv_data_type == data_types::bf16 ? 0 : 1;
+    for (int query = first_unmasked_query; query < seq_length; ++query) {
         mask[query * seq_length + selected_key(query)] = 1;
     }
     set_values(mask_mem, mask);
@@ -916,7 +918,7 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
                                               {0, 1, 2, 3},
                                               {},
                                               false));
-        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+                            topo.add(reorder("result", input_info("sdpa"), format::bfyx, qkv_data_type));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
@@ -934,9 +936,10 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
     auto ref_output = run_sdpa("sdpa_ref");
     auto micro_output = run_sdpa("sdpa_micro");
 
-    mem_lock<ov::float16, mem_lock_type::read> ref_data(ref_output, get_test_stream());
-    mem_lock<ov::float16, mem_lock_type::read> micro_data(micro_output, get_test_stream());
-    mem_lock<ov::float16, mem_lock_type::read> value_data(v_mem, get_test_stream());
+    mem_lock<T, mem_lock_type::read> ref_data(ref_output, get_test_stream());
+    mem_lock<T, mem_lock_type::read> micro_data(micro_output, get_test_stream());
+    mem_lock<T, mem_lock_type::read> value_data(v_mem, get_test_stream());
+    const float tolerance = qkv_data_type == data_types::bf16 ? 1e-2f : 1e-3f;
 
     ASSERT_EQ(ref_data.size(), micro_data.size());
     for (int head = 0; head < num_heads; ++head) {
@@ -948,16 +951,24 @@ TEST(sdpa_gpu_custom, boolean_mask_micro_matches_reference) {
                 ASSERT_TRUE(std::isfinite(static_cast<float>(micro_data[output_idx])));
                 ASSERT_NEAR(static_cast<float>(ref_data[output_idx]),
                             static_cast<float>(micro_data[output_idx]),
-                            1e-3f);
-                if (query == 0) {
+                            tolerance);
+                if (query < first_unmasked_query) {
                     continue;
                 }
                 const float expected = static_cast<float>(value_data[value_idx]);
-                ASSERT_NEAR(static_cast<float>(ref_data[output_idx]), expected, 1e-3f);
-                ASSERT_NEAR(static_cast<float>(micro_data[output_idx]), expected, 1e-3f);
+                ASSERT_NEAR(static_cast<float>(ref_data[output_idx]), expected, tolerance);
+                ASSERT_NEAR(static_cast<float>(micro_data[output_idx]), expected, tolerance);
             }
         }
     }
+}
+
+TEST(sdpa_gpu_custom, boolean_mask_micro_f16_matches_reference) {
+    test_boolean_mask_micro_matches_reference<ov::float16>(data_types::f16);
+}
+
+TEST(sdpa_gpu_custom, boolean_mask_micro_bf16_matches_reference) {
+    test_boolean_mask_micro_matches_reference<ov::bfloat16>(data_types::bf16);
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 

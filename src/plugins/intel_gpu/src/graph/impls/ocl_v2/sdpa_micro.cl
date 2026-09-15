@@ -964,7 +964,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_elementwise(S_tile, mask_scale_op);
 #elif WITH_ATTN_MASK
         mask_tile_type_float mask_tile_float;
-#if INPUT0_IS_BF16
+#if INPUT0_IS_BF16 && !defined(BOOLEAN_ATTN_MASK)
         // Mask buffer holds bf16 values but the kernel reads it as half*;
         // reinterpret the 16-bit values as bf16 bits when converting to float.
         tile_copy_bf16bits_to_float(mask_tile, mask_tile_float);
