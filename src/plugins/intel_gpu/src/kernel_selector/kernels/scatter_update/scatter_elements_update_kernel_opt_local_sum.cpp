@@ -9,12 +9,7 @@
 namespace kernel_selector {
 
 namespace {
-bool is_global_memory_case(const scatter_elements_update_params& params) {
-    return (params.outputs[0].PhysicalSizeInBytes() * 4 > params.engineInfo.maxLocalMemSize);
-}
-
-// Mirrors _ref.cpp's file-local GetScatterElementsUpdateChannelIndex (duplicated, not
-// shared -- see the header comment for why).
+// Mirrors _ref.cpp's file-local GetScatterElementsUpdateChannelIndex.
 size_t GetChannelIndex(const scatter_elements_update_params& params) {
     const size_t input_size = params.inputs[0].GetDims().size();
     switch (params.axis) {
@@ -38,9 +33,6 @@ size_t GetChannelIndex(const scatter_elements_update_params& params) {
 }  // namespace
 
 ParamsKey ScatterElementsUpdateKernelOptLocalSum::GetSupportedKey() const {
-    // As broad as `_ref`'s own key -- this is only a pre-filter checked before
-    // Validate() ever runs (see kernel_selector_base::GetAllImplementations); the real
-    // narrowing lives in Validate(), not here.
     ParamsKey k;
     const std::vector<Datatype> supportedTypes{Datatype::F16,
                                                Datatype::F32,
@@ -52,6 +44,7 @@ ParamsKey ScatterElementsUpdateKernelOptLocalSum::GetSupportedKey() const {
         k.EnableOutputDataType(t);
     }
 
+    // 4D and 5D only -- the .cl body indexes b/f/(z)/y/x explicitly.
     const std::vector<DataLayout> supportedLayots{DataLayout::bfyx,
                                                   DataLayout::b_fs_yx_fsv16,
                                                   DataLayout::b_fs_yx_fsv32,
@@ -65,8 +58,7 @@ ParamsKey ScatterElementsUpdateKernelOptLocalSum::GetSupportedKey() const {
                                                   DataLayout::bs_fs_zyx_bsv16_fsv32,
                                                   DataLayout::bs_fs_zyx_bsv16_fsv16,
                                                   DataLayout::bs_fs_zyx_bsv32_fsv32,
-                                                  DataLayout::bs_fs_zyx_bsv32_fsv16,
-                                                  DataLayout::bfwzyx};
+                                                  DataLayout::bs_fs_zyx_bsv32_fsv16};
     for (const auto l : supportedLayots) {
         k.EnableInputLayout(l);
         k.EnableOutputLayout(l);
@@ -81,8 +73,7 @@ ParamsKey ScatterElementsUpdateKernelOptLocalSum::GetSupportedKey() const {
 }
 
 KernelsPriority ScatterElementsUpdateKernelOptLocalSum::GetKernelsPriority(const Params& /*params*/) const {
-    // `_ref` uses the base default (DONT_USE_IF_HAVE_SOMETHING_ELSE); force priority so
-    // this kernel wins when both are eligible, matching GridSample's opt-kernel precedent.
+    // `_ref` uses the base default, so force priority to win when both are eligible.
     return FORCE_PRIORITY_8;
 }
 
@@ -98,9 +89,8 @@ CommonDispatchData ScatterElementsUpdateKernelOptLocalSum::SetDefault(const scat
     const auto& scope = is_second ? indices : output;
     const auto rank = params.inputs[0].GetDims().size();
 
-    // Matches `_ref`'s own SetDefault: the update stage merges X*Y into gws[0] as one
-    // dispatch dimension, which the ITER==1 .cl body's `x = dim0 % INPUT2_SIZE_X; y =
-    // dim0 / INPUT2_SIZE_X;` decoding depends on. Init/finalize use the non-merged layout.
+    // As in `_ref`: the update stage merges X*Y into gws[0], which the ITER == 1 body's
+    // index decoding depends on. Init/finalize use the non-merged layout.
     if (is_second) {
         switch (rank) {
         case 4:
@@ -150,10 +140,6 @@ JitConstants ScatterElementsUpdateKernelOptLocalSum::GetJitConstants(
     JitConstants jit = MakeBaseParamsJitConstants(params);
     jit.AddConstant(MakeJitConstant("AXIS_VALUE", GetChannelIndex(params)));
     jit.AddConstant(MakeJitConstant("WINDOW_SIZE", kWindowSize));
-    // Element budget of the internal accumulator buffer (matches GetKernelsData's
-    // allocation) -- bounds the write-back loop so a window straddling the buffer's end
-    // can't write out of bounds.
-    jit.AddConstant(MakeJitConstant("OPT_LOCAL_ACC_TOTAL_ELEMENTS", params.outputs[0].PhysicalSize()));
     return jit;
 }
 
@@ -163,23 +149,11 @@ bool ScatterElementsUpdateKernelOptLocalSum::Validate(const Params& p) const {
     }
     const auto& params = static_cast<const scatter_elements_update_params&>(p);
 
-    // Rejecting here falls through to `_ref` unchanged -- this kernel only opts in for
-    // its narrow scope, never replaces `_ref` for anything outside it.
     if (params.mode != ScatterUpdateReduction::SUM) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
-    // Accept only the element types this kernel is actually exercised on. The encoding
-    // below handles every type in GetSupportedKey() -- integers included, since `_ref`'s
-    // identity branch is reproduced here and the accumulator is sized per element rather
-    // than per output byte -- but i8/u8 cannot currently reach any scatter kernel as an
-    // input (the plugin's impl gate allows only f32/f16/i32 there) and so cannot be
-    // tested. Rejecting them keeps the accepted set equal to the verified set: if that
-    // gate is ever relaxed, this kernel steps aside for `_ref` rather than quietly
-    // taking a path nobody has run.
-    //
-    // This has to live here rather than in GetSupportedKey(): base_params::GetParamsKey()
-    // folds every input's dtype into one shared bitfield, and the indices tensor is INT32,
-    // so narrowing the key's type list would stop the kernel matching anything at all.
+    // Not in GetSupportedKey(): GetParamsKey() folds every input dtype into one bitfield,
+    // and the indices tensor is INT32, so narrowing the key there would match nothing.
     const auto is_verified_type = [](Datatype dt) {
         return dt == Datatype::F16 || dt == Datatype::F32 || dt == Datatype::INT32;
     };
@@ -190,52 +164,47 @@ bool ScatterElementsUpdateKernelOptLocalSum::Validate(const Params& p) const {
     if (!params.use_init_val) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
-    if (params.is_shape_agnostic) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);  // static shapes only for this first version
-    }
-    if (!is_global_memory_case(params)) {
-        // `_ref`'s own whole-output-fits-in-local-memory path already wins here
+    // The .cl body derives the updates coordinates from the output rank.
+    if (params.inputs[2].GetDims().size() != params.outputs[0].GetDims().size()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     if (!params.fused_ops.empty()) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);  // keep the first version simple; `_ref` still handles fused cases
+        DO_NOT_USE_THIS_KERNEL(p.layerID);  // `_ref` handles fused cases
     }
-    const size_t rank = params.inputs[0].GetDims().size();
-    if (rank != 4 && rank != 5) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-    // Dense-ish scatter only: sparse scatters (few indices into a huge output) would
-    // pay for zeroing/flushing a window with no locality benefit.
-    if (params.inputs[2].LogicalSize() < params.outputs[0].LogicalSize()) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
+    // Every condition above is shape-independent, which is what lets this kernel serve
+    // shape-agnostic compilation too.
     return true;
 }
 
-bool ScatterElementsUpdateKernelOptLocalSum::SkipKernelExecution(const scatter_elements_update_params& params,
-                                                                 size_t kernel_id) const {
-    if (kernel_id == 0) {
-        if (params.outputs[0].LogicalSize() != 0 && params.outputs[0] != params.inputs[0]) {
-            return false;
-        }
-    }
-    return KernelData::SkipKernelExecution(params);
+size_t ScatterElementsUpdateKernelOptLocalSum::GetAccumulatorSize(const DataTensor& output) {
+    // One int32 slot per padded output element, plus a window of slack so a window anchored
+    // near the end cannot run past it and the write-back needs no bounds check.
+    return (output.PhysicalSize() + kWindowSize) * sizeof(int32_t);
 }
 
 void ScatterElementsUpdateKernelOptLocalSum::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const scatter_elements_update_params&>(params);
-        OPENVINO_ASSERT(kd.kernels.size() == 3, "[GPU] Invalid kernels size for scatter_elements_update_opt_local_sum");
+        OPENVINO_ASSERT(kd.kernels.size() == kShapeAgnosticKernelCount,
+                        "[GPU] Invalid kernels size for scatter_elements_update_opt_local_sum");
+
+        const auto& output = prim_params.outputs[0];
+        const bool anchor_zero = AnchorAtZero(output);
+
+        kd.internalBuffers.clear();
+        kd.internalBuffers.push_back(GetAccumulatorSize(output));
+        kd.internalBufferDataType = Datatype::INT32;
 
         for (size_t i = 0; i < kd.kernels.size(); ++i) {
-            // is_second==true selects the "update" (ITER==1) dispatch shape (sized to
-            // the indices/updates tensor, which for us equals the output size anyway).
-            auto dispatchData = SetDefault(prim_params, /*is_second=*/i == 1);
+            const bool is_update = (i == kStageUpdateAnchored || i == kStageUpdateFromZero);
+            auto dispatchData = SetDefault(prim_params, /*is_second=*/is_update);
             kd.kernels[i].params.workGroups.global = dispatchData.gws;
             kd.kernels[i].params.workGroups.local = dispatchData.lws;
-            kd.kernels[i].skip_execution = SkipKernelExecution(prim_params, i);
-
-            if (i == 1) {
+            // Exactly one of the two update variants runs, chosen by the shape just resolved.
+            kd.kernels[i].skip_execution =
+                KernelData::SkipKernelExecution(prim_params) ||
+                (i == kStageUpdateFromZero && !anchor_zero) || (i == kStageUpdateAnchored && anchor_zero);
+            if (is_update) {
                 kd.kernels[i].params.local_memory_args.clear();
                 kd.kernels[i].params.local_memory_args.push_back(kWindowSize * sizeof(int32_t));
             }
@@ -248,31 +217,39 @@ KernelsData ScatterElementsUpdateKernelOptLocalSum::GetKernelsData(const Params&
         return {};
     }
 
-    const size_t kernel_size = 3;  // STAGE0 init, STAGE1 update (local-staged), STAGE2 finalize
+    const auto& orgParams = static_cast<const scatter_elements_update_params&>(params);
+    // Static: init, update, finalize. Shape-agnostic adds the second anchor variant.
+    const bool shape_agnostic = orgParams.is_shape_agnostic;
+    const size_t kernel_size = shape_agnostic ? kShapeAgnosticKernelCount : 3;
 
     KernelData kd = KernelData::Default<scatter_elements_update_params>(params, kernel_size);
     scatter_elements_update_params& newParams = *static_cast<scatter_elements_update_params*>(kd.params.get());
     auto cldnn_jit = GetJitConstants(newParams);
 
-    GetUpdateDispatchDataFunc(kd);
+    if (shape_agnostic) {
+        GetUpdateDispatchDataFunc(kd);
+    }
 
     const auto& output = newParams.outputs[0];
 
     kd.internalBuffers.clear();
-    // One int32 accumulator slot per (padded) output element. Sized from the element
-    // count, not from the output's byte size: `_ref` writes this same buffer as
-    // `PhysicalSizeInBytes() * 2`, which happens to equal one int32 per element only for
-    // 2-byte types and under-allocates by half for i8/u8.
-    kd.internalBuffers.push_back(output.PhysicalSize() * sizeof(int32_t));
+    kd.internalBuffers.push_back(GetAccumulatorSize(output));
     kd.internalBufferDataType = Datatype::INT32;
 
     for (size_t i = 0; i < kernel_size; i++) {
-        auto dispatchData = SetDefault(newParams, /*is_second=*/i == 1);
+        const bool is_update =
+            shape_agnostic ? (i == kStageUpdateAnchored || i == kStageUpdateFromZero) : (i == 1);
+        const int32_t iter = is_update ? 1 : (i == 0 ? 0 : 2);
+        const bool anchor_zero = shape_agnostic ? (i == kStageUpdateFromZero) : AnchorAtZero(output);
+
+        auto dispatchData = SetDefault(newParams, /*is_second=*/is_update);
         auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params, i);
         clKernelData& kernel = kd.kernels[i];
 
         cldnn_jit.RemoveConstant("ITER");
-        cldnn_jit.AddConstant(MakeJitConstant("ITER", static_cast<int32_t>(i)));
+        cldnn_jit.AddConstant(MakeJitConstant("ITER", iter));
+        cldnn_jit.RemoveConstant("WINDOW_ANCHOR_ZERO");
+        cldnn_jit.AddConstant(MakeJitConstant("WINDOW_ANCHOR_ZERO", anchor_zero ? 1 : 0));
 
         auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
@@ -288,12 +265,12 @@ KernelsData ScatterElementsUpdateKernelOptLocalSum::GetKernelsData(const Params&
                          3,
                          GetFusedPrimitiveInputsCount(params),
                          1,
-                         params.is_shape_agnostic);
+                         shape_agnostic);
 
         // internal fixed-point accumulator buffer, every stage touches it
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
 
-        if (i == 1) {
+        if (is_update) {
             // local staging window for the update stage only
             kernel.params.arguments.push_back({ArgumentDescriptor::Types::LOCAL_MEMORY_SIZE, 0});
             kernel.params.local_memory_args.push_back(kWindowSize * sizeof(int32_t));

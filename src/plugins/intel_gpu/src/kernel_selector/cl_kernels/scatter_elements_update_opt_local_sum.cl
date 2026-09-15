@@ -2,14 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// SUM-reduction, dense-scatter fast path for ScatterElementsUpdate. See
-// scatter_elements_update_kernel_opt_local_sum.h for the full design rationale and the
-// measured evidence it's based on. This file intentionally mirrors
-// scatter_elements_update_ref.cl's boilerplate (type macros, fixed-point to_int/from_int,
-// atomic_reduce helpers) so the two kernels stay easy to compare -- only the ITER==1
-// (update) body differs in substance; ITER==0/2 are the same computation as `_ref`'s
-// SUM-mode path, just with the MEAN-mode/fused-ops/integer-type branches this kernel's
-// narrow eligibility (see Validate()) never needs.
+// SUM-reduction fast path for ScatterElementsUpdate. The boilerplate mirrors
+// scatter_elements_update_ref.cl; only the ITER == 1 body differs in substance.
 
 #include "include/batch_headers/fetch_data.cl"
 
@@ -48,15 +42,7 @@
     #endif
 #endif
 
-#if OUTPUT_DIMS != INPUT2_DIMS
-    #error "OUTPUT_DIMS is supposed to be same as INPUT2_DIMS"
-#endif
-
-// This kernel is only ever selected for REDUCE_MODE == SUM (see Validate()); the
-// accumulator encoding is the same scheme `_ref` uses, all three branches of it (see its
-// own comments for the f32-bitcast-CAS / fp16-fixed-point-scale / integer-identity
-// rationale). Kept identical so the two kernels' accumulators are bit-for-bit
-// interchangeable for every element type either kernel accepts.
+// Accumulator encoding, identical to _ref's, so the two are interchangeable.
 #define FP_SCALE     65504.0f
 #define FP_SCALE_MAX 2147483648.0f
 #define FP_SCALE_MIN -FP_SCALE_MAX
@@ -86,11 +72,7 @@ inline float FUNC(from_int)(int acc)
     #endif
 }
 
-// f32 has no native OpenCL float atomics -- bit-reinterpret CAS, same as `_ref`. Note the
-// CAS adds in *floating point*, so local staging reassociates an f32 sum; `_ref`'s own
-// unordered global atomics already leave that order unspecified (see the header). Both
-// other encodings are plain int32, so they use a real hardware atomic_fetch_add at both
-// local and global scope, and their sums reassociate exactly.
+// f32 has no native OpenCL float atomics -- bit-reinterpret CAS, same as _ref.
 #if INPUT2_IS_FP && INPUT2_TYPE_SIZE == 4
     #define CAS_ADD(addr, val, scope) { \
         int expected_value; \
@@ -105,11 +87,8 @@ inline float FUNC(from_int)(int acc)
     }
     #define ATOMIC_ADD_OP(addr, val, scope) CAS_ADD(addr, val, scope)
 #else
-    // `scope` is honoured and the ordering is relaxed deliberately. This kernel performs a
-    // pure accumulation: only the atomicity of each add is required, not ordering against
-    // other memory operations. The ordering that is required comes from the barriers, which
-    // sequence the local staging window against its flush, and from the kernel boundary
-    // between the accumulate and finalize stages.
+    // Pure accumulation: only per-add atomicity is needed. The ordering comes from the
+    // barriers below and from the kernel boundary before the finalize stage.
     #define ATOMIC_ADD_OP(addr, val, scope) \
         atomic_fetch_add_explicit(addr, val, memory_order_relaxed, scope)
 #endif
@@ -126,7 +105,8 @@ inline void FUNC(atomic_add_global)(volatile __global int *ptr, int val)
     ATOMIC_ADD_OP(atomic_addr, val, memory_scope_device);
 }
 
-KERNEL(scatter_elements_update_opt_local_sum)(OPTIONAL_SHAPE_INFO_ARG
+KERNEL(scatter_elements_update_opt_local_sum)(
+                   OPTIONAL_SHAPE_INFO_ARG
                    const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
                    const __global INPUT2_TYPE* updates,
@@ -184,13 +164,16 @@ KERNEL(scatter_elements_update_opt_local_sum)(OPTIONAL_SHAPE_INFO_ARG
     const uint lsize = get_local_size(0) * get_local_size(1) * get_local_size(2);
     const uint lid = get_local_id(0) + get_local_size(0) * (get_local_id(1) + get_local_size(1) * get_local_id(2));
 
-    // Anchor the window on work-item 0's own destination -- a cheap, no-extra-pass
-    // locality guess. Threads whose real destination lands elsewhere in the window
-    // still benefit; threads outside it fall back below, so a bad guess only costs
-    // effectiveness, never correctness.
+    // WINDOW_ANCHOR_ZERO means the whole accumulator fits the window, so every destination
+    // is in range. Otherwise guess locality from work-item 0's destination; misses take the
+    // global atomic below, so a bad guess costs effectiveness, never correctness.
     __local int window_base_local;
     if (lid == 0) {
+#if WINDOW_ANCHOR_ZERO
+        window_base_local = 0;
+#else
         window_base_local = (int)output_idx;
+#endif
     }
 
     for (uint i = lid; i < WINDOW_SIZE; i += lsize) {
@@ -210,20 +193,16 @@ KERNEL(scatter_elements_update_opt_local_sum)(OPTIONAL_SHAPE_INFO_ARG
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Flush only touched (nonzero) slots -- skipping a net-zero slot is exact, not an
-    // approximation: adding zero never changes the sum, regardless of whether it's
-    // genuinely untouched or the sum of contributions that happened to cancel out.
+    // Flush only touched slots; skipping a net-zero one is exact. The accumulator carries
+    // WINDOW_SIZE of slack, so a window anchored near the end cannot run past it.
     for (uint i = lid; i < WINDOW_SIZE; i += lsize) {
         int v = local_window[i];
         if (v != FP_INT_ZERO) {
-            long gidx = (long)window_base + (long)i;
-            if (gidx >= 0 && gidx < OPT_LOCAL_ACC_TOTAL_ELEMENTS) {
-                FUNC_CALL(atomic_add_global)(&output_fp[gidx], v);
-            }
+            FUNC_CALL(atomic_add_global)(&output_fp[window_base + i], v);
         }
     }
 
-#elif ITER == 2  // Finalize: decode the fixed-point accumulator back to the real output type.
+#elif ITER == 2  // Finalize: decode the fixed-point accumulator back to the output type.
     #if OUTPUT_DIMS == 4
         const uint x = dim0;
         const uint y = dim1;
@@ -251,6 +230,7 @@ KERNEL(scatter_elements_update_opt_local_sum)(OPTIONAL_SHAPE_INFO_ARG
 #undef GET_INDICES_INDEX
 #undef GET_UPDATES_INDEX
 #undef GET_OUTPUT_INDEX
+#undef GET_INPUT_INDEX
 #undef ORDER
 #undef SIZE
 #undef ASSIGN_INDEX
