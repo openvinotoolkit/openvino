@@ -132,15 +132,14 @@ std::vector<TRShape> shape_infer(const Slice* op,
                 const auto& step = (*steps)[i];
                 NODE_VALIDATION_CHECK(op, step != 0, "Step must be non-zero");
                 out.push_back(slice::make_dim(input_dim, (*start)[i], (*stop)[i], step));
-            } else {
-                out.emplace_back(0, input_dim.get_max_length());
-            }
 
-            auto& last_dim = out[out.size() - 1];
-            if (std::is_same<DimType, ov::Dimension>::value &&
-                (last_dim == input_dim && last_dim != Dimension::dynamic())) {
-                // for equal ov::Dimension do merge to get input label (always success)
-                DimType::merge(last_dim, last_dim, input_dim);
+                if constexpr (std::is_same_v<DimType, ov::Dimension>) {
+                    auto& last_dim = out[out.size() - 1];
+                    slice::merge_symbol_if_size_preserved(last_dim, input_dim, (*start)[i], (*stop)[i], step);
+                }
+            } else {
+                // start, stop or step unknown: the size is not provably preserved, no symbol propagation
+                out.emplace_back(0, input_dim.get_max_length());
             }
             ++axis_it;
         } else if (axes_map.is_valid) {
