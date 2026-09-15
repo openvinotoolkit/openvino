@@ -88,7 +88,7 @@ layout reduce_inst::calc_output_layout(const reduce_node& node, const kernel_imp
 
     std::vector<reduce_mode> reduce_bool_modes = {reduce_mode::logical_and, reduce_mode::logical_or};
     if (std::find(reduce_bool_modes.begin(), reduce_bool_modes.end(), mode) != reduce_bool_modes.end()) {
-        output_type = data_types::boolean;
+        output_type = input_layout.data_type == data_types::boolean ? data_types::boolean : data_types::i8;
     } else if (output_type == data_types::i8 || output_type == data_types::u8) {
         if (mode != reduce_mode::min && mode != reduce_mode::max) {
             output_type = data_types::f32;
@@ -200,7 +200,7 @@ std::vector<layout> reduce_inst::calc_output_layouts(const reduce_node& /*node*/
     auto output_type = input_type;
     std::vector<reduce_mode> reduce_bool_modes = {reduce_mode::logical_and, reduce_mode::logical_or};
     if (std::find(reduce_bool_modes.begin(), reduce_bool_modes.end(), mode) != reduce_bool_modes.end()) {
-        output_type = data_types::boolean;
+        output_type = input_type == data_types::boolean ? data_types::boolean : data_types::i8;
     } else if (input_type == data_types::i8 || input_type == data_types::u8) {
         output_type = data_types::f32;
     }
