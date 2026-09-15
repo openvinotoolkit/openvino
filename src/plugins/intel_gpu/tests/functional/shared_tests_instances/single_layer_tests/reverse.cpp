@@ -14,7 +14,8 @@ const std::vector<ov::element::Type> model_types = {ov::element::f32,
                                                     ov::element::i32,
                                                     ov::element::i64,
                                                     ov::element::i8,
-                                                    ov::element::u8};
+                                                    ov::element::u8,
+                                                    ov::element::boolean};
 
 const std::vector<std::vector<size_t>> input_shapes_1D = {{10}};
 const std::vector<std::vector<int>> indices_1D = {{0}};

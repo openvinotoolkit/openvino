@@ -89,6 +89,7 @@ attach_permute_impl::attach_permute_impl() {
     implementation_map<permute>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<permute>::create<permute_impl>, {});
 
     auto dyn_types = {
+        data_types::boolean,
         data_types::f32,
         data_types::f16,
         data_types::bf16,

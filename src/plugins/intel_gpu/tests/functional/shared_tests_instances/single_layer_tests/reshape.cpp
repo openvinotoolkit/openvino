@@ -10,6 +10,7 @@ using ov::test::ReshapeLayerTest;
 using ov::test::reshapeParams;
 
 const std::vector<ov::element::Type> netPrecisions = {
+            ov::element::boolean,
             ov::element::f32,
             ov::element::f16,
             ov::element::i64
