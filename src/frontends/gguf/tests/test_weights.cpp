@@ -93,20 +93,6 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                              return std::string(i.param.stem);
                          });
 
-// GGUFWeight.MatchesGgmlToFloat above (and the Q1_0 case in test_dequant_vs_ggml.cpp) both feed
-// raw quantized bytes into a SingleOpDecoder built entirely in memory: get_gguf_data(), the
-// function real .gguf loading calls to parse the tensor-info table, size the repacked weight/
-// scale buffers, and register the qtype, is never invoked by either. A regression in Q1_0 buffer
-// sizing, scale registration, or qtype registration would therefore leave both tests green while
-// native .gguf loading fails.
-//
-// Per review (mvafin): a real-file-loading regression check like this belongs with the other
-// model-level tests, not in this unit-test file. That real-file coverage now lives in
-// tests/model_hub_tests/gguf (see gguf_models_nightly's "qwen3-q1_0" entry), which downloads
-// the real prism-ml/Bonsai-8B-gguf Q1_0 checkpoint and exercises get_gguf_data() through the
-// full frontend conversion + compile + inference path -- a stronger regression check than a
-// hand-assembled single-tensor file since it covers the real quantized weight layout end to end.
-
 // token_embd / output are requantized to channel-wise Q8_0_C, and that path reads the zero-point
 // as f16 -- Q2_0 used to hard-code u8 here, which threw for every ternary model.
 TEST(GGUFWeightRequant, Q2_0AsTokenEmbd) {
