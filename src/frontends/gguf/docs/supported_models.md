@@ -78,6 +78,7 @@ time. External definitions and custom-family catalog entries extend the same reg
 | `phi3` | fused QKV |
 | `qwen2` | qwen2 / qwen2.5 |
 | `qwen3` | QK-norm before RoPE |
+| `qwen3` (Bonsai) |  Bonsai-8B Q1_0 and Bonsai-27B Q1_0 |
 | `qwen35` | hybrid GatedDeltaNet + full attention, interleaved M-RoPE; greedy / batch 1 only |
 | `qwen3moe` | NEOX RoPE, per-head QK-norm and normalized expert weights |
 | `smollm3` | NORMAL RoPE, skipped on every fourth layer |
