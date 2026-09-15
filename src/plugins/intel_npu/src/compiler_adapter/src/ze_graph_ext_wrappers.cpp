@@ -16,8 +16,7 @@
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
 
-namespace {
-using namespace intel_npu;
+namespace intel_npu {
 /**
  * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific
  * ones.
@@ -28,9 +27,9 @@ using namespace intel_npu;
  * the referenced attribute.
  * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
  */
-static IODescriptor getIODescriptor(const uint32_t indexUsedByDriver,
-                                    const ze_graph_argument_properties_3_t& arg,
-                                    const std::optional<ze_graph_argument_metadata_t>& metadata) {
+IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
+                                             const ze_graph_argument_properties_3_t& arg,
+                                             const std::optional<ze_graph_argument_metadata_t>& metadata) {
     auto logger = Logger::global().clone("getIODescriptor");
     ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
     ov::Shape shapeFromCompiler;
@@ -40,10 +39,34 @@ static IODescriptor getIODescriptor(const uint32_t indexUsedByDriver,
     for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
         outputTensorNames.insert(arg.associated_tensor_names[id]);
     }
+    if (arg.dims_count > ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) {
+        OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
+                       indexUsedByDriver,
+                       ": dims_count ",
+                       arg.dims_count,
+                       " exceeds ABI limit ",
+                       ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE);
+    }
     for (uint32_t id = 0; id < arg.dims_count; id++) {
         shapeFromCompiler.push_back(arg.dims[id]);
     }
     if (metadata.has_value()) {
+        if (metadata->shape_size > ZE_MAX_GRAPH_TENSOR_REF_DIMS) {
+            OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
+                           indexUsedByDriver,
+                           ": metadata shape_size ",
+                           metadata->shape_size,
+                           " exceeds ABI limit ",
+                           ZE_MAX_GRAPH_TENSOR_REF_DIMS);
+        }
+        if (metadata->shape_size != arg.dims_count) {
+            OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
+                           indexUsedByDriver,
+                           ": metadata shape_size ",
+                           metadata->shape_size,
+                           " does not match dims_count ",
+                           arg.dims_count);
+        }
         const auto dynamicDim = std::numeric_limits<uint64_t>::max();
         shapeFromIRModel.reserve(metadata->shape_size);
         for (uint32_t id = 0; id < metadata->shape_size; id++) {
@@ -119,9 +142,6 @@ static IODescriptor getIODescriptor(const uint32_t indexUsedByDriver,
             indexUsedByDriver,
             supportsStridedLayout};
 }
-}  // namespace
-
-namespace intel_npu {
 
 GraphDescriptor::GraphDescriptor(ze_graph_handle_t handle, bool memoryPersistent)
     : _handle(handle),
@@ -504,10 +524,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            inputs.push_back(getIODescriptor(indexUsedByDriver, arg, std::nullopt));
+            inputs.push_back(createIODescriptorFromLevelZero(indexUsedByDriver, arg, std::nullopt));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            outputs.push_back(getIODescriptor(indexUsedByDriver, arg, std::nullopt));
+            outputs.push_back(createIODescriptorFromLevelZero(indexUsedByDriver, arg, std::nullopt));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",
@@ -546,10 +566,10 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
-            inputs.push_back(getIODescriptor(indexUsedByDriver, arg, optionalMetadata));
+            inputs.push_back(createIODescriptorFromLevelZero(indexUsedByDriver, arg, optionalMetadata));
         } break;
         case ZE_GRAPH_ARGUMENT_TYPE_OUTPUT: {
-            outputs.push_back(getIODescriptor(indexUsedByDriver, arg, optionalMetadata));
+            outputs.push_back(createIODescriptorFromLevelZero(indexUsedByDriver, arg, optionalMetadata));
         } break;
         default: {
             OPENVINO_THROW("Invalid ze_graph_argument_type_t found in ze_graph_argument_properties_3_t object: ",

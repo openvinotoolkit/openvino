@@ -114,6 +114,10 @@ private:
     Logger _logger;
 };
 
+IODescriptor createIODescriptorFromLevelZero(uint32_t indexUsedByDriver,
+                                             const ze_graph_argument_properties_3_t& arg,
+                                             const std::optional<ze_graph_argument_metadata_t>& metadata);
+
 // Parse the result string of query from format <name_0><name_1><name_2> to unordered_set of string
 std::unordered_set<std::string> parseQueryResult(std::vector<char>& data);
 
