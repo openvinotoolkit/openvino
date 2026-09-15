@@ -733,14 +733,23 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         return all_of_values(node->getOriginalInputPrecisions(), ov::element::i32);
     };
 
-    if (!EltwiseJitExecutor::supports(m_attrs, inputShapes.front().getRank())) {
+    if (!EltwiseJitExecutor::supports(m_attrs,
+                                      inputShapes.front().getRank(),
+                                      getOriginalInputPrecisions(),
+                                      getOriginalOutputPrecisions())) {
         return false;
     }
 
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const auto* eltwise = dynamic_cast<const Eltwise*>(node.get());
-    if (eltwise == nullptr ||
-        !EltwiseJitExecutor::supports(eltwise->attrs(), eltwise->getInputShapeAtPort(0).getRank())) {
+    if (eltwise != nullptr &&
+        !EltwiseJitExecutor::supports(eltwise->attrs(),
+                                      eltwise->getInputShapeAtPort(0).getRank(),
+                                      eltwise->getOriginalInputPrecisions(),
+                                      eltwise->getOriginalOutputPrecisions())) {
+        return false;
+    }
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+    if (eltwise == nullptr) {
         return false;
     }
 #endif
@@ -1122,7 +1131,10 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
     }
     const auto& input_precisions = parentNode->getOriginalInputPrecisions();
 
-    return EltwiseJitExecutor::supports(m_attrs, inputShapes.front().getRank(), input_precisions);
+    return EltwiseJitExecutor::supports(m_attrs,
+                                        inputShapes.front().getRank(),
+                                        input_precisions,
+                                        getOriginalOutputPrecisions());
 #else
     const auto isSuitableParentNode = [](const Node* parentNode) {
         return parentNode->getType() == Type::Convert &&
@@ -1151,7 +1163,7 @@ bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
     // Convert can be fused into Eltwise only if jit implementation is supported
     return EltwiseJitExecutor::supports(m_attrs,
                                         inputShapes.front().getRank(),
-                                        {},
+                                        getOriginalInputPrecisions(),
                                         {convertNode->getOriginalOutputPrecisionAtPort(0)});
 }
 
