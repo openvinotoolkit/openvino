@@ -238,12 +238,16 @@ bool convert_function_precision(ov::pass::PassBase& pass,
                                 bool names_compatibility_mode) {
     bool is_output_precision_changed = false;
 
-    if (keep_sensitive_in_fp32 && precisions.count(element::f32) && precisions.at(element::f32) == element::f16) {
-        pass::Manager manager(pass.get_pass_config(), "KeepPrecisionSensitiveInFP32");
-        // Mark subgraphs with disable_fp16_compression to keep them in FP32
-        manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>();
-        manager.register_pass<pass::AlignMixedFP32FP16Types>();
-        manager.run_passes(f);
+    if (keep_sensitive_in_fp32 && precisions.count(element::f32)) {
+        // any lower floating point precision the model is compressed to (f16, bf16, ...)
+        const auto& compressed_type = precisions.at(element::f32);
+        if (compressed_type.is_real() && compressed_type != element::f32) {
+            pass::Manager manager(pass.get_pass_config(), "KeepPrecisionSensitiveInFP32");
+            // Mark subgraphs which must not be compressed to the target type to keep them in FP32
+            manager.register_pass<pass::MarkSugraphsToKeepInMixedPrecision>(compressed_type);
+            manager.register_pass<pass::AlignMixedFP32FP16Types>(compressed_type);
+            manager.run_passes(f);
+        }
     }
 
     ov::element::TypeVector orig_result_types;
