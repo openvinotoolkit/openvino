@@ -41,7 +41,6 @@ private:
     void PostSnippets();
 
     static bool is_decompression_multiply(const std::shared_ptr<const ov::Node>& node);
-    static bool is_pa_kv_reorder_cache(const std::shared_ptr<ov::op::v0::Parameter>& parameter);
 
     static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
     static bool fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
