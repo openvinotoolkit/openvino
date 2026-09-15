@@ -86,5 +86,13 @@ private:
     size_t m_layer_index = 0;
 };
 
+// Unpadded causal convolution with a rank-4 cache of K-1 samples (ggml layout).
+class TRANSFORMATIONS_API PagedCausalConv1DUnpaddedFusion : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("PagedCausalConv1DUnpaddedFusion");
+    PagedCausalConv1DUnpaddedFusion(ov::pass::paged_attention::PaParams& pa_params,
+                                    std::unordered_set<std::string>& var_ids_to_remove);
+};
+
 }  // namespace pass
 }  // namespace ov

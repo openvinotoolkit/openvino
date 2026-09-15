@@ -10,6 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -79,8 +80,9 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "For proper conversion run: optimum-cli export openvino --task text-generation-with-past instead "
                     "of --task text-generation");
 
-    OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
-                    "No ScaledDotProductAttention operation observed in the graph, cannot perform "
+    OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model) ||
+                        ov::op::util::has_op_with_type<ov::op::internal::SelectiveSSM>(model),
+                    "No ScaledDotProductAttention or SelectiveSSM operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
 
     m_params = PaParams{model->get_parameters()};
@@ -152,12 +154,16 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<ov::pass::GatedDeltaNetFusion>();  // This pass is required to ensure that all GatedDeltaNet
                                                              // nodes are in the expected form before running
                                                              // PagedGatedDeltaNetFusion.
+    size_t existing_ssm_count = 0;
+    for (const auto& node : model->get_ops())
+        existing_ssm_count += ov::is_type<ov::op::internal::SelectiveSSM>(node);
     auto ssm_fusion = manager.register_pass<SelectiveSSMFusion>();
     manager.register_pass<StateManagementPattern>(m_params, m_results, m_options, var_ids_to_remove);
     manager.register_pass<EliminateConvPaddingMaskGating>();
     manager.register_pass<AttentionMaskShapeReplacer>(input_ids_node);
     auto paged_ssm_fusion = manager.register_pass<PagedSelectiveSSMFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PagedCausalConv1DFusion>(m_params, var_ids_to_remove);
+    manager.register_pass<PagedCausalConv1DUnpaddedFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PagedGatedDeltaNetFusion>(m_params, var_ids_to_remove);
     manager.register_pass<PrevSequenceLengthPattern>(processed_input_ids, max_context_len, position_ids);
     manager.register_pass<TotalSequenceLengthPattern>(max_context_len);
@@ -169,9 +175,12 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     manager.register_pass<PositionIDsReplacerLFM2>(position_ids);
     manager.run_passes(model);
 
-    OPENVINO_ASSERT(ssm_fusion->get_fused_count() == paged_ssm_fusion->get_fused_count(),
+    OPENVINO_ASSERT(existing_ssm_count + ssm_fusion->get_fused_count() == paged_ssm_fusion->get_fused_count(),
                     "SelectiveSSMFusion fused ",
                     ssm_fusion->get_fused_count(),
+                    " additional node(s), with ",
+                    existing_ssm_count,
+                    " pre-existing",
                     " SelectiveSSM node(s), but PagedSelectiveSSMFusion converted ",
                     paged_ssm_fusion->get_fused_count(),
                     ". Stateful SSM nodes cannot be left in the graph.");

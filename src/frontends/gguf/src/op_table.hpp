@@ -81,6 +81,7 @@ GGUF_OP_CONVERTER(translate_fill);
 GGUF_OP_CONVERTER(translate_im2col);
 GGUF_OP_CONVERTER(translate_pad);
 GGUF_OP_CONVERTER(translate_ssm_conv);
+GGUF_OP_CONVERTER(translate_ssm_scan);
 GGUF_OP_CONVERTER(translate_gated_delta_net);
 
 GGUF_OP_CONVERTER(translate_weight);

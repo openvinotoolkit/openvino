@@ -13,6 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
@@ -61,9 +62,9 @@ void place_dynamic_token_axis(std::vector<int64_t>& tgt, const ov::PartialShape&
 
 // Cases 2-5 are shared by both ingest paths: the llama.cpp cgraph decoder classifies a ggml view
 // into them (see ggml-decoder.cpp::compute_op_case) and the native .gguf builder describes its own
-// views the same way. Case 104 is builder-only: it takes a second (shape-reference) input the
-// cgraph path does not supply, so it has a different arity than the shared cases. See its comment
-// below, and docs/frontend_design.md for the other two builder-only cases in the frontend.
+// views the same way. The native builder can supply an optional second shape-reference input
+// for case 3 to preserve the runtime token layout. Builder-only case 104 also uses that input.
+// See its comment below and docs/frontend_design.md for the builder-only cases.
 OutputVector translate_view(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
 
@@ -201,7 +202,40 @@ OutputVector translate_view(const NodeContext& context) {
         // ggml strides.
         auto slice = context.get_attribute<std::vector<int64_t>>("view_slice", {});
         ov::Output<ov::Node> result = input;
-        if (slice.size() == 3) {
+        bool unpacked_ssm = false;
+        // SSM_SCAN packs [token outputs | final states] for ggml. Full-part views can
+        // consume the fused op outputs directly, avoiding a large state copy and keeping
+        // the activation path independent of the state output during paged conversion.
+        if (slice.size() == 3 && slice[0] == 3) {
+            const auto packed_view = ov::as_type_ptr<ov::op::v1::Reshape>(input.get_node_shared_ptr());
+            const auto packed =
+                packed_view ? ov::as_type_ptr<ov::op::v0::Concat>(packed_view->input_value(0).get_node_shared_ptr())
+                            : nullptr;
+            if (packed && packed->get_axis() == 0 && packed->get_input_size() == 2 &&
+                input.get_partial_shape().rank() == 4 && input.get_partial_shape()[0] == 1 &&
+                input.get_partial_shape()[1] == 1 && input.get_partial_shape()[2] == 1) {
+                const auto y = ov::as_type_ptr<ov::op::v1::Reshape>(packed->input_value(0).get_node_shared_ptr());
+                const auto state = ov::as_type_ptr<ov::op::v1::Reshape>(packed->input_value(1).get_node_shared_ptr());
+                const auto ssm =
+                    y ? ov::as_type_ptr<ov::op::internal::SelectiveSSM>(y->input_value(0).get_node_shared_ptr())
+                      : nullptr;
+                if (ssm && state && y->get_output_partial_shape(0).rank() == 1 &&
+                    state->get_output_partial_shape(0).rank() == 1 && y->input_value(0) == ssm->output(0) &&
+                    state->input_value(0) == ssm->output(1) && ssm->get_output_partial_shape(1).is_static()) {
+                    const auto count = static_cast<int64_t>(ov::shape_size(ssm->get_output_shape(1)));
+                    const bool output_part = slice[1] == 0 && slice[2] == -count;
+                    const bool state_part = slice[1] == -count && slice[2] == count;
+                    if (output_part || state_part) {
+                        result = std::make_shared<ov::op::v1::Reshape>(
+                            ssm->output(state_part ? 1 : 0),
+                            ov::op::v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, -1}),
+                            false);
+                        unpacked_ssm = true;
+                    }
+                }
+            }
+        }
+        if (!unpacked_ssm && slice.size() == 3) {
             const int64_t axis = slice[0], start = slice[1], len = slice[2];
             if (axis >= 0 && static_cast<size_t>(axis) < input_ggml_shape.size() &&
                 start >= static_cast<int64_t>(input_ggml_shape[axis])) {
@@ -235,6 +269,13 @@ OutputVector translate_view(const NodeContext& context) {
                                                       ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt),
                                                       false);
             result.get_node_shared_ptr()->set_friendly_name("view_reshape_" + context.get_name());
+        }
+        // A second operand provides the runtime layout for a view of a packed recurrent
+        // output. This preserves token placement when paged execution flattens the batch.
+        if (context.get_input_size() == 2) {
+            result = std::make_shared<ov::op::v1::Reshape>(result,
+                                                           std::make_shared<ov::op::v3::ShapeOf>(context.get_input(1)),
+                                                           false);
         }
         // A view that neither restores rank, slices nor reshapes is a pass-through: the value is
         // still the producer's output, so renaming it here would rename a node owned by another

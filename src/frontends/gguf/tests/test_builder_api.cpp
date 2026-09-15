@@ -289,8 +289,11 @@ TEST(GGUFBuilderAPI, RecurrentStateDeclarationReachesMakeStateful) {
     auto input = graph.add_input("x", ov::element::f32, {1, 1, 1, 4});
     auto update = graph.node("GGML_OP_ADD", {state, input});
     graph.add_recurrent_state(state, update);
-    graph.set_output(graph.node("GGML_OP_SCALE", {update}, 0, {{"scale", float{2}}, {"bias", 0.0f}}));
-    auto model = convert(graph.finish());
+    const auto output = graph.node("GGML_OP_SCALE", {update}, 0, {{"scale", float{2}}, {"bias", 0.0f}});
+    graph.set_primary_output(output);
+    const auto built = graph.finish();
+    ASSERT_EQ(built->model_output_names.front(), output.name());
+    auto model = convert(built);
     ASSERT_TRUE(model->get_rt_info().count(pass::gguf_recurrent_states_key()));
     ov::pass::Manager passes;
     passes.register_pass<pass::GGUFMakeStateful>();
