@@ -23,3 +23,10 @@ static const char test_conf_message[] = "Optional. Path to a test config with de
 /// @brief Define parameter for set test's configuration <br>
 /// test_conf is an optional parameter
 DEFINE_string(test_conf, OS_PATH_JOIN({"stress_tests_configs", "unittests", "test_config.xml"}), test_conf_message);
+
+DEFINE_bool(stress_child, false, "Run one stress scenario in a fresh child process");
+DEFINE_string(stress_scenario, "", "Stress scenario name");
+DEFINE_string(stress_model, "", "Stress scenario model path");
+DEFINE_string(stress_device, "", "Stress scenario device name");
+DEFINE_int32(stress_iterations, 0, "Stress scenario iteration count");
+DEFINE_int32(stress_threads, 0, "Stress scenario thread count");
