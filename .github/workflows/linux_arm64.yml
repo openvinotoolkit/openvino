@@ -99,6 +99,7 @@ jobs:
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
@@ -164,6 +165,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       sccache-azure-key-prefix: 'ubuntu22_aarch64_onnxruntime'
 

@@ -321,7 +321,7 @@ TEST_F(TypePropPagedCausalConv1DTest, conv_bias_size_mismatch) {
                                        "conv_weight or equal to 0 (no bias)"));
 }
 
-TEST_F(TypePropPagedCausalConv1DTest, i64_integer_inputs_accepted) {
+TEST_F(TypePropPagedCausalConv1DTest, i64_integer_inputs_rejected) {
     const auto input_embeds = std::make_shared<op::v0::Parameter>(element::f32, Shape{10, 256});
     const auto conv_state_table = std::make_shared<op::v0::Parameter>(element::f32, Shape{5, 256, 4});
     const auto conv_weight = std::make_shared<op::v0::Parameter>(element::f32, Shape{256, 256, 4});
@@ -332,19 +332,17 @@ TEST_F(TypePropPagedCausalConv1DTest, i64_integer_inputs_accepted) {
     const auto processed_tokens = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
     const auto cache_interval = std::make_shared<op::v0::Parameter>(element::i64, Shape{2});
 
-    const auto op = make_op(OutputVector{input_embeds,
-                                         conv_state_table,
-                                         conv_weight,
-                                         conv_bias,
-                                         subsequence_begins,
-                                         la_block_indices,
-                                         la_block_indices_begins,
-                                         processed_tokens,
-                                         cache_interval});
-
-    EXPECT_EQ(op->get_output_size(), 1);
-    EXPECT_EQ(op->get_output_element_type(0), element::f32);
-    EXPECT_EQ(op->get_output_partial_shape(0), PartialShape(Shape{10, 256}));
+    OV_EXPECT_THROW(std::ignore = make_op(OutputVector{input_embeds,
+                                                       conv_state_table,
+                                                       conv_weight,
+                                                       conv_bias,
+                                                       subsequence_begins,
+                                                       la_block_indices,
+                                                       la_block_indices_begins,
+                                                       processed_tokens,
+                                                       cache_interval}),
+                    NodeValidationFailure,
+                    testing::HasSubstr("Integer inputs must have i32 element type."));
 }
 
 TEST_F(TypePropPagedCausalConv1DTest, invalid_subsequence_begins_rank) {
@@ -392,7 +390,7 @@ TEST_F(TypePropPagedCausalConv1DTest, invalid_integer_type) {
                                                        processed_tokens,
                                                        cache_interval}),
                     NodeValidationFailure,
-                    testing::HasSubstr("Integer inputs must have i32 or i64 element type."));
+                    testing::HasSubstr("Integer inputs must have i32 element type."));
 }
 
 TEST_F(TypePropPagedCausalConv1DTest, empty_conv_bias) {
