@@ -486,7 +486,7 @@ def parse_input_value(input_value: str):
 
 
 def split_inputs(input_str):
-    pattern = r'^(?:[^[\]()<]*(\[[\.)-9,\-\s?]*\])*,)*[^[\]()<]*(\[[\.0-9,\-\s?]*\])*$'
+    pattern = r'^(?:[^[\]()<]*(\[[\.0-9,\-\s?]*\])*,)*[^[\]()<]*(\[[\.0-9,\-\s?]*\])*$'
     if not re.match(pattern, input_str):
         raise Error(f"input value '{input_str}' is incorrect. Input should be in the following format: "
                     f"{get_convert_model_help_specifics()['input']['description']}")
