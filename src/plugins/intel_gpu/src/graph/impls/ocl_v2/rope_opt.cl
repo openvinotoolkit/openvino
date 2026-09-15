@@ -8,6 +8,12 @@
 #define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
 #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
 
+// an s8 output narrows SDPA's K inside the rotation's own store, which removes a whole
+// f16 read and i8 write pass over the key tensor. Only the interleaved bodies implement it.
+#if defined(OUTPUT_I8) && !defined(RotateInterleaved)
+#   error "rope_opt.cl - an i8 output is only implemented for the interleaved rotation"
+#endif
+
 #define UNPACK_FLOAT_VEC_1(outputv, input1, input2) \
     outputv.s0 = convert_float(input1.s0);          \
     outputv.s1 = convert_float(input1.s2);          \
@@ -522,6 +528,9 @@ uint cos_sin_p = p;
 #endif
 
 #ifdef RotateInterleaved
+#if defined(OUTPUT_I8) && VEC_SIZE != 16
+#   error "rope_opt.cl - an i8 output is only wired for the VEC_SIZE 16 interleaved body"
+#endif
 KERNEL(rope_opt)(
     OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
     const __global INPUT1_TYPE* cos,
@@ -530,10 +539,19 @@ KERNEL(rope_opt)(
 #if VEC_SIZE != 1 && VEC_SIZE != 8 && VEC_SIZE != 16
 #   error "rope_opt.cl - VEC_SIZE must be one of {1, 8, 16}"
 #endif
+#ifdef REVERSED_GWS
+    // dim0 carries the rotary/head index, which is the contiguous axis of a bfyx tensor, so
+    // consecutive lanes of a subgroup read consecutive VEC_SIZE chunks of the same row.
+    const uint b = get_global_id(2);
+    const uint h = get_global_id(1);
+    const uint p = ((uint)get_global_id(0) * VEC_SIZE) / HALF_ROTARY_NDIMS;
+    const uint r = 2 * (((uint)get_global_id(0) * VEC_SIZE) % HALF_ROTARY_NDIMS);
+#else
     const uint b = get_global_id(0);
     const uint h = get_global_id(1);
     const uint p = ((uint)get_global_id(2) * VEC_SIZE) / HALF_ROTARY_NDIMS;
     const uint r = 2 * (((uint)get_global_id(2) * VEC_SIZE) % HALF_ROTARY_NDIMS);
+#endif
 
 #ifdef ENABLE_TRANSPOSE
     uint input_idx = INPUT0_GET_INDEX(b, p, h, 0);
@@ -628,9 +646,15 @@ KERNEL(rope_opt)(
     PACK_HALF16_VEC_1(outputv1, out1, out2);
     PACK_HALF16_VEC_2(outputv2, out1, out2);
 
+#ifdef OUTPUT_I8
+    // output_idx + r is a multiple of 2*VEC_SIZE, so both char16 stores stay naturally aligned.
+    *(char16*)(output + output_idx + r) = convert_char16_sat_rte(outputv1);
+    *(char16*)(output + output_idx + r + VEC_SIZE) = convert_char16_sat_rte(outputv2);
+#else
     *(half16*)(output + output_idx + r) = outputv1;
     *(half16*)(output + output_idx + r + VEC_SIZE) = outputv2;
     #endif
+#endif
 #endif
 }
 #endif

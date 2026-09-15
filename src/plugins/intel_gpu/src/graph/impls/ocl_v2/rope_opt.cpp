@@ -50,6 +50,24 @@ size_t get_vec_size(const RuntimeParams& params) {
     return vec_size;
 }
 
+// The interleaved dispatch normally puts BATCH on gws dim 0, which is the largest stride of a
+// bfyx tensor, so a subgroup's lanes land on unrelated cache lines. Reversing dims 0 and 2 puts
+// the rotary/head index -- the contiguous axis -- on the fast dimension instead.
+static bool interleaved_reversed_gws(const RuntimeParams& params) {
+    auto desc = params.typed_desc<rope>();
+    const auto& cfg = desc->config;
+    return cfg.is_interleaved && !cfg.is_qwen && !cfg.is_chatglm && !cfg.is_ltx_video && !cfg.support_3d_rope;
+}
+
+// Upstream reverses the rotate-half dispatch only at vec_size 1, so a vectorised rotate-half
+// keeps BATCH on the fast dimension and its subgroups straddle whole tensors. The reversal is
+// just as valid vectorised: the kernel already reads b from gws dim 2 under REVERSED_GWS.
+static bool half_reversed_gws(const RuntimeParams& params, size_t vec_size) {
+    auto desc = params.typed_desc<rope>();
+    const auto& cfg = desc->config;
+    return !cfg.is_interleaved && vec_size > 1 && !cfg.is_qwen && !cfg.is_chatglm && !cfg.is_ltx_video && !cfg.support_3d_rope;
+}
+
 class RopeGenerator : public KernelGenerator {
 public:
     RopeGenerator() : KernelGenerator("rope_opt") {}
@@ -102,13 +120,19 @@ protected:
             jit.make("LTX_VIDEO", true);
         } else if (desc->config.is_interleaved) {
             jit.make("RotateInterleaved", true);
+            if (interleaved_reversed_gws(params)) {
+                jit.make("REVERSED_GWS", true);
+            }
         } else {
             jit.make("RotateHalf", true);
-            if (get_vec_size(params) == 1) {
+            if (get_vec_size(params) == 1 || half_reversed_gws(params, get_vec_size(params))) {
                 jit.make("REVERSED_GWS", true);
             }
         }
         jit.make("VEC_SIZE", get_vec_size(params));
+        if (params.get_output_layout(0).data_type == ov::element::i8) {
+            jit.make("OUTPUT_I8", true);
+        }
         if (in_l.data_type == ov::element::bf16) {
             jit.add(make_type_jit_constants("ACCUMULATOR", ov::element::f32));
         } else if (params.get_input_layout(0).data_type != params.get_input_layout(1).data_type) {
@@ -188,6 +212,33 @@ protected:
                         wgs.global[0] = wgs.global[2];
                         wgs.global[2] = tmp;
                     }
+                }
+
+                auto largest_divisor = [](size_t n, size_t cap) {
+                    for (size_t d = std::min(n, cap); d > 1; d--) {
+                        if (n % d == 0) {
+                            return d;
+                        }
+                    }
+                    return size_t{1};
+                };
+
+                if (half_reversed_gws(params, vec_size)) {
+                    std::swap(wgs.global[0], wgs.global[2]);
+                    // gws0 is a multiple of the rotary half-width here, so a whole number of
+                    // 16-wide subgroups fits and every lane stays inside one row.
+                    const size_t l0 = wgs.global[0] % 32 == 0 ? 32 : (wgs.global[0] % 16 == 0 ? 16 : 1);
+                    wgs.local = {l0, largest_divisor(wgs.global[1], std::max(size_t{1}, 256 / l0)), 1};
+                    return;
+                }
+
+                if (interleaved_reversed_gws(params)) {
+                    std::swap(wgs.global[0], wgs.global[2]);
+                    // Keep dim 0 whole where possible so a subgroup stays inside one row, then
+                    // spend what is left of the workgroup budget on the sequence dimension.
+                    const size_t l0 = largest_divisor(wgs.global[0], 32);
+                    wgs.local = {l0, largest_divisor(wgs.global[1], std::max(size_t{1}, 256 / l0)), 1};
+                    return;
                 }
 
                 // We need to set the 1st local workgroup size as large as possible for better performance.
