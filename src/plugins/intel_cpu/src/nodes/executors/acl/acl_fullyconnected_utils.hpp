@@ -49,7 +49,8 @@ MemoryPtr prepareWeightMemory(const MemoryArgs& memory,
                               const FCAttrs& attrs,
                               ACLFCAttrs& aclfcAttrs,
                               arm_compute::WeightFormat& expectedWeightFormat,
-                              arm_compute::TensorInfo& weiTensorInfo);
+                              arm_compute::TensorInfo& weiTensorInfo,
+                              bool enableFixedFormat = true);
 
 arm_compute::TensorShape normalizeDimsTo2D(arm_compute::TensorShape shape);
 
@@ -61,6 +62,13 @@ public:
     void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
+
+protected:
+    std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
+                                                            const arm_compute::DataType& dataType,
+                                                            const arm_compute::DataLayout& dataLayout) override {
+        return makeTensorInfo(tensorShape, dataType, dataLayout);
+    }
 };
 
 class ACLWeightFormatGenerator : public ACLCommonExecutor {
@@ -72,11 +80,6 @@ public:
     arm_compute::WeightFormat getOptImplWeightFormat() {
         return expectedWeightFormat;
     }
-
-protected:
-    std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
-                                                            const arm_compute::DataType& dataType,
-                                                            const arm_compute::DataLayout& dataLayout) override;
 
 private:
     arm_compute::FullyConnectedLayerInfo fullyConnectedLayerInfo;

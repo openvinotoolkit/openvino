@@ -97,8 +97,13 @@ ACLLowpFullyConnectedExecutor::ACLLowpFullyConnectedExecutor(const FCAttrs& attr
         }
     }
 
-    packedWeights =
-        acl_fc_executor::prepareWeightMemory(memory, context, attrs, aclfcAttrs, expectedWeightFormat, weiTensorInfo);
+    packedWeights = acl_fc_executor::prepareWeightMemory(memory,
+                                                         context,
+                                                         attrs,
+                                                         aclfcAttrs,
+                                                         expectedWeightFormat,
+                                                         weiTensorInfo,
+                                                         false);
 }
 
 bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
@@ -187,13 +192,6 @@ ACLFunction ACLLowpFullyConnectedExecutor::configureFunction(const ACLTensors& a
         aclMemoryTensors[ACLArgs::ACL_WEI]->allocator()->import_memory(packedWeights->getData());
     }
     return gemm;
-}
-
-std::shared_ptr<arm_compute::TensorInfo> ACLLowpFullyConnectedExecutor::initTensorInfo(
-    const arm_compute::TensorShape& tensorShape,
-    const arm_compute::DataType& dataType,
-    const arm_compute::DataLayout& dataLayout) {
-    return ACLCommonExecutor::initTensorInfo(tensorShape, convertToQuantizedType(dataType), dataLayout);
 }
 
 }  // namespace ov::intel_cpu

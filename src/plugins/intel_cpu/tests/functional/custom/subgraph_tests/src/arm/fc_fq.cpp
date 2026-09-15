@@ -19,15 +19,16 @@ namespace ov {
 namespace test {
 
 /*
- * ACL low-precision FullyConnected with constant i8 weights and an i8 destination:
+ * ACL low-precision FullyConnected with constant i8 weights:
  *   FakeQuantize -> MatMul(i8, i8) -> Multiply -> Add(bias) -> FakeQuantize
- * ACLLowpFullyConnectedExecutor repacks weights into the arm_compute::WeightFormat ACL reports.
- * A non-concrete format (ANY/UNSPECIFIED) gives a zero-sized weights buffer and a SIGSEGV in
- * compile_model(). An f32 destination takes a different probe arm, so keep the i8 output.
+ * NEGEMMLowpMatrixMultiplyCore cannot consume fixed-format weights, so its executor must retain
+ * the ordinary layout even if ACL reports an optimized format. The signed cases keep the i8
+ * destination that exposed the original compile_model() crash; the unsigned cases cover U8xI8.
  */
 
 typedef std::tuple<InputShape,     // input shape
                    element::Type,  // network precision
+                   bool,           // unsigned activations
                    std::string     // device name
                    >
     FCAndFQTestParams;
@@ -37,9 +38,11 @@ class FCAndFQ : public testing::WithParamInterface<FCAndFQTestParams>,
                 public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FCAndFQTestParams>& obj) {
-        const auto& [inputShape, netPrecision, targetName] = obj.param;
+        const auto& [inputShape, netPrecision, unsignedActivations, targetName] = obj.param;
         std::ostringstream results;
-        results << "IS=" << inputShape << "_netPRC=" << netPrecision << "_targetDevice=" << targetName;
+        results << "IS=" << inputShape << "_netPRC=" << netPrecision
+                << "_activationPRC=" << (unsignedActivations ? element::u8 : element::i8)
+                << "_targetDevice=" << targetName;
         return results.str();
     }
 
@@ -48,7 +51,8 @@ protected:
     static constexpr size_t outChannels = 32;
 
     void SetUp() override {
-        const auto& [inputShape, netPrecision, targetName] = this->GetParam();
+        const auto& [inputShape, netPrecision, unsignedActivations, targetName] = this->GetParam();
+        activationPrecision = unsignedActivations ? element::u8 : element::i8;
         abs_threshold = 1e-2f;
         targetDevice = targetName;
         // Pin the implementation: the whole point is that the ACL low-precision executor runs.
@@ -58,15 +62,16 @@ protected:
 
         ov::ParameterVector input_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
 
-        // Signed activation range -> i8 activations.
+        const std::vector<float> activationLow{unsignedActivations ? 0.F : -1.28F};
+        const std::vector<float> activationHigh{unsignedActivations ? 2.55F : 1.27F};
         auto fq_before = ov::test::utils::make_fake_quantize(input_params[0],
-                                                            netPrecision,
-                                                            256,
-                                                            {},
-                                                            {-1.28f},
-                                                            {1.27f},
-                                                            {-1.28f},
-                                                            {1.27f});
+                                                             netPrecision,
+                                                             256,
+                                                             {},
+                                                             activationLow,
+                                                             activationHigh,
+                                                             activationLow,
+                                                             activationHigh);
 
         // Constant i8 weights with the dequantization Convert+Multiply that LPT leaves behind.
         // Per-tensor only: ACL rejects per-channel dequantization (fullyconnected_implementations.cpp).
@@ -86,7 +91,7 @@ protected:
         auto convert_bias = std::make_shared<op::v0::Convert>(bias, netPrecision);
         fqInput = std::make_shared<ov::op::v1::Add>(fqInput, convert_bias);
 
-        // Signed output range -> i8 destination. Do not relax to f32, see the note above.
+        // Keep the output range signed so the i8 activation cases retain an i8 FC destination.
         auto fq_after =
             ov::test::utils::make_fake_quantize(fqInput, netPrecision, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
@@ -96,8 +101,7 @@ protected:
             op::v0::Constant::create(element::i8, ov::Shape{1, outChannels}, std::vector<int8_t>(outChannels, 1));
         auto tail_convert = std::make_shared<op::v0::Convert>(tail_weights, netPrecision);
         auto tail_dequantized =
-            std::make_shared<op::v1::Multiply>(tail_convert,
-                                               op::v0::Constant::create(netPrecision, {1, 1}, {0.01f}));
+            std::make_shared<op::v1::Multiply>(tail_convert, op::v0::Constant::create(netPrecision, {1, 1}, {0.01f}));
         auto tail = std::make_shared<ov::op::v0::MatMul>(fq_after, tail_dequantized, false, true);
 
         function = create_ov_model(netPrecision, input_params, tail, "FCAndFQ");
@@ -121,6 +125,7 @@ protected:
     void checkQuantizedAclFullyConnected() {
         const auto runtime_model = compiledModel.get_runtime_model();
         size_t quantizedAclCount = 0;
+        std::ostringstream fullyConnectedDetails;
         for (const auto& op : runtime_model->get_ops()) {
             const auto& rt = op->get_rt_info();
             if (rt.at(ov::exec_model_info::LAYER_TYPE).as<std::string>() != "FullyConnected") {
@@ -129,14 +134,25 @@ protected:
             const auto runtimePrecision = rt.at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>();
             const auto outputPrecisions = rt.at(ov::exec_model_info::OUTPUT_PRECISIONS).as<std::string>();
             const auto implType = rt.at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
-            if (runtimePrecision == element::i8 && outputPrecisions.find("i8") != std::string::npos &&
-                implType.find("acl") != std::string::npos) {
+            const auto inputPrecisions = op->get_input_node_shared_ptr(0)
+                                             ->get_rt_info()
+                                             .at(ov::exec_model_info::OUTPUT_PRECISIONS)
+                                             .as<std::string>();
+            fullyConnectedDetails << " runtime=" << runtimePrecision << ", input=" << inputPrecisions
+                                  << ", output=" << outputPrecisions << ", impl=" << implType;
+            const bool hasExpectedDestination =
+                activationPrecision == element::u8 || outputPrecisions.find("i8") != std::string::npos;
+            if (runtimePrecision == activationPrecision &&
+                inputPrecisions.find(activationPrecision.get_type_name()) != std::string::npos &&
+                hasExpectedDestination && implType.find("acl") != std::string::npos) {
                 ++quantizedAclCount;
             }
         }
-        EXPECT_GT(quantizedAclCount, 0U)
-            << "Expected an ACL FullyConnected with i8 activations and an i8 destination";
+        EXPECT_GT(quantizedAclCount, 0U) << "Expected an ACL FullyConnected with " << activationPrecision
+                                         << " activations; found:" << fullyConnectedDetails.str();
     }
+
+    element::Type activationPrecision;
 };
 
 TEST_P(FCAndFQ, CompareWithRefs) {
@@ -163,6 +179,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_FCAndFQ_CPU,
                          FCAndFQ,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::Values(element::f32),
+                                            ::testing::Values(false, true),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          FCAndFQ::getTestCaseName);
 
