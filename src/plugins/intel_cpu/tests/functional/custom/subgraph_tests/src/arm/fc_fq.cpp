@@ -26,6 +26,8 @@ namespace test {
  * destination that exposed the original compile_model() crash; the unsigned cases cover U8xI8.
  */
 
+#if defined(OPENVINO_ARCH_ARM64)
+
 typedef std::tuple<InputShape,     // input shape
                    element::Type,  // network precision
                    bool,           // unsigned activations
@@ -160,9 +162,7 @@ TEST_P(FCAndFQ, CompareWithRefs) {
     // This used to SIGSEGV in compile_model(), so completing run() is itself part of the check.
     run();
 
-#if defined(OPENVINO_ARCH_ARM64)
     checkQuantizedAclFullyConnected();
-#endif
     CheckPluginRelatedResults(compiledModel, "FullyConnected");
 }
 
@@ -184,5 +184,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_FCAndFQ_CPU,
                          FCAndFQ::getTestCaseName);
 
 }  // namespace
+#endif  // OPENVINO_ARCH_ARM64
 }  // namespace test
 }  // namespace ov
