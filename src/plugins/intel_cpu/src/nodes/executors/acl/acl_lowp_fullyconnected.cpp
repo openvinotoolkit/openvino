@@ -7,8 +7,6 @@
 #include <arm_compute/core/CoreTypes.h>
 #include <arm_compute/core/Error.h>
 #include <arm_compute/core/QuantizationInfo.h>
-#include <arm_compute/core/TensorInfo.h>
-#include <arm_compute/core/TensorShape.h>
 #include <arm_compute/core/utils/quantization/AsymmHelpers.h>
 #include <arm_compute/function_info/GEMMInfo.h>
 
