@@ -282,6 +282,7 @@ OP_CONVERTER(translate_tuple_index);
 OP_CONVERTER(translate_tuple_unpack);
 OP_CONVERTER(translate_unflatten);
 OP_CONVERTER(translate_unfold);
+OP_CONVERTER(translate_uniform_);
 OP_CONVERTER(translate_unique2);
 OP_CONVERTER(translate_upsample_bicubic2d);
 OP_CONVERTER(translate_upsample_bilinear2d);
@@ -793,6 +794,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         // aten::unbind - Supported in limited set of patterns
         {"aten::unflatten", op::translate_unflatten},
         {"aten::unfold", op::translate_unfold},
+        {"aten::uniform_", op::translate_uniform_},
         // aten::unsafe_chunk - Supported in limited set of patterns
         {"aten::unsqueeze", common_translators::translate_unsqueeze},
         {"aten::unsqueeze_copy", common_translators::translate_unsqueeze},
@@ -1161,6 +1163,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.triu.default", op::translate_triu},
         {"aten.unbind.int", op::translate_unbind_int_fx},
         {"aten.unfold.default", op::translate_unfold},
+        {"aten.uniform_.default", op::translate_uniform_},
         {"aten.unsqueeze.default", common_translators::translate_unsqueeze},
         {"aten.unsqueeze_copy.default", op::translate_1to1_match_2_inputs<opset10::Unsqueeze>},
         {"aten.upsample_bicubic2d.default", op::translate_upsample_bicubic2d},
