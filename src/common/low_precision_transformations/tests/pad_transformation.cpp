@@ -16,7 +16,6 @@
 #include "ov_lpt_models/common/dequantization_operations.hpp"
 #include "ov_lpt_models/pad.hpp"
 #include "openvino/op/pad.hpp"
-#include "openvino/op/util/pad_base.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -1090,44 +1089,13 @@ INSTANTIATE_TEST_SUITE_P(
     PadTransformation::getTestCaseName);
 } // namespace testCasesWithDynamicRank
 
-// CONSTANT mode with a non-finite (±inf, NaN) pad value: the transformation
-// must be skipped, leaving dequantization before Pad.
-namespace testCasesForNonFinitePadValue {
+// CONSTANT-mode Pad transforms representable values and skips non-representable values.
+namespace testCasesForPadValueRepresentability {
 const std::pair<std::vector<int64_t>, std::vector<int64_t>> padsByUniqueDimension = {
     {0, 0, 2, 0}, {0, 0, 1, 0}
 };
 
-const std::vector<PadTransformationTestValues> testValuesForNonFinitePadValue = {
-    {
-        LayerTransformation::createParamsU8I8(),
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {}, {3.f}}
-        },
-        {
-            ov::element::u8,
-            {{ov::element::f32}, {}, {3.f}},
-            ov::element::f32,
-            {{}, {}, {}}
-        }
-    },
-};
-
-INSTANTIATE_TEST_SUITE_P(
-    smoke_LPT,
-    PadTransformation,
-    ::testing::Combine(
-        ::testing::ValuesIn(inputShapes),
-        ::testing::Values(padsByUniqueDimension),
-        ::testing::Values(ov::op::PadMode::CONSTANT),
-        ::testing::Values(-std::numeric_limits<float>::infinity(),
-                          std::numeric_limits<float>::infinity(),
-                          std::numeric_limits<float>::quiet_NaN()),
-        ::testing::ValuesIn(testValuesForNonFinitePadValue)),
-    PadTransformation::getTestCaseName);
-} // namespace testCasesForNonFinitePadValue
-
-struct PadValuePrecisionTestValues {
+struct PadValuePrecisionLimits {
     ov::element::Type precision;
     float minimum;
     float maximum;
@@ -1135,85 +1103,80 @@ struct PadValuePrecisionTestValues {
     float outsideAbove;
 };
 
-bool padTransformationIsApplied(const ov::element::Type& precision, const float padValue) {
-    const auto params = TestTransformationParams(
-        true,
-        { precision },
-        { precision },
-        true,
-        ov::element::f32,
-        false,
-        { precision });
-    const ov::builder::subgraph::DequantizationOperations dequantization(
-        ov::builder::subgraph::DequantizationOperations::Convert(ov::element::f32),
-        {},
-        ov::builder::subgraph::DequantizationOperations::Multiply(3.f));
-    auto function = ov::builder::subgraph::PadFunction::get(
-        { 1, 3, 6, 6 },
-        precision,
-        dequantization,
-        { 0, 0, 2, 0 },
-        { 0, 0, 1, 0 },
-        ov::op::PadMode::CONSTANT,
-        padValue,
-        ov::element::f32,
-        {});
+const std::vector<PadValuePrecisionLimits> supportedIntegralPrecisions = {
+    { ov::element::i4, -8.f, 7.f, -9.f, 8.f },
+    { ov::element::u4, 0.f, 15.f, -1.f, 16.f },
+    { ov::element::i8, -128.f, 127.f, -129.f, 128.f },
+    { ov::element::u8, 0.f, 255.f, -1.f, 256.f },
+    { ov::element::i16, -32768.f, 32767.f, -32769.f, 32768.f },
+    { ov::element::u16, 0.f, 65535.f, -1.f, 65536.f },
+    { ov::element::i32, -2147483648.f, 2147483520.f, -2147483904.f, 2147483648.f },
+    { ov::element::u32, 0.f, 4294967040.f, -1.f, 4294967296.f }
+};
 
-    SimpleLowPrecisionTransformer transformer;
-    transformer.add<ov::pass::low_precision::PadTransformation, ov::op::v1::Pad>(params);
-    transformer.transform(function);
+PadTransformationTestValues makeTestValues(const ov::element::Type& precision,
+                                           const float padValue,
+                                           const bool shouldTransform) {
+    const TestTransformationParams params(
+        true, { precision }, { precision }, true, ov::element::f32, false, { precision });
+    const ov::builder::subgraph::DequantizationOperations dequantization{ {ov::element::f32}, {}, {3.f} };
 
-    for (const auto& node : function->get_ordered_ops()) {
-        const auto pad = ov::as_type_ptr<ov::op::util::PadBase>(node);
-        if (pad) {
-            return ov::pass::low_precision::NetworkHelper::getDequantization(pad, { precision }).empty();
-        }
+    // Keep the original graph when the Pad transformation is skipped.
+    if (!shouldTransform) {
+        return { params, { precision, dequantization }, { precision, dequantization, ov::element::f32, {} } };
     }
 
-    ADD_FAILURE() << "Pad node was not found";
-    return false;
+    // a non zero pad value makes the scalar multiply constant broadcasted and padded by the padded dimension
+    const ov::builder::subgraph::DequantizationOperations dequantizationAfter = padValue == 0.f
+        ? dequantization
+        : ov::builder::subgraph::DequantizationOperations{
+              {ov::element::f32},
+              {},
+              {{1.f, 1.f, 3.f, 3.f, 3.f, 3.f, 3.f, 3.f, 1.f}, ov::element::f32, {1, 1, 9, 1}}};
+
+    return { params, { precision, dequantization }, { precision, {}, precision, dequantizationAfter } };
 }
 
-class PadValueRepresentabilityTransformation
-    : public testing::TestWithParam<PadValuePrecisionTestValues> {};
+std::vector<PadTransformationParams> generateTestParams() {
+    std::vector<PadTransformationParams> result;
+    for (const auto& inputShape : inputShapes) {
+        for (const auto& limits : supportedIntegralPrecisions) {
+            const std::vector<std::pair<float, bool>> padValues = {
+                { limits.minimum, true },
+                { limits.maximum, true },
+                { limits.outsideBelow, false },
+                { limits.outsideAbove, false },
+                { -std::numeric_limits<float>::infinity(), false },
+                { std::numeric_limits<float>::infinity(), false },
+                { std::numeric_limits<float>::quiet_NaN(), false }
+            };
 
-TEST_P(PadValueRepresentabilityTransformation, AcceptsInsideAndRejectsOutsideValues) {
-    const auto& values = GetParam();
-
-    EXPECT_TRUE(padTransformationIsApplied(values.precision, values.minimum));
-    EXPECT_TRUE(padTransformationIsApplied(values.precision, values.maximum));
-    EXPECT_FALSE(padTransformationIsApplied(values.precision, values.outsideBelow));
-    EXPECT_FALSE(padTransformationIsApplied(values.precision, values.outsideAbove));
-}
-
-TEST_P(PadValueRepresentabilityTransformation, RejectsNonFiniteValues) {
-    const auto& precision = GetParam().precision;
-
-    EXPECT_FALSE(padTransformationIsApplied(precision, -std::numeric_limits<float>::infinity()));
-    EXPECT_FALSE(padTransformationIsApplied(precision, std::numeric_limits<float>::infinity()));
-    EXPECT_FALSE(padTransformationIsApplied(precision, std::numeric_limits<float>::quiet_NaN()));
+            for (const auto& padValue : padValues) {
+                result.emplace_back(inputShape,
+                                    padsByUniqueDimension,
+                                    ov::op::PadMode::CONSTANT,
+                                    padValue.first,
+                                    makeTestValues(limits.precision, padValue.first, padValue.second));
+            }
+        }
+    }
+    return result;
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    SupportedIntegralPrecisions,
-    PadValueRepresentabilityTransformation,
-    testing::Values(
-        PadValuePrecisionTestValues{ ov::element::i4, -8.f, 7.f, -9.f, 8.f },
-        PadValuePrecisionTestValues{ ov::element::u4, 0.f, 15.f, -1.f, 16.f },
-        PadValuePrecisionTestValues{ ov::element::i8, -128.f, 127.f, -129.f, 128.f },
-        PadValuePrecisionTestValues{ ov::element::u8, 0.f, 255.f, -1.f, 256.f },
-        PadValuePrecisionTestValues{ ov::element::i16, -32768.f, 32767.f, -32769.f, 32768.f },
-        PadValuePrecisionTestValues{ ov::element::u16, 0.f, 65535.f, -1.f, 65536.f },
-        PadValuePrecisionTestValues{ ov::element::i32, -2147483648.f, 2147483520.f, -2147483904.f, 2147483648.f },
-        PadValuePrecisionTestValues{ ov::element::u32, 0.f, 4294967040.f, -1.f, 4294967296.f }),
-    [](const testing::TestParamInfo<PadValuePrecisionTestValues>& info) {
-        return "Precision_" + info.param.precision.get_type_name();
-    });
+    smoke_LPT,
+    PadTransformation,
+    ::testing::ValuesIn(generateTestParams()),
+    PadTransformation::getTestCaseName);
+} // namespace testCasesForPadValueRepresentability
 
 
-TEST(PadValueRepresentability, RejectsPadValueOverflowingFloat) {
-    const auto precision = ov::element::u8;
-    const auto input = std::make_shared<ov::opset1::Parameter>(precision, ov::PartialShape{ 1, 3, 6, 6 });
+// These cases build the Pad graph with an f64 constant because PadTransformationParams stores
+// padValue as float; passing a value such as 1e300 through that fixture would overflow to infinity
+// when converted to float before the transformation can validate the value.
+namespace testCasesForF64PadValue {
+std::shared_ptr<ov::Model> buildModel(const double padValue) {
+    const auto input = std::make_shared<ov::opset1::Parameter>(ov::element::u8, ov::PartialShape{ 1, 3, 6, 6 });
     const auto convert = std::make_shared<ov::opset1::Convert>(input, ov::element::f64);
     const auto multiply = std::make_shared<ov::opset1::Multiply>(
         convert, ov::opset1::Constant::create(ov::element::f64, ov::Shape{}, std::vector<double>{ 3.0 }));
@@ -1221,19 +1184,41 @@ TEST(PadValueRepresentability, RejectsPadValueOverflowingFloat) {
         multiply,
         ov::opset1::Constant::create(ov::element::i64, ov::Shape{ 4 }, std::vector<int64_t>{ 0, 0, 2, 0 }),
         ov::opset1::Constant::create(ov::element::i64, ov::Shape{ 4 }, std::vector<int64_t>{ 0, 0, 1, 0 }),
-        ov::opset1::Constant::create(ov::element::f64, ov::Shape{}, std::vector<double>{ 1e300 }),
+        ov::opset1::Constant::create(ov::element::f64, ov::Shape{}, std::vector<double>{ padValue }),
         ov::op::PadMode::CONSTANT);
-    auto function = std::make_shared<ov::Model>(ov::ResultVector{ std::make_shared<ov::opset1::Result>(pad) },
-                                                ov::ParameterVector{ input });
+    pad->set_friendly_name("Pad");
+    return std::make_shared<ov::Model>(ov::ResultVector{ std::make_shared<ov::opset1::Result>(pad) },
+                                       ov::ParameterVector{ input });
+}
+
+void checkTransformationIsSkipped(const double padValue) {
+    auto actualFunction = buildModel(padValue);
+    const auto referenceFunction = buildModel(padValue);
 
     SimpleLowPrecisionTransformer transformer;
     transformer.add<ov::pass::low_precision::PadTransformation, ov::op::v1::Pad>(
-        TestTransformationParams(true, { precision }, { precision }, true, ov::element::f64, false, { precision }));
-    transformer.transform(function);
+        TestTransformationParams(true,
+                                 { ov::element::u8 },
+                                 { ov::element::u8 },
+                                 true,
+                                 ov::element::f64,
+                                 false,
+                                 { ov::element::u8 }));
+    transformer.transform(actualFunction);
+    actualFunction->validate_nodes_and_infer_types();
 
-    const auto padAfter = ov::as_type_ptr<ov::op::util::PadBase>(
-        function->get_results()[0]->get_input_node_shared_ptr(0));
-    ASSERT_NE(padAfter, nullptr);
-    EXPECT_FALSE(ov::pass::low_precision::NetworkHelper::getDequantization(padAfter, { precision }).empty());
+    const auto res = compare_functions(actualFunction, referenceFunction, true, true);
+    ASSERT_TRUE(res.first) << res.second;
 }
+
+TEST(PadValueRepresentability, RejectsPadValueOverflowingFloat) {
+    checkTransformationIsSkipped(1e300);
+}
+
+// counterpart of the case above: 1e30 survives the narrowing,
+// so the u8 range check does the rejection
+TEST(PadValueRepresentability, RejectsFinitePadValueOutOfDataPrecisionRange) {
+    checkTransformationIsSkipped(1e30);
+}
+} // namespace testCasesForF64PadValue
 } // namespace
