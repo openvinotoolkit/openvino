@@ -10,6 +10,8 @@ inputs.
 """
 
 import logging
+import os
+
 import numpy as np
 import torch
 
@@ -19,6 +21,36 @@ logger = logging.getLogger(__name__)
 # persist across torch-compile invocations. The underlying torch tensors live
 # for the whole generate call, so wrap once and reuse.
 _pa_kv_ovt_cache = {}
+
+# torch dtype -> the OV element type an ov.Tensor over that buffer must declare.
+_TORCH_TO_OV_TYPE = {}
+
+
+def _ov_tensor_over_torch(t, param_dt, _ov):
+    """Zero-copy ov.Tensor aliasing a torch tensor's buffer, or None.
+
+    Returns None whenever the buffer cannot be aliased as-is -- non-contiguous,
+    or a dtype the PA Parameter does not agree with -- so the caller can fall
+    back to allocating a private copy.
+
+    numpy has no bfloat16, so a bf16 buffer is reinterpreted as float16 (same
+    2-byte elements, zero-copy) and the ov.Tensor is told its real type via the
+    explicit-type constructor. Mirrors execute._torch_to_numpy.
+    """
+    if not _TORCH_TO_OV_TYPE:
+        _TORCH_TO_OV_TYPE.update({
+            torch.bfloat16: _ov.Type.bf16,
+            torch.float16: _ov.Type.f16,
+            torch.float32: _ov.Type.f32,
+            torch.int8: _ov.Type.i8,
+            torch.uint8: _ov.Type.u8,
+        })
+    if not t.is_contiguous() or _TORCH_TO_OV_TYPE.get(t.dtype) != param_dt:
+        return None
+    npv = t.view(torch.float16).numpy() if t.dtype == torch.bfloat16 else t.numpy()
+    return _ov.Tensor(npv, _ov.Shape(list(t.shape)), param_dt)
+
+
 _pa_sliding_window_cache = {}  # (id(compiled), layer_name) -> np.int32 array
 # (id(compiled), layer_name) -> {meta_layer_name, layer_obj, kv_cache_id}.
 # Architecture-static within a generate() call, so caching it skips the
@@ -311,10 +343,28 @@ def _bind_paged_attention_side_channel(compiled):
                     # view + chunk is what splits it correctly.
                     if kv_cache.ndim == 4:
                         _nb, _hk, _bs, _last = kv_cache.shape
-                        _view = kv_cache.view(_nb, _hk, _bs * 2, _last // 2)
-                        kc, vc = _view.chunk(2, dim=2)
-                        kc = kc.contiguous()
-                        vc = vc.contiguous()
+                        # Splitting the interleaved [.., bs, 2*hs] layout into
+                        # K and V needs a middle-dim slice, which is not
+                        # contiguous, so .contiguous() below duplicates the
+                        # whole pool. Avoid that: OV is the sole reader and
+                        # writer of this cache -- vLLM's own KV update is
+                        # suppressed (see plugin.py) and the buffers handed to
+                        # PA were previously freshly zeroed, so their prior
+                        # contents were never consumed. The halves therefore
+                        # only have to be correctly shaped and disjoint, which
+                        # two contiguous slices of vLLM's own pool satisfy
+                        # without copying anything.
+                        if (kv_cache.is_contiguous() and _last % 2 == 0
+                                and os.environ.get("OV_KV_SPLIT", "1") != "0"):
+                            _flat = kv_cache.view(-1)
+                            _half = _flat.numel() // 2
+                            kc = _flat[:_half].view(_nb, _hk, _bs, _last // 2)
+                            vc = _flat[_half:].view(_nb, _hk, _bs, _last // 2)
+                        else:
+                            _view = kv_cache.view(_nb, _hk, _bs * 2, _last // 2)
+                            kc, vc = _view.chunk(2, dim=2)
+                            kc = kc.contiguous()
+                            vc = vc.contiguous()
                     else:
                         kc, vc = kv_cache.unbind(0)
                     # OV-native Tensor matching the PA Parameter dtype; OV CPU
@@ -341,12 +391,42 @@ def _bind_paged_attention_side_channel(compiled):
                             break
                     if _param_dt is None:
                         _param_dt = _ov.Type.f32
-                    key_cache_ovt = _ov.Tensor(_param_dt, _param_shape)
-                    value_cache_ovt = _ov.Tensor(_param_dt, _param_shape)
-                    key_cache_np = key_cache_ovt.data
-                    value_cache_np = value_cache_ovt.data
-                    key_cache_np.fill(0)
-                    value_cache_np.fill(0)
+                    # Prefer aliasing vLLM's own buffer. PA writes back through
+                    # shared memory either way, and vLLM's KV update is
+                    # suppressed on this path (see plugin.py), so OV is the only
+                    # writer -- a private copy just doubles the KV cache. The
+                    # fill(0) below is what makes every page of that copy
+                    # resident at once, so it is also the largest single
+                    # allocation in the process at first prefill.
+                    key_cache_ovt = value_cache_ovt = None
+                    if (tuple(_param_shape) == tuple(_kv_shape)
+                            and os.environ.get("OV_KV_ALIAS", "1") != "0"):
+                        try:
+                            key_cache_ovt = _ov_tensor_over_torch(kc, _param_dt, _ov)
+                            value_cache_ovt = _ov_tensor_over_torch(vc, _param_dt, _ov)
+                            if key_cache_ovt is None or value_cache_ovt is None:
+                                key_cache_ovt = value_cache_ovt = None
+                        except Exception as _e:
+                            key_cache_ovt = value_cache_ovt = None
+                            logger.debug("[OV plugin] KV alias failed, copying: %s", _e)
+                    if key_cache_ovt is None:
+                        # Re-blocked shape, mismatched dtype, or a
+                        # non-contiguous split: fall back to a private buffer.
+                        key_cache_ovt = _ov.Tensor(_param_dt, _param_shape)
+                        value_cache_ovt = _ov.Tensor(_param_dt, _param_shape)
+                        key_cache_np = key_cache_ovt.data
+                        value_cache_np = value_cache_ovt.data
+                        key_cache_np.fill(0)
+                        value_cache_np.fill(0)
+                    else:
+                        # Aliased: vLLM already zeroed the pool, and PA only
+                        # reads blocks listed in the block table, which it
+                        # writes first. Do not fill -- that would fault in the
+                        # whole cache for nothing.
+                        key_cache_np = key_cache_ovt.data
+                        value_cache_np = value_cache_ovt.data
+                        logger.debug("[OV plugin] KV cache aliased for %s (%s)",
+                                     cache_key, _param_dt)
                     _pa_kv_ovt_cache[cache_key] = (
                         key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np)
             except Exception:
