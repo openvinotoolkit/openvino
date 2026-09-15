@@ -6,6 +6,7 @@
 #include "../common/utils.h"
 #include "../common/tests_utils.h"
 #include "../common/failure_log_collector.h"
+#include "../common/metrics_monitor.h"
 
 #include <gtest/gtest.h>
 #include <pugixml.hpp>
@@ -82,6 +83,26 @@ int main(int argc, char **argv) {
 
     if (collector.isEnabled()) {
         ::testing::UnitTest::GetInstance()->listeners().Append(new stress_tests::FailureLogTestListener());
+    }
+
+    auto &monitor = stress_tests::MetricsMonitor::Instance();
+    monitor.setEnabled(FLAGS_enable_metrics);
+    monitor.setSampleIntervalMs(FLAGS_metrics_interval_ms);
+    monitor.setConsoleLiveUpdates(FLAGS_metrics_live_updates);
+    if (!FLAGS_metrics_report_dir.empty()) {
+        monitor.setReportDir(FLAGS_metrics_report_dir);
+    }
+
+    pugi::xml_node metrics_dir_node = config.child("attributes").child("metrics_report_dir");
+    if (!metrics_dir_node) {
+        metrics_dir_node = config.child("attributes").child("report_dir");
+    }
+    if (metrics_dir_node && FLAGS_metrics_report_dir == "./test_results") {
+        monitor.setReportDir(metrics_dir_node.text().as_string());
+    }
+
+    if (monitor.isEnabled()) {
+        ::testing::UnitTest::GetInstance()->listeners().Append(new stress_tests::MetricsTestListener());
     }
 
     return RUN_ALL_TESTS();

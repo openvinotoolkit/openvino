@@ -156,7 +156,25 @@ $BIN_DIR/StressUnitTests \
     --gtest_list_tests
 ```
 
-### B. Run All Coordinated Single-Model Stress Tests
+### B. Recommended Execution Pattern (Combined XML + Console + Failure Logs)
+To ensure complete test accounting, CI integration, and debugging visibility, run with `--gtest_output=xml:...` while piping output through `tee`:
+
+```bash
+# Using direct command line:
+$BIN_DIR/StressUnitTests \
+    --test_conf=/path/to/test_config.xml \
+    --gtest_filter='StressUnitTests/UnitTestSuite.stress_load_unload/*' \
+    --gtest_output=xml:./test_output/test_results.xml \
+    --failure_logs_dir=./test_output/failure_logs 2>&1 | tee ./test_output/test_run.log
+
+# Or using the automated runner script:
+./scripts/run_stress_unittests.sh \
+    --test_conf /path/to/test_config.xml \
+    --gtest_filter 'StressUnitTests/UnitTestSuite.stress_load_unload/*' \
+    --output_dir ./test_output
+```
+
+### C. Run All Coordinated Single-Model Stress Tests
 ```bash
 # Run with default LATENCY performance hint
 $BIN_DIR/StressUnitTests \
@@ -170,7 +188,7 @@ $BIN_DIR/StressUnitTests \
     --gtest_filter='StressUnitTests/UnitTestSuite.stress_*'
 ```
 
-### C. Run Specific Single-Model Scenarios on NPU / CPU / GPU
+### D. Run Specific Single-Model Scenarios on NPU / CPU / GPU
 ```bash
 # Parallel inference on NPU with compilation config
 $BIN_DIR/StressUnitTests \
@@ -184,7 +202,7 @@ $BIN_DIR/StressUnitTests \
     --gtest_filter='StressUnitTests/UnitTestSuite.stress_concurrent_load_infer/*CPU*'
 ```
 
-### D. Run Multi-Model Heterogeneous Stress Scenarios (Approach B)
+### E. Run Multi-Model Heterogeneous Stress Scenarios (Approach B)
 
 #### 1. Thread-Level Concurrency (Heavy + Light Models in Parallel Threads):
 ```bash
@@ -200,7 +218,7 @@ $BIN_DIR/StressUnitTests \
     --gtest_filter='StressUnitTests/UnitTestSuiteMultiModel.stress_heterogeneous_concurrent_processes/*'
 ```
 
-### E. Standalone Child Execution (Without GoogleTest Harness)
+### F. Standalone Child Execution (Without GoogleTest Harness)
 Direct execution without XML parsing:
 
 ```bash
@@ -238,7 +256,44 @@ $BIN_DIR/StressUnitTests \
 
 ---
 
-## 4. Automated Failure Diagnostics & Log Collection
+## 4. Real-Time Hardware Metrics Monitoring & Execution Summary Reports
+
+`StressUnitTests` and `StressMemLeaksTests` include a dedicated background monitoring thread (`MetricsMonitor`) that runs concurrently during test execution to sample CPU and NPU hardware utilization, calculate active stress times, and produce summary reports.
+
+### Features:
+- **Live Status Heartbeat:** Streams live progress to the console every 2s (`[ METRICS ] Active: <test> | Elapsed: 4.2s | CPU: 12.3% | NPU: 78.4% | NPU Stressed: 3.8s`).
+- **NPU Stress Time & Duty Cycle:** Accurately calculates total active NPU hardware execution time (in seconds) and duty cycle percentage ($\frac{\text{NPU Stress Time}}{\text{Test Run Time}} \times 100\%$) via Intel VPU/accel telemetry counters (`npu_busy_time_us`).
+- **Summary Reports:** Automatically writes formatted ASCII summary reports (`stress_test_metrics_report.txt`) and structured machine-readable JSON reports (`stress_test_metrics_report.json`).
+
+### Report Format Example:
+```text
+========================================================================================================
+                           OpenVINO Stress Tests - Metrics & Execution Summary Report                   
+========================================================================================================
+Generated:          2026-09-15 10:04:00 UTC
+Report Directory:   ./test_results
+NPU Telemetry:      /sys/bus/pci/drivers/intel_vpu/0000:00:0b.0/npu_busy_time_us
+Total Tests:        8 (8 Passed, 0 Failed)
+Total Run Time:     245.30 s
+Total NPU Stress:   210.40 s (85.8% Active NPU Duty Cycle)
+========================================================================================================
+
+TEST CASE                                                   STATUS    RUN TIME (s)  CPU (AVG/PEAK)   NPU (AVG/PEAK)   NPU STRESS (s)  NPU DUTY %
+-------------------------------------------------------------------------------------------------------------------------------------------------
+StressUnitTests/UnitTestSuite.stress_parallel_infer/NP1...   PASSED    30.50         14.2/28.0%       85.4/98.2%       26.10           85.6%
+StressUnitTests/UnitTestSuite.stress_load_unload/NP1...      PASSED    310.18        88.5/99.0%       0.2/1.5%         0.62            0.2%
+-------------------------------------------------------------------------------------------------------------------------------------------------
+```
+
+### Configuration & CLI Options:
+- **`--enable_metrics=true|false`**: Enable/disable background metrics monitoring (default: `true`).
+- **`--metrics_interval_ms=500`**: Sampling frequency in milliseconds (default: `500`).
+- **`--metrics_report_dir=/path/to/dir`**: Directory where `stress_test_metrics_report.txt` and `.json` are written (default: `./test_results`).
+- **`--metrics_live_updates=true|false`**: Enable/disable real-time console progress heartbeats (default: `true`).
+
+---
+
+## 5. Automated Failure Diagnostics & Log Collection
 
 `StressUnitTests` and `StressMemLeaksTests` automatically monitor each test in the background and capture kernel `dmesg` logs, NPU firmware logs (`/sys/kernel/debug/accel/*/fw_log`), and test failure reports whenever any test fails.
 
@@ -255,7 +310,7 @@ When a test fails, the harness automatically writes the following files to `./te
 
 ---
 
-## 5. Workload Execution & Hardware Utilization Guide (NPU vs Host CPU)
+## 6. Workload Execution & Hardware Utilization Guide (NPU vs Host CPU)
 
 When executing tests on target accelerators such as the **NPU**, understanding where each test phase executes is critical for diagnosing hardware utilization and performance:
 

@@ -29,3 +29,8 @@ DEFINE_string(compilation_config_file, "", "Optional. Path to a compilation conf
 DEFINE_bool(collect_failure_logs, true, "Automatically capture dmesg and NPU fw_log on test failure");
 DEFINE_string(failure_logs_dir, "./test_failure_logs", "Directory to store failure debug logs");
 DEFINE_string(fw_log_path, "", "Path to NPU firmware log (auto-detected from /sys/kernel/debug/accel/*/fw_log if empty)");
+
+DEFINE_bool(enable_metrics, true, "Enable background CPU and NPU hardware utilization monitoring");
+DEFINE_int32(metrics_interval_ms, 500, "Metrics sampling interval in milliseconds");
+DEFINE_string(metrics_report_dir, "./test_results", "Directory to write metrics summary report (text & JSON)");
+DEFINE_bool(metrics_live_updates, true, "Print periodic live console metrics updates during test runs");
