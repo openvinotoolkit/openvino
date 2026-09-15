@@ -23,7 +23,7 @@ namespace zero_hashing {
 inline constexpr uint64_t kFnvOffsetBasis64 = 1469598103934665603ULL;
 inline constexpr uint64_t kHashCombineConstant64 = 0x9e3779b97f4a7c15ULL;
 
-inline uint64_t hash_combine64(uint64_t seed, uint64_t value) {
+inline uint64_t hashCombine64(uint64_t seed, uint64_t value) {
     return seed ^ (value + kHashCombineConstant64 + (seed << 6) + (seed >> 2));
 }
 }  // namespace zero_hashing
@@ -51,22 +51,23 @@ public:
         return _key;
     }
 
-    void set_priority(ze_command_queue_priority_t priority);
-    void set_workload(std::optional<ze_command_queue_workload_type_t> workload);
+    void setPriority(ze_command_queue_priority_t priority);
+    void setWorkload(std::optional<ze_command_queue_workload_type_t> workload);
 
     bool operator==(const CommandQueueDesc& other) const;
 
 private:
-    bool owner_tag_required() const;
-    void update_key();
+    bool ownerTagRequired() const;
+    void updatekey();
 
     uint32_t options() const {
         return _options;
     }
-    const void* owner_tag() const {
+    void setOptions(uint32_t options);
+    const void* ownerTag() const {
         return _owner_tag;
     }
-    bool shared_common_queue() const {
+    bool sharedCommonQueue() const {
         return _shared_common_queue;
     }
 
@@ -148,6 +149,7 @@ public:
     CommandQueue& operator=(const CommandQueue&) = delete;
     CommandQueue& operator=(CommandQueue&&) = delete;
 
+    void setPriority(ze_command_queue_priority_t priority) const;
     void setWorkloadType(ze_command_queue_workload_type_t workloadType) const;
     void executeCommandList(CommandList& command_list) const;
     void executeCommandList(CommandList& command_list, Fence& fence) const;

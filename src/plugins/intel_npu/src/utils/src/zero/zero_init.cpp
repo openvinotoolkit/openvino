@@ -27,6 +27,7 @@ constexpr uint32_t TARGET_ZE_PROFILING_NPU_EXT_VERSION = ZE_PROFILING_DATA_EXT_V
 constexpr uint32_t TARGET_ZE_CONTEXT_NPU_EXT_VERSION = ZE_CONTEXT_NPU_EXT_VERSION_1_0;
 constexpr uint32_t TARGET_ZE_MUTABLE_COMMAND_LIST_EXT_VERSION = ZE_MUTABLE_COMMAND_LIST_EXP_VERSION_1_1;
 constexpr uint32_t TARGET_ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION = ZE_EXTERNAL_MEMMAP_SYSMEM_EXT_VERSION_1_0;
+constexpr uint32_t TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION = ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION_1_0;
 
 constexpr ze_driver_uuid_t uuid = ze_intel_npu_driver_uuid;
 
@@ -413,6 +414,21 @@ ZeroInitStructsHolder::ZeroInitStructsHolder()
 
     if (external_memory_mapping_ext_version > 0) {
         _external_memory_standard_allocation_supported = true;
+    }
+
+    uint32_t command_queue_set_priority_ext_version = 0;
+    std::tie(command_queue_set_priority_ext_version, std::ignore) =
+        queryDriverExtensionVersion(ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_NAME,
+                                    TARGET_ZE_COMMAND_QUEUE_SET_PRIORITY_EXT_VERSION,
+                                    extProps,
+                                    count);
+
+    _log.debug("Command queue set priority extension version %d.%d",
+               ZE_MAJOR_VERSION(command_queue_set_priority_ext_version),
+               ZE_MINOR_VERSION(command_queue_set_priority_ext_version));
+
+    if (command_queue_set_priority_ext_version > 0) {
+        _command_queue_set_priority_supported = true;
     }
 
     _command_queue_group_ordinal =
