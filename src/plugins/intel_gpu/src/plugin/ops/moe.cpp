@@ -40,12 +40,12 @@ static bool prepare_moe_otd_params(ProgramBuilder& p,
     using input_idx = cldnn::moe_3gemm_fused_compressed::input_index;
     const auto& config = op->get_config();
     const auto& model = p.get_model();
-    const size_t otd_ratio = p.get_config().get_offload_ratio();
+    const int64_t otd_ratio = p.get_config().get_offload_ratio();
     // ratio=0  → all resident, no offload
     // ratio=100 → all on disk, cannot run → treat as disabled
     // otherwise → GPU-resident slots = num_expert * (100 - ratio) / 100
     if (otd_ratio > 0 && otd_ratio < 100) {
-        lru_expert_num = std::max<size_t>(1, static_cast<size_t>(config.num_expert) * (100 - otd_ratio) / 100);
+        lru_expert_num = std::max<size_t>(1, static_cast<size_t>(config.num_expert) * static_cast<size_t>(100 - otd_ratio) / 100);
     } else {
         lru_expert_num = 0;
     }
