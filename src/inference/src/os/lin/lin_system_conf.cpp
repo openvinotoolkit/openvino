@@ -303,7 +303,8 @@ CPU::CPU() {
         for (auto&& socket : sockets) {
             _cores += socket.second;
         }
-        if (_cores == 0) {
+        // a container's /proc/cpuinfo can list fewer processors than the host's "cpu cores"
+        if (_cores == 0 || _cores > _processors) {
             _cores = _processors;
         }
         if (_processors > 0 && _numa_nodes > 0 && _cores > 0) {
