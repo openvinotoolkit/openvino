@@ -503,6 +503,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
+    auto_s_context->m_dynamic_device_selection =
+        !is_cumulative && (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
+                           !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
+                           !auto_s_context->m_low_power_device.empty());
+    if (auto_s_context->m_dynamic_device_selection) {
+        LOG_INFO_TAG("[dynamic] per inference device selection enabled by the resource aware selection properties");
+        // the CPU accelerator assumes a fixed target device for the whole model lifetime
+        auto_s_context->m_startup_fallback = false;
+    }
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
     auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
     auto_s_context->m_model_path = model_path;
