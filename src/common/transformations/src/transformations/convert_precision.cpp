@@ -1135,7 +1135,7 @@ std::shared_ptr<ov::Node> change_constant_precision(std::shared_ptr<v0::Constant
     auto new_constant = std::make_shared<v0::Constant>(PREC_TO, constant->get_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
-    if (dst_data == nullptr)
+    if (size > 0 && dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
     for (size_t i = 0; i < size; ++i) {
@@ -1156,7 +1156,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f32, ov::el
     auto new_constant = std::make_shared<v0::Constant>(ov::element::Type_t::f16, constant->get_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
-    if (dst_data == nullptr)
+    if (size > 0 && dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
     ov::reference::convert_from_f32_to_f16_with_clamp(src_data, dst_data, size);
@@ -1176,7 +1176,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::bf16, ov::e
     auto new_constant = std::make_shared<v0::Constant>(ov::element::Type_t::f16, constant->get_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
-    if (dst_data == nullptr)
+    if (size > 0 && dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
     ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, size);
@@ -1196,7 +1196,7 @@ std::shared_ptr<Node> change_constant_precision<ov::element::Type_t::f16, ov::el
     auto new_constant = std::make_shared<v0::Constant>(ov::element::Type_t::f32, constant->get_shape());
     new_constant->output(0).set_names(constant->output(0).get_names());
     auto* dst_data = const_cast<dst_type*>(reinterpret_cast<const dst_type*>(new_constant->get_data_ptr()));
-    if (dst_data == nullptr)
+    if (size > 0 && dst_data == nullptr)
         OPENVINO_THROW("Can't get destination data pointer");
 
     ov::reference::convert<src_type, dst_type>(src_data, dst_data, size);
