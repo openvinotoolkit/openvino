@@ -47,6 +47,13 @@ void Context::to_f16(const PPtr& orig_param) {
     orig_param->validate_and_infer_types();
 }
 
+void Context::subtract_128(const PPtr& orig_param) {
+    closures_to_subtract_128.insert(orig_param);
+
+    orig_param->set_element_type(ov::element::i8);
+    orig_param->validate_and_infer_types();
+}
+
 void Context::register_parallel_matmul(const O& multiply, std::size_t axis, DQParMM&& mm) {
     par_dq_mms[std::make_pair(multiply, axis)].push_back(std::move(mm));
 }
@@ -1119,7 +1126,20 @@ DQLiftGatherAsymCW::DQLiftGatherAsymCW() {
 
         auto new_cvt_w = std::make_shared<ov::op::v0::Convert>(new_g_w, ov::element::f16);
         auto new_cvt_z = std::make_shared<ov::op::v0::Convert>(new_g_z, ov::element::f16);
-        auto new_sub = std::make_shared<ov::op::v1::Subtract>(new_cvt_w, new_cvt_z);
+        std::shared_ptr<ov::Node> dequantized_w = new_cvt_w;
+        std::shared_ptr<ov::Node> dequantized_z = new_cvt_z;
+        if (has_weight_shift && has_zeropoint_shift) {
+            auto shift = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{}, {128.0f});
+            auto shifted_w = std::make_shared<ov::op::v1::Subtract>(new_cvt_w, shift);
+            auto shifted_z = std::make_shared<ov::op::v1::Subtract>(new_cvt_z, shift);
+            ov::copy_runtime_info(node_to_output.at(qshiftw).get_node_shared_ptr(), shifted_w);
+            ov::copy_runtime_info(node_to_output.at(qshiftz).get_node_shared_ptr(), shifted_z);
+            shifted_w->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+            shifted_z->get_rt_info()[ov::npuw::NPUW_SUB128_SHIFT_RT_INFO] = true;
+            dequantized_w = shifted_w;
+            dequantized_z = shifted_z;
+        }
+        auto new_sub = std::make_shared<ov::op::v1::Subtract>(dequantized_w, dequantized_z);
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_sub, new_g_s);
         auto new_out = std::make_shared<ov::op::v0::Convert>(new_mul, ov::element::f32);
 
@@ -1443,53 +1463,22 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
-#if NPUW_VOCAB_SHARING_EXPERIMENTAL
-            auto get_sub128_parameter = [&](const std::shared_ptr<ov::op::v0::Parameter>& source) {
-                if (ctx.get().params_to_subtract_128.count(source) != 0) {
-                    return source;
-                }
-                for (const auto& [shifted, original] : ctx.get().params_to_subtract_128) {
-                    if (original == source) {
-                        return shifted;
-                    }
-                }
-                if (source->get_element_type() == ov::element::u8) {
-                    auto shifted = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, source->get_shape());
-                    shifted->set_friendly_name(source->get_friendly_name() + "_sub128");
-                    ctx.get().params_to_subtract_128.emplace(shifted, source);
-                    return shifted;
-                }
-                return source;
-            };
-
-            const auto gather_weight = get_sub128_parameter(matched_qweight);
-            const auto gather_zerop = get_sub128_parameter(matched_qzerop);
-            const bool weight_is_sub128 = gather_weight != matched_qweight;
-            const bool zerop_is_sub128 = gather_zerop != matched_qzerop;
-#else
-            const auto gather_weight = matched_qweight;
-            const auto gather_zerop = matched_qzerop;
-            const bool weight_is_sub128 = ctx.get().params_to_subtract_128.count(matched_qweight) != 0;
-            const bool zerop_is_sub128 = ctx.get().params_to_subtract_128.count(matched_qzerop) != 0;
-#endif
-            LOG_DEBUG("WEIGHT_BUFFER host_gather_sources weight=" << matched_qweight
-                                                                   << " selected=" << gather_weight
-                                                                   << " type=" << gather_weight->get_element_type()
-                                                                   << " zerop=" << matched_qzerop
-                                                                   << " selected=" << gather_zerop
-                                                                   << " type=" << gather_zerop->get_element_type()
-                                                                   << " scale=" << matched_qcoeff
-                                                                   << " type=" << matched_qcoeff->get_element_type()
-                                                                   << " sub128_entries=" << ctx.get().params_to_subtract_128.size());
+            const bool use_sub128 = has_weight_shift && has_zeropoint_shift;
+            const bool weight_is_sub128 = use_sub128 && matched_qweight->get_element_type() == ov::element::u8;
+            const bool zerop_is_sub128 = use_sub128 && matched_qzerop->get_element_type() == ov::element::u8;
             if (weight_is_sub128 != zerop_is_sub128) {
                 return false;
+            }
+            if (weight_is_sub128) {
+                ctx.get().subtract_128(matched_qweight);
+                ctx.get().subtract_128(matched_qzerop);
             }
 
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with future- unpacked and gathered
             // fp16
             auto new_wi = ctx.get().host_gather_unpack_quant(matched_ids,
-                                                             gather_weight,
-                                                             gather_zerop,
+                                                             matched_qweight,
+                                                             matched_qzerop,
                                                              matched_qcoeff,
                                                              ov::element::f16);
             matched_node_cvt->input(0).replace_source_output(new_wi);
@@ -1981,49 +1970,6 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
         return false;  // root has changed (yet)
     };
     register_matcher(std::make_shared<opp::Matcher>(res, "OptCompressDictMatMulf32"), std::move(callback));
-}
-
-ExtractVocabSub128::ExtractVocabSub128(Context::Ref ctx) {
-    const auto weight = opp::wrap_type<ov::op::v0::Parameter, ov::op::v0::Constant>(opp::type_matches(ov::element::u8));
-    const auto zerop = opp::wrap_type<ov::op::v0::Parameter, ov::op::v0::Constant>(opp::type_matches(ov::element::u8));
-    const auto weight_convert = opp::wrap_type<ov::op::v0::Convert>({weight});
-    const auto zerop_convert = opp::wrap_type<ov::op::v0::Convert>({zerop});
-    const auto shift_value = [](const ov::Output<ov::Node>& output) {
-        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
-        return constant && constant->get_shape().empty() && constant->cast_vector<float>().front() == 128.0f;
-    };
-    const auto weight_shift =
-        opp::wrap_type<ov::op::v1::Subtract>({weight_convert, opp::wrap_type<ov::op::v0::Constant>(shift_value)},
-                                             is_subtract_128);
-    const auto zerop_shift =
-        opp::wrap_type<ov::op::v1::Subtract>({zerop_convert, opp::wrap_type<ov::op::v0::Constant>(shift_value)},
-                                             is_subtract_128);
-    const auto dequantized = opp::wrap_type<ov::op::v1::Subtract>({weight_shift, zerop_shift});
-
-    auto callback = [=](opp::Matcher& matcher) {
-        const auto& values = matcher.get_pattern_value_map();
-        for (const auto& convert : {weight_convert, zerop_convert}) {
-            const auto type = values.at(convert).get_element_type();
-            if (type != ov::element::f16 && type != ov::element::f32) {
-                return false;
-            }
-        }
-        for (const auto& shift : {weight_shift, zerop_shift}) {
-            const auto matched_shift = values.at(shift).get_node_shared_ptr();
-            const auto convert = matched_shift->input_value(0).get_node_shared_ptr();
-            const auto source = convert->input_value(0).get_node_shared_ptr();
-            auto shifted =
-                std::make_shared<ov::op::v0::Parameter>(ov::element::i8, source->output(0).get_partial_shape());
-            shifted->set_friendly_name(source->get_friendly_name() + "_sub128");
-            ctx.get().params_to_subtract_128.emplace(shifted, source);
-            auto replacement = convert->clone_with_new_inputs({shifted});
-            replacement->set_friendly_name(matched_shift->get_friendly_name());
-            ov::copy_runtime_info(convert, replacement);
-            ov::replace_node(matched_shift, replacement);
-        }
-        return true;
-    };
-    register_matcher(std::make_shared<opp::Matcher>(dequantized, "ExtractVocabSub128"), std::move(callback));
 }
 
 //     Const(W) -> to(f16) ->

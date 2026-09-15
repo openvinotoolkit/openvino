@@ -884,14 +884,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
-#if NPUW_VOCAB_SHARING_EXPERIMENTAL
         ov::npuw::InsertVocabSub128 pass;
         if (!pass.run_on_model(kvcache_model)) {
             LOG_INFO("No asymmetric u8 vocab found - graph Sub128 insertion is skipped.");
         }
-#else
-        LOG_INFO("Asymmetric vocabulary sharing experiment is disabled at compile time.");
-#endif
     }
 
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));

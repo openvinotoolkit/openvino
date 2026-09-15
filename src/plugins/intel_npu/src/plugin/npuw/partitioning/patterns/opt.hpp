@@ -36,7 +36,8 @@ struct Context {
     std::set<PPtr> closures_to_f16;
     void to_f16(const PPtr& orig_param);
 
-    std::map<PPtr, NPtr> params_to_subtract_128;
+    std::set<PPtr> closures_to_subtract_128;
+    void subtract_128(const PPtr& orig_param);
 
     using O = ov::Output<ov::Node>;
     struct DQParMM {
@@ -71,7 +72,7 @@ struct Context {
     PPtr host_gather(const PPtr& w, const PPtr& ids);
 
     struct QuantizedGather {
-        // New param -> orig params
+        // New gathered-and-unpacked parameter -> quantized gather inputs.
         std::map<PPtr, DQUnpack> params_to_runtime_unpack_gather;
         PPtr pids;
     };
@@ -222,13 +223,6 @@ class CompressDictMatMulf32 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::CompressDictMatMulf32");
     CompressDictMatMulf32(Context::Ref ctx);
-};
-
-// Tail vocab transformations
-class ExtractVocabSub128 : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ExtractVocabSub128");
-    explicit ExtractVocabSub128(Context::Ref ctx);
 };
 
 class PreserveConstDictMatMulAsymm : public ov::pass::MatcherPass {

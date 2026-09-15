@@ -68,11 +68,10 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
         device_bank.storage[uid] = {tensor, ov::Tensor()};
         return uid;
     } else {
-    #if NPUW_VOCAB_SHARING_EXPERIMENTAL
-        // Keep duplicate lazy tensors evaluable while comparing shared weightless leaves.
-    #else
+        LOG_INFO("WEIGHT_BUFFER detach_duplicate_begin bank=" << this << " uid=" << iter_registered->second
+                                       << " hash=" << tensor.get_hash());
         const_cast<LazyTensor&>(tensor).detach();
-    #endif
+        LOG_INFO("WEIGHT_BUFFER detach_duplicate_done bank=" << this << " uid=" << iter_registered->second);
     }
 
     return iter_registered->second;
@@ -89,7 +88,13 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     NPUW_ASSERT(iter_device != device_bank.storage.end() && iter_device->second.tensor &&
                 "Tensor should be registered and allocated first!");
 
-    return iter_device->second.tensor;
+    const auto& tensor = iter_device->second.tensor;
+    LOG_INFO("WEIGHT_BUFFER bank_get bank=" << this << " uid=" << uid << " device=" << device_for_alloc
+                                             << " type=" << tensor.get_element_type() << " shape=" << tensor.get_shape()
+                                             << " bytes=" << tensor.get_byte_size() << " data=" << tensor.data()
+                                             << " remote=" << (device_for_alloc != "CPU"));
+
+    return tensor;
 }
 
 struct TensorToAllocate {
@@ -135,9 +140,17 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         device_bank.storage.at(uid).tensor = ov::Tensor(t.get_element_type(), t.get_shape());
         // Get ownership of the weights, might be a mmaped object during import
         t.copy_to(device_bank.storage.at(uid).tensor);
-    #if !NPUW_VOCAB_SHARING_EXPERIMENTAL
+        const auto& stored_tensor = device_bank.storage.at(uid).tensor;
+        LOG_INFO("WEIGHT_BUFFER bank_allocated bank=" << &device_bank << " uid=" << uid << " device=CPU"
+                                   << " type=" << stored_tensor.get_element_type()
+                                   << " shape=" << stored_tensor.get_shape()
+                                   << " bytes=" << stored_tensor.get_byte_size()
+                                   << " data=" << stored_tensor.data()
+                                   << " lazy_hash=" << lt.get_hash());
+        LOG_INFO("WEIGHT_BUFFER detach_cpu_begin bank=" << &device_bank << " uid=" << uid
+                                 << " hash=" << lt.get_hash());
         const_cast<LazyTensor&>(lt).detach();
-    #endif
+        LOG_INFO("WEIGHT_BUFFER detach_cpu_done bank=" << &device_bank << " uid=" << uid);
     });
 }
 
@@ -186,13 +199,22 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         auto transformed = stored_tensor.lt.eval();
         transformed.copy_to(allocated.allocated_tensor);
         stored_tensor.tensor = std::move(allocated.allocated_tensor);
+        const auto& stored_tensor_value = stored_tensor.tensor;
+        LOG_INFO("WEIGHT_BUFFER bank_allocated bank=" << &device_bank << " uid=" << allocated.uid
+                                   << " device=" << device
+                                   << " type=" << stored_tensor_value.get_element_type()
+                                   << " shape=" << stored_tensor_value.get_shape()
+                                   << " bytes=" << stored_tensor_value.get_byte_size()
+                                   << " data=" << stored_tensor_value.data()
+                                   << " lazy_hash=" << stored_tensor.lt.get_hash());
 
         // Detach the evaluated LazyTensor from its memory here - when it is 100%
         // not needed anymore (transformations, if any, and copies are done)
         // Note: this is the non-CPU path!
-    #if !NPUW_VOCAB_SHARING_EXPERIMENTAL
+        LOG_INFO("WEIGHT_BUFFER detach_npu_begin bank=" << &device_bank << " uid=" << allocated.uid
+                                 << " hash=" << stored_tensor.lt.get_hash());
         const_cast<LazyTensor&>(stored_tensor.lt).detach();
-    #endif
+        LOG_INFO("WEIGHT_BUFFER detach_npu_done bank=" << &device_bank << " uid=" << allocated.uid);
     });
 }
 

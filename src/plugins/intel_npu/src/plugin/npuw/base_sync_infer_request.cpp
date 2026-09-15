@@ -354,6 +354,18 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     for (std::size_t cidx = 0u; cidx < desc_closure.size(); cidx++) {
         auto& closure = desc_closure[cidx];
         const auto closure_param_id = comp_model_desc.param_base + cidx;
+        LOG_INFO("WEIGHT_BUFFER closure_bind_slot request=" << this << " subgraph=" << idx << " closure=" << cidx
+                                                             << " closure_initialized=" << static_cast<bool>(closure)
+                                                             << " lazy_initialized="
+                                                             << static_cast<bool>(comp_model_desc.lazy_closure[cidx])
+                                                             << " uid=" << comp_model_desc.closure.get().closure_uid[cidx]
+                                                             << " is_gather=" << m_npuw_model->is_gather_closure(idx, cidx)
+                                                             << " host_gather_dst=" << func_desc.host_gather.dst_idx
+                                                                 << " host_gather_src=" << func_desc.host_gather.src_idx
+                                                                 << " quant_gather_dst=" << func_desc.quant_unpack_gather.dst_idx
+                                                                 << " quant_gather_src_w=" << func_desc.quant_unpack_gather.src_w_idx
+                                                                 << " quant_gather_src_z=" << func_desc.quant_unpack_gather.src_z_idx
+                                                                 << " quant_gather_src_s=" << func_desc.quant_unpack_gather.src_s_idx);
 
         if (m_npuw_model->is_gather_closure(idx, cidx)) {
             // No need to set/copy the host_gather's closure tensor int
@@ -373,9 +385,7 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
             LOG_DEBUG("WEIGHT_BUFFER closure request=" << this << " subgraph=" << idx << " closure=" << cidx
                                     << " port=" << iport << " initialized=0"
                                     << " lazy_initialized=" << static_cast<bool>(comp_model_desc.lazy_closure[cidx]));
-#if NPUW_VOCAB_SHARING_EXPERIMENTAL
             continue;
-#endif
         }
         if (m_npuw_model->unpack_required(idx, cidx)) {
             // Remember where the unpack is required
@@ -645,13 +655,25 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
         const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
         const auto& lookup = request->get_tensor(lport);
 
-        const auto& gport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.dst_idx];
+            const auto src_w_idx = static_cast<std::size_t>(quant_unpack_gather.src_w_idx);
+            const auto& gport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.dst_idx];
         const auto& gather = request->get_tensor(gport);
 
-        const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
-        const auto& vocabw = request->get_tensor(wport);
+            const auto& wport = comp_model_desc.compiled_model->inputs()[src_w_idx];
+            const auto& vocabw = request->get_tensor(wport);
+            const auto closure_index = src_w_idx >= comp_model_desc.param_base
+                               ? src_w_idx - comp_model_desc.param_base
+                               : std::numeric_limits<std::size_t>::max();
+        const auto closure_uid = closure_index < comp_model_desc.closure.get().closure_uid.size()
+                             ? comp_model_desc.closure.get().closure_uid[closure_index]
+                             : -1;
 
         // Gather weight
+        LOG_INFO("WEIGHT_BUFFER quant_host_gather_source request=" << this << " subgraph=" << idx
+                                         << " src_w_idx=" << src_w_idx
+                                         << " param_base=" << comp_model_desc.param_base
+                                         << " closure=" << closure_index
+                                         << " uid=" << closure_uid);
         if (vocabw) {
             LOG_DEBUG("WEIGHT_BUFFER quant_host_gather request=" << this << " subgraph=" << idx << " port=" << wport
                                           << " type=" << vocabw->get_element_type()

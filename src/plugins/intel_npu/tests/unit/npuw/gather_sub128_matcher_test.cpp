@@ -218,27 +218,6 @@ bool contains_node(const std::shared_ptr<ov::Model>& model, const std::string& n
     });
 }
 
-std::map<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Constant>>
-parameterize_vocab(const std::shared_ptr<ov::Model>& model) {
-    std::map<std::shared_ptr<ov::op::v0::Parameter>, std::shared_ptr<ov::op::v0::Constant>> sources;
-    for (const auto& node : model->get_ordered_ops()) {
-        const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
-        if (constant && constant->get_element_type() == ov::element::u8) {
-            auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, constant->get_shape());
-            ov::replace_node(constant, parameter);
-            model->add_parameters({parameter});
-            sources.emplace(parameter, constant);
-        }
-    }
-    return sources;
-}
-
-bool run_extract(const std::shared_ptr<ov::Model>& model, ov::npuw::patterns::opt::Context& context) {
-    ov::pass::GraphRewrite rewrite;
-    rewrite.add_matcher<ov::npuw::patterns::opt::ExtractVocabSub128>(std::ref(context));
-    return rewrite.run_on_model(model);
-}
-
 }  // namespace
 
 TEST(DQLiftGatherAsymCWTest, LiftsPairedSub128Shifts) {
@@ -270,42 +249,33 @@ TEST(HostGatherQuantAsymmTest, AcceptsPairedSub128Shifts) {
     ASSERT_EQ(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.size(), 1);
 }
 
-TEST(HostGatherQuantAsymmTest, AcceptsExtractedI8Parameters) {
+TEST(HostGatherQuantAsymmTest, MarksPairedSub128Sources) {
     ov::npuw::patterns::opt::Context context;
-    const auto model = make_parameter_gather_model(std::nullopt,
-                                                   std::nullopt,
-                                                   ov::element::i8,
-                                                   ov::element::i8);
-    const auto& parameters = model->get_parameters();
-    context.params_to_subtract_128.emplace(std::static_pointer_cast<ov::op::v0::Parameter>(parameters[1]),
-                                           std::static_pointer_cast<ov::op::v0::Parameter>(parameters[1]));
-    context.params_to_subtract_128.emplace(std::static_pointer_cast<ov::op::v0::Parameter>(parameters[2]),
-                                           std::static_pointer_cast<ov::op::v0::Parameter>(parameters[2]));
-
-    EXPECT_TRUE(run_host_gather(model, context));
-    ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
-    ASSERT_EQ(context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.size(), 1);
-}
-
-TEST(HostGatherQuantAsymmTest, UsesPairedShiftedParametersWhenRawParametersMatch) {
-    ov::npuw::patterns::opt::Context context;
-    const auto model = make_parameter_gather_model(std::nullopt,
-                                                   std::nullopt,
-                                                   ov::element::u8,
-                                                   ov::element::u8);
-    const auto& parameters = model->get_parameters();
-    const auto shifted_weight = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, parameters[1]->get_shape());
-    const auto shifted_zerop = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, parameters[2]->get_shape());
-    context.params_to_subtract_128.emplace(shifted_weight,
-                                           std::static_pointer_cast<ov::op::v0::Parameter>(parameters[1]));
-    context.params_to_subtract_128.emplace(shifted_zerop,
-                                           std::static_pointer_cast<ov::op::v0::Parameter>(parameters[2]));
+    const auto model = make_parameter_gather_model(128.0f);
 
     EXPECT_TRUE(run_host_gather(model, context));
     ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
     const auto& gather = context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.begin()->second;
     ASSERT_EQ(gather.w->get_element_type(), ov::element::i8);
     ASSERT_EQ(gather.z->get_element_type(), ov::element::i8);
+    ASSERT_EQ(context.closures_to_subtract_128.size(), 2);
+    EXPECT_EQ(context.closures_to_subtract_128.count(model->get_parameters().at(1)), 1u);
+    EXPECT_EQ(context.closures_to_subtract_128.count(model->get_parameters().at(2)), 1u);
+}
+
+TEST(HostGatherQuantAsymmTest, KeepsRawSourcesWithoutMarkedPattern) {
+    ov::npuw::patterns::opt::Context context;
+    const auto model = make_parameter_gather_model(std::nullopt,
+                                                   std::nullopt,
+                                                   ov::element::u8,
+                                                   ov::element::u8);
+
+    EXPECT_TRUE(run_host_gather(model, context));
+    ASSERT_TRUE(context.params_to_quant_gather_unpack.has_value());
+    const auto& gather = context.params_to_quant_gather_unpack->params_to_runtime_unpack_gather.begin()->second;
+    ASSERT_EQ(gather.w->get_element_type(), ov::element::u8);
+    ASSERT_EQ(gather.z->get_element_type(), ov::element::u8);
+    EXPECT_TRUE(context.closures_to_subtract_128.empty());
 }
 
 TEST(HostGatherQuantAsymmTest, RejectsNon128Subtractions) {
@@ -360,99 +330,6 @@ TEST_P(InsertVocabSub128PrePostProcessingTest, PreservesVocabularyConverts) {
     EXPECT_TRUE(contains_node(model, "vocab_zero_point_convert"));
 }
 
-TEST_P(InsertVocabSub128PrePostProcessingTest, ExtractsShiftsIntoLazyI8Inputs) {
-    const auto [pretransposed_layout, convert_before_matmul] = GetParam();
-    const auto model = pretransposed_layout ? make_pretransposed_vocab_matmul_model(convert_before_matmul) :
-                                             make_vocab_matmul_model(convert_before_matmul);
-    ASSERT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
-    ov::Tensor hidden(ov::element::f32, ov::Shape{1, 2});
-    hidden.data<float>()[0] = 1.0f;
-    hidden.data<float>()[1] = 2.0f;
-    ov::TensorVector expected{ov::Tensor(ov::element::f32, ov::Shape{1, 4})};
-    ASSERT_TRUE(model->evaluate(expected, {hidden}));
-
-    const auto sources = parameterize_vocab(model);
-    ov::npuw::patterns::opt::Context context;
-    ASSERT_TRUE(run_extract(model, context));
-    ASSERT_EQ(context.params_to_subtract_128.size(), 2u);
-    EXPECT_EQ(count_subtracts(model), 1u);
-    EXPECT_EQ(count_sub128_shifts(model), 0u);
-
-    ov::TensorVector inputs{hidden};
-    for (std::size_t index = 1; index < model->get_parameters().size(); ++index) {
-        inputs.push_back(ov::npuw::weights::LazyTensor(sources.at(model->get_parameters()[index])).eval());
-    }
-    for (const auto& entry : context.params_to_subtract_128) {
-        EXPECT_EQ(entry.first->get_element_type(), ov::element::i8);
-        EXPECT_EQ(entry.second->get_element_type(), ov::element::u8);
-        model->add_parameters({entry.first});
-        const auto source = ov::as_type_ptr<ov::op::v0::Parameter>(entry.second);
-        inputs.push_back(ov::npuw::weights::LazyTensor(sources.at(source)).subtract_128().eval());
-    }
-    model->validate_nodes_and_infer_types();
-    ov::TensorVector actual{ov::Tensor(ov::element::f32, ov::Shape{1, 4})};
-    ASSERT_TRUE(model->evaluate(actual, inputs));
-    for (std::size_t index = 0; index < expected.front().get_size(); ++index) {
-        EXPECT_FLOAT_EQ(expected.front().data<float>()[index], actual.front().data<float>()[index]);
-    }
-    EXPECT_FALSE(run_extract(model, context));
-}
-
-TEST_P(InsertVocabSub128PrePostProcessingTest, PartitioningCreatesWeightlessI8Closures) {
-    const auto [pretransposed_layout, convert_before_matmul] = GetParam();
-    constexpr std::size_t vocab_size = 32;
-    const auto model = pretransposed_layout ? make_pretransposed_vocab_matmul_model(convert_before_matmul, vocab_size) :
-                                             make_vocab_matmul_model(convert_before_matmul, std::nullopt, vocab_size);
-    ASSERT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
-    auto options = std::make_shared<::intel_npu::OptionsDesc>();
-    ::intel_npu::registerNPUWOptions(*options);
-    ::intel_npu::Config config(options);
-    config.update({{"NPUW_ONLINE_PIPELINE", "NONE"}, {"NPUW_FUNCALL_FOR_ALL", "YES"},
-                   {"NPUW_FOLD", "YES"}, {"NPUW_DQ", "NO"}, {"NPUW_HOST_GATHER", "NO"}});
-    ov::npuw::PartitioningContext context;
-    context.use_host_gather_quant = true;
-    const auto partitioning = ov::npuw::getPartitioning(model, config, context);
-    ASSERT_EQ(partitioning.functions.size(), 1u);
-    const auto& function = partitioning.functions.begin()->second;
-    EXPECT_EQ(count_subtracts(function._model), 1u);
-    EXPECT_EQ(count_sub128_shifts(function._model), 0u);
-    ASSERT_EQ(function._param_offset, 1u);
-    ASSERT_EQ(function._model->get_parameters().size(), 4u);
-    std::size_t checked_calls = 0;
-    for (const auto& subgraph : partitioning.subgraphs) {
-        if (subgraph._funcall.empty()) {
-            continue;
-        }
-        ++checked_calls;
-        ASSERT_EQ(subgraph._lazy_closure.size(), 3u);
-        ASSERT_EQ(subgraph._closure.size(), 3u);
-        ASSERT_EQ(subgraph._is_lazy_unpack.size(), 3u);
-        ov::Tensor hidden(ov::element::f32, ov::Shape{1, 2});
-        hidden.data<float>()[0] = 1.0f;
-        hidden.data<float>()[1] = 2.0f;
-        ov::TensorVector inputs{hidden};
-        std::size_t shifted_count = 0;
-        for (std::size_t index = 0; index < subgraph._lazy_closure.size(); ++index) {
-            const auto& lazy = subgraph._lazy_closure[index];
-            const auto& parameter = function._model->get_parameters()[index + function._param_offset];
-            EXPECT_EQ(lazy.eval_meta().type, parameter->get_element_type());
-            EXPECT_EQ(lazy.eval_meta().shape, parameter->get_shape());
-            const auto transforms = lazy.get_transformations();
-            if (std::holds_alternative<ov::npuw::weights::op::Subtract128>(transforms.front())) {
-                ++shifted_count;
-            }
-            inputs.push_back(lazy.eval());
-        }
-        EXPECT_EQ(shifted_count, 2u);
-        ov::TensorVector outputs{ov::Tensor(ov::element::f32, ov::Shape{1, vocab_size})};
-        ASSERT_TRUE(function._model->evaluate(outputs, inputs));
-        for (std::size_t index = 0; index < vocab_size; ++index) {
-            EXPECT_FLOAT_EQ(outputs.front().data<float>()[index], 216.0f);
-        }
-    }
-    EXPECT_EQ(checked_calls, 1u);
-}
-
 INSTANTIATE_TEST_SUITE_P(
     LayoutAndConversion,
     InsertVocabSub128PrePostProcessingTest,
@@ -502,71 +379,6 @@ TEST(InsertVocabSub128LmHeadTerminalTest, SkipsManuallyAddedOutput) {
     EXPECT_FALSE(ov::npuw::InsertVocabSub128().run_on_model(model));
     EXPECT_EQ(count_subtracts(model), 1u);
     EXPECT_EQ(count_sub128_shifts(model), 0u);
-}
-
-TEST(ExtractVocabSub128Test, RejectsUnmarked128Subtractions) {
-    const auto model = make_vocab_matmul_model(false);
-    ASSERT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
-    const auto sources = parameterize_vocab(model);
-    ASSERT_EQ(sources.size(), 2u);
-    clear_sub128_shift_markers(model);
-    ov::npuw::patterns::opt::Context context;
-    EXPECT_FALSE(run_extract(model, context));
-    EXPECT_TRUE(context.params_to_subtract_128.empty());
-    EXPECT_EQ(count_subtracts(model), 3u);
-}
-
-TEST(ExtractVocabSub128Test, RejectsSingleMarkedShift) {
-    const auto model = make_vocab_matmul_model(false);
-    ASSERT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
-    const auto sources = parameterize_vocab(model);
-    ASSERT_EQ(sources.size(), 2u);
-    for (const auto& node : model->get_ordered_ops()) {
-        if (node->get_rt_info().erase(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO)) {
-            break;
-        }
-    }
-    ov::npuw::patterns::opt::Context context;
-    EXPECT_FALSE(run_extract(model, context));
-    EXPECT_TRUE(context.params_to_subtract_128.empty());
-    EXPECT_EQ(count_subtracts(model), 3u);
-}
-
-TEST(ExtractVocabSub128Test, RejectsMarkedNon128Shift) {
-    const auto model = make_vocab_matmul_model(false);
-    ASSERT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
-    const auto sources = parameterize_vocab(model);
-    ASSERT_EQ(sources.size(), 2u);
-    for (const auto& node : model->get_ordered_ops()) {
-        if (node->get_rt_info().count(ov::npuw::NPUW_SUB128_SHIFT_RT_INFO)) {
-            node->input(1).replace_source_output(ov::opset10::Constant::create(ov::element::f32, ov::Shape{}, {127}));
-        }
-    }
-    ov::npuw::patterns::opt::Context context;
-    EXPECT_FALSE(run_extract(model, context));
-    EXPECT_TRUE(context.params_to_subtract_128.empty());
-    EXPECT_EQ(count_subtracts(model), 3u);
-}
-
-TEST(ExtractVocabSub128Test, PreservesSharedUnshiftedConvert) {
-    const auto model = make_vocab_matmul_model(false);
-    ASSERT_TRUE(ov::npuw::InsertVocabSub128().run_on_model(model));
-    const auto sources = parameterize_vocab(model);
-    ASSERT_EQ(sources.size(), 2u);
-    const auto nodes = model->get_ordered_ops();
-    const auto convert = std::find_if(nodes.begin(), nodes.end(), [](const auto& node) {
-        return node->get_friendly_name() == "vocab_weight_convert";
-    });
-    ASSERT_NE(convert, nodes.end());
-    const auto unshifted = std::make_shared<ov::opset10::Result>(*convert);
-    model->add_results({unshifted});
-    const auto source = (*convert)->input_value(0);
-    ov::npuw::patterns::opt::Context context;
-    ASSERT_TRUE(run_extract(model, context));
-    EXPECT_EQ(unshifted->input_value(0).get_node_shared_ptr(), *convert);
-    EXPECT_EQ((*convert)->input_value(0), source);
-    EXPECT_EQ(source.get_element_type(), ov::element::u8);
-    EXPECT_EQ(context.params_to_subtract_128.size(), 2u);
 }
 
 TEST(LazySubtract128Test, CoversEveryU8ValueWithoutChangingSource) {

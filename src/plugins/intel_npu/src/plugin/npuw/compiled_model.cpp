@@ -1655,7 +1655,7 @@ void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
-    LOG_INFO("Finalizing weights bank2...");
+    LOG_INFO("Finalizing weights bank...");
     auto finalize_weights = [&]() {
         // Register lazy tensors
         for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
@@ -1669,6 +1669,14 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
+                LOG_INFO("WEIGHT_BUFFER closure_register_slot model=" << this << " subgraph=" << idx
+                                                                        << " closure=" << tidx
+                                                                        << " closure_initialized="
+                                                                        << static_cast<bool>(comp_model_desc.closure.unsafe_get().closure[tidx])
+                                                                        << " lazy_initialized="
+                                                                        << static_cast<bool>(comp_model_desc.lazy_closure[tidx])
+                                                                        << " uid_before="
+                                                                        << comp_model_desc.closure.unsafe_get().closure_uid[tidx]);
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
                     continue;  // host-side closure
                 }
@@ -1689,6 +1697,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                                                            << " device=" << submodel_device(real_idx)
                                                            << " lazy_hash=" << comp_model_desc.lazy_closure[tidx].get_hash());
             }
+
         }
 
         // Evaluate and allocate all LazyTensors inside the bank
@@ -1707,11 +1716,25 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
             auto& desc_closure = comp_model_desc.closure.unsafe_get();
+            const auto registration_device = submodel_device(real_idx);
             LOG_DEBUG("WEIGHT_BUFFER finalize_model_begin model=" << this << " subgraph=" << idx
                                                                    << " function=" << real_idx
                                                                    << " closures=" << desc_closure.closure.size());
 
             for (std::size_t tidx = 0; tidx < desc_closure.closure.size(); ++tidx) {
+                LOG_INFO("WEIGHT_BUFFER closure_finalize_slot model=" << this << " subgraph=" << idx
+                                                                        << " closure=" << tidx
+                                                                        << " closure_initialized="
+                                                                        << static_cast<bool>(desc_closure.closure[tidx])
+                                                                        << " lazy_initialized="
+                                                                        << static_cast<bool>(comp_model_desc.lazy_closure[tidx])
+                                                                        << " uid=" << desc_closure.closure_uid[tidx]
+                                                                        << " host_gather_dst=" << comp_model_desc.host_gather.dst_idx
+                                                                        << " host_gather_src=" << comp_model_desc.host_gather.src_idx
+                                                                        << " quant_gather_dst=" << comp_model_desc.quant_unpack_gather.dst_idx
+                                                                        << " quant_gather_src_w=" << comp_model_desc.quant_unpack_gather.src_w_idx
+                                                                        << " quant_gather_src_z=" << comp_model_desc.quant_unpack_gather.src_z_idx
+                                                                        << " quant_gather_src_s=" << comp_model_desc.quant_unpack_gather.src_s_idx);
                 if (desc_closure.closure[tidx]) {
                     // host-side closure - already set, do nothing
                     desc_closure.is_remote[tidx] = false;
@@ -1749,12 +1772,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         LOG_DEBUG("WEIGHT_BUFFER import_context_reset_done model=" << this);
     };
 
-#if NPUW_VOCAB_SHARING_EXPERIMENTAL
-    finalize_weights();
-    std::shared_future<void> weights_bank_evaluation = std::async(std::launch::deferred, []() {});
-#else
     std::shared_future<void> weights_bank_evaluation = std::async(std::launch::async, finalize_weights);
-#endif
 
     m_eval_future = weights_bank_evaluation;
 
@@ -2579,13 +2597,11 @@ bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx, const std::
     const auto closure_param_id = comp_model_desc.param_base + cidx;
 
     auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-#if NPUW_VOCAB_SHARING_EXPERIMENTAL
     if (!closure) {
         LOG_DEBUG("WEIGHT_BUFFER unpack_required subgraph=" << idx << " closure=" << cidx
                                                               << " port=" << iport << " initialized=0");
         return false;
     }
-#endif
     return (closure.get_element_type() != iport.get_element_type());
 }
 
