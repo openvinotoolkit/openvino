@@ -44,26 +44,50 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const int total_partition_num = (kv_partition_num * HEADS_NUM);
 
     // Logsumexp across partitions for this (token_row, head).
+    //
+    // The lse slice for one (token_row, head) is contiguous, so it is pulled in 16-wide block
+    // reads rather than one scalar load per partition per sweep. Bit-exact: the running max is
+    // folded in the original element order and max is associative anyway, and the denominator
+    // is accumulated in the original order too.
+    //
+    // Worth knowing what this is *not*: it is worth ~3 %. The scalar form looks like the
+    // expensive part (three sweeps, two exps and a divide per partition) but the lse slice is a
+    // few hundred bytes per thread and stays cached. The reduce is bandwidth-bound on the
+    // *partial* buffer -- 16.0 MB in 0.181 ms at partition 256 is 89 GB/s -- so the levers that
+    // move it are the ones that move bytes: KV_PARTITION_SIZE (256 -> 640 cuts partials 2.5x)
+    // and REDUCE_SPLIT_SIZE.
     float total_lse = 0.0;
     uint lse_offset = token_row * total_partition_num + head * kv_partition_num;
     constexpr float log2e = 1.4426950408889634f;
     float* lse_vec = lse + lse_offset;
+
+    constexpr int LSE_BLK = 16;
+    const int lse_nblk = kv_partition_num / LSE_BLK;
+    const int lse_tail = lse_nblk * LSE_BLK;
+
+    vector<float, LSE_BLK> lv;
     float lse_max = lse_vec[0];
-    for (int k = 1; k < kv_partition_num; k++) {
+    for (int b = 0; b < lse_nblk; b++) {
+        cm_svm_block_read<float, LSE_BLK>((svmptr_t)(lse_vec + b * LSE_BLK), lv);
+        #pragma unroll
+        for (int i = 0; i < LSE_BLK; i++) {
+            lse_max = cm_max<float>(lv[i], lse_max);
+        }
+    }
+    for (int k = lse_tail; k < kv_partition_num; k++) {
         lse_max = cm_max<float>(lse_vec[k], lse_max);
     }
 
-    int iter = kv_partition_num / 16;
-    for (int k = 0; k < iter * 16; k += 16) {
+    for (int b = 0; b < lse_nblk; b++) {
+        cm_svm_block_read<float, LSE_BLK>((svmptr_t)(lse_vec + b * LSE_BLK), lv);
+        vector<float, LSE_BLK> w = cm_exp((lv - lse_max) * log2e);
         #pragma unroll
-        for (int ki = k; ki < k + 16; ki++) {
-            float lse_value = cm_exp<float>((lse_vec[ki] - lse_max) * log2e);
-            total_lse += lse_value;
+        for (int i = 0; i < LSE_BLK; i++) {
+            total_lse += w[i];
         }
     }
-    for (int k = iter * 16; k < kv_partition_num; k++) {
-        float lse_value = cm_exp<float>((lse_vec[k] - lse_max) * log2e);
-        total_lse += lse_value;
+    for (int k = lse_tail; k < kv_partition_num; k++) {
+        total_lse += cm_exp<float>((lse_vec[k] - lse_max) * log2e);
     }
 
     matrix<half, 1, REDUCE_SPLIT_SIZE> out_mat = 0;
@@ -73,20 +97,21 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
                       + head * kv_partition_num * HEAD_SIZE
                       + offset;
 
-    for (int k = 0; k < iter * 16; k += 16) {
+    for (int b = 0; b < lse_nblk; b++) {
+        cm_svm_block_read<float, LSE_BLK>((svmptr_t)(lse_vec + b * LSE_BLK), lv);
+        vector<float, LSE_BLK> w = cm_exp((lv - lse_max) * log2e);
         #pragma unroll
-        for (int ki = k; ki < k + 16; ki++) {
+        for (int i = 0; i < LSE_BLK; i++) {
             cm_svm_block_read<float, REDUCE_SPLIT_SIZE>((svmptr_t)(input + input_offset), data_mat.format<float>());
             input_offset += HEAD_SIZE;
-            float lse_value = cm_exp<float>((lse_vec[ki] - lse_max) * log2e);
-            out_mat_f32 += cm_mul<float>(data_mat, (float)(lse_value/total_lse));
+            out_mat_f32 += cm_mul<float>(data_mat, (float)(w[i] / total_lse));
         }
     }
-    for (int k = iter * 16; k < kv_partition_num; k++) {
+    for (int k = lse_tail; k < kv_partition_num; k++) {
         cm_svm_block_read<float, REDUCE_SPLIT_SIZE>((svmptr_t)(input + input_offset), data_mat.format<float>());
         input_offset += HEAD_SIZE;
         float lse_value = cm_exp<float>((lse_vec[k] - lse_max) * log2e);
-        out_mat_f32 += cm_mul<float>(data_mat, (float)(lse_value/total_lse));
+        out_mat_f32 += cm_mul<float>(data_mat, (float)(lse_value / total_lse));
     }
 
     out_mat = cm_mul<half>(out_mat_f32, (float)1.0f);
