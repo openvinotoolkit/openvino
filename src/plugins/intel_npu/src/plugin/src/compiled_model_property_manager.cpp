@@ -22,7 +22,6 @@ inline void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
 }
 
 std::string buildRuntimeRequirements(const std::shared_ptr<BlobWriter>& blobWriter, intel_npu::Logger& logger) {
-    // TODO make sure it throws if the compiler RR cannot be retrieved
     const RuntimeRequirements runtimeRequirements = blobWriter->build_runtime_requirements();
     RuntimeRequirementsSection section(runtimeRequirements, logger.level());
 

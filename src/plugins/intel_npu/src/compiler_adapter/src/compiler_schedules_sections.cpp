@@ -8,6 +8,7 @@
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/tensor_decryption.hpp"
 #include "intel_npu/utils/utils.hpp"
 
 namespace {
@@ -19,34 +20,6 @@ constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
     "A new, page aligned buffer of size %zu has been allocated to host a compiled model";
 constexpr char LIST_START_DELIMITER = '[';
 constexpr char LIST_END_DELIMITER = ']';
-
-/**
- * @brief Uses the provided decryption callback to decrypt the given payload.
- */
-void decrypt_payload(ov::Tensor& payload, const ov::EncryptionCallbacks& encryption_callbacks, const Logger& logger) {
-    OPENVINO_ASSERT(encryption_callbacks.decrypt, "Decryption requested without providing a decryption callback");
-
-    std::string decryptedBlobStr;
-    {
-        std::string encryptedBlobStr(payload.data<const char>(), payload.get_byte_size());  // +1x blob size
-        decryptedBlobStr = encryption_callbacks.decrypt(encryptedBlobStr);                  // +1x blob size
-    }  // -1x blob size when deallocating temporary encrypted blob string
-    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-    size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
-    size_t paddingSize = alignedSize - decryptedBlobStr.size();
-    payload = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
-                         customAllocator);  // +1x blob size
-    std::memcpy(payload.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
-    if (paddingSize > 0) {
-        // The blob obtained after decryption is expected to be the same as the blob we had before encryption.
-        // That means blobs compiled with the current plugin version are expected to be already aligned.
-        // However, the alignment might not be mandatory in a future plugin version. For this scenario, the
-        // padding is added here in order to make use of this "non-copy optimization".
-        logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
-                       paddingSize);
-        std::memset(payload.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
-    }
-}  // -1x blob size when deallocating decrypted blob string
 
 std::optional<ov::EncryptionCallbacks> get_encryption_callbacks_from_config(
     const std::optional<FilteredConfig>& config) {
@@ -138,7 +111,7 @@ void ELFMainScheduleSection::decrypt(const ov::EncryptionCallbacks& encryption_c
     auto* schedule = std::get_if<ov::Tensor>(&m_graph_or_schedule);
     OPENVINO_ASSERT(schedule, INVALID_STATE_MESSAGE);
 
-    decrypt_payload(*schedule, encryption_callbacks, m_logger);
+    utils::decrypt_payload(*schedule, encryption_callbacks, m_logger);
 }
 
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
@@ -272,7 +245,7 @@ void ELFInitSchedulesSection::decrypt(const ov::EncryptionCallbacks& encryption_
     OPENVINO_ASSERT(schedules, INVALID_STATE_MESSAGE);
 
     for (ov::Tensor& schedule : *schedules) {
-        decrypt_payload(schedule, encryption_callbacks, m_logger);
+        utils::decrypt_payload(schedule, encryption_callbacks, m_logger);
     }
 }
 

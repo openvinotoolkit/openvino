@@ -18,6 +18,7 @@
 #include "intel_npu/common/runtime_requirements.hpp"
 #include "intel_npu/common/supported_section_type_evaluator.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/tensor_decryption.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "io_layouts_section.hpp"
 #include "metadata.hpp"
@@ -60,35 +61,6 @@ void update_compiler_type_if_perf_count(FilteredConfig& config,
         config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
     }
 }
-
-// TODO make utility, also used within compiler schedules
-/**
- * @brief Uses the provided decryption callback to decrypt the given payload.
- */
-void decrypt_payload(ov::Tensor& payload, const ov::EncryptionCallbacks& encryption_callbacks, const Logger& logger) {
-    OPENVINO_ASSERT(encryption_callbacks.decrypt, "Decryption requested without providing a decryption callback");
-
-    std::string decryptedBlobStr;
-    {
-        std::string encryptedBlobStr(payload.data<const char>(), payload.get_byte_size());  // +1x blob size
-        decryptedBlobStr = encryption_callbacks.decrypt(encryptedBlobStr);                  // +1x blob size
-    }  // -1x blob size when deallocating temporary encrypted blob string
-    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-    size_t alignedSize = utils::align_size_to_standard_page_size(decryptedBlobStr.size());
-    size_t paddingSize = alignedSize - decryptedBlobStr.size();
-    payload = ov::Tensor(ov::element::u8, ov::Shape{alignedSize},
-                         customAllocator);  // +1x blob size
-    std::memcpy(payload.data<char>(), decryptedBlobStr.c_str(), decryptedBlobStr.size());
-    if (paddingSize > 0) {
-        // The blob obtained after decryption is expected to be the same as the blob we had before encryption.
-        // That means blobs compiled with the current plugin version are expected to be already aligned.
-        // However, the alignment might not be mandatory in a future plugin version. For this scenario, the
-        // padding is added here in order to make use of this "non-copy optimization".
-        logger.warning("Decrypted blob size was not page aligned, additional %zu bytes padding will be added",
-                       paddingSize);
-        std::memset(payload.data<char>() + decryptedBlobStr.size(), 0, paddingSize);
-    }
-}  // -1x blob size when deallocating decrypted blob string
 
 /**
  * @brief Creates an "ov::Model" object which contains only the given "parameter" and "result" nodes.
@@ -220,7 +192,7 @@ private:
             "encrypted or not.");
 
         m_logger.debug(DECRYPTING_PAYLOAD_MESSAGE.data());
-        decrypt_payload(m_main_schedule, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
+        utils::decrypt_payload(m_main_schedule, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
     }
 
     ov::Tensor extract_main_schedule() const override {
@@ -309,7 +281,6 @@ public:
             auto dynamic_graph = std::dynamic_pointer_cast<DynamicGraph>(m_graph);
             OPENVINO_ASSERT(dynamic_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_writer->register_section(
-                // TODO should use the BlobWriter log level instead?
                 std::make_shared<DynamicScheduleSection>(dynamic_graph, encryption_callbacks, m_logger.level()));
             break;
         }
@@ -374,7 +345,7 @@ private:
         OPENVINO_ASSERT(!is_null_decryption, "Blob is encrypted, but no decryption callback was provided!");
 
         m_logger.debug(DECRYPTING_PAYLOAD_MESSAGE.data());
-        decrypt_payload(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
+        utils::decrypt_payload(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
     }
 
     // TODO check blob ownership management
@@ -499,7 +470,6 @@ private:
      * these sections are a core part of the format.
      */
     void register_known_sections_and_evaluators(const std::shared_ptr<CompilerOptionSupportHelper>& option_helper) {
-        // TODO shotgun surgery? should these correspond to the "supported" section types?
         m_blob_reader.register_reader(SectionTypeCode::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
         m_blob_reader.register_reader(SectionTypeCode::ELF_INIT_SCHEDULES, ELFInitSchedulesSection::read);
         m_blob_reader.register_reader(SectionTypeCode::DYNAMIC_SCHEDULE, ELFInitSchedulesSection::read);

@@ -160,10 +160,10 @@ uint64_t Graph::export_main_blob(std::ostream& stream) const {
         write_blob_to_stream(_graphDesc, _blob, stream, _logger.level() >= ov::log::Level::INFO);
 
     if (hash.has_value()) {
-        _logger.info("Blob size: %zu, hash: %x", size, hash.value());
+        _logger.info("Main blob size: %zu, hash: %x", size, hash.value());
     }
 
-    _logger.info("Blob size with padding: %zu", sizeWithPadding);
+    _logger.info("Main blob size with padding: %zu", sizeWithPadding);
     _logger.info("Write blob to stream successfully.");
     return sizeWithPadding;
 }

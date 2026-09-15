@@ -280,8 +280,8 @@ WeightlessGraph::WeightlessGraph(
       _constants(extract_constants_map(std::move(weightsSource), _initsMetadata)),
       _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {}
 
-// TODO "Blob size" was the size of the composite before this. This probably needs to be restored bc CI.
-// TODO review if this is up to date
+// TODO "Blob size" was the size of the composite before this. This probably needs to be restored bc CI. Or not, the CI
+// may just take the size of the on-disk file.
 std::vector<uint64_t> WeightlessGraph::export_init_blobs(std::ostream& stream) const {
     if (_blobIsReleased) {
         OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
@@ -304,6 +304,7 @@ std::vector<uint64_t> WeightlessGraph::export_init_blobs(std::ostream& stream) c
 
         if (hash.has_value()) {
             std::stringstream str;
+            // TODO test logs
             _wgLogger.info("Init part %lu blob size: %zu, hash: %x", initIndex, size, hash.value());
 
             if (!hashAllInits.has_value()) {
@@ -316,7 +317,7 @@ std::vector<uint64_t> WeightlessGraph::export_init_blobs(std::ostream& stream) c
 
     if (hashAllInits.has_value()) {
         std::stringstream str;
-        str << "All inits total size: " << totalBlobSize << ", hash: " << std::hex << hashAllInits.value();
+        str << "All inits total size with padding: " << totalBlobSize << ", hash: " << std::hex << hashAllInits.value();
         _wgLogger.info(str.str().c_str());
     }
 
