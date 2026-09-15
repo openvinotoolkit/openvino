@@ -521,9 +521,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         FilteredConfig& compilerConfig = modifiedConfig.has_value() ? *modifiedConfig : localConfig;
 
         if (shouldDisablePerfCountForInferProfiling) {
-            _logger.info("%s is set to INFER, disabling %s for this compilation",
-                         ov::intel_npu::profiling_type.name(),
-                         ov::enable_profiling.name());
+            _logger.info("%s=INFER: overriding compiler-only %s from YES to NO; runtime configuration remains unchanged",
+                        ov::intel_npu::profiling_type.name(),
+                        ov::enable_profiling.name());
             compilerConfig.update(ov::enable_profiling.name(), PERF_COUNT::toString(false));
         }
 
