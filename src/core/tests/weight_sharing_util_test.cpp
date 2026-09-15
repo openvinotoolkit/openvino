@@ -110,6 +110,25 @@ TEST_F(WeightShareExtensionTest, get_constant_id_with_descriptor) {
     EXPECT_NE(weight_sharing::Extension::get_constant_id(constant), weight_sharing::invalid_constant_id);
 }
 
+TEST_F(WeightShareExtensionTest, empty_constant_has_no_descriptor) {
+    auto constant = Constant(element::i64, Shape{0}, std::vector<int64_t>{});
+
+    EXPECT_EQ(weight_sharing::Extension::get_constant_source_id(constant), weight_sharing::invalid_source_id);
+    EXPECT_EQ(weight_sharing::Extension::get_constant_id(constant), weight_sharing::invalid_constant_id);
+    EXPECT_EQ(weight_sharing::Extension::get_constant_source_buffer(constant), nullptr);
+    EXPECT_NO_THROW(weight_sharing::Extension::hint_evict(constant));
+}
+
+TEST_F(WeightShareExtensionTest, model_with_empty_constant) {
+    const auto param = std::make_shared<Parameter>(element::i64, Shape{0});
+    const auto empty_constant = std::make_shared<Constant>(element::i64, Shape{0}, std::vector<int64_t>{});
+    const auto model =
+        std::make_shared<Model>(OutputVector{std::make_shared<Add>(param, empty_constant)}, ParameterVector{param});
+
+    EXPECT_TRUE(weight_sharing::Extension::get_weight_sources(*model).empty());
+    EXPECT_TRUE(weight_sharing::Extension::get_weight_registry(*model).empty());
+}
+
 TEST_F(WeightShareExtensionTest, get_constant_source_buffer_check_id) {
     const auto w_path = test_dir / "weights.bin";
     create_test_weights_file(w_path);

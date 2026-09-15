@@ -275,8 +275,7 @@ void Constant::allocate_buffer(bool memset_allocation) {
         constexpr uint8_t init_value = 0;
         m_data = std::make_shared<AlignedBuffer>(*byte_size, host_alignment());
 
-        // AlignedBuffer allocates 1 byte for empty constants, and we set it to zero
-        if (memset_allocation || *byte_size == 0) {
+        if (memset_allocation && *byte_size > 0) {
             std::memset(m_data->get_ptr(), init_value, m_data->size());
         } else {
             set_unused_bits(m_data->get_ptr());
@@ -306,6 +305,11 @@ void Constant::set_unused_bits(void* buffer) const {
 }
 
 Constant::Constant(const element::Type& type, const Shape& shape, const void* data) : Constant(false, type, shape) {
+    // Empty constant has no allocated buffer, so there is nothing to copy from the source.
+    if (has_no_elements()) {
+        return;
+    }
+
     const auto num_elements = shape_size(m_shape);
     if (m_element_type == ov::element::string) {
         const auto src_strings = static_cast<const std::string*>(data);
@@ -329,6 +333,10 @@ Constant::Constant(const element::Type& type, const Shape& shape, const std::sha
                     *constant_size,
                     " != ",
                     data_size);
+    // Keep the buffer valid so that a zero-size Constant is indistinguishable from any other.
+    if (!m_data) {
+        m_data = std::make_shared<AlignedBuffer>();
+    }
     constructor_validate_and_infer_types();
 }
 
@@ -412,6 +420,10 @@ std::string Constant::convert_value_to_string(size_t index) const {
 size_t Constant::get_byte_size() const {
     // TODO: refactor shape_size(m_shape) calculations and store it as a member.
     return (m_data && shape_size(m_shape)) ? m_data->size() : 0;
+}
+
+bool Constant::has_no_elements() const {
+    return m_element_type.is_static() && shape_size(m_shape) == 0;
 }
 
 const void* Constant::get_data_ptr() const {
@@ -608,6 +620,10 @@ bool Constant::evaluate(TensorVector& outputs, const TensorVector& inputs) const
     else
         outputs[0].set_shape(m_shape);
 
+    if (outputs[0].get_byte_size() == 0) {
+        return true;
+    }
+
     if (m_element_type == ov::element::string) {
         auto num_elements = shape_size(m_shape);
         auto src_strings = static_cast<const std::string*>(get_data_ptr());
@@ -630,7 +646,7 @@ bool Constant::evaluate_lower(TensorVector& outputs) const {
         return evaluate(outputs, {});  // for TypeRelaxed<Constant>
     outputs.resize(1);
     outputs[0] = get_tensor_view();
-    return get_data_ptr() != nullptr;
+    return get_data_ptr() != nullptr || has_no_elements();
 }
 
 bool Constant::evaluate_upper(TensorVector& outputs) const {
@@ -638,7 +654,7 @@ bool Constant::evaluate_upper(TensorVector& outputs) const {
         return evaluate(outputs, {});  // for TypeRelaxed<Constant>
     outputs.resize(1);
     outputs[0] = get_tensor_view();
-    return get_data_ptr() != nullptr;
+    return get_data_ptr() != nullptr || has_no_elements();
 }
 
 bool Constant::can_constant_fold(const OutputVector& input_values) const {
@@ -646,7 +662,13 @@ bool Constant::can_constant_fold(const OutputVector& input_values) const {
 }
 
 const Tensor Constant::get_tensor_view() const {
-    return get_data_ptr() ? Tensor{m_element_type, m_shape, m_data->get_ptr(), m_byte_strides} : Tensor{};
+    if (get_data_ptr()) {
+        return Tensor{m_element_type, m_shape, m_data->get_ptr(), m_byte_strides};
+    } else if (has_no_elements()) {
+        return Tensor{m_element_type, m_shape};
+    } else {
+        return Tensor{};
+    }
 }
 
 const Strides& Constant::get_strides() const {
