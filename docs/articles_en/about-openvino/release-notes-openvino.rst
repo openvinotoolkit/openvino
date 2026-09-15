@@ -31,11 +31,11 @@ More Gen AI coverage and frameworks integrations to minimize code changes
 
 * New models supported:
 
-  * On CPU, GPU: Gemma-3n, Kokoro-82M, Qwen3-VL-4B with EAGLE-3, Qwen3-ASR, Muse Glimmer 30B, and Qwen3.8 27B
+  * On CPU, GPU: Muse Glimmer 30B and Qwen3.8 27B
 
-  * On NPUs: Kokoro-82M, FLUX.2-Klein-4B, Granite-4-1B, Qwen3-4B/8B (EAGLE-3)
+  * On NPUs: FLUX.2-Klein-4B and Qwen3-4B/8B (EAGLE-3)
 
-* Additional CPU and GPU-enabled models available as early releases: Z-Image-Turbo, Hy-MT2-1.8B, Qwen-Image, Gemma-4-12b, RF-DETR, SAM3D
+* Additional CPU and GPU-enabled models available as early releases: Z-Image-Turbo, Hy-MT2-1.8B, Qwen-Image, RF-DETR, SAM3D
 
 Broader LLM model support and more model compression techniques
 -----------------------------------------------------------------
