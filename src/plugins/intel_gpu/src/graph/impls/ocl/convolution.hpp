@@ -48,8 +48,9 @@ struct ConvolutionImplementationManager : public ImplementationManager {
 
         if (!one_of(in_dt, supported_activation_types) ||
             !one_of(wei_dt, supported_weights_types) ||
-            !one_of(out_dt, supported_activation_types))
+            !one_of(out_dt, supported_activation_types)) {
             return false;
+        }
 
         if (m_shape_type == shape_types::dynamic_shape) {
             static const std::vector<format::type> supported_dyn_formats = {
@@ -59,8 +60,9 @@ struct ConvolutionImplementationManager : public ImplementationManager {
                 format::b_fs_zyx_fsv16
             };
 
-            if (!one_of(input_fmt.value, supported_dyn_formats) || !one_of(output_fmt.value, supported_dyn_formats))
+            if (!one_of(input_fmt.value, supported_dyn_formats) || !one_of(output_fmt.value, supported_dyn_formats)) {
                 return false;
+            }
         } else {
             static const std::vector<format::type> supported_fp_only_formats = {
                 format::yxfb,
@@ -92,8 +94,9 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             bool i8u8_case = data_type_traits::is_i8_u8(in_dt) &&
                              (one_of(input_fmt.value, supported_int_only_formats) || one_of(input_fmt.value, supported_common_formats));
 
-            if (!fp_common_case && !fp16_case && !i8u8_case)
+            if (!fp_common_case && !fp16_case && !i8u8_case) {
                 return false;
+            }
         }
 
         return true;

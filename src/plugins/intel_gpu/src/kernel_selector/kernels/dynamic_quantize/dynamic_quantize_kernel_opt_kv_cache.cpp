@@ -75,11 +75,13 @@ static size_t get_per_iter_elements_number(const dynamic_quantize_params& params
     const auto maxWorkGroupSize = params.engineInfo.maxWorkGroupSize;
     const auto total_grouped_elements = get_elements_number_per_group(params);
 
-    if (total_grouped_elements % maxWorkGroupSize == 0)
+    if (total_grouped_elements % maxWorkGroupSize == 0) {
         return maxWorkGroupSize;
+    }
 
-    if (total_grouped_elements < maxWorkGroupSize)
+    if (total_grouped_elements < maxWorkGroupSize) {
         return total_grouped_elements;
+    }
 
     return 0;
 }
@@ -166,8 +168,9 @@ JitConstants DynamicQuantizeKernelKVCache::GetJitConstants(const dynamic_quantiz
         for (size_t i = 0; i < scales_output_order.size(); i++) {
             ss << default_dim_order[scales_output_order[i]];
 
-            if (i + 1 != scales_output_order.size())
+            if (i + 1 != scales_output_order.size()) {
                 ss << ", ";
+            }
         }
 
         jit.AddConstant(MakeJitConstant("SCALES_OUTPUT_ORDER", ss.str()));
@@ -217,8 +220,9 @@ void DynamicQuantizeKernelKVCache::GetUpdateDispatchDataFunc(KernelData& kd) con
 KernelsData DynamicQuantizeKernelKVCache::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::DYNAMIC_QUANTIZE);
 
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const dynamic_quantize_params& prim_params = static_cast<const dynamic_quantize_params&>(params);
     auto dispatchData = SetDefault(prim_params);
@@ -246,8 +250,9 @@ KernelsData DynamicQuantizeKernelKVCache::GetKernelsData(const Params& params) c
                      static_cast<int>(prim_params.outputs.size()),
                      prim_params.is_shape_agnostic);
 
-    if (prim_params.append_axis != -1)
+    if (prim_params.append_axis != -1) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::SCALAR, 0});
+    }
 
     return {kd};
 }
@@ -257,8 +262,9 @@ KernelsPriority DynamicQuantizeKernelKVCache::GetKernelsPriority(const Params& /
 }
 
 bool DynamicQuantizeKernelKVCache::Validate(const Params& params) const {
-    if (!KernelBaseOpenCL::Validate(params))
+    if (!KernelBaseOpenCL::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& dq_params = static_cast<const dynamic_quantize_params&>(params);
 
@@ -266,11 +272,13 @@ bool DynamicQuantizeKernelKVCache::Validate(const Params& params) const {
     const auto& input_dims = get_normalized_dims(dq_params.inputs[0]);
     const size_t non_compressed_dims_number = std::count(group_sizes.begin(), group_sizes.end(), 1);
 
-    if (dq_params.generate_precomputed_reduction)
+    if (dq_params.generate_precomputed_reduction) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (non_compressed_dims_number == group_sizes.size())
+    if (non_compressed_dims_number == group_sizes.size()) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     for (size_t i = 0; i < group_sizes.size(); i++) {
         if (group_sizes[i] != 1 && input_dims[i].is_dynamic) {
@@ -279,16 +287,19 @@ bool DynamicQuantizeKernelKVCache::Validate(const Params& params) const {
     }
 
     // Last dimension should be static, reduced by group_sizes configuration and divisible by 16
-    if (group_sizes.back() == 1 || input_dims.back().is_dynamic || input_dims.back().v % subgroup_size != 0)
+    if (group_sizes.back() == 1 || input_dims.back().is_dynamic || input_dims.back().v % subgroup_size != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // Limit the size of the innermost dimension
-    if (input_dims.back().v > 256)
+    if (input_dims.back().v > 256) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // In case of HEADS_NUM * HEAD_SIZE group size, check that it fits into the supported workgroup size limit
-    if (get_elements_number_per_group(dq_params) / input_dims.back().v >= params.engineInfo.maxWorkGroupSize / subgroup_size)
+    if (get_elements_number_per_group(dq_params) / input_dims.back().v >= params.engineInfo.maxWorkGroupSize / subgroup_size) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }

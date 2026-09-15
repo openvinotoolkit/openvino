@@ -473,6 +473,13 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
     // Sub-byte views are not supported here
     NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
 
+    // Bounds guard: from[d] <= to[d] <= shape[d] (prevents OOB views and unsigned wrap below).
+    const auto& shape = src->get_shape();
+    NPUW_ASSERT(from.size() == shape.size());
+    for (std::size_t d = 0; d < from.size(); ++d) {
+        NPUW_ASSERT(from[d] <= to[d] && to[d] <= shape[d]);
+    }
+
     const auto num_dims = from.size();
     ov::Shape view_shape;
     for (auto d = 0u; d < num_dims; d++) {
@@ -950,6 +957,11 @@ bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
     static constexpr const char* past_lin_ssm_cache = "cache_params.past.ssm";
     return ov::npuw::util::starts_with(input_name, past_lin_conv_cache) ||
            ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
+}
+
+bool ov::npuw::util::is_pa_kv_cache_name(const std::string& input_name) {
+    return ov::npuw::util::starts_with(input_name, "key_cache.") ||
+           ov::npuw::util::starts_with(input_name, "value_cache.");
 }
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
