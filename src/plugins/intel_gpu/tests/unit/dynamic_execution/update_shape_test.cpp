@@ -2,27 +2,208 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "test_utils.h"
-#include "random_generator.hpp"
-
-#include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/data.hpp>
-#include <intel_gpu/primitives/shape_of.hpp>
+#include <algorithm>
+#include <cmath>
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/broadcast.hpp>
+#include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/data.hpp>
+#include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/primitives/gather.hpp>
+#include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/non_zero.hpp>
 #include <intel_gpu/primitives/paged_attention.hpp>
-#include <intel_gpu/primitives/gather.hpp>
+#include <intel_gpu/primitives/reduce.hpp>
+#include <intel_gpu/primitives/reorder.hpp>
+#include <intel_gpu/primitives/scatter_update.hpp>
+#include <intel_gpu/primitives/select.hpp>
+#include <intel_gpu/primitives/shape_of.hpp>
+#include <intel_gpu/primitives/strided_slice.hpp>
+#include <intel_gpu/primitives/tile.hpp>
 
 #include "program_wrapper.h"
-
-#include <cmath>
-#include <algorithm>
+#include "random_generator.hpp"
+#include "test_utils.h"
 
 using namespace cldnn;
 using namespace ::tests;
 
 namespace update_shape_tests {
+TEST(update_shape_test, boolean_broadcast_in_shapeof_subgraph) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory(layout{ov::PartialShape{2, 3}, data_types::f32, format::bfyx});
+    auto indices_mem = engine.allocate_memory(layout{ov::PartialShape{2}, data_types::i32, format::bfyx});
+    auto value_mem = engine.allocate_memory(layout{ov::PartialShape{}, data_types::boolean, format::bfyx});
+    set_values<int32_t>(indices_mem, {0, 1});
+    set_values<uint8_t>(value_mem, {1});
+
+    topology topology(input_layout("input", layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}),
+                      data("indices", indices_mem),
+                      data("value", value_mem),
+                      shape_of("shape_of", input_info("input"), data_types::i64),
+                      gather("target_shape", input_info("shape_of"), input_info("indices"), 0, 1, ov::Shape{2}),
+                      broadcast("broadcast", input_info("value"), input_info("target_shape"), {}, ov::op::BroadcastType::NUMPY));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto output = network.execute().at("broadcast").get_memory();
+
+    ASSERT_TRUE(network.get_program()->get_node("broadcast").is_in_shape_of_subgraph());
+    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({2, 3}));
+    mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(std::vector<uint8_t>(output_ptr.begin(), output_ptr.end()), std::vector<uint8_t>(6, 1));
+}
+
+TEST(update_shape_test, boolean_concat_in_shapeof_subgraph) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory(layout{ov::PartialShape{2, 3}, data_types::f32, format::bfyx});
+    auto indices_mem = engine.allocate_memory(layout{ov::PartialShape{2}, data_types::i32, format::bfyx});
+    auto value_mem = engine.allocate_memory(layout{ov::PartialShape{}, data_types::boolean, format::bfyx});
+    set_values<int32_t>(indices_mem, {0, 1});
+    set_values<uint8_t>(value_mem, {1});
+
+    topology topology(input_layout("input", layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}),
+                      data("indices", indices_mem),
+                      data("value", value_mem),
+                      shape_of("shape_of", input_info("input"), data_types::i64),
+                      gather("target_shape", input_info("shape_of"), input_info("indices"), 0, 1, ov::Shape{2}),
+                      broadcast("broadcast", input_info("value"), input_info("target_shape"), {}, ov::op::BroadcastType::NUMPY),
+                      concatenation("concat", {input_info("broadcast"), input_info("broadcast")}, 1));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto output = network.execute().at("concat").get_memory();
+
+    ASSERT_TRUE(network.get_program()->get_node("concat").is_in_shape_of_subgraph());
+    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({2, 6}));
+    mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(std::vector<uint8_t>(output_ptr.begin(), output_ptr.end()), std::vector<uint8_t>(12, 1));
+}
+
+TEST(update_shape_test, boolean_activation_in_shapeof_subgraph) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory(layout{ov::PartialShape{2, 3}, data_types::f32, format::bfyx});
+    auto indices_mem = engine.allocate_memory(layout{ov::PartialShape{2}, data_types::i32, format::bfyx});
+    auto value_mem = engine.allocate_memory(layout{ov::PartialShape{}, data_types::boolean, format::bfyx});
+    set_values<int32_t>(indices_mem, {0, 1});
+    set_values<uint8_t>(value_mem, {1});
+
+    topology topology(input_layout("input", layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}),
+                      data("indices", indices_mem),
+                      data("value", value_mem),
+                      shape_of("shape_of", input_info("input"), data_types::i64),
+                      gather("target_shape", input_info("shape_of"), input_info("indices"), 0, 1, ov::Shape{2}),
+                      broadcast("broadcast", input_info("value"), input_info("target_shape"), {}, ov::op::BroadcastType::NUMPY),
+                      activation("logical_not", input_info("broadcast"), activation_func::negation));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto output = network.execute().at("logical_not").get_memory();
+
+    ASSERT_TRUE(network.get_program()->get_node("logical_not").is_in_shape_of_subgraph());
+    ASSERT_EQ(output->get_layout().get_shape(), ov::Shape({2, 3}));
+    mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(std::vector<uint8_t>(output_ptr.begin(), output_ptr.end()), std::vector<uint8_t>(6, 0));
+}
+
+TEST(update_shape_test, boolean_cpu_ops_in_shapeof_subgraph) {
+    auto& engine = get_test_engine();
+
+    auto input_mem = engine.allocate_memory(layout{ov::PartialShape{2, 3}, data_types::f32, format::bfyx});
+    auto shape_indices_mem = engine.allocate_memory(layout{ov::PartialShape{2}, data_types::i32, format::bfyx});
+    auto value_mem = engine.allocate_memory(layout{ov::PartialShape{}, data_types::boolean, format::bfyx});
+    auto false_value_mem = engine.allocate_memory(layout{ov::PartialShape{}, data_types::boolean, format::bfyx});
+    auto numeric_true_mem = engine.allocate_memory(layout{ov::PartialShape{}, data_types::i64, format::bfyx});
+    auto numeric_false_mem = engine.allocate_memory(layout{ov::PartialShape{}, data_types::i64, format::bfyx});
+    auto scatter_indices_mem = engine.allocate_memory(layout{ov::PartialShape{1}, data_types::i32, format::bfyx});
+    auto scatter_updates_mem = engine.allocate_memory(layout{ov::PartialShape{2, 1}, data_types::boolean, format::bfyx});
+    set_values<int32_t>(shape_indices_mem, {0, 1});
+    set_values<uint8_t>(value_mem, {1});
+    set_values<uint8_t>(false_value_mem, {0});
+    set_values<int64_t>(numeric_true_mem, {7});
+    set_values<int64_t>(numeric_false_mem, {9});
+    set_values<int32_t>(scatter_indices_mem, {1});
+    set_values<uint8_t>(scatter_updates_mem, {0, 0});
+
+    topology topology(input_layout("input", layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx}),
+                      data("shape_indices", shape_indices_mem),
+                      data("value", value_mem),
+                      data("false_value", false_value_mem),
+                      data("numeric_true", numeric_true_mem),
+                      data("numeric_false", numeric_false_mem),
+                      data("scatter_indices", scatter_indices_mem),
+                      data("scatter_updates", scatter_updates_mem),
+                      shape_of("shape_of", input_info("input"), data_types::i64),
+                      gather("target_shape", input_info("shape_of"), input_info("shape_indices"), 0, 1, ov::Shape{2}),
+                      broadcast("broadcast", input_info("value"), input_info("target_shape"), {}, ov::op::BroadcastType::NUMPY),
+                      crop("crop_bool", input_info("broadcast"), tensor(batch(2), feature(2)), tensor(batch(0), feature(0))),
+                      eltwise("logical_and_bool", {input_info("broadcast"), input_info("value")}, eltwise_mode::logic_and, data_types::boolean),
+                      gather("gather_bool", input_info("broadcast"), input_info("shape_indices"), 0, 1, ov::Shape{2, 3}),
+                      reduce("reduce_bool", input_info("broadcast"), reduce_mode::logical_and, {1}, true),
+                      reorder("reorder_bool", input_info("broadcast"), layout{ov::PartialShape{2, 3}, data_types::u8, format::bfyx}),
+                      cldnn::select("select_bool", input_info("broadcast"), input_info("broadcast"), input_info("false_value")),
+                      cldnn::select("select_numeric", input_info("broadcast"), input_info("numeric_true"), input_info("numeric_false")),
+                      scatter_update("scatter_bool", input_info("broadcast"), input_info("scatter_indices"), input_info("scatter_updates"), 1),
+                      strided_slice("slice_bool", input_info("broadcast"), {0, 0}, {2, 2}, {1, 1}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {2, 2}),
+                      tile("tile_bool", input_info("broadcast"), std::vector<int64_t>{1, 2}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    auto outputs = network.execute();
+
+    for (const auto* id : {"crop_bool",
+                           "logical_and_bool",
+                           "gather_bool",
+                           "reduce_bool",
+                           "reorder_bool",
+                           "select_bool",
+                           "select_numeric",
+                           "scatter_bool",
+                           "slice_bool",
+                           "tile_bool"}) {
+        ASSERT_TRUE(network.get_program()->get_node(id).is_in_shape_of_subgraph()) << id;
+    }
+
+    ASSERT_EQ(outputs.at("crop_bool").get_memory()->get_layout().get_shape(), ov::Shape({2, 2}));
+    ASSERT_EQ(outputs.at("logical_and_bool").get_memory()->get_layout().get_shape(), ov::Shape({2, 3}));
+    ASSERT_EQ(outputs.at("gather_bool").get_memory()->get_layout().get_shape(), ov::Shape({2, 3}));
+    ASSERT_EQ(outputs.at("reduce_bool").get_memory()->get_layout().get_shape(), ov::Shape({2, 1}));
+    ASSERT_EQ(outputs.at("reorder_bool").get_memory()->get_layout().get_shape(), ov::Shape({2, 3}));
+    ASSERT_EQ(outputs.at("select_bool").get_memory()->get_layout().get_shape(), ov::Shape({2, 3}));
+    ASSERT_EQ(outputs.at("scatter_bool").get_memory()->get_layout().get_shape(), ov::Shape({2, 3}));
+    ASSERT_EQ(outputs.at("slice_bool").get_memory()->get_layout().get_shape(), ov::Shape({2, 2}));
+    ASSERT_EQ(outputs.at("tile_bool").get_memory()->get_layout().get_shape(), ov::Shape({2, 6}));
+
+    for (const auto* id : {"crop_bool", "logical_and_bool", "gather_bool", "reduce_bool", "reorder_bool", "select_bool", "slice_bool", "tile_bool"}) {
+        mem_lock<uint8_t, mem_lock_type::read> output_ptr(outputs.at(id).get_memory(), get_test_stream());
+        ASSERT_TRUE(std::all_of(output_ptr.begin(), output_ptr.end(), [](uint8_t value) {
+            return value == 1;
+        })) << id;
+    }
+
+    mem_lock<uint8_t, mem_lock_type::read> scatter_output(outputs.at("scatter_bool").get_memory(), get_test_stream());
+    ASSERT_EQ(std::vector<uint8_t>(scatter_output.begin(), scatter_output.end()), (std::vector<uint8_t>{1, 0, 1, 1, 0, 1}));
+
+    mem_lock<int64_t, mem_lock_type::read> select_output(outputs.at("select_numeric").get_memory(), get_test_stream());
+    ASSERT_EQ(std::vector<int64_t>(select_output.begin(), select_output.end()), std::vector<int64_t>(6, 7));
+}
+
 TEST(update_shape_test, ocl_impl_in_shapeof_subgraph) {
     auto& engine = get_test_engine();
 

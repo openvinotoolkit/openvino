@@ -99,6 +99,7 @@ attach_reorder_impl::attach_reorder_impl() {
     };
 
     auto types = {
+        data_types::boolean,
         data_types::f32,
         data_types::f16,
         data_types::bf16,
