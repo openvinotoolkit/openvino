@@ -507,6 +507,10 @@ void parse_cache_info_linux(const std::vector<std::vector<std::string>> system_i
                 }
 
                 for (int m = core_1; m <= core_2; m++) {
+                    // offline members of the cluster have no row
+                    if (system_info_table[m][0].size() == 0) {
+                        continue;
+                    }
                     update_proc_info(m, core_type);
 
                     if ((core_2 - core_1 == 1) &&
