@@ -31,16 +31,6 @@ namespace {
 
 using namespace intel_npu;
 
-// TODO make utility
-ov::Tensor allocate_aligned_tensor(size_t blobSize) {
-    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-    }
-
-    return ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
-}
-
 constexpr std::string_view BLOB_COMPATIBILITY_SKIPPED_MESSAGE = "Blob compatibility check skipped.";
 constexpr std::string_view EMPTY_BLOB_MESSAGE = "The blob provided for import is empty";
 constexpr std::string_view BLOB_SIZE_SMALLER_THAN_MAGIC =
@@ -199,7 +189,7 @@ public:
         OPENVINO_ASSERT(blob_size > 0, EMPTY_BLOB_MESSAGE);
 
         if (!compiler_main_schedule.is_contiguous()) {
-            m_main_schedule = allocate_aligned_tensor(blob_size);
+            m_main_schedule = utils::allocate_aligned_tensor(blob_size);
             compiler_main_schedule.read_into_buffer(m_main_schedule.data(), blob_size);
 
             m_logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data());
@@ -288,7 +278,7 @@ public:
         OPENVINO_ASSERT(compiler_payload_size > 0, EMPTY_COMPILER_PAYLOAD_MESSAGE);
 
         if (!npu_formatted_blob.is_contiguous()) {
-            m_compiler_payload = allocate_aligned_tensor(compiler_payload_size);
+            m_compiler_payload = utils::allocate_aligned_tensor(compiler_payload_size);
             npu_formatted_blob.read_into_buffer(m_compiler_payload.data(), compiler_payload_size);
 
             m_logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data());

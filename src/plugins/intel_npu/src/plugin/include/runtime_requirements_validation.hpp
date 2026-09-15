@@ -9,6 +9,7 @@
 
 namespace intel_npu {
 
+// TODO do not expose this outside plugin/
 ov::CompatibilityCheck validateCompatibilityDescriptor(
     const ov::SoPtr<IEngineBackend>& backend,
     const ov::AnyMap& arguments,

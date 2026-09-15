@@ -20,15 +20,6 @@ constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
 constexpr char LIST_START_DELIMITER = '[';
 constexpr char LIST_END_DELIMITER = ']';
 
-ov::Tensor allocate_aligned_tensor(size_t blobSize) {
-    ov::Allocator customAllocator{utils::AlignedAllocator{utils::STANDARD_PAGE_SIZE}};
-    if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
-        OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
-    }
-
-    return ov::Tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
-}
-
 /**
  * @brief Uses the provided decryption callback to decrypt the given payload.
  */
@@ -169,7 +160,7 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
     const size_t main_schedule_size = blob_reader.get_section_length() - sizeof(padding_size) - padding_size;
 
     if (!blob_reader.source_is_contiguous()) {
-        ov::Tensor main_schedule = allocate_aligned_tensor(main_schedule_size);
+        ov::Tensor main_schedule = utils::allocate_aligned_tensor(main_schedule_size);
         blob_reader.read_into_buffer(main_schedule.data(), main_schedule_size);
 
         logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), main_schedule_size);
@@ -333,7 +324,7 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         ov::Tensor init_schedule;
 
         if (!blob_reader.source_is_contiguous()) {
-            init_schedule = allocate_aligned_tensor(init_size);
+            init_schedule = utils::allocate_aligned_tensor(init_size);
             blob_reader.read_into_buffer(init_schedule.data(), init_size);
 
             logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), init_size);
