@@ -5,6 +5,7 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
+#include "openvino/core/tensor_util.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/reference/convert.hpp"
@@ -258,5 +259,13 @@ TEST_F(FunctionalOffloadTensorTest, not_const_throw) {
         const auto& const_tensor = tensor;
         EXPECT_NO_THROW(const_tensor.data());
     }
+}
+
+TEST(TensorUtilTest, reduce_and) {
+    char all_true[3] = {1, 1, 1};
+    char one_false[3] = {1, 0, 1};
+    EXPECT_TRUE(ov::util::reduce_and(Tensor(element::boolean, Shape{3}, all_true)));
+    EXPECT_FALSE(ov::util::reduce_and(Tensor(element::boolean, Shape{3}, one_false)));
+    EXPECT_FALSE(ov::util::reduce_and(Tensor()));
 }
 }  // namespace ov::test
