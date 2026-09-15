@@ -68,14 +68,15 @@ void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov:
 
 std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
-                                                      bool enforce_native,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
-    // NPUW dispatch is chosen from the blob's own header/indicator, ignoring config. When the caller
-    // requires native blobs, refuse NPUW here so a forged blob handed across a trust boundary cannot
-    // reach the NPUW deserializers.
+    const auto use_npuw_it = properties.find(ov::intel_npu::use_npuw.name());
+    const bool npuw_enabled = use_npuw_it == properties.end() || use_npuw_it->second.as<bool>();
+    constexpr const char* npuw_disabled_message =
+        "The blob was exported via NPUW, but NPU_USE_NPUW is disabled.";
+
     if (const auto header = ov::npuw::orc::is_orc(stream);
         header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
-        OPENVINO_ASSERT(!enforce_native, "NPUW blob import is disabled because NPU_ENFORCE_NATIVE_BLOB is set.");
+        OPENVINO_ASSERT(npuw_enabled, npuw_disabled_message);
         return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
     }
 
@@ -84,7 +85,7 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
     ov::npuw::s11n::IndicatorType serialization_indicator;
     if (ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
         serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        OPENVINO_ASSERT(!enforce_native, "NPUW blob import is disabled because NPU_ENFORCE_NATIVE_BLOB is set.");
+        OPENVINO_ASSERT(npuw_enabled, npuw_disabled_message);
         ov::npuw::s11n::IndicatorType compiled_model_indicator;
         if (ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size())) {
             stream.clear();
@@ -98,8 +99,8 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                 // Properties are required for ov::weights_path
                 return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
             } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-                OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
-                               "the current ORC serializer.");
+                OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model "
+                               "with the current ORC serializer.");
             } else {
                 OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
             }
@@ -164,7 +165,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(EXPORT_RAW_BLOB);
     REGISTER_OPTION(IMPORT_RAW_BLOB);
-    REGISTER_OPTION(ENFORCE_NATIVE_BLOB);
+    REGISTER_OPTION(ALLOW_BYTECODE);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(ENABLE_WEIGHTLESS);
@@ -599,13 +600,6 @@ ov::SoPtr<ov::IRemoteContext> Plugin::get_default_context(const ov::AnyMap&) con
     return std::make_shared<RemoteContextImpl>(_backend);
 }
 
-bool Plugin::should_enforce_native_blob(const ov::AnyMap& properties) const {
-    // Read the merged (properties + set_property) config so the NPUW gate honors the flag the same way the
-    // host-executable gate does when blob_format_importer_factory::create later reads it from the runtime config.
-    return _propertiesManager->getMergedConfigAndUnknownProperties(properties, ConfigMergeMode::Import)
-        .first.get<ENFORCE_NATIVE_BLOB>();
-}
-
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model(std::istream)");
     update_global_properties(properties);
@@ -619,10 +613,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     auto localProperties = properties;
     // NPUW properties from localProperties will be erased if import_model_npuw returns nullptr
-    if (auto compiledModel = import_model_npuw(stream,
-                                               localProperties,
-                                               should_enforce_native_blob(localProperties),
-                                               shared_from_this())) {
+    if (auto compiledModel = import_model_npuw(stream, localProperties, shared_from_this())) {
         _logger.debug(NPUW_MODEL_IMPORTED_MESSAGE.data());
         return compiledModel;
     }
@@ -650,10 +641,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
 
     auto localProperties = properties;
     // NPUW properties from localProperties will be erased if import_model_npuw returns nullptr
-    if (auto compiledModel = import_model_npuw(stream,
-                                               localProperties,
-                                               should_enforce_native_blob(localProperties),
-                                               shared_from_this())) {
+    if (auto compiledModel = import_model_npuw(stream, localProperties, shared_from_this())) {
         _logger.debug(NPUW_MODEL_IMPORTED_MESSAGE.data());
         return compiledModel;
     }

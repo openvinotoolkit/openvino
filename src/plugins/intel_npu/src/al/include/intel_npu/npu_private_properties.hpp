@@ -455,14 +455,12 @@ static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 
 /**
  * @brief [Only for NPU Plugin]
- * Type: boolean, default is false.
- * Restricts import to native NPU device (ELF) blobs. When set, a blob that is not a native device blob is refused:
- * NPUW-serialized blobs and blobs that declare a host-executable payload (LLVM IR or bytecode, produced by the
- * "HostCompile" compilation modes) are both rejected before their content is deserialized or executed. This guards a
- * higher-privilege importer against a blob forged by a lower-privilege producer across a trust boundary. Left disabled
- * (the default), import behavior is unchanged.
+ * Type: boolean, default is true.
+ * Allows importing a blob that declares a payload running in-process on the host VM runtime instead of the NPU driver.
+ * Enabled by default. A higher-privilege importer that only expects native device blobs can set this to false to refuse
+ * such a payload forged across a trust boundary.
  */
-static constexpr ov::Property<bool> enforce_native_blob{"NPU_ENFORCE_NATIVE_BLOB"};
+static constexpr ov::Property<bool> allow_bytecode{"NPU_ALLOW_BYTECODE"};
 
 /**
  * @brief [Only for NPU Plugin]

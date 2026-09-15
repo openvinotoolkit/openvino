@@ -1317,19 +1317,17 @@ struct IMPORT_RAW_BLOB final : OptionBase<IMPORT_RAW_BLOB, bool> {
     }
 };
 
-struct ENFORCE_NATIVE_BLOB final : OptionBase<ENFORCE_NATIVE_BLOB, bool> {
+struct ALLOW_BYTECODE final : OptionBase<ALLOW_BYTECODE, bool> {
     static std::string_view key() {
-        return ov::intel_npu::enforce_native_blob.name();
+        return ov::intel_npu::allow_bytecode.name();
     }
 
     static bool defaultValue() {
-        return false;
+        return true;
     }
 
-    // Accepted on both compile and import so the caller can set it uniformly; it only takes effect at import,
-    // where a NPUW-serialized or host-executable blob is refused.
     static OptionMode mode() {
-        return OptionMode::Both;
+        return OptionMode::RunTime;
     }
 };
 
