@@ -326,6 +326,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/increase_precision_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/indirect_kv_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/keep_gqa_kv_scale_precision_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/keep_precision_sensitive_bf16_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/keep_xattention_threshold_precision_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/kv_cache_compression.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/kv_cache_fusion_test.cpp
@@ -419,6 +420,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_gqa_kv_scale_precision.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_moe_3gemm_const_precision.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_moe_3gemm_const_precision.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_precision_sensitive_bf16.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_precision_sensitive_bf16.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_xattention_threshold_precision.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/keep_xattention_threshold_precision.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/kv_cache_compression.cpp
