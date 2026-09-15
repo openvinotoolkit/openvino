@@ -20,10 +20,13 @@
 
 namespace ov::intel_cpu {
 
-TEST(PaKVReorderPrecisionTest, KeepsF16CacheInputs) {
-    auto key_cache = std::make_shared<op::v0::Parameter>(element::f16, Shape{4, 8, 32, 64});
+class PaKVReorderPrecisionTest : public testing::TestWithParam<element::Type> {};
+
+TEST_P(PaKVReorderPrecisionTest, KeepsCacheInputsInStoragePrecision) {
+    const auto cache_precision = GetParam();
+    auto key_cache = std::make_shared<op::v0::Parameter>(cache_precision, Shape{4, 8, 32, 64});
     key_cache->set_friendly_name("key_cache.0_clone_for_k_update");
-    auto value_cache = std::make_shared<op::v0::Parameter>(element::f16, Shape{4, 8, 32, 64});
+    auto value_cache = std::make_shared<op::v0::Parameter>(cache_precision, Shape{4, 8, 32, 64});
     value_cache->set_friendly_name("value_cache.0_clone_for_v_update");
     auto block_indices = std::make_shared<op::v0::Parameter>(element::i32, Shape{4});
     block_indices->set_friendly_name("block_indices");
@@ -48,7 +51,7 @@ TEST(PaKVReorderPrecisionTest, KeepsF16CacheInputs) {
                                                          block_update_indices,
                                                          block_update_indices_begins});
 
-    ASSERT_TRUE(pass::PaKVReorderFusion(element::f16).run_on_model(model));
+    ASSERT_TRUE(pass::PaKVReorderFusion(cache_precision).run_on_model(model));
 
     Config config;
     Transformations transformations(model, config);
@@ -63,10 +66,12 @@ TEST(PaKVReorderPrecisionTest, KeepsF16CacheInputs) {
     }
 
     ASSERT_NE(pa_kv_reorder, nullptr);
-    EXPECT_EQ(pa_kv_reorder->get_input_element_type(0), element::f16);
-    EXPECT_EQ(pa_kv_reorder->get_input_element_type(1), element::f16);
+    EXPECT_EQ(pa_kv_reorder->get_input_element_type(0), cache_precision);
+    EXPECT_EQ(pa_kv_reorder->get_input_element_type(1), cache_precision);
     EXPECT_EQ(pa_kv_reorder->input_value(0).get_node_shared_ptr(), key_cache);
     EXPECT_EQ(pa_kv_reorder->input_value(1).get_node_shared_ptr(), value_cache);
 }
+
+INSTANTIATE_TEST_SUITE_P(F16AndBF16, PaKVReorderPrecisionTest, testing::Values(element::f16, element::bf16));
 
 }  // namespace ov::intel_cpu
