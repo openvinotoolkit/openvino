@@ -1,4 +1,4 @@
-Install OpenVINO™ 2026.3
+Install OpenVINO™ 2026.4
 ==========================
 
 
@@ -24,10 +24,10 @@ Install OpenVINO™ 2026.3
    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
    <iframe id="selector" src="../_static/selector-tool/selector-4b53072.html" style="width: 100%; border: none" title="Download Intel® Distribution of OpenVINO™ Toolkit"></iframe>
 
-OpenVINO 2026.3, described here, is not a Long-Term-Support version!
+OpenVINO 2026.4, described here, is not a Long-Term-Support version!
 All currently supported versions are:
 
-* 2026.3.1 (development)
+* 2026.4.0 (development)
 * 2025.4.1 (maintenance)
 
 .. dropdown:: Effortless GenAI integration with OpenVINO GenAI
