@@ -54,8 +54,16 @@ void MOE::validate_and_infer_types() {
     for (size_t i = 4; i < base_inputs_count; i++) {
         const auto& ps = get_input_partial_shape(i);
         NODE_VALIDATION_CHECK(this, ps.is_static(), "Weights must have static shape.");
-        // Note: dynamic element type means empty zero point input
-        if (get_input_element_type(i) != ov::element::dynamic) {
+        // An absent optional input (e.g. bias) is marked by an empty tensor (count == 0). A dynamic
+        // element type is also used as an absent marker, but it must then be empty too: enforce that
+        // invariant so the two representations stay consistent. The zero-sized real-typed zero-point
+        // placeholder emitted by ConvertFullyConnectedToFullyConnectedCompressed relies on count == 0
+        // (not on the element type) to signal an absent input.
+        const bool is_empty = shape_size(get_input_shape(i)) == 0;
+        NODE_VALIDATION_CHECK(this,
+                              get_input_element_type(i) != ov::element::dynamic || is_empty,
+                              "An input with dynamic element type must be empty (absent-input marker).");
+        if (!is_empty) {
             NODE_VALIDATION_CHECK(this,
                                   num_experts == get_input_shape(i)[0],
                                   "All weight inputs must have the same first dimension (num_experts).");
