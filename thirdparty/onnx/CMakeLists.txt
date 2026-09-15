@@ -16,6 +16,11 @@ set(OV_ONNX_NAMESPACE openvino_onnx)
 # The patch rewrites it to the portable 'std::not_equal_to<>()'. Newer compilers
 # accept the upstream source as-is, so the patch is only needed for GCC < 9.
 #
+# scoped_handle_invalid_handle_value.patch: ONNX aliases ScopedHandle via
+# ScopedResource<INVALID_HANDLE_VALUE, close_handle>. Windows Clang rejects
+# INVALID_HANDLE_VALUE as a non-type template argument, so the patch replaces
+# the alias with a dedicated ScopedHandle wrapper class.
+#
 # TODO: remove this patch (and the patches directory) once GCC 8 support is
 # dropped, or once the fix is upstreamed into the pinned ONNX version. Patches
 # should be avoided in general and kept as narrow and short-lived as possible.
@@ -23,9 +28,16 @@ set(OV_ONNX_NAMESPACE openvino_onnx)
 # Patches are listed explicitly (not globbed) so it is clear which patch applies
 # under which condition. They are applied idempotently so re-configuration and
 # incremental builds are safe.
+set(_onnx_patches)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9)
-    set(_onnx_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/not_equal_to_ctad.patch")
+    list(APPEND _onnx_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/not_equal_to_ctad.patch")
+endif()
 
+if(WIN32 AND OV_COMPILER_IS_CLANG_CL)
+    list(APPEND _onnx_patches "${CMAKE_CURRENT_SOURCE_DIR}/patches/scoped_handle_invalid_handle_value.patch")
+endif()
+
+if(_onnx_patches)
     find_package(Git QUIET)
     if(GIT_FOUND)
         foreach(_onnx_patch IN LISTS _onnx_patches)
@@ -50,7 +62,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_L
             message(STATUS "Applied ONNX patch: ${_onnx_patch}")
         endforeach()
     else()
-        message(WARNING "Git not found; ONNX source patches were not applied and the build may fail on GCC < 9")
+        message(WARNING "Git not found; ONNX source patches were not applied and the build may fail for compilers that require them")
     endif()
 endif()
 

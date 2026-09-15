@@ -16,6 +16,10 @@ PassPosition::PassPosition(Place pass_place) : m_place(pass_place) {
     OPENVINO_ASSERT(utils::any_of(m_place, Place::PipelineStart, Place::PipelineEnd),
                     "Invalid arg: pass_type_info and pass_instance args could be omitted only for "
                     "Place::PipelineStart/Place::PipelineEnd");
+    // m_pass_instance is otherwise only read from the header-defined template path,
+    // which can trigger clang's unused-private-field warning in TUs that do not
+    // instantiate that template.
+    static_cast<void>(m_pass_instance);
 }
 
 PassPosition::PassPosition(Place pass_place, const DiscreteTypeInfo& pass_type_info, size_t pass_instance)
