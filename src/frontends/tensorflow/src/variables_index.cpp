@@ -191,7 +191,7 @@ void VariablesIndex::read_checkpointable_object_graph() {
     ::tensorflow::TrackableObjectGraph tog;
 
     if (m_mmap_enabled) {
-        auto srcPtr = static_cast<char*>(shard->second.mmap->data() + entry.offset() + chg);
+        auto srcPtr = shard->second.mmap->data_as<char>() + entry.offset() + chg;
         std::copy(srcPtr, srcPtr + entry.size() - chg, data.data());
     } else {
         shard->second.stream->seekg(entry.offset() + chg);
