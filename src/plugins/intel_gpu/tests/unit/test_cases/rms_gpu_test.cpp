@@ -923,3 +923,227 @@ TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_near_zero) {
                  /*epsilon=*/1e-5f, /*in_min=*/0.001f, /*in_max=*/0.003f,
                  /*abs_floor=*/0.01f, /*rel_tol=*/0.05f);
 }
+
+// ============================================================================
+// Channel axis (axis=1) NCHW RMS tests
+// ============================================================================
+template <typename T>
+void rms_channel_ref(const memory::ptr input, const memory::ptr gamma, memory::ptr output, float epsilon) {
+    auto input_layout = input->get_layout();
+    uint32_t batch_size = input_layout.batch();
+    uint32_t feature_size = input_layout.feature();
+    uint32_t y_size = input_layout.spatial(1);
+    uint32_t x_size = input_layout.spatial(0);
+
+    cldnn::mem_lock<T> src(input, get_test_stream());
+    cldnn::mem_lock<T> dst(output, get_test_stream());
+
+    std::unique_ptr<cldnn::mem_lock<T>> weight;
+    if (gamma) {
+        weight = std::make_unique<cldnn::mem_lock<T>>(gamma, get_test_stream());
+    }
+    const bool scalar_gamma = gamma && gamma->count() == 1;
+
+    for (uint32_t b = 0; b < batch_size; ++b) {
+        for (uint32_t y = 0; y < y_size; ++y) {
+            for (uint32_t x = 0; x < x_size; ++x) {
+                float sum_sq = 0.f;
+                for (uint32_t c = 0; c < feature_size; ++c) {
+                    auto t = tensor(batch(b), feature(c), spatial(x, y, 0, 0));
+                    float val = static_cast<float>(src[input_layout.get_linear_offset(t)]);
+                    sum_sq += val * val;
+                }
+                float rms = 1.0f / std::sqrt(sum_sq / feature_size + epsilon);
+
+                for (uint32_t c = 0; c < feature_size; ++c) {
+                    auto t = tensor(batch(b), feature(c), spatial(x, y, 0, 0));
+                    size_t offset = input_layout.get_linear_offset(t);
+                    float gamma_val = weight ? static_cast<float>((*weight)[scalar_gamma ? 0 : c]) : 1.0f;
+                    dst[offset] = static_cast<T>(rms * static_cast<float>(src[offset]) * gamma_val);
+                }
+            }
+        }
+    }
+}
+
+TEST(rms_gpu_test, rms_test_channel_axis_ref) {
+    auto& engine = get_test_engine();
+
+    // Use odd spatial dimensions (H=7, W=5) distinct from channel count (C=64)
+    // to ensure C and spatial dimensions are not confused.
+    const ov::PartialShape in_shape{1, 64, 7, 5};
+    auto input = engine.allocate_memory({in_shape, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 64, 1, 1}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({in_shape, data_types::f32, format::bfyx});
+
+    tests::set_random_values<float>(input, true, 8, 100);
+    tests::set_random_values<float>(gamma, true, 8, 100);
+
+    const float eps = 1e-6f;
+    rms_channel_ref<float>(input, gamma, output_ref, eps);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), eps, /*axis=*/1));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    // Verify rms_gpu_ref is selected for channel axis
+    auto impl = network.get_primitive("rms")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_EQ(impl->get_kernel_name(), "rms_gpu_ref");
+
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+
+    auto output = outputs.at("rms").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-4) << "Mismatch at index=" << i;
+    }
+}
+
+TEST(rms_gpu_test, rms_test_channel_axis_ref_unaligned_channels) {
+    auto& engine = get_test_engine();
+
+    // Channel size not a multiple of 8 or 16
+    const ov::PartialShape in_shape{2, 13, 3, 5};
+    auto input = engine.allocate_memory({in_shape, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 13, 1, 1}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({in_shape, data_types::f32, format::bfyx});
+
+    tests::set_random_values<float>(input, true, 8, 100);
+    tests::set_random_values<float>(gamma, true, 8, 100);
+
+    const float eps = 1e-5f;
+    rms_channel_ref<float>(input, gamma, output_ref, eps);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), eps, /*axis=*/1));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("rms").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-4) << "Mismatch at index=" << i;
+    }
+}
+
+TEST(rms_gpu_test, rms_test_channel_axis_ref_dyn) {
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{ov::PartialShape{-1, 64, -1, -1}, data_types::f32, format::bfyx};
+    const ov::PartialShape in_shape{1, 64, 8, 8};
+    auto input = engine.allocate_memory({in_shape, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 64, 1, 1}, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({in_shape, data_types::f32, format::bfyx});
+
+    tests::set_random_values<float>(input, true, 8, 100);
+    tests::set_random_values<float>(gamma, true, 8, 100);
+
+    const float eps = 1e-6f;
+    rms_channel_ref<float>(input, gamma, output_ref, eps);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), eps, /*axis=*/1));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto impl = network.get_primitive("rms")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    auto output = outputs.at("rms").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-4) << "Mismatch at index=" << i;
+    }
+}
+
+TEST(rms_gpu_test, rms_test_channel_axis_no_gamma) {
+    auto& engine = get_test_engine();
+
+    const ov::PartialShape in_shape{1, 32, 4, 4};
+    auto input = engine.allocate_memory({in_shape, data_types::f32, format::bfyx});
+    auto output_ref = engine.allocate_memory({in_shape, data_types::f32, format::bfyx});
+
+    tests::set_random_values<float>(input, true, 8, 100);
+
+    const float eps = 1e-6f;
+    rms_channel_ref<float>(input, nullptr, output_ref, eps);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(rms("rms", input_info("input"), eps, /*axis=*/1));
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("rms").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float> output_ref_ptr(output_ref, get_test_stream());
+
+    for (unsigned int i = 0; i < output_ref->count(); ++i) {
+        EXPECT_NEAR(output_ptr[i], output_ref_ptr[i], 1e-4) << "Mismatch at index=" << i;
+    }
+}
+
+TEST(rms_gpu_test, rms_test_channel_axis_cache) {
+    auto& engine = get_test_engine();
+
+    const ov::PartialShape in_shape{1, 64, 4, 4};
+    auto input = engine.allocate_memory({in_shape, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{1, 64, 1, 1}, data_types::f32, format::bfyx});
+
+    tests::set_random_values<float>(input, true, 8, 100);
+    tests::set_random_values<float>(gamma, true, 8, 100);
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), 1e-6f, /*axis=*/1));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    auto net_orig = get_network(engine, topology, config, get_test_stream_ptr(), false);
+    net_orig->set_input_data("input", input);
+    net_orig->set_input_data("gamma", gamma);
+    auto orig_outputs = net_orig->execute();
+    auto orig_out_mem = orig_outputs.at("rms").get_memory();
+
+    auto net_cached = get_network(engine, topology, config, get_test_stream_ptr(), true);
+    net_cached->set_input_data("input", input);
+    net_cached->set_input_data("gamma", gamma);
+    auto cached_outputs = net_cached->execute();
+    auto cached_out_mem = cached_outputs.at("rms").get_memory();
+
+    cldnn::mem_lock<float> orig_ptr(orig_out_mem, get_test_stream());
+    cldnn::mem_lock<float> cached_ptr(cached_out_mem, get_test_stream());
+    for (size_t i = 0; i < orig_out_mem->count(); ++i) {
+        EXPECT_EQ(orig_ptr[i], cached_ptr[i]) << "Cache mismatch at index=" << i;
+    }
+}
