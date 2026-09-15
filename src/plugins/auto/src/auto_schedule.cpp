@@ -351,6 +351,12 @@ void AutoSchedule::try_to_compile_model(AutoCompileContext& context, const std::
     if (context.m_is_load_success || cur_dev_is_cpu) {
         return;
     }
+    if (m_plugin->is_low_power_device(device, m_context->m_low_power_device)) {
+        context.m_err_message += " (user-specified low power device, no fallback attempted)";
+        LOG_ERROR_TAG("Compiling model on low power device:%s failed, AUTO will not fall back "
+                      "to another candidate device", device.c_str());
+        return;
+    }
     // need to recompile model, unregister it's priority
     // there maybe potential issue.
     // for example they are dGPU, NPU, iGPU, customer want to compile model with
