@@ -1150,7 +1150,18 @@ public:
 
     // Capabilities of the ISA this kernel is generated for. Queried before
     // recording; see jit_kernel_target.hpp.
-    [[nodiscard]] const vector_target& target() const { return host_vector_target(); }
+    // The target this kernel is generating for. Defaults to the host, and
+    // is injectable so that decisions taken for a capability the host does
+    // not have can be tested — the branches for SVE's predicated
+    // interleaved store and RVV's register-only addressing are otherwise
+    // unreachable, hence unverified. LLVM tests the same way: a target
+    // triple and subtarget features are inputs, not properties of the
+    // machine running the compiler.
+    [[nodiscard]] const vector_target& target() const {
+        return _target != nullptr ? *_target : host_vector_target();
+    }
+
+    void set_target(const vector_target& t) { _target = &t; }
 
     // IR mode is always active between begin_ir() and end_ir().
     [[nodiscard]] bool ir_mode() const noexcept { return _ir != nullptr; }
@@ -1412,6 +1423,9 @@ private:
 
     // See set_peel_limit(). Initialized from OV_JIT_IR_PEEL.
     size_t _peel_limit = default_peel_limit();
+
+    // See set_target(). Null = the host target.
+    const vector_target* _target = nullptr;
 
     static size_t default_peel_limit();
 

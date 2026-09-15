@@ -2358,6 +2358,100 @@ TEST(JitKernelIR, PeelingEmitsOneBodyPerIteration) {
                                          << " " << sizes[2] << " " << sizes[3];
 }
 
+// ── Decisions taken for a target the host is not ───────────────────────
+//
+// Both branches below are unreachable on any x86 target, so until the
+// target became injectable they were asserted and never executed. RVV is
+// the real case: "RVV instructions only support register addressing", so a
+// vector access cannot carry a displacement and a peeled loop has to keep
+// incrementing its pointers. The same kernel is built twice, once per
+// answer, and both must compute the same thing.
+
+namespace {
+
+// A target that refuses displacements outright — RVV's answer for vector
+// accesses. Everything else matches the AVX-512 host so the rest of the
+// kernel is unchanged.
+struct no_offset_target final : vector_target {
+    [[nodiscard]] bool supports_masked_access(std::size_t elem_bytes) const override {
+        return elem_bytes == 1 || elem_bytes == 2 || elem_bytes == 4;
+    }
+    [[nodiscard]] bool supports_masked_interleaved_access() const override { return false; }
+    [[nodiscard]] tail_folding preferred_tail_folding() const override {
+        return tail_folding::mask;
+    }
+    [[nodiscard]] bool is_legal_access_offset(std::size_t /*elem_bytes*/,
+                                              std::size_t /*vectors*/,
+                                              std::size_t /*bytes*/) const override {
+        return false;
+    }
+    [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {
+        static const std::vector<std::uint32_t> pool{1, 2, 3, 4, 5, 6, 7};
+        return pool;
+    }
+};
+
+// Same kernel as the peel differential, with an injected target.
+template <size_t N>
+struct jit_ir_peel_target_kernel : public jit_ir_fma_peel_kernel<N> {
+    jit_ir_peel_target_kernel(size_t count, const vector_target& t)
+        : jit_ir_fma_peel_kernel<N>(count, /*limit=*/8) {
+        this->set_target(t);
+    }
+};
+
+}  // namespace
+
+TEST(JitKernelIR, TargetWithoutLegalOffsetKeepsPointerIncrements) {
+    using namespace dnnl::impl::cpu::x64;
+    if (!mayiuse(cpu_isa_t::avx512_core)) {
+        GTEST_SKIP() << "the injected target mirrors an AVX-512 host";
+    }
+    constexpr size_t N = 16;
+    constexpr size_t count = 4 * N;  // four peeled iterations, no remainder
+
+    const no_offset_target no_offset;
+    jit_ir_peel_target_kernel<N> incremented(count, no_offset);
+    incremented.init();
+
+    // The host target folds the same displacements away, so the kernel that
+    // cannot must be larger — three pointer bumps per iteration boundary.
+    jit_ir_fma_peel_kernel<N> displaced(count, /*limit=*/8);
+    displaced.init();
+
+    EXPECT_GT(incremented.getSize(), displaced.getSize())
+        << "a target that refuses displacements must emit the increments instead";
+
+    // And both must compute the same thing.
+    constexpr float sentinel = -321.0f;
+    std::mt19937 rng(20260916);
+    std::uniform_real_distribution<float> val_dist(-4.0f, 4.0f);
+
+    std::vector<float> a(count + N);
+    std::vector<float> b(count + N);
+    std::vector<float> c(count + N);
+    for (size_t i = 0; i < a.size(); ++i) {
+        a[i] = val_dist(rng);
+        b[i] = val_dist(rng);
+        c[i] = val_dist(rng);
+    }
+
+    std::vector<float> dst_inc(count + N, sentinel);
+    std::vector<float> dst_disp(count + N, sentinel);
+    FmaPeelParams args_inc{a.data(), b.data(), c.data(), dst_inc.data()};
+    FmaPeelParams args_disp{a.data(), b.data(), c.data(), dst_disp.data()};
+    incremented(args_inc);
+    displaced(args_disp);
+
+    for (size_t i = 0; i < count; ++i) {
+        EXPECT_FLOAT_EQ(dst_inc[i], std::fma(a[i], b[i], c[i])) << "index " << i;
+        EXPECT_FLOAT_EQ(dst_inc[i], dst_disp[i]) << "shapes disagree at index " << i;
+    }
+    for (size_t i = count; i < count + N; ++i) {
+        EXPECT_FLOAT_EQ(dst_inc[i], sentinel) << "stored past the count at " << i;
+    }
+}
+
 // ── Type-converting store must not clobber its source ──────────────────
 //
 // The u8 store narrows f32 -> i32 -> u8. That conversion used to run in
