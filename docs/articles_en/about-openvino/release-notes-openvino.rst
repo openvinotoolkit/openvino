@@ -31,7 +31,7 @@ More Gen AI coverage and frameworks integrations to minimize code changes
 
 * New models supported:
 
-  * On CPU, GPU: Gemma-3n, Kokoro-82M, Qwen3-VL-4B with EAGLE-3, Qwen3-ASR, Muse Glimmer, and Qwen3.8
+  * On CPU, GPU: Gemma-3n, Kokoro-82M, Qwen3-VL-4B with EAGLE-3, Qwen3-ASR, Muse Glimmer 30B, and Qwen3.8 27B
 
   * On NPUs: Kokoro-82M, FLUX.2-Klein-4B, Granite-4-1B, Qwen3-4B/8B (EAGLE-3)
 
@@ -59,7 +59,7 @@ More portability and performance to run AI at the edge, in the cloud or locally
 
 * Preview: OpenVINO™ Model Server now includes preview support for idle model management, which unloads models when they are not in use to reduce memory usage.
 
-* OpenVINO™ Model Server adds support for new agentic models such as Muse Glimmer and Qwen3.8.
+* OpenVINO™ Model Server adds support for new agentic models such as Muse Glimmer 30B and Qwen3.8 27B.
 
 OpenVINO™ Runtime
 +++++++++++++++++
