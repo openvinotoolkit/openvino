@@ -1813,9 +1813,6 @@ jit_logical_or_emitter::jit_logical_or_emitter(jit_generator_t* host,
 size_t jit_logical_or_emitter::get_inputs_num() const {
     return 2;
 }
-size_t jit_logical_or_emitter::aux_vecs_count() const {
-    return 1;
-}
 size_t jit_logical_or_emitter::aux_gprs_count() const {
     return 1;
 }
@@ -1837,21 +1834,19 @@ void jit_logical_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const VReg src0 = VReg(in_vec_idxs[0]);
     const VReg src1 = VReg(in_vec_idxs[1]);
     const VReg dst = VReg(out_vec_idxs[0]);
-    const VReg ones = VReg(aux_vec_idxs[0]);
     const FReg fzero = FReg(aux_fp_gpr_idxs[0]);
     const FReg fone = FReg(aux_fp_gpr_idxs[1]);
 
     h->fmv_w_x(fzero, zero);
     load_table_val("one", fone);
-    h->vfmv_v_f(ones, fone);
 
     h->vmv_v_x(dst, zero);
 
     h->vmfne_vf(mask_vreg(), src0, fzero);
-    h->vmerge_vvm(dst, dst, ones);
+    h->vfmerge_vfm(dst, dst, fone);
 
     h->vmfne_vf(mask_vreg(), src1, fzero);
-    h->vmerge_vvm(dst, dst, ones);
+    h->vfmerge_vfm(dst, dst, fone);
 }
 std::set<std::vector<element::Type>> jit_logical_or_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
@@ -2076,8 +2071,9 @@ void jit_is_nan_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     auto one = FReg(aux_fp_gpr_idxs[0]);
 
-    h->vmfne_vv(mask_vreg(), src, src);      // set mask where src is nan (i.e. not equal to itself)
-    h->vmv_v_x(dst, zero);                   // set dst to 0
+    h->vmfne_vv(mask_vreg(), src, src);  // set mask where src is nan (i.e. not equal to itself)
+    h->vmv_v_x(dst, zero);               // set dst to 0
+    load_table_val("one", one);
     h->vfadd_vf(dst, dst, one, VM::masked);  // set 1.0 where mask is true
 }
 
@@ -2234,10 +2230,6 @@ size_t jit_logical_and_emitter::aux_fp_gprs_count() const {
     return 2;
 }
 
-size_t jit_logical_and_emitter::aux_vecs_count() const {
-    return 1;
-}
-
 void jit_logical_and_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
                                         const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
@@ -2255,20 +2247,18 @@ void jit_logical_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const auto src0 = VReg(in_vec_idxs[0]);
     const auto src1 = VReg(in_vec_idxs[1]);
     const auto dst = VReg(out_vec_idxs[0]);
-    const auto ones = VReg(aux_vec_idxs[0]);
 
     auto fzero = FReg(aux_fp_gpr_idxs[0]);
     h->fmv_w_x(fzero, zero);
 
     auto fone = FReg(aux_fp_gpr_idxs[1]);
     load_table_val("one", fone);
-    h->vfmv_v_f(ones, fone);
 
     h->vmv_v_x(dst, zero);
 
     h->vmfne_vf(mask_vreg(), src0, fzero);
     h->vmfne_vf(mask_vreg(), src1, fzero, VM::masked);
-    h->vmerge_vvm(dst, dst, ones);
+    h->vfmerge_vfm(dst, dst, fone);
 }
 
 std::set<std::vector<element::Type>> jit_logical_and_emitter::get_supported_precisions(

@@ -8,7 +8,7 @@
 
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 #include "openvino/util/file_util.hpp"
 
 #define OV_PLUGIN_CALL_STATEMENT(...)                                                  \

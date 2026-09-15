@@ -39,11 +39,12 @@ public:
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
      * the same scope.
-     * @return An ov::Tensor object for each init schedule, followed by another one corresponding to the main
-     * part.
+     * @return A pair containing one ov::Tensor for each init schedule, followed by another one corresponding to the
+     * main part, and an optional compatibility string for the compiled blobs.
      */
-    std::vector<ov::Tensor> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
-                                             const FilteredConfig& config) const;
+    std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
+        const std::shared_ptr<ov::Model>& model,
+        const FilteredConfig& config) const;
     /**
      * @brief Sequential compilation of Init(s) and Main
      *
@@ -58,9 +59,9 @@ public:
      * Compiler should somehow understand which Init (or Main) to return
      * Plugin does not know total numbers of Init schedules
      */
-    ov::Tensor compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                  const FilteredConfig& config,
-                                  size_t callNumber) const;
+    std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(const std::shared_ptr<ov::Model>& model,
+                                                                         const FilteredConfig& config,
+                                                                         size_t callNumber) const;
     /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
@@ -83,9 +84,8 @@ public:
 
     /**
      * @brief Returns the compiler supported options list
-     * @return false if the API is not supported, true otherwise
      */
-    bool get_supported_options(std::vector<char>& options) const;
+    void get_supported_options(std::vector<char>& options) const;
 
     /**
      * @brief Checks whether the given option and value are supported by the compiler

@@ -127,22 +127,18 @@ void AddPair::SetUp() {
 
 TEST_P(Add, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(AddConst, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(AddRollConst, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(AddPair, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

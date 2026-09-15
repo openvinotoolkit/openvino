@@ -409,6 +409,31 @@ def test_split_1d():
     assert all_arrays_equal(graph_results, expected_outputs)
 
 
+def test_split_opset18_coherent_num_outputs_zero_raises():
+    node = onnx.helper.make_node(
+        "Split", inputs=["input"], outputs=[], num_outputs=0,
+    )
+    input_tensor = make_tensor_value_info("input", onnx.TensorProto.FLOAT, [6])
+    graph = make_graph([node], "compute_graph", [input_tensor], [])
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
+    model.opset_import[0].version = 18
+    with pytest.raises(onnx.onnx_cpp2py_export.checker.ValidationError, match="has output size 0 not in range"):
+        import_onnx_model(model)
+
+
+def test_split_opset18_malicious_num_outputs_zero_raises():
+    node = onnx.helper.make_node(
+        "Split", inputs=["input"], outputs=["out"], num_outputs=0,
+    )
+    input_tensor = make_tensor_value_info("input", onnx.TensorProto.FLOAT, [6])
+    output_tensor = make_tensor_value_info("out", onnx.TensorProto.FLOAT, [6])
+    graph = make_graph([node], "compute_graph", [input_tensor], [output_tensor])
+    model = make_model(graph, producer_name="OpenVINO ONNX Frontend")
+    model.opset_import[0].version = 18
+    with pytest.raises(RuntimeError, match="'num_outputs' must be greater than zero"):
+        import_onnx_model(model)
+
+
 def test_depth_to_space():
     b, c, h, w = shape = (2, 8, 3, 3)  # noqa: VNE001
     blocksize = 2

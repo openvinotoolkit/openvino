@@ -22,12 +22,15 @@ SliceKernelRefNeededInputs SliceKernelRefNeededInputs::Create(const slice_node& 
     const bool step_in_runtime = !node_inputs[InputIndices::kStep].first->is_constant();
 
     inputs.neededIndexes.push_back(InputIndices::kData);
-    if (start_in_runtime)
+    if (start_in_runtime) {
         inputs.neededIndexes.push_back(InputIndices::kStart);
-    if (step_in_runtime)
+    }
+    if (step_in_runtime) {
         inputs.neededIndexes.push_back(InputIndices::kStep);
-    if (axes_in_runtime)
+    }
+    if (axes_in_runtime) {
         inputs.neededIndexes.push_back(InputIndices::kAxes);
+    }
 
     // NOTE: stop is never needed as it is passed implicitely via output shape.
 
@@ -101,7 +104,7 @@ void slice_inst::update_shape_info_tensor(const kernel_impl_params& params) {
     }
 
     mem_lock<int32_t> lock(_shape_info_memory, _network.get_stream());
-    auto shape_info_ptr = lock.data();
+    auto* shape_info_ptr = lock.data();
     size_t offset = 0;
     const SliceKernelRefNeededInputs inputs = SliceKernelRefNeededInputs::Create(*_node);
 

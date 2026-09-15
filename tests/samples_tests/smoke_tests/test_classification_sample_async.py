@@ -38,12 +38,10 @@ test_data_fp16 = get_tests({
 class TestClassification(SamplesCommonTestClass):
     sample_name = 'classification_sample_async'
 
-    @pytest.mark.skip(reason="CVS-188974")
     @pytest.mark.parametrize("param", test_data_fp32)
     def test_classification_sample_async_fp32(self, param, cache):
         _check_output(self, param, '215', cache)
 
-    @pytest.mark.skip(reason="CVS-188974")
     @pytest.mark.parametrize("param", test_data_fp16)
     def test_classification_sample_async_fp16(self, param, cache):
         _check_output(self, param, '215', cache)

@@ -58,7 +58,7 @@ void generate_if_clusters(const shared_ptr<Model>& ov_model,
 
             // combine all Switch nodes for which conditional flow is resolved
             // by the current Merge node
-            SetOfSwitchNodes switch_nodes;
+            unordered_set<shared_ptr<Switch>> switch_nodes;
             for (const auto& eliminated_marker : eliminated_markers) {
                 auto curr_switch_nodes = merge_node->get_switch_nodes_set_by_cond_index(eliminated_marker);
                 switch_nodes.insert(curr_switch_nodes.begin(), curr_switch_nodes.end());

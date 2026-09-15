@@ -157,8 +157,9 @@ void modify_initializer(TensorProto& initializer,
         initializer.add_dims(dim);
     }
 
-    const auto data_size_in_bytes = shape_size(values->get_shape()) * get_onnx_data_size(initializer.data_type());
-    initializer.set_raw_data(values->get_data_ptr(), data_size_in_bytes);
+    // Constant::get_byte_size() accounts for sub-byte (nibble) types, which are stored packed,
+    // unlike shape_size() * get_onnx_data_size(), which would over-read the constant buffer.
+    initializer.set_raw_data(values->get_data_ptr(), values->get_byte_size());
 
     // update input with type and shape of initializer
     if (input) {

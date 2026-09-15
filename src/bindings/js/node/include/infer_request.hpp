@@ -7,6 +7,7 @@
 
 #include <thread>
 
+#include "node/include/helper.hpp"
 #include "openvino/runtime/infer_request.hpp"
 
 struct TsfnContext {
@@ -18,7 +19,7 @@ struct TsfnContext {
     Napi::ThreadSafeFunction tsfn;
 
     ov::InferRequest* _ir;
-    std::vector<ov::Tensor> _inputs;
+    ParsedInputData _inputs;
     std::map<std::string, ov::Tensor> result;
 };
 
@@ -124,5 +125,3 @@ private:
 };
 
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context);
-
-void performInferenceThread(TsfnContext* context);

@@ -5,7 +5,6 @@
 #include "fullyconnected.h"
 
 #include <algorithm>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -41,6 +40,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
@@ -78,7 +78,9 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
     }
     return supportedDataTypes;
 #elif defined(OV_CPU_WITH_KLEIDIAI)
-    return {Type_t::i8, Type_t::i4};
+    // Symmetric weight-only compression uses i4. Asymmetric groupwise
+    // compression exported by Optimum uses u4 weights plus u4 zero-points.
+    return {Type_t::i8, Type_t::i4, Type_t::u4};
 #else
     return {};
 #endif
@@ -98,7 +100,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
     // dynamic-quant kernels. On AMX-capable HW, AMX BF16 TMUL outperforms
     // VNNI int8 on prefill, so keep f32 here and let the existing AMX BF16
     // path handle bf16 inference precision.
-    if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    if (ov::with_cpu_x86_avx512_core_amx()) {
         return {Type_t::f32};
     }
     return {Type_t::f32, Type_t::bf16};
@@ -152,12 +154,11 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             return false;
         }
 
-        if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2)) {
+        if (!ov::with_cpu_x86_avx2()) {
             return false;
         }
 
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
-            config.inferencePrecision == ov::element::bf16) {
+        if (ov::with_cpu_x86_avx512_core_amx() && config.inferencePrecision == ov::element::bf16) {
             // OneDNN AMX IP implementation has limited shapes support due to performance considerations. As a
             // current solution conditions below are copied from OneDNN to make sure correct IP impl will be
             // used since fallback one doesn't support weights decompression feature.
@@ -196,13 +197,35 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
             return false;
         }
 
-        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC) {
+        const auto scalesShape = op->input(WEIGHT_SCALES).get_shape();
+        const bool isChannelWise = shape_size(scalesShape) == OC;
+        const bool hasValidGroupGeometry = IC % G == 0 && IC / G >= 4 && OC != 1 && (IC / G) % 32 == 0;
+        const bool isGroupWise = !isChannelWise && hasValidGroupGeometry;
+
+        if (!isChannelWise && !isGroupWise) {
             return false;
         }
 
-        if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic) {
+        const auto weightsType = op->input(WEIGHTS).get_element_type();
+        const bool hasWeightZeroPoints = op->get_input_size() > WEIGHT_ZERO_POINTS &&
+                                         op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic;
+
+        if (weightsType == ov::element::u4 && !hasWeightZeroPoints) {
             return false;
+        }
+
+        if (hasWeightZeroPoints) {
+            const auto zeroPointsType = op->input(WEIGHT_ZERO_POINTS).get_element_type();
+            // KleidiAI supports asymmetric INT4 only for group-wise u4.
+            if (weightsType != ov::element::u4 || zeroPointsType != ov::element::u4 || !isGroupWise) {
+                return false;
+            }
+
+            const auto zeroPointsShape = op->input(WEIGHT_ZERO_POINTS).get_shape();
+
+            if (zeroPointsShape != scalesShape) {
+                return false;
+            }
         }
     } catch (...) {
         return false;
@@ -285,12 +308,12 @@ void FullyConnected::needPrepareParamsForTensorParallel() {
         auto dst_desc = dstMemoryBuffer->getDescPtr();
         auto dims = dst_shape.getDims();
         if (dim < 0) {
-            dim += dims.size();
+            dim += static_cast<int>(dims.size());
         }
         CPU_NODE_ASSERT(static_cast<int>(dims[dim]) >= tp_cfg.w_size,
                         getName() + " dim[" + std::to_string(dim) + "] is " + std::to_string(dims[dim]) +
                             ", which is larger than w_size " + std::to_string(tp_cfg.w_size));
-        auto splited_dim_vec = split_parts(dims[dim], tp_cfg.w_size);
+        auto splited_dim_vec = split_parts(static_cast<int>(dims[dim]), tp_cfg.w_size);
 
         VectorDims new_dims = std::move(dims);
         new_dims[dim] = splited_dim_vec[tp_cfg.w_rank];
@@ -352,7 +375,7 @@ void FullyConnected::execTensorParallelSync() {
             return parts;
         };
 
-        const int dim = dims.size() - 1;
+        const auto dim = static_cast<int>(dims.size() - 1);
         // selected dim bytes
         auto channel_size = dims[dim] * prec.size();
         // total bytes
@@ -360,7 +383,7 @@ void FullyConnected::execTensorParallelSync() {
         // the steps need to copy.
         const size_t count = (mem_size / channel_size);
 
-        auto splited_dim_vec = split_parts(dims[dim], tp_cfg.w_size);
+        auto splited_dim_vec = split_parts(static_cast<int>(dims[dim]), tp_cfg.w_size);
         const auto strideSize = splited_dim_vec[0] * prec.size();
 
         tp_cfg.sub_memory->_memorys_table[tp_cfg.id][tp_cfg.w_rank].send_buf = cur_dst->getData();
@@ -517,7 +540,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
         return false;
     }
 
-    if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx)) {
+    if (!ov::with_cpu_x86_avx512_core_amx()) {
         return false;
     }
 
@@ -555,7 +578,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
               ", nnzCount = ",
               elementsCount - zerosCount);
 
-    auto sparseRate = static_cast<float>(zerosCount) / static_cast<float>(elementsCount);
+    auto sparseRate = (elementsCount > 0) ? (static_cast<float>(zerosCount) / static_cast<float>(elementsCount)) : 0.0F;
 
     DEBUG_LOG("Sparse rate = ",
               sparseRate * 100,
@@ -574,6 +597,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     attrs.dynamicQuantizationGroupSize = context->getConfig().fcDynamicQuantizationGroupSize;
     attrs.modelType = context->getConfig().modelType;
 
+    attrs.dqScales = getDQScales();
     attrs.postOps = getPostOps(fusedWith);
 
     const auto& srcTypes = getOriginalInputPrecisions();
@@ -718,7 +742,7 @@ void FullyConnected::createPrimitive() {
     for (const auto& entry : m_atoi) {
         const auto argumentId = entry.first;
         const auto inputId = entry.second;
-        memory[argumentId] = getSrcMemoryAtPort(inputId);
+        memory[static_cast<int>(argumentId)] = getSrcMemoryAtPort(inputId);
     }
 
     memory[ARG_DST] = getDstMemoryAtPort(0);

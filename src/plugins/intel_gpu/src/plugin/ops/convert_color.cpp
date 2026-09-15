@@ -25,7 +25,7 @@ static void CreateCommonConvertColorOp(ProgramBuilder& p, const std::shared_ptr<
     auto batch = op->get_input_partial_shape(0)[0];
 
     auto memory_type = cldnn::convert_color::memory_type::buffer;
-    if (op->get_input_node_ptr(0)->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static())) {
+    if (op->get_input_node_ptr(0)->output(0).get_rt_info().count(ov::preprocess::TensorInfoMemoryType::get_type_info_static()) != 0u) {
         std::string mem_type = op->get_input_node_ptr(0)->output(0).get_rt_info().at(ov::preprocess::TensorInfoMemoryType::get_type_info_static())
                                                                                  .as<ov::preprocess::TensorInfoMemoryType>().value;
         if (mem_type.find(ov::intel_gpu::memory_type::surface) != std::string::npos) {

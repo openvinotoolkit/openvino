@@ -8,6 +8,7 @@
 
 #include "core/attribute.hpp"
 #include "core/graph.hpp"
+#include "core/graph_iterator_proto.hpp"
 #include "core/null_node.hpp"
 #include "core/tensor.hpp"
 #include "input_model.hpp"
@@ -990,7 +991,14 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) co
         auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
         FRONT_END_GENERAL_CHECK(graph_iterator != nullptr,
                                 "GraphIterator attribute is missing or of wrong type for attribute: " + name);
-        graph_iterator->reset();
+        // GraphIteratorProto builds its decoders lazily inside reset(): a freshly constructed
+        // subgraph proto iterator has an empty decoder list, so reset() is required there. Other
+        // GraphIterator implementations (e.g. the ORT EP delegate) construct already positioned at
+        // their first node and build decoders on demand, so reset() is unnecessary for them; skip
+        // it to mirror the top-level EP flow in FrontEnd::load_impl(), which likewise never resets.
+        if (std::dynamic_pointer_cast<ov::frontend::onnx::GraphIteratorProto>(graph_iterator)) {
+            graph_iterator->reset();
+        }
         auto parent_model = std::dynamic_pointer_cast<onnx::unify::InputModel>(m_translate_session->get_input_model());
         FRONT_END_GENERAL_CHECK(parent_model != nullptr, "Parent model is expected to be of onnx InputModel type.");
         auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator, parent_model);

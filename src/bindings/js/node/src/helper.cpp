@@ -4,12 +4,15 @@
 
 #include "node/include/helper.hpp"
 
+#include <sstream>
+
 #include "node/include/compiled_model.hpp"
 #include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/tensor_impl.hpp"
 #include "node/include/type_validation.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/util/common_util.hpp"
 
 const std::vector<std::string>& get_supported_types() {
     static const std::vector<std::string> supported_element_types =
@@ -323,24 +326,49 @@ Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_m
     return obj;
 }
 
-ov::TensorVector parse_input_data(const Napi::Value& input) {
-    ov::TensorVector parsed_input;
+Napi::Object cpp_to_js(const Napi::Env& env, const ov::Version& version) {
+    Napi::Object version_obj = Napi::Object::New(env);
+    version_obj.Set("buildNumber", Napi::String::New(env, version.buildNumber));
+    version_obj.Set("description", Napi::String::New(env, version.description));
+
+    std::ostringstream formatted;
+    formatted << version;
+    const std::string formatted_str{ov::util::rtrim(formatted.str())};
+    const auto to_string_fn = Napi::Function::New(
+        env,
+        [formatted_str](const Napi::CallbackInfo& cb) -> Napi::Value {
+            return Napi::String::New(cb.Env(), formatted_str);
+        },
+        "toString");
+    // toString() is defined as a non-enumerable method so it does not show up
+    // in Object.keys()/spread and keeps the object a pure data shape.
+    version_obj.DefineProperty(
+        Napi::PropertyDescriptor::Value("toString",
+                                        to_string_fn,
+                                        static_cast<napi_property_attributes>(napi_writable | napi_configurable)));
+    return version_obj;
+}
+
+ParsedInputData parse_input_data(const Napi::Value& input) {
     if (input.IsArray()) {
+        ov::TensorVector parsed_input;
         auto inputs = input.As<Napi::Array>();
         for (uint32_t i = 0; i < inputs.Length(); ++i) {
             parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(inputs[i])));
         }
+        return parsed_input;
     } else if (input.IsObject()) {
+        NamedInputData parsed_input;
         auto inputs = input.ToObject();
         const auto& keys = inputs.GetPropertyNames();
         for (uint32_t i = 0; i < keys.Length(); ++i) {
-            auto value = inputs.Get(static_cast<Napi::Value>(keys[i]).ToString().Utf8Value());
-            parsed_input.emplace_back(cast_to_tensor(static_cast<Napi::Value>(value)));
+            auto name = static_cast<Napi::Value>(keys[i]).ToString().Utf8Value();
+            parsed_input.emplace_back(name, cast_to_tensor(inputs.Get(name)));
         }
+        return parsed_input;
     } else {
         OPENVINO_THROW("parse_input_data(): wrong arg");
     }
-    return parsed_input;
 }
 
 ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const std::string key) {
