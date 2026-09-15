@@ -71,6 +71,8 @@ Common
 
 * Hardened the ``Constant`` node against malformed and incomplete IR models; loading a corrupted .xml IR model now produces a predictable error rather than a crash.
 
+* OpenVINO™ now supports builds based on RHEL 9.
+
 CPU Device Plugin
 -----------------
 
@@ -1191,8 +1193,6 @@ Discontinued in 2026
 * The following experimental NNCF methods were removed in NNCF 3.0: NAS, Structural Pruning, AutoML, Knowledge Distillation, Mixed-Precision Quantization, Movement Sparsity.
 
 * CPU plugin now requires support for the AVX2 instruction set as a minimum system requirement. The SSE instruction set will no longer be supported.
-
-* OpenVINO™ migrated builds based on RHEL 8 to RHEL 9.
 
 * Dropped support for the TensorFlow Serving (TFS) API in OpenVINO Model Server 2026.3. KServe API is recommended for classic model deployments.
 
