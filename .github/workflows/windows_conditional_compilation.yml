@@ -346,6 +346,12 @@ jobs:
           self-hosted-runner: 'true'
           use-pip-proxy: 'true'
 
+      # We have to specify additional flags here
+      # to limit MSBuild, cl.exe, and link.exe parallelization.
+      # Default values don't respect Kubernetes pod CPU limits.
+      # They will be set too high for big VMs
+      # shared with other jobs, which will cause
+      # "Compiler is out of heap memory" errors.
       - name: CMake configure - CC ON
         run: |
           cmake `
@@ -362,11 +368,14 @@ jobs:
             -DENABLE_OV_JAX_FRONTEND=OFF `
             -DENABLE_OV_ONNX_FRONTEND=OFF `
             -DSELECTIVE_BUILD_STAT=${{ env.SELECTIVE_BUILD_STAT_DIR }}\*.csv `
+            -DCMAKE_CXX_FLAGS="/cgthreads4 /MP4" `
+            -DCMAKE_C_FLAGS="/cgthreads4 /MP4" `
+            -DCMAKE_EXE_LINKER_FLAGS="/CGTHREADS:4" `
+            -DCMAKE_SHARED_LINKER_FLAGS="/CGTHREADS:4" `
+            -DCMAKE_MODULE_LINKER_FLAGS="/CGTHREADS:4" `            
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-        # Number of threads is hardcoded due to OutOfMemory issues. Unless we switch CMake's generator to Ninja, we can't
-        # set number of jobs separately for compilation and linking. The issue most likely occurs during linking.
       - name: Cmake build - CC ON
         run: cmake --build ${{ env.BUILD_DIR }} --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL --config ${{ env.CMAKE_BUILD_TYPE }} --target benchmark_app -- /verbosity:minimal
 
