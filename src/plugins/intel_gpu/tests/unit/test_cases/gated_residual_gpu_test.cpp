@@ -15,6 +15,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <algorithm>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/gated_residual.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -24,6 +25,10 @@
 
 #include "gated_residual_inst.h"
 #include "impls/cm/gated_residual/gr_stage_events.hpp"
+#include "intel_gpu/op/gated_residual.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/runtime/core.hpp"
 #include "random_generator.hpp"
 #include "test_utils.h"
 
@@ -434,6 +439,94 @@ TEST(gated_residual_gpu_test, unsupported_branch_count_is_rejected) {
     gated_residual
         supported("gr", {input_info("a"), input_info("b"), input_info("c"), input_info("d")}, gated_residual::Mode::READ, 4, 64, 16, 1e-6f, false, false);
     ASSERT_FALSE(prim == supported);
+}
+
+// --- ov::Model / ov::Core level reproduction (direct-construction WRITE mode) ----------
+//
+// Every other test above goes through the raw cldnn::topology/network API directly, i.e.
+// it bypasses ov::Model -> ProgramBuilder -> CreateGatedResidualOp entirely. This test
+// instead builds a tiny ov::Model containing a directly-constructed
+// ov::intel_gpu::op::GatedResidual(Mode::WRITE) node (no pattern-fusion involved) and
+// runs it through ov::Core::compile_model("GPU") + ov::InferRequest::infer(), mirroring
+// how a real model reaches this op after GatedResidualWriteFusion, to check whether the
+// WRITE-mode CM kernel segfaults when reached via the full plugin pipeline instead of the
+// raw topology API above.
+TEST(gated_residual_gpu_test, ov_model_write_mode_direct_construction) {
+    if (!cm_gr_available()) {
+        GTEST_SKIP() << "CM JIT / systolic GPU is required for gated_residual";
+    }
+
+    ov::Core core;
+    std::vector<std::string> available_devices;
+    try {
+        available_devices = core.get_available_devices();
+    } catch (...) {}
+    const bool has_gpu = std::any_of(available_devices.begin(), available_devices.end(), [](const std::string& device) {
+        return device.rfind("GPU", 0) == 0;
+    });
+    if (!has_gpu) {
+        GTEST_SKIP() << "GPU plugin is not available in ov::Core (unit test binary may lack plugin discovery).";
+    }
+
+    const size_t rows = 37;
+    const size_t C = kBranches;
+    const size_t D = 256;  // matches the real Qwen4-Exp model's hidden_size/C (hc_norm.weight = 1024 = 4*256)
+    const size_t CD = C * D;
+
+    auto residual_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, CD});
+    auto y_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, D});
+    auto gate_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{rows, C});
+
+    auto gr = std::make_shared<ov::intel_gpu::op::GatedResidual>(ov::OutputVector{residual_p, y_p, gate_p},
+                                                                  ov::intel_gpu::op::GatedResidual::Mode::WRITE,
+                                                                  C,
+                                                                  D,
+                                                                  /*lowrank=*/0,
+                                                                  /*epsilon=*/0.0f,
+                                                                  /*norm_gain_plus_one=*/false,
+                                                                  /*produce_write_gate=*/false,
+                                                                  ov::element::f16);
+    auto result = std::make_shared<ov::op::v0::Result>(gr);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{residual_p, y_p, gate_p});
+
+    ov::CompiledModel compiled;
+    OV_ASSERT_NO_THROW(compiled = core.compile_model(model, "GPU"));
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto residual = random_vec(rg, rows * CD, 1.0f);
+    const auto y = random_vec(rg, rows * D, 1.0f);
+    const auto gate = random_vec(rg, rows * C, 1.0f, 1.0f);
+
+    std::vector<float> ref(rows * CD, 0.0f);
+    for (size_t row = 0; row < rows; row++) {
+        for (size_t c = 0; c < C; c++) {
+            for (size_t d = 0; d < D; d++) {
+                ref[row * CD + c * D + d] = residual[row * CD + c * D + d] + gate[row * C + c] * y[row * D + d];
+            }
+        }
+    }
+
+    auto infer_request = compiled.create_infer_request();
+
+    auto fill_tensor = [&](size_t idx, const std::vector<float>& data) {
+        auto tensor = infer_request.get_input_tensor(idx);
+        auto* dst = tensor.data<ov::float16>();
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = ov::float16(data[i]);
+        }
+    };
+    fill_tensor(0, residual);
+    fill_tensor(1, y);
+    fill_tensor(2, gate);
+
+    OV_ASSERT_NO_THROW(infer_request.infer());
+
+    auto out_tensor = infer_request.get_output_tensor(0);
+    const auto* out = out_tensor.data<ov::float16>();
+    for (size_t i = 0; i < ref.size(); i++) {
+        ASSERT_NEAR(static_cast<float>(out[i]), ref[i], 1e-2f) << "residual update mismatch at " << i;
+    }
 }
 
 // --- roofline perf harness (token_size sweep) ------------------------------
