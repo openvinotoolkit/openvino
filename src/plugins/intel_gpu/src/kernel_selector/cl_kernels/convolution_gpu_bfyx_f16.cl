@@ -82,6 +82,10 @@ KERNEL(convolution_bfyx_f16)(
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
+    const int right_unreachable_count_x = min(max(0, input_x + INPUT_LINE_SIZE - INPUT0_SIZE_X),
+                                                INPUT_LINE_SIZE);
+    const int left_unreachable_count_x = min(max(0, -input_x), INPUT_LINE_SIZE);
+    const bool needs_x_clamp = (left_unreachable_count_x != 0) || (right_unreachable_count_x != 0);
 
     // Input offset calculations:
     const uint input_x_pitch = FEATURE_SLICE_SIZE;
@@ -188,7 +192,8 @@ KERNEL(convolution_bfyx_f16)(
                 {
                     for (int xb = 0; xb < INPUT_LINE_SIZE; xb++)
                     {
-                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM)
+                        const int in_x = input_x + xb;
+                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM || in_x < 0 || in_x >= INPUT0_SIZE_X)
                             line_cache[xb] = 0;
                         else
                             line_cache[xb] = input[grouped_input_offset +
@@ -200,7 +205,13 @@ KERNEL(convolution_bfyx_f16)(
                 }
                 else
 #endif  // INPUT_LEFTOVERS
+                if (!needs_x_clamp)
                 {
+                    // Fast path: taken by the vast majority of work-items whose
+                    // input window is fully inside the spatial bounds. All loop
+                    // bounds here are compile-time constants (INPUT_LINE_SIZE),
+                    // so the compiler can fully unroll/vectorize these reads,
+                    // matching the pre-OOB-fix performance.
                     int xb = 0;
                     for (; xb + 8 <= INPUT_LINE_SIZE; xb += 8) {
                         INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
@@ -229,6 +240,54 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb + 3] = vv[3];
                     }
                     for (; xb < INPUT_LINE_SIZE; xb++) {
+                        line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
+                                                                 icb * input_fs_pitch +
+                                                                 kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                 xb * input_x_pitch);
+                    }
+                }
+                else
+                {
+                    // Slow / boundary path: only reached by work-items whose
+                    // input window crosses the left or right spatial edge.
+                    // Zero-fill only the unreachable elements, then read the
+                    // reachable range.
+                    for (int i = 0; i < left_unreachable_count_x; i++) {
+                        line_cache[i] = 0;
+                    }
+                    for (int i = 0; i < right_unreachable_count_x; i++) {
+                        line_cache[INPUT_LINE_SIZE - 1 - i] = 0;
+                    }
+
+                    int xb = left_unreachable_count_x;
+                    const int reachable_size = INPUT_LINE_SIZE - right_unreachable_count_x;
+                    for (; xb + 8 <= reachable_size; xb += 8) {
+                        INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
+                                                                  icb * input_fs_pitch +
+                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                  xb * input_x_pitch);
+
+                        line_cache[xb + 0] = vv[0];
+                        line_cache[xb + 1] = vv[1];
+                        line_cache[xb + 2] = vv[2];
+                        line_cache[xb + 3] = vv[3];
+                        line_cache[xb + 4] = vv[4];
+                        line_cache[xb + 5] = vv[5];
+                        line_cache[xb + 6] = vv[6];
+                        line_cache[xb + 7] = vv[7];
+                    }
+                    for (; xb + 4 <= reachable_size; xb += 4) {
+                        INPUT_TYPE4 vv = DT_INPUT_BLOCK_READ4(input, grouped_input_offset +
+                                                                  icb * input_fs_pitch +
+                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
+                                                                  xb * input_x_pitch);
+
+                        line_cache[xb + 0] = vv[0];
+                        line_cache[xb + 1] = vv[1];
+                        line_cache[xb + 2] = vv[2];
+                        line_cache[xb + 3] = vv[3];
+                    }
+                    for (; xb < reachable_size; xb++) {
                         line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
                                                                  icb * input_fs_pitch +
                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
