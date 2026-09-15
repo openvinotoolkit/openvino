@@ -170,6 +170,78 @@ TEST(skip_reorder_at_runtime, remote_output_chain_does_not_stop_at_reorder) {
     ASSERT_EQ(network.get_output_memory("reorder")->buffer_ptr(), output_remote_mem->buffer_ptr());
 }
 
+// A reorder is not a chain boundary, so binding a remote output places the producer directly in the
+// remote chain. Returning to a non-remote destination must rebind the producer, or a later inference
+// would overwrite the remote tensor the user still holds. Same shape throughout, so nothing forces a
+// reallocation in between.
+TEST(skip_reorder_at_runtime, non_remote_to_remote_to_non_remote_preserves_remote_tensor) {
+    auto& engine = get_test_engine();
+    auto weight_mem = engine.allocate_memory({{2, 32}, data_types::f32, format::bfyx});
+    std::vector<float> weight_data(weight_mem->get_layout().count());
+    std::iota(weight_data.begin(), weight_data.end(), 1.0f);
+    set_values(weight_mem, weight_data);
+
+    auto input_l = layout{ov::PartialShape::dynamic(2), data_types::f32, format::bfyx};
+    topology topology(input_layout("input", input_l),
+                      data("weight", weight_mem),
+                      fully_connected("fc", input_info("input"), {"weight"}, "", data_types::f32),
+                      reorder("reorder", input_info("fc"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network(engine, topology, config);
+
+    auto input_mem = engine.allocate_memory({{10, 32}, data_types::f32, format::bfyx});
+    std::vector<float> input_data(input_mem->get_layout().count());
+    std::iota(input_data.begin(), input_data.end(), 0.5f);
+    set_values(input_mem, input_data);
+    network.set_input_data("input", input_mem);
+
+    const auto out_layout = layout{{10, 2}, data_types::f32, format::bfyx};
+    const size_t out_count = out_layout.count();
+
+    // Phase 1: non-remote. A skipped reorder makes the producer alias the bound destination.
+    auto first_output = engine.allocate_memory(out_layout);
+    network.set_output_memory("reorder", first_output);
+    network.execute();
+
+    // Phase 2: same-shape remote destination.
+    auto remote_output = engine.allocate_memory(out_layout);
+    network.set_output_memory("reorder", remote_output, true);
+    network.execute();
+
+    std::vector<float> remote_values(out_count);
+    {
+        mem_lock<float, mem_lock_type::read> remote_ptr(remote_output, get_test_stream());
+        for (size_t i = 0; i < out_count; ++i)
+            remote_values[i] = remote_ptr[i];
+    }
+    network.reset_output_remote_memory_ptrs();
+
+    // Phase 3: back to a non-remote destination, same shape, different input values.
+    auto final_output = engine.allocate_memory(out_layout);
+    network.set_output_memory("reorder", final_output);
+    auto* fc_inst = network.get_primitive("fc").get();
+    if (fc_inst->output_memory_ptr()) {
+        ASSERT_FALSE(engine.is_the_same_buffer(*fc_inst->output_memory_ptr(), *remote_output))
+            << "producer still bound to the retired remote tensor after rebinding to a non-remote output";
+    }
+
+    std::vector<float> second_input(input_mem->get_layout().count());
+    std::iota(second_input.begin(), second_input.end(), 1000.5f);
+    set_values(input_mem, second_input);
+    network.set_input_data("input", input_mem);
+    network.execute();
+
+    ASSERT_TRUE(fc_inst->output_memory_ptr());
+    ASSERT_FALSE(engine.is_the_same_buffer(*fc_inst->output_memory_ptr(), *remote_output));
+    mem_lock<float, mem_lock_type::read> remote_ptr(remote_output, get_test_stream());
+    for (size_t i = 0; i < out_count; ++i) {
+        ASSERT_EQ(remote_ptr[i], remote_values[i]) << "retained remote tensor overwritten at index " << i;
+    }
+}
+
 // The helper deliberately requires is_runtime_skippable() for the permute role only. A reorder may be
 // can_be_optimized() without ever having runtime_skippable set (remove_redundant_reorders can mark a
 // STATIC reorder optimized without going through mark_runtime_skippable_nodes at all). This test

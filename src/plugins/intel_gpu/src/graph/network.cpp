@@ -622,6 +622,19 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
                 producer->request_output_reallocation();
             }
         }
+    } else {
+        // Each cache is a snapshot of the allocation state when it was built, so the remote chain can
+        // hold members the non-remote chain does not. Leaving them bound would keep writing into the
+        // retired remote tensor, so drop the binding and let realloc_if_needed() reallocate.
+        auto remote_iter = _remote_output_chains.find(id);
+        if (remote_iter != _remote_output_chains.end()) {
+            for (auto* prim : remote_iter->second) {
+                if (prim == p_inst.get() || !prim->is_dynamic() || prim->can_be_optimized() || prim->has_inner_networks())
+                    continue;
+                if (std::find(o_iter->second.begin(), o_iter->second.end(), prim) == o_iter->second.end())
+                    prim->clear_output_memory();
+            }
+        }
     }
 
     return ret_ev;

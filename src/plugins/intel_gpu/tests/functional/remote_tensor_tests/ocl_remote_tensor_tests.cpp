@@ -138,9 +138,8 @@ TEST_P(OVRemotePermuteOutput_Test, plugin_owned_output_grows_while_bound) {
     request.set_output_tensor(output);
     infer_and_check(request, {1, 1, 3}, {1, 2, 3}, {1, 2, 3});
 
-    const auto original_handle = memory_handle(output);
+    // A grown plugin-owned tensor may legally land on the same handle, so only the data is asserted.
     output.set_shape({1, 3, 2});
-    EXPECT_NE(memory_handle(output), original_handle);
     infer_and_check(request, {1, 2, 3}, {4, 5, 6, 7, 8, 9}, {4, 7, 5, 8, 6, 9});
     EXPECT_EQ(memory_handle(request.get_output_tensor()), memory_handle(output));
 
