@@ -16,8 +16,13 @@ NamedOutputs linspace(const NodeContext& node) {
     auto num = node.get_input("Num");
     auto dtype = node.get_attribute<ov::element::Type>("dtype", element::f32);
 
-    start = std::make_shared<default_opset::Convert>(start, element::f32);
-    stop = std::make_shared<default_opset::Convert>(stop, element::f32);
+    // Paddle computes linspace in the requested dtype, so honor float64 instead of silently
+    // downgrading the whole graph to float32. Integer dtypes keep the float intermediate and a
+    // final cast exactly as before (see the dtype branches below).
+    const auto compute_type = (dtype == element::f32 || dtype == element::f64) ? dtype : element::f32;
+
+    start = std::make_shared<default_opset::Convert>(start, compute_type);
+    stop = std::make_shared<default_opset::Convert>(stop, compute_type);
 
     // compute step value, i.e. distance between neighbor values of the result
     Output<Node> step = std::make_shared<default_opset::Subtract>(stop, start);  //[-1]
@@ -26,13 +31,13 @@ NamedOutputs linspace(const NodeContext& node) {
     auto num_non_zero = std::make_shared<default_opset::Greater>(num_minus_one, const_one);  //[true]
     num_minus_one = std::make_shared<default_opset::Select>(num_non_zero, num_minus_one, const_one);
 
-    num_minus_one = std::make_shared<default_opset::Convert>(num_minus_one, element::f32);
+    num_minus_one = std::make_shared<default_opset::Convert>(num_minus_one, compute_type);
     step = std::make_shared<default_opset::Divide>(step, num_minus_one);  //[-1/3]
 
     // generate a range of numbers [0, 1, ..., num)
     auto const_zero = std::make_shared<default_opset::Constant>(element::i32, Shape{}, 0);
     auto const_num = std::make_shared<default_opset::Squeeze>(num);
-    auto range0_n = std::make_shared<default_opset::Range>(const_zero, const_num, const_one, element::f32);
+    auto range0_n = std::make_shared<default_opset::Range>(const_zero, const_num, const_one, compute_type);
 
     // compute the result
     Output<Node> linspace = std::make_shared<default_opset::Multiply>(range0_n, step);
@@ -43,6 +48,9 @@ NamedOutputs linspace(const NodeContext& node) {
     } else if (dtype == element::i64) {
         return node.default_single_output_mapping({std::make_shared<default_opset::Convert>(result, element::i64)},
                                                   {"Out"});
+    } else if (dtype.is_real() && dtype != compute_type) {
+        // e.g. f16: arithmetic was done in f32, cast the result to the requested dtype.
+        return node.default_single_output_mapping({std::make_shared<default_opset::Convert>(result, dtype)}, {"Out"});
     } else {
         return node.default_single_output_mapping({result}, {"Out"});
     }
