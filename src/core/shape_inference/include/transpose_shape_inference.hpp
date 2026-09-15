@@ -65,18 +65,27 @@ std::vector<TRShape> shape_infer(const Transpose* op,
     const auto& input_order_shape = input_shapes[Transpose::ORDER];
     const auto input_rank = input_shape.rank();
 
+    bool order_length_is_compatible = true;
     if (input_order_shape.rank().is_static()) {
         NODE_SHAPE_INFER_CHECK(op, input_shapes, input_order_shape.size() == 1, "Input order must be a vector.");
-        NODE_SHAPE_INFER_CHECK(
-            op,
-            input_shapes,
-            input_order_shape[0].compatible(input_rank.get_max_length()) || input_order_shape[0] == 0,
-            "Input order must have shape [n], where n is the rank of arg.");
+        order_length_is_compatible = !input_rank.is_static() || input_order_shape[0].compatible(input_rank.get_length()) ||
+                                     input_order_shape[0] == 0;
     }
 
     auto axes = get_input_const_data_as<TShape, int64_t>(op, Transpose::ORDER, tensor_accessor);
 
     auto output_shapes = std::vector<TRShape>();
+    if (!order_length_is_compatible) {
+        if (axes) {
+            output_shapes.push_back(ov::PartialShape::dynamic(axes->size()));
+        } else if (input_order_shape[0].is_static()) {
+            output_shapes.push_back(ov::PartialShape::dynamic(input_order_shape[0].get_length()));
+        } else {
+            output_shapes.push_back(ov::PartialShape::dynamic());
+        }
+        return output_shapes;
+    }
+
     if (axes && input_rank.is_static()) {
         output_shapes.push_back(calc_output_shape(op, input_shape, *axes));
     } else if (axes) {
