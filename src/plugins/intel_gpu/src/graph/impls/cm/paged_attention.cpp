@@ -79,7 +79,7 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::PagedAttentionCmImpl)
 
     // Dispatch is decided by reading sequence-length/block-mapping tensor contents on the host
-    bool is_replay_safe() const override {
+    bool supports_replay() const override {
         return false;
     }
 

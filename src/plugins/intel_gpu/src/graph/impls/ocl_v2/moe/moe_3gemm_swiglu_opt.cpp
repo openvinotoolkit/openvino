@@ -571,7 +571,7 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::MoE3GemmSwigluImpl)
 
     // Routing/expert selection is read back to the host (topk_ids, expert masks)
-    bool is_replay_safe() const override {
+    bool supports_replay() const override {
         return false;
     }
 

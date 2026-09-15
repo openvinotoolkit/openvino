@@ -7,6 +7,7 @@
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/command_list.hpp"
 #include "intel_gpu/runtime/command_recorder.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 
 #include "primitive_inst.h"
 

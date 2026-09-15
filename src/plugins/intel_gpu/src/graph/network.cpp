@@ -1064,7 +1064,7 @@ bool network::is_recording_supported() const {
         if (impl == nullptr)
             return false;
 
-        if (!impl->is_replay_safe())
+        if (!impl->supports_replay())
             return false;
     }
 

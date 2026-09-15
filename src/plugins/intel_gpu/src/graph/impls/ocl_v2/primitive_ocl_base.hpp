@@ -107,7 +107,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
         return false;
     }
 
-    bool is_replay_safe() const override {
+    bool supports_replay() const override {
         return true;
     }
 

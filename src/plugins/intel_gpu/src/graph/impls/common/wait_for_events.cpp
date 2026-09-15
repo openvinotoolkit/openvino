@@ -30,7 +30,7 @@ public:
     }
 
     // execute() only aggregates input events and enqueues no GPU commands
-    bool is_replay_safe() const override { return true; }
+    bool supports_replay() const override { return true; }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
     void set_arguments(primitive_inst& /*instance*/) override {}

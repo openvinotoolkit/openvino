@@ -234,7 +234,7 @@ public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::cm::VLSDPAOptImpl)
 
     // Dispatch is decided by reading cu_seqlens tensor contents on the host
-    bool is_replay_safe() const override {
+    bool supports_replay() const override {
         return false;
     }
 
