@@ -33,7 +33,8 @@ public:
             output_type = impl_param.get_output_element_type();
             for (const auto& desc : impl_param.fused_desc) {
                 if (desc.is_type<reorder>()) {
-                    out_format = desc.output_layout.format;
+                    OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+                    out_format = desc.output_layouts[0].format;
                 }
             }
         }

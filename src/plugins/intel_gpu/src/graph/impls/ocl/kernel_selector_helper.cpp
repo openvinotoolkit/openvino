@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "activation_inst.h"
+#include "dynamic_quantize_inst.h"
 #include "eltwise_inst.h"
 #include "impls/ocl/kernels_cache.hpp"
 #include "intel_gpu/graph/program.hpp"
@@ -39,6 +40,7 @@
 #include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
 #include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
 #include "kernel_selector/kernels/quantize/quantize_kernel_params.h"
+#include "kernel_selector/kernels/dynamic_quantize/dynamic_quantize_kernel_params.h"
 #include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
 #include "kernel_selector/kernels/swiglu/swiglu_kernel_base.h"
 #include "kernel_selector_params.h"
@@ -1211,6 +1213,10 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
                                                                        casted->_out_scale,
                                                                        casted->_out_shift);
     }
+    if (p->type() == dynamic_quantize::type_id()) {
+        auto casted = std::dynamic_pointer_cast<DynamicQuantizeFuseParams>(p);
+        return std::make_shared<kernel_selector::dynamic_quantize_fuse_params>(casted->_attrs, casted->_input_size);
+    }
 
     OPENVINO_ASSERT(false, "[GPU] Unhandled fused params type");
 }
@@ -1358,8 +1364,12 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
             desc.dep_idx_start = fused_prim.outer_dep_start_idx;
             desc.dep_size = fused_prim.deps.size();
             desc.op_id = op_id++;
-            desc.output_tensor = convert_data_tensor(fused_prim.output_layout);
-            prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensor.GetDType());
+            OPENVINO_ASSERT(desc.output_tensors.empty());
+            for (const auto& layout : fused_prim.output_layouts) {
+                desc.output_tensors.push_back(convert_data_tensor(layout));
+            }
+            OPENVINO_ASSERT(fused_prim.output_layouts.size() == 1 || std::addressof(fused_prim) == std::addressof(param_info.fused_desc.back())); // Only the last post-op may have multiple outputs
+            prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensors[0].GetDType()); // TODO: handle this
             if (fused_prim.has_outer_dep()) {
                 for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
                     desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));

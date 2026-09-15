@@ -6,6 +6,18 @@
 #include "kernel_selector_utils.h"
 #include <string>
 
+namespace {
+    std::vector<kernel_selector::fused_operation_desc>::const_iterator get_dq_it(const kernel_selector::rms_params& params) {
+        return std::find_if(params.fused_ops.begin(), params.fused_ops.end(), [](const kernel_selector::fused_operation_desc& f) {
+            return f.GetType() == kernel_selector::KernelType::DYNAMIC_QUANTIZE;
+        });
+    }
+
+    bool has_dynamic_quantize_post_op(const kernel_selector::rms_params& params) {
+        return get_dq_it(params) != params.fused_ops.end();
+    }
+}
+
 namespace kernel_selector {
 static constexpr size_t subgroup_size = 16;
 
@@ -18,6 +30,9 @@ static std::pair<size_t, size_t> get_item_num_and_lws(const rms_params params, s
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
 
     while ((itemsNum > 8 || lws < itemsNum) && (2 * lws <= max_lws)) {
+        if (has_dynamic_quantize_post_op(params) && (itemsNum / 2) % 2 == 1) {
+            break;
+        }
         lws *= 2;
         itemsNum /= 2;
     }
@@ -32,6 +47,9 @@ ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
+    k.EnableOutputDataType(Datatype::F8E4M3);
+    k.EnableOutputDataType(Datatype::F8E5M2);
+    k.EnableOutputDataType(Datatype::F8E8M0);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -146,8 +164,15 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
             OPENVINO_THROW("rms_bfyx_opt doesn't support 5D or higher dims.");
         }
 
-        auto conf = FusedOpsConfiguration("", idx_order, "normalized", params.outputs[0].GetDType(), 1);
+        const bool has_dynamic_quantize = has_dynamic_quantize_post_op(params);
+        const auto fused_output_type = has_dynamic_quantize ? Datatype::F32 : params.outputs[0].GetDType();
+        auto conf = FusedOpsConfiguration("", idx_order, "normalized", fused_output_type, 1);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        if (has_dynamic_quantize) {
+	    OPENVINO_ASSERT(dispatchData.subgroupBlockSize != 1 && dispatchData.leftovers == 0 && subgroup_size == 16);
+            jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_QUANTIZE", "1"));
+            jit.AddConstant(MakeJitConstant("OUTPUT1", get_dq_it(params)->output_tensors[1]));
+        }
     }
 
     return jit;
