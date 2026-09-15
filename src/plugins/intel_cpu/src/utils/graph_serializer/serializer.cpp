@@ -13,7 +13,6 @@
 #include <sstream>
 #include <string>
 
-#include "cpu/platform.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -24,6 +23,7 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/xml_util/constant_writer.hpp"
 #include "openvino/xml_util/xml_serialize_util.hpp"
+#include "utils/precision_support.h"
 
 namespace ov::intel_cpu {
 
@@ -182,16 +182,53 @@ std::unique_ptr<util::XmlSerializer> ModelSerializer::make_serializer(pugi::xml_
                                            m_weightless_mode);
 }
 
-std::string build_runtime_requirements() {
+std::string build_runtime_requirements(ov::element::Type inference_precision) {
+    bool needs_bf16 = false;
+    bool needs_f16 = false;
+
+    if (inference_precision == ov::element::bf16) {
+        needs_bf16 = true;
+    } else if (inference_precision == ov::element::f16) {
+        needs_f16 = true;
+    } else if (inference_precision == ov::element::dynamic) {
+        // dynamic: precision chosen at runtime; record hardware capabilities
+        needs_bf16 = hasHardwareSupport(ov::element::bf16);
+        needs_f16 = hasHardwareSupport(ov::element::f16);
+    }
+    // f32: no special hardware required, needs_bf16/f16 stay false
+
     std::ostringstream ss;
     ss << "meta=1.0"
        << ";ov=" << OPENVINO_VERSION_MAJOR << "." << OPENVINO_VERSION_MINOR << "." << OPENVINO_VERSION_PATCH
-       << ";isa=" << dnnl::impl::cpu::platform::get_isa_info();
+       << ";bf16=" << (needs_bf16 ? 1 : 0)
+       << ";f16=" << (needs_f16 ? 1 : 0);
     return ss.str();
 }
 
 bool is_runtime_requirements_compatible(const std::string& requirements) {
-    return requirements == build_runtime_requirements();
+    auto get_field = [&](const std::string& key) -> std::string {
+        const std::string prefix = key + "=";
+        auto pos = requirements.find(prefix);
+        if (pos == std::string::npos)
+            return "";
+        pos += prefix.size();
+        auto end = requirements.find(';', pos);
+        return requirements.substr(pos, end == std::string::npos ? end : end - pos);
+    };
+
+    const std::string expected_ov = std::to_string(OPENVINO_VERSION_MAJOR) + "." +
+                                    std::to_string(OPENVINO_VERSION_MINOR) + "." +
+                                    std::to_string(OPENVINO_VERSION_PATCH);
+    if (get_field("ov") != expected_ov)
+        return false;
+
+    if (get_field("bf16") == "1" && !hasHardwareSupport(ov::element::bf16))
+        return false;
+
+    if (get_field("f16") == "1" && !hasHardwareSupport(ov::element::f16))
+        return false;
+
+    return true;
 }
 
 }  // namespace ov::intel_cpu
