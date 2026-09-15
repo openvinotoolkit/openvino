@@ -77,6 +77,7 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/avg_pool.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/batch_norm.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/batch_to_space.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/openvino/op/bevpool_v2.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/binary_convolution.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/bitwise_and.hpp
     ${CMAKE_CURRENT_LIST_DIR}/openvino/op/bitwise_left_shift.hpp
