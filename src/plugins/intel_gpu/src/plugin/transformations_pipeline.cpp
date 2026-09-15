@@ -1646,6 +1646,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::FuseGatedMLP>();
         }
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
+        // Fuse SwiGLU before f16 activation scaling so MoveDownScalarMul does not replace the gate
+        // multiply with TypeRelaxed<Multiply>, and before PostLPT FC/reshape passes rewrite the graph.
+        manager.register_pass<ov::pass::GLUFusion>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();
 
@@ -1729,6 +1732,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
 
+        manager.register_pass<ov::pass::GLUFusion>();
+
         manager.register_pass<ov::pass::ConvertWeightCompressedConv1x1ToMatmul>();
         manager.register_pass<ov::intel_gpu::IncreaseRMSInputPrecision>();
         manager.register_pass<ov::intel_gpu::ClampFP16Output>();
@@ -1790,7 +1795,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::intel_gpu::ExpandBroadcastReshapeSDPAFusion>();
 
-        manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
 
         if (!has_shared_kv_cache_vars(func)) {
