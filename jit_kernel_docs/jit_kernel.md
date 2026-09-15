@@ -1112,9 +1112,12 @@ and it unblocks the by-value-everywhere idiom we want in the DSL.
 
 Worth stating up-front to prevent scope creep:
 
-- **Not a compiler**. No CSE, no constant folding, no LICM, no dead-code
-  elimination, no pattern matching, no instruction selection beyond what
-  the DSL primitives already committed to. *Still true for value-level
+- **Not a compiler**. No CSE, no constant folding, no LICM, no pattern
+  matching, no instruction selection beyond what
+  the DSL primitives already committed to. *Dead-code elimination came off
+  this list with `DeadDefElimPass` (LLVM's `DeadMachineInstructionElim`),
+  which the DSL needs because it records operands a consumer may not use.
+  Still true for value-level
   optimization. But the pipeline contains remat, two-address lowering,
   tail synthesis and memory-operand folding — and that last one is
   instruction selection in the narrow sense, picking an instruction's

@@ -867,7 +867,9 @@ that does not require rewriting anything shipped in the minimum:
 | Mask (k-register) allocation | ~50 lines | third pool + `RegisterClass::Mask` | **shipped**; per-target allocation order from `vector_target::predicate_pool()` |
 | Scratch-register modelling for emit closures | ~30 lines | extra dead def on the op that needs scratch | **shipped**; scratch is an IR value, and `Op::early_clobber` stops the allocator handing it a live read's register |
 | Memory-operand folding (single-use load into its consumer) | ~130 lines | `Op::may_load`/`may_store`, `foldable_reads` bitmask + `fold_emit` closure, a pass after two-address lowering | **shipped**; commutes operands where sound, refuses masked loads and anything reordered past a store or a pointer bump. Worth 12 -> 8 vector ops per RoPE iteration and nothing measurable in time |
-| Recording-time unroll for compile-time trip counts, with width-reduced remainders | ~120 lines | `foreach_vec` specialization plus a `vector_target` query for narrower vector widths | agreed as the next change — see `jit_kernel_journal.md`, "Next change: compile-time trip counts" |
+| Recording-time peeling for compile-time trip counts | ~60 lines | `foreach_vec(size_t, body)` overload plus `peel_limit()` | **shipped**; full iterations straight-line, one remainder with an immediate mask. Unblocks folding on the default path (unmasked loads). QwenVL 40 -> 37 us against legacy's 35. See `jit_kernel_journal.md`, "Peeling, 2026-09-15" |
+| Width-reduced remainders (one `ymm` step for an 8-float tail) | ~120 lines | a `vector_target` query for narrower widths, plus a *width-parameterized body* — the recipe must be recordable at `N/2`, which `std::function<void(const vlen&)>` cannot express | not started. LLVM's epilogue vectorization, i.e. re-running vectorization at a smaller VF. Together with displacement-based addressing this is the residual ~2 us on QwenVL |
+| Dead-def elimination | ~60 lines | use counts + a backwards walk, after the folding pass | **shipped**; LLVM's `DeadMachineInstructionElim`, same pipeline slot. Needed once `vlen::predicated` started carrying a count that only interleaved stores read |
 | Register tuple constraints (consecutive registers) | ~150 lines | a tuple register class, or a constraint on a value group; assignment must place members adjacently | not started, and required by SVE `ST3W {z0-z2}` and RVV segment ops. LLVM's answer is tuple register classes (`ZPR3`, `ZPR4`). Until then `supports_masked_interleaved_access()` is false on every target and interleaved stores keep the stack-slot fallback |
 
 ## What would force a rewrite (probably never needed)
@@ -929,11 +931,14 @@ zero runtime cost.
 Restated from `jit_kernel.md` to prevent scope creep in this doc, with the
 two entries that reality already overtook marked as such:
 
-- **Not a compiler.** No CSE, no LICM, no constant folding, no dead-code
-  elimination, no pattern matching, no instruction selection beyond what
-  the DSL primitives already committed to. *Still true for those
-  transforms; but the pipeline does contain unrolling, remat, two-address
-  lowering and (via record-time mode flags) tail synthesis, so "not a
+- **Not a compiler.** No CSE, no LICM, no constant folding, no pattern
+  matching, no instruction selection beyond what
+  the DSL primitives already committed to. *Dead-code elimination is no
+  longer on that list — `DeadDefElimPass` is LLVM's
+  `DeadMachineInstructionElim`. Still true for those other
+  transforms; but the pipeline does contain remat, two-address
+  lowering, memory-operand folding and (via record-time mode flags) tail
+  synthesis, so "not a
   compiler" now means "no value-level optimization", not "nothing but
   allocation".*
 - ~~**Not a default.** Kernels stay on eager mode unless measurement shows

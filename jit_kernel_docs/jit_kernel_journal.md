@@ -1,15 +1,15 @@
 # JIT kernel IR mode — implementation journal
 
-Status snapshot as of 2026-09-03, after the review pass described at the
-bottom. Describes what the code on this branch actually does.
+Status snapshot as of 2026-09-15, after the peeling change described
+below. Describes what the code on this branch actually does.
 
 Sources of truth:
-- `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel_ir.{hpp,cpp}` — IR, passes, allocator, verifier (475 + 1025 lines)
-- `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel.{hpp,cpp}` — DSL + lowering closures (2662 + 702 lines)
+- `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel_ir.{hpp,cpp}` — IR, passes, allocator, verifier, DCE
+- `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel.{hpp,cpp}` — DSL + lowering closures
 - `src/plugins/intel_cpu/src/nodes/kernels/x64/rope_kernel_ir.{hpp,cpp}` — RoPE kernel on IR mode
 - `src/plugins/intel_cpu/src/nodes/color_convert.cpp` — NV12/I420 converters on IR mode
 - `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel_target.{hpp,cpp}` — target capability queries (TTI analogue)
-- `src/plugins/intel_cpu/tests/unit/jit_kernel_ir_test.cpp` — 43 tests
+- `src/plugins/intel_cpu/tests/unit/jit_kernel_ir_test.cpp` — 54 tests
 - `src/plugins/intel_cpu/tests/unit/jit_kernel_test.cpp` — 4 tests
 
 ## Where the implementation stands relative to the design docs
@@ -20,7 +20,7 @@ Constraints from `jit_kernel.md` that no longer hold:
 |---|---|
 | "One DSL call = one emitted instruction" | `ir_load`/`ir_store` emit 1–3 (type conversion), `store_interleaved3` ~9, partial access expands into a stack bounce plus a copy loop. The surviving rule: the author picks the operation, the DSL never re-decides it based on liveness. |
 | "Eager mode stays the default, IR mode is opt-in per kernel" | Eager *vector* mode is gone. Vector primitives require an active IR. Eager scalar/GPR code — `var<size_t>`, `foreach`, `_if/_then/_else`, `stack_frame`, legacy emitter interop — remains and is used by `cpu_convert.cpp`. |
-| "IR is a register allocator, not an optimizer" | True again: the pipeline is two-address lowering, liveness, allocation with rematerialization, verification, lowering. The loop-unrolling pass was removed (see below). |
+| "IR is a register allocator, not an optimizer" | Mostly. The pipeline is two-address lowering, memory-operand folding, dead-def elimination, liveness, allocation with rematerialization, verification, lowering. Folding is instruction selection in the narrow sense and DCE is cleanup after it; neither reorders or re-decides anything the author wrote. The loop-unrolling pass was removed (see below), and peeling happens at recording time, not in a pass. |
 | "No auto-spill" | Still true, and now enforced loudly: exhaustion throws. |
 
 ## Architecture as implemented
@@ -30,6 +30,7 @@ Constraints from `jit_kernel.md` that no longer hold:
 ```
 TwoAddressPass      → COPY insertion before tied-operand ops (breaks SSA, LLVM-style)
 FoldMemoryOperands  → single-use loads folded into their consumer's operand
+DeadDefElim         → ops whose def nothing reads (LLVM's DeadMachineInstructionElim)
 LiveRangeAnalysis   → CFG + dataflow liveness → live ranges
 DumpPass("before")  → OV_JIT_IR_DUMP
 RegisterAllocator   → interference assignment; may rematerialize, then re-runs analysis
@@ -349,20 +350,26 @@ been failing since the kernel was written.
 
 ### Generated code (Llama2, rotary_ndims=128, f32, AVX-512)
 
-| | Legacy | IR (no unroll) | IR (unroll=4) | Clang -O3 |
-|---|--------|---------------|--------------|-----------|
-| Code size | 1088 B | 227 B | 711 B | ~280 B |
+| | Legacy | IR rolled | IR peeled | Clang -O3 |
+|---|--------|-----------|-----------|-----------|
+| Code size | 446 B | 227 B | 303 B | ~280 B |
 | Data tables | 640 B | 0 | 0 | 0 |
-| Vector insns/iter | 12 | 12 | 12 | 10* |
+| Vector insns/iter | 12 | 8 | **6** | 10* |
+| Branches | 0 | 3 | **0** | — |
 | Registers | 5 | 4 | 4 | 3 |
 
-\* Clang folds loads into FMA memory operands.
+\* Clang folds loads into FMA memory operands; so do we now, and the
+peeled bodies fold more because they are unmasked.
 
-Measured on the earlier `foreach_predicated` version of the kernel; the
-current `foreach_with_epilogue` version has not been re-measured, and the
-unroll column no longer has a mechanism behind it (see below).
+The legacy figure is code only — `jit_rotary_kernel.*.bin` is code
+followed by constant tables, so the 1088 B this table used to quote was
+446 B of code plus 640 B of data.
 
-### Measured runtime — RoPE node, AVX-512 host, 2026-09
+### Measured runtime — RoPE node, AVX-512 host, 2026-09 (pre-peeling)
+
+Superseded by the table in "Peeling, 2026-09-15"; kept because the
+conclusions below are what drove that change. The "IR + mask" column is
+the rolled loop.
 
 `BenchmarkLayerTest<RoPETest*>` instances in
 `shared_tests_instances/subgraph_tests/rotary_pos_emb.cpp` report the
@@ -426,16 +433,14 @@ intrinsics and in plain C++, for gcc 13 and clang 18. Findings:
    color_convert. Recording-time unrolling
    (`foreach_predicated(..., unroll)`) still works. An IR pass becomes
    possible once the loop bound and step are IR operands of a real loop
-   op instead of captured immediates.
-5. **Loops are always rolled.** `foreach_vec` emits a loop even when the
-   trip count is a compile-time constant, so a 3-trip kernel pays
-   per-iteration active-length and predicate setup that the legacy kernel
-   avoids by emitting straight-line code. This is the one gap the runtime
-   measurements actually blamed. Fix: specialize on a compile-time count —
-   unroll the full iterations, and prefer width reduction (a `ymm` step
-   for an 8-float remainder) over a predicate where the target offers it.
-   It also unblocks memory-operand folding on the default path, since
-   unmasked iterations have foldable loads.
+   op instead of captured immediates. Recording-time peeling
+   (hazard 5) covers the constant-count case without needing any of this.
+5. ~~**Loops are always rolled.**~~ **Fixed for constant counts** —
+   `foreach_vec(size_t, body)` peels (see "Peeling, 2026-09-15"). What is
+   left of this hazard: the peeled bodies still bump pointers instead of
+   addressing off a displacement, and the remainder is a predicated
+   full-width step rather than a narrower unpredicated one. Both are
+   measured to be worth ~2 µs on QwenVL.
 6. **No predicated interleaved store on x86.** `store_interleaved3` under
    a short active length still builds the interleave in a stack slot and
    copies `count*3` elements out. Three separately-derived masks would fix
@@ -456,80 +461,132 @@ intrinsics and in plain C++, for gcc 13 and clang 18. Findings:
 11. **GPR-hungry scalarized access.** `ir_load_partial` /
     `ir_store_partial` / `ir_memcpy` cost ~20 GPR values, which is why
     they are now only reached on targets without predication.
-12. **Repo hygiene.** `jit_kernel.hpp` is 2662 lines; the design docs live
-   in the repo root; the worktree carries `llvm-project/`,
-   `dnnl_dump_*.bin`, `report_*.xml`, `rope_intrinsics.cpp`. Not
-   upstreamable as a single change — wants splitting into IR core +
+12. **Repo hygiene.** `jit_kernel.hpp` is past 2700 lines; the worktree
+   carries `llvm-project/`, `dnnl_dump_*.bin`, `report_*.xml` and
+   `rope_intrinsics.cpp` untracked. The branch is not clang-format-clean
+   and was not before this work either, so that belongs in its own commit.
+   Not upstreamable as a single change — wants splitting into IR core +
    tests / DSL / color_convert / RoPE.
 
-## Next change: compile-time trip counts (peeling)
+## Peeling, 2026-09-15 — what shipped and what it bought
 
-Agreed 2026-09-10. This is the one change the runtime measurements
-actually blamed (hazard 5), and it unblocks two other things.
+`foreach_vec<N>(size_t count, body)` is a second overload of the loop
+construct, taken when the element count is a C++ value at kernel-build
+time (every RoPE kernel: `half_rotary_ndims` is known when the kernel is
+built). It emits `count / N` full iterations straight-line and the
+`count % N` remainder once, capped by `peel_limit()` — default 4,
+`OV_JIT_IR_PEEL` overrides, `0` forces the rolled loop so the two shapes
+can be compared in one process.
 
-### What
+LLVM reaches the same shape when SCEV hands the vectorizer a constant
+trip count: the vector loop is fully unrolled and one epilogue handles
+the remainder.
 
-`foreach_vec<N>(count, body)` always emits a loop. When `count` is a
-compile-time constant — which every RoPE kernel has, since
-`half_rotary_ndims` is a C++ value at kernel-build time — specialize:
+Recording-time rather than a pass, because the count is known where the
+body is recorded. That is also why the old IR-level unroll pass could not
+work (hazard 4): by pass time the count is captured inside the loop
+header's emit closure.
 
-1. Emit `count / N` full iterations **straight-line**, with byte offsets
-   instead of pointer bumps: no counter, no compare, no branch, no
-   predicate, `vlen::all()` throughout.
-2. Handle the `count % N` remainder **once**: prefer **width reduction**
-   when the remainder exactly fills a narrower register (8 floats → one
-   `ymm` step), else a predicated iteration.
-3. Fall back to the current loop when the count is dynamic or when
-   `count / N` exceeds an unroll cap (color_convert's case: the width is a
-   runtime argument).
+### Generated code — QwenVL (half=40, N=16, AVX-512)
 
-### Why this shape
+| | rolled | peeled |
+|---|---|---|
+| Size | 248 B | 304 B |
+| Vector ops per full iteration | 8 | **6** |
+| Branches | 3 | **0** |
+| Per-iteration scalar setup | ~13 insns | **0** |
 
-Three independent sources agree on it:
+The full iterations are unmasked, so **memory-operand folding fires on
+the default path for the first time** — masked loads had blocked it
+entirely. `vmulps zmm2,zmm1,[rdx]` and `vfmsub231ps zmm2,zmm0,[rcx]`
+where the rolled form needed separate masked loads. The remainder is one
+`mov esi,0xff; kmovw k1,esi` plus a masked body; no active length is
+derived at run time.
 
-- The legacy `jit_rotary_kernel` does exactly this: 4× unrolled `zmm` for
-  Llama2, 2× `zmm` + 1× `ymm` for QwenVL, zero branches, zero `kmov`.
-- gcc 13, given plain C++ and `-mprefer-vector-width=512`, picks the same
-  shape *including* the `ymm` remainder — see "Reference: what a compiler
-  produces".
-- It is the only explanation for the QwenVL gap: three trips paying
-  active-length plus predicate plus loop overhead, against straight-line
-  code.
+Llama2 (half=64, rem=0): four folded bodies, 303 B, zero branches, zero
+`kmov`, and the last body's pointer bumps dropped since nothing reads
+them (12 `add`s for 4 iterations). The legacy kernel is 446 B of code
+plus 640 B of constant tables.
 
-### Design decisions already taken
+### Measured — RoPE node time, three repeats (µs)
 
-- **Width reduction is a target query**, not a DSL choice: it belongs
-  next to `supports_masked_access` in `vector_target`. On AVX-512 a
-  narrower store beats building a mask; on SVE/RVV the predicate is free
-  and narrowing is meaningless, so the answer differs per target and must
-  not be hardcoded in the DSL.
-- **Recording-time, not a pass.** The trip count is known where the body
-  is recorded. This is also why the old IR-level unroll pass could not
-  work (hazard 4): by pass time the count is captured inside the loop
-  header's emit closure.
-- **Cap the unroll.** Full unroll is ~1 body per iteration of code; a
-  large `rotary_ndims` would otherwise produce an enormous kernel. Start
-  with `count / N <= 4` and measure.
+| Shape | legacy | IR peeled | IR rolled |
+|---|---|---|---|
+| Llama2 (half=64) | 1571 / 1587 / 1585 | 1583 / 1573 / 1559 | 1559 / 1559 / 1553 |
+| QwenVL (half=40) | **35 / 35 / 35** | 37 / 37 / 37 | 40 / 39 / 39 |
+| GPTJ (interleaved) | 1685 / 1659 / 1647 | 1656 / 1659 / 1681 | 1672 / 1670 / 1650 |
 
-### What it unlocks
+Against the prediction written down beforehand ("QwenVL 40 → ~35;
+Llama2 no change"):
 
-Unmasked full iterations have foldable loads, so memory-operand folding —
-which today cannot fire on the default (mask) path at all — starts
-applying to the bodies that matter. The two changes compose: folding
-alone measured as worth nothing, peeling alone leaves the loads
-unfolded.
+- **QwenVL improved but the prediction was wrong.** 40 → 37, not 35. Loop
+  overhead was roughly 60% of the gap against legacy, not the whole of
+  it. The hypothesis was directionally right and quantitatively off.
+- **Llama2: no change, as predicted** — and the rolled form is, if
+  anything, a hair faster. Consistent with that shape being memory-bound,
+  which three separate measurements now say.
+- **GPTJ: unchanged**, expected — `rotary_interleave_ir` was already
+  peeled by hand and does not use `foreach_vec`.
+- color_convert: unchanged, its width is a runtime value so it keeps the
+  rolled loop.
 
-### Expected outcome, stated before measuring
+### Two things deliberately not done
 
-- QwenVL (half=40): closes the ~15% regression against legacy (40 → ~35 µs).
-- Llama2 (half=64): no change expected. That shape is memory-bound; the
-  current rolled loop with per-iteration predicate setup is already the
-  fastest config measured.
-- color_convert: no change — its width is a runtime value, so it keeps the
-  loop.
+Both were in the original plan; both are what the residual 2 µs on QwenVL
+is now attributed to.
 
-If QwenVL does not improve, the hypothesis is wrong and the next suspect
-is the masked access itself rather than the loop overhead.
+1. **Byte offsets instead of pointer bumps.** The peeled bodies still
+   emit four `add reg,0x40` between iterations. Folding a per-iteration
+   displacement into the addressing mode (which is free in the encoding —
+   the loads already do it for the fixed `half_byte_offset`) needs the
+   displacement to reach the body's accesses. That means either a body
+   signature carrying an iteration context, or ambient kernel state. The
+   second is exactly what the "ambient tail state" cleanup removed, so it
+   is not an option; the first is a change at every call site and was not
+   worth making before measuring whether the `add`s matter.
+2. **Width reduction for the remainder.** Legacy and gcc both use one
+   full `ymm` step for an 8-float remainder where we use a predicated
+   `zmm`. This stays a `vector_target` query when it lands — on AVX-512 a
+   narrower unpredicated access beats building a mask, on SVE/RVV the
+   predicate is free and narrowing is meaningless. The obstacle is not
+   the query: the body is a `std::function<void(const vlen&)>` with `N`
+   baked into its closure, so recording it at `N/2` requires the body to
+   be a width-parameterized recipe (a generic lambda taking an
+   `integral_constant`), which is LLVM's epilogue vectorization —
+   re-running vectorization at a smaller VF — and a real API change.
+
+### DeadDefElimPass, added with it
+
+LLVM's `DeadMachineInstructionElim`, scheduled where LLVM schedules its
+second run: immediately after the peephole pass, whose comment reads
+"Clean-up the dead code that may have been generated by peephole
+rewriting". `FoldMemoryOperandsPass` is our peephole.
+
+The peeled remainder needed it. `vlen::predicated` carries both a
+predicate and an element count, because interleaved stores on x86 cannot
+consume a predicate and read the count instead — so a body doing only
+plain loads and stores leaves the count dead, and the allocator gave it
+the register the mask bits were about to overwrite (`mov esi,0x8`
+followed five bytes later by `mov esi,0xff`).
+
+The predicate follows `MachineInstr::isDead`, read rather than recalled,
+including the two parts that are easy to get wrong:
+
+- **A dead load is deletable.** LLVM refuses only ordered and volatile
+  accesses (`isSafeToMove`), and deleting a load can only remove a fault,
+  never introduce one. My first draft refused all `may_load` ops.
+- **Def-less ops are always kept**, which is *stricter* than LLVM. LLVM
+  can delete a def-less instruction because flags and memory are
+  themselves modelled as defs, so liveness decides. This IR models
+  neither, and the DSL convention is that anything affecting state beyond
+  its def declares no def at all (`ir_use`) — stores, compares and
+  pointer advances all take that form. Keeping every def-less op is what
+  makes the convention safe, and it is why no `UnmodeledSideEffects` flag
+  was added: nothing would set it.
+
+Uses are counted once and decremented as ops die, with the walk running
+backwards, so a chain of dead defs collapses in one sweep — LLVM visits
+blocks in post-order and instructions bottom-up for the same reason.
 
 ## Multi-architecture plan
 
@@ -687,14 +744,18 @@ Correctness (run the whole matrix — the strategies are env-selected, and
 AVX2/NEON-shaped path on an AVX-512 machine):
 
 ```bash
+for peel in "" "OV_JIT_IR_PEEL=0"; do
 for fold in "" "OV_JIT_IR_NO_FOLD=1"; do for style in mask epilogue; do
-  env $fold OV_JIT_TAIL_FOLDING=$style ./bin/intel64/RelWithDebInfo/ov_cpu_unit_tests \
+  env $peel $fold OV_JIT_TAIL_FOLDING=$style ./bin/intel64/RelWithDebInfo/ov_cpu_unit_tests \
     --gtest_filter='JitKernel*'
-  env $fold OV_JIT_TAIL_FOLDING=$style ./bin/intel64/RelWithDebInfo/ov_cpu_func_tests \
+  env $peel $fold OV_JIT_TAIL_FOLDING=$style ./bin/intel64/RelWithDebInfo/ov_cpu_func_tests \
     --gtest_filter='smoke_TestsConvertColor*'
-  env $fold OV_JIT_TAIL_FOLDING=$style OV_JIT_IR_ROPE=1 \
+  env $peel $fold OV_JIT_TAIL_FOLDING=$style OV_JIT_IR_ROPE=1 \
     ./bin/intel64/RelWithDebInfo/ov_cpu_func_tests --gtest_filter='smoke_RoPETest*'
-done; done
+done; done; done
+
+# note: OV_JIT_IR_NO_FOLD is presence-tested, so NO_FOLD=0 still disables
+# folding. Leave it unset to enable.
 ```
 
 Benchmark (RoPE node time from `PERF_COUNT`, one thread, 200 attempts):
@@ -703,6 +764,9 @@ Benchmark (RoPE node time from `PERF_COUNT`, one thread, 200 attempts):
 OV_JIT_IR_ROPE=1 OV_JIT_TAIL_FOLDING=mask \
   ./bin/intel64/RelWithDebInfo/ov_cpu_func_tests \
   --gtest_also_run_disabled_tests --gtest_filter='RoPEBench*'
+# legacy baseline: OV_JIT_IR_ROPE=0. Rolled instead of peeled:
+# add OV_JIT_IR_PEEL=0. Output is one "RoPE: N us" line per shape, in
+# test order (Llama2, QwenVL, GPTJ).
 ```
 
 Three repeats per configuration; spread has been ~1%. Perf-counter reads
@@ -732,15 +796,17 @@ built with `g++/clang++ -O3 -march=native [-mprefer-vector-width=512]`.
 | `OV_JIT_IR_ROPE` | select the IR RoPE kernel instead of the legacy one |
 | `OV_JIT_TAIL_FOLDING` | `epilogue` / `mask` / `length` — override the target's tail-folding choice (LLVM's `-prefer-predicate-over-epilogue`) |
 | `OV_JIT_IR_NO_FOLD` | disable memory-operand folding (LLVM's `-disable-peephole`) |
+| `OV_JIT_IR_PEEL` | max full iterations `foreach_vec` emits straight-line for a constant count (default 4; `0` forces the rolled loop) |
 
-## Test status (2026-09-10, RelWithDebInfo, AVX-512 host)
+## Test status (2026-09-15, RelWithDebInfo, AVX-512 host)
 
-Every suite run twice, once per tail-folding strategy
-(`OV_JIT_TAIL_FOLDING=mask` and `=epilogue`), with identical results:
+Every suite run in all **eight** combinations of `OV_JIT_IR_PEEL` ×
+`OV_JIT_IR_NO_FOLD` × `OV_JIT_TAIL_FOLDING`, with identical results. The
+strategies are env-selected, and `OV_JIT_TAIL_FOLDING=epilogue` is the
+only way to exercise the AVX2/NEON-shaped path on an AVX-512 machine:
 
-- `ov_cpu_unit_tests --gtest_filter='JitKernel*'`: **52/52 pass**
-  (48 `JitKernelIR.*`, 4 `JitKernel.*`), and green in all four
-  combinations of `OV_JIT_TAIL_FOLDING` × `OV_JIT_IR_NO_FOLD`.
+- `ov_cpu_unit_tests --gtest_filter='JitKernel*'`: **58/58 pass**
+  (54 `JitKernelIR.*`, 4 `JitKernel.*`).
 - `ov_cpu_func_tests --gtest_filter='smoke_TestsConvertColor*'`: **26/26
   pass**, including the `u8` accuracy case (144×16).
 - `OV_JIT_IR_ROPE=1 ov_cpu_func_tests --gtest_filter='smoke_RoPETest*'`:
@@ -756,6 +822,14 @@ allocation fuzz test ("every successful allocation satisfies the
 verifier"), a differential FMA-with-epilogue kernel over 27 widths
 (exercises partial load *and* partial store), a narrowing-store
 clobber test, and an eager-mode `foreach` + `stack_frame::clear` test.
+
+Added with peeling: a differential FMA kernel over 20 constant counts run
+through **both** the peeled and the rolled shape and compared against
+`std::fma`, so the two shapes are checked to agree rather than each being
+checked alone; a shape assertion that consecutive multiples of `N` grow
+the kernel by exactly one body (a silent fallback to the rolled loop
+would flatten the increments); and four `DeadDefElim` tests covering
+chain collapse, def-less ops, dead loads and cross-region uses.
 
 ## Review pass of 2026-09-03 — what changed
 
