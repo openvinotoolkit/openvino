@@ -645,13 +645,15 @@ jobs:
       matrix:
         include:
           - TEST_TYPE: 'unit'
-            TEST_FILTER: '*smoke*fully_connected*:*convolution_gpu_bfyx_f16*:*convolution_f16_fw_gpu*:*smoke*convolution*-*deconvolution*:*DISABLED*:*fully_connected_random_test*'
+            SHARD_INDEX: 0
           - TEST_TYPE: 'func'
-            TEST_FILTER: '*KVCacheTests*smoke*'
+            SHARD_INDEX: 0
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      test_filter: ${{ github.event_name == 'pull_request' && matrix.TEST_FILTER || '' }}
+      test_filter: ${{ github.event_name == 'pull_request' && (matrix.TEST_TYPE == 'unit' && '*smoke*fully_connected*:*convolution_gpu_bfyx_f16*:*convolution_f16_fw_gpu*:*smoke*convolution*-*deconvolution*:*DISABLED*:*fully_connected_random_test*' || '*KVCacheTests*smoke*') || '' }}
+      shard_index: ${{ matrix.SHARD_INDEX }}
+      total_shards: ${{ matrix.TEST_TYPE == 'unit' && 10 || 1 }}
       runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64_igpu }}

@@ -34,6 +34,16 @@ on:
         type: string
         required: false
         default: ''
+      shard_index:
+        description: 'GTest shard index'
+        type: number
+        required: false
+        default: 0
+      total_shards:
+        description: 'Total number of GTest shards'
+        type: number
+        required: false
+        default: 1
 
 permissions: read-all
 
@@ -144,9 +154,32 @@ jobs:
           if [[ -n "${CUSTOM_TEST_FILTER}" ]]; then
             test_filter="${CUSTOM_TEST_FILTER}"
           elif [[ "${TEST_TYPE}" == 'unit' ]]; then
-            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*'
+            test_filter='-*scatter_nd_update_gpu.dynamic_padded_output*:*border_gpu.basic_zero_input*:*bicubic_zeros_no_align_data1x1*:*bicubic_border_align_batches*:*bilinear_zeros_no_align_data1x1*:*non_zero_gpu.empty_input*:*mark_shape_of_subgraphs.concat_with_empty_tensor_inputs*:*concat_cpu_impl.dynamic_4d_f*:*border_gpu.basic_zero_input_dynamic*:*network_test.model_with_empty_input_is_not_dynamic*:*bicubic_zeros_align_data1x1*:*scatter_elements_update*'
           else
             test_filter='*smoke*'
+          fi
+
+          if [[ "${TEST_TYPE}" == 'unit' ]]; then
+            log="shard_${{ inputs.shard_index }}_$(date +%Y%m%d_%H%M%S).log"
+            set +e
+            /usr/bin/time -v env \
+              GTEST_TOTAL_SHARDS=${{ inputs.total_shards }} \
+              GTEST_SHARD_INDEX=${{ inputs.shard_index }} \
+              LD_PRELOAD=/lib/x86_64-linux-gnu/libze_loader.so.1 \
+              LD_LIBRARY_PATH="$PWD:/opt/home/sys_ovwindev/openvino/temp/Linux_x86_64/tbb/lib" \
+              ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests \
+                --report_unique_name \
+                --gtest_print_time=1 \
+                --gtest_filter="${test_filter}" \
+              2>&1 | tee "$log"
+            test_status=${PIPESTATUS[0]}
+            set -e
+
+            echo
+            echo "Res:"
+            grep -E '^\[==========\]|^\[  PASSED|^\[  FAILED|Elapsed \(wall clock\)|Maximum resident set size|User time|System time' "$log" || true
+            echo "Log: $PWD/$log"
+            exit "$test_status"
           fi
 
           ${INSTALL_TEST_DIR}/ov_gpu_"${TEST_TYPE}"_tests --report_unique_name --gtest_filter="${test_filter}"
