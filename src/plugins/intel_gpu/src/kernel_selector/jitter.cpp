@@ -1485,8 +1485,8 @@ JitConstants MakeTypeJitConstants(Datatype dataType, const std::string& macroNam
             val_zero = "(uchar) 0";
             to_type = "convert_uchar((v) != 0)";
             to_type_sat = "convert_uchar((v) != 0)";
-            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(uchar, size))((v) != 0)";
-            to_vector_type_sat = "CAT(convert_, MAKE_VECTOR_TYPE(uchar, size))((v) != 0)";
+            to_vector_type = "CAT(convert_, MAKE_VECTOR_TYPE(uchar, size))(-((v) != 0))";
+            to_vector_type_sat = "CAT(convert_, MAKE_VECTOR_TYPE(uchar, size))(-((v) != 0))";
             as_type = "as_uchar(v)";
             max_func = "max";
             min_func = "min";

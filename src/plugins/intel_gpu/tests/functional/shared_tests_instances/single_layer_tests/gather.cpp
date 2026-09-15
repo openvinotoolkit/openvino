@@ -31,6 +31,7 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32,
         ov::element::f16,
         ov::element::i32,
+        ov::element::boolean,
 };
 
 const std::vector<ov::Shape> indicesShapes2 = {

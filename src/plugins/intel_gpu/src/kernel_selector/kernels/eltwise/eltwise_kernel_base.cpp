@@ -128,7 +128,7 @@ static bool IsBitwiseMode(EltwiseMode mode) {
 static bool SupportsBooleanInput(EltwiseMode mode) {
     return mode == EltwiseMode::EQ || mode == EltwiseMode::NE || mode == EltwiseMode::LT || mode == EltwiseMode::LE ||
            mode == EltwiseMode::GT || mode == EltwiseMode::GE || mode == EltwiseMode::LOGIC_AND ||
-           mode == EltwiseMode::LOGIC_OR || mode == EltwiseMode::LOGIC_XOR;
+           mode == EltwiseMode::LOGIC_OR || mode == EltwiseMode::LOGIC_XOR || mode == EltwiseMode::ASSIGN;
 }
 
 static bool ProducesBooleanOutput(EltwiseMode mode) {

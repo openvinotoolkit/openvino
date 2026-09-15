@@ -21,6 +21,7 @@ struct ScatterNDUpdate : public ImplementationManager {
 
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         static constexpr std::array supported_inout_types = {
+            ov::element::boolean,
             ov::element::f32,
             ov::element::f16,
             ov::element::i32,

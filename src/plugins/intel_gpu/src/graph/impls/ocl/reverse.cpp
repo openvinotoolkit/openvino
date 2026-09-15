@@ -38,7 +38,7 @@ namespace detail {
 
 attach_reverse_impl::attach_reverse_impl() {
     static const auto types =
-        {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
+        {data_types::boolean, data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
     static const auto formats = {
         format::bfyx,
         format::b_fs_yx_fsv16,

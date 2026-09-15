@@ -20,13 +20,21 @@ struct GatherNDImplementationManager : public ImplementationManager {
             format::bfwzyx
         };
 
-        static const std::vector<ov::element::Type_t> supported_in_types = {
+        static const std::vector<ov::element::Type_t> supported_data_types = {
+            ov::element::boolean,
+            ov::element::f32,
+            ov::element::f16,
+            ov::element::i32
+        };
+
+        static const std::vector<ov::element::Type_t> supported_indices_types = {
             ov::element::f32,
             ov::element::f16,
             ov::element::i32
         };
 
         static const std::vector<ov::element::Type_t> supported_out_types = {
+            ov::element::boolean,
             ov::element::f32,
             ov::element::f16,
             ov::element::i32,
@@ -41,7 +49,7 @@ struct GatherNDImplementationManager : public ImplementationManager {
             return false;
         }
 
-        if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types)) {
+        if (!one_of(in0_layout.data_type, supported_data_types) || !one_of(in1_layout.data_type, supported_indices_types)) {
             return false;
         }
 
