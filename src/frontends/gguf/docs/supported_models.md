@@ -123,7 +123,7 @@ model/checkpoint that is simply weak on the prompt.
 | `qwen2` | verified | Qwen2.5-0.5B-Instruct Q4_K_M | generates | generates |
 | `qwen3` | verified | Qwen3-0.6B Q8_0 | generates (reasoning preamble) | same |
 | `qwen3` (Bonsai, Q1_0) | verified | Bonsai-8B Q1_0 | generates | generates |
-| `qwen3` (Bonsai, Q1_0) | verified | Bonsai-27B Q1_0 | generates | generates |
+| `qwen35` (Bonsai, Q1_0) | verified | Bonsai-27B Q1_0 | generates | generates |
 | `phi3` | verified | Phi-3-mini-4k-instruct Q4 | generates | generates |
 | `minicpm` | verified | MiniCPM-2B-dpo Q4_K_M | generates | generates |
 | `hunyuan-dense` | verified | Hunyuan-0.5B-Instruct Q8_0 | matches reference | same |
