@@ -1446,6 +1446,9 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                            std::move(streams_info_table),
                                                            {},
                                                            false};
+    // Rebuilding streamExecutorConfig above resets inline_mode; re-apply it from the
+    // persistent Config member so the caller-thread sync policy survives to the executor.
+    config.streamExecutorConfig.set_inline_mode(config.multiAppThreadSyncExecution);
     return proc_type_table;
 }
 
