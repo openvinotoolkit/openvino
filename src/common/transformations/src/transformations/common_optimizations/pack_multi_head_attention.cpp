@@ -170,12 +170,12 @@ static std::shared_ptr<ov::Node> get_reciprocal_divide_scale(const std::shared_p
         return nullptr;
     }
 
-    const auto scale_values = scale->cast_vector<float>();
-    if (scale_values.front() == 0.0f) {
+    const auto scale_value = scale->cast_vector<double>().front();
+    if (scale_value == 0.0) {
         return nullptr;
     }
     auto reciprocal_scale =
-        v0::Constant::create(scale->get_element_type(), scale->get_shape(), {1.0f / scale_values.front()});
+        v0::Constant::create(scale->get_element_type(), scale->get_shape(), {1.0 / scale_value});
     copy_runtime_info(scale, reciprocal_scale);
     return reciprocal_scale;
 }
