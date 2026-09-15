@@ -43,6 +43,7 @@ ParamsKey EyeKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT64);
+    k.EnableOutputDataType(Datatype::BOOLEAN);
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableTensorOffset();

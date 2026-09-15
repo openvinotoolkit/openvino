@@ -145,6 +145,33 @@ TEST(one_hot_gpu_i64, generic) {
     generic_one_hot_test_int<int64_t>(format::bfyx, 2, 2, 1, 1, tensor(2, 2, 4, 1), 3, 0, 0, 0, 0, false);
 }
 
+TEST(one_hot_gpu_i32, boolean_output) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({data_types::i32, format::bfyx, tensor(2, 2, 1, 1)});
+    set_values(input, std::vector<int32_t>{0, 1, 4, 2});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    auto one_hot_prim = one_hot("output", input_info("input"), tensor(5, 2, 1, 2), 0, 5);
+    one_hot_prim.output_data_types = {data_types::boolean};
+    topology.add(one_hot_prim);
+
+    network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    auto output = network.execute().at("output").get_memory();
+
+    ASSERT_EQ(output->get_layout().data_type, data_types::boolean);
+    mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    const std::vector<uint8_t> expected{
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 0, 1,
+        0, 0, 0, 0,
+        0, 0, 1, 0,
+    };
+    ASSERT_EQ(std::vector<uint8_t>(output_ptr.begin(), output_ptr.end()), expected);
+}
+
 TEST(one_hot_gpu_i32, generic_cached) {
     generic_one_hot_test_int<int32_t>(format::bfyx, 2, 2, 1, 1, tensor(5, 2, 1, 2), 0, 0, 0, 0, 0, true);
 #ifdef RUN_ALL_MODEL_CACHING_TESTS

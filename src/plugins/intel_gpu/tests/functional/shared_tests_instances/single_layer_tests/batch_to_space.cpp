@@ -123,6 +123,20 @@ auto bts_only_test_cases = []() {
                                                                         ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
                                                                         {24, 1, 2, 1, 2}})),
                                                                         ov::element::u8,
+                                                                        ov::test::utils::DEVICE_GPU),
+                                                batchToSpaceParamsTuple({1, 1, 2, 2},
+                                                                        {0, 0, 0, 0},
+                                                                        {0, 0, 0, 0},
+                                                                        ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
+                                                                        {4, 1, 2, 2}})),
+                                                                        ov::element::boolean,
+                                                                        ov::test::utils::DEVICE_GPU),
+                                                batchToSpaceParamsTuple({1, 1, 3, 2, 2},
+                                                                        {0, 0, 1, 0, 3},
+                                                                        {0, 0, 2, 0, 0},
+                                                                        ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>({
+                                                                        {24, 1, 2, 1, 2}})),
+                                                                        ov::element::boolean,
                                                                         ov::test::utils::DEVICE_GPU)};
 };
 

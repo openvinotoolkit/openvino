@@ -35,7 +35,8 @@ static const std::vector<ov::element::Type> types = {
     ov::element::i64,
     ov::element::i32,
     ov::element::f32,
-    ov::element::f16
+    ov::element::f16,
+    ov::element::boolean
 };
 
 INSTANTIATE_TEST_SUITE_P(

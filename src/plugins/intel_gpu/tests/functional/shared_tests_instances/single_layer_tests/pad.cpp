@@ -9,6 +9,7 @@ using ov::test::Pad12LayerTest;
 using ov::op::PadMode;
 
 const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::boolean,
         ov::element::f32,
         ov::element::f16
 };

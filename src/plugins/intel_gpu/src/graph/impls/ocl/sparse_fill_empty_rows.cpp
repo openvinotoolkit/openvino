@@ -50,7 +50,13 @@ public:
 namespace detail {
 
 attach_sparse_fill_empty_rows_impl::attach_sparse_fill_empty_rows_impl() {
-    auto types = {data_types::f16, data_types::f32, data_types::i8, data_types::u8, data_types::i32, data_types::i64};
+    auto types = {data_types::f16,
+                  data_types::f32,
+                  data_types::i8,
+                  data_types::u8,
+                  data_types::i32,
+                  data_types::i64,
+                  data_types::boolean};
     auto formats = {format::bfyx};
     implementation_map<sparse_fill_empty_rows>::add(
         impl_types::ocl,
