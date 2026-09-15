@@ -38,7 +38,11 @@ KERNEL(gather_elements_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint f = dim2 % OUTPUT_FEATURE_NUM;
     const uint b = dim2 / OUTPUT_FEATURE_NUM;
 
-    const uint out_idx = GET_OUTPUT_INDEX(INPUT1, ORDER);
+    // The indices and the output share a shape but not necessarily their pitches: an indices
+    // tensor that is a padded view of a larger buffer (a crop) needs its own index, or every
+    // store lands at the wrong offset and past the end of the output.
+    const uint idx_idx = GET_OUTPUT_INDEX(INPUT1, ORDER);
+    const uint out_idx = GET_OUTPUT_INDEX(OUTPUT, ORDER);
     LOAD_AND_HANDLE_NEGATIVE_INDICES;
     const uint input_idx = GET_OUTPUT_INDEX(INPUT0, DATA_INDEX_ORDER);
 
