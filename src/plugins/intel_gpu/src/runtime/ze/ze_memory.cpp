@@ -10,6 +10,7 @@
 #include "ze_event.hpp"
 #include "ze_resource_interop.hpp"
 #include "runtime_common.hpp"
+#include "ocl/ocl_wrapper.hpp"
 
 #include <stdexcept>
 #include <vector>
@@ -28,6 +29,66 @@ static inline cldnn::event::ptr create_event(stream& stream, size_t bytes_count)
     }
 
     return stream.create_base_event();
+}
+
+ze_usm_resource import_dx_buffer(ze_engine* engine, shared_mem_params params) {
+    #ifndef WIN32
+        OPENVINO_THROW("[GPU] Importing D3D11 buffers is only supported on Windows");
+    #else
+        auto ctx = engine->get_context();
+        auto cl_ctx_handle = ctx.ocl_handle<ocl_resource_type::context>();
+        cl::BufferDX buffer(cl_ctx_handle, CL_MEM_READ_WRITE, params.mem);
+        OPENVINO_ASSERT(clRetainMemObject(buffer()) == CL_SUCCESS, "[GPU] clRetainMemObject failed");
+        return ze_import_usm(buffer.get(), ctx, false);
+    #endif
+}
+
+ze_image_resource import_media_buffer(ze_engine* engine, shared_mem_params params) {
+    auto ctx = engine->get_context();
+    auto cl_ctx_handle = ctx.ocl_handle<ocl_resource_type::context>();
+    cl::ImageVA image(cl_ctx_handle, CL_MEM_READ_WRITE, params.surface, params.plane);
+    OPENVINO_ASSERT(clRetainMemObject(image()) == CL_SUCCESS, "[GPU] clRetainMemObject failed");
+    return ze_import_image(image.get(), false);
+}
+
+ze_usm_resource import_os_handle(ze_engine* engine, const layout& layout, ov::intel_gpu::os_handle_param external_handle) {
+    auto ctx = engine->get_context();
+    auto device = engine->get_device();
+    const void *extension_desc = nullptr;
+#ifdef _WIN32
+    ze_external_memory_import_win32_handle_t import_win32 = {
+        ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_WIN32,
+        nullptr,
+        ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32,
+        external_handle,
+        nullptr,
+    };
+    extension_desc = &import_win32;
+#elif defined(__linux__)
+    ze_external_memory_import_fd_t import_fd = {
+        ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_FD,
+        nullptr,
+        ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF,
+        external_handle,
+    };
+    extension_desc = &import_fd;
+#else
+    OPENVINO_THROW("[GPU] External memory import is not supported on this platform");
+#endif
+    auto mem_ordinal = engine->get_device_info().device_memory_ordinal;
+    ze_device_mem_alloc_desc_t dev_desc = {
+        ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC,
+        extension_desc,
+        0,
+        mem_ordinal,
+    };
+    ov_ze_usm_handle usm_handle;
+    usm_handle.context = ctx.handle();
+    usm_handle.ptr = nullptr;
+    size_t size = layout.bytes_count();
+    size = size > 0 ? size : 1;
+    OV_ZE_EXPECT(ze::zeMemAllocDevice(usm_handle.context, &dev_desc, size, 0, device.handle(), &usm_handle.ptr));
+    return ze_usm_resource(usm_handle);
 }
 
 bool check_allocation_range(ze_context_handle_t ctx, void *ptr, size_t expected_size) {
@@ -826,6 +887,71 @@ event::ptr gpu_image2d::copy_to(stream& stream, void* data_ptr, size_t src_offse
         result_event->wait();
     }
     return result_event;
+}
+
+gpu_dx_buffer::gpu_dx_buffer(ze_engine* engine, const layout& new_layout, shared_mem_params params)
+    : gpu_usm(engine, new_layout, import_dx_buffer(engine, params), allocation_type::cl_mem, nullptr),
+    _device(params.user_device),
+    _resource(params.mem) {}
+
+shared_mem_params gpu_dx_buffer::get_internal_params(runtime_types rt_type) const {
+    auto params = gpu_usm::get_internal_params(rt_type);
+    params.mem_type = shared_mem_type::shared_mem_dxbuffer;
+    params.user_device = _device;
+#ifdef _WIN32
+    params.surface = _resource;
+#else
+    OPENVINO_THROW("[GPU] DX buffer is only supported on Windows");
+#endif
+    return params;
+}
+
+gpu_media_buffer::gpu_media_buffer(ze_engine* engine, const layout& new_layout, shared_mem_params params)
+    : gpu_image2d(engine, new_layout, import_media_buffer(engine, params), nullptr),
+    _device(params.user_device),
+    _surface(params.surface),
+    _plane(params.plane) {}
+
+shared_mem_params gpu_media_buffer::get_internal_params(runtime_types rt_type) const {
+    auto params = gpu_image2d::get_internal_params(rt_type);
+    params.mem_type = shared_mem_type::shared_mem_vasurface;
+    params.user_device = _device;
+    params.plane = _plane;
+#ifdef _WIN32
+    params.surface = std::get<d3d11_texture_t>(_surface);
+#else
+    params.surface = std::get<va_surface_t>(_surface);
+#endif
+    return params;
+}
+gpu_buffer_from_handle::gpu_buffer_from_handle(ze_engine* engine, const layout& layout, ov::intel_gpu::os_handle_param external_handle)
+    : gpu_usm(engine, layout, import_os_handle(engine, layout, external_handle), allocation_type::cl_mem, nullptr) {}
+
+ze_surfaces_lock::ze_surfaces_lock(std::vector<memory::ptr> mem, const stream& stream) {
+    if (mem.empty()) {
+        return;
+    }
+    std::vector<cl_mem> handles;
+    for (auto& m : mem) {
+        auto params = m->get_internal_params(runtime_types::ocl);
+        if (is_lock_needed(params.mem_type)) {
+            handles.push_back(static_cast<cl_mem>(params.mem));
+        }
+    }
+    if (handles.empty()) {
+        return;
+    }
+
+    const auto &zero_stream = downcast<const ze_stream>(stream);
+    auto ctx = zero_stream.get_context();
+    auto dev = zero_stream.get_engine().get_device();
+    auto cmd_list = zero_stream.get_command_list();
+    ze_export_ocl_command_queue(cmd_list, ctx, dev);
+    auto cmd_queue = cmd_list.ocl_handle<ocl_resource_type::command_queue>();
+
+    cl_int err = CL_SUCCESS;
+    _lock = std::make_unique<cl::SharedSurfLock>(cmd_queue, handles, &err);
+    OPENVINO_ASSERT(err == CL_SUCCESS, "[GPU] Failed to create SharedSurfLock (" + std::to_string(err) + ")");
 }
 
 }  // namespace ze

@@ -3,6 +3,7 @@
 //
 
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/strides.hpp"
@@ -53,15 +54,6 @@ public:
         result << test::utils::vec2str<int32_t>({cu_seqlens}) << "_";
         result << "Prc=" << inType;
         return result.str();
-    }
-
-    static std::shared_ptr<Parameter> make_param(const PartialShape& pshape,
-                                                element::Type element_type,
-                                                const std::string& name) {
-        auto param = std::make_shared<Parameter>(element_type, pshape);
-        param->set_friendly_name(name);
-        param->get_output_tensor(0).set_names({name});
-        return param;
     }
 
     static bool check_vl_sdpa_transformations(const ov::CompiledModel& compiled_model) {
@@ -116,10 +108,10 @@ protected:
     }
 
     std::shared_ptr<ov::Model> get_function(ov::element::Type inType, ov::Dimension::value_type num_head, ov::Dimension::value_type head_size) {
-        auto q = make_param(PartialShape{ov::Dimension::dynamic(), num_head, head_size}, inType, "q");
-        auto k = make_param(PartialShape{ov::Dimension::dynamic(), num_head, head_size}, inType, "k");
-        auto v = make_param(PartialShape{ov::Dimension::dynamic(), num_head, head_size}, inType, "v");
-        auto attn_mask = make_param(PartialShape{1, -1, -1}, inType, "attention_mask");
+        auto q = ov::test::utils::make_param(inType, PartialShape{ov::Dimension::dynamic(), num_head, head_size}, "q");
+        auto k = ov::test::utils::make_param(inType, PartialShape{ov::Dimension::dynamic(), num_head, head_size}, "k");
+        auto v = ov::test::utils::make_param(inType, PartialShape{ov::Dimension::dynamic(), num_head, head_size}, "v");
+        auto attn_mask = ov::test::utils::make_param(inType, PartialShape{1, -1, -1}, "attention_mask");
 
         auto transpose_q = std::make_shared<Transpose>(q, Constant::create(element::i64, Shape{3}, order_q));
         auto transpose_k = std::make_shared<Transpose>(k, Constant::create(element::i64, Shape{3}, order_k));

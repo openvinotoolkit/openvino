@@ -107,7 +107,7 @@ std::string attention(GraphEmitter& e,
     v = e.add_op("GGML_OP_RESHAPE", p + "Vcur_r", {v}, ps({1, T, n_head_kv_l, head_size_l}), f32, 1);
 
     // per-head q_norm / k_norm (qwen3, hunyuan, gemma4)
-    if (cfg.has_qk_norm && !cfg.qk_norm_full) {
+    if (cfg.has_qk_norm && !cfg.qk_norm_full && !cfg.qk_norm_after_rope) {
         q = rms_norm(e, q, p + "attn_q_norm.weight", p + "Qcur_normed", cfg.rms_eps);
         k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
     }
@@ -149,6 +149,12 @@ std::string attention(GraphEmitter& e,
                      f32,
                      cfg.rope_op_case,
                      {{"rope_config", rope_config_l}});
+    }
+
+    // Hunyuan differs from Qwen/Gemma: its learned per-head Q/K RMSNorm follows RoPE.
+    if (cfg.has_qk_norm && !cfg.qk_norm_full && cfg.qk_norm_after_rope) {
+        q = rms_norm(e, q, p + "attn_q_norm.weight", p + "Qcur_normed", cfg.rms_eps);
+        k = rms_norm(e, k, p + "attn_k_norm.weight", p + "Kcur_normed", cfg.rms_eps);
     }
 
     // ---- KV cache store ----

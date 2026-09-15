@@ -1019,9 +1019,9 @@ void program::remove_all_connections(program_node& node) {
 void program::rename(program_node& node, primitive_id const& new_id) {
     if (nodes_map.count(new_id))
         throw std::runtime_error("Trying to rename program_node but node with id " + new_id + " already exists");
-    if (node.is_output())
-        throw std::invalid_argument(
-            "Trying to rename an output node. If you intend to do that, please clear 'output' flag manually.");
+    if (node.is_output()) {
+        throw std::invalid_argument("Trying to rename an output node. If you intend to do that, please clear 'output' flag manually.");
+    }
 
     auto node_itr = nodes_map.find(node.id());
     if (node_itr == nodes_map.end()) return;
@@ -1056,9 +1056,9 @@ void program::replace(program_node& old_node, program_node& new_node) {
     if (!new_node.dependencies.empty() || !new_node.users.empty())
         throw std::invalid_argument("Node which is about to replace other node should be detached");
 
-    if (new_node.is_output())
-        throw std::invalid_argument(
-            "Replacement node shouldn't be marked as an output since it's impossible to rename such node.");
+    if (new_node.is_output()) {
+        throw std::invalid_argument("Replacement node shouldn't be marked as an output since it's impossible to rename such node.");
+    }
 
     auto id = old_node.id();
     new_node.output_layouts = old_node.get_output_layouts();
@@ -1546,13 +1546,14 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 #endif
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
-                if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16)
+                if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16) {
                     total_dw_conv_layers++;
-                else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16)
+                } else if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups < 16) {
                     total_dw_splitted_conv_layers++;  // this counter is needed due to compatibility with b_fs_yx_fsv16
                                                       // heuristics
-                else if (conv.get_primitive()->groups > 1)
+                } else if (conv.get_primitive()->groups > 1) {
                     total_grouped_conv_layers++;
+                }
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
                     total_1x1_fm_conv_layers++;
@@ -1565,10 +1566,11 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 total_asym_quantized_conv_layers++;
         }
         if (prim.type() == cldnn::deconvolution::type_id()) {
-            if (lo.is_format_optimized(prim.as<deconvolution>(), format::b_fs_zyx_fsv16))
+            if (lo.is_format_optimized(prim.as<deconvolution>(), format::b_fs_zyx_fsv16)) {
                 opt_deconv_layers_b_fs_zyx_fsv16 += 1;
-            else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16))
+            } else if (lo.is_format_supported(prim.as<deconvolution>(), format::b_fs_yx_fsv16)) {
                 opt_deconv_layers_b_fs_yx_fsv16 += 1;
+            }
 
             total_deconv_layers++;
         }
