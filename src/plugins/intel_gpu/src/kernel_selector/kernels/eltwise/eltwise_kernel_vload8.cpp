@@ -2,13 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "activation/activation_kernel_base.h"
 #include "eltwise_kernel_vload8.h"
-#include "kernel_selector_utils.h"
-#include <string>
+
 #include <algorithm>
+#include <string>
+
+#include "activation/activation_kernel_base.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
+
+namespace {
+
+bool IsFeatureBroadcast(const DataTensor& input, const DataTensor& output) {
+    if (input.GetLayout() != DataLayout::bfyx || output.GetLayout() != DataLayout::bfyx)
+        return false;
+
+    if (input.PitchesDifferFromLogicalDims() || output.PitchesDifferFromLogicalDims() || input.GetFirstElementOffset() != 0 ||
+        output.GetFirstElementOffset() != 0)
+        return false;
+
+    return input.Batch().v == output.Batch().v && input.Feature().v == 1 && output.Feature().v > 1 && input.Y().v == output.Y().v &&
+           input.X().v == output.X().v && (input.Y().v * input.X().v) % 8 == 0;
+}
+
+}  // namespace
 
 ParamsKey EltwiseKernel_vload8::GetSupportedKey() const {
     ParamsKey k;
@@ -21,11 +39,44 @@ ParamsKey EltwiseKernel_vload8::GetSupportedKey() const {
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();
     k.EnableBatching();
+    k.EnableEltwiseBroadcast();
     return k;
 }
 
 JitConstants EltwiseKernel_vload8::GetJitConstants(const eltwise_params& params) const {
-    return GetJitConstantsCommon(params, true);
+    auto jit = GetJitConstantsCommon(params, true);
+
+    const auto& output = params.outputs[0];
+    const bool has_feature_broadcast = std::any_of(params.inputs.begin(), params.inputs.end(), [&](const DataTensor& input) {
+        return IsFeatureBroadcast(input, output);
+    });
+    if (!has_feature_broadcast)
+        return jit;
+
+    const size_t feature_plane_vecs = output.Y().v * output.X().v / 8;
+    const size_t output_batch_stride_vecs = output.Feature().v * feature_plane_vecs;
+    std::string vload_decls;
+
+    for (size_t i = 0; i < params.inputs.size(); i++) {
+        const auto& input = params.inputs[i];
+        vload_decls += "\\\n\tconst " + toCLType(input.GetDType()) + "8 in" + toCodeString(i);
+        if (input.PhysicalSize() == 1) {
+            vload_decls += " = (" + toCLType(input.GetDType()) + "8)(input" + toCodeString(i) + "[0]";
+        } else if (IsFeatureBroadcast(input, output)) {
+            // The output is flattened as [batch][feature][y*x]. Ignore the output
+            // feature coordinate and reuse the single input feature plane.
+            const std::string broadcast_idx = "((global_id / " + toCodeString(output_batch_stride_vecs) + ") * " + toCodeString(feature_plane_vecs) +
+                                              " + (global_id % " + toCodeString(feature_plane_vecs) + "))";
+            vload_decls += " = vload8(" + broadcast_idx + ", input" + toCodeString(i);
+        } else {
+            vload_decls += " = vload8(global_id, input" + toCodeString(i);
+        }
+        vload_decls += ");";
+    }
+
+    jit.RemoveConstant("VLOAD_DECLS");
+    jit.AddConstant(MakeJitConstant("VLOAD_DECLS", vload_decls));
+    return jit;
 }
 
 bool EltwiseKernel_vload8::Validate(const Params& params) const {
@@ -72,12 +123,15 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
 
     const bool bSupportedCount = (count % 8) == 0;
 
-    bool bCheckSizes = true;
+    bool bCheckSizes = !output.PitchesDifferFromLogicalDims() && output.GetFirstElementOffset() == 0;
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-        // allow only the same input sizes or scalars, without pitches
-        if (ewParams.inputs[i].PitchesDifferFromLogicalDims() ||
-            ((ewParams.inputs[0] != ewParams.inputs[i] || ewParams.inputs[i] != ewParams.outputs[0]) &&
-             ewParams.inputs[i].PhysicalSize() != 1)) {
+        // Allow equal-sized inputs, scalars, or a plain bfyx input which differs
+        // only by broadcasting feature=1 to the output feature count.
+        const bool same_as_output = ewParams.inputs[i] == output;
+        const bool scalar = ewParams.inputs[i].PhysicalSize() == 1;
+        const bool feature_broadcast = !ewParams.is_shape_agnostic && IsFeatureBroadcast(ewParams.inputs[i], output);
+        if ((!same_as_output && !scalar && !feature_broadcast) || ewParams.inputs[i].PitchesDifferFromLogicalDims() ||
+            ewParams.inputs[i].GetFirstElementOffset() != 0) {
             bCheckSizes = false;
         }
     }
@@ -140,7 +194,7 @@ KernelsData EltwiseKernel_vload8::GetKernelsData(const Params& params) const {
     }
 
     auto& kernel = kd.kernels[0];
-    kernel.params.workGroups.global = {std::max(newParams.inputs[0].LogicalSize() / 8, (size_t)1), 1, 1};
+    kernel.params.workGroups.global = {std::max(newParams.outputs[0].LogicalSize() / 8, static_cast<size_t>(1)), 1, 1};
     kernel.params.workGroups.local = GetOptimalLocalWorkGroupSizes(kernel.params.workGroups.global, params.engineInfo);
     kernel.code.kernelString = GetKernelString(kernelName, jit, entry_point, params.engineInfo, EXE_MODE_DEFAULT);
     kernel.params.arguments = GetArgsDesc((uint32_t)newParams.inputs.size(), false, false);
