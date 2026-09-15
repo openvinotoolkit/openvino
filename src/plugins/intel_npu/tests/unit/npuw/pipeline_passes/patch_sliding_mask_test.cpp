@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "llm_pass_test_fixture.hpp"
 #include "llm_test_helpers.hpp"
 #include "model_builder.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
@@ -17,6 +18,7 @@ using ov::test::npuw::make_sliding_window_mask_gemma4_unified_nonzero_select;
 using ov::test::npuw::make_sliding_window_mask_phi3;
 using ov::test::npuw::make_sliding_window_mask_phi3_legacy;
 using ov::test::npuw::ModelBuilder;
+using ov::test::npuw::RecordingFactory;
 
 namespace {
 
@@ -193,6 +195,31 @@ TEST(LLMMaskTest, NpuwSlidingPatch_FiresOn_LegacyPhi3Pattern) {
 TEST(LLMMaskTest, NpuwSlidingPatch_IgnoresDefaultFloatMask) {
     auto model = ov::test::npuw::build_sliding_window_test_model(512, 0);
     EXPECT_FALSE(ov::npuw::PatchSlidingWindowMask().run_on_model(model));
+}
+
+class ChunkedPrefillSlidingMaskTest : public ov::test::npuw::LLMPassTestFixture {};
+
+TEST_F(ChunkedPrefillSlidingMaskTest, WholePrefillAppliesRightPaddingPatch) {
+    RecordingFactory recorder;
+    auto model = ov::test::npuw::build_sliding_window_test_model(512, 0, make_sliding_window_mask_phi3);
+
+    ASSERT_NO_THROW(create_compiled_model(model, {{"NPUW_LLM_SHARED_HEAD", "NO"}}, recorder));
+    const auto& prefill = require_sub_model(recorder, "_prefill");
+    EXPECT_GT(count_ops<ov::op::v13::BitwiseOr>(prefill.model), 0u);
+}
+
+TEST_F(ChunkedPrefillSlidingMaskTest, ChunkedPrefillSkipsRightPaddingPatch) {
+    RecordingFactory recorder;
+    auto model = ov::test::npuw::build_sliding_window_test_model(512, 0, make_sliding_window_mask_phi3);
+
+    ASSERT_NO_THROW(create_compiled_model(
+        model,
+                {{"NPUW_LLM_SHARED_HEAD", "NO"}, {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}},
+        recorder));
+    const auto& prefill = require_sub_model(recorder, "_prefill");
+    EXPECT_EQ(count_ops<ov::op::v13::BitwiseOr>(prefill.model), 0u);
+    const auto& generate = require_sub_model_containing(recorder, "_kv");
+    EXPECT_GT(count_ops<ov::op::v13::BitwiseOr>(generate.model), 0u);
 }
 
 // Real Gemma exports build two mask subgraphs and share them across all
