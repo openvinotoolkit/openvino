@@ -990,10 +990,9 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     if (_record_replay_session) {
         if (_record_replay_session->replay(events, _exec_order)) {
             return;
-        } else {
-            _record_replay_session->begin_recording(events);
-            is_recording = true;
         }
+        _record_replay_session->begin_recording(events);
+        is_recording = true;
     }
     set_arguments();
 
