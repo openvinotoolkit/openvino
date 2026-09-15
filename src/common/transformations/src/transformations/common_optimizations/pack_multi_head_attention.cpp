@@ -174,8 +174,7 @@ static std::shared_ptr<ov::Node> get_reciprocal_divide_scale(const std::shared_p
     if (scale_value == 0.0) {
         return nullptr;
     }
-    auto reciprocal_scale =
-        v0::Constant::create(scale->get_element_type(), scale->get_shape(), {1.0 / scale_value});
+    auto reciprocal_scale = v0::Constant::create(scale->get_element_type(), scale->get_shape(), {1.0 / scale_value});
     copy_runtime_info(scale, reciprocal_scale);
     return reciprocal_scale;
 }
