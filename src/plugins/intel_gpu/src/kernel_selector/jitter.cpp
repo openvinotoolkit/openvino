@@ -2030,6 +2030,8 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     std::vector<std::string> input_vars;
 
+	out_var = GetOutputVarName(in_var, desc.op_id);
+
     if (conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE &&
         desc.GetType() == KernelType::QUANTIZE) {
         is_shuffled = true;
@@ -2248,8 +2250,6 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 break;
         }
         case KernelType::ACTIVATION: {
-            out_var = GetOutputVarName(in_var, desc.op_id);
-
             OPENVINO_ASSERT(desc.output_tensors.size() == 1);
             const auto& out_type = desc.output_tensors[0].GetDType();
             auto p = desc.GetOpParams<activation_fuse_params>();
