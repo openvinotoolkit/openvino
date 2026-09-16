@@ -288,6 +288,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         blobWriter->register_section(std::make_shared<EncryptedSchedulesFlagSection>(true));
     }
 
+    // TODO when should register dynamic instead?
     // At export time, all schedules (main + inits) shall be stored in the blob.
     blobWriter->register_section(
         std::make_shared<ELFMainScheduleSection>(weightlessGraph, encryptionCallbacks, _logger.level()));

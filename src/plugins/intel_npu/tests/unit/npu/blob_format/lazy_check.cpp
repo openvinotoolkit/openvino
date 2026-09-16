@@ -35,7 +35,7 @@ std::shared_ptr<MockSectionWithTable> write_read_section_with_table(std::shared_
         std::make_shared<SupportedSectionTypeEvaluator>(SectionTypeCode::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
-    return std::dynamic_pointer_cast<MockSectionWithTable>(reader.retrieve_first_section(MockTypes::MOCK_WITH_TABLE));
+    return std::dynamic_pointer_cast<MockSectionWithTable>(reader.retrieve_any_section(MockTypes::MOCK_WITH_TABLE));
 }
 
 }  // namespace

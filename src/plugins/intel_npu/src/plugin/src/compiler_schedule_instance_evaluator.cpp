@@ -19,7 +19,6 @@ ov::CompatibilityCheck bool_to_compatibility_check(const bool input) {
 namespace intel_npu {
 
 CompilerScheduleInstanceEvaluator::CompilerScheduleInstanceEvaluator(
-
     const ov::SoPtr<intel_npu::IEngineBackend>& backend,
     const std::shared_ptr<CompilerOptionSupportHelper>& option_support_helper)
     : ISectionInstanceEvaluator(),

@@ -10,8 +10,7 @@ namespace intel_npu {
 
 class CompilerVersionSection final : public ISection {
 public:
-    CompilerVersionSection(const int32_t CompilerVersionSection,
-                           const ov::log::Level log_level = ov::log::Level::WARNING);
+    CompilerVersionSection(const int32_t version, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     void write(BlobWriterInterface& writer) override;
 

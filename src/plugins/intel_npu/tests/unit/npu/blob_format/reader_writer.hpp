@@ -92,12 +92,12 @@ TEST_P(AllSections, WriteRead) {
     ASSERT_NO_THROW(reader->read(tensor));
 
     auto read_batch =
-        std::dynamic_pointer_cast<BatchSizeSection>(reader->retrieve_first_section(SectionTypeCode::BATCH_SIZE));
+        std::dynamic_pointer_cast<BatchSizeSection>(reader->retrieve_any_section(SectionTypeCode::BATCH_SIZE));
     ASSERT_TRUE(read_batch);
     EXPECT_EQ(read_batch->get_batch_size(), batch_section->get_batch_size());
 
     auto read_io =
-        std::dynamic_pointer_cast<IOLayoutsSection>(reader->retrieve_first_section(SectionTypeCode::IO_LAYOUTS));
+        std::dynamic_pointer_cast<IOLayoutsSection>(reader->retrieve_any_section(SectionTypeCode::IO_LAYOUTS));
     ASSERT_TRUE(read_io);
     EXPECT_EQ(read_io->get_input_layouts(), io_section->get_input_layouts());
     EXPECT_EQ(read_io->get_output_layouts(), io_section->get_output_layouts());
@@ -185,12 +185,12 @@ TEST_F(WriterReaderEdgeCases, ReExportRoundTrip) {
     ASSERT_NO_THROW(reader_2->read(tensor_2));
 
     auto read_batch =
-        std::dynamic_pointer_cast<BatchSizeSection>(reader_2->retrieve_first_section(SectionTypeCode::BATCH_SIZE));
+        std::dynamic_pointer_cast<BatchSizeSection>(reader_2->retrieve_any_section(SectionTypeCode::BATCH_SIZE));
     ASSERT_TRUE(read_batch);
     EXPECT_EQ(read_batch->get_batch_size(), BATCH);
 
     auto read_io =
-        std::dynamic_pointer_cast<IOLayoutsSection>(reader_2->retrieve_first_section(SectionTypeCode::IO_LAYOUTS));
+        std::dynamic_pointer_cast<IOLayoutsSection>(reader_2->retrieve_any_section(SectionTypeCode::IO_LAYOUTS));
     ASSERT_TRUE(read_io);
     EXPECT_EQ(read_io->get_input_layouts(), input_layouts);
     EXPECT_EQ(read_io->get_output_layouts(), output_layouts);
@@ -244,7 +244,7 @@ TEST_F(WriterReaderEdgeCases, UnknownSectionSkipped) {
 
     // intentionally not registering batch size
     ASSERT_NO_THROW(reader.read(tensor));
-    EXPECT_EQ(reader.retrieve_first_section(SectionTypeCode::BATCH_SIZE), nullptr);
+    EXPECT_EQ(reader.retrieve_any_section(SectionTypeCode::BATCH_SIZE), nullptr);
 }
 
 TEST_F(WriterReaderEdgeCases, RetrieveSectionByExplicitID) {

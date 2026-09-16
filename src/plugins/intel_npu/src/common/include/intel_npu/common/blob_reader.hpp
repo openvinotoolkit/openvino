@@ -73,7 +73,7 @@ public:
      * a compiled model.
      * @return The first parsed section of the given type if any, else "nullptr"
      */
-    std::shared_ptr<ISection> retrieve_first_section(const SectionType section_type) const;
+    std::shared_ptr<ISection> retrieve_any_section(const SectionType section_type) const;
 
     /**
      * @brief Retrieves all parsed sections of the given type.

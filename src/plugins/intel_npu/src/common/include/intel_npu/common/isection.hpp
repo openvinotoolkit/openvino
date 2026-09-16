@@ -77,19 +77,6 @@ public:
     virtual std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
         const std::unordered_map<SectionID, std::shared_ptr<ISection>>& all_registered_sections) const;
 
-    /**
-     * @brief Evaluate whether or not the current section instance is compatible with the current environment based on
-     * the content of the section.
-     * @details The first step in determining the compatibility of a section is by evaluating the compatibility of its
-     * type. The second step is this function, which evaluates the compatibility of the current instance.
-     *
-     * The section writers are able to handle additional compatibility requirements by using the content of their own
-     * section. This function is meant to evaluate the said content if the case is applicable.
-     * @param reader The blob content of the section, as well as the capabilities of the plugin are available through
-     * this object.
-     */
-    virtual bool evaluate_compatibility_based_on_section_content(BlobReaderInterface& reader);
-
 private:
     // Access required to set the section type instance ID
     friend class BlobWriter;

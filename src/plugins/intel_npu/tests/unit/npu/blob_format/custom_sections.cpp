@@ -48,7 +48,7 @@ TEST(MockSection1, WriteRead) {
         std::make_shared<SupportedSectionTypeEvaluator>(SectionTypeCode::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
-    auto result = std::dynamic_pointer_cast<MockSection_1>(reader.retrieve_first_section(MockTypes::MOCK_1));
+    auto result = std::dynamic_pointer_cast<MockSection_1>(reader.retrieve_any_section(MockTypes::MOCK_1));
     ASSERT_TRUE(result);
     EXPECT_DOUBLE_EQ(result->get_value(), VALUE);
 }
@@ -69,7 +69,7 @@ TEST(MockSection2, WriteRead) {
         std::make_shared<SupportedSectionTypeEvaluator>(SectionTypeCode::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
-    auto result = std::dynamic_pointer_cast<MockSection_2>(reader.retrieve_first_section(MockTypes::MOCK_2));
+    auto result = std::dynamic_pointer_cast<MockSection_2>(reader.retrieve_any_section(MockTypes::MOCK_2));
     ASSERT_TRUE(result);
     EXPECT_EQ(result->get_values(), VALUES);
 }
@@ -90,7 +90,7 @@ TEST(MockSection2, WriteReadEmpty) {
         std::make_shared<SupportedSectionTypeEvaluator>(SectionTypeCode::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
-    auto result = std::dynamic_pointer_cast<MockSection_2>(reader.retrieve_first_section(MockTypes::MOCK_2));
+    auto result = std::dynamic_pointer_cast<MockSection_2>(reader.retrieve_any_section(MockTypes::MOCK_2));
     ASSERT_TRUE(result);
     EXPECT_TRUE(result->get_values().empty());
 }
@@ -112,7 +112,7 @@ TEST(MockSection3, WriteRead) {
         std::make_shared<SupportedSectionTypeEvaluator>(SectionTypeCode::RUNTIME_REQUIREMENTS));
     reader.read(tensor);
 
-    auto result = std::dynamic_pointer_cast<MockSection_3>(reader.retrieve_first_section(MockTypes::MOCK_3));
+    auto result = std::dynamic_pointer_cast<MockSection_3>(reader.retrieve_any_section(MockTypes::MOCK_3));
     ASSERT_TRUE(result);
 
     compare_aligned_elements(buffer, VALUES);
@@ -140,7 +140,7 @@ TEST(MockSections, GetROITensors) {
     reader.read(tensor);
 
     auto manifest_section =
-        std::dynamic_pointer_cast<ManifestSection>(reader.retrieve_first_section(SectionTypeCode::MANIFEST));
+        std::dynamic_pointer_cast<ManifestSection>(reader.retrieve_any_section(SectionTypeCode::MANIFEST));
     ASSERT_TRUE(manifest_section);
     auto table = manifest_section->get_manifest();
 
@@ -213,7 +213,7 @@ TEST(MockSectionWithTable, WriteRead) {
     reader.read(tensor);
 
     auto result =
-        std::dynamic_pointer_cast<MockSectionWithTable>(reader.retrieve_first_section(MockTypes::MOCK_WITH_TABLE));
+        std::dynamic_pointer_cast<MockSectionWithTable>(reader.retrieve_any_section(MockTypes::MOCK_WITH_TABLE));
     ASSERT_TRUE(result);
 
     ASSERT_TRUE(result->get_section_1());
@@ -247,14 +247,14 @@ TEST(MockSectionWithTable, WriteRead) {
     EXPECT_EQ(reachable_section_2_1->get_values(), VALUES_C);
 
     // MockSection_3 in the main blob (before custom table)
-    auto section_3 = std::dynamic_pointer_cast<MockSection_3>(reader.retrieve_first_section(MockTypes::MOCK_3));
+    auto section_3 = std::dynamic_pointer_cast<MockSection_3>(reader.retrieve_any_section(MockTypes::MOCK_3));
     ASSERT_TRUE(section_3);
     auto [value, values] = section_3->get_values();
     EXPECT_DOUBLE_EQ(value, VALUE);
     EXPECT_EQ(values, VALUES);
 
     // MockSection_2 in the main blob (after custom table)
-    auto main_section_2 = std::dynamic_pointer_cast<MockSection_2>(reader.retrieve_first_section(MockTypes::MOCK_2));
+    auto main_section_2 = std::dynamic_pointer_cast<MockSection_2>(reader.retrieve_any_section(MockTypes::MOCK_2));
     ASSERT_TRUE(main_section_2);
     EXPECT_EQ(main_section_2->get_values(), VALUES_D);
 }

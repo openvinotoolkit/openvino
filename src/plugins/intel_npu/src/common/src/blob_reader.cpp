@@ -99,7 +99,7 @@ std::shared_ptr<ISection> BlobReader::retrieve_section(const SectionID& id) cons
     return nullptr;
 }
 
-std::shared_ptr<ISection> BlobReader::retrieve_first_section(const SectionType section_type) const {
+std::shared_ptr<ISection> BlobReader::retrieve_any_section(const SectionType section_type) const {
     if (!m_type_to_parsed_sections.count(section_type) || m_type_to_parsed_sections.at(section_type).empty()) {
         return nullptr;
     }

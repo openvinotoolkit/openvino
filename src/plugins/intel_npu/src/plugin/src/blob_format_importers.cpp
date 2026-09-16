@@ -444,11 +444,11 @@ public:
     std::shared_ptr<BlobWriter> create_blob_writer() override {
         // Moving forward, the "Graph" object will manage the ownership of the compiler schedules
         auto elfMainScheduleSection = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
 
         if (elfMainScheduleSection) {
             auto initSchedulesSection = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-                m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+                m_blob_reader.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
 
             elfMainScheduleSection->set_graph(std::dynamic_pointer_cast<Graph>(m_graph));
             if (initSchedulesSection) {
@@ -456,7 +456,7 @@ public:
             }
         } else {
             auto dynamicScheduleSection = std::dynamic_pointer_cast<DynamicScheduleSection>(
-                m_blob_reader.retrieve_first_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+                m_blob_reader.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
             dynamicScheduleSection->set_graph(std::dynamic_pointer_cast<DynamicGraph>(m_graph));
         }
 
@@ -524,7 +524,7 @@ private:
      */
     void decrypt_schedules() override {
         const auto encrypted_schedules_flag_section = std::dynamic_pointer_cast<EncryptedSchedulesFlagSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG));
         const bool is_payload_encrypted =
             encrypted_schedules_flag_section ? encrypted_schedules_flag_section->get_flag() : false;
         if (!is_payload_encrypted) {
@@ -539,7 +539,7 @@ private:
         const ov::EncryptionCallbacks encryption_callbacks = m_config.get<CACHE_ENCRYPTION_CALLBACKS>();
 
         auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
         if (dynamic_schedule_section) {
             m_logger.debug("Decrypting the dynamic compiler schedule");
             dynamic_schedule_section->decrypt(encryption_callbacks);
@@ -547,14 +547,14 @@ private:
         }
 
         auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
         OPENVINO_ASSERT(main_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
 
         m_logger.debug("Decrypting the compiler main schedule");
         main_schedule_section->decrypt(encryption_callbacks);
 
         auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
         if (init_schedules_section) {
             m_logger.debug("Decrypting the compiler init schedules");
             init_schedules_section->decrypt(encryption_callbacks);
@@ -563,34 +563,34 @@ private:
 
     ov::Tensor extract_main_schedule() const override {
         const auto main_schedule_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::ELF_MAIN_SCHEDULE));
         if (main_schedule_section) {
             return main_schedule_section->get_schedule();
         }
 
         const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
         OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
         return dynamic_schedule_section->get_schedule();
     }
 
     std::optional<std::vector<ov::Tensor>> extract_init_schedules() const override {
         const auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::ELF_INIT_SCHEDULES));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
 
         return init_schedules_section ? std::make_optional<>(init_schedules_section->get_schedules()) : std::nullopt;
     }
 
     std::optional<int> extract_batch_size() const override {
         const auto batch_size_section = std::dynamic_pointer_cast<BatchSizeSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::BATCH_SIZE));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::BATCH_SIZE));
 
         return batch_size_section ? std::make_optional<>(batch_size_section->get_batch_size()) : std::nullopt;
     }
 
     std::optional<std::pair<std::vector<ov::Layout>, std::vector<ov::Layout>>> extract_layouts() const override {
         const auto io_layouts_section = std::dynamic_pointer_cast<IOLayoutsSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::IO_LAYOUTS));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::IO_LAYOUTS));
 
         return io_layouts_section ? std::make_optional<>(std::make_pair<>(io_layouts_section->get_input_layouts(),
                                                                           io_layouts_section->get_output_layouts()))
@@ -599,7 +599,7 @@ private:
 
     std::optional<uint32_t> extract_compiler_version() const override {
         const auto compiler_version_section = std::dynamic_pointer_cast<CompilerVersionSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::COMPILER_VERSION));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::COMPILER_VERSION));
 
         return compiler_version_section ? std::make_optional<>(compiler_version_section->get_compiler_version())
                                         : std::nullopt;
@@ -607,7 +607,7 @@ private:
 
     std::optional<std::string> extract_compiler_compatibility_descriptor() const override {
         const auto runtime_requirements_section = std::dynamic_pointer_cast<RuntimeRequirementsSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::RUNTIME_REQUIREMENTS));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::RUNTIME_REQUIREMENTS));
         if (runtime_requirements_section == nullptr) {
             m_logger.warning("The runtime requirements section was not found. The imported compiled model will not "
                              "have any compiler requirements attached to it.");
@@ -637,7 +637,7 @@ private:
         }
 
         const auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
-            m_blob_reader.retrieve_first_section(SectionTypeCode::DYNAMIC_SCHEDULE));
+            m_blob_reader.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
         OPENVINO_ASSERT(dynamic_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
         return dynamic_schedule_section->get_blob_type();
     }
@@ -733,8 +733,8 @@ std::shared_ptr<ov::Model> IBlobFormatImporter::create_dummy_model() const {
     return ::create_dummy_model(m_graph->get_metadata().inputs,
                                 m_graph->get_metadata().outputs,
                                 m_batch_size,
-                                layouts.has_value() ? std::make_optional<>(layouts->first) : std::nullopt,
-                                layouts.has_value() ? std::make_optional<>(layouts->second) : std::nullopt);
+                                layouts.has_value() ? std::make_optional(layouts->first) : std::nullopt,
+                                layouts.has_value() ? std::make_optional(layouts->second) : std::nullopt);
 }
 
 FilteredConfig IBlobFormatImporter::get_config() const {
