@@ -82,10 +82,13 @@ struct primitive_impl {
     virtual bool is_cpu() const { return true; }
     virtual bool is_onednn() const { return false; }
 
-    // Implementation supports replay when for a given shape all subsequent calls to execute() result
-    // in the same sequence of GPU API commands and there is no host-side synchronization.
-    // By default implementations are not considered replay safe.
-    virtual bool supports_replay() const { return false; }
+    // Recording captures GPU API calls made during execute()
+    // Implementation supports replay only when captured calls remain valid and host side logic can be skipped.
+    // This function should return false when:
+    //  * Kernel dispatch logic depends on the tensor data instead of tensor shape
+    //  * Results are calculated on the CPU
+    // By default non-cpu implementations are considered to support replay.
+    virtual bool supports_replay() const { return !is_cpu(); }
 
     // Whether this impl needs its inputs to be in host-accessible (lockable) memory.
     // Defaults to is_cpu(), because CPU impls typically read/write tensor data from the host.

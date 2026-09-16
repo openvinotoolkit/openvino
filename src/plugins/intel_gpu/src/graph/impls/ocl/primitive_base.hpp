@@ -78,8 +78,6 @@ struct typed_primitive_impl_ocl : public typed_primitive_impl<PType> {
 
     bool is_cpu() const override { return false; }
 
-    bool supports_replay() const override { return true; }
-
     // Cache blob format:
     //     [ kernel_selector::kernel_data ]
     //     [ kernel_ids ]
