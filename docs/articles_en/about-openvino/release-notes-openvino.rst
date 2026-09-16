@@ -31,11 +31,13 @@ More Gen AI coverage and frameworks integrations to minimize code changes
 
 * New models supported:
 
-  * On CPU, GPU: Muse Glimmer 30B and Qwen3.8 27B
+  * On CPU: Gemma-3n
 
-  * On NPUs: FLUX.2-Klein-4B and Qwen3-4B/8B (EAGLE-3)
+  * On CPU, GPU: Kokoro-82M, Qwen3-VL-4B with EAGLE-3, Qwen3-ASR, Muse Glimmer 30B, Qwen3.8 27B, Gemma 4 12B, Hy-MT2-1.8B, DeepSeek OCR-2, and Granite 4.0 H Micro
 
-* Additional CPU and GPU-enabled models available as early releases: Z-Image-Turbo, Hy-MT2-1.8B, Qwen-Image, RF-DETR, SAM3D
+  * On NPUs: FLUX.2-Klein 4B and Kokoro-82M
+
+* Additional CPU and GPU-enabled models available as early releases: Qwen-Image, Z-Image-Turbo, Granite 4.0 H Tiny, Fun-ASR-Nano, LFM2.5-8B-A1B, MiniCPM5-2B, RF-DETR, BGE Reranker-V2-M3, and BGE M3
 
 Broader LLM model support and more model compression techniques
 -----------------------------------------------------------------
@@ -279,6 +281,11 @@ Known Issues
 | ID: CVS-194267
 | Description:
 | On Intel® Core™ Ultra Series 3 platforms, the initial compilation of the INT4-compressed ``ibm-granite/granite-4.0-h-tiny`` model may take longer than expected when using the GPU plugin. This behavior applies to both SDPA and PA attention backends. The ``granite-4.0-h-micro`` variant is not affected. As a workaround, using ``granite-4.0-h-micro`` instead is recommended.
+
+| **Component: NPU Plugin**
+| ID: CVS-233822
+| Description:
+| Fixed an issue where applications using OpenVINO™ 2026.2, 2026.3, 2026.3.1, or 2026.4 on Windows may crash unexpectedly when specific Intel® NPU PV drivers (32.0.100.4300, 32.0.100.4509, or 32.0.100.4512) are installed on Intel® Core™ Ultra Series 3 processors. It is recommended to update to NPU driver version 32.0.100.5540 or later, available at `Intel® NPU Driver – Windows <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__. If a driver update is not possible, using an OpenVINO™ version prior to 2026.2 is recommended as an alternative workaround.
 
 Previous 2026 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
