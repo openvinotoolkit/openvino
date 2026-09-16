@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <array>
-#include <cstddef>
-#include <exception>
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <array>
+#include <cstddef>
+#include <exception>
 #include <memory>
 #include <thread>
 
@@ -122,6 +123,41 @@ public:
         res.push_back(res1);
 
         return std::make_shared<Model>(res, params);
+    }
+
+    void setTilesIfSupported() {
+        const auto supportedProperties =
+            core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+        const bool tilesSupported =
+            std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+                return property == intel_npu::tiles.name();
+            });
+
+        if (tilesSupported) {
+            configuration[ov::intel_npu::tiles.name()] = 2;
+        }
+    }
+
+    bool isTurboSupported() {
+        const auto supportedProperties =
+            core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+        const bool turboSupported =
+            std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+                return property == intel_npu::turbo.name();
+            });
+
+        return turboSupported;
+    }
+
+    bool isRunInferencesSequentiallySupported() {
+        const auto supportedProperties =
+            core->get_property(target_device, supported_properties.name()).as<std::vector<PropertyName>>();
+        const bool runInferencesSequentiallySupported =
+            std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
+                return property == intel_npu::run_inferences_sequentially.name();
+            });
+
+        return runInferencesSequentiallySupported;
     }
 };
 
@@ -904,6 +940,12 @@ TEST_P(BatchingRunTests, CheckTwoRunsInfer) {
 using RunSeqTests = InferRequestRunTests;
 
 TEST_P(RunSeqTests, CheckMultipleRunsSeq0) {
+    bool run_inferences_sequentially_supported = isRunInferencesSequentiallySupported();
+    if (!run_inferences_sequentially_supported) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+    setTilesIfSupported();
+
     auto shape = Shape{1, 64, 64, 256};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
@@ -913,7 +955,6 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq0) {
     auto context = core->get_default_context(target_device);
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
-    configuration[ov::intel_npu::tiles.name()] = 2;
     compiled_model = core->compile_model(model, target_device, configuration);
 
     const uint32_t inferences = 32;
@@ -963,6 +1004,12 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq0) {
 }
 
 TEST_P(RunSeqTests, CheckMultipleRunsSeq1) {
+    bool run_inferences_sequentially_supported = isRunInferencesSequentiallySupported();
+    if (!run_inferences_sequentially_supported) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+    setTilesIfSupported();
+
     auto shape = Shape{1, 64, 64, 256};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
@@ -972,7 +1019,6 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq1) {
     auto context = core->get_default_context(target_device);
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
-    configuration[ov::intel_npu::tiles.name()] = 2;
     compiled_model = core->compile_model(model, target_device, configuration);
 
     const int inferences = 32;
@@ -1023,6 +1069,12 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq1) {
 }
 
 TEST_P(RunSeqTests, CheckMultipleRunsSeq2) {
+    bool run_inferences_sequentially_supported = isRunInferencesSequentiallySupported();
+    if (!run_inferences_sequentially_supported) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+    setTilesIfSupported();
+
     auto shape = Shape{1, 64, 64, 256};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
@@ -1032,7 +1084,6 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq2) {
     auto context = core->get_default_context(target_device);
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
-    configuration[ov::intel_npu::tiles.name()] = 2;
     compiled_model = core->compile_model(model, target_device, configuration);
 
     const int inferences = 32;
@@ -1100,7 +1151,6 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq3) {
     ov::CompiledModel compiled_model;
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
-    configuration[ov::intel_npu::tiles.name()] = 2;
     compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
     inference_request = compiled_model.create_infer_request();
@@ -1111,104 +1161,109 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq3) {
 }
 
 TEST_P(RunSeqTests, CheckMultipleRunsSeq4) {
-    auto supportedProperties = core->get_property("NPU", supported_properties.name()).as<std::vector<PropertyName>>();
+    bool run_inferences_sequentially_supported = isRunInferencesSequentiallySupported();
+    if (!run_inferences_sequentially_supported) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+    setTilesIfSupported();
 
     ov::CompiledModel compiled_model;
 
-    bool isRunInferencesSequentially =
-        std::any_of(supportedProperties.begin(), supportedProperties.end(), [](const PropertyName& property) {
-            return property == intel_npu::run_inferences_sequentially.name();
-        });
+    auto shape = Shape{1, 64, 64, 256};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
 
-    if (isRunInferencesSequentially) {
-        auto shape = Shape{1, 64, 64, 256};
-        auto shape_size = ov::shape_size(shape);
-        auto model = createModel(element::f32, shape, "N...");
+    auto context = core->get_default_context(target_device);
 
-        auto context = core->get_default_context(target_device);
+    configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+    compiled_model = core->compile_model(model, target_device, configuration);
 
-        configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
-        configuration[ov::intel_npu::tiles.name()] = 2;
-        compiled_model = core->compile_model(model, target_device, configuration);
+    const int inferences = 32;
+    std::array<ov::InferRequest, inferences> inference_request;
+    ov::Tensor input_tensor;
+    std::array<ov::Tensor, inferences> output_tensor;
 
-        const int inferences = 32;
-        std::array<ov::InferRequest, inferences> inference_request;
-        ov::Tensor input_tensor;
-        std::array<ov::Tensor, inferences> output_tensor;
+    input_tensor = context.create_host_tensor(ov::element::f32, shape);
 
-        input_tensor = context.create_host_tensor(ov::element::f32, shape);
+    for (int i = 0; i < inferences; i++) {
+        inference_request[i] = compiled_model.create_infer_request();
+        output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
+    }
 
-        for (int i = 0; i < inferences; i++) {
-            inference_request[i] = compiled_model.create_infer_request();
-            output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
+    const int runs = 10;
+    for (int z = 0; z < runs; z++) {
+        auto* input_data = reinterpret_cast<float*>(input_tensor.data());
+        for (size_t i = 0; i < shape_size; ++i) {
+            input_data[i] = static_cast<float>(z);
         }
 
-        const int runs = 10;
-        for (int z = 0; z < runs; z++) {
-            auto* input_data = reinterpret_cast<float*>(input_tensor.data());
-            for (size_t i = 0; i < shape_size; ++i) {
-                input_data[i] = static_cast<float>(z);
+        if (z % 2) {
+            inference_request[inferences - 1].set_input_tensor(input_tensor);
+            inference_request[inferences - 1].set_output_tensor(output_tensor[inferences - 1]);
+
+            inference_request[inferences - 1].start_async();  // Adds '1' to each element
+
+            for (int i = inferences - 2; i >= 0; i--) {
+                inference_request[i].set_input_tensor(output_tensor[i + 1]);
+                inference_request[i].set_output_tensor(output_tensor[i]);
+
+                inference_request[i].start_async();  // Adds '1' to each element
             }
 
-            if (runs % 2) {
-                inference_request[inferences - 1].set_input_tensor(input_tensor);
-                inference_request[inferences - 1].set_output_tensor(output_tensor[inferences - 1]);
+            inference_request[0].wait();
 
-                inference_request[inferences - 1].start_async();  // Adds '1' to each element
+            float expected_result = static_cast<float>(z) + 1.f;
 
-                for (int i = inferences - 2; i >= 0; i--) {
-                    inference_request[i].set_input_tensor(output_tensor[i + 1]);
-                    inference_request[i].set_output_tensor(output_tensor[i]);
-
-                    inference_request[i].start_async();  // Adds '1' to each element
+            for (int i = inferences - 1; i >= 0; i--) {
+                auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
+                for (size_t j = 0; j < shape_size; ++j) {
+                    ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                        << "Run=" << z << "Output=" << i << " Expected=" << expected_result
+                        << ", actual=" << output_tensor_data[j] << " for index " << j;
                 }
+                expected_result++;
+            }
+        } else {
+            inference_request[0].set_input_tensor(input_tensor);
+            inference_request[0].set_output_tensor(output_tensor[0]);
 
-                inference_request[0].wait();
+            inference_request[0].start_async();  // Adds '1' to each element
 
-                float expected_result = static_cast<float>(z) + 1.f;
+            for (uint32_t i = 1; i < inferences; i++) {
+                inference_request[i].set_input_tensor(output_tensor[i - 1]);
+                inference_request[i].set_output_tensor(output_tensor[i]);
 
-                for (int i = inferences - 1; i >= 0; i--) {
-                    auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
-                    for (size_t j = 0; j < shape_size; ++j) {
-                        ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
-                            << "Run=" << z << "Output=" << i << " Expected=" << expected_result
-                            << ", actual=" << output_tensor_data[j] << " for index " << j;
-                    }
-                    expected_result++;
+                inference_request[i].start_async();  // Adds '1' to each element
+            }
+
+            inference_request[inferences - 1].wait();
+
+            float expected_result = static_cast<float>(z) + 1.f;
+
+            for (uint32_t i = 0; i < inferences; i++) {
+                auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
+                for (size_t j = 0; j < shape_size; ++j) {
+                    ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                        << "Run=" << z << "Output=" << i << " Expected=" << expected_result
+                        << ", actual=" << output_tensor_data[j] << " for index " << j;
                 }
-            } else {
-                inference_request[0].set_input_tensor(input_tensor);
-                inference_request[0].set_output_tensor(output_tensor[0]);
-
-                inference_request[0].start_async();  // Adds '1' to each element
-
-                for (uint32_t i = 1; i < inferences; i++) {
-                    inference_request[i].set_input_tensor(output_tensor[i - 1]);
-                    inference_request[i].set_output_tensor(output_tensor[i]);
-
-                    inference_request[i].start_async();  // Adds '1' to each element
-                }
-
-                inference_request[inferences - 1].wait();
-
-                float expected_result = static_cast<float>(z) + 1.f;
-
-                for (uint32_t i = 0; i < inferences; i++) {
-                    auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
-                    for (size_t j = 0; j < shape_size; ++j) {
-                        ASSERT_NEAR(output_tensor_data[j], expected_result, 1e-5)
-                            << "Run=" << z << "Output=" << i << " Expected=" << expected_result
-                            << ", actual=" << output_tensor_data[j] << " for index " << j;
-                    }
-                    expected_result++;
-                }
+                expected_result++;
             }
         }
     }
 }
 
 TEST_P(RunSeqTests, CheckTurboWithMultipleRunsSeq) {
-    auto supportedProperties = core->get_property("NPU", supported_properties.name()).as<std::vector<PropertyName>>();
+    bool turboSupported = isTurboSupported();
+    if (!turboSupported) {
+        GTEST_SKIP() << "Turbo is not supported by the current backend/driver.";
+    }
+
+    bool run_inferences_sequentially_supported = isRunInferencesSequentiallySupported();
+    if (!run_inferences_sequentially_supported) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+    setTilesIfSupported();
 
     auto shape = Shape{1, 64, 64, 256};
     auto shape_size = ov::shape_size(shape);
@@ -1220,7 +1275,6 @@ TEST_P(RunSeqTests, CheckTurboWithMultipleRunsSeq) {
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
     configuration[intel_npu::turbo.name()] = true;
-    configuration[ov::intel_npu::tiles.name()] = 2;
     compiled_model = core->compile_model(model, target_device, configuration);
 
     const int inferences = 32;
@@ -1266,6 +1320,264 @@ TEST_P(RunSeqTests, CheckTurboWithMultipleRunsSeq) {
                     << ", actual=" << output_tensor_data[j] << " for index " << j;
             }
             expected_result++;
+        }
+    }
+}
+
+TEST_P(RunSeqTests, CheckMultipleCompiledModelsWithSharedCommonQueue) {
+    bool run_inferences_sequentially_supported = isRunInferencesSequentiallySupported();
+    if (!run_inferences_sequentially_supported) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+
+    setTilesIfSupported();
+
+    constexpr size_t modelCount = 8;
+    const auto shape = Shape{1, 64, 64, 256};
+    const auto shapeSize = ov::shape_size(shape);
+    const auto model = createModel(element::f32, shape, "N...");
+    auto context = core->get_default_context(target_device);
+
+    configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+    configuration[ov::intel_npu::shared_common_queue.name()] = true;
+
+    std::array<ov::CompiledModel, modelCount> compiledModels;
+    std::array<ov::InferRequest, modelCount> inferenceRequests;
+    std::array<ov::Tensor, modelCount> outputTensors;
+    ov::Tensor inputTensor = context.create_host_tensor(ov::element::f32, shape);
+
+    for (size_t modelIndex = 0; modelIndex < modelCount; ++modelIndex) {
+        OV_ASSERT_NO_THROW(compiledModels[modelIndex] = core->compile_model(model, target_device, configuration));
+        inferenceRequests[modelIndex] = compiledModels[modelIndex].create_infer_request();
+        outputTensors[modelIndex] = context.create_host_tensor(ov::element::f32, shape);
+    }
+
+    for (size_t run = 0; run < 10; ++run) {
+        auto* inputData = reinterpret_cast<float*>(inputTensor.data());
+        const auto inputValue = static_cast<float>(run);
+        std::fill(inputData, inputData + shapeSize, inputValue);
+
+        inferenceRequests[0].set_input_tensor(inputTensor);
+        inferenceRequests[0].set_output_tensor(outputTensors[0]);
+        inferenceRequests[0].start_async();
+
+        for (size_t modelIndex = 1; modelIndex < modelCount; ++modelIndex) {
+            inferenceRequests[modelIndex].set_input_tensor(outputTensors[modelIndex - 1]);
+            inferenceRequests[modelIndex].set_output_tensor(outputTensors[modelIndex]);
+            inferenceRequests[modelIndex].start_async();
+        }
+
+        inferenceRequests[modelCount - 1].wait();
+
+        for (size_t modelIndex = 0; modelIndex < modelCount; ++modelIndex) {
+            const auto* outputData = reinterpret_cast<const float*>(outputTensors[modelIndex].data());
+            const auto expectedValue = static_cast<float>(run + modelIndex + 1);
+            for (size_t elementIndex = 0; elementIndex < shapeSize; ++elementIndex) {
+                ASSERT_NEAR(outputData[elementIndex], expectedValue, 1e-5)
+                    << "Run=" << run << " Model=" << modelIndex << " Expected=" << expectedValue
+                    << ", actual=" << outputData[elementIndex] << " for index " << elementIndex;
+            }
+        }
+    }
+}
+
+TEST_P(RunSeqTests, CheckMultipleCompiledModelsWithSharedCommonQueueSetProperty) {
+    bool run_inferences_sequentially_supported = isRunInferencesSequentiallySupported();
+    if (!run_inferences_sequentially_supported) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+
+    setTilesIfSupported();
+
+    constexpr size_t modelCount = 8;
+    const auto shape = Shape{1, 64, 64, 256};
+    const auto shapeSize = ov::shape_size(shape);
+    const auto model = createModel(element::f32, shape, "N...");
+    auto context = core->get_default_context(target_device);
+
+    configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+    configuration[ov::intel_npu::shared_common_queue.name()] = true;
+
+    core->set_property("NPU", configuration);
+
+    std::array<ov::CompiledModel, modelCount> compiledModels;
+    std::array<ov::InferRequest, modelCount> inferenceRequests;
+    std::array<ov::Tensor, modelCount> outputTensors;
+    ov::Tensor inputTensor = context.create_host_tensor(ov::element::f32, shape);
+
+    for (size_t modelIndex = 0; modelIndex < modelCount; ++modelIndex) {
+        OV_ASSERT_NO_THROW(compiledModels[modelIndex] = core->compile_model(model, target_device));
+        inferenceRequests[modelIndex] = compiledModels[modelIndex].create_infer_request();
+        outputTensors[modelIndex] = context.create_host_tensor(ov::element::f32, shape);
+    }
+
+    for (size_t run = 0; run < 10; ++run) {
+        auto* inputData = reinterpret_cast<float*>(inputTensor.data());
+        const auto inputValue = static_cast<float>(run);
+        std::fill(inputData, inputData + shapeSize, inputValue);
+
+        inferenceRequests[0].set_input_tensor(inputTensor);
+        inferenceRequests[0].set_output_tensor(outputTensors[0]);
+        inferenceRequests[0].start_async();
+
+        for (size_t modelIndex = 1; modelIndex < modelCount; ++modelIndex) {
+            inferenceRequests[modelIndex].set_input_tensor(outputTensors[modelIndex - 1]);
+            inferenceRequests[modelIndex].set_output_tensor(outputTensors[modelIndex]);
+            inferenceRequests[modelIndex].start_async();
+        }
+
+        inferenceRequests[modelCount - 1].wait();
+
+        for (size_t modelIndex = 0; modelIndex < modelCount; ++modelIndex) {
+            const auto* outputData = reinterpret_cast<const float*>(outputTensors[modelIndex].data());
+            const auto expectedValue = static_cast<float>(run + modelIndex + 1);
+            for (size_t elementIndex = 0; elementIndex < shapeSize; ++elementIndex) {
+                ASSERT_NEAR(outputData[elementIndex], expectedValue, 1e-5)
+                    << "Run=" << run << " Model=" << modelIndex << " Expected=" << expectedValue
+                    << ", actual=" << outputData[elementIndex] << " for index " << elementIndex;
+            }
+        }
+    }
+}
+
+TEST_P(RunSeqTests, CheckRunSeqWithSharedCommonQueue) {
+    const ov::AnyMap configurationWithSharedQueue = {
+        {ov::intel_npu::run_inferences_sequentially.name(), true},
+        {ov::intel_npu::shared_common_queue.name(), true},
+    };
+    const bool commandQueueSupported =
+        ::intel_npu::ZeroInitStructsHolder::getInstance()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+
+    {
+        ov::Core testCore;
+        static_cast<void>(testCore.get_property(target_device, ov::supported_properties));  // Initialize NPU plugin
+        if (commandQueueSupported) {
+            OV_ASSERT_NO_THROW(testCore.set_property(target_device, configurationWithSharedQueue));
+        } else {
+            OV_EXPECT_THROW_HAS_SUBSTRING(testCore.set_property(target_device, configurationWithSharedQueue),
+                                          ov::Exception,
+                                          "Unsupported configuration key: NPU_RUN_INFERENCES_SEQUENTIALLY");
+        }
+    }
+
+    {
+        ov::Core testCore;
+        if (commandQueueSupported) {
+            OV_ASSERT_NO_THROW(testCore.compile_model(ov_model, target_device, configurationWithSharedQueue));
+        } else {
+            OV_EXPECT_THROW_HAS_SUBSTRING(
+                testCore.compile_model(ov_model, target_device, configurationWithSharedQueue),
+                ov::Exception,
+                "[ NOT_FOUND ] Option 'NPU_RUN_INFERENCES_SEQUENTIALLY' is not supported for current configuration");
+        }
+    }
+
+    {
+        ov::Core testCore;
+        std::stringstream exportedModel;
+        OV_ASSERT_NO_THROW(testCore.compile_model(ov_model, target_device).export_model(exportedModel));
+
+        if (commandQueueSupported) {
+            OV_ASSERT_NO_THROW(testCore.import_model(exportedModel, target_device, configurationWithSharedQueue));
+        } else {
+            OV_EXPECT_THROW_HAS_SUBSTRING(
+                testCore.import_model(exportedModel, target_device, configurationWithSharedQueue),
+                ov::Exception,
+                "[ NOT_FOUND ] Option 'NPU_RUN_INFERENCES_SEQUENTIALLY' is not supported for current configuration");
+        }
+    }
+}
+
+TEST_P(RunSeqTests, CheckSharedCommonQueueAfterRunSeqSetProperty) {
+    const ov::AnyMap runSeqConfiguration = {{ov::intel_npu::run_inferences_sequentially.name(), true}};
+    const ov::AnyMap sharedQueueConfiguration = {{ov::intel_npu::shared_common_queue.name(), true}};
+    const bool commandQueueSupported =
+        ::intel_npu::ZeroInitStructsHolder::getInstance()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+
+    {
+        ov::Core testCore;
+        static_cast<void>(testCore.get_property(target_device, ov::supported_properties));  // Initialize NPU plugin
+        OV_ASSERT_NO_THROW(testCore.set_property(target_device, runSeqConfiguration));
+        if (commandQueueSupported) {
+            OV_ASSERT_NO_THROW(testCore.set_property(target_device, sharedQueueConfiguration));
+        } else {
+            OV_EXPECT_THROW_HAS_SUBSTRING(testCore.set_property(target_device, sharedQueueConfiguration),
+                                          ov::Exception,
+                                          ov::intel_npu::shared_common_queue.name());
+        }
+    }
+
+    {
+        ov::Core testCore;
+        static_cast<void>(testCore.get_property(target_device, ov::supported_properties));  // Initialize NPU plugin
+        OV_ASSERT_NO_THROW(testCore.set_property(target_device, runSeqConfiguration));
+        if (commandQueueSupported) {
+            OV_ASSERT_NO_THROW(testCore.compile_model(ov_model, target_device, sharedQueueConfiguration));
+        } else {
+            OV_EXPECT_THROW_HAS_SUBSTRING(testCore.compile_model(ov_model, target_device, sharedQueueConfiguration),
+                                          ov::Exception,
+                                          ov::intel_npu::shared_common_queue.name());
+        }
+    }
+
+    {
+        ov::Core testCore;
+        std::stringstream exportedModel;
+        OV_ASSERT_NO_THROW(testCore.compile_model(ov_model, target_device).export_model(exportedModel));
+        OV_ASSERT_NO_THROW(testCore.set_property(target_device, runSeqConfiguration));
+        if (commandQueueSupported) {
+            OV_ASSERT_NO_THROW(testCore.import_model(exportedModel, target_device, sharedQueueConfiguration));
+        } else {
+            OV_EXPECT_THROW_HAS_SUBSTRING(testCore.import_model(exportedModel, target_device, sharedQueueConfiguration),
+                                          ov::Exception,
+                                          ov::intel_npu::shared_common_queue.name());
+        }
+    }
+}
+
+TEST_P(RunSeqTests, CheckRunSeqAfterSharedCommonQueueSetProperty) {
+    const ov::AnyMap sharedQueueConfiguration = {{ov::intel_npu::shared_common_queue.name(), true}};
+    const ov::AnyMap runSeqConfiguration = {{ov::intel_npu::run_inferences_sequentially.name(), true}};
+    const bool commandQueueSupported =
+        ::intel_npu::ZeroInitStructsHolder::getInstance()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+
+    {
+        ov::Core testCore;
+        static_cast<void>(testCore.get_property(target_device, ov::supported_properties));  // Initialize NPU plugin
+        OV_ASSERT_NO_THROW(testCore.set_property(target_device, sharedQueueConfiguration));
+        if (commandQueueSupported) {
+            OV_ASSERT_NO_THROW(testCore.set_property(target_device, runSeqConfiguration));
+        } else {
+            OV_EXPECT_THROW_HAS_SUBSTRING(testCore.set_property(target_device, runSeqConfiguration),
+                                          ov::Exception,
+                                          ov::intel_npu::run_inferences_sequentially.name());
+        }
+    }
+
+    {
+        ov::Core testCore;
+        static_cast<void>(testCore.get_property(target_device, ov::supported_properties));  // Initialize NPU plugin
+        OV_ASSERT_NO_THROW(testCore.set_property(target_device, sharedQueueConfiguration));
+        if (commandQueueSupported) {
+            OV_ASSERT_NO_THROW(testCore.compile_model(ov_model, target_device, runSeqConfiguration));
+        } else {
+            OV_EXPECT_THROW_HAS_SUBSTRING(testCore.compile_model(ov_model, target_device, runSeqConfiguration),
+                                          ov::Exception,
+                                          ov::intel_npu::run_inferences_sequentially.name());
+        }
+    }
+
+    {
+        ov::Core testCore;
+        std::stringstream exportedModel;
+        OV_ASSERT_NO_THROW(testCore.compile_model(ov_model, target_device).export_model(exportedModel));
+        OV_ASSERT_NO_THROW(testCore.set_property(target_device, sharedQueueConfiguration));
+        if (commandQueueSupported) {
+            OV_ASSERT_NO_THROW(testCore.import_model(exportedModel, target_device, runSeqConfiguration));
+        } else {
+            OV_EXPECT_THROW_HAS_SUBSTRING(testCore.import_model(exportedModel, target_device, runSeqConfiguration),
+                                          ov::Exception,
+                                          ov::intel_npu::run_inferences_sequentially.name());
         }
     }
 }
@@ -2923,7 +3235,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
                          InferRequestRunTests::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          RunSeqTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(configsInferRequestRunTests)),
