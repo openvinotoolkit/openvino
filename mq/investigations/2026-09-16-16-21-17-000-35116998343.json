@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-16-16-21-17-000-35116998343",
+  "timestamp": "2026-09-16T16:21:17Z",
+  "run_id": "35116998343",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35116998343",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37885",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37885",
+  "author": "barnasm1",
+  "category": "Flaky Test",
+  "title": "smoke_FC_3D_FP32/MatMulDecompressConvertTest primTypeCheck(primType) is unexpected (undef_f32 vs acl_f32)",
+  "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
+  "signature_hash": "eb0b94c864ee1a85",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_FC_3D_FP32/MatMulDecompressConvertTest.CompareWithRefs failed: primTypeCheck(primType) mismatch, got undef_f32 expected acl_f32"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32",
+    "[  FAILED  ] smoke_FC_3D_FP32/MatMulDecompressConvertTest.CompareWithRefs/[?.?.?]_[1.3.4]_TS=((1.2.3)_(1.5.3))_((1.3.4)_(1.3.4))_transpose_a=1_transpose_b=0_weiLemType=f32_config=()_primitive=acl, where GetParam() = ({ ({ ?, ?, ? }, { { 1, 2, 3 }, { 1, 5, 3 } }), ({ 1, 3, 4 }, { { 1, 3, 4 }, { 1, 3, 4 } }) }, (true, false), f32, {}, ({}, {}, { \"acl\" }, \"acl\")) (64 ms)"
+  ],
+  "root_cause": "On the ARM64 CPU functional tests job, the ACL (Arm Compute Library) executor selection path chose an undefined primitive descriptor (undef_f32) instead of the expected acl_f32 for a MatMulDecompressConvertTest case (3D FC, transpose_a=1, weight decompression, f32). The PR under test (#37885) only touches src/frontends/ir/src/input_model.cpp to pass weights by const reference in the IR frontend's input model, which has no relation to the CPU plugin's ACL executor/primitive-selection logic exercised by this test. The identical assertion (primTypeCheck(primType) is unexpected, undef_f32 vs acl_f32) was already recorded once before on 2026-09-11 for an unrelated PR (#37783, MaxPoolV8), confirming this is a recurring, intermittent ACL primitive-selection issue on ARM64 rather than a regression caused by this PR.",
+  "reproduction_steps": "On an ARM64 (aarch64) build with ACL enabled, run: ./ov_cpu_func_tests --gtest_filter=*smoke_FC_3D_FP32/MatMulDecompressConvertTest.CompareWithRefs* repeatedly; the primTypeCheck failure is intermittent and depends on ACL's internal primitive-descriptor resolution for specific weight-decompression/transpose parameter combinations.",
+  "recommended_actions": [
+    "Re-run the failed CPU functional tests job to confirm the failure clears on retry (PR #37885's changes are unrelated to the CPU/ACL executor code path).",
+    "If the failure reproduces consistently, triage against the CPU plugin ACL executor/primitive-selection code (src/plugins/intel_cpu/src/nodes/executors/acl/*) for MatMul with decompressed f32 weights and transpose_a=1.",
+    "Track this as a known intermittent ACL primitive-selection issue (now seen twice with the same undef_f32 vs acl_f32 mismatch across different ops) and consider a temporary skip/quarantine on ARM64 if it keeps recurring."
+  ],
+  "prevention_strategies": "Add CI-level quarantine/tracking for intermittently-failing ACL primitive-selection tests on ARM64 so a single flaky assertion does not block unrelated merge-queue PRs; investigate stabilizing ACL primitive-type resolution for decompressed-weight MatMul configurations.",
+  "historical_context": "Identical signature (primType is unexpected undef_f32 Expected acl_f32, Flaky Test) previously recorded on 2026-09-11 for smoke_MaxPoolV8_CPU_4D on PR #37783 (pattern eb0b94c864ee1a85, now count=2). A related but distinct primType mismatch (unknown vs ref) was also seen on 2026-07-17 for smoke_ConvertCPULayerTest (pattern 76751669c7a78fcd)."
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 244,
+  "total": 245,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2391,6 +2391,17 @@
       "category": "Configuration",
       "signature_hash": "973fc34b4fbdfed5",
       "pr_number": "37279"
+    },
+    {
+      "investigation_id": "2026-09-16-16-21-17-000-35116998343",
+      "run_id": "35116998343",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35116998343",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-09-16T16:21:17Z",
+      "title": "smoke_FC_3D_FP32/MatMulDecompressConvertTest primTypeCheck(primType) is unexpected (undef_f32 vs acl_f32)",
+      "category": "Flaky Test",
+      "signature_hash": "eb0b94c864ee1a85",
+      "pr_number": "37885"
     }
   ]
 }
