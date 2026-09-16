@@ -223,8 +223,8 @@ struct LSTMAttributes {
 
 namespace opset_1 {
 ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
-    LSTMAttributes attributes{node};
     LSTMNgInputMap input_map{node};
+    LSTMAttributes attributes{node};
     std::shared_ptr<ov::Node> lstm_sequence;
 
     lstm_sequence = std::make_shared<v5::LSTMSequence>(input_map.at(LSTMInput::LSTM_INPUT_X),
