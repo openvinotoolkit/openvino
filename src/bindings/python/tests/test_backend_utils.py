@@ -8,7 +8,7 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
 
 @pytest.mark.parametrize(
-    ("testing_value", "expected"),
+    "testing_value, expected",
     [
         ("false", False),
         ("0", False),
@@ -19,4 +19,5 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
     ],
 )
 def test_is_testing_flag(testing_value, expected):
+    """Test that the _is_testing flag evaluates correctly."""
     assert _is_testing({"testing": testing_value}) == expected
