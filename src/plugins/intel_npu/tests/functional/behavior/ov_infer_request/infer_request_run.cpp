@@ -11,6 +11,7 @@
 #include <exception>
 #include <memory>
 #include <thread>
+#include <vector>
 
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
@@ -27,6 +28,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "openvino/runtime/threading/executor_manager.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -158,6 +160,90 @@ public:
             });
 
         return runInferencesSequentiallySupported;
+    }
+
+    // Global executors are registered by the executor manager only when the compiled models are configured to share
+    // their start/wait inference executors. Clearing them before the actual check makes the expected count independent
+    // of the executors registered by the previously executed tests.
+    static void resetGlobalExecutors() {
+        ov::threading::executor_manager()->clear();
+    }
+
+    static size_t getGlobalExecutorsNumber() {
+        return ov::threading::executor_manager()->get_executors_number();
+    }
+
+    // Builds one pipeline of chained compiled models for each given model priority. Since the model priority is part
+    // of the command queue configuration, each pipeline ends up using its own command queue, thus its own pair of
+    // global start/wait inference executors. Models belonging to the same pipeline share both the command queue and
+    // the executors, so their inferences are executed sequentially relative to each other.
+    void runSharedCommonQueuePipelines(const std::vector<ov::hint::Priority>& pipelinePriorities) {
+        constexpr size_t modelsPerPipeline = 4;
+        const auto shape = Shape{1, 64, 64, 256};
+        const auto shapeSize = ov::shape_size(shape);
+        const auto model = createModel(element::f32, shape, "N...");
+        auto context = core->get_default_context(target_device);
+        const size_t pipelineCount = pipelinePriorities.size();
+
+        configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+        configuration[ov::intel_npu::shared_common_queue.name()] = true;
+
+        std::vector<std::vector<ov::CompiledModel>> compiledModels(pipelineCount);
+        std::vector<std::vector<ov::InferRequest>> inferenceRequests(pipelineCount);
+        std::vector<std::vector<ov::Tensor>> outputTensors(pipelineCount);
+        ov::Tensor inputTensor = context.create_host_tensor(ov::element::f32, shape);
+
+        resetGlobalExecutors();
+
+        for (size_t pipeline = 0; pipeline < pipelineCount; ++pipeline) {
+            ov::AnyMap pipelineConfiguration = configuration;
+            pipelineConfiguration[ov::hint::model_priority.name()] = pipelinePriorities[pipeline];
+
+            for (size_t modelIndex = 0; modelIndex < modelsPerPipeline; ++modelIndex) {
+                ov::CompiledModel compiledModel;
+                OV_ASSERT_NO_THROW(compiledModel = core->compile_model(model, target_device, pipelineConfiguration));
+                compiledModels[pipeline].push_back(compiledModel);
+                inferenceRequests[pipeline].push_back(compiledModel.create_infer_request());
+                outputTensors[pipeline].push_back(context.create_host_tensor(ov::element::f32, shape));
+            }
+        }
+
+        EXPECT_EQ(getGlobalExecutorsNumber(), 2 * pipelineCount)
+            << "Each command queue configuration shall get its own pair of global start/wait inference executors";
+
+        for (size_t run = 0; run < 10; ++run) {
+            auto* inputData = reinterpret_cast<float*>(inputTensor.data());
+            std::fill(inputData, inputData + shapeSize, static_cast<float>(run));
+
+            for (size_t pipeline = 0; pipeline < pipelineCount; ++pipeline) {
+                inferenceRequests[pipeline][0].set_input_tensor(inputTensor);
+                inferenceRequests[pipeline][0].set_output_tensor(outputTensors[pipeline][0]);
+                inferenceRequests[pipeline][0].start_async();
+
+                for (size_t modelIndex = 1; modelIndex < modelsPerPipeline; ++modelIndex) {
+                    inferenceRequests[pipeline][modelIndex].set_input_tensor(outputTensors[pipeline][modelIndex - 1]);
+                    inferenceRequests[pipeline][modelIndex].set_output_tensor(outputTensors[pipeline][modelIndex]);
+                    inferenceRequests[pipeline][modelIndex].start_async();
+                }
+            }
+
+            for (size_t pipeline = 0; pipeline < pipelineCount; ++pipeline) {
+                inferenceRequests[pipeline][modelsPerPipeline - 1].wait();
+            }
+
+            for (size_t pipeline = 0; pipeline < pipelineCount; ++pipeline) {
+                for (size_t modelIndex = 0; modelIndex < modelsPerPipeline; ++modelIndex) {
+                    const auto* outputData = reinterpret_cast<const float*>(outputTensors[pipeline][modelIndex].data());
+                    const auto expectedValue = static_cast<float>(run + modelIndex + 1);
+                    for (size_t elementIndex = 0; elementIndex < shapeSize; ++elementIndex) {
+                        ASSERT_NEAR(outputData[elementIndex], expectedValue, 1e-5)
+                            << "Run=" << run << " Pipeline=" << pipeline << " Model=" << modelIndex
+                            << " Expected=" << expectedValue << ", actual=" << outputData[elementIndex] << " for index "
+                            << elementIndex;
+                    }
+                }
+            }
+        }
     }
 };
 
@@ -955,6 +1041,8 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq0) {
     auto context = core->get_default_context(target_device);
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+
+    resetGlobalExecutors();
     compiled_model = core->compile_model(model, target_device, configuration);
 
     const uint32_t inferences = 32;
@@ -967,6 +1055,9 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq0) {
         inference_request[i] = compiled_model.create_infer_request();
         output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
     }
+
+    EXPECT_EQ(getGlobalExecutorsNumber(), 0)
+        << "The compiled model shall use dedicated executors when SHARED_COMMON_QUEUE is disabled";
 
     inference_request[0].set_input_tensor(input_tensor);
     inference_request[0].set_output_tensor(output_tensor[0]);
@@ -1019,6 +1110,8 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq1) {
     auto context = core->get_default_context(target_device);
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+
+    resetGlobalExecutors();
     compiled_model = core->compile_model(model, target_device, configuration);
 
     const int inferences = 32;
@@ -1032,6 +1125,9 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq1) {
         inference_request[i] = compiled_model.create_infer_request();
         output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
     }
+
+    EXPECT_EQ(getGlobalExecutorsNumber(), 0)
+        << "The compiled model shall use dedicated executors when SHARED_COMMON_QUEUE is disabled";
 
     inference_request[inferences - 1].set_input_tensor(input_tensor);
     inference_request[inferences - 1].set_output_tensor(output_tensor[inferences - 1]);
@@ -1084,6 +1180,8 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq2) {
     auto context = core->get_default_context(target_device);
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+
+    resetGlobalExecutors();
     compiled_model = core->compile_model(model, target_device, configuration);
 
     const int inferences = 32;
@@ -1097,6 +1195,9 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq2) {
         inference_request[i] = compiled_model.create_infer_request();
         output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
     }
+
+    EXPECT_EQ(getGlobalExecutorsNumber(), 0)
+        << "The compiled model shall use dedicated executors when SHARED_COMMON_QUEUE is disabled";
 
     inference_request[inferences - 1].set_input_tensor(input_tensor);
     inference_request[inferences - 1].set_output_tensor(output_tensor[inferences - 1]);
@@ -1151,9 +1252,14 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq3) {
     ov::CompiledModel compiled_model;
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+
+    resetGlobalExecutors();
     compiled_model = core->compile_model(model, target_device, configuration);
     ov::InferRequest inference_request;
     inference_request = compiled_model.create_infer_request();
+
+    EXPECT_EQ(getGlobalExecutorsNumber(), 0)
+        << "The compiled model shall use dedicated executors when SHARED_COMMON_QUEUE is disabled";
 
     OV_EXPECT_THROW(inference_request.infer(),
                     ov::Exception,
@@ -1176,6 +1282,8 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq4) {
     auto context = core->get_default_context(target_device);
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+
+    resetGlobalExecutors();
     compiled_model = core->compile_model(model, target_device, configuration);
 
     const int inferences = 32;
@@ -1189,6 +1297,9 @@ TEST_P(RunSeqTests, CheckMultipleRunsSeq4) {
         inference_request[i] = compiled_model.create_infer_request();
         output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
     }
+
+    EXPECT_EQ(getGlobalExecutorsNumber(), 0)
+        << "The compiled model shall use dedicated executors when SHARED_COMMON_QUEUE is disabled";
 
     const int runs = 10;
     for (int z = 0; z < runs; z++) {
@@ -1275,6 +1386,8 @@ TEST_P(RunSeqTests, CheckTurboWithMultipleRunsSeq) {
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
     configuration[intel_npu::turbo.name()] = true;
+
+    resetGlobalExecutors();
     compiled_model = core->compile_model(model, target_device, configuration);
 
     const int inferences = 32;
@@ -1288,6 +1401,9 @@ TEST_P(RunSeqTests, CheckTurboWithMultipleRunsSeq) {
         inference_request[i] = compiled_model.create_infer_request();
         output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
     }
+
+    EXPECT_EQ(getGlobalExecutorsNumber(), 0)
+        << "The compiled model shall use dedicated executors when SHARED_COMMON_QUEUE is disabled";
 
     const int runs = 10;
     for (int z = 0; z < runs; z++) {
@@ -1346,11 +1462,17 @@ TEST_P(RunSeqTests, CheckMultipleCompiledModelsWithSharedCommonQueue) {
     std::array<ov::Tensor, modelCount> outputTensors;
     ov::Tensor inputTensor = context.create_host_tensor(ov::element::f32, shape);
 
+    resetGlobalExecutors();
     for (size_t modelIndex = 0; modelIndex < modelCount; ++modelIndex) {
         OV_ASSERT_NO_THROW(compiledModels[modelIndex] = core->compile_model(model, target_device, configuration));
         inferenceRequests[modelIndex] = compiledModels[modelIndex].create_infer_request();
         outputTensors[modelIndex] = context.create_host_tensor(ov::element::f32, shape);
     }
+
+    // All compiled models use the same command queue configuration, therefore they shall share a single pair of
+    // start/wait inference executors.
+    EXPECT_EQ(getGlobalExecutorsNumber(), 2)
+        << "All compiled models shall share the same pair of global start/wait inference executors";
 
     for (size_t run = 0; run < 10; ++run) {
         auto* inputData = reinterpret_cast<float*>(inputTensor.data());
@@ -1405,11 +1527,17 @@ TEST_P(RunSeqTests, CheckMultipleCompiledModelsWithSharedCommonQueueSetProperty)
     std::array<ov::Tensor, modelCount> outputTensors;
     ov::Tensor inputTensor = context.create_host_tensor(ov::element::f32, shape);
 
+    resetGlobalExecutors();
     for (size_t modelIndex = 0; modelIndex < modelCount; ++modelIndex) {
         OV_ASSERT_NO_THROW(compiledModels[modelIndex] = core->compile_model(model, target_device));
         inferenceRequests[modelIndex] = compiledModels[modelIndex].create_infer_request();
         outputTensors[modelIndex] = context.create_host_tensor(ov::element::f32, shape);
     }
+
+    // All compiled models use the same command queue configuration, therefore they shall share a single pair of
+    // start/wait inference executors.
+    EXPECT_EQ(getGlobalExecutorsNumber(), 2)
+        << "All compiled models shall share the same pair of global start/wait inference executors";
 
     for (size_t run = 0; run < 10; ++run) {
         auto* inputData = reinterpret_cast<float*>(inputTensor.data());
@@ -1438,6 +1566,30 @@ TEST_P(RunSeqTests, CheckMultipleCompiledModelsWithSharedCommonQueueSetProperty)
             }
         }
     }
+}
+
+TEST_P(RunSeqTests, CheckTwoPipelinesWithSharedCommonQueue) {
+    bool run_inferences_sequentially_supported = isRunInferencesSequentiallySupported();
+    if (!run_inferences_sequentially_supported) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+
+    setTilesIfSupported();
+
+    // Two different command queue configurations shall lead to four global executors.
+    runSharedCommonQueuePipelines({ov::hint::Priority::LOW, ov::hint::Priority::HIGH});
+}
+
+TEST_P(RunSeqTests, CheckThreePipelinesWithSharedCommonQueue) {
+    bool run_inferences_sequentially_supported = isRunInferencesSequentiallySupported();
+    if (!run_inferences_sequentially_supported) {
+        GTEST_SKIP() << "Run inferences sequentially is not supported on this device.";
+    }
+
+    setTilesIfSupported();
+
+    // Three different command queue configurations shall lead to six global executors.
+    runSharedCommonQueuePipelines({ov::hint::Priority::LOW, ov::hint::Priority::MEDIUM, ov::hint::Priority::HIGH});
 }
 
 TEST_P(RunSeqTests, CheckRunSeqWithSharedCommonQueue) {
@@ -1595,6 +1747,8 @@ TEST_P(BatchingRunSeqTests, CheckMultipleBatchingRunsSeq) {
 
     configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
     configuration[ov::intel_npu::tiles.name()] = 2;
+
+    resetGlobalExecutors();
     compiled_model = core->compile_model(model, target_device, configuration);
 
     const uint32_t inferences = 32;
@@ -1607,6 +1761,9 @@ TEST_P(BatchingRunSeqTests, CheckMultipleBatchingRunsSeq) {
         inference_request[i] = compiled_model.create_infer_request();
         output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
     }
+
+    EXPECT_EQ(getGlobalExecutorsNumber(), 0)
+        << "The compiled model shall use dedicated executors when SHARED_COMMON_QUEUE is disabled";
 
     inference_request[0].set_input_tensor(input_tensor);
     inference_request[0].set_output_tensor(output_tensor[0]);

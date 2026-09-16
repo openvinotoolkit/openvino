@@ -223,18 +223,19 @@ void CompiledModel::release_memory() {
 
 void CompiledModel::configure_stream_executors(ov::streams::Num numStreams,
                                                bool runInferencesSequentially,
-                                               bool sharedCommonQueue,
-                                               uint64_t commandQueueKey) {
+                                               bool useSharedExecutors,
+                                               uint64_t sharedExecutorsId) {
     // In case of sequential execution of async requests for the same compiled model, the compiled model must use
     // dedicated executors with a single thread to ensure sequential execution of its async requests.
     if (runInferencesSequentially) {
-        if (sharedCommonQueue) {
-            // In case of sequential execution and shared common queue, use the global executors provided by the
-            // executor manager with a single thread to ensure sequential execution of its async requests.
+        if (useSharedExecutors) {
+            // In case of sequential execution with shared executors, use the global single-threaded executors
+            // provided by the executor manager, so that async requests of all compiled models belonging to the same
+            // shared group are also executed sequentially relative to each other.
             set_task_executor(ov::threading::executor_manager()->get_executor(
-                std::string("Intel NPU plugin start inferences executor") + " " + std::to_string(commandQueueKey)));
+                std::string("Intel NPU plugin start inferences executor") + " " + std::to_string(sharedExecutorsId)));
             _resultExecutor = ov::threading::executor_manager()->get_executor(
-                std::string("Intel NPU plugin wait inferences executor") + " " + std::to_string(commandQueueKey));
+                std::string("Intel NPU plugin wait inferences executor") + " " + std::to_string(sharedExecutorsId));
 
             return;
         }
