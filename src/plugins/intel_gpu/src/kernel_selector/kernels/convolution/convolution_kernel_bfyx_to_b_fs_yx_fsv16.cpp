@@ -108,10 +108,6 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p) const {
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    // Only the batch axis may be dynamic. X/Y/feature values are baked into JIT
-    // constants (X_BLOCKS, INPUT_LINE_SIZE, INPUT_BLOCK_SIZE and the line_cache
-    // private array) and are not re-JITed at runtime, so unknown spatial or
-    // feature dimensions would compile an invalid kernel.
     if (input.X().is_dynamic || input.Y().is_dynamic || input.Feature().is_dynamic) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
