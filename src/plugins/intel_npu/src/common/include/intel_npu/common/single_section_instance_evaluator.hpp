@@ -12,9 +12,6 @@
 
 namespace intel_npu {
 
-/**
- * @brief Interface that standardizes the evaluation of section types support.
- */
 class SingleSectionInstanceEvaluator {
 public:
     SingleSectionInstanceEvaluator(const std::shared_ptr<ISectionInstanceEvaluator>& impl,
@@ -33,7 +30,7 @@ public:
 
 private:
     /**
-     * @brief TODO
+     * @brief The actual evaluator that returns the result given a compatibility string.
      */
     std::shared_ptr<ISectionInstanceEvaluator> m_impl;
     std::string m_runtime_requirements;

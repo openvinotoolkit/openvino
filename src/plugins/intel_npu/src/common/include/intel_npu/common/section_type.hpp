@@ -15,7 +15,10 @@
 namespace intel_npu {
 
 /**
- * @brief TODO
+ * @brief Identifiers used to distinguish between different section types at runtime and inside the manifest.
+ * @note These values need to be unique across plugin versions as well. That is because this code is written inside the
+ * manifest, and blob compatibility is involved. There, this list can be expanded, but the current entries can never be
+ * modified.
  * @note The size needs to be fixed (2 bytes) since this value is written inside the blob manifest
  */
 enum class SectionTypeCode : uint16_t {

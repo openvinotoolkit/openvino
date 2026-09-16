@@ -55,8 +55,13 @@ public:
     std::optional<SectionID> get_id() const;
 
     // TODO rename?
-    // TODO add note to respect the format:
-    // value ::= [A-Z0-9][_A-Z0-9\.]*
+    /**
+     * @brief Builds and returns the runtime requirements of the current section instance as a string.
+     * @note The returned string should follow the "value" format dictated by the "compatibility string" parser:
+     * value ::= [A-Z0-9][_A-Z0-9\.]*
+     *
+     * @return The requirements as a string if any. std::nullopt otherwise.
+     */
     virtual std::optional<std::string> get_individual_compatibility_requirements() const;
 
     /**
