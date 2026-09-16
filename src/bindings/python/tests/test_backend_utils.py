@@ -8,7 +8,7 @@ from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
 
 @pytest.mark.parametrize(
-    "testing_value, expected",
+    ("testing_value", "expected"),
     [
         ("false", False),
         ("0", False),
