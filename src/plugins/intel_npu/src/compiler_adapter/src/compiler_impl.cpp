@@ -9,8 +9,8 @@
 #include <limits>
 #include <mutex>
 #include <sstream>
-#include <utility>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "intel_npu/config/options.hpp"
@@ -130,10 +130,13 @@ static std::optional<std::string> getVCLCompatibilityString(const VCLFunctionTab
     } while (0)
 
 VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
+                                 const std::optional<IDevice::DeviceProperties>& deviceProperties,
                                  const std::shared_ptr<OptionSupportCache>& optionSupportCache,
-                                 const std::optional<IDevice::DeviceProperties>& deviceProperties)
-    : _functions(std::move(functions)),_logHandle(nullptr),
+                                 const OptionSupportCache::CacheKey optionSupportCacheKey)
+    : _functions(std::move(functions)),
+      _logHandle(nullptr),
       _optionSupportCache(optionSupportCache),
+      _optionSupportCacheKey(optionSupportCacheKey),
       _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
@@ -633,7 +636,8 @@ std::vector<std::string> VCLCompilerImpl::get_supported_options() const {
 
     _logger.debug("obtain list");
     std::vector<char> options(str_size);
-    THROW_ON_FAIL_FOR_VCL(*_functions, "vclGetCompilerSupportedOptions",
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclGetCompilerSupportedOptions",
                           _functions->vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
                           _logHandle);
 
@@ -658,7 +662,7 @@ std::vector<std::string> VCLCompilerImpl::get_supported_options() const {
     }
 
     if (_optionSupportCache) {
-        _optionSupportCache->setSupportedOptions(pluginOptionSupportKey, compilerOpts);
+        _optionSupportCache->setSupportedOptions(_optionSupportCacheKey, compilerOpts);
     }
 
     return compilerOpts;
@@ -668,7 +672,7 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     // The cache is keyed by option name alone, so it can only answer queries that do not carry a value.
     const bool useCache = _optionSupportCache && !optValue.has_value();
     if (useCache) {
-        const auto cachedSupport = _optionSupportCache->isOptionSupported(pluginOptionSupportKey, option);
+        const auto cachedSupport = _optionSupportCache->isOptionSupported(_optionSupportCacheKey, option);
         if (cachedSupport.has_value()) {
             return cachedSupport.value();
         }
@@ -689,7 +693,7 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     }
 
     if (useCache) {
-        _optionSupportCache->addSupportedOption(pluginOptionSupportKey, option, supported);
+        _optionSupportCache->addSupportedOption(_optionSupportCacheKey, option, supported);
     }
 
     return supported;

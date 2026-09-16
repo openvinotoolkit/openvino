@@ -28,6 +28,11 @@
 
 namespace intel_npu {
 
+namespace {
+constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
+    static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
+}
+
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                                              const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                              const std::optional<IDevice::DeviceProperties>& deviceProperties)
@@ -40,7 +45,10 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
         auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
         auto vclLoader = VCLLoader::getInstance(ovLibPath);
         OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(), optionSupportCache, deviceProperties);
+        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(),
+                                                                deviceProperties,
+                                                                optionSupportCache,
+                                                                pluginOptionSupportKey);
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         // Pair the compiler with the library so the .so cannot be unloaded while the compiler
         // dispatches into it. The compiler itself no longer knows a library is involved.
