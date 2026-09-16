@@ -25,6 +25,21 @@
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 #include "whisper/prepare_whisper_model.hpp"
 
+namespace ov::test::npuw {
+/// \brief ov::test::npuw::LLMTSharedWeightContextTestAccess is a test helper struct that provides access to the internal shared weight context of an ov::npuw::LLMCompiledModel.
+/// Its static get_shared_weight_context function returns a const reference to the model’s m_shared_ctx_ptr unique pointer, 
+/// exposing the ov::weight_sharing::Context for testing purposes.
+/// The property is not exposed to the public API yet, as the entire infrastructure of the plugin is not ready yet,
+/// \note The property is not exposed to the public API yet, as the entire infrastructure of the plugin is not ready yet,
+/// so this struct allows tests to verify that shared weight context is correctly assigned and managed within the compiled model.
+struct LLMTSharedWeightContextTestAccess {
+    static const std::unique_ptr<ov::weight_sharing::Context>& get_shared_weight_context(
+        const ov::npuw::LLMCompiledModel& compiled_model) {
+        return compiled_model.m_shared_ctx_ptr;
+    }
+};
+}  // namespace ov::test::npuw
+
 namespace {
 using ov::test::npuw::CompileCall;
 using ov::test::npuw::NullPlugin;
@@ -1010,8 +1025,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WeightSharingContextFillUp) {
                                                      {{"SHARED_WEIGHTS", "NPU,GPU"}, {"NPUW_LLM_SHARED_HEAD", "NO"}},
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
-    ov::Any prop = compiled->get_property(ov::internal::model_sharing_context.name());
-    auto weightCtx = prop.as<ov::internal::WeightSharingCtxPtr>();
+    const auto &weightCtx = ov::test::npuw::LLMTSharedWeightContextTestAccess::get_shared_weight_context(*compiled);
     ASSERT_NE(weightCtx, nullptr);
 }
 

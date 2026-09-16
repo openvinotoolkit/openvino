@@ -17,6 +17,7 @@ namespace npuw {
 struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMContinuedPrefillTestAccess;
+struct LLMTSharedWeightContextTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -95,6 +96,7 @@ private:
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMTSharedWeightContextTestAccess;
     friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
@@ -184,7 +186,7 @@ private:
     // Populates m_shared_ctx_ptr which is then exposed via get_property(model_sharing_context).
     void assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model,
                                                    const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                   const ov::AnyMap& properties);
+                                                   const ov::Any& shared_weight_property);
     void register_shared_weight_in_cache(
         std::vector<std::pair<std::shared_ptr<ov::AlignedBuffer>, std::vector<std::shared_ptr<ov::op::v0::Constant>>>>&&
             shared_sources_with_constants);

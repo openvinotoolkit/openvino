@@ -49,18 +49,18 @@ TEST_F(CompatibilityStringGPU, CompatibilityCheckListedInSupportedProperties) {
     ASSERT_NE(std::find(supported.begin(), supported.end(), ov::compatibility_check.name()), supported.end());
 }
 
-TEST_F(CompatibilityStringGPU, ModelSharingContextListedInInternalButNotPublicProperties) {
+TEST_F(CompatibilityStringGPU, ModelSharingContextPropertyIsNotSupportedYet) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ov::Core core;
 
     auto internal_supported = core.get_property(ov::test::utils::DEVICE_GPU, ov::internal::supported_properties);
-    ASSERT_NE(std::find(internal_supported.begin(), internal_supported.end(),
+    ASSERT_EQ(std::find(internal_supported.begin(), internal_supported.end(),
                         ov::internal::model_sharing_context.name()),
-              internal_supported.end());
+              internal_supported.end());  // Expect it not to be found in internal supported properties
 
     auto supported = core.get_property(ov::test::utils::DEVICE_GPU, ov::supported_properties);
     ASSERT_EQ(std::find(supported.begin(), supported.end(), ov::internal::model_sharing_context.name()),
-              supported.end());
+              supported.end()); // Expect it not to be found in public supported properties either
 }
 
 // A descriptor generated on this device is reported as SUPPORTED.

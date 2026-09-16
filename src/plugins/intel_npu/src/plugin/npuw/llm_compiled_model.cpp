@@ -892,26 +892,13 @@ make_constant_shareable(std::vector<std::vector<std::shared_ptr<ov::op::v0::Cons
 void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(
     const std::shared_ptr<ov::Model> model,
     const std::shared_ptr<const ov::IPlugin>& plugin,
-    const ov::AnyMap& properties) {
+    const ov::Any& shared_weight_property) {
     NPUW_ASSERT(model && "Model for assigning shared weights must not be null");
     NPUW_ASSERT(plugin && "Plugin for assigning shared weights must not be null");
-    auto shared_weight_property_it = properties.find("SHARED_WEIGHTS");
-    if (shared_weight_property_it == properties.end()) {
-        return;
-    }
-
-    // If Core already accumulated a shared context from a previous plugin's compile call
-    // (injected via ov::internal::model_sharing_context), start from that so weights
-    // contributed by other devices are already visible when we build our own additions.
-    const auto ctx_it = properties.find(ov::internal::model_sharing_context.name());
-    if (ctx_it != properties.end()) {
-        if (const auto incoming = ctx_it->second.as<ov::internal::WeightSharingCtxPtr>()) {
-            m_shared_ctx_ptr = std::make_unique<ov::weight_sharing::Context>(*incoming);
-        }
-    }
+    NPUW_ASSERT(shared_weight_property.is<std::string>() && "NPU shared weight property must be a std::string");
 
     auto shared_device_contexts =
-        ov::DeviceIDParser::get_hetero_devices(shared_weight_property_it->second.as<std::string>());
+        ov::DeviceIDParser::get_hetero_devices(shared_weight_property.as<std::string>());
     size_t kMinRelocateBytes = ov::util::get_system_page_size();
     constexpr size_t single_weigh_shared_source_size_max = static_cast<size_t>(2ULL * 1024 * 1024 * 1024);
     auto is_constant_shareable = [shared_device_contexts,
@@ -1131,8 +1118,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_INFO("Continuous prefill is enabled");
     }
 
-    LOG_DEBUG("Assigning shared weights to model if possible.");
-    assign_shared_weight_to_model_if_possible(model, plugin, properties);
+    auto shared_weight_property_it = properties.find("SHARED_WEIGHTS");
+    if (shared_weight_property_it != properties.end()) {
+        LOG_DEBUG("Try to assign shared weights to the model if possible.");
+        assign_shared_weight_to_model_if_possible(model, plugin, shared_weight_property_it->second);
+    }
 
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
@@ -2171,15 +2161,6 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
 
     if (name == ov::intel_npu::npuw::llm::continuous_prefill_supported.name()) {
         return compute_continuous_prefill_supported();
-    }
-
-    // Expose the shared weight context built during compilation so Core can write it
-    // back into SingleFileStorage and make it available to subsequent plugin compile calls.
-    if (name == ov::internal::model_sharing_context.name()) {
-        if (m_shared_ctx_ptr) {
-            return ov::Any(std::make_shared<const ov::weight_sharing::Context>(*m_shared_ctx_ptr));
-        }
-        return ov::Any(ov::internal::WeightSharingCtxPtr{nullptr});
     }
 
     auto&& configIterator = m_prop_to_opt.find(name);

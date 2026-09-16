@@ -11,6 +11,8 @@
 
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 
+#define NPU_PLUGIN_DEVELOPER_BUILD
+
 namespace {
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
 const char* get_env(const std::vector<std::string>& list_to_try) {

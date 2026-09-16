@@ -316,11 +316,6 @@ std::shared_ptr<Graph> CompiledModel::get_graph(size_t n) const {
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    if (name == ov::internal::model_sharing_context.name()) {
-        GPU_DEBUG_INFO << "[GPU] WeightSharingCtxPtr handoff succeeded for compiled model '" << m_model_name << "'" << std::endl;
-        return ov::Any(m_weight_sharing_context);
-    }
-
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type{
             // Metrics

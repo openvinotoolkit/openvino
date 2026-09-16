@@ -25,7 +25,6 @@
 #include "npuw/serialization.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -42,18 +41,6 @@ constexpr std::string_view NO_BACKEND_MESSAGE = "No backend registered during mo
 constexpr std::string_view NPUW_MODEL_IMPORTED_MESSAGE = "Finished importing the NPUW compiled model";
 constexpr std::string_view FAILED_IMPORT_MODEL_PREFACE = "Could not import the model:";
 constexpr std::string_view IMPORT_MODEL_UNEXPECTED_FAILURE_MESSAGE = "Unexpected exception while importing the model";
-
-ov::internal::WeightSharingCtxPtr extract_weight_sharing_context(ov::AnyMap& properties) {
-    const auto property_name = ov::internal::model_sharing_context.name();
-    const auto property_it = properties.find(property_name);
-    if (property_it == properties.end()) {
-        return nullptr;
-    }
-
-    auto ctx = property_it->second.as<ov::internal::WeightSharingCtxPtr>();
-    properties.erase(property_it);
-    return ctx;
-}
 
 /**
  * @brief Just checks if there is any "WeightlessCacheAttribute" present in the model. In the negative case, an error is
