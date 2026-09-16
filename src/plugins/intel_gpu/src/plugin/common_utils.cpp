@@ -240,7 +240,7 @@ void convert_and_copy(const ov::ITensor* src, cldnn::memory::ptr dst, cldnn::str
     auto src_et = src->get_element_type();
     auto dst_et = dst->get_layout().data_type;
 
-    if (dst_et == src_et && !transpose) {
+    if (dst_et == src_et && !transpose && !src_layout.data_padding) {
         if (const auto* remote = dynamic_cast<const ov::intel_gpu::RemoteTensorImpl*>(src)) {
             auto mem = remote->get_original_memory();
             dst->copy_from(stream, *mem, blocking);

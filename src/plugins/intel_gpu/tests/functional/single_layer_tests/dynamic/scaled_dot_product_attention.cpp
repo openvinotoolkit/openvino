@@ -331,6 +331,76 @@ void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 TEST_P(ScaledAttnLayerGPUTest, CompareWithRefs) {
     run();
 }
+
+class ScaledAttnScalarBooleanMaskGPUTest : public ov::test::SubgraphBaseTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+    }
+};
+
+TEST_F(ScaledAttnScalarBooleanMaskGPUTest, ConstantMatchesRuntimeInput) {
+    auto make_model = [](bool constant_mask, bool mask_value) {
+        auto query = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 1, 2});
+        auto key = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 2, 2});
+        auto value = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 1, 2, 2});
+        ov::Output<ov::Node> mask;
+        ov::ParameterVector parameters{query, key, value};
+
+        if (constant_mask) {
+            mask = std::make_shared<ov::op::v0::Constant>(ov::element::boolean, ov::Shape{}, mask_value);
+        } else {
+            auto mask_parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::Shape{});
+            parameters.push_back(mask_parameter);
+            mask = mask_parameter;
+        }
+
+        auto sdpa = std::make_shared<ov::opset13::ScaledDotProductAttention>(query, key, value, mask, false);
+        return std::make_shared<ov::Model>(ov::OutputVector{sdpa}, parameters);
+    };
+
+    const std::vector<ov::float16> query_values{4.0f, 0.0f};
+    const std::vector<ov::float16> key_values{4.0f, 0.0f, -4.0f, 0.0f};
+    const std::vector<ov::float16> value_values{2.0f, 4.0f, 6.0f, 8.0f};
+
+    for (const bool mask_value : {false, true}) {
+        auto constant_model = make_model(true, mask_value);
+        auto runtime_model = make_model(false, mask_value);
+        auto constant_compiled = core->compile_model(constant_model, targetDevice);
+        auto runtime_compiled = core->compile_model(runtime_model, targetDevice);
+        auto constant_request = constant_compiled.create_infer_request();
+        auto runtime_request = runtime_compiled.create_infer_request();
+
+        const std::array input_values{query_values, key_values, value_values};
+        for (size_t input_idx = 0; input_idx < input_values.size(); ++input_idx) {
+            const auto& values = input_values[input_idx];
+            ov::Tensor constant_tensor(ov::element::f16, constant_model->input(input_idx).get_shape());
+            ov::Tensor runtime_tensor(ov::element::f16, runtime_model->input(input_idx).get_shape());
+            std::copy(values.begin(), values.end(), constant_tensor.data<ov::float16>());
+            std::copy(values.begin(), values.end(), runtime_tensor.data<ov::float16>());
+            constant_request.set_tensor(constant_compiled.input(input_idx), constant_tensor);
+            runtime_request.set_tensor(runtime_compiled.input(input_idx), runtime_tensor);
+        }
+
+        ov::Tensor mask_tensor(ov::element::boolean, ov::Shape{});
+        mask_tensor.data<bool>()[0] = mask_value;
+        runtime_request.set_tensor(runtime_compiled.input(3), mask_tensor);
+
+        constant_request.infer();
+        runtime_request.infer();
+
+        const auto constant_output = constant_request.get_output_tensor();
+        const auto runtime_output = runtime_request.get_output_tensor();
+        ASSERT_EQ(constant_output.get_size(), runtime_output.get_size());
+        for (size_t output_idx = 0; output_idx < constant_output.get_size(); ++output_idx) {
+            ASSERT_NEAR(static_cast<float>(constant_output.data<ov::float16>()[output_idx]),
+                        static_cast<float>(runtime_output.data<ov::float16>()[output_idx]),
+                        1e-3f)
+                << "mask=" << mask_value << ", output_idx=" << output_idx;
+        }
+    }
+}
+
 const std::vector<std::vector<InputShape>> dynamic_shapes_3D {
     {
         // q shape
