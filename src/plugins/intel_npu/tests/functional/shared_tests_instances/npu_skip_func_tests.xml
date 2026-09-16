@@ -430,4 +430,14 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>samePlatformProduceTheSameBlobCacheEnabled will likely be removed as functionality should be tested by driver</message>
+        <enable_rules>
+             <operating_system>linux</operating_system>
+        </enable_rules>
+        <filters>
+            <filter>.*samePlatformProduceTheSameBlobCacheEnabled.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
