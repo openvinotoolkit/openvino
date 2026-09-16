@@ -273,6 +273,19 @@ inline size_t micro_get_value_cache_id(const kernel_impl_params& params) {
     return get_value_cache_id(*desc);
 }
 
+// true when V has been physically materialised as (batch, heads, head_size, tokens),
+// which the graph signals with input_v_transpose_order == {0, 1, 3, 2}. The V*S microkernel
+// contracts V over tokens, so that layout makes its reduction axis the contiguous one and
+// gemmstone can load A straight to registers instead of staging it through SLM.
+inline bool micro_transpose_v(const kernel_impl_params& params) {
+    if (params.is_type<paged_attention>())
+        return false;
+    // The V*S leading dimension becomes the key count, so K's sequence length must be static too.
+    if (params.input_layouts[1].get_partial_shape().is_dynamic() || params.input_layouts[2].get_partial_shape().is_dynamic())
+        return false;
+    return params.typed_desc<scaled_dot_product_attention>()->input_v_transpose_order == std::vector<int64_t>{0, 1, 3, 2};
+}
+
 struct sdpa_config_t {
     int unroll_m_kq, unroll_n_kq;  // Subgroup tile sizes for K*Q GEMM
     int unroll_m_vs, unroll_n_vs;  // Subgroup tile sizes for V*S GEMM
@@ -1181,7 +1194,11 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     auto ldq = k_head_size * ov::element::Type(Q.data_type).size();
     auto ldk = k_head_size * ov::element::Type(K.data_type).size();
-    auto ldv = v_head_size * ov::element::Type(V.data_type).size();
+    const bool transpose_v = micro_transpose_v(params);
+    const auto v_seq_len = micro_get_seq_length(params, 2).get_max_length();
+    // With a transposed V the leading dimension is the token count, not the head size.
+    auto ldv = static_cast<size_t>(transpose_v && v_seq_len > 0 ? v_seq_len : static_cast<int64_t>(v_head_size)) *
+               ov::element::Type(V.data_type).size();
     auto lda = v_head_size * ov::element::Type(out.data_type).size();
 
     jit.make("D_MAX", d_max);
@@ -1220,6 +1237,12 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("WITH_SCALE", data_inputs_num > scale_input_idx);
     }
 
+    if (!config.is_paged_attention && params.typed_desc<scaled_dot_product_attention>()->has_rope_q) {
+        // cos/sin are (batch, tokens, HEAD_SIZE) halves, shared by every head, so the table's
+        // row stride is HEAD_SIZE and its batch stride is q * HEAD_SIZE.
+        jit.make("WITH_ROPE_Q", 1);
+    }
+
     jit.make("Q_ALIGN", micro::alignment_for_ld(static_cast<int>(ldq)));
     jit.make("K_ALIGN", micro::alignment_for_ld(static_cast<int>(ldk)));
     jit.make("V_ALIGN", micro::alignment_for_ld(static_cast<int>(ldv)));
@@ -1228,6 +1251,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("IS_PREFILL", m_is_prefill);
     jit.make("IS_GQA_SINGLE_TOKEN", m_is_gqa_single_token);
     jit.make("TRANSPOSE_K", false);
+    jit.make("TRANSPOSE_V", transpose_v);
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
     jit.make("KV_HEADS_NUM", config.kv_heads_num);
     jit.make("HEADS_NUM", m_is_gqa_single_token ? config.kv_heads_num : config.heads_num);
@@ -1561,6 +1585,12 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
             args.push_back({ArgumentDescriptor::Types::INPUT, sink_idx});  // Sink
         }
 
+        if (params.typed_desc<scaled_dot_product_attention>()->has_rope_q) {
+            const auto total = static_cast<uint32_t>(params.input_layouts.size());
+            args.push_back({ArgumentDescriptor::Types::INPUT, total - 2});  // RoPE cos
+            args.push_back({ArgumentDescriptor::Types::INPUT, total - 1});  // RoPE sin
+        }
+
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // D
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
         args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // Q
@@ -1687,6 +1717,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
     const ov::Dimension n_values = ov::Dimension(v_head_size);
+    const bool transpose_v = micro_transpose_v(params);
     const auto head_num = micro_get_num_heads(params, 0);
     const auto batch = out_ps[0] * static_cast<ov::Dimension>(head_num);
 
@@ -2004,6 +2035,11 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
         // INT4 V: ldv = packed_head_bytes + scales = v_head_size * u4 + 4 = 68
         problem_vs.A.setAlignment(static_cast<int>(v_head_size * problem_vs.Ta_ext) + 4);
+    } else if (transpose_v) {
+        // V is physically (batch, heads, head_size, tokens): A is k-contiguous, leading
+        // dimension is the token count. Lets gemmstone load A to registers instead of SLM.
+        problem_vs.A.layout = micro::MatrixLayout::T;
+        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(n_keys.get_length() * problem.Ta)));
     } else {
         problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
     }
@@ -2035,7 +2071,10 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         // 32 bytes of k per crosspack group, matching tile_store_t_sys_src2's
         // cp = 32 / sizeof(element). At f16 that spelling is 16 elements; at s8 it is 32.
         problem_vs.B.crosspack = 32;
-        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem_vs.Ta)));
+        if (transpose_v)
+            problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(n_keys.get_length() * problem_vs.Ta)));
+        else
+            problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem_vs.Ta)));
     }
 
     /* Ask microkernel provider for microkernel */

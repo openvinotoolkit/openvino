@@ -14,6 +14,9 @@ namespace ov::intel_gpu::ocl {
 // Data inputs are QKV, mask and scale. Beam table and quantization params are not considered.
 inline size_t get_data_inputs_num(const cldnn::scaled_dot_product_attention& desc) {
     size_t data_inputs_num = desc.input_size();
+    if (desc.has_rope_q) {
+        data_inputs_num -= 2;
+    }
     if (desc.indirect_axis != -1) {
         data_inputs_num--;
     }
