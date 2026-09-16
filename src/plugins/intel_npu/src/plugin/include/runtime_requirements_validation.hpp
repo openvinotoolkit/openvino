@@ -9,10 +9,12 @@
 
 namespace intel_npu {
 
-// TODO do not expose this outside plugin/
+/**
+ * @brief Looks for runtime requirements within "arguments", evaluates them, and returns the result.
+ */
 ov::CompatibilityCheck validateCompatibilityDescriptor(
-    const ov::SoPtr<IEngineBackend>& backend,
     const ov::AnyMap& arguments,
+    const ov::SoPtr<IEngineBackend>& backend,
     const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper);
 
 }  // namespace intel_npu

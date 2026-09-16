@@ -143,7 +143,6 @@ private:
 
 namespace blob_format_importer_factory {
 
-// TODO update
 /**
  * @brief Identifies the blob format used for the given blob and creates the corresponding importer for it.
  *
@@ -151,6 +150,8 @@ namespace blob_format_importer_factory {
  * @param is_raw_blob Flag indicating whether or not the whole blob is just a compiler main schedule.
  * @param original_model A potential source of weights for the weights separation feature if necessary. Can be
  * `nullptr`.
+ * @param backend Required for various reasons
+ * @param option_helper Required for validating the compiler runtime requirements.
  * @param config Will be held by the newly created importer and used for multiple purposes, such as: extracting the log
  * level, weights path, decryption callbacks.
  * @return An importer object of the type that corresponds to the format of the blob.

@@ -16,12 +16,8 @@ namespace {
 using namespace intel_npu;
 
 /**
- * @brief TODO
- *
- * @param runtimeRequirements
- * @param backend
- * @param optionSupportHelper
- * @return ov::CompatibilityCheck
+ * @brief Evaluates the second version of the runtime requirements format, corresponding to the blob format v2
+ * (header-sections-manifest)
  */
 ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
     std::string_view runtimeRequirements,
@@ -61,18 +57,14 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
             type_evaluators,
             instance_evaluators);
     } catch (...) {
-        // TODO why?
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
+        // Since the same checks would be performed at import time, a throw now means a throw while importing
+        return ov::CompatibilityCheck::UNSUPPORTED;
     }
 }
 
 /**
- * @brief TODO
- *
- * @param runtimeRequirements
- * @param backend
- * @param optionSupportHelper
- * @return ov::CompatibilityCheck
+ * @brief Evaluates the first version of the runtime requirements format, corresponding to the blob format v1 (compiler
+ * schedules followed by metadata fields)
  */
 ov::CompatibilityCheck validateCompatibilityDescriptorFormatV1(
     std::string_view runtimeRequirements,
@@ -82,6 +74,7 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV1(
     try {
         metadata = read_as_text(runtimeRequirements);
     } catch (...) {
+        // The same failure would be expected at import time as well
         return ov::CompatibilityCheck::UNSUPPORTED;
     }
 
@@ -90,12 +83,8 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV1(
     if (!compilerRuntimeRequirements.has_value() || compilerRuntimeRequirements->empty()) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
-    try {
-        return CompilerScheduleInstanceEvaluator(backend, optionSupportHelper)
-            .evaluate(compilerRuntimeRequirements.value());
-    } catch (...) {
-        return ov::CompatibilityCheck::NOT_APPLICABLE;
-    }
+    return CompilerScheduleInstanceEvaluator(backend, optionSupportHelper)
+        .evaluate(compilerRuntimeRequirements.value());
 }
 
 }  // namespace
@@ -103,8 +92,8 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV1(
 namespace intel_npu {
 
 ov::CompatibilityCheck validateCompatibilityDescriptor(
-    const ov::SoPtr<IEngineBackend>& backend,
     const ov::AnyMap& arguments,
+    const ov::SoPtr<IEngineBackend>& backend,
     const std::shared_ptr<CompilerOptionSupportHelper>& optionSupportHelper) {
     if (arguments.empty() || arguments.find(ov::runtime_requirements.name()) == arguments.end()) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;

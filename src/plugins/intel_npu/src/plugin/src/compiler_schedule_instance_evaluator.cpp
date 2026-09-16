@@ -34,6 +34,8 @@ ov::CompatibilityCheck CompilerScheduleInstanceEvaluator::evaluate(std::string_v
         runtime_requirements = runtime_requirements.substr(1, runtime_requirements.size() - 2);
     }
     if (runtime_requirements.empty()) {
+        // Older software versions do not have this compatibility string feature. In such cases, we may reveive an
+        // emptry string, which we cannot evaluate.
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
 
@@ -44,11 +46,16 @@ ov::CompatibilityCheck CompilerScheduleInstanceEvaluator::evaluate(std::string_v
         return bool_to_compatibility_check(device->validateCompatibilityDescriptor(std::string(runtime_requirements)));
     }
 
-    // Fallback routed through the option support helper
-    return bool_to_compatibility_check(
-        m_option_support_helper->isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
-                                                   ov::compatibility_check.name(),
-                                                   std::make_optional(std::string(runtime_requirements))));
+    try {
+        // Fallback routed through the option support helper
+        return bool_to_compatibility_check(
+            m_option_support_helper->isOptionSupported(ov::intel_npu::CompilerType::PLUGIN,
+                                                       ov::compatibility_check.name(),
+                                                       std::make_optional(std::string(runtime_requirements))));
+    } catch (...) {
+        // Unable to answer
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
 }
 
 }  // namespace intel_npu

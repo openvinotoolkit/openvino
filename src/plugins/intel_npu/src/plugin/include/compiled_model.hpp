@@ -27,8 +27,8 @@ public:
      * @param plugin Pointer towards the NPU plugin instance
      * @param device Backend specific object through which inference requests can be created
      * @param graph Object holding the graph handle along with distinct fields for metadata
+     * @param blobWriter Contains the information required to export the compiled model and provides an API to do so
      * @param config Custom configuration object
-     * TODO
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,

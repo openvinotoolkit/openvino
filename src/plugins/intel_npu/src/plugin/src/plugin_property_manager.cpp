@@ -419,7 +419,7 @@ void PluginPropertyManager::registerProperties() const {
         _compatibilityCheckFiltered && _compatibilityCheckSupported,
         true,
         [this](const Config&, const ov::AnyMap& arguments) {
-            return validateCompatibilityDescriptor(_backend, arguments, _compilerOptionSupportHelper);
+            return validateCompatibilityDescriptor(arguments, _backend, _compilerOptionSupportHelper);
         });
 
     for (auto& property : _properties) {
@@ -448,7 +448,7 @@ void PluginPropertyManager::initializeCompatibilityCheckSupportIfNeeded() const 
         _compatibilityCheckSupported,
         true,
         [this](const Config&, const ov::AnyMap& arguments) {
-            return validateCompatibilityDescriptor(_backend, arguments, _compilerOptionSupportHelper);
+            return validateCompatibilityDescriptor(arguments, _backend, _compilerOptionSupportHelper);
         });
 
     // Update supported_properties incrementally for compatibility_check only.
