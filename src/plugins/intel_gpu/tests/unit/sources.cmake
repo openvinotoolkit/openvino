@@ -63,7 +63,6 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/graph_manipulation_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/impls_registry_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/impls_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/module_tests/jitter_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/kernel_impl_params_relevance_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/layout_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/mem_reset_test.cpp
@@ -212,10 +211,8 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_gemm_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_mask_gen_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_constant_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_lru_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_primitive_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_property_test.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_weight_provider_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_router_fused_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_scatter_reduction_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/multiclass_nms_gpu_test.cpp
@@ -489,6 +486,9 @@ endif()
 
 # Tests with a dependency on the OpenCL runtime - excluded from the build with a different runtime.
 set(GPU_UNIT_TESTS_OCL_RT_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/jitter_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_lru_cache_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/test_cases/moe_offload_weight_provider_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/device_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/engine_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/events_test.cpp

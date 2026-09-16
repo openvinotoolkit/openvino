@@ -21,18 +21,18 @@ static void CreatePadOpInternal(ProgramBuilder& p, const std::shared_ptr<op::uti
     int32_t non_constant_input_mask = 0;
 
     auto pads_begin_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(1).get_node_shared_ptr());
-    std::vector<int64_t> pads_begin = std::vector<int64_t>{};
+    ov::CoordinateDiff pads_begin;
     if (pads_begin_constant) {
-        pads_begin = pads_begin_constant->cast_vector<int64_t>();
+        pads_begin = pads_begin_constant->cast_vector<ov::CoordinateDiff::value_type>();
     } else {
         non_constant_inputs.push_back(inputs[1]);
         non_constant_input_mask |= cldnn::border::PAD_NON_CONST_INPUT::BEGIN;
     }
 
     auto pads_end_constant = ov::as_type_ptr<ov::op::v0::Constant>(op->input_value(2).get_node_shared_ptr());
-    std::vector<int64_t> pads_end = std::vector<int64_t>{};
+    ov::CoordinateDiff pads_end;
     if (pads_end_constant) {
-        pads_end = pads_end_constant->cast_vector<int64_t>();
+        pads_end = pads_end_constant->cast_vector<ov::CoordinateDiff::value_type>();
     } else {
         non_constant_inputs.push_back(inputs[2]);
         non_constant_input_mask |= cldnn::border::PAD_NON_CONST_INPUT::END;
