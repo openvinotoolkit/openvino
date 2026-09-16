@@ -25,6 +25,11 @@ OutputVector translate_repeat(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
 
     auto input = context.get_input(0);
+    const auto repeats = context.get_attribute<std::vector<int64_t>>("repeats", {});
+    if (!repeats.empty()) {
+        auto factors = ov::op::v0::Constant::create(ov::element::i64, {repeats.size()}, repeats);
+        return rename_outputs_with_suffix({std::make_shared<ov::op::v0::Tile>(input, factors)}, context.get_name());
+    }
     const auto input_shape = context.get_input_shape(0);
     const auto output_shape = context.get_output_shape();
 
