@@ -81,12 +81,13 @@ protected:
     std::optional<size_t> determine_batch_size();
 
     /**
-     * @brief TODO, uses either graphdesc or blobtensor, common utility
+     * @brief Writes a blob into a stream, where the "blob" contains only a single compiler schedule.
      *
-     * @param graphDescriptor
-     * @param blobTensor
-     * @param stream
-     * @return The size of the written blob, along with its hash if requested.
+     * @param graphDescriptorOrTensor Where the blob will be taken from
+     * @param stream Where the blob will be written
+     * @param computeHash The has will be computed and returned if set to `true`
+     * @return The size of the written blob without padding, the size with padding and the hash of the blob if
+     * requested.
      */
     std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> write_blob_to_stream(
         const std::variant<std::reference_wrapper<const GraphDescriptor>, std::reference_wrapper<const ov::Tensor>>&

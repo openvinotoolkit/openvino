@@ -22,8 +22,18 @@ namespace intel_npu {
 // TODOs: fix the circular dependencies
 // Consider moving the secion files in dedicated directories
 
+/**
+ * @brief Converts the given section type and ID pair to a string.
+ * @return A string of the form <section type>_<section ID>, where the section ID is an integer.
+ */
 std::string section_type_and_id_to_string(const SectionType type, const SectionID id);
 
+/**
+ * @brief Parses a section type from string. If a section ID is also found at the end of the string, then the ID is
+ * returned as well.
+ * @details If an ID is present, then the expected form of the string content is <section type>_<section ID>, where the
+ * section ID is an integer.
+ */
 std::pair<SectionType, std::optional<SectionID>> section_type_and_id_from_string(std::string_view type_and_id);
 
 class BlobWriterInterface;

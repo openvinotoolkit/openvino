@@ -51,7 +51,6 @@ std::string section_type_and_id_to_string(const SectionType type, const SectionI
     return type.to_string() + TYPE_AND_ID_DELIMITER.data() + id.to_string();
 }
 
-// TODO note about optional
 std::pair<SectionType, std::optional<SectionID>> section_type_and_id_from_string(std::string_view type_and_id) {
     const size_t search_result = type_and_id.rfind(TYPE_AND_ID_DELIMITER);
     if (search_result == std::string::npos ||

@@ -463,7 +463,6 @@ ov::CompatibilityCheck CRE::evaluate(
         const auto special_token = std::dynamic_pointer_cast<CRESpecialToken>(*expression_iterator);
         OPENVINO_ASSERT(special_token, "Unexpected token; expected a CRE special one");  // Logic error
 
-        // TODO comments
         switch (special_token->get_code()) {
         case CRESpecialTokenCode::NOT:
             CRE_ASSERT(!expect_binary_operator, "A \"NOT\" token was found when a binary operator was expected");
