@@ -872,6 +872,58 @@ TEST_F(TransformationTestsF, ConvertFCToCompressed24_mxfp4e2m1) {
     }
 }
 
+TEST_F(TransformationTestsF, ConvertFCToCompressed25_u2TransposeBeforeReshape) {
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 8});
+        auto weights = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{2, 3, 4}, {1});
+        auto weights_convert = std::make_shared<ov::op::v0::Convert>(weights, ov::element::f16);
+        auto zero_point = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{2, 3, 1}, {1});
+        auto zero_point_convert = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f16);
+        auto subtract = std::make_shared<ov::op::v1::Subtract>(weights_convert, zero_point_convert);
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{2, 3, 1}, {1});
+        auto multiply = std::make_shared<ov::op::v1::Multiply>(subtract, scale);
+        auto transpose_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {1, 0, 2});
+        auto transpose = std::make_shared<ov::op::v1::Transpose>(multiply, transpose_order);
+        auto reshape_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {3, 8});
+        auto reshape = std::make_shared<ov::op::v1::Reshape>(transpose, reshape_shape, false);
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<ov::intel_gpu::op::FullyConnected>(input, reshape, no_bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+        manager.register_pass<ConvertFullyConnectedToFullyConnectedCompressed>();
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 8});
+        auto weights = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{2, 3, 4}, {1});
+        auto transpose_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{3}, {1, 0, 2});
+        auto transposed_weights = std::make_shared<ov::op::v1::Transpose>(weights, transpose_order);
+        auto weights_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {3, 8});
+        auto reshaped_weights = std::make_shared<ov::op::v1::Reshape>(transposed_weights, weights_shape, false);
+
+        auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{2, 3, 1}, {1});
+        auto transposed_scale = std::make_shared<ov::op::v1::Transpose>(scale, transpose_order);
+        auto scale_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {3, 2});
+        auto reshaped_scale = std::make_shared<ov::op::v1::Reshape>(transposed_scale, scale_shape, false);
+
+        auto zero_point = ov::op::v0::Constant::create(ov::element::u2, ov::Shape{2, 3, 1}, {1});
+        auto converted_zero_point = std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::u8);
+        auto transposed_zero_point =
+            std::make_shared<ov::op::v1::Transpose>(converted_zero_point, transpose_order);
+        auto zero_point_shape = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, {3, 2});
+        auto reshaped_zero_point =
+            std::make_shared<ov::op::v1::Reshape>(transposed_zero_point, zero_point_shape, false);
+
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc_compressed = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(
+            input,
+            reshaped_weights,
+            no_bias,
+            reshaped_scale,
+            reshaped_zero_point);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
+    }
+}
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov

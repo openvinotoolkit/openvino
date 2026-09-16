@@ -52,9 +52,15 @@ using namespace ov::pass::pattern;
         auto mul2_const_m = wrap_type<ov::op::v0::Constant>();\
         auto mul2_m = wrap_type<ov::op::v1::Multiply>({reshape_m, mul2_const_m});\
 \
-        auto transpose_input = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_m, mul_m});\
         auto transpose_const_m = wrap_type<ov::op::v0::Constant>();\
-        auto transpose_m = wrap_type<ov::op::v1::Transpose>({transpose_input, transpose_const_m});\
+        auto transpose_after_reshape_input_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{reshape_m, mul_m});\
+        auto transpose_after_reshape_m =\
+                wrap_type<ov::op::v1::Transpose>({transpose_after_reshape_input_m, transpose_const_m});\
+        auto transpose_before_reshape_input_m =\
+                wrap_type<ov::op::v1::Transpose>({mul_m, wrap_type<ov::op::v0::Constant>()});\
+        auto transpose_before_reshape_m = wrap_type<ov::op::v1::Reshape>(\
+                {transpose_before_reshape_input_m, transpose_const_m}, reshape_squeeze);\
 \
         auto compressed_weights_input_m =\
-            std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, convert_reshape_m, transpose_m, mul_m, mul2_m});
+            std::make_shared<ov::pass::pattern::op::Or>(\
+                                ov::OutputVector{reshape_m, convert_reshape_m, transpose_after_reshape_m, transpose_before_reshape_m, mul_m, mul2_m});
