@@ -45,13 +45,13 @@ TEST(convert_and_copy_test, boolean_padded_source) {
     auto& stream = get_test_stream();
 
     const ov::Shape shape{1, 1, 2, 2};
-    bool src_values[] = {true, false, false, true, false, false};
+    bool src_values[] = {false, false, true, false, false, true};
     auto src_tensor = ov::make_tensor(ov::element::boolean, shape, src_values);
 
     layout src_layout{shape,
                       data_types::boolean,
                       format::bfyx,
-                      padding{{0, 0, 0, 0}, {0, 0, 1, 0}}};
+                      padding{{0, 0, 1, 0}, {0, 0, 0, 0}}};
     auto dst_mem = engine.allocate_memory(layout{shape, data_types::boolean, format::bfyx});
 
     OV_ASSERT_NO_THROW(convert_and_copy(src_tensor.get(), dst_mem, stream, src_layout, false));
