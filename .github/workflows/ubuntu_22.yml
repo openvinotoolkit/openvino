@@ -121,6 +121,7 @@ jobs:
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
@@ -319,6 +320,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
 
@@ -522,6 +524,7 @@ jobs:
     uses: ./.github/workflows/job_gguf_llamacpp_validation.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
 
   NVIDIA_Plugin:
@@ -555,6 +558,9 @@ jobs:
       NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
       DEBIAN_FRONTEND: 'noninteractive'
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_Release
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
     if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:
@@ -605,7 +611,7 @@ jobs:
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -S ${OPENVINO_CONTRIB_REPO}/modules/nvidia_plugin \
             -B ${NVIDIA_BUILD_DIR}
-          cmake --build ${NVIDIA_BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet ov_nvidia_func_tests ov_nvidia_unit_tests
+          cmake --build ${NVIDIA_BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet ov_nvidia_func_tests ov_nvidia_unit_tests
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats

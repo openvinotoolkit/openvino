@@ -38,27 +38,22 @@ public:
     ///   AHEAD of the frontend's built-in lowerings. A caller that wants an OpenVINO KV cache
     ///   registers `ov::frontend::gguf::pass::GGUFMakeStateful` (or its own variant) here; without one
     ///   the frontend converts to a stateless graph.
+    /// - `ov::frontend::gguf::ArchitectureExtension` — registers decoder or custom-family builders
+    ///   without rebuilding the frontend. See docs/porting_a_llama_cpp_model.md.
     /// - `ov::frontend::TelemetryExtension` — receives error / event callbacks.
-    /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is
-    ///   recursively registered.
-    /// - `ov::BaseOpExtension` — op-level extension; all attached extensions are
-    ///   recursively registered.
+    /// - `ov::detail::SOExtension` — shared-library extension; its inner extension is recursively registered.
+    /// - `ov::BaseOpExtension` — recursively registers attached op-level extensions.
     ///
     /// \param extension Extension to register.
     void add_extension(const std::shared_ptr<ov::Extension>& extension) override;
 
 protected:
-    /// \brief Check if FrontEnd can recognize the model from the given parts.
-    /// \param variants A single element holding a `std::shared_ptr<GgufDecoder>`. No other variant
-    ///        is recognized in this frontend: file-path (`.gguf`) loading is not yet implemented.
-    /// \return True iff variants holds exactly that; false otherwise.
+    /// \brief Recognize a GgufDecoder or a .gguf file with GGUF magic.
+    /// \param variants First element is a shared_ptr<GgufDecoder> or a file path.
     bool supported_impl(const std::vector<ov::Any>& variants) const override;
 
-    /// \brief Load the input model from a GgufDecoder.
-    /// \param variants A single element holding a `std::shared_ptr<GgufDecoder>` -- a decoder
-    ///        supplied by a direct linker, wrapping an already-built ggml graph (the llama.cpp
-    ///        cgraph path). File-path (`.gguf`) loading, built per-architecture by the native
-    ///        builder, is not yet implemented in this frontend.
+    /// \brief Load a GgufDecoder, or parse a .gguf file and select its builder for convert().
+    /// \param variants First element is a shared_ptr<GgufDecoder> or a file path.
     /// \return InputModel::Ptr
     InputModel::Ptr load_impl(const std::vector<ov::Any>& variants) const override;
 
