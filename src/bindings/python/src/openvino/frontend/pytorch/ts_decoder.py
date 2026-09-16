@@ -382,7 +382,7 @@ class TorchScriptPythonDecoder(Decoder):
             fn_cls = getattr(self.graph_element.pyobj(), "__self__", None)
             module = getattr(fn_cls, "__module__", "")
             op_name = getattr(fn_cls, "__name__", "")
-            if module.startswith("lietorch") and op_name:
+            if (module == "lietorch" or module.startswith("lietorch.")) and op_name:
                 return "lietorch::" + op_name
         return self.graph_element.kind()
 
