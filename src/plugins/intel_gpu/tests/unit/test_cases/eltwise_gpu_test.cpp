@@ -4861,6 +4861,17 @@ TEST(eltwise_gpu, vload8_rejects_unaligned_logical_size_with_matching_batch_padd
     test_vload8_feature_broadcast<float>(data_types::f32, false, tensor(1, 1, 10, 1), tensor(1, 1, 1, 1), false, false, false, format::bfyx, padding_options);
 }
 
+TEST(eltwise_gpu, vload8_accepts_aligned_logical_size_with_unaligned_physical_padding) {
+    const layout padded_output(data_types::f32, format::bfyx, tensor(8, 1, 1, 1), padding({0, 0, 0, 0}, {1, 0, 0, 0}));
+    ASSERT_EQ(padded_output.count(), size_t(8));
+    ASSERT_EQ(padded_output.get_linear_size(), size_t(9));
+
+    vload8_padding_options padding_options;
+    padding_options.upper_batch = 1;
+    padding_options.pad_weights = false;
+    test_vload8_feature_broadcast<float>(data_types::f32, false, tensor(8, 1, 1, 1), tensor(1, 1, 1, 1), true, false, false, format::bfyx, padding_options);
+}
+
 TEST(eltwise_gpu, vload8_rejects_shape_agnostic_feature_broadcast) {
     kernel_selector::eltwise_params params;
     params.inputs = {
