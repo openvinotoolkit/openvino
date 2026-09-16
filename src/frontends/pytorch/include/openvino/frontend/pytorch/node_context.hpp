@@ -7,6 +7,7 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/node_context.hpp"
 #include "openvino/frontend/pytorch/decoder.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov {
 namespace frontend {
@@ -112,6 +113,13 @@ public:
 
     TranslateSession* get_session() const {
         return m_translate_session;
+    }
+
+    // Add a Parameter that is not part of the decoded graph (side-channel
+    // input added by a custom translator). It gets registered with the
+    // resulting Model so validation passes.
+    void add_external_parameter(const std::shared_ptr<ov::op::v0::Parameter>& param) const {
+        m_external_parameters->push_back(param);
     }
 
     void add_tensor_to_context(size_t index, const Output<Node>& ov_output) const;
