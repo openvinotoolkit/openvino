@@ -586,23 +586,30 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
     logCapture.clear();
-    // Feed a freshly allocated host tensor so its data pointer differs from the one the request already holds
-    // (reusing another request's tensor would hand back the same inTensor object, which set_tensor skips).
-    ov::Tensor inputTensorForThirdInfer =
+    // A plain host tensor is copied into the request's reused internal L0 buffer, so its data pointer never changes
+    // and the runtime keeps reusing the command list. Feed a context-allocated (Level Zero) tensor instead: it is
+    // imported directly with a distinct data pointer, so the runtime detects the change and rebuilds the command list.
+    auto zeroContext = core->get_default_context(target_device);
+    auto inputTensorForThirdInfer = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
+    auto hostTensorSourceForThirdInfer =
         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 50);
+    ASSERT_EQ(hostTensorSourceForThirdInfer.get_byte_size(), inputTensorForThirdInfer.get_byte_size())
+        << "Source and destination tensors must have identical byte sizes for copy";
+    std::memcpy(inputTensorForThirdInfer.data(),
+                hostTensorSourceForThirdInfer.data(),
+                hostTensorSourceForThirdInfer.get_byte_size());
     setInputInferAndCompare(model,
                             reqDynamic1,
                             reqReference1,
                             inputTensorForThirdInfer,
                             "CompileAndInferWithZeroTensor_third");
-    // Feeding a tensor with a new data pointer, ptr change detected and rebuild runtime
+    // Feeding a context-allocated tensor with a new data pointer, ptr change detected and rebuild runtime
     // TODO: Update commandlist once dynamic stride supported
     ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
         << "Expected log to contain 'Reset command list to run with runtime' for third inference, but got: "
         << logCapture.str();
 
     logCapture.clear();
-    auto zeroContext = core->get_default_context(target_device);
     auto inputHostTensorForForthInfer = zeroContext.create_host_tensor(model->input().get_element_type(), shape);
     auto hostTensorSourceForForthInfer =
         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
