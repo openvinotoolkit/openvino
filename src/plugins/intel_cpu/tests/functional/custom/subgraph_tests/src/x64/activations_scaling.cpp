@@ -17,9 +17,9 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/sqrt.hpp"
-#include "openvino/runtime/system_conf.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/precision_support.h"
 
 using namespace CPUTestUtils;
 
@@ -99,7 +99,7 @@ protected:
 
 namespace {
 TEST_P(ActivationsScalingCPUTest, CompareWithRefs) {
-    if (!ov::with_cpu_x86_avx512_core_fp16()) {
+    if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
     if (GetParam() > 0.f) {
