@@ -11,6 +11,7 @@
 
 #include <memory>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
@@ -70,16 +71,11 @@ MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4,
                                           bool with_second_inp_tokens_lookup = false) {
     MinimalGgufModel m;
 
-    m.inp_tokens = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 1, -1});
-    m.inp_tokens->output(0).set_names({"inp_tokens"});
-    auto inp_pos = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 1, -1});
-    inp_pos->output(0).set_names({"inp_pos"});
-    auto self_kq_mask = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, -1});
-    self_kq_mask->output(0).set_names({"self_kq_mask"});
-    auto token_len_per_seq = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1});
-    token_len_per_seq->output(0).set_names({"token_len_per_seq"});
-    auto beam_idx = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
-    beam_idx->output(0).set_names({"beam_idx"});
+    m.inp_tokens = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_tokens");
+    auto inp_pos = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_pos");
+    auto self_kq_mask = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask");
+    auto token_len_per_seq = ov::test::utils::make_param(ov::element::i64, ov::PartialShape{1}, "token_len_per_seq");
+    auto beam_idx = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
 
     std::vector<float> table_values(vocab * hidden);
     for (size_t i = 0; i < table_values.size(); ++i) {
@@ -99,8 +95,7 @@ MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4,
 
     ov::ParameterVector params{m.inp_tokens, inp_pos, self_kq_mask, token_len_per_seq, beam_idx};
     if (with_inp_out_ids) {
-        m.inp_out_ids = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 1, -1});
-        m.inp_out_ids->output(0).set_names({"inp_out_ids"});
+        m.inp_out_ids = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_out_ids");
         params.push_back(m.inp_out_ids);
 
         // Mirrors translate_get_rows's rank-4/dim1==1 branch ("attn_out_g"/"inpSA_g" in a real
@@ -162,6 +157,22 @@ TEST(GGUFAdaptToGenAI, RewritesIOContract) {
     // logits reshaped to rank 3 [batch, seq, vocab].
     ASSERT_EQ(m.model->get_results().size(), 1);
     EXPECT_EQ(m.model->get_results()[0]->get_output_partial_shape(0).rank().get_length(), 3);
+}
+
+TEST(GGUFAdaptToGenAI, AcceptsPrunedTokenCountInput) {
+    auto m = build_minimal_gguf_model();
+    auto count = find_parameter(m.model, "token_len_per_seq");
+    ASSERT_NE(count, nullptr);
+    ASSERT_TRUE(count->output(0).get_target_inputs().empty());
+    m.model->remove_parameter(count);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    EXPECT_NE(find_parameter(m.model, "input_ids"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "attention_mask"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "position_ids"), nullptr);
+    EXPECT_EQ(m.model->get_results().size(), 1);
+    EXPECT_EQ(m.model->output().get_partial_shape().rank().get_length(), 3);
+    EXPECT_FALSE(AdaptToGenAI().run_on_model(m.model));
 }
 
 // Without the required gguf inputs present, the pass is a no-op (e.g. a model already adapted, or
@@ -402,16 +413,11 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
 namespace {
 
 std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hidden) {
-    auto inp_tokens = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 1, -1});
-    inp_tokens->output(0).set_names({"inp_tokens"});
-    auto inp_pos = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{1, 1, 1, -1});
-    inp_pos->output(0).set_names({"inp_pos"});
-    auto self_kq_mask = std::make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{1, 1, -1, -1});
-    self_kq_mask->output(0).set_names({"self_kq_mask"});
-    auto token_len_per_seq = std::make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1});
-    token_len_per_seq->output(0).set_names({"token_len_per_seq"});
-    auto beam_idx = std::make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
-    beam_idx->output(0).set_names({"beam_idx"});
+    auto inp_tokens = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_tokens");
+    auto inp_pos = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_pos");
+    auto self_kq_mask = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask");
+    auto token_len_per_seq = ov::test::utils::make_param(ov::element::i64, ov::PartialShape{1}, "token_len_per_seq");
+    auto beam_idx = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{-1}, "beam_idx");
 
     // Token embedding table: row i is filled with value i (so the expected running-mean output
     // is trivial to compute from the token ids alone).
