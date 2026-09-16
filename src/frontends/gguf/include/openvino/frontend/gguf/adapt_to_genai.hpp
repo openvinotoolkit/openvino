@@ -31,6 +31,7 @@ namespace pass {
 /// the KV-cache sinks are preserved, and beam_idx (created by the make-stateful pass) passes
 /// through unchanged since genai sets that tensor itself.
 ///
+/// token_len_per_seq is optional when the source graph does not consume it.
 /// If the required gguf inputs are absent (e.g. the model is already in genai form), the
 /// pass is a no-op and returns false.
 ///

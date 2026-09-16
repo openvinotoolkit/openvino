@@ -1,35 +1,21 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Entry point of the native GGUF -> GgufGraph path: parse the container, decide which model FAMILY
-// the file holds, and hand it to that family's ModelBuilder. No llama.cpp / gguf dependency.
-//
-// The emitted nodes use the GGML op vocabulary and reproduce llama.cpp's cgraph topology, so the
-// resulting GgufGraph drives the same op translators as the llama.cpp cgraph path.
-//
-// Layering (see docs/adding_an_architecture.md):
-//   graph_emitter.hpp     arch-agnostic "how do I write a node"
-//   blocks/               reusable graph fragments (norm, ffn, attention, gated delta net)
-//   decoder_config.hpp    all per-architecture detection for the decoder family
-//   arch/decoder_builder  the decoder family's topology
-//   arch_registry.hpp     which architectures are accepted, and their RoPE mode
-//   model_kind.hpp        which family a file belongs to
-//
-// Adding an ARCHITECTURE of an existing family is a name in arch_registry.cpp.
-// Adding a FAMILY (mmproj vision/audio, encoder-decoder) is a new ModelBuilder subclass plus a
-// branch in build_ggml_graph_from_gguf below; nothing existing changes.
+// Parse GGUF, select an architecture definition, and build a graph for the shared op translators.
+// See docs/adding_an_architecture.md for the builder layers and registration paths.
 
 #include "gguf_builder.hpp"
 
 #include <memory>
 #include <type_traits>
 
+#include "builder/api/metadata_store.hpp"
 #include "builder/arch/decoder_builder.hpp"
 #include "builder/arch_registry.hpp"
-#include "builder/model_builder.hpp"
 #include "builder/model_kind.hpp"
 #include "gguf_graph.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/frontend/gguf/builder/model_builder.hpp"
 #include "openvino/util/log.hpp"
 #include "quant/gguf.hpp"
 
@@ -67,37 +53,48 @@ ov::AnyMap extract_tokenizer_config(const std::unordered_map<std::string, GGUFMe
 
 }  // namespace
 
-std::shared_ptr<GgufGraph> build_ggml_graph_from_gguf(const std::string& file) {
-    auto [metadata, weights, qtypes, mmap, quant_buf] = get_gguf_data(file);
+GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& registry) {
+    auto data = std::make_shared<decltype(get_gguf_data(file))>(get_gguf_data(file));
+    auto& [metadata, weights, qtypes, mmap, quant_buf] = *data;
 
-    // Decide the family FIRST: the metadata key layout differs per family, so reading any
-    // decoder hyperparameter before this point would misreport an mmproj file as a broken LLM.
-    const ModelKind kind = detect_model_kind(metadata);
-    OPENVINO_ASSERT(kind == ModelKind::DECODER,
-                    "[GGUF] this file holds a ",
-                    model_kind_name(kind),
-                    " model; the native GGUF builder currently implements the decoder family only. "
-                    "Support is added by implementing a ModelBuilder subclass for that family (see "
-                    "builder/model_builder.hpp).");
+    const detail::MetadataStore meta_store{metadata};
+    const GgufMetadata meta_view(meta_store);
 
-    auto config = decoder_config_from_meta(metadata);
-
-    const std::string arch = std::get<std::string>(config.at("architecture"));
-    OPENVINO_ASSERT(supported_archs().count(arch),
-                    "[GGUF] native GGUF builder does not support architecture '",
-                    arch,
-                    "'. See supported_archs() in builder/arch_registry.cpp for the full list.");
-    if (experimental_archs().count(arch)) {
-        OPENVINO_WARN("[GGUF] architecture '",
-                      arch,
-                      "' is experimental: it is built by structural auto-detection but has not been "
-                      "end-to-end verified against a reference. Validate accuracy before relying on it.");
+    // Built-in and external definitions share selection, construction and postprocessing.
+    // Family detection is only a diagnostic fallback; it must not reject a registered family.
+    const auto definition = registry.find(meta_view);
+    if (!definition) {
+        const auto kind = detect_model_kind(metadata);
+        OPENVINO_ASSERT(kind == ModelKind::DECODER,
+                        "[GGUF] no builder for ",
+                        model_kind_name(kind),
+                        "; the default catalog implements the decoder family. Register an ArchitectureExtension.");
+        OPENVINO_THROW("[GGUF] native GGUF builder does not support architecture '",
+                       meta_view.architecture(),
+                       "'. Supported: ",
+                       registry.describe_supported(),
+                       ". Register an ArchitectureExtension.");
     }
-
-    std::unique_ptr<ModelBuilder> builder = std::make_unique<DecoderBuilder>(config, weights, qtypes);
-    auto graph = builder->build();
-    graph->tokenizer_config = extract_tokenizer_config(metadata);
-    return graph;
+    if (definition->maturity == Maturity::Experimental) {
+        OPENVINO_WARN("[GGUF] architecture handler '",
+                      definition->id,
+                      "' is experimental; validate accuracy before relying on it.");
+    }
+    return [data, definition = *definition](const std::unordered_map<std::string, CreatorFunction>& translators) {
+        const auto& [metadata, source_weights, source_qtypes, mmap, quant_buf] = *data;
+        auto weights = source_weights;
+        auto qtypes = source_qtypes;
+        const detail::MetadataStore meta_store{metadata};
+        const GgufMetadata meta_view(meta_store);
+        detail::WeightStore weight_store{weights, qtypes, &translators};
+        BuildContext ctx{meta_view, meta_view.architecture(), &weight_store};
+        auto builder = definition.factory(ctx);
+        OPENVINO_ASSERT(builder, "[GGUF] architecture handler '", definition.id, "' returned no builder");
+        auto graph = builder->build();
+        OPENVINO_ASSERT(graph, "[GGUF] architecture handler '", definition.id, "' returned no graph");
+        graph->tokenizer_config = extract_tokenizer_config(metadata);
+        return graph;
+    };
 }
 
 }  // namespace gguf
