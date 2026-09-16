@@ -9,34 +9,34 @@ endif()
 set(TARGET_NAME openvino_hetero_plugin)
 
 set(SOURCES
-    src/async_infer_request.cpp
-    src/blob_serialization.cpp
-    src/compiled_model.cpp
-    src/config.cpp
-    src/graph_debug_dump.cpp
-    src/op/device_subgraph.cpp
-    src/plugin.cpp
-    src/remote_context.cpp
-    src/remote_tensor.cpp
-    src/subgraph_collector.cpp
-    src/sync_infer_request.cpp
-    src/version.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_serialization.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graph_debug_dump.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/device_subgraph.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_tensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/subgraph_collector.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sync_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp)
 
 set(HEADERS
-    src/async_infer_request.hpp
-    src/blob_serialization.hpp
-    src/compiled_model.hpp
-    src/config.hpp
-    src/graph_debug_dump.hpp
-    src/itt.hpp
-    src/op/device_subgraph.hpp
-    src/perf_log.hpp
-    src/plugin.hpp
-    src/properties.hpp
-    src/remote_context.hpp
-    src/remote_tensor.hpp
-    src/subgraph_collector.hpp
-    src/sync_infer_request.hpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/blob_serialization.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/config.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/graph_debug_dump.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/itt.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/device_subgraph.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/perf_log.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/properties.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_tensor.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/subgraph_collector.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/sync_infer_request.hpp)
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"

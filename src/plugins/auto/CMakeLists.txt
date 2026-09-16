@@ -9,19 +9,19 @@ endif()
 set (TARGET_NAME "openvino_auto_plugin")
 
 set(SOURCES
-    src/async_infer_request.cpp
-    src/auto_compiled_model.cpp
-    src/auto_schedule.cpp
-    src/compiled_model.cpp
-    src/cumulative_compiled_model.cpp
-    src/cumulative_schedule.cpp
-    src/infer_request.cpp
-    src/plugin.cpp
-    src/plugin_config.cpp
-    src/schedule.cpp
-    src/utils/device_telemetry.cpp
-    src/utils/log.cpp
-    src/utils/time_utils.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/auto_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/auto_schedule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/cumulative_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/cumulative_schedule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/schedule.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/device_telemetry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/log.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/time_utils.cpp)
 
 # Build the optional IPF telemetry client used by the device utilization monitor.
 add_subdirectory(thirdparty)

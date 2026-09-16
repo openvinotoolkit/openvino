@@ -10,19 +10,19 @@ set(TARGET_NAME "openvino_proxy_plugin_obj")
 
 set(PUBLIC_HEADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dev_api)
 set(LIBRARY_SRC
-    src/infer_request.cpp
-    src/plugin.cpp
-    src/remote_context.cpp
-    src/remote_tensor.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_tensor.cpp)
 
 set(LIBRARY_HEADERS
-    dev_api/openvino/proxy/infer_request.hpp
-    dev_api/openvino/proxy/plugin.hpp
-    dev_api/openvino/proxy/properties.hpp
-    src/compiled_model.hpp
-    src/plugin.hpp
-    src/remote_context.hpp
-    src/remote_tensor.hpp)
+    ${PUBLIC_HEADERS_DIR}/openvino/proxy/infer_request.hpp
+    ${PUBLIC_HEADERS_DIR}/openvino/proxy/plugin.hpp
+    ${PUBLIC_HEADERS_DIR}/openvino/proxy/properties.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/compiled_model.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/plugin.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_tensor.hpp)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj
