@@ -211,6 +211,9 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHost) {
 
     const std::vector<float> expected{0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f};
     auto actual = request.get_output_tensor();
+    // This asserts the caller-pointer contract and correctness, not that zero-copy actually happened
+    // (data() stays the caller pointer even on the copy path). The graph-shares-caller-allocation
+    // assertion lives in unit/dynamic_execution/zero_copy_output_test.cpp, which can see graph memory.
     ASSERT_EQ(actual.data(), usm_allocation.get());
     ASSERT_EQ(actual.get_size(), expected.size());
     for (size_t i = 0; i < actual.get_size(); ++i) {
@@ -549,6 +552,58 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputAliasIsSafe) {
     }
 }
 
+// A remote output that was bound zero-copy in an earlier non-aliased inference and only later
+// aliases an input must drop the stale binding, otherwise set_output_memory() rebinds the aliased buffer.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputBecomesAliasedIsSafe) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    constexpr size_t K = 1024;
+    const ov::Shape shape{2, K};
+    std::vector<float> weights_data;
+    auto model = makeDynamicMatMulModel(K, weights_data);
+    auto compiled_model = core.compile_model(model,
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    auto remote_output = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto* out_buffer = static_cast<float*>(remote_output.get());
+    std::vector<float> input_values(ov::shape_size(shape));
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        input_values[i] = static_cast<float>((i % 5)) - 2.0f;
+    }
+    const auto expected = reference_matmul(shape, K, input_values, weights_data);
+
+    // First inference: distinct input, remote output bound zero-copy (no aliasing yet).
+    ov::Tensor distinct_input(ov::element::f32, shape);
+    std::copy(input_values.begin(), input_values.end(), distinct_input.data<float>());
+    request.set_input_tensor(distinct_input);
+    request.set_output_tensor(remote_output);
+    OV_ASSERT_NO_THROW(request.infer());
+
+    // Now feed the same remote tensor back as input: the previously cached zero-copy binding must
+    // be dropped so the kernel doesn't read and overwrite the same buffer.
+    request.set_input_tensor(remote_output);
+
+    // The stale-binding race has a narrow window (depends on infer-1's binding surviving), so use a
+    // higher iteration count than the from-start alias tests to sample it reliably.
+    constexpr int kIterations = 64;
+    for (int iter = 0; iter < kIterations; ++iter) {
+        std::copy(input_values.begin(), input_values.end(), out_buffer);
+
+        OV_ASSERT_NO_THROW(request.infer());
+
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_NEAR(out_buffer[i], expected[i], 1e-2f)
+                << "remote output corrupted after becoming aliased at element " << i << " on iteration " << iter;
+        }
+    }
+}
+
 TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostPartialInputAliasFallsBack) {
     auto core = ov::Core();
     if (!gpu_supports_usm_host_output_sharing(core)) {
@@ -597,10 +652,80 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostPartialInputAliasFallsBack
     }
 }
 
+// The output overlap must use the caller buffer's capacity, not the current (possibly shrunk) logical
+// shape: after wait() shrinks the output, an input parked in the allocation tail looks disjoint by
+// logical span but is overwritten once the output grows back during execution. The alias guard must
+// still fall back to a plugin buffer + copy-out. Bind large -> shrink -> park input in tail -> grow.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostShrinkThenGrowTailAliasIsSafe) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    constexpr size_t K = 1024;
+    constexpr size_t capacity_rows = 4;
+    std::vector<float> weights_data;
+    auto model = makeDynamicMatMulModel(K, weights_data);
+    auto compiled_model = core.compile_model(model,
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    // One allocation of capacity_rows x K; the output view starts at row 0, the aliasing input at row 1.
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, ov::Shape{capacity_rows, K});
+    auto* usm_data = static_cast<float*>(usm_allocation.get());
+
+    // Bind the output at full capacity first so its recorded actual_size is capacity_rows x K.
+    ov::Tensor output_tensor(ov::element::f32, ov::Shape{capacity_rows, K}, usm_data);
+    request.set_output_tensor(output_tensor);
+
+    // Warm-up at capacity, then shrink the output to a single row via a 1-row inference.
+    {
+        ov::Tensor warm_input(ov::element::f32, ov::Shape{capacity_rows, K});
+        std::fill_n(warm_input.data<float>(), warm_input.get_size(), 1.0f);
+        request.set_input_tensor(warm_input);
+        OV_ASSERT_NO_THROW(request.infer());
+
+        ov::Tensor shrink_input(ov::element::f32, ov::Shape{1, K});
+        std::fill_n(shrink_input.data<float>(), shrink_input.get_size(), 1.0f);
+        request.set_input_tensor(shrink_input);
+        OV_ASSERT_NO_THROW(request.infer());  // wait() shrinks the output tensor to {1, K}
+    }
+
+    // Park a 2-row input in the tail (rows 1..3): disjoint from the shrunk 1-row output span, but the
+    // output grows to 2 rows during execution and overwrites row 1 unless the guard uses capacity.
+    const ov::Shape grow_shape{2, K};
+    auto* input_ptr = usm_data + K;  // row 1
+    ov::Tensor tail_input(ov::element::f32, grow_shape, input_ptr);
+    request.set_input_tensor(tail_input);
+
+    std::vector<float> input_values(ov::shape_size(grow_shape));
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        input_values[i] = static_cast<float>((i % 5)) - 2.0f;
+    }
+    const auto expected = reference_matmul(grow_shape, K, input_values, weights_data);
+
+    constexpr int kIterations = 16;
+    for (int iter = 0; iter < kIterations; ++iter) {
+        std::copy(input_values.begin(), input_values.end(), input_ptr);
+
+        OV_ASSERT_NO_THROW(request.infer());
+
+        auto actual = request.get_output_tensor();
+        ASSERT_EQ(actual.data(), usm_data);
+        ASSERT_EQ(actual.get_size(), expected.size());
+        const auto* actual_data = actual.data<const float>();
+        for (size_t i = 0; i < actual.get_size(); ++i) {
+            ASSERT_NEAR(actual_data[i], expected[i], 1e-2f)
+                << "tail-aliased input corrupted after shrink-then-grow at element " << i << " on iteration " << iter;
+        }
+    }
+}
+
 // AUTO_BATCH's shared buffer must be sized batch=N, not the slot's own batch=1 port. Checked
 // by value: an offset bug doesn't change the exposed shape, only which bytes get read/written.
-TEST(TensorTest, smoke_lazyAllocAutoBatchUsesBatchedShapeNotSlotShape) {
-    constexpr int kBatch = 4;
+TEST(TensorTest, smoke_lazyAllocAutoBatchUsesBatchedShapeNotSlotShape) {    constexpr int kBatch = 4;
     ov::Shape shape;
     auto model = makeStaticInputModel(shape);
 
