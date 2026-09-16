@@ -67,6 +67,10 @@ void ze_command_list::close_impl() {
 }
 
 void ze_command_list::enqueue_impl() {
+    // Regular command lists (_cmd_list) only records GPU commands - they do not submit work to hardware directly.
+    // ze_stream owns an immediate command list (imm_cmd_list), which acts as the active submission handle connected directly to the GPU execution queue.
+    // This function uses zeCommandListImmediateAppendCommandListsWithParameters to append the fully-recorded batch of commands (_cmd_list)
+    // into the stream's immediate command list, submitting all recorded work to the GPU for execution in a single call.
     auto& ze_stream = _stream;
     ze_command_list_handle_t imm_cmd_list = ze_stream.get_immediate_command_list().handle();
     ze_command_list_handle_t enqueued_cmd_list = _cmd_list.handle();
