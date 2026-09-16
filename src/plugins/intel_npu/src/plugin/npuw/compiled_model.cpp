@@ -1669,7 +1669,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
-                LOG_INFO("WEIGHT_BUFFER closure_register_slot model=" << this << " subgraph=" << idx
+                LOG_DEBUG("WEIGHT_BUFFER closure_register_slot model=" << this << " subgraph=" << idx
                                                                         << " closure=" << tidx
                                                                         << " closure_initialized="
                                                                         << static_cast<bool>(comp_model_desc.closure.unsafe_get().closure[tidx])
@@ -1680,14 +1680,14 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
                     continue;  // host-side closure
                 }
-                LOG_INFO("WEIGHT_BUFFER register_begin model=" << this << " subgraph=" << idx << " closure=" << tidx);
+                LOG_DEBUG("WEIGHT_BUFFER register_begin model=" << this << " subgraph=" << idx << " closure=" << tidx);
                 const auto registration_device = submodel_device(real_idx);
-                LOG_INFO("WEIGHT_BUFFER register_device model=" << this << " subgraph=" << idx
+                LOG_DEBUG("WEIGHT_BUFFER register_device model=" << this << " subgraph=" << idx
                                                                   << " closure=" << tidx
                                                                   << " device=" << registration_device);
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
                     m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], registration_device);
-                LOG_INFO("WEIGHT_BUFFER register_done model=" << this << " subgraph=" << idx << " closure=" << tidx
+                LOG_DEBUG("WEIGHT_BUFFER register_done model=" << this << " subgraph=" << idx << " closure=" << tidx
                                                                << " uid="
                                                                << comp_model_desc.closure.unsafe_get().closure_uid[tidx]);
                 LOG_DEBUG("WEIGHT_BUFFER register model=" << this << " subgraph=" << idx << " function=" << real_idx
@@ -1722,7 +1722,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                                                                    << " closures=" << desc_closure.closure.size());
 
             for (std::size_t tidx = 0; tidx < desc_closure.closure.size(); ++tidx) {
-                LOG_INFO("WEIGHT_BUFFER closure_finalize_slot model=" << this << " subgraph=" << idx
+                LOG_DEBUG("WEIGHT_BUFFER closure_finalize_slot model=" << this << " subgraph=" << idx
                                                                         << " closure=" << tidx
                                                                         << " closure_initialized="
                                                                         << static_cast<bool>(desc_closure.closure[tidx])

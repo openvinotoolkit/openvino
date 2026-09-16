@@ -47,11 +47,11 @@ void Context::to_f16(const PPtr& orig_param) {
     orig_param->validate_and_infer_types();
 }
 
-void Context::subtract_128(const PPtr& orig_param) {
-    closures_to_subtract_128.insert(orig_param);
-
-    orig_param->set_element_type(ov::element::i8);
-    orig_param->validate_and_infer_types();
+Context::PPtr Context::subtract_128(const PPtr& orig_param) {
+    auto shifted_param = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, orig_param->get_partial_shape());
+    shifted_param->set_friendly_name(orig_param->get_friendly_name() + "_sub128");
+    closures_to_subtract_128.emplace(shifted_param, orig_param);
+    return shifted_param;
 }
 
 void Context::register_parallel_matmul(const O& multiply, std::size_t axis, DQParMM&& mm) {
@@ -1297,6 +1297,38 @@ DQLiftGatherSymGQ::DQLiftGatherSymGQ() {
     register_matcher(std::make_shared<opp::Matcher>(gather, "DQGatherSymGQ"), std::move(callback));
 }
 
+ConvertDQVocab::ConvertDQVocab(Context::Ref ctx) {
+    const auto weight = opp::wrap_type<ov::op::v0::Parameter>(opp::type_matches(ov::element::u8));
+    const auto zerop = opp::wrap_type<ov::op::v0::Parameter>(opp::type_matches(ov::element::u8));
+    const auto weight_convert = opp::wrap_type<ov::op::v0::Convert>({weight});
+    const auto zerop_convert = opp::wrap_type<ov::op::v0::Convert>({zerop});
+    const auto weight_shift = opp::wrap_type<ov::op::v1::Subtract>({weight_convert, opp::any_input()}, is_subtract_128);
+    const auto zerop_shift = opp::wrap_type<ov::op::v1::Subtract>({zerop_convert, opp::any_input()}, is_subtract_128);
+    const auto dequantized = opp::wrap_type<ov::op::v1::Subtract>({weight_shift, zerop_shift});
+
+    auto callback = [=](ov::pass::pattern::Matcher& matcher) {
+        const auto& values = matcher.get_pattern_value_map();
+        for (const auto& convert : {weight_convert, zerop_convert}) {
+            const auto type = values.at(convert).get_element_type();
+            if (type != ov::element::f16 && type != ov::element::f32) {
+                return false;
+            }
+        }
+
+        for (const auto& shift : {weight_shift, zerop_shift}) {
+            const auto matched_shift = values.at(shift).get_node_shared_ptr();
+            const auto convert = matched_shift->input_value(0).get_node_shared_ptr();
+            const auto source = ov::as_type_ptr<ov::op::v0::Parameter>(convert->input_value(0).get_node_shared_ptr());
+            OPENVINO_ASSERT(source, "ConvertDQVocab source must be a parameter");
+            auto shifted = ctx.get().subtract_128(source);
+            convert->input(0).replace_source_output(shifted);
+            ov::replace_node(matched_shift, convert);
+        }
+        return true;
+    };
+    register_matcher(std::make_shared<opp::Matcher>(dequantized, "ConvertDQVocab"), std::move(callback));
+}
+
 // This is a companion to DQLiftGatherAsymCW step. This pass runs if
 // the respective block (mainly, a head) was turned a function
 // (e.g. with FUNCALL_FOR_ALL) As in this case the DQUnpackDictMatMulCWu
@@ -1469,16 +1501,18 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
             if (weight_is_sub128 != zerop_is_sub128) {
                 return false;
             }
+            auto host_weight = matched_qweight;
+            auto host_zerop = matched_qzerop;
             if (weight_is_sub128) {
-                ctx.get().subtract_128(matched_qweight);
-                ctx.get().subtract_128(matched_qzerop);
+                host_weight = ctx.get().subtract_128(matched_qweight);
+                host_zerop = ctx.get().subtract_128(matched_qzerop);
             }
 
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with future- unpacked and gathered
             // fp16
             auto new_wi = ctx.get().host_gather_unpack_quant(matched_ids,
-                                                             matched_qweight,
-                                                             matched_qzerop,
+                                                             host_weight,
+                                                             host_zerop,
                                                              matched_qcoeff,
                                                              ov::element::f16);
             matched_node_cvt->input(0).replace_source_output(new_wi);

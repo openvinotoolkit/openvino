@@ -36,8 +36,8 @@ struct Context {
     std::set<PPtr> closures_to_f16;
     void to_f16(const PPtr& orig_param);
 
-    std::set<PPtr> closures_to_subtract_128;
-    void subtract_128(const PPtr& orig_param);
+    std::map<PPtr, PPtr> closures_to_subtract_128;
+    PPtr subtract_128(const PPtr& orig_param);
 
     using O = ov::Output<ov::Node>;
     struct DQParMM {
@@ -154,6 +154,12 @@ public:
 };
 
 // Head vocab unpacks
+
+class ConvertDQVocab : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ConvertDQVocab");
+    explicit ConvertDQVocab(Context::Ref ctx);
+};
 
 class DQUnpackDictGatheru : public ov::pass::MatcherPass {
 public:
