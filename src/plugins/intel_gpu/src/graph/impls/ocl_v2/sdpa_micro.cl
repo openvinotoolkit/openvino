@@ -40,17 +40,39 @@
 #define q_tile_sg_n DIV_UP(ugemm_kq_wg_tile_n, sg_per_wg)
 
 /* Instantiate tile types and operations */
+#if I8_KQ
+/* K^T*Q runs on the integer pipe, so ugemm_kq accumulates in s32. Everything downstream of
+   the gemm -- mask, softmax, VS -- stays float, so the s32 tile is converted and dequantized
+   the moment it comes back. */
+#define Q_SLM_ROWS (D_MAX / 4)
+#if Q_SLM_ROWS % SUBGROUP_SIZE
+#error "I8_KQ needs D_MAX / 4 to be a multiple of the subgroup size"
+#endif
+typedef ugemm_kq_c_type s_tile_type_int;
+DECLARE_2D_TILE(s_tile_type, float, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+        ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0,
+        ugemm_kq_c_type_nblock1)
+#else
+#define Q_SLM_ROWS (D_MAX / 2)
 typedef ugemm_kq_c_type s_tile_type;
+#endif
 typedef ugemm_vs_c_type a_tile_type;
+/* The integer path takes an externally quantized operand. The compressed KV cache is i8 too
+   but carries scales/zero-points and must keep its decompression path, so never combine. */
+#if I8_KQ && (IS_PAGED_ATTENTION || KEY_SCALES || KEY_ZERO_POINTS)
+#error "I8_KQ is incompatible with the compressed KV cache"
+#endif
 
-DECLARE_2D_TILE(q_tile_type, uint, SUBGROUP_SIZE, D_MAX / 2, 1, 1, q_tile_sg_n)
+DECLARE_2D_TILE(q_tile_type, uint, SUBGROUP_SIZE, Q_SLM_ROWS, 1, 1, q_tile_sg_n)
 
+#if !I8_KQ
 #ifdef BLOCK_Q
 DECLARE_2D_TILE_BLOCK_OPS(
         q_tile_type, uint, SUBGROUP_SIZE, D_MAX / 2, 1, 1, q_tile_sg_n)
 #elif Q_ALIGN < 4
 DECLARE_2D_TILE_LOAD_PACKED_HALF(
         q_tile_type, SUBGROUP_SIZE, D_MAX / 2, 1, 1, q_tile_sg_n)
+#endif
 #endif
 
 #ifdef BLOCK_A
@@ -371,7 +393,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     uint sg_j_vs = sg_ij / ugemm_vs_sg_per_wg_m;
 
     /* SLM allocations -- place in one array to work around compiler bug */
-#define Q_slm_size (D_MAX * ugemm_kq_wg_tile_n * sizeof(half))
+#define Q_slm_size (Q_SLM_ROWS * 4 * ugemm_kq_wg_tile_n)
 #define S_slm_size (ugemm_kq_wg_tile_m * ugemm_kq_wg_tile_n * sizeof(half))
 #define S_sum_slm_size \
     (ugemm_kq_wg_tile_n * ugemm_kq_sg_per_wg_m * sizeof(float))
@@ -476,7 +498,33 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Load Q tile, destined for SLM */
     q_tile_type Q_tile;
     uint q0_copy = q_tile_sg_n * sg_ij;
-#ifdef BLOCK_Q
+#if I8_KQ
+    /* Quantize Q on the way in: four consecutive head-dim values per lane become one
+       VNNI-packed dword of s8, which is the crosspack-4 layout ugemm_kq wants for B. */
+    {
+        const uint lid = get_sub_group_local_id();
+#pragma unroll
+        for (int j = 0; j < q_tile_sg_n; j++) {
+            int q_col = wg_j0 + q0_copy + j;
+            bool in_range = (q_col < q);
+            const global QRY_DATA_T *qp = Q + (size_t)q_col * ldq;
+#pragma unroll
+            for (int i0 = 0; i0 < Q_SLM_ROWS; i0 += SUBGROUP_SIZE) {
+                int r = i0 + lid;
+                float4 v = (float4)(0.0f);
+                if (in_range && 4 * r < d) {
+                    v.s0 = convert_float(qp[4 * r + 0]);
+                    v.s1 = convert_float(qp[4 * r + 1]);
+                    v.s2 = convert_float(qp[4 * r + 2]);
+                    v.s3 = convert_float(qp[4 * r + 3]);
+                }
+                char4 c = convert_char4_sat_rte(v);
+                tile_access(Q_tile, i0, j, SUBGROUP_SIZE, Q_SLM_ROWS, 1, 1)
+                        = as_uint(c);
+            }
+        }
+    }
+#elif defined(BLOCK_Q)
     tile_load_block_rem_q(
             &Q_tile, (global uint *)Q, q, ldq >> 1, 0, wg_j0 + q0_copy);
 #elif Q_ALIGN >= 4
@@ -590,7 +638,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
     /* Store Q tile to SLM */
     tile_store_t_sys_src1(
-            Q_tile, (local uint *)&Q_slm[0], D_MAX / 2, q0_copy, 0);
+            Q_tile, (local uint *)&Q_slm[0], Q_SLM_ROWS, q0_copy, 0);
 
     /* Clear S column sums/maxes */
     s_sum_tile_type S_sum_tile;
@@ -615,6 +663,30 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         uint sg_j0_kq = sg_j_kq * ugemm_kq_sg_tile_n;
 
 #if WITH_ATTN_MASK
+#if MASK_PER_KEY
+        /* Query-invariant mask ([b, h, 1, k]): one value per KEY, so load a sg_tile_m
+         * vector coalesced and broadcast it across the query direction at apply time.
+         * The general path below materialises a full S-shaped tile through a transposed
+         * load instead, which costs sg_tile_n times the traffic and registers for the
+         * same information. */
+        mask_tile_type_float mask_k;
+#ifdef LOG_2_E_MUL_SCALE
+        /* same as the general arm's unscale, applied per written lane instead of tile-wide */
+#define mask_k_prep(x) ((x) * iscale)
+#else
+#define mask_k_prep(x) (x)
+#endif
+#pragma unroll
+        for (int ii = 0; ii < ugemm_kq_sg_tile_m / SUBGROUP_SIZE; ii++) {
+            const int key_idx = k0 + sg_i0_kq + ii * SUBGROUP_SIZE + get_sub_group_local_id();
+#if INPUT0_IS_BF16
+            /* the mask buffer holds bf16 values read through a half*; reinterpret the bits */
+            mask_k.x[0][ii] = key_idx < MSK_D3 ? mask_k_prep(_convert_as_bfloat16_float(as_ushort(msk[key_idx]))) : 0.0f;
+#else
+            mask_k.x[0][ii] = key_idx < MSK_D3 ? mask_k_prep(convert_float(msk[key_idx])) : 0.0f;
+#endif
+        }
+#else
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
         mask_tile_type mask_tile;
         if (MSK_D2 == 1 && MSK_D3 > 1) {
@@ -625,6 +697,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         } else {
             tile_load_t(&mask_tile, msk, q, k, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
         }
+#endif
 #endif
 
 #if REMAINDER_K
@@ -860,6 +933,17 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
     #endif
 #endif /* PA_INTEGRITY_CHECK */
+#elif I8_KQ
+        s_tile_type S_tile;
+        {
+            s_tile_type_int S_tile_i = ugemm_kq((const global char *)K, ldk,
+                    (const local char *)Q_slm, D_MAX, causal_k,
+                    ugemm_kq_wg_tile_n, d, k0, 0, 0, sg_i_kq, sg_j_kq,
+                    (local char *)ugemm_slm);
+            /* No dequantization here: the caller folds both quantization steps into the
+               scale input, which is applied to S a few lines below. */
+            tile_copy(S_tile_i, S_tile);
+        }
 #else
         s_tile_type S_tile
                 = ugemm_kq(K, ldk, Q_slm, D_MAX, causal_k, ugemm_kq_wg_tile_n, d, k0,
@@ -962,6 +1046,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
 #define mask_scale_op(x) ((x) + masked_scale)
         tile_elementwise(S_tile, mask_scale_op);
+#elif WITH_ATTN_MASK && MASK_PER_KEY
+#ifndef LOG_2_E_MUL_SCALE
+#define scale(x) ((x)* scale)
+        tile_elementwise(S_tile, scale);
+#endif
+        tile_hbroadcast_add(&S_tile, mask_k);
 #elif WITH_ATTN_MASK
         mask_tile_type_float mask_tile_float;
 #if INPUT0_IS_BF16
@@ -1247,7 +1337,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         }
 #endif
         tile_copy_S_to_kv(S_tile, S_tile_half2);
-
         /* Store to SLM, in packed format */
         tile_store_t_sys_src2(S_tile_half2, (local uint *)S_slm,
                 ugemm_vs_sg_tile_n, ugemm_kq_wg_tile_m / 2, sg_i0_kq / 2,
