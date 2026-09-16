@@ -107,19 +107,24 @@ static std::optional<std::string> getVCLCompatibilityString(const VCLFunctionTab
     return compatibilityString;
 }
 
-#define THROW_ON_FAIL_FOR_VCL(step, ret, logHandle)                  \
-    {                                                                \
-        vcl_result_t result = ret;                                   \
-        if (result != VCL_RESULT_SUCCESS) {                          \
+/**
+ * @brief Throws with the VCL error log appended when `ret` is not VCL_RESULT_SUCCESS.
+ * @param functions The function table to fetch the error log through, passed explicitly rather than
+ * captured from the enclosing scope so the macro is usable outside VCLCompilerImpl members.
+ */
+#define THROW_ON_FAIL_FOR_VCL(functions, step, ret, logHandle)       \
+    do {                                                             \
+        const vcl_result_t vclResult_ = (ret);                       \
+        if (vclResult_ != VCL_RESULT_SUCCESS) {                      \
             OPENVINO_THROW("Failed to call VCL API : ",              \
                            step,                                     \
                            " result: 0x",                            \
                            std::hex,                                 \
-                           result,                                   \
+                           vclResult_,                               \
                            " - ",                                    \
-                           getLatestVCLLog(*_functions, logHandle)); \
+                           getLatestVCLLog((functions), logHandle)); \
         }                                                            \
-    }
+    } while (0)
 
 VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
                                  const std::optional<IDevice::DeviceProperties>& deviceProperties)
@@ -134,7 +139,10 @@ VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functio
                     "it populated from a VCLLoader?");
 
     // Initialize the VCL API
-    THROW_ON_FAIL_FOR_VCL("vclGetVersion", _functions->vclGetVersion(&_vclVersion, &_vclProfilingVersion), nullptr);
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclGetVersion",
+                          _functions->vclGetVersion(&_vclVersion, &_vclProfilingVersion),
+                          nullptr);
     _logger.info("Plugin VCL API Version: %d.%d", VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR);
     _logger.info("Plugin VCL Profiling API Version: %d.%d", VCL_PROFILING_VERSION_MAJOR, VCL_PROFILING_VERSION_MINOR);
     _logger.info("Lib VCL Compiler Version: %d.%d", _vclVersion.major, _vclVersion.minor);
@@ -182,10 +190,12 @@ VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functio
         vclDeviceDesc = {sizeof(vcl_device_desc_t), 0x00, std::numeric_limits<uint16_t>::max(), defaultTileCount};
     }
 
-    THROW_ON_FAIL_FOR_VCL("vclCompilerCreate",
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclCompilerCreate",
                           _functions->vclCompilerCreate(&compilerDesc, &vclDeviceDesc, &_compilerHandle, &_logHandle),
                           nullptr);
-    THROW_ON_FAIL_FOR_VCL("vclCompilerGetProperties",
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclCompilerGetProperties",
                           _functions->vclCompilerGetProperties(_compilerHandle, &_compilerProperties),
                           _logHandle);
     _logger.info("VCL Compiler created successfully");
@@ -487,12 +497,14 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
     vcl_profiling_handle_t profilingHandle;
     vcl_profiling_input_t profilingInput = {network.data(), network.size(), profData.data(), profData.size()};
     vcl_log_handle_t logHandle;
-    THROW_ON_FAIL_FOR_VCL("vclProfilingCreate",
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclProfilingCreate",
                           _functions->vclProfilingCreate(&profilingInput, &profilingHandle, &logHandle),
                           nullptr);
 
     vcl_profiling_properties_t profProperties;
-    THROW_ON_FAIL_FOR_VCL("vclProfilingGetProperties",
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclProfilingGetProperties",
                           _functions->vclProfilingGetProperties(profilingHandle, &profProperties),
                           logHandle);
 
@@ -505,7 +517,8 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
 
     vcl_profiling_output_t profOutput;
     profOutput.data = NULL;
-    THROW_ON_FAIL_FOR_VCL("vclGetDecodedProfilingBuffer",
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclGetDecodedProfilingBuffer",
                           _functions->vclGetDecodedProfilingBuffer(profilingHandle, request, &profOutput),
                           logHandle);
     if (profOutput.data == NULL) {
@@ -518,7 +531,10 @@ std::vector<ov::ProfilingInfo> VCLCompilerImpl::process_profiling_output(const s
         std::memcpy(layerInfo.data(), profOutput.data, profOutput.size);
     }
 
-    THROW_ON_FAIL_FOR_VCL("vclProfilingDestroy", _functions->vclProfilingDestroy(profilingHandle), logHandle);
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclProfilingDestroy",
+                          _functions->vclProfilingDestroy(profilingHandle),
+                          logHandle);
 
     // Return processed profiling info
     return intel_npu::profiling::convertLayersToIeProfilingInfo(layerInfo);
@@ -573,20 +589,28 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
 
     vcl_query_handle_t queryHandle;
     vcl_query_desc_t queryDesc = {serializedIR.buffer.get(), serializedIR.size, buildFlags.c_str(), buildFlags.size()};
-    THROW_ON_FAIL_FOR_VCL("vclQueryNetworkCreate",
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclQueryNetworkCreate",
                           _functions->vclQueryNetworkCreate(_compilerHandle, queryDesc, &queryHandle),
                           _logHandle);
 
     uint64_t size = 0;
-    THROW_ON_FAIL_FOR_VCL("vclQueryNetwork", _functions->vclQueryNetwork(queryHandle, nullptr, &size), _logHandle);
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclQueryNetwork",
+                          _functions->vclQueryNetwork(queryHandle, nullptr, &size),
+                          _logHandle);
 
     std::vector<char> supportedLayers(size);
     THROW_ON_FAIL_FOR_VCL(
+        *_functions,
         "vclQueryNetwork",
         _functions->vclQueryNetwork(queryHandle, reinterpret_cast<uint8_t*>(supportedLayers.data()), &size),
         _logHandle);
 
-    THROW_ON_FAIL_FOR_VCL("vclQueryNetworkDestroy", _functions->vclQueryNetworkDestroy(queryHandle), _logHandle);
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclQueryNetworkDestroy",
+                          _functions->vclQueryNetworkDestroy(queryHandle),
+                          _logHandle);
 
     const std::string deviceName = "NPU";
     ov::SupportedOpsMap result;
@@ -602,7 +626,8 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
 std::vector<std::string> VCLCompilerImpl::get_supported_options() const {
     _logger.debug("get_supported_options start");
     size_t str_size = 0;
-    THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclGetCompilerSupportedOptions",
                           _functions->vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size),
                           _logHandle);
 
@@ -613,7 +638,8 @@ std::vector<std::string> VCLCompilerImpl::get_supported_options() const {
 
     _logger.debug("obtain list");
     std::vector<char> options(str_size);
-    THROW_ON_FAIL_FOR_VCL("vclGetCompilerSupportedOptions",
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclGetCompilerSupportedOptions",
                           _functions->vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
                           _logHandle);
 
@@ -641,7 +667,8 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     try {
         const char* optname_ch = option.c_str();
         const char* optvalue_ch = optValue.has_value() ? optValue.value().c_str() : nullptr;
-        THROW_ON_FAIL_FOR_VCL("vclGetCompilerIsOptionSupported",
+        THROW_ON_FAIL_FOR_VCL(*_functions,
+                              "vclGetCompilerIsOptionSupported",
                               _functions->vclGetCompilerIsOptionSupported(_compilerHandle, optname_ch, optvalue_ch),
                               _logHandle);
         return true;
