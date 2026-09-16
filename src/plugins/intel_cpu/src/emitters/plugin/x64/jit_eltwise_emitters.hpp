@@ -785,11 +785,8 @@ public:
     }
     jit_is_inf_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                        dnnl::impl::cpu::x64::cpu_isa_t hostIsa,
-                       [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
-                       ov::element::Type execPrc = ov::element::f32)
-        : jit_emitter(host, hostIsa, execPrc) {
-        prepare_table();
-    }
+                       const std::shared_ptr<ov::Node>& node,
+                       ov::element::Type execPrc = ov::element::f32);
 
     size_t get_inputs_num() const override {
         return 1;
