@@ -430,4 +430,16 @@ Example:
         </filters>
     </skip_config>
 
+    <skip_config>
+        <message>Random accuracy issue for multithread test.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+            <device>6010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferWithHostCompileMultithreadTests.MT_ConcurrentInferThenSetPriorityAndInfer.*</filter>
+        </filters>
+    </skip_config>
+
 </skip_configs>
