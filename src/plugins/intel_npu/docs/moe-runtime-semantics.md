@@ -50,7 +50,9 @@ defaults.
   active expert's weights with a zero score. The request cache is keyed by that
   padded weight selection; scores and input/output tensors are rebound each time.
 - An entirely finite, exactly-zero mixture produces zero expert contribution
-  without expert inference. Prefill leaves its accumulator cleared. This is a
+  without expert inference. Prefill leaves its accumulator cleared. Both modes
+  emit an NPUW warning for the affected subgraph when warning logging is enabled,
+  so an unexpected all-zero router result can be investigated. This is a
   coefficient-handling guarantee, not a claim that all-zero routing is typical
   of trained models. It does not apply to nonfinite scores.
 - If prefill validation or inference fails, both request slots for every chunk
