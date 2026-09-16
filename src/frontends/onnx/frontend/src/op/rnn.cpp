@@ -29,8 +29,8 @@ struct RNNAttributes : public recurrent::OpAttributes {
 
 ov::OutputVector rnn(const ov::frontend::onnx::Node& node) {
     constexpr std::size_t gates_count = 1;
-    RNNAttributes attributes{node};
-    RNNInputMap input_map{node, gates_count};
+RNNInputMap input_map{node, gates_count};
+RNNAttributes attributes{node};
 
     auto rnn_sequence = std::make_shared<v5::RNNSequence>(input_map.at(recurrent::OpInput::X),
                                                           input_map.at(recurrent::OpInput::INIT_H),
