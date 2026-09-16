@@ -646,12 +646,28 @@ jobs:
         include:
           - TEST_TYPE: 'unit'
             SHARD_INDEX: 0
-          - TEST_TYPE: 'func'
-            SHARD_INDEX: 0
+          - TEST_TYPE: 'unit'
+            SHARD_INDEX: 1
+          - TEST_TYPE: 'unit'
+            SHARD_INDEX: 2
+          - TEST_TYPE: 'unit'
+            SHARD_INDEX: 3
+          - TEST_TYPE: 'unit'
+            SHARD_INDEX: 4
+          - TEST_TYPE: 'unit'
+            SHARD_INDEX: 5
+          - TEST_TYPE: 'unit'
+            SHARD_INDEX: 6
+          - TEST_TYPE: 'unit'
+            SHARD_INDEX: 7
+          - TEST_TYPE: 'unit'
+            SHARD_INDEX: 8
+          - TEST_TYPE: 'unit'
+            SHARD_INDEX: 9
     with:
       device: 'igpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      test_filter: ${{ github.event_name == 'pull_request' && matrix.TEST_TYPE == 'func' && '*KVCacheTests*smoke*' || '' }}
+      test_filter: ''
       shard_index: ${{ matrix.SHARD_INDEX }}
       total_shards: 10
       runner: "[ 'self-hosted', 'igpu', 'Linux' ]"
