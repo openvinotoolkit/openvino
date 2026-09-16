@@ -4704,6 +4704,11 @@ public:
     using EltwiseKernel_vload8::Validate;
 };
 
+struct vload8_padding_options {
+    int64_t upper_batch = 0;
+    bool pad_weights = true;
+};
+
 template <typename T>
 void test_vload8_feature_broadcast(data_types data_type,
                                    bool broadcast_first,
@@ -4713,11 +4718,12 @@ void test_vload8_feature_broadcast(data_types data_type,
                                    bool pad_broadcast = false,
                                    bool pad_output = false,
                                    format::type broadcast_format = format::bfyx,
-                                   bool matching_batch_padding = false) {
+                                   const vload8_padding_options& padding_options = {}) {
     auto& engine = get_test_engine();
     const layout values_layout(data_type, format::bfyx, values_size);
     const layout weights_layout(data_type, format::bfyx, weights_size);
-    const padding matching_padding({0, 0, 0, 0}, {1, 0, 0, 0});
+    const bool matching_batch_padding = padding_options.upper_batch != 0;
+    const padding matching_padding({0, 0, 0, 0}, {padding_options.upper_batch, 0, 0, 0});
     const bool reorder_output = pad_output || matching_batch_padding;
 
     auto values = engine.allocate_memory(values_layout);
@@ -4739,9 +4745,11 @@ void test_vload8_feature_broadcast(data_types data_type,
         primitive_id weights_id = "weights";
         if (matching_batch_padding) {
             values_id = "values_prepared";
-            weights_id = "weights_prepared";
             topo.add(reorder(values_id, input_info("values"), values_layout.with_padding(matching_padding)));
-            topo.add(reorder(weights_id, input_info("weights"), weights_layout.with_padding(matching_padding)));
+            if (padding_options.pad_weights) {
+                weights_id = "weights_prepared";
+                topo.add(reorder(weights_id, input_info("weights"), weights_layout.with_padding(matching_padding)));
+            }
         } else if (pad_broadcast || broadcast_format != format::bfyx) {
             weights_id = "weights_prepared";
             const layout prepared_layout(data_type, broadcast_format, weights_size, pad_broadcast ? padding{{0, 0, 0, 1}, 0} : padding{});
@@ -4830,7 +4838,7 @@ TEST(eltwise_gpu, vload8_same_shape_regression_bit_exact) {
     test_vload8_feature_broadcast<ov::float16>(data_types::f16, false, tensor(2, 4, 16, 3), tensor(2, 4, 16, 3));
 }
 
-TEST(eltwise_gpu, vload8_scalar_first_regression_bit_exact) {
+TEST(eltwise_gpu, vload8_scalar_first_broadcast_bit_exact) {
     skip_if_no_fp16();
     test_vload8_feature_broadcast<ov::float16>(data_types::f16, true, tensor(2, 4, 16, 3), tensor(1, 1, 1, 1));
 }
@@ -4841,7 +4849,16 @@ TEST(eltwise_gpu, vload8_rejects_padded_output) {
 }
 
 TEST(eltwise_gpu, vload8_matching_batch_padding_regression_bit_exact) {
-    test_vload8_feature_broadcast<float>(data_types::f32, false, tensor(2, 4, 16, 3), tensor(2, 4, 16, 3), true, false, false, format::bfyx, true);
+    vload8_padding_options padding_options;
+    padding_options.upper_batch = 1;
+    test_vload8_feature_broadcast<float>(data_types::f32, false, tensor(2, 4, 16, 3), tensor(2, 4, 16, 3), true, false, false, format::bfyx, padding_options);
+}
+
+TEST(eltwise_gpu, vload8_rejects_unaligned_logical_size_with_matching_batch_padding) {
+    vload8_padding_options padding_options;
+    padding_options.upper_batch = 3;
+    padding_options.pad_weights = false;
+    test_vload8_feature_broadcast<float>(data_types::f32, false, tensor(1, 1, 10, 1), tensor(1, 1, 1, 1), false, false, false, format::bfyx, padding_options);
 }
 
 TEST(eltwise_gpu, vload8_rejects_shape_agnostic_feature_broadcast) {

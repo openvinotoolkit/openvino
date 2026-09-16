@@ -69,41 +69,37 @@ bool EltwiseKernel_vload8::Validate(const Params& params) const {
     const auto& ewParams = static_cast<const eltwise_params&>(params);
 
     // Only one activation can be fused.
-    if (ewParams.fused_ops.size() > 1 ||
-        (!ewParams.activations.empty() && !ewParams.fused_ops.empty())) {
+    if (ewParams.fused_ops.size() > 1 || (!ewParams.activations.empty() && !ewParams.fused_ops.empty())) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-        for (size_t i = 0; i < ewParams.inputs.size(); i++) {
-            const auto input_layout = ewParams.inputs[i].GetLayout();
-            const auto batch_size = ewParams.inputs[i].Batch().v;
-            const auto feature_size = ewParams.inputs[i].Feature().v;
-            if ((input_layout == DataLayout::b_fs_yx_fsv16 && feature_size % 16 != 0) ||
-                (input_layout == DataLayout::b_fs_yx_fsv32 && feature_size % 32 != 0) ||
-                (input_layout == DataLayout::b_fs_zyx_fsv16 && feature_size % 16 != 0) ||
-                (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
-                input_layout == DataLayout::fs_b_yx_fsv32 ||
-                (input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 && (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
-                (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0))) {
-                DO_NOT_USE_THIS_KERNEL(params.layerID);
-            }
-        }
-        if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.outputs[0].Feature().v % 8 != 0) ||
-            ewParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
-                (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
-            (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
-                (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0))) {
+    for (size_t i = 0; i < ewParams.inputs.size(); i++) {
+        const auto input_layout = ewParams.inputs[i].GetLayout();
+        const auto batch_size = ewParams.inputs[i].Batch().v;
+        const auto feature_size = ewParams.inputs[i].Feature().v;
+        if ((input_layout == DataLayout::b_fs_yx_fsv16 && feature_size % 16 != 0) || (input_layout == DataLayout::b_fs_yx_fsv32 && feature_size % 32 != 0) ||
+            (input_layout == DataLayout::b_fs_zyx_fsv16 && feature_size % 16 != 0) || (input_layout == DataLayout::b_fs_yx_fsv4 && feature_size % 8 != 0) ||
+            input_layout == DataLayout::fs_b_yx_fsv32 ||
+            (input_layout == DataLayout::bs_fs_yx_bsv32_fsv16 && (feature_size % 16 != 0 || batch_size % 32 != 0)) ||
+            (input_layout == DataLayout::bs_fs_yx_bsv32_fsv32 && (feature_size % 32 != 0 || batch_size % 32 != 0))) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
+    }
+    if ((ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv32 && ewParams.outputs[0].Feature().v % 32 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 && ewParams.outputs[0].Feature().v % 16 != 0) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv4 && ewParams.outputs[0].Feature().v % 8 != 0) ||
+        ewParams.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32 ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv16 &&
+         (ewParams.outputs[0].Feature().v % 16 != 0 || ewParams.outputs[0].Batch().v % 32 != 0)) ||
+        (ewParams.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv32_fsv32 &&
+         (ewParams.outputs[0].Feature().v % 32 != 0 || ewParams.outputs[0].Batch().v % 32 != 0))) {
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& output = ewParams.outputs[0];
-    const auto count = output.PhysicalSize();
 
-    const bool bSupportedCount = (count % 8) == 0;
+    const bool bSupportedCount = (output.LogicalSize() % 8) == 0;
 
     bool bCheckSizes = true;
     for (size_t i = 0; i < ewParams.inputs.size(); i++) {
