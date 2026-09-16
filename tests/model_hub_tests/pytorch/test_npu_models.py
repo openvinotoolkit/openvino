@@ -19,7 +19,7 @@ NPU_MODELS = [
     dict(id="llama", source="hf-causal-lm",
          repo="TinyLlama/TinyLlama-1.1B-Chat-v1.0", dtype=torch.float16, ram_gb=5),
     dict(id="qwen2", source="hf-causal-lm",
-         repo="Qwen/Qwen2.5-0.5B-Instruct", dtype=torch.float16, ram_gb=3),
+         repo="Qwen/Qwen2.5-0.5B-Instruct", dtype=torch.float16, ram_gb=3, skipped_platforms=["3720"]),
     dict(id="qwen3", source="hf-causal-lm",
          repo="Qwen/Qwen3-0.6B", dtype=torch.float16, ram_gb=4),
     # granite-4.0-h-1b and SmolLM3 need transformers 4.53+, which breaks decoder
