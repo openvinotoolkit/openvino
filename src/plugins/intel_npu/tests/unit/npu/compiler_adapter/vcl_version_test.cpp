@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <string>
 
 #include "intel_npu/utils/vcl/vcl.h"
 #include "openvino/core/except.hpp"

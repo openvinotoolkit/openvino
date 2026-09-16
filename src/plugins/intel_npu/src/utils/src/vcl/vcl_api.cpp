@@ -4,7 +4,9 @@
 
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 
+#include <filesystem>
 #include <mutex>
+#include <stdexcept>
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"

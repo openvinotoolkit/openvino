@@ -4,8 +4,12 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/except.hpp"

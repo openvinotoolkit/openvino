@@ -5,6 +5,7 @@
 #include "compiler_impl.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <limits>
 #include <mutex>
 #include <sstream>
