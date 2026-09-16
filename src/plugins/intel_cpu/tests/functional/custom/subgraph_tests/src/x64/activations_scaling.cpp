@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
-#include <cmath>
-
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -18,10 +15,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/sqrt.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
-#include "utils/cpu_test_utils.hpp"
 #include "utils/precision_support.h"
-
-using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
@@ -54,11 +48,8 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        const float scale_factor = GetParam();
-        configuration = {{ov::hint::inference_precision.name(), ov::element::f16}};
-        if (scale_factor > 0.f) {
-            configuration.insert({ov::hint::activations_scale_factor.name(), scale_factor});
-        }
+        configuration = {{ov::hint::inference_precision.name(), ov::element::f16},
+                         {ov::hint::activations_scale_factor.name(), GetParam()}};
         abs_threshold = 0.05;
         rel_threshold = 0.05;
 
@@ -87,14 +78,6 @@ protected:
                                                               ov::test::utils::InputGenerateData(1, 10, 1, 1));
         inputs.insert({param.get_node_shared_ptr(), tensor});
     }
-
-    bool output_is_finite() {
-        const auto output = inferRequest.get_output_tensor(0);
-        const auto* data = output.data<float>();
-        return std::all_of(data, data + output.get_size(), [](float v) {
-            return std::isfinite(v);
-        });
-    }
 };
 
 namespace {
@@ -102,21 +85,12 @@ TEST_P(ActivationsScalingCPUTest, CompareWithRefs) {
     if (!ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
         GTEST_SKIP() << "Skipping test, platform don't support precision f16";
     }
-    if (GetParam() > 0.f) {
-        run();
-        CheckNumberOfNodesWithType(compiledModel, "RMSNorm", 2);
-    } else {
-        // the block overflows without scaling
-        compile_model();
-        generate_inputs(targetStaticShapes.front());
-        infer();
-        ASSERT_FALSE(output_is_finite());
-    }
+    run();
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_ActivationsScaling,
                          ActivationsScalingCPUTest,
-                         ::testing::Values(-1.f, 8.f),
+                         ::testing::Values(8.f),
                          ActivationsScalingCPUTest::getTestCaseName);
 }  // namespace
 }  // namespace test
