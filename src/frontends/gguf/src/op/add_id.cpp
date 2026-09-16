@@ -70,10 +70,6 @@ OutputVector translate_add_id(const NodeContext& context) {
     }
 
     ov::Output<ov::Node> res = std::make_shared<ov::op::v1::Add>(input, selected_bias);
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
-    if (res.get_element_type() != output_type) {
-        res = std::make_shared<ov::op::v0::Convert>(res, output_type);
-    }
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
