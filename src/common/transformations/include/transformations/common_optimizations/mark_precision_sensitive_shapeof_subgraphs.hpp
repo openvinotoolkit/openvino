@@ -22,12 +22,13 @@ class TRANSFORMATIONS_API MarkShapeOfSubgraphs;
  * @ingroup ov_transformation_common_api
  * @brief MarkPrecisionSensitiveShapeOfSubgraphs marks entirely
  * all shape subgraphs starting from precision-sensitive inputs and ending at
- * the ShapeOf node as disabled for FP16 compression.
+ * the ShapeOf node as disabled for compression to the given target precision
+ * (FP16 by default).
  */
 class ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs : public ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("MarkPrecisionSensitiveShapeOfSubgraphs");
-    MarkPrecisionSensitiveShapeOfSubgraphs();
+    explicit MarkPrecisionSensitiveShapeOfSubgraphs(const element::Type& target = element::f16);
     bool run_on_model(const std::shared_ptr<ov::Model>& f) override;
 
 protected:
