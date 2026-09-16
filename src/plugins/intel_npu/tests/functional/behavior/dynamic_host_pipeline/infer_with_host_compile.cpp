@@ -110,7 +110,7 @@ struct DynamicModelConfig {
     ov::Dimension height;
     ov::Dimension width;
     bool nhwcLayout;
-    bool singleTile;  // tiny single-channel variant: needs NPU_TILES=1 and is only exercised by the DynamicNHW tests
+    bool tinyVariant;  // small single-channel variant, only exercised by the DynamicNHW tests
 };
 
 inline const std::map<std::string, DynamicModelConfig>& espcnModelConfigs() {
@@ -118,7 +118,9 @@ inline const std::map<std::string, DynamicModelConfig>& espcnModelConfigs() {
         {"ESPCN_x2_DynHW_FHD", {ov::Dimension(1), ov::Dimension(1, 1080), ov::Dimension(10, 1920), true, false}},
         {"ESPCN_x2_DynNHW_FHD", {ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 1920), true, false}},
         {"ESPCN_x2_DynHW_HD", {ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), true, false}},
-        {"ESPCN_x2_DynNHW_Tiny", {ov::Dimension(1, 2), ov::Dimension(32, 64), ov::Dimension(32, 64), true, true}},
+        // Spatial upper bounds are kept large enough for the compiler's multi-cluster tiling of the dynamic H/W;
+        // smaller bounds hit a compiler crash in MultiClusterStrategyAssignment on multi-tile devices.
+        {"ESPCN_x2_DynNHW_Tiny", {ov::Dimension(1, 2), ov::Dimension(32, 270), ov::Dimension(32, 555), true, true}},
         {"ESPCN_x2_DynHW_HD_NCHW", {ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), false, false}},
         {"ESPCN_x2_DynNHW_HD_NCHW",
          {ov::Dimension(1, 10), ov::Dimension(10, 720), ov::Dimension(10, 1280), false, false}},
@@ -134,7 +136,7 @@ inline const DynamicModelConfig& getModelConfig(const std::string& modelName) {
 }
 
 inline bool isTinyDynamicModel(const std::string& modelName) {
-    return getModelConfig(modelName).singleTile;
+    return getModelConfig(modelName).tinyVariant;
 }
 
 inline bool hasDynamicBatch(const std::string& modelName) {
