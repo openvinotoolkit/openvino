@@ -5,6 +5,7 @@
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <iterator>
 #include <map>
@@ -45,6 +46,31 @@ bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
     const uint8_t* device_ptr =
         memory->get_allocation_type() == cldnn::allocation_type::usm_host ? static_cast<uint8_t*>(memory->get_internal_params().mem) : nullptr;
     return device_ptr == host_ptr;
+}
+
+bool byte_ranges_overlap(const void* lhs_ptr, size_t lhs_size, const void* rhs_ptr, size_t rhs_size) {
+    if (lhs_ptr == nullptr || rhs_ptr == nullptr || lhs_size == 0 || rhs_size == 0)
+        return false;
+
+    const auto lhs_begin = reinterpret_cast<uintptr_t>(lhs_ptr);
+    const auto rhs_begin = reinterpret_cast<uintptr_t>(rhs_ptr);
+    return lhs_begin < rhs_begin ? rhs_begin - lhs_begin < lhs_size : lhs_begin - rhs_begin < rhs_size;
+}
+
+// Byte range backing a tensor for aliasing checks: host tensor -> data()/byte_size; RemoteTensorImpl
+// -> cldnn memory, but only if usm_host (device pointers aren't comparable to host ones). Else {nullptr, 0}.
+std::pair<const void*, size_t> tensor_alias_range(const std::shared_ptr<ov::ITensor>& tensor) {
+    if (!tensor)
+        return {nullptr, 0};
+    if (auto remote = std::dynamic_pointer_cast<ov::intel_gpu::RemoteTensorImpl>(tensor)) {
+        auto memory = remote->get_memory();
+        if (memory && memory->get_allocation_type() == cldnn::allocation_type::usm_host)
+            return {memory->buffer_ptr(), memory->size()};
+        return {nullptr, 0};
+    }
+    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor))
+        return {nullptr, 0};
+    return {tensor->data(), tensor->get_byte_size()};
 }
 
 inline bool all_remote_buffers(const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
@@ -1193,8 +1219,13 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
 
+    // A dynamic remote output also fed back as an input must not be bound as the network output (a
+    // tiled kernel would overwrite the input before it is read); skip the bind so wait() copies out.
+    const bool remote_output_aliases_input =
+        is_remote_tensor_impl && is_dynamic && output_ptr_aliases_input(user_tensor);
+
     // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
-    if (is_remote_tensor_impl && !convert_needed) {
+    if (is_remote_tensor_impl && !convert_needed && !remote_output_aliases_input) {
         m_plugin_outputs[output_idx] = user_tensor_wrapper;
     }
 
@@ -1227,7 +1258,7 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
         auto& engine = m_graph->get_engine();
         // Don't zero-copy when the caller buf is also fed back as an input (and is not a remote tensor, so it has data() impl):
         // binding it as the output would let a tiled kernel overwrite the input before it is fully read.
-        const bool aliases_input = !is_remote_tensor_impl && !is_generic_remote && output_ptr_aliases_input(user_tensor->data());
+        const bool aliases_input = !is_remote_tensor_impl && !is_generic_remote && output_ptr_aliases_input(user_tensor);
         // Import a caller USM-host pointer as a shared remote tensor so the graph writes into it directly.
         const bool can_share_user_usm_host =
             !is_remote_tensor_impl && !is_generic_remote && !convert_needed &&
@@ -1294,13 +1325,15 @@ bool SyncInferRequest::is_batched_input(const ov::Output<const ov::Node>& port) 
     return m_batched_tensors.count(port.get_tensor_ptr()) > 0;
 }
 
-bool SyncInferRequest::output_ptr_aliases_input(const void* ptr) const {
-    if (ptr == nullptr)
+bool SyncInferRequest::output_ptr_aliases_input(const std::shared_ptr<ov::ITensor>& output_tensor) const {
+    const auto [output_ptr, output_size] = tensor_alias_range(output_tensor);
+    if (output_ptr == nullptr)
         return false;
+
     auto inputs = m_user_inputs.read();
     for (const auto& [key, wrapper] : *inputs) {
-        // Remote tensors don't implement data(), so skip them.
-        if (wrapper.ptr && !std::dynamic_pointer_cast<IRemoteTensor>(wrapper.ptr) && wrapper.ptr->data() == ptr)
+        const auto [input_ptr, input_size] = tensor_alias_range(wrapper.ptr);
+        if (byte_ranges_overlap(output_ptr, output_size, input_ptr, input_size))
             return true;
     }
     return false;
