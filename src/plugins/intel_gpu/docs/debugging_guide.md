@@ -8,11 +8,15 @@ During execution, OpenCL may return an out-of-resource (OOR) error. This can hap
 * **Actual resource exhaustion**: The system runs out of resources—for example, because the workload requires more memory than is available.
 * **GPU execution failures reported as OOR**: Some GPU-side failures do not have dedicated OpenCL error codes. In these cases, the driver may report the failure as an OOR error. A known (and common) example—starting from Xe2— is a page fault inside a GPU kernel. When this occurs, the GPU may report OOR even though the root cause is not memory pressure.
 
+### Adjusting shared memory size for integrated GPU
+For integrated Intel® Arc™ GPUs on Windows 10 or 11 systems with more than 10 GB of system memory, GPU shared memory can be increased in Intel Graphics Software under `Graphics > General > Shared GPU Memory Override`, if the setting is available and not already at its upper limit.
+
 ### Steps to Debug OOR Issues
 
 1. **Verify Memory Consumption**
    First, assess whether memory usage is within a reasonable range.
-   * Use the [OV_VERBOSE](gpu_debug_utils.md#gpu-plugin-debug-utils) logs or
+   * You can check global GPU memory consumption from Windows task manager, or
+   * Use the [OV_VERBOSE](gpu_debug_utils.md#gpu-plugin-debug-utils) logs, or
    * Examine memory allocations using *CLI_CallLogging* from the [opencl-intercept-layer](https://github.com/intel/opencl-intercept-layer/)
 
    If memory consumption is unexpectedly high, investigate:
