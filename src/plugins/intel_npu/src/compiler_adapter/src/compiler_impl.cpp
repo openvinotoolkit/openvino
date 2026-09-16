@@ -228,7 +228,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     /// Check the linked vcl version whether supported in plugin
     UsedVersion usedVersion =
         getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion.major, _vclVersion.minor);
-    _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+    _logger.debug("The final vcl compiler version used is %d.%d", usedVersion.Major, usedVersion.Minor);
     checkVclVersion(usedVersion,
                     _vclVersion.major,
                     _vclVersion.minor,
@@ -361,7 +361,7 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
     /// Check the linked vcl version whether supported in plugin
     UsedVersion usedVersion =
         getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion.major, _vclVersion.minor);
-    _logger.debug("the finally used compiler vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+    _logger.debug("The final vcl compiler version used is %d.%d", usedVersion.Major, usedVersion.Minor);
     checkVclVersion(usedVersion,
                     _vclVersion.major,
                     _vclVersion.minor,
@@ -535,7 +535,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     /// Check the linked vcl version whether supported in plugin
     UsedVersion usedVersion =
         getUsedVclVersion(VCL_COMPILER_VERSION_MAJOR, VCL_COMPILER_VERSION_MINOR, _vclVersion.major, _vclVersion.minor);
-    _logger.debug("the finally used vcl version is %d.%d", usedVersion.Major, usedVersion.Minor);
+    _logger.debug("The final vcl compiler version used is %d.%d", usedVersion.Major, usedVersion.Minor);
     checkVclVersion(usedVersion,
                     _vclVersion.major,
                     _vclVersion.minor,
