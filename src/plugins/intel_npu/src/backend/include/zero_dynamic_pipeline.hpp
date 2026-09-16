@@ -38,6 +38,7 @@ struct VMExecutionContext {
 struct DynamicArguments {
     std::vector<MemRefType> _inputsMemRef;
     std::vector<MemRefType> _outputsMemRef;
+    // These handles need be stored to ensure the memory they reference remains valid when we call HostSync function
     std::vector<npu_vm_runtime_mem_ref_handle_t> _inputMemRefHandles;
     std::vector<npu_vm_runtime_mem_ref_handle_t> _outputMemRefHandles;
     npu_vm_runtime_execute_params2_t _executeParams2 = {};
@@ -71,6 +72,7 @@ class DynamicPipeline final : public IPipeline {
                               const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                               bool useV2 = false) {
             if (!useV2) {
+                // Only initialize command lists for v1, v2 handles command lists inside runtime
                 _commandLists.reserve(numCommandLists);
                 for (size_t i = 0; i < numCommandLists; i++) {
                     _commandLists.emplace_back(std::make_unique<CommandList>(init_structs));

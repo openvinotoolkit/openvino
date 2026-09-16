@@ -171,6 +171,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
                     "Failed to get VM runtime version, error code: ",
                     versionResult);
 
+    // v2 lets the runtime manage command-list recording and execution-context setup;
+    // v1 requires the plugin to create the execution context and provide command lists.
     if (use_npu_vm_runtime_v2_api(_apiVersion)) {
         _logger.debug("DynamicPipeline: using v2.0 VM runtime API");
         const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
@@ -189,6 +191,8 @@ DynamicPipeline::DynamicPipeline(const std::shared_ptr<ZeroInitStructsHolder>& i
         _executionContext.ensure(vmRuntime);
     }
 
+    // v2 synchronizes through npuVMRuntimeHostSync, so only v1 needs plugin-side
+    // events or fences for output synchronization.
     if (!use_npu_vm_runtime_v2_api(_apiVersion) && !_sync_output_with_fences) {
         _event_pool = std::make_shared<EventPool>(_init_structs, 1);
         _events.emplace_back(std::make_shared<Event>(_event_pool, 0));
@@ -248,6 +252,9 @@ void DynamicPipeline::push() {
     const npu_vm_runtime_handle_t vmRuntime = static_cast<npu_vm_runtime_handle_t>(_graph->get_handle());
     OPENVINO_ASSERT(vmRuntime != nullptr, "DynamicPipeline requires a valid VM runtime engine");
 
+    // v2 passes queue property changes as runtime config descriptors (and only
+    // refreshes the queue handle when a shared queue changes); v1 recreates the
+    // plugin-owned queue and, when needed, its fences.
     const auto useV2Api = use_npu_vm_runtime_v2_api(_apiVersion);
     const auto commandQueueDesc = _graph->get_command_queue_desc();
     const bool commandQueueVersionChanged = (commandQueueDesc.key() != _command_queue->desc().key());
@@ -290,6 +297,8 @@ void DynamicPipeline::push() {
         }
     }
 
+    // Keep the v2 execute parameters in DynamicArguments because HostSync uses
+    // the same parameter structure after push() returns.
     if (useV2Api) {
         execute_vm_runtime_v2(vmRuntime, dynamicArguments, commandQueueHandle, runtimeConfig);
         _runtime_config_command_queue_desc = commandQueueDesc;
@@ -412,6 +421,9 @@ void DynamicPipeline::execute_vm_runtime_v2(npu_vm_runtime_handle_t vmRuntime,
                                             const npu_vm_runtime_config_desc_t* pConfig) {
     _logger.debug("execute_vm_runtime_v2 - started");
 
+    // Keep these arrays in DynamicArguments: the v2 execute parameters are reused
+    // by HostSync after this function returns, so their pInputs/pOutputs pointers
+    // must remain valid until synchronization completes.
     auto processMemRefs = [&](auto& memRefs, auto& targetHandles) {
         targetHandles.clear();
         targetHandles.reserve(memRefs.size());
@@ -591,6 +603,8 @@ void DynamicPipeline::pull() {
     const npu_vm_runtime_handle_t vmRuntime =
         use_npu_vm_runtime_v2_api(_apiVersion) ? static_cast<npu_vm_runtime_handle_t>(_graph->get_handle()) : nullptr;
 
+    // v2 exposes host synchronization through the runtime; v1 completes through
+    // the event or fence created by the plugin.
     if (use_npu_vm_runtime_v2_api(_apiVersion)) {
         auto& dynamicArguments = _command_list_group->getArguments();
         const auto result = npuVMRuntimeHostSync(vmRuntime, &dynamicArguments._executeParams2);
