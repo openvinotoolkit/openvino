@@ -69,28 +69,28 @@ public:
         const auto outputs = network.execute();
 
         const auto expected_unique_values = outputs.at("expected_unique_values").get_memory();
-        cldnn::mem_lock<ElemT> expected_unique_values_ptr(expected_unique_values, get_test_stream());
+        cldnn::mem_lock<ElemT, mem_lock_type::read> expected_unique_values_ptr(expected_unique_values, get_test_stream());
         ASSERT_EQ(expected_unique_values_ptr.size(), p.expected_unique_values.size());
         for (auto i = 0U; i < expected_unique_values_ptr.size(); ++i) {
             ASSERT_EQ(expected_unique_values_ptr[i], p.expected_unique_values[i]);
         }
 
         const auto expected_indices = outputs.at("expected_indices").get_memory();
-        cldnn::mem_lock<IndexT> expected_indices_ptr(expected_indices, get_test_stream());
+        cldnn::mem_lock<IndexT, mem_lock_type::read> expected_indices_ptr(expected_indices, get_test_stream());
         ASSERT_EQ(expected_indices_ptr.size(), p.expected_indices.size());
         for (auto i = 0U; i < expected_indices_ptr.size(); ++i) {
             ASSERT_EQ(expected_indices_ptr[i], p.expected_indices[i]);
         }
 
         const auto expected_rev_indices = outputs.at("expected_rev_indices").get_memory();
-        cldnn::mem_lock<IndexT> expected_rev_indices_ptr(expected_rev_indices, get_test_stream());
+        cldnn::mem_lock<IndexT, mem_lock_type::read> expected_rev_indices_ptr(expected_rev_indices, get_test_stream());
         ASSERT_EQ(expected_rev_indices_ptr.size(), p.expected_rev_indices.size());
         for (auto i = 0U; i < expected_rev_indices_ptr.size(); ++i) {
             ASSERT_EQ(expected_rev_indices_ptr[i], p.expected_rev_indices[i]);
         }
 
         const auto expected_counts = outputs.at("expected_counts").get_memory();
-        cldnn::mem_lock<CountT> expected_counts_ptr(expected_counts, get_test_stream());
+        cldnn::mem_lock<CountT, mem_lock_type::read> expected_counts_ptr(expected_counts, get_test_stream());
         ASSERT_EQ(expected_counts_ptr.size(), p.expected_counts.size());
         for (auto i = 0U; i < expected_counts_ptr.size(); ++i) {
             ASSERT_EQ(expected_counts_ptr[i], p.expected_counts[i]);

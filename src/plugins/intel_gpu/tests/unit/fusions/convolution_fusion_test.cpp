@@ -1352,6 +1352,8 @@ TEST_P(conv_fp32_eltwise_fusing_extend_ops, pattern03_sub_div) {
     cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
 
     tolerance = default_tolerance(p.default_type);
+    if (p.default_type == data_types::f16)
+        tolerance *= 2.f; // Issue: 185375
     execute(p);
 }
 

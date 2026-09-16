@@ -68,6 +68,13 @@ static constexpr const char* prefix = "GPU_Debug: ";
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val) stage_prof.set_cache_hit(val)
 #define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info) stage_prof.add_memalloc_info(info)
 
+#if defined(_WIN32)
+#define GPU_DEBUG_SET_ACTIVE_LUID(luid) \
+    cldnn::instrumentation::mem_usage_logger::set_active_luid(luid)
+#else
+#define GPU_DEBUG_SET_ACTIVE_LUID(luid)
+#endif
+
 #define GPU_DEBUG_LOG_PREFIX ov::intel_gpu::get_verbose_stream() \
                              << prefix \
                              << std::filesystem::path(__FILE__).filename().generic_string() << ":" \
@@ -93,6 +100,9 @@ static constexpr const char* prefix = "GPU_Debug: ";
 #define GPU_DEBUG_PROFILED_STAGE(stage)
 #define GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(val)
 #define GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(info)
+#ifndef GPU_DEBUG_SET_ACTIVE_LUID
+#define GPU_DEBUG_SET_ACTIVE_LUID(luid)
+#endif
 #define GPU_DEBUG_LOG_RAW(min_verbose_level) if (0) ov::intel_gpu::get_verbose_stream()
 #endif
 

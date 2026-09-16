@@ -87,23 +87,6 @@ bool ReorderKernel_fsv::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    // Padding not supported
-    if (input.X().pad.before != 0 || input.X().pad.after != 0 ||
-        input.Y().pad.before != 0 || input.Y().pad.after != 0 ||
-        input.Z().pad.before != 0 || input.Z().pad.after != 0 ||
-        input.Feature().pad.before != 0 || input.Feature().pad.after != 0 ||
-        input.Batch().pad.before != 0 || input.Batch().pad.after != 0) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-
-    if (output.X().pad.before != 0 || output.X().pad.after != 0 ||
-        output.Y().pad.before != 0 || output.Y().pad.after != 0 ||
-        output.Z().pad.before != 0 || output.Z().pad.after != 0 ||
-        output.Feature().pad.before != 0 || output.Feature().pad.after != 0 ||
-        output.Batch().pad.before != 0 || output.Batch().pad.after != 0) {
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
-    }
-
     return true;
 }
 
@@ -112,6 +95,7 @@ CommonDispatchData ReorderKernel_fsv::SetDefault(const reorder_params& params) c
 
     const auto& input = params.inputs[0];
     const size_t out_fsv = GetFsv(params.outputs[0].GetLayout());
+    OPENVINO_ASSERT(out_fsv != 0, "[GPU] reorder_kernel_fsv: output layout is not FSV-blocked");
 
     // GWS[0] = x
     // GWS[1] = y * z
@@ -133,6 +117,7 @@ JitConstants ReorderKernel_fsv::GetJitConstants(const reorder_params& params) co
 
     const size_t in_fsv = GetFsv(params.inputs[0].GetLayout());
     const size_t out_fsv = GetFsv(params.outputs[0].GetLayout());
+    OPENVINO_ASSERT(in_fsv != 0 && out_fsv != 0, "[GPU] reorder_kernel_fsv: input/output layout is not FSV-blocked");
     const size_t ndims = params.inputs[0].GetDims().size();
 
     jit.AddConstant(MakeJitConstant("IN_FSV", in_fsv));

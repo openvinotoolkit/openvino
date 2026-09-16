@@ -69,7 +69,7 @@ ov::intel_cpu::NgramFusion::NgramFusion() {
                 return false;
             }
             const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(out_it->second.get_node_shared_ptr());
-            return constant != nullptr && ov::op::util::constantIsEqualTo(constant, expected_bias);
+            return constant != nullptr && ov::op::util::constantIsEqualTo(constant, static_cast<float>(expected_bias));
         };
 
         auto tokens_match = [](const ov::Output<ov::Node>& output) -> bool {

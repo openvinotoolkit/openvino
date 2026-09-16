@@ -27,8 +27,9 @@ ConvolutionKernel_bfyx_to_bfyx_f16::ConvolutionKernel_bfyx_to_bfyx_f16(std::stri
 ConvolutionKernel_bfyx_to_bfyx_f16::AutoTuneOption ConvolutionKernel_bfyx_to_bfyx_f16::GetAutoTuneOptions(
     const Params& /* arg*/,
     int autoTuneIndex) const {
-    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size()))
+    if (autoTuneIndex >= 0 && autoTuneIndex < static_cast<int>(autoTuneOptions.size())) {
         return autoTuneOptions[autoTuneIndex];
+    }
 
     return {8, EXE_MODE_AGE_BASED};
 }
@@ -113,6 +114,16 @@ bool ConvolutionKernel_bfyx_to_bfyx_f16::Validate(const Params& p) const {
 
     // Check that padding before features doesn't miss-align the blocks
     if (input.Feature().pad.before % feature_block_size != 0 || output.Feature().pad.before % feature_block_size != 0) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    // Large private memory (line_cache) combined with fused ops causes register pressure overflow
+    // on some GPU architectures (e.g. Xe-LPG). Reject this kernel in such cases.
+    auto blockWidth = GetAutoTuneOptions(p, -1).blockWidth;
+    size_t input_line_size = std::min(params.stride.x * (blockWidth - 1) + (params.filterSize.x - 1) * params.dilation.x + 1,
+                                      input.X().v + input.X().pad.Total());
+    size_t input_block_size = CeilDiv(input_line_size * params.filterSize.y, sub_group_size);
+    if (input_block_size > 64 && !params.fused_ops.empty()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 

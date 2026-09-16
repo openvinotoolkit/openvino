@@ -4,14 +4,13 @@
 
 #include "cpu_parallel.hpp"
 
-#include <cstddef>
 #include <memory>
 
 #include "openvino/runtime/intel_cpu/properties.hpp"
 #include "thread_pool_imp.hpp"
 
 namespace ov::intel_cpu {
-CpuParallel::CpuParallel(ov::intel_cpu::TbbPartitioner partitioner, size_t multiplier)
+CpuParallel::CpuParallel(ov::intel_cpu::TbbPartitioner partitioner, int multiplier)
     : m_partitioner(partitioner),
       m_multiplier(multiplier) {
     m_partitioner =

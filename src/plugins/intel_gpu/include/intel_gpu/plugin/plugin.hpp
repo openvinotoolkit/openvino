@@ -25,8 +25,11 @@ private:
 
     std::map<std::string, std::shared_ptr<RemoteContextImpl>> get_default_contexts() const;
 
+    // Rename our enumerated devices to the ids Core assigned (ov::internal::device_id_map).
+    void apply_device_id_map(const std::map<std::string, std::string>& id_map);
+
     std::shared_ptr<ov::Model> clone_and_transform_model(const std::shared_ptr<const ov::Model>& network,
-                                                         const ExecutionConfig& config,
+                                                         ExecutionConfig& config,
                                                          const std::shared_ptr<RemoteContextImpl>& context) const;
     void transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const;
     void register_primitives() const;

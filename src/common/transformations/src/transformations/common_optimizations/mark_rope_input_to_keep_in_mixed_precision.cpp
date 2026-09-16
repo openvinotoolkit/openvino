@@ -12,7 +12,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
-#include "transformations/rt_info/disable_fp16_compression.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace v0 = ov::op::v0;
@@ -32,7 +32,7 @@ MarkRopeInputsToKeepInMixedPrecision::MarkRopeInputsToKeepInMixedPrecision() {
         auto sin_input_node = pattern_map.at(sin_tab).get_node();
         // mark the node as disable_fp16_compression
         auto visit_func = [](ov::Node* node) {
-            ov::disable_fp16_compression(node->shared_from_this());
+            ov::disable_conversion(node->shared_from_this(), element::f16);
         };
         // skip constant, parameter and shapeof
         // The inputs of cos_sin table generation are position_ids and a ShapeOf [batch, input_length]

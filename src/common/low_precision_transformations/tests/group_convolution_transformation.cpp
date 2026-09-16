@@ -77,7 +77,6 @@ public:
                                                                      testValues.actual.dequantizationOnWeights,
                                                                      ov::element::f32,
                                                                      {},
-                                                                     ov::element::f32,
                                                                      testValues.addReshape);
 
         SimpleLowPrecisionTransformer transform;
@@ -103,7 +102,6 @@ public:
                                                                      testValues.expected.dequantizationOnWeights,
                                                                      testValues.expected.precisionAfterOperation,
                                                                      testValues.expected.dequantizationAfter,
-                                                                     testValues.expected.precisionAfterDequantization,
                                                                      testValues.addReshape);
     }
 
@@ -378,10 +376,8 @@ const std::vector<GroupConvolutionTestValues> testValuesGroupConv = {
         {
             ov::element::f32,
             {{}, {}, {0.02f}},
-            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{-1.25f}),
-            {},
-            {},
-            ov::element::f32,
+            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{2.f}),
+            {255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f}},
             {}
         }
     },
@@ -864,10 +860,8 @@ const std::vector<GroupConvolutionTestValues> testValuesForDepthWiseConv = {
         {
             ov::element::f32,
             {{}, {}, {0.02f}},
-            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{-1.25f}),
-            {},
-            {},
-            ov::element::f32,
+            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{2.f}),
+            {255ul, Shape({1, 1, 1, 1}), {0.f}, {254.f}, {-1.27f}, {1.27f}},
             {}
         }
     },

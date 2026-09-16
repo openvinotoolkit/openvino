@@ -272,7 +272,7 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
 int32_t GatherND::GatherNDExecutor::HandleNegativeIndices(const int32_t* indices, size_t idx) const {
     int32_t index = indices[idx];
     if (index < 0) {
-        index += srcDims[idx + batchDims];
+        index += static_cast<int32_t>(srcDims[idx + batchDims]);
     }
     return index;
 }

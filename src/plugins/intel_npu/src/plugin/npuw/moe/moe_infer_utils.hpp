@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <map>
 #include <vector>
 
@@ -28,6 +29,11 @@ struct MoEProfile {
 
     MoEProfile();
 };
+
+template <typename T>
+inline bool is_nonzero(T v) {
+    return std::abs(static_cast<float>(v)) > 1e-6f;
+}
 
 /**
  * @brief Slice a single expert's weight from batched weight tensor.

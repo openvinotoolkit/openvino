@@ -6,6 +6,8 @@
 
 #include "common_test_utils/data_utils.hpp"
 #include "openvino/core/descriptor_tensor.hpp"
+#include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/softsign.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "snippets/op/result.hpp"
 #include "snippets/op/subgraph.hpp"
@@ -30,6 +32,16 @@ std::shared_ptr<ov::Model> ExpFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
     auto exp = std::make_shared<op::v0::Exp>(data0);
     return std::make_shared<ov::Model>(OutputVector{exp}, ParameterVector{data0});
+}
+std::shared_ptr<ov::Model> HSigmoidFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto hsigmoid = std::make_shared<op::v5::HSigmoid>(data0);
+    return std::make_shared<ov::Model>(OutputVector{hsigmoid}, ParameterVector{data0});
+}
+std::shared_ptr<ov::Model> SoftSignFunction::initOriginal() const {
+    auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);
+    auto softsign = std::make_shared<op::v9::SoftSign>(data0);
+    return std::make_shared<ov::Model>(OutputVector{softsign}, ParameterVector{data0});
 }
 std::shared_ptr<ov::Model> ExpReciprocalFunction::initOriginal() const {
     auto data0 = std::make_shared<op::v0::Parameter>(precision, input_shapes[0]);

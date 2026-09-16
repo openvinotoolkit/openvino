@@ -36,8 +36,7 @@ protected:
 private:
     utils::EltwiseTypes eltwiseType;
 
-    std::string getPrimitiveType(const utils::EltwiseTypes& eltwise_type,
-                                 const ov::element::Type_t& element_type,
+    std::string getPrimitiveType(const ov::element::Type_t& element_type,
                                  const std::vector<std::pair<ov::PartialShape, std::vector<ov::Shape>>>& input_shapes) const;
 };
 
@@ -47,7 +46,6 @@ const std::vector<ov::AnyMap>& additional_config();
 
 const std::vector<ElementType>& netType();
 const std::vector<ov::test::utils::OpType>& opTypes();
-const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp();
 const std::vector<utils::InputLayerType>& secondaryInputTypes();
 
 const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInp();

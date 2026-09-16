@@ -11,10 +11,10 @@ inline int FUNC(get_pyramid_level_index)(uint level, uint c, uint y, uint x) {
 }
 
 inline int FUNC(get_pyramid_level_for_roi)(const __global INPUT0_TYPE* current_roi) {
-    const INPUT0_TYPE canonical_scale = 224.0;
+    const INPUT0_TYPE canonical_scale = TO_INPUT0_TYPE(224.0f);
     const int canonical_level = 2;
 
-    int result = NUM_PYRAMID_LEVELS;
+    int result = 0;
 
     const INPUT0_TYPE x0 = current_roi[0];
     const INPUT0_TYPE y0 = current_roi[1];
@@ -23,7 +23,9 @@ inline int FUNC(get_pyramid_level_for_roi)(const __global INPUT0_TYPE* current_r
 
     const INPUT0_TYPE area = (x1 - x0) * (y1 - y0);
     if (area > 0) {
-        result = (int)round(canonical_level + log2(sqrt(area) / canonical_scale));
+        INPUT0_TYPE level_value = sqrt(area) / canonical_scale;
+        level_value = log2(level_value + TO_INPUT0_TYPE(1e-6f));
+        result = (int)floor(level_value + canonical_level);
         result = max(0, min(result, NUM_PYRAMID_LEVELS - 1));
     }
     return result;
@@ -42,7 +44,7 @@ KERNEL(experimental_detectron_roi_feature_extractor_ref)(const __global INPUT0_T
 
     const __global INPUT0_TYPE* current_roi_ptr = &src_rois[r * INPUT0_BATCH_PITCH];
 
-    const int level = FUNC_CALL(get_pyramid_level_for_roi)(current_roi_ptr);
+    const int level = max(0, min(FUNC_CALL(get_pyramid_level_for_roi)(current_roi_ptr), NUM_PYRAMID_LEVELS - 1));
 
     const __global INPUT1_TYPE* current_level_ptr = LEVEL_PTRS[level];
 

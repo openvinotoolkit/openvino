@@ -21,18 +21,23 @@
 
 #pragma once
 
-#include <xbyak/xbyak.h>
-
 #include <cassert>
-#include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 
-#include "cpu/x64/jit_generator.hpp"
-#include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/visibility.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_conversion_emitters.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -87,11 +92,12 @@ struct jitGatherKernelBase {
     }
     explicit jitGatherKernelBase(const jGatherConfParams& jcp, uint64_t vlen, uint64_t indicesTypeSize)
         : jcp(jcp),
-          vlen(vlen),
-          dataElPerVec(vlen / jcp.dataTypeSize),
-          idxElPerVec(vlen / indicesTypeSize),
+          vlen(static_cast<uint32_t>(vlen)),
+          dataElPerVec(static_cast<uint32_t>(vlen / jcp.dataTypeSize)),
+          idxElPerVec(static_cast<uint32_t>(vlen / indicesTypeSize)),
           is_real16_to_f32((jcp.in_prec == element::f16 || jcp.in_prec == element::bf16) &&
-                           jcp.out_prec == element::f32) {}
+                           jcp.out_prec == element::f32),
+          is_f32_to_bf16(jcp.in_prec == element::f32 && jcp.out_prec == element::bf16) {}
     virtual ~jitGatherKernelBase() = default;
 
     virtual void create_ker() = 0;
@@ -108,9 +114,9 @@ struct jitGatherKernelBase {
 
 protected:
     jGatherConfParams jcp;
-    uint64_t vlen = 0LU;
-    uint64_t dataElPerVec = 0LU;
-    uint64_t idxElPerVec = 0LU;
+    uint32_t vlen = 0;
+    uint32_t dataElPerVec = 0;
+    uint32_t idxElPerVec = 0;
     static const unsigned shufMask8bitUni[16];
     static const unsigned permMask8bitA2[8];
     static const unsigned permMask8bitA5[16];
@@ -122,7 +128,10 @@ protected:
     int shortPermIdx[16]{};
     int shortBeforeAxisDiff[16]{};
     const bool is_real16_to_f32 = false;
+    const bool is_f32_to_bf16 = false;
 };
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jitUniGatherKernel : public jitGatherKernelBase, public dnnl::impl::cpu::x64::jit_generator_t {
@@ -233,5 +242,7 @@ protected:
     size_t dstStep = 0;
     std::unique_ptr<jit_convert_saturation_emitter> convert_emitter = nullptr;
 };
+
+#endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace ov::intel_cpu

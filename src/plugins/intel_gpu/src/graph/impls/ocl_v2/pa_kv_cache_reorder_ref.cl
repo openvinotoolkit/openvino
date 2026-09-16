@@ -67,55 +67,34 @@ inline void FUNC(requantize_and_store_by_channel_block)(__global OUTPUT_TYPE* ke
 #if defined(IS_KV_COMPRESSED) && defined(IS_KEY_BY_CHANNEL) && IS_INT4_COMPRESSED
 inline void FUNC(requantize_and_store_by_channel_block_int4)(__global OUTPUT_TYPE* key_cache,
                                                              const uint dst_base,
-                                                             UNCOMPRESSED_TYPE* dequant_vals0,
-                                                             UNCOMPRESSED_TYPE* dequant_vals1) {
-    UNCOMPRESSED_TYPE min_value0 = UNCOMPRESSED_VAL_MAX;
-    UNCOMPRESSED_TYPE max_value0 = UNCOMPRESSED_VAL_MIN;
-    UNCOMPRESSED_TYPE min_value1 = UNCOMPRESSED_VAL_MAX;
-    UNCOMPRESSED_TYPE max_value1 = UNCOMPRESSED_VAL_MIN;
-
-    for (uint token = 0; token < PAGED_ATTENTION_BLOCK_SIZE; ++token) {
-        UNCOMPRESSED_TYPE val0 = dequant_vals0[token];
-        UNCOMPRESSED_TYPE val1 = dequant_vals1[token];
-        min_value0 = fmin(min_value0, val0);
-        max_value0 = fmax(max_value0, val0);
-        min_value1 = fmin(min_value1, val1);
-        max_value1 = fmax(max_value1, val1);
+                                                             UNCOMPRESSED_TYPE* dequant_vals) {
+    UNCOMPRESSED_TYPE min_value = UNCOMPRESSED_VAL_MAX;
+    UNCOMPRESSED_TYPE max_value = UNCOMPRESSED_VAL_MIN;
+    for (uint t = 0; t < PAGED_ATTENTION_BLOCK_SIZE; ++t) {
+        min_value = fmin(min_value, dequant_vals[t]);
+        max_value = fmax(max_value, dequant_vals[t]);
     }
 
     #define ACCUMULATOR_TYPE float
-    ACCUMULATOR_TYPE range0 = max_value0 - min_value0;
-    ACCUMULATOR_TYPE range1 = max_value1 - min_value1;
-    const ACCUMULATOR_TYPE min_range0 = fabs(max_value0 * 0.1f);
-    const ACCUMULATOR_TYPE min_range1 = fabs(max_value1 * 0.1f);
-    if (range0 <= min_range0) {
-        range0 += fmax(1.0f, min_range0);
+    ACCUMULATOR_TYPE range = (max_value == min_value) ? 0.001f : (ACCUMULATOR_TYPE)(max_value - min_value);
+    const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
+    if (range <= min_range) {
+        range += fmax(1.0f, min_range);
     }
-    if (range1 <= min_range1) {
-        range1 += fmax(1.0f, min_range1);
-    }
-    ACCUMULATOR_TYPE scale_tmp0 = (ACCUMULATOR_TYPE)((UINT4_RANGE) / range0);
-    ACCUMULATOR_TYPE zp_tmp0 = (ACCUMULATOR_TYPE)(-min_value0 * scale_tmp0);
-    ACCUMULATOR_TYPE scale_tmp1 = (ACCUMULATOR_TYPE)((UINT4_RANGE) / range1);
-    ACCUMULATOR_TYPE zp_tmp1 = (ACCUMULATOR_TYPE)(-min_value1 * scale_tmp1);
-    UNCOMPRESSED_TYPE scale0 = (UNCOMPRESSED_TYPE)(scale_tmp0);
-    UNCOMPRESSED_TYPE zp0 = (UNCOMPRESSED_TYPE)(zp_tmp0);
-    UNCOMPRESSED_TYPE scale1 = (UNCOMPRESSED_TYPE)(scale_tmp1);
-    UNCOMPRESSED_TYPE zp1 = (UNCOMPRESSED_TYPE)(zp_tmp1);
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((UINT4_RANGE) / range);
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp);
     #undef ACCUMULATOR_TYPE
 
-    for (uint token = 0; token < PAGED_ATTENTION_BLOCK_SIZE; ++token) {
-        char2 quantized = 0;
-        quantized.s0 = convert_char_rte(dequant_vals0[token] * scale0 + zp0);
-        quantized.s1 = convert_char_rte(dequant_vals1[token] * scale1 + zp1);
-        key_cache[dst_base + token] = cvt_int8x2_to_uint4x2(quantized);
+    for (uint t = 0; t < PAGED_ATTENTION_BLOCK_SIZE; t += U4_ELEMS_PER_BYTE) {
+        char q0 = (char)clamp(convert_int_rte((float)(dequant_vals[t]     * scale_tmp + zp_tmp)), 0, UINT4_RANGE);
+        char q1 = (char)clamp(convert_int_rte((float)(dequant_vals[t + 1] * scale_tmp + zp_tmp)), 0, UINT4_RANGE);
+        char2 res = {q0, q1};
+        key_cache[dst_base + t / U4_ELEMS_PER_BYTE] = cvt_int8x2_to_uint4x2(res);
     }
 
-    UNCOMPRESSED_TYPE* comp_ptr = (UNCOMPRESSED_TYPE*)(key_cache + (dst_base + PAGED_ATTENTION_BLOCK_SIZE));
-    comp_ptr[0] = 1.0f / scale0;
-    comp_ptr[1] = zp0;
-    comp_ptr[2] = 1.0f / scale1;
-    comp_ptr[3] = zp1;
+    UNCOMPRESSED_TYPE* comp_ptr = (UNCOMPRESSED_TYPE*)(key_cache + dst_base + PACKED_PAGED_ATTENTION_BLOCK_SIZE);
+    comp_ptr[0] = (UNCOMPRESSED_TYPE)(1.0f / scale_tmp);
+    comp_ptr[1] = (UNCOMPRESSED_TYPE)zp_tmp;
 }
 #endif
 
@@ -176,10 +155,15 @@ KERNEL(pa_kv_cache_reorder)(
         #endif
 
         #ifdef IS_KEY_BY_CHANNEL
-        const uint key_src_base = OUTPUT_OFFSET + src_block * KV_HEADS_NUM * phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE +
-                  head_idx * phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
-        const uint key_dst_base = OUTPUT_OFFSET + dst_block * KV_HEADS_NUM * phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE +
-                  head_idx * phys_adjusted_k_head_size * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+            #if IS_KV_COMPRESSED && IS_INT4_COMPRESSED
+            const uint phys_adjusted_block_size = PACKED_ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+            #else
+            const uint phys_adjusted_block_size = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+            #endif
+        const uint key_src_base = OUTPUT_OFFSET + src_block * KV_HEADS_NUM * phys_adjusted_k_head_size * phys_adjusted_block_size +
+                  head_idx * phys_adjusted_k_head_size * phys_adjusted_block_size;
+        const uint key_dst_base = OUTPUT_OFFSET + dst_block * KV_HEADS_NUM * phys_adjusted_k_head_size * phys_adjusted_block_size +
+                  head_idx * phys_adjusted_k_head_size * phys_adjusted_block_size;
         #else
         const uint key_src_base = OUTPUT_OFFSET + src_block * KV_HEADS_NUM * phys_adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE +
                       head_idx * phys_adjusted_k_head_size * PAGED_ATTENTION_BLOCK_SIZE;
@@ -218,48 +202,55 @@ KERNEL(pa_kv_cache_reorder)(
                 // 2. copy the src slot to dst slot
                 // 3. if dst is in a different block, re-quantize dst block with updated scale/zp
                 #if IS_INT4_COMPRESSED
-                    for (uint k = sglid; k < phys_k_head_size; k += (uint)SUBGROUP_SIZE) {
-                        const uint src_off = key_src_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + src_slot;
-                        const uint dst_base = key_dst_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+                    if (src_block == dst_block) {
+                        // Fast path: nibble shuffle within the same column. scale/zp unchanged,
+                        // no dequant/requant — avoids accumulating rounding error across reorders.
+                        for (uint k = sglid; k < phys_k_head_size; k += (uint)SUBGROUP_SIZE) {
+                            const uint col_base = key_dst_base + k * PACKED_ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
 
-                        const uint src_comp_off = key_src_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + PAGED_ATTENTION_BLOCK_SIZE;
-                        const uint dst_comp_off = key_dst_base + k * ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE + PAGED_ATTENTION_BLOCK_SIZE;
-                        UNCOMPRESSED_TYPE* src_comp_ptr = key_cache + src_comp_off;
-                        UNCOMPRESSED_TYPE* dst_comp_ptr = key_cache + dst_comp_off;
+                            OUTPUT_TYPE src_byte = key_cache[col_base + src_slot / U4_ELEMS_PER_BYTE];
+                            char2 src_pair = unpack_to_char(*(uint4x2_t*)&src_byte);
+                            const char src_nibble = (src_slot % U4_ELEMS_PER_BYTE == 0) ? src_pair.s0 : src_pair.s1;
 
-                        const UNCOMPRESSED_TYPE src_scale_inv0 = src_comp_ptr[0];
-                        const UNCOMPRESSED_TYPE src_zp0 = src_comp_ptr[1];
-                        const UNCOMPRESSED_TYPE src_scale_inv1 = src_comp_ptr[2];
-                        const UNCOMPRESSED_TYPE src_zp1 = src_comp_ptr[3];
-                        const UNCOMPRESSED_TYPE dst_scale_inv0 = dst_comp_ptr[0];
-                        const UNCOMPRESSED_TYPE dst_zp0 = dst_comp_ptr[1];
-                        const UNCOMPRESSED_TYPE dst_scale_inv1 = dst_comp_ptr[2];
-                        const UNCOMPRESSED_TYPE dst_zp1 = dst_comp_ptr[3];
-
-                        OUTPUT_TYPE src_packed = key_cache[src_off];
-                        char2 src_unpacked = unpack_to_char(*(uint4x2_t *)&src_packed);
-
-                        const UNCOMPRESSED_TYPE src_val0 = ((UNCOMPRESSED_TYPE)(src_unpacked.s0) - src_zp0) * src_scale_inv0;
-                        const UNCOMPRESSED_TYPE src_val1 = ((UNCOMPRESSED_TYPE)(src_unpacked.s1) - src_zp1) * src_scale_inv1;
-
-                        UNCOMPRESSED_TYPE dequant_vals0[PAGED_ATTENTION_BLOCK_SIZE];
-                        UNCOMPRESSED_TYPE dequant_vals1[PAGED_ATTENTION_BLOCK_SIZE];
-
-                        for (uint token = 0; token < PAGED_ATTENTION_BLOCK_SIZE; ++token) {
-                            OUTPUT_TYPE dst_packed = key_cache[dst_base + token];
-                            char2 dst_unpacked = unpack_to_char(*(uint4x2_t *)&dst_packed);
-
-                            UNCOMPRESSED_TYPE val0 = ((UNCOMPRESSED_TYPE)(dst_unpacked.s0) - dst_zp0) * dst_scale_inv0;
-                            UNCOMPRESSED_TYPE val1 = ((UNCOMPRESSED_TYPE)(dst_unpacked.s1) - dst_zp1) * dst_scale_inv1;
-                            if (token == dst_slot) {
-                                val0 = src_val0;
-                                val1 = src_val1;
+                            const uint dst_byte_off = col_base + dst_slot / U4_ELEMS_PER_BYTE;
+                            OUTPUT_TYPE dst_byte = key_cache[dst_byte_off];
+                            char2 dst_pair = unpack_to_char(*(uint4x2_t*)&dst_byte);
+                            if (dst_slot % U4_ELEMS_PER_BYTE == 0) {
+                                dst_pair.s0 = src_nibble;
+                            } else {
+                                dst_pair.s1 = src_nibble;
                             }
-                            dequant_vals0[token] = val0;
-                            dequant_vals1[token] = val1;
+                            key_cache[dst_byte_off] = cvt_int8x2_to_uint4x2(dst_pair);
                         }
+                    } else {
+                        for (uint k = sglid; k < phys_k_head_size; k += (uint)SUBGROUP_SIZE) {
+                            const uint src_col_base = key_src_base + k * PACKED_ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
+                            const uint dst_col_base = key_dst_base + k * PACKED_ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
 
-                        FUNC_CALL(requantize_and_store_by_channel_block_int4)(key_cache, dst_base, dequant_vals0, dequant_vals1);
+                            UNCOMPRESSED_TYPE* src_comp_ptr = (UNCOMPRESSED_TYPE*)(key_cache + src_col_base + PACKED_PAGED_ATTENTION_BLOCK_SIZE);
+                            UNCOMPRESSED_TYPE* dst_comp_ptr = (UNCOMPRESSED_TYPE*)(key_cache + dst_col_base + PACKED_PAGED_ATTENTION_BLOCK_SIZE);
+                            const UNCOMPRESSED_TYPE src_scale_inv = src_comp_ptr[0];
+                            const UNCOMPRESSED_TYPE src_zp        = src_comp_ptr[1];
+                            const UNCOMPRESSED_TYPE dst_scale_inv = dst_comp_ptr[0];
+                            const UNCOMPRESSED_TYPE dst_zp        = dst_comp_ptr[1];
+
+                            OUTPUT_TYPE src_byte = key_cache[src_col_base + src_slot / U4_ELEMS_PER_BYTE];
+                            char2 src_pair = unpack_to_char(*(uint4x2_t*)&src_byte);
+                            const char src_nibble = (src_slot % U4_ELEMS_PER_BYTE == 0) ? src_pair.s0 : src_pair.s1;
+                            const UNCOMPRESSED_TYPE src_val = ((UNCOMPRESSED_TYPE)src_nibble - src_zp) * src_scale_inv;
+
+                            UNCOMPRESSED_TYPE dequant_vals[PAGED_ATTENTION_BLOCK_SIZE];
+                            for (uint t = 0; t < PAGED_ATTENTION_BLOCK_SIZE; ++t) {
+                                OUTPUT_TYPE dst_byte = key_cache[dst_col_base + t / U4_ELEMS_PER_BYTE];
+                                char2 dst_pair = unpack_to_char(*(uint4x2_t*)&dst_byte);
+                                const char dst_nibble = (t % U4_ELEMS_PER_BYTE == 0) ? dst_pair.s0 : dst_pair.s1;
+                                UNCOMPRESSED_TYPE v = ((UNCOMPRESSED_TYPE)dst_nibble - dst_zp) * dst_scale_inv;
+                                if (t == dst_slot) v = src_val;
+                                dequant_vals[t] = v;
+                            }
+
+                            FUNC_CALL(requantize_and_store_by_channel_block_int4)(key_cache, dst_col_base, dequant_vals);
+                        }
                     }
                 #else
                 if (src_block == dst_block) {
@@ -339,9 +330,11 @@ KERNEL(pa_kv_cache_reorder)(
 
             // value cache: per-token quantization
             #if IS_INT4_COMPRESSED
-            for (uint v = sglid; v < phys_v_head_size; v += (uint)SUBGROUP_SIZE) {
-                const uint src_off = val_src_base + src_slot * phys_v_head_size + v;
-                const uint dst_off = val_dst_base + dst_slot * phys_v_head_size + v;
+            // u4 per-token layout: each token row = [packed_v_head_size data bytes][scale][zp]
+            // Copy the whole row in one pass, scale/zp included.
+            for (uint v = sglid; v < phys_adjusted_v_head_size; v += (uint)SUBGROUP_SIZE) {
+                const uint src_off = val_src_base + src_slot * phys_adjusted_v_head_size + v;
+                const uint dst_off = val_dst_base + dst_slot * phys_adjusted_v_head_size + v;
                 value_cache[dst_off] = value_cache[src_off];
             }
             #else
@@ -362,6 +355,9 @@ KERNEL(pa_kv_cache_reorder)(
             }
             #endif
 
+            #if !IS_INT4_COMPRESSED
+            // INT8 per-token: scale/zp arrays live at end of block, indexed by token slot.
+            // INT4 per-token already copied scale/zp inline with the token row.
             if (sglid == 0) {
                 const uint comp_src_base = val_src_base + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
                 const uint comp_dst_base = val_dst_base + phys_v_head_size * PAGED_ATTENTION_BLOCK_SIZE;
@@ -370,6 +366,7 @@ KERNEL(pa_kv_cache_reorder)(
                 dst_comp_ptr[dst_slot] = src_comp_ptr[src_slot];
                 dst_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + dst_slot] = src_comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + src_slot];
             }
+            #endif
         #endif
     }
 }

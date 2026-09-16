@@ -12,6 +12,7 @@
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
+#include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "ze_graph_ext_wrappers.hpp"
 
@@ -26,8 +27,7 @@ public:
           std::optional<ov::Tensor> blob,
           const FilteredConfig& config,
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
-          const bool blobIsPersistent = false,
-          const bool calledFromWeightlessGraph = false);
+          const bool blobIsPersistent = false);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -39,7 +39,7 @@ public:
                                          const std::vector<size_t>& strides) const override;
 
     const NetworkMetadata& get_metadata() const override;
-    ze_graph_handle_t get_handle() const override;
+    void* get_handle() const override;
 
     void update_network_name(std::string_view name) override;
 
@@ -78,6 +78,11 @@ protected:
 
     GraphDescriptor _graphDesc;
     NetworkMetadata _metadata;
+
+    // Preserve previous behavior: when shared common queue is disabled and a new queue is created due to a priority
+    // change, keep the same workload type to avoid creating a queue with an unexpected workload.
+    std::optional<ov::WorkloadType> _workloadType = std::nullopt;
+    std::shared_ptr<CommandQueue> _commandQueue = nullptr;
 
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;

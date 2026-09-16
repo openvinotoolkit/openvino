@@ -20,6 +20,9 @@ std::vector<std::string> camVid12 = {"Sky",        "Building", "Pole", "Road",  
 DEFINE_string(network, "", "Network file (either XML or pre-compiled blob)");
 DEFINE_string(input, "", "Input file(s)");
 DEFINE_string(compiled_blob, "", "Output compiled network file (compiled result blob)");
+DEFINE_string(blob_name_prefix, "",
+        "Optional prefix overriding model-derived blob file naming for auto-generated input/reference/output blobs. "
+        "Explicit --ref_results paths are not modified.");
 DEFINE_uint32(override_model_batch_size, 1, "Enforce a model to be compiled for batch size");
 DEFINE_string(device, "", "Device to use");
 DEFINE_string(config, "", "Path to the configuration file (optional)");
@@ -92,8 +95,29 @@ DEFINE_string(rrmse_loss_threshold, std::to_string(metric_defaults::rrmse_loss_t
         "Threshold for 'rrmse' mode. Can be a single value or per-layer: 'layer1:0.1;layer2:0.2'");
 DEFINE_string(nrmse_loss_threshold, std::to_string(metric_defaults::nrmse_loss_threshold),
         "Threshold for 'nrmse' mode. Can be a single value or per-layer: 'logits:0.03;pred_boxes:0.05'");
+DEFINE_string(nrmse_prefill_seq_len_axis, "",
+        "Optional. Per-output sequence-length axis used by the 'nrmse' mode to slice prefill LLM "
+        "outputs (KV cache / hidden state). Semicolon-separated list of 'layer:axis' pairs, e.g. "
+        "'present.0.key:2;present.0.value:3;Result_logits:1'. Combined with --nrmse_prefill_seq_len_size, "
+        "the output tensor is sliced to its last N elements along the specified axis before computing "
+        "NRMSE. If either flag is missing for a given layer, the full tensor is compared.");
+DEFINE_string(nrmse_prefill_seq_len_size, "",
+        "Optional. Per-output number of elements to keep along the sequence-length axis (= prompt "
+        "length) when computing NRMSE on prefill LLM outputs. Semicolon-separated 'layer:N' pairs, "
+        "e.g. 'present.0.key:7;present.0.value:7;Result_logits:7'. Used together with "
+        "--nrmse_prefill_seq_len_axis. If either flag is missing for a given layer, the full tensor "
+        "is compared.");
 DEFINE_string(l2norm_threshold, std::to_string(metric_defaults::l2norm_threshold),
         "Threshold for 'l2norm' mode. Can be a single value or per-layer: 'layer1:1.0;layer2:2.0'");
+DEFINE_string(l2norm_dequant_scale, "",
+        "Optional. Dequantization scale factor applied to the inference output tensor(s) before the "
+        "'l2norm' comparison is performed: dequantized = (quantized - zero_point) * scale. Can be a single "
+        "global value applied to all outputs, or per-output: 'output1:0.00392;output2:0.01'. If not set, "
+        "dequantization is skipped and outputs are compared as-is. The reference tensor is never modified.");
+DEFINE_string(l2norm_dequant_zp, "",
+        "Optional. Dequantization zero point used together with --l2norm_dequant_scale for 'l2norm' mode. "
+        "Can be a single global value or per-output: 'output1:128;output2:0'. Defaults to 0 for any output "
+        "without an explicit value. Has no effect unless --l2norm_dequant_scale is set.");
 DEFINE_string(overlap_threshold, std::to_string(metric_defaults::overlap_threshold),
         "IoU threshold for 'map' mode (detection matching). " \
         "Can be a single value or per-layer: 'layer1:0.5;layer2:0.6'");
@@ -145,6 +169,7 @@ void utils::parseCommandLine(int argc, char* argv[]) {
     std::cout << "    Network file:                             " << FLAGS_network << std::endl;
     std::cout << "    Input file(s):                            " << FLAGS_input << std::endl;
     std::cout << "    Output compiled network file:             " << FLAGS_compiled_blob << std::endl;
+    std::cout << "    Blob name prefix override:                " << FLAGS_blob_name_prefix << std::endl;
     std::cout << "    Color format:                             " << FLAGS_color_format << std::endl;
     std::cout << "    Input precision:                          " << FLAGS_ip << std::endl;
     std::cout << "    Output precision:                         " << FLAGS_op << std::endl;
@@ -188,8 +213,17 @@ void utils::parseCommandLine(int argc, char* argv[]) {
             std::cout << "    mAP Threshold:     " << FLAGS_map_threshold << std::endl;
         } else if (strEq(FLAGS_mode, "nrmse")) {
             std::cout << "    Threshold:        " << FLAGS_nrmse_loss_threshold << std::endl;
+            if (!FLAGS_nrmse_prefill_seq_len_axis.empty() || !FLAGS_nrmse_prefill_seq_len_size.empty()) {
+                std::cout << "    Prefill seq-len axis: " << FLAGS_nrmse_prefill_seq_len_axis << std::endl;
+                std::cout << "    Prefill seq-len size: " << FLAGS_nrmse_prefill_seq_len_size << std::endl;
+            }
         } else if (strEq(FLAGS_mode, "l2norm")) {
             std::cout << "    Threshold:        " << FLAGS_l2norm_threshold << std::endl;
+            if (!FLAGS_l2norm_dequant_scale.empty()) {
+                std::cout << "    Dequant scale:      " << FLAGS_l2norm_dequant_scale << std::endl;
+                std::cout << "    Dequant zero point: "
+                          << (FLAGS_l2norm_dequant_zp.empty() ? "0" : FLAGS_l2norm_dequant_zp) << std::endl;
+            }
         }
     }
     std::cout << "    Log level:                        " << FLAGS_log_level << std::endl;
@@ -204,6 +238,8 @@ void utils::parseCommandLine(int argc, char* argv[]) {
  * @example parsePerLayerValues("logits:0.03;pred_boxes:0.05", 1.0)
  *          returns {"logits": 0.03, "pred_boxes": 0.05}
  * @example parsePerLayerValues("0.01", 1.0) returns {"*": 0.01}
+ * @example parsePerLayerValues("3dconv:0.01;head:0.02", 1.0)
+ *          returns {"3dconv": 0.01, "head": 0.02} (layer names may start with a digit)
  */
 utils::PerLayerValueMap utils::parsePerLayerValues(const std::string& str, double defaultValue) {
     PerLayerValueMap result;
@@ -216,13 +252,17 @@ utils::PerLayerValueMap utils::parsePerLayerValues(const std::string& str, doubl
         return result;
     }
 
-    // Try to parse as a single number first
-    try {
-        double value = std::stod(str);
-        result["*"] = value;
-        return result;
-    } catch (...) {
-        // Not a single number, parse as key:value pairs
+    if (str.find_first_of(":;") == std::string::npos) {
+        try {
+            size_t pos = 0;
+            const double value = std::stod(str, &pos);
+            if (str.find_first_not_of(" \t", pos) == std::string::npos) {
+                result["*"] = value;
+                return result;
+            }
+        } catch (...) {
+            // Not a single number; fall through to per-layer parsing.
+        }
     }
 
     // Parse "layer1:value1;layer2:value2" format
@@ -275,4 +315,28 @@ double utils::getValueForLayer(const PerLayerValueMap& valueMap, const std::stri
 
     // Should never be reached for properly initialised maps.
     return 0.0;
+}
+
+/**
+ * @brief Checks whether a per-layer value map represents a single global value that applies to every
+ *        layer (as opposed to an explicit per-layer specification with a wildcard fallback default).
+ * @param valueMap Map produced by parsePerLayerValues
+ * @return true if the map only contains the wildcard entry
+ */
+bool utils::isGlobalValue(const PerLayerValueMap& valueMap) {
+    return valueMap.size() == 1 && valueMap.count("*") != 0;
+}
+
+/**
+ * @brief Get the explicit value set for a specific layer, ignoring the wildcard fallback.
+ * @param valueMap Map of layer name to value (as produced by parsePerLayerValues)
+ * @param layerName Name of the layer
+ * @return The explicitly configured value for the layer, or std::nullopt if the layer has no explicit entry
+ */
+std::optional<double> utils::getExplicitValueForLayer(const PerLayerValueMap& valueMap, const std::string& layerName) {
+    auto it = valueMap.find(layerName);
+    if (it != valueMap.end()) {
+        return it->second;
+    }
+    return std::nullopt;
 }

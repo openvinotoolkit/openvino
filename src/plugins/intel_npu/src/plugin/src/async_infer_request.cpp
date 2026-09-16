@@ -8,19 +8,27 @@
 
 namespace intel_npu {
 
-// clang-format off
-AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<InferRequest>& syncInferRequest,
+AsyncInferRequest::AsyncInferRequest(const std::shared_ptr<InferRequest>& inferRequest,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& requestExecutor,
-                                     const std::shared_ptr<ov::threading::ITaskExecutor>& getResultExecutor,
+                                     const std::shared_ptr<ov::threading::ITaskExecutor>& resultExecutor,
                                      const std::shared_ptr<ov::threading::ITaskExecutor>& callbackExecutor)
-        : ov::IAsyncInferRequest(syncInferRequest, requestExecutor, callbackExecutor),
-          _syncInferRequest(syncInferRequest), _getResultExecutor(getResultExecutor) {
-    m_pipeline = {
-            {requestExecutor,       [this] { _syncInferRequest->infer_async(); }},
-            {getResultExecutor,     [this] { _syncInferRequest->get_result(); }}
-    };
+    : ov::IAsyncInferRequest(inferRequest, requestExecutor, callbackExecutor),
+      _inferRequest(inferRequest),
+      _resultExecutor(resultExecutor) {
+    if (_resultExecutor) {
+        m_pipeline = {{requestExecutor,
+                       [this] {
+                           _inferRequest->infer_async();
+                       }},
+                      {_resultExecutor, [this] {
+                           _inferRequest->get_result();
+                       }}};
+    }
 }
-// clang-format on
+
+void AsyncInferRequest::cancel() {
+    OPENVINO_THROW("Inference cancellation is not supported by the Intel NPU plugin");
+}
 
 AsyncInferRequest::~AsyncInferRequest() {
     stop_and_wait();

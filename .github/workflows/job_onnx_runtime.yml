@@ -16,6 +16,10 @@ on:
         description: 'Key prefix for the cache folder on the Azure'
         type: string
         required: true
+      cmake-build-parallel-level:
+        description: 'Number of threads for parallel build (hard-coded; nproc and NUMBER_OF_PROCESSORS do not respect container CPU limits)'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -50,12 +54,16 @@ jobs:
       ONNX_RUNTIME_REPO: ${{ github.workspace }}/onnxruntime
       ONNX_RUNTIME_BUILD_DIR: ${{ github.workspace }}/onnxruntime/build
       ONNX_RUNTIME_UTILS: ${{ github.workspace }}/src/frontends/onnx/tests/ci_utils/onnxruntime
+      # Hard-coded at workflow call site; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: ${{ inputs.cmake-build-parallel-level }}
 
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
@@ -88,7 +96,7 @@ jobs:
           submodules: 'recursive'
 
       - name: Download OpenVINO package
-        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
@@ -109,7 +117,7 @@ jobs:
             --config RelWithDebInfo \
             --use_openvino CPU \
             --build_shared_lib \
-            --parallel $(nproc) \
+            --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} \
             --skip_tests \
             --compile_no_warning_as_error \
             --allow_running_as_root \

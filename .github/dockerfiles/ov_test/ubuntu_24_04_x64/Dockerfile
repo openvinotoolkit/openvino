@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:24.04
 
@@ -24,6 +27,8 @@ RUN apt-get update && \
         pigz \
         # Samples
         clang \
+        # required by cv2 (pulled in via diffusers → imwatermark)
+        libgl1 \
         # Python
         python3-full \
         libhdf5-dev \
@@ -45,5 +50,4 @@ ENV PATH="/venv/bin:$PATH"
 ENV PIP_VERSION="24.0"
 RUN /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION}
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 ENV PIP_INSTALL_PATH=/venv/lib/python3/site-packages

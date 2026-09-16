@@ -41,10 +41,10 @@ Result GatherShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
         m_axis = data_dependency.at(GATHER_AXIS)->getDataAs<const int32_t>()[0];
     }
     if (m_axis < 0) {
-        m_axis += input_shape.size();
+        m_axis += static_cast<int>(input_shape.size());
     }
     if (m_batchDims < 0) {
-        m_batchDims += indices_shape.size();
+        m_batchDims += static_cast<int>(indices_shape.size());
     }
     VectorDims output_shape;
     output_shape.reserve(input_shape.size() + indices_shape.size() - m_batchDims - 1);

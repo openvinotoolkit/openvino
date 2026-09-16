@@ -270,10 +270,7 @@ std::vector<TRShape> shape_infer(const Reshape* op,
     const auto input_rank = input_shape.rank();
     const auto pattern_shape_rank = pattern_shape.rank();
 
-    NODE_SHAPE_INFER_CHECK(op,
-                           input_shapes,
-                           pattern_shape_rank.compatible(0) || pattern_shape_rank.compatible(1),
-                           "Pattern shape must have rank 1 or be empty");
+    NODE_SHAPE_INFER_CHECK(op, input_shapes, pattern_shape_rank.compatible(1), "Pattern shape must have rank 1");
 
     auto output_shapes = std::vector<TRShape>(1);
     auto& output_shape = output_shapes[0];
@@ -284,13 +281,6 @@ std::vector<TRShape> shape_infer(const Reshape* op,
         const auto minus_one_idx = pattern_and_minus_one_idx.second;
 
         reshape::set_pattern_symbols(op, output_pattern);
-
-        if (pattern_shape_rank.get_max_length() == 0) {
-            NODE_VALIDATION_CHECK(op,
-                                  output_pattern[0] == 1,
-                                  "The value of scalar shape pattern should be equal to 1!");
-            output_pattern.resize(0);
-        }
 
         const auto special_zero = op->get_special_zero();
 
@@ -375,15 +365,8 @@ std::vector<TRShape> shape_infer(const Reshape* op,
                                    " is incompatible with input shape");
         }
     } else if (pattern_shape_rank.is_static()) {
-        if (pattern_shape_rank.get_length() == 0) {
-            NODE_SHAPE_INFER_CHECK(op,
-                                   input_shapes,
-                                   input_rank.compatible(0),
-                                   "Input must be scalar as pattern is scalar!");
-        } else {
-            output_shape =
-                PartialShape::dynamic(Rank(pattern_shape[0].get_min_length(), pattern_shape[0].get_max_length()));
-        }
+        output_shape =
+            PartialShape::dynamic(Rank(pattern_shape[0].get_min_length(), pattern_shape[0].get_max_length()));
     } else {
         output_shape = PartialShape::dynamic();
     }

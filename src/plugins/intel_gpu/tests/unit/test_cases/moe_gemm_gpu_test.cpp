@@ -52,7 +52,6 @@ void get_reference(const std::vector<ov::float16>& input,
                    bool is_weight_symmetric_quant,
                    cldnn::data_types weight_dt,
                    const std::vector<ov::float16>& bias) {
-    std::cout << "get_reference" << std::endl;
     size_t elements_per_byte = (ov::element::Type(weight_dt).bitwidth() == 4) ? 2 : 1;
     auto ld_w = K / elements_per_byte;
     auto ld_in = K;
@@ -94,7 +93,6 @@ void get_reference(const std::vector<ov::float16>& input,
                    bool is_weight_symmetric_quant,
                    cldnn::data_types weight_dt,
                    const std::vector<ov::float16>& bias) {
-    std::cout << "get_reference" << std::endl;
     size_t elements_per_byte = (ov::element::Type(weight_dt).bitwidth() == 4) ? 2 : 1;
     auto ld_w = K / elements_per_byte;
     auto ld_in = K;
@@ -521,7 +519,6 @@ struct MoEGemmTest : public ::testing::TestWithParam<T> {
 
         for (size_t i = 0; i < M * p.out_N; i++) {
             auto tolerance = std::max(std::abs(output_ref[i] * 0.01f), 0.1f);
-            // std::cout << "[" << i << "] " << output_ref[i] << " : " << output_ptr[i] << std::endl;
             ASSERT_NEAR(output_ptr[i], output_ref[i], tolerance);
         }
     }

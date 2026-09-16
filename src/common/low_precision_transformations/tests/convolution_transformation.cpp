@@ -94,8 +94,7 @@ public:
             testValues.expected.weights,
             testValues.expected.fakeQuantizeOnWeights,
             testValues.expected.precisionAfterOperation,
-            testValues.expected.dequantizationAfter,
-            testValues.expected.precisionAfterDequantization);
+            testValues.expected.dequantizationAfter);
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<ConvolutionTransformationParams> obj) {
@@ -300,10 +299,8 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
                 {{ 128.f, 0.f, 128.f }, ov::element::f32, { 1, 3, 1, 1 }},
                 {{ 0.02f, 0.01f, 0.03f }, ov::element::f32, {1, 3, 1, 1}}
             },
-            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ -1.25f }),
-            {},
-            ov::element::f32,
-            {}
+            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
         }
     },
     // float input
@@ -328,10 +325,8 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
                 {{ 128.f }, ov::element::f32, { 1, 1, 1, 1 }},
                 {{ 0.02f }, ov::element::f32, {1, 1, 1, 1}}
             },
-            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ -1.25f }),
-            {},
-            ov::element::f32,
-            {}
+            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
         }
     },
     // without dequantization operations
@@ -367,11 +362,9 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
         // ExpectedValues
         {
             ov::element::f32,
-            {{}, {}, { {0.02f}, element::f32 }},
-            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ -1.25f }),
-            {},
-            ov::element::f32,
-            {}
+            {{}, {}, { 0.02f }},
+            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
         }
     },
     // without zero point
@@ -408,10 +401,8 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
         {
             ov::element::u8,
             {{element::f32}, { 1000.f }, { {0.02f}, element::f32 }},
-            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ -1.25f }),
-            {},
-            ov::element::f32,
-            {}
+            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
         }
     },
     // TODO: uncomment: remove precisionsOnActivations & precisionsOnWeights
@@ -471,11 +462,9 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
         // ExpectedValues
         {
             ov::element::u8,
-            {{ ov::element::f32 }, { 128.f }, { 0.02f }},
-            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ -1.25f }),
-            {},
-            ov::element::f32,
-            {}
+            {{ov::element::f32}, { 128.f }, { 0.02f }},
+            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
         }
     },
     // without zero point
@@ -491,11 +480,9 @@ const std::vector<ConvolutionTransformationTestValues> testValues = {
         // ExpectedValues
         {
             ov::element::u8,
-            {{ ov::element::f32 }, {}, { 0.02f }},
-            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ -1.25f }),
-            {},
-            ov::element::f32,
-            {}
+            {{ov::element::f32}, {}, { 0.02f }},
+            op::v0::Constant::create(ov::element::f32, ov::Shape{}, std::vector<float>{ 2.f }),
+            { 255ul, Shape({ 1, 1, 1, 1 }), { 0.f }, { 254.f }, { -1.27f }, { 1.27f } }
         }
     },
 };

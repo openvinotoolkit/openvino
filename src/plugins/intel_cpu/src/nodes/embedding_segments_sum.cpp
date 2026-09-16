@@ -121,7 +121,7 @@ void EmbeddingSegmentsSum::initFromInputs() {
 void EmbeddingSegmentsSum::getIndices(size_t embIndex,
                                       const int*& indices,
                                       size_t& size,
-                                      int& weightsIdx,
+                                      size_t& weightsIdx,
                                       bool& withWeight) {
     CPU_NODE_ASSERT(embIndex < static_cast<size_t>(lastNumSegments_), "Invalid embedding bag index.");
 
@@ -129,7 +129,7 @@ void EmbeddingSegmentsSum::getIndices(size_t embIndex,
     size = 0;
     withWeight = true;
 
-    for (int si = 0; si < static_cast<int>(indicesSize_); si++) {
+    for (size_t si = 0; si < indicesSize_; si++) {
         if (static_cast<size_t>(segmentIds_[si]) == embIndex) {
             size++;
             if (indices == nullptr) {

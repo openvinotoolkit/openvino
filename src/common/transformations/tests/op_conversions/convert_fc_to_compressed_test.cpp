@@ -14,6 +14,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/fully_connected.hpp"
 #include "ov_ops/fully_connected_compressed.hpp"
@@ -131,3 +132,101 @@ const auto params = std::vector<ConvertFCToCompressedParams>{
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests, ConvertFCToCompressed, ::testing::ValuesIn(params));
+
+// Regression test: when the matched Transpose acts on the weights tensor and
+// scale / zero-point are rank-1 per-output-channel Constants, the old code
+// path tried to apply the rank-2 weight perm to a rank-1 input, which
+// crashes Transpose shape inference.  The fixed `apply_transpose` lambda
+// promotes rank-1 per-channel Constants to rank-2 [N, 1] without inserting a
+// runtime op, while still transposing the rank-2 weights.
+TEST_F(TransformationTestsF, ConvertFCToCompressedRank1ScaleZpWithTranspose) {
+    const size_t OC = 5;
+    const size_t IC = 2048;
+    const auto compressed_type = ov::element::u8;
+    const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
+    const std::vector<ov::element::Type> supported_weights_types{compressed_type};
+
+    manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
+                                                                                     supported_weights_types);
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, IC});
+        // Weights laid out as [IC, OC] so that a Transpose([1, 0]) yields [OC, IC]
+        // (matching the FullyConnected input layout convention).
+        auto weights_const = ov::op::v0::Constant::create(compressed_type, ov::Shape{IC, OC}, {1});
+        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
+        // Rank-1 per-output-channel zero-point.
+        auto zp_const = ov::op::v0::Constant::create(compressed_type, ov::Shape{OC}, {1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
+        auto wei_sub = std::make_shared<ov::op::v1::Subtract>(wei_convert, zp_convert);
+        // Rank-1 per-output-channel scale.
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{OC}, {1});
+        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_sub, scale_const);
+        auto perm = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
+        auto wei_t = std::make_shared<ov::op::v1::Transpose>(wei_scale, perm);
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_t, bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, IC});
+        // Weights Constant stays in its original [IC, OC] layout; the transformation
+        // re-clones the rank-2 Transpose with the same perm.
+        auto weights_const = ov::op::v0::Constant::create(compressed_type, ov::Shape{IC, OC}, {1});
+        auto perm = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
+        auto weights_t = std::make_shared<ov::op::v1::Transpose>(weights_const, perm);
+        // Rank-1 [OC] -> rank-2 [OC, 1] Constant reshape baked in (no runtime op).
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{OC, 1}, {1});
+        auto zp_const = ov::op::v0::Constant::create(compressed_type, ov::Shape{OC, 1}, {1});
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto fc_compressed =
+            std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights_t, bias, scale_const, zp_const);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
+    }
+}
+
+// Regression test: rank-0 (scalar / per-tensor) scale and zero-point with weights
+// Transpose. The old code path applied the rank-2 weight perm to a rank-0 input
+// which crashes Transpose shape inference. The fixed `apply_transpose` returns
+// rank-0 Constants unchanged while still transposing the rank-2 weights.
+TEST_F(TransformationTestsF, ConvertFCToCompressedRank0ScaleZpWithTranspose) {
+    const size_t OC = 5;
+    const size_t IC = 2048;
+    const auto compressed_type = ov::element::u8;
+    const std::vector<ov::element::Type> supported_activation_types{ov::element::f32};
+    const std::vector<ov::element::Type> supported_weights_types{compressed_type};
+
+    manager.register_pass<ov::pass::ConvertFullyConnectedToFullyConnectedCompressed>(supported_activation_types,
+                                                                                     supported_weights_types);
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, IC});
+        auto weights_const = ov::op::v0::Constant::create(compressed_type, ov::Shape{IC, OC}, {1});
+        auto wei_convert = std::make_shared<ov::op::v0::Convert>(weights_const, ov::element::f32);
+        // Rank-0 (scalar) per-tensor zero-point.
+        auto zp_const = ov::op::v0::Constant::create(compressed_type, ov::Shape{}, {1});
+        auto zp_convert = std::make_shared<ov::op::v0::Convert>(zp_const, ov::element::f32);
+        auto wei_sub = std::make_shared<ov::op::v1::Subtract>(wei_convert, zp_convert);
+        // Rank-0 (scalar) per-tensor scale.
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1});
+        auto wei_scale = std::make_shared<ov::op::v1::Multiply>(wei_sub, scale_const);
+        auto perm = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
+        auto wei_t = std::make_shared<ov::op::v1::Transpose>(wei_scale, perm);
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto fc = std::make_shared<ov::op::internal::FullyConnected>(input, wei_t, bias);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input});
+    }
+    {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{10, IC});
+        auto weights_const = ov::op::v0::Constant::create(compressed_type, ov::Shape{IC, OC}, {1});
+        auto perm = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{2}, std::vector<int32_t>{1, 0});
+        auto weights_t = std::make_shared<ov::op::v1::Transpose>(weights_const, perm);
+        // Rank-0 scale / zp pass through apply_transpose unchanged.
+        auto scale_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1});
+        auto zp_const = ov::op::v0::Constant::create(compressed_type, ov::Shape{}, {1});
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{0});
+        auto fc_compressed =
+            std::make_shared<ov::op::internal::FullyConnectedCompressed>(input, weights_t, bias, scale_const, zp_const);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc_compressed}, ov::ParameterVector{input});
+    }
+}

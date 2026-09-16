@@ -25,11 +25,7 @@ describe("Tests for reading model.", () => {
 
   beforeEach(() => {
     core = new ov.Core();
-    weightsTensor = new ov.Tensor(
-      ov.element.u8,
-      [weightsFile.buffer.byteLength],
-      new Uint8Array(weightsFile.buffer),
-    );
+    weightsTensor = new ov.Tensor(ov.element.u8, [weightsFile.length], new Uint8Array(weightsFile));
   });
 
   describe("Core.readModeSync", () => {
@@ -59,10 +55,7 @@ describe("Tests for reading model.", () => {
     });
 
     it("readModelSync(modelUint8ArrayBuffer, weightsUint8ArrayBuffer) ", () => {
-      const model = core.readModelSync(
-        new Uint8Array(modelFile.buffer),
-        new Uint8Array(weightsFile.buffer),
-      );
+      const model = core.readModelSync(new Uint8Array(modelFile), new Uint8Array(weightsFile));
       assert.ok(model instanceof ov.Model);
       assert.equal(model.inputs.length, 1);
     });
@@ -72,6 +65,13 @@ describe("Tests for reading model.", () => {
     it("readModel(xmlPath) ", async () => {
       const model = await core.readModel(testModelFP32.xml);
       assert.equal(model.inputs.length, 1);
+    });
+
+    it("readModel(xmlPath) rejects on invalid path", async () => {
+      await assert.rejects(
+        async () => await core.readModel("not_exists"),
+        /Could not open the file/,
+      );
     });
 
     it("readModel(xmlPath, weightsPath) ", async () => {
@@ -86,10 +86,7 @@ describe("Tests for reading model.", () => {
     });
 
     it("readModel(Uint8ArrayBuffer, Uint8ArrayBuffer) ", async () => {
-      const model = await core.readModel(
-        new Uint8Array(modelFile.buffer),
-        new Uint8Array(weightsFile.buffer),
-      );
+      const model = await core.readModel(new Uint8Array(modelFile), new Uint8Array(weightsFile));
       assert.equal(model.inputs.length, 1);
     });
   });

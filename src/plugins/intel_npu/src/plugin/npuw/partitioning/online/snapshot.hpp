@@ -55,6 +55,7 @@ public:
     void earlyRegroup();
 
     void stripTag(const std::string& tag);
+    void fuseUnfolded();
 
     // Passes to detect corner cases
     bool isRegularIOCase() const;

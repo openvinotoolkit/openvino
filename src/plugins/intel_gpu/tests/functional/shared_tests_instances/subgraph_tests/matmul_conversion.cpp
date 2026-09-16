@@ -445,6 +445,57 @@ INSTANTIATE_TEST_SUITE_P(MatMulConversionConstantInput_basic_1,
                                             ::testing::ValuesIn({ov::element::f16})),
                          MatMulConversionConstantInput::getTestCaseName);
 
+// Keep this reproducer case: it targets legacy MatMul_cldnn_out_reshape mismatch
+// with output element count 98960 when constant is consumed as MatMul input0.
+class MatMulConversionConstantInput0LargeOut : virtual public ov::test::SubgraphBaseTest {
+protected:
+    std::shared_ptr<ov::Model> init_subgraph(std::vector<ov::PartialShape>& input_shapes) {
+        const auto input_precision = ov::element::f32;
+
+        const ov::Shape const_shape = ov::Shape{98960, 64};
+        auto t0 = ov::test::utils::create_and_fill_tensor(input_precision, const_shape, in_data);
+        auto c0 = std::make_shared<ov::op::v0::Constant>(t0);
+        auto input0 = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0]);
+        auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(c0, input0, false, false);
+
+        return std::make_shared<ov::Model>(ov::OutputVector{matmul_1}, ov::ParameterVector{input0},
+                                           "MatMulConversionConstantInput0LargeOut");
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+        for (size_t i = 0; i < funcInputs.size(); ++i) {
+            const auto& funcInput = funcInputs[i];
+            auto tensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, targetInputStaticShapes[i], in_data);
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
+    }
+
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        abs_threshold = 0.01f;
+        in_data.start_from = -0.5;
+        in_data.range = 1;
+        in_data.resolution = 10;
+
+        const std::vector<InputShape> input_shapes = {{{}, {{1, 64, 1}}}};
+        const auto infer_precision = ov::element::f16;
+        init_input_shapes(input_shapes);
+
+        inType = outType = ov::element::f32;
+        function = init_subgraph(inputDynamicShapes);
+        this->configuration.insert({ov::hint::inference_precision(infer_precision)});
+    }
+
+private:
+    ov::test::utils::InputGenerateData in_data;
+};
+
+TEST_F(MatMulConversionConstantInput0LargeOut, Inference) {
+    run();
+}
+
 using MatmulConversionConstantNDParams = std::tuple<ov::Shape,               // constant shape
                                                     std::vector<InputShape>,  // input shapes
                                                     ov::element::Type>;       // infer precision

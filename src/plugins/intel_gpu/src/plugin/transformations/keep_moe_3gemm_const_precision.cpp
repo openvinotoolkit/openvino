@@ -6,7 +6,7 @@
 
 #include <memory>
 
-#include "intel_gpu/op/moe_3gemm_fused_compressed.hpp"
+#include "ov_ops/moe_compressed.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -24,14 +24,6 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
     auto zp_1_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto zp_2_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
 
-    // Softmax routing: 11 inputs (no routing_bias)
-    auto moe_softmax_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
-        {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m});
-
-    // SigmoidBias routing: 13 inputs (routing_bias at index 11, routing_eps at index 12)
-    auto moe_sigmoid_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
-        {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m, any_input(), any_input()});
-
     // Shared expert weights
     auto sh_gate_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto sh_gate_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
@@ -40,23 +32,26 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
     auto sh_down_wei_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
     auto sh_down_zp_m = wrap_type<ov::op::v0::Constant>(type_matches(ov::element::u4));
 
-    // Softmax + shared expert: 23 inputs (indices 11-12 are dummy placeholders)
-    auto moe_softmax_shared_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
-        {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(),
-         zp_2_m, any_input(), any_input(), sh_gate_wei_m, any_input(), sh_gate_zp_m, sh_up_wei_m, any_input(), sh_up_zp_m, sh_down_wei_m, any_input(), sh_down_zp_m, any_input()});
+    // Without shared expert: 12 inputs [hs, routing, topk, w0, s0, zp0, w1, s1, zp1, w2, s2, zp2]
+    auto moe_no_shared_m = wrap_type<ov::op::internal::MOECompressed>(
+        {any_input(), any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(), zp_2_m});
 
-    // SigmoidBias + shared expert: 23 inputs (indices 11-12 are routing_bias/eps)
-    auto moe_sigmoid_shared_m = wrap_type<ov::intel_gpu::op::MOE3GemmFusedCompressed>(
-        {any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(),
-         zp_2_m, any_input(), any_input(), sh_gate_wei_m, any_input(), sh_gate_zp_m, sh_up_wei_m, any_input(), sh_up_zp_m, sh_down_wei_m, any_input(), sh_down_zp_m, any_input()});
+    // With shared expert: 22 inputs
+    auto moe_shared_m = wrap_type<ov::op::internal::MOECompressed>(
+        {any_input(), any_input(), any_input(), wei_0_m, any_input(), zp_0_m, wei_1_m, any_input(), zp_1_m, wei_2_m, any_input(),
+         zp_2_m, sh_gate_wei_m, any_input(), sh_gate_zp_m, sh_up_wei_m, any_input(), sh_up_zp_m, sh_down_wei_m, any_input(), sh_down_zp_m, any_input()});
 
-    auto moe_3gemm_fused_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(
-        OutputVector{moe_softmax_m, moe_sigmoid_m, moe_softmax_shared_m, moe_sigmoid_shared_m});
+    auto moe_compressed_m = std::make_shared<ov::pass::pattern::op::Or>(
+        OutputVector{moe_no_shared_m, moe_shared_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
-        auto moe_3gemm_fused_compressed = ov::as_type_ptr<ov::intel_gpu::op::MOE3GemmFusedCompressed>(m.get_match_root());
-        if (!moe_3gemm_fused_compressed || transformation_callback(moe_3gemm_fused_compressed)) {
+        auto moe_compressed = ov::as_type_ptr<ov::op::internal::MOECompressed>(m.get_match_root());
+        if (!moe_compressed || transformation_callback(moe_compressed)) {
+            return false;
+        }
+        // Only apply to GEMM3_SWIGLU (the 3-GEMM fused path)
+        if (moe_compressed->get_config().expert_type != ov::op::internal::MOE::Expert_type::GEMM3_SWIGLU) {
             return false;
         }
 
@@ -82,7 +77,7 @@ KeepMOE3GemmConstPrecision::KeepMOE3GemmConstPrecision() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(moe_3gemm_fused_compressed_m, "KeepMOE3GemmConstPrecision");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(moe_compressed_m, "KeepMOE3GemmConstPrecision");
     this->register_matcher(m, callback);
 }
 

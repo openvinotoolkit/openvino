@@ -177,6 +177,12 @@ class Result(openvino._pyopenvino.Node):
         ...
     def set_layout(self, layout: openvino._pyopenvino.Layout) -> None:
         ...
+class _GroupQueryAttentionExtension(openvino._pyopenvino.Extension):
+    """
+    Extension that registers GroupQueryAttention for IR deserialization. Pass an instance to core.add_extension() before reading an IR that contains this op.
+    """
+    def __init__(self) -> None:
+        ...
 class _PagedAttentionExtension(openvino._pyopenvino.Node):
     """
     Experimental extention for PagedAttention operation. Use with care: no backward compatibility is guaranteed in future releases.

@@ -94,7 +94,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp32) {
     createReferenceDataNV12<float, float>(input_y_data.data(), input_uv_data.data(), ref_res.data(),
                                           1, height, width, height * width, height * width / 2, true);
     auto output = outputs.at("convert_color").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
         ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
@@ -136,7 +136,7 @@ TEST(convert_color, nv12_to_bgr_two_planes_buffer_fp32) {
                                    1, height, width, height * width, height * width / 2, false);
 
     auto output = outputs.at("convert_color").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
         ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
@@ -178,7 +178,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_u8) {
                                             1, height, width, height * width, height * width / 2, true);
 
     auto output = outputs.at("convert_color").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
         ASSERT_NEAR(ref_res[i], static_cast<float>(output_ptr[i]), 1.001f);
@@ -220,7 +220,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_buffer_fp16) {
                                             1, height, width, height * width, height * width / 2, true);
 
     auto output = outputs.at("convert_color").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint16_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
      for (size_t i = 0; i < ref_res.size(); ++i) {
         ASSERT_NEAR(ref_res[i], half_to_float(output_ptr[i]), 1.001f);
@@ -258,7 +258,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_fp32) {
     createReferenceDataNV12<float, float>(input_data.data(), input_data.data() + height * width, ref_res.data(),
                                           1, height, width, input_height * width, input_height * width, true);
     auto output = outputs.at("convert_color").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
         ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
@@ -296,7 +296,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_buffer_u8) {
     createReferenceDataNV12<uint8_t, float>(input_data.data(), input_data.data() + height * width, ref_res.data(),
                                             1, height, width, input_height * width, input_height * width, true);
     auto output = outputs.at("convert_color").get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
         ASSERT_NEAR(ref_res[i], static_cast<float>(output_ptr[i]), 1.001f);
@@ -377,7 +377,7 @@ TEST(convert_color, nv12_to_rgb_two_planes_surface_u8) {
                                               1, height, width, height * width, height * width / 2, true);
 
     auto output_prim = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
     for (size_t i = 0; i < reference_results.size(); i++) {
         ASSERT_EQ(reference_results[i], output_ptr[i]);
     }
@@ -443,7 +443,7 @@ TEST(convert_color, nv12_to_rgb_single_plane_surface_u8) {
                                             1, height, width, input_height * width, input_height * width, true);
 
     auto output_prim = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
     for (size_t i = 0; i < reference_results.size(); i++) {
         ASSERT_EQ(reference_results[i], output_ptr[i]);
     }
@@ -539,7 +539,7 @@ TEST(convert_color, i420_to_rgb_three_planes_buffer_fp32) {
     createReferenceDataI420<float, float>(input_y_data.data(), input_u_data.data(), input_v_data.data(), ref_res.data(),
                                           1, height, width, height * width, height * width / 2, true);
     auto output = outputs.at("convert_color").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (size_t i = 0; i < ref_res.size(); ++i) {
         ASSERT_NEAR(ref_res[i], output_ptr[i], 1.001f);
@@ -630,7 +630,7 @@ void test_convert_color_i420_to_rgb_three_planes_surface_u8(bool is_caching_test
                                             1, height, width, height * width, height * width / 2, true);
 
     auto output_prim = outputs.begin()->second.get_memory();
-    cldnn::mem_lock<uint8_t> output_ptr(output_prim, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> output_ptr(output_prim, get_test_stream());
     for (size_t i = 0; i < reference_results.size(); i++) {
         ASSERT_EQ(reference_results[i], output_ptr[i]) << " i = " << i;
     }

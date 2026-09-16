@@ -298,12 +298,13 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkNoThrowWithDevi
 
 TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkThrowWithDeviceName) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ov::Core ie = createCoreWithTemplate();
+    ov::Core ie = ov::test::utils::create_core();
     std::stringstream wrongStm;
     // Import model with wrong format throws exception
     OV_EXPECT_THROW((ie.import_model(wrongStm, target_device)),
                     ov::Exception,
-                    testing::HasSubstr("device xml header"));
+                    testing::AnyOf(testing::HasSubstr("device xml header"),
+                                   testing::HasSubstr("requirements header")));
 }
 
 //

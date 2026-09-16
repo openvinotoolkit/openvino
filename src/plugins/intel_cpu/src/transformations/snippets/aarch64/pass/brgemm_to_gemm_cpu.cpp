@@ -53,9 +53,13 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         const auto& layout_b = brgemm_in1_desc->get_layout();
         const auto& layout_c = brgemm_out_desc->get_layout();
 
+        const auto element_type_a = brgemm->get_input_element_type(0);
         const auto element_type_b = brgemm->get_input_element_type(1);
-        OPENVINO_ASSERT(ov::snippets::utils::any_of(element_type_b, element::f32, element::f16),
-                        "GemmCPU supports only f32/f16 precision.");
+        const auto is_float =
+            ov::snippets::utils::any_of(element_type_a, element::f32, element::f16) && element_type_a == element_type_b;
+        const auto is_int8 =
+            ov::snippets::utils::any_of(element_type_a, element::i8, element::u8) && element_type_b == element::i8;
+        OPENVINO_ASSERT(is_float || is_int8, "GemmCPU supports only f32/f16 and i8/u8 x i8 precisions.");
         const auto offset_a = brgemm->get_offset_a();
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();

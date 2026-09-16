@@ -194,25 +194,28 @@ void jit_rms_kernel<isa>::generate() {
     vbroadcastss(vmm_rsqrt, xmm_rsqrt);
     mov(reg_size, m_jcp.data_size / vec_size);
     mov(reg_src, reg_src_org);
-    align(16);
-    Xbyak::Label loop_mul;
-    L(loop_mul);
-    {
-        load(vmm_src, reg_src, m_jcp.src_prc, vec_size, false);
-        vmulps(vmm_src, vmm_src, vmm_rsqrt);
-        if (m_jcp.scale_size != 1) {
-            load(vmm_tmp, reg_scale, ov::element::f32, vec_size, false);
-            vmulps(vmm_src, vmm_src, vmm_tmp);
-        }
-        store(reg_dst, vmm_src, m_jcp.dst_prc, vec_size);
+    if (m_jcp.data_size >= vec_size) {
+        // Tiny rows rely on the tail path below; emitting a zero-trip vector loop would underflow reg_size.
+        align(16);
+        Xbyak::Label loop_mul;
+        L(loop_mul);
+        {
+            load(vmm_src, reg_src, m_jcp.src_prc, vec_size, false);
+            vmulps(vmm_src, vmm_src, vmm_rsqrt);
+            if (m_jcp.scale_size != 1) {
+                load(vmm_tmp, reg_scale, ov::element::f32, vec_size, false);
+                vmulps(vmm_src, vmm_src, vmm_tmp);
+            }
+            store(reg_dst, vmm_src, m_jcp.dst_prc, vec_size);
 
-        add(reg_src, vec_size * m_jcp.src_prc.size());
-        if (m_jcp.scale_size != 1) {
-            add(reg_scale, vec_size * sizeof(float));
+            add(reg_src, vec_size * m_jcp.src_prc.size());
+            if (m_jcp.scale_size != 1) {
+                add(reg_scale, vec_size * sizeof(float));
+            }
+            add(reg_dst, vec_size * m_jcp.dst_prc.size());
+            dec(reg_size);
+            jnz(loop_mul);
         }
-        add(reg_dst, vec_size * m_jcp.dst_prc.size());
-        dec(reg_size);
-        jnz(loop_mul);
     }
     // tail
     if (m_jcp.data_size % vec_size) {

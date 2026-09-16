@@ -279,6 +279,21 @@ macro(ov_arm_sve_optimization_flags flags)
             endif()
             if(NOT CMAKE_CL_64)
                 list(APPEND ${flags} -ftree-vectorize)
+                # Keep auto-vectorization but restrict it to Advanced SIMD (NEON) for these SVE clones.
+                # Under -march=+sve the auto-vectorizer otherwise turns generic STL templates (e.g.
+                # std::vector<T>::_M_default_append zero-init/resize) into SVE. Such instantiations are
+                # emitted as WEAK COMDAT symbols with default visibility, so the linker may select the SVE
+                # copy as the single definition used by baseline (non-SVE) translation units too, executing
+                # illegal SVE on cores without SVE (e.g. Cortex-A72) and crashing with SIGILL. Lowering the
+                # auto-vectorizer to NEON (legal on every ARMv8-A core) keeps the generic loops vectorized
+                # while preserving the intentional SVE kernels, which use explicit ACLE intrinsics
+                # (svld1/svmla_f32/...) and are unaffected. Both GCC and Clang auto-vectorize to SVE here,
+                # but the knob is compiler-specific (Android/MSVC/IntelLLVM handled above).
+                if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+                    list(APPEND ${flags} --param=aarch64-autovec-preference=1)
+                elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang)$")
+                    list(APPEND ${flags} -mllvm -scalable-vectorization=off)
+                endif()
             endif()
 
             set(${flags} ${${flags}})
@@ -300,7 +315,8 @@ function(ov_disable_all_warnings)
         get_target_property(target_type ${target} TYPE)
 
         if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
-            target_compile_options(${target} PRIVATE /WX-)
+            # restrict to C/CXX sources only
+            target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
         elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             target_compile_options(${target} PRIVATE -w)
             # required for LTO

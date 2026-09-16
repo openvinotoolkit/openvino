@@ -71,7 +71,7 @@ void test_multiple_outputs(bool is_caching_test) {
     auto outputs = network->execute();
 
     auto output = outputs.at("reshape").get_memory();
-    cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_TRUE(output->get_layout().get_tensor() == after_reshape);
 
@@ -141,7 +141,7 @@ void test_output_node_optimization(bool is_caching_test) {
 
     auto output_memory = outputs.at("relu").get_memory();
     auto output_layout = output_memory->get_layout();
-    cldnn::mem_lock<T> output_ptr(output_memory, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
 
     int y_size = output_layout.spatial(1);
     int x_size = output_layout.spatial(0);

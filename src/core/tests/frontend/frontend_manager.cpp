@@ -5,8 +5,10 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <fstream>
 #include <memory>
 
+#include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/frontend/exception.hpp"
@@ -502,4 +504,14 @@ TEST(FrontEndManagerTest, Exception_Safety_FrontEnd_Supported_By_Path) {
         auto fe = fem.load_by_framework("mock1");
         fe->supported(std::filesystem::path("throw_now"));
     });
+}
+
+TEST(FrontEndManagerTest, testFindPluginsDoesNotCrashOnUnicodeFilename) {
+    const auto fe_dir = ov::test::utils::to_fs_path(ov::test::utils::getExecutableDirectory());
+    auto unicode_file = fe_dir / std::filesystem::u8path("\xE8\xBF\x99\xE6\x98\xAF_");
+    unicode_file += ov::test::utils::generateTestFilePrefix();
+    { std::ofstream{unicode_file}; }
+
+    OV_ASSERT_NO_THROW(FrontEndManager{});
+    std::filesystem::remove(unicode_file);
 }

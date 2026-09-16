@@ -100,7 +100,7 @@ public:
         ASSERT_EQ(outputs.begin()->first, "reordered_ctc_loss");
 
         auto output = outputs.at("reordered_ctc_loss").get_memory();
-        cldnn::mem_lock<TF> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<TF, mem_lock_type::read> output_ptr(output, get_test_stream());
 
         ASSERT_EQ(output_ptr.size(), p.expected_values.size());
         for (size_t i = 0; i < output_ptr.size(); ++i) {

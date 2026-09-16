@@ -18,10 +18,11 @@ namespace cldnn {
 template <typename T, typename primitive_type>
 class singleton_list : public std::vector<T> {
     singleton_list() : std::vector<T>() {}
+
+public:
     singleton_list(singleton_list const&) = delete;
     void operator=(singleton_list const&) = delete;
 
-public:
     using type = primitive_type;
     static singleton_list& instance() {
         static singleton_list instance_;
@@ -40,12 +41,14 @@ public:
         const auto& l = list_type::instance();
         for (auto& entry : l) {
             impl_types impl_type = std::get<0>(entry);
-            if ((preferred_impl_type & impl_type) != impl_type)
+            if ((preferred_impl_type & impl_type) != impl_type) {
                 continue;
+            }
 
             shape_types supported_shape_type = std::get<1>(entry);
-            if ((target_shape_type & supported_shape_type) != target_shape_type)
+            if ((target_shape_type & supported_shape_type) != target_shape_type) {
                 continue;
+            }
 
             return std::get<2>(entry);
         }

@@ -4,15 +4,19 @@
 
 #include "partitioning.hpp"
 
+#include <limits>
 #include <memory>
+#include <set>
 
 #include "../logging.hpp"
+#include "../npuw_transformations/detect_causal_mask.hpp"
 #include "../util.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "online/compiler.hpp"
 #include "online/utils/utils.hpp"  // getMetaDesc
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -21,7 +25,6 @@
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
-#include "patterns/moe.hpp"
 #include "patterns/opt.hpp"
 #include "traits.hpp"
 
@@ -910,10 +913,24 @@ void Partitioner::identifySubgraphs() {
 std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType utype) {
     func_pipeline_type = utype;
 
+    std::set<std::string> selected_repeated_ids;
+    if (func_pipeline_type == FunctionPipelineType::FOLD && !cfg.get<::intel_npu::NPUW_FOLD>()) {
+        const auto fold_only_tags_vec = ov::npuw::online::util::splitByComma(cfg.get<::intel_npu::NPUW_FOLD_ONLY>());
+        const std::set<std::string> fold_only_tags(fold_only_tags_vec.begin(), fold_only_tags_vec.end());
+        if (!fold_only_tags.empty()) {
+            for (const auto& subgraph : P.subgraphs) {
+                if (!subgraph._repeated_id.empty() && fold_only_tags.count(subgraph.gettag()) > 0) {
+                    selected_repeated_ids.insert(subgraph._repeated_id);
+                }
+            }
+        }
+    }
+
     // Collect all groups of function call(s) and process them in groups
     std::map<std::string, int> idx;
     for (auto&& part_sg : P.subgraphs) {
-        if (!part_sg._repeated_id.empty()) {
+        if (!part_sg._repeated_id.empty() &&
+            (selected_repeated_ids.empty() || selected_repeated_ids.count(part_sg._repeated_id) > 0)) {
             auto pfix = "__" + std::to_string(idx[part_sg._repeated_id]++);
             const auto& fcid = func_pipeline_type == FunctionPipelineType::FOLD
                                    ? part_sg._repeated_id          // with folding, functions of the
@@ -1405,7 +1422,7 @@ void Partitioner::saveTinyConstants(const std::string& func_name) {
                 LOG_DEBUG("[KEEP] " << node->get_friendly_name() << "/" << shape
                                     << ": It is safe to keep this bank in function");
                 func_group.consts_to_keep.insert(std::static_pointer_cast<CT>(node));
-            } else {
+            } else if (ov::op::util::is_constant(node)) {
                 LOG_DEBUG("[CUT ] " << node->get_friendly_name() << "/" << shape
                                     << ": This const op will be cut-off from the function");
             }
@@ -1431,6 +1448,8 @@ void Partitioner::saveScaleFactors(const std::string& func_name) {
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI1>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI2>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI3>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::AsymmZP::CWAI>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::RMSNorm::CWAI>(std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
@@ -1540,7 +1559,12 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
             return;
         }
 
+        bool empty_constant = ov::util::is_empty_constant_tensor(proto_node);
+
         bool all_identical = std::all_of(instances.begin(), instances.end(), [&](const CTPtr& other_node) -> bool {
+            if (empty_constant) {
+                return ov::util::is_empty_constant_tensor(other_node);
+            }
             return (other_node->output(0).get_shape() == proto_node->output(0).get_shape()) &&
                    values_are_the_same(proto_node, other_node);
         });
@@ -2075,8 +2099,52 @@ void Partitioner::attention(const std::string& func_name) {
     // Try HFA (Host Flash Attention)
     if (attn_mode == "HFA") {
         LOG_DEBUG("Attempting HostFlashAttention based on config");
-        f._host_flash_attention =
-            ov::npuw::function::HostFlashAttention::from(f._model, cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>());
+
+        // Consistency check: HostFlashAttention::from() inspects a single representative
+        // instance (f._model) of this repeated "attn" function to decide whether the
+        // compiled tile model can structurally drop the mask input. That decision is only
+        // valid if all funcall instances sharing this function have the same mask kind --
+        // otherwise it's a correctness bug (e.g. a Causal representative stripping a mask
+        // a SlidingWindow instance still needs), not just a missed optimization. This is a
+        // defensive backstop, not the primary separation mechanism: distinct mask kinds
+        // normally yield structurally distinct subgraphs, so partitioning already tends to
+        // keep them in separate functions. If a mix is still found here, disable
+        // mask-skipping for the whole function (safe: only forgoes an optimization).
+        //
+        // NPUW_SDPA_MASK_RT_KEY encodes mask kind + (for sliding window) window size in
+        // one int64_t, so raw-value comparison also catches differing window sizes.
+        std::optional<int64_t> common_mask_value;
+        bool mask_kind_consistent = true;
+        for (const auto& mdl : all_functions.at(func_name).mdls) {
+            const auto pattern_nodes = ov::npuw::util::find_sdpa_pattern_nodes(mdl);
+            if (!pattern_nodes.add_node) {
+                continue;
+            }
+
+            int64_t mask_value = std::numeric_limits<int64_t>::min();
+            const auto& rt_info = pattern_nodes.add_node->get_rt_info();
+            if (auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY); it != rt_info.end()) {
+                mask_value = it->second.as<int64_t>();
+            }
+            if (!common_mask_value) {
+                common_mask_value = mask_value;
+            } else if (*common_mask_value != mask_value) {
+                LOG_WARN("NPUW: mixed mask types (e.g. sliding-window + global/causal attention, or different "
+                         "sliding window sizes) detected across funcall instances sharing the same repeated 'attn' "
+                         "function '"
+                         << func_name
+                         << "'. The mask-skipping optimization's compile-time decision is based on a single "
+                            "representative instance, which would be unsafe here -- disabling mask skipping for "
+                            "this function.");
+                mask_kind_consistent = false;
+                break;
+            }
+        }
+
+        f._host_flash_attention = ov::npuw::function::HostFlashAttention::from(
+            f._model,
+            cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>(),
+            mask_kind_consistent && cfg.get<::intel_npu::NPUW_ATTN_HFA_MASK_SKIPPING>());
         if (f._host_flash_attention) {
             LOG_VERB("Done - HFA (Host Flash Attention)");
             return;
@@ -2535,9 +2603,11 @@ void Partitioner::finalizeLinks() {
         } else {
             // A function call: find in the prototype subgraph
             auto& params = P.functions.at(sg_desc._funcall)._model->get_parameters();
-            auto& proto = func_pipeline_type == FunctionPipelineType::CWAI
-                              ? ptr  // no protos in the CWAI case..
-                              : all_functions.at(sg_desc._funcall).param_call_to_proto.at(SubgParam(sg_desc, ptr));
+            auto& func_group = all_functions.at(sg_desc._funcall);
+            // Mixed FOLD/CWAI partitionings are resolved per function group:
+            // FOLD fills param_call_to_proto, while CWAI falls back to the call-local ptr.
+            auto proto_iter = func_group.param_call_to_proto.find(SubgParam(sg_desc, ptr));
+            auto& proto = proto_iter == func_group.param_call_to_proto.end() ? ptr : proto_iter->second;
             auto param_iter = std::find(params.begin(), params.end(), proto);
             NPUW_ASSERT(param_iter != params.end());
             return std::distance(params.begin(), param_iter);
@@ -2556,9 +2626,9 @@ void Partitioner::finalizeLinks() {
         } else {
             // A function call: find in the prototype subgraph
             auto& results = P.functions.at(sg_desc._funcall)._model->get_results();
-            auto& proto = func_pipeline_type == FunctionPipelineType::CWAI
-                              ? ptr  // no protos in the CWAI case...
-                              : all_functions.at(sg_desc._funcall).result_call_to_proto.at(SubgResult(sg_desc, ptr));
+            auto& func_group = all_functions.at(sg_desc._funcall);
+            auto proto_iter = func_group.result_call_to_proto.find(SubgResult(sg_desc, ptr));
+            auto& proto = proto_iter == func_group.result_call_to_proto.end() ? ptr : proto_iter->second;
             auto result_iter = std::find(results.begin(), results.end(), proto);
             NPUW_ASSERT(result_iter != results.end());
             return std::distance(results.begin(), result_iter);
@@ -2690,11 +2760,11 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {
-        if (cfg.get<::intel_npu::NPUW_FOLD>()) {
-            // Do full-featured folding
+        auto run_fold_pipeline = [&]() {
+            // Do full-featured folding.
             auto all_functions = p.initFunctionPipeline(Partitioner::FunctionPipelineType::FOLD);
 
-            // Pass 1: Register all functions and apply general transformations
+            // Pass 1: Register all functions and apply general transformations.
             // - matchRepeatedSubgraphs() populates P.functions with all function definitions
             // - Other transformations (spatial, attention, optimize, etc.) can be applied
             //   independently without cross-function dependencies
@@ -2711,7 +2781,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.saveTailDictConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
-                p.matchRepeatedSubgraphs(func_group);  // This populates P.functions
+                p.matchRepeatedSubgraphs(func_group);
                 p.spatial(func_group);
                 p.attention(func_group);
                 p.optimize(func_group);
@@ -2721,32 +2791,55 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
             // Pass 2: run deferred partition-stage transformations after all functions are registered.
             // Partitioning stays generic here: it only exposes shared lookup helpers through the
             // pipeline context and then runs the registered callbacks.
+            std::unordered_map<std::string, std::shared_ptr<ov::Node>> rt_info_node_cache;
             for (auto&& func_group : all_functions) {
                 LOG_INFO("FOLD Pass 2: Partition-stage pipeline for " << func_group << "...");
                 LOG_BLOCK();
                 auto& function = P.functions.at(func_group);
                 if (function._pipeline.partition_stage) {
-                    function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
-                        {[&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
-                            auto cached = part_ctx.tagged_models.find(tag);
-                            if (cached != part_ctx.tagged_models.end()) {
-                                return cached->second;
+                    auto find_tagged_model =
+                        [&P, &part_ctx = effective_ctx](const std::string& tag) -> std::shared_ptr<ov::Model> {
+                        auto cached = part_ctx.tagged_models.find(tag);
+                        if (cached != part_ctx.tagged_models.end()) {
+                            return cached->second;
+                        }
+                        for (const auto& [name, candidate] : P.functions) {
+                            if (candidate.gettag() == tag) {
+                                part_ctx.tagged_models.emplace(tag, candidate._model);
+                                return candidate._model;
                             }
-                            for (const auto& [name, candidate] : P.functions) {
-                                if (candidate.gettag() == tag) {
-                                    part_ctx.tagged_models.emplace(tag, candidate._model);
-                                    return candidate._model;
+                        }
+                        return nullptr;
+                    };
+
+                    auto find_node_with_rt_info =
+                        [&P, &cache = rt_info_node_cache](const std::string& key) -> std::shared_ptr<ov::Node> {
+                        auto cached = cache.find(key);
+                        if (cached != cache.end()) {
+                            return cached->second;
+                        }
+                        for (const auto& [name, func] : P.functions) {
+                            for (const auto& node : func._model->get_ordered_ops()) {
+                                if (node->get_rt_info().count(key) > 0) {
+                                    cache.emplace(key, node);
+                                    return node;
                                 }
                             }
-                            return nullptr;
-                        }});
+                        }
+                        return nullptr;
+                    };
+
+                    function._pipeline.context.put<ov::npuw::v1::subgraphs::PartitioningCallbacks>(
+                        {std::move(find_tagged_model), std::move(find_node_with_rt_info)});
                     function._pipeline.partition_stage(function, function._pipeline.context);
                     // The callback captures partitioning state by reference, so keep it scoped to this
                     // immediate partition-stage invocation and remove it before the context outlives us.
                     function._pipeline.context.erase<ov::npuw::v1::subgraphs::PartitioningCallbacks>();
                 }
             }
-        } else if (cfg.get<::intel_npu::NPUW_CWAI>()) {
+        };
+
+        auto run_cwai_pipeline = [&]() {
             // Less brutal version - just transform repeated blocks
             // into the closure forms, but don't do folding.
             // This path is likely to be removed soon (is here for
@@ -2761,9 +2854,51 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.createFunction(func_group);
                 p.decompressionCutOff(func_group);
             }
-        } else {
-            LOG_INFO("Note: Repeated blocks are found in the model " << model->get_friendly_name()
-                                                                     << ", but folding or eager mode are not enabled");
+        };
+
+        auto select_repeated_ids_by_tag = [&](const std::set<std::string>& tags) {
+            std::set<std::string> selected_repeated_ids;
+            for (const auto& subgraph : P.subgraphs) {
+                if (!subgraph._repeated_id.empty() && tags.count(subgraph.gettag()) > 0) {
+                    selected_repeated_ids.insert(subgraph._repeated_id);
+                }
+            }
+            return selected_repeated_ids;
+        };
+
+        const bool fold_enabled = cfg.get<::intel_npu::NPUW_FOLD>();
+        const bool cwai_enabled = cfg.get<::intel_npu::NPUW_CWAI>();
+        const auto fold_only_tags_vec = ov::npuw::online::util::splitByComma(cfg.get<::intel_npu::NPUW_FOLD_ONLY>());
+        const std::set<std::string> fold_only_tags(fold_only_tags_vec.begin(), fold_only_tags_vec.end());
+        const auto fold_only_repeated_ids =
+            fold_only_tags.empty() ? std::set<std::string>{} : select_repeated_ids_by_tag(fold_only_tags);
+        const bool fold_only_matches = !fold_only_repeated_ids.empty();
+        const bool should_run_fold = fold_enabled || fold_only_matches;
+        const bool should_run_cwai = !fold_enabled && cwai_enabled;
+
+        if (!fold_enabled) {
+            if (!fold_only_tags.empty()) {
+                if (cwai_enabled) {
+                    LOG_INFO(::intel_npu::NPUW_FOLD_ONLY().key()
+                             << " is set, so selected-tag FOLD takes precedence over " << ::intel_npu::NPUW_CWAI().key()
+                             << ".");
+                }
+                if (!fold_only_matches) {
+                    LOG_INFO("No repeated subgraphs matched " << ::intel_npu::NPUW_FOLD_ONLY().key()
+                                                              << "; repeated blocks stay unprocessed.");
+                }
+            } else if (!cwai_enabled) {
+                LOG_INFO("Note: Repeated blocks are found in the model " << model->get_friendly_name()
+                                                                         << ", but folding is not enabled");
+            }
+        }
+
+        if (should_run_fold) {
+            run_fold_pipeline();
+        }
+        if (should_run_cwai) {
+            // Selected FOLD families are already converted to funcalls, so CWAI only sees the remainder.
+            run_cwai_pipeline();
         }
     }
     p.finalizeLinks();

@@ -8,7 +8,7 @@ Supported configurations:
 
 ## Software requirements
 
-- [CMake](https://cmake.org/download/) 3.13 or higher
+- [CMake](https://cmake.org/download/) 3.26 or higher
 - Microsoft Visual Studio 2019 or higher, version 16.3 or later
   > **NOTE**: Native Microsoft Visual Studio for WoA has been available since version 3.11.
 - Python 3.10 - 3.14 for OpenVINO Runtime Python API
@@ -76,7 +76,7 @@ To pack PDB files, it's essential to run cmake command to create a dedicated arc
     ```
   or install the wheel with pip:
   ```
-  pip install build/wheels/openvino-2026.0.0-9612-cp313-cp313-win_arm64.whl
+  pip install build/wheels/openvino-2026.2.1-9612-cp313-cp313-win_arm64.whl
   ```
   > **NOTE**: Wheels are generated under the `<build>/wheels/` directory. Substitute the filename with the artifact that matches your Python version and target architecture.
 

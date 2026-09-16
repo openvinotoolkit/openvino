@@ -414,7 +414,7 @@ private:
 
         auto output = outputs.at("slice_scatter").get_memory();
 
-        cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
         cldnn::mem_lock<T> wanted_output_ptr(params.wanted_output, get_test_stream());
 
         ASSERT_EQ(output->get_layout().get_shape(), params.wanted_output->get_layout().get_shape());
@@ -720,7 +720,7 @@ protected:
             auto outputs = network->execute();
             // Force sync
             auto out = outputs.at("slice_scatter").get_memory();
-            cldnn::mem_lock<float> lock(out, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> lock(out, get_test_stream());
             (void)lock[0];
         }
 
@@ -731,7 +731,7 @@ protected:
             network->set_input_data("updates", updates_mem);
             auto outputs = network->execute();
             auto out = outputs.at("slice_scatter").get_memory();
-            cldnn::mem_lock<float> lock(out, get_test_stream());
+            cldnn::mem_lock<float, mem_lock_type::read> lock(out, get_test_stream());
             (void)lock[0];
         }
         auto t1 = std::chrono::high_resolution_clock::now();

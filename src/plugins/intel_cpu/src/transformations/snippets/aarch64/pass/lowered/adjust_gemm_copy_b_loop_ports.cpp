@@ -4,20 +4,48 @@
 
 #include "adjust_gemm_copy_b_loop_ports.hpp"
 
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/loop_info.hpp"
-#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
 
 namespace ov::intel_cpu {
+
+namespace {
+int64_t get_rhs_packed_ptr_increment(const ov::element::Type& precision, size_t n_increment, size_t K) {
+    if (snippets::utils::is_dynamic_value(n_increment) || snippets::utils::is_dynamic_value(K)) {
+        return snippets::utils::get_dynamic_value<int64_t>();
+    }
+
+    // KAI packs RHS by N blocks: one bias value plus K RHS values per N lane.
+    // Derive the snippets ptr_increment from KAI byte offsets; for current f32/f16 packers this reduces to K + 1.
+    const auto n_step = aarch64::gemm_utils::repacking::get_rhs_packed_n_step(precision);
+    OPENVINO_ASSERT(n_increment % n_step == 0, "GEMM N loop increment must be aligned with KAI RHS packed N step");
+
+    const auto element_size = precision.size();
+    const auto packed_offset = aarch64::gemm_utils::repacking::get_rhs_packed_offset(precision, n_increment, K);
+    const auto loop_increment_size = n_increment * element_size;
+    OPENVINO_ASSERT(loop_increment_size != 0 && packed_offset % loop_increment_size == 0,
+                    "KAI RHS packed offset can't be represented as a loop pointer increment");
+
+    const auto ptr_increment = packed_offset / loop_increment_size;
+    OPENVINO_ASSERT(ptr_increment <= static_cast<size_t>(std::numeric_limits<int64_t>::max()),
+                    "KAI RHS packed pointer increment is out of int64_t range");
+    return static_cast<int64_t>(ptr_increment);
+}
+}  // namespace
 
 bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info(
     const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& loop_info) {
@@ -29,21 +57,17 @@ bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info(
         if (p.get_type() == snippets::lowered::ExpressionPort::Input && p.get_index() == 1) {
             const auto& expr = p.get_expr();
             if (as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(expr->get_node())) {
-                // from format KN to NK64n(64 is n block), and for each K64n, repack to nK8n
+                // GemmCopyB packs RHS outside the N blocking loop, so the GemmCPU B port must step through the
+                // KAI packed RHS layout rather than the original KN tensor.
                 if (loop_port.is_incremented()) {
                     if (loop_port.get_dim_idx() == 0) {
-                        // N blocking loop
-                        const auto& in_0_shape = ov::snippets::utils::get_planar_vdims(expr->get_input_port(0));
-                        const auto& K = in_0_shape.back();  // K dimension(K is not blocked)
-                        // NK repacked and padded to to N(K+1)
-                        // ptr_increment is 1, inc is 64. inc*ptr_increment adjusted from 64*1 to 64*(K+1)
-                        const int64_t& K_signed = snippets::utils::is_dynamic_value(K)
-                                                      ? snippets::utils::get_dynamic_value<int64_t>()
-                                                      : static_cast<int64_t>(K);
-                        const int64_t& k_pad = snippets::utils::dynamic_safe_add(K_signed, static_cast<int64_t>(1));
-                        loop_desc.ptr_increment = snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, k_pad);
-                        loop_desc.finalization_offset =
-                            snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, k_pad);
+                        const auto& b_shape = ov::snippets::utils::get_planar_vdims(*loop_port.get_expr_port());
+                        OPENVINO_ASSERT(b_shape.size() >= 2, "GemmCPU B input must have at least 2 dimensions");
+                        const auto K = *++b_shape.rbegin();
+                        const auto& precision = expr->get_node()->get_input_element_type(1);
+                        const auto new_ptr_increment =
+                            get_rhs_packed_ptr_increment(precision, loop_info->get_increment(), K);
+                        assign_new_ptr_increment(new_ptr_increment, loop_desc);
                     } else {
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustGemmCopyBLoopPorts");
                     }
@@ -56,33 +80,25 @@ bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info(
     return modified;
 }
 
-bool pass::aarch64::AdjustGemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AdjustGemmCopyBLoopPorts")
+bool pass::aarch64::AdjustGemmCopyBLoopPorts::is_target_expr(const snippets::lowered::ExpressionPtr& expr) const {
+    return static_cast<bool>(ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(expr->get_node()));
+}
 
-    bool modified = false;
+snippets::lowered::ExpressionPtr pass::aarch64::AdjustGemmCopyBLoopPorts::get_copy_b_expr(
+    const snippets::lowered::ExpressionPtr& gemm_expr) const {
+    return ov::intel_cpu::aarch64::gemm_utils::repacking::get_copy_b_expr(gemm_expr);
+}
 
-    for (const auto& expr : linear_ir) {
-        const auto gemm = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(expr->get_node());
-        if (!gemm) {
-            continue;
-        }
-        const auto& gemm_loop_ids = expr->get_loop_ids();
-        if (gemm_loop_ids.empty()) {
-            continue;
-        }
-        const auto& loop_manager = linear_ir.get_loop_manager();
-        // only adjust inner most loop(N loop)
-        const auto& loop = loop_manager->get_loop_info(gemm_loop_ids.back());
-        auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
-        if (!uni_loop) {
-            uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
-        }
-        if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
-            m_affected_loops.insert(uni_loop);
-            modified = true;
-        }
-    }
+bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info_impl(
+    const snippets::lowered::UnifiedLoopInfoPtr& loop_info) const {
+    return update_loop_info(loop_info);
+}
 
-    return modified;
+const char* pass::aarch64::AdjustGemmCopyBLoopPorts::copy_b_not_found_message() const {
+    return "GemmCopyB expression is not found";
+}
+
+const char* pass::aarch64::AdjustGemmCopyBLoopPorts::invalid_loop_config_message() const {
+    return "Invalid GemmCopyB loop configuration";
 }
 }  // namespace ov::intel_cpu

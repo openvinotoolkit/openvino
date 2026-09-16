@@ -1,0 +1,18 @@
+{
+    "schema_version": "1.0",
+    "signature": "assertion failed in unit test|Code Issue",
+    "signature_hash": "cccc3333dddd4444",
+    "title": "Deterministic failure that must never trigger a rerun",
+    "category": "Code Issue",
+    "count": 1,
+    "first_seen": "2026-07-10T10:00:00Z",
+    "last_seen": "2026-07-10T10:00:00Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/29268143022"
+    ],
+    "affected_prs": [],
+    "recent_timestamps": [
+        "2026-07-10T10:00:00Z"
+    ],
+    "rerun_search_string": null
+}

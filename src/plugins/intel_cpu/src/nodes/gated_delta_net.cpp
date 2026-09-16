@@ -4,29 +4,26 @@
 
 #include "gated_delta_net.h"
 
-#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "cpu_memory.h"
 #include "graph_context.h"
-#include "kernels/linear_attn/recurrent_linear_attn.hpp"
-#include "memory_desc/cpu_blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/gated_delta_net_config.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/plain_tensor.hpp"
-
-using namespace ov::Extensions::Cpu;
-using namespace ov::Extensions::Cpu::XARCH;
 
 namespace ov::intel_cpu::node {
 
@@ -40,66 +37,83 @@ GatedDeltaNet::GatedDeltaNet(const std::shared_ptr<ov::Node>& op, const GraphCon
     m_fuse_qk_l2norm = gdn->get_fuse_qk_l2norm();
     m_q_l2_norm_eps = gdn->get_q_l2_norm_eps();
     m_k_l2_norm_eps = gdn->get_k_l2_norm_eps();
+    m_attrs.fuse_qk_l2norm = m_fuse_qk_l2norm;
+    m_attrs.q_l2_norm_eps = m_q_l2_norm_eps;
+    m_attrs.k_l2_norm_eps = m_k_l2_norm_eps;
+    m_atoi[ARG_GDN_QUERY] = 0;
+    m_atoi[ARG_GDN_KEY] = 1;
+    m_atoi[ARG_GDN_VALUE] = 2;
+    m_atoi[ARG_GDN_STATE] = 3;
+    m_atoi[ARG_GDN_GATE] = 4;
+    m_atoi[ARG_GDN_BETA] = 5;
 }
 
 void GatedDeltaNet::initSupportedPrimitiveDescriptors() {
-    // TODO: support other precision CVS-182464
-    auto dataPrecision = ov::element::f32;
-    std::vector<PortConfigurator> inPortConfigs;
-    for (size_t i = 0; i < getParentEdges().size(); ++i) {
-        inPortConfigs.emplace_back(LayoutType::ncsp, dataPrecision, getInputShapeAtPort(i), false, -1);
+    auto dataPrecision = getOriginalOutputPrecisionAtPort(0);
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+
+    MemoryDescArgs descs;
+    for (const auto& [argId, portId] : m_atoi) {
+        descs[argId] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dataPrecision, getInputShapeAtPort(portId));
     }
-    std::vector<PortConfigurator> outPortConfigs = {
-        PortConfigurator{LayoutType::ncsp, dataPrecision, getOutputShapeAtPort(0), false, -1},
-        PortConfigurator{LayoutType::ncsp, dataPrecision, getOutputShapeAtPort(1), false, -1}};
-    addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
+    descs[ARG_GDN_OUT_ATTN] =
+        creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dataPrecision, getOutputShapeAtPort(0));
+    descs[ARG_GDN_OUT_STATE] =
+        creatorsMap.at(LayoutType::ncsp)->createSharedDesc(dataPrecision, getOutputShapeAtPort(1));
+
+    auto executionContext = std::make_shared<ExecutorContext>(context, getImplPriority(), privateWeightCache);
+    m_factory = std::make_shared<ExecutorFactory<GatedDeltaNetAttrs>>(m_attrs, executionContext, descs);
+
+    const auto nodeDescriptorsList = m_factory->getProperMemoryDescriptors(descs);
+    for (const auto& nodeDescriptors : nodeDescriptorsList) {
+        NodeConfig nodeConfig;
+        nodeConfig.inConfs.resize(getParentEdges().size());
+
+        for (const auto& [argId, portId] : m_atoi) {
+            if (nodeDescriptors.count(argId)) {
+                nodeConfig.inConfs[portId] = PortConfig{nodeDescriptors.at(argId)};
+            }
+        }
+
+        nodeConfig.outConfs.emplace_back(nodeDescriptors.at(ARG_GDN_OUT_ATTN));
+        nodeConfig.outConfs.emplace_back(nodeDescriptors.at(ARG_GDN_OUT_STATE));
+
+        supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
+    }
 }
 
 void GatedDeltaNet::createPrimitive() {
-    const auto queryDims = getInputShapeAtPort(0).getDims();
-    auto headSize = *(queryDims.end() - 1);
-    const auto numWorkerThreads = context->getCpuParallel()->get_num_worker_threads();
-    auto newMemDesc = std::make_shared<CpuBlockedMemoryDesc>(
-        ov::element::f32,
-        ov::intel_cpu::Shape{static_cast<size_t>(numWorkerThreads), 3 * headSize});
-    m_tmpInpBuffer = context->getScratchPad()->createScratchPadMem(newMemDesc);
+    for (const auto& [argId, portId] : m_atoi) {
+        m_memory[argId] = getSrcMemoryAtPort(portId);
+    }
+    m_memory[ARG_GDN_OUT_ATTN] = getDstMemoryAtPort(0);
+    m_memory[ARG_GDN_OUT_STATE] = getDstMemoryAtPort(1);
+
+    m_executor = m_factory->make(m_memory);
+
+    Node::createPrimitive();
+    getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->implType());
+}
+
+void GatedDeltaNet::prepareParams() {
+    for (const auto& [argId, portId] : m_atoi) {
+        m_memory[argId] = getSrcMemoryAtPort(portId);
+    }
+    m_memory[ARG_GDN_OUT_ATTN] = getDstMemoryAtPort(0);
+    m_memory[ARG_GDN_OUT_STATE] = getDstMemoryAtPort(1);
+
+    m_executor->update(m_memory);
+    getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->implType());
 }
 
 void GatedDeltaNet::execute([[maybe_unused]] const dnnl::stream& strm) {
-    auto originalInputNumber = getOriginalInputsNumber();
-    std::vector<MemoryPtr> inputs(originalInputNumber);
-    std::vector<MemoryPtr> outputs(2);
-
-    for (size_t i = 0; i < originalInputNumber; i++) {
-        inputs[i] = getSrcMemoryAtPort(i);
+    for (const auto& [argId, portId] : m_atoi) {
+        m_memory[argId] = getSrcMemoryAtPort(portId);
     }
+    m_memory[ARG_GDN_OUT_ATTN] = getDstMemoryAtPort(0);
+    m_memory[ARG_GDN_OUT_STATE] = getDstMemoryAtPort(1);
 
-    outputs[0] = getDstMemoryAtPort(0);
-    outputs[1] = getDstMemoryAtPort(1);
-
-    PlainTensor query(inputs[0]);
-    PlainTensor key(inputs[1]);
-    PlainTensor value(inputs[2]);
-    PlainTensor recurrent_state(inputs[3]);
-    PlainTensor gate(inputs[4]);
-    PlainTensor beta(inputs[5]);
-    PlainTensor output_attn(outputs[0]);
-    PlainTensor output_recurrent_state(outputs[1]);
-
-    auto* temp_buffer = m_tmpInpBuffer->getDataAs<float>();
-    recurrent_linear_attn(query,
-                          key,
-                          value,
-                          recurrent_state,
-                          gate,
-                          beta,
-                          m_q_l2_norm_eps,
-                          m_k_l2_norm_eps,
-                          m_fuse_qk_l2norm,
-                          output_attn,
-                          output_recurrent_state,
-                          temp_buffer,
-                          context->getCpuParallel());
+    m_executor->execute(m_memory);
 }
 
 bool GatedDeltaNet::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,

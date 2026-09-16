@@ -404,3 +404,15 @@ TEST_F(TransformationTestsF, PullReshapeThroughReduceMeanSkipIfMoreThanOneReshap
     model = std::make_shared<Model>(OutputVector{reduce_mean, add}, ParameterVector{input});
     manager.register_pass<pass::PullReshapeThroughReduce>();
 }
+
+TEST_F(TransformationTestsF, PullReshapeThroughReduceSkipIfReshapeIsNotPureUnsqueeze) {
+    // [2,16] -> [1,2,4,4]: last dim 16 is split to 4*4, NOT a pure unsqueeze
+    const auto input = std::make_shared<Parameter>(element::f32, Shape{2, 16});
+    const auto target_shape = Constant::create(element::i64, Shape{4}, {1, 2, 4, 4});
+    const auto reshape = std::make_shared<Reshape>(input, target_shape, false);
+    const auto reduce_axes = Constant::create(element::i64, Shape{1}, {-1});
+    const auto reduce_mean = std::make_shared<ReduceMean>(reshape, reduce_axes);
+
+    model = std::make_shared<Model>(OutputVector{reduce_mean}, ParameterVector{input});
+    manager.register_pass<pass::PullReshapeThroughReduce>();
+}

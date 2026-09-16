@@ -6,8 +6,8 @@ set(TARGET_NAME "openvino_transformations")
 
 set(PUBLIC_HEADERS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-file(GLOB_RECURSE LIBRARY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE PUBLIC_HEADERS ${PUBLIC_HEADERS_DIR}/*.hpp)
+include(src/sources.cmake)
+include(include/sources.cmake)
 
 # Create named folders for the sources within the .vcproj
 # Empty name lists them directly under the .vcproj

@@ -99,11 +99,6 @@ static void CreateConvolutionBackpropDataOp(ProgramBuilder& p, const std::shared
     std::string layerName = layer_type_name_ID(op);
 
     auto dilations = op->get_dilations();
-    for (auto d : dilations) {
-        if (d != 1) {
-            OPENVINO_THROW("Unsupported dilation in ConvolutionBackpropData ", op->get_friendly_name());
-        }
-    }
 
     auto weightsName = inputs[1];
     // WA: For the cases like Const(weights)->Sub(zp)->Deconv. And also for the cases with real runtime weights.
@@ -184,11 +179,6 @@ static void CreateGroupConvolutionBackpropDataOp(ProgramBuilder& p, const std::s
     std::string layerName = layer_type_name_ID(op);
 
     auto dilations = op->get_dilations();
-    for (auto d : dilations) {
-        if (d != 1) {
-            OPENVINO_THROW("Unsupported dilation in GroupConvolutionBackpropData ", op->get_friendly_name());
-        }
-    }
 
     uint32_t groups = static_cast<uint32_t>(op->get_input_shape(1)[0]);
 

@@ -26,9 +26,9 @@ class TestHardtanh(PytorchLayerTest):
                 return F.hardtanh(x, min_val=self.min_val, max_val=self.max_val, inplace=self.inplace)
 
 
-        return aten_hardtanh(min_val, max_val, inplace), "aten::hardtanh"
+        return aten_hardtanh(min_val, max_val, inplace), "aten::hardtanh_" if inplace else "aten::hardtanh"
 
-    @pytest.mark.parametrize(("min_val", "max_val"), [[-1.0,1.0], [0, 1.0], [-2.0, 2.0]])
+    @pytest.mark.parametrize(("min_val", "max_val"), [[-1.0,1.0], [0.0, 1.0], [-2.0, 2.0]])
     @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.parametrize("input_dtype", ['float32', 'int32', 'int64', 'float64'])
     @pytest.mark.parametrize("input_shape", [(1, 3, 10, 10), (100,), (24, 24)])

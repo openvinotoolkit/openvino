@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -30,6 +29,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/custom/color_convert.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -37,6 +37,7 @@
 
 #    include <array>
 #    include <common/c_types_map.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
 #    include <cpu/x64/jit_generator.hpp>
 
 #    include "kernels/x64/jit_kernel.hpp"
@@ -44,8 +45,10 @@
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov::intel_cpu::node {
 namespace {
@@ -312,7 +315,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node* node) {
 
     descs.emplace_back(std::vector<PortConfigurator>{node->getOriginalInputsNumber(), {layout, precision}},
                        std::vector<PortConfigurator>{{layout, precision}},
-                       mayiuse(cpu_isa_t::sse41) ? impl_desc_type::jit_uni : impl_desc_type::ref,
+                       ov::with_cpu_x86_sse42() ? impl_desc_type::jit_uni : impl_desc_type::ref,
                        true);
 
     return descs;
@@ -643,7 +646,7 @@ ColorConvert::Converter::PrimitiveDescs supportedPrimitiveDescs(Node* node) {
 
     descs.emplace_back(std::vector<PortConfigurator>{node->getOriginalInputsNumber(), {layout, precision}},
                        std::vector<PortConfigurator>{{layout, precision}},
-                       mayiuse(cpu_isa_t::sse41) ? impl_desc_type::jit_uni : impl_desc_type::ref,
+                       ov::with_cpu_x86_sse42() ? impl_desc_type::jit_uni : impl_desc_type::ref,
                        true);
 
     return descs;

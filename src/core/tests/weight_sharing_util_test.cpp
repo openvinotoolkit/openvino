@@ -238,15 +238,15 @@ TEST_F(WeightShareExtensionTest, set_constant_buffer_with_id) {
     auto buffer = std::make_shared<ov::AlignedBuffer>(4000);
     auto wt_buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
         buffer->get_ptr<char>() + 100,
-        buffer->size(),
+        buffer->size() - 100,
         buffer,
         ov::create_base_descriptor(12, 0, buffer));
-    auto c = Constant(element::f32, Shape{1000}, wt_buffer);
+    auto c = Constant(element::f32, Shape{975}, wt_buffer);
 
     ASSERT_TRUE(weight_sharing::set_constant(shared_ctx, c));
     const auto& [const_offset, const_size, const_type] = shared_ctx.m_weight_registry[12][100];
     EXPECT_EQ(const_offset, 100);
-    EXPECT_EQ(const_size, 4000);
+    EXPECT_EQ(const_size, 4000 - 100);
     EXPECT_EQ(const_type, element::f32);
 }
 
@@ -381,4 +381,51 @@ TEST_F(WeightShareExtensionTest, rebuild_constant_from_shared_context) {
         EXPECT_EQ(ov::wsh::Extension::get_constant_id(*c), const_id_from_blob);
     }
 }
+
+TEST_F(WeightShareExtensionTest, get_buffer_by_source_id_oob_throws) {
+    weight_sharing::Context ctx;
+    const weight_sharing::DataID source_id = 42;
+    const weight_sharing::DataID const_id = 0;
+
+    auto raw = std::make_shared<ov::AlignedBuffer>(20);
+    auto src_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        raw->get_ptr<char>(),
+        raw->size(),
+        raw,
+        ov::create_base_descriptor(source_id, 0, raw));
+    ctx.m_cache_sources[source_id] = {"test", src_buf};
+    ctx.m_weight_registry[source_id][const_id] = {0, 0x1000000000ULL, element::f32};
+
+    OV_EXPECT_THROW(weight_sharing::get_buffer(ctx, source_id, const_id), ov::Exception, testing::_);
+}
+
+TEST_F(WeightShareExtensionTest, get_buffer_by_aligned_buffer_oob_throws) {
+    weight_sharing::Context ctx;
+    const weight_sharing::DataID source_id = 43;
+    const weight_sharing::DataID const_id = 0;
+
+    auto raw = std::make_shared<ov::AlignedBuffer>(20);
+    auto src_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        raw->get_ptr<char>(),
+        raw->size(),
+        raw,
+        ov::create_base_descriptor(source_id, 0, raw));
+    ctx.m_weight_registry[source_id][const_id] = {0, 0x1000000000ULL, element::f32};
+
+    OV_EXPECT_THROW(weight_sharing::get_buffer(ctx, src_buf, const_id), ov::Exception, testing::_);
+}
+
+TEST_F(WeightShareExtensionTest, get_buffer_by_mmap_oob_throws) {
+    const auto weights_path = test_dir / "weights.bin";
+    create_test_weights_file(weights_path, /*size=*/5);
+
+    weight_sharing::Context ctx;
+    auto mmap = ov::load_mmap_object(weights_path);
+    ASSERT_TRUE(mmap);
+    const weight_sharing::DataID const_id = 0;
+    ctx.m_weight_registry[mmap->get_id()][const_id] = {0, 0x1000000000ULL, element::f32};
+
+    OV_EXPECT_THROW(weight_sharing::get_buffer(ctx, mmap, const_id), ov::Exception, testing::_);
+}
+
 }  // namespace ov::test

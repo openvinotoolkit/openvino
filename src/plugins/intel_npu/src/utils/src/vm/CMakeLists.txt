@@ -4,7 +4,10 @@
 
 set(TARGET_NAME openvino_npu_vm_utils)
 
-file(GLOB_RECURSE SOURCES *.cpp)
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/npu_vm_runtime_api.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mem_ref_type.cpp
+)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} OBJECT ${SOURCES})
@@ -21,10 +24,20 @@ target_include_directories(${TARGET_NAME}
         $<TARGET_PROPERTY:openvino::util,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>
         $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:npu_vm_runtime_api,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:openvino_npu_zero_utils,INTERFACE_INCLUDE_DIRECTORIES>
+)
+
+target_link_libraries(${TARGET_NAME} PUBLIC
+    LevelZero::NPUExt     # contain ze_graph_ext.h for npu_vm_runtime.hpp
+    openvino::zero_loader # contain level_zero/ze_api.h> for npu_vm_runtime.hpp
 )
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PRIVATE OPENVINO_STATIC_LIBRARY)
 endif()
+
+# The include directories above use TARGET_PROPERTY expressions instead of
+# target_link_libraries, so CMake creates no build-order edge. Level Zero
+# headers are copied into the build directory by prepare_ze_headers; without
+# this explicit dependency a parallel build may compile ${TARGET_NAME} before
+# the headers are copied, causing a missing-header error
+add_dependencies(${TARGET_NAME} prepare_ze_headers)

@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <optional>
 
 namespace cldnn {
 /// @addtogroup cpp_api C++ API
@@ -112,18 +113,18 @@ struct device_info {
     bool supports_image;                        ///< Does engine support images (CL_DEVICE_IMAGE_SUPPORT cap).
     bool supports_intel_planar_yuv;             ///< Does engine support cl_intel_planar_yuv extension.
     bool supports_work_group_collective_functions; ///< Does engine support CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT.
-    bool supports_non_uniform_work_group;       ///< Does engine support non-uniform work-group sizes.
 
     bool supports_imad;                         ///< Does engine support int8 mad.
     bool supports_immad;                        ///< Does engine support int8 multi mad.
 
-    bool supports_mutable_command_list;         ///< [L0] Does the target runtime/device support mutable command list feature
+    bool supports_mutable_command_list;         ///< [ZE] Does the target runtime/device support mutable command list feature
 
     bool supports_usm;                          ///< Does engine support unified shared memory.
     bool has_separate_cache;                    ///< Does the target hardware has separate cache for usm_device and usm_host
 
     bool supports_cp_offload;                   ///< [L0] Does the command queue support copy offload
-    bool supports_counter_based_events;                    ///< [L0] Does the target runtime support counter based events
+    bool supports_counter_based_events;         ///< [L0] Does the target runtime support counter based events
+    bool supports_leo;                          ///< [L0] Does the device support Level Zero - OpenCL interoperability (LEO)
 
     std::vector<size_t> supported_simd_sizes;   ///< List of SIMD sizes supported by current device and compiler
 
@@ -143,13 +144,14 @@ struct device_info {
     uint32_t num_threads_per_eu;                ///< Number of hardware threads per execution unit
     uint32_t num_ccs;                           ///< Number of compute command streamers
     uint32_t sub_device_idx;                    ///< Index of sub-device
-
+    std::optional<uint32_t> cacheline_size;     ///< Cache line size in bytes
+    std::optional<uint32_t> sub_buffer_base_alignment;  ///< Alignment requirement (in bytes) for sub-buffer offsets
     pci_bus_info pci_info;                      ///< PCI bus information for the device
 
-    uint64_t timer_resolution;                  ///< [L0] Resolution of device timer used for profiling in cycles/sec
-    uint32_t kernel_timestamp_valid_bits;       ///< [L0] Number of valid bits in the kernel timestamp values
-    uint32_t compute_queue_group_ordinal;       ///< [L0] Ordinal of the command queue group to use for compute
-    uint32_t device_memory_ordinal;             ///< [L0] Ordinal of the selected global device memory
+    uint64_t timer_resolution;                  ///< [ZE] Resolution of device timer used for profiling in cycles/sec
+    uint32_t kernel_timestamp_valid_bits;       ///< [ZE] Number of valid bits in the kernel timestamp values
+    uint32_t compute_queue_group_ordinal;       ///< [ZE] Ordinal of the command queue group to use for compute
+    uint32_t device_memory_ordinal;             ///< [ZE] Ordinal of the selected global device memory
 
     ov::device::UUID uuid;                      ///< UUID of the gpu device
     ov::device::LUID luid;                      ///< LUID of the gpu device
@@ -158,32 +160,35 @@ struct device_info {
         // Relying solely on the UUID is not reliable in all the cases (particularly on legacy platforms),
         // where the UUID may be missing or incorrectly generated
         // Therefore, we also validate other attributes
-        if (uuid.uuid != other.uuid.uuid)
+        if (uuid.uuid != other.uuid.uuid) {
             return false;
+        }
 
-        if (pci_info != other.pci_info)
+        if (pci_info != other.pci_info) {
             return false;
+        }
 
-        if (sub_device_idx != other.sub_device_idx)
+        if (sub_device_idx != other.sub_device_idx) {
             return false;
+        }
 
         if (vendor_id != other.vendor_id ||
             dev_name != other.dev_name ||
-            driver_version != other.driver_version)
+            driver_version != other.driver_version) {
             return false;
+        }
 
         if (dev_type != other.dev_type ||
             gfx_ver != other.gfx_ver ||
-            arch != other.arch)
+            arch != other.arch) {
             return false;
+        }
 
-        if (ip_version != other.ip_version || device_id != other.device_id)
+        if (ip_version != other.ip_version || device_id != other.device_id) {
             return false;
+        }
 
-        if (execution_units_count != other.execution_units_count || max_global_mem_size != other.max_global_mem_size)
-            return false;
-
-        return true;
+        return execution_units_count == other.execution_units_count && max_global_mem_size == other.max_global_mem_size;
     }
 };
 

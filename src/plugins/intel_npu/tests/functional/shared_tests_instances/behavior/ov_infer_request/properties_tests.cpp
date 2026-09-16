@@ -13,7 +13,7 @@ namespace {
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          InferRequestPropertiesTest,
-                         ::testing::Combine(::testing::Values(2u),
+                         ::testing::Combine(::testing::Values(0u),
                                             ::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(std::vector<ov::AnyMap>{{}})),
                          ov::test::utils::appendPlatformTypeTestName<InferRequestPropertiesTest>);

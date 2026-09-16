@@ -209,7 +209,9 @@ void Multinomial::execute_convert_type() {
     // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
     std::mt19937 gen;
     if (all_of(0U, m_global_seed, m_op_seed)) {
-        gen.seed(std::time(nullptr));
+        const auto t = static_cast<uint64_t>(std::time(nullptr));
+        std::seed_seq seed{static_cast<uint32_t>(t), static_cast<uint32_t>(t >> 32)};
+        gen.seed(seed);
     } else {
         std::seed_seq seed{m_global_seed, m_op_seed};
         gen.seed(seed);

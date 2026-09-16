@@ -43,7 +43,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
 
     float zp_value = 0.0f;
     bool has_scalar_zp = false;
-    if (zp_name.size() > 0) {
+    if (!zp_name.empty()) {
         auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(W_ZP_IDX));
         if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
             has_scalar_zp = true;
@@ -63,8 +63,8 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
                                      activation_precomputed_reduction,
                                      cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                      op->get_input_partial_shape(0).size(),
-                                     op->get_input_partial_shape(1).size());
-
+                                     op->get_input_partial_shape(1).size(),
+                                     op->get_transpose_b());
 
     if (has_scalar_zp) {
         fc.decompression_zero_point_scalar = zp_value;
@@ -122,8 +122,8 @@ static void CreateFullyConnectedOp(ProgramBuilder& p, const std::shared_ptr<op::
                                          bias_name,
                                          cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                          rank_a,
-                                         rank_b);
-
+                                         rank_b,
+                                         op->get_transpose_b());
     p.add_primitive(*op, fcPrim);
 
     if (shape_a.size() > 3 && !p.use_new_shape_infer()) {

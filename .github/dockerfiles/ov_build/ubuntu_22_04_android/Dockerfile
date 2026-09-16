@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:22.04
 
@@ -23,9 +26,9 @@ RUN apt update && \
         ninja-build \
         build-essential \
         python3-pip && \
-    # vcpkg requires cmake 3.19 or later
+    # OpenVINO build requires cmake 3.26 or later
     # ninja>=1.11 needed for --quiet support (apt ships 1.10.1 on 22.04)
-    python3 -m pip install -U pip cmake~=3.28.0 ninja==1.13.0 && \
+    python3 -m pip install -U pip cmake==3.26.4 ninja==1.13.0 && \
     # vcpkg's tool dependencies
     apt install curl zip unzip tar && \
     # vcpkg 'python3' port dependencies

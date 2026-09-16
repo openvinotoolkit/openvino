@@ -62,6 +62,7 @@ const std::vector<int64_t> adjust_axes(const std::vector<int64_t>& axes_to_align
 // - Reshape(input_shape={5,10,15}, target_shape={1,5,10,15}), 0 axis returned
 // - Reshape(input_shape={5,10,15}, target_shape={1,5,10,15,1}), 0 and 3 axes returned
 // - Reshape(input_shape={5,10,15}, target_shape={5,10,1,15}), 2 axis is returned
+// - Reshape(input_shape={2,16}, target_shape={1,2,4,4}), empty returned (last dim is split, not a pure unsqueeze)
 std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& target_shape, const ov::Shape& input_shape) {
     std::vector<int64_t> result;
     if (target_shape.size() <= input_shape.size()) {
@@ -86,11 +87,18 @@ std::vector<int64_t> try_get_unsqueeze_axes_from_reshape(const ov::Shape& target
         }
     }
     if (cur_input_shape_elem_idx == input_shape.size() - 1 && target_shape_idx == target_shape.size()) {
+        size_t input_dim_idx = 0;
+        for (size_t t = 0; t < target_shape.size(); ++t) {
+            if (std::find(result.begin(), result.end(), static_cast<int64_t>(t)) == result.end()) {
+                if (input_dim_idx >= input_shape.size() || target_shape[t] != input_shape[input_dim_idx++]) {
+                    return {};
+                }
+            }
+        }
         return result;
     } else {
         return {};
     }
-    return result;
 }
 
 // Update given reshape_input_shape by inserting "1" dimension on the postion represented by axes_to_insert

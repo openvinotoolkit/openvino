@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
 #include <vector>
 #include "single_op_tests/gru_sequence.hpp"
 #include "common_test_utils/test_constants.hpp"
@@ -13,6 +14,13 @@ using ov::test::utils::InputLayerType;
 using ov::test::utils::SequenceTestsMode;
 
 namespace {
+        class GRUSequenceNoClipGPUTest : public GRUSequenceTest {};
+
+        TEST_P(GRUSequenceNoClipGPUTest, InferenceKeepsSequencePrimitive) {
+        run();
+        ov::test::CheckNumberOfNodesWithType(compiledModel, "GRU_Seq", 1);
+    }
+
     std::vector<SequenceTestsMode> mode{SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
                                         SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_CONST,
                                         SequenceTestsMode::CONVERT_TO_TI_RAND_SEQ_LEN_PARAM,
@@ -152,6 +160,23 @@ namespace {
                                     ::testing::ValuesIn(direction_bi),
                                     ::testing::Values(InputLayerType::CONSTANT),
                                     ::testing::ValuesIn(netPrecisions),
+                                    ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                            GRUSequenceTest::getTestCaseName);
+
+        INSTANTIATE_TEST_SUITE_P(smoke_GRUSequenceNoClip, GRUSequenceNoClipGPUTest,
+                            ::testing::Combine(
+                                    ::testing::Values(SequenceTestsMode::PURE_SEQ),
+                                    ::testing::Values(ov::test::static_shapes_to_test_representation(
+                                            input_shapes_zero_clip_static.front())),
+                                    ::testing::Values(std::vector<std::string>{"sigmoid", "tanh"}),
+                                    ::testing::Values(std::numeric_limits<float>::infinity(),
+                                                      -1.f,
+                                                      -std::numeric_limits<float>::infinity(),
+                                                      std::numeric_limits<float>::quiet_NaN()),
+                                    ::testing::Values(true),
+                                    ::testing::Values(ov::op::RecurrentSequenceDirection::FORWARD),
+                                    ::testing::Values(InputLayerType::CONSTANT),
+                                    ::testing::Values(ov::element::f32),
                                     ::testing::Values(ov::test::utils::DEVICE_GPU)),
                             GRUSequenceTest::getTestCaseName);
 

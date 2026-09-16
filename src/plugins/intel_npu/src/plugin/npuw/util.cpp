@@ -19,9 +19,13 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
@@ -57,6 +61,25 @@ bool ov::npuw::util::is_set(const std::size_t sub_idx,
         return true;
     }
     return false;
+}
+
+ov::npuw::util::DynamicQuantStorageTypes ov::npuw::util::resolve_dynamic_quant_storage_types(
+    DynamicQuantDecomposeMode decompose_mode,
+    bool is_symmetric,
+    const ov::element::Type& quant_dt,
+    const ov::element::Type& scale_dt) {
+    DynamicQuantStorageTypes resolved;
+    resolved.quantized_data_type = quant_dt;
+    resolved.zero_point_type = is_symmetric ? ov::element::dynamic : quant_dt;
+    resolved.scale_type = scale_dt;
+
+    if (!is_symmetric && decompose_mode == DynamicQuantDecomposeMode::CompilerPatternI8 &&
+        quant_dt == ov::element::i8) {
+        resolved.quantized_data_type = ov::element::u8;
+        resolved.zero_point_type = ov::element::u8;
+    }
+
+    return resolved;
 }
 
 namespace {
@@ -169,6 +192,12 @@ ov::Tensor ov::npuw::util::copy_tensor_from_const(const std::shared_ptr<ov::Node
 
 bool ov::npuw::util::starts_with(const std::string& str, const std::string& prefix) {
     return str.substr(0, prefix.size()) == prefix;
+}
+
+bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {
+    const auto& shape = p.get_shape();
+    return p.get_node()->get_friendly_name() == "position_ids" &&
+           (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1) || (shape.size() == 3 && shape[1] == 1));
 }
 
 std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {
@@ -449,6 +478,13 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
 
     // Sub-byte views are not supported here
     NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
+
+    // Bounds guard: from[d] <= to[d] <= shape[d] (prevents OOB views and unsigned wrap below).
+    const auto& shape = src->get_shape();
+    NPUW_ASSERT(from.size() == shape.size());
+    for (std::size_t d = 0; d < from.size(); ++d) {
+        NPUW_ASSERT(from[d] <= to[d] && to[d] <= shape[d]);
+    }
 
     const auto num_dims = from.size();
     ov::Shape view_shape;
@@ -875,7 +911,9 @@ ov::npuw::util::TensorPtr ov::npuw::util::allocMem(const ov::element::Type type,
         return ov::get_tensor_impl(ov::Tensor(type, shape));
     }
 
+    OPENVINO_ASSERT(plugin, "allocMem: plugin must be non-null for non-CPU device '", device, "'");
     auto remote_ctx = plugin->get_core()->get_default_context(device)._ptr;
+    OPENVINO_ASSERT(remote_ctx, "allocMem: failed to obtain remote context for device '", device, "'");
     auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
     return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
 }
@@ -926,6 +964,11 @@ bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
     return ov::npuw::util::starts_with(input_name, past_lin_conv_cache) ||
            ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
 }
+
+bool ov::npuw::util::is_pa_kv_cache_name(const std::string& input_name) {
+    return ov::npuw::util::starts_with(input_name, "key_cache.") ||
+           ov::npuw::util::starts_with(input_name, "value_cache.");
+}
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
     const size_t byte_size = tensor->get_byte_size();
@@ -941,6 +984,18 @@ bool ov::npuw::util::isPastKeyParam(const std::string& str) {
 bool ov::npuw::util::isPastValueParam(const std::string& str) {
     // Match any past value param: contiguous or block-split.
     static const std::regex pattern(R"(past_key_values\.\d+\.value(_block_(\d+|tail))?)");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isDQScaleOrZPKey(const std::string& str) {
+    // Match DynamicQuantize scale/zp parameters for past key cache
+    static const std::regex pattern(R"(DynamicQuantize/\d+/past_key_values/key/(?:scale|zp))");
+    return std::regex_match(str, pattern);
+}
+
+bool ov::npuw::util::isDQScaleOrZPValue(const std::string& str) {
+    // Match DynamicQuantize scale/zp parameters for past value cache
+    static const std::regex pattern(R"(DynamicQuantize/\d+/past_key_values/value/(?:scale|zp))");
     return std::regex_match(str, pattern);
 }
 
@@ -1005,6 +1060,19 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
     // Find decomposed SDPA pattern components
     std::vector<ov::npuw::util::SDPAPatternNodes> pattern_nodes;
 
+    // Collect past key/value parameter nodes once for the whole model.
+    // After SplitKVCacheIntoBlocks these may be N block params; otherwise exactly one each.
+    std::vector<std::shared_ptr<ov::Node>> all_past_key_params, all_past_value_params;
+    for (auto& input : model->inputs()) {
+        auto* input_node = input.get_node();
+        const auto& input_name = input_node->get_friendly_name();
+        if (ov::npuw::util::isPastKeyParam(input_name)) {
+            all_past_key_params.push_back(input_node->shared_from_this());
+        } else if (ov::npuw::util::isPastValueParam(input_name)) {
+            all_past_value_params.push_back(input_node->shared_from_this());
+        }
+    }
+
     // Helper lambda to trace from MatMul to find Concat node
     auto find_concat_from_matmul = [](const std::shared_ptr<ov::Node>& matmul_node,
                                       size_t input_idx) -> std::shared_ptr<ov::Node> {
@@ -1021,7 +1089,8 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
 
             // Allow traversing through Reshape and Transpose
             if (ov::is_type<ov::op::v1::Reshape>(current_node) || ov::is_type<ov::op::v3::Broadcast>(current_node) ||
-                ov::is_type<ov::op::v0::Unsqueeze>(current_node)) {
+                ov::is_type<ov::op::v0::Unsqueeze>(current_node) || ov::is_type<ov::op::v1::Transpose>(current_node) ||
+                ov::is_type<ov::op::v1::Multiply>(current_node) || ov::is_type<ov::op::v0::Convert>(current_node)) {
                 if (current_node->get_input_size() > 0) {
                     current_node = current_node->input(0).get_source_output().get_node_shared_ptr();
                 } else {
@@ -1088,6 +1157,10 @@ std::vector<ov::npuw::util::SDPAPatternNodes> find_sdpa_pattern_nodes_internal(c
             continue;
         }
 
+        // Attach the model-level KV param nodes collected above.
+        candidate.past_key_param_nodes = all_past_key_params;
+        candidate.past_value_param_nodes = all_past_value_params;
+
         // pattern might be not full, say missed concats for example
         current_node.log_pattern(std::to_string(pattern_nodes.size()));
 
@@ -1112,4 +1185,24 @@ ov::npuw::util::SDPAPatternNodes ov::npuw::util::find_sdpa_pattern_nodes(const s
         return {};
     }
     return internal_nodes.front();
+}
+
+std::shared_ptr<ov::op::v0::Parameter> ov::npuw::util::find_mask_parameter(const std::shared_ptr<ov::Node>& add_node) {
+    if (!add_node || add_node->get_input_size() < 2) {
+        return nullptr;
+    }
+    // Traverse the Add node's mask input (input 1) upwards to find the Parameter.
+    // Only unary ops are allowed along the way.
+    auto mask_in_node = add_node->input(1).get_source_output().get_node_shared_ptr();
+    while (mask_in_node && !ov::op::util::is_parameter(mask_in_node)) {
+        if (mask_in_node->inputs().size() != 1) {
+            LOG_WARN("Non-unary or disconnected op on the way from Add to input mask");
+            return nullptr;
+        }
+        mask_in_node = mask_in_node->inputs()[0].get_source_output().get_node_shared_ptr();
+    }
+    if (mask_in_node && ov::op::util::is_parameter(mask_in_node)) {
+        return std::static_pointer_cast<ov::op::v0::Parameter>(mask_in_node);
+    }
+    return nullptr;
 }

@@ -27,6 +27,11 @@ struct assign_impl : public typed_primitive_impl<assign> {
         set_node_params(outer);
     }
 
+    // assign's execute_impl runs memcpy from the input buffer into the variable's memory.
+    // It does not access the input on the host side,
+    // so the input primitive does not need to allocate its output in lockable (usm_host) memory.
+    bool requires_lockable_input() const override { return false; }
+
     void set_node_params(const program_node& arg) override {
         OPENVINO_ASSERT(arg.is_type<assign>());
         const auto& node = arg.as<assign>();

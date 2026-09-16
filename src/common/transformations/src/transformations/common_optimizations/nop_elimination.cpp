@@ -495,13 +495,17 @@ EliminateIdentityConvert::EliminateIdentityConvert() {
         auto identity = pattern_map.at(convert_identity_pattern);
         auto convert_end = pattern_map.at(convert_identity_convert_pattern);
 
-        if (convert_begin->get_input_element_type(0) == convert_end->get_element_type()) {
-            convert_begin->output(0).replace(convert_begin->input_value(0));
-            identity->validate_and_infer_types();
-            convert_end->output(0).replace(identity->output(0));
-            return true;
+        if (convert_begin->get_input_element_type(0) != convert_end->get_element_type()) {
+            return false;
         }
-        return false;
+
+        if (identity->output(0).get_target_inputs().size() == 1) {
+            identity->input(0).replace_source_output(convert_begin->input_value(0));
+            identity->validate_and_infer_types();
+            copy_runtime_info({convert_begin, identity, convert_end}, identity);
+            return replace_output_update_name(convert_end->output(0), identity->output(0));
+        }
+        return replace_output_update_name(convert_end->output(0), convert_begin->input_value(0));
     };
     auto m = std::make_shared<pattern::Matcher>(convert_identity_convert_pattern, matcher_name);
     this->register_matcher(m, callback);

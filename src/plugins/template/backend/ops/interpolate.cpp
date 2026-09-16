@@ -194,8 +194,9 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v4::Interpolate>& op,
     });
 
     // Use v4 shape inference
-    const auto output_shape =
-        ov::op::v4::shape_infer(op.get(), input_shapes, m_attrs.pads_begin, m_attrs.pads_end, ta).front();
+    const auto output_shapes =
+        ov::op::v4::shape_infer(op.get(), input_shapes, m_attrs.pads_begin, m_attrs.pads_end, ta);
+    const auto& output_shape = output_shapes.front();
 
     Shape padded_input_shape;
     for (size_t i = 0; i < input_shape.size(); ++i) {
@@ -306,8 +307,9 @@ bool evaluate_interpolate(const std::shared_ptr<ov::op::v11::Interpolate>& op,
     std::transform(inputs.cbegin(), inputs.cend(), std::back_inserter(input_shapes), [](const ov::Tensor& ht) {
         return ht.get_shape();
     });
-    const auto output_shape =
-        ov::op::v11::shape_infer(op.get(), input_shapes, m_attrs.pads_begin, m_attrs.pads_end, ta).front();
+    const auto output_shapes =
+        ov::op::v11::shape_infer(op.get(), input_shapes, m_attrs.pads_begin, m_attrs.pads_end, ta);
+    const auto& output_shape = output_shapes.front();
 
     Shape padded_input_shape;
     for (size_t i = 0; i < input_shape.size(); ++i) {

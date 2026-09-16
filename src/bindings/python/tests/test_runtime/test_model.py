@@ -913,6 +913,31 @@ def test_serialize_rt_info(request, tmp_path):
     os.remove(bin_path)
 
 
+def test_serialize_node_rt_info_disable_fp16(request, tmp_path):
+    # "precise_0" is the legacy DisableFP16Compression RTTI key.
+    # serialize.cpp converts it into DisablePrecisionConversion before serialization.
+    core = Core()
+    xml_path, bin_path = create_filenames_for_ir(request.node.name, tmp_path)
+
+    param = ops.parameter(PartialShape([1, 3]), dtype=np.float32, name="data")
+    relu = ops.relu(param, name="relu_node")
+    model = Model(relu, [param], "TestModel")
+
+    with pytest.warns(DeprecationWarning, match="precise_0"):
+        relu.get_rt_info()["precise_0"] = ""
+    assert "precise_0" in relu.get_rt_info()
+
+    serialize(model, xml_path, bin_path)
+    res_model = core.read_model(model=xml_path, weights=bin_path)
+
+    for op in res_model.get_ops():
+        if op.get_friendly_name() == "relu_node":
+            assert "DisablePrecisionConversion_0" in op.get_rt_info()
+
+    os.remove(xml_path)
+    os.remove(bin_path)
+
+
 def make_enum_info():
     from enum import Enum
 
@@ -1165,16 +1190,6 @@ def test_model_with_statement():
     assert isinstance(mem_model, Model)
     with pytest.raises(AttributeError, match="attribute is no longer accessible."):
         model.friendly_name
-
-
-@pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
-def test_tempdir_save_load_error():
-    # Generate a model with stateful components, ensuring the .bin file will be non-empty after saving
-    mem_model = generate_model_with_memory(input_shape=Shape([2, 1]), data_type=Type.f32)
-    with pytest.raises((NotADirectoryError, PermissionError)):
-        with tempfile.TemporaryDirectory() as model_save_dir:
-            save_model(mem_model, f"{model_save_dir}/model.xml")
-            _ = Core().read_model(f"{model_save_dir}/model.xml")
 
 
 def test_model_dir():

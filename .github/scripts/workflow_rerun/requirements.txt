@@ -1,3 +1,14 @@
+certifi==2026.7.22
+cffi==2.1.1
+charset-normalizer==3.4.9
+cryptography==50.0.0
+idna==3.18
+packaging==26.3
+psycopg2-binary==2.9.12
+pycparser==3.0
 PyGithub==2.8.1
-requests==2.32.4
-psycopg2-binary==2.9.9
+PyJWT==2.13.0
+PyNaCl==1.6.2
+requests==2.34.2
+typing_extensions==4.16.0
+urllib3==2.7.0

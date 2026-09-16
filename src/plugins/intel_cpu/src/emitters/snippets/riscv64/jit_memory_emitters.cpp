@@ -11,7 +11,9 @@
 #include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <vector>
 
+#include "emitters/plugin/riscv64/jit_conversion_helpers.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "emitters/plugin/riscv64/jit_load_store_emitters.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
@@ -24,10 +26,11 @@
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/common/op/load_convert.hpp"
+#include "transformations/snippets/common/op/store_convert.hpp"
 #include "utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
-#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
@@ -65,32 +68,25 @@ jit_memory_emitter::jit_memory_emitter(jit_generator_t* h,
     if (ov::snippets::utils::is_dynamic_value(compiled_byte_offset)) {
         is_offset_runtime = true;
         // Compiled byte offset is zero to manually `add` runtime offset before operation and `sub` after to reset
-        // pointer in the register
+        // pointer in the register.
         compiled_byte_offset = 0;
         OV_CPU_JIT_EMITTER_ASSERT(buffer_cluster_id != SIZE_MAX, "Incorrect buffer offset in call_args");
     }
 }
 
-jit_load_memory_emitter::jit_load_memory_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
-    : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
-    bool is_supported_precision =
-        any_of(src_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
-        src_prc == dst_prc;
-    OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
-
-    const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
-    OV_CPU_JIT_EMITTER_ASSERT(load != nullptr, "Expects Load expression");
-    count = load->get_count();
-    byte_size = src_prc.size();
-    OV_CPU_JIT_EMITTER_ASSERT(any_of(byte_size, 1UL, 2UL, 4UL),
-                              "Only 1-, 2- or 4-byte element loads are supported, got: ",
-                              byte_size);
+size_t jit_memory_emitter::aux_gprs_count() const {
+    // for runtime arguments
+    return is_offset_runtime ? 1 : 0;
 }
 
-size_t jit_memory_emitter::aux_gprs_count() const {
-    // One auxiliary register is needed for runtime offsets and for operations that
-    // cannot be encoded directly in immediates (large VL or static byte offsets).
-    return (is_offset_runtime || count > 31 || compiled_byte_offset != 0) ? 1 : 0;
+std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
+    OV_CPU_JIT_EMITTER_ASSERT(!is_offset_runtime || !aux_gpr_idxs.empty(),
+                              "If offset is dynamic, memory emitter needs at least one aux gpr!");
+    auto available_aux_gprs = aux_gpr_idxs;
+    if (is_offset_runtime) {
+        available_aux_gprs.pop_back();
+    }
+    return available_aux_gprs;
 }
 
 void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
@@ -113,139 +109,60 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
     }
 
     if (is_offset_runtime) {
-        // load the runtime offset from args.buffer_offsets[buffer_cluster_id]
         const auto offset = GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t);
-        // RV64 uses 64-bit size_t
         h->ld(aux_gpr, reg_runtime_params, static_cast<int32_t>(offset));
-        // bump the pointer
         h->add(data_reg, data_reg, aux_gpr);
     }
 
     emit_impl(in_idxs, out_idxs);
 
     if (is_offset_runtime) {
-        // subtract back so we leave the pointer unchanged for the caller
         h->sub(data_reg, data_reg, aux_gpr);
     }
 
     emitter_postamble();
 }
 
-void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::gv) {
-        emit_isa<ov::intel_cpu::riscv64::gv>(in, out);
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Doesn't support isa ", host_isa_);
-    }
+jit_load_memory_emitter::jit_load_memory_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
+    : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
+    const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(load != nullptr, "Expects Load expression");
+    count = load->get_count();
+
+    const auto mode = ov::is_type<ov::intel_cpu::LoadConvertTruncation>(expr->get_node()) ? arithmetic_mode::truncation
+                                                                                          : arithmetic_mode::saturation;
+    load_emitter = std::make_unique<jit_load_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset, mode);
 }
 
-template <cpu_isa_t isa>
-void jit_load_memory_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    auto src = Xbyak_riscv::Reg(in[0]);
-    auto dst = Xbyak_riscv::VReg(out[0]);
-
-    // Set vector configuration for the load
-    auto sew = Xbyak_riscv::SEW::e32;
-    if (byte_size == 1) {
-        sew = Xbyak_riscv::SEW::e8;
-    } else if (byte_size == 2) {
-        sew = Xbyak_riscv::SEW::e16;
-    } else {
-        OV_CPU_JIT_EMITTER_ASSERT(byte_size == 4, "Unsupported load byte_size: ", byte_size);
-    }
-    set_vector_length(h, count, sew, aux_gpr_idxs);
-
-    // Load vector data from memory
-    if (compiled_byte_offset == 0) {
-        if (byte_size == 1) {
-            h->vle8_v(dst, src);
-        } else if (byte_size == 2) {
-            h->vle16_v(dst, src);
-        } else {
-            h->vle32_v(dst, src);
-        }
-    } else {
-        // Use temporary register to calculate address with offset
-        auto tmp_gpr = Xbyak_riscv::Reg(aux_gpr_idxs.empty() ? Xbyak_riscv::t0.getIdx() : aux_gpr_idxs[0]);
-        h->addi(tmp_gpr, src, static_cast<int32_t>(compiled_byte_offset));
-        if (byte_size == 1) {
-            h->vle8_v(dst, tmp_gpr);
-        } else if (byte_size == 2) {
-            h->vle16_v(dst, tmp_gpr);
-        } else {
-            h->vle32_v(dst, tmp_gpr);
-        }
-    }
+void jit_load_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    OV_CPU_JIT_EMITTER_ASSERT(load_emitter != nullptr, "Load CPU emitter isn't initialized!");
+    load_emitter->emit_code({in[0]}, {out[0]}, aux_vec_idxs, get_available_aux_gprs(), {});
 }
 
 void jit_load_memory_emitter::emit_data() const {
-    // No additional data emission needed for basic load
+    load_emitter->emit_data();
 }
 
 jit_store_memory_emitter::jit_store_memory_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::vec_to_gpr) {
-    bool is_supported_precision =
-        any_of(dst_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
-        src_prc == dst_prc;
-    OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
-
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(store != nullptr, "Expects Store expression");
     count = store->get_count();
-    byte_size = dst_prc.size();
-    OV_CPU_JIT_EMITTER_ASSERT(any_of(byte_size, size_t(1), size_t(2), size_t(4)),
-                              "Only 1-, 2- or 4-byte element stores are supported, got: ",
-                              byte_size);
+
+    const auto mode = ov::is_type<ov::intel_cpu::StoreConvertTruncation>(expr->get_node())
+                          ? arithmetic_mode::truncation
+                          : arithmetic_mode::saturation;
+    store_emitter = std::make_unique<jit_store_emitter>(h, isa, src_prc, dst_prc, count, compiled_byte_offset, mode);
 }
 
 void jit_store_memory_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    if (host_isa_ == ov::intel_cpu::riscv64::gv) {
-        emit_isa<ov::intel_cpu::riscv64::gv>(in, out);
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("Doesn't support isa ", host_isa_);
-    }
+    OV_CPU_JIT_EMITTER_ASSERT(store_emitter != nullptr, "Store CPU emitter isn't initialized!");
+    store_emitter->emit_code({in[0]}, {out[0]}, aux_vec_idxs, get_available_aux_gprs(), {});
 }
 
-template <cpu_isa_t isa>
-void jit_store_memory_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    auto src = Xbyak_riscv::VReg(in[0]);
-    auto dst = Xbyak_riscv::Reg(out[0]);
-
-    // Set vector configuration for the store
-    auto sew = Xbyak_riscv::SEW::e32;
-    if (byte_size == 1) {
-        sew = Xbyak_riscv::SEW::e8;
-    } else if (byte_size == 2) {
-        sew = Xbyak_riscv::SEW::e16;
-    } else {
-        OV_CPU_JIT_EMITTER_ASSERT(byte_size == 4, "Unsupported store byte_size: ", byte_size);
-    }
-    set_vector_length(h, count, sew, aux_gpr_idxs);
-
-    // Store vector data to memory
-    if (compiled_byte_offset == 0) {
-        if (byte_size == 1) {
-            h->vse8_v(src, dst);
-        } else if (byte_size == 2) {
-            h->vse16_v(src, dst);
-        } else {
-            h->vse32_v(src, dst);
-        }
-    } else {
-        // Use temporary register to calculate address with offset
-        auto tmp_gpr = Xbyak_riscv::Reg(aux_gpr_idxs.empty() ? Xbyak_riscv::t0.getIdx() : aux_gpr_idxs[0]);
-        h->addi(tmp_gpr, dst, static_cast<int32_t>(compiled_byte_offset));
-        if (byte_size == 1) {
-            h->vse8_v(src, tmp_gpr);
-        } else if (byte_size == 2) {
-            h->vse16_v(src, tmp_gpr);
-        } else {
-            h->vse32_v(src, tmp_gpr);
-        }
-    }
+void jit_store_memory_emitter::emit_data() const {
+    store_emitter->emit_data();
 }
-
-/* ============== jit_load_broadcast_emitter =============== */
 
 jit_load_broadcast_emitter::jit_load_broadcast_emitter(ov::intel_cpu::riscv64::jit_generator_t* h,
                                                        ov::intel_cpu::riscv64::cpu_isa_t isa,
@@ -262,6 +179,10 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(ov::intel_cpu::riscv64::j
     byte_size = src_prc.size();
 }
 
+size_t jit_load_broadcast_emitter::aux_gprs_count() const {
+    return jit_memory_emitter::aux_gprs_count() + (compiled_byte_offset == 0 ? 1 : 2);
+}
+
 void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     if (host_isa_ == ov::intel_cpu::riscv64::gv) {
         emit_isa<ov::intel_cpu::riscv64::gv>(in, out);
@@ -274,54 +195,37 @@ template <cpu_isa_t isa>
 void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     auto src_gpr = Xbyak_riscv::Reg(in[0]);
     auto dst_vreg = Xbyak_riscv::VReg(out[0]);
+    const auto available_aux_gprs = get_available_aux_gprs();
+    set_vector_length(h,
+                      ov::intel_cpu::riscv64::utils::get_snippet_lanes(),
+                      jit_conversion::byte_size_to_sew(byte_size),
+                      available_aux_gprs);
 
-    auto sew = Xbyak_riscv::SEW::e32;
-    if (byte_size == 4) {
-        sew = Xbyak_riscv::SEW::e32;
+    OV_CPU_JIT_EMITTER_ASSERT(!available_aux_gprs.empty(), "Broadcast load requires an auxiliary GPR");
+    auto tmp_gpr = Xbyak_riscv::Reg(available_aux_gprs[0]);
+    auto addr_gpr = src_gpr;
+
+    if (compiled_byte_offset != 0) {
+        OV_CPU_JIT_EMITTER_ASSERT(available_aux_gprs.size() > 1,
+                                  "Broadcast load with static byte offset requires two auxiliary GPRs");
+        addr_gpr = Xbyak_riscv::Reg(available_aux_gprs[1]);
+        h->uni_li(addr_gpr, compiled_byte_offset);
+        h->add(addr_gpr, src_gpr, addr_gpr);
+    }
+
+    if (byte_size == 1) {
+        if (src_prc == ov::element::u8) {
+            h->lbu(tmp_gpr, addr_gpr, 0);
+        } else {
+            h->lb(tmp_gpr, addr_gpr, 0);
+        }
     } else if (byte_size == 2) {
-        sew = Xbyak_riscv::SEW::e16;
-    } else if (byte_size == 1) {
-        sew = Xbyak_riscv::SEW::e8;
+        h->lhu(tmp_gpr, addr_gpr, 0);
     } else {
-        OV_CPU_JIT_EMITTER_THROW("Unsupported byte size: ", byte_size);
-    }
-    set_vector_length(h, ov::intel_cpu::riscv64::utils::get_snippet_lanes(), sew, aux_gpr_idxs);
-
-    // Load scalar from memory and broadcast to vector register
-    // First load the scalar value into a temporary GPR
-    auto tmp_gpr = Xbyak_riscv::Reg(aux_gpr_idxs.empty() ? Xbyak_riscv::t0.getIdx() : aux_gpr_idxs[0]);
-
-    // Calculate effective address if there's an offset
-    if (compiled_byte_offset == 0) {
-        if (byte_size == 1) {
-            if (src_prc == ov::element::u8) {
-                h->lbu(tmp_gpr, src_gpr, 0);
-            } else {
-                h->lb(tmp_gpr, src_gpr, 0);
-            }
-        } else if (byte_size == 2) {
-            h->lhu(tmp_gpr, src_gpr, 0);
-        } else {
-            h->lw(tmp_gpr, src_gpr, 0);
-        }
-    } else {
-        auto addr_gpr = Xbyak_riscv::Reg(aux_gpr_idxs.size() > 1 ? aux_gpr_idxs[1] : Xbyak_riscv::t1.getIdx());
-        h->addi(addr_gpr, src_gpr, static_cast<int32_t>(compiled_byte_offset));
-        if (byte_size == 1) {
-            if (src_prc == ov::element::u8) {
-                h->lbu(tmp_gpr, addr_gpr, 0);
-            } else {
-                h->lb(tmp_gpr, addr_gpr, 0);
-            }
-        } else if (byte_size == 2) {
-            h->lhu(tmp_gpr, addr_gpr, 0);
-        } else {
-            h->lw(tmp_gpr, addr_gpr, 0);
-        }
+        h->lw(tmp_gpr, addr_gpr, 0);
     }
 
-    // Move scalar to vector register and broadcast
-    h->vmv_v_x(dst_vreg, tmp_gpr);  // Broadcast scalar to all elements
+    h->vmv_v_x(dst_vreg, tmp_gpr);
 }
 
 void jit_load_broadcast_emitter::emit_data() const {

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "emitters/plugin/riscv64/jit_load_store_emitters.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 
@@ -31,6 +32,8 @@ public:
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
 protected:
+    std::vector<size_t> get_available_aux_gprs() const;
+
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
 
@@ -59,10 +62,7 @@ private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_data() const override;
 
-    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
-
-    size_t byte_size = 0;
+    std::unique_ptr<jit_load_emitter> load_emitter = nullptr;
 };
 
 class jit_store_memory_emitter : public jit_memory_emitter {
@@ -77,11 +77,9 @@ public:
 
 private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
+    void emit_data() const override;
 
-    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-    void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
-
-    size_t byte_size = 0;
+    std::unique_ptr<jit_store_emitter> store_emitter = nullptr;
 };
 
 class jit_load_broadcast_emitter : public jit_memory_emitter {
@@ -95,6 +93,8 @@ public:
     }
 
 private:
+    size_t aux_gprs_count() const override;
+
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_data() const override;
 

@@ -7,6 +7,7 @@
 
 #include <filesystem>
 #include <unordered_set>
+#include <utility>
 #include <variant>
 
 #include "openvino/core/type/element_type.hpp"
@@ -136,8 +137,17 @@ Napi::Boolean cpp_to_js<bool, Napi::Boolean>(const Napi::CallbackInfo& info, con
 
 Napi::Object cpp_to_js(const Napi::Env& env, const ov::CompiledModel& compiled_model);
 
-/** @brief Takes Napi::Value and parse Napi::Array or Napi::Object to ov::TensorVector. */
-ov::TensorVector parse_input_data(const Napi::Value& input);
+/**
+ * @brief Creates a JavaScript object with the `buildNumber` and `description` of an ov::Version.
+ * The object also exposes a non-enumerable `toString()` returning a formatted, multi-line string.
+ */
+Napi::Object cpp_to_js(const Napi::Env& env, const ov::Version& version);
+
+using NamedInputData = std::vector<std::pair<std::string, ov::Tensor>>;
+using ParsedInputData = std::variant<ov::TensorVector, NamedInputData>;
+
+/** @brief Parses positional or named input tensors without losing object keys. */
+ParsedInputData parse_input_data(const Napi::Value& input);
 
 /** @brief Gets an input/output tensor from InferRequest by key. */
 ov::Tensor get_request_tensor(ov::InferRequest& infer_request, const std::string key);

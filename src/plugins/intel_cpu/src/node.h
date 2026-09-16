@@ -690,6 +690,9 @@ public:
     bool keepOrigPrecision() const {
         return keepOriginalPrecision;
     }
+    bool isBF16ConversionDisabled() const {
+        return disableBF16Conversion;
+    }
 
 protected:
     bool canFuseSimpleOperation(const NodePtr& node) const;
@@ -721,6 +724,7 @@ protected:
     MemoryFormatFilter memoryFormatFilter;
     bool enforceBF16evenForGraphTail = false;
     bool keepOriginalPrecision = false;
+    bool disableBF16Conversion = false;
 
     std::string originalLayers;  // contains names of the original layers separated by comma
 
@@ -873,6 +877,8 @@ private:
     Type type;
     int execIndex = -1;
 
+    openvino::itt::handle_t executeTaskId = nullptr;
+
     PerfCount perfCounter;
     PerfCounters profiling;
 
@@ -891,8 +897,8 @@ std::ostream& operator<<(std::ostream& out, const Node* node);
 #endif
 
 template <class... T>
-constexpr uint64_t PortMask(T... rest) {
-    return util::bit::mask(rest...);
+constexpr uint32_t PortMask(T... rest) {
+    return static_cast<uint32_t>(util::bit::mask(rest...));
 }
 
 class Node::NodesFactory

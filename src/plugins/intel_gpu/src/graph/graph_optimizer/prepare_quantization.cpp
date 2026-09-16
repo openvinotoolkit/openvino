@@ -6,6 +6,7 @@
 #include "gather_matmul_inst.h"
 #include "moe_3gemm_fused_inst.h"
 #include "moe_gemm_inst.h"
+#include "impls/ocl_v2/moe/moe_3gemm_base.hpp"
 #include "pooling_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
@@ -19,6 +20,7 @@
 #include <array>
 #include <string>
 #include <memory>
+#include <tuple>
 #include <vector>
 
 using namespace cldnn;
@@ -101,6 +103,10 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                                   std::function<float(size_t)>& get_data) {
         using float_mem_lock = mem_lock<float, mem_lock_type::write>;
         using float16_mem_lock = mem_lock<ov::float16, mem_lock_type::write>;
+        using bfloat16_mem_lock = mem_lock<ov::bfloat16, mem_lock_type::write>;
+        using locked_memory = std::tuple<std::shared_ptr<float_mem_lock>,
+                                         std::shared_ptr<float16_mem_lock>,
+                                         std::shared_ptr<bfloat16_mem_lock>>;
         switch (memory->get_layout().data_type) {
             case data_types::f32: {
                 std::shared_ptr<float_mem_lock> data_lock_ptr = std::make_shared<float_mem_lock>(memory, stream);
@@ -111,7 +117,7 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                 get_data = [data] (size_t idx) {
                     return data[idx];
                 };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(data_lock_ptr, nullptr);
+                return locked_memory(data_lock_ptr, nullptr, nullptr);
             }
             case data_types::f16: {
                 std::shared_ptr<float16_mem_lock> data_lock_ptr = std::make_shared<float16_mem_lock>(memory, stream);
@@ -122,7 +128,18 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
                 get_data = [data] (size_t idx) {
                     return static_cast<float>(data[idx]);
                 };
-                return std::pair<std::shared_ptr<float_mem_lock>, std::shared_ptr<float16_mem_lock>>(nullptr, data_lock_ptr);
+                return locked_memory(nullptr, data_lock_ptr, nullptr);
+            }
+            case data_types::bf16: {
+                std::shared_ptr<bfloat16_mem_lock> data_lock_ptr = std::make_shared<bfloat16_mem_lock>(memory, stream);
+                ov::bfloat16* data = data_lock_ptr->data();
+                set_data = [data] (size_t idx, float value) {
+                    data[idx] = ov::bfloat16(value);
+                };
+                get_data = [data] (size_t idx) {
+                    return static_cast<float>(data[idx]);
+                };
+                return locked_memory(nullptr, nullptr, data_lock_ptr);
             }
             default:
                 throw std::runtime_error("prepare_quantization: Unsupported precision of quantize output values");
@@ -235,7 +252,7 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
 
     auto out_is_int8 = quantize_node.get_output_layout().data_type == data_types::i8;
     auto out_is_uint8 = quantize_node.get_output_layout().data_type == data_types::u8;
-    auto out_is_fp = !(out_is_int8 || out_is_uint8);
+    auto out_is_fp = !out_is_int8 && !out_is_uint8;
     bool need_clamp = levels != 256 || out_is_fp;
     bool need_min_clamp = need_clamp;
     bool need_max_clamp = need_clamp;
@@ -263,7 +280,7 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     quantize_inputs.push_back(out_scale_prim->id);
     quantize_inputs.push_back(out_shift_prim->id);
 
-    data_types out_dt = primitive->output_data_types.size() ? primitive->output_data_types[0].value_or(data_types::f32) : data_types::f32;
+    data_types out_dt = !primitive->output_data_types.empty() ? primitive->output_data_types[0].value_or(data_types::f32) : data_types::f32;
     auto new_quantize_prim = std::make_shared<quantize>(quantize_node.id() + "_opt", quantize_inputs, primitive->levels, out_dt);
     new_quantize_prim->origin_op_name = primitive->origin_op_name;
     new_quantize_prim->origin_op_type_name = primitive->origin_op_type_name;
@@ -351,7 +368,7 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
     auto& input = eltwise_node.input();
     const auto& stream = p.get_stream();
 
-    for (auto& user : input.get_users()) {
+    for (const auto& user : input.get_users()) {
         if (user == &eltwise_node)
             continue;
 
@@ -383,8 +400,8 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
 
             mem_lock<uint8_t, mem_lock_type::read> mem0_lock{mem0, stream};
             mem_lock<uint8_t, mem_lock_type::read> mem1_lock{mem1, stream};
-            auto ptr0 = mem0_lock.data();
-            auto ptr1 = mem1_lock.data();
+            auto* ptr0 = mem0_lock.data();
+            auto* ptr1 = mem1_lock.data();
 
             for (size_t j = 0; j < mem0->get_layout().bytes_count(); j++) {
                 if (ptr0[j] != ptr1[j]) {
@@ -416,12 +433,13 @@ void prepare_quantization::remove_fake_reorders(program& p, reorder_node& reorde
         return;
     }
 
-    auto &usr = reorder_node.get_users().front();
+    const auto& usr = reorder_node.get_users().front();
     auto &dep = reorder_node.get_dependency(0);
-    if (!(usr->is_type<convolution>() && usr->get_input_layout(1).data_type == data_types::i8) ||
+    const bool is_reorder_node_non_fp = !one_of(reorder_node.get_output_layout().data_type, {data_types::f32, data_types::f16, data_types::bf16});
+    if (!usr->is_type<convolution>() || usr->get_input_layout(1).data_type != data_types::i8 ||
         !dep.is_input() ||
         dep.get_output_layout().data_type != data_types::u8 ||
-        (reorder_node.get_output_layout().data_type != data_types::f32 && reorder_node.get_output_layout().data_type != data_types::f16) ||
+        is_reorder_node_non_fp ||
         dep.get_output_layout().format != reorder_node.get_output_layout().format ||
         dep.get_output_layout().get_tensor() != reorder_node.get_output_layout().get_tensor())
         return;
@@ -437,7 +455,7 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
 
     auto& input = quantize_node.get_dependency(0);
     auto parallel_quantizes_num = 0;
-    for (auto& usr : input.get_users()) {
+    for (const auto& usr : input.get_users()) {
         if (usr->is_type<quantize>())
             parallel_quantizes_num++;
     }
@@ -468,7 +486,7 @@ bool prepare_quantization::optimize_quantize(program &p, quantize_node& quantize
     mem_lock<uint8_t, mem_lock_type::read> mem_output_high_lock_first{mem_output_high_first, stream};
 
     program_node* same_quantize = nullptr;
-    for (auto& usr : input.get_users()) {
+    for (const auto& usr : input.get_users()) {
         if (!usr->is_type<quantize>() || usr == &quantize_node)
             continue;
 
@@ -634,17 +652,30 @@ static void optimize_moe_gemm_decompression_parameters(moe_gemm_node& node, prog
 }
 
 static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, program& p) {
+    using ov::intel_gpu::ocl::MOE3GemmInputIndex;
     auto prim = node.get_primitive();
+    if (prim->_otd.lru_expert_num > 0) {
+        // OTD routed weights are backed by resident-size allocations; reorders would materialize full logical tensors.
+        return;
+    }
     const auto& cfg = prim->_config;
-    // Routed-expert scales at 3/6/9 (gate/up/down); zp at +1 when has_zp.
-    constexpr std::array<size_t, 3> routed_scale_indices{3u, 6u, 9u};
+    // Routed-expert scales (gate/up/down); zp at +1 when has_zp.
+    constexpr std::array<size_t, 3> routed_scale_indices{
+        static_cast<size_t>(MOE3GemmInputIndex::SCALE_0),
+        static_cast<size_t>(MOE3GemmInputIndex::SCALE_1),
+        static_cast<size_t>(MOE3GemmInputIndex::SCALE_2),
+    };
     for (size_t idx : routed_scale_indices) {
         reorder_decompression_param_to_byfx(node, idx, p);
         if (cfg.has_zp)
             reorder_decompression_param_to_byfx(node, idx + 1, p);
     }
     if (cfg.num_shared_expert > 0) {
-        constexpr std::array<size_t, 3> shared_scale_indices{14u, 17u, 20u};
+        constexpr std::array<size_t, 3> shared_scale_indices{
+            static_cast<size_t>(MOE3GemmInputIndex::SHARED_GATE_SCALE),
+            static_cast<size_t>(MOE3GemmInputIndex::SHARED_UP_SCALE),
+            static_cast<size_t>(MOE3GemmInputIndex::SHARED_DOWN_SCALE),
+        };
         for (size_t idx : shared_scale_indices) {
             reorder_decompression_param_to_byfx(node, idx, p);
             if (cfg.has_zp)
@@ -656,7 +687,7 @@ static void optimize_moe_3gemm_fused_decompression_parameters(moe_node& node, pr
 void prepare_quantization::run(program& p) {
     auto itr = p.get_processing_order().begin();
     while (itr != p.get_processing_order().end()) {
-        auto &node = (*itr++);
+        const auto& node = (*itr++);
         if (node->is_type<quantize>()) {
             handle_quantize_node(p, node->as<quantize>());
         } else if (node->is_type<eltwise>()) {

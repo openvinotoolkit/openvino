@@ -144,6 +144,11 @@ private:
         std::size_t diversity_start_block = 0;  // block index offset in seq's deque
     };
 
+    enum class KeyCacheLayout {
+        BLOCK_MAJOR,
+        HEAD_MAJOR,
+    };
+
     struct OperatorState {
         // layout
         std::size_t num_blocks = 0;
@@ -151,6 +156,7 @@ private:
         std::size_t num_kv_heads = 0;
         std::size_t key_head_size = 0;
         std::size_t value_head_size = 0;
+        KeyCacheLayout key_cache_layout = KeyCacheLayout::BLOCK_MAJOR;
 
         // bytes per block
         std::size_t key_block_bytes = 0;

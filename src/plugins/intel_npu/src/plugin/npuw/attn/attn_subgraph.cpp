@@ -4,9 +4,12 @@
 
 #include "attn_subgraph.hpp"
 
+#include <algorithm>
 #include <array>
+#include <limits>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "../attention.hpp"
 #include "../compiled_model.hpp"
@@ -185,8 +188,8 @@ void ensure_hfa_selector(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
     OPENVINO_ASSERT(hfa != nullptr, "Missing compiled HFA state");
 
     auto& request = get_request(ctx);
-    const size_t query_size = hfa->_sdpa_attention_info._query_size;
-    state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(query_size, request);
+    const size_t original_query_length = hfa->_sdpa_attention_info._query_size;
+    state.hfa_selector = runtime::host_flash_attention::PositionIDs::find(original_query_length, request);
     if (!state.hfa_selector) {
         OPENVINO_THROW("HFA dynamic capability is enabled, but no run-time features were found.");
     }
@@ -214,32 +217,89 @@ void ensure_pyramid_requests(ov::npuw::v1::subgraphs::InferContext& ctx, Runtime
         state.pyramid_requests.pipeline_requests.resize(num_pyramid_models);
     }
 
+    const auto& main_inputs = compiled_model->inputs();
+    const bool block_mode = pyramid->is_block_mode();
+
+    // Block KV: alias all block slots on the main request to the same buffer (block_0).
+    // bind_block_ports() in prologue() will set the real per-block tensors at inference time.
+    if (block_mode) {
+        auto alias_block_slots = [&](ov::SoPtr<ov::IAsyncInferRequest>& req, size_t num_blocks, auto get_global_idx) {
+            if (num_blocks == 0) {
+                return;
+            }
+            auto block0 = req->get_tensor(main_inputs[get_global_idx(0)]);
+            for (size_t i = 1; i < num_blocks; ++i) {
+                req->set_tensor(main_inputs[get_global_idx(i)], block0);
+            }
+        };
+        const size_t nk = pyramid->num_key_blocks_global();
+        alias_block_slots(state.base_request, nk, [&](size_t i) {
+            return pyramid->key_block_global_at(i);
+        });
+        alias_block_slots(state.base_request, nk, [&](size_t i) {
+            return pyramid->val_block_global_at(i);
+        });
+        if (is_piped) {
+            alias_block_slots(state.base_pipeline_request, nk, [&](size_t i) {
+                return pyramid->key_block_global_at(i);
+            });
+            alias_block_slots(state.base_pipeline_request, nk, [&](size_t i) {
+                return pyramid->val_block_global_at(i);
+            });
+        }
+    }
+
+    // Build a name→main-port map once for sharing non-block inputs into pyramid variants.
+    std::unordered_map<std::string, ov::Output<const ov::Node>> main_name_to_port;
+    main_name_to_port.reserve(main_inputs.size());
+    for (const auto& inp : main_inputs) {
+        if (!inp.get_names().empty()) {
+            main_name_to_port[inp.get_any_name()] = inp;
+        }
+    }
+
     for (size_t model_idx = 0; model_idx + 1 < num_pyramid_models; ++model_idx) {
         state.pyramid_requests.infer_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
         if (is_piped) {
             state.pyramid_requests.pipeline_requests[model_idx] = pyramid_models[model_idx]->create_infer_request();
         }
 
-        const size_t num_inputs = pyramid_models[model_idx]->inputs().size();
-        OPENVINO_ASSERT(num_inputs == compiled_model->inputs().size(), "Unexpected pyramid input count mismatch");
-
-        for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
-            const auto pyramid_input = pyramid_models[model_idx]->inputs()[input_idx];
-            const auto main_input = compiled_model->inputs()[input_idx];
-
-            auto main_tensor_ptr = state.base_request->get_tensor(main_input)->data();
-            auto pyramid_tensor = state.pyramid_requests.infer_requests[model_idx]->get_tensor(pyramid_input);
-            auto shared_tensor = ov::get_tensor_impl(
-                ov::Tensor(pyramid_tensor->get_element_type(), pyramid_tensor->get_shape(), main_tensor_ptr));
-            state.pyramid_requests.infer_requests[model_idx]->set_tensor(pyramid_input, shared_tensor);
-
-            if (is_piped) {
-                auto pipeline_tensor = state.pyramid_requests.pipeline_requests[model_idx]->get_tensor(pyramid_input);
-                auto pipeline_tensor_ptr = state.base_pipeline_request->get_tensor(main_input)->data();
-                auto shared_pipeline_tensor = ov::get_tensor_impl(
-                    ov::Tensor(pipeline_tensor->get_element_type(), pipeline_tensor->get_shape(), pipeline_tensor_ptr));
-                state.pyramid_requests.pipeline_requests[model_idx]->set_tensor(pyramid_input, shared_pipeline_tensor);
+        auto share_inputs_for_req = [&](ov::SoPtr<ov::IAsyncInferRequest>& req,
+                                        ov::SoPtr<ov::IAsyncInferRequest>& main_req) {
+            const auto& variant_inputs = pyramid_models[model_idx]->inputs();
+            const auto& key_block_ports = pyramid->key_block_port_set_at(model_idx);
+            const auto& val_block_ports = pyramid->val_block_port_set_at(model_idx);
+            ov::SoPtr<ov::ITensor> key_block0, val_block0;
+            if (block_mode) {
+                key_block0 = main_req->get_tensor(main_inputs[pyramid->key_block_global_at(0)]);
+                val_block0 = main_req->get_tensor(main_inputs[pyramid->val_block_global_at(0)]);
             }
+
+            for (size_t j = 0; j < variant_inputs.size(); ++j) {
+                if (block_mode && key_block_ports.count(j)) {
+                    req->set_tensor(variant_inputs[j], key_block0);
+                } else if (block_mode && val_block_ports.count(j)) {
+                    req->set_tensor(variant_inputs[j], val_block0);
+                } else {
+                    if (variant_inputs[j].get_names().empty()) {
+                        continue;
+                    }
+                    const auto it = main_name_to_port.find(variant_inputs[j].get_any_name());
+                    if (it == main_name_to_port.end()) {
+                        continue;
+                    }
+                    auto main_tensor = main_req->get_tensor(it->second);
+                    auto pyr_tensor = req->get_tensor(variant_inputs[j]);
+                    auto shared = ov::get_tensor_impl(
+                        ov::Tensor(pyr_tensor->get_element_type(), pyr_tensor->get_shape(), main_tensor->data()));
+                    req->set_tensor(variant_inputs[j], shared);
+                }
+            }
+        };
+
+        share_inputs_for_req(state.pyramid_requests.infer_requests[model_idx], state.base_request);
+        if (is_piped) {
+            share_inputs_for_req(state.pyramid_requests.pipeline_requests[model_idx], state.base_pipeline_request);
         }
     }
 
@@ -288,6 +348,14 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         const auto tile_input = hfa->_compiled_tile_model->inputs()[input_idx];
         const auto final_tile_input = hfa->_compiled_final_tile_model->inputs()[input_idx];
 
+        // Regular tile KV inputs (f16) differ from final tile KV inputs (f32), and may also
+        // differ in shape whenever past_tile_size < final_tile_size (SWA short-past case).
+        // Skip sharing on mismatch; those ports are set per-tile in process_tile instead.
+        if (tile_input.get_element_type() != final_tile_input.get_element_type() ||
+            tile_input.get_partial_shape() != final_tile_input.get_partial_shape()) {
+            continue;
+        }
+
         auto main_tensor = state.base_request->get_tensor(final_tile_input);
         state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->set_tensor(tile_input, main_tensor);
 
@@ -309,6 +377,9 @@ void ensure_hfa_requests(ov::npuw::v1::subgraphs::InferContext& ctx, RuntimeStat
         });
 
     const auto& tile_in = hfa->_sdpa_attention_info._tile_input_indices;
+    const auto n_tile_in = hfa->_compiled_tile_model->inputs().size();
+    OPENVINO_ASSERT(tile_in.acc < n_tile_in && tile_in.max < n_tile_in && tile_in.d < n_tile_in,
+                    "HFA tile input index out of range");
     auto state_acc = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(
         hfa->_compiled_tile_model->inputs()[tile_in.acc]);
     auto state_max = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE]->get_tensor(
@@ -454,6 +525,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                 switch (m_kind) {
                 case BehaviorKind::Dynamic:
                     if (const auto* dynamic = ov::npuw::attn::get_compiled_dynamic(pipeline.context)) {
+                        // Block-split KV cache (SplitKVCacheIntoBlocks) is incompatible with this path
+                        // because it replaces the single past-KV parameter with N block parameters and
+                        // leaves dynamic->params empty.  Block mode is only supported with Pyramid/HFA.
+                        NPUW_ASSERT(!dynamic->params.empty() &&
+                                    "Dynamic attention does not support block-based KV cache. "
+                                    "Use Pyramid or HFA attention with NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE.");
                         auto& io =
                             get_behavior_io(state, ctx.subgraph_idx, get_param_base(ctx, ctx.real_subgraph_idx), 0u);
                         ensure_dynamic_selector(ctx, state);
@@ -481,6 +558,8 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                      !get_request(ctx).attention_no_copy();
                                 if (do_copy && ov::shape_size(shape) > 0) {
                                     const auto& dst = ctx.target_request->get_tensor(iport);
+                                    NPUW_ASSERT(dst._ptr && "target request returned null tensor for KV param port — "
+                                                            "request may be uninitialized");
                                     dst->set_shape(shape);
                                     view->copy_to(dst._ptr);
                                 } else if (do_copy && ov::shape_size(shape) == 0) {
@@ -502,93 +581,130 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             get_behavior_io(state, ctx.subgraph_idx, get_param_base(ctx, ctx.real_subgraph_idx), 0u);
                         ensure_pyramid_selector(ctx, state);
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
-                        const auto& info = pyramid->_attention_infos[pyramid_id];
-                        const bool is_mask = (input_idx == info.mask_idx);
-                        auto param_it = std::find_if(info.params.begin(), info.params.end(), [&](const auto& p) {
-                            return p.idx == input_idx;
-                        });
-                        const bool is_kv_param = (param_it != info.params.end());
+                        // Compare against the *global* (original model) mask index, not the
+                        // per-variant local one: block-mode variants may have dropped surplus
+                        // KV block parameters, shifting local indices relative to input_idx
+                        // (which is always a global/original-model index here).
+                        const bool is_mask = (input_idx == pyramid->global_mask_idx);
                         const auto& iport = compiled_model->inputs()[input_idx];
-                        if (is_mask) {
-                            // Mask requires context-dependent construction — defer to prologue()
-                            io.inputs.at(input_idx) = tensor;
-                        } else if (is_kv_param) {
-                            const auto& param = *param_it;
+                        if (pyramid->is_block_mode()) {
+                            // Block KV mode: bind block tensors directly to variant ports;
+                            // mask and other inputs fall through to the non-KV handling below.
                             using namespace ov::npuw::runtime;
-                            // iport comes from the main compiled model (full KV shape).
-                            // For set_tensor we must use the port from the pyramid model's compiled
-                            // model so the zero backend shape check passes. For the last pyramid model
-                            // _compiled_models[pyramid_id] == the main compiled model, so pyramid_iport
-                            // == iport and there is no behavioural difference.
-                            // get_tensor calls below intentionally keep iport: they look up by index /
-                            // name without strict shape validation.
-                            const auto& pyramid_iport = pyramid->_compiled_models[pyramid_id]->inputs()[input_idx];
-                            if (state.pyramid_selector->length() == -1) {
-                                // Fallback: dynamic range not identified — bind directly
-                                ctx.target_request->set_tensor(pyramid_iport, tensor);
+                            NPUW_ASSERT(state.pyramid_selector->this_case() ==
+                                            pyramid_attention::Selector::Case::PREFILL &&
+                                        "Pyramid block KV cache is only supported in PREFILL. "
+                                        "For GENERATE use NPUW_LLM_GENERATE_PYRAMID=YES.");
+                            // Single global->variant parameter port map covers mask, retained KV
+                            // blocks, and everything else (surplus KV block parameters may have
+                            // been dropped for this variant, shifting indices). A dropped KV block
+                            // simply has no entry here — distinguish that from "not a block input
+                            // at all" via is_key/value_block_global_idx().
+                            const auto& param_port_map = pyramid->param_port_map_at(pyramid_id);
+                            auto it = param_port_map.find(input_idx);
+                            if (it == param_port_map.end()) {
+                                NPUW_ASSERT((pyramid->is_key_block_global_idx(input_idx) ||
+                                             pyramid->is_value_block_global_idx(input_idx)) &&
+                                            "Pyramid block-mode variant is missing a parameter port mapping "
+                                            "for a non-block input; process_pyramid_model must populate "
+                                            "global_to_local_param_idx for every retained parameter");
+                                // Known KV block, but dropped for this variant — consume silently.
+                            } else if (is_mask) {
+                                io.inputs.at(input_idx) = tensor;
                             } else {
-                                // Pyramid dynamic range identified
-                                const auto past_len = state.pyramid_selector->past_length();
-                                const auto this_case = state.pyramid_selector->this_case();
+                                const auto& pyramid_iport = pyramid->_compiled_models[pyramid_id]->inputs()[it->second];
+                                ctx.target_request->set_tensor(pyramid_iport, tensor);
+                            }
+                        } else {
+                            // Contiguous KV mode: look up whether input_idx is a KV param
+                            // and retrieve its sequence dimension via the virtual interface.
+                            const auto dim_opt = pyramid->kv_param_dim(pyramid_id, input_idx);
+                            const bool is_kv_param = dim_opt.has_value();
+                            if (is_mask) {
+                                // Mask requires context-dependent construction — defer to prologue()
+                                io.inputs.at(input_idx) = tensor;
+                            } else if (is_kv_param) {
+                                const auto dim = dim_opt.value();
+                                using namespace ov::npuw::runtime;
+                                // iport comes from the main compiled model (full KV shape).
+                                // For set_tensor we must use the port from the pyramid model's compiled
+                                // model so the zero backend shape check passes. For the last pyramid model
+                                // _compiled_models[pyramid_id] == the main compiled model, so pyramid_iport
+                                // == iport and there is no behavioural difference.
+                                // get_tensor calls below intentionally keep iport: they look up by index /
+                                // name without strict shape validation.
+                                const auto& pyramid_iport = pyramid->_compiled_models[pyramid_id]->inputs()[input_idx];
+                                if (state.pyramid_selector->length() == -1) {
+                                    // Fallback: dynamic range not identified — bind directly
+                                    ctx.target_request->set_tensor(pyramid_iport, tensor);
+                                } else {
+                                    // Pyramid dynamic range identified
+                                    const auto past_len = state.pyramid_selector->past_length();
+                                    const auto this_case = state.pyramid_selector->this_case();
 
-                                // Strided I/O is available for non-last pyramid models compiled with
-                                // enable_strides_for. The last model reuses the main compiled subgraph (compiled
-                                // without enable_strides_for), so it always falls back to the copy path.
-                                const bool use_tensor_view =
-                                    pyramid->_can_use_tensor_view && (pyramid_id < pyramid->num_models() - 1);
+                                    // Strided I/O is available for non-last pyramid models compiled with
+                                    // enable_strides_for. The last model reuses the main compiled subgraph (compiled
+                                    // without enable_strides_for), so it always falls back to the copy path.
+                                    const bool use_tensor_view =
+                                        pyramid->_can_use_tensor_view && (pyramid_id < pyramid->num_models() - 1);
 
-                                const auto& input_shape = tensor->get_shape();
-                                if (this_case == pyramid_attention::Selector::Case::PREFILL) {
-                                    if (static_cast<int64_t>(input_shape[param.dim]) == past_len) {
-                                        ctx.target_request->set_tensor(pyramid_iport, tensor);
+                                    const auto& input_shape = tensor->get_shape();
+                                    // The shared pyramid_selector's past_len is sized for the global/non-SWA
+                                    // context growth; an SWA function's physical KV buffer is capped at its
+                                    // window size, which can be smaller. Clamp to the tensor's actual size so
+                                    // we never request a view longer than what is physically allocated.
+                                    const int64_t effective_past_len =
+                                        std::min(past_len, static_cast<int64_t>(input_shape[dim]));
+                                    if (this_case == pyramid_attention::Selector::Case::PREFILL) {
+                                        if (static_cast<int64_t>(input_shape[dim]) == effective_past_len) {
+                                            ctx.target_request->set_tensor(pyramid_iport, tensor);
+                                        } else {
+                                            const auto& view = ov::npuw::util::view(tensor, dim, 0, effective_past_len);
+                                            const auto& shape = view->get_shape();
+                                            if (ov::shape_size(shape) == 0) {
+                                                ctx.target_request->get_tensor(iport)->set_shape(shape);
+                                            } else if (use_tensor_view) {
+                                                LOG_DEBUG("Use tensor view: past_len=" << effective_past_len);
+                                                ctx.target_request->set_tensor(pyramid_iport, view);
+                                            } else {
+                                                const auto& dst = ctx.target_request->get_tensor(iport);
+                                                ov::npuw::util::copy_tensor_by_dim(view,
+                                                                                   dst,
+                                                                                   static_cast<uint32_t>(dim),
+                                                                                   static_cast<uint32_t>(dim));
+                                            }
+                                        }
                                     } else {
-                                        const auto& view = ov::npuw::util::view(tensor, param.dim, 0, past_len);
-                                        const auto& shape = view->get_shape();
-                                        if (ov::shape_size(shape) == 0) {
-                                            ctx.target_request->get_tensor(iport)->set_shape(shape);
+                                        NPUW_ASSERT(this_case == pyramid_attention::Selector::Case::GENERATE);
+                                        NPUW_ASSERT(static_cast<int64_t>(input_shape[dim]) != past_len);
+                                        const auto& dst = ctx.target_request->get_tensor(iport);
+                                        if (dst->get_shape() == input_shape) {
+                                            ctx.target_request->set_tensor(pyramid_iport, tensor);
                                         } else if (use_tensor_view) {
-                                            const auto model_past_len = static_cast<int64_t>(info.context_length) -
-                                                                        static_cast<int64_t>(info.query_size);
+                                            const auto model_past_len =
+                                                static_cast<int64_t>(pyramid->get_context_length(pyramid_id)) -
+                                                static_cast<int64_t>(pyramid->compiled_query_size_at(pyramid_id));
                                             LOG_DEBUG("Use tensor view: past_len=" << past_len << " model_past_len="
                                                                                    << model_past_len);
                                             ctx.target_request->set_tensor(
                                                 pyramid_iport,
-                                                ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
+                                                ov::npuw::util::view(tensor, dim, 0, model_past_len));
                                         } else {
-                                            const auto& dst = ctx.target_request->get_tensor(iport);
+                                            // Same SWA-buffer-capping concern as the PREFILL branch above.
+                                            const auto& view = ov::npuw::util::view(tensor, dim, 0, effective_past_len);
+                                            const auto& dst_slice =
+                                                ov::npuw::util::view(dst, dim, 0, effective_past_len);
                                             ov::npuw::util::copy_tensor_by_dim(view,
-                                                                               dst,
-                                                                               static_cast<uint32_t>(param.dim),
-                                                                               static_cast<uint32_t>(param.dim));
+                                                                               dst_slice,
+                                                                               static_cast<uint32_t>(dim),
+                                                                               static_cast<uint32_t>(dim));
                                         }
                                     }
-                                } else {
-                                    NPUW_ASSERT(this_case == pyramid_attention::Selector::Case::GENERATE);
-                                    NPUW_ASSERT(static_cast<int64_t>(input_shape[param.dim]) != past_len);
-                                    const auto& dst = ctx.target_request->get_tensor(iport);
-                                    if (dst->get_shape() == input_shape) {
-                                        ctx.target_request->set_tensor(pyramid_iport, tensor);
-                                    } else if (use_tensor_view) {
-                                        const auto model_past_len = static_cast<int64_t>(info.context_length) -
-                                                                    static_cast<int64_t>(info.query_size);
-                                        LOG_DEBUG("Use tensor view: past_len=" << past_len
-                                                                               << " model_past_len=" << model_past_len);
-                                        ctx.target_request->set_tensor(
-                                            pyramid_iport,
-                                            ov::npuw::util::view(tensor, param.dim, 0, model_past_len));
-                                    } else {
-                                        const auto& view = ov::npuw::util::view(tensor, param.dim, 0, past_len);
-                                        const auto& dst_slice = ov::npuw::util::view(dst, param.dim, 0, past_len);
-                                        ov::npuw::util::copy_tensor_by_dim(view,
-                                                                           dst_slice,
-                                                                           static_cast<uint32_t>(param.dim),
-                                                                           static_cast<uint32_t>(param.dim));
-                                    }
                                 }
+                            } else {
+                                // Non-KV, non-mask: bind directly
+                                ctx.target_request->set_tensor(iport, tensor);
                             }
-                        } else {
-                            // Non-KV, non-mask: bind directly
-                            ctx.target_request->set_tensor(iport, tensor);
                         }
                         return true;
                     }
@@ -599,6 +715,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                    ctx.subgraph_idx,
                                                    get_param_base(ctx, ctx.real_subgraph_idx),
                                                    hfa->_compiled_final_tile_model->outputs().size());
+                        // HFA stores all inputs including block KV tensors
+                        // (past_key_blocks / past_value_blocks vectors handled transparently
+                        //  since every input_idx is stored and looked up by index in run())
                         io.inputs.at(input_idx) = tensor;
                         return true;
                     }
@@ -644,6 +763,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                 ctx.target_request->set_tensor(mask_iport, view);
                             } else {
                                 const auto& dst = ctx.target_request->get_tensor(mask_iport);
+                                NPUW_ASSERT(
+                                    dst._ptr &&
+                                    "target request returned null tensor for mask port — request may be uninitialized");
                                 dst->set_shape(view->get_shape());
                                 view->copy_to(dst._ptr);
                             }
@@ -677,11 +799,15 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                      ATTN_KV_DIM,
                                                      full_mask_shape[ATTN_KV_DIM] - present_len,
                                                      present_len);
+                            NPUW_ASSERT(present_dst_view._ptr && "null tensor view for present mask segment — target "
+                                                                 "request tensor may be uninitialized or zero-sized");
                             present_src_view->copy_to(present_dst_view._ptr);
 
                             if (past_len > 0) {
                                 const auto& past_dst_view = ov::npuw::util::view(dst, ATTN_KV_DIM, 0, past_len);
                                 const auto& past_src_view = ov::npuw::util::view(graph_mask, ATTN_KV_DIM, 0, past_len);
+                                NPUW_ASSERT(past_dst_view._ptr && "null tensor view for past mask segment — target "
+                                                                  "request tensor may be uninitialized or zero-sized");
                                 past_src_view->copy_to(past_dst_view._ptr);
                             }
                             state.cached_attention_mask = dst;
@@ -692,11 +818,19 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                 case BehaviorKind::Pyramid:
                     if (const auto* pyramid = ov::npuw::attn::get_compiled_pyramid(pipeline.context)) {
                         const auto pyramid_id = state.pyramid_selector->pyramid_id();
-                        const auto& dynamic = pyramid->_attention_infos[pyramid_id];
-                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs()[dynamic.mask_idx];
-                        const auto& graph_mask = io.inputs.at(dynamic.mask_idx);
+                        const std::size_t mask_idx_local = pyramid->mask_idx_local_at(pyramid_id);
+                        auto mask_iport = pyramid->_compiled_models[pyramid_id]->inputs()[mask_idx_local];
+                        // io.inputs is indexed by the *global* (original model) input_idx — the same
+                        // index bind_function_input used when it deferred the mask tensor via
+                        // io.inputs.at(input_idx) = tensor. mask_idx_local above is the variant-LOCAL
+                        // port index and must NOT be used here (block-mode variants may have dropped
+                        // surplus KV block parameters, so local != global in general).
+                        const auto& graph_mask = io.inputs.at(pyramid->global_mask_idx);
                         const auto this_case = state.pyramid_selector->this_case();
-                        const auto present_len = dynamic.query_size;
+                        // Original (pre-PropagateSliceUp) query/chunk size. Safe to use for GENERATE
+                        // too: decode graphs are never touched by PropagateSliceUp, so the per-tier
+                        // query axis and this top-level value are always equal there.
+                        const auto present_len = pyramid->original_query_length;
                         const auto& dst = ctx.target_request->get_tensor(mask_iport);
 
                         auto copy_mask_segment = [&](std::size_t dst_offset,
@@ -740,8 +874,19 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             return;
                         }
                         if (this_case == pyramid_attention::Selector::Case::PREFILL) {
-                            copy_mask_segment(past_len, full_mask_shape[ATTN_KV_DIM] - present_len, present_len);
-                            copy_mask_segment(0, 0, past_len);
+                            if (pyramid->_data_left_aligned) {
+                                copy_mask_segment(0, 0, pyramid->get_context_length(pyramid_id));
+                            } else {
+                                // Clamp past_len to this SWA tier's window
+                                const auto context_length = pyramid->get_context_length(pyramid_id);
+                                const auto effective_past_len =
+                                    std::min<std::size_t>(static_cast<std::size_t>(past_len),
+                                                          context_length - present_len);
+                                copy_mask_segment(effective_past_len,
+                                                  full_mask_shape[ATTN_KV_DIM] - present_len,
+                                                  present_len);
+                                copy_mask_segment(0, 0, effective_past_len);
+                            }
                             state.cached_attention_mask = dst;
                             return;
                         }
@@ -770,28 +915,77 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                    hfa_desc->_compiled_final_tile_model->outputs().size());
 
                         OPENVINO_ASSERT(hfa_desc->is_valid(), "HFA configuration must be valid");
-                        const int64_t tile_size = hfa_desc->_tile_size;
-                        const int64_t total_kv_length = state.hfa_selector->context_length();
-                        const int64_t num_tiles = total_kv_length / tile_size;
-                        OPENVINO_ASSERT(total_kv_length % tile_size == 0,
-                                        "HFA total KV length must be multiple of tile size for now");
+                        // GENERATE (decoding) is not supported yet: the past-tile math below
+                        // assumes past_total_length always divides evenly by past_tile_size --
+                        // true for PREFILL chunking, but not for GENERATE, where the actual past
+                        // length grows one token at a time and can land in the middle of a block.
+                        OPENVINO_ASSERT(
+                            state.hfa_selector->this_case() == runtime::host_flash_attention::Selector::Case::PREFILL &&
+                            "HFA does not support GENERATE (decoding) yet — use Pyramid or Dynamic attention "
+                            "for the generate stage.");
+                        // past_tile_size: chunk size for REGULAR tiles -- e.g. the SWA window
+                        // capacity for a sliding-window layer, which may differ from the query
+                        // chunk size shared by every layer (present_tile_size / final_tile_size).
+                        const int64_t past_tile_size = hfa_desc->_past_tile_size;
+                        const int64_t final_tile_size = hfa_desc->_final_tile_size;
+                        const int64_t present_tile_size =
+                            static_cast<int64_t>(hfa_desc->_sdpa_attention_info._query_size);
+                        OPENVINO_ASSERT(final_tile_size == present_tile_size,
+                                        "HFA: final tile size must equal the query size (PREFILL-only)");
 
                         const auto& hfa_inputs = io.inputs;
                         const auto& sdpa_info = hfa_desc->_sdpa_attention_info;
                         const auto& sdpa_in = sdpa_info._sdpa_indices;
 
-                        auto past_key_tensor = hfa_inputs.at(sdpa_in.past_key);
-                        auto past_value_tensor = hfa_inputs.at(sdpa_in.past_value);
+                        // Collect all KV block tensors (works for single-block and multi-block cases)
+                        NPUW_ASSERT(!sdpa_in.past_key_blocks.empty() && !sdpa_in.past_value_blocks.empty() &&
+                                    "SDPA indices must have at least one past_key/value block");
+                        NPUW_ASSERT(sdpa_in.past_key_blocks.size() == sdpa_in.past_value_blocks.size() &&
+                                    "Number of past key blocks must match number of past value blocks");
+                        std::vector<ov::SoPtr<ov::ITensor>> past_key_blocks;
+                        std::vector<ov::SoPtr<ov::ITensor>> past_value_blocks;
+                        for (size_t i = 0; i < sdpa_in.past_key_blocks.size(); ++i) {
+                            past_key_blocks.push_back(hfa_inputs.at(sdpa_in.past_key_blocks[i]));
+                            past_value_blocks.push_back(hfa_inputs.at(sdpa_in.past_value_blocks[i]));
+                        }
                         auto query_tensor = hfa_inputs.at(sdpa_in.query);
                         auto present_key_tensor = hfa_inputs.at(sdpa_in.present_key);
                         auto attention_mask_tensor = hfa_inputs.at(sdpa_in.attention_mask);
                         auto present_value_tensor = hfa_inputs.at(sdpa_in.present_value);
+                        const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
+
+                        // total_kv_length controls how many KV tiles HFA processes.
+                        // Use min(global_context_length, layer_bound_kv_length) to satisfy both constraints:
+                        // 1) Global layers: do not exceed real conversation length when block capacity is rounded up.
+                        // 2) SWA layers: do not exceed KV that is actually bound in layer tensors (the sliding
+                        //    window's past capacity may be smaller than the global/full-attention context).
+                        int64_t layer_bound_kv_length =
+                            static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
+                        for (const auto& k_block : past_key_blocks) {
+                            layer_bound_kv_length += static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
+                        }
+                        const int64_t global_context_length = state.hfa_selector->context_length();
+                        const int64_t total_kv_length = std::min(global_context_length, layer_bound_kv_length);
+
+                        const int64_t past_total_length = total_kv_length - present_tile_size;
+                        OPENVINO_ASSERT(
+                            past_tile_size > 0 ? (past_total_length % past_tile_size == 0) : (past_total_length == 0),
+                            "HFA: past length must be a multiple of the past tile size");
+                        const int64_t past_full_tiles = (past_tile_size > 0) ? (past_total_length / past_tile_size) : 0;
+
                         auto& regular_tile_request = state.hfa_requests.infer_requests[HFARequestSet::REGULAR_TILE];
                         auto& final_tile_request = state.hfa_requests.infer_requests[HFARequestSet::FINAL_TILE];
                         auto attention_output_tensor =
                             final_tile_request->get_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0]);
                         const auto& tile_in = sdpa_info._tile_input_indices;
                         const auto& tile_out = sdpa_info._tile_output_indices;
+                        const auto n_in = hfa_desc->_compiled_tile_model->inputs().size();
+                        const auto n_out = hfa_desc->_compiled_tile_model->outputs().size();
+                        OPENVINO_ASSERT(
+                            tile_in.q < n_in && tile_in.acc < n_in && tile_in.max < n_in && tile_in.d < n_in,
+                            "HFA tile input index out of range");
+                        OPENVINO_ASSERT(tile_out.acc < n_out && tile_out.max < n_out && tile_out.d < n_out,
+                                        "HFA tile output index out of range");
 
                         ov::SoPtr<ov::ITensor> state_acc, state_max, state_sum;
                         if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
@@ -836,7 +1030,6 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         final_tile_request->set_tensor(hfa_desc->_compiled_final_tile_model->outputs()[0],
                                                        attention_output_tensor);
 
-                        const uint32_t K_SEQ_DIM = static_cast<uint32_t>(sdpa_info._k_seq_dim);
                         const uint32_t V_SEQ_DIM = static_cast<uint32_t>(sdpa_info._v_seq_dim);
                         constexpr uint32_t MASK_KV_SEQ_DIM = 3;
                         size_t next_available_mask_buffer_idx = 0;
@@ -848,10 +1041,15 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                 int64_t kv_offset,
                                                 int64_t mask_offset,
                                                 int64_t tile_length,
-                                                bool async = false) {
+                                                bool async = false,
+                                                bool process_with_mask = true,
+                                                bool is_final_tile = false) {
                             auto k_tile_buffer = request->get_tensor(model->inputs()[tile_in.k]);
                             auto v_tile_buffer = request->get_tensor(model->inputs()[tile_in.v]);
-                            auto mask_tile_buffer = request->get_tensor(model->inputs()[tile_in.mask]);
+                            ov::SoPtr<ov::ITensor> mask_tile_buffer;
+                            if (process_with_mask) {
+                                mask_tile_buffer = request->get_tensor(model->inputs()[tile_in.mask]);
+                            }
 
                             if (can_reuse_tensor_zero_copy(k_source,
                                                            k_tile_buffer,
@@ -860,6 +1058,12 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                            tile_length)) {
                                 request->set_tensor(model->inputs()[tile_in.k], k_source);
                             } else if (hfa_desc->_can_use_tensor_view) {
+                                OPENVINO_ASSERT(k_tile_buffer->get_element_type() == k_source->get_element_type(),
+                                                "HFA K tile dtype mismatch: source=",
+                                                k_source->get_element_type(),
+                                                " tile_buffer=",
+                                                k_tile_buffer->get_element_type(),
+                                                ".  Tile model was not constructed with the correct KV dtype.");
                                 request->set_tensor(model->inputs()[tile_in.k],
                                                     ov::npuw::util::view(k_source, K_SEQ_DIM, kv_offset, tile_length));
                             } else {
@@ -873,13 +1077,19 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                            tile_length)) {
                                 request->set_tensor(model->inputs()[tile_in.v], v_source);
                             } else if (hfa_desc->_can_use_tensor_view) {
+                                OPENVINO_ASSERT(v_tile_buffer->get_element_type() == v_source->get_element_type(),
+                                                "HFA V tile dtype mismatch: source=",
+                                                v_source->get_element_type(),
+                                                " tile_buffer=",
+                                                v_tile_buffer->get_element_type(),
+                                                ".  Tile model was not constructed with the correct KV dtype.");
                                 request->set_tensor(model->inputs()[tile_in.v],
                                                     ov::npuw::util::view(v_source, V_SEQ_DIM, kv_offset, tile_length));
                             } else {
                                 extract_and_copy_tile(v_source, v_tile_buffer, V_SEQ_DIM, kv_offset, tile_length, "V");
                             }
 
-                            if (attention_mask_tensor) {
+                            if (process_with_mask && attention_mask_tensor) {
                                 if (can_reuse_tensor_zero_copy(attention_mask_tensor,
                                                                mask_tile_buffer,
                                                                MASK_KV_SEQ_DIM,
@@ -895,7 +1105,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                         request->set_tensor(model->inputs()[tile_in.mask], cached_tile);
                                     } else {
                                         ov::SoPtr<ov::ITensor> cached_mask_tile =
-                                            state.hfa_runtime_ctx->get_mask_tile_buffer(next_available_mask_buffer_idx);
+                                            is_final_tile ? state.hfa_runtime_ctx->get_final_mask_tile_buffer()
+                                                          : state.hfa_runtime_ctx->get_mask_tile_buffer(
+                                                                next_available_mask_buffer_idx);
                                         extract_and_copy_tile(attention_mask_tensor,
                                                               cached_mask_tile,
                                                               MASK_KV_SEQ_DIM,
@@ -907,7 +1119,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                                                tile_length,
                                                                                cached_mask_tile);
                                         request->set_tensor(model->inputs()[tile_in.mask], cached_mask_tile);
-                                        next_available_mask_buffer_idx++;
+                                        if (!is_final_tile) {
+                                            next_available_mask_buffer_idx++;
+                                        }
                                     }
                                 } else {
                                     extract_and_copy_tile(attention_mask_tensor,
@@ -931,36 +1145,58 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                         };
 
                         int64_t mask_tile_offset = 0;
-                        int64_t kv_tile_offset = 0;
-                        for (int64_t tile_idx = 0; tile_idx < num_tiles - 1; ++tile_idx) {
-                            process_tile(regular_tile_request,
-                                         hfa_desc->_compiled_tile_model,
-                                         past_key_tensor,
-                                         past_value_tensor,
-                                         kv_tile_offset,
-                                         mask_tile_offset,
-                                         tile_size);
-                            kv_tile_offset += tile_size;
-                            mask_tile_offset += tile_size;
-                        }
+                        int64_t remaining_full_tiles = past_full_tiles;  // tiles driven from past blocks
 
-                        if (num_tiles > 0) {
-                            const size_t present_seq_length = present_key_tensor->get_shape()[K_SEQ_DIM];
-                            const int64_t final_tile_length = static_cast<int64_t>(present_seq_length);
-                            OPENVINO_ASSERT(
-                                final_tile_length == tile_size,
-                                "Final tile must process entire present KV sequence in a single inference. "
-                                "This is guaranteed during compilation (tile_size = query_size = present_seq_length).");
+                        // For the fused hfa, the regular tile model has no mask input (6 inputs)
+                        const bool uses_mask = hfa_desc->_compiled_tile_model->inputs().size() > tile_in.mask;
+
+                        // Iterate through KV blocks; each block contributes block_size/past_tile_size
+                        // tiles (one-to-one per block in block-split mode, or several chunks out of a
+                        // single continuous past tensor). PREFILL always fills the KV cache in exact
+                        // past_tile_size increments, so this always divides evenly.
+                        for (size_t block_idx = 0; block_idx < past_key_blocks.size() && remaining_full_tiles > 0;
+                             ++block_idx) {
+                            const auto& k_block = past_key_blocks[block_idx];
+                            const auto& v_block = past_value_blocks[block_idx];
+                            const int64_t block_len = static_cast<int64_t>(k_block->get_shape()[K_SEQ_DIM]);
+                            NPUW_ASSERT(block_len % past_tile_size == 0 &&
+                                        "HFA: KV block length must be a multiple of the past tile size");
+                            const int64_t tiles_in_block = block_len / past_tile_size;
+
+                            for (int64_t t = 0; t < tiles_in_block && remaining_full_tiles > 0; ++t) {
+                                process_tile(regular_tile_request,
+                                             hfa_desc->_compiled_tile_model,
+                                             k_block,
+                                             v_block,
+                                             t * past_tile_size,
+                                             mask_tile_offset,
+                                             past_tile_size,
+                                             false,       // async
+                                             uses_mask);  // process_with_mask
+                                mask_tile_offset += past_tile_size;
+                                remaining_full_tiles--;
+                            }
+                        }
+                        NPUW_ASSERT(remaining_full_tiles == 0 &&
+                                    "HFA: All past KV blocks should together contain exactly past_full_tiles tiles");
+
+                        if (final_tile_size > 0) {
+                            const int64_t present_seq_length =
+                                static_cast<int64_t>(present_key_tensor->get_shape()[K_SEQ_DIM]);
+                            OPENVINO_ASSERT(present_seq_length == present_tile_size,
+                                            "HFA: present KV length must equal the compiled query/present tile size");
                             const int64_t mask_total_length = attention_mask_tensor->get_shape()[MASK_KV_SEQ_DIM];
-                            const int64_t final_mask_offset = mask_total_length - final_tile_length;
+                            const int64_t final_mask_offset = mask_total_length - final_tile_size;
                             process_tile(final_tile_request,
                                          hfa_desc->_compiled_final_tile_model,
                                          present_key_tensor,
                                          present_value_tensor,
                                          0,
                                          final_mask_offset,
-                                         final_tile_length,
-                                         true);
+                                         final_tile_size,
+                                         true,   // async
+                                         true,   // process_with_mask
+                                         true);  // is_final_tile: use the dedicated final mask buffer
                         }
 
                         if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
@@ -1036,13 +1272,19 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
         put_compiled_dynamic(context, std::make_shared<ov::npuw::compiled::Attention>(dynamic.value()));
     }
 
-    std::optional<ov::npuw::compiled::PyramidAttention> pyramid;
-    if (const auto* state = get_compiled_pyramid(context)) {
-        pyramid = *state;
-    }
-    stream & pyramid;
-    if (stream.input() && pyramid.has_value()) {
-        put_compiled_pyramid(context, std::make_shared<ov::npuw::compiled::PyramidAttention>(pyramid.value()));
+    bool has_pyramid = (get_compiled_pyramid(context) != nullptr);
+    stream & has_pyramid;
+    if (has_pyramid) {
+        if (stream.output()) {
+            uint8_t tag = get_compiled_pyramid(context)->is_block_mode() ? 1u : 0u;
+            stream & tag;
+            ov::npuw::orc::serialize(stream, *get_compiled_pyramid(context));
+        } else {
+            uint8_t tag;
+            stream & tag;
+            auto pyramid_ptr = ov::npuw::orc::make_pyramid_from_stream(stream, tag);
+            put_compiled_pyramid(context, std::move(pyramid_ptr));
+        }
     }
 
     auto* mutable_pyramid = get_compiled_pyramid(context);
@@ -1060,22 +1302,25 @@ void serialize_compiled_state(v1::subgraphs::Context& context,
                 std::string model_str = ss.str();
                 stream & model_str;
             }
-        } else if (num_models > 0) {
+        } else {
             mutable_pyramid->_compiled_models.resize(num_models);
-            NPUW_ASSERT(submodel_ctx != nullptr);
-            for (size_t i = 0; i < num_models - 1; ++i) {
-                std::string model_str;
-                stream & model_str;
-                std::stringstream ss(model_str);
-                mutable_pyramid->_compiled_models[i] =
-                    submodel_ctx->plugin->get_core()->import_model(ss,
-                                                                   submodel_ctx->device,
-                                                                   submodel_ctx->import_config);
+            if (num_models > 0) {
+                NPUW_ASSERT(submodel_ctx != nullptr);
+                for (size_t i = 0; i < num_models - 1; ++i) {
+                    std::string model_str;
+                    stream & model_str;
+                    std::stringstream ss(model_str);
+                    mutable_pyramid->_compiled_models[i] =
+                        submodel_ctx->plugin->get_core()->import_model(ss,
+                                                                       submodel_ctx->device,
+                                                                       submodel_ctx->import_config);
+                }
+                if (submodel_ctx->compiled_model) {
+                    mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
+                    LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
+                }
             }
-            if (submodel_ctx->compiled_model) {
-                mutable_pyramid->_compiled_models[num_models - 1] = submodel_ctx->compiled_model;
-                LOG_DEBUG("Reused compiled_model for the last pyramid attention model");
-            }
+            mutable_pyramid->validate_port_indices();
         }
     }
 
@@ -1145,8 +1390,8 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
     registrations.emplace_back(registry.on<ov::npuw::patterns::attn::SDPA>().scoped());
     registrations.emplace_back(registry.on<ov::npuw::patterns::attn::SDPADecomposed>().scoped());
 
-    // Behavior registration: fires for any function tagged "attn" (i.e. from either SDPA
-    // or SDPADecomposed pattern).  The at_partition callback checks whether dynamic
+    // Behavior registration: fires for any function tagged "attn" (i.e. from any SDPA-family
+    // isolation pattern). The at_partition callback checks whether dynamic
     // attention was detected (f._attention set by Partitioner::attention()) and, if so,
     // stashes the compile-time descriptor in the pipeline context for later stages.
     ov::npuw::v1::subgraphs::PatternRegistration attn_behavior;
@@ -1158,8 +1403,7 @@ std::vector<ov::npuw::v1::subgraphs::ScopedPatternRegistration> register_pattern
             return;
         }
         if (f._pyramid_attention.has_value()) {
-            put_compiled_pyramid(ctx,
-                                 std::make_shared<ov::npuw::compiled::PyramidAttention>(f._pyramid_attention.value()));
+            put_compiled_pyramid(ctx, ov::npuw::compiled::PyramidAttention::make(f._pyramid_attention.value()));
             ctx.put<BehaviorKind>(BehaviorKind::Pyramid);
             return;
         }

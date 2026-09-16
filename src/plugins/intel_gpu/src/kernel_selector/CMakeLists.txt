@@ -2,7 +2,15 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME "openvino_intel_gpu_kernels")
+set(TARGET_NAME "openvino_intel_gpu_kernels${OV_GPU_SUFFIX}")
+if(NOT DEFINED OV_GPU_RT)
+    # Reachable only if this directory is added outside ov_gpu_build_stack(), which always sets a
+    # single runtime; COMBINED names two, so a stack built from it would belong to neither.
+    if(GPU_RT_TYPE STREQUAL "COMBINED")
+        message(FATAL_ERROR "OV_GPU_RT must be set to a single runtime before adding this directory; got COMBINED")
+    endif()
+    set(OV_GPU_RT "${GPU_RT_TYPE}")
+endif()
 
 find_host_package(Python3 REQUIRED COMPONENTS Interpreter)
 
@@ -67,11 +75,11 @@ target_compile_options(${TARGET_NAME} PRIVATE
   $<$<CONFIG:Release>:$<IF:$<CXX_COMPILER_ID:MSVC>,/Os,-Os>>)
 
 if (ENABLE_ONEDNN_FOR_GPU)
-    target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt)
+    target_link_libraries(${TARGET_NAME} PRIVATE onednn_gpu_tgt${OV_GPU_SUFFIX})
 endif()
 
 target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE OpenCL::OpenCL openvino::runtime::dev)
-ov_gpu_set_runtime_interface_for(${TARGET_NAME})
+ov_gpu_set_runtime_interface_for(${TARGET_NAME} RUNTIME ${OV_GPU_RT})
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:rapidjson,INTERFACE_INCLUDE_DIRECTORIES>)
 
@@ -91,6 +99,12 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
+if(OV_GPU_RT STREQUAL "SYCL")
+  # Some sources include oneDNN headers that require SYCL backend support.
+  # Without the SYCL compilation flag, the compiler will fail with "Unsupported compiler" error.
+  add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES)
+endif()
+
 add_custom_command(
     TARGET ${TARGET_NAME} POST_BUILD
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json ${TUNING_CACHE_PATH}/cache.json)
@@ -106,5 +120,9 @@ endif()
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/cache/cache.json
         DESTINATION ${CACHE_JSON_INSTALL_DIR}
         COMPONENT ${CACHE_JSON_COMPONENT})
+
+# Static library built via ov_add_target, so apply clang-tidy directly
+# (the ADD_CLANG_TIDY option only exists for plugins created via ov_add_plugin).
+ov_apply_clang_tidy(TARGET ${TARGET_NAME})
 
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})

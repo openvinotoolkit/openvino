@@ -21,8 +21,10 @@
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/search_sorted.hpp"
+#include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/sparse_fill_empty_rows.hpp"
 #include "openvino/op/stft.hpp"
 #include "openvino/runtime/internal_properties.hpp"
@@ -40,8 +42,9 @@ namespace {
 
 ov::RTMap get_rt_info(const ov::Model& model) {
     ov::RTMap rt_info;
-    if (model.has_rt_info("runtime_options"))
+    if (model.has_rt_info("runtime_options")) {
         rt_info = model.get_rt_info<ov::AnyMap>("runtime_options");
+    }
 
     if (model.has_rt_info("__weights_path")) {
         rt_info[ov::weights_path.name()] = model.get_rt_info<ov::Any>("__weights_path");
@@ -62,19 +65,24 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::v15::SearchSorted>(op)||
         ov::is_type<ov::op::v15::STFT>(op) ||
         ov::is_type<ov::op::v16::ISTFT>(op) ||
-        ov::is_type<ov::op::v16::SparseFillEmptyRows>(op))
+        ov::is_type<ov::op::v16::SparseFillEmptyRows>(op)) {
         return true;
+    }
 
-    if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op))
+    if (ov::is_type<ov::op::internal::DynamicQuantize>(op) || ov::is_type<ov::op::internal::RMS>(op)) {
         return true;
+    }
 
-    if (ov::is_type<ov::op::internal::GatedDeltaNet>(op))
+    if (ov::is_type<ov::op::internal::GatedDeltaNet>(op) || ov::is_type<ov::op::internal::SelectiveSSM>(op) ||
+        ov::is_type<ov::op::internal::PagedSelectiveSSM>(op)) {
         return true;
+    }
 
     if (ov::is_type<ov::op::v5::Loop>(op)) {
         const auto body_function = std::static_pointer_cast<ov::op::v5::Loop>(op)->get_function();
-        if (body_function->is_dynamic())
+        if (body_function->is_dynamic()) {
             return true;
+        }
     }
 
     if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
@@ -109,18 +117,21 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     // because op.is_dynamic() which only checks input shapes return false.
     // So, in the case of input data, we need to check output shape.
     for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).is_dynamic())
+        if (op->get_output_partial_shape(i).is_dynamic()) {
             return true;
+        }
     }
 
     for (size_t i = 0; i < op->get_output_size(); i++) {
-        if (op->get_output_partial_shape(i).size() > 6)
+        if (op->get_output_partial_shape(i).size() > 6) {
             return true;
+        }
     }
 
     for (size_t i = 0; i < op->get_input_size(); i++) {
-        if (op->get_input_partial_shape(i).size() > 6)
+        if (op->get_input_partial_shape(i).size() > 6) {
             return true;
+        }
     }
 
     return false;
@@ -128,7 +139,7 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
 
 } // namespace
 
-ExecutionConfig::ExecutionConfig() : ov::PluginConfig() { }
+ExecutionConfig::ExecutionConfig() = default;
 
 ExecutionConfig::ExecutionConfig(const ExecutionConfig& other) : ExecutionConfig() {
     m_user_properties = other.m_user_properties;
@@ -175,11 +186,11 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
 
     // WEIGHTS_PATH is used for the weightless cache mechanism which is used only as defined by
     // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
-    // using that mechanism.
+    // using that mechanism.  OTD (MoE offload) also requires the .bin path.
     if (const auto enable_weightless = ov::util::is_weightless_enabled(get_user_properties()); enable_weightless) {
         set_property({ov::enable_weightless(*enable_weightless)});
     }
-    if (get_enable_weightless()) {
+    if (get_enable_weightless() || get_offload_ratio() > 0) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }
@@ -190,11 +201,8 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         if (ov::is_type<ov::op::PagedAttentionExtension>(node)) {
             is_paged_attention_model = true;
             return true;
-        } else if (ov::is_type<ov::intel_gpu::op::KVCache>(node)) {
-            return true;
         }
-
-        return false;
+        return ov::is_type<ov::intel_gpu::op::KVCache>(node);
     });
     const auto has_lora = std::any_of(model.get_variables().begin(), model.get_variables().end(),
         [](const std::shared_ptr<ov::op::util::Variable>& var) {
@@ -247,16 +255,17 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     };
 
-    bool auto_enable_4bit_kv = false;
     // Trace MatMul weight input through the decompression subgraph
     // (Convert→Subtract→Multiply→Reshape→Convert→Constant) to check for 4-bit weights.
     auto has_4bit_matmul_weights = [](const std::shared_ptr<Node>& op) -> bool {
-        if (!ov::is_type<ov::op::v0::MatMul>(op))
+        if (!ov::is_type<ov::op::v0::MatMul>(op)) {
             return false;
+        }
         auto weight = op->get_input_node_shared_ptr(1);
         for (int depth = 0; depth < 8 && weight->get_input_size() > 0; ++depth) {
-            if (ov::is_type<ov::op::v0::Constant>(weight))
+            if (ov::is_type<ov::op::v0::Constant>(weight)) {
                 break;
+            }
             weight = weight->get_input_node_shared_ptr(0);
         }
         if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(weight)) {
@@ -270,24 +279,29 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     for (const auto& op : ops) {
         process_op(op);
 
-        if (auto_enable_4bit_kv && !has_4bit_weights && has_4bit_matmul_weights(op)) {
+        if (!has_4bit_weights && has_4bit_matmul_weights(op)) {
             has_4bit_weights = true;
         }
     }
 
-    auto is_auxiliary_kv_update_model = [](const ov::Model& model) {
-        if (model.get_rt_info().count("auxiliary_kv_update_model")) {
-            return model.get_rt_info<ov::Any>("auxiliary_kv_update_model").template as<bool>();
-        }
-        return false;
+    // Auxiliary KV-update model (e.g. EAGLE3 reorder graph) has no PA op and no 4-bit MatMul,
+    // so the auto-detection branches below can't see the main model's effective precision.
+    // genai stamps it into rt_info["real_kv_cache_precision"] — honor it here so the auxiliary
+    // graph compiles against the same cache layout as the main PA model.
+    auto get_auxiliary_kv_cache_precision = [](const ov::Model& model) -> ov::element::Type {
+        const auto& rt = model.get_rt_info();
+        auto prec_it = rt.find("auxiliary_kv_cache_precision");
+        return prec_it == rt.end() ? ov::element::dynamic : prec_it->second.as<ov::element::Type>();
     };
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
-        if (is_paged_attention_model && has_4bit_weights &&
-            m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
+        const auto auxiliary_kv_prec = get_auxiliary_kv_cache_precision(model);
+        if (auxiliary_kv_prec != ov::element::dynamic) {
+            m_kv_cache_precision = auxiliary_kv_prec;
+        } else if (is_paged_attention_model && has_4bit_weights && m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN) {
             // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
             m_kv_cache_precision = ov::element::u4;
             GPU_DEBUG_INFO << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
-        } else if (is_paged_attention_model || !info.supports_immad || is_auxiliary_kv_update_model(model) ) {
+        } else if (is_paged_attention_model || !info.supports_immad) {
             // Enable KV-cache compression by default for:
             // 1) Non-systolic platforms in case of SDPA-based models
             // 2) For any platforms in case of PagedAttention-based model
@@ -343,10 +357,11 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
 
     // Enable dynamic quantization by default for non-systolic platforms
     if (!is_set_by_user(ov::hint::dynamic_quantization_group_size) && get_dynamic_quantization_group_size() == 0) {
-         if (info.supports_immad)
+         if (info.supports_immad) {
             m_dynamic_quantization_group_size = std::numeric_limits<uint64_t>::max();
-         else
+         } else {
             m_dynamic_quantization_group_size = 32;
+         }
     }
 
     if (!get_force_implementations().empty()) {
@@ -368,7 +383,7 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     apply_config_options(context->get_device_name(), get_debug_config());
 
     // Auto-enable queue-level profiling when a per-primitive timing dump is requested.
-    // Without this, OCL/L0 streams are created without CL_QUEUE_PROFILING_ENABLE and
+    // Without this, OCL/ZE streams are created without CL_QUEUE_PROFILING_ENABLE and
     // event::get_profiling_info() yields no data, leaving average_counters with zero times.
     // Mirrors CPU plugin's Config::applyDebugCapsProperties().
     if (!get_dump_profiling_data_path().empty() || !get_average_counters().empty()) {
@@ -390,10 +405,11 @@ void ExecutionConfig::apply_execution_hints(const cldnn::device_info& info) {
             if (mode == ov::hint::ExecutionMode::ACCURACY) {
                 m_inference_precision = ov::element::dynamic;
             } else if (mode == ov::hint::ExecutionMode::PERFORMANCE) {
-                if (info.supports_fp16)
+                if (info.supports_fp16) {
                     m_inference_precision = ov::element::f16;
-                else
+                } else {
                     m_inference_precision = ov::element::f32;
+                }
             }
         }
     }

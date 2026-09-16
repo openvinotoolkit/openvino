@@ -21,7 +21,8 @@ ov::npuw::EmbeddingInferRequest::EmbeddingInferRequest(const std::shared_ptr<LLM
     : ov::npuw::LLMInferBaseRequest(compiled_model) {
     init_ports();
 
-    m_prefill_request = m_npuw_llm_compiled_model->m_prefill_compiled->create_infer_request();
+    m_prefill_base_request = m_npuw_llm_compiled_model->m_prefill_compiled->create_base_infer_request();
+    m_prefill_request = m_npuw_llm_compiled_model->m_prefill_compiled->wrap_async_infer_request(m_prefill_base_request);
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         m_prefill_in_ports.emplace(input_port.get_any_name(), input_port);
         // Cache past_key_values ports for efficient clearing
@@ -118,7 +119,11 @@ void ov::npuw::EmbeddingInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITenso
                                               static_cast<uint32_t>(chunk_prompt_len));
 
         // Copy with proper stride handling
+        NPUW_ASSERT(pos_ids_slice._ptr &&
+                    "null slice of position IDs tensor — source tensor may be uninitialized or have wrong shape");
         actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
+
+        m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);
 
         m_prefill_request->infer();
 

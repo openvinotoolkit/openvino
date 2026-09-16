@@ -7,15 +7,48 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <string>
 
 #include "core/node.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
 namespace ov {
 namespace frontend {
 namespace onnx {
 namespace recurrent {
+
+// Normalize a recurrent-operator input to target_rank. Dynamic rank is returned unchanged.
+// rank > target: squeeze leading size-1 dims (rejects statically-known non-1 leading dims).
+// rank == target-1: unsqueeze a leading dim (handles models that omit num_directions=1).
+// Larger rank deficiency is rejected. op_name/input_name are used in error messages.
+ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
+                                           int64_t target_rank,
+                                           const std::string& op_name,
+                                           const std::string& input_name);
+
+// Runtime dimension values extracted from OV-layout X [batch, seq, input]
+// and R [num_dir, gates*hidden, hidden]. Each member is a rank-1 i64 node.
+struct LSTMDimensions {
+    LSTMDimensions(const ov::Output<ov::Node>& x_ov_layout, const ov::Output<ov::Node>& r_ov_layout);
+
+    ov::Output<ov::Node> batch_size;
+    ov::Output<ov::Node> seq_length;
+    ov::Output<ov::Node> num_directions;
+    ov::Output<ov::Node> hidden_size;
+};
+
+// Default values for optional LSTM inputs (element_type typically matches X):
+// default_bias:          zeros [num_directions, gates_count * hidden_size]
+// default_sequence_lens: seq_length broadcast to [batch_size]
+// default_initial_state: zeros [batch_size, num_directions, hidden_size]
+ov::Output<ov::Node> default_bias(const LSTMDimensions& dims,
+                                  const ov::element::Type& element_type,
+                                  int64_t gates_count);
+ov::Output<ov::Node> default_sequence_lens(const LSTMDimensions& dims);
+ov::Output<ov::Node> default_initial_state(const LSTMDimensions& dims, const ov::element::Type& element_type);
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ///

@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -36,6 +35,7 @@
 #include "openvino/op/topk.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/topk_base.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
@@ -45,6 +45,7 @@
 
 #    include <common/utils.hpp>
 
+#    include "cpu/x64/cpu_isa_traits.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
@@ -53,9 +54,11 @@
 
 using namespace dnnl;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 using namespace dnnl::impl::utils;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
 
 namespace ov::intel_cpu::node {
 
@@ -1958,11 +1961,7 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
         CPU_NODE_ASSERT(out_dims == out_idx_dims, "gets incorrect output tensor dimension sizes!");
 
-        if (axis < 0) {
-            axis += in_dims_size;
-        }
-        CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(in_dims_size),
-                        "gets incorrect input parameters dimensions and axis number!");
+        CPU_NODE_ASSERT(axis < in_dims_size, "gets incorrect input parameters dimensions and axis number!");
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
@@ -1976,13 +1975,13 @@ void TopK::initSupportedPrimitiveDescriptors() {
     }
 
     impl_desc_type impl_type = [&]() {
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             return impl_desc_type::jit_avx512;
         }
-        if (mayiuse(cpu::x64::avx2)) {
+        if (ov::with_cpu_x86_avx2()) {
             return impl_desc_type::jit_avx2;
         }
-        if (mayiuse(cpu::x64::sse41)) {
+        if (ov::with_cpu_x86_sse42()) {
             return impl_desc_type::jit_sse42;
         }
         return impl_desc_type::ref;
@@ -2003,7 +2002,8 @@ void TopK::initSupportedPrimitiveDescriptors() {
     ov::element::Type dataPrecision = getOriginalOutputPrecisionAtPort(TOPK_DATA);
     bool precisionSupported = std::find(std::begin(supportedPrecision), std::end(supportedPrecision), dataPrecision) !=
                               std::end(supportedPrecision);
-    precisionSupported = (dataPrecision == ov::element::bf16 && !mayiuse(avx512_core)) ? false : precisionSupported;
+    precisionSupported =
+        (dataPrecision == ov::element::bf16 && !ov::with_cpu_x86_avx512_core()) ? false : precisionSupported;
     if (!precisionSupported) {
         if (dataPrecision.is_real()) {
             dataPrecision = ov::element::f32;
@@ -2043,13 +2043,13 @@ void TopK::preset_params() {
         selectedPD->getConfig().inConfs[TOPK_DATA].getMemDesc()->getPrecision());
     data_size = DnnlExtensionUtils::sizeOfDataType(data_type);
 
-    topk_innermost = (layout == TopKLayoutType::topk_ncsp &&
-                      axis == static_cast<int>(getOutputShapeAtPort(TOPK_DATA).getRank() - 1)) ||
-                     ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1);
+    topk_innermost =
+        ((layout == TopKLayoutType::topk_ncsp && axis == (getOutputShapeAtPort(TOPK_DATA).getRank() - 1LU)) ||
+         ((layout == TopKLayoutType::topk_nspc || layout == TopKLayoutType::topk_blocked) && axis == 1LU));
 
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
-    } else if (mayiuse(cpu::x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         blk_size = 8;
     }
 
@@ -2350,7 +2350,7 @@ inline void TopK::prepare_original_idx() {
                 }
             }
         } else {
-            size_t blk_len = mayiuse(cpu::x64::avx2) ? blk_size : 4;
+            size_t blk_len = ov::with_cpu_x86_avx2() ? blk_size : 4;
             if (vec_idx_block.empty()) {
                 vec_idx_block.resize(axis_dim * blk_len);
                 for (size_t i = 0; i < axis_dim; i++) {

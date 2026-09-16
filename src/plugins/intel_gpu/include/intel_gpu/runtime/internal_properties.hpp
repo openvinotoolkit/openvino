@@ -23,6 +23,13 @@ static constexpr Property<std::string, PropertyMutability::RO> driver_version{"G
  */
 static constexpr Property<std::string, PropertyMutability::RO> device_id{"GPU_DEVICE_ID"};
 
+/**
+ * @brief Read-only property carrying the compile-time GPU runtime tag ("OCL"/"ZE"/"SYCL").
+ * Folded into the model cache key so OCL and ZE builds never share a cache blob.
+ * The key string is a cache-compatibility constant - do not rename across releases.
+ */
+static constexpr Property<std::string, PropertyMutability::RO> runtime_type{"GPU_RUNTIME_TYPE"};
+
 enum class QueueTypes : int16_t {
     in_order,
     out_of_order
@@ -135,6 +142,36 @@ static constexpr Property<float, PropertyMutability::RW> buffers_preallocation_r
 static constexpr Property<size_t, PropertyMutability::RW> max_kernels_per_batch{"GPU_MAX_KERNELS_PER_BATCH"};
 static constexpr Property<bool, PropertyMutability::RW> use_onednn{"GPU_USE_ONEDNN"};
 static constexpr Property<bool, PropertyMutability::RW> use_cm{"GPU_USE_CM"};
+static constexpr Property<bool, PropertyMutability::RW> enable_zero_copy_cache_load{"GPU_ENABLE_ZERO_COPY_CACHE_LOAD"};
+
+/**
+ * @brief [EXPERIMENTAL] Enables MLIR-based Graph Compiler execution for supported subgraphs.
+ * When on, matching subgraphs (matmul, elementwise, SDPA, reduction, etc.) are compiled through the
+ * MLIR/Graph-Compiler pipeline and executed as a single fused GPU kernel via cldnn::mlir_primitive.
+ * Requires the plugin to be built with -DENABLE_MLIR_FOR_GPU=ON (which in turn requires
+ * ENABLE_GPU_DEBUG_CAPS); setting this to true on a plugin built without Graph Compiler support
+ * raises an exception at compile_model() time.
+ *
+ * This is an experimental, not production-ready feature: the set of supported subgraphs, the
+ * property itself and the resulting accuracy/performance are all subject to change, so it must
+ * not be enabled in production scenarios.
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_mlir{"GPU_ENABLE_MLIR"};
+
+/**
+ * @brief Overrides the set of subgraph patterns compiled through the MLIR/Graph-Compiler pipeline.
+ * Format is "name1=Type1,Type2;name2=Type3,Type4", where each entry describes a chain of op types
+ * to be matched and the name of the resulting MLIR function. Empty value keeps the built-in default
+ * set, "*" matches every operation supported by the MLIR pipeline.
+ * Only has an effect together with ov::intel_gpu::enable_mlir.
+ */
+static constexpr Property<std::string, PropertyMutability::RW> mlir_patterns{"GPU_MLIR_PATTERNS"};
+
+/**
+ * @brief Enables verbose logging of the MLIR/Graph-Compiler pipeline: matched subgraphs, generated
+ * MLIR modules and the lowering steps are printed to stdout.
+ */
+static constexpr Property<bool, PropertyMutability::RW> mlir_debug{"GPU_MLIR_DEBUG"};
 
 static constexpr Property<bool, ov::PropertyMutability::RW> help{"HELP"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> verbose{"VERBOSE"};
@@ -154,7 +191,7 @@ static constexpr Property<DumpTensors, ov::PropertyMutability::RW> dump_tensors{
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> dump_layer_names{"GPU_DUMP_LAYER_NAMES"};
 static constexpr Property<DumpFormat, ov::PropertyMutability::RW> dump_tensors_format{"GPU_DUMP_TENSORS_FORMAT"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_memory_pool_path{"GPU_DUMP_MEMORY_POOL_PATH"};
-static constexpr Property<bool, ov::PropertyMutability::RW> dump_memory_pool{"GPU_DUMP_MEMORY_POOL"};
+static constexpr Property<size_t, ov::PropertyMutability::RW> dump_memory_pool{"GPU_DUMP_MEMORY_POOL"};
 static constexpr Property<int32_t, ov::PropertyMutability::RW> dump_batch_limit{"GPU_DUMP_BATCH_LIMIT"};
 static constexpr Property<std::set<int64_t>, ov::PropertyMutability::RW> dump_iterations{"GPU_DUMP_ITERATIONS"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> host_time_profiling{"GPU_HOST_TIME_PROFILING"};
@@ -167,7 +204,11 @@ static constexpr Property<bool, ov::PropertyMutability::RW> disable_horizontal_f
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fc_swiglu_fusion{"GPU_DISABLE_FC_SWIGLU_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_gated_mlp_fusion{"GPU_DISABLE_GATED_MLP_FUSION"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_fake_alignment{"GPU_DISABLE_FAKE_ALIGNMENT"};
-static constexpr Property<bool, ov::PropertyMutability::RW> disable_moe_opt{"GPU_DISABLE_MOE_OPT"};
+static constexpr Property<bool, ov::PropertyMutability::RW> moe_disable_fusion{"GPU_MOE_DISABLE_FUSION"};
+static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_micro_gemm_prefill{"GPU_MOE_USE_MICRO_GEMM_PREFILL"};
+static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_gpu_mask_gen_prefill{"GPU_MOE_USE_GPU_MASK_GEN_PREFILL"};
+static constexpr Property<bool, ov::PropertyMutability::RW> moe_use_grouped_gemm_prefill{"GPU_MOE_USE_GROUPED_GEMM_PREFILL"};
+static constexpr Property<size_t, ov::PropertyMutability::RW> moe_batched_gemv_threshold{"GPU_MOE_BATCHED_GEMV_THRESHOLD"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_runtime_skip_reorder{"GPU_DISABLE_RUNTIME_SKIP_REORDER"};
 static constexpr Property<bool, ov::PropertyMutability::RW> asym_dynamic_quantization{"GPU_ASYM_DYNAMIC_QUANTIZATION"};
 static constexpr Property<size_t, ov::PropertyMutability::RW> dynamic_quantization_threshold{"GPU_DYNAMIC_QUANTIZATION_THRESHOLD"};
@@ -186,6 +227,8 @@ static constexpr Property<bool, ov::PropertyMutability::RW> allow_bypass_xattn{"
 static constexpr Property<bool, ov::PropertyMutability::RW> network_marker{"GPU_NETWORK_MARKER"};
 static constexpr Property<bool, ov::PropertyMutability::RW> list_layers{"GPU_LIST_LAYERS"};
 static constexpr Property<bool, ov::PropertyMutability::RW> print_input_data_shapes{"GPU_PRINT_INPUT_DATA_SHAPES"};
+static constexpr Property<bool, ov::PropertyMutability::RW> pa_integrity_check{"GPU_PA_INTEGRITY_CHECK"};
+static constexpr Property<std::vector<int>, ov::PropertyMutability::RW> micro_sdpa_workgroup_config{"GPU_MICRO_SDPA_WORKGROUP_CONFIG"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> pa_mixed_route_mode{"GPU_PA_MIXED_ROUTE_MODE"};
 }  // namespace ov::intel_gpu
 

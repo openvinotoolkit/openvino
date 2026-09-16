@@ -64,7 +64,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
 
         {
             auto output = outputs.at("plane_bucketize_right_bound").get_memory();
-            cldnn::mem_lock<O> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<O, mem_lock_type::read> output_ptr(output, get_test_stream());
             ASSERT_EQ(output_ptr.size(), p.output_values_right_bound.size());
             for (size_t i = 0; i < output_ptr.size(); ++i) {
                 ASSERT_EQ(p.output_values_right_bound[i], output_ptr[i]);
@@ -73,7 +73,7 @@ struct bucketize_test : testing::TestWithParam<bucketize_test_params<I, B, O>> {
 
         {
             auto output = outputs.at("plane_bucketize_left_bound").get_memory();
-            cldnn::mem_lock<O> output_ptr(output, get_test_stream());
+            cldnn::mem_lock<O, mem_lock_type::read> output_ptr(output, get_test_stream());
             ASSERT_EQ(output_ptr.size(), p.output_values_left_bound.size());
             for (size_t i = 0; i < output_ptr.size(); ++i) {
                 ASSERT_EQ(p.output_values_left_bound[i], output_ptr[i]);
@@ -150,5 +150,45 @@ INSTANTIATE_TEST_SUITE_P(export_import,
                          bucketize_test_float16float16int32_t::PrintToStringParamName);
 
 #undef INSTANTIATE_BUCKETIZE_TEST_SUITE
+
+// Empty buckets must still produce a full zero output.
+// Dirty the output first, otherwise a zeroed fresh buffer hides the bug.
+TEST(bucketize_gpu, empty_buckets_produces_zero_output) {
+    auto& engine = get_test_engine();
+
+    const std::vector<float> input_values = {8.f, 1.f, 2.f, 1.1f, 8.f, 10.f, 1.f, 10.2f, 0.f, 20.f};
+    auto input = engine.allocate_memory(layout(ov::PartialShape{1, 1, 1, static_cast<int64_t>(input_values.size())}, data_types::f32, format::bfyx));
+    set_values(input, input_values);
+
+    // Reinterpret a 1-element buffer to avoid a zero-byte allocation.
+    auto buckets_storage = engine.allocate_memory(layout(ov::PartialShape{1}, data_types::f32, format::bfyx));
+    auto empty_buckets = engine.reinterpret_buffer(*buckets_storage, layout(ov::PartialShape{0}, data_types::f32, format::bfyx));
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("buckets", empty_buckets->get_layout()));
+    topology.add(bucketize("bucketize", {input_info("input"), input_info("buckets")}, data_types::i32, true));
+
+    cldnn::network network(engine, topology, get_test_default_config(engine));
+    network.set_input_data("input", input);
+    network.set_input_data("buckets", empty_buckets);
+
+    {
+        auto dirty = network.get_output_memory("bucketize");
+        mem_lock<int32_t, mem_lock_type::write> dirty_ptr(dirty, get_test_stream());
+        for (size_t i = 0; i < dirty_ptr.size(); ++i) {
+            dirty_ptr[i] = static_cast<int32_t>(0xDEADBEEFu);
+        }
+    }
+
+    const auto outputs = network.execute();
+
+    auto output = outputs.at("bucketize").get_memory();
+    mem_lock<int32_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output_ptr.size(), input_values.size());
+    for (size_t i = 0; i < output_ptr.size(); ++i) {
+        ASSERT_EQ(0, output_ptr[i]) << "at index " << i;
+    }
+}
 
 }  // namespace

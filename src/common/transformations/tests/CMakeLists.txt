@@ -8,9 +8,12 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
     ov_add_compiler_flags(-Wno-missing-declarations)
 endif()
 
+include(sources.cmake)
+
 ov_add_test_target(
     NAME ${TARGET_NAME}
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    SOURCES
+        ${OV_TRANSFORMATIONS_TESTS_SRCS}
     DEPENDENCIES
     LINK_LIBRARIES
         gmock
@@ -21,6 +24,9 @@ ov_add_test_target(
     ADD_CLANG_FORMAT
     LABELS
         OV UNIT TRANSFORMATIONS
+    CHECK_SOURCES_LISTED
+    CHECK_SOURCES_EXCLUDE_FILES
+        ${OV_TRANSFORMATIONS_TESTS_CHECK_SOURCES_EXCLUDE_FILES}
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)

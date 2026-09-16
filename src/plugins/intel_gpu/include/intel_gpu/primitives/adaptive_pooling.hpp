@@ -17,8 +17,7 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
     CLDNN_DECLARE_PRIMITIVE(adaptive_pooling)
 
     adaptive_pooling() : primitive_base("", {}),
-                         mode{adaptive_pooling_mode::average},
-                         output_size{} {}
+                         mode {adaptive_pooling_mode::average} {}
 
     /// @brief Constructs AdaptiveAvgPooling primitive.
     /// @param id This primitive id.
@@ -91,8 +90,9 @@ struct adaptive_pooling : public primitive_base<adaptive_pooling> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const adaptive_pooling>(rhs);
 
@@ -122,8 +122,9 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (indices_output.is_valid())
+        if (indices_output.is_valid()) {
             ret[idx++] = &indices_output;
+        }
 
         return ret;
     }

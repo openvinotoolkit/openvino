@@ -37,7 +37,7 @@ protected:
 
 private:
     void initFromInputs() override;
-    void getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
+    void getIndices(size_t embIndex, const int*& indices, size_t& size, size_t& weightsIdx, bool& withWeight) override;
     [[nodiscard]] int32_t getNumSegments() const;
 
     static constexpr size_t SEGMENT_ID_IDX = 2LU;

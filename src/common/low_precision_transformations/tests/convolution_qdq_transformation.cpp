@@ -240,61 +240,6 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
     // Actual:
     //
     // Parameter   Constant   Constant Constant
-    //  |U8         |U8        |FP32    |I8
-    //  |           |          |        |
-    // Convert    Convert     Convert  Convert
-    //   \FP32    /FP32        |FP32   /FP32
-    //    \      /             |      /
-    //    Subtract  Constant  Subtract  Constant
-    //      \FP32   /FP32      |FP32   /FP32
-    //       \     /           |      /
-    //       Multiply         Multiply
-    //         \FP32         /FP32
-    //          \           /
-    //           Convolution
-    //
-    // Transformed:
-    //
-    // Parameter   Constant
-    //  |U8         |U8
-    //  |           |
-    // Convert    Convert
-    //   \FP32    /FP32
-    //    \      /
-    //    Subtract  Constant
-    //      \FP32   /FP32
-    //       \     /
-    //       Multiply       Constant
-    //         \FP32         /FP32
-    //          \           /
-    //           Convolution
-    {
-        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
-        // ActualValues
-        {
-            ov::element::u8,
-            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
-            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::i8, true }, { 0.03f }},
-            { std::vector<float>{ 2.f }, ov::element::f32},
-            {},
-            ov::element::f32,
-            {}
-        },
-        // ExpectedValues
-        {
-            ov::element::u8,
-            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
-            {},
-            { std::vector<float>{ -3.75f }, ov::element::f32},
-            {},
-            ov::element::f32,
-            {}
-        }
-    },
-
-    // Actual:
-    //
-    // Parameter   Constant   Constant Constant
     //  |U8         |U8        |I8      |I8
     //  |           |          |        |
     // Convert    Convert     Convert  Convert
@@ -453,6 +398,32 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
             {{}, {}, {{ 0.0006f }, ov::element::f16, {}, false, 1, ov::element::f32}}
         }
     },
+
+    // fp32 base weight value [not transformed]
+    {
+        LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
+        // ActualValues
+        {
+            ov::element::u8,
+            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
+            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::i8, true }, { 0.03f }},
+            { std::vector<float>{ 2.f }, ov::element::f32},
+            {},
+            ov::element::f32,
+            {}
+        },
+        // ExpectedValues
+        {
+            ov::element::u8,
+            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::u8, true }, { 0.02f }},
+            {{ov::element::f32}, { {127.f}, element::f32, {}, false, 1ul, element::i8, true }, { 0.03f }},
+            { std::vector<float>{ 2.f }, ov::element::f32},
+            {},
+            ov::element::f32,
+            {}
+        }
+    },
+
     // incorrect zero point on activations [not transformed]
     {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
@@ -482,14 +453,18 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
                 { {1000.f}, element::f32, {}, false },
                 { {0.02f}, element::f32, {}, false }
             },
-            {},
-            { std::vector<float>{ -3.75f }, ov::element::f32},
+            {
+                { ov::element::f32, false },
+                { {127.f}, element::f32, {}, false },
+                { {0.03f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ov::element::i8},
             {},
             ov::element::f32,
             {}
         }
     },
-    // incorrect zero point on weights [not transformed, weights folded]
+    // incorrect zero point on weights [not transformed]
     {
         LayerTransformation::createParamsU8I8().setSupportAsymmetricQuantization(true),
         // ActualValues
@@ -518,8 +493,12 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
-            {},
-            { std::vector<float>{ -29.94f }, ov::element::f32},
+            {
+                { ov::element::f32, false },
+                { {1000.f}, element::f32, {}, false },
+                { {0.03f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ov::element::i8},
             {},
             ov::element::f32,
             {}
@@ -570,8 +549,12 @@ const std::vector<ConvolutionQDqTransformationTestValues> testValues = {
                 { {127.f}, element::f32, {}, false, 1ul, element::u8, true },
                 { {0.02f}, element::f32, {}, false }
             },
-            {},
-            { std::vector<float>{ -3.75 }, ov::element::f32},
+            {
+                { ov::element::f32, false },
+                { {127.f}, element::f32, {}, false, 1ul, element::i8, true },
+                { {0.03f}, element::f32, {}, false }
+            },
+            { std::vector<float>{ 2.f }, ov::element::i8},
             {},
             ov::element::f32,
             {}

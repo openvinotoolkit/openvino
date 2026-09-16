@@ -5,7 +5,7 @@ OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. Wh
 ## How to build with Level Zero support
 
 1. Configure cmake with the following additional option:
-    - `-DGPU_RT_TYPE=L0`
+    - `-DGPU_RT_TYPE=ZE`
 2. Build OpenVINO
     - `cmake --build . --config Release`
 
@@ -15,9 +15,11 @@ OpenVINO GPU plugin can be compiled with **experimental** Level Zero support. Wh
 1. Set `OV_VERBOSE=1` environment variable.
 2. Run workload
 3. Find what variant of stream is reported in the logs (`ze_stream` or `ocl_stream`)
-    - Example output for Level Zero runtime: `ze_stream: [GPU] Created L0 stream`
+    - Example output for Level Zero runtime: `ze_stream: [GPU] Created Level Zero stream`
 ### Without DEBUG_CAPS
-* You can check by which library is loaded.
-  * In Linux, use strace to check which so is loaded
-  * In Windows, you can use dependency walker
-* You can use clintercept to check whether it has OpenCL call or not.
+* Check which libraries are loaded at runtime.
+  * On Linux, use `strace` to confirm that Level Zero libraries are loaded.
+  * On Windows, use `Process Explorer` to confirm that Level Zero libraries are loaded.
+  * If you see Level Zero libraries such as `ze_loader.dll` and `ze_intel_gpu64.dll`, Level Zero is in use.
+* Use [clintercept](https://github.com/intel/opencl-intercept-layer/tree/main) to check whether any OpenCL calls are made.
+  * If no OpenCL calls appear, Level Zero is in use.

@@ -13,6 +13,7 @@
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/util/file_util.hpp"
 
 namespace intel_npu {
 
@@ -23,8 +24,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              const FilteredConfig& config,
              const std::optional<std::string>& compatibilityDescriptor,
-             const bool blobIsPersistent,
-             const bool calledFromWeightlessGraph)
+             const bool blobIsPersistent)
     : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -33,17 +33,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _blob(std::move(blob)),
       _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
-      _logger("Graph", config.get<LOG_LEVEL>()) {
-    if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
-        _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
-        return;
-    }
-
-    if (!calledFromWeightlessGraph) {
-        // Will be called at a later stage from WeightlessGraph::initialize() in order to save some memory
-        initialize(config);
-    }
-}
+      _logger("Graph", config.get<LOG_LEVEL>()) {}
 
 const NetworkMetadata& Graph::get_metadata() const {
     return _metadata;
@@ -65,6 +55,16 @@ void Graph::set_workload_type(const ov::WorkloadType workloadType) {
 
     std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
     auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(workloadType);
+
+    if (_commandQueue && zeWorkloadType.has_value()) {
+        // When shared common queue is disabled, workload type is set per command queue.
+        // Update the existing queue if it has already been created.
+        _commandQueue->setWorkloadType(zeWorkloadType.value());
+        _workloadType = workloadType;
+
+        return;
+    }
+
     if (_commandQueueDesc.workload() == zeWorkloadType) {
         return;
     }
@@ -82,9 +82,21 @@ void Graph::set_model_priority(const ov::hint::Priority modelPriority) {
         return;
     }
     _commandQueueDesc.set_priority(zeModelPriority);
+
+    if (_commandQueue) {
+        // When shared common queue is disabled, workload type is set per command queue.
+        // Recreate the queue with the new priority while preserving the current workload type.
+        if (_workloadType.has_value()) {
+            auto zeWorkloadType = zeroUtils::toZeQueueWorkloadType(_workloadType.value());
+            _commandQueueDesc.set_workload(zeWorkloadType);
+            _workloadType = std::nullopt;  // Clear the cached workload type after applying it to the new queue
+        }
+
+        _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
+    }
 }
 
-ze_graph_handle_t Graph::get_handle() const {
+void* Graph::get_handle() const {
     return _graphDesc._handle;
 }
 
@@ -142,7 +154,8 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    auto compiler = VCLCompilerImpl::getInstance();
+    auto ov_lib_path = ov::util::path_to_string(ov::util::get_ov_lib_path());
+    auto compiler = std::make_shared<VCLCompilerImpl>(ov_lib_path);
     OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
 
     std::vector<uint8_t> blob(_blob->get_byte_size());
@@ -195,6 +208,11 @@ void Graph::initialize_impl(const FilteredConfig& config) {
             this,
             config.get<SHARED_COMMON_QUEUE>(),
         };
+
+        if (config.get<SHARED_COMMON_QUEUE>() == false) {
+            // Keep it alive per compiled model when the shared common queue feature is disabled.
+            _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
+        }
     }
 
     _zeGraphExt->initializeGraph(_graphDesc);
@@ -280,7 +298,8 @@ std::optional<bool> Graph::is_profiling_blob() const {
     ze_graph_properties_3_t graphProperties = {};
     graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_3;
 
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(get_handle(), &graphProperties);
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(static_cast<ze_graph_handle_t>(get_handle()),
+                                                                        &graphProperties);
     THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
     return graphProperties.flags & ZE_GRAPH_PROPERTIES_FLAG_PROFILING_ENABLED;

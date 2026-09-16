@@ -64,7 +64,7 @@ TEST(depth_concatenate_f32_gpu, test01) {
 
     auto output = outputs.at("depth1").get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_FLOAT_EQ(0.5f, output_ptr[0]);
     ASSERT_FLOAT_EQ(0.7f, output_ptr[1]);
     ASSERT_FLOAT_EQ(0.2f, output_ptr[2]);
@@ -126,7 +126,7 @@ void concat_basic_with_reorder() {
 
     auto output = outputs.at("to_float").get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     int ptr_cntr = 0;
     for (const auto& ref : outs) {
         ASSERT_FLOAT_EQ(ref, output_ptr[ptr_cntr++]);
@@ -203,7 +203,7 @@ TEST(depth_concatenate_f32_gpu, test02) {
 
     auto output = outputs.at("depth1").get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_FLOAT_EQ(0.5f, output_ptr[0]);
     ASSERT_FLOAT_EQ(0.7f, output_ptr[1]);
     ASSERT_FLOAT_EQ(0.2f, output_ptr[2]);
@@ -249,7 +249,7 @@ TEST(concatenate_f32_gpu, test_concatenation_of_pool_and_unpool) {
     auto outputs = network.execute({});
     auto output = outputs.at("conv").get_memory();
     std::vector<float> out_ref = {6.4f, 8.f, 51.2f, 64.f};
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (int i = 0; i < 4; i++) {
         ASSERT_NEAR(output_ptr[i], out_ref[i], 1e-3);
     }
@@ -342,7 +342,7 @@ TEST(depth_concatenate_f32_gpu, test04_fused_relu) {
 
     auto output = outputs.at("relu1").get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     unsigned int input_element_count = 300;
     for (unsigned int i = 0; i < 600; i++) {
         if (i < input_element_count)
@@ -395,7 +395,7 @@ TEST(depth_concatenate_f32_gpu, test05_different_formats) {
     ASSERT_EQ(outputs.begin()->first, "output");
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     int cntr = 0;
     for (float val : output_ptr) {
         ASSERT_EQ(val, out_ref[cntr++]);
@@ -470,7 +470,7 @@ TEST(depth_concatenate_f32_gpu, test06_padded_input) {
     }
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output->count(), output_f);
     for (size_t i = 0; i < output_f; ++i) {
         auto& val = output_ptr[i];
@@ -551,7 +551,7 @@ TEST(depth_concatenate_f32_gpu, test07_padded_output) {
     }
 
     auto output = outputs.at("output").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output->count(), output_f);
     for (size_t i = 0; i < output_f; ++i) {
         auto& val = output_ptr[i];
@@ -605,7 +605,7 @@ TEST(depth_concatenate_f32_gpu, test07_concat_is_output) {
     ASSERT_TRUE(executed_primitives.count("depth1") == 1);
 
     auto output = outputs.at("depth1").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     ASSERT_EQ(output->count(), output_f);
     for (size_t i = 0; i < output_f; ++i) {
         auto& val = output_ptr[i];
@@ -667,7 +667,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_different_format_inputs) {
     ASSERT_EQ(outputs.begin()->first, "depth4");
 
     auto output = outputs.at("depth4").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     int input1_values_count = in1_f * x;
     int input2_values_count = in2_f * x;
@@ -733,7 +733,7 @@ TEST(depth_concatenate_f32_gpu, concat_with_reshape_input) {
 
     auto output = outputs.at("depth2").get_memory();
 
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     for (int i = 0; i < 16; i++)
     {

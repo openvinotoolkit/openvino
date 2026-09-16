@@ -11,6 +11,9 @@
 
 #include "ocl/ocl_engine_factory.hpp"
 #include "ze/ze_engine_factory.hpp"
+#ifdef OV_GPU_WITH_SYCL_RT
+#include "sycl/sycl_engine_factory.hpp"
+#endif  // OV_GPU_WITH_SYCL_RT
 
 #include <string>
 #include <vector>
@@ -75,10 +78,7 @@ bool engine::use_unified_shared_memory() const {
     GPU_DEBUG_IF(ExecutionConfig::get_disable_usm()) {
         return false;
     }
-    if (_device->get_mem_caps().supports_usm()) {
-        return true;
-    }
-    return false;
+    return _device->get_mem_caps().supports_usm();
 }
 
 uint64_t engine::get_max_memory_size() const {
@@ -95,16 +95,24 @@ uint64_t engine::get_host_memory_size() const {
 }
 
 bool engine::supports_allocation(allocation_type type) const {
-    if (memory_capabilities::is_usm_type(type) && !use_unified_shared_memory())
+    if (memory_capabilities::is_usm_type(type) && !use_unified_shared_memory()) {
         return false;
-    if (allocation_type::usm_shared == type)
+    }
+    if (allocation_type::usm_shared == type) {
         return false;
+    }
     return _device->get_mem_caps().support_allocation_type(type);
 }
 
+bool engine::can_use_host_usm_zero_copy() const {
+    const auto& info = get_device_info();
+    return info.dev_type == cldnn::device_type::integrated_gpu && info.arch >= cldnn::gpu_arch::xe2 && supports_allocation(cldnn::allocation_type::usm_host);
+}
+
 allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_image_layout) const {
-    if (!use_unified_shared_memory() || is_image_layout)
+    if (!use_unified_shared_memory() || is_image_layout) {
         return get_default_allocation_type();
+    }
 
     /*
         We do not check device allocation here.
@@ -115,24 +123,29 @@ allocation_type engine::get_lockable_preferred_memory_allocation_type(bool is_im
     bool support_usm_host = supports_allocation(allocation_type::usm_host);
     bool support_usm_shared = supports_allocation(allocation_type::usm_shared);
 
-    if (support_usm_shared)
+    if (support_usm_shared) {
         return allocation_type::usm_shared;
-    if (support_usm_host)
+    }
+    if (support_usm_host) {
         return allocation_type::usm_host;
+    }
 
     OPENVINO_ASSERT(false, "[GPU] Couldn't find proper allocation type in get_lockable_preferred_memory_allocation_type method");
 }
 
 allocation_type engine::get_preferred_memory_allocation_type(bool is_image_layout) const {
-    if (!use_unified_shared_memory() || is_image_layout)
+    if (!use_unified_shared_memory() || is_image_layout) {
         return get_default_allocation_type();
+    }
 
-    if (supports_allocation(allocation_type::usm_device))
+    if (supports_allocation(allocation_type::usm_device)) {
         return allocation_type::usm_device;
+    }
 
     // Fallback to host allocations in case if device ones are not supported for some reason
-    if (supports_allocation(allocation_type::usm_host))
+    if (supports_allocation(allocation_type::usm_host)) {
         return allocation_type::usm_host;
+    }
 
     OPENVINO_ASSERT(false, "[GPU] Couldn't find proper allocation type in get_preferred_memory_allocation_type method");
 }
@@ -258,12 +271,17 @@ bool engine::get_enable_large_allocations() const {
 std::shared_ptr<cldnn::engine> engine::create(engine_types engine_type, runtime_types runtime_type, const device::ptr device) {
     std::shared_ptr<cldnn::engine> ret;
     switch (engine_type) {
+#ifdef OV_GPU_WITH_SYCL_RT
+    case engine_types::sycl:
+        ret = sycl::create_sycl_engine(device, runtime_type);
+        break;
+#endif  // OV_GPU_WITH_SYCL_RT
+#ifdef OV_GPU_WITH_OCL_RT
 #ifdef OV_GPU_WITH_SYCL
     case engine_types::sycl:
         ret = ocl::create_sycl_engine(device, runtime_type);
         break;
 #endif  // OV_GPU_WITH_SYCL
-#ifdef OV_GPU_WITH_OCL_RT
     case engine_types::ocl:
         ret = ocl::create_ocl_engine(device, runtime_type);
         break;

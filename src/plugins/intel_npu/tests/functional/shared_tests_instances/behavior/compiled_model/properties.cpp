@@ -61,7 +61,6 @@ const std::string& expectedModelName = []() -> std::string {
 }();
 
 const std::vector<ov::AnyMap> compatibilityPublicCompiledModelConfigs = {
-    {{ov::hint::enable_cpu_pinning.name(), ov::Any(false)}},
     {{ov::hint::model_priority.name(), ov::Any(ov::hint::Priority::MEDIUM)}},
     {{ov::execution_devices.name(), ov::Any(ov::test::utils::DEVICE_NPU)}},
     {{ov::loaded_from_cache.name(), ov::Any(false)}},
@@ -72,10 +71,6 @@ const std::vector<ov::AnyMap> compatibilityPublicCompiledModelConfigs = {
     {{ov::cache_encryption_callbacks.name(),
       ov::Any(ov::EncryptionCallbacks{ov::util::codec_xor, ov::util::codec_xor})}},
 };
-
-const std::vector<ov::AnyMap> publicCompiledModelConfigs = {
-    // execution_mode isn't supported with PV driver.
-    {{ov::hint::execution_mode.name(), ov::Any(ov::hint::ExecutionMode::PERFORMANCE)}}};
 
 const std::vector<ov::AnyMap> compiledModelIncorrectConfigs = {
     {{"NPU_INEXISTENT_PROPERTY", "NPU_INEXISTENT_PROPERTY_VALUE"}}};
@@ -271,12 +266,6 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTests,
                          OVClassCompiledModelPropertiesDefaultTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(compatibilityPublicCompiledModelConfigs)),
-                         ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelPropertiesDefaultTests>);
-
-INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
-                         OVClassCompiledModelPropertiesDefaultTests,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
-                                            ::testing::ValuesIn(publicCompiledModelConfigs)),
                          ov::test::utils::appendPlatformTypeTestName<OVClassCompiledModelPropertiesDefaultTests>);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,

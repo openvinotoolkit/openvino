@@ -22,7 +22,7 @@ namespace ov::intel_cpu::aarch64 {
 std::string init_info_jit_gemm_emitter(const jit_gemm_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_gemm_emitter"
-       << " is_f16:" << emitter->m_is_f16
+       << " is_f16:" << emitter->is_f16_executor()
        << " m_memory_offset:" << ov::util::vector_to_string(emitter->m_memory_offsets)
        << " m_buffer_ids:" << ov::util::vector_to_string(emitter->m_buffer_ids);
     return ss.str();
@@ -31,7 +31,7 @@ std::string init_info_jit_gemm_emitter(const jit_gemm_emitter* emitter) {
 std::string init_info_jit_gemm_copy_b_emitter(const jit_gemm_copy_b_emitter* emitter) {
     std::stringstream ss;
     ss << "Emitter_type_name:jit_gemm_copy_b_emitter"
-       << " is_f16:" << emitter->m_is_f16
+       << " is_f16:" << emitter->is_f16_executor()
        << " m_memory_offset:" << ov::util::vector_to_string(emitter->m_memory_offsets)
        << " m_buffer_ids:" << ov::util::vector_to_string(emitter->m_buffer_ids);
     return ss.str();

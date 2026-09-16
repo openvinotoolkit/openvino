@@ -663,14 +663,14 @@ bool hasLoadableExt(const std::string& network_path) {
     });
 }
 
-std::string cleanName(std::string&& name) {
+std::string cleanName(std::string name) {
     std::replace_if(
             name.begin(), name.end(),
             [](unsigned char c) {
                 return !std::isalnum(c);
             },
             '_');
-    return std::move(name);
+    return name;
 }
 
 ov::Tensor loadImages(const ov::element::Type& precision, const ov::Shape& shape, const ov::Layout& layout,
@@ -1561,6 +1561,54 @@ bool testRRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
 // e.g. '--mode nrmse --nrmse_loss_threshold 0.01'
 // e.g. '--mode nrmse --nrmse_loss_threshold "logits:0.03;pred_boxes:0.05"'
 //
+// Optional per-output prefill slicing for LLM KV cache / hidden state outputs:
+//   --nrmse_prefill_seq_len_axis "<layer>:<axis>;..."
+//   --nrmse_prefill_seq_len_size "<layer>:<N>;..."
+// Keeps only the last N elements along the specified axis before computing NRMSE.
+//
+
+// Return a new contiguous tensor containing the last `len` elements of `src` along `axis`.
+// The element type and all other dimensions are preserved.
+static ov::Tensor sliceLastNAlongAxis(const ov::Tensor& src, size_t axis, size_t len) {
+    const auto& shape = src.get_shape();
+    OPENVINO_ASSERT(axis < shape.size(),
+                    "nrmse_prefill_seq_len_axis ", axis,
+                    " is out of range for tensor of rank ", shape.size());
+    OPENVINO_ASSERT(len > 0 && len <= shape[axis],
+                    "nrmse_prefill_seq_len_size ", len,
+                    " is out of range for axis ", axis, " of size ", shape[axis]);
+    if (len == shape[axis]) {
+        return src;
+    }
+
+    ov::Shape newShape = shape;
+    newShape[axis] = len;
+    ov::Tensor dst(src.get_element_type(), newShape);
+
+    size_t outer = 1;
+    for (size_t i = 0; i < axis; ++i) {
+        outer *= shape[i];
+    }
+    const size_t mid = shape[axis];
+    size_t inner = 1;
+    for (size_t i = axis + 1; i < shape.size(); ++i) {
+        inner *= shape[i];
+    }
+
+    const size_t elemSize = src.get_element_type().size();
+    const size_t innerBytes = inner * elemSize;
+    const size_t srcStart = mid - len;
+
+    const auto* srcData = static_cast<const uint8_t*>(src.data());
+    auto* dstData = static_cast<uint8_t*>(dst.data());
+
+    for (size_t o = 0; o < outer; ++o) {
+        const uint8_t* srcRow = srcData + (o * mid + srcStart) * innerBytes;
+        uint8_t* dstRow = dstData + (o * len) * innerBytes;
+        std::memcpy(dstRow, srcRow, len * innerBytes);
+    }
+    return dst;
+}
 
 bool computeNRMSE(const ov::Tensor& output, const ov::Tensor& reference, double threshold) {
     if (output.get_shape() != reference.get_shape()) {
@@ -1724,13 +1772,13 @@ bool computeMAP(const std::map<std::string, ov::Tensor>& outputs, const std::map
 
 bool testMAP(const TensorMap& outputs, const TensorMap& references, const LayoutMap& outputLayouts) {
     if (outputs.size() != references.size()) {
-        std::cout << "Actual and reference has different number of output blobs" << std::endl;
-        return false;
+        std::cout << "Warning: Actual and reference have different number of output blobs ("
+                  << outputs.size() << " vs " << references.size() << ")" << std::endl;
     }
 
-    // For single-image detection models with pred_boxes and logits outputs,
-    // compute mAP directly from all outputs rather than per-layer
-    std::cout << "Computing mAP for single-image detection model" << std::endl;
+    // Compute mAP from detection model outputs.
+    // Supports: DETR-style (pred_boxes + logits), YOLOv10-style (single [N,6] tensor)
+    std::cout << "Computing mAP for detection model" << std::endl;
     std::cout << "Output layers:" << std::endl;
     for (const auto& [tensorName, tensor] : outputs) {
         std::cout << " - " << tensorName << " : " << tensor.get_shape() << std::endl;
@@ -1778,6 +1826,12 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
     // Parse per-layer thresholds
     auto thresholdMap = utils::parsePerLayerValues(FLAGS_nrmse_loss_threshold, metric_defaults::nrmse_loss_threshold);
 
+    // Parse optional per-layer prefill seq-len axis/size maps used to slice LLM
+    // KV-cache / hidden-state outputs to the last N positions along the sequence axis.
+    // Only entries that appear in BOTH maps are honored; otherwise the full tensor is compared.
+    auto seqLenAxisMap = utils::parsePerLayerValues(FLAGS_nrmse_prefill_seq_len_axis, 0.0);
+    auto seqLenSizeMap = utils::parsePerLayerValues(FLAGS_nrmse_prefill_seq_len_size, 0.0);
+
     bool allPassed = true;
     for (auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
@@ -1785,6 +1839,26 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         bool applySoftMax = FLAGS_apply_soft_max;
 
         double layerThreshold = utils::getValueForLayer(thresholdMap, tensorName);
+
+        // Optional prefill slicing: applied only when both axis and size are explicitly
+        // specified for this layer. When only one of the two is given, the full tensor
+        // is compared and a warning is emitted.
+        ov::Tensor outputForCompare = output;
+        ov::Tensor referenceForCompare = referencesIterator->second;
+        const bool hasAxis = seqLenAxisMap.find(tensorName) != seqLenAxisMap.end();
+        const bool hasSize = seqLenSizeMap.find(tensorName) != seqLenSizeMap.end();
+        if (hasAxis && hasSize) {
+            const size_t axis = static_cast<size_t>(seqLenAxisMap.at(tensorName));
+            const size_t keep = static_cast<size_t>(seqLenSizeMap.at(tensorName));
+            std::cout << "Slicing NRMSE input '" << tensorName << "' to last " << keep
+                      << " element(s) along axis " << axis << std::endl;
+            outputForCompare = sliceLastNAlongAxis(outputForCompare, axis, keep);
+            referenceForCompare = sliceLastNAlongAxis(referenceForCompare, axis, keep);
+        } else if (hasAxis != hasSize) {
+            std::cout << "Warning: only one of --nrmse_prefill_seq_len_axis / "
+                         "--nrmse_prefill_seq_len_size is set for layer '"
+                      << tensorName << "'; comparing full tensor." << std::endl;
+        }
 
         BlobTestMethod blobComparator = [applySoftMax, layerThreshold](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
             if (applySoftMax) {
@@ -1811,8 +1885,8 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
         };
 
         if (!test_blobs_in_batch(tensorName,
-                                 splitBatchedTensor(output, tensorName, outputLayouts),
-                                 splitBatchedTensor(referencesIterator->second, tensorName, outputLayouts),
+                                 splitBatchedTensor(outputForCompare, tensorName, outputLayouts),
+                                 splitBatchedTensor(referenceForCompare, tensorName, outputLayouts),
                                  blobComparator)) {
             allPassed = false;
         }
@@ -1829,7 +1903,8 @@ bool testNRMSE(const TensorMap& outputs, const TensorMap& references, const Layo
 // Direction of metric’s growth is lower-better. If the inputs are identical, the L2NORM is zero.
 //
 
-bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference, double threshold) {
+bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference, double threshold,
+                    const std::optional<std::pair<double, double>>& dequant) {
     if (output.get_size() != reference.get_size()) {
         std::cout << "Output and reference tensors have different sizes" << std::endl;
         return false;
@@ -1839,8 +1914,21 @@ bool computeL2Norm(const ov::Tensor& output, const ov::Tensor& reference, double
     const ov::Tensor referenceFP32 = npu::utils::toFP32(reference);
 
     const auto size = outputFP32.get_size();
-    const auto* outputData = outputFP32.data<const float>();
     const auto* referenceData = referenceFP32.data<const float>();
+
+    // Optionally dequantize the inference output before comparing against the (untouched) reference:
+    // dequantized = (quantized - zero_point) * scale. The reference tensor is never modified.
+    std::vector<float> dequantizedOutput;
+    const float* outputData = outputFP32.data<const float>();
+    if (dequant.has_value()) {
+        const double scale = dequant->first;
+        const double zeroPoint = dequant->second;
+        dequantizedOutput.resize(size);
+        for (size_t i = 0; i < size; ++i) {
+            dequantizedOutput[i] = static_cast<float>((static_cast<double>(outputData[i]) - zeroPoint) * scale);
+        }
+        outputData = dequantizedOutput.data();
+    }
 
     double sumSquares = 0.0;
     for (size_t i = 0; i < size; ++i) {
@@ -1865,6 +1953,15 @@ bool testL2Norm(const TensorMap& outputs, const TensorMap& references, const Lay
     // Parse per-layer thresholds
     auto thresholdMap = utils::parsePerLayerValues(FLAGS_l2norm_threshold, metric_defaults::l2norm_threshold);
 
+    // Parse optional per-layer dequantization scale/zero-point, used to convert quantized integer
+    // outputs to floating point before the L2Norm comparison. Dequantization is skipped entirely when
+    // --l2norm_dequant_scale is not set.
+    const bool dequantEnabled = !FLAGS_l2norm_dequant_scale.empty();
+    auto scaleMap = utils::parsePerLayerValues(FLAGS_l2norm_dequant_scale, 1.0);
+    auto zpMap = utils::parsePerLayerValues(FLAGS_l2norm_dequant_zp, metric_defaults::l2norm_dequant_zp);
+    const bool scaleIsGlobal = utils::isGlobalValue(scaleMap);
+    const bool zpIsGlobal = utils::isGlobalValue(zpMap);
+
     bool allPassed = true;
     for (auto& [tensorName, output] : outputs) {
         auto referencesIterator = references.find(tensorName);
@@ -1872,8 +1969,21 @@ bool testL2Norm(const TensorMap& outputs, const TensorMap& references, const Lay
 
         double layerThreshold = utils::getValueForLayer(thresholdMap, tensorName);
 
-        BlobTestMethod blobComparator = [layerThreshold](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
-            return computeL2Norm(outputTensor, referenceTensor, layerThreshold);
+        std::optional<std::pair<double, double>> dequant;
+        if (dequantEnabled) {
+            std::optional<double> scale =
+                    scaleIsGlobal ? std::optional<double>(utils::getValueForLayer(scaleMap, tensorName))
+                                  : utils::getExplicitValueForLayer(scaleMap, tensorName);
+            if (scale.has_value()) {
+                const double zeroPoint = zpIsGlobal ? utils::getValueForLayer(zpMap, tensorName)
+                                                     : utils::getExplicitValueForLayer(zpMap, tensorName)
+                                                               .value_or(metric_defaults::l2norm_dequant_zp);
+                dequant = std::make_pair(*scale, zeroPoint);
+            }
+        }
+
+        BlobTestMethod blobComparator = [layerThreshold, dequant](ov::Tensor outputTensor, ov::Tensor referenceTensor) {
+            return computeL2Norm(outputTensor, referenceTensor, layerThreshold, dequant);
         };
 
         if (!test_blobs_in_batch(tensorName,
@@ -2320,7 +2430,7 @@ static ov::Shape parseDataShape(const std::string& dataShapeStr) {
     return ov::Shape(dataShape);
 }
 
-std::string getRefBlobFilePath(const std::string& netFileName, const std::vector<std::string>& refFiles,
+std::string getRefBlobFilePath(const std::string& blobNamePrefix, const std::vector<std::string>& refFiles,
                                size_t numberOfTestCase, size_t outputInd) {
     std::string blobFileFullPath;
     if (!refFiles.empty() && !FLAGS_ref_dir.empty()) {
@@ -2334,7 +2444,7 @@ std::string getRefBlobFilePath(const std::string& netFileName, const std::vector
     } else {
         // Case 3: Reference directory provided only
         std::ostringstream ostr;
-        ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+        ostr << blobNamePrefix << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
         const auto blobFileName = ostr.str();
 
         std::filesystem::path fullPath = FLAGS_ref_dir;
@@ -2649,6 +2759,9 @@ static int runSingleImageTest() {
             netFileName = cleanName(FLAGS_network.substr(startPos, endPos - startPos));
         }
 
+        const std::string blobNamePrefix =
+                FLAGS_blob_name_prefix.empty() ? netFileName : cleanName(FLAGS_blob_name_prefix);
+
         for (size_t numberOfTestCase = 0; numberOfTestCase < inputFilesPerCase.size(); ++numberOfTestCase) {
             const auto inputsInfo = compiledModel.inputs();
             const auto outputsInfo = compiledModel.outputs();
@@ -2704,7 +2817,7 @@ static int runSingleImageTest() {
                                 : loadInput(precision, dataShape, inputLayout, inputFiles[inputInd], FLAGS_color_format,
                                             inputBinPrecisionForOneInfer[numberOfTestCase][inputInd]);
                 std::ostringstream ostr;
-                ostr << netFileName << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";
+                ostr << blobNamePrefix << "_input_" << inputInd << "_case_" << numberOfTestCase << ".blob";
                 const auto blobFileName = ostr.str();
 
                 std::cout << "Dump input #" << inputInd << "_case_" << numberOfTestCase << " to " << blobFileName
@@ -2741,7 +2854,7 @@ static int runSingleImageTest() {
                     const ov::Shape& shape = tensor.get_shape();
 
                     std::string blobFileFullPath =
-                        getRefBlobFilePath(netFileName, refFiles, numberOfTestCase, outputInd);
+                        getRefBlobFilePath(blobNamePrefix, refFiles, numberOfTestCase, outputInd);
 
                     std::cout << "Load reference output #" << outputInd << " from " << blobFileFullPath << " as "
                               << precision << std::endl;
@@ -2762,7 +2875,7 @@ static int runSingleImageTest() {
                 for (const auto& out : compiledModel.outputs()) {
                     const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
-                    ostr << netFileName << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+                    ostr << blobNamePrefix << "_kmb_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
                     std::cout << "Dump device output #" << outputInd << "_case_" << numberOfTestCase << " to "
@@ -2896,7 +3009,7 @@ static int runSingleImageTest() {
                 for (const auto& out : compiledModel.outputs()) {
                     const auto& tensor = outputTensors.at(out.get_any_name());
                     std::ostringstream ostr;
-                    ostr << netFileName << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
+                    ostr << blobNamePrefix << "_ref_out_" << outputInd << "_case_" << numberOfTestCase << ".blob";
                     const auto blobFileName = ostr.str();
 
                     std::cout << "Dump reference output #" << outputInd << " to " << blobFileName << std::endl;

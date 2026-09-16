@@ -15,6 +15,7 @@
 #include <openvino/pass/manager.hpp>
 #include <ov_ops/type_relaxed.hpp>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "transformations/utils/print_model.hpp"
 #include "openvino/op/abs.hpp"
@@ -180,103 +181,66 @@ static std::shared_ptr<ov::Model> makeSDPA(const ov::PartialShape& inputShape, b
     return std::make_shared<Model>(results, sinks, ParameterVector{q, k, v, init, beam_idx}, "ConcatSDP");
 }
 
-TEST(TransformationTests, StateConcatSDPA) {
+TEST_F(TransformationTestsF, StateConcatSDPA) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    test_skipped = true;
     GTEST_SKIP() << "Skipping StateConcatSDPA test on Android X64";
 #endif
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        using namespace ov;
-        auto inputShape = ov::PartialShape{-1, 8, -1, 64};
-        {
-            f = makeSDPA(inputShape);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<StatefulSDPAFusion>();
-            m.run_passes(f);
-        }
-        //construct ref interaction
-        {
-            f_ref = makeSDPA(inputShape, true);
-        }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
-    }
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    model = makeSDPA(inputShape);
+    model_ref = makeSDPA(inputShape, true);
+    manager.register_pass<StatefulSDPAFusion>();
 }
 
-TEST(TransformationTests, StateConcatSDPAWithConvert) {
+TEST_F(TransformationTestsF, StateConcatSDPAWithConvert) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    test_skipped = true;
     GTEST_SKIP() << "Skipping StateConcatSDPAWithConvert test on Android X64";
 #endif
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        using namespace ov;
-        auto inputShape = ov::PartialShape{-1, 8, -1, 64};
-        {
-            f = makeSDPA(inputShape, false, true);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<StatefulSDPAFusion>();
-            m.run_passes(f);
-        }
-        //construct ref interaction
-        {
-            f_ref = makeSDPA(inputShape, true, true);
-        }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
-    }
+    auto inputShape = ov::PartialShape{-1, 8, -1, 64};
+    model = makeSDPA(inputShape, false, true);
+    model_ref = makeSDPA(inputShape, true, true);
+    manager.register_pass<StatefulSDPAFusion>();
 }
 
-TEST(TransformationTests, StateConcatSDPAMixtral) {
+TEST_F(TransformationTestsF, StateConcatSDPAMixtral) {
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    test_skipped = true;
     GTEST_SKIP() << "Skipping StateConcatSDPAMixtral test on Android X64";
 #endif
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        using namespace ov;
-        auto inputShape = ov::PartialShape{-1, 32, -1, 64};
-        {
-            f = makeSDPA(inputShape, false, false, true);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<StatefulSDPAFusion>();
-            m.run_passes(f);
-        }
-        //construct ref interaction
-        {
-            f_ref = makeSDPA(inputShape, true, false, true);
-        }
-        auto res = compare_functions(f, f_ref);
-        ASSERT_TRUE(res.first) << res.second;
-    }
+    auto inputShape = ov::PartialShape{-1, 32, -1, 64};
+    model = makeSDPA(inputShape, false, false, true);
+    model_ref = makeSDPA(inputShape, true, false, true);
+    manager.register_pass<StatefulSDPAFusion>();
 }
 
-TEST(TransformationTests, StateConcatSDPAWithExtraNode) {
+class StateConcatSDPAWithExtraNodeTests : public TransformationTestsF,
+                                         public WithParamInterface<InsertPoint> {
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
 #if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
-    GTEST_SKIP() << "Skipping StateConcatSDPAWithExtraNode test on Android X64";
+        test_skipped = true;
+        GTEST_SKIP() << "Skipping StateConcatSDPAWithExtraNode test on Android X64";
 #endif
-    // when some unexpected extra nodes exist in SDPA, the fusion should fail
-    std::shared_ptr<ov::Model> f(nullptr), f_ref(nullptr);
-    {
-        using namespace ov;
         auto inputShape = ov::PartialShape{-1, 32, -1, 64};
-        size_t i = static_cast<size_t>(InsertPoint::At_None) + 1;
-        size_t end = static_cast<size_t>(InsertPoint::At_End);
-        // check each position
-        for (; i < end; i++) {
-            InsertPoint at = static_cast<InsertPoint>(i);
-            f = makeSDPA(inputShape, false, true, true, at);
-            f_ref = makeSDPA(inputShape, false, true, true, at);
-            pass::Manager m;
-            m.register_pass<ov::pass::InitNodeInfo>();
-            m.register_pass<StatefulSDPAFusion>();
-            m.run_passes(f);
-            auto res = compare_functions(f, f_ref);
-            ASSERT_TRUE(res.first) << res.second;
-        }
+        InsertPoint at = GetParam();
+        model = makeSDPA(inputShape, false, true, true, at);
+        model_ref = makeSDPA(inputShape, false, true, true, at);
+        manager.register_pass<StatefulSDPAFusion>();
     }
-}
+};
+
+TEST_P(StateConcatSDPAWithExtraNodeTests, FusionShouldNotFire) {}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests, StateConcatSDPAWithExtraNodeTests,
+    ::testing::Values(
+        InsertPoint::At_Convert,
+        InsertPoint::At_Gather,
+        InsertPoint::At_MQ_Unsqueeze,
+        InsertPoint::At_MQ_Broadcast,
+        InsertPoint::At_MQ_Multiply,
+        InsertPoint::At_MQ_Reshape));
 
 // Build a model with two SDPA blocks sharing the same KV-cache Variables.
 // One ReadValue per Variable fans out to two independent Gather -> Concat -> SDPA paths,
@@ -350,20 +314,17 @@ TEST_F(TransformationTestsF, StateConcatSDPASharedKVCache) {
 // SDPA_s1 and SDPA_s2 must remain as plain ScaledDotProductAttention.
 static std::shared_ptr<ov::Model> makeMixedSharedAndExclusiveKVModel(const ov::PartialShape& inputShape,
                                                                      bool isRef = false) {
-    auto make_param = [&](element::Type t, const ov::PartialShape& s) {
-        return std::make_shared<ov::op::v0::Parameter>(t, s);
-    };
-    auto beam_idx = make_param(element::i32, ov::PartialShape{-1});
+    auto beam_idx = ov::test::utils::make_param(element::i32, ov::PartialShape{-1});
 
     // Shared part
-    auto q_s1 = make_param(element::f32, inputShape);
-    auto k_s1 = make_param(element::f32, inputShape);
-    auto v_s1 = make_param(element::f32, inputShape);
-    auto q_s2 = make_param(element::f32, inputShape);
-    auto k_s2 = make_param(element::f32, inputShape);
-    auto v_s2 = make_param(element::f32, inputShape);
-    auto init_ks = make_param(element::f32, inputShape);
-    auto init_vs = make_param(element::f32, inputShape);
+    auto q_s1 = ov::test::utils::make_param(element::f32, inputShape);
+    auto k_s1 = ov::test::utils::make_param(element::f32, inputShape);
+    auto v_s1 = ov::test::utils::make_param(element::f32, inputShape);
+    auto q_s2 = ov::test::utils::make_param(element::f32, inputShape);
+    auto k_s2 = ov::test::utils::make_param(element::f32, inputShape);
+    auto v_s2 = ov::test::utils::make_param(element::f32, inputShape);
+    auto init_ks = ov::test::utils::make_param(element::f32, inputShape);
+    auto init_vs = ov::test::utils::make_param(element::f32, inputShape);
     auto var_ks = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{inputShape, element::f32, "shared_pastk"});
     auto var_vs = std::make_shared<ov::op::util::Variable>(
@@ -390,11 +351,11 @@ static std::shared_ptr<ov::Model> makeMixedSharedAndExclusiveKVModel(const ov::P
     auto assign_vs = std::make_shared<op::v6::Assign>(c_vs1, var_vs);
 
     // Exclusive part (single SDPA on its own Variables — eligible for fusion)
-    auto q_e = make_param(element::f32, inputShape);
-    auto k_e = make_param(element::f32, inputShape);
-    auto v_e = make_param(element::f32, inputShape);
-    auto init_ke = make_param(element::f32, inputShape);
-    auto init_ve = make_param(element::f32, inputShape);
+    auto q_e = ov::test::utils::make_param(element::f32, inputShape);
+    auto k_e = ov::test::utils::make_param(element::f32, inputShape);
+    auto v_e = ov::test::utils::make_param(element::f32, inputShape);
+    auto init_ke = ov::test::utils::make_param(element::f32, inputShape);
+    auto init_ve = ov::test::utils::make_param(element::f32, inputShape);
     auto var_ke = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{inputShape, element::f32, "excl_pastk"});
     auto var_ve = std::make_shared<ov::op::util::Variable>(
@@ -450,21 +411,18 @@ TEST_F(TransformationTestsF, StateConcatSDPAMixedSharedAndExclusive) {
 // ShapeOf chain in ways that make a precise post-pass model_ref fragile.
 static std::shared_ptr<ov::Model>
 makeNonSharedKVWithSharedShapeOfRopeModel(const ov::PartialShape& inputShape) {
-    auto make_param = [&](ov::element::Type t, const ov::PartialShape& s) {
-        return std::make_shared<ov::op::v0::Parameter>(t, s);
-    };
     auto make_var = [&](const std::string& id) {
         return std::make_shared<ov::op::util::Variable>(
             ov::op::util::VariableInfo{inputShape, ov::element::f32, id});
     };
-    auto beam_idx = make_param(ov::element::i32, ov::PartialShape{-1});
+    auto beam_idx = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{-1});
 
     // Layer 0
-    auto q0 = make_param(ov::element::f32, inputShape);
-    auto k0 = make_param(ov::element::f32, inputShape);
-    auto v0 = make_param(ov::element::f32, inputShape);
-    auto init_k0 = make_param(ov::element::f32, inputShape);
-    auto init_v0 = make_param(ov::element::f32, inputShape);
+    auto q0 = ov::test::utils::make_param(ov::element::f32, inputShape);
+    auto k0 = ov::test::utils::make_param(ov::element::f32, inputShape);
+    auto v0 = ov::test::utils::make_param(ov::element::f32, inputShape);
+    auto init_k0 = ov::test::utils::make_param(ov::element::f32, inputShape);
+    auto init_v0 = ov::test::utils::make_param(ov::element::f32, inputShape);
     auto var_k0 = make_var("pastk_0");
     auto var_v0 = make_var("pastv_0");
     auto rv_k0 = std::make_shared<ov::op::v6::ReadValue>(init_k0, var_k0);
@@ -493,8 +451,8 @@ makeNonSharedKVWithSharedShapeOfRopeModel(const ov::PartialShape& inputShape) {
     auto pos_const = ov::op::v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {0.7f});
     auto pos_bcast = std::make_shared<ov::op::v3::Broadcast>(pos_const, pos_shape);
 
-    auto mask0_param = make_param(ov::element::f32, ov::PartialShape{-1, 8, -1, -1});
-    auto mask1_param = make_param(ov::element::f32, ov::PartialShape{-1, 8, -1, -1});
+    auto mask0_param = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{-1, 8, -1, -1});
+    auto mask1_param = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{-1, 8, -1, -1});
     auto mask0 = std::make_shared<ov::op::v1::Add>(mask0_param, pos_bcast);
     auto mask1 = std::make_shared<ov::op::v1::Add>(mask1_param, pos_bcast);
 
@@ -505,11 +463,11 @@ makeNonSharedKVWithSharedShapeOfRopeModel(const ov::PartialShape& inputShape) {
     auto assign_v0 = std::make_shared<ov::op::v6::Assign>(c_v0, var_v0);
 
     // Layer 1 — independent Variables, no cache sharing with layer 0
-    auto q1 = make_param(ov::element::f32, inputShape);
-    auto k1 = make_param(ov::element::f32, inputShape);
-    auto v1 = make_param(ov::element::f32, inputShape);
-    auto init_k1 = make_param(ov::element::f32, inputShape);
-    auto init_v1 = make_param(ov::element::f32, inputShape);
+    auto q1 = ov::test::utils::make_param(ov::element::f32, inputShape);
+    auto k1 = ov::test::utils::make_param(ov::element::f32, inputShape);
+    auto v1 = ov::test::utils::make_param(ov::element::f32, inputShape);
+    auto init_k1 = ov::test::utils::make_param(ov::element::f32, inputShape);
+    auto init_v1 = ov::test::utils::make_param(ov::element::f32, inputShape);
     auto var_k1 = make_var("pastk_1");
     auto var_v1 = make_var("pastv_1");
     auto rv_k1 = std::make_shared<ov::op::v6::ReadValue>(init_k1, var_k1);

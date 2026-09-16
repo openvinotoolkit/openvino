@@ -12,7 +12,7 @@
 
 #include "openvino/core/type/element_type_info.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 
 namespace ov::element {
 namespace {

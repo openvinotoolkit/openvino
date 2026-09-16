@@ -605,15 +605,34 @@ TEST_F(TransformationTestsF, KeepFWPrecisionForBF16Constants_test_1) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
 
-// Scalar constant with high FP16 relative rounding error (e.g., log(16) = 2.7725887,
-// rel_error = 0.031%) should NOT be compressed to FP16 to avoid precision degradation
-// that cascades through deep networks.
-TEST_F(TransformationTestsF, CompressConstants_skip_scalar_with_high_f16_error) {
-    // Model: Parameter -> Multiply(input, Const(2.7725887)) -> Result
-    // Scalar 2.7725887 has rel_error > 1e-4 when rounded to FP16 -> stays in FP32.
+struct RelativeThresholdTestParams {
+    // Input shape for Multiply.
+    ov::Shape input_shape;
+    // Constant shape controls whether scalar or tensor relative threshold is used.
+    ov::Shape constant_shape;
+    // Repeated value used to build constant tensor.
+    float value;
+    // Expected transform result: FP16+Convert when true, keep FP32 when false.
+    bool expect_compressed;
+    // Stable, readable gtest suffix.
+    std::string test_name;
+};
+
+class CompressConstantsRelativeThresholdTest : public TransformationTestsF,
+                                               public testing::WithParamInterface<RelativeThresholdTestParams> {
+public:
+    static std::string get_test_name(const testing::TestParamInfo<RelativeThresholdTestParams>& obj) {
+        return obj.param.test_name;
+    }
+};
+
+TEST_P(CompressConstantsRelativeThresholdTest, HandlesRelativeThresholdByConstantShape) {
+    const auto& param = GetParam();
+    const auto values = std::vector<float>(shape_size(param.constant_shape), param.value);
+
     {
-        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 4});
-        auto scale = v0::Constant::create(ov::element::f32, ov::Shape{1}, {2.7725887f});
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, param.input_shape);
+        auto scale = v0::Constant::create(ov::element::f32, param.constant_shape, values);
         auto mul = std::make_shared<ov::opset8::Multiply>(input, scale);
         model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
 
@@ -622,14 +641,54 @@ TEST_F(TransformationTestsF, CompressConstants_skip_scalar_with_high_f16_error) 
     }
 
     {
-        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 3, 4});
-        // Constant stays in FP32 — FP16 relative error exceeds threshold
-        auto scale = v0::Constant::create(ov::element::f32, ov::Shape{1}, {2.7725887f});
-        auto mul = std::make_shared<ov::opset8::Multiply>(input, scale);
+        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, param.input_shape);
+        auto element_type = param.expect_compressed ? ov::element::f16 : ov::element::f32;
+        auto scale = v0::Constant::create(element_type, param.constant_shape, values);
+        std::shared_ptr<ov::Node> scale_node = scale;
+        if (param.expect_compressed) {
+            scale_node = std::make_shared<v0::Convert>(scale, ov::element::f32);
+        }
+        auto mul = std::make_shared<ov::opset8::Multiply>(input, scale_node);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    CompressConstantsRelativeThreshold,
+    CompressConstantsRelativeThresholdTest,
+    testing::Values(
+        // Scalar constant with high FP16 relative rounding error (e.g., log(16) = 2.7725887,
+        // rel_error = 0.031%) should NOT be compressed to FP16.
+        RelativeThresholdTestParams{ov::Shape{1, 3, 4}, ov::Shape{1}, 2.7725887f, false, "ScalarRejectsTightThreshold"},
+        // Negative counterpart for scalar rejection.
+        RelativeThresholdTestParams{ov::Shape{1, 3, 4},
+                                    ov::Shape{1},
+                                    -2.7725887f,
+                                    false,
+                                    "ScalarNegativeRejectsTightThreshold"},
+        // Non-scalar uses looser tensor relative threshold and should be compressed for this value.
+        RelativeThresholdTestParams{ov::Shape{1, 4}, ov::Shape{4}, 2.7725887f, true, "TensorAcceptsLooserThreshold"},
+        // Negative counterpart for tensor acceptance.
+        RelativeThresholdTestParams{ov::Shape{1, 4},
+                                    ov::Shape{4},
+                                    -2.7725887f,
+                                    true,
+                                    "TensorNegativeAcceptsLooserThreshold"},
+        // Non-scalar with high per-element relative error should stay FP32.
+        // The keep-threshold comparison is inclusive (>= f16_compression_keep_threshold).
+        RelativeThresholdTestParams{ov::Shape{1, 4},
+                                    ov::Shape{4},
+                                    1.0e-5f,
+                                    false,
+                                    "TensorRejectsWhenAboveTensorThreshold"},
+        // Negative counterpart for tensor rejection.
+        RelativeThresholdTestParams{ov::Shape{1, 4},
+                                    ov::Shape{4},
+                                    -1.0e-5f,
+                                    false,
+                                    "TensorNegativeRejectsWhenAboveTensorThreshold"}),
+    CompressConstantsRelativeThresholdTest::get_test_name);
 
 // Scalar constant exactly representable in FP16 (e.g., 8.0) should be compressed normally.
 TEST_F(TransformationTestsF, CompressConstants_compress_scalar_exact_f16) {
@@ -651,32 +710,6 @@ TEST_F(TransformationTestsF, CompressConstants_compress_scalar_exact_f16) {
         auto scale = v0::Constant::create(ov::element::f16, ov::Shape{1}, {8.0f});
         auto convert = std::make_shared<v0::Convert>(scale, ov::element::f32);
         auto mul = std::make_shared<ov::opset8::Multiply>(input, convert);
-        model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
-    }
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-}
-
-TEST_F(TransformationTestsF, CompressConstants_skip_non_scalar_with_high_error_at_least_75) {
-    // Model: Parameter -> Multiply(input, Const({2.7725887, 2.7725887, 2.7725887, 2.7725887})) -> Result
-    // Non-scalar (numel=4) with high per-element error in at least 75% of elements -> skipped (not compressed).
-    // The keep-threshold comparison is inclusive (>= f16_compression_keep_threshold).
-    {
-        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
-        auto scale =
-            v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.7725887f, 2.7725887f, 2.7725887f, 2.7725887f});
-        auto mul = std::make_shared<ov::opset8::Multiply>(input, scale);
-        model = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
-
-        manager.register_pass<ov::pass::MarkPrecisionSensitiveConstants>();
-        manager.register_pass<ov::pass::CompressFloatConstants>();
-    }
-
-    {
-        auto input = std::make_shared<ov::opset8::Parameter>(ov::element::f32, ov::Shape{1, 4});
-        // Stays FP32: relative round-trip error exceeds threshold for all 4 elements (>75%).
-        auto scale =
-            v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.7725887f, 2.7725887f, 2.7725887f, 2.7725887f});
-        auto mul = std::make_shared<ov::opset8::Multiply>(input, scale);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{mul}, ov::ParameterVector{input});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);

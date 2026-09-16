@@ -1,3 +1,3 @@
-const { cleanUp } = require('./cleanupImpl');
+import { cleanUp } from './cleanupImpl.js';
 
 cleanUp();

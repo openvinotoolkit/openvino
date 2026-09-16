@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <optional>
 
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -212,6 +213,435 @@ std::shared_ptr<ov::Model> create_nested_cyclic_chain_model() {
     auto result = std::make_shared<ov::op::v0::Result>(a3);
     result->set_friendly_name("res");
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+}
+
+// Model: shared constant bridges disjoint paths into one subgraph via indirect Union-Find merge.
+//
+// Topology: param(M0) → A(M0,+other_const) → B(M1) → C(M0,+shared_const) → res1
+//                                            A → X(M0,+shared_const) → res2
+//
+// Union-Find merges {param, other_const, A, X, shared_const, C, res1, res2} into one subgraph
+// because X (reachable via res2) connects A to shared_const, and shared_const connects to C.
+// This subgraph depends on B (via C←B) and B depends on the same subgraph (via B←A) → cycle.
+// split_cyclic_dependencies() must detect the cycle re-entry point (C←B) and promote
+// C.input(1) (from shared_const) as a boundary to break the cycle.
+std::shared_ptr<ov::Model> create_shared_const_indirect_bridge_cycle_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("input");
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    shared_const->set_friendly_name("shared_const");
+    auto other_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.0f, 2.0f, 2.0f, 2.0f});
+    other_const->set_friendly_name("other_const");
+    // A: DEV0, uses param + other_const (NOT shared_const!)
+    auto a = std::make_shared<ov::op::v1::Add>(param, other_const);
+    a->set_friendly_name("A");
+    // X: DEV0, uses A + shared_const — bridges shared_const into A's subgraph via Union-Find.
+    // Crucially, X leads to res2, so it IS in get_ordered_ops().
+    auto x = std::make_shared<ov::op::v1::Add>(a, shared_const);
+    x->set_friendly_name("X");
+    // B: DEV1, uses A (cross-device boundary, unary op to minimize noise)
+    auto b = std::make_shared<ov::op::v0::Abs>(a);
+    b->set_friendly_name("B");
+    // C: DEV0, uses B + shared_const (after DEV1 detour, merges with A's sg via shared_const)
+    auto c = std::make_shared<ov::op::v1::Add>(b, shared_const);
+    c->set_friendly_name("C");
+    auto res1 = std::make_shared<ov::op::v0::Result>(c);
+    res1->set_friendly_name("res1");
+    // res2 makes X reachable — the key to triggering the bug
+    auto res2 = std::make_shared<ov::op::v0::Result>(x);
+    res2->set_friendly_name("res2");
+    return std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{param});
+}
+
+// Model: shared constant IS the cycle source — it directly feeds a cross-device op AND merges
+// with the cycle re-entry node through a purely internal chain.
+// Topology: param(DEV0) → A(DEV0) → B(DEV1, +shared_const) → C(DEV0) → res1
+//           shared_const(DEV0) → X(DEV0) → C(DEV0)
+//           X → res2
+//
+// A→B: cross-device (DEV0→DEV1) → boundary.
+// shared_const→B: cross-device (DEV0→DEV1) → boundary (constant IS the cycle source!).
+// B→C: cross-device (DEV1→DEV0) → boundary.
+// shared_const→X: same device → NOT boundary → merge via Union-Find.
+// X→C: same device → NOT boundary → merge via Union-Find.
+//
+// Union-Find: SG0={param,A}, SG1={B}, SG2={shared_const,X,C,res1,res2}.
+// Cycle: SG2→SG1 (shared_const→B) and SG1→SG2 (B→C).
+// split_cyclic_dependencies() must promote C.input(1) (from X) as a boundary,
+// yielding 4 subgraphs: {param,A}(DEV0), {B}(DEV1), {shared_const,X,res2}(DEV0), {C,res1}(DEV0).
+std::shared_ptr<ov::Model> create_shared_const_as_cycle_source_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("param");
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    shared_const->set_friendly_name("shared_const");
+    // A: DEV0, uses param only
+    auto a = std::make_shared<ov::op::v0::Abs>(param);
+    a->set_friendly_name("A");
+    // B: DEV1, uses A + shared_const. shared_const→B is the KEY cross-device edge making
+    // shared_const the cycle source (SG2 produces output to SG1).
+    auto b = std::make_shared<ov::op::v1::Add>(a, shared_const);
+    b->set_friendly_name("B");
+    // X: DEV0, uses shared_const. Merges with shared_const (same device, internal).
+    auto x = std::make_shared<ov::op::v0::Abs>(shared_const);
+    x->set_friendly_name("X");
+    // C: DEV0, uses B (boundary, re-entry from SG1) + X (internal, merged with shared_const).
+    // Without the fix, the intersection check fails because cyclic_inputs_dependencies
+    // doesn't include shared_const's self-boundary bit.
+    auto c = std::make_shared<ov::op::v1::Add>(b, x);
+    c->set_friendly_name("C");
+    auto res1 = std::make_shared<ov::op::v0::Result>(c);
+    res1->set_friendly_name("res1");
+    auto res2 = std::make_shared<ov::op::v0::Result>(x);
+    res2->set_friendly_name("res2");
+    return std::make_shared<ov::Model>(ov::ResultVector{res1, res2}, ov::ParameterVector{param});
+}
+
+// Negative test: shared constant merges nodes via Union-Find but NO cycle exists.
+// Topology: param(DEV0) → A(DEV0, +shared_const) → B(DEV1) → res
+//           shared_const(DEV0) → X(DEV0) → res2
+//
+// Union-Find: SG0={param, shared_const, A, X, res2}, SG1={B, res}.
+// Data flows only SG0→SG1 (A→B), never back — NO cycle.
+// split_cyclic_dependencies() must NOT promote any boundary (no over-splitting).
+// Expected: 2 subgraphs, not 3.
+std::shared_ptr<ov::Model> create_shared_const_no_cycle_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("param");
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    shared_const->set_friendly_name("shared_const");
+    // A: DEV0, uses param + shared_const
+    auto a = std::make_shared<ov::op::v1::Add>(param, shared_const);
+    a->set_friendly_name("A");
+    // X: DEV0, uses shared_const (merges with shared_const via Union-Find)
+    auto x = std::make_shared<ov::op::v0::Abs>(shared_const);
+    x->set_friendly_name("X");
+    // B: DEV1, uses A only (one-way cross-device, no feedback)
+    auto b = std::make_shared<ov::op::v0::Abs>(a);
+    b->set_friendly_name("B");
+    auto res = std::make_shared<ov::op::v0::Result>(b);
+    res->set_friendly_name("res");
+    auto res2 = std::make_shared<ov::op::v0::Result>(x);
+    res2->set_friendly_name("res2");
+    return std::make_shared<ov::Model>(ov::ResultVector{res, res2}, ov::ParameterVector{param});
+}
+
+// Negative test mirroring create_shared_const_indirect_bridge_cycle_model node-for-node, with
+// the SOLE difference that the B→C feedback edge is removed (C is fed from A instead of B), so
+// the M0 group depends on the M1 group via A→B but the M1 group never feeds back into M0. The
+// indirect Union-Find merge through shared_const is preserved exactly as in the positive case
+// (X and C both consume shared_const, pulling shared_const + C + X + A into one M0 group), so
+// any spurious "re-entry candidate" detection that fires on the merge shape alone would
+// incorrectly over-split this model. Expected: 2 subgraphs, no promotion of shared_const→C.
+//
+// Topology: param(M0) → A(M0,+other_const) → B(M1) → res_b
+//                       A → X(M0,+shared_const) → res2
+//                       A → C(M0,+shared_const) → res1
+std::shared_ptr<ov::Model> create_shared_const_indirect_bridge_no_cycle_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("input");
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    shared_const->set_friendly_name("shared_const");
+    auto other_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.0f, 2.0f, 2.0f, 2.0f});
+    other_const->set_friendly_name("other_const");
+    auto a = std::make_shared<ov::op::v1::Add>(param, other_const);
+    a->set_friendly_name("A");
+    // X: same role as in the cycle case — bridges shared_const into A's subgraph.
+    auto x = std::make_shared<ov::op::v1::Add>(a, shared_const);
+    x->set_friendly_name("X");
+    // B: same cross-device hop as in the cycle case, but its output now terminates at res_b.
+    auto b = std::make_shared<ov::op::v0::Abs>(a);
+    b->set_friendly_name("B");
+    // C: only difference vs. the cycle case — fed from A (M0) instead of B (M1), so no
+    // M1→M0 back-edge exists; the indirect shared_const merge {A, X, C, shared_const} is
+    // preserved.
+    auto c = std::make_shared<ov::op::v1::Add>(a, shared_const);
+    c->set_friendly_name("C");
+    auto res1 = std::make_shared<ov::op::v0::Result>(c);
+    res1->set_friendly_name("res1");
+    auto res2 = std::make_shared<ov::op::v0::Result>(x);
+    res2->set_friendly_name("res2");
+    auto res_b = std::make_shared<ov::op::v0::Result>(b);
+    res_b->set_friendly_name("res_b");
+    return std::make_shared<ov::Model>(ov::ResultVector{res1, res2, res_b}, ov::ParameterVector{param});
+}
+
+// Multiple shared constants where only ONE participates in the cyclic path.
+// Topology: param(M0) → A(M0,+C1) → X(M0,+C2) → res_x
+//           A → B(M1) → C(M0,+C1) → res_c
+//           C2 → Z(M0) → res_z
+//
+// Both C1 and C2 are shared (have >= 2 consumers in the M0 union-find group). Only C1 reaches
+// the cycle re-entry node C, so only C1 must be duplicated into the split-off subgraph. C2's
+// consumers (X and Z) both stay in sg0, so C2 must NOT be cloned. This locks the contract
+// "duplicate the cyclic-boundary Constant, not every shared Constant in the group".
+std::shared_ptr<ov::Model> create_multiple_shared_constants_partial_cycle_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("param");
+    auto c1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    c1->set_friendly_name("C1");
+    auto c2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.0f, 2.0f, 2.0f, 2.0f});
+    c2->set_friendly_name("C2");
+    auto a = std::make_shared<ov::op::v1::Add>(param, c1);
+    a->set_friendly_name("A");
+    auto x = std::make_shared<ov::op::v1::Add>(a, c2);
+    x->set_friendly_name("X");
+    auto b = std::make_shared<ov::op::v0::Abs>(a);
+    b->set_friendly_name("B");
+    auto c = std::make_shared<ov::op::v1::Add>(b, c1);
+    c->set_friendly_name("C");
+    auto z = std::make_shared<ov::op::v0::Abs>(c2);
+    z->set_friendly_name("Z");
+    auto res_c = std::make_shared<ov::op::v0::Result>(c);
+    res_c->set_friendly_name("res_c");
+    auto res_x = std::make_shared<ov::op::v0::Result>(x);
+    res_x->set_friendly_name("res_x");
+    auto res_z = std::make_shared<ov::op::v0::Result>(z);
+    res_z->set_friendly_name("res_z");
+    return std::make_shared<ov::Model>(ov::ResultVector{res_c, res_x, res_z}, ov::ParameterVector{param});
+}
+
+// Mixed Parameter/Constant bridges in the same cycle: param2 and C_const both bridge into the
+// cyclic M0 group via shared consumption. Two independent re-entry nodes (C and F) carry one
+// bridge each. After promotion their boundaries are realized DIFFERENTLY:
+//   - C_const is duplicated into F's split-off subgraph (does NOT appear in
+//     _submodels_input_to_prev_output).
+//   - param2 cannot be duplicated (would alter the model input set), so it appears as an
+//     explicit cross-subgraph edge in _submodels_input_to_prev_output.
+// This case exercises both boundary-realization paths in the same model.
+//
+// Topology: param1(M0) ─┐
+//           param2(M0) ─┴→ A(M0) ──┬→ B(M1) ──┬→ C(M0,+param2) → res_c
+//                                  │           └→ B2(M1) → F(M0,+C_const) → res_f
+//                                  └→ X(M0,+C_const) → res_x
+//           A consumes param2 and X consumes C_const, anchoring both in sg0 (the producer side).
+//           B2 is an extra M1 Abs on F's path so that F is strictly deeper than C in topological
+//           order. This pins the subgraph-ID assignment (the collector visits Results in topo
+//           order); without it, C and F would be symmetric forks of B and the resulting sg2/sg3
+//           labeling — and therefore every NodeInfo in the expected mapping — would be order-
+//           dependent across builds.
+std::shared_ptr<ov::Model> create_mixed_parameter_constant_bridge_cycle_model() {
+    auto param1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param1->set_friendly_name("param1");
+    auto param2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param2->set_friendly_name("param2");
+    auto c_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    c_const->set_friendly_name("C_const");
+    auto a = std::make_shared<ov::op::v1::Add>(param1, param2);
+    a->set_friendly_name("A");
+    auto x = std::make_shared<ov::op::v1::Add>(a, c_const);
+    x->set_friendly_name("X");
+    auto b = std::make_shared<ov::op::v0::Abs>(a);
+    b->set_friendly_name("B");
+    // C: re-entry #1, Parameter bridge.
+    auto c = std::make_shared<ov::op::v1::Add>(b, param2);
+    c->set_friendly_name("C");
+    // F: re-entry #2, Constant bridge. Extra Abs (B2) pins topo order so F-subgraph > C-subgraph.
+    auto b2 = std::make_shared<ov::op::v0::Abs>(b);
+    b2->set_friendly_name("B2");
+    auto f = std::make_shared<ov::op::v1::Add>(b2, c_const);
+    f->set_friendly_name("F");
+    auto res_c = std::make_shared<ov::op::v0::Result>(c);
+    res_c->set_friendly_name("res_c");
+    auto res_f = std::make_shared<ov::op::v0::Result>(f);
+    res_f->set_friendly_name("res_f");
+    auto res_x = std::make_shared<ov::op::v0::Result>(x);
+    res_x->set_friendly_name("res_x");
+    auto res_b = std::make_shared<ov::op::v0::Result>(b);
+    res_b->set_friendly_name("res_b");
+    return std::make_shared<ov::Model>(ov::ResultVector{res_c, res_f, res_x, res_b},
+                                       ov::ParameterVector{param1, param2});
+}
+
+// Model: shared constant fans out to three consumers across two devices.
+// Topology: param(GPU) → Node_A(GPU, +shared_const) → Node_B(CPU, +shared_const) → Node_C(GPU, +shared_const) → res
+//
+// shared_const(GPU) → Node_A(GPU): same affinity → NOT boundary, merged via Union-Find.
+// shared_const(GPU) → Node_B(CPU): different affinity → IS boundary (cross-device edge).
+// shared_const(GPU) → Node_C(GPU): same affinity → NOT boundary, merged via Union-Find.
+//
+// Union-Find produces one GPU subgraph {param, shared_const, Node_A, Node_C, res} + one CPU {Node_B}.
+// GPU depends on Node_B (Node_C←Node_B) and Node_B depends on GPU (Node_B←Node_A) → cycle.
+// Note: Node_C.input(0) from Node_B is already a boundary from init() (CPU→GPU).
+// split_cyclic_dependencies() promotes Node_C.input(1) (from shared_const) to separate Node_C
+// from the shared_const/Node_A group, yielding 3 subgraphs:
+// {param, shared_const, Node_A}(GPU), {Node_B}(CPU), {Node_C, res}(GPU).
+std::shared_ptr<ov::Model> create_shared_const_cross_device_fanout_model() {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    param->set_friendly_name("param");
+    auto shared_const = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    shared_const->set_friendly_name("shared_const");
+    // Node_A: GPU, consumes param + shared_const (same device → merged with shared_const)
+    auto node_a = std::make_shared<ov::op::v1::Add>(param, shared_const);
+    node_a->set_friendly_name("Node_A");
+    // Node_B: CPU, consumes Node_A + shared_const
+    //   Node_A→Node_B is boundary (GPU→CPU)
+    //   shared_const→Node_B is boundary (GPU→CPU) — this is the KEY edge
+    auto node_b = std::make_shared<ov::op::v1::Add>(node_a, shared_const);
+    node_b->set_friendly_name("Node_B");
+    // Node_C: GPU, consumes Node_B + shared_const
+    //   Node_B→Node_C is boundary (CPU→GPU)
+    //   shared_const→Node_C is NOT boundary (GPU→GPU) — merges Node_C into shared_const's subgraph
+    auto node_c = std::make_shared<ov::op::v1::Add>(node_b, shared_const);
+    node_c->set_friendly_name("Node_C");
+    auto res = std::make_shared<ov::op::v0::Result>(node_c);
+    res->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
+}
+
+// Multi-hop subgraph-level SCC. Two regions of M0 get fused into one Union-Find subgraph via a
+// shared Constant (c_top: feeds X1 in region 1 and X2 in region 2). The resulting M0 subgraph
+// then participates in a 4-subgraph cycle that no single node can detect with the per-node
+// heuristic (the producer and re-entry consumer of the cycle are different nodes far apart in
+// topology). Only the subgraph-DAG SCC fallback can break it.
+//
+// Topology (M0 = MOCK.0, M1 = MOCK.1):
+//
+//   in1(M0) ─┐                                    ┌─ X1(M0,+c_top) ─ res_x1
+//            ├─ A1(M0) ─ B1(M1) ─ C1(M0) ─ D1(M1) ┘
+//   c_top(M0) ──────────────┐
+//   in2(M0) ─┐               │
+//            ├─ A2(M0) ─ B2(M1) ┘                 ┌─ X2(M0,+c_top) ─ res_x2
+//                                                 │
+//            ├─ A2(M0) ─────── C2(M1) ─ D2(M0) ───┘
+//
+// Initial Union-Find groups (M0 only): {in1,A1,C1}, {in2,A2,D2,X2,c_top,X1}. The shared c_top
+// merges X1 (region 1) and X2 (region 2) into the same M0 subgraph, call it M0_big.
+// Cross-subgraph data edges then form: M0_big -> M1 (A1->B1, A2->B2, A2->C2),
+// M1 -> M0_big (D1->X1-via-c_top-region, D2 already inside M0_big). After the per-node fix-point
+// loop, the subgraph DAG still contains M0_big -> M1 -> M0_big -> M1 -> M0_big, but no single
+// node in M0_big has a producer-in-my-sg cyclic dependency (X1's producers are D1 in M1 and
+// c_top which is a graph input). SCC fallback must split M0_big into multiple subgraphs.
+std::shared_ptr<ov::Model> create_multi_hop_scc_cycle_model() {
+    auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    in1->set_friendly_name("in1");
+    auto in2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    in2->set_friendly_name("in2");
+    auto c_top = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    c_top->set_friendly_name("c_top");
+    auto a1 = std::make_shared<ov::op::v0::Abs>(in1);
+    a1->set_friendly_name("A1");
+    auto b1 = std::make_shared<ov::op::v0::Abs>(a1);
+    b1->set_friendly_name("B1");
+    auto c1 = std::make_shared<ov::op::v0::Abs>(b1);
+    c1->set_friendly_name("C1");
+    auto d1 = std::make_shared<ov::op::v0::Abs>(c1);
+    d1->set_friendly_name("D1");
+    auto x1 = std::make_shared<ov::op::v1::Add>(d1, c_top);
+    x1->set_friendly_name("X1");
+    auto a2 = std::make_shared<ov::op::v0::Abs>(in2);
+    a2->set_friendly_name("A2");
+    auto b2 = std::make_shared<ov::op::v0::Abs>(a2);
+    b2->set_friendly_name("B2");
+    auto c2 = std::make_shared<ov::op::v0::Abs>(b2);
+    c2->set_friendly_name("C2");
+    auto d2 = std::make_shared<ov::op::v0::Abs>(c2);
+    d2->set_friendly_name("D2");
+    auto x2 = std::make_shared<ov::op::v1::Add>(d2, c_top);
+    x2->set_friendly_name("X2");
+    auto res_x1 = std::make_shared<ov::op::v0::Result>(x1);
+    res_x1->set_friendly_name("res_x1");
+    auto res_x2 = std::make_shared<ov::op::v0::Result>(x2);
+    res_x2->set_friendly_name("res_x2");
+    return std::make_shared<ov::Model>(ov::ResultVector{res_x1, res_x2}, ov::ParameterVector{in1, in2});
+}
+
+// Bridge-between-cycles topology. Two independent 2-subgraph SCCs sit on the left and right;
+// a multi-node bridge subgraph X on a third device sits between them, with one incoming edge
+// from the left SCC and one outgoing edge to the right SCC. The bridge is acyclic in the
+// subgraph DAG (it lies on a single path between the two cycles, not in any cycle itself).
+//
+// Subgraph DAG after initial partitioning:
+//
+//   A_L(M0) ↔ B_L(M1) ──► X(M2) ──► A_R(M0) ↔ B_R(M1)
+//
+// Each 2-cycle is formed without per-node cyclic inputs (the round-trip goes through nodes in
+// different subgraphs), so split_cyclic_dependencies()'s per-node fix-point loop cannot break
+// them; only the subgraph-DAG SCC fallback can. This is the structural ingredient that exposes
+// the difference between an exact SCC algorithm and a forward+reverse Kahn approximation: the
+// approximation marks X as cyclic (it survives both peels because every subgraph has both
+// incoming and outgoing edges), and the promotion loop would eventually split the bridge by
+// promoting x_bridge1 → x_bridge2. An exact SCC algorithm classifies X as a singleton SCC and
+// never touches its internal edges, preserving the bridge as a single subgraph.
+//
+// The test below asserts the latter: x_bridge1 and x_bridge2 must end up in the same subgraph
+// after run() converges.
+std::shared_ptr<ov::Model> create_bridge_between_cycles_model() {
+    // Left cycle: c_LA fuses {in_L, a_L1, a_L2} into A_L (M0); c_LB fuses {b_L1, b_L2} into B_L (M1).
+    auto in_L = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    in_L->set_friendly_name("in_L");
+    auto c_LA = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    c_LA->set_friendly_name("c_LA");
+    auto c_LB = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {2.0f, 2.0f, 2.0f, 2.0f});
+    c_LB->set_friendly_name("c_LB");
+    auto a_L1 = std::make_shared<ov::op::v1::Add>(in_L, c_LA);
+    a_L1->set_friendly_name("a_L1");
+    auto b_L1 = std::make_shared<ov::op::v1::Add>(a_L1, c_LB);  // A_L → B_L edge
+    b_L1->set_friendly_name("b_L1");
+    auto b_L2 = std::make_shared<ov::op::v1::Add>(b_L1, c_LB);
+    b_L2->set_friendly_name("b_L2");
+    auto a_L2 = std::make_shared<ov::op::v1::Add>(b_L2, c_LA);  // B_L → A_L edge
+    a_L2->set_friendly_name("a_L2");
+    // Bridge: two M2 nodes connected by an internal same-sg edge (x_bridge1 → x_bridge2). This
+    // internal edge is what the buggy two-peel would wrongly promote.
+    auto x_bridge1 = std::make_shared<ov::op::v0::Abs>(a_L2);  // A_L → X edge
+    x_bridge1->set_friendly_name("x_bridge1");
+    auto x_bridge2 = std::make_shared<ov::op::v0::Abs>(x_bridge1);
+    x_bridge2->set_friendly_name("x_bridge2");
+    // Right cycle: mirror of left, fed from the bridge tail.
+    auto c_RA = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {3.0f, 3.0f, 3.0f, 3.0f});
+    c_RA->set_friendly_name("c_RA");
+    auto c_RB = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {4.0f, 4.0f, 4.0f, 4.0f});
+    c_RB->set_friendly_name("c_RB");
+    auto a_R1 = std::make_shared<ov::op::v1::Add>(x_bridge2, c_RA);  // X → A_R edge
+    a_R1->set_friendly_name("a_R1");
+    auto b_R1 = std::make_shared<ov::op::v1::Add>(a_R1, c_RB);  // A_R → B_R edge
+    b_R1->set_friendly_name("b_R1");
+    auto b_R2 = std::make_shared<ov::op::v1::Add>(b_R1, c_RB);
+    b_R2->set_friendly_name("b_R2");
+    auto a_R2 = std::make_shared<ov::op::v1::Add>(b_R2, c_RA);  // B_R → A_R edge
+    a_R2->set_friendly_name("a_R2");
+    auto res = std::make_shared<ov::op::v0::Result>(a_R2);
+    res->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{in_L});
+}
+
+// Subgraph-DAG SCC where the only same-subgraph promotable edges have a Constant producer.
+// A shared M0 Constant `c_shared` is consumed by three M0 nodes (A, C, E) which are interleaved
+// with three independent M1 nodes (B, D, F). The interleaving forms two 2-cycles in the
+// subgraph DAG (M0_big <-> sg_B and M0_big <-> sg_D), both incident to the fused M0_big
+// subgraph; every M0_big internal edge whose other endpoint is not foreign-sg ends up being a
+// Constant -> consumer edge (c_shared -> A, c_shared -> C, c_shared -> E). This is the exact
+// shape of the failure reproduced on yolo26s-seg: the SCC fallback finds a cyclic subgraph,
+// but every candidate same-sg edge has a graph-input producer. The earlier implementation
+// filtered those out and tripped the "no internal edge to promote" assert.
+//
+// Topology (M0 = MOCK.0, M1 = MOCK.1):
+//
+//   in(M0) --> A(M0,+c_shared) --> B(M1) --> C(M0,+c_shared) --> D(M1) --> E(M0,+c_shared) --> F(M1) --> res
+//                 ^               (M1)              ^               (M1)              ^         (M1)
+//                 |                                 |                                 |
+//                 +--- c_shared(M0) ----------------+---------------------------------+
+//
+std::shared_ptr<ov::Model> create_shared_const_scc_only_const_promotable_model() {
+    auto in_node = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{4});
+    in_node->set_friendly_name("in");
+    auto c_shared = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4}, {1.0f, 1.0f, 1.0f, 1.0f});
+    c_shared->set_friendly_name("c_shared");
+    auto A = std::make_shared<ov::op::v1::Add>(in_node, c_shared);
+    A->set_friendly_name("A");
+    auto B = std::make_shared<ov::op::v0::Abs>(A);
+    B->set_friendly_name("B");
+    auto C = std::make_shared<ov::op::v1::Add>(B, c_shared);
+    C->set_friendly_name("C");
+    auto D = std::make_shared<ov::op::v0::Abs>(C);
+    D->set_friendly_name("D");
+    auto E = std::make_shared<ov::op::v1::Add>(D, c_shared);
+    E->set_friendly_name("E");
+    auto F = std::make_shared<ov::op::v0::Abs>(E);
+    F->set_friendly_name("F");
+    auto res = std::make_shared<ov::op::v0::Result>(F);
+    res->set_friendly_name("res");
+    return std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{in_node});
 }
 
 // Stateful model: param → read_value → add(+c1) → {result, assign(sink)}.
@@ -594,7 +1024,10 @@ struct SubgraphCollectorTestParam {
     ModelFactory create_model;                        // factory to build the model under test
     std::map<std::string, std::string> affinity_map;  // node_name → device; empty = broadcast default
     std::string default_affinity;                     // used when affinity_map is empty
-    size_t expected_subgraph_count;                   // number of subgraphs from run()
+    // Expected number of subgraphs from run(). std::nullopt explicitly opts out of the count
+    // check; use only when the partition shape is an implementation detail but convergence and
+    // merge round-trip must still hold (e.g. SCC fallback tests).
+    std::optional<size_t> expected_subgraph_count;
     // --- optional checks (a default-constructed/empty/false value disables the check) ---
     std::vector<std::string> expected_affinities = {};                       // sorted affinity list per subgraph
     std::map<std::string, SubgraphCollector::SubgraphId> expected_ids = {};  // node_name → expected subgraph ID
@@ -603,6 +1036,17 @@ struct SubgraphCollectorTestParam {
     size_t expected_total_sinks = 0;      // sum of sg._sinks.size() across subgraphs (0 = no check)
     bool verify_merge_roundtrip = false;  // merge submodels back and check size == 1
     bool verify_merge_compare = false;    // compare_functions(original, merged)
+    // Per-resulting-subgraph structural counts. Empty vector = check disabled. When non-empty,
+    // size MUST equal the actual runtime subgraph count (`subgraphs.size()`); each entry is the
+    // expected count in the subgraph at the same index. This remains valid even when
+    // expected_subgraph_count is std::nullopt. Intended primarily as direct evidence of Constant
+    // duplication after a promoted boundary (see shared_const_*_cycle cases), without requiring
+    // a full reference submodel via expected_submodel_factories.
+    std::vector<size_t> expected_constants_per_submodel = {};
+    std::vector<size_t> expected_parameters_per_submodel = {};
+    std::vector<size_t> expected_results_per_submodel = {};
+    std::vector<std::set<std::string>> expected_runtime_subgraph_nodes =
+        {};  // final ordered subgraph membership by non-interface, non-Constant op names
 };
 
 class SubgraphCollectorParamTest : public testing::TestWithParam<SubgraphCollectorTestParam> {};
@@ -651,7 +1095,49 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
 
     const auto& [subgraphs, mapping] = collector.run();
 
-    ASSERT_EQ(param.expected_subgraph_count, subgraphs.size());
+    if (param.expected_subgraph_count.has_value()) {
+        ASSERT_EQ(*param.expected_subgraph_count, subgraphs.size());
+    }
+
+    std::map<size_t, size_t> actual_to_expected_subgraph_ids;
+    std::vector<size_t> expected_to_actual_subgraph_ids;
+    if (!param.expected_runtime_subgraph_nodes.empty()) {
+        ASSERT_EQ(param.expected_runtime_subgraph_nodes.size(), subgraphs.size());
+        expected_to_actual_subgraph_ids.resize(subgraphs.size());
+        std::set<size_t> matched_expected_subgraphs;
+        for (size_t i = 0; i < subgraphs.size(); ++i) {
+            const auto submodel = create_submodel_from_collected_subgraph(subgraphs[i]);
+            std::set<std::string> actual_node_names;
+
+            for (const auto& op : submodel->get_ordered_ops()) {
+                if (std::dynamic_pointer_cast<ov::op::v0::Parameter>(op) ||
+                    std::dynamic_pointer_cast<ov::op::v0::Result>(op) ||
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
+                    continue;
+                }
+                actual_node_names.insert(op->get_friendly_name());
+            }
+
+            ASSERT_FALSE(actual_node_names.empty()) << "Failed to derive canonical nodes for subgraph " << i;
+
+            bool matched = false;
+            for (size_t expected_idx = 0; expected_idx < param.expected_runtime_subgraph_nodes.size(); ++expected_idx) {
+                if (param.expected_runtime_subgraph_nodes[expected_idx] != actual_node_names) {
+                    continue;
+                }
+
+                ASSERT_TRUE(matched_expected_subgraphs.insert(expected_idx).second)
+                    << "Duplicate canonical subgraph match for expected subgraph " << expected_idx;
+                ASSERT_TRUE(actual_to_expected_subgraph_ids.emplace(i, expected_idx).second)
+                    << "Duplicate canonical ID assignment for actual subgraph " << i;
+                expected_to_actual_subgraph_ids[expected_idx] = i;
+                matched = true;
+                break;
+            }
+
+            ASSERT_TRUE(matched) << "Failed to match actual subgraph " << i << " to expected runtime membership";
+        }
+    }
 
     // Check affinities (sorted comparison)
     if (!param.expected_affinities.empty()) {
@@ -703,9 +1189,79 @@ TEST_P(SubgraphCollectorParamTest, split_by_affinity) {
                                !param.expected_mapping._outputs_to_submodels_outputs.empty() ||
                                !param.expected_mapping._submodels_input_to_prev_output.empty();
     if (check_mapping) {
-        ASSERT_EQ(param.expected_mapping._inputs_to_submodels_inputs, mapping._inputs_to_submodels_inputs);
-        ASSERT_EQ(param.expected_mapping._outputs_to_submodels_outputs, mapping._outputs_to_submodels_outputs);
-        ASSERT_EQ(param.expected_mapping._submodels_input_to_prev_output, mapping._submodels_input_to_prev_output);
+        auto normalized_mapping = mapping;
+
+        // Some partition shapes are structurally identical across platforms but receive different
+        // runtime subgraph numbering. When the expected final subgraph membership is provided,
+        // normalize the actual subgraph indices back to that canonical numbering, then keep the
+        // mapping comparison exact.
+        if (!param.expected_runtime_subgraph_nodes.empty()) {
+            const auto remap_node_info = [&](const NodeInfo& info) -> NodeInfo {
+                const auto it = actual_to_expected_subgraph_ids.find(info.first);
+                if (it == actual_to_expected_subgraph_ids.end()) {
+                    ADD_FAILURE() << "Missing canonical subgraph ID for actual subgraph " << info.first;
+                    return info;
+                }
+                return NodeInfo{it->second, info.second};
+            };
+
+            std::transform(normalized_mapping._inputs_to_submodels_inputs.begin(),
+                           normalized_mapping._inputs_to_submodels_inputs.end(),
+                           normalized_mapping._inputs_to_submodels_inputs.begin(),
+                           remap_node_info);
+            std::transform(normalized_mapping._outputs_to_submodels_outputs.begin(),
+                           normalized_mapping._outputs_to_submodels_outputs.end(),
+                           normalized_mapping._outputs_to_submodels_outputs.begin(),
+                           remap_node_info);
+
+            std::map<NodeInfo, NodeInfo> remapped_prev_outputs;
+            for (const auto& [submodel_input, prev_output] : normalized_mapping._submodels_input_to_prev_output) {
+                remapped_prev_outputs.emplace(remap_node_info(submodel_input), remap_node_info(prev_output));
+            }
+            normalized_mapping._submodels_input_to_prev_output = std::move(remapped_prev_outputs);
+        }
+
+        ASSERT_EQ(param.expected_mapping._inputs_to_submodels_inputs, normalized_mapping._inputs_to_submodels_inputs);
+        ASSERT_EQ(param.expected_mapping._outputs_to_submodels_outputs,
+                  normalized_mapping._outputs_to_submodels_outputs);
+        ASSERT_EQ(param.expected_mapping._submodels_input_to_prev_output,
+                  normalized_mapping._submodels_input_to_prev_output);
+    }
+
+    // Per-subgraph structural counts. Used as direct evidence for promotions that are realized by
+    // node duplication (e.g. a promoted Constant boundary is satisfied by cloning the Constant
+    // into the consumer subgraph rather than by an extra cross-subgraph parameter, so it never
+    // appears in _submodels_input_to_prev_output). Asserting expected_constants_per_submodel
+    // pins the duplication directly on the public submodel interface.
+    if (!param.expected_parameters_per_submodel.empty()) {
+        ASSERT_EQ(param.expected_parameters_per_submodel.size(), subgraphs.size());
+        for (size_t i = 0; i < subgraphs.size(); ++i) {
+            const size_t actual_idx = expected_to_actual_subgraph_ids.empty() ? i : expected_to_actual_subgraph_ids[i];
+            EXPECT_EQ(param.expected_parameters_per_submodel[i], subgraphs[actual_idx]._parameters.size())
+                << "Parameter count mismatch in subgraph " << i;
+        }
+    }
+    if (!param.expected_results_per_submodel.empty()) {
+        ASSERT_EQ(param.expected_results_per_submodel.size(), subgraphs.size());
+        for (size_t i = 0; i < subgraphs.size(); ++i) {
+            const size_t actual_idx = expected_to_actual_subgraph_ids.empty() ? i : expected_to_actual_subgraph_ids[i];
+            EXPECT_EQ(param.expected_results_per_submodel[i], subgraphs[actual_idx]._results.size())
+                << "Result count mismatch in subgraph " << i;
+        }
+    }
+    if (!param.expected_constants_per_submodel.empty()) {
+        ASSERT_EQ(param.expected_constants_per_submodel.size(), subgraphs.size());
+        for (size_t i = 0; i < subgraphs.size(); ++i) {
+            const size_t actual_idx = expected_to_actual_subgraph_ids.empty() ? i : expected_to_actual_subgraph_ids[i];
+            auto submodel = create_submodel_from_collected_subgraph(subgraphs[actual_idx]);
+            size_t actual = 0;
+            for (const auto& op : submodel->get_ordered_ops()) {
+                if (std::dynamic_pointer_cast<ov::op::v0::Constant>(op)) {
+                    ++actual;
+                }
+            }
+            EXPECT_EQ(param.expected_constants_per_submodel[i], actual) << "Constant count mismatch in subgraph " << i;
+        }
     }
 
     // Check total sink count across subgraphs if expected
@@ -947,9 +1503,440 @@ INSTANTIATE_TEST_SUITE_P(
             1,
             true,
             true,
+        },
+        // --- Shared constant indirect bridge: shared_const bridges A and C into one subgraph via X.
+        // split_cyclic_dependencies() detects the cycle re-entry point and promotes
+        // C.input(1) (from shared_const) as a boundary, splitting the M0 group into
+        // {param, other_const, shared_const, A, X, res2} and {C, res1}, yielding 3 subgraphs:
+        // {param, other_const, shared_const, A, X, res2}(M0), {B}(M1), {C, res1}(M0).
+        SubgraphCollectorTestParam{
+            "shared_const_indirect_bridge_cycle",
+            create_shared_const_indirect_bridge_cycle_model,
+            {{"input", "MOCK.0"}, {"shared_const", "MOCK.0"}, {"other_const", "MOCK.0"},
+             {"A", "MOCK.0"}, {"X", "MOCK.0"},
+             {"B", "MOCK.1"}, {"C", "MOCK.0"}, {"res1", "MOCK.0"}, {"res2", "MOCK.0"}},
+            "",
+            3,
+            {"MOCK.0", "MOCK.0", "MOCK.1"},
+            {{"input", 0}, {"other_const", 0}, {"shared_const", 0}, {"A", 0}, {"X", 0}, {"res2", 0},
+             {"B", 3}, {"C", 4}, {"res1", 4}},
+            {},
+            // Inter-subgraph wiring after Phase 4b promotion. Run-time subgraph order:
+            //   sg0 = {input, other_const, shared_const, A, X, res2}(MOCK.0)
+            //   sg1 = {B}(MOCK.1)
+            //   sg2 = {C, res1}(MOCK.0)   <- newly split off; shared_const is duplicated here.
+            //   inputs_to_submodels_inputs:  input        -> sg0 param 0
+            //   outputs_to_submodels_outputs: res1 -> sg2 output 0
+            //                                 res2 -> sg0 output 0
+            //   submodels_input_to_prev_output (cross-subgraph data edges):
+            //     sg1.in[0] (B.input(0))     <- sg0.out[1] (A)
+            //     sg2.in[0] (C.input(0))     <- sg1.out[0] (B)
+            // Note: C.input(1) (the PROMOTED edge from shared_const) is satisfied by duplicating
+            // shared_const inside sg2 rather than as a cross-subgraph parameter, so it does not
+            // appear in submodels_input_to_prev_output. The direct evidence of duplication is
+            // expected_constants_per_submodel below: sg0 keeps shared_const + other_const = 2,
+            // sg2 gets a cloned shared_const = 1. expected_ids only locks the original node's
+            // placement (sg0) and cannot express the clone in sg2.
+            SubgraphsMappingInfo{
+                /*_inputs_to_submodels_inputs*/ {NodeInfo{0, 0}},
+                /*_outputs_to_submodels_outputs*/ {NodeInfo{2, 0}, NodeInfo{0, 0}},
+                /*_submodels_input_to_prev_output*/
+                {{NodeInfo{1, 0}, NodeInfo{0, 1}},
+                 {NodeInfo{2, 0}, NodeInfo{1, 0}}}},
+            0,
+            true,
+            true,
+            // Per-subgraph structural counts. Constant counts are the direct evidence that
+            // shared_const was duplicated into sg2 (sg0 still holds the original shared_const +
+            // other_const = 2; sg2 holds the cloned shared_const = 1; sg1 holds none).
+            /*expected_constants_per_submodel*/ {2, 0, 1},
+            /*expected_parameters_per_submodel*/ {1, 1, 1},
+            /*expected_results_per_submodel*/ {2, 1, 1},
+        },
+        // --- Shared constant cross-device fanout: shared_const fans out to 3 consumers on 2 devices.
+        // Union-Find merges same-affinity edges into one GPU subgraph containing Node_A and Node_C.
+        // split_cyclic_dependencies() promotes Node_C.input(1) (from shared_const) as a boundary,
+        // yielding 3 subgraphs: {param, shared_const, Node_A}(GPU), {Node_B}(CPU), {Node_C, res}(GPU).
+        SubgraphCollectorTestParam{
+            "shared_const_cross_device_fanout_cycle",
+            create_shared_const_cross_device_fanout_model,
+            {{"param", "MOCK.0"}, {"shared_const", "MOCK.0"}, {"Node_A", "MOCK.0"},
+             {"Node_B", "MOCK.1"}, {"Node_C", "MOCK.0"}, {"res", "MOCK.0"}},
+            "",
+            3,
+            {"MOCK.0", "MOCK.0", "MOCK.1"},
+            {{"param", 0}, {"shared_const", 0}, {"Node_A", 0},
+             {"Node_B", 2}, {"Node_C", 3}, {"res", 3}},
+            {},
+            // Inter-subgraph wiring after promotion. Run-time subgraph order:
+            //   sg0 = {param, shared_const, Node_A}(MOCK.0)
+            //   sg1 = {Node_B}(MOCK.1)
+            //   sg2 = {Node_C, res}(MOCK.0)   <- newly split off; shared_const is duplicated here.
+            //   inputs_to_submodels_inputs:   param -> sg0 param 0
+            //   outputs_to_submodels_outputs: res   -> sg2 output 0
+            //   submodels_input_to_prev_output:
+            //     sg1.in[0] (Node_B.input(0)) <- sg0.out[0] (Node_A)
+            //     sg2.in[0] (Node_C.input(0)) <- sg1.out[0] (Node_B)
+            // Note: Node_C.input(1) (the PROMOTED edge from shared_const) is satisfied by
+            // duplicating shared_const inside sg2 rather than as a cross-subgraph parameter. The
+            // direct evidence of duplication is expected_constants_per_submodel below: every
+            // subgraph that consumes shared_const holds its own copy (sg0/sg1/sg2 = 1 each).
+            // expected_ids only locks the original node's placement (sg0) and cannot express the
+            // clones in sg1/sg2.
+            SubgraphsMappingInfo{
+                /*_inputs_to_submodels_inputs*/ {NodeInfo{0, 0}},
+                /*_outputs_to_submodels_outputs*/ {NodeInfo{2, 0}},
+                /*_submodels_input_to_prev_output*/
+                {{NodeInfo{1, 0}, NodeInfo{0, 0}},
+                 {NodeInfo{2, 0}, NodeInfo{1, 0}}}},
+            0,
+            true,
+            true,
+            // Per-subgraph structural counts. Constant counts are the direct evidence that
+            // shared_const was duplicated across all three subgraphs: sg0 has the original (which
+            // also feeds Node_A locally), sg1 has a clone feeding Node_B (the cross-device
+            // consumer), and sg2 has a clone feeding Node_C (the promoted boundary). Without
+            // promotion sg2 would not exist and only sg0+sg1 would each hold a copy.
+            /*expected_constants_per_submodel*/ {1, 1, 1},
+            /*expected_parameters_per_submodel*/ {1, 1, 1},
+            /*expected_results_per_submodel*/ {1, 1, 1},
+        },
+        // --- Shared constant AS the cycle source: shared_const directly feeds B (cross-device),
+        // making it the cycle producer. It also merges with the re-entry node C via the internal
+        // chain shared_const→X→C. split_cyclic_dependencies() promotes C.input(1) (from X),
+        // yielding 4 subgraphs: {param,A}(DEV0), {B}(DEV1), {shared_const,X,res2}(DEV0), {C,res1}(DEV0).
+        SubgraphCollectorTestParam{
+            "shared_const_as_cycle_source",
+            create_shared_const_as_cycle_source_model,
+            {{"param", "MOCK.0"}, {"shared_const", "MOCK.0"}, {"A", "MOCK.0"}, {"X", "MOCK.0"},
+             {"B", "MOCK.1"}, {"C", "MOCK.0"}, {"res1", "MOCK.0"}, {"res2", "MOCK.0"}},
+            "",
+            4,
+            {"MOCK.0", "MOCK.0", "MOCK.0", "MOCK.1"},
+            {{"param", 0}, {"A", 0},
+             {"shared_const", 1}, {"X", 1}, {"res2", 1},
+             {"B", 2}, {"C", 3}, {"res1", 3}},
+            {},
+            // Inter-subgraph wiring after Phase 4b promotion. Run-time subgraph order:
+            //   sg0 = {shared_const, X, res2}(MOCK.0)
+            //   sg1 = {param, A}(MOCK.0)
+            //   sg2 = {B}(MOCK.1)
+            //   sg3 = {C, res1}(MOCK.0)        <- newly split off via PROMOTED C.input(1) <- X.
+            //   inputs_to_submodels_inputs:   param -> sg1 param 0
+            //   outputs_to_submodels_outputs: res1  -> sg3 output 0
+            //                                 res2  -> sg0 output 0
+            //   submodels_input_to_prev_output:
+            //     sg2.in[0] (B.input(0))     <- sg1.out[0] (A)
+            //     sg3.in[0] (C.input(0))     <- sg2.out[0] (B)         <- existing cycle edge
+            //     sg3.in[1] (C.input(1))     <- sg0.out[1] (X)         <- PROMOTED boundary
+            // sg0 exposes X as an extra output (beyond res2) precisely because the promotion
+            // turned X->C into a cross-subgraph edge; this entry is the direct evidence that
+            // split_cyclic_dependencies() promoted X (not, e.g., A or shared_const).
+            SubgraphsMappingInfo{
+                /*_inputs_to_submodels_inputs*/ {NodeInfo{1, 0}},
+                /*_outputs_to_submodels_outputs*/ {NodeInfo{3, 0}, NodeInfo{0, 0}},
+                /*_submodels_input_to_prev_output*/
+                {{NodeInfo{2, 0}, NodeInfo{1, 0}},
+                 {NodeInfo{3, 0}, NodeInfo{2, 0}},
+                 {NodeInfo{3, 1}, NodeInfo{0, 1}}}},
+            0,
+            true,
+            true,
+            {},
+            {},
+            {},
+            {std::set<std::string>{"X"}, std::set<std::string>{"A"}, std::set<std::string>{"B"}, std::set<std::string>{"C"}},
+        },
+        // --- Negative: shared constant merges nodes via Union-Find but NO cycle exists.
+        // Data flows only SG0→SG1 (A→B), never back. Must produce exactly 2 subgraphs
+        // without over-splitting — verifies the re-entry scan doesn't fire spuriously.
+        SubgraphCollectorTestParam{
+            "shared_const_no_cycle_no_split",
+            create_shared_const_no_cycle_model,
+            {{"param", "MOCK.0"}, {"shared_const", "MOCK.0"}, {"A", "MOCK.0"}, {"X", "MOCK.0"},
+             {"B", "MOCK.1"}, {"res", "MOCK.1"}, {"res2", "MOCK.0"}},
+            "",
+            2,
+            {"MOCK.0", "MOCK.1"},
+            {},
+            {},
+            // Negative case: exactly ONE cross-subgraph edge (A -> B). Run-time order:
+            //   sg0 = {param, shared_const, A, X, res2}(MOCK.0)
+            //   sg1 = {B, res}(MOCK.1)
+            //   inputs_to_submodels_inputs:   param -> sg0 param 0
+            //   outputs_to_submodels_outputs: res   -> sg1 output 0
+            //                                 res2  -> sg0 output 0
+            //   submodels_input_to_prev_output:
+            //     sg1.in[0] (B.input(0))     <- sg0.out[1] (A)
+            // The SINGLE entry here is the key minimality assertion: any spurious promotion
+            // would add at least one more entry (e.g. a sg1.in[1] <- sg0.out[k] edge).
+            SubgraphsMappingInfo{
+                /*_inputs_to_submodels_inputs*/ {NodeInfo{0, 0}},
+                /*_outputs_to_submodels_outputs*/ {NodeInfo{1, 0}, NodeInfo{0, 0}},
+                /*_submodels_input_to_prev_output*/
+                {{NodeInfo{1, 0}, NodeInfo{0, 1}}}},
+            0,
+            true,
+            true,
+        },
+        // --- Negative mirroring shared_const_indirect_bridge_cycle node-for-node, minus the
+        // B→C back-edge: C is fed from A (M0) instead of B (M1). The indirect Union-Find merge
+        // through shared_const ({A, X, C, shared_const} on M0) is preserved exactly as in the
+        // positive case, but no cycle exists. The collector must NOT over-split — expected: 2
+        // subgraphs, with shared_const + other_const both staying in sg0 (no clone in sg1).
+        // This complements shared_const_no_cycle_no_split with a topology much closer to the
+        // bug surface (indirect bridge via X, not a single one-way hop).
+        SubgraphCollectorTestParam{
+            "shared_const_indirect_bridge_no_cycle",
+            create_shared_const_indirect_bridge_no_cycle_model,
+            {{"input", "MOCK.0"}, {"shared_const", "MOCK.0"}, {"other_const", "MOCK.0"},
+             {"A", "MOCK.0"}, {"X", "MOCK.0"}, {"C", "MOCK.0"},
+             {"B", "MOCK.1"},
+             {"res1", "MOCK.0"}, {"res2", "MOCK.0"}, {"res_b", "MOCK.1"}},
+            "",
+            2,
+            {"MOCK.0", "MOCK.1"},
+            {},
+            {},
+            {},
+            0,
+            true,
+            true,
+            // sg0 (MOCK.0) keeps both Constants (shared_const + other_const) — no clone leaks
+            // into sg1. Together with expected_subgraph_count==2 this is the direct assertion
+            // that the re-entry scan did NOT fire on this no-cycle shape.
+            // sg0 holds 3 Results: res1, res2 + an auto-inserted Result exposing A to sg1's
+            // boundary Parameter. sg1 holds res_b only.
+            /*expected_constants_per_submodel*/ {2, 0},
+            /*expected_parameters_per_submodel*/ {1, 1},
+            /*expected_results_per_submodel*/ {3, 1},
+        },
+        // --- Multiple shared constants, only ONE participating in the cyclic path. Locks the
+        // contract that the algorithm duplicates the cyclic-boundary Constant only, not every
+        // shared Constant in the M0 group. After promotion of C.input(1)=C1:
+        //   sg0 = {param, C1, A, C2, X, Z, res_x, res_z}(MOCK.0)
+        //   sg1 = {B}(MOCK.1)
+        //   sg2 = {C, res_c}(MOCK.0)  <- cloned C1 inside; C2 is NOT duplicated here.
+        //   inputs_to_submodels_inputs:   param -> sg0 param 0
+        //   outputs_to_submodels_outputs: res_c -> sg2.out[0], res_x -> sg0.out[0], res_z -> sg0.out[1]
+        //   submodels_input_to_prev_output:
+        //     sg1.in[0] (B.input(0)) <- sg0.out[2] (A, auto-Result)
+        //     sg2.in[0] (C.input(0)) <- sg1.out[0] (B)
+        // expected_constants_per_submodel = {2, 0, 1} is the direct evidence that only C1 was
+        // cloned into sg2; C2 stayed shared between X and Z within sg0.
+        SubgraphCollectorTestParam{
+            "multiple_shared_constants_partial_cycle",
+            create_multiple_shared_constants_partial_cycle_model,
+            {{"param", "MOCK.0"}, {"C1", "MOCK.0"}, {"C2", "MOCK.0"},
+             {"A", "MOCK.0"}, {"X", "MOCK.0"}, {"Z", "MOCK.0"}, {"C", "MOCK.0"},
+             {"B", "MOCK.1"},
+             {"res_c", "MOCK.0"}, {"res_x", "MOCK.0"}, {"res_z", "MOCK.0"}},
+            "",
+            3,
+            {"MOCK.0", "MOCK.0", "MOCK.1"},
+            {},
+            {},
+            SubgraphsMappingInfo{
+                /*_inputs_to_submodels_inputs*/ {NodeInfo{0, 0}},
+                /*_outputs_to_submodels_outputs*/ {NodeInfo{2, 0}, NodeInfo{0, 0}, NodeInfo{0, 1}},
+                /*_submodels_input_to_prev_output*/
+                {{NodeInfo{1, 0}, NodeInfo{0, 2}},
+                 {NodeInfo{2, 0}, NodeInfo{1, 0}}}},
+            0,
+            true,
+            true,
+            /*expected_constants_per_submodel*/ {2, 0, 1},
+            /*expected_parameters_per_submodel*/ {1, 1, 1},
+            /*expected_results_per_submodel*/ {3, 1, 1},
+        },
+        // --- Mixed Parameter/Constant bridges in the same cycle. Two independent re-entry
+        // nodes carry one bridge each; the boundary realization is provably different:
+        //   sg0 = {param1, param2, A, C_const, X, res_x}(MOCK.0)
+        //   sg1 = {B}(MOCK.1)
+        //   sg2 = {C, res_c}(MOCK.0)   <- receives param2 via cross-subgraph edge (Parameter bridge)
+        //   sg3 = {F, res_f}(MOCK.0)   <- cloned C_const inside (Constant bridge, NO mapping entry)
+        //   inputs_to_submodels_inputs:   param1 -> sg0 param 0, param2 -> sg0 param 1
+        //   outputs_to_submodels_outputs: res_c -> sg2.out[0], res_f -> sg3.out[0],
+        //                                 res_x -> sg0.out[0], res_b -> sg1.out[0]
+        //   submodels_input_to_prev_output:
+        //     sg1.in[0] (B.input(0))         <- sg0.out[1] (A, auto-Result)
+        //     sg2.in[0] (C.input(0)=B)       <- sg1.out[2] (B, auto-Result)
+        //     sg2.in[1] (C.input(1)=param2)  <- sg0.out[2] (param2, auto-Result)   <- PARAMETER BRIDGE
+        //     sg3.in[0] (F.input(0)=B2)      <- sg1.out[1] (B2, auto-Result)
+        // The {2,1} <- {0,2} entry is the literal cross-subgraph edge for param2. The absence of
+        // any sg3.in[?] <- sg0.out[?] entry for C_const is the literal evidence that C_const was
+        // realized by duplication (confirmed by expected_constants_per_submodel = {1,0,0,1}).
+        SubgraphCollectorTestParam{
+            "mixed_parameter_constant_bridge_cycle",
+            create_mixed_parameter_constant_bridge_cycle_model,
+            {{"param1", "MOCK.0"}, {"param2", "MOCK.0"}, {"C_const", "MOCK.0"},
+             {"A", "MOCK.0"}, {"X", "MOCK.0"}, {"C", "MOCK.0"}, {"F", "MOCK.0"},
+             {"B", "MOCK.1"}, {"B2", "MOCK.1"},
+             {"res_c", "MOCK.0"}, {"res_f", "MOCK.0"}, {"res_x", "MOCK.0"}, {"res_b", "MOCK.1"}},
+            "",
+            4,
+            {"MOCK.0", "MOCK.0", "MOCK.0", "MOCK.1"},
+            {},
+            {},
+            SubgraphsMappingInfo{
+                /*_inputs_to_submodels_inputs*/ {NodeInfo{0, 0}, NodeInfo{0, 1}},
+                /*_outputs_to_submodels_outputs*/
+                 {NodeInfo{2, 0}, NodeInfo{3, 0}, NodeInfo{0, 0}, NodeInfo{1, 0}},
+                /*_submodels_input_to_prev_output*/
+                {{NodeInfo{1, 0}, NodeInfo{0, 1}},
+                  {NodeInfo{2, 0}, NodeInfo{1, 2}},
+                  {NodeInfo{2, 1}, NodeInfo{0, 2}},
+                  {NodeInfo{3, 0}, NodeInfo{1, 1}}}},
+            0,
+            // merge round-trip disabled: the round-trip helper currently does not handle
+            // Parameter cross-edges (same model Parameter referenced both as a top-level input
+            // and as a {prev_output, sg_input} bridge entry) and trips Model::add_parameters'
+            // duplicate-parameter check. The structural claim under test is the mapping shape
+            // above; the round-trip limitation is orthogonal and out of scope here.
+            false,
+            false,
+            /*expected_constants_per_submodel*/ {1, 0, 0, 1},
+            /*expected_parameters_per_submodel*/ {2, 1, 2, 1},
+            /*expected_results_per_submodel*/ {3, 3, 1, 1},
+            {std::set<std::string>{"A", "X"}, std::set<std::string>{"B", "B2"}, std::set<std::string>{"C"}, std::set<std::string>{"F"}},
+        },
+        // --- Multi-hop subgraph-level SCC. Two independent M0 regions get fused through a shared
+        // Constant (c_top), and the fused M0 subgraph then participates in a cycle that no single
+        // node can detect (the producer and re-entry consumer are far apart). The per-node
+        // heuristic in split_cyclic_dependencies() converges without breaking it; only the
+        // subgraph-DAG SCC fallback can. This case is the minimal synthesis of the
+        // 4-subgraph cycle observed on yolo26s-seg HETERO:GPU,CPU. The exact partition the SCC
+        // fallback produces depends on the order it discovers cyclic subgraphs; this test only
+        // asserts that compile-time topo sort succeeds (i.e., the assertion "Cannot sort
+        // subgraphs!" does NOT fire) by requiring run() to complete and merge round-trip back to
+        // the original.
+        SubgraphCollectorTestParam{
+            "multi_hop_subgraph_scc_cycle",
+            create_multi_hop_scc_cycle_model,
+            {{"in1", "MOCK.0"}, {"in2", "MOCK.0"}, {"c_top", "MOCK.0"},
+             {"A1", "MOCK.0"}, {"B1", "MOCK.1"}, {"C1", "MOCK.0"}, {"D1", "MOCK.1"}, {"X1", "MOCK.0"},
+             {"A2", "MOCK.0"}, {"B2", "MOCK.1"}, {"C2", "MOCK.1"}, {"D2", "MOCK.0"}, {"X2", "MOCK.0"},
+             {"res_x1", "MOCK.0"}, {"res_x2", "MOCK.0"}},
+            "",
+            // expected_subgraph_count = std::nullopt: the SCC fallback's promotion ordering is an
+            // implementation detail; the contract under test is "run() does not assert Cannot sort
+            // subgraphs!" and "merge round-trip succeeds".
+            std::nullopt,
+            {},
+            {},
+            {},
+            {},
+            0,
+            true,
+            true,
         }
     ),
     [](const testing::TestParamInfo<SubgraphCollectorTestParam>& info) {
         return info.param.test_name;
     });
 // clang-format on
+
+// Regression test for the SCC fallback's bridge-between-cycles handling. See the comment on
+// create_bridge_between_cycles_model() for the topology and why an exact SCC algorithm is
+// required here. The contract under test: an acyclic bridge subgraph lying between two
+// disjoint cycles in the subgraph DAG must NOT be split by the SCC fallback. The two M2 ops
+// (x_bridge1, x_bridge2) belong to one bridge subgraph in the initial partition; after run()
+// converges they must still share a subgraph. A regression that swaps the exact SCC algorithm
+// back to a two-peel (forward + reverse Kahn) over-approximation would mark the bridge as
+// cyclic and eventually promote x_bridge1 → x_bridge2 in the inner loop, splitting the bridge
+// into two singletons — which this test then catches.
+TEST(SubgraphCollectorBridgeBetweenCyclesTest, bridge_subgraph_not_split) {
+    auto model = create_bridge_between_cycles_model();
+    const std::map<std::string, std::string> affinity_by_name = {
+        {"in_L", "MOCK.0"},
+        {"c_LA", "MOCK.0"},
+        {"c_LB", "MOCK.1"},
+        {"a_L1", "MOCK.0"},
+        {"b_L1", "MOCK.1"},
+        {"b_L2", "MOCK.1"},
+        {"a_L2", "MOCK.0"},
+        {"x_bridge1", "MOCK.2"},
+        {"x_bridge2", "MOCK.2"},
+        {"c_RA", "MOCK.0"},
+        {"c_RB", "MOCK.1"},
+        {"a_R1", "MOCK.0"},
+        {"b_R1", "MOCK.1"},
+        {"b_R2", "MOCK.1"},
+        {"a_R2", "MOCK.0"},
+        {"res", "MOCK.0"},
+    };
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto it = affinity_by_name.find(node->get_friendly_name());
+        ASSERT_TRUE(it != affinity_by_name.end()) << "Missing affinity for node '" << node->get_friendly_name() << "'";
+        affinities[node] = it->second;
+    }
+
+    SubgraphCollector collector(model, affinities);
+    const auto result = collector.run();
+    const auto& subgraphs = result.first;
+    // Locate which subgraph each bridge node ended up in by scanning each subgraph's submodel.
+    auto find_subgraph_containing = [&subgraphs](const std::string& node_name) -> std::optional<size_t> {
+        for (size_t i = 0; i < subgraphs.size(); ++i) {
+            const auto submodel = create_submodel_from_collected_subgraph(subgraphs[i]);
+            for (const auto& op : submodel->get_ordered_ops()) {
+                if (op->get_friendly_name() == node_name)
+                    return i;
+            }
+        }
+        return std::nullopt;
+    };
+    const auto idx_x1 = find_subgraph_containing("x_bridge1");
+    const auto idx_x2 = find_subgraph_containing("x_bridge2");
+    ASSERT_TRUE(idx_x1.has_value()) << "x_bridge1 was not found in any resulting subgraph";
+    ASSERT_TRUE(idx_x2.has_value()) << "x_bridge2 was not found in any resulting subgraph";
+    EXPECT_EQ(*idx_x1, *idx_x2) << "Bridge subgraph was split: x_bridge1 ended up in subgraph " << *idx_x1
+                                << " but x_bridge2 ended up in subgraph " << *idx_x2
+                                << ". This indicates the SCC fallback wrongly classified the acyclic bridge as cyclic"
+                                << " and promoted its internal edge.";
+}
+
+// Regression test for the SCC fallback when every promotable same-subgraph edge has a
+// Constant producer. See create_shared_const_scc_only_const_promotable_model() for the
+// topology. The earlier implementation skipped any candidate edge whose source was a graph
+// input (Constant/Parameter), so when an SCC consisted entirely of nodes whose only same-sg
+// inputs came from a shared Constant, find_promotable_internal_edge() returned nullopt and
+// the SCC fallback fired "no internal edge to promote". This is the exact failure mode
+// reproduced on yolo26s-seg with HETERO:GPU,CPU. The contract under test: run() converges
+// (no assert), and merge round-trip succeeds.
+TEST(SubgraphCollectorSharedConstSccTest, scc_with_only_constant_sourced_edges_converges) {
+    auto model = create_shared_const_scc_only_const_promotable_model();
+    auto model_ref = model->clone();
+    const std::map<std::string, std::string> affinity_by_name = {
+        {"in", "MOCK.0"},
+        {"c_shared", "MOCK.0"},
+        {"A", "MOCK.0"},
+        {"B", "MOCK.1"},
+        {"C", "MOCK.0"},
+        {"D", "MOCK.1"},
+        {"E", "MOCK.0"},
+        {"F", "MOCK.1"},
+        {"res", "MOCK.1"},
+    };
+    SubgraphCollector::AffinitiesMap affinities;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto it = affinity_by_name.find(node->get_friendly_name());
+        ASSERT_TRUE(it != affinity_by_name.end()) << "Missing affinity for node '" << node->get_friendly_name() << "'";
+        affinities[node] = it->second;
+    }
+
+    SubgraphCollector collector(model, affinities);
+    // Must not assert "no internal edge to promote".
+    const auto& [subgraphs, mapping] = collector.run();
+    ASSERT_FALSE(subgraphs.empty());
+
+    // Merge round-trip: gluing the submodels back together must reproduce the original model.
+    std::vector<std::shared_ptr<ov::Model>> submodels;
+    submodels.reserve(subgraphs.size());
+    for (const auto& sg : subgraphs)
+        submodels.push_back(create_submodel_from_collected_subgraph(sg));
+    OV_ASSERT_NO_THROW(ov::hetero::merge_submodels(submodels, mapping._submodels_input_to_prev_output));
+    ASSERT_EQ(1u, submodels.size());
+    const auto cmp_result = compare_functions(model_ref, submodels[0]);
+    EXPECT_TRUE(cmp_result.first) << cmp_result.second;
+}

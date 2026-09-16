@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <vector>
+
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
@@ -87,7 +90,7 @@ class TRANSFORMATIONS_API ConvertTiledMoeBlockToGatherMatmuls;
 class ov::pass::ConvertTiledMoeBlockTo2GatherMatmuls : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertTiledMoeBlockTo2GatherMatmuls");
-    ConvertTiledMoeBlockTo2GatherMatmuls();
+    ConvertTiledMoeBlockTo2GatherMatmuls(const std::vector<ov::element::Type>& supported_weights_types = {});
 };
 
 // ============================================================================
@@ -147,15 +150,15 @@ public:
 class ov::pass::ConvertTiledMoeBlockTo3GatherMatmuls : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertTiledMoeBlockTo3GatherMatmuls");
-    ConvertTiledMoeBlockTo3GatherMatmuls();
+    ConvertTiledMoeBlockTo3GatherMatmuls(const std::vector<ov::element::Type>& supported_weights_types = {});
 };
 
 // CPU uses BGM-producing passes only (stops at BGMs)
 class ov::pass::ConvertTiledMoeBlockToGatherMatmuls : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("ConvertTiledMoeBlockToGatherMatmuls");
-    ConvertTiledMoeBlockToGatherMatmuls() {
-        add_matcher<ov::pass::ConvertTiledMoeBlockTo2GatherMatmuls>();
-        add_matcher<ov::pass::ConvertTiledMoeBlockTo3GatherMatmuls>();
+    explicit ConvertTiledMoeBlockToGatherMatmuls(const std::vector<ov::element::Type>& supported_weights_types = {}) {
+        add_matcher<ov::pass::ConvertTiledMoeBlockTo2GatherMatmuls>(supported_weights_types);
+        add_matcher<ov::pass::ConvertTiledMoeBlockTo3GatherMatmuls>(supported_weights_types);
     }
 };

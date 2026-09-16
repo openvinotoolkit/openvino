@@ -9,6 +9,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -17,6 +18,7 @@
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "utils/debug_caps_config.h"
@@ -86,6 +88,10 @@ struct Config {
     size_t valueCacheGroupSize = 0UL;
     CacheQuantMode keyCacheQuantMode = CacheQuantMode::AUTO;
     CacheQuantMode valueCacheQuantMode = CacheQuantMode::AUTO;
+    // SCALAR = per-group affine scale/zp (default). TURBO = TBQ rotation + codebook.
+    // For TURBO: bits derived from cachePrecision (u3→3, u4→4).
+    ov::internal::CacheQuantAlgorithm keyCacheQuantAlg = ov::internal::CacheQuantAlgorithm::SCALAR;
+    ov::internal::CacheQuantAlgorithm valueCacheQuantAlg = ov::internal::CacheQuantAlgorithm::SCALAR;
     bool enableSageAttn = false;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;

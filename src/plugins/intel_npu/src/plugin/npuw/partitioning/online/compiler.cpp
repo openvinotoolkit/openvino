@@ -197,6 +197,7 @@ class Compiler {
         m_snapshot->earlyAvoids();
         m_snapshot->earlyRegroup();
         m_snapshot->repeatedBlocks();
+        m_snapshot->fuseUnfolded();
         m_snapshot->repeat([&] {
             m_snapshot->fuseRemnantsExtended();
         });
@@ -215,6 +216,7 @@ class Compiler {
             // NB: the "fake" tag is stripped elsewhere, that's how it works
             m_snapshot->stripTag("compute");
         });
+        m_snapshot->fuseUnfolded();
         m_snapshot->repeat([&] {
             m_snapshot->fuseRemnantsExtended();
         });

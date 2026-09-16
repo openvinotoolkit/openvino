@@ -89,6 +89,28 @@ community-based projects involving OpenVINO, see the
 
 .. = 3 ========================================================================================
 
+**OpenVINO Backend for Windows ML**
+
+|hr|
+
+.. grid:: 1 1 2 2
+   :gutter: 4
+
+   .. grid-item::
+
+      | Windows ML is a unified, high-performance local AI inferencing framework for Windows,
+        using ONNX Runtime with Windows-managed, up-to-date execution providers.
+      | Benefits:
+      | - Leverages Windows-managed execution providers for seamless, updated runtime support.
+
+   .. grid-item::
+
+      * `Windows ML overview <https://learn.microsoft.com/en-us/windows/ai/new-windows-ml/overview>`__
+      * `Samples for Microsoft AI Foundry <https://github.com/intel/Samples-for-Microsoft-AI-Foundry>`__
+
+
+.. = 4 ========================================================================================
+
 **Torch.compile with OpenVINO**
 
 |hr|
@@ -122,7 +144,7 @@ community-based projects involving OpenVINO, see the
 
 
 
-.. = 4 ========================================================================================
+.. = 5 ========================================================================================
 
 **OpenVINO LLMs with LlamaIndex**
 
@@ -170,7 +192,7 @@ community-based projects involving OpenVINO, see the
           device_map="cpu",
       )
 
-.. = 5 ========================================================================================
+.. = 6 ========================================================================================
 
 **OpenVINO Backend for ExecuTorch**
 
@@ -200,7 +222,7 @@ community-based projects involving OpenVINO, see the
 
       python aot_optimize_and_infer.py --export --suite timm --model vgg16 --input_shape "[1, 3, 224, 224]" --device CPU
 
-.. = 6 ========================================================================================
+.. = 7 ========================================================================================
 
 **OpenVINO Integration for LangChain**
 
@@ -239,7 +261,7 @@ community-based projects involving OpenVINO, see the
 
       print(chain.invoke({"question": question}))
 
-.. = 7 ========================================================================================
+.. = 8 ========================================================================================
 
 **Intel® Geti™**
 
@@ -258,7 +280,7 @@ community-based projects involving OpenVINO, see the
       * `Intel® Geti Overview <https://docs.geti.intel.com/>`__
       * `Documentation <https://docs.geti.intel.com/docs/user-guide/getting-started/introduction>`__
       * `Tutorials <https://docs.geti.intel.com/docs/user-guide/getting-started/use-geti/tutorials>`__
-.. = 8 ========================================================================================
+.. = 9 ========================================================================================
 
 **AI Playground™**
 
@@ -281,7 +303,7 @@ community-based projects involving OpenVINO, see the
       * `AI Playground Overview <https://www.intel.com/content/www/us/en/products/docs/discrete-gpus/arc/software/ai-playground.html>`__
       * `GitHub Repository <https://github.com/intel/AI-Playground>`__
       * `User Guide <https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf>`__
-.. = 9 ========================================================================================
+.. = 10 ========================================================================================
 
 **Intel® AI Assistant Builder**
 

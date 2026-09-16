@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:22.04
 
@@ -77,7 +80,6 @@ ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 # Install newer ninja (apt ships 1.10.1 on 22.04 which lacks --quiet)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
 # OneAPI env
 ENV ONEAPI_ROOT=/opt/intel/oneapi

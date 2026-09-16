@@ -66,7 +66,7 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool i
                                               10.16667f, 10.5f, 10.83333f, 10.16667f, 10.5f, 10.83333f, 5.083333f, 5.25f, 5.416667f};
 
     auto first_network_output = outputs.at(activation_abs_id).get_memory();
-    cldnn::mem_lock<T> first_output_ptr(first_network_output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> first_output_ptr(first_network_output, get_test_stream());
 
     ASSERT_EQ(expected_first_output.size(), first_output_ptr.size());
     for (std::size_t i = 0; i < expected_first_output.size(); i++) {
@@ -80,7 +80,7 @@ void test_experimental_detectron_roi_feature_extractor_gpu_fp32_one_level(bool i
 
     auto second_network_output = outputs.at(second_output_r_id).get_memory();
     ASSERT_TRUE(engine.is_the_same_buffer(*second_output, *second_network_output));
-    cldnn::mem_lock<T> second_output_ptr(second_network_output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> second_output_ptr(second_network_output, get_test_stream());
 
     ASSERT_EQ(expected_second_output.size(), second_output_ptr.size());
     for (std::size_t i = 0; i < expected_second_output.size(); i++) {
@@ -164,7 +164,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {
                                               10.16667f,  10.5f,      10.83333f,   10.16667f,  10.5f,      10.83333f,  5.083333f,  5.25f,      5.416667f};
 
     auto first_network_output = outputs.at(activation_abs_id).get_memory();
-    cldnn::mem_lock<float> first_output_ptr(first_network_output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> first_output_ptr(first_network_output, get_test_stream());
 
     ASSERT_EQ(expected_first_output.size(), first_output_ptr.size());
     for (std::size_t i = 0; i < expected_first_output.size(); i++) {
@@ -175,7 +175,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, two_levels) {
 
     auto second_network_output = outputs.at(second_output_r_id).get_memory();
     ASSERT_TRUE(engine.is_the_same_buffer(*second_output, *second_network_output));
-    cldnn::mem_lock<float> second_output_ptr(second_network_output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> second_output_ptr(second_network_output, get_test_stream());
 
     ASSERT_EQ(expected_second_output.size(), second_output_ptr.size());
     for (std::size_t i = 0; i < expected_second_output.size(); i++) {
@@ -262,7 +262,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
                                                              10.16667f, 10.5f, 10.83333f, 10.16667f, 10.5f, 10.83333f, 5.083333f, 5.25f, 5.416667f};
 
     auto first_network_output_first_instance = outputs.at(activation_abs_first_instance_id).get_memory();
-    cldnn::mem_lock<float> first_output_ptr_first_instance(first_network_output_first_instance, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> first_output_ptr_first_instance(first_network_output_first_instance, get_test_stream());
 
     ASSERT_EQ(expected_first_output_first_instance.size(), first_output_ptr_first_instance.size());
     for (std::size_t i = 0; i < expected_first_output_first_instance.size(); i++) {
@@ -273,7 +273,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
 
     auto second_network_output_first_instance = outputs.at(second_output_r_first_instance_id).get_memory();
     ASSERT_TRUE(engine.is_the_same_buffer(*second_output_first_instance, *second_network_output_first_instance));
-    cldnn::mem_lock<float> second_output_ptr_first_instance(second_network_output_first_instance, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> second_output_ptr_first_instance(second_network_output_first_instance, get_test_stream());
 
     ASSERT_EQ(expected_second_output_first_instance.size(), second_output_ptr_first_instance.size());
     for (std::size_t i = 0; i < expected_second_output_first_instance.size(); i++) {
@@ -286,7 +286,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
                                                               10.16667f,  10.5f,      10.83333f,   10.16667f,  10.5f,      10.83333f,  5.083333f,  5.25f,      5.416667f};
 
     auto first_network_output_second_instance = outputs.at(activation_abs_second_instance_id).get_memory();
-    cldnn::mem_lock<float> first_output_ptr_second_instance(first_network_output_second_instance, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> first_output_ptr_second_instance(first_network_output_second_instance, get_test_stream());
 
     ASSERT_EQ(expected_first_output_second_instance.size(), first_output_ptr_second_instance.size());
     for (std::size_t i = 0; i < expected_first_output_second_instance.size(); i++) {
@@ -297,7 +297,7 @@ TEST(experimental_detectron_roi_feature_extractor_gpu_fp32, multiple_feature_ext
 
     auto second_network_output_second_instance = outputs.at(second_output_r_second_instance_id).get_memory();
     ASSERT_TRUE(engine.is_the_same_buffer(*second_output_second_instance, *second_network_output_second_instance));
-    cldnn::mem_lock<float> second_output_ptr_second_instance(second_network_output_second_instance, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> second_output_ptr_second_instance(second_network_output_second_instance, get_test_stream());
 
     ASSERT_EQ(expected_second_output_second_instance.size(), second_output_ptr_second_instance.size());
     for (std::size_t i = 0; i < expected_second_output_second_instance.size(); i++) {

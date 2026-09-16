@@ -142,7 +142,8 @@ class Testwhere(PytorchLayerTest):
                        'mask_dtype': mask_dtype,
                        'return_x_y': False,
                        "x_dtype": x_dtype,
-                       })
+                       },
+                   trace_model=True)
 
     @pytest.mark.parametrize("cond_val", ['zeros', 'ones'])
     @pytest.mark.parametrize("x_dtype", ["float32", "int32"])

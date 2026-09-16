@@ -117,11 +117,7 @@ std::vector<std::vector<ov::test::InputShape>> transpose_b_shapes{
     }
 };
 
-#ifdef OPENVINO_ARCH_ARM64
-static constexpr size_t expected_num_subgraphs = 2; // MatMul + Transpose
-#else
 static constexpr size_t expected_num_subgraphs = 1; // MatMul
-#endif
 
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulTransposeB, MatMulTransposeB,
                          ::testing::Combine(

@@ -18,6 +18,7 @@
 #include "to_string_utils.h"
 #include "program_wrapper.h"
 #include "pass_manager.h"
+#include "kernel_base.h"
 
 #include <memory>
 #include <regex>
@@ -128,6 +129,55 @@ TEST(kernels_cache, sub_kernel_ordering_test) {
     for (size_t i = 0; i < entry_point_list.size(); i++) {
         ASSERT_EQ(entry_point_list[i], _out_kernels[i]->get_id());
     }
+}
+
+// NEO 23.x+ no longer implicitly declares __local overloads of intel_sub_group_block_read*,
+// which broke SLM block reads in sub_group_block_read.cl.
+// This test compiles a kernel that uses the _sub_group_block_read_slm* family to guard against regressions:
+// if those symbols are missing, clBuildProgram fails on any driver.
+TEST(kernels_cache, sub_group_block_read_slm_emulation_path_compiles) {
+    auto& engine = get_test_engine();
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::threading::IStreamsExecutor::Config task_executor_config("slm_block_read_regression", 2);
+    auto executor = std::make_shared<ov::threading::CPUStreamsExecutor>(task_executor_config);
+    auto _kernels_cache = std::unique_ptr<kernels_cache>(new kernels_cache(
+        engine, config, 0, executor, kernel_selector::KernelBase::get_db().get_batch_headers()));
+
+    auto kernel_string = std::make_shared<kernel_selector::KernelString>();
+    kernel_string->str =
+        R"__krnl(
+            __attribute__((intel_reqd_sub_group_size(16)))
+            __kernel void slm_block_read_probe(const __global ushort* in, __global uint* out) {
+                __local uint   slm_u[256];
+                __local ushort slm_s[256];
+                const uint gid = get_global_id(0);
+                const uint lid = get_local_id(0);
+                slm_u[lid] = (uint)in[gid];
+                slm_s[lid] = in[gid];
+                barrier(CLK_LOCAL_MEM_FENCE);
+
+                uint    a  = _sub_group_block_read_slm(slm_u);
+                ushort  b  = _sub_group_block_read_slm_us(slm_s);
+                ushort4 c4 = _sub_group_block_read_slm_us4(slm_s);
+                ushort8 c8 = _sub_group_block_read_slm_us8(slm_s);
+                uint4   d  = as_uint4(BLOCK_READN_SLM(uint, 4, slm_u, 0));
+
+                out[gid] = a + (uint)b + (uint)c4.s0 + (uint)c8.s0 + d.x;
+            }
+        )__krnl";
+    kernel_string->language = kernel_language::OCLC;
+    kernel_string->options = "-cl-std=CL2.0";
+    kernel_string->entry_point = "slm_block_read_probe";
+    kernel_string->batch_compilation = true;
+
+    std::vector<std::shared_ptr<kernel_selector::KernelString>> kernel_code_list{kernel_string};
+    kernel_impl_params dummy_params;
+    auto dummy_prog = std::make_shared<program>(engine, config);
+    dummy_params.prog = dummy_prog.get();
+    _kernels_cache->add_kernels_source(dummy_params, kernel_code_list, false);
+
+    ASSERT_NO_THROW(_kernels_cache->build_all());
+    ASSERT_EQ(_kernels_cache->get_kernels(dummy_params).size(), size_t(1));
 }
 
 

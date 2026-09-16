@@ -110,7 +110,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = false;
+        jcp.mode = jit_rotary_compile_params::Mode::ROTATE_HALF;
         jcp.cos_sin_ndims = config.cos_sin_ndims;
         m_rotaryKernel = createJitKernel(jcp);
     }
@@ -203,8 +203,9 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = true;
+        jcp.mode = jit_rotary_compile_params::Mode::INTERLEAVE;
         jcp.mix_cos_sin = false;
+        jcp.cos_sin_ndims = config.cos_sin_ndims;
         m_rotaryKernel = createJitKernel(jcp, true);
     }
 
@@ -213,33 +214,110 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
                  const std::vector<MemoryPtr>& outputs,
                  const CpuParallelPtr& cpu_parallel) override {
         ov::intel_cpu::PlainTensor t_src(inputs[0]);
-        ov::intel_cpu::PlainTensor t_sin_cos(inputs[1]);
         ov::intel_cpu::PlainTensor t_dst(outputs[0]);
-
-        auto batch_size = t_src.size(0);
-        auto seq_len = t_src.size(1);
-        auto head_cnt = t_src.size(2);
-        auto head_dims = t_src.size(3);
 
         auto rotary_dims = m_config.rotary_ndims;
         auto half_rotary_dims = rotary_dims / 2;
 
-        cpu_parallel->parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
-            auto* x = t_src.ptr<T>(b, p, h);
-            float* sin = &t_sin_cos.at<float>({b, p, 0}, true);
-            float* cos = &t_sin_cos.at<float>({b, p, half_rotary_dims}, true);
-            auto* dst = m_config.output_trans0213 ? t_dst.ptr<T>(b, h, p) : t_dst.ptr<T>(b, p, h);
+        if (m_config.use_rope_cache) {
+            ov::intel_cpu::PlainTensor t_sin_cos(inputs[1]);
+            const auto batch_size = t_src.size(0);
+            const auto seq_len = t_src.size(1);
+            const auto head_cnt = t_src.size(2);
+            const auto head_dims = t_src.size(3);
+            cpu_parallel->parallel_for3d(batch_size, seq_len, head_cnt, [&](size_t b, size_t p, size_t h) {
+                auto* x = t_src.ptr<T>(b, p, h);
+                float* sin = &t_sin_cos.at<float>({b, p, 0}, true);
+                float* cos = &t_sin_cos.at<float>({b, p, half_rotary_dims}, true);
+                auto* dst = m_config.output_trans0213 ? t_dst.ptr<T>(b, h, p) : t_dst.ptr<T>(b, p, h);
+
+                if (m_rotaryKernel) {
+                    execJitKernel(m_rotaryKernel, x, dst, cos, sin);
+                } else {
+                    size_t i = 0;
+                    for (size_t j = 0; i < rotary_dims; i += 2, j++) {
+                        dst[i] = cos[j] * x[i] - sin[j] * x[i + 1];
+                        dst[i + 1] = cos[j] * x[i + 1] + sin[j] * x[i];
+                    }
+                }
+                memcpy(dst + rotary_dims, x + rotary_dims, (head_dims - rotary_dims) * sizeof(T));
+            });
+        } else {
+            // Flux-style RoPE: separate full-width cos/sin tensors, one distinct angle per element
+            // (dims 1 & 2 align 1:1 with x regardless of BHLS/BLHS layout).
+            const auto batch_size = t_src.size(0);
+            const auto dim_1 = t_src.size(1);
+            const auto dim_2 = t_src.size(2);
+            const auto head_dims = t_src.size(3);
+            ov::intel_cpu::PlainTensor t_cos(inputs[1]);
+            ov::intel_cpu::PlainTensor t_sin(inputs[2]);
+            cpu_parallel->parallel_for3d(batch_size, dim_1, dim_2, [&](size_t b, size_t d_1, size_t d_2) {
+                auto* x = t_src.ptr<T>(b, d_1, d_2);
+                float* sin = &t_sin.at<float>({b, d_1, d_2}, true);
+                float* cos = &t_cos.at<float>({b, d_1, d_2}, true);
+                auto* dst = m_config.output_trans0213 ? t_dst.ptr<T>(b, d_2, d_1) : t_dst.ptr<T>(b, d_1, d_2);
+                if (m_rotaryKernel) {
+                    execJitKernel(m_rotaryKernel, x, dst, cos, sin);
+                } else {
+                    for (size_t i = 0; i < rotary_dims; i += 2) {
+                        dst[i] = cos[i] * x[i] - sin[i] * x[i + 1];
+                        dst[i + 1] = cos[i + 1] * x[i + 1] + sin[i + 1] * x[i];
+                    }
+                }
+                memcpy(dst + rotary_dims, x + rotary_dims, (head_dims - rotary_dims) * sizeof(T));
+            });
+        }
+    }
+};
+
+// LTX-Video 3D spatial-temporal RoPE: x [batch, seq, rotary_ndims] with separate full-width cos/sin
+// tables. Interleaved complex pairs; each element keeps its own cos/sin (the two halves of a pair
+// need not share an angle). Accumulated in f32 (cos/sin ports are f32) and rounded once on store,
+// so bf16 stays as precise as PyTorch.
+template <typename T>
+struct RoPE::RoPEExecutorLtxVideo : public RoPE::Executor {
+    const op::internal::RoPE::Config& m_config;
+    std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
+
+    explicit RoPEExecutorLtxVideo(const op::internal::RoPE::Config& config) : m_config(config) {
+        jit_rotary_compile_params jcp;
+        jcp.src_prc = precision_of<T>::value;
+        jcp.dst_prc = precision_of<T>::value;
+        jcp.rotary_ndims = config.rotary_ndims;
+        jcp.mode = jit_rotary_compile_params::Mode::LTX_VIDEO;
+        m_rotaryKernel = createJitKernel(jcp, true);
+    }
+
+    void execute([[maybe_unused]] const dnnl::stream& strm,
+                 const std::vector<MemoryPtr>& inputs,
+                 const std::vector<MemoryPtr>& outputs,
+                 const CpuParallelPtr& cpu_parallel) override {
+        ov::intel_cpu::PlainTensor t_src(inputs[0]);
+        ov::intel_cpu::PlainTensor t_cos(inputs[1]);
+        ov::intel_cpu::PlainTensor t_sin(inputs[2]);
+        ov::intel_cpu::PlainTensor t_dst(outputs[0]);
+
+        auto batch_size = t_src.size(0);
+        auto seq_len = t_src.size(1);
+        auto rotary_dims = m_config.rotary_ndims;
+
+        cpu_parallel->parallel_for2d(batch_size, seq_len, [&](size_t b, size_t p) {
+            auto* x = t_src.ptr<T>(b, p);
+            // allow_broadcast handles size-1 cos/sin batch/seq natively
+            const float* cos = &t_cos.at<float>({b, p, 0}, true);
+            const float* sin = &t_sin.at<float>({b, p, 0}, true);
+            auto* dst = t_dst.ptr<T>(b, p);
 
             if (m_rotaryKernel) {
                 execJitKernel(m_rotaryKernel, x, dst, cos, sin);
             } else {
-                size_t i = 0;
-                for (size_t j = 0; i < rotary_dims; i += 2, j++) {
-                    dst[i] = cos[j] * x[i] - sin[j] * x[i + 1];
-                    dst[i + 1] = cos[j] * x[i + 1] + sin[j] * x[i];
+                for (size_t r = 0; r < rotary_dims; r += 2) {
+                    auto real = static_cast<float>(x[r]);
+                    auto imag = static_cast<float>(x[r + 1]);
+                    dst[r] = static_cast<T>(cos[r] * real - sin[r] * imag);
+                    dst[r + 1] = static_cast<T>(sin[r + 1] * real + cos[r + 1] * imag);
                 }
             }
-            memcpy(dst + rotary_dims, x + rotary_dims, (head_dims - rotary_dims) * sizeof(T));
         });
     }
 };
@@ -254,7 +332,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = true;
+        jcp.mode = jit_rotary_compile_params::Mode::INTERLEAVE;
         // if use precomputed rope cache then it's mixed
         // otherwise rope has separate cos/sin inputs
         jcp.mix_cos_sin = config.use_rope_cache;
@@ -369,7 +447,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
         jcp.rotary_ndims = config.rotary_ndims;
-        jcp.interleave = false;
+        jcp.mode = jit_rotary_compile_params::Mode::ROTATE_HALF;
         m_rotaryKernel = createJitKernel(jcp);
     }
 
@@ -468,6 +546,17 @@ void RoPE::initSupportedPrimitiveDescriptors() {
             m_executor = std::make_shared<RoPEExecutorChatGLM<ov::bfloat16>>(m_config);
         } else {
             m_executor = std::make_shared<RoPEExecutorChatGLM<float>>(m_config);
+            rtPrecision = ov::element::f32;
+        }
+    } else if (m_config.is_ltx_video) {
+        CPU_NODE_ASSERT(m_config.rotary_ndims % 2 == 0, "rotary_ndims must be even for LTX RoPE");
+        // LTX sets both is_interleaved and is_ltx_video, so this must be checked first
+        if (rtPrecision == ov::element::f16) {
+            m_executor = std::make_shared<RoPEExecutorLtxVideo<ov::float16>>(m_config);
+        } else if (rtPrecision == ov::element::bf16) {
+            m_executor = std::make_shared<RoPEExecutorLtxVideo<ov::bfloat16>>(m_config);
+        } else {
+            m_executor = std::make_shared<RoPEExecutorLtxVideo<float>>(m_config);
             rtPrecision = ov::element::f32;
         }
     } else if (m_config.is_interleaved) {

@@ -25,7 +25,8 @@ ov_add_target(TYPE EXECUTABLE
               ROOT ${CMAKE_CURRENT_SOURCE_DIR}
               LINK_LIBRARIES
                   PRIVATE
-                      openvino::runtime
+                      openvino::runtime::dev
+                      openvino::npu_ops
                       gflags
                       Threads::Threads
                       npu_tools_utils)

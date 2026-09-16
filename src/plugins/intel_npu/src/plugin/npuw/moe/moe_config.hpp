@@ -36,9 +36,14 @@ struct MoEConfig {
     // Example: param[5] -> [param[10], param[11], param[12], param[13]] for K=4 experts
     std::map<size_t, std::vector<size_t>> param_mapping;
 
-    // Input parameter indices
-    std::optional<size_t> router_scores_idx;       // Index of router scores input
-    std::optional<size_t> expert_input_param_idx;  // Index of expert input (token embeddings)
+    // Holds original-model index (for prologue matching / param_mapping lookup)
+    // and compiled-model index (for direct port binding after transformation).
+    struct ParamIndex {
+        std::optional<size_t> original;  // index in original model
+        std::optional<size_t> compiled;  // index in compiled/transformed model
+    };
+    ParamIndex router_scores;  // router scores input parameter
+    ParamIndex expert_input;   // expert activation input parameter
 
     // Compiled models for different chunk sizes (for EXPERT_ITERATIVE mode)
     // Key: chunk_size (e.g., 256, 128, 64, 32, 16)

@@ -5,20 +5,13 @@
 #pragma once
 
 #include "kernel_base_opencl.h"
+#include "gather_nonzero_params.h"
 
 namespace kernel_selector {
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// gather_nonzero_params
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-struct gather_nonzero_params : public base_params {
-    gather_nonzero_params() : base_params(KernelType::GATHER_NONZERO) {}
-    int32_t ov_input_rank = -1;
-};
-
 class GatherNonzeroKernelRef : public KernelBaseOpenCL {
 public:
     GatherNonzeroKernelRef() : KernelBaseOpenCL("gather_nonzero_ref") {}
-    virtual ~GatherNonzeroKernelRef() {}
+    ~GatherNonzeroKernelRef() override = default;
 
     virtual JitConstants GetJitConstants(const gather_nonzero_params& params) const;
     virtual CommonDispatchData SetDefault(const gather_nonzero_params& params) const;

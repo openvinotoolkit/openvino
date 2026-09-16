@@ -2,13 +2,53 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "internal_properties_tests.hpp"
-
 #include <cstdlib>
 
+#include "behavior/ov_plugin/properties_tests.hpp"
 #include "common/utils.hpp"
+#include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "common_test_utils/unicode_utils.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+
+namespace ov::test::behavior {
+
+using PropertiesParamsNPU = std::tuple<std::string, AnyMap>;
+
+class OVPropertiesTestsNPU : public testing::WithParamInterface<PropertiesParamsNPU>, public OVPropertiesBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<PropertiesParamsNPU>& obj);
+
+    void SetUp() override;
+
+    void TearDown() override;
+};
+
+using OVPropertiesIncorrectTestsNPU = OVPropertiesTestsNPU;
+
+using OVPropertiesEnvVarTestsNPU = OVPropertiesTestsNPU;
+
+using CompileModelPropertiesParamsNPU = std::tuple<std::string, AnyMap>;
+
+class OVPropertiesTestsWithCompileModelPropsNPU : public testing::WithParamInterface<PropertiesParamsNPU>,
+                                                  public OVPropertiesBase {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<PropertiesParamsNPU>& obj);
+
+    void SetUp() override;
+
+    void TearDown() override;
+
+    AnyMap compileModelProperties;
+};
+
+using OVCheckSetSupportedRWMetricsPropsTestsNPU = OVPropertiesTestsWithCompileModelPropsNPU;
+}  // namespace ov::test::behavior
 
 namespace {
 
@@ -187,7 +227,6 @@ TEST_P(OVCheckSetSupportedRWMetricsPropsTestsNPU, ChangeCorrectProperties) {
 }
 
 const std::vector<ov::AnyMap> compat_CorrectPluginMutableProperties = {
-    {{ov::internal::exclusive_async_requests.name(), true}},
     {{ov::intel_npu::dma_engines.name(), 1}},
     {{ov::intel_npu::compilation_mode.name(), "DefaultHW"}},
     {{ov::intel_npu::profiling_type.name(), ov::intel_npu::ProfilingType::INFER}}};

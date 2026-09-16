@@ -164,7 +164,12 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
     std::string min_func = "dynamic";
     std::string abs_func = "dynamic";
     std::string type_size = "dynamic";
+    std::string compute_type;
+    std::string to_compute_type;
+    std::string decode_compute_type;
+    std::string decode_compute_vector_type;
     bool is_fp = false;
+    bool is_bf16 = false;
     switch (value) {
     case ov::element::i8:
         type = "char";
@@ -298,12 +303,22 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         break;
     case ov::element::bf16:
         type = "ushort";
+        max_val = "FLT_MAX";
+        min_val = "-" + name + "_VAL_MAX";
         val_one = "(ushort) 1";
         val_zero = "(ushort) 0";
         to_type = "_convert_bfloat16_as_ushort(v)";
         to_type_sat = "_convert_bfloat16_as_ushort(v)";
+        compute_type = "float";
+        to_compute_type = "convert_float(v)";
+        decode_compute_type = "_convert_as_bfloat16_float(v)";
+        decode_compute_vector_type = "CONVERT_AS_BFLOAT16_FLOAT(v, size)";
+        max_func = "fmax";
+        min_func = "fmin";
+        abs_func = "fabs";
         type_size = "2";
         is_fp = false;
+        is_bf16 = true;
         break;
     case ov::element::f32:
         type = "float";
@@ -320,9 +335,81 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         type_size = "4";
         is_fp = true;
         break;
+    case ov::element::f4e2m1:
+        type = "fp4e2m1_t";
+        max_val = "(fp4e2m1_t){as_uchar((uchar)0x7)}";  // 6.0
+        min_val = "(fp4e2m1_t){as_uchar((uchar)0xF)}";  // -6.0
+        val_one = "(fp4e2m1_t){as_uchar((uchar)0x2)}";
+        val_zero = "(fp4e2m1_t){as_uchar((uchar)0x0)}";
+        to_type = "_convert_fp4e2m1_t(v)";
+        to_type_sat = "_convert_fp4e2m1_t_sat(v)";
+        as_type = "as_fp4e2m1_t(v)";
+        type_size = "0.5f";
+        is_fp = true;
+        break;
+    case ov::element::f8e4m3:
+        type = "fp8e4m3_t";
+        max_val = "(fp8e4m3_t){as_char((char)0x7E)}";  // 448.0
+        min_val = "(fp8e4m3_t){as_char((char)0xFE)}";  // -448.0
+        val_one = "(fp8e4m3_t){as_char((char)0x38)}";
+        val_zero = "(fp8e4m3_t){as_char((char)0x0)}";
+        to_type = "_convert_fp8e4m3_t(v)";
+        to_type_sat = "_convert_fp8e4m3_t_sat(v)";
+        as_type = "as_fp8e4m3_t(v)";
+        type_size = "1";
+        is_fp = true;
+        break;
+    case ov::element::f8e5m2:
+        type = "fp8e5m2_t";
+        max_val = "(fp8e5m2_t){as_uchar((uchar)0x7B)}";  // 57344.0
+        min_val = "(fp8e5m2_t){as_uchar((uchar)0xFB)}";  // -57344.0
+        val_one = "(fp8e5m2_t){as_uchar((uchar)0x3C)}";
+        val_zero = "(fp8e5m2_t){as_uchar((uchar)0x0)}";
+        to_type = "_convert_fp8e5m2_t(v)";
+        to_type_sat = "_convert_fp8e5m2_t_sat(v)";
+        as_type = "as_fp8e5m2_t(v)";
+        type_size = "1";
+        is_fp = true;
+        break;
+    case ov::element::f8e8m0:
+        type = "fp8e8m0_t";
+        max_val = "(fp8e8m0_t){as_uchar((uchar)0xFE)}";  // 2^127
+        min_val = "(fp8e8m0_t){as_uchar((uchar)0x00)}";  // 2^(-127)
+        val_one = "(fp8e8m0_t){as_uchar((uchar)0x7F)}";
+        val_zero = "";  // There is no representation of zero in FP8E8M0
+        to_type = "_convert_fp8e8m0_t(v)";
+        to_type_sat = "_convert_fp8e8m0_t_sat(v)";
+        as_type = "as_fp8e8m0_t(v)";
+        type_size = "1";
+        is_fp = true;
+        break;
+    case ov::element::dynamic:
+        type = "uchar";
+        max_val = "UCHAR_MAX";
+        min_val = "0";
+        val_one = "(uchar) 1";
+        val_zero = "(uchar) 0";
+        to_type = "convert_uchar(v)";
+        to_type_sat = "convert_uchar_sat(v)";
+        as_type = "as_uchar(v)";
+        max_func = "max";
+        min_func = "min";
+        abs_func = "abs";
+        type_size = "1";
+        is_fp = false;
+        break;
     default:
         OPENVINO_THROW("[GPU] Jitter: unsupported data type: ", value);
     }
+
+    if (compute_type.empty())
+        compute_type = type;
+    if (to_compute_type.empty())
+        to_compute_type = to_type;
+    if (decode_compute_type.empty())
+        decode_compute_type = "(v)";
+    if (decode_compute_vector_type.empty())
+        decode_compute_vector_type = "(v)";
 
     return {
         make_jit_constant(name + "_TYPE", type),
@@ -338,6 +425,11 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         make_jit_constant(name + "_ABS_FUNC", abs_func),
         make_jit_constant(name + "_TYPE_SIZE", type_size),
         make_jit_constant(name + "_IS_FP", is_fp),
+        make_jit_constant(name + "_IS_BF16", is_bf16),
+        make_jit_constant(name + "_COMPUTE_TYPE", compute_type),
+        make_jit_constant("TO_" + name + "_COMPUTE_TYPE(v)", to_compute_type),
+        make_jit_constant("DECODE_" + name + "_COMPUTE_TYPE(v)", decode_compute_type),
+        make_jit_constant("DECODE_" + name + "_COMPUTE_VECTOR_TYPE(v, size)", decode_compute_vector_type),
     };
 }
 
@@ -526,6 +618,8 @@ std::string to_ocl_type(ov::element::Type_t et) {
         return get_ocl_type_name<int64_t>();
     case ov::element::Type_t::f16:
         return get_ocl_type_name<ov::float16>();
+    case ov::element::Type_t::bf16:
+        return get_ocl_type_name<ov::bfloat16>();
     case ov::element::Type_t::f32:
         return get_ocl_type_name<float>();
     default:

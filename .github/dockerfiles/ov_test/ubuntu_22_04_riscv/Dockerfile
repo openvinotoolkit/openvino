@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:22.04
 
@@ -24,6 +27,7 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
+        procps \
         # parallel gzip
         pigz \
         # Python

@@ -127,7 +127,10 @@ public:
 private:
     void register_matcher_gqa(Context::Ref ctx) {
         auto param = opp::wrap_type<ov::op::v0::Parameter>();
-        auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
+        // MQA: aten::transpose on a dim-1 axis (num_kv_heads==1) is optimized by the
+        // frontend into a Reshape instead of a real Transpose, so match both.
+        auto transpose =
+            opp::wrap_type<ov::op::v1::Transpose, ov::op::v1::Reshape>({opp::any_input(), opp::any_input()});
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
 
@@ -155,6 +158,38 @@ private:
             auto matched_node_unsqueeze_axes = node_to_output.at(unsqueeze_axes).get_node_shared_ptr();
             auto matched_node_broadcast = node_to_output.at(broadcast).get_node_shared_ptr();
             auto matched_node_reshape = node_to_output.at(reshape).get_node_shared_ptr();
+
+            // MQA: Replace it with a
+            // real Transpose so that transpose_matmul_b can set the permutation order
+            // uniformly.  The placeholder order {0,2,1,3} will be overwritten to
+            // {0,2,3,1} by transpose_matmul_b.
+            if (ov::is_type<ov::op::v1::Reshape>(matched_node_transpose)) {
+                // Only accept a Reshape that is semantically a genuine MQA fake-transpose:
+                //   [B, Snew, 1, D] → [B, 1, Snew, D]
+                // i.e. 4D→4D, axes 1 and 2 are swapped, and the swapped-out dim equals 1
+                // (num_kv_heads==1).  Any other Reshape (e.g. 3D→4D in negative tests)
+                // must be rejected so the matcher does not fire.
+                const auto& in_shape = matched_node_transpose->input_value(0).get_partial_shape();
+                const auto& out_shape = matched_node_transpose->get_output_partial_shape(0);
+                const bool is_mqa_fake_transpose =
+                    in_shape.rank().is_static() && in_shape.rank().get_length() == 4 && out_shape.rank().is_static() &&
+                    out_shape.rank().get_length() == 4 && in_shape[0].compatible(out_shape[0]) &&  // B unchanged
+                    in_shape[3].compatible(out_shape[3]) &&                                        // D unchanged
+                    in_shape[1].compatible(out_shape[2]) &&                    // Snew swapped to dim 2
+                    in_shape[2].compatible(out_shape[1]) &&                    // kv_heads swapped to dim 1
+                    in_shape[2].is_static() && in_shape[2].get_length() == 1;  // kv_heads==1
+                if (!is_mqa_fake_transpose) {
+                    return false;
+                }
+                LOG_DEBUG("GQA: matched 'transpose' is a Reshape (num_kv_heads==1); replacing with Transpose");
+                auto data_input = matched_node_transpose->input_value(0);
+                auto placeholder_order = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 1, 3});
+                auto new_transpose = std::make_shared<ov::op::v1::Transpose>(data_input, placeholder_order);
+                new_transpose->set_friendly_name(matched_node_transpose->get_friendly_name());
+                ov::copy_runtime_info(matched_node_transpose, new_transpose);
+                ov::replace_node(matched_node_transpose, new_transpose);
+                matched_node_transpose = new_transpose;
+            }
 
             auto matched_param = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_param);
             auto matched_concat = std::static_pointer_cast<ov::op::v0::Concat>(matched_node_concat);

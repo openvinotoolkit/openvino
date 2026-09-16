@@ -18,8 +18,6 @@ void ReaderWorker::Execute() {
 void ReaderWorker::OnOK() {
     auto model = cpp_to_js(Env(), _model);
 
-    delete _args;
-
     _deferred.Resolve(model);
 }
 

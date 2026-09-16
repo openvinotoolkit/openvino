@@ -1,3 +1,6 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 ARG REGISTRY="docker.io"
 FROM ${REGISTRY}/library/ubuntu:24.04
 
@@ -21,7 +24,6 @@ RUN apt-get update && \
         git \
         ca-certificates \
         wget \
-        cmake \
         lsb-release \
         gnupg \
         build-essential \
@@ -36,3 +38,8 @@ RUN apt-get update && \
     ./llvm.sh 18 && \
     apt-get --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu && \
     rm -rf /var/lib/apt/lists/*
+
+# Install CMake 3.26.4 using the Kitware installer script
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.26.4/cmake-3.26.4-linux-x86_64.sh && \
+    sh cmake-3.26.4-linux-x86_64.sh --skip-license --prefix=/usr/local && \
+    rm cmake-3.26.4-linux-x86_64.sh

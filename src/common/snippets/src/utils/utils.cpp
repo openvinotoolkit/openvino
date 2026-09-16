@@ -460,7 +460,7 @@ void visit_path(const lowered::ExpressionPtr& expr,
     auto continue_traversal = [&](const lowered::ExpressionPtr& expr) {
         if (visited.count(expr) == 0) {
             exprs.push_front(expr);
-            visited.insert(expr);
+            visited.insert(lowered::ExpressionPtr(expr));
         }
     };
 
