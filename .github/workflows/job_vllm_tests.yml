@@ -12,6 +12,14 @@ on:
         type: string
         required: false
         default: null
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -72,10 +80,10 @@ jobs:
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Setup Python 3.11
+      - name: Setup Python ${{ inputs.python-version }}
         uses: ./.github/actions/setup_python
         with:
-          version: '3.11'
+          version: ${{ inputs.python-version }}
           set-pip-install-path: 'false'
           self-hosted-runner: ${{ contains(inputs.runner, 'aks') }}
           use-pip-proxy: ${{ contains(inputs.runner, 'aks') }}
@@ -87,11 +95,15 @@ jobs:
           wheels-to-install: 'openvino openvino_tokenizers'
 
       - name: Install vLLM tests requirements
+        # Gated alongside the test step below: this pulls vllm-cpu and its
+        # pinned torch build, which is the bulk of the job's runtime.
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
         run: |
           python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${VLLM_TESTS_INSTALL_DIR}/requirements.txt
 
       - name: vLLM Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
         run: |
           export PYTHONPATH=${VLLM_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${VLLM_TESTS_INSTALL_DIR} -m precommit --html=${INSTALL_TEST_DIR}/TEST-vllm_tests.html --self-contained-html -v
@@ -105,4 +117,4 @@ jobs:
           name: test-results-vllm
           path: |
             ${{ env.INSTALL_TEST_DIR }}/TEST-vllm*
-          if-no-files-found: 'error'
+          if-no-files-found: 'warn'
