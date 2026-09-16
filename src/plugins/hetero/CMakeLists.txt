@@ -8,8 +8,35 @@ endif()
 
 set(TARGET_NAME openvino_hetero_plugin)
 
-file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+set(SOURCES
+    src/async_infer_request.cpp
+    src/blob_serialization.cpp
+    src/compiled_model.cpp
+    src/config.cpp
+    src/graph_debug_dump.cpp
+    src/op/device_subgraph.cpp
+    src/plugin.cpp
+    src/remote_context.cpp
+    src/remote_tensor.cpp
+    src/subgraph_collector.cpp
+    src/sync_infer_request.cpp
+    src/version.cpp)
+
+set(HEADERS
+    src/async_infer_request.hpp
+    src/blob_serialization.hpp
+    src/compiled_model.hpp
+    src/config.hpp
+    src/graph_debug_dump.hpp
+    src/itt.hpp
+    src/op/device_subgraph.hpp
+    src/perf_log.hpp
+    src/plugin.hpp
+    src/properties.hpp
+    src/remote_context.hpp
+    src/remote_tensor.hpp
+    src/subgraph_collector.hpp
+    src/sync_infer_request.hpp)
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "HETERO"

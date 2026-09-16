@@ -8,8 +8,17 @@ endif()
 
 set(TARGET_NAME "openvino_auto_batch_plugin")
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp)
+set(SOURCES
+    src/async_infer_request.cpp
+    src/compiled_model.cpp
+    src/plugin.cpp
+    src/sync_infer_request.cpp)
+
+set(HEADERS
+    src/async_infer_request.hpp
+    src/compiled_model.hpp
+    src/plugin.hpp
+    src/sync_infer_request.hpp)
 
 ov_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME "BATCH"
