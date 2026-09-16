@@ -4,8 +4,11 @@
 
 #include "graph_emitter.hpp"
 
+#include "gguf_builder_decoder.hpp"
+#include "op_table.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/constant.hpp"
+#include "translate_session.hpp"
 
 namespace ov {
 namespace frontend {
@@ -40,11 +43,13 @@ WeightTensors find_weight_tensors(const std::unordered_map<std::string, ov::Tens
 
 GraphEmitter::GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
                            std::unordered_map<std::string, GgufTensorType>& qtypes,
-                           std::string arch)
+                           std::string arch,
+                           const std::unordered_map<std::string, CreatorFunction>* translators)
     : m_weights(weights),
       m_qtypes(qtypes),
       m_arch(std::move(arch)),
-      m_graph(std::make_shared<GgufGraph>()) {}
+      m_graph(std::make_shared<GgufGraph>()),
+      m_translators(translators ? *translators : get_supported_ops()) {}
 
 const ov::Tensor& GraphEmitter::weight_tensor(const std::string& name) const {
     auto it = m_weights.find(name);
@@ -66,33 +71,15 @@ int64_t GraphEmitter::weight_rows(const std::string& name) const {
     return s.empty() ? 1 : static_cast<int64_t>(s[0]);
 }
 
-const ov::PartialShape& GraphEmitter::shape_of_tensor(const std::string& name) const {
-    auto it = m_tensor_shapes.find(name);
-    OPENVINO_ASSERT(it != m_tensor_shapes.end(), "[GGUF] internal: no shape recorded for '", name, "'");
+const ov::Output<ov::Node>& GraphEmitter::value(const std::string& name) const {
+    const auto it = m_graph->values->find(name);
+    OPENVINO_ASSERT(it != m_graph->values->end(), "[GGUF] unknown value '", name, "'");
     return it->second;
-}
-
-ov::Shape GraphEmitter::static_shape_of(const std::string& tensor_name) const {
-    const auto& shape = shape_of_tensor(tensor_name);
-    OPENVINO_ASSERT(shape.is_static(),
-                    "[GGUF] internal: shape of '",
-                    tensor_name,
-                    "' is dynamic (",
-                    shape,
-                    "), cannot be used as a static input shape");
-    return shape.to_shape();
-}
-
-void GraphEmitter::set_tensor_meta(const std::string& name, const ov::PartialShape& shape, ov::element::Type type) {
-    m_tensor_shapes[name] = shape;
-    m_tensor_types[name] = type;
 }
 
 std::string GraphEmitter::add_op(const std::string& op_type,
                                  const std::string& name,
                                  const std::vector<std::string>& inputs,
-                                 const ov::PartialShape& out_shape,
-                                 ov::element::Type out_type,
                                  int op_case,
                                  std::map<std::string, ov::Any> attrs) {
     GgufOp op;
@@ -100,23 +87,14 @@ std::string GraphEmitter::add_op(const std::string& op_type,
     op.name = name;
     op.input_names = inputs;
     op.output_name = name;
-    op.output_shape = out_shape;
-    op.output_type = out_type;
     op.op_case = op_case;
     op.attributes = std::move(attrs);
-    // Fill per-input shape/type from known producers so translators that query them
-    // (MUL_MAT, RESHAPE) get sane values.
-    for (const auto& in : inputs) {
-        if (auto it = m_tensor_shapes.find(in); it != m_tensor_shapes.end()) {
-            op.input_shapes[in] = it->second;
-        }
-        if (auto it = m_tensor_types.find(in); it != m_tensor_types.end()) {
-            op.input_types[in] = it->second;
-        }
-    }
-    m_tensor_shapes[name] = out_shape;
-    m_tensor_types[name] = out_type;
     m_graph->nodes.push_back(std::move(op));
+    auto decoder = std::make_shared<GgufBuilderDecoder>(m_graph);
+    prepare_graph_inputs(*m_graph->values, *decoder);
+    translate_node(std::make_shared<GgufBuilderDecoder>(m_graph, static_cast<int>(m_graph->nodes.size() - 1)),
+                   m_graph->values,
+                   m_translators);
     return name;
 }
 
@@ -127,6 +105,7 @@ std::shared_ptr<ov::op::v0::Parameter> GraphEmitter::add_input(const std::string
     p->set_friendly_name(name);
     p->output(0).set_names({name});
     m_graph->model_inputs[name] = p;
+    (*m_graph->values)[name] = p;
     return p;
 }
 
@@ -134,42 +113,30 @@ void GraphEmitter::add_extra_input(const std::string& name, int64_t value) {
     auto c = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {value});
     c->set_friendly_name(name);
     m_graph->model_extra_inputs[name] = c;
+    (*m_graph->values)[name] = c;
 }
 
 void GraphEmitter::add_extra_input_node(const std::string& name, const std::shared_ptr<ov::Node>& node) {
     m_graph->model_extra_inputs[name] = node;
+    (*m_graph->values)[name] = node;
 }
 
-void GraphEmitter::emit_weight_op(const std::string& node_name,
-                                  const WeightTensors& tensors,
-                                  GgufTensorType qtype,
-                                  const ov::PartialShape& shape_4d) {
+void GraphEmitter::emit_weight_op(const std::string& node_name, const WeightTensors& tensors, GgufTensorType qtype) {
     if (m_emitted_weights.count(node_name)) {
         return;
     }
     m_emitted_weights.insert(node_name);
 
-    GgufOp op;
-    op.op_type = "GGML_OP_NONE";
-    op.name = node_name;
-    op.output_name = node_name;
-    op.output_shape = shape_4d;
-    op.output_type = ov::element::f32;
-    // translate_weight reads these into a WeightTensors payload:
-    // "gguf.blob.<sub>" -> extracted tensor (<sub> in {weight, scales, zp}), and the qtype id.
-    op.attributes["gguf_weight"] = true;  // marks this GGML_OP_NONE leaf as a weight
-    op.attributes["gguf_qtype"] = static_cast<int>(qtype);
-    op.attributes["gguf.blob.weight"] = tensors.weight;
+    std::map<std::string, ov::Any> attrs{{"gguf_weight", true},
+                                         {"gguf_qtype", static_cast<int>(qtype)},
+                                         {"gguf.blob.weight", tensors.weight}};
     if (tensors.scales) {
-        op.attributes["gguf.blob.scales"] = tensors.scales;
+        attrs["gguf.blob.scales"] = tensors.scales;
     }
     if (tensors.zero_point) {
-        op.attributes["gguf.blob.zp"] = tensors.zero_point;
+        attrs["gguf.blob.zp"] = tensors.zero_point;
     }
-    m_graph->nodes.push_back(std::move(op));
-
-    m_tensor_shapes[node_name] = shape_4d;
-    m_tensor_types[node_name] = ov::element::f32;
+    add_op("GGML_OP_NONE", node_name, {}, 0, std::move(attrs));
 }
 
 void GraphEmitter::add_weight(const std::string& ggml_name) {
@@ -184,15 +151,7 @@ void GraphEmitter::add_weight(const std::string& ggml_name) {
         qtype = it->second;
     }
 
-    // Shape padded to the decoder's rank-4 convention; the extents matter only as the
-    // per-input shape/type for translators (MUL_MAT) that index dims [1] and [3].
-    int64_t rows = 1, cols = 1;
-    if (auto it = m_weights.find(ggml_name); it != m_weights.end()) {
-        const auto& s = it->second.get_shape();  // [rows, cols(packed)]
-        rows = s.size() >= 1 ? static_cast<int64_t>(s[0]) : 1;
-        cols = s.size() >= 2 ? static_cast<int64_t>(s[1]) : 1;
-    }
-    emit_weight_op(ggml_name, tensors, qtype, ov::PartialShape({1, 1, rows, cols}));
+    emit_weight_op(ggml_name, tensors, qtype);
 }
 
 void GraphEmitter::add_weight_from(const std::string& node_name, const std::string& src_base) {
@@ -204,13 +163,7 @@ void GraphEmitter::add_weight_from(const std::string& node_name, const std::stri
     if (auto it = m_qtypes.find(src_base + ".qtype"); it != m_qtypes.end()) {
         qtype = it->second;
     }
-    int64_t rows = 1, cols = 1;
-    if (auto it = m_weights.find(src_base + ".weight"); it != m_weights.end()) {
-        const auto& s = it->second.get_shape();
-        rows = s.size() >= 1 ? static_cast<int64_t>(s[0]) : 1;
-        cols = s.size() >= 2 ? static_cast<int64_t>(s[1]) : 1;
-    }
-    emit_weight_op(node_name, tensors, qtype, ov::PartialShape({1, 1, rows, cols}));
+    emit_weight_op(node_name, tensors, qtype);
 }
 
 void GraphEmitter::add_named_weight(const std::string& ggml_name) {
@@ -225,12 +178,7 @@ void GraphEmitter::add_named_weight(const std::string& ggml_name) {
     GgufTensorType qtype = w.get_element_type() == ov::element::f32    ? GGUF_TYPE_F32
                            : w.get_element_type() == ov::element::bf16 ? GGUF_TYPE_BF16
                                                                        : GGUF_TYPE_F16;
-    const auto& s = w.get_shape();
-    int64_t n = s.empty() ? 1 : static_cast<int64_t>(s[0]);
-    // 2-D plain weights (qwen35's ssm_conv1d, OV [conv_dim, d_conv]) keep both extents;
-    // 1-D ones (biases, norm scales) are the common case and stay a trailing vector.
-    const ov::PartialShape shape = s.size() == 2 ? ps({1, 1, n, static_cast<int64_t>(s[1])}) : ps({1, 1, 1, n});
-    emit_weight_op(ggml_name, {w, {}, {}}, qtype, shape);
+    emit_weight_op(ggml_name, {w, {}, {}}, qtype);
 }
 
 }  // namespace gguf
