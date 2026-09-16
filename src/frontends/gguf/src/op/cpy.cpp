@@ -28,6 +28,15 @@ namespace op {
 
 OutputVector translate_cpy(const NodeContext& context) {
     const int op_case = context.get_op_case();
+    auto type = context.get_attribute<ov::element::Type>("dst_type", ov::element::dynamic);
+    if (type.is_dynamic() && context.get_input_size() > 1 && context.has_input(context.get_input_names()[1])) {
+        type = context.get_input(1).get_element_type();
+    }
+    if (type.is_dynamic()) {
+        // Older cgraph decoders encode a cast's target in output_type.
+        type = context.get_attribute<ov::element::Type>("output_type", ov::element::dynamic);
+    }
+    FRONT_END_OP_CONVERSION_CHECK(type.is_static(), "CPY requires a destination input or 'dst_type'");
     const auto input_shape = context.get_input_shape(0);
     const auto output_shape = context.get_output_shape();
 
@@ -44,8 +53,8 @@ OutputVector translate_cpy(const NodeContext& context) {
                                                     ov::op::v0::Constant::create(ov::element::i64, {1}, {INT_MAX}),
                                                     ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
                                                     ov::op::v0::Constant::create(ov::element::i64, {1}, {2}));
-        if (value.get_element_type() != context.get_output_type()) {
-            value = std::make_shared<ov::op::v0::Convert>(value, context.get_output_type());
+        if (value.get_element_type() != type) {
+            value = std::make_shared<ov::op::v0::Convert>(value, type);
         }
         auto target = ov::op::v0::Constant::create(ov::element::i64, {output_shape.size()}, output_shape.to_shape());
         auto res = std::make_shared<ov::op::v1::Reshape>(value, target, false);
@@ -69,8 +78,8 @@ OutputVector translate_cpy(const NodeContext& context) {
         const int64_t end_val = begin_val + n_elems;
         auto flat_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, 1, -1});
         src = std::make_shared<ov::op::v1::Reshape>(src, flat_shape, false);
-        if (src.get_element_type() != context.get_output_type()) {
-            src = std::make_shared<ov::op::v0::Convert>(src, context.get_output_type());
+        if (src.get_element_type() != type) {
+            src = std::make_shared<ov::op::v0::Convert>(src, type);
         }
 
         auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
@@ -138,8 +147,8 @@ OutputVector translate_cpy(const NodeContext& context) {
             src = context.get_input(0);
         }
 
-        if (src.get_element_type() != context.get_output_type()) {
-            src = std::make_shared<ov::op::v0::Convert>(src, context.get_output_type());
+        if (src.get_element_type() != type) {
+            src = std::make_shared<ov::op::v0::Convert>(src, type);
         }
 
         auto base = context.get_input(1);
@@ -154,9 +163,7 @@ OutputVector translate_cpy(const NodeContext& context) {
         return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
-    ov::Output<ov::Node> res =
-        std::make_shared<ov::op::v0::Convert>(context.get_input(0),
-                                              context.get_attribute<ov::element::Type>("output_type"));
+    ov::Output<ov::Node> res = std::make_shared<ov::op::v0::Convert>(context.get_input(0), type);
 
     // A CPY may reinterpret the source layout into its destination's (e.g. qwen3-next's conv-state
     // writeback flattens the contiguous [S, F] conv_state_last into the flat [S*F] recurrent cache
