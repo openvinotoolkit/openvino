@@ -288,7 +288,7 @@ ov::Shape get_inference_tensor_shape(const ov::Output<const ov::Node>& input,
                        input.get_any_name(),
                        "' has dynamic shape ",
                        partial_shape,
-                       ". Please provide concrete dimensions using -shape or -data_shape before running inference.");
+                       ". Please provide concrete dimensions using --shape or --data-shape before running inference.");
     }
 
     return partial_shape.to_shape();
@@ -349,7 +349,7 @@ double run_inference(ov::CompiledModel& compiled_model,
         const auto warmup_time_ms = get_duration_ms(warmup_start_time);
         slog::info << "First inference took " << format_duration_ms(warmup_time_ms) << " ms" << slog::endl;
     } else {
-        slog::info << "Skipping warm-up inference due to -no_warmup flag" << slog::endl;
+        slog::info << "Skipping warm-up inference due to --no-warmup flag" << slog::endl;
     }
 
     slog::info << "Starting inference" << slog::endl;

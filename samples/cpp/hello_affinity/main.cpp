@@ -300,7 +300,7 @@ void configure_performance_hint(const std::string& device_name,
     } else if (performance_hint == "latency") {
         performance_mode = ov::hint::PerformanceMode::LATENCY;
     } else {
-        OPENVINO_THROW("Incorrect performance hint. Please set -hint option to throughput(tput), latency, or none.");
+        OPENVINO_THROW("Incorrect performance hint. Please set --hint option to throughput(tput), latency, or none.");
     }
 
     const auto supported_properties = core.get_property(device_name, ov::supported_properties);
@@ -308,7 +308,7 @@ void configure_performance_hint(const std::string& device_name,
         supported_properties.end()) {
         config[ov::hint::performance_mode.name()] = performance_mode;
     } else {
-        slog::warn << "Device(" << device_name << ") does not support performance hint property(-hint)." << slog::endl;
+        slog::warn << "Device(" << device_name << ") does not support performance hint property(--hint)." << slog::endl;
     }
 }
 
@@ -359,7 +359,7 @@ void print_runtime_parameters(const ov::CompiledModel& compiled_model) {
 }
 
 size_t parse_iterations(const std::string& value) {
-    static constexpr const char* kMsg = "-niter/--niter requires a positive integer value.";
+    static constexpr const char* kMsg = "--niter requires a positive integer value.";
     if (value.empty() || value.front() == '-') {
         OPENVINO_THROW(kMsg);
     }
@@ -379,10 +379,9 @@ size_t parse_iterations(const std::string& value) {
 
 void print_usage(const std::string& executable_name) {
     slog::info << "Usage : " << executable_name << " -m|--model <path_to_model> [-d|--device <device_name>] "
-               << "[-affinity|--affinity <affinity|path_to_affinity_json>] [--fallback-device <device>] "
-               << "[-hint|--hint <performance_hint>] [-shape|--shape <shapes>] "
-               << "[-data_shape <shapes>|--data_shape <shapes>|--data-shape <shapes>] "
-               << "[-niter|--niter <integer>] [-no_warmup|--no_warmup]" << slog::endl;
+               << "[--affinity <affinity|path_to_affinity_json>] [--fallback-device <device>] "
+               << "[--hint <performance_hint>] [--shape <shapes>] [--data-shape <shapes>] "
+               << "[--niter <integer>] [--no-warmup]" << slog::endl;
 }
 
 std::string get_option_value(int argc, tchar* argv[], int& arg_index, const std::string& option_name) {
@@ -430,27 +429,26 @@ int tmain(int argc, tchar* argv[]) {
                 model_path = get_option_value(argc, argv, arg_index, option);
             } else if (option == "-d" || option == "--device") {
                 device_name = get_option_value(argc, argv, arg_index, option);
-            } else if (option == "-affinity" || option == "--affinity") {
+            } else if (option == "--affinity") {
                 affinity_spec = get_option_value(argc, argv, arg_index, option);
             } else if (option == "--fallback-device") {
                 fallback_device = get_option_value(argc, argv, arg_index, option);
-            } else if (option == "-hint" || option == "--hint") {
+            } else if (option == "--hint") {
                 performance_hint = to_lower(get_option_value(argc, argv, arg_index, option));
-            } else if (option == "-shape" || option == "--shape") {
+            } else if (option == "--shape") {
                 shape_string = get_option_value(argc, argv, arg_index, option);
-            } else if (option == "-data_shape" || option == "--data_shape" || option == "--data-shape") {
+            } else if (option == "--data-shape") {
                 data_shape_string = get_option_value(argc, argv, arg_index, option);
-            } else if (option == "-niter" || option == "--niter") {
+            } else if (option == "--niter") {
                 iterations = parse_iterations(get_option_value(argc, argv, arg_index, option));
-            } else if (option == "-no_warmup" || option == "--no_warmup") {
+            } else if (option == "--no-warmup") {
                 skip_warmup = true;
             } else if (!option.empty() && option.front() != '-') {
                 positional_arguments.push_back(option);
             } else {
                 throw std::logic_error("Unsupported option: " + option +
-                                       ". Expected -m, --model, -d, --device, -affinity, --affinity, "
-                                       "--fallback-device, -hint, --hint, -shape, --shape, -data_shape, "
-                                       "--data_shape, --data-shape, -niter, --niter, -no_warmup, or --no_warmup.");
+                                       ". Expected -m, --model, -d, --device, --affinity, --fallback-device, "
+                                       "--hint, --shape, --data-shape, --niter, or --no-warmup.");
             }
         }
 
@@ -466,7 +464,7 @@ int tmain(int argc, tchar* argv[]) {
         const auto has_affinity_option = [&]() {
             for (int i = 1; i < argc; ++i) {
                 const std::string arg = TSTRING2STRING(argv[i]);
-                if (arg == "-affinity" || arg == "--affinity") {
+                if (arg == "--affinity") {
                     return true;
                 }
             }
@@ -483,7 +481,7 @@ int tmain(int argc, tchar* argv[]) {
             affinity_spec = positional_arguments[2];
         }
         if (positional_arguments.size() > 3) {
-            throw std::logic_error("Too many positional arguments. Use -m, -d, and -affinity options instead.");
+            throw std::logic_error("Too many positional arguments. Use -m, -d, and --affinity options instead.");
         }
         if (model_path.empty()) {
             print_usage(executable_name);
@@ -506,18 +504,18 @@ int tmain(int argc, tchar* argv[]) {
 
         if (!fallback_device.empty()) {
             if (affinity_spec.empty()) {
-                throw std::logic_error("The --fallback-device option requires -affinity. "
+                throw std::logic_error("The --fallback-device option requires --affinity. "
                                        "Please provide an affinity JSON file or remove --fallback-device.");
             }
             if (!has_json_extension(affinity_spec)) {
                 throw std::logic_error(
-                    "The --fallback-device option is supported only with -affinity <path_to_affinity_json>.");
+                    "The --fallback-device option is supported only with --affinity <path_to_affinity_json>.");
             }
         }
         if (!affinity_spec.empty() && (parsed_devices.front() != "HETERO" || hardware_devices.empty())) {
             throw std::logic_error(
-                "The -affinity option is supported only with the HETERO plugin and requires an explicit device list. "
-                "Please use -d HETERO:<devices> or remove -affinity.");
+                "The --affinity option is supported only with the HETERO plugin and requires an explicit device list. "
+                "Please use -d HETERO:<devices> or remove --affinity.");
         }
         if (!fallback_device.empty() &&
             std::find(hardware_devices.begin(), hardware_devices.end(), fallback_device) == hardware_devices.end()) {
