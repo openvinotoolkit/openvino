@@ -97,16 +97,16 @@ namespace ov {
  * @def weak_symbols_list
  * @brief Macro that expands to declarations of optional Level Zero API symbols.
  */
-#define weak_symbols_list()                                   \
-    symbol_statement(zeCommandListGetNextCommandIdExp)        \
-    symbol_statement(zeCommandListUpdateMutableCommandsExp)   \
+#define weak_symbols_list()                                       \
+    symbol_statement(zeCommandListGetNextCommandIdExp)            \
+    symbol_statement(zeCommandListUpdateMutableCommandsExp)       \
     symbol_statement(zeCommandListImmediateAppendCommandListsExp) \
-    symbol_statement(zeContextCreateEx)                       \
-    symbol_statement(zeInitDrivers)                           \
-    symbol_statement(zelGetLoaderVersion)                     \
-    symbol_statement(zelSetDriverTeardown)                    \
-    symbol_statement(zeDeviceGetRuntimeRequirements)          \
-    symbol_statement(zeDeviceGetRuntimeRequirementsKey)       \
+    symbol_statement(zeContextCreateEx)                           \
+    symbol_statement(zeInitDrivers)                               \
+    symbol_statement(zelGetLoaderVersion)                         \
+    symbol_statement(zelSetDriverTeardown)                        \
+    symbol_statement(zeDeviceGetRuntimeRequirements)              \
+    symbol_statement(zeDeviceGetRuntimeRequirementsKey)           \
     symbol_statement(zeDeviceValidateRuntimeRequirements)
 // clang-format on
 

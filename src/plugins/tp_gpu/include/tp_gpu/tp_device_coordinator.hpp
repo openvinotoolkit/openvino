@@ -223,12 +223,11 @@ private:
         // allreduce onto it.  This offloads the bulk PCIe DMA from the
         // compute engine and typically lowers per-call submission latency
         // for small transfers and improves throughput for large ones.
-        // When no dedicated copy engine exists, copy_queue/copy_list stay
-        // null and the memcpy is recorded into compute_list as before.
+        // When no dedicated copy engine exists, copy_queue stays null and
+        // the memcpy is recorded into compute_list as before.
         bool                        has_dedicated_copy{false};
         uint32_t                    copy_ordinal{0};
         ze_command_queue_handle_t   copy_queue{nullptr};
-        ze_command_list_handle_t    copy_list{nullptr};
 
         ze_module_handle_t          module{nullptr};
         ze_kernel_handle_t          kernel_f16{nullptr};
@@ -296,12 +295,12 @@ private:
         ze_event_pool_handle_t      gather_pool{nullptr};
         std::vector<ze_event_handle_t> ev_gather;   // [N], index 0 unused
 
-        // Optional device-side timestamp probes (N=2 path).
-        // ts_pool is a separate KERNEL_TIMESTAMP pool (timestamp events
-        // require their own pool flag).  ev_ts_copy[r] is signaled by
-        // rank r's memcpy; ev_ts_kernel[r] by rank r's reduce kernel.
-        ze_event_pool_handle_t      ts_pool{nullptr};
-        std::vector<ze_event_handle_t> ev_ts_copy;    // [N]
+        // Optional device-side timestamp probes (N=2 path): ev_ts_kernel[r]
+        // is signaled by rank r's reduce kernel.  Allocated out of `pool`,
+        // which carries KERNEL_TIMESTAMP, and only when device profiling is
+        // on -- entries stay null otherwise and act as a "no signal"
+        // sentinel for AppendLaunchKernel.  The memcpy end is probed through
+        // ev_recv[r], which the copy signals anyway.
         std::vector<ze_event_handle_t> ev_ts_kernel;  // [N]
 
         // Command lists holding this collective's recorded commands, one per

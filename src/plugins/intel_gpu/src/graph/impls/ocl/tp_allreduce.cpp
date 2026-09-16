@@ -4,16 +4,6 @@
 
 #ifdef ENABLE_TP_GPU
 
-// The collective runs on Level Zero and so does the runtime underneath this
-// impl: ENABLE_TP_GPU is rejected at configure time unless GPU_RT_TYPE=ZE
-// (cmake/features.cmake).  That is what lets the two share a queue instead of
-// the collective draining the model's, and it is why this private runtime
-// header is included from an impl at all.
-//
-// It has to come first: zero_api.hpp undefines its symbols_list macro on the
-// way out unless the includer asked to keep it, and ze_common.hpp is the one
-// that asks.  Let the coordinator's header include it first and ze_common
-// finds the macro already gone.
 #include "ze/ze_stream.hpp"
 
 #include "impls/cpu/cpu_impl_helpers.hpp"
@@ -43,7 +33,7 @@ ze_command_list_handle_t model_queue_of(stream& s) {
 
 }  // namespace
 
-// "OCL" impl that does not actually compile an OpenCL kernel.  All work is
+// "OCL" impl that does not actually compile an OpenCL kernel. All work is
 // dispatched via Level Zero by TPDeviceCoordinator.  Registering as
 // impl_types::ocl with is_cpu()=false makes intel_gpu allocate IO buffers
 // in usm_device, which is the only way to get device-local bandwidth on
@@ -97,7 +87,7 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
         auto& stream = instance.get_network().get_stream();
 
         // Handing the collective to the model's queue instead of draining the
-        // stream and running it on our own.  The queue is in-order, so the
+        // stream and running it on our own. The queue is in-order, so the
         // spliced recording lands after the operations that produced our
         // input and before whatever reads our output -- `events` and
         // stream.finish() were both only ever standing in for that.
@@ -134,7 +124,6 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
     /// the coordinator's own queues and wait for it.  Kept for A/B against the
     /// spliced path and as the fallback when the driver has no splice.
     void run_synchronously(tp_allreduce_inst& instance, stream& stream) {
-
         // This call is the seam in the stretch between two collectives:
         // everything before it is the host dispatching the model's operations,
         // and the call itself is the wait for this rank's GPU to catch up.
@@ -189,6 +178,7 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
         OPENVINO_ASSERT(registry != nullptr,
             "[GPU] tp_allreduce requires a collective registry; the tensor-parallel plugin must inject "
             "one into the compiled model before inference");
+
         const auto& coordinator = registry->get_group(group_id);
         OPENVINO_ASSERT(coordinator != nullptr,
             "[GPU] tp_allreduce ocl impl requires TPDeviceCoordinator (shared L0 context)");
@@ -245,10 +235,8 @@ attach_tp_allreduce_impl::attach_tp_allreduce_impl() {
         data_types::f16,
     };
 
-    implementation_map<tp_allreduce>::add(impl_types::ocl, shape_types::static_shape,
-                                          tp_allreduce_impl::create, types, formats);
-    implementation_map<tp_allreduce>::add(impl_types::ocl, shape_types::dynamic_shape,
-                                          tp_allreduce_impl::create, types, formats);
+    implementation_map<tp_allreduce>::add(impl_types::ocl, shape_types::static_shape, tp_allreduce_impl::create, types, formats);
+    implementation_map<tp_allreduce>::add(impl_types::ocl, shape_types::dynamic_shape, tp_allreduce_impl::create, types, formats);
 }
 
 }  // namespace detail

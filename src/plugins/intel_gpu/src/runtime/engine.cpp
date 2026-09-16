@@ -21,10 +21,6 @@
 #include <set>
 #include <stdexcept>
 #include <algorithm>
-#include <array>
-#include <atomic>
-#include <cstdlib>
-#include <sstream>
 
 #if defined(_WIN32)
 # ifndef NOMINMAX

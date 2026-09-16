@@ -37,7 +37,7 @@ static constexpr Property<std::vector<std::string>> device_ids{"DEVICE_IDS"};
 /// each of them throws; the coordinator stays failed afterwards because the
 /// device queues are left in an unknown state.
 ///
-/// Default: 5000. Set to 0 to wait indefinitely (debugging only).
+/// Default: 5000. Set to 0 to wait indefinitely.
 static constexpr Property<uint32_t> communication_timeout_ms{"COMMUNICATION_TIMEOUT_MS"};
 
 }  // namespace tp_gpu

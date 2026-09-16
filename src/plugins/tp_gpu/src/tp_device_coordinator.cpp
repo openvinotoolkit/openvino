@@ -25,23 +25,13 @@
 #include "openvino/zero_api.hpp"
 #include "tp_embedded_kernels.h"
 #include "tp_l0_shared_context.hpp"
+#include "tp_ze_throw.hpp"
 
 namespace ov {
 namespace tp_gpu {
 
 namespace {
 
-inline void ze_throw(ze_result_t r, const char* what) {
-    if (r != ZE_RESULT_SUCCESS) {
-        OPENVINO_THROW("[TP][L0] ", what, " failed: 0x", std::hex, r);
-    }
-}
-#define ZE_THROW(expr) ::ov::tp_gpu::ze_throw((expr), #expr)
-
-// Per-process gate for kernel-timestamp event creation/reset/query.  When
-// disabled (the default), allreduce skips per-call zeEventHostReset on
-// timestamp events and avoids signalling the kernel timestamp probe in
-// AppendLaunchKernel.  Enabled by setting any non-empty TP_PROF env var.
 std::size_t checked_multiply(std::size_t lhs, std::size_t rhs, const char* what) {
     OPENVINO_ASSERT(rhs == 0 || lhs <= std::numeric_limits<std::size_t>::max() / rhs,
                     "[TP][L0] ", what, " byte count overflow: ", lhs, " * ", rhs);
@@ -145,9 +135,7 @@ bool select_copy_ordinal(ze_device_handle_t dev, uint32_t& ordinal) {
 // extension (zeModuleCreate with format=3 returns INVALID_ENUMERATION on
 // every context configuration we tried).  intel_gpu's ze_kernel_builder
 // applies the same fallback when check_l0_build_support() fails.
-std::vector<uint8_t> compile_via_ocl(ze_device_handle_t ze_dev,
-                                     const char* src,
-                                     size_t /*src_bytes*/) {
+std::vector<uint8_t> compile_via_ocl(ze_device_handle_t ze_dev, const char* src) {
     ze_device_properties_t zp{ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES, nullptr};
     ZE_THROW(ov::zeDeviceGetProperties(ze_dev, &zp));
     // ze_device_uuid_t is 16 raw bytes (matches cl_khr_device_uuid layout).
@@ -413,9 +401,7 @@ void TPDeviceCoordinator::init_rank(RankState& rs) {
     // Native binaries are bound to (driver, device); reloading into a
     // different L0 context on the same device is valid.
     const char* src = ov::tp_gpu::kernels::allreduce_sum_cl;
-    size_t src_bytes = std::strlen(src) + 1;
-
-    std::vector<uint8_t> native_bin = compile_via_ocl(dev, src, src_bytes);
+    std::vector<uint8_t> native_bin = compile_via_ocl(dev, src);
 
     // Reload into shared context as native binary.
     {
@@ -457,7 +443,6 @@ void TPDeviceCoordinator::destroy_rank(RankState& rs) {
     if (rs.kernel_f16)   { ov::zeKernelDestroy(rs.kernel_f16);   rs.kernel_f16 = nullptr; }
     if (rs.kernel_f32)   { ov::zeKernelDestroy(rs.kernel_f32);   rs.kernel_f32 = nullptr; }
     if (rs.module)       { ov::zeModuleDestroy(rs.module);       rs.module = nullptr; }
-    if (rs.copy_list)    { ov::zeCommandListDestroy(rs.copy_list);     rs.copy_list = nullptr; }
     if (rs.copy_queue)   { ov::zeCommandQueueDestroy(rs.copy_queue);   rs.copy_queue = nullptr; }
     if (rs.compute_list) { ov::zeCommandListDestroy(rs.compute_list);  rs.compute_list = nullptr; }
     if (rs.compute_queue){ ov::zeCommandQueueDestroy(rs.compute_queue); rs.compute_queue = nullptr; }
@@ -484,9 +469,7 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     for (auto& e : plan.ev_gather) if (e) ov::zeEventDestroy(e);
     if (plan.gather_pool) ov::zeEventPoolDestroy(plan.gather_pool);
     if (plan.pool)      ov::zeEventPoolDestroy(plan.pool);
-    for (auto& e : plan.ev_ts_copy)   if (e) ov::zeEventDestroy(e);
     for (auto& e : plan.ev_ts_kernel) if (e) ov::zeEventDestroy(e);
-    if (plan.ts_pool) ov::zeEventPoolDestroy(plan.ts_pool);
     for (auto& e : plan.ev_done) if (e) ov::zeEventDestroy(e);
     if (plan.done_pool) ov::zeEventPoolDestroy(plan.done_pool);
     for (auto& l : plan.compute_lists) if (l) ov::zeCommandListDestroy(l);
@@ -496,9 +479,7 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     plan.ev_gather.clear();
     plan.gather_pool = nullptr;
     plan.pool = nullptr;
-    plan.ev_ts_copy.clear();
     plan.ev_ts_kernel.clear();
-    plan.ts_pool = nullptr;
     plan.ev_done.clear();
     plan.in_flight.reset();
     plan.done_pool = nullptr;
@@ -698,7 +679,7 @@ void* TPDeviceCoordinator::ring_slot(int rank, int chunk, int buffer) const {
 // corrupts a handful of elements at the head of the range.  A range shorter
 // than one alignment unit collapses to an empty half, which the schedule
 // handles by signalling the step without moving anything.
-std::size_t halving_mid(std::size_t lo, std::size_t hi) {
+static std::size_t halving_mid(std::size_t lo, std::size_t hi) {
     const std::size_t align = kRingAlignElems;
     if (hi <= lo) {
         return lo;
@@ -826,9 +807,8 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
             ZE_THROW(ov::zeEventCreate(plan.pool, &ed, &plan.ev_recv[r]));
         }
 
-        // Reuse plan.pool for kernel-end timestamp events.
-        plan.ts_pool = nullptr;  // single pool path
-        plan.ev_ts_copy.clear();  // ev_recv[] already serves as copy-end probe
+        // Reuse plan.pool for kernel-end timestamp events; ev_recv[] already
+        // serves as the copy-end probe.
         // Always size to 2 so record_pair_rank can index plan.ev_ts_kernel[r] —
         // entries stay null when profiling is disabled and act as a "no
         // signal" sentinel for AppendLaunchKernel.
@@ -861,9 +841,7 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
                                    devs_nc.data(), &plan.pool));
 
     plan.ev_recv.clear();
-    plan.ev_ts_copy.clear();
     plan.ev_ts_kernel.clear();
-    plan.ts_pool = nullptr;
 
     // One event per (step, rank): rank r's outgoing copy at that step
     // signals it and its successor waits on it.  Device scope on both
@@ -1962,9 +1940,11 @@ void TPDeviceCoordinator::run_gather(int collective_id,
     // beyond the root's wait, which the recording carries.
     if (model_queue != nullptr) {
         await_previous_splice(*slot, rank, collective_id);
+        // See run_allreduce: the flag has to be up before the driver call so a
+        // block inside it still looks like outstanding work to the watchdog.
+        slot->in_flight[rank].store(1, std::memory_order_release);
         ZE_THROW(ze_api()->zeCommandListImmediateAppendCommandListsExp(
             model_queue, 1, &slot->compute_lists[rank], slot->ev_done[rank], 0, nullptr));
-        slot->in_flight[rank].store(1, std::memory_order_release);
         note_collective_started(rank);
     } else {
         submit_rank(*slot, rank);
@@ -2381,12 +2361,12 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
 
             trace("phase2: splice into the model queue");
             const auto a0 = clk::now();
+            slot->in_flight[rank].store(1, std::memory_order_release);
             ZE_THROW(ze_api()->zeCommandListImmediateAppendCommandListsExp(
                 model_queue, 1, &slot->compute_lists[rank], slot->ev_done[rank], 0, nullptr));
             if (skew_period > 0) {
                 m_skew.p2_append_ns[rank] += elapsed_ns(a0, clk::now());
             }
-            slot->in_flight[rank].store(1, std::memory_order_release);
             note_collective_started(rank);
             te1 = clk::now();
         } else {

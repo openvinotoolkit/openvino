@@ -4,9 +4,6 @@
 
 #ifdef ENABLE_TP_GPU
 
-// Must come first, for the reason spelled out in tp_allreduce.cpp: zero_api.hpp
-// undefines its symbols_list macro on the way out unless the includer asked to
-// keep it, and ze_common.hpp is the one that asks.
 #include "ze/ze_stream.hpp"
 
 #include "impls/cpu/cpu_impl_helpers.hpp"
@@ -23,7 +20,7 @@ namespace ocl {
 
 namespace {
 
-// The immediate command list intel_gpu runs the model on.  Kept local rather
+// The immediate command list intel_gpu runs the model on. Kept local rather
 // than shared with tp_allreduce.cpp: the include order above is what makes the
 // Level Zero headers usable here, and a shared header would have to be pulled
 // in ahead of everything to preserve it.

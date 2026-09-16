@@ -230,7 +230,7 @@ public:
 
     const ExecutionConfig& get_config() const { return _program->get_config(); }
 
-    /// Collective groups this network takes part in.  Injected by the
+    /// Collective groups this network takes part in. Injected by the
     /// tensor-parallel plugin after compile or import, so that neither the
     /// graph nor the primitives carry runtime-only pointers.
     void set_collective_comm_registry(ov::intel_gpu::CollectiveCommRegistryPtr registry) {

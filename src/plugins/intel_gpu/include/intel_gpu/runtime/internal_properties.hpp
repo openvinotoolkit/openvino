@@ -128,7 +128,7 @@ static constexpr Property<std::shared_ptr<GpuWeightlessCacheMap>, PropertyMutabi
 
 /**
  * @brief Collective groups the compiled model takes part in, one registry per
- * stream worker.  Injected by the tensor-parallel plugin through
+ * stream worker. Injected by the tensor-parallel plugin through
  * `ICompiledModel::set_property` right after compile or import, so the same
  * path serves both and neither the graph nor the primitives hold runtime-only
  * pointers.
