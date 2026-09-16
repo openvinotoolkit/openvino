@@ -437,27 +437,29 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 
     signature = str(id(gm))
     if (not _get_aot_autograd(options)):
+        # Coarsen to dtype/rank (tensors) and drop the value (ints) only when
+        # _shape_agnostic_compile agrees the OV model this gm compiles to
+        # really does take any shape -- same predicate _structural_key uses
+        # for the inner compile cache. Otherwise a caller's trace-time shape
+        # constants may still be baked into ops here (not just Parameter
+        # shapes), and dropping int values would collide distinct scalar args
+        # onto one cached partition.
+        shape_agnostic = _shape_agnostic_compile(gm, args, options)
         for idx, input_data in enumerate(args):
             if isinstance(input_data, torch.Tensor):
-                # Shape-agnostic: key only on dtype/rank so dynamic OV model is reused
-                # across varying seq-lengths during decode instead of recompiling.
                 signature = (
-                    signature
-                    + "_"
-                    + str(idx)
-                    + ":"
-                    + str(input_data.type())[6:]
-                    + ":rank"
-                    + str(input_data.dim())
+                    signature + "_" + str(idx) + ":" + str(input_data.type())[6:]
                 )
+                if shape_agnostic:
+                    signature += ":rank" + str(input_data.dim())
+                else:
+                    signature += ":" + str(input_data.size())[11:-1].replace(" ", "")
             else:
                 signature = (
-                    signature
-                    + "_"
-                    + str(idx)
-                    + ":"
-                    + type(input_data).__name__
+                    signature + "_" + str(idx) + ":" + type(input_data).__name__
                 )
+                if not shape_agnostic:
+                    signature += ":val(" + str(input_data) + ")"
 
     if signature not in partitioned_modules:
         partitioned_modules[signature] = partition_graph(
