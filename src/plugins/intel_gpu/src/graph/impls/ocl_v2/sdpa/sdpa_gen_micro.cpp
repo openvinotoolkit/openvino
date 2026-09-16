@@ -289,6 +289,17 @@ inline bool micro_is_v_transposed(const kernel_impl_params& params) {
     return order[2] == 3 && order[3] == 2;
 }
 
+// Integer V*S, selected by an s8 value. The gemm reads V as its A operand on the systolic
+// pipe, which needs the contraction dimension -- the keys -- to be the contiguous one. Only
+// the transposed V has that, so an i8 value in the ordinary (batch, heads, tokens, head_size)
+// layout keeps the f16 V*S path: gemmstone will still hand out a kernel for some shapes if it
+// is asked, and that kernel reads the operand wrong. The gemm's alignment is derived from the
+// key count, so K and V must be static as well.
+inline bool micro_i8_vs(const kernel_impl_params& params, bool external_i8_kv) {
+    return external_i8_kv && params.input_layouts[2].data_type == ov::element::i8 && micro_is_v_transposed(params) &&
+           params.input_layouts[1].get_partial_shape().is_static() && params.input_layouts[2].get_partial_shape().is_static();
+}
+
 struct sdpa_config_t {
     int unroll_m_kq, unroll_n_kq;  // Subgroup tile sizes for K*Q GEMM
     int unroll_m_vs, unroll_n_vs;  // Subgroup tile sizes for V*S GEMM
@@ -1346,6 +1357,12 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.make("WITH_SCALE", data_inputs_num > scale_input_idx);
     }
 
+    if (!config.is_paged_attention && params.typed_desc<scaled_dot_product_attention>()->has_rope_q) {
+        // cos/sin are (batch, tokens, HEAD_SIZE) halves, shared by every head, so the table's
+        // row stride is HEAD_SIZE and its batch stride is q * HEAD_SIZE.
+        jit.make("WITH_ROPE_Q", 1);
+    }
+
     jit.make("Q_ALIGN", micro::alignment_for_ld(static_cast<int>(ldq)));
     jit.make("K_ALIGN", micro::alignment_for_ld(static_cast<int>(ldk)));
     jit.make("V_ALIGN", micro::alignment_for_ld(static_cast<int>(ldv)));
@@ -1372,6 +1389,15 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const bool external_i8_kv = !config.is_paged_attention && !config.is_kv_compressed;
     const bool i8_kq = external_i8_kv && K.data_type == ov::element::i8 && micro_i8_kq_shape_ok(Q, k_head_size, d_max, get_subgroup_size(device_info.arch));
     jit.make("I8_KQ", i8_kq ? 1 : 0);
+
+    const bool i8_vs = micro_i8_vs(params, external_i8_kv);
+    jit.make("I8_VS", i8_vs ? 1 : 0);
+    if (i8_vs) {
+        // s8 x s8 is the only pair gemmstone selects here, so the probability grid is
+        // [0, 127]. The kernel folds that grid back out in its epilogue; V's own quantisation
+        // step is the graph's business and stays folded into the consumer of the output.
+        jit.make("I8_VS_LEVELS", 127);
+    }
 
     auto elems_per_byte = [](ov::element::Type dt) {
         switch (dt) {
@@ -1721,6 +1747,12 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         const uint32_t sink_idx = ScaledDotProductAttentionInputIdx::SINK;
         if (config.input_num > sink_idx) {
             args.push_back({ArgumentDescriptor::Types::INPUT, sink_idx});  // Sink
+        }
+
+        if (params.typed_desc<scaled_dot_product_attention>()->has_rope_q) {
+            const auto total = static_cast<uint32_t>(params.input_layouts.size());
+            args.push_back({ArgumentDescriptor::Types::INPUT, total - 2});  // RoPE cos
+            args.push_back({ArgumentDescriptor::Types::INPUT, total - 1});  // RoPE sin
         }
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // D
@@ -2240,6 +2272,22 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         /* Enable dpasw */
         strategy.dpasw |= strategy.fused;
     };
+    // The integer V*S gemm reads V as its A operand on the systolic pipe, which needs the
+    // contraction dimension -- the keys -- contiguous. That is exactly what TRANSPOSE_V gives
+    // (A.layout becomes T above); in the ordinary [tokens, head_size] layout the same gemm is
+    // selectable on some shapes and returns a silently wrong answer, so it is gated on the
+    // transposed operand rather than on the element type alone.
+    if (micro_i8_vs(params, external_i8_kv)) {
+        problem_vs.Ta = problem_vs.Tb = micro::Type::s8;
+        problem_vs.Ta_ext = problem_vs.Tb_ext = micro::Type::s8;
+        problem_vs.Tc = problem_vs.Tc_ext = micro::Type::s32;
+        problem_vs.Ts = micro::Type::s32;
+        // 32 bytes of k per crosspack group, matching tile_store_t_sys_src2's
+        // cp = 32 / sizeof(element). At f16 that spelling is 16 elements; at s8 it is 32.
+        problem_vs.B.crosspack = 32;
+        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(n_keys.get_length() * problem_vs.Ta)));
+    }
+
     /* Ask microkernel provider for microkernel */
     try {
         gemm_vs = micro::select_gemm_microkernel(opts_vs, hw_info, sizes, problem_vs, reqs_vs, adjust_vs);

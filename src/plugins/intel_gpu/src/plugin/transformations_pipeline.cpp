@@ -991,10 +991,15 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
 
-            // The SDPA kernels take an integer key or value only as a compressed KV cache, which
-            // carries scale operands this op does not have. Decompose instead, which converts it
-            // to the query's type as the op specification defines.
-            if (ov::op::v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
+            // An integer key or value holds integer values, which the op converts to the query's
+            // type before the attention (see the ScaledDotProductAttention specification). The
+            // micro-kernel SDPA path reads an i8 key or value as it is (sdpa_gen_micro.cpp), so
+            // those stay; any other integer type is decomposed, which inserts that conversion.
+            const auto unsupported_quantized_kv = [](const ov::element::Type& t) {
+                return ov::op::v13::ScaledDotProductAttention::is_quantized_kv_type(t) && t != ov::element::i8;
+            };
+            if (unsupported_quantized_kv(sdpa->get_input_element_type(1)) ||
+                unsupported_quantized_kv(sdpa->get_input_element_type(2))) {
                 return false;
             }
 
