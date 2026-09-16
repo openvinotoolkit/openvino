@@ -3,33 +3,16 @@
 
 """Manual benchmarking/smoke-test CLI: vLLM + OpenVINO backend vs vLLM eager.
 
-This is the operational tool documented in the vllm README for ad-hoc perf and
-correctness checks against arbitrary models -- not a pytest test. The
-CI-facing correctness regression check lives at
-tests/vllm_tests/test_run.py (fixed TinyLlama model, small token count).
-
-Greedy decode only (HuggingFace's `do_sample=False`; vLLM expresses it as
-`temperature=0`). No sampling code path is exercised: the eager and OV
-runs both go through `Sampler.greedy_sample` which is a plain argmax over
-logits, so any output divergence is attributable to the model.forward
-implementation alone.
-
-Reports for each path:
-  1. Output text (must match byte-for-byte under greedy).
-  2. Steady-state decode tok/s.
+Ad-hoc perf and correctness checks against arbitrary models. Greedy decode
+only, so any output divergence is attributable to model.forward, not sampling.
+Reports output text (must match byte-for-byte) and steady-state decode tok/s;
+exits nonzero if the texts diverge.
 
 Usage:
   python -m openvino.frontend.pytorch.torchdynamo.vllm.scripts.bench_run \
       --model meta-llama/Llama-3.2-1B-Instruct \
       --prompt "The capital of France is " \
       --max-new-tokens 64
-
-Both paths share a process so the output comparison is meaningful (same
-tokenizer state, same prompt encoding). The OV path is selected by passing
-compilation_config={"mode": "STOCK_TORCH_COMPILE", "backend": "openvino"};
-the eager path uses enforce_eager=True.
-
-Returns nonzero exit code if the texts diverge; perf numbers print regardless.
 """
 
 import argparse
@@ -38,10 +21,8 @@ import sys
 import time
 
 
-# Force CPU platform: this env may have both `vllm` and `vllm-cpu` installed,
-# so auto-detection can pick the wrong one. Pre-init the platform to CPU
-# before any vLLM import. Mirrors the standard CPU-only vLLM bootstrapping
-# documented in vllm/getting_started/installation/cpu/.
+# Pre-init to CPU: this env may have both vllm and vllm-cpu installed, and
+# auto-detection can pick the wrong one.
 os.environ.setdefault("VLLM_LOGGING_LEVEL", "WARNING")
 
 # Must precede the first vLLM import: vLLM reads this at module import, well

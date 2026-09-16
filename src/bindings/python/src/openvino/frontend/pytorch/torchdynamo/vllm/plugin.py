@@ -4,18 +4,9 @@
 """vLLM general plugin for the OpenVINO torch.compile backend.
 
 Registered via the `vllm.general_plugins` entry point. Patches
-`CPUModelRunner.load_model` to wire `torch.compile(backend="openvino")` when
-the user asks for it, and forces `_supports_onednn=False` (onednn_mm
-graph-breaks the OV trace and rejects f32 activations from AOT decomposition).
-Also patches `CPUModelRunner.reload_weights` and `CPUWorker.update_weights` to
-rebuild the OV lm_head after either fires -- it bakes the weight into an OV
-constant, which would otherwise go stale on any post-load weight mutation.
-
-This entry point loads after `import vllm`, so it cannot set env vars vLLM
-latches at import time -- those live in preset.set_pre_import_env, which the
-launching script must call itself.
-
-No-op unless the user requested the OV backend.
+`CPUModelRunner.load_model` to wire `torch.compile(backend="openvino")`, plus
+`reload_weights`/`CPUWorker.update_weights` to rebuild the OV lm_head after a
+post-load weight mutation. No-op unless the user requested the OV backend.
 """
 
 import logging
@@ -45,19 +36,10 @@ def _ov_active(self) -> bool:
 def _install_ov_lm_head(model) -> None:
     """(Re)compile lm_head on OV and swap it onto `model.lm_head.cpu_linear`.
 
-    Called from patched_load_model and again from the reload_weights /
-    update_weights patches below: build_ov_lm_head bakes the weight into an OV
-    constant, so any later in-place weight mutation needs this re-run or the
-    OV lm_head keeps serving logits off the stale copy with no error.
-
-    Defaults to the oneDNN dispatch (OV_LM_HEAD=0). The OV lm_head is a second
-    compiled model whose InferRequest is invoked between main-graph infers,
-    and that interleaving roughly doubles the main graph's per-step time --
-    measured on Llama-3.2-1B and Mistral-7B alike, and far larger than the
-    OMP_NUM_THREADS sensitivity the OV path was introduced to avoid. The cost
-    is not in the lm_head kernel itself (which is competitive) and does not
-    respond to the second model's thread count or CPU pinning, so it is not
-    tunable from here. Set OV_LM_HEAD=1 to opt back in.
+    Rerun on every weight mutation (reload_weights/update_weights below) since
+    build_ov_lm_head bakes the weight into an OV constant. Defaults to the
+    oneDNN dispatch (OV_LM_HEAD=0): the OV path roughly doubles main-graph
+    per-step time (see lm_head.py). Set OV_LM_HEAD=1 to opt in.
     """
     try:
         import vllm._custom_ops as _ops
@@ -102,40 +84,46 @@ def _patch_cpu_model_runner():
 
     def patched_load_model(self, load_dummy_weights: bool = False) -> None:
         # Flip _supports_onednn BEFORE _orig_load_model so vLLM's FC layers see
-        # the False value when they are constructed during model load.
+        # the False value when they are constructed during model load. Every
+        # CPUModelRunner.load_model call reaches this patch, OV or not, so the
+        # else branch restores it for a later non-OV model in the same
+        # process -- otherwise an OV load's flip leaks into that model's FC
+        # dispatch with no OV backend around to need it.
         is_ov = _ov_active(self)
         if is_ov:
             try:
                 import vllm._custom_ops as _ops
                 if not getattr(_ops, "_ov_plugin_onednn_disabled", False):
+                    _ops._ov_plugin_onednn_saved = getattr(_ops, "_supports_onednn", True)
                     _ops._supports_onednn = False
                     _ops._ov_plugin_onednn_disabled = True
                     logger.debug("[OV plugin] _supports_onednn forced False (backend=openvino)")
             except Exception as _e:
                 logger.debug("[OV plugin] _supports_onednn flip skipped: %s", _e)
+        else:
+            try:
+                import vllm._custom_ops as _ops
+                if getattr(_ops, "_ov_plugin_onednn_disabled", False):
+                    _ops._supports_onednn = getattr(_ops, "_ov_plugin_onednn_saved", True)
+                    _ops._ov_plugin_onednn_disabled = False
+                    logger.debug("[OV plugin] _supports_onednn restored (backend != openvino)")
+            except Exception as _e:
+                logger.debug("[OV plugin] _supports_onednn restore skipped: %s", _e)
 
-        # Suppress vLLM's standalone unified_kv_cache_update op. OV's
-        # PagedAttentionExtension performs the paged KV-cache write itself, so
-        # vLLM's separate op is redundant here -- and having no OV translator,
-        # it (plus the getitem nodes unpacking the K/V Results feeding it) is
-        # left in eager PyTorch by the partitioner: 49 nodes per graph at
-        # Llama-3.2-1B, which is the only thing keeping check_fully_supported()
-        # from returning True. Suppressing it yields one fused OV partition
-        # with zero eager leftovers.
-        #
-        # Attention.forward (attention.py:566) emits the op only when the
-        # backend reports forward_includes_kv_cache_update=False.
-        # CPUAttentionBackend sets False (cpu_attn.py:40) even though its impl's
-        # forward() already calls ops.cpu_attn_reshape_and_cache under the same
-        # guards; the AttentionBackend base default is True (backend.py:67).
-        #
-        # Must run BEFORE _orig_load_model: the flag is read at forward time
-        # and _orig_load_model can trigger dummy/profile forwards.
+        # Suppress vLLM's standalone unified_kv_cache_update op: OV's
+        # PagedAttentionExtension already performs the KV-cache write, and the
+        # separate op has no OV translator, so it strands ~49 eager nodes per
+        # graph that otherwise block a single fused OV partition. Must run
+        # before _orig_load_model, which can trigger dummy/profile forwards.
+        # CPUAttentionBackend is shared by eager and OV models alike, so the
+        # else branch restores it for a later non-OV model, same reasoning
+        # as the onednn flip above.
         if is_ov:
             try:
                 from vllm.v1.attention.backends import cpu_attn as _cpu_attn
                 _cls = _cpu_attn.CPUAttentionBackend
                 if not getattr(_cls, "_ov_plugin_kv_update_patched", False):
+                    _cls._ov_plugin_kv_update_saved = _cls.forward_includes_kv_cache_update
                     _cls.forward_includes_kv_cache_update = True
                     _cls._ov_plugin_kv_update_patched = True
                     logger.debug(
@@ -145,6 +133,21 @@ def _patch_cpu_model_runner():
             except Exception as _e:
                 logger.debug(
                     "[OV plugin] kv_cache_update suppression skipped: %s", _e)
+        else:
+            try:
+                from vllm.v1.attention.backends import cpu_attn as _cpu_attn
+                _cls = _cpu_attn.CPUAttentionBackend
+                if getattr(_cls, "_ov_plugin_kv_update_patched", False):
+                    _cls.forward_includes_kv_cache_update = getattr(
+                        _cls, "_ov_plugin_kv_update_saved", False)
+                    _cls._ov_plugin_kv_update_patched = False
+                    logger.debug(
+                        "[OV plugin] CPUAttentionBackend."
+                        "forward_includes_kv_cache_update restored "
+                        "(backend != openvino)")
+            except Exception as _e:
+                logger.debug(
+                    "[OV plugin] kv_cache_update restore skipped: %s", _e)
 
         _orig_load_model(self, load_dummy_weights)
         if not is_ov:
@@ -175,23 +178,13 @@ def _patch_cpu_model_runner():
             logger.debug("[OV plugin] affinity widen skipped: %s", _e)
 
         logger.info("[OV plugin] Compiling model with torch.compile backend=openvino")
-        # "vllm": True turns on every vLLM-required flag (paged_attention,
-        # pa_translate, unbind_affinity, no_fallback, fc_decompress) and seeds
-        # DYNAMIC_QUANTIZATION_GROUP_SIZE=32. KV_CACHE_PRECISION and
-        # INFERENCE_PRECISION_HINT are deliberately not seeded here: they are
-        # derived per-model from the converted graph's own float dtype (see
-        # preset.precision_config), always as a matching pair, because the OV
-        # CPU PagedAttention kernel is only instantiated for matching
-        # (compute, cache) types. Override any flag via `options`.
+        # "vllm": True turns on every vLLM-required flag (see preset.py).
+        # Precision keys are deliberately absent: derived per-model dtype.
         options = {"aot_autograd": True, "vllm": True}
-        # dynamic=None (torch's default), not False: under False every distinct
-        # prefill token count is a guard failure costing a ~5.4 s retrace plus a
-        # ~14 s OV compile_model, forever, under a varying request mix. None
-        # specializes the first shape then lets automatic_dynamic_shapes make
-        # the varying dim symbolic. Preferred over True, which marks every dim
-        # rather than the ones that actually varied: ~5% over the static graph
-        # in steady state vs True's ~1.7x. Measurements and the frontend fixes
-        # the symbolic graph depends on: vllm/docs/dynamic_shapes.md.
+        # dynamic=None: specializes the first shape, then lets
+        # automatic_dynamic_shapes symbolize the dim that actually varies.
+        # dynamic=False retraces+recompiles per distinct prefill length;
+        # dynamic=True costs ~1.7x steady-state vs specializing only what varies.
         compiled = torch.compile(
             self.model.forward,
             backend="openvino",
@@ -201,12 +194,8 @@ def _patch_cpu_model_runner():
         )
         self.model.forward = compiled
 
-        # lm_head runs OUTSIDE the compiled forward() (in compute_logits()), so
-        # disabling onednn above left it on plain F.linear. Give it back a fast
-        # GEMM: preferably OV's, which runs on OV's thread pool and so ignores
-        # the narrow OMP_NUM_THREADS this path wants (see lm_head.py);
-        # otherwise oneDNN's AMX path, faster per-thread but only when
-        # OMP_NUM_THREADS happens to be tuned for this model and machine.
+        # lm_head runs outside the compiled forward(); disabling onednn above
+        # left it on plain F.linear, so give it back a fast GEMM (see lm_head.py).
         _install_ov_lm_head(self.model)
 
     CPUModelRunner.load_model = patched_load_model
@@ -217,9 +206,7 @@ def _patch_cpu_model_runner():
 def _patch_reload_weights():
     """Rebuild the OV lm_head after CPUModelRunner.reload_weights.
 
-    reload_weights overwrites model parameters in place (checkpoint reload,
-    RLHF-style weight sync). The main forward() graph reads its weights fresh
-    off the Parameter each call and needs no such hook; lm_head does, because
+    Only lm_head needs this: forward() reads Parameters fresh each call, but
     build_ov_lm_head baked the old weight into an OV constant at load time.
     """
     try:
@@ -245,9 +232,7 @@ def _patch_reload_weights():
 def _patch_worker_update_weights():
     """Rebuild the OV lm_head after CPUWorker.update_weights (RLHF weight sync).
 
-    update_weights lives on the worker, not the model runner -- it streams
-    weight-transfer-engine chunks into the model -- so it needs its own patch
-    rather than reusing _patch_reload_weights above.
+    Lives on the worker, not the model runner, so it needs its own patch.
     """
     try:
         from vllm.v1.worker.cpu_worker import CPUWorker
@@ -273,12 +258,9 @@ def _patch_worker_update_weights():
 def _check_layername():
     """Warn if vLLM latched VLLM_USE_LAYERNAME=1 before this plugin loaded.
 
-    Setting the env var here would be useless: vllm.utils.torch_utils imports
-    ahead of vllm.platforms and vllm.plugins, so by the time any entry-point
-    group is loaded it has already frozen `_USE_LAYERNAME` and baked
-    LayerNameType into the custom-op schemas. The only fix is to set the var
-    before `import vllm` (see preset.set_pre_import_env), so say so here rather
-    than let it surface as an AttributeError inside openvino_compile.
+    Too late to fix here -- vllm.utils.torch_utils freezes it at import,
+    before any entry point loads -- so just warn instead of an obscure
+    AttributeError later in openvino_compile.
     """
     try:
         from vllm.utils.torch_utils import _USE_LAYERNAME

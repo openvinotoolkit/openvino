@@ -49,10 +49,8 @@ _OV_NATIVE_COMPILED = {}  # cached per (vocab, top_k, dtype)
 def _build_native_sampler(vocab: int, k: int):
     """Build the sampler as a native opset13 Model, skipping torch.compile.
 
-    Skips the trace and dynamo overhead. logits[B,V] + temperature[B] ->
-    sampled_token[B], by Gumbel-max: scale by
-    temperature, topk(k), softmax, add log(-log(uniform)) noise, then argmax
-    over k and gather the winner out of the topk indices.
+    logits[B,V] + temperature[B] -> sampled_token[B] via Gumbel-max: scale,
+    topk(k), softmax, add Gumbel noise, argmax over k, gather the winner.
     """
     import numpy as np
     import openvino as ov

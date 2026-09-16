@@ -10,27 +10,15 @@ from typing import Optional
 def set_pre_import_env() -> None:
     """Pin the env vLLM latches at import time. Must run before `import vllm`.
 
-    Only VLLM_USE_LAYERNAME, and it is forced rather than defaulted: the OV
-    backend has no working configuration at 1. vllm.utils.torch_utils computes
-    `_USE_LAYERNAME` and the LayerNameType op-schema alias at module import,
-    and at 1 torch hoists layer_name as an opaque graph *input* instead of a
-    constant -- torchdynamo/compile.py then calls .type() on it and dies.
-    Plain str keeps layer_name the constant the PA translator and side_channel
-    read off the FX node.
+    VLLM_USE_LAYERNAME=1 hoists layer_name as an opaque graph input instead of
+    a constant, which torchdynamo/compile.py can't handle. vllm.utils reads
+    this at import, so setting it later or unpatching it after has no effect.
 
-    Setting it any later is useless: vllm.utils.torch_utils imports ahead of
-    vllm.platforms and vllm.plugins, so every entry-point group -- including
-    the one plugin.register() uses -- loads after the value is frozen. Nor can
-    it be undone from Python afterwards: the op schemas declare layer_name as
-    `PyObject` and keep it even if _USE_LAYERNAME/LayerNameType are patched.
+    Callers must invoke this explicitly (see setup docs) -- it is not run on
+    import here, since this module is also reached by the generic (non-vLLM)
+    torchdynamo path, which must not have this env var set for it.
     """
     os.environ["VLLM_USE_LAYERNAME"] = "0"
-
-
-# Run on import as well as on call, so importing anything from this package
-# before vLLM is enough -- no caller has to remember. A no-op when the plugin
-# entry point imports us, which is already past the point of no return.
-set_pre_import_env()
 
 
 def bool_opt(options, key: str, default: bool) -> bool:
@@ -81,29 +69,11 @@ _COMPUTE_PRECISION_SUBSTITUTE = {"f16": "bf16"}
 
 
 def precision_config(model_precision: Optional[str] = None) -> dict:
-    """Return the OV float-precision config pair for a model of the given dtype.
+    """Return the matching OV INFERENCE_PRECISION_HINT/KV_CACHE_PRECISION pair.
 
-    `model_precision` is "bf16", "f16", or None/other for unknown. Both keys
-    are derived from one value because they must name the *same*
-    type: OV CPU PagedAttention selects
-    ``AttentionExecutor<compute_t, key_cache_t, value_cache_t>`` and only
-    instantiates <bf16,bf16,bf16>, <f16,f16,f16>, <f32,f16,f16>, <f32,f32,f32>
-    (executor_pa.cpp). bf16 compute over an f16 cache is not among them, and
-    compile_model throws ``expect kvcache type bf16, current: f16``.
-
-    f16 models compute in bf16. vLLM builds RMSNorm from primitive ops
-    (``custom_ops: ["none"]``), RMSFusion does not match that shape, so the
-    reduction runs as Power -> ReduceMean at the inference precision; ``x**2``
-    on real activations exceeds f16's 65504 ceiling and the norm returns NaN
-    from the third token on. bf16 has f32's exponent range and cannot overflow
-    there. Once the reduction is kept out of f16 -- RMSFusion firing, or
-    marking it precision-sensitive -- dropping "f16" from
-    _COMPUTE_PRECISION_SUBSTITUTE is the whole change.
-
-    Computing at a precision other than the model dtype only works because
-    compile_hooks.retype_kv_cache_parameters redeclares the cache Parameters to
-    match; the frontend creates them at the model dtype, and that mismatch is
-    what made the old hardcoded-bf16 preset reject every f16 model.
+    Both keys must name the same type (OV CPU PagedAttention only instantiates
+    matching compute/cache-type triples). f16 computes as bf16: vLLM's unfused
+    RMSNorm overflows f16's range but not bf16's.
     """
     et = (model_precision if model_precision in SUPPORTED_FLOAT_PRECISIONS
           else _FALLBACK_FLOAT_PRECISION)

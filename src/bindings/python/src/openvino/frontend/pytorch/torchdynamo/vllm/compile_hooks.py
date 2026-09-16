@@ -69,6 +69,8 @@ def widen_affinity_if_needed(options):
     Widening before ``core.compile`` is what lets the pool inherit a useful
     mask at creation. No-op without sched_getaffinity, or if already wide
     enough.
+
+    TODO: this also overrides a deliberate taskset/numactl pin -- revisit.
     """
     try:
         cur = os.sched_getaffinity(0)
@@ -85,23 +87,11 @@ def widen_affinity_if_needed(options):
 def symint_shape_sources(gm, args):
     """Map int FX inputs to the tensor input dimension that carries them.
 
-    Under dynamic tracing dynamo passes symbolic sizes as plain Python-int
-    graph inputs alongside the tensors they describe. A vLLM prefill graph::
-
-        ph[0] arg164_1  TENSOR int32 [s72]     <- input_ids
-        ph[1] arg163_1  SYMINT expr=s72        <- num_tokens
-        ph[2] arg167_1  TENSOR int64 [s72]     <- positions
-        ph[4] arg166_1  SYMINT expr=s72
-
-    Freezing ph[1]/ph[4] is what limits the model to one prefill length; the
-    graph states both equal ``input_ids.shape[0]``, so rebuilding them from a
-    ShapeOf of the live tensor makes it valid for every length.
-
-    Returns ``{int_arg_index: (tensor_arg_index, dim)}``, read off
-    ``meta['val']`` -- matching on trace-time integer values would instead
-    conflate two symbols that happen to coincide on this trace. Empty when
-    ``gm`` is None, placeholders do not line up with ``args``, or the trace is
-    static.
+    Dynamo passes symbolic sizes as plain Python-int graph inputs alongside
+    the tensor whose dimension they equal (e.g. num_tokens == input_ids.shape[0]).
+    Returns {int_arg_index: (tensor_arg_index, dim)}, read off meta['val'] so
+    two symbols that coincide on this trace aren't conflated. Empty when gm is
+    None, placeholders don't line up with args, or the trace is static.
     """
     if gm is None:
         return {}
@@ -137,25 +127,14 @@ def symint_shape_sources(gm, args):
 
 
 def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
-    """Resolve integer FX inputs and drop their Parameters.
+    """Resolve integer FX inputs (seq_lens, past_lens, ...) and drop their Parameters.
 
-    vLLM decode graphs are symint-heavy: seq_lens, past_lens and block-table
-    sizes arrive as Python-int placeholders. Left as OV Parameters, shape
-    inference takes their unset upper bound of 0 and collapses downstream
-    Broadcast/Reshape outputs to size 0. Each is replaced by a propagatable
-    value and its Parameter removed, one of two ways:
-
-    * ``Gather(ShapeOf(tensor_input), dim)`` when the graph says which tensor
-      dim the symbol denotes (see symint_shape_sources) -- tracks the real
-      input, so one compiled model serves all shapes.
-    * otherwise a Constant of this trace's value, correct only while dynamo
-      guards force a retrace per distinct value -- which is why a static trace
-      costs a recompile per prefill length.
-
-    Also sets element type and partial shape on the remaining tensor
-    Parameters, all-dynamic when ``dyn_shapes`` is set or every int input came
-    from a ShapeOf: pinning trace-time shapes would const-fold that ShapeOf
-    back into the frozen value just avoided.
+    Left as OV Parameters, shape inference takes their unset upper bound of 0
+    and collapses downstream ops to size 0. Each is replaced by
+    Gather(ShapeOf(tensor_input), dim) when a source tensor dim is known (one
+    compiled model then serves all shapes), else a frozen trace-time Constant.
+    Tensor Parameters go fully dynamic when dyn_shapes is set or every int came
+    from a ShapeOf, to avoid const-folding that ShapeOf back to a fixed size.
     """
     import torch
     import numpy as np
@@ -180,10 +159,7 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
             if src is None:
                 repl = _opset1.constant(np.array([int(input_data)], dtype=np.int64))
             else:
-                # om.inputs is still 1:1 with args (Parameters are removed only
-                # after the loop), so the tensor arg index indexes it directly.
-                # i64[1] matches the Constant this replaces, so consumers built
-                # for the baked form keep working.
+                # om.inputs is still 1:1 with args; Parameters are removed after.
                 tensor_arg_idx, dim = src
                 shape_of = _opset8.shape_of(om.inputs[tensor_arg_idx], output_type="i64")
                 repl = _opset8.gather(
@@ -214,11 +190,8 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
                 PartialShape(list(input_data.size())))
         tensor_idx += 1
 
-    # NOTE: set_partial_shape only touches the Parameter; downstream nodes still
-    # hold this trace's concrete sizes from conversion and must be re-inferred,
-    # or ConstantFolding evaluates the new ShapeOf against a *stale* output
-    # shape and folds it back to the frozen size. openvino_compile -- the only
-    # caller -- calls validate_nodes_and_infer_types() right after this returns.
+    # set_partial_shape only touches the Parameter; the caller must re-infer
+    # downstream shapes, or a stale ShapeOf const-folds back to the frozen size.
 
 
 def register_pa_parameters(om):
@@ -290,19 +263,12 @@ def normalize_concat_ranks(om):
 
 
 def model_float_precision(om):
-    """Return the model's float dtype as an OV type name, "bf16"/"f16".
+    """Return the model's float dtype as an OV type name ("bf16"/"f16"), or None.
 
-    None when the graph carries no narrow float. The PagedAttention
-    key_cache Parameter wins: it is what compute precision
-    must agree with, since the CPU plugin picks ``AttentionExecutor<compute_t,
-    key_cache_t, value_cache_t>`` off its element type and only some triples
-    exist (see preset.precision_config). The frontend creates it at the query
-    dtype, so it *is* the model dtype.
-
-    Graphs with no PA op (MLP-only partitions, the sampler) fall back to output
-    then input element types, which carry the same dtype. Reading ports rather
-    than walking Constants keeps this O(#ports) on graphs with thousands of
-    frozen weights.
+    Prefers the PagedAttention key_cache Parameter (compute precision must
+    match it, see preset.precision_config); falls back to output/input element
+    types on graphs with no PA op. Reads ports rather than walking Constants
+    to stay O(#ports) on graphs with thousands of frozen weights.
     """
     if om is None:
         return None
@@ -348,19 +314,10 @@ def _is_kv_cache_port(port, field=("key_cache", "value_cache")):
 def retype_kv_cache_parameters(om, et_name):
     """Declare the PagedAttention key_cache/value_cache Parameters as `et_name`.
 
-    The CPU plugin runs ConvertPrecision with ``convert_input_output_precision
-    = false``, so a Parameter declared at the model dtype but differing from
-    the enforced inference precision keeps its type and gets a Convert spliced
-    in after it. On the KV-cache path that Convert is fatal twice over: PA
-    writes K and V *in place into its input buffer*, so the writes land in the
-    Convert's temporary and never reach the persistent cache, and
-    ConvertPagedAttnInputs bails out because its ``as_type_ptr<v0::Parameter>``
-    now sees a Convert. Declaring the Parameters at the precision we are about
-    to request keeps the cache wired straight into the PA node.
-
-    Returns the number changed. Retyping is legal: the PA op does not constrain
-    these element types (``input_check(this, 3, "key_cache", ..., {})``), and
-    the plugin picks its executor from the resulting triple.
+    If left at the model dtype while inference precision differs, the plugin
+    splices a Convert after the Parameter -- fatal here, since PA writes K/V
+    in place into its input buffer and the write would land in that Convert's
+    temporary instead of the persistent cache. Returns the number changed.
     """
     from openvino import Type
     target = {"bf16": Type.bf16, "f16": Type.f16, "f32": Type.f32}.get(et_name)
@@ -391,14 +348,10 @@ def apply_kv_cache_config_defaults(config, device, options=None, om=None):
         for k, v in _preset._PRESET_CONFIG.items():
             config.setdefault(k, v)
 
-    # Derived together from the model's float dtype, because the CPU PA kernel
-    # only exists for matching (compute, cache) pairs. Applies with or without
-    # the preset: the old unconditional bf16 pair broke every f16 model, and
-    # the old non-preset pair (f32 cache, f16 compute) was mismatched the other
-    # way.
+    # Derived together from the model's float dtype: the CPU PA kernel only
+    # exists for matching (compute, cache) pairs.
     precisions = _preset.precision_config(model_float_precision(om))
-    # Env vars remain an escape hatch. Setting only one of the pair is how you
-    # get a mismatch, hence the warning below.
+    # Env vars remain an escape hatch; setting only one risks a mismatch.
     for key, env in (("KV_CACHE_PRECISION", "OV_KV_CACHE_PRECISION"),
                      ("INFERENCE_PRECISION_HINT", "OV_INFERENCE_PRECISION_HINT")):
         if (override := os.environ.get(env)):
@@ -427,15 +380,10 @@ def apply_kv_cache_config_defaults(config, device, options=None, om=None):
 def rewrite_fc_decompression(om):
     """Rewrite MatMul(X, Const_f16/bf16) into the oneDNN-BRGEMM-friendly form.
 
-    For each MatMul on a constant f16/bf16 weight (optionally transposed via a
-    [1,0] permutation), inserts a Convert to f32 marked as decompression so the
-    plugin's ConvertMatMulToFC routes it to brgemm_avx512_f32 instead of the
-    slower gemm_mlas_f32 fallback. The activation is upcast to f32 and its
-    consumers downcast back, keeping downstream precision. f32 weights and
-    quantized paths are skipped.
-
-    Not vLLM-specific, but kept with the other narrow-float / KV-cache / PA
-    compile-time edits so compile.py stays small.
+    Inserts a decompression Convert to f32 on the constant weight so
+    ConvertMatMulToFC routes to brgemm_avx512_f32 instead of the slower
+    gemm_mlas_f32 fallback; upcasts the activation to match and downcasts the
+    output back. f32 weights and quantized paths are skipped.
     """
     from openvino import opset1 as _o1
     from openvino import Type

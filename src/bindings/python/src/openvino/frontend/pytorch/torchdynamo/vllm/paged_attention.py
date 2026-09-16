@@ -121,10 +121,8 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
                 args=(q, k, v, layer_name),
             )
 
-        # auto_functionalized_v2 returns (op_result, *bases_mutated_in_place),
-        # and unified_attention_with_output writes its output to
-        # _all_bases[_output_base_index]. So the one consumer that matters is
-        # getitem(node, 1 + _output_base_index); our op returns that directly.
+        # auto_functionalized_v2 writes output to _all_bases[_output_base_index];
+        # the consumer that matters is getitem(node, 1 + _output_base_index).
         output_base_index = kw.get("_output_base_index", 0)
         attn_out_getitem_idx = 1 + (output_base_index or 0)
 

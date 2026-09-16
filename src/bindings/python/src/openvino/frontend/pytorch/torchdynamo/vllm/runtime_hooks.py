@@ -60,19 +60,12 @@ def has_pa_inputs(compiled) -> bool:
 
 
 def should_skip_pa_infer() -> bool:
-    """Detect the vLLM warm-up / profile_run state.
+    """Detect the vLLM warm-up / profile_run state (attn_metadata is None/empty).
 
-    True when ForwardContext exists but ``attn_metadata`` is None. There the
-    side-channel binder can only supply zero-length metadata, so the OV CPU
-    PA kernel would read uninitialized ``_slot_mapping`` entries -- heap
-    garbage, hence OOB writes.
-
-    vLLM calls forward() in this state for determine_available_memory and for
-    dummy_run; neither consumes the output semantically, so zeros of the
-    expected shape substitute safely for a real infer.
-
-    Any exception falls through to False, so real inference is never skipped
-    by accident.
+    There the side channel can only supply zero-length metadata, so the OV
+    PA kernel would read uninitialized memory. Neither caller of this state
+    (determine_available_memory, dummy_run) consumes the output, so skipping
+    to eager is safe. Any exception falls through to False.
     """
     try:
         from vllm.forward_context import get_forward_context
@@ -124,12 +117,9 @@ def build_call_kwargs(compiled, ov_inputs):
 def infer_with_pa(req, compiled, call_kwargs):
     """Run req.infer with the vLLM PA-side-channel call_kwargs.
 
-    Under OV_FAST_INFER=1, a per-request cache skips ``set_tensor`` for ports
-    whose value id is unchanged and reuses the output-view dict -- the latter
-    only for statically-shaped outputs (see below). Falls back to the
-    dict-based ``req.infer(call_kwargs, ...)`` on any error, which is also what
-    runs when OV_FAST_INFER is unset, so execute.py's call site is identical
-    either way.
+    Under OV_FAST_INFER=1, skip set_tensor for ports whose value id is
+    unchanged and reuse output views for statically-shaped outputs. Falls
+    back to plain req.infer(call_kwargs, ...) on any error or when unset.
     """
     if os.environ.get("OV_FAST_INFER", "0") == "0":
         return req.infer(call_kwargs, share_inputs=True, share_outputs=True)
@@ -159,12 +149,9 @@ def infer_with_pa(req, compiled, call_kwargs):
             _slot[0] = _val_id
             _slot[1] = _t  # keep alive
         req.infer()
-        # The cached views carry the shape and address the output buffers had
-        # when the dict was built, which only holds while output shapes cannot
-        # change. A dynamic-output model may re-allocate them every call, so
-        # reusing the views hands back the *first* call's shape forever -- seen
-        # as a 26-row hidden_states for a 6-token prefill once one compiled
-        # model served every prefill length, which vLLM then indexes OOB.
+        # Cached output views pin the first call's shape/address, so only
+        # reuse them for statically-shaped outputs -- a dynamic-output model
+        # can reallocate per call and hand back a stale shape otherwise.
         _static_out = _fastinfer_out_static.get(_pc_key)
         if _static_out is None:
             _static_out = all(o.get_partial_shape().is_static for o in compiled.outputs)

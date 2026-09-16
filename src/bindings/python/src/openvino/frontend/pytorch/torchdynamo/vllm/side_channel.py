@@ -27,15 +27,11 @@ _TORCH_TO_OV_TYPE = {}
 
 
 def _ov_tensor_over_torch(t, param_dt, _ov):
-    """Zero-copy ov.Tensor aliasing a torch tensor's buffer, or None.
-
-    Returns None whenever the buffer cannot be aliased as-is -- non-contiguous,
-    or a dtype the PA Parameter does not agree with -- so the caller can fall
-    back to allocating a private copy.
+    """Zero-copy ov.Tensor aliasing a torch tensor's buffer, or None if it can't.
 
     numpy has no bfloat16, so a bf16 buffer is reinterpreted as float16 (same
-    2-byte elements, zero-copy) and the ov.Tensor is told its real type via the
-    explicit-type constructor. Mirrors execute._torch_to_numpy.
+    width) and the ov.Tensor is told its real type explicitly. None when
+    non-contiguous or dtype-mismatched; caller falls back to a private copy.
     """
     if not _TORCH_TO_OV_TYPE:
         _TORCH_TO_OV_TYPE.update({
@@ -82,15 +78,10 @@ _pa_layout_cache = {}
 def _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=None):
     """Return (num_kv_heads, head_size) for the given layer.
 
-    Tried in order: direct lookup in ctx.no_compile_layers; ordinal lookup by
-    the placeholder's index ("unknown_layer_N" -> N), which is what works
-    during warmup before meta_layer_name is resolvable from attn_metadata;
-    global model_config; then (1, 1).
-
-    The per-layer lookups matter because head size can vary within a model:
-    Gemma-4-E2B has 28 local-attention layers at head_size=256 plus 7 global
-    ones at 512, and a single model-wide geom sizes the KV buffer wrong for
-    most of them.
+    Tried in order: direct lookup by real layer name; ordinal lookup by
+    placeholder index (works during warmup before meta_layer_name resolves);
+    global model_config; then (1, 1). Per-layer matters since head size can
+    vary within a model (e.g. Gemma-4-E2B mixes 256 and 512).
     """
     def _extract(layer_obj):
         try:
@@ -225,10 +216,9 @@ def _bind_paged_attention_side_channel(compiled):
             pass
 
     def _placeholder_to_real(placeholder):
-        """Map 'unknown_layer' -> real[0], 'unknown_layer_1' -> real[1], ...
+        """Map 'unknown_layer' -> real[0], 'unknown_layer_1' -> real[1], etc.
 
-        Modulo NUM_LAYERS: the translator's counter accumulates across
-        torch-compile invocations (first compile 0..15, second 16..31, ...).
+        Modulo NUM_LAYERS: the translator's counter accumulates across compiles.
         """
         if not _real_layer_names:
             return None
@@ -337,23 +327,15 @@ def _bind_paged_attention_side_channel(compiled):
                 if cached is not None:
                     key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np = cached
                 else:
-                    # vLLM 0.25's CPU KV cache is rank-4, [num_blocks,
-                    # num_kv_heads, block_size, 2*head_size], K/V interleaved
-                    # along the last dim: unbind(0) picks the wrong axis, so
-                    # view + chunk is what splits it correctly.
+                    # vLLM's CPU KV cache is rank-4 [blocks, kv_heads,
+                    # block_size, 2*head_size], K/V interleaved on the last
+                    # dim, so unbind(0) picks the wrong axis.
                     if kv_cache.ndim == 4:
                         _nb, _hk, _bs, _last = kv_cache.shape
-                        # Splitting the interleaved [.., bs, 2*hs] layout into
-                        # K and V needs a middle-dim slice, which is not
-                        # contiguous, so .contiguous() below duplicates the
-                        # whole pool. Avoid that: OV is the sole reader and
-                        # writer of this cache -- vLLM's own KV update is
-                        # suppressed (see plugin.py) and the buffers handed to
-                        # PA were previously freshly zeroed, so their prior
-                        # contents were never consumed. The halves therefore
-                        # only have to be correctly shaped and disjoint, which
-                        # two contiguous slices of vLLM's own pool satisfy
-                        # without copying anything.
+                        # A real K/V split is non-contiguous (needs a copy);
+                        # OV is the sole reader/writer here (plugin.py
+                        # suppresses vLLM's own KV write) and the buffer was
+                        # freshly zeroed, so two disjoint halves work too.
                         if (kv_cache.is_contiguous() and _last % 2 == 0
                                 and os.environ.get("OV_KV_SPLIT", "1") != "0"):
                             _flat = kv_cache.view(-1)
@@ -371,11 +353,10 @@ def _bind_paged_attention_side_channel(compiled):
                     # PA writes back into this buffer via shared memory.
                     import openvino as _ov
                     _kv_shape = tuple(kc.shape)
-                    # OV CPU PA hard-requires block_size==32. When vLLM uses
-                    # B>32 (Gemma-4 hybrid unifies to 64 to keep page_size_bytes
-                    # uniform across differing head_size), present the buffer as
-                    # (N*ratio, Hk, 32, S) — a pure reshape, same element count.
-                    # Block indices are re-expanded to match below.
+                    # OV CPU PA hard-requires block_size==32; if vLLM uses a
+                    # larger multiple (Gemma-4 hybrid), reshape to
+                    # (N*ratio, Hk, 32, S) -- same element count, block
+                    # indices re-expanded to match below.
                     if len(_kv_shape) >= 4 and _kv_shape[-2] > 32 and _kv_shape[-2] % 32 == 0:
                         _ratio = _kv_shape[-2] // 32
                         _param_shape = (_kv_shape[0] * _ratio,) + _kv_shape[1:-2] + (32, _kv_shape[-1])
@@ -391,13 +372,9 @@ def _bind_paged_attention_side_channel(compiled):
                             break
                     if _param_dt is None:
                         _param_dt = _ov.Type.f32
-                    # Prefer aliasing vLLM's own buffer. PA writes back through
-                    # shared memory either way, and vLLM's KV update is
-                    # suppressed on this path (see plugin.py), so OV is the only
-                    # writer -- a private copy just doubles the KV cache. The
-                    # fill(0) below is what makes every page of that copy
-                    # resident at once, so it is also the largest single
-                    # allocation in the process at first prefill.
+                    # Prefer aliasing vLLM's own buffer: OV is the only writer
+                    # here, so a private copy just doubles the KV cache (and
+                    # the fill(0) below faults in the whole copy at once).
                     key_cache_ovt = value_cache_ovt = None
                     if (tuple(_param_shape) == tuple(_kv_shape)
                             and os.environ.get("OV_KV_ALIAS", "1") != "0"):
@@ -419,10 +396,8 @@ def _bind_paged_attention_side_channel(compiled):
                         key_cache_np.fill(0)
                         value_cache_np.fill(0)
                     else:
-                        # Aliased: vLLM already zeroed the pool, and PA only
-                        # reads blocks listed in the block table, which it
-                        # writes first. Do not fill -- that would fault in the
-                        # whole cache for nothing.
+                        # Aliased: vLLM already zeroed the pool and PA writes
+                        # each block before reading it, so skip the fill.
                         key_cache_np = key_cache_ovt.data
                         value_cache_np = value_cache_ovt.data
                         logger.debug("[OV plugin] KV cache aliased for %s (%s)",
@@ -466,10 +441,8 @@ def _bind_paged_attention_side_channel(compiled):
             except Exception:
                 pass
 
-        # Per-layer, since models with multiple KV-cache groups (Gemma-4 hybrid)
-        # have a distinct block_table per group. The (id(block_table),
-        # block_size) cache makes this run once per distinct table per call:
-        # once for uniform-attention models, twice for Gemma-4's two groups.
+        # Per-layer: models with multiple KV-cache groups (Gemma-4 hybrid) have
+        # a distinct block_table per group; _bi_cache dedups by table identity.
         block_indices_np = _zeros_1_i32()
         block_indices_begins_np = _zeros_2_i32()
         if attn_meta is not None and kv_cache is not None:

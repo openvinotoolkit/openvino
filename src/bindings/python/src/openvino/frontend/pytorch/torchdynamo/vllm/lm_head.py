@@ -2,45 +2,14 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Run lm_head through OV instead of torch, so it stops depending on OMP_NUM_THREADS.
+"""Run lm_head through OV instead of torch (OV_LM_HEAD=1, default off).
 
-lm_head is the one heavy torch op left in the decode step: vLLM v1 calls
-``compute_logits()`` separately from ``forward()``, outside the OV-compiled
-region, so its ``[M, hidden] x [hidden, vocab]`` GEMM runs on torch's pool
-while the model runs on OV's. That split is deliberate -- vLLM gathers
-``logits_indices`` in between so lm_head sees only the sampled rows -- so the
-fix is not to fold lm_head into the traced graph but to swap the leaf callable
-``layer.cpu_linear`` (vllm/model_executor/layers/utils.py).
-
-The motivation is *whose* thread pool it lands on, not kernel speed: at equal
-threads oneDNN's AMX-prepacked path beats OV's FullyConnected (127 vs 148 us
-TinyLlama-1.1B, 794 vs 866 us Qwen2.5-1.5B, 60 threads). But this path keeps
-torch narrow so its OMP workers do not spin-wait against OV's TBB pool, and at
-OMP_NUM_THREADS=2 that same oneDNN GEMM costs 2066 / 11266 us -- 16x and 13x
-worse. On OV it gets the full pool whatever OMP_NUM_THREADS says.
-
-That removes the knob rather than retuning it. On oneDNN the best
-OMP_NUM_THREADS varies with model *and* core count (4/4/8/8 at 8/16/32/60
-cores for TinyLlama, 8/16/16 for Qwen2.5-1.5B), cannot be discovered at
-runtime -- CPUModelRunner replaces ``torch.set_num_threads`` with a no-op after
-thread binding -- and guessing wrong costs up to 28%. On OV, OMP_NUM_THREADS=1
-won at every core count and model measured, which is what vLLM's own
-``set_torch_threads_for_runtime()`` wants to set anyway.
-
-Opt-in only: this path is OFF by default (OV_LM_HEAD=0), because the win above
-is outweighed by a cost the isolated kernel timings do not show. Installing it
-adds a second compiled OV model whose InferRequest is invoked between
-main-graph infers, and that interleaving roughly doubles the *main graph's*
-per-step time -- reproduced on Llama-3.2-1B and Mistral-7B. The penalty is not
-in the lm_head GEMM (still competitive, as above) and survives capping the
-second model's thread count, disabling its CPU pinning, and forcing both
-models onto one ov.Core, so it is not tunable from this layer; it looks like
-per-InferRequest state in the CPU plugin. Until that is fixed, tuning
-OMP_NUM_THREADS for oneDNN costs less than the interleaving does.
-
-Set OV_LM_HEAD=1 to enable this path. Doing so makes OMP_NUM_THREADS
-irrelevant, per the paragraphs above -- useful where that knob cannot be
-tuned per model and per machine.
+vLLM calls compute_logits() outside the OV-compiled region, so lm_head's GEMM
+normally runs on torch/oneDNN. Moving it to OV frees it from OMP_NUM_THREADS
+tuning (oneDNN needs a per-model, per-machine thread count; OV doesn't), but
+a second live InferRequest interleaved with the main graph's roughly doubles
+the main graph's per-step time -- a plugin-level cost, not tunable here. Off
+by default because that costs more than the OMP_NUM_THREADS tuning it avoids.
 """
 
 import logging
@@ -69,11 +38,9 @@ def _ov_type_for(torch_dtype):
 def _copy_into(ov_tensor, t):
     """Fill an OV tensor from a torch tensor, preserving bf16 bits.
 
-    numpy has no bfloat16 and OV surfaces a bf16 buffer as f16 elements of the
-    same width, so bf16 has to go through a uint16 re-tag on both sides. Same
-    trick as execute._torch_to_numpy, but copying into a pre-declared bf16
-    tensor: wrapping an ndarray instead would declare the port f16 and the
-    infer request would reject it.
+    numpy has no bfloat16, so bf16 goes through a uint16 re-tag on both sides
+    (see execute._torch_to_numpy) rather than wrapping an ndarray directly,
+    which would declare the port f16 and get rejected.
     """
     import numpy as np
     import torch
@@ -118,13 +85,9 @@ def build_ov_lm_head(weight, nthreads=None):
     model = ov.Model([op.result(op.matmul(p, op.constant(wt), False, True))],
                      [p], "ov_lm_head")
 
-    # Compute at the model's own dtype, NOT at preset.precision_config()'s
-    # choice. That helper substitutes f16 -> bf16 for the main graph because
-    # vLLM's unfused RMSNorm squares activations and overflows f16's 65504
-    # ceiling. A plain matmul has no such reduction, so here the substitution
-    # buys nothing and costs two mantissa bits (bf16 has 8, f16 has 10) --
-    # enough to flip greedy argmax on near-ties and make f16 models diverge
-    # from eager, which the oneDNN path it replaced did not.
+    # Compute at the model's own dtype, not preset.precision_config()'s f16->bf16
+    # substitute: that's needed for RMSNorm's overflow risk, not a plain matmul,
+    # and bf16's narrower mantissa would flip greedy argmax on near-ties.
     cfg = {"INFERENCE_PRECISION_HINT": et.get_type_name()}
     if nthreads:
         cfg["INFERENCE_NUM_THREADS"] = nthreads
