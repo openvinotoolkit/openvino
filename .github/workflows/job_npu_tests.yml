@@ -28,12 +28,12 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   # To debug NPU compiler, set OV_NPU_LOG_LEVEL=LOG_INFO or higher
-  OV_NPU_LOG_LEVEL: 'LOG_INFO'
+  # OV_NPU_LOG_LEVEL: 'LOG_INFO'
 
 jobs:
   NPU_Models_Tests:
     name: ${{ matrix.npu-platform }}
-    timeout-minutes: 120
+    timeout-minutes: 40
     strategy:
       # one runner per NPU platform; keep going even if one platform fails.
       fail-fast: false
