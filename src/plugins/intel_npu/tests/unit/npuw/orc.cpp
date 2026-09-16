@@ -146,6 +146,25 @@ TEST(OrcTest, RejectsOversizedVectorCountBeforeReserve) {
     EXPECT_EQ(decoded.capacity(), 0u);
 }
 
+// Same forged count, but through an istream-backed Stream::reader — the actual path
+// used by CompiledModel/LLMCompiledModel to decode embedded ParameterVector/NodeVector
+// metadata. remaining() is unavailable for this stream kind, so the fix must rely on
+// incremental push_back (no upfront reserve()) rather than the memory-stream bound
+// check; this proves that guarantee still holds for the security-critical call sites.
+TEST(OrcTest, RejectsOversizedVectorCountViaIstreamReaderBeforeGrowth) {
+    const std::size_t forged_count = 0x10000000ULL;  // ~268M elements, no element data follows
+    std::array<std::byte, sizeof(forged_count)> payload{};
+    std::memcpy(payload.data(), &forged_count, sizeof(forged_count));
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    buffer.write(reinterpret_cast<const char*>(payload.data()), payload.size());
+
+    auto reader = Stream::reader(buffer);
+    std::vector<std::uint64_t> decoded;
+    EXPECT_THROW(reader & decoded, ov::Exception);
+    EXPECT_EQ(decoded.capacity(), 0u);
+}
+
 TEST(OrcTest, AcceptsVectorCountMatchingAvailableElements) {
     const std::size_t count = 1u;
     const std::uint64_t element = 7u;
