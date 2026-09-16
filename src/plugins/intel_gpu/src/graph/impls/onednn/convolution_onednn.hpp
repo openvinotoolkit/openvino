@@ -104,6 +104,20 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             return false;
         }
 
+#ifdef OV_GPU_VENDOR_NVIDIA
+        // NVIDIA oneDNN convolutions accept plain weights only: cuDNN's memory_format_ok() requires
+        // inner_nblks == 0 (NCHW_VECT_C is s8 only) and the generic SYCL reference kernel requires every
+        // memory descriptor to be plain (check_convolution_formats()). The plugin queries the weights
+        // descriptor with format_tag::any, so primitive descriptor creation still succeeds and asks for a
+        // plain layout (oihw/ohwi), but converting blocked weights such as os_iyx_osv16 (Abcd16a) to it
+        // needs an oneDNN reorder which the NVIDIA backend does not implement. That reorder is described
+        // by a format::custom output layout, so the OCL reorder cannot take it over and compile_graph has
+        // no fallback, which makes the whole compilation throw (fusings_gpu/conv_swap_xy_with_eltwise_diff_sizes).
+        // Let the OCL convolution handle blocked weights instead.
+        if (format::is_blocked(wei_layout.format))
+            return false;
+#endif
+
         auto prim = conv_node.get_primitive();
         if (prim->groups > 1 && !prim->grouped_weights_shape) {
             return false;
