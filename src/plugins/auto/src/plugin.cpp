@@ -743,19 +743,23 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         (!utilization_thresholds.empty() || !perf_curve_table.empty()) ? get_utilization_snapshot() : std::string{};
 
     if (!perf_curve_table.empty()) {
-        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %s device curves",
-                      std::to_string(perf_curve_table.size()).c_str());
-        for (const auto& [device_key, curve] : perf_curve_table) {
-            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %s points",
-                          device_key.c_str(),
-                          std::to_string(curve.size()).c_str());
-            for (const auto& [utilization, score] : curve) {
-                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%lf",
+        // Dump the (static, per-Plugin) perf_curve_table only once: it never changes across
+        // select_device() calls, so repeating this on every decision is pure logging overhead.
+        std::call_once(m_perf_curve_table_logged_once, [this, &perf_curve_table]() {
+            LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %s device curves",
+                          std::to_string(perf_curve_table.size()).c_str());
+            for (const auto& [device_key, curve] : perf_curve_table) {
+                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %s points",
                               device_key.c_str(),
-                              utilization,
-                              score);
+                              std::to_string(curve.size()).c_str());
+                for (const auto& [utilization, score] : curve) {
+                    LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%lf",
+                                  device_key.c_str(),
+                                  utilization,
+                                  score);
+                }
             }
-        }
+        });
     }
 
     // all available Devices are in valid_devices now

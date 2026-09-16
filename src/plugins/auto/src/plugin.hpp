@@ -126,6 +126,9 @@ private:
     PluginConfig m_plugin_config;
     std::once_flag m_telemetry_client_init_once;
     std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
+    // PERF_CURVE_TABLE is static per-Plugin configuration; log it once instead of on every
+    // select_device() call to avoid repeated verbose logging overhead on the decision hot path.
+    std::once_flag m_perf_curve_table_logged_once;
 };
 
 }  // namespace auto_plugin
