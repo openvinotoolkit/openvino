@@ -85,7 +85,7 @@ enum class OpInput {
 struct OpInputMap {
     using container_type = std::map<OpInput, ov::Output<ov::Node>>;
 
-    OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count);
+    explicit OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count);
 
     OpInputMap(container_type&& map);
     virtual ~OpInputMap() = default;
