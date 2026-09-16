@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -21,6 +21,8 @@
  * - Negative2DData: Ensure transformation skips for 1D/2D data
  * - NegativeSingleDimension: Ensure transformation skips when M=1 or K=1
  * - LargeDimensions: Stress test with realistic MoE sizes
+ * - IndicesI64InsertsConvertToI32: i64 indices get canonicalized via exactly 1 Convert
+ * - IndicesI32NoConvertInserted: i32 indices are left as-is, no Convert added
  */
 
 // Uncomment to save debug XML files during test execution
@@ -62,11 +64,21 @@ protected:
         return count;
     }
 
+    // Helper: Find the (single) Gather left in the model after the rewrite
+    std::shared_ptr<op::v8::Gather> find_gather(const std::shared_ptr<Model>& model) {
+        for (const auto& node : model->get_ordered_ops()) {
+            if (auto gather = std::dynamic_pointer_cast<op::v8::Gather>(node)) {
+                return gather;
+            }
+        }
+        return nullptr;
+    }
+
     // Helper: Validate transformation results
     void validate_transformation(const std::shared_ptr<Model>& model, int64_t I, int64_t M, int64_t K) {
         // Verify node counts
         EXPECT_EQ(count_nodes<op::v8::Gather>(model), 1) << "Should have 1 Gather after transformation";
-        EXPECT_EQ(count_nodes<op::v0::Tile>(model), 1) << "Should have 1 Tile";
+        EXPECT_EQ(count_nodes<op::v0::Tile>(model), 0) << "Should have no Tile (Add broadcasts implicitly)";
         EXPECT_EQ(count_nodes<op::v1::Multiply>(model), 1) << "Should have 1 Multiply";
         EXPECT_EQ(count_nodes<op::v1::Add>(model), 1) << "Should have 1 Add";
 
@@ -97,12 +109,7 @@ protected:
 
             for (size_t i = 0; i < 2; ++i) {
                 auto input = add->input_value(i).get_node_shared_ptr();
-                auto tile = std::dynamic_pointer_cast<op::v0::Tile>(input);
-                if (!tile)
-                    continue;
-
-                auto range_input = tile->input_value(0).get_node_shared_ptr();
-                auto constant = std::dynamic_pointer_cast<op::v0::Constant>(range_input);
+                auto constant = std::dynamic_pointer_cast<op::v0::Constant>(input);
                 if (!constant)
                     continue;
 
@@ -147,11 +154,13 @@ protected:
 
 // Create a simple 3D Gather graph
 // data: [N, M, K], indices: [I], axis: 0 -> output: [I, M, K]
+// indices_et lets callers exercise both the i64 (Convert-inserted) and i32 (no Convert) paths.
 std::shared_ptr<Model> create_3d_gather_graph(int64_t N,
                                               int64_t M,
                                               int64_t K,
                                               int64_t I,
-                                              const std::string& name_prefix = "gather") {
+                                              const std::string& name_prefix = "gather",
+                                              const element::Type& indices_et = element::i64) {
     // Data input [N, M, K]
     auto data = op::v0::Constant::create(element::f32,
                                          Shape{static_cast<size_t>(N), static_cast<size_t>(M), static_cast<size_t>(K)},
@@ -159,11 +168,20 @@ std::shared_ptr<Model> create_3d_gather_graph(int64_t N,
     data->set_friendly_name(name_prefix + "_data");
 
     // Indices [I]
-    std::vector<int64_t> indices_data(I);
-    for (int64_t i = 0; i < I; ++i) {
-        indices_data[i] = i % N;  // Valid indices within [0, N)
+    std::shared_ptr<op::v0::Constant> indices;
+    if (indices_et == element::i32) {
+        std::vector<int32_t> indices_data(I);
+        for (int64_t i = 0; i < I; ++i) {
+            indices_data[i] = static_cast<int32_t>(i % N);  // Valid indices within [0, N)
+        }
+        indices = op::v0::Constant::create(element::i32, Shape{static_cast<size_t>(I)}, indices_data);
+    } else {
+        std::vector<int64_t> indices_data(I);
+        for (int64_t i = 0; i < I; ++i) {
+            indices_data[i] = i % N;  // Valid indices within [0, N)
+        }
+        indices = op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(I)}, indices_data);
     }
-    auto indices = op::v0::Constant::create(element::i64, Shape{static_cast<size_t>(I)}, indices_data);
     indices->set_friendly_name(name_prefix + "_indices");
 
     // Axis = 0
@@ -309,6 +327,51 @@ TEST_F(GatherTo2DGatherTest, LargeDimensions) {
 
     // Validate transformation results
     validate_transformation(model, I, M, K);
+}
+
+// Test 6: i64 indices must be canonicalized to i32 through exactly one Convert (NPU has no
+// efficient native i64 execution support), and the rewritten Gather must consume i32 indices.
+TEST_F(GatherTo2DGatherTest, IndicesI64InsertsConvertToI32) {
+    constexpr int64_t N = 8, M = 16, K = 32, I = 4;
+    auto model = create_3d_gather_graph(N, M, K, I, "gather", element::i64);
+
+    ov::pass::Manager manager;
+    manager.register_pass<GatherTo2DGather>();
+    bool changed = manager.run_passes(model);
+
+    ASSERT_TRUE(changed);
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    ASSERT_EQ(count_nodes<op::v0::Convert>(model), 1) << "Should insert exactly 1 Convert for i64 indices";
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto convert = std::dynamic_pointer_cast<op::v0::Convert>(node)) {
+            EXPECT_EQ(convert->get_input_element_type(0), element::i64);
+            EXPECT_EQ(convert->get_output_element_type(0), element::i32);
+        }
+    }
+
+    auto gather = find_gather(model);
+    ASSERT_NE(gather, nullptr);
+    EXPECT_EQ(gather->get_input_element_type(1), element::i32) << "Rewritten Gather should be fed i32 indices";
+}
+
+// Test 7: i32 indices need no Convert -- the rewrite must not add one unconditionally.
+TEST_F(GatherTo2DGatherTest, IndicesI32NoConvertInserted) {
+    constexpr int64_t N = 8, M = 16, K = 32, I = 4;
+    auto model = create_3d_gather_graph(N, M, K, I, "gather", element::i32);
+
+    ov::pass::Manager manager;
+    manager.register_pass<GatherTo2DGather>();
+    bool changed = manager.run_passes(model);
+
+    ASSERT_TRUE(changed);
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+
+    EXPECT_EQ(count_nodes<op::v0::Convert>(model), 0) << "No Convert should be inserted when indices are already i32";
+
+    auto gather = find_gather(model);
+    ASSERT_NE(gather, nullptr);
+    EXPECT_EQ(gather->get_input_element_type(1), element::i32);
 }
 
 }  // namespace

@@ -4,6 +4,7 @@
 
 #include "gather_to_2d_gather.hpp"
 
+#include <limits>
 #include <numeric>
 #include <optional>
 
@@ -63,11 +64,19 @@ std::optional<GatherInfo> validate_gather_for_transform(const std::shared_ptr<ov
         return std::nullopt;
     }
 
+    int64_t N = data_shape[0].get_length();
     int64_t M = data_shape[1].get_length();
     int64_t K = data_shape[2].get_length();
 
     // Only transform if both M and K are not 1 (otherwise transformation is not beneficial)
     if (M == 1 || K == 1) {
+        return std::nullopt;
+    }
+
+    // Flattened indices are computed as (index * M + [0, M)) in i32; skip the rewrite if N*M
+    // can't be represented in i32 to avoid silently wrong results from overflow.
+    constexpr int64_t kInt32Max = std::numeric_limits<int32_t>::max();
+    if (M != 0 && N > kInt32Max / M) {
         return std::nullopt;
     }
 
@@ -80,8 +89,14 @@ std::optional<GatherInfo> validate_gather_for_transform(const std::shared_ptr<ov
         return std::nullopt;
     }
 
+    // Only i32/i64 indices are supported; i64 gets canonicalized to i32 in transform_gather_to_2d.
+    auto indices_et = indices_input.get_element_type();
+    if (indices_et != ov::element::i32 && indices_et != ov::element::i64) {
+        return std::nullopt;
+    }
+
     // Valid gather - return info
-    return GatherInfo{gather, data_shape[0].get_length(), M, K, indices_shape[0].get_length()};
+    return GatherInfo{gather, N, M, K, indices_shape[0].get_length()};
 }
 
 // Transform a single 3D Gather to 2D Gather sequence
@@ -92,35 +107,38 @@ void transform_gather_to_2d(const GatherInfo& info) {
 
     std::string gather_name = gather->get_friendly_name();
 
+    // NPU lacks efficient native i64 execution, so canonicalize indices to i32 up front.
+    ov::Output<ov::Node> indices_i32 = indices_input;
+    std::shared_ptr<ov::Node> indices_convert;
+    if (indices_input.get_element_type() != ov::element::i32) {
+        auto convert = std::make_shared<ov::op::v0::Convert>(indices_input, ov::element::i32);
+        convert->set_friendly_name(gather_name + "/indices_to_i32");
+        indices_convert = convert;
+        indices_i32 = convert->output(0);
+    }
+
     // Step 1: Reshape indices [I] -> [I, 1]
     std::vector<int64_t> indices_reshape_data = {static_cast<int64_t>(info.I), 1};
     auto indices_reshape_shape =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, indices_reshape_data.data());
-    auto reshaped_indices = std::make_shared<ov::op::v1::Reshape>(indices_input, indices_reshape_shape, false);
+    auto reshaped_indices = std::make_shared<ov::op::v1::Reshape>(indices_i32, indices_reshape_shape, false);
     reshaped_indices->set_friendly_name(gather_name + "/indices_reshaped");
 
     // Step 2: Multiply by M to get expert starting positions [I, 1]
-    std::vector<int64_t> m_data = {static_cast<int64_t>(info.M)};
-    auto m_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1}, m_data.data());
+    auto m_const = ov::op::v0::Constant::create(ov::element::i32,
+                                                ov::Shape{1, 1},
+                                                std::vector<int32_t>{static_cast<int32_t>(info.M)});
     auto experts_start = std::make_shared<ov::op::v1::Multiply>(reshaped_indices, m_const);
     experts_start->set_friendly_name(gather_name + "/experts_start");
 
-    // Step 3: Create range [0, 1, 2, ..., M-1] and tile to [I, M]
-    std::vector<int64_t> range_values(info.M);
+    // Step 3: Create range [0, 1, 2, ..., M-1] with shape [1, M]
+    std::vector<int32_t> range_values(info.M);
     std::iota(range_values.begin(), range_values.end(), 0);
     auto range_m =
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, static_cast<size_t>(info.M)}, range_values);
-    // Mark this constant to be preserved in function body during partitioning
-    range_m->get_rt_info()["npuw_moe_gather_indices"] = true;
+        ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1, static_cast<size_t>(info.M)}, range_values);
 
-    // Tile range to [I, M]
-    std::vector<int64_t> tile_repeats_data = {static_cast<int64_t>(info.I), 1};
-    auto tile_repeats = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, tile_repeats_data.data());
-    auto range_m_tiled = std::make_shared<ov::op::v0::Tile>(range_m, tile_repeats);
-    range_m_tiled->set_friendly_name(gather_name + "/range_tiled");
-
-    // Step 4: Add experts_start + range to get final indices [I, M]
-    auto new_indices = std::make_shared<ov::op::v1::Add>(experts_start, range_m_tiled);
+    // Step 4: Add experts_start [I, 1] + range_m [1, M] -> [I, M] via numpy-style implicit broadcast
+    auto new_indices = std::make_shared<ov::op::v1::Add>(experts_start, range_m);
     new_indices->set_friendly_name(gather_name + "/new_indices");
 
     // Step 5: Flatten indices [I, M] -> [I*M]
@@ -154,15 +172,18 @@ void transform_gather_to_2d(const GatherInfo& info) {
 
     // Replace the original Gather with the final Reshape
     ov::replace_node(gather, final_output);
-    ov::copy_runtime_info(gather,
-                          {reshaped_indices,
-                           experts_start,
-                           range_m_tiled,
-                           new_indices,
-                           flat_indices,
-                           flat_weights,
-                           gathered_flat,
-                           final_output});
+    ov::NodeVector new_nodes{reshaped_indices,
+                             experts_start,
+                             range_m,
+                             new_indices,
+                             flat_indices,
+                             flat_weights,
+                             gathered_flat,
+                             final_output};
+    if (indices_convert) {
+        new_nodes.push_back(indices_convert);
+    }
+    ov::copy_runtime_info(gather, new_nodes);
 }
 
 }  // anonymous namespace
