@@ -68,6 +68,21 @@ constexpr uint32_t kKvCacheSize = 192;
 constexpr uint32_t kGenerateInputSize = 1;
 const ov::npuw::KVAxesPosition kAxes{0u, 2u};
 
+// Mirrors ShrinkSlidingWindowKVCache's own 16-alignment: when there is a nonzero past
+// region, past is grown so that past + present is a multiple of 16 (NPU HW preference).
+constexpr uint32_t kKvAlignment = 16;
+uint32_t aligned_kv_total(uint32_t window_size, uint32_t input_size) {
+    const uint32_t unaligned_total = input_size + window_size;
+    return ((unaligned_total + kKvAlignment - 1) / kKvAlignment) * kKvAlignment;
+}
+uint32_t aligned_past(uint32_t window_size, uint32_t input_size) {
+    return aligned_kv_total(window_size, input_size) - input_size;
+}
+
+// window=32, generate input_size=1: unaligned total=33 -> aligned to 48, so past=47.
+const uint32_t kGenerateAlignedPast = aligned_past(kWindowSize, kGenerateInputSize);
+const uint32_t kGenerateAlignedKvTotal = aligned_kv_total(kWindowSize, kGenerateInputSize);
+
 std::shared_ptr<ov::Model> build_hybrid_model() {
     return ov::test::npuw::build_sliding_window_test_model(kWindowSize, /*sliding_to_full_ratio=*/1, {}, kNumLayers);
 }
@@ -139,7 +154,8 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_OnlySlidingLayersPastKVShru
     // kvcache_size=192, generate input_size=1 => full past=191.
     const auto sliding_past = input_shape(generate, "past_key_values.0.swa.key");
     ASSERT_TRUE(sliding_past.has_value()) << "past_key_values.0.swa.key not found in generate model";
-    EXPECT_EQ((*sliding_past)[2], kWindowSize);
+    // window=32 is grown to kGenerateAlignedPast (47) so past+present is 16-aligned.
+    EXPECT_EQ((*sliding_past)[2], kGenerateAlignedPast);
 
     const auto full_past = input_shape(generate, "past_key_values.1.key");
     ASSERT_TRUE(full_past.has_value()) << "past_key_values.1.key not found in generate model";
@@ -154,8 +170,8 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_SlidingMaskWidthShrunkToNew
     const auto mask_shape = input_shape(generate, "sliding_window_attention_mask");
     ASSERT_TRUE(mask_shape.has_value()) << "sliding_window_attention_mask not found in generate model";
 
-    // Generate input_size=1, window=32 => new_kv_total=33.
-    EXPECT_EQ(mask_shape->back(), 33u);
+    // Generate input_size=1, window=32 => unaligned new_kv_total=33, 16-aligned to 48.
+    EXPECT_EQ(mask_shape->back(), kGenerateAlignedKvTotal);
 }
 
 // Prefill invariant: sliding mask width follows the same post-concat KV width rule.
@@ -231,7 +247,7 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, PrefillSingleShot_SlidingPastIsZero_Gener
 
     const auto generate_sliding_past = input_shape(generate, "past_key_values.0.swa.key");
     ASSERT_TRUE(generate_sliding_past.has_value()) << "past_key_values.0.swa.key not found in generate model";
-    EXPECT_EQ((*generate_sliding_past)[2], kWindowSize);
+    EXPECT_EQ((*generate_sliding_past)[2], kGenerateAlignedPast);
 }
 
 // Chunked prefill (input_size < kvcache_size) leaves a nonzero past budget, so sliding
@@ -252,8 +268,8 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_SlidingKVShapeConstantsPatc
     std::shared_ptr<ov::Model> generate;
     ASSERT_NO_THROW(generate = make_generate_model(build_hybrid_gqa_model()));
 
-    // Generate input_size=1, window=32 => new_kv_total=33.
-    constexpr int64_t kNewKvTotal = 33;
+    // Generate input_size=1, window=32 => unaligned new_kv_total=33, 16-aligned to 48.
+    const int64_t kNewKvTotal = static_cast<int64_t>(kGenerateAlignedKvTotal);
     std::size_t num_patched = 0;
     for (const auto& op : generate->get_ordered_ops()) {
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
@@ -398,9 +414,9 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, AllLayersSliding_MaskExternalizedAndPastS
 
     const auto past0 = input_shape(generate, "past_key_values.0.swa.key");
     ASSERT_TRUE(past0.has_value()) << "past_key_values.0.swa.key not found in generate model";
-    EXPECT_EQ((*past0)[2], kWindowSize);
+    EXPECT_EQ((*past0)[2], kGenerateAlignedPast);
 
     const auto past1 = input_shape(generate, "past_key_values.1.swa.key");
     ASSERT_TRUE(past1.has_value()) << "past_key_values.1.swa.key not found in generate model";
-    EXPECT_EQ((*past1)[2], kWindowSize);
+    EXPECT_EQ((*past1)[2], kGenerateAlignedPast);
 }

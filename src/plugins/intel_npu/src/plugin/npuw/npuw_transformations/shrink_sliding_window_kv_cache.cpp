@@ -84,6 +84,7 @@ constexpr size_t kSdpaKeyInputIdx = 1;
 constexpr size_t kSdpaValueInputIdx = 2;
 constexpr size_t kSdpaMaskInputIdx = 3;
 constexpr size_t kShapeInputIdx = 1;  // target_shape port of Reshape/Broadcast
+constexpr int64_t kKvAlignment = 16;  // NPU HW-preferred KV length granularity
 
 // past_kv Parameter feeding a KV Concat, plus the optional Convert in between.
 struct PastKVSource {
@@ -407,13 +408,23 @@ bool ShrinkSlidingWindowKVCache::run_on_model(const std::shared_ptr<ov::Model>& 
     // 2) prefill_chunk_size == max_prompt_len (for example, both are 1k).
     // Result: there is no past region, so SWA layers keep no past KV.
     const uint32_t available_past = m_kvcache_size - m_input_size;
-    OPENVINO_ASSERT(available_past == 0 || m_window_size <= available_past,
-                    "[SWA] window_size (",
-                    m_window_size,
-                    ") exceeds available_past (",
-                    available_past,
-                    ").");
-    const int64_t new_past = available_past == 0 ? 0 : static_cast<int64_t>(m_window_size);
+
+    // Sliding layers keep only the last window_size past tokens. Grow that past region so
+    // past + present lands on a kKvAlignment boundary.
+    // e.g. window=512, present=1: unaligned total=513 -> aligned to 528 -> past=527.
+    int64_t new_past = 0;
+    if (available_past > 0) {
+        const int64_t input_size = static_cast<int64_t>(m_input_size);
+        const int64_t unaligned_total = input_size + static_cast<int64_t>(m_window_size);
+        const int64_t aligned_total = (unaligned_total + kKvAlignment - 1) / kKvAlignment * kKvAlignment;
+        new_past = aligned_total - input_size;
+        OPENVINO_ASSERT(new_past <= static_cast<int64_t>(available_past),
+                        "[SWA] window_size (",
+                        m_window_size,
+                        ") exceeds available_past (",
+                        available_past,
+                        ")");
+    }
     const int64_t new_kv_total = static_cast<int64_t>(m_input_size) + new_past;
 
     LOG_INFO("[SWA] ShrinkSlidingWindowKVCache: model='"

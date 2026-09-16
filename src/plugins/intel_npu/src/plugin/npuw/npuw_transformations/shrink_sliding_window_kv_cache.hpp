@@ -24,8 +24,9 @@ namespace ov::npuw {
 //    so SWA-managed KV cache entries can be identified by name alone downstream.
 //
 // SWA contract:
-// - new_past = window_size
-// - new_kv_total = input_size + window_size
+// - new_past = window_size, rounded up so that input_size + new_past is a multiple of 16
+//   (NPU HW prefers 16-aligned KV lengths).
+// - new_kv_total = input_size + new_past.
 //
 // Pass ordering:
 // - Run after ReshapeToStatic.
