@@ -69,12 +69,14 @@ std::vector<std::vector<InputShape>> transposedShape_4D_shapeof_broadcast() {
             const auto& query = inputs[0].second[i];
             const auto& key = inputs[1].second[i];
             auto& mask = inputs[2].second[i];
+            auto& value = inputs[3].second[i];
             const Shape target{std::max(query[0], key[0]), std::max(query[2], key[2]), query[1], key[1]};
             for (size_t axis = 0; axis < mask.size(); ++axis) {
                 if (mask[axis] != 1) {
                     mask[axis] = target[axis];
                 }
             }
+            value[1] = key[1];
         }
     }
     return shapes;
