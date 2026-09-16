@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <intel_gpu/graph/network.hpp>
 #include <intel_gpu/graph/topology.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -884,303 +885,216 @@ TEST(scatter_elements_update_gpu_fp32, smoke_sum_large_values_overflow_guard_dyn
     ASSERT_NEAR(output_ptr[0], 3e7f, 1.0f);
 }
 
-// The opt tests below also pass on `_ref`, so each asserts the kernel that actually ran.
-// get_implementation_info() appends the inference precision, hence the prefix match.
+// Coverage for the opt_local_sum kernel. Every case below also passes on `_ref`, so the
+// fixture asserts which kernel actually ran; get_implementation_info() appends the
+// inference precision, hence the prefix match.
 static void expect_opt_local_sum_selected(network& net, const primitive_id& id) {
     const auto impl_name = net.get_implementation_info(id);
     ASSERT_EQ(impl_name.rfind("scatter_elements_update_opt_local_sum", 0), 0u)
         << "expected the opt_local_sum kernel to be selected, got: " << impl_name;
 }
 
-TEST(scatter_elements_update_gpu_fp32, smoke_sum_opt_local_kernel_static_1d) {
-    // Output too large for `_ref`'s local-memory path. Most updates collide on one
-    // destination; a few are far enough apart to land in different windows.
-    auto& engine = get_test_engine();
-    const int32_t num = 20000;
-    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{num, 1, 1, 1}});
-    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{num, 1, 1, 1}});
-    auto input3 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{num, 1, 1, 1}});
+template<typename T>
+struct ScatterElementsUpdateOptParams {
+    std::string name;
+    int64_t axis;
+    tensor data_tensor;
+    tensor updates_tensor;
+    // Fills the zero-initialized indices and updates, and returns the expected output.
+    // Accumulated in double so an i32 sum past 2^24 stays exact.
+    std::function<std::vector<double>(std::vector<int32_t>&, std::vector<T>&)> build;
+    double tolerance;
+};
 
-    std::vector<float> data(num, 0.0f);
-    std::vector<int32_t> indices(num, 0);
-    std::vector<float> updates(num, 0.0f);
-
-    const std::vector<int32_t> target_update_positions = {0, 100, 4095, 4096, 8191, 15000, 19999};
-    for (auto pos : target_update_positions) {
-        updates[pos] = 1.0f;
-        indices[pos] = pos;
+struct PrintToStringOptParamName {
+    template<typename T>
+    std::string operator()(const testing::TestParamInfo<ScatterElementsUpdateOptParams<T> > &param) const {
+        return param.param.name;
     }
+};
 
-    topology topology;
-    topology.add(input_layout("input", input1->get_layout()));
-    topology.add(input_layout("indices", input2->get_layout()));
-    topology.add(input_layout("updates", input3->get_layout()));
-    topology.add(scatter_elements_update("scatter_elements_update",
-                                         input_info("input"),
-                                         input_info("indices"),
-                                         input_info("updates"),
-                                         0,
-                                         ScatterElementsUpdateOp::Reduction::SUM,
-                                         true));
+template<typename T>
+struct scatter_elements_update_gpu_opt_test
+        : public ::testing::TestWithParam<ScatterElementsUpdateOptParams<T> > {
+public:
+    void test() {
+        const auto& params = this->GetParam();
+        const auto data_type = ov::element::from<T>();
+        const auto indices_type = ov::element::from<int32_t>();
 
-    set_values(input1, data);
-    set_values(input2, indices);
-    set_values(input3, updates);
+        auto& engine = get_test_engine();
+        const auto data = engine.allocate_memory({data_type, format::bfyx, params.data_tensor});
+        const auto indices = engine.allocate_memory({indices_type, format::bfyx, params.updates_tensor});
+        const auto updates = engine.allocate_memory({data_type, format::bfyx, params.updates_tensor});
 
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input1);
-    network.set_input_data("indices", input2);
-    network.set_input_data("updates", input3);
+        std::vector<int32_t> indices_values(params.updates_tensor.count(), 0);
+        std::vector<T> updates_values(params.updates_tensor.count(), static_cast<T>(0));
+        const auto expected = params.build(indices_values, updates_values);
+        ASSERT_EQ(expected.size(), params.data_tensor.count());
 
-    auto outputs = network.execute();
-    expect_opt_local_sum_selected(network, "scatter_elements_update");
-    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(outputs.at("scatter_elements_update").get_memory(),
-                                                           get_test_stream());
+        set_values(data, std::vector<T>(params.data_tensor.count(), static_cast<T>(0)));
+        set_values(indices, indices_values);
+        set_values(updates, updates_values);
 
-    // Unset positions default to index 0 with update 0.0, an exact no-op, so index 0
-    // ends at exactly its own 1.0.
-    std::vector<float> expected(num, 0.0f);
-    for (auto pos : target_update_positions) {
-        expected[pos] = 1.0f;
-    }
-    for (int32_t i = 0; i < num; ++i) {
-        ASSERT_EQ(expected[i], output_ptr[i]) << "at index " << i;
-    }
-}
+        topology topology;
+        topology.add(input_layout("Data", data->get_layout()));
+        topology.add(input_layout("Indices", indices->get_layout()));
+        topology.add(input_layout("Updates", updates->get_layout()));
+        topology.add(scatter_elements_update("ScatterElementsUpdate",
+                                             input_info("Data"),
+                                             input_info("Indices"),
+                                             input_info("Updates"),
+                                             params.axis,
+                                             ScatterElementsUpdateOp::Reduction::SUM,
+                                             true));
 
-TEST(scatter_elements_update_gpu_fp16, smoke_sum_opt_local_kernel_dense_flat) {
-    // The production shape: rank-3 (N, C, flat_spatial), f16, updates 4x the output for
-    // a 4-corner bilinear splat concatenated into one scatter. That ratio is what caught
-    // the update stage using the wrong gws layout, which put every contribution on one
-    // element.
-    auto& engine = get_test_engine();
-    const int32_t out_x = 128, out_y = 128, channels = 2;
-    const int32_t out_len = out_x * out_y;
-    const int32_t upd_len = out_len * 4;  // 4 bilinear corners concatenated
+        network network(engine, topology, get_test_default_config(engine));
+        network.set_input_data("Data", data);
+        network.set_input_data("Indices", indices);
+        network.set_input_data("Updates", updates);
 
-    auto input1 = engine.allocate_memory({data_types::f16, format::bfyx, tensor{1, channels, out_len, 1}});
-    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{1, channels, upd_len, 1}});
-    auto input3 = engine.allocate_memory({data_types::f16, format::bfyx, tensor{1, channels, upd_len, 1}});
+        const auto outputs = network.execute();
+        expect_opt_local_sum_selected(network, "ScatterElementsUpdate");
 
-    std::vector<ov::float16> data(out_len * channels, ov::float16(0.0f));
-    std::vector<int32_t> indices(upd_len * channels);
-    std::vector<ov::float16> updates(upd_len * channels);
-
-    // Each corner scatters to a nearby destination (+/-2 px jitter), i.e. real locality.
-    std::mt19937 rng(12345);
-    std::uniform_int_distribution<int32_t> jitter(-2, 2);
-    std::vector<int32_t> expected_indices(upd_len);
-    for (int32_t corner = 0; corner < 4; ++corner) {
-        for (int32_t p = 0; p < out_len; ++p) {
-            int32_t x = p % out_x, y = p / out_x;
-            int32_t nx = std::min(std::max(x + jitter(rng), 0), out_x - 1);
-            int32_t ny = std::min(std::max(y + jitter(rng), 0), out_y - 1);
-            expected_indices[corner * out_len + p] = ny * out_x + nx;
+        const cldnn::mem_lock<T, mem_lock_type::read> output_ptr(
+            outputs.at("ScatterElementsUpdate").get_memory(), get_test_stream());
+        ASSERT_EQ(expected.size(), output_ptr.size());
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_NEAR(expected[i], static_cast<double>(output_ptr[i]), params.tolerance) << "at index " << i;
         }
     }
-    for (int32_t c = 0; c < channels; ++c) {
-        for (int32_t i = 0; i < upd_len; ++i) {
-            indices[c * upd_len + i] = expected_indices[i];
-            updates[c * upd_len + i] = ov::float16(1.0f);
-        }
-    }
+};
 
-    topology topology;
-    topology.add(input_layout("input", input1->get_layout()));
-    topology.add(input_layout("indices", input2->get_layout()));
-    topology.add(input_layout("updates", input3->get_layout()));
-    topology.add(scatter_elements_update("scatter_elements_update",
-                                         input_info("input"),
-                                         input_info("indices"),
-                                         input_info("updates"),
-                                         3,  // X axis -- the flat spatial scatter axis this kernel targets
-                                         ScatterElementsUpdateOp::Reduction::SUM,
-                                         true));
+using scatter_elements_update_gpu_opt_test_f32 = scatter_elements_update_gpu_opt_test<float>;
+using scatter_elements_update_gpu_opt_test_f16 = scatter_elements_update_gpu_opt_test<ov::float16>;
+using scatter_elements_update_gpu_opt_test_i32 = scatter_elements_update_gpu_opt_test<int32_t>;
 
-    set_values(input1, data);
-    set_values(input2, indices);
-    set_values(input3, updates);
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input1);
-    network.set_input_data("indices", input2);
-    network.set_input_data("updates", input3);
-
-    auto outputs = network.execute();
-    expect_opt_local_sum_selected(network, "scatter_elements_update");
-    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(outputs.at("scatter_elements_update").get_memory(),
-                                                                 get_test_stream());
-
-    for (int32_t c = 0; c < channels; ++c) {
-        std::vector<float> expected(out_len, 0.0f);
-        for (int32_t i = 0; i < upd_len; ++i) {
-            expected[expected_indices[i]] += 1.0f;
-        }
-        for (int32_t p = 0; p < out_len; ++p) {
-            float got = static_cast<float>(output_ptr[c * out_len + p]);
-            // f16 fixed-point accumulation of a few unit contributions is exact, so the
-            // tolerance is tight on purpose.
-            ASSERT_NEAR(expected[p], got, 0.05f) << "channel " << c << " pixel " << p;
-        }
-    }
+TEST_P(scatter_elements_update_gpu_opt_test_f32, basic) {
+    test();
 }
 
-TEST(scatter_elements_update_gpu_i32, smoke_sum_opt_local_kernel_integer_exact) {
-    // Integers take the identity encoding, so the sum is exact int32. 2^24+1 is the first
-    // integer a float cannot hold: round-tripping it would give 67108864, not 67108868.
-    auto& engine = get_test_engine();
-    const int32_t num = 20000;  // ~80KB of i32, past `_ref`'s own local-memory path
-    const int32_t update_value = 16777217;  // 2^24 + 1
-    auto input1 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{num, 1, 1, 1}});
-    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{num, 1, 1, 1}});
-    auto input3 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{num, 1, 1, 1}});
-
-    std::vector<int32_t> data(num, 0);
-    std::vector<int32_t> indices(num);
-    std::vector<int32_t> updates(num, update_value);
-    for (int32_t i = 0; i < num; ++i) {
-        indices[i] = i & ~3;  // groups of 4 accumulate onto one destination
-    }
-
-    topology topology;
-    topology.add(input_layout("input", input1->get_layout()));
-    topology.add(input_layout("indices", input2->get_layout()));
-    topology.add(input_layout("updates", input3->get_layout()));
-    topology.add(scatter_elements_update("scatter_elements_update",
-                                         input_info("input"),
-                                         input_info("indices"),
-                                         input_info("updates"),
-                                         0,
-                                         ScatterElementsUpdateOp::Reduction::SUM,
-                                         true));
-
-    set_values(input1, data);
-    set_values(input2, indices);
-    set_values(input3, updates);
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input1);
-    network.set_input_data("indices", input2);
-    network.set_input_data("updates", input3);
-
-    auto outputs = network.execute();
-    expect_opt_local_sum_selected(network, "scatter_elements_update");
-    cldnn::mem_lock<int32_t, mem_lock_type::read> output_ptr(outputs.at("scatter_elements_update").get_memory(),
-                                                             get_test_stream());
-
-    for (int32_t i = 0; i < num; ++i) {
-        const int32_t expected = (i % 4 == 0) ? 4 * update_value : 0;
-        ASSERT_EQ(expected, output_ptr[i]) << "at index " << i;
-    }
+TEST_P(scatter_elements_update_gpu_opt_test_f16, basic) {
+    test();
 }
 
-TEST(scatter_elements_update_gpu_fp32, smoke_sum_opt_local_kernel_f32_precision) {
-    // f32 accumulates in floating point, so staging reorders the additions and the result
-    // is not bit-reproducible -- as in `_ref`. Agreement within the summation's precision
-    // is the bar; the reference is accumulated in double.
-    auto& engine = get_test_engine();
-    const int32_t out_len = 20000;      // ~80KB f32, past `_ref`'s own local-memory path
-    const int32_t per_dest = 8;
-    const int32_t n_updates = out_len * per_dest;
-
-    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{out_len, 1, 1, 1}});
-    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{n_updates, 1, 1, 1}});
-    auto input3 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{n_updates, 1, 1, 1}});
-
-    std::mt19937 rng(4242);
-    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
-    std::vector<float> data(out_len, 0.0f);
-    std::vector<int32_t> indices(n_updates);
-    std::vector<float> updates(n_updates);
-    std::vector<double> expected(out_len, 0.0);
-    for (int32_t i = 0; i < n_updates; ++i) {
-        indices[i] = i % out_len;
-        updates[i] = dist(rng);
-        expected[indices[i]] += static_cast<double>(updates[i]);
-    }
-
-    topology topology;
-    topology.add(input_layout("input", input1->get_layout()));
-    topology.add(input_layout("indices", input2->get_layout()));
-    topology.add(input_layout("updates", input3->get_layout()));
-    topology.add(scatter_elements_update("scatter_elements_update",
-                                         input_info("input"),
-                                         input_info("indices"),
-                                         input_info("updates"),
-                                         0,
-                                         ScatterElementsUpdateOp::Reduction::SUM,
-                                         true));
-
-    set_values(input1, data);
-    set_values(input2, indices);
-    set_values(input3, updates);
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input1);
-    network.set_input_data("indices", input2);
-    network.set_input_data("updates", input3);
-
-    auto outputs = network.execute();
-    expect_opt_local_sum_selected(network, "scatter_elements_update");
-    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(outputs.at("scatter_elements_update").get_memory(),
-                                                           get_test_stream());
-
-    // Eight additions of magnitude < 1: rounding error stays well below 1e-4, tight
-    // enough to still catch a dropped or double-counted contribution.
-    for (int32_t i = 0; i < out_len; ++i) {
-        ASSERT_NEAR(static_cast<float>(expected[i]), output_ptr[i], 1e-4f) << "at index " << i;
-    }
+TEST_P(scatter_elements_update_gpu_opt_test_i32, basic) {
+    test();
 }
 
-TEST(scatter_elements_update_gpu_fp32, smoke_sum_opt_local_kernel_small_output_anchor_zero) {
-    // An output that fits inside one window takes the anchor-at-zero variant. 512
-    // elements is also inside the range `_ref`'s local-memory path used to claim.
-    auto& engine = get_test_engine();
-    const int32_t out_len = 512;
-    const int32_t n_updates = 65536;
+INSTANTIATE_TEST_SUITE_P(smoke_scatter_elements_update_gpu_opt_f32,
+                         scatter_elements_update_gpu_opt_test_f32,
+                         ::testing::Values(
+                             // Output past one window. Most updates are a no-op on index 0;
+                             // the seven live ones sit far enough apart to land in different
+                             // windows, so both the staged and the global-fallback path run.
+                             ScatterElementsUpdateOptParams<float>{
+                                 "windowed_and_global_fallback", 0, tensor{20000, 1, 1, 1}, tensor{20000, 1, 1, 1},
+                                 [](std::vector<int32_t>& indices, std::vector<float>& updates) {
+                                     std::vector<double> expected(20000, 0.0);
+                                     for (const int32_t pos : {0, 100, 4095, 4096, 8191, 15000, 19999}) {
+                                         indices[pos] = pos;
+                                         updates[pos] = 1.0f;
+                                         expected[pos] = 1.0;
+                                     }
+                                     return expected;
+                                 },
+                                 0.0},
+                             // f32 accumulates in floating point, so staging reorders the
+                             // additions and the result is not bit-reproducible -- as in
+                             // `_ref`. Agreement within the summation's precision is the bar,
+                             // and eight additions of magnitude < 1 stay well inside 1e-4.
+                             ScatterElementsUpdateOptParams<float>{
+                                 "f32_precision", 0, tensor{20000, 1, 1, 1}, tensor{160000, 1, 1, 1},
+                                 [](std::vector<int32_t>& indices, std::vector<float>& updates) {
+                                     std::mt19937 rng(4242);
+                                     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+                                     std::vector<double> expected(20000, 0.0);
+                                     for (size_t i = 0; i < indices.size(); ++i) {
+                                         indices[i] = static_cast<int32_t>(i % expected.size());
+                                         updates[i] = dist(rng);
+                                         expected[indices[i]] += static_cast<double>(updates[i]);
+                                     }
+                                     return expected;
+                                 },
+                                 1e-4},
+                             // An output that fits inside one window takes the anchor-at-zero
+                             // variant. 512 elements is also inside the range `_ref`'s own
+                             // local-memory path claims.
+                             ScatterElementsUpdateOptParams<float>{
+                                 "small_output_anchor_zero", 0, tensor{512, 1, 1, 1}, tensor{65536, 1, 1, 1},
+                                 [](std::vector<int32_t>& indices, std::vector<float>& updates) {
+                                     std::vector<double> expected(512, 0.0);
+                                     for (size_t i = 0; i < indices.size(); ++i) {
+                                         indices[i] = static_cast<int32_t>(i % expected.size());
+                                         updates[i] = 1.0f;
+                                         expected[indices[i]] += 1.0;
+                                     }
+                                     return expected;
+                                 },
+                                 0.0}),
+                         PrintToStringOptParamName());
 
-    auto input1 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{out_len, 1, 1, 1}});
-    auto input2 = engine.allocate_memory({data_types::i32, format::bfyx, tensor{n_updates, 1, 1, 1}});
-    auto input3 = engine.allocate_memory({data_types::f32, format::bfyx, tensor{n_updates, 1, 1, 1}});
+INSTANTIATE_TEST_SUITE_P(smoke_scatter_elements_update_gpu_opt_f16,
+                         scatter_elements_update_gpu_opt_test_f16,
+                         ::testing::Values(
+                             // The production shape: f16, a flat spatial axis, updates 4x the
+                             // output for a 4-corner bilinear splat concatenated into one
+                             // scatter. That ratio is what caught the update stage using the
+                             // wrong gws layout, which put every contribution on one element.
+                             // Each corner scatters to a nearby destination (+/-2 px jitter),
+                             // i.e. real locality.
+                             ScatterElementsUpdateOptParams<ov::float16>{
+                                 "dense_flat_bilinear_splat", 3, tensor{1, 2, 16384, 1}, tensor{1, 2, 65536, 1},
+                                 [](std::vector<int32_t>& indices, std::vector<ov::float16>& updates) {
+                                     const int32_t out_x = 128, out_y = 128, channels = 2;
+                                     const int32_t out_len = out_x * out_y;
+                                     const int32_t upd_len = out_len * 4;
+                                     std::mt19937 rng(12345);
+                                     std::uniform_int_distribution<int32_t> jitter(-2, 2);
+                                     std::vector<int32_t> destinations(upd_len);
+                                     for (int32_t corner = 0; corner < 4; ++corner) {
+                                         for (int32_t p = 0; p < out_len; ++p) {
+                                             const int32_t x = p % out_x, y = p / out_x;
+                                             const int32_t nx = std::min(std::max(x + jitter(rng), 0), out_x - 1);
+                                             const int32_t ny = std::min(std::max(y + jitter(rng), 0), out_y - 1);
+                                             destinations[corner * out_len + p] = ny * out_x + nx;
+                                         }
+                                     }
+                                     std::vector<double> expected(out_len * channels, 0.0);
+                                     for (int32_t c = 0; c < channels; ++c) {
+                                         for (int32_t i = 0; i < upd_len; ++i) {
+                                             indices[c * upd_len + i] = destinations[i];
+                                             updates[c * upd_len + i] = ov::float16(1.0f);
+                                             expected[c * out_len + destinations[i]] += 1.0;
+                                         }
+                                     }
+                                     return expected;
+                                 },
+                                 // f16's fixed-point accumulation of unit contributions is
+                                 // exact, so the tolerance is tight on purpose.
+                                 0.05}),
+                         PrintToStringOptParamName());
 
-    std::vector<float> data(out_len, 0.0f);
-    std::vector<int32_t> indices(n_updates);
-    std::vector<float> updates(n_updates, 1.0f);
-    for (int32_t i = 0; i < n_updates; ++i) {
-        indices[i] = i % out_len;
-    }
-
-    topology topology;
-    topology.add(input_layout("input", input1->get_layout()));
-    topology.add(input_layout("indices", input2->get_layout()));
-    topology.add(input_layout("updates", input3->get_layout()));
-    topology.add(scatter_elements_update("scatter_elements_update",
-                                         input_info("input"),
-                                         input_info("indices"),
-                                         input_info("updates"),
-                                         0,
-                                         ScatterElementsUpdateOp::Reduction::SUM,
-                                         true));
-
-    set_values(input1, data);
-    set_values(input2, indices);
-    set_values(input3, updates);
-
-    network network(engine, topology, get_test_default_config(engine));
-    network.set_input_data("input", input1);
-    network.set_input_data("indices", input2);
-    network.set_input_data("updates", input3);
-
-    auto outputs = network.execute();
-    expect_opt_local_sum_selected(network, "scatter_elements_update");
-    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(outputs.at("scatter_elements_update").get_memory(),
-                                                           get_test_stream());
-
-    const float expected = static_cast<float>(n_updates / out_len);
-    for (int32_t i = 0; i < out_len; ++i) {
-        ASSERT_EQ(expected, output_ptr[i]) << "at index " << i;
-    }
-}
+INSTANTIATE_TEST_SUITE_P(smoke_scatter_elements_update_gpu_opt_i32,
+                         scatter_elements_update_gpu_opt_test_i32,
+                         ::testing::Values(
+                             // Integers take the identity encoding, so the sum is exact int32.
+                             // 2^24+1 is the first integer a float cannot hold: round-tripping
+                             // it would give 67108864, not 67108868.
+                             ScatterElementsUpdateOptParams<int32_t>{
+                                 "integer_exact_above_2p24", 0, tensor{20000, 1, 1, 1}, tensor{20000, 1, 1, 1},
+                                 [](std::vector<int32_t>& indices, std::vector<int32_t>& updates) {
+                                     const int32_t update_value = 16777217;  // 2^24 + 1
+                                     std::vector<double> expected(20000, 0.0);
+                                     for (size_t i = 0; i < indices.size(); ++i) {
+                                         indices[i] = static_cast<int32_t>(i) & ~3;  // groups of 4 share a destination
+                                         updates[i] = update_value;
+                                         expected[indices[i]] += update_value;
+                                     }
+                                     return expected;
+                                 },
+                                 0.0}),
+                         PrintToStringOptParamName());
 
 TEST(scatter_elements_update_gpu_fp32, smoke_sum_opt_local_kernel_dynamic) {
     // Two shapes needing different anchor variants through one shape-agnostic compile.

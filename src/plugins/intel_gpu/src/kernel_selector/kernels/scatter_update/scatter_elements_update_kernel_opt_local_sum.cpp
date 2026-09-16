@@ -88,6 +88,9 @@ CommonDispatchData ScatterElementsUpdateKernelOptLocalSum::SetDefault(const scat
     const auto& indices = params.inputs[1];
     const auto& scope = is_second ? indices : output;
     const auto rank = params.inputs[0].GetDims().size();
+    if (scope.is_dynamic()) {
+        return dispatchData;  // as in `_ref`: gws is set by update_dispatch_data_func once the shape is known
+    }
 
     // As in `_ref`: the update stage merges X*Y into gws[0], which the ITER == 1 body's
     // index decoding depends on. Init/finalize use the non-merged layout.
@@ -170,6 +173,10 @@ bool ScatterElementsUpdateKernelOptLocalSum::Validate(const Params& p) const {
     }
     if (!params.fused_ops.empty()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);  // `_ref` handles fused cases
+    }
+    // The update stage always requests one window of local memory, whatever the shape.
+    if (kWindowSize * sizeof(int32_t) > params.engineInfo.maxLocalMemSize) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     // Every condition above is shape-independent, which is what lets this kernel serve
     // shape-agnostic compilation too.
