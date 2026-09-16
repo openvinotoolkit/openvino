@@ -1861,8 +1861,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
-                auto weight_shape = root->get_input_partial_shape(1);
-                const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+                auto fc = ov::as_type_ptr<const ov::intel_gpu::op::FullyConnectedCompressed>(root);
+                auto weight_shape = fc->get_input_partial_shape(1);
+                const size_t k_axis = weight_shape.size() - (fc->get_transpose_b() ? 1 : 2);
+                const size_t n_axis = weight_shape.size() - (fc->get_transpose_b() ? 2 : 1);
+                const size_t innermost_size = weight_shape[k_axis].get_length();
                 const size_t simd = 16;
                 if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name()
@@ -1887,10 +1890,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 }
 
                 // A single output feature (N == 1) FC has a matmul too small to amortize
-                // the cost of dynamically quantizing its activation. Use the output shape so the check
-                // works for both [N, K] (transpose_b=true) and [K, N] (transpose_b=false) weight layouts.
-                const auto& output_shape = root->get_output_partial_shape(0);
-                const auto& n_dim = output_shape[output_shape.size() - 1];
+                // the cost of dynamically quantizing its activation
+                const auto& n_dim = weight_shape[n_axis];
                 if (n_dim.is_static() && n_dim.get_length() == 1) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
                                                                     " compressed weight with N==1 (activation quantization is unprofitable;"
