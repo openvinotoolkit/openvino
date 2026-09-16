@@ -58,7 +58,7 @@ static inline std::string getLatestVCLLog(const VCLFunctionTable& functions, vcl
     // Get log content
     std::string logContent{};
     logContent.resize(size);
-    ret = functions.vclLogHandleGetString(logHandle, &size, const_cast<char*>(logContent.data()));
+    ret = functions.vclLogHandleGetString(logHandle, &size, logContent.data());
     if (VCL_RESULT_SUCCESS != ret) {
         return "Size of latest error log > 0, failed to get content";
     }
