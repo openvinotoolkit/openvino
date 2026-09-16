@@ -2033,7 +2033,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     }
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
     // ref with float planar and no fusion
-    if (!mayiuse(cpu::x64::sse41)) {
+    if (!ov::with_cpu_x86_sse42()) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
 #endif
@@ -2153,7 +2153,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, [[maybe_unused]] c
     jcp.normalize_variance = mvnAttrs.normalizeVariance_;
     jcp.across_channels = mvnAttrs.execAcrossChannels_;
 #if defined(OPENVINO_ARCH_X86_64)
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         mvn_kernel = std::make_shared<jit_uni_mvn_kernel_f32<cpu::x64::avx512_core>>(jcp, *attr.get());
         jcp.normalize_variance = false;
         mvn_mean_kernel = std::make_shared<jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_core>>(jcp);
@@ -2161,7 +2161,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, [[maybe_unused]] c
             jcp.normalize_variance = true;
             mvn_variance_kernel = std::make_shared<jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx512_core>>(jcp);
         }
-    } else if (mayiuse(cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         mvn_kernel = std::make_shared<jit_uni_mvn_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
         jcp.normalize_variance = false;
         mvn_mean_kernel = std::make_shared<jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>>(jcp);
@@ -2169,7 +2169,7 @@ MVN::MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, [[maybe_unused]] c
             jcp.normalize_variance = true;
             mvn_variance_kernel = std::make_shared<jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::avx2>>(jcp);
         }
-    } else if (mayiuse(cpu::x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         mvn_kernel = std::make_shared<jit_uni_mvn_kernel_f32<cpu::x64::sse41>>(jcp, *attr.get());
         jcp.normalize_variance = false;
         mvn_mean_kernel = std::make_shared<jit_uni_mvn_mean_variance_kernel_f32<cpu::x64::sse41>>(jcp);
