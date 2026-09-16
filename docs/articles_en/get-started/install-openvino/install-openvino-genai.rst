@@ -1,11 +1,6 @@
 Install OpenVINO™ GenAI
 ====================================
 
-.. TODO(2026.4 release): archive URLs/filenames below are placeholders sourced
-   from the 2026.4.0.0rc3 pre-release build. Replace with verified final
-   production package details once 2026.4.0 is published (see AGENTS.md
-   "Release Package URL Updates").
-
 OpenVINO GenAI is a tool, simplifying generative AI model inference. It is based on the
 OpenVINO Runtime, hiding the complexity of the generation process and minimizing the amount of
 code required. You provide a model and the input context directly to the tool, while it
@@ -69,7 +64,7 @@ Linux
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/pre-release/2026.4.0.0rc3/openvino_genai_ubuntu26_2026.4.0.0rc3_x86_64.tar.gz --output openvino_genai_2026.4.0.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.4/linux/openvino_genai_ubuntu26_2026.4.0.0_x86_64.tar.gz --output openvino_genai_2026.4.0.0.tgz
                tar -xf openvino_genai_2026.4.0.0.tgz
 
          .. tab-item:: Ubuntu 24.04
@@ -77,7 +72,7 @@ Linux
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/pre-release/2026.4.0.0rc3/openvino_genai_ubuntu24_2026.4.0.0rc3_x86_64.tar.gz --output openvino_genai_2026.4.0.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.4/linux/openvino_genai_ubuntu24_2026.4.0.0_x86_64.tar.gz --output openvino_genai_2026.4.0.0.tgz
                tar -xf openvino_genai_2026.4.0.0.tgz
 
          .. tab-item:: Ubuntu 22.04
@@ -85,7 +80,7 @@ Linux
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/pre-release/2026.4.0.0rc3/openvino_genai_ubuntu22_2026.4.0.0rc3_x86_64.tar.gz --output openvino_genai_2026.4.0.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.4/linux/openvino_genai_ubuntu22_2026.4.0.0_x86_64.tar.gz --output openvino_genai_2026.4.0.0.tgz
                tar -xf openvino_genai_2026.4.0.0.tgz
 
          .. tab-item:: RHEL 9
@@ -93,7 +88,7 @@ Linux
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/pre-release/2026.4.0.0rc3/openvino_genai_rhel9_2026.4.0.0rc3_x86_64.tar.gz --output openvino_genai_2026.4.0.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.4/linux/openvino_genai_rhel9_2026.4.0.0_x86_64.tar.gz --output openvino_genai_2026.4.0.0.tgz
                tar -xf openvino_genai_2026.4.0.0.tgz
 
          .. tab-item:: RHEL 8
@@ -101,7 +96,7 @@ Linux
 
             .. code-block:: sh
 
-               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/pre-release/2026.4.0.0rc3/openvino_genai_rhel8_2026.4.0.0rc3_x86_64.tar.gz --output openvino_genai_2026.4.0.0.tgz
+               curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.4/linux/openvino_genai_rhel8_2026.4.0.0_x86_64.tar.gz --output openvino_genai_2026.4.0.0.tgz
                tar -xf openvino_genai_2026.4.0.0.tgz
 
    .. tab-item:: ARM 64-bit
@@ -109,7 +104,7 @@ Linux
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/pre-release/2026.4.0.0rc3/openvino_genai_ubuntu22_2026.4.0.0rc3_arm64.tar.gz --output openvino_genai_2026.4.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.4/linux/openvino_genai_ubuntu22_2026.4.0.0_arm64.tar.gz --output openvino_genai_2026.4.0.0.tgz
          tar -xf openvino_genai_2026.4.0.0.tgz
 
 
@@ -119,7 +114,7 @@ Windows
 .. code-block:: sh
 
    cd <user_home>/Downloads
-   curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/pre-release/2026.4.0.0rc3/openvino_genai_windows_2026.4.0.0rc3_x86_64.zip --output openvino_genai_2026.4.0.0.zip
+   curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.4/windows/openvino_genai_windows_2026.4.0.0_x86_64.zip --output openvino_genai_2026.4.0.0.zip
 
 macOS
 ++++++++++++++++++++++++++
@@ -131,7 +126,7 @@ macOS
 
       .. code-block:: sh
 
-         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/pre-release/2026.4.0.0rc3/openvino_genai_macos_12_6_2026.4.0.0rc3_arm64.tar.gz --output openvino_genai_2026.4.0.0.tgz
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2026.4/macos/openvino_genai_macos_12_6_2026.4.0.0_arm64.tar.gz --output openvino_genai_2026.4.0.0.tgz
          tar -xf openvino_genai_2026.4.0.0.tgz
 
 

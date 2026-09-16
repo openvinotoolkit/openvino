@@ -1,11 +1,6 @@
 Install OpenVINO™ Runtime on Windows from an Archive File
 ===========================================================
 
-.. TODO(2026.4 release): archive URLs/filenames below are placeholders sourced
-   from the 2026.4.0rc3 pre-release build. Replace with verified final
-   production package details once 2026.4.0 is published (see AGENTS.md
-   "Release Package URL Updates").
-
 
 .. meta::
    :description: Learn how to install OpenVINO™ Runtime on Windows operating
@@ -46,14 +41,14 @@ Step 1: Download and Install OpenVINO Core Components
       ``C:\Program Files (x86)\Intel`` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
 
-2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/pre-release/2026.4.0rc3/>`__ to your local ``Downloads`` folder.
+2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.4/windows/>`__ to your local ``Downloads`` folder.
 
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
 
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/pre-release/2026.4.0rc3/openvino_toolkit_windows_2026.4.0.dev20260911_x86_64.zip --output openvino_2026.4.0.zip
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.4/windows/openvino_toolkit_windows_2026.4.0.22959.99c81491cc3_x86_64.zip --output openvino_2026.4.0.zip
 
    .. note::
 
@@ -64,6 +59,13 @@ Step 1: Download and Install OpenVINO Core Components
       downloaded the correct file successfully; if not, create a Support ticket
       `here <https://www.intel.com/content/www/us/en/support/contact-intel.html>`__.
 
+   .. note::
+
+      If your system does not have the Microsoft Visual C++ Redistributable installed, use the
+      statically-linked VC++ runtime archive instead:
+      `openvino_toolkit_windows_vc_mt_2026.4.0.22959.99c81491cc3_x86_64.zip <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.4/windows_vc_mt/openvino_toolkit_windows_vc_mt_2026.4.0.22959.99c81491cc3_x86_64.zip>`__.
+      It can be downloaded and installed the same way as the main archive above.
+
 
 3. Use your favorite tool to extract the archive file, rename the extracted folder, and move it to the ``C:\Program Files (x86)\Intel`` directory.
 
@@ -72,7 +74,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       tar -xf openvino_2026.4.0.zip
-      ren openvino_toolkit_windows_2026.4.0.dev20260911_x86_64 openvino_2026.4.0
+      ren openvino_toolkit_windows_2026.4.0.22959.99c81491cc3_x86_64 openvino_2026.4.0
       move openvino_2026.4.0 "C:\Program Files (x86)\Intel"
 
 

@@ -1,11 +1,6 @@
 Install OpenVINO™ Runtime on macOS from an Archive File
 =========================================================
 
-.. TODO(2026.4 release): archive URLs/filenames below are placeholders sourced
-   from the 2026.4.0rc3 pre-release build. Replace with verified final
-   production package details once 2026.4.0 is published (see AGENTS.md
-   "Release Package URL Updates").
-
 
 .. meta::
    :description: Learn how to install OpenVINO™ Runtime on macOS operating
@@ -52,7 +47,7 @@ Step 1: Install OpenVINO Core Components
       cd <user_home>/Downloads
 
 
-4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/pre-release/2026.4.0rc3/>`__,
+4. Download the `OpenVINO Runtime archive file for macOS <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.4/macos/>`__,
    extract the files, rename the extracted folder and move it to the desired path:
 
    .. tab-set::
@@ -62,9 +57,9 @@ Step 1: Install OpenVINO Core Components
 
          .. code-block:: sh
 
-            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/pre-release/2026.4.0rc3/openvino_toolkit_macos_12_6_2026.4.0.dev20260911_arm64.tgz --output openvino_2026.4.0.tgz
+            curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.4/macos/openvino_toolkit_macos_12_6_2026.4.0.22959.99c81491cc3_arm64.tgz --output openvino_2026.4.0.tgz
             tar -xf openvino_2026.4.0.tgz
-            sudo mv openvino_toolkit_macos_12_6_2026.4.0.dev20260911_arm64 /opt/intel/openvino_2026.4.0
+            sudo mv openvino_toolkit_macos_12_6_2026.4.0.22959.99c81491cc3_arm64 /opt/intel/openvino_2026.4.0
 
 
 5. (Optional) Install *numpy* Python Library:
