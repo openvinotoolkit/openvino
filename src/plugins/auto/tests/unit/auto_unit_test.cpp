@@ -127,10 +127,14 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
         });
 
     ON_CALL(*plugin, sort_device_by_perf_curve)
-        .WillByDefault([this](const std::list<DeviceInformation>& validDevices,
+        .WillByDefault([this](const std::string& utilizationSnapshot,
+                              const std::list<DeviceInformation>& validDevices,
                               const ov::intel_auto::PerfCurveTable& perfCurveTable,
                               size_t* out_scored_count) {
-            return plugin->Plugin::sort_device_by_perf_curve(validDevices, perfCurveTable, out_scored_count);
+            return plugin->Plugin::sort_device_by_perf_curve(utilizationSnapshot,
+                                                             validDevices,
+                                                             perfCurveTable,
+                                                             out_scored_count);
         });
 
     ON_CALL(*plugin, get_valid_device)
@@ -143,8 +147,12 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
         return plugin->Plugin::get_property(name, arguments);
     });
 
+    ON_CALL(*plugin, get_utilization_snapshot).WillByDefault(Return(std::string{}));
+
     ON_CALL(*plugin, get_device_utilization)
-        .WillByDefault([](const std::string& device_name, const std::string& device_type) -> std::optional<float> {
+        .WillByDefault([](const std::string& utilization_snapshot,
+                          const std::string& device_name,
+                          const std::string& device_type) -> std::optional<float> {
             return std::nullopt;
         });
 }

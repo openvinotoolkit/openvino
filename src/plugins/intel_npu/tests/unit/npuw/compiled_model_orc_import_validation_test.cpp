@@ -8,12 +8,13 @@
 #include <string>
 #include <vector>
 
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+
 #define private public
 #include "compiled_model.hpp"
 #undef private
 
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/result.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
 
 namespace {

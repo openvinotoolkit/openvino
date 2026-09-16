@@ -16,10 +16,12 @@ namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(one_hot)
 
 static bool is_output_bfzyx(const layout& input, int64_t axis) {
-    if (input.format == format::bfzyx)
+    if (input.format == format::bfzyx) {
         return true;
-    if (axis == 4)
+    }
+    if (axis == 4) {
         return true;
+    }
     auto in_dims = input.get_tensor().sizes(format::bfyx);
     return in_dims[3] != 1;
 }
@@ -36,8 +38,9 @@ layout one_hot_inst::calc_output_layout(one_hot_node const& node, kernel_impl_pa
                             "Incorrect parameters configuration: one_hot_axis should be less or equal to 4.");
     }
 
-    if (is_output_bfzyx(input_layout, desc->one_hot_axis))
+    if (is_output_bfzyx(input_layout, desc->one_hot_axis)) {
         format = format::bfzyx;
+    }
 
     return {dt, format, desc->shape};
 }
@@ -111,8 +114,9 @@ std::string one_hot_inst::to_string(one_hot_node const& node) {
 one_hot_inst::typed_primitive_inst(network& network, one_hot_node const& node) : parent(network, node) {
     auto input_layout = node.get_input_layout();
 
-    if (input_layout.is_dynamic())
+    if (input_layout.is_dynamic()) {
         return;
+    }
 
     const auto& input_sizes = input_layout.get_tensor();
     const auto& output_sizes = argument->shape;
@@ -133,8 +137,9 @@ one_hot_inst::typed_primitive_inst(network& network, one_hot_node const& node) :
     const auto& one_hot_axis = node.get_primitive()->one_hot_axis;
 
     for (int64_t i = 0, j = 0; j < static_cast<int64_t>(output_dims.size()) - 1; ++i, ++j) {
-        if (j == one_hot_axis)
+        if (j == one_hot_axis) {
             ++j;
+        }
         if (input_dims[i] != output_dims[j]) {
             CLDNN_ERROR_MESSAGE(node.id(), "Incorrect parameters configuration: shape does not fit input size.");
         }

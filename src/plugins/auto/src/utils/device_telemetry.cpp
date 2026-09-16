@@ -169,23 +169,23 @@ public:
         }
     }
 
-    std::optional<float> utilization(const std::string& device_name, const std::string& device_type) {
+    // Single IPF round trip; the returned JSON snapshot covers every device's utilization at
+    // once, so callers should fetch it once per decision and reuse it for all candidates.
+    std::string fetch_utilization_snapshot() {
         if (m_handle == nullptr) {
-            LOG_DEBUG_TAG("TelemetryClient::utilization(%s): client not initialized", device_name.c_str());
+            LOG_DEBUG_TAG("TelemetryClient::fetch_utilization_snapshot: client not initialized");
+            return {};
+        }
+        LOG_DEBUG_TAG("TelemetryClient::fetch_utilization_snapshot: querying IPF for AISelector snapshot");
+        return get_node("Platform.Features.AISelector");
+    }
+
+    std::optional<float> utilization(const std::string& device_name, const std::string& device_type) {
+        const std::string snapshot = fetch_utilization_snapshot();
+        if (snapshot.empty()) {
             return std::nullopt;
         }
-        const auto metric_key_view = device_to_metric_key(device_name, device_type);
-        if (metric_key_view.empty()) {
-            LOG_WARNING_TAG("TelemetryClient::utilization(%s): unknown device type, metric_key empty", device_name.c_str());
-            return std::nullopt;
-        }
-        const std::string metric_key{metric_key_view};
-        LOG_DEBUG_TAG("TelemetryClient::utilization(%s): querying IPF for metric_key=%s", device_name.c_str(), metric_key.c_str());
-        const std::string json_str = get_node("Platform.Features.AISelector");
-        if (json_str.empty()) {
-            return std::nullopt;
-        }
-        return parse_utilization_from_aiselector_json_impl(json_str, metric_key, metric_key_view, device_name);
+        return utilization_from_snapshot(snapshot, device_name, device_type);
     }
 
     std::optional<bool> is_low_power_mode() {
@@ -404,6 +404,10 @@ TelemetryClient::TelemetryClient() : m_impl(std::make_unique<Impl>()) {}
 
 TelemetryClient::~TelemetryClient() = default;
 
+std::string TelemetryClient::fetch_utilization_snapshot() {
+    return m_impl->fetch_utilization_snapshot();
+}
+
 std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_type) {
     return m_impl->utilization(device_name, device_type);
 }
@@ -412,18 +416,27 @@ std::optional<bool> TelemetryClient::is_low_power_mode() {
     return m_impl->is_low_power_mode();
 }
 
-#ifdef MULTIUNITTEST
-std::optional<float> parse_utilization_from_aiselector_json_for_test(const std::string& json_str,
-                                                                     const std::string& device_name,
-                                                                     const std::string& device_type) {
+std::optional<float> utilization_from_snapshot(const std::string& snapshot,
+                                                const std::string& device_name,
+                                                const std::string& device_type) {
+    if (snapshot.empty()) {
+        return std::nullopt;
+    }
     const auto metric_key_view = device_to_metric_key(device_name, device_type);
     if (metric_key_view.empty()) {
         return std::nullopt;
     }
-    return parse_utilization_from_aiselector_json_impl(json_str,
+    return parse_utilization_from_aiselector_json_impl(snapshot,
                                                        std::string{metric_key_view},
                                                        metric_key_view,
                                                        device_name);
+}
+
+#ifdef MULTIUNITTEST
+std::optional<float> parse_utilization_from_aiselector_json_for_test(const std::string& json_str,
+                                                                     const std::string& device_name,
+                                                                     const std::string& device_type) {
+    return utilization_from_snapshot(json_str, device_name, device_type);
 }
 #endif
 
@@ -443,11 +456,19 @@ TelemetryClient::TelemetryClient() : m_impl(nullptr) {}
 
 TelemetryClient::~TelemetryClient() = default;
 
+std::string TelemetryClient::fetch_utilization_snapshot() {
+    return {};
+}
+
 std::optional<float> TelemetryClient::utilization(const std::string&, const std::string&) {
     return std::nullopt;
 }
 
 std::optional<bool> TelemetryClient::is_low_power_mode() {
+    return std::nullopt;
+}
+
+std::optional<float> utilization_from_snapshot(const std::string&, const std::string&, const std::string&) {
     return std::nullopt;
 }
 

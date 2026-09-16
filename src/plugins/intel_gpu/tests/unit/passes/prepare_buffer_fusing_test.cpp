@@ -3218,6 +3218,114 @@ TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_sdpa_consumer)
         << "crop2 (V->generic sdpa) must NOT be in-place";
 }
 
+// Same packed-QKV pattern feeding the Gemm+SoftMax+Gemm that a non-f16 precision decomposes
+// sdpa into. f32 is required: f16 picks a oneDNN gemm, which reshape_inst already blocks.
+TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_gemm_consumer) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int64_t H = 4, S = 8;
+    const int64_t L = 16;  // batch (sequence length)
+
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f32, format::bfyx};
+    auto input_mem      = engine.allocate_memory({{L, 3, H, S}, data_types::f32, format::bfyx});
+    auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<float>(L * 3 * H * S, -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+
+    auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    const int64_t axis = 1;
+
+    const std::vector<int64_t> rs_pattern{-1, H, S};
+    auto rs_shape_dyn = ov::PartialShape{-1, H, S};
+    const std::vector<int64_t> identity_order{0, 1, 2};
+    // Q x K^T: transpose the second matrix so the contraction is over S.
+    const std::vector<int64_t> transposed_order{0, 2, 1};
+
+    topology topo_dyn(
+        input_layout("input", in_layout_dyn),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape2", input_info("crop2"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        gemm("qk",
+            {input_info("reshape0"), input_info("reshape1")},
+            data_types::f32, identity_order, transposed_order, identity_order),
+        gemm("av",
+            {input_info("qk"), input_info("reshape2")},
+            data_types::f32, identity_order, identity_order, identity_order),
+        reorder("output", input_info("av"), format::bfyx, data_types::f32)
+    );
+    ExecutionConfig config_dyn = get_test_default_config(engine);
+    config_dyn.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config_dyn.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, topo_dyn, config_dyn);
+    net.set_input_data("input", input_mem);
+    auto outputs = net.execute();
+
+    ASSERT_FALSE(net.get_primitive("crop0")->can_be_optimized())
+        << "crop0 (Q->gemm) must NOT be in-place: gemm_tiled_opt doesn't honor propagated padding";
+    ASSERT_FALSE(net.get_primitive("crop1")->can_be_optimized())
+        << "crop1 (K->gemm) must NOT be in-place";
+    ASSERT_FALSE(net.get_primitive("crop2")->can_be_optimized())
+        << "crop2 (V->gemm) must NOT be in-place";
+
+    // Reference: the same gemms fed by three plain inputs holding the already-split slices,
+    // so a padded view reaching gemm shows up as wrong values, not just a graph change.
+    auto q_mem = engine.allocate_memory({{L, H, S}, data_types::f32, format::bfyx});
+    auto k_mem = engine.allocate_memory({{L, H, S}, data_types::f32, format::bfyx});
+    auto v_mem = engine.allocate_memory({{L, H, S}, data_types::f32, format::bfyx});
+    std::vector<float> q_data(L * H * S), k_data(L * H * S), v_data(L * H * S);
+    for (int64_t l = 0; l < L; l++) {
+        for (int64_t i = 0; i < H * S; i++) {
+            const auto dst = l * H * S + i;
+            q_data[dst] = input_data[l * 3 * H * S + 0 * H * S + i];
+            k_data[dst] = input_data[l * 3 * H * S + 1 * H * S + i];
+            v_data[dst] = input_data[l * 3 * H * S + 2 * H * S + i];
+        }
+    }
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+
+    auto slice_layout_dyn = layout{ov::PartialShape{-1, H, S}, data_types::f32, format::bfyx};
+    topology topo_ref(
+        input_layout("q", slice_layout_dyn),
+        input_layout("k", slice_layout_dyn),
+        input_layout("v", slice_layout_dyn),
+        gemm("qk", {input_info("q"), input_info("k")},
+             data_types::f32, identity_order, transposed_order, identity_order),
+        gemm("av", {input_info("qk"), input_info("v")},
+             data_types::f32, identity_order, identity_order, identity_order),
+        reorder("output", input_info("av"), format::bfyx, data_types::f32)
+    );
+    network net_ref(engine, topo_ref, config_dyn);
+    net_ref.set_input_data("q", q_mem);
+    net_ref.set_input_data("k", k_mem);
+    net_ref.set_input_data("v", v_mem);
+    auto outputs_ref = net_ref.execute();
+
+    cldnn::mem_lock<float, mem_lock_type::read> got(outputs.at("output").get_memory(), get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> expected(outputs_ref.at("output").get_memory(), get_test_stream());
+    ASSERT_EQ(got.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_NEAR(got[i], expected[i], 1e-3f) << "output mismatch at " << i
+            << ": crop+reshape fed a padded view into gemm";
+    }
+}
+
 // =============================================================================
 // TransposeSplitMatcher: Split(axis=1) with 3 crops -> vl_sdpa consumer.
 // -----------------------------------------------------------------------------
