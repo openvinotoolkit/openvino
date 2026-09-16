@@ -10,6 +10,15 @@ constexpr size_t LIST_DELIMITERS_SIZE = 2;
 constexpr char LIST_START_DELIMITER = '[';
 constexpr char LIST_END_DELIMITER = ']';
 
+/**
+ * @brief Allows "std::make_shared" to called the protected constructor
+ */
+struct MakeSharedEnabler : intel_npu::CompilerScheduleInstanceEvaluator {
+    MakeSharedEnabler(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+                      const std::shared_ptr<intel_npu::CompilerOptionSupportHelper>& option_support_helper)
+        : intel_npu::CompilerScheduleInstanceEvaluator(backend, option_support_helper) {}
+};
+
 ov::CompatibilityCheck bool_to_compatibility_check(const bool input) {
     return input ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
 }
@@ -17,6 +26,21 @@ ov::CompatibilityCheck bool_to_compatibility_check(const bool input) {
 }  // namespace
 
 namespace intel_npu {
+
+std::shared_ptr<CompilerScheduleInstanceEvaluator> CompilerScheduleInstanceEvaluator::get_instance(
+    const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+    const std::shared_ptr<CompilerOptionSupportHelper>& option_support_helper) {
+    static std::mutex mutex;
+    static std::weak_ptr<CompilerScheduleInstanceEvaluator> weak_instance;
+
+    std::lock_guard<std::mutex> lock(mutex);
+    auto instance = weak_instance.lock();
+    if (!instance) {
+        instance = std::make_shared<MakeSharedEnabler>(backend, option_support_helper);
+        weak_instance = instance;
+    }
+    return instance;
+}
 
 CompilerScheduleInstanceEvaluator::CompilerScheduleInstanceEvaluator(
     const ov::SoPtr<intel_npu::IEngineBackend>& backend,

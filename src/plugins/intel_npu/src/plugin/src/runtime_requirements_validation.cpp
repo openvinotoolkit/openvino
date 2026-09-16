@@ -47,7 +47,7 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
     }
 
     const auto compiler_schedules_instance_evaluator =
-        std::make_shared<CompilerScheduleInstanceEvaluator>(backend, optionSupportHelper);
+        CompilerScheduleInstanceEvaluator::get_instance(backend, optionSupportHelper);
     instance_evaluators[SectionTypeCode::ELF_MAIN_SCHEDULE] = compiler_schedules_instance_evaluator;
     instance_evaluators[SectionTypeCode::DYNAMIC_SCHEDULE] = compiler_schedules_instance_evaluator;
 
@@ -82,8 +82,8 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV1(
     if (!compilerRuntimeRequirements.has_value() || compilerRuntimeRequirements->empty()) {
         return ov::CompatibilityCheck::NOT_APPLICABLE;
     }
-    return CompilerScheduleInstanceEvaluator(backend, optionSupportHelper)
-        .evaluate(compilerRuntimeRequirements.value());
+    return CompilerScheduleInstanceEvaluator::get_instance(backend, optionSupportHelper)
+        ->evaluate(compilerRuntimeRequirements.value());
 }
 
 }  // namespace

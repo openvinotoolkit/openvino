@@ -484,7 +484,7 @@ private:
         }
 
         const auto compiler_schedules_instance_evaluator =
-            std::make_shared<CompilerScheduleInstanceEvaluator>(m_backend, option_helper);
+            CompilerScheduleInstanceEvaluator::get_instance(m_backend, option_helper);
         m_blob_reader.register_section_instance_evaluator(SectionTypeCode::ELF_MAIN_SCHEDULE,
                                                           compiler_schedules_instance_evaluator);
         m_blob_reader.register_section_instance_evaluator(SectionTypeCode::DYNAMIC_SCHEDULE,

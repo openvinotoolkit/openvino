@@ -9,7 +9,6 @@
 
 namespace intel_npu {
 
-// TODO make singletons for type & instance evaluators?
 /**
  * @brief Abstract class that standardizes the evaluation of section instances.
  * @note The purpose of these kinds of classes is different than the role of `ISectionTypeEvaluator`. The type
@@ -21,6 +20,7 @@ namespace intel_npu {
  * instance don't need any inherited instance evaluator.
  * @see `SingleSectionInstanceEvaluator`, the class that wraps this class and stores the evaluation result of individual
  * section instances. There is a 1:1 or 0:1 relationship between one such class instance and SectionIDs.
+ * @note Inherited classes may be defined as singletons if their behavior doesn't change during runtime.
  */
 class ISectionInstanceEvaluator {
 public:

@@ -11,12 +11,23 @@
 
 namespace intel_npu {
 
-class CompilerScheduleInstanceEvaluator final : public ISectionInstanceEvaluator {
+class CompilerScheduleInstanceEvaluator : public ISectionInstanceEvaluator {
 public:
-    CompilerScheduleInstanceEvaluator(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
-                                      const std::shared_ptr<CompilerOptionSupportHelper>& option_support_helper);
+    CompilerScheduleInstanceEvaluator() = delete;
+    CompilerScheduleInstanceEvaluator(const CompilerScheduleInstanceEvaluator& other) = delete;
+    CompilerScheduleInstanceEvaluator(CompilerScheduleInstanceEvaluator&& other) = delete;
+    void operator=(const CompilerScheduleInstanceEvaluator&) = delete;
+    void operator=(CompilerScheduleInstanceEvaluator&&) = delete;
+
+    static std::shared_ptr<CompilerScheduleInstanceEvaluator> get_instance(
+        const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+        const std::shared_ptr<CompilerOptionSupportHelper>& option_support_helper);
 
     ov::CompatibilityCheck evaluate(std::string_view runtime_requirements) const override;
+
+protected:
+    CompilerScheduleInstanceEvaluator(const ov::SoPtr<intel_npu::IEngineBackend>& backend,
+                                      const std::shared_ptr<CompilerOptionSupportHelper>& option_support_helper);
 
 private:
     ov::SoPtr<intel_npu::IEngineBackend> m_backend;

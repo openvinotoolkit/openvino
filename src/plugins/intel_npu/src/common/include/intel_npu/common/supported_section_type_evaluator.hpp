@@ -27,7 +27,7 @@ static inline const std::unordered_set<SectionType> ALREADY_SUPPORTED_SECTION_TY
  * additional support checks required).
  * @details Always evaluates to "true"
  */
-class SupportedSectionTypeEvaluator final : public ISectionTypeEvaluator {
+class SupportedSectionTypeEvaluator : public ISectionTypeEvaluator {
 public:
     SupportedSectionTypeEvaluator(const SupportedSectionTypeEvaluator&) = delete;
 
@@ -39,9 +39,10 @@ public:
 
     static std::shared_ptr<SupportedSectionTypeEvaluator> get_instance();
 
-private:
+protected:
     SupportedSectionTypeEvaluator() = default;
 
+private:
     bool evaluate() const override;
 };
 

@@ -6,11 +6,20 @@
 
 #include <mutex>
 
+namespace {
+
+/**
+ * @brief Allows "std::make_shared" to called the protected constructor
+ */
+struct MakeSharedEnabler : public intel_npu::SupportedSectionTypeEvaluator {};
+
+}  // namespace
+
 namespace intel_npu {
 
 std::shared_ptr<SupportedSectionTypeEvaluator> SupportedSectionTypeEvaluator::get_instance() {
     // No lazy initialization since the object is lightweight
-    static auto instance = std::make_shared<SupportedSectionTypeEvaluator>();
+    static std::shared_ptr<SupportedSectionTypeEvaluator> instance = std::make_shared<MakeSharedEnabler>();
     return instance;
 }
 
