@@ -64,7 +64,7 @@ public:
                   const DeviceSelectionPolicy& selection_policy = {},
                   const std::string& low_power_device = {});
     MOCKTESTMACRO std::list<DeviceInformation> sort_device_by_perf_curve(
-        const std::string& utilization_snapshot,
+        const std::unordered_map<std::string, float>& device_utilizations,
         const std::list<DeviceInformation>& valid_devices,
         const ov::intel_auto::PerfCurveTable& perf_curve_table,
         size_t* out_scored_count = nullptr);
@@ -82,14 +82,10 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
-    // Fetches one utilization snapshot from IPF covering all devices. Callers should fetch this
-    // once per decision and pass it to get_device_utilization()/sort_device_by_perf_curve() for
-    // every candidate device, instead of triggering one IPF round trip per device.
-    MOCKTESTMACRO std::string get_utilization_snapshot();
-
-    MOCKTESTMACRO std::optional<float> get_device_utilization(const std::string& utilization_snapshot,
-                                                              const std::string& device_name,
-                                                              const std::string& device_type = "");
+    // Fetches each given device's utilization via a single IPF round trip, instead of
+    // triggering one IPF query per candidate device.
+    MOCKTESTMACRO std::unordered_map<std::string, float> get_device_utilizations(
+        const std::list<DeviceInformation>& devices);
 
     // Whether the platform is currently in low power mode; see device_monitor::TelemetryClient.
     MOCKTESTMACRO std::optional<bool> get_low_power_mode();
@@ -113,7 +109,8 @@ private:
                                                           PluginConfig& load_config) const;
     std::string get_log_tag() const noexcept;
     // Base family name, perf_curve_table lookup key ("iGPU"/"dGPU" for GPUs via ov::device::type,
-    // empty when it cannot be determined), and the ov::device::type string used by get_device_utilization.
+    // empty when it cannot be determined), and the ov::device::type string used to resolve a
+    // device's IPF utilization metric key.
     struct DeviceKey {
         std::string base_name;
         std::string logical_key;
