@@ -52,6 +52,7 @@ private:
 
 public:
     Plugin();
+    ~Plugin() override;
 
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>& model,
                                                       const ov::AnyMap& properties) const override;
