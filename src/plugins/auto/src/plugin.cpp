@@ -593,12 +593,17 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
     return res;
 }
 
-std::optional<float> Plugin::get_device_utilization(const std::string& device_name,
-                                                    const std::string& device_type) {
+std::string Plugin::get_utilization_snapshot() {
     std::call_once(m_telemetry_client_init_once, [this]() {
         m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
     });
-    auto result = m_telemetry_client->utilization(device_name, device_type);
+    return m_telemetry_client->fetch_utilization_snapshot();
+}
+
+std::optional<float> Plugin::get_device_utilization(const std::string& utilization_snapshot,
+                                                    const std::string& device_name,
+                                                    const std::string& device_type) {
+    auto result = device_monitor::utilization_from_snapshot(utilization_snapshot, device_name, device_type);
     if (result.has_value()) {
         LOG_DEBUG_TAG("[IPF] Device %s utilization: %s",
                       device_name.c_str(),
@@ -732,6 +737,11 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     const auto& perf_curve_table = selection_policy.perf_curve_table;
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
 
+    // Fetch one IPF utilization snapshot up front (only when actually needed) and reuse it for
+    // every candidate device below, instead of issuing one IPF round trip per device.
+    const std::string utilization_snapshot =
+        (!utilization_thresholds.empty() || !perf_curve_table.empty()) ? get_utilization_snapshot() : std::string{};
+
     if (!perf_curve_table.empty()) {
         LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %s device curves",
                       std::to_string(perf_curve_table.size()).c_str());
@@ -838,7 +848,9 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                     if (base_name == "GPU") {
                         device_type = resolve_device_key(device.device_name).device_type;
                     }
-                    const auto device_utilization = get_device_utilization(device.device_name, device_type);
+                    const auto device_utilization = get_device_utilization(utilization_snapshot,
+                                                                          device.device_name,
+                                                                          device_type);
                     if (!device_utilization.has_value()) {
                         LOG_DEBUG_TAG("Cannot get utilization for %s. Will keep it in the list", device.device_name.c_str());
                     } else {
@@ -871,7 +883,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
             // perf_curve_table ranks only candidates that already passed threshold filtering;
             // scored_count > 0 confirms at least one candidate resolved to a curve entry.
             size_t scored_count = 0;
-            perf_curve_sorted_devices = sort_device_by_perf_curve(valid_devices, perf_curve_table, &scored_count);
+            perf_curve_sorted_devices =
+                sort_device_by_perf_curve(utilization_snapshot, valid_devices, perf_curve_table, &scored_count);
             if (scored_count > 0) {
                 ptr_select_device = &perf_curve_sorted_devices.front();
             }
@@ -920,6 +933,7 @@ float Plugin::interpolate_perf_score(const std::map<unsigned, float>& curve, flo
 }
 
 std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
+        const std::string& utilization_snapshot,
         const std::list<DeviceInformation>& valid_devices,
         const ov::intel_auto::PerfCurveTable& perf_curve_table,
         size_t* out_scored_count) {
@@ -950,7 +964,8 @@ std::list<DeviceInformation> Plugin::sort_device_by_perf_curve(
                           device_key.logical_key.c_str());
             continue;  // no curve entry for this device -> unscored
         }
-        const auto utilization = get_device_utilization(device.device_name, device_key.device_type);
+        const auto utilization =
+            get_device_utilization(utilization_snapshot, device.device_name, device_key.device_type);
         if (!utilization.has_value()) {
             LOG_DEBUG_TAG("Cannot get utilization for %s via perf_curve_table lookup", device.device_name.c_str());
             continue;

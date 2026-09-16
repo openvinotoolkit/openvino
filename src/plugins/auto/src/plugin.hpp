@@ -64,6 +64,7 @@ public:
                   const DeviceSelectionPolicy& selection_policy = {},
                   const std::string& low_power_device = {});
     MOCKTESTMACRO std::list<DeviceInformation> sort_device_by_perf_curve(
+        const std::string& utilization_snapshot,
         const std::list<DeviceInformation>& valid_devices,
         const ov::intel_auto::PerfCurveTable& perf_curve_table,
         size_t* out_scored_count = nullptr);
@@ -81,7 +82,13 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
-    MOCKTESTMACRO std::optional<float> get_device_utilization(const std::string& device_name,
+    // Fetches one utilization snapshot from IPF covering all devices. Callers should fetch this
+    // once per decision and pass it to get_device_utilization()/sort_device_by_perf_curve() for
+    // every candidate device, instead of triggering one IPF round trip per device.
+    MOCKTESTMACRO std::string get_utilization_snapshot();
+
+    MOCKTESTMACRO std::optional<float> get_device_utilization(const std::string& utilization_snapshot,
+                                                              const std::string& device_name,
                                                               const std::string& device_type = "");
 
     // Whether the platform is currently in low power mode; see device_monitor::TelemetryClient.
