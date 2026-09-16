@@ -41,19 +41,19 @@ size_t Manifest::get_entry_size() {
 // TODO minor refactor?
 std::optional<SectionType> Manifest::lookup_type(const SectionID id) const {
     const auto search_result = m_id_to_attributes.find(id);
-    return search_result != m_id_to_attributes.end() ? std::make_optional<>(std::get<0>(search_result->second))
+    return search_result != m_id_to_attributes.end() ? std::make_optional(std::get<0>(search_result->second))
                                                      : std::nullopt;
 }
 
 std::optional<uint64_t> Manifest::lookup_offset(const SectionID id) const {
     const auto search_result = m_id_to_attributes.find(id);
-    return search_result != m_id_to_attributes.end() ? std::make_optional<>(std::get<1>(search_result->second))
+    return search_result != m_id_to_attributes.end() ? std::make_optional(std::get<1>(search_result->second))
                                                      : std::nullopt;
 }
 
 std::optional<uint64_t> Manifest::lookup_length(const SectionID id) const {
     const auto search_result = m_id_to_attributes.find(id);
-    return search_result != m_id_to_attributes.end() ? std::make_optional<>(std::get<2>(search_result->second))
+    return search_result != m_id_to_attributes.end() ? std::make_optional(std::get<2>(search_result->second))
                                                      : std::nullopt;
 }
 

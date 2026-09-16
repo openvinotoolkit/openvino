@@ -101,23 +101,26 @@ void* Graph::get_handle() const {
 }
 
 std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> Graph::write_blob_to_stream(
-    GraphDescriptor graphDescriptor,
-    const std::optional<ov::Tensor>& blobTensor,
+    const std::variant<std::reference_wrapper<const GraphDescriptor>, std::reference_wrapper<const ov::Tensor>>&
+        graphDescriptorOrTensor,
     std::ostream& stream,
     const bool computeHash) const {
     uint64_t blobSize;
     const uint8_t* blobRawPtr = nullptr;
     std::vector<uint8_t> blob;
 
-    if (!blobTensor.has_value()) {
+    if (const std::reference_wrapper<const GraphDescriptor>* graphDescriptor =
+            std::get_if<std::reference_wrapper<const GraphDescriptor>>(&graphDescriptorOrTensor)) {
         OPENVINO_ASSERT(_zeGraphExt != nullptr, "Zero compiler adapter wasn't initialized");
 
         // when compiling the model using Compiler in Driver, the blob is handled by the driver
-        _zeGraphExt->getGraphBinary(graphDescriptor, blob, blobRawPtr, blobSize);
+        _zeGraphExt->getGraphBinary(*graphDescriptor, blob, blobRawPtr, blobSize);
     } else {
+        const auto& blobTensor = std::get<std::reference_wrapper<const ov::Tensor>>(graphDescriptorOrTensor);
+
         // in all other cases, the blob is handled by the plugin
-        blobRawPtr = static_cast<const uint8_t*>(blobTensor->data());
-        blobSize = blobTensor->get_byte_size();
+        blobRawPtr = static_cast<const uint8_t*>(blobTensor.get().data());
+        blobSize = blobTensor.get().get_byte_size();
     }
 
     if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
@@ -157,7 +160,8 @@ uint64_t Graph::export_main_blob(std::ostream& stream) const {
     }
 
     const auto [size, sizeWithPadding, hash] =
-        write_blob_to_stream(_graphDesc, _blob, stream, _logger.level() >= ov::log::Level::INFO);
+        _blob.has_value() ? write_blob_to_stream(_blob.value(), stream, _logger.level() >= ov::log::Level::INFO)
+                          : write_blob_to_stream(_graphDesc, stream, _logger.level() >= ov::log::Level::INFO);
 
     if (hash.has_value()) {
         _logger.info("Main blob size: %zu, hash: %x", size, hash.value());

@@ -122,7 +122,6 @@ private:
                        const std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_end,
                        const Delimiter end_delimiter) const;
 
-    // TODO update comments
     /**
      * @brief Evaluates a subexpression from left to right.
      * @details The evaluation starts from the position where the iterator was left at. The end of the subexpression is
@@ -130,14 +129,22 @@ private:
      *
      * The parent of the current subexpression might have determined that all evaluations within this subexpression have
      * no impact on the final result. If that is the case, then "skip_all_evaluations" should be set to true, and
-     * operand evaluation will be skipped to save some resources.
+     * operand evaluation will be skipped to save some resources (unless "force_all_evaluations" was also set to true).
+     *
+     * All operands can take one of two forms: a SectionType alone, or a SectionType followed by a SectionID. The given
+     * section type evaluators are used as part of the evaluation process of all operands. The instance evaluators are
+     * the second layer of operand evalution, used only when a SectionID is present and the type evaluation succeeded.
      * @param expression_iterator The cursor corresponding to the expression that is being evaluated. The initial value
      * indicates the start of the subexpression.
      * @param expression_end Points towards the end of the whole expression.
-     * @param section_type_evaluators
+     * @param section_type_evaluators Entities used to evaluate whether or not the current software supports the
+     * corresponding SectionType.
+     * @param section_instance_evaluators Used to evaluate the operands that contain a SectionID.
      * @param end_delimiter The type of delimiter that is used for judging the end of the subexpression.
-     * @param skip_all_evaluations If set to "true", all operand evaluations wihtin this subexpressions will be skipped.
-     * However, CRE validity checks will still be performed.
+     * @param skip_all_evaluations If set to "true", all operand evaluations wihtin this subexpressions will be skipped
+     * (unless "force_all_evaluations" was also set to true). However, some validity checks will still be performed.
+     * @param force_all_evaluations Forces all evaluations to be performed. This flag has a higher priority than
+     * "skip_all_evaluations". This is meant to be used when validating the whole CRE is desired.
      */
     ov::CompatibilityCheck evaluate(
         std::vector<std::shared_ptr<CREToken>>::const_iterator& expression_iterator,

@@ -40,11 +40,10 @@ public:
     IGraph() = default;
 
     /**
-     * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
-     * later be used for importing the model.
+     * @brief Writes the compiler main schedule to the provided stream.
      *
      * @param stream Where the content is placed
-     * @return TODO
+     * @return The total size written into the stream
      */
     virtual uint64_t export_main_blob(std::ostream& stream) const = 0;
 

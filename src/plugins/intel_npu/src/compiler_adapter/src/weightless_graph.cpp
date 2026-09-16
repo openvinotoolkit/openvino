@@ -293,12 +293,12 @@ std::vector<uint64_t> WeightlessGraph::export_init_blobs(std::ostream& stream) c
 
     std::vector<uint64_t> initSizes;
     for (size_t initIndex = 0; initIndex < _initsGraphDesc.size(); ++initIndex) {
-        const auto [size, sizeWithPadding, hash] = write_blob_to_stream(
-            _initsGraphDesc.at(initIndex)._handle,
-            _initBlobs.has_value() && _initBlobs->at(initIndex) ? std::make_optional(_initBlobs->at(initIndex))
-                                                                : std::nullopt,
-            stream,
-            _wgLogger.level() >= ov::log::Level::INFO);
+        const auto [size, sizeWithPadding, hash] =
+            _initBlobs.has_value() && _initBlobs->at(initIndex)
+                ? write_blob_to_stream(_initBlobs->at(initIndex), stream, _wgLogger.level() >= ov::log::Level::INFO)
+                : write_blob_to_stream(_initsGraphDesc.at(initIndex),
+                                       stream,
+                                       _wgLogger.level() >= ov::log::Level::INFO);
         totalBlobSize += sizeWithPadding;
         initSizes.push_back(sizeWithPadding);
 

@@ -9,6 +9,7 @@
 #include <ze_graph_ext.h>
 
 #include <mutex>
+#include <variant>
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
@@ -29,6 +30,13 @@ public:
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false);
 
+    /**
+     * @brief Writes the compiler main schedule to the provided stream, along with some padding for page alignment. The
+     * format is "raw": no additional metadata are written.
+     *
+     * @param stream Where the content is placed
+     * @return The total size written into the stream
+     */
     uint64_t export_main_blob(std::ostream& stream) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData) const override;
@@ -81,8 +89,8 @@ protected:
      * @return The size of the written blob, along with its hash if requested.
      */
     std::tuple<uint64_t, uint64_t, std::optional<uint32_t>> write_blob_to_stream(
-        GraphDescriptor graphDescriptor,
-        const std::optional<ov::Tensor>& blobTensor,
+        const std::variant<std::reference_wrapper<const GraphDescriptor>, std::reference_wrapper<const ov::Tensor>>&
+            graphDescriptorOrTensor,
         std::ostream& stream,
         const bool computeHash) const;
 

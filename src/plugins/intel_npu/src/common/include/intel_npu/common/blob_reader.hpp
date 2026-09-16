@@ -110,14 +110,7 @@ private:
     friend class BlobWriter;
 
     /**
-     * @brief TODO
-     *
-     * @param source
-     * @param type
-     * @param id
-     * @param length
-     * @param npu_region_start
-     * @param npu_region_size
+     * @brief Parses the next section using the reader of the given section type.
      */
     std::shared_ptr<ISection> parse_next_section(BlobSource& source,
                                                  const SectionType& type,

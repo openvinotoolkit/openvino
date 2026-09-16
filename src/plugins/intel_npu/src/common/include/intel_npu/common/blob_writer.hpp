@@ -133,12 +133,10 @@ public:
     void write_to(std::ostream& stream) const;
 
     /**
-     * TODO update
-     * @brief Build a Compatibility Requirements Expression (CRE) based on the sections registered so far.
-     * @note This function should be called either before writing tbe CRE section into a stream or before building the
-     * compatibility string.
-     * @note The CRE is built on demand and not stored in order to make sure the CRE is aligned with the content of the
-     * blob.
+     * @brief Builds the runtime requirements (CRE + individual "compatibility substrings") based on the sections
+     * registered so far.
+     * @note The requirements are built on demand and not stored in order to make sure the requirements are aligned with
+     * the content of the blob.
      */
     RuntimeRequirements build_runtime_requirements() const;
 
