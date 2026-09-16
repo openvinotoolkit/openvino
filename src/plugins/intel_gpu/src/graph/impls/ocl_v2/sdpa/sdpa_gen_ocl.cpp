@@ -311,8 +311,8 @@ inline bool block2d_page_ok(size_t row_bytes) {
 
 // Per-head-size tuned tiling for the sdpa_ocl kernel, mirroring sdpa_micro's
 // choose_config_* tables. The KQ workgroup tile is kept at 128 keys with sg_per_wg = 16
-// across all head sizes; only the S*V split (and, for d_max <= 32, the query tile) vary.
-// Every branch's values were verified by the Phase-0 constraint checker for:
+// across all head sizes; only the S*V split (and, for d_max <= 64, the query tile) vary.
+// Every branch must satisfy:
 //   - sv_value_blocks >= 1 and sv_score_blocks >= 1 (non-empty DPAS tiles),
 //   - WG coverage (sv tile_values*per_wg == d_max, tile_scores*per_wg == wg_queries),
 //   - SLM budget and alpha-rescale (KQ/SV query-split) alignment.
@@ -332,7 +332,7 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
                     d_max,
                     "); the tiling table covers d_max <= 512 only");
 
-    sdpa_ocl_config_t config;  // struct defaults already encode the d_max <= 128 tiling
+    sdpa_ocl_config_t config;
     config.subgroup_size = static_cast<int>(get_subgroup_size(arch));
 
     config.kq_sg_tile_keys = 16;
@@ -353,30 +353,12 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
         config.sv_sg_per_wg_values = 2;
         config.sv_sg_per_wg_scores = 8;
     } else if (d_max <= 64) {
-        // kq_sg_tile_queries is 32 rather than the struct default 16, so the WG query tile is 64 --
-        // the same tile sdpa_micro uses. The KV cache is re-read once per (query block, head), so a
-        // 32-query tile reads it TWICE as often as micro does, and at head 64 that re-read is the
-        // dominant cost: measured on gpt-oss-20b (u4 cache, PA MIXED), 632 ms -> 398 ms, which took
-        // sdpa_ocl from 1.6x slower than micro to slightly faster.
-        //
-        // Widening further is NOT better, and the reason is worth recording because the static
-        // metrics say otherwise. Total subgroups = (aligned_queries / wg_queries) * heads *
-        // sg_per_wg, and this kernel hides its load latency with thread count:
-        //   wg_queries 32, sg_per_wg 16 -> 8192 subgroups -> 632 ms
-        //   wg_queries 64, sg_per_wg 16 -> 4096 subgroups -> 398 ms   <- here
-        //   wg_queries 64, sg_per_wg  8 -> 2048 subgroups -> 428 ms   (kq_sg_per_wg_keys 4; fewest
-        //                                                              loads per unit work, still lost)
-        // So ~4096 is the sweet spot, and any further traffic cut has to keep the subgroup count.
-        // Same lesson as SDPA_OCL_256GRF, which is a 70% REGRESSION here for the same reason.
-        //
-        // The raw-current path uses a 64-key, 64-query workgroup tile with 16 subgroups.
-        // Exact mode clips k_chunk at past_len, so each iteration has one K/V source.
-        // This geometry is validated with S*V trimming and raw-current V prefetch.
-        // The measurements above predate that exact-split path.
-        // TODO re-confirm on gpt-oss-20b, which is where the 632/398/428 numbers above came from.
-        config.kq_sg_tile_queries = 16;
-        config.kq_sg_per_wg_keys = 4;
-        config.kq_sg_per_wg_queries = 4;
+        // Q/K head sizes 33..64 round up to d_max == 64. Use the 128-key x 64-query WG tile
+        // evaluated as wide_math on MiniCPM4-0.5B, preserving the query-block stride and the
+        // 16-subgroup S*V split. MICRO_MATH arithmetic is enabled separately in get_jit_constants().
+        config.kq_sg_tile_queries = 32;
+        config.kq_sg_per_wg_keys = 8;
+        config.kq_sg_per_wg_queries = 2;
         config.sv_sg_tile_values = 16;
         config.sv_sg_tile_scores = 16;
         config.sv_sg_per_wg_values = 4;
@@ -406,8 +388,8 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
 //
 // d_max drives the KQ side (it is the Q/K contraction dim, so it sets DKS and the query tile) and
 // vd_max the S*V side (it is the V/output dim). They are equal for every k_head_size ==
-// v_head_size shape, in which case choose_config_kq_only()'s tuned tables are returned verbatim and
-// the codegen is bit-for-bit what it was before this function learned about vd_max.
+// v_head_size shape, in which case choose_config_kq_only()'s tuned tables are used verbatim
+// unless overridden by the environment.
 sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max) {
     OPENVINO_ASSERT(vd_max <= 512,
                     "[GPU] sdpa_ocl: unsupported value head size (vd_max=",
@@ -423,7 +405,7 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max) {
     // Tier 2 exists because the tuned table alone leaves a hole: for d_max >= 128 the query tile is
     // only 32, and a vd_max of 32 can be tiled at most 2 ways (tile_values must be a multiple of the
     // subgroup size), which leaves >= 8 subgroups to split 32 queries -- a score tile of 4 or 2,
-    // below the DPAS 8-row minimum. Retrying with the d_max <= 64 KQ geometry doubles the query tile
+    // below the DPAS 8-row minimum. Retrying with a 64-key x 64-query KQ WG tile doubles the query tile
     // to 64 and every such pair then resolves to (16, 8, 2, 8). That hole is NOT benign: paged
     // attention's MIXED fallback (pa_multi_token) reads a BY_CHANNEL K cache d-major while the
     // writer relays it token-major, so a rejected shape produces NaN rather than a slower result.
@@ -463,7 +445,8 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max) {
     // Remove this block once the tiling investigation is done.
     const bool kq_override = std::getenv("SDPA_OCL_KQ_TILE_KEYS") || std::getenv("SDPA_OCL_KQ_TILE_QUERIES") ||
                              std::getenv("SDPA_OCL_KQ_PER_WG_KEYS") || std::getenv("SDPA_OCL_KQ_PER_WG_QUERIES");
-    if (std::getenv("SDPA_OCL_TRACE_CONFIG")) {
+    const bool trace_config = std::getenv("SDPA_OCL_TRACE_CONFIG") != nullptr;
+    if (trace_config) {
         std::cerr << "[sdpa_ocl] choose_config d_max=" << d_max << " kq_override=" << kq_override << std::endl;
     }
     if (kq_override) {
@@ -487,14 +470,18 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max) {
                         config.kq_sg_per_wg_queries,
                         ") admits no valid S*V split for vd_max=",
                         vd_max);
-        std::cout << "[new config] config.kq_sg_tile_keys=" << config.kq_sg_tile_keys
-                  << " config.kq_sg_tile_queries=" << config.kq_sg_tile_queries
-                  << " config.kq_sg_per_wg_keys=" << config.kq_sg_per_wg_keys
-                  << " config.kq_sg_per_wg_queries=" << config.kq_sg_per_wg_queries
-                  << " config.sv_sg_tile_values=" << config.sv_sg_tile_values
-                  << " config.sv_sg_tile_scores=" << config.sv_sg_tile_scores
-                  << " config.sv_sg_per_wg_values=" << config.sv_sg_per_wg_values
-                  << " config.sv_sg_per_wg_scores=" << config.sv_sg_per_wg_scores << std::endl;
+        // This helper also runs during dispatch. Keep per-call output and flushing opt-in
+        // so a tiling override does not add logging overhead to every prefill.
+        if (trace_config) {
+            std::cout << "[new config] config.kq_sg_tile_keys=" << config.kq_sg_tile_keys
+                      << " config.kq_sg_tile_queries=" << config.kq_sg_tile_queries
+                      << " config.kq_sg_per_wg_keys=" << config.kq_sg_per_wg_keys
+                      << " config.kq_sg_per_wg_queries=" << config.kq_sg_per_wg_queries
+                      << " config.sv_sg_tile_values=" << config.sv_sg_tile_values
+                      << " config.sv_sg_tile_scores=" << config.sv_sg_tile_scores
+                      << " config.sv_sg_per_wg_values=" << config.sv_sg_per_wg_values
+                      << " config.sv_sg_per_wg_scores=" << config.sv_sg_per_wg_scores << std::endl;
+        }
     }
 
     return config;
@@ -893,9 +880,12 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         Q.data_type == data_types::f16 && K.data_type == data_types::f16 &&
         V.data_type == data_types::f16 && out.data_type == data_types::f16) {
         const auto desc = params.typed_desc<paged_attention>();
-        if (const char* env = std::getenv("SDPA_OCL_MICRO_MATH")) {
-            if (std::atoi(env) != 0 && !desc->has_sink_input && !desc->has_alibi &&
-                desc->sliding_window == 0 && !desc->has_token_type_ids) {
+        if (!desc->has_sink_input && !desc->has_alibi &&
+            desc->sliding_window == 0 && !desc->has_token_type_ids) {
+            const char* env = std::getenv("SDPA_OCL_MICRO_MATH");
+            if (env != nullptr && std::atoi(env) == 0) {
+                jit.make("MICRO_MATH", 0);
+            } else {
                 jit.make("MICRO_MATH", 1);
             }
         }
