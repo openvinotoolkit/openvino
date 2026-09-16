@@ -108,7 +108,7 @@ static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shar
         sdpa_prim.scale_val = scalar_scale->cast_vector<float>()[0];
     }
 
-    if (scalar_attn_mask && scalar_attn_mask->get_element_type() != ov::element::boolean) {
+    if (scalar_attn_mask) {
         sdpa_prim.attn_mask_val = scalar_attn_mask->cast_vector<float>()[0];
     }
 
@@ -147,7 +147,7 @@ static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
         sdpa_prim.scale_val = scalar_scale->cast_vector<float>()[0];
     }
 
-    if (scalar_attn_mask && scalar_attn_mask->get_element_type() != ov::element::boolean) {
+    if (scalar_attn_mask) {
         sdpa_prim.attn_mask_val = scalar_attn_mask->cast_vector<float>()[0];
     }
 
@@ -186,7 +186,7 @@ static void CreateIndirectSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         sdpa_prim.scale_val = scalar_scale->cast_vector<float>()[0];
     }
 
-    if (scalar_attn_mask && scalar_attn_mask->get_element_type() != ov::element::boolean) {
+    if (scalar_attn_mask) {
         sdpa_prim.attn_mask_val = scalar_attn_mask->cast_vector<float>()[0];
     }
 
