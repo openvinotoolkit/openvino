@@ -3,13 +3,11 @@
 //
 
 #include "convolution_inst.h"
-#include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/runtime/device.hpp"
 #include "intel_gpu/runtime/format.hpp"
 #include "intel_gpu/runtime/layout.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 
-#include "program_helpers.h"
 #include "registry/implementation_manager.hpp"
 
 #include "utils.hpp"
@@ -139,17 +137,10 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         }
 
 #ifdef OV_GPU_VENDOR_NVIDIA
-        // On NVIDIA the only available oneDNN forward convolutions accept 'sum' and 'eltwise'
-        // post-ops and nothing else: the generic SYCL reference kernel checks
-        // sycl_post_ops_t::post_ops_ok(attr, /*allow_inputs=*/false), which rejects every post-op
-        // taking an extra input tensor, and cuDNN's attr_post_ops_ok() allows at most a sum
-        // followed by a single eltwise. A 'binary' or 'prelu' post-op makes primitive descriptor
-        // creation fail, and compile_graph has no fallback to the OCL implementation, so the whole
-        // compilation throws. Reject every fusion that is not guaranteed to become an eltwise or
-        // sum post-op; the mapping is defined in program_node::create_onednn_primitive_attributes().
-        // Note this also covers quantize, which used to be rejected here only for int8 because it
-        // crashes NVIDIA GPUs: per-channel scales/shifts turn into binary post-ops as well.
-        bool sum_post_op_used = false;
+        // On NVIDIA the oneDNN convolutions are cuDNN and the generic SYCL reference kernel.
+        // Neither takes a post-op with an extra input tensor, and a pd creation failure is fatal
+        // since compile_graph has no OCL fallback. Accept only fusions that become a single
+        // eltwise post-op; the mapping is in program_node::create_onednn_primitive_attributes().
         bool eltwise_post_op_used = false;
         for (const auto& fo : conv_node.get_fused_primitives()) {
             // A fused reorder is not translated into a post-op at all
@@ -187,18 +178,9 @@ struct ConvolutionImplementationManager : public ImplementationManager {
                 continue;
             }
 
-            if (fo.is_type<eltwise>()) {
-                // Only the first in-place addition becomes a sum post-op. Anything else, including
-                // a second one or an addition of a buffer that cannot be reused, becomes binary.
-                // cuDNN also requires the sum to come first, so reject a sum after an eltwise.
-                if (sum_post_op_used || eltwise_post_op_used ||
-                    onednn_add_fusing_helpers::get_add_fusing_type(conv_node, fo) != add_fusing_type::sum)
-                    return false;
-                sum_post_op_used = true;
-                continue;
-            }
-
-            // Any remaining fused type may need an extra input buffer: stay on the safe side
+            // A fused eltwise becomes a sum or a binary post-op. cuDNN rejects even the sum, because
+            // conv appends it with an explicit dt while cuDNN's skip mask has no sum_dt, so it would
+            // land on the SYCL reference kernel. Everything else may need an extra input buffer.
             return false;
         }
 #endif
