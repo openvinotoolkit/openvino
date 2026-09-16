@@ -64,7 +64,7 @@ Write-Host "[setupvars] OpenVINO environment initialized"
 # Check if Python is installed
 $PYTHON_VERSION_MAJOR = 3
 $MIN_REQUIRED_PYTHON_VERSION_MINOR = 10
-$MAX_SUPPORTED_PYTHON_VERSION_MINOR = 14
+$MAX_SUPPORTED_PYTHON_VERSION_MINOR = 15
 
 try
 {

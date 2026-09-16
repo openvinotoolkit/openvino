@@ -190,14 +190,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                     "[gguf] AdaptToGenAI: only InputMode::IDS_TO_LOGITS is implemented; "
                     "EMBEDS_TO_LOGITS (VLM language model) is reserved for future work.");
 
-    // The gguf inputs we rewire. inp_tokens/inp_pos/self_kq_mask/token_len_per_seq are
-    // required; if they are absent the model is not a gguf-IO model (e.g. already adapted),
-    // so this pass is a no-op.
+    // Token count is optional: custom builders may leave it unused, so conversion prunes it.
+    // The remaining inputs identify a GGUF graph that has not already been adapted.
     auto inp_tokens = find_parameter(model, "inp_tokens");
     auto inp_pos = find_parameter(model, "inp_pos");
     auto self_kq_mask = find_parameter(model, "self_kq_mask");
     auto token_len_per_seq = find_parameter(model, "token_len_per_seq");
-    if (!inp_tokens || !inp_pos || !self_kq_mask || !token_len_per_seq) {
+    if (!inp_tokens || !inp_pos || !self_kq_mask) {
         return false;
     }
 
@@ -233,8 +232,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // single token; reading dim 0 breaks the un-rewritten case. ReduceProd is correct under both.
     auto ids_shape = make_shared<v3::ShapeOf>(input_ids, ov::element::i64);
     auto reduce_axis_0 = v0::Constant::create(ov::element::i64, {1}, {0});
-    auto seq_len = make_shared<v1::ReduceProd>(ids_shape, reduce_axis_0, true);  // [1]
-    token_len_per_seq->output(0).replace(seq_len->output(0));
+    auto seq_len = make_shared<v1::ReduceProd>(ids_shape, reduce_axis_0, true);
+    if (token_len_per_seq)
+        token_len_per_seq->output(0).replace(seq_len->output(0));
 
     // The two gguf rank-4 input kinds carry the (batch, tokens) pair on different axes, so they get
     // different lifts. Both are written so the genai Parameter's own leading dims flow through
