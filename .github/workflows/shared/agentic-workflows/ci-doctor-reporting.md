@@ -240,6 +240,17 @@ The workflow-specific instructions list any further safe-output tools available 
 
 Example noop call: `{"noop": {"message": "No action needed: [brief explanation]"}}`
 
+### STOP — final tool-call gate (read before ending your turn)
+
+A prose summary is **NOT** a safe output. Writing a sentence such as "I sent the Teams notification, posted the comment and requested remediation" does nothing on its own — the action only happens when you actually **call** the corresponding safe-output tool (`notify_teams`, `add_comment`, `remediate_transient_failure`, `noop`, ...) so that it is emitted to the output file. A run that finishes with a written summary but no tool call is silently discarded as an empty no-op, and all of your work is lost.
+
+Before you end your turn, verify:
+
+1. Every action you described in your summary has a matching safe-output **tool call** you actually made this session — not just narration.
+2. At minimum, `notify_teams` (or `noop` / `missing_data`) has been called.
+
+If you have written such a summary but have not yet called the tools it describes, **call them now** before finishing. Do not end your turn until the required tool calls have been emitted.
+
 ## Memory Strategy
 
 - **Persistent location**: `tools.repo-memory` mounts a dedicated Git branch (`memory/ci-doctor-${{ github.aw.import-inputs.slug }}`) at `/tmp/gh-aw/repo-memory/default/`. This directory persists **indefinitely** across workflow runs with no expiry. Anything written elsewhere (e.g., `/tmp/memory/`, `/tmp/investigation/`) is discarded when the runner is torn down.
