@@ -14,23 +14,7 @@ namespace cldnn {
 
 GPU_DEFINE_PRIMITIVE_TYPE_ID(tp_allreduce)
 
-layout tp_allreduce_inst::calc_output_layout(tp_allreduce_node const& node,
-                                             kernel_impl_params const& impl_param) {
-    // AllReduce: output layout == input layout (same shape, same type).
-    return impl_param.get_input_layout();
-}
-
-template <typename ShapeType>
-std::vector<layout> tp_allreduce_inst::calc_output_layouts(tp_allreduce_node const& node,
-                                                           const kernel_impl_params& impl_param) {
-    return {impl_param.get_input_layout()};
-}
-
-template std::vector<layout>
-tp_allreduce_inst::calc_output_layouts<ov::PartialShape>(tp_allreduce_node const& node,
-                                                          const kernel_impl_params& impl_param);
-
-std::string tp_allreduce_inst::to_string(tp_allreduce_node const& node) {
+std::string tp_allreduce_inst::to_string(const tp_allreduce_node& node) {
     auto desc = node.get_primitive();
     auto node_info = node.desc_to_json();
 
@@ -44,7 +28,7 @@ std::string tp_allreduce_inst::to_string(tp_allreduce_node const& node) {
     return primitive_description.str();
 }
 
-tp_allreduce_inst::typed_primitive_inst(network& network, tp_allreduce_node const& node)
+tp_allreduce_inst::typed_primitive_inst(network& network, const tp_allreduce_node& node)
     : parent(network, node) {}
 
 }  // namespace cldnn

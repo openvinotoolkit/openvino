@@ -13,12 +13,9 @@ namespace cldnn {
 /// @brief Tensor-parallel Gather: collects every rank's slice of a tensor into
 /// rank 0's buffer.
 ///
-/// Like tp_allreduce, this carries only the metadata identifying the
-/// collective; the coordinator that runs it is resolved at execution time
+/// This carries only the metadata identifying the collective.
+/// Coordinator that runs it is resolved at execution time
 /// through the network's registry, which keeps the primitive serializable.
-///
-/// `world_size` is needed here and not in tp_allreduce because it decides the
-/// output shape on the root.
 struct tp_gather : public primitive_base<tp_gather> {
     CLDNN_DECLARE_PRIMITIVE(tp_gather)
 
@@ -57,9 +54,12 @@ struct tp_gather : public primitive_base<tp_gather> {
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
             return false;
+
         auto rhs_casted = downcast<const tp_gather>(rhs);
-        return group_id == rhs_casted.group_id && collective_id == rhs_casted.collective_id &&
-               rank == rhs_casted.rank && world_size == rhs_casted.world_size &&
+        return group_id == rhs_casted.group_id &&
+               collective_id == rhs_casted.collective_id &&
+               rank == rhs_casted.rank &&
+               world_size == rhs_casted.world_size &&
                axis == rhs_casted.axis;
     }
 

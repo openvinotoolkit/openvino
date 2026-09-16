@@ -26,8 +26,6 @@ static void CreateTPAllReduceOp(ProgramBuilder& p,
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
 
-    // The op carries all the metadata the primitive needs; the coordinator that
-    // runs the group is resolved at execution time from the network's registry.
     auto prim = cldnn::tp_allreduce(layerName,
                                     inputs[0],
                                     op->get_group_id(),

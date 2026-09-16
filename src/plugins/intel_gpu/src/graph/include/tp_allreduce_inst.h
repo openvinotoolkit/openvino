@@ -33,14 +33,16 @@ class typed_primitive_inst<tp_allreduce> : public typed_primitive_inst_base<tp_a
     using parent::parent;
 
 public:
-    template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(tp_allreduce_node const& node,
-                                                   const kernel_impl_params& impl_param);
-    static layout calc_output_layout(tp_allreduce_node const& node,
-                                     kernel_impl_params const& impl_param);
-    static std::string to_string(tp_allreduce_node const& node);
+    template<typename ShapeType>
+    static std::vector<layout> calc_output_layouts(const tp_allreduce_node& /*node*/, const kernel_impl_params& impl_param) {
+        return forward_input0_shape<ShapeType>(impl_param);
+    }
+    static layout calc_output_layout(const tp_allreduce_node& node, const kernel_impl_params& impl_param) {
+        return calc_output_layouts<ov::PartialShape>(node, impl_param)[0];
+    }
+    static std::string to_string(const tp_allreduce_node& node);
 
-    typed_primitive_inst(network& network, tp_allreduce_node const& desc);
+    typed_primitive_inst(network& network, const tp_allreduce_node& desc);
 };
 
 using tp_allreduce_inst = typed_primitive_inst<tp_allreduce>;

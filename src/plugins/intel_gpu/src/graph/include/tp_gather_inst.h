@@ -34,13 +34,11 @@ class typed_primitive_inst<tp_gather> : public typed_primitive_inst_base<tp_gath
 
 public:
     template <typename ShapeType>
-    static std::vector<layout> calc_output_layouts(tp_gather_node const& node,
-                                                   const kernel_impl_params& impl_param);
-    static layout calc_output_layout(tp_gather_node const& node,
-                                     kernel_impl_params const& impl_param);
-    static std::string to_string(tp_gather_node const& node);
+    static std::vector<layout> calc_output_layouts(const tp_gather_node& node, const kernel_impl_params& impl_param);
+    static layout calc_output_layout(const tp_gather_node& node, const kernel_impl_params& impl_param);
+    static std::string to_string(const tp_gather_node& node);
 
-    typed_primitive_inst(network& network, tp_gather_node const& desc);
+    typed_primitive_inst(network& network, const tp_gather_node& desc);
 };
 
 using tp_gather_inst = typed_primitive_inst<tp_gather>;

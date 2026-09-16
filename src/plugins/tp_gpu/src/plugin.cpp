@@ -16,6 +16,7 @@
 #include "graph_rewriter.hpp"
 #include "tp_blob.hpp"
 #include "tp_l0_shared_context.hpp"
+#include "tp_ze_throw.hpp"
 #include "tp_gpu/tp_config.hpp"
 #include "tp_gpu/tp_debug.hpp"
 #include "intel_gpu/runtime/collective_comm_registry.hpp"
@@ -40,11 +41,6 @@ namespace {
 constexpr uint32_t kMaxWorldSize = 64;
 constexpr uint32_t kMaxCollectives = 1u << 16;
 constexpr uint32_t kMaxShardedStates = 1u << 16;
-inline void ze_throw_on_error(ze_result_t r, const char* what) {
-    if (r != ZE_RESULT_SUCCESS) {
-        OPENVINO_THROW("[TP_GPU] L0 call ", what, " failed: 0x", std::hex, r);
-    }
-}
 
 /// Diagnostic (TP_SHARD_ONLY=1): strip every collective from a shard so it can
 /// run alone on one GPU.  This is the upper bound tensor parallelism is chasing
@@ -155,7 +151,6 @@ protected:
     }
 };
 }  // namespace
-#define ZE_THROW_ON_ERROR(expr, what) ::ov::tp_gpu::ze_throw_on_error((expr), (what))
 
 Plugin::Plugin() {
     set_device_name("TP_GPU");
@@ -174,7 +169,7 @@ Plugin::SharedL0Setup Plugin::create_shared_l0(const std::vector<std::string>& d
     // slow enough to look like a hang on an LLM.  A clear error beats silent
     // degradation.
     const auto tp_degree = static_cast<uint32_t>(device_names.size());
-    ZE_THROW_ON_ERROR(ov::zeInit(0), "zeInit");
+    ZE_THROW(ov::zeInit(0));
 
     std::vector<ze_driver_handle_t> drivers(tp_degree);
     std::vector<ze_device_handle_t> rank_devs(tp_degree);
@@ -206,10 +201,9 @@ Plugin::SharedL0Setup Plugin::create_shared_l0(const std::vector<std::string>& d
 
     ze_context_desc_t ctx_desc{ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0};
     ze_context_handle_t shared_ctx_h = nullptr;
-    ZE_THROW_ON_ERROR(ov::zeContextCreateEx(drivers[0], &ctx_desc,
-                                            static_cast<uint32_t>(rank_devs.size()),
-                                            rank_devs.data(), &shared_ctx_h),
-                      "zeContextCreateEx");
+    ZE_THROW(ov::zeContextCreateEx(drivers[0], &ctx_desc,
+                                   static_cast<uint32_t>(rank_devs.size()),
+                                   rank_devs.data(), &shared_ctx_h));
 
     SharedL0Setup setup;
     setup.shared = std::make_shared<TPL0SharedContext>();

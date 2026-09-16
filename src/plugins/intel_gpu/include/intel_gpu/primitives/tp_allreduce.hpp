@@ -46,8 +46,10 @@ struct tp_allreduce : public primitive_base<tp_allreduce> {
     bool operator==(const primitive& rhs) const override {
         if (!compare_common_params(rhs))
             return false;
+
         auto rhs_casted = downcast<const tp_allreduce>(rhs);
-        return group_id == rhs_casted.group_id && collective_id == rhs_casted.collective_id &&
+        return group_id == rhs_casted.group_id &&
+               collective_id == rhs_casted.collective_id &&
                rank == rhs_casted.rank;
     }
 

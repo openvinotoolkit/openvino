@@ -90,8 +90,7 @@ static constexpr Property<int> ocl_context_device_id{"OCL_CONTEXT_DEVICE_ID"};
  * @brief This key identifies a Level Zero context handle
  * (`ze_context_handle_t`) in a shared context parameter map.
  * The context may span multiple devices (created via `zeContextCreateEx`)
- * to support cross-device USM and command-list submission, e.g. for
- * tensor-parallel AllReduce.
+ * to support cross-device USM and command-list submission.
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */
 static constexpr Property<gpu_handle_param> ze_context{"ZE_CONTEXT"};
