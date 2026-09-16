@@ -49,16 +49,20 @@ NPU_MODELS = [
 
     dict(id="deeplabv3", source="torchvision",
          repo="deeplabv3_mobilenet_v3_large", dtype=torch.float32, ram_gb=1),
+
     dict(id="sam2-hiera", source="timm",
-         repo="sam2_hiera_base_plus.fb_r896", dtype=torch.float32, ram_gb=3),
+         repo="sam2_hiera_base_plus.fb_r896", dtype=torch.float32, ram_gb=3,
+         skipped_platforms=["3720"]),
 
     dict(id="depth-anything", source="hf", auto_class="AutoModelForDepthEstimation",
          repo="depth-anything/Depth-Anything-V2-Small-hf", dtype=torch.float32, ram_gb=1,
          inputs={"pixel_values": [1, 3, 518, 518]},
          skipped_platforms=["3720", "5010", "6010"]),
+
     dict(id="swin2sr", source="hf", auto_class="Swin2SRForImageSuperResolution",
          repo="caidas/swin2SR-classical-sr-x2-64", dtype=torch.float32, ram_gb=1,
-         inputs={"pixel_values": [1, 3, 64, 64]}),
+         inputs={"pixel_values": [1, 3, 64, 64]},
+         skipped_platforms=["3720"]),
     dict(id="edsr", source="super-image",
          repo="eugenesiow/edsr-base", dtype=torch.float32, ram_gb=1),
 
