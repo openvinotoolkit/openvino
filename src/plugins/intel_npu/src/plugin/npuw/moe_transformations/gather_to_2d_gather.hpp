@@ -18,11 +18,12 @@ namespace pass {
  *   Gather(weights[N, M, K], indices[I]) -> output[I, M, K]
  *
  * Into equivalent sequence:
- *   1. reshaped_indices = Reshape(indices[I]) -> [I, 1]
+ *   0. indices_i32 = Convert(indices[I]) -> [I] (i32) -- only inserted when the source
+ *      indices are not already i32 (e.g. i64)
+ *   1. reshaped_indices = Reshape(indices_i32) -> [I, 1]
  *   2. experts_start = Multiply(reshaped_indices, M) -> [I, 1]
  *   3. range_m = Constant([0, 1, ..., M-1]) -> [1, M]
- *      range_m_tiled = Tile(range_m, [I, 1]) -> [I, M]
- *   4. new_indices = Add(experts_start, range_m_tiled) -> [I, M]
+ *   4. new_indices = Add(experts_start, range_m) -> [I, M]
  *   5. flat_indices = Reshape(new_indices) -> [I*M]
  *   6. flat_weights = Reshape(weights) -> [N*M, K]
  *   7. gathered_flat = Gather(flat_weights, flat_indices, axis=0) -> [I*M, K]
