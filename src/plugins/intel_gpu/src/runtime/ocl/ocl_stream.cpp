@@ -3,22 +3,20 @@
 //
 
 #include "ocl_stream.hpp"
+#include "CL/cl.h"
+#include "intel_gpu/runtime/stream.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
+#include "ocl_event.hpp"
+#include "ocl_user_event.hpp"
+#include "ocl_command_queues_builder.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
+#include "ocl_kernel.hpp"
+#include "ocl_common.hpp"
+#include "ocl_memory.hpp"
 
 #include <cassert>
 #include <memory>
-#include <string>
-#include <cstdio>
-#include <vector>
-
-#include "CL/cl.h"
-#include "intel_gpu/runtime/debug_configuration.hpp"
-#include "intel_gpu/runtime/stream.hpp"
-#include "ocl_command_queues_builder.hpp"
-#include "ocl_common.hpp"
-#include "ocl_event.hpp"
-#include "ocl_kernel.hpp"
-#include "ocl_memory.hpp"
-#include "ocl_user_event.hpp"
+#include <algorithm>
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
@@ -283,7 +281,53 @@ void ocl_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args
     try {
         GPU_DEBUG_TRACE_DETAIL << "Set arguments for primitive: " << args_desc.layerID << " (" << kernel.get_id() << " = " << kern.get() << ")\n";
         set_arguments_impl(kern, args_desc.arguments, args);
-    } catch (const cl::Error& err) {
+
+        // new_plan.md Phase 5: chunk_base_ptrs holds USM device pointers that PagedAttentionExtension
+        // kernels dereference indirectly (loaded from a regular argument buffer, not passed as a
+        // direct kernel argument), which the driver cannot discover through normal argument analysis.
+        // Without explicitly registering them via CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, the driver lacks
+        // the page-table/dependency-tracking state for that indirect access and clFinish() faults with
+        // CL_OUT_OF_RESOURCES on the very first dispatch. The pointer set only actually changes when a
+        // chunk is appended (a growth event), so it's compared against what was last registered for
+        // this kernel and the call is skipped when unchanged -- most dispatches are steady-state.
+        // NOTE: several different kernels (kv_cache_update, pa_multi_token, pa_sdpa_opt, finalization,
+        // ...) share this primitive's layerID and each binds its own subset of PagedAttentionInputIdx
+        // as INPUT arguments, so this must match the CHUNK_BASE_PTRS input by its declared index, never
+        // by position (e.g. `.back()`) - a non-chunked dispatch's last INPUT is some unrelated tensor.
+        const bool is_paged_attention = args_desc.layerID.find("pagedattentionextension") != std::string::npos;
+        if (is_paged_attention) {
+            const bool has_chunk_base_ptrs_arg =
+                std::any_of(args_desc.arguments.begin(), args_desc.arguments.end(), [](const argument_desc& arg) {
+                    return arg.t == argument_desc::Types::INPUT &&
+                           arg.index == static_cast<uint32_t>(cldnn::paged_attention::PagedAttentionInputIdx::CHUNK_BASE_PTRS);
+                });
+            if (has_chunk_base_ptrs_arg) {
+                const auto chunk_ptrs_index = static_cast<size_t>(cldnn::paged_attention::PagedAttentionInputIdx::CHUNK_BASE_PTRS);
+                OPENVINO_ASSERT(chunk_ptrs_index < args.inputs.size() && args.inputs[chunk_ptrs_index],
+                                "[GPU] chunk_base_ptrs input is missing for a chunked PagedAttentionExtension dispatch");
+                const auto& chunk_ptrs_mem = args.inputs[chunk_ptrs_index];
+                mem_lock<int64_t, mem_lock_type::read> lock(std::const_pointer_cast<memory>(chunk_ptrs_mem), *this);
+                std::vector<void*> ptrs;
+                ptrs.reserve(lock.size());
+                for (auto value : lock) {
+                    ptrs.push_back(reinterpret_cast<void*>(value));
+                }
+                // The chunk set only actually changes on a growth event (new chunk appended); on every
+                // other (steady-state) dispatch it's identical to last time, so skip the driver call.
+                auto& last_registered = _last_registered_chunk_exec_info[kern.get()];
+                if (last_registered != ptrs) {
+                    cl_int exec_info_err = clSetKernelExecInfo(kern.get(),
+                                                                CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL,
+                                                                ptrs.size() * sizeof(void*),
+                                                                ptrs.data());
+                    OPENVINO_ASSERT(exec_info_err == CL_SUCCESS,
+                                    "[GPU] Failed to set USM_PTRS_INTEL exec info for chunk_base_ptrs, error code: ",
+                                    exec_info_err);
+                    last_registered = std::move(ptrs);
+                }
+            }
+        }
+    } catch (cl::Error const& err) {
         OPENVINO_THROW(OCL_ERR_MSG_FMT(err));
     }
 }

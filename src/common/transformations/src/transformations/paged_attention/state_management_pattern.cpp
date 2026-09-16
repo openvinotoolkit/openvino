@@ -41,7 +41,11 @@
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+<<<<<<< HEAD
 #include "openvino/util/pp.hpp"
+=======
+#include "transformations/rt_info/disable_precision_conversion.hpp"
+>>>>>>> 28fefbac41 (Add chunked KV cache pointer registration)
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/utils/utils.hpp"
 
@@ -889,6 +893,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(PaParams& pa_params,
         if (options.allow_chunked_kv_cache) {
             auto chunk_base_ptrs_name = "chunk_base_ptrs." + std::to_string(m_layer_index);
             auto chunk_base_ptrs = pa_params.add(chunk_base_ptrs_name, element::i64, PartialShape{-1});
+            // This tensor holds raw USM device pointers, not indices/lengths like the other i64/i32
+            // inputs on this op. Plugins commonly narrow i64 to i32 for performance (see e.g. the
+            // GPU plugin's ConvertPrecision pass); doing that here would silently truncate pointer
+            // values, so downcasting away from i64 must be disabled for this parameter specifically.
+            ov::disable_conversion(chunk_base_ptrs, element::i64, element::i32);
             pa_arguments.push_back(chunk_base_ptrs);
         }
         OPENVINO_ASSERT(pa_arguments.size() == 28 || pa_arguments.size() == 29);
