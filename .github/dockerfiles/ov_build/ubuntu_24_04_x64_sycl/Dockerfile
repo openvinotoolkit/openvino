@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/ubuntu:22.04
+FROM ${REGISTRY}/library/ubuntu:24.04
 
 USER root
 
@@ -27,7 +27,6 @@ RUN apt-get update && \
         ca-certificates \
         gpg-agent \
         tzdata \
-        libtbb2 \
         # parallel gzip
         pigz \
         # Pythons \
@@ -59,8 +58,8 @@ RUN chmod +x /install_build_dependencies.sh && \
 RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | \
         gpg --yes --dearmor \
             --output /usr/share/keyrings/intel-graphics.gpg && \
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy/lts/2523 unified" \
-        > /etc/apt/sources.list.d/intel-gpu-jammy.list && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu noble/lts/2523 unified" \
+        > /etc/apt/sources.list.d/intel-gpu-noble.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
         intel-ocloc \
@@ -78,21 +77,21 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
-# Setup pip
-ENV PIP_VERSION="24.0"
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py
-
 # Use Python 3.11 as default
 # Using venv here 'cause other methods to switch the default Python on Ubuntu break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"
 
+# Setup pip
+ENV PIP_VERSION="24.0"
+RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
+    rm -f get-pip.py
+
 # Install newer ninja (apt ships 1.10.1 on 22.04 which lacks --quiet)
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
+ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
 # OneAPI env
 ENV ONEAPI_ROOT=/opt/intel/oneapi
