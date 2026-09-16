@@ -161,6 +161,7 @@ jobs:
       - name: System info
         uses: ./openvino/.github/actions/system_info
 
+      - name: Install python dependencies
         run: |
           # For Python API: build and wheel packaging
           python3 -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
