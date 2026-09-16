@@ -1,8 +1,8 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://github.com/openvinotoolkit/openvino/.github/ci-doctor-mq/schemas/index.schema.json",
-    "title": "CI Doctor MQ Investigations Index",
-    "description": "Canonical structure for the rolling-retention aggregate index maintained by the CI Failure Doctor (Merge Queue) workflow at /tmp/gh-aw/repo-memory/default/mq/investigations/index.json. This file references the most recent investigations (INDEX_RETENTION_MAX, kept as a rolling window); the permanent recurrence signal lives in the per-signature pattern records, not here. It MUST only grow via read-modify-write during a run and must never be recreated from scratch or overwritten in a way that accidentally drops entries; the oldest entries are trimmed only by the Phase 5 retention step.",
+    "$id": "https://github.com/openvinotoolkit/openvino/.github/ci-doctor-post-commit/schemas/index.schema.json",
+    "title": "CI Doctor Post-Commit Investigations Index",
+    "description": "Canonical structure for the rolling-retention aggregate index maintained by the CI Failure Doctor (Post-Commit) workflow at /tmp/gh-aw/repo-memory/default/post-commit/investigations/index.json. This file references the most recent investigations (INDEX_RETENTION_MAX, kept as a rolling window); the permanent recurrence signal lives in the per-signature pattern records, not here. It MUST only grow via read-modify-write during a run and must never be recreated from scratch or overwritten in a way that accidentally drops entries; the oldest entries are trimmed only by the Phase 5 retention step.",
     "type": "object",
     "additionalProperties": false,
     "required": [
@@ -62,7 +62,7 @@
                 "run_id": {
                     "type": "string",
                     "minLength": 1,
-                    "description": "GitHub Actions run ID of the failed merge-queue workflow, encoded as a string. Must always be a non-empty string (never a bare JSON number)."
+                    "description": "GitHub Actions run ID of the failed post-commit workflow, encoded as a string. Must always be a non-empty string (never a bare JSON number)."
                 },
                 "run_url": {
                     "type": "string",
@@ -97,12 +97,12 @@
                     "type": "string",
                     "description": "Hash of the failure signature; matches the pattern file name <signature-hash>.json. May be an empty string only for legacy entries migrated from older index files."
                 },
-                "pr_number": {
+                "commit_sha": {
                     "type": [
                         "string",
                         "null"
                     ],
-                    "description": "Affected merge-queue PR number encoded as a string, or null when no PR can be identified. Prefer a string; a bare JSON number is tolerated only in legacy entries."
+                    "description": "Head commit SHA of the failed post-commit run, or null when unknown."
                 }
             }
         }
