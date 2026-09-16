@@ -793,7 +793,7 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
             ob << f_desc.input_layout;
             size_t num_output_layouts = f_desc.output_layouts.size();
             ob << num_output_layouts;
-            for (auto& output_layout : f_desc.output_layouts) {
+            for (const auto& output_layout : f_desc.output_layouts) {
                 ob << output_layout;
             }
             ob << cldnn::prim_map_storage::instance().get_type_string(f_desc.f_param->type());

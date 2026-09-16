@@ -1201,7 +1201,7 @@ program_node* program::maybe_update_fused_node(program_node &fused_node, program
         OPENVINO_ASSERT(num_inputs == 1 || num_inputs == 2);
         const size_t num_outputs = 2;
 
-        auto new_rms = &get_or_create(
+        auto* new_rms = &get_or_create(
             orig_rms->input.size() == 1
                 ? std::make_shared<rms>(orig_rms->id + "_fused",
                                         orig_rms->input[0],
