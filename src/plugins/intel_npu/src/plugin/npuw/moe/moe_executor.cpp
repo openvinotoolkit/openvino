@@ -254,6 +254,9 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
     // Router parsing has already rejected every non-finite score. An empty
     // selection therefore means all mixing coefficients are finite and zero.
     if (selected_experts.empty()) {
+        LOG_WARN("MoE decode: all router mixing scores are zero for subgraph["
+                 << idx << "]; returning zero expert contribution without inference. "
+                 << "Check router/backend behavior if this is unexpected.");
         for (const auto& output : io.outputs) {
             OPENVINO_ASSERT(output && output->is_continuous(), "MoE: expected a contiguous expert output");
             std::memset(output->data(), 0, output->get_byte_size());
@@ -631,9 +634,14 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
         } else {
             OPENVINO_THROW("MoE: Unsupported router element type for iterative inference");
         }
-        if (inflight)
+        if (inflight) {
             do_drain();
-        // Otherwise all mixing scores were zero; the accumulator is clear.
+        } else {
+            // All mixing scores were finite and zero; the accumulator is clear.
+            LOG_WARN("MoE prefill: all router mixing scores are zero for subgraph["
+                     << idx << "]; returning zero expert contribution without inference. "
+                     << "Check router/backend behavior if this is unexpected.");
+        }
     } catch (...) {
         const auto original_error = std::current_exception();
         // A later router row can fail validation while a previous chunk is
