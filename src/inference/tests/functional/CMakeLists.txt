@@ -10,6 +10,8 @@ endif()
 
 set(DEPENDENCIES
     mock_engine
+    mock_dispatch_candidate_a
+    mock_dispatch_candidate_b
     openvino_template_extension
 )
 
@@ -50,6 +52,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/ov_compiled_model_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/ov_core_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/ov_core_threading.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/ov_dispatch_group_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/ov_extension_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/ov_extension_test.hpp
             ${CMAKE_CURRENT_SOURCE_DIR}/ov_infer_request_test.cpp

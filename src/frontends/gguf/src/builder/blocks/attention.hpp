@@ -39,8 +39,7 @@ std::string attention(GraphEmitter& e,
                       const DecoderConfig& cfg,
                       const KvCachePlan& kv,
                       int il,
-                      const std::string& attn_norm,
-                      int64_t T);
+                      const std::string& attn_norm);
 
 }  // namespace blocks
 }  // namespace gguf
