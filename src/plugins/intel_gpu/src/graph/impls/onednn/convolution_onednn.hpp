@@ -150,23 +150,48 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         // Note this also covers quantize, which used to be rejected here only for int8 because it
         // crashes NVIDIA GPUs: per-channel scales/shifts turn into binary post-ops as well.
         bool sum_post_op_used = false;
+        bool eltwise_post_op_used = false;
         for (const auto& fo : conv_node.get_fused_primitives()) {
             // A fused reorder is not translated into a post-op at all
             if (fo.is_type<reorder>())
                 continue;
 
             if (fo.is_type<activation>()) {
+                const auto activation_prim = fo.typed_desc<activation>();
+                const auto func = activation_prim->activation_function;
+                if (func == activation_func::none)
+                    continue;
+
                 // relu with a slope input becomes a prelu post-op, every other activation
                 // becomes a plain eltwise post-op
-                if (fo.typed_desc<activation>()->additional_params_input.is_valid())
+                if (activation_prim->additional_params_input.is_valid())
                     return false;
+
+                // Being an eltwise post-op is not enough: the algorithm itself must be implemented
+                // by one of the NVIDIA backends. cuDNN's attr_post_ops_ok() accepts relu, tanh, elu
+                // and logistic only, all with alpha == 0 and at most one eltwise entry, while the
+                // generic SYCL reference kernel accepts a somewhat different set
+                // (sycl_post_ops_t::eltwise_ok()) but can drop out for unrelated reasons such as its
+                // problem size heuristic. Restrict to what cuDNN guarantees, like the fully_connected
+                // and gemm managers already do; everything else runs on the cldnn OCL kernels.
+                if (eltwise_post_op_used)
+                    return false;
+                if (!one_of(func, {activation_func::relu,
+                                   activation_func::hyperbolic_tan,
+                                   activation_func::elu,
+                                   activation_func::logistic}))
+                    return false;
+                if (activation_prim->additional_params.a != 0.0f)
+                    return false;
+                eltwise_post_op_used = true;
                 continue;
             }
 
             if (fo.is_type<eltwise>()) {
                 // Only the first in-place addition becomes a sum post-op. Anything else, including
                 // a second one or an addition of a buffer that cannot be reused, becomes binary.
-                if (sum_post_op_used ||
+                // cuDNN also requires the sum to come first, so reject a sum after an eltwise.
+                if (sum_post_op_used || eltwise_post_op_used ||
                     onednn_add_fusing_helpers::get_add_fusing_type(conv_node, fo) != add_fusing_type::sum)
                     return false;
                 sum_post_op_used = true;
