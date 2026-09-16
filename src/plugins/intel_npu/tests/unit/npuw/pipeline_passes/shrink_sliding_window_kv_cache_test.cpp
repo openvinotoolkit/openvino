@@ -134,8 +134,8 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_OnlySlidingLayersPastKVShru
     ASSERT_NO_THROW(generate = make_generate_model(build_hybrid_model()));
 
     // kvcache_size=192, generate input_size=1 => full past=191.
-    const auto sliding_past = input_shape(generate, "past_key_values.0.key");
-    ASSERT_TRUE(sliding_past.has_value()) << "past_key_values.0.key not found in generate model";
+    const auto sliding_past = input_shape(generate, "past_key_values.0.swa.key");
+    ASSERT_TRUE(sliding_past.has_value()) << "past_key_values.0.swa.key not found in generate model";
     EXPECT_EQ((*sliding_past)[2], kWindowSize);
 
     const auto full_past = input_shape(generate, "past_key_values.1.key");
@@ -173,18 +173,23 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, PrefillModel_SlidingMaskWidthShrunkToNewK
     EXPECT_EQ(mask_shape->back(), expected_width);
 }
 
-// Only sliding-layer past KV parameters get SWA rt_info tag.
-TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_OnlySlidingLayersPastKVTaggedWithRtInfo) {
+// Only sliding-layer past KV parameters (and their matching present outputs) get renamed
+// with the SWA "swa" marker segment; full-attention layers keep their original names untouched.
+TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_OnlySlidingLayersPastKVRenamedWithSwaPrefix) {
     std::shared_ptr<ov::Model> generate;
     ASSERT_NO_THROW(generate = make_generate_model(build_hybrid_model()));
 
-    const auto sliding_input = find_input(generate, "past_key_values.0.key");
-    ASSERT_TRUE(sliding_input.has_value()) << "past_key_values.0.key not found in generate model";
-    EXPECT_TRUE(sliding_input->get_node()->get_rt_info().count(ov::npuw::util::NPUW_KV_CACHE_SLIDING_RT_KEY) > 0);
+    const auto sliding_input = find_input(generate, "past_key_values.0.swa.key");
+    ASSERT_TRUE(sliding_input.has_value()) << "past_key_values.0.swa.key not found in generate model";
+    const auto sliding_present = find_output(generate, "present.0.swa.key");
+    ASSERT_TRUE(sliding_present.has_value()) << "present.0.swa.key not found in generate model outputs";
+    EXPECT_TRUE(ov::npuw::util::is_swa_kv_cache_name(sliding_input->get_node()->get_friendly_name()));
 
     const auto full_input = find_input(generate, "past_key_values.1.key");
     ASSERT_TRUE(full_input.has_value()) << "past_key_values.1.key not found in generate model";
-    EXPECT_EQ(full_input->get_node()->get_rt_info().count(ov::npuw::util::NPUW_KV_CACHE_SLIDING_RT_KEY), 0u);
+    EXPECT_FALSE(ov::npuw::util::is_swa_kv_cache_name(full_input->get_node()->get_friendly_name()));
+    const auto full_present = find_output(generate, "present.1.key");
+    ASSERT_TRUE(full_present.has_value()) << "present.1.key not found in generate model outputs";
 }
 
 // Input-source invariant: sliding SDPA consumes the externalized mask, full-attention SDPA does not.
@@ -217,12 +222,12 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, PrefillSingleShot_SlidingPastIsZero_Gener
     ASSERT_NO_THROW(generate = make_generate_model(build_hybrid_model()));
     ASSERT_NO_THROW(prefill = make_prefill_model(build_hybrid_model()));
 
-    const auto prefill_sliding_past = input_shape(prefill, "past_key_values.0.key");
-    ASSERT_TRUE(prefill_sliding_past.has_value()) << "past_key_values.0.key not found in prefill model";
+    const auto prefill_sliding_past = input_shape(prefill, "past_key_values.0.swa.key");
+    ASSERT_TRUE(prefill_sliding_past.has_value()) << "past_key_values.0.swa.key not found in prefill model";
     EXPECT_EQ((*prefill_sliding_past)[2], 0u);
 
-    const auto generate_sliding_past = input_shape(generate, "past_key_values.0.key");
-    ASSERT_TRUE(generate_sliding_past.has_value()) << "past_key_values.0.key not found in generate model";
+    const auto generate_sliding_past = input_shape(generate, "past_key_values.0.swa.key");
+    ASSERT_TRUE(generate_sliding_past.has_value()) << "past_key_values.0.swa.key not found in generate model";
     EXPECT_EQ((*generate_sliding_past)[2], kWindowSize);
 }
 
@@ -233,8 +238,8 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, ChunkedPrefill_SlidingLayerKeepsWindowSiz
     std::shared_ptr<ov::Model> prefill;
     ASSERT_NO_THROW(prefill = run_shrink_pass(build_hybrid_model(), kChunkSize, kKvCacheSize, /*is_prefill=*/true));
 
-    const auto sliding_past = input_shape(prefill, "past_key_values.0.key");
-    ASSERT_TRUE(sliding_past.has_value()) << "past_key_values.0.key not found in prefill model";
+    const auto sliding_past = input_shape(prefill, "past_key_values.0.swa.key");
+    ASSERT_TRUE(sliding_past.has_value()) << "past_key_values.0.swa.key not found in prefill model";
     EXPECT_EQ((*sliding_past)[2], kWindowSize);
 }
 
@@ -337,11 +342,11 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, AllLayersSliding_MaskExternalizedAndPastS
 
     EXPECT_EQ(count_inputs(generate, "sliding_window_attention_mask"), 1u);
 
-    const auto past0 = input_shape(generate, "past_key_values.0.key");
-    ASSERT_TRUE(past0.has_value()) << "past_key_values.0.key not found in generate model";
+    const auto past0 = input_shape(generate, "past_key_values.0.swa.key");
+    ASSERT_TRUE(past0.has_value()) << "past_key_values.0.swa.key not found in generate model";
     EXPECT_EQ((*past0)[2], kWindowSize);
 
-    const auto past1 = input_shape(generate, "past_key_values.1.key");
-    ASSERT_TRUE(past1.has_value()) << "past_key_values.1.key not found in generate model";
+    const auto past1 = input_shape(generate, "past_key_values.1.swa.key");
+    ASSERT_TRUE(past1.has_value()) << "past_key_values.1.swa.key not found in generate model";
     EXPECT_EQ((*past1)[2], kWindowSize);
 }
