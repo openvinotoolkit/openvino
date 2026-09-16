@@ -35,9 +35,6 @@ using data_types = ov::element::Type_t;
 /// Helper class to identify key properties for data_types.
 struct data_type_traits {
     static size_t size_of(data_types data_type) {
-        if (data_type == data_types::boolean)
-            return 1;
-
         auto et = ov::element::Type(data_type);
         OPENVINO_ASSERT(et.bitwidth() >= 8, "[GPU] Unexpected data_type_traits::size_of call for type with bitwidth < 8 (", et.get_type_name(), ")");
         return et.size();
