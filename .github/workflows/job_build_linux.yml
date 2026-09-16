@@ -52,7 +52,7 @@ on:
         required: false
         default: false
       build-additional-python-packages:
-        description: 'Whether to build additional, i.e., non-system Python packages. Should have Python 3.10-3.13 installed'
+        description: 'Whether to build additional, i.e., non-system Python packages. Should have Python 3.11-3.13 installed'
         type: boolean
         required: false
         default: false
@@ -297,7 +297,7 @@ jobs:
       - name: Build Python API and wheels
         if: ${{ inputs.build-additional-python-packages }}
         run: |
-          for py_version in "3.10" "3.11" "3.12" "3.13" "3.14" "3.14t"
+          for py_version in "3.11" "3.12" "3.13" "3.14" "3.14t"
           do
             echo "Building Python API and wheels for Python ${py_version}"
             export PY_BUILD_DIR=${{ github.workspace }}/py$py_version
