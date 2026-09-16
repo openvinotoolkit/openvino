@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-16-09-44-39-000-35079443292",
+  "timestamp": "2026-09-16T09:44:39Z",
+  "run_id": "35079443292",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35079443292",
+  "workflow_name": "Docker",
+  "pr_number": "37279",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37279",
+  "author": "hdharpure9922",
+  "category": "Configuration",
+  "title": "Setup Android SDK fails - sdkmanager cannot find deprecated 'tools' package",
+  "signature": "warning failed to find package tools sdkmanager exit code 1 setup android sdk|Configuration",
+  "signature_hash": "973fc34b4fbdfed5",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker",
+      "conclusion": "failure",
+      "symptom": "Building ubuntu_22_04_android docker image fails: sdkmanager cannot install the deprecated 'tools' package"
+    }
+  ],
+  "key_errors": [
+    "Warning: Failed to find package 'tools'",
+    "#13 ERROR: process \"/bin/sh -c yes | sdkmanager --sdk_root=${ANDROID_HOME} --licenses &&     sdkmanager --sdk_root=${ANDROID_HOME}         \\\"cmdline-tools;16.0\\\"         \\\"platform-tools\\\"         \\\"platforms;android-${ANDROID_API_LEVEL}\\\"         \\\"system-images;android-${ANDROID_API_LEVEL};${ANDROID_TARGET};${ANDROID_ARCH}\\\"         \\\"emulator\\\" &&         ${ANDROID_HOME}/cmdline-tools/16.0/bin/sdkmanager tools\" did not complete successfully: exit code: 1",
+    "ERROR: failed to solve: process ... did not complete successfully: exit code: 1 (Dockerfile:68, ov_test/ubuntu_22_04_android/Dockerfile)"
+  ],
+  "root_cause": "The Dockerfile .github/dockerfiles/ov_test/ubuntu_22_04_android/Dockerfile invokes `${ANDROID_HOME}/cmdline-tools/16.0/bin/sdkmanager tools` as a final step to fetch the legacy 'tools' package. Google's Android SDK repository no longer serves the deprecated 'tools' package (superseded by 'cmdline-tools'), so sdkmanager logs 'Failed to find package \"tools\"' and the whole RUN step returns a non-zero exit code, failing the docker image build unconditionally. This is a deterministic configuration/dockerfile issue, not flaky infra: it will fail on every build attempt until the Dockerfile is fixed. This is the 3rd occurrence of the same signature within the last 12 hours across different PRs (38131, 38156, 37279), confirming it's a systemic environment misconfiguration rather than a one-off.",
+  "reproduction_steps": "docker buildx build --file .github/dockerfiles/ov_test/ubuntu_22_04_android/Dockerfile --tag test/ubuntu_22_04_android:local --build-arg REGISTRY=openvinogithubactions.azurecr.io/dockerio . -- reproduces the same sdkmanager 'tools' package failure locally.",
+  "recommended_actions": [
+    "Remove the trailing `${ANDROID_HOME}/cmdline-tools/16.0/bin/sdkmanager tools` invocation from .github/dockerfiles/ov_test/ubuntu_22_04_android/Dockerfile (line 75) since the 'tools' package is deprecated/removed from the SDK repository and is not required by cmdline-tools 16.0+.",
+    "If the 'tools' package binaries (e.g. legacy `android` CLI) are still needed downstream, replace them with their `cmdline-tools`/`platform-tools` equivalents instead of trying to install the removed package.",
+    "Add a fallback/ignore-failure guard (e.g. `|| true`) around that specific sdkmanager call if it is only best-effort, or split it into its own RUN layer so failure doesn't break the whole build.",
+    "After fixing the Dockerfile, bump the cached image tag so downstream jobs pick up the corrected image."
+  ],
+  "prevention_strategies": "Pin/document exactly which sdkmanager packages are required and periodically validate the Dockerfile against the current Android SDK package index in CI (e.g. a scheduled dry-run build) so deprecated/removed packages are caught before they block the merge queue.",
+  "historical_context": "Same signature seen twice before in the last 12 hours (PR #38131 run 35000889493 at 2026-09-15T17:47:38Z, and PR #38156 run 35077397634 at 2026-09-16T09:28:46Z). No fix has landed yet; this is now the 3rd occurrence, meeting the escalation threshold."
+}

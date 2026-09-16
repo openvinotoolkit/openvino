@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 243,
+  "total": 244,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2382,6 +2382,15 @@
       "category": "Configuration",
       "signature_hash": "973fc34b4fbdfed5",
       "pr_number": "38156"
+    },
+    {
+      "investigation_id": "2026-09-16-09-44-39-000-35079443292",
+      "run_id": "35079443292",
+      "timestamp": "2026-09-16T09:44:39Z",
+      "title": "Setup Android SDK fails - sdkmanager cannot find deprecated 'tools' package",
+      "category": "Configuration",
+      "signature_hash": "973fc34b4fbdfed5",
+      "pr_number": "37279"
     }
   ]
 }
