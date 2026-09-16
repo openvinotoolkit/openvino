@@ -375,16 +375,37 @@ TEST_F(VCLCompilerImplTest, ProcessProfilingOutputThrowsOnNullData) {
 }
 
 TEST_F(VCLCompilerImplTest, ProcessProfilingOutputThrowsWhenCreateFails) {
+    // A decodable payload, so the scripted vclProfilingCreate failure is the only reason to throw.
+    fake.profilingPayload.assign(sizeof(ze_profiling_layer_info), 0);
     auto compiler = makeCompiler();
     fake.failWith("vclProfilingCreate", VCL_RESULT_ERROR_UNKNOWN);
-    EXPECT_THROW(compiler->process_profiling_output({1}, {2}), ov::Exception);
+
+    try {
+        compiler->process_profiling_output({1}, {2});
+        FAIL() << "Expected a throw on vclProfilingCreate failure";
+    } catch (const ov::Exception& error) {
+        EXPECT_NE(std::string(error.what()).find("vclProfilingCreate"), std::string::npos);
+    }
+    // Nothing was created, so nothing must be destroyed.
     EXPECT_EQ(fake.profilingDestroyCount, 0);
 }
 
 TEST_F(VCLCompilerImplTest, ProcessProfilingOutputThrowsWhenDestroyFails) {
+    // The payload must decode successfully, otherwise the null-data guard throws first and the
+    // destroy-failure path is never reached.
+    fake.profilingPayload.assign(sizeof(ze_profiling_layer_info), 0);
     auto compiler = makeCompiler();
     fake.failWith("vclProfilingDestroy", VCL_RESULT_ERROR_UNKNOWN);
-    EXPECT_THROW(compiler->process_profiling_output({1}, {2}), ov::Exception);
+
+    try {
+        compiler->process_profiling_output({1}, {2});
+        FAIL() << "Expected a throw on vclProfilingDestroy failure";
+    } catch (const ov::Exception& error) {
+        EXPECT_NE(std::string(error.what()).find("vclProfilingDestroy"), std::string::npos);
+    }
+    // The decode ran to completion before destroy was attempted.
+    EXPECT_EQ(fake.callCount("vclGetDecodedProfilingBuffer"), 1u);
+    EXPECT_EQ(fake.profilingDestroyCount, 1);
 }
 
 //

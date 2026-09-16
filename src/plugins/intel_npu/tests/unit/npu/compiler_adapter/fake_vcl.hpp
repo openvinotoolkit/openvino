@@ -123,9 +123,14 @@ public:
     /// Raw buffer returned by vclQueryNetwork.
     std::vector<char> queryResultBuffer;
 
-    /// Bytes returned by vclGetDecodedProfilingBuffer; nullptr data if empty and forceNullProfData.
+    /// Bytes returned by vclGetDecodedProfilingBuffer.
     std::vector<uint8_t> profilingPayload;
+    /// The only route to a null `data` pointer. An empty profilingPayload reports size 0 with a
+    /// non-null pointer instead, so "no profiling bytes" and "the compiler returned nothing" stay
+    /// distinct states - conflating them let a destroy-failure test pass on the null-data path.
     bool forceNullProfilingData = false;
+    /// Handed out as `data` when profilingPayload is empty; never dereferenced, since size is 0.
+    uint8_t emptyPayloadSentinel = 0;
 
     //
     // --- recordings ---
@@ -463,7 +468,10 @@ inline vcl_result_t VCL_APICALL fake_vclGetDecodedProfilingBuffer(vcl_profiling_
         output->size = 0;
         return VCL_RESULT_SUCCESS;
     }
-    output->data = self->profilingPayload.data();
+    // An empty vector's data() is allowed to be null, which would masquerade as the
+    // forceNullProfilingData case. Hand out a sentinel instead so size 0 still means "success with
+    // no bytes" rather than "the compiler returned nothing".
+    output->data = self->profilingPayload.empty() ? &self->emptyPayloadSentinel : self->profilingPayload.data();
     output->size = self->profilingPayload.size();
     return VCL_RESULT_SUCCESS;
 }
