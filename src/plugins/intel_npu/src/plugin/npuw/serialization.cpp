@@ -81,12 +81,12 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::Attention::Par
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguous& var) {
-    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
+    stream & var.original_query_length & var.full_context_size & var._context_lengths & var._attention_infos &
         var.global_mask_idx & var._data_left_aligned;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlock& var) {
-    stream & var.query_size & var.full_context_size & var._context_lengths & var._attention_infos &
+    stream & var.original_query_length & var.full_context_size & var._context_lengths & var._attention_infos &
         var.past_key_block_global_param_indices & var.past_value_block_global_param_indices & var.global_mask_idx &
         var._data_left_aligned;
 }
@@ -121,7 +121,7 @@ std::shared_ptr<ov::npuw::compiled::PyramidAttention> ov::npuw::orc::make_pyrami
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo& var) {
-    stream & var.params & var.mask_idx_local & var.query_size & var.context_length;
+    stream & var.params & var.mask_idx_local & var.compiled_query_size & var.context_length;
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionContiguousInfo::Param& var) {
@@ -129,7 +129,7 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttenti
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttentionBlockInfo& var) {
-    stream & var.mask_idx_local & var.query_size & var.context_length & var.param_port_map &
+    stream & var.mask_idx_local & var.compiled_query_size & var.context_length & var.param_port_map &
         var.past_key_block_port_set & var.past_value_block_port_set;
 }
 
@@ -140,8 +140,8 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtten
         info._sdpa_indices.present_value & info._sdpa_indices.attention_mask & info._tile_input_indices.q &
         info._tile_input_indices.k & info._tile_input_indices.v & info._tile_input_indices.mask &
         info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &
-        info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d & var._tile_size &
-        var._can_use_tensor_view;
+        info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d &
+        var._past_tile_size & var._final_tile_size & var._can_use_tensor_view;
     if (stream.input()) {
         // Port indices are model-specific but must fit in a sane range; SIZE_MAX indicates a corrupted blob.
         constexpr std::size_t kMaxPortIndex = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());

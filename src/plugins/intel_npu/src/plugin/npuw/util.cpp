@@ -194,6 +194,12 @@ bool ov::npuw::util::starts_with(const std::string& str, const std::string& pref
     return str.substr(0, prefix.size()) == prefix;
 }
 
+bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {
+    const auto& shape = p.get_shape();
+    return p.get_node()->get_friendly_name() == "position_ids" &&
+           (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1) || (shape.size() == 3 && shape[1] == 1));
+}
+
 std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {
     std::size_t regs = 1;
     while (total /= 10) {
