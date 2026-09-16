@@ -82,11 +82,11 @@ int main(int argc, char** argv, char** envp) {
     ::testing::InitGoogleTest(&argc, argv);
 
     for (int i = 1; i < argc; i++) {
-        std::string arg(argv[i]);
-        const std::string prefix = "--driver_release=";
+        const std::string_view arg(argv[i]);
+        constexpr std::string_view prefix = "--driver_release=";
         if (arg.find(prefix) == 0) {
-            std::string value = arg.substr(prefix.length());
-            auto parsed = ov::test::utils::parseDriverType(value);
+            const std::string_view value = arg.substr(prefix.length());
+            auto parsed = ov::test::utils::parseDriverType(value.data());
             if (parsed.has_value()) {
                 cfg.driver_release = *parsed;
                 std::cout << "Driver type set to: " << ov::test::utils::driverTypeToString(cfg.driver_release)
