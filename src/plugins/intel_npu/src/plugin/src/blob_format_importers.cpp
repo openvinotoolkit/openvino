@@ -478,10 +478,9 @@ private:
         m_blob_reader.register_reader(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG, IOLayoutsSection::read);
         m_blob_reader.register_reader(SectionTypeCode::COMPILER_VERSION, IOLayoutsSection::read);
 
-        // This evaluator can be shared, since all it does is to return "true"
-        const auto supported_section_type_evaluator = std::make_shared<SupportedSectionTypeEvaluator>();
         for (const SectionType& type : ALREADY_SUPPORTED_SECTION_TYPES) {
-            m_blob_reader.register_section_type_evaluator(type, supported_section_type_evaluator);
+            // This evaluator can be shared, since all it does is to return "true"
+            m_blob_reader.register_section_type_evaluator(type, SupportedSectionTypeEvaluator::get_instance());
         }
 
         const auto compiler_schedules_instance_evaluator =

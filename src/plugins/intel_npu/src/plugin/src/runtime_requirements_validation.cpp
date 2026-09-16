@@ -41,10 +41,9 @@ ov::CompatibilityCheck validateCompatibilityDescriptorFormatV2(
     std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>> type_evaluators;
     std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>> instance_evaluators;
 
-    // This evaluator can be shared, since all it does is to return "true"
-    const auto supported_section_type_evaluator = std::make_shared<SupportedSectionTypeEvaluator>();
     for (const SectionType& type : ALREADY_SUPPORTED_SECTION_TYPES) {
-        type_evaluators[type] = supported_section_type_evaluator;
+        // This evaluator can be shared, since all it does is to return "true"
+        type_evaluators[type] = SupportedSectionTypeEvaluator::get_instance();
     }
 
     const auto compiler_schedules_instance_evaluator =
