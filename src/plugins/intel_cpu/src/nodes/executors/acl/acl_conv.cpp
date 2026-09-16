@@ -197,11 +197,4 @@ ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemor
     return neConv;
 }
 
-std::shared_ptr<arm_compute::TensorInfo> ACLConvolutionExecutor::initTensorInfo(
-    const arm_compute::TensorShape& tensorShape,
-    const arm_compute::DataType& dataType,
-    const arm_compute::DataLayout& dataLayout) {
-    return ACLCommonExecutor::initTensorInfo(tensorShape, convertToQuantizedType(dataType), dataLayout);
-}
-
 }  // namespace ov::intel_cpu
