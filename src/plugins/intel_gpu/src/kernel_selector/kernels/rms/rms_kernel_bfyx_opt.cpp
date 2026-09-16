@@ -16,7 +16,7 @@ namespace {
     bool has_dynamic_quantize_post_op(const kernel_selector::rms_params& params) {
         return get_dq_it(params) != params.fused_ops.end();
     }
-}
+} // namespace
 
 namespace kernel_selector {
 static constexpr size_t subgroup_size = 16;
