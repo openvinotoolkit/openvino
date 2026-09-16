@@ -6,7 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "base_reference_test.hpp"
+#include "common_test_utils/type_prop.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -126,6 +129,65 @@ TEST_P(ReferenceDivideLayerTest, DivideWithHardcodedRefs) {
 TEST_P(ReferenceDivideRoundingLayerTest, DivideWithHardcodedRefs) {
     Exec();
 }
+
+struct DivideOverflowParams {
+    template <class IT>
+    DivideOverflowParams(const element::Type& iType, IT x, IT y, bool pythondiv)
+        : inType(iType),
+          inputData1(CreateTensor(Shape{1}, iType, std::vector<IT>{x})),
+          inputData2(CreateTensor(Shape{1}, iType, std::vector<IT>{y})),
+          pythonDivision(pythondiv) {}
+
+    element::Type inType;
+    ov::Tensor inputData1;
+    ov::Tensor inputData2;
+    bool pythonDivision;
+};
+
+class ReferenceDivideOverflowTest : public testing::TestWithParam<DivideOverflowParams>, public CommonReferenceTest {
+public:
+    void SetUp() override {
+        auto params = GetParam();
+        function = CreateFunction(params.inType, params.pythonDivision);
+        inputData = {params.inputData1, params.inputData2};
+    }
+
+    static std::string getTestCaseName(const testing::TestParamInfo<DivideOverflowParams>& obj) {
+        auto param = obj.param;
+        std::ostringstream result;
+        result << "iType=" << param.inType << "_";
+        result << "pythonDivision=" << param.pythonDivision;
+        return result.str();
+    }
+
+private:
+    static std::shared_ptr<Model> CreateFunction(const element::Type& input_type, bool pythondiv) {
+        const auto in1 = std::make_shared<op::v0::Parameter>(input_type, Shape{1});
+        const auto in2 = std::make_shared<op::v0::Parameter>(input_type, Shape{1});
+        const auto divide = std::make_shared<op::v1::Divide>(in1, in2, pythondiv);
+        return std::make_shared<Model>(OutputVector{divide}, ParameterVector{in1, in2});
+    }
+};
+
+TEST_P(ReferenceDivideOverflowTest, ThrowsOnIntMinDividedByMinusOne) {
+    try {
+        Exec();
+        FAIL() << "Expected ov::Exception to be thrown for INT_MIN / -1 overflow";
+    } catch (const ov::Exception& error) {
+        EXPECT_HAS_SUBSTRING(error.what(), std::string("integer division overflow"));
+    } catch (const std::exception& error) {
+        FAIL() << "Failed for unexpected reason: " << error.what();
+    } catch (...) {
+        FAIL() << "Failed for unknown reason";
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_Divide_Overflow,
+    ReferenceDivideOverflowTest,
+    ::testing::Values(DivideOverflowParams(element::i64, std::numeric_limits<int64_t>::min(), int64_t{-1}, true),
+                      DivideOverflowParams(element::i64, std::numeric_limits<int64_t>::min(), int64_t{-1}, false)),
+    ReferenceDivideOverflowTest::getTestCaseName);
 
 template <element::Type_t IN_ET>
 std::vector<DivideParams> generateParamsForDivide() {
