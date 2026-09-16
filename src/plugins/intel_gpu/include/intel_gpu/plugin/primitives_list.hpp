@@ -338,3 +338,5 @@ REGISTER_FACTORY(internal, MLIR);
 #endif
 REGISTER_FACTORY(internal, QSA);
 REGISTER_FACTORY(internal, GatedResidual);
+REGISTER_FACTORY(internal, QSASDPA);
+REGISTER_FACTORY(internal, QSAIndexerCache);

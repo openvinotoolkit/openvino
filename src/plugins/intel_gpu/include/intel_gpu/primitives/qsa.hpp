@@ -21,7 +21,26 @@ struct qsa : public primitive_base<qsa> {
 
     qsa() : primitive_base("", {}) {}
 
-    qsa(const primitive_id& id, const std::vector<input_info>& inputs, const ov::intel_gpu::op::QSA::Config& config)
+    // skip_kv_write: when true, the Q0 main-KV-cache-write stage (qsa_kv_cache_update)
+    // is never dispatched -- used by the QSASDPA dense/degenerate-paging lowering, where
+    // an external ov::intel_gpu::op::KVCache node has already appended this call's new
+    // K/V into the (degenerate-paged) cache before this primitive runs, so Q0's write
+    // would be redundant. Every existing caller (the paged QSA op) leaves this at its
+    // default `false`, so existing behavior is completely unchanged.
+    //
+    // prepare_only: when true, ONLY Q1 (qsa_prepare / qsa_project_dpas) is dispatched --
+    // Q0 is skipped exactly as if skip_kv_write were also set, and Q2 (score/top-k) and
+    // Q3 (sparse attention) are skipped too. This is the primitive-level building block
+    // for the future QSAIndexerCache op (see QSA_SDPA_DESIGN.md "Option 2"): Q1 is reused
+    // completely unchanged, just addressed through a degenerate (one-page-per-sequence)
+    // page table, to own the indexer raw-K/summary persistent state independently of the
+    // main-attention side. The primitive's declared attention output is left uninitialized
+    // in this mode; callers only care about the mutated raw-K/summary cache buffers.
+    qsa(const primitive_id& id,
+        const std::vector<input_info>& inputs,
+        const ov::intel_gpu::op::QSA::Config& config,
+        bool skip_kv_write = false,
+        bool prepare_only = false)
         : primitive_base(id, inputs),
           heads_num(config.heads_num),
           kv_heads_num(config.kv_heads_num),
@@ -40,7 +59,18 @@ struct qsa : public primitive_base<qsa> {
           scale(config.scale),
           indexer_norm_eps(config.indexer_norm_eps),
           has_output_gate(config.has_output_gate),
-          is_causal(config.is_causal) {}
+          is_causal(config.is_causal),
+          skip_kv_write(skip_kv_write),
+          prepare_only(prepare_only) {
+        // prepare_only declares 2 outputs (mutated raw-K cache, mutated summary cache --
+        // see qsa_inst::calc_output_layouts) instead of the normal single attention
+        // output; every existing (non-prepare_only) caller is unaffected since this only
+        // changes num_outputs away from its primitive_base default of 1 when
+        // prepare_only is set.
+        if (prepare_only) {
+            num_outputs = 2;
+        }
+    }
 
     size_t heads_num = 0;
     size_t kv_heads_num = 0;
@@ -60,6 +90,8 @@ struct qsa : public primitive_base<qsa> {
     float indexer_norm_eps = 1e-6f;
     bool has_output_gate = false;
     bool is_causal = true;
+    bool skip_kv_write = false;
+    bool prepare_only = false;
 
     /// @brief Pre-allocated width of the selected-token metadata: budget + r - 1.
     size_t max_selected_tokens() const {
@@ -109,6 +141,8 @@ struct qsa : public primitive_base<qsa> {
         seed = hash_combine(seed, indexer_norm_eps);
         seed = hash_combine(seed, has_output_gate);
         seed = hash_combine(seed, is_causal);
+        seed = hash_combine(seed, skip_kv_write);
+        seed = hash_combine(seed, prepare_only);
         return seed;
     }
 
@@ -121,7 +155,8 @@ struct qsa : public primitive_base<qsa> {
                hidden_size == r.hidden_size && indexer_heads == r.indexer_heads && indexer_kv_heads == r.indexer_kv_heads &&
                indexer_head_dim == r.indexer_head_dim && indexer_rotary_dim == r.indexer_rotary_dim && budget == r.budget &&
                compress_ratio == r.compress_ratio && qsa_block_tokens == r.qsa_block_tokens && pa_block_size == r.pa_block_size && block_topk == r.block_topk &&
-               scale == r.scale && indexer_norm_eps == r.indexer_norm_eps && has_output_gate == r.has_output_gate && is_causal == r.is_causal;
+               scale == r.scale && indexer_norm_eps == r.indexer_norm_eps && has_output_gate == r.has_output_gate && is_causal == r.is_causal &&
+               skip_kv_write == r.skip_kv_write && prepare_only == r.prepare_only;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -144,6 +179,8 @@ struct qsa : public primitive_base<qsa> {
         ob << indexer_norm_eps;
         ob << has_output_gate;
         ob << is_causal;
+        ob << skip_kv_write;
+        ob << prepare_only;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -166,6 +203,8 @@ struct qsa : public primitive_base<qsa> {
         ib >> indexer_norm_eps;
         ib >> has_output_gate;
         ib >> is_causal;
+        ib >> skip_kv_write;
+        ib >> prepare_only;
     }
 };
 

@@ -308,9 +308,17 @@ void push_u32(KernelData& kd, size_t value) {
 }
 
 /// Number of elements between two consecutive tokens of a token-major flat buffer.
+///
+/// A logically rank-2 [tokens, stride] buffer may be reported with extra trailing size-1
+/// dims: ProgramBuilder's legacy static-shape flow pads any rank < 4 input up to 4
+/// dimensions (see graph/qsa.cpp::calc_output_layouts for the full rationale). Both
+/// representations are accepted here since index 1 always carries the correct stride.
 size_t token_pitch(const layout& l) {
     const auto& shape = l.get_shape();
-    OPENVINO_ASSERT(shape.size() == 2, "[GPU][CM] qsa expects rank-2 token-major inputs");
+    OPENVINO_ASSERT(shape.size() >= 2, "[GPU][CM] qsa expects rank-2 (or rank-4 legacy-padded) token-major inputs, got ", l.to_short_string());
+    for (size_t i = 2; i < shape.size(); i++) {
+        OPENVINO_ASSERT(shape[i] == 1, "[GPU][CM] qsa expects rank-2 (or rank-4 legacy-padded) token-major inputs, got ", l.to_short_string());
+    }
     return shape[1];
 }
 
@@ -1125,11 +1133,18 @@ public:
         const bool dpas_attention = use_dpas_attention(params);
         const bool dpas_projection = use_dpas_projection(params);
         const bool gqa_dpas_attention = use_gqa_dpas_attention(params);
-        add_stage(kv_cache_update, params);
+        if (use_kv_write(params)) {
+            add_stage(kv_cache_update, params);
+        }
         if (dpas_projection) {
             add_stage(project_dpas, params);
         }
         add_stage(prepare, params);
+        if (!use_attention(params)) {
+            // prepare_only: Q1 is the whole story (see cldnn::qsa::prepare_only) -- no
+            // score/top-k/attention stage is ever needed, so none of them are registered.
+            return;
+        }
         add_stage(score_topk_fused, params);
         if (dpas_score) {
             add_stage(score_tile_dpas, params);
@@ -1168,6 +1183,20 @@ public:
     }
     static bool use_gqa_dpas_attention(const kernel_impl_params& params) {
         return can_use_gqa_dpas_attention(*params.typed_desc<qsa>(), params.get_device_info());
+    }
+    // Whether Q0 (main-KV-cache write) should be dispatched at all. False for the
+    // QSASDPA dense/degenerate-paging lowering (see cldnn::qsa::skip_kv_write), where an
+    // external KVCache node already appended the new K/V before this primitive runs, and
+    // also false whenever prepare_only is set (Q0 is irrelevant to an indexer-only call).
+    static bool use_kv_write(const kernel_impl_params& params) {
+        const auto desc = params.typed_desc<qsa>();
+        return !desc->skip_kv_write && !desc->prepare_only;
+    }
+    // Whether Q2 (score/top-k) and Q3 (sparse attention) should be dispatched at all.
+    // False only for the future QSAIndexerCache lowering (see cldnn::qsa::prepare_only),
+    // which only ever needs Q1's raw-K/summary update, never the main attention output.
+    static bool use_attention(const kernel_impl_params& params) {
+        return !params.typed_desc<qsa>()->prepare_only;
     }
 
     // Runtime state must be refreshed before the base sizes the internal buffers.
@@ -1252,9 +1281,15 @@ public:
 
         // Q0 and Q1 are mutually independent (the indexer never reads the main KV and the
         // main KV write never reads indexer state), so they are enqueued back to back on
-        // the same set of input events instead of being chained.
-        auto kv_event = execute_stage(events, instance, kv_cache_update);
-        record_stage_event("Q0_kv_cache_update", kv_event);
+        // the same set of input events instead of being chained. Q0 is skipped entirely
+        // (kv_event stays null) when skip_kv_write is set: the main K/V history has
+        // already been appended by an external node (e.g. KVCache) before this primitive
+        // runs, so there is nothing left for Q0 to write.
+        event::ptr kv_event;
+        if (use_kv_write(params)) {
+            kv_event = execute_stage(events, instance, kv_cache_update);
+            record_stage_event("Q0_kv_cache_update", kv_event);
+        }
 
         // Q1: the systolic projection (when supported) must complete before qsa_prepare
         // reads its FP32 output; when unsupported, qsa_prepare stays independent of any
@@ -1267,6 +1302,20 @@ public:
         }
         auto prepare_event = execute_stage(prepare_deps, instance, prepare);
         record_stage_event("Q1_prepare", prepare_event);
+
+        if (!use_attention(params)) {
+            // prepare_only: Q1 already updated the (degenerate-paged) raw-K/summary
+            // cache buffers in place; there is no score/top-k/attention work left. The
+            // primitive's two declared outputs (see qsa_inst::calc_output_layouts) are
+            // simply those same, now-mutated input buffers -- alias them rather than
+            // copying, so a downstream Assign (QSAIndexerCache's persistent-state write
+            // back) gets a real graph dependency edge to schedule on. `check=false`
+            // mirrors read_value.cpp/ocl/kv_cache.cpp's own use of this same pattern for
+            // variable-backed state: the layout is already known to match by construction.
+            instance.set_output_memory(instance.dep_memory_ptr(QSAIn::INDEXER_RAW_K_CACHE), false, 0);
+            instance.set_output_memory(instance.dep_memory_ptr(QSAIn::INDEXER_SUMMARY_CACHE), false, 1);
+            return prepare_event;
+        }
 
         std::vector<event::ptr> after_prepare = {prepare_event};
         std::vector<event::ptr> after_select;
@@ -1315,8 +1364,13 @@ public:
             after_select = {fused};
         }
 
-        // Q3 waits on both Q0 (main KV visible) and Q2 (selected metadata ready).
-        std::vector<event::ptr> q3_deps = {kv_event, after_select[0]};
+        // Q3 waits on both Q0 (main KV visible) and Q2 (selected metadata ready). When Q0
+        // was skipped (skip_kv_write), kv_event is null and main KV visibility is already
+        // guaranteed by whatever produced the cache tensor upstream in the cldnn graph.
+        std::vector<event::ptr> q3_deps = {after_select[0]};
+        if (kv_event) {
+            q3_deps.push_back(kv_event);
+        }
         if (rtp->stage == QSAStage::GENERATE) {
             if (rtp->use_split_attention) {
                 // Long decode: split each token's selected KV across split_partitions
