@@ -78,8 +78,8 @@ struct GRUAttributes : public recurrent::OpAttributes {
 
 ov::OutputVector gru(const ov::frontend::onnx::Node& node) {
     constexpr std::size_t gates_count = 3;
-    GRUAttributes attributes{node};
-    GRUInputMap input_map{node, gates_count};
+GRUInputMap input_map{node, gates_count};
+GRUAttributes attributes{node};
 
     auto gru_sequence = std::make_shared<v5::GRUSequence>(input_map.at(recurrent::OpInput::X),
                                                           input_map.at(recurrent::OpInput::INIT_H),
