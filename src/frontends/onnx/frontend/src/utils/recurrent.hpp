@@ -4,12 +4,14 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
 #include <string>
 
 #include "core/node.hpp"
+#include "exceptions.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -27,6 +29,15 @@ ov::Output<ov::Node> normalize_tensor_rank(const ov::Output<ov::Node>& input,
                                            int64_t target_rank,
                                            const std::string& op_name,
                                            const std::string& input_name);
+
+// The `layout` attribute introduced in opset 14 accepts only 0 and 1
+inline void validate_layout(const Node& node, std::int64_t layout) {
+    CHECK_VALID_NODE(node,
+                     layout == 0 || layout == 1,
+                     "Unsupported value of the 'layout' attribute: ",
+                     layout,
+                     ". Only 0 and 1 are allowed.");
+}
 
 // Runtime dimension values extracted from OV-layout X [batch, seq, input]
 // and R [num_dir, gates*hidden, hidden]. Each member is a rank-1 i64 node.
@@ -74,7 +85,7 @@ enum class OpInput {
 struct OpInputMap {
     using container_type = std::map<OpInput, ov::Output<ov::Node>>;
 
-    explicit OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count);
+    OpInputMap(const ov::frontend::onnx::Node& node, std::size_t gates_count);
 
     OpInputMap(container_type&& map);
     virtual ~OpInputMap() = default;
@@ -101,6 +112,7 @@ struct OpAttributes {
     std::vector<std::string> m_activations;
     std::vector<float> m_activations_alpha;
     std::vector<float> m_activations_beta;
+    std::int64_t m_layout;
 };
 
 }  // namespace recurrent

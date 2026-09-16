@@ -29,8 +29,8 @@ struct RNNAttributes : public recurrent::OpAttributes {
 
 ov::OutputVector rnn(const ov::frontend::onnx::Node& node) {
     constexpr std::size_t gates_count = 1;
-    RNNInputMap input_map{node, gates_count};
     RNNAttributes attributes{node};
+    RNNInputMap input_map{node, gates_count};
 
     auto rnn_sequence = std::make_shared<v5::RNNSequence>(input_map.at(recurrent::OpInput::X),
                                                           input_map.at(recurrent::OpInput::INIT_H),
@@ -47,6 +47,11 @@ ov::OutputVector rnn(const ov::frontend::onnx::Node& node) {
 
     const auto Y = rnn_sequence->output(0);
     const auto Y_h = rnn_sequence->output(1);
+
+    if (attributes.m_layout == 1) {
+        // OV [batch, num_directions, seq, hidden] -> ONNX [batch, seq, num_directions, hidden]; Y_h already matches.
+        return {ov::op::util::reorder_axes(Y, {0, 2, 1, 3}), Y_h};
+    }
 
     return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}), ov::op::util::reorder_axes(Y_h, {1, 0, 2})};
 }

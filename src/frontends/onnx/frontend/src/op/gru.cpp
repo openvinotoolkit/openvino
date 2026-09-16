@@ -78,8 +78,8 @@ struct GRUAttributes : public recurrent::OpAttributes {
 
 ov::OutputVector gru(const ov::frontend::onnx::Node& node) {
     constexpr std::size_t gates_count = 3;
-    GRUInputMap input_map{node, gates_count};
     GRUAttributes attributes{node};
+    GRUInputMap input_map{node, gates_count};
 
     auto gru_sequence = std::make_shared<v5::GRUSequence>(input_map.at(recurrent::OpInput::X),
                                                           input_map.at(recurrent::OpInput::INIT_H),
@@ -97,6 +97,11 @@ ov::OutputVector gru(const ov::frontend::onnx::Node& node) {
 
     const auto Y = gru_sequence->output(0);
     const auto Y_h = gru_sequence->output(1);
+
+    if (attributes.m_layout == 1) {
+        // OV [batch, num_directions, seq, hidden] -> ONNX [batch, seq, num_directions, hidden]; Y_h already matches.
+        return {ov::op::util::reorder_axes(Y, {0, 2, 1, 3}), Y_h};
+    }
 
     return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}), ov::op::util::reorder_axes(Y_h, {1, 0, 2})};
 }
