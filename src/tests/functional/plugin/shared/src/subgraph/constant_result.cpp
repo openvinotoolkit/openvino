@@ -5,6 +5,7 @@
 #include "shared_test_classes/subgraph/constant_result.hpp"
 
 #include "common_test_utils/node_builders/constant.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/op/result.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
@@ -74,40 +75,21 @@ void ConstantResultSubgraphTest::run() {
     inferRequest.infer();
 
     const auto& [type, input_shape, input_type, _] = this->GetParam();
-    if (input_type == ov::element::i16 || input_type == ov::element::u16) {
-        auto outputs = function->get_results();
-        for (size_t i = 0; i < outputs.size(); ++i) {
-            auto result_tensor = inferRequest.get_tensor(outputs[i]);
-            ASSERT_TRUE(result_tensor);
+    auto outputs = function->get_results();
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        auto result_tensor = inferRequest.get_tensor(outputs[i]);
+        ASSERT_TRUE(result_tensor);
 
-            auto constant_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                outputs[i]->get_input_node_shared_ptr(0));
-            ASSERT_TRUE(constant_node) << "Failed to get constant node for output " << i;
+        auto constant_node = ov::as_type_ptr<ov::op::v0::Constant>(outputs[i]->get_input_node_shared_ptr(0));
+        ASSERT_TRUE(constant_node) << "Failed to get constant node for output " << i;
 
-            size_t num_elements = result_tensor.get_size();
-            ASSERT_EQ(result_tensor.get_element_type(), input_type)
-                << "Output type mismatch for " << input_type;
+        ASSERT_EQ(result_tensor.get_element_type(), input_type) << "Output type mismatch for " << input_type;
+        ASSERT_EQ(result_tensor.get_size(), ov::shape_size(constant_node->get_shape())) << "Output size mismatch for output " << i;
 
-            if (input_type == ov::element::i16) {
-                auto expected_data = constant_node->get_data_ptr<int16_t>();
-                auto actual_data = result_tensor.data<int16_t>();
-                for (size_t j = 0; j < num_elements; ++j) {
-                    EXPECT_EQ(actual_data[j], expected_data[j])
-                        << "Mismatch at element " << j << "/" << num_elements
-                        << ": expected " << expected_data[j]
-                        << ", got " << actual_data[j];
-                }
-            } else {
-                auto expected_data = constant_node->get_data_ptr<uint16_t>();
-                auto actual_data = result_tensor.data<uint16_t>();
-                for (size_t j = 0; j < num_elements; ++j) {
-                    EXPECT_EQ(actual_data[j], expected_data[j])
-                        << "Mismatch at element " << j << "/" << num_elements
-                        << ": expected " << expected_data[j]
-                        << ", got " << actual_data[j];
-                }
-            }
-        }
+        ov::Tensor expected(constant_node->get_element_type(),
+                            constant_node->get_shape(),
+                            const_cast<void*>(constant_node->get_data_ptr()));
+        ov::test::utils::compare(expected, result_tensor, ov::element::f32);
     }
 }
 }  // namespace test
