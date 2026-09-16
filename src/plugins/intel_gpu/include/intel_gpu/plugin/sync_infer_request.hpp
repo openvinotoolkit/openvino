@@ -184,9 +184,9 @@ private:
     void init_mappings();
     bool is_batched_input(const ov::Output<const ov::Node>& port) const;
 
-    // Returns true if the given host pointer aliases any current user input tensor's
-    // memory. Used to disable caller-owned zero-copy dynamic output
-    bool output_ptr_aliases_input(const void* ptr) const;
+    // true if the given output tensor aliases any current user input tensor's memory. Handles both host tensors
+    // and RemoteTensorImpl (compared by underlying GPU memory range). Used to disable zero-copy dynamic output.
+    bool output_ptr_aliases_input(const std::shared_ptr<ov::ITensor>& output_tensor) const;
 
     uint64_t total_output_bytes = 0;
 
