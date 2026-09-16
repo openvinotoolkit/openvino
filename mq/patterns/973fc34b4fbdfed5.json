@@ -4,11 +4,20 @@
   "signature_hash": "973fc34b4fbdfed5",
   "title": "Setup Android SDK fails - sdkmanager cannot find deprecated 'tools' package",
   "category": "Configuration",
-  "count": 1,
+  "count": 2,
   "first_seen": "2026-09-15T17:47:38Z",
-  "last_seen": "2026-09-15T17:47:38Z",
-  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/35000889493"],
-  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/38131"],
-  "recent_timestamps": ["2026-09-15T17:47:38Z"],
+  "last_seen": "2026-09-16T09:28:46Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35077397634",
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35000889493"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38156",
+    "https://github.com/openvinotoolkit/openvino/pull/38131"
+  ],
+  "recent_timestamps": [
+    "2026-09-16T09:28:46Z",
+    "2026-09-15T17:47:38Z"
+  ],
   "rerun_search_string": null
 }
