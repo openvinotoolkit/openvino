@@ -586,15 +586,16 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
 
     logCapture.clear();
-    // ESPCN_x2 upsamples 2x and its output is NCHW, so it cannot be reused as an NHWC input tensor;
-    // reuse another request's input tensor instead to still exercise pointer-change detection.
-    auto inputTensorFromReq = testContext.reqDynamic.get_tensor(model->input());
+    // Feed a freshly allocated host tensor so its data pointer differs from the one the request already holds
+    // (reusing another request's tensor would hand back the same inTensor object, which set_tensor skips).
+    ov::Tensor inputTensorForThirdInfer =
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 50);
     setInputInferAndCompare(model,
                             reqDynamic1,
                             reqReference1,
-                            inputTensorFromReq,
+                            inputTensorForThirdInfer,
                             "CompileAndInferWithZeroTensor_third");
-    // Feeding an imported tensor from another infer request, ptr change detected and rebuild runtime
+    // Feeding a tensor with a new data pointer, ptr change detected and rebuild runtime
     // TODO: Update commandlist once dynamic stride supported
     ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
         << "Expected log to contain 'Reset command list to run with runtime' for third inference, but got: "
