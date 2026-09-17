@@ -724,6 +724,92 @@ static std::shared_ptr<Node> wrap_fake_convert(const std::shared_ptr<Node>& inpu
     return makeOP<v13::FakeConvert>({input, scale, shift}, {{"destination_type", "f8e4m3"}});
 }
 
+// An i8 KV cache built the same way as the f32 one above, so the quantized layer matches the
+// StateManagementPattern exactly as a convertible layer does.
+static CacheInfo gen_i8_cache(const std::shared_ptr<Node>& input_ids,
+                              const std::shared_ptr<Node>& beam_idx,
+                              const std::string& name,
+                              int num_heads,
+                              int head_size) {
+    auto shape_of = makeOP<v3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
+    auto gather = makeOP<v8::Gather>({shape_of, {0}, 0}, {{"batch_dims", 0}});
+    auto concat =
+        makeOP<v0::Concat>({gather, {static_cast<long long>(num_heads)}, {0ll}, {static_cast<long long>(head_size)}},
+                           {{"axis", 0}});
+    auto init_f32 = makeOP<v1::Broadcast>({0.000000f, concat}, {{"mode", "numpy"}});
+    auto init_i8 = makeOP<v0::Convert>({init_f32}, {{"destination_type", "i8"}});
+    auto var = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{PartialShape{DYN, num_heads, DYN, head_size}, element::i8, name});
+    std::shared_ptr<Node> cache = std::make_shared<v6::ReadValue>(init_i8, var);
+    auto past = makeOP<v8::Gather>({cache, beam_idx, 0}, {{"batch_dims", 0}});
+    return CacheInfo{past, var};
+}
+
+static KVNodes gen_i8_KV(const CacheInfo& cache, const Output<Node>& proj, int num_heads, int head_size) {
+    auto reshape = makeOP<v1::Reshape>({proj, {0, 0, num_heads, head_size}}, {special_zero_true});
+    auto transpose = makeOP<v1::Transpose>({reshape, {0, 2, 1, 3}});
+    auto to_i8 = makeOP<v0::Convert>({transpose}, {{"destination_type", "i8"}});
+    std::shared_ptr<Node> concat = makeOP<v0::Concat>({cache.past_gathered, to_i8}, {{"axis", -2}});
+    auto assign = std::make_shared<v6::Assign>(concat, cache.variable);
+    return KVNodes{concat, assign};
+}
+
+// Two attention layers: the first converts cleanly, the second carries a quantized K/V that
+// PagedAttentionExtension has no operand to describe. Rejecting from inside the matcher callback
+// left the first layer already rewritten, handing the caller a half-converted model. The rejection
+// now happens before any layer is touched, so both SDPAs survive and no PagedAttentionExtension
+// is built.
+TEST(SDPAToPAQuantizedKVTest, RejectedBeforeAnyLayerIsConverted) {
+    auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
+    auto position_ids = make_param(PartialShape{DYN, DYN}, element::i64, "position_ids");
+    auto attention_mask = make_param(PartialShape{DYN, DYN}, element::i64, "attention_mask");
+    auto input_ids = make_param(PartialShape{DYN, DYN}, element::i64, "input_ids");
+    ParameterVector params = nodes_to_params({position_ids, input_ids, attention_mask, beam_idx});
+
+    auto embeddings = Opt125mSDPA::gen_embeddings(input_ids, position_ids);
+    auto cur_len = Opt125mSDPA::gen_cur_len(input_ids);
+    auto scale = makeConst(element::f32, {}, {1.0f});
+
+    auto k_cache0 = Opt125mSDPA::gen_cache(input_ids, beam_idx, "K_cache.0");
+    auto v_cache0 = Opt125mSDPA::gen_cache(input_ids, beam_idx, "V_cache.0");
+    auto past_len0 = Opt125mSDPA::gen_past_len(k_cache0.past_gathered);
+    auto total_len0 = Opt125mSDPA::gen_total_len(past_len0, cur_len);
+    auto Q0 = Opt125mSDPA::gen_Q(Opt125mSDPA::gen_proj(embeddings));
+    auto [k_concat0, k_assign0] = Opt125mSDPA::gen_KV(k_cache0, Opt125mSDPA::gen_proj(embeddings));
+    auto [v_concat0, v_assign0] = Opt125mSDPA::gen_KV(v_cache0, Opt125mSDPA::gen_proj(embeddings));
+    auto mask0 = Opt125mSDPA::gen_attention_mask(attention_mask, past_len0, total_len0);
+    auto sdpa0 = makeOP<v13::ScaledDotProductAttention>({Q0, k_concat0, v_concat0, mask0, scale}, {{"causal", false}});
+
+    auto k_cache1 = gen_i8_cache(input_ids, beam_idx, "K_cache.1", 12, 64);
+    auto v_cache1 = gen_i8_cache(input_ids, beam_idx, "V_cache.1", 12, 64);
+    auto past_len1 = Opt125mSDPA::gen_past_len(k_cache1.past_gathered);
+    auto total_len1 = Opt125mSDPA::gen_total_len(past_len1, cur_len);
+    // The quantized layer consumes the first layer's output, so the rewrite reaches the
+    // convertible layer first -- the ordering that produced the half-converted model.
+    auto layer1_in = makeOP<v1::Transpose>({sdpa0, {0, 2, 1, 3}});
+    layer1_in = makeOP<v1::Reshape>({layer1_in, {0, 0, 768}}, {special_zero_true});
+    auto Q1 = Opt125mSDPA::gen_Q(Opt125mSDPA::gen_proj(layer1_in));
+    auto [k_concat1, k_assign1] = gen_i8_KV(k_cache1, Opt125mSDPA::gen_proj(layer1_in), 12, 64);
+    auto [v_concat1, v_assign1] = gen_i8_KV(v_cache1, Opt125mSDPA::gen_proj(layer1_in), 12, 64);
+    auto mask1 = Opt125mSDPA::gen_attention_mask(attention_mask, past_len1, total_len1);
+    auto sdpa1 = makeOP<v13::ScaledDotProductAttention>({Q1, k_concat1, v_concat1, mask1, scale}, {{"causal", false}});
+
+    auto model = std::make_shared<ov::Model>(OutputVector{makeOP<v0::Result>({sdpa1})},
+                                             SinkVector{k_assign0, v_assign0, k_assign1, v_assign1},
+                                             params);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::pass::SDPAToPagedAttention>();
+    EXPECT_THROW(manager.run_passes(model), ov::Exception);
+
+    size_t paged = 0, sdpa = 0;
+    for (const auto& op : model->get_ordered_ops()) {
+        paged += ov::as_type_ptr<ov::op::PagedAttentionExtension>(op) ? 1 : 0;
+        sdpa += ov::as_type_ptr<v13::ScaledDotProductAttention>(op) ? 1 : 0;
+    }
+    EXPECT_EQ(std::make_pair(paged, sdpa), std::make_pair(size_t{0}, size_t{2}));
+}
+
 TEST_F(TransformationTestsF, SDPAToPA_Opt125m_General) {
     {
         auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
