@@ -143,15 +143,13 @@ def collect_doctor(repo: "Repository", ref: str, slug: str, cutoff: dt.datetime)
     os.makedirs(investigations_dir, exist_ok=True)
 
     pattern_entries = _list_json(repo, ref, f"{slug}/patterns")
-    patterns: list[dict[str, Any]] = []
+    patterns: list[tuple[str, dict[str, Any]]] = []
     for index, entry in enumerate(pattern_entries, start=1):
         _log(f"    [{slug}] pattern {index}/{len(pattern_entries)}: downloading {entry.name}")
         record = _download_json(entry)
         if record is None or not _pattern_is_recent(record, cutoff):
             continue
-        patterns.append(record)
-        with open(os.path.join(patterns_dir, entry.name), "w", encoding="utf-8") as handle:
-            json.dump(record, handle, indent=2)
+        patterns.append((entry.name, record))
 
     investigation_entries = [
         entry for entry in _list_json(repo, ref, f"{slug}/investigations") if entry.name != "index.json"
@@ -166,17 +164,36 @@ def collect_doctor(repo: "Repository", ref: str, slug: str, cutoff: dt.datetime)
     skipped = len(investigation_entries) - len(in_window)
     _log(f"    [{slug}] investigations: {len(in_window)} in-window by name, {skipped} skipped by name")
     investigation_count = 0
+    # Per-signature occurrence tally within the DAYS window. Each in-window
+    # investigation is one occurrence carrying the pattern's signature_hash.
+    window_counts: dict[str, int] = {}
     for index, entry in enumerate(in_window, start=1):
         _log(f"    [{slug}] investigation {index}/{len(in_window)}: downloading {entry.name}")
         record = _download_json(entry)
         if record is None or not _investigation_is_recent(record, cutoff):
             continue
         investigation_count += 1
+        signature_hash = record.get("signature_hash")
+        if signature_hash:
+            window_counts[signature_hash] = window_counts.get(signature_hash, 0) + 1
         with open(os.path.join(investigations_dir, entry.name), "w", encoding="utf-8") as handle:
             json.dump(record, handle, indent=2)
 
-    patterns.sort(key=lambda record: (record.get("count", 0), record.get("last_seen", "")), reverse=True)
-    return {"patterns": patterns, "investigation_count": investigation_count}
+    # Attach a window-local count derived from the in-window investigations. The
+    # pattern's own `count` is a lifetime total and `recent_timestamps` is pruned to
+    # 24h, so neither reflects the configured DAYS window; `window_count` does.
+    ranked: list[dict[str, Any]] = []
+    for name, record in patterns:
+        record["window_count"] = window_counts.get(record.get("signature_hash"), 0)
+        with open(os.path.join(patterns_dir, name), "w", encoding="utf-8") as handle:
+            json.dump(record, handle, indent=2)
+        ranked.append(record)
+
+    ranked.sort(
+        key=lambda record: (record.get("window_count", 0), record.get("count", 0), record.get("last_seen", "")),
+        reverse=True,
+    )
+    return {"patterns": ranked, "investigation_count": investigation_count}
 
 
 def write_summary(results: dict[str, dict[str, Any]], cutoff: dt.datetime) -> None:
@@ -193,10 +210,11 @@ def write_summary(results: dict[str, dict[str, Any]], cutoff: dt.datetime) -> No
             handle.write(f"  Recent failure patterns: {len(patterns)}\n")
             handle.write(f"  Files: {OUTPUT_DIR}/{slug}/patterns/, {OUTPUT_DIR}/{slug}/investigations/\n")
             if patterns:
-                handle.write("  Patterns (ranked by reproduction count):\n")
+                handle.write("  Patterns (ranked by in-window occurrence count):\n")
             for record in patterns:
                 handle.write(
-                    f"    [{record.get('count', 0)}x] {record.get('category', '?')}: "
+                    f"    [{record.get('window_count', 0)}x in window, "
+                    f"{record.get('count', 0)}x lifetime] {record.get('category', '?')}: "
                     f"{record.get('title', '(no title)')}\n"
                 )
                 handle.write(

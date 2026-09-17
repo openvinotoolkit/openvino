@@ -74,8 +74,8 @@ You are the CI Doctor Remediation agent. Once a week you review everything the t
 
 The recent CI Doctor knowledge base has already been downloaded for you (read-only) under `/tmp/gh-aw/agent/ci-doctor-remediation/`. **Start from the summary; do not re-walk the memory branches yourself.**
 
-- **`summary.txt`** — the entry point. Per-doctor lists of the recent failure patterns, ranked by reproduction `count`, with category, title, `signature_hash`, `first_seen`/`last_seen`, and recent run URLs.
-- **`mq/patterns/<hash>.json`** and **`post-commit/patterns/<hash>.json`** — one aggregated record per failure signature (`signature`, `category`, `count`, `first_seen`, `last_seen`, `recent_run_urls`, `affected_prs`/`affected_commits`, `recent_timestamps`).
+- **`summary.txt`** — the entry point. Per-doctor lists of the recent failure patterns, ranked by their in-window occurrence count (`window_count`), with the lifetime `count` shown alongside, plus category, title, `signature_hash`, `first_seen`/`last_seen`, and recent run URLs.
+- **`mq/patterns/<hash>.json`** and **`post-commit/patterns/<hash>.json`** — one aggregated record per failure signature (`signature`, `category`, `count`, `first_seen`, `last_seen`, `recent_run_urls`, `affected_prs`/`affected_commits`, `recent_timestamps`). The collector adds a `window_count` field: the number of occurrences **within the look-back window** (derived from the in-window investigation records). Rank by `window_count`; `count` is a lifetime total and `recent_timestamps` is pruned to the last 24h, so neither reflects the window on its own.
 - **`mq/investigations/<ts>-<run-id>.json`** and **`post-commit/investigations/<ts>-<run-id>.json`** — individual investigation records (`title`, `category`, `confidence`, `failed_jobs`, `key_errors`, `root_cause`, `run_url`, and the affected `pr_number`/`commit_sha`).
 
 Only records active within the look-back window are present. If `summary.txt` shows no patterns for either doctor, there is nothing to remediate — see the safe-output rules below.
@@ -85,7 +85,7 @@ Only records active within the look-back window are present. If `summary.txt` sh
 ### Phase 1 — Triage and grouping
 
 1. Read `summary.txt`, then the per-signature pattern files. Group failures by their `signature_hash` (the same underlying error may appear under both doctors — treat those as one issue and note both sources).
-2. Rank issues by impact: primarily by reproduction `count`, then by recency (`last_seen`) and breadth (number of `affected_prs`/`affected_commits`). Read the linked investigation records for the top issues to understand the concrete `root_cause` and `key_errors`.
+2. Rank issues by impact: primarily by the in-window occurrence count (`window_count`), then by lifetime `count`, recency (`last_seen`), and breadth (number of `affected_prs`/`affected_commits`). Read the linked investigation records for the top issues to understand the concrete `root_cause` and `key_errors`.
 
 ### Phase 2 — Per-issue remediation
 
@@ -114,14 +114,14 @@ Select the **highest-impact code-fixable issues, at most 3**, and create one pul
 - **PR body** must contain, in this order:
   1. **Problem** — a plain-language description of the recurring failure and its impact.
   2. **Affected pipelines & PRs** — the failing pipeline/workflow name(s), and, when known, the affected pull requests (`affected_prs`) and commits (`affected_commits`), plus links to the recent run URLs (`recent_run_urls`) from the pattern/investigation records. Omit any field that is unknown rather than guessing.
-  3. **Pattern** — the `signature`/`signature_hash`, failure `category`, reproduction `count`, and `first_seen`/`last_seen`.
+  3. **Pattern** — the `signature`/`signature_hash`, failure `category`, in-window occurrence count (`window_count`) and lifetime `count`, and `first_seen`/`last_seen`.
   4. **Fix** — what you changed and why it addresses the root cause.
 
 Source-inspection budget: read at most ~15 repository files and run at most ~8 searches while preparing all fixes. If you cannot craft a confident, minimal fix within that budget, leave the issue for the report instead of forcing a PR.
 
 ### Phase 4 — Write the remediation report
 
-Write a single Markdown report to `/tmp/gh-aw/ci-doctor-remediation-report.md` covering **all** issues you identified (both code-fixable and not), and upload it by calling the `upload_artifact` safe-output tool with that path. For each issue include: title, category, reproduction count, first/last seen, affected doctor(s), the root cause, the suggested remediation, and — for code-fixable issues you acted on — a note that a PR was opened (with its title). This report is the durable record of the week's analysis.
+Write a single Markdown report to `/tmp/gh-aw/ci-doctor-remediation-report.md` covering **all** issues you identified (both code-fixable and not), and upload it by calling the `upload_artifact` safe-output tool with that path. For each issue include: title, category, in-window occurrence count (`window_count`) and lifetime `count`, first/last seen, affected doctor(s), the root cause, the suggested remediation, and — for code-fixable issues you acted on — a note that a PR was opened (with its title). This report is the durable record of the week's analysis.
 
 ## Mandatory Output Requirement
 
