@@ -264,17 +264,27 @@ Jupyter Notebooks
 
   * `RF-DETR Object Detection <https://openvinotoolkit.github.io/openvino_notebooks/?search=RF-DETR>`__
 
-* Archived notebooks (the models have been moved to the unified `VLM notebook <https://openvinotoolkit.github.io/openvino_notebooks/?search=vlm-chatbot>`__):
+* Archived notebooks (the corresponding models have been moved to the unified `VLM notebook <https://openvinotoolkit.github.io/openvino_notebooks/?search=vlm-chatbot>`__):
 
-  * `Qwen3-VL <https://openvinotoolkit.github.io/openvino_notebooks/?search=qwen3-vl>`__
+  * `Qwen3-VL <https://github.com/openvinotoolkit/openvino_notebooks/tree/2026.4/notebooks/qwen3-vl>`__
 
-  * `Qwen2.5-VL <https://openvinotoolkit.github.io/openvino_notebooks/?search=qwen2.5-vl>`__
+  * `Qwen2.5-VL <https://github.com/openvinotoolkit/openvino_notebooks/tree/2026.4/notebooks/qwen2.5-vl>`__
 
-  * `Qwen2 <https://openvinotoolkit.github.io/openvino_notebooks/?search=qwen2>`__
+  * `Qwen2-VL <https://github.com/openvinotoolkit/openvino_notebooks/tree/2026.4/notebooks/qwen2-vl>`__
 
-  * `InternVL2 <https://openvinotoolkit.github.io/openvino_notebooks/?search=internvl2>`__
+  * `InternVL2 <https://github.com/openvinotoolkit/openvino_notebooks/tree/2026.4/notebooks/internvl2>`__
 
-  * `Gemma-3 <https://openvinotoolkit.github.io/openvino_notebooks/?search=gemma-3>`__
+  * `Gemma-3 <https://github.com/openvinotoolkit/openvino_notebooks/tree/2026.4/notebooks/gemma3>`__
+
+  * `LLaVA <https://github.com/openvinotoolkit/openvino_notebooks/tree/2026.4/notebooks/llava-multimodal-chatbot>`__
+
+  * `LLaVA Next <https://github.com/openvinotoolkit/openvino_notebooks/tree/2026.4/notebooks/llava-next-multimodal-chatbot>`__
+
+* Archived notebooks (the corresponding models and scenarios have been moved to the `Automatic Speech Recognition notebook <https://openvinotoolkit.github.io/openvino_notebooks/?search=Automatic+Speech+Recognition+using+Whisper+and+OpenVINO+with+Generate+API>`__):
+
+  * `Subtitle Generation with Whisper <https://github.com/openvinotoolkit/openvino_notebooks/tree/2026.4/notebooks/whisper-subtitles-generation>`__
+
+  * `ASR with Distil-Whisper <https://github.com/openvinotoolkit/openvino_notebooks/tree/2026.4/notebooks/distil-whisper-asr>`__
 
 Known Issues
 ------------
