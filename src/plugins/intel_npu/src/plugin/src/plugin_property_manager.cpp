@@ -626,7 +626,6 @@ void PluginPropertyManager::registerProperties() {
     registerCompilerProperty(ENABLE_WEIGHTLESS{}, false);
     registerCompilerProperty(MODEL_SERIALIZER_VERSION{}, false);
     registerCompilerProperty(SEPARATE_WEIGHTS_VERSION{}, false);
-    registerCompilerProperty(WS_COMPILE_CALL_NUMBER{}, false);
 
     // clang-format off
     register_property(ov::log::level.name(), true, ov::PropertyMutability::RW,
@@ -865,6 +864,17 @@ void PluginPropertyManager::registerProperties() {
         },
         [this](const ov::Any& value) {
             _config.update(ov::intel_npu::compile_log_level.name(), value.as<std::string>());
+        }
+    );
+    register_property(ov::intel_npu::ws_compile_call_number.name(), false, ov::PropertyMutability::RO, //The RO isn't true here, it will throw even if trying to read it
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::intel_npu::ws_compile_call_number.name());
+        },
+        [](const ov::AnyMap&) -> ov::Any {
+            OPENVINO_THROW("Property '", ov::intel_npu::ws_compile_call_number.name(), "' cannot be accessed.");
+        },
+        [](const ov::Any&) {
+            OPENVINO_THROW("Property '", ov::intel_npu::ws_compile_call_number.name(), "' cannot be accessed.");
         }
     );
 
