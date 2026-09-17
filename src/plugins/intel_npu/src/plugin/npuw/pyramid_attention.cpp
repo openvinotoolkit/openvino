@@ -1216,15 +1216,8 @@ PositionIDs::PositionIDs(std::size_t param_idx, const compiled::PyramidAttention
 }
 
 Selector::Ptr PositionIDs::find(const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq) {
-    auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
-        const auto& shape = p.get_shape();
-        // FIXME: 2D/3D position IDs are not supported here YET
-        return p.get_node()->get_friendly_name() == "position_ids" &&
-               (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1));
-    };
-
     const auto& inputs = rq.get_inputs();
-    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
+    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), ov::npuw::util::is_supported_position_ids_input);
     if (pos_ids_iter == inputs.end()) {
         return Selector::Ptr{};
     }

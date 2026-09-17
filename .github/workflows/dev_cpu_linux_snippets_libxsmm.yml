@@ -25,9 +25,6 @@ concurrency:
 
 permissions: read-all
 
-env:
-
-
 jobs:
   Smart_CI:
     runs-on: ubuntu-latest

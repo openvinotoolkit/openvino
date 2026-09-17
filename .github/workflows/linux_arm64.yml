@@ -150,7 +150,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        nodejs-version: [21, 22, 24, 26]
+        nodejs-version: [22, 24, 26]
         electron-version: ["44.4.1", "43.7.1", "42.11.4", "39.8.10"]
 
     with:
