@@ -439,7 +439,7 @@ Conclusions, none of them flattering to instruction counting:
 
 ### Reference: what a compiler produces
 
-`rope_intrinsics.cpp` (untracked, repo root) holds the same kernel in
+`jit_kernel_docs/rope_intrinsics.cpp` holds the same kernel in
 intrinsics and in plain C++, for gcc 13 and clang 18. Built standalone,
 not part of the plugin, so it answers assembly questions and not runtime
 ones — see "What is left against the compiler" for the instruction-level
@@ -515,8 +515,8 @@ comparison against the peeled kernel. Findings:
     `ir_store_partial` / `ir_memcpy` cost ~20 GPR values, which is why
     they are now only reached on targets without predication.
 12. **Repo hygiene.** `jit_kernel.hpp` is past 2700 lines; the worktree
-   carries `llvm-project/`, `dnnl_dump_*.bin`, `report_*.xml` and
-   `rope_intrinsics.cpp` untracked. The branch is not clang-format-clean
+   carries `llvm-project/`, `dnnl_dump_*.bin` and `report_*.xml`
+   untracked. The branch is not clang-format-clean
    and was not before this work either, so that belongs in its own commit.
    Not upstreamable as a single change — wants splitting into IR core +
    tests / DSL / color_convert / RoPE.
@@ -585,9 +585,10 @@ Llama2 no change"):
 
 ### What is left against the compiler
 
-Counted instruction by instruction against `rope_intrinsics.cpp` built
-with both compilers (`jit_kernel_validation.md` item 2 — an intrinsics
-baseline exists precisely so this comparison is possible).
+Counted instruction by instruction against
+`jit_kernel_docs/rope_intrinsics.cpp` built with both compilers
+(`jit_kernel_validation.md` item 2 — an intrinsics baseline exists
+precisely so this comparison is possible).
 
 Llama2, half=64: **the vector work is already identical** — 32
 instructions, same mix, every foldable load folded. The whole difference
@@ -881,8 +882,9 @@ Careful with the legacy dumps: `jit_rotary_kernel.*.bin` is code followed
 by constant tables, so file size overstates code size. Disassemble and
 stop at the first `ret` (Llama2: 446 B of code plus 640 B of data).
 
-Compiler reference: `rope_intrinsics.cpp` at the repo root (untracked),
-built with `g++/clang++ -O3 -march=native [-mprefer-vector-width=512]`.
+Compiler reference: `jit_kernel_docs/rope_intrinsics.cpp`, built with
+`g++/clang++ -O3 -march=native -mprefer-vector-width=512`. Build recipe
+and why the flag is mandatory are in the file's header comment.
 
 ## Environment variables
 
