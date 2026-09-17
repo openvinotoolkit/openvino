@@ -36,7 +36,7 @@ updates:
       - "akuporos"
       - "rkazants"
       - "ceciliapeng2011"
-      - "meiyang-intel"
+      - "almilosz"
     versioning-strategy: increase-if-necessary
 
   # Tests

@@ -138,8 +138,9 @@ struct custom_gpu_primitive_impl : typed_primitive_impl<custom_gpu_primitive> {
     }
 
     std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& impl_params) const override {
-        if (size_expr_map.empty())
+        if (size_expr_map.empty()) {
             return {};
+        }
 
         const auto& input_layout = impl_params.input_layouts[0];
         auto shape = input_layout.get_shape();

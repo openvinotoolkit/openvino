@@ -25,6 +25,7 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "pa_compiled_model.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "pipelines/kokoro/kokoro_compiled_model.hpp"
 #include "plugin.hpp"
@@ -205,6 +206,16 @@ std::set<std::string> device_list_to_set(const std::string& device_list) {
     }
     return result;
 }
+
+void validate_closure_metadata_sizes(std::size_t closure_size,
+                                     std::size_t lazy_closure_size,
+                                     std::size_t is_remote_size,
+                                     std::size_t closure_uid_size) {
+    NPUW_ASSERT(lazy_closure_size == closure_size &&
+                "Malformed ORC blob: lazy_closure size does not match closure size");
+    NPUW_ASSERT(is_remote_size == closure_size && "Malformed ORC blob: is_remote size does not match closure size");
+    NPUW_ASSERT(closure_uid_size == closure_size && "Malformed ORC blob: closure_uid size does not match closure size");
+}
 }  // anonymous namespace
 
 namespace ov {
@@ -300,6 +311,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     auto use_flux2_key = ov::intel_npu::npuw::flux2::enabled.name();
     auto use_gqa_key = ov::intel_npu::npuw::gqa::enabled.name();
     auto use_llm_key = ov::intel_npu::npuw::llm::enabled.name();
+    auto use_pa_key = ov::intel_npu::npuw::pa::enabled.name();
     auto use_kokoro_key = ov::intel_npu::npuw::kokoro::enabled.name();
 
     // Drop CACHE_DIR from the config
@@ -317,6 +329,9 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
+    } else if (properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true) {
+        LOG_INFO("ov::npuw::PACompiledModel will be created.");
+        compiled_model = std::make_shared<ov::npuw::PACompiledModel>(model, plugin, config);
     } else if (properties.count(use_kokoro_key) && properties.at(use_kokoro_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::KokoroCompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::KokoroCompiledModel>(model, plugin, config);
@@ -889,6 +904,186 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     return false;
 }
 
+namespace {
+// Routing checks that need no compiled model, so they can also run for a function call desc
+// (whose compiled model lives in the function body and is not resolvable at codec time).
+void validate_routing_self_consistency(const ov::npuw::Subgraph::Gather& host_gather,
+                                       const ov::npuw::Subgraph::QuantUnpackGather& quant_unpack_gather,
+                                       std::size_t param_base,
+                                       std::size_t closure_size) {
+    auto require_sentinel_or_non_negative = [](int64_t idx, const char* field_name) {
+        OPENVINO_ASSERT(idx >= -1,
+                        "NPUW routing: \"",
+                        field_name,
+                        "\" value ",
+                        idx,
+                        " is negative and not the -1 sentinel");
+    };
+    require_sentinel_or_non_negative(host_gather.dst_idx, "host_gather.dst_idx");
+    require_sentinel_or_non_negative(host_gather.src_idx, "host_gather.src_idx");
+    require_sentinel_or_non_negative(host_gather.idx_idx, "host_gather.idx_idx");
+    require_sentinel_or_non_negative(quant_unpack_gather.dst_idx, "quant_unpack_gather.dst_idx");
+    require_sentinel_or_non_negative(quant_unpack_gather.src_w_idx, "quant_unpack_gather.src_w_idx");
+    require_sentinel_or_non_negative(quant_unpack_gather.src_z_idx, "quant_unpack_gather.src_z_idx");
+    require_sentinel_or_non_negative(quant_unpack_gather.src_s_idx, "quant_unpack_gather.src_s_idx");
+    require_sentinel_or_non_negative(quant_unpack_gather.idx_idx, "quant_unpack_gather.idx_idx");
+
+    // Validate consistency of host_gather indices.
+    if (host_gather.dst_idx != -1) {
+        OPENVINO_ASSERT(host_gather.src_idx != -1,
+                        "NPUW routing: \"host_gather.src_idx\" cannot be -1 when \"host_gather.dst_idx\" is active");
+        OPENVINO_ASSERT(host_gather.idx_idx != -1,
+                        "NPUW routing: \"host_gather.idx_idx\" cannot be -1 when \"host_gather.dst_idx\" is active");
+    } else {
+        OPENVINO_ASSERT(host_gather.src_idx == -1,
+                        "NPUW routing: \"host_gather.src_idx\" must be -1 when \"host_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(host_gather.idx_idx == -1,
+                        "NPUW routing: \"host_gather.idx_idx\" must be -1 when \"host_gather.dst_idx\" is -1");
+    }
+
+    // Validate consistency of quant_unpack_gather indices.
+    if (quant_unpack_gather.dst_idx != -1) {
+        OPENVINO_ASSERT(quant_unpack_gather.idx_idx != -1,
+                        "NPUW routing: \"quant_unpack_gather.idx_idx\" cannot be -1 when "
+                        "\"quant_unpack_gather.dst_idx\" is active");
+        OPENVINO_ASSERT(quant_unpack_gather.src_w_idx != -1,
+                        "NPUW routing: \"quant_unpack_gather.src_w_idx\" cannot be -1 when "
+                        "\"quant_unpack_gather.dst_idx\" is active");
+        OPENVINO_ASSERT(quant_unpack_gather.src_s_idx != -1,
+                        "NPUW routing: \"quant_unpack_gather.src_s_idx\" cannot be -1 when "
+                        "\"quant_unpack_gather.dst_idx\" is active");
+    } else {
+        OPENVINO_ASSERT(
+            quant_unpack_gather.idx_idx == -1,
+            "NPUW routing: \"quant_unpack_gather.idx_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.src_w_idx == -1,
+            "NPUW routing: \"quant_unpack_gather.src_w_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.src_s_idx == -1,
+            "NPUW routing: \"quant_unpack_gather.src_s_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+        OPENVINO_ASSERT(
+            quant_unpack_gather.src_z_idx == -1,
+            "NPUW routing: \"quant_unpack_gather.src_z_idx\" must be -1 when \"quant_unpack_gather.dst_idx\" is -1");
+    }
+
+    // host_gather.src_idx is an index into closure (not inputs): validate against closure_size.
+    if (host_gather.src_idx != -1) {
+        OPENVINO_ASSERT(static_cast<std::size_t>(host_gather.src_idx) >= param_base,
+                        "NPUW routing: \"host_gather.src_idx\" (",
+                        host_gather.src_idx,
+                        ") is less than param_base (",
+                        param_base,
+                        ")");
+        const std::size_t closure_idx = static_cast<std::size_t>(host_gather.src_idx) - param_base;
+        OPENVINO_ASSERT(closure_idx < closure_size,
+                        "NPUW routing: host_gather.src_idx - param_base (",
+                        closure_idx,
+                        ") is out of closure bounds [0, ",
+                        closure_size,
+                        ")");
+    }
+}
+}  // anonymous namespace
+
+void ov::npuw::validate_submodel_indices(const Subgraph::Gather& host_gather,
+                                         const Subgraph::QuantUnpackGather& quant_unpack_gather,
+                                         std::size_t param_base,
+                                         std::size_t closure_size,
+                                         bool has_compiled_model,
+                                         std::size_t n_model_inputs) {
+    if (!has_compiled_model) {
+        // No compiled model was loaded: all routing indices must be the disabled sentinel (-1).
+        auto require_disabled = [](int64_t idx, const char* field_name) {
+            OPENVINO_ASSERT(idx == -1,
+                            "NPUW routing: \"",
+                            field_name,
+                            "\" = ",
+                            idx,
+                            " but no compiled model was loaded for this subgraph");
+        };
+        require_disabled(host_gather.dst_idx, "host_gather.dst_idx");
+        require_disabled(host_gather.src_idx, "host_gather.src_idx");
+        require_disabled(host_gather.idx_idx, "host_gather.idx_idx");
+        require_disabled(quant_unpack_gather.dst_idx, "quant_unpack_gather.dst_idx");
+        require_disabled(quant_unpack_gather.src_w_idx, "quant_unpack_gather.src_w_idx");
+        require_disabled(quant_unpack_gather.src_z_idx, "quant_unpack_gather.src_z_idx");
+        require_disabled(quant_unpack_gather.src_s_idx, "quant_unpack_gather.src_s_idx");
+        require_disabled(quant_unpack_gather.idx_idx, "quant_unpack_gather.idx_idx");
+        return;
+    }
+
+    validate_routing_self_consistency(host_gather, quant_unpack_gather, param_base, closure_size);
+
+    // Validate indices that directly address compiled_model->inputs().
+    auto check_input_idx = [&](int64_t idx, const char* field_name) {
+        OPENVINO_ASSERT(idx == -1 || (idx >= 0 && static_cast<std::size_t>(idx) < n_model_inputs),
+                        "NPUW routing: \"",
+                        field_name,
+                        "\" value ",
+                        idx,
+                        " is out of range [0, ",
+                        n_model_inputs,
+                        ")");
+    };
+    check_input_idx(host_gather.dst_idx, "host_gather.dst_idx");
+    check_input_idx(host_gather.idx_idx, "host_gather.idx_idx");
+    check_input_idx(quant_unpack_gather.dst_idx, "quant_unpack_gather.dst_idx");
+    check_input_idx(quant_unpack_gather.src_w_idx, "quant_unpack_gather.src_w_idx");
+    check_input_idx(quant_unpack_gather.src_z_idx, "quant_unpack_gather.src_z_idx");
+    check_input_idx(quant_unpack_gather.src_s_idx, "quant_unpack_gather.src_s_idx");
+    check_input_idx(quant_unpack_gather.idx_idx, "quant_unpack_gather.idx_idx");
+
+    // param_base + closure_size must not overflow compiled_model->inputs() (used in unpack_closure and funcall
+    // prologue).
+    OPENVINO_ASSERT(param_base <= n_model_inputs && closure_size <= n_model_inputs - param_base,
+                    "NPUW routing: param_base (",
+                    param_base,
+                    ") + closure_size (",
+                    closure_size,
+                    ") exceeds n_model_inputs (",
+                    n_model_inputs,
+                    ")");
+}
+
+void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModelDesc>& submodels) {
+    for (std::size_t idx = 0; idx < submodels.size(); ++idx) {
+        const auto& subm = submodels[idx];
+        ov::SoPtr<ov::ICompiledModel> effective_compiled_model = subm.compiled_model;
+
+        if (subm.replaced_by.has_value()) {
+            const std::size_t target_idx = subm.replaced_by.value();
+            OPENVINO_ASSERT(target_idx < submodels.size(),
+                            "NPUW routing: submodel ",
+                            idx,
+                            " replaced_by index ",
+                            target_idx,
+                            " is out of range [0, ",
+                            submodels.size(),
+                            ")");
+            effective_compiled_model = submodels[target_idx].compiled_model;
+            OPENVINO_ASSERT(effective_compiled_model,
+                            "NPUW routing: submodel ",
+                            idx,
+                            " replaced_by target ",
+                            target_idx,
+                            " has no compiled model");
+        }
+
+        const auto& closure_desc = subm.closure.get();
+        const std::size_t closure_size = closure_desc.closure.size();
+        const bool has_compiled_model = static_cast<bool>(effective_compiled_model);
+        const std::size_t n_model_inputs = has_compiled_model ? effective_compiled_model->inputs().size() : 0u;
+
+        validate_submodel_indices(subm.host_gather,
+                                  subm.quant_unpack_gather,
+                                  subm.param_base,
+                                  closure_size,
+                                  has_compiled_model,
+                                  n_model_inputs);
+    }
+}
+
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Stream& stream,
                                                            const ov::npuw::s11n::WeightsContext& ctx,
                                                            std::optional<std::size_t> orc_device_index,
@@ -940,6 +1135,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         host_gather.idx_idx & quant_unpack_gather.dst_idx & quant_unpack_gather.src_w_idx &
         quant_unpack_gather.src_z_idx & quant_unpack_gather.src_s_idx & quant_unpack_gather.idx_idx & spatial;
 
+    // Closure size is not yet known at this point; full index bounds validation (including
+    // src_idx vs closure) is deferred to after closure_size is read – see calls below.
+
     // Function calls share pipeline.context with their function body at runtime.
     // There is no need to serialize the compiled moe/attn state for each call –
     // doing so would re-import NPU blobs for every repeated layer (one per call),
@@ -979,12 +1177,34 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 
     stream & closure_desc.is_remote & closure_desc.closure_uid;
 
+    // A funcall's own compiled_model lives in the function body and cannot be resolved here, so only
+    // the model-independent checks run for it - validate_submodels() covers the rest once all descs are read.
+    auto validate_routing_indices = [&](std::size_t closure_size) {
+        if (is_fcall) {
+            validate_routing_self_consistency(host_gather, quant_unpack_gather, param_base, closure_size);
+        } else {
+            ov::npuw::validate_submodel_indices(host_gather,
+                                                quant_unpack_gather,
+                                                param_base,
+                                                closure_size,
+                                                static_cast<bool>(compiled_model),
+                                                compiled_model ? compiled_model->inputs().size() : 0u);
+        }
+    };
+
     if (ctx.is_weightless) {
         serialize_weightless(stream, scales, ctx);
         serialize_weightless(stream, zerops, ctx);
 
         std::size_t closure_size = closure_desc.closure.size();
         stream & closure_size;
+        validate_routing_indices(closure_size);
+        if (stream.input()) {
+            validate_closure_metadata_sizes(closure_size,
+                                            closure_size,
+                                            closure_desc.is_remote.size(),
+                                            closure_desc.closure_uid.size());
+        }
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
         std::vector<ov::npuw::weights::LazyTensor> non_cpu_tensors;
@@ -1007,13 +1227,19 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
             lazy_closure.resize(closure_size);
             stream & cpu_closure_ids;
             serialize_weightless(stream, cpu_closures, ctx);
+            NPUW_ASSERT(cpu_closure_ids.size() == cpu_closures.size() &&
+                        "Malformed ORC blob: CPU closure ids count does not match CPU closure tensor count");
             std::size_t tidx = 0;
             for (const auto& idx : cpu_closure_ids) {
+                NPUW_ASSERT(idx < closure_size && "Malformed ORC blob: CPU closure index is out of range");
                 closure_desc.closure[idx] = std::move(cpu_closures[tidx++]);
             }
             stream & non_cpu_tensors_ids & non_cpu_tensors;
+            NPUW_ASSERT(non_cpu_tensors_ids.size() == non_cpu_tensors.size() &&
+                        "Malformed ORC blob: non-CPU closure ids count does not match non-CPU tensor count");
             std::size_t ltidx = 0;
             for (const auto& idx : non_cpu_tensors_ids) {
+                NPUW_ASSERT(idx < closure_size && "Malformed ORC blob: non-CPU closure index is out of range");
                 lazy_closure[idx] = std::move(non_cpu_tensors[ltidx++]);
             }
             for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
@@ -1027,6 +1253,13 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 
         std::size_t closure_size = closure_desc.closure.size();
         stream & closure_size;
+        validate_routing_indices(closure_size);
+        if (stream.input()) {
+            validate_closure_metadata_sizes(closure_size,
+                                            closure_size,
+                                            closure_desc.is_remote.size(),
+                                            closure_desc.closure_uid.size());
+        }
         std::vector<std::size_t> cpu_closure_ids;
         if (stream.output()) {
             std::vector<ov::Tensor> cpu_closures;
@@ -1044,6 +1277,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
             stream & cpu_closure_ids;
             closure_desc.closure.resize(closure_size);
             for (const auto& cidx : cpu_closure_ids) {
+                NPUW_ASSERT(cidx < closure_size && "Malformed ORC blob: CPU closure index is out of range");
                 stream & closure_desc.closure[cidx];
             }
         }
@@ -1127,6 +1361,8 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
                                                       const std::function<std::string(const std::string&)>& encrypt,
                                                       const ov::npuw::s11n::BF16Cache* bf16_consts) const {
     using namespace ov::npuw;
+
+    validate_submodels(m_compiled_submodels);
 
     if (m_cfg.get<::intel_npu::NPUW_ENSURE_COMPATIBILITY>()) {
         if (encrypt) {
@@ -1372,8 +1608,151 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         OPENVINO_THROW("Missing ORC weights bank container");
     }
 
+    validate_submodels(compiled->m_compiled_submodels);
+    validate_import_routing_tables(compiled);
+
     compiled->implement_properties();
     return compiled;
+}
+
+void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_ptr<CompiledModel>& compiled) {
+    const auto num_submodels = compiled->m_compiled_submodels.size();
+
+    // The NO_LINK sentinel is only meaningful for global inputs (a Parameter may be unused by
+    // any submodel). Every other table is dereferenced without checking for it, so accepting the
+    // sentinel there would turn a malformed blob into an out-of-bounds access at infer-request time.
+    const auto ensure_submodel_index = [&](const char* table_name,
+                                           std::size_t owner_idx,
+                                           const char* field_name,
+                                           const auto& link,
+                                           bool allow_no_link) {
+        if (link == CompiledModel::NO_LINK) {
+            if (allow_no_link) {
+                return;
+            }
+            OPENVINO_THROW("Invalid ", table_name, "[", owner_idx, "] ", field_name, " link: NO_LINK is not allowed");
+        }
+        if (link.first >= num_submodels) {
+            OPENVINO_THROW("Invalid ",
+                           table_name,
+                           "[",
+                           owner_idx,
+                           "] ",
+                           field_name,
+                           " submodel index ",
+                           link.first,
+                           " (submodel count: ",
+                           num_submodels,
+                           ")");
+        }
+    };
+
+    const auto ensure_input_port_index =
+        [&](const char* table_name, std::size_t owner_idx, const auto& link, bool allow_no_link) {
+            ensure_submodel_index(table_name, owner_idx, "input", link, allow_no_link);
+            if (link == CompiledModel::NO_LINK) {
+                return;
+            }
+            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            if (submodel_desc.compiled_model != nullptr &&
+                link.second >= submodel_desc.compiled_model->inputs().size()) {
+                OPENVINO_THROW("Invalid ",
+                               table_name,
+                               "[",
+                               owner_idx,
+                               "] input port index ",
+                               link.second,
+                               " for submodel ",
+                               link.first,
+                               " (inputs: ",
+                               submodel_desc.compiled_model->inputs().size(),
+                               ")");
+            }
+        };
+
+    const auto ensure_output_port_index =
+        [&](const char* table_name, std::size_t owner_idx, const auto& link, bool allow_no_link) {
+            ensure_submodel_index(table_name, owner_idx, "output", link, allow_no_link);
+            if (link == CompiledModel::NO_LINK) {
+                return;
+            }
+            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            if (submodel_desc.compiled_model != nullptr &&
+                link.second >= submodel_desc.compiled_model->outputs().size()) {
+                OPENVINO_THROW("Invalid ",
+                               table_name,
+                               "[",
+                               owner_idx,
+                               "] output port index ",
+                               link.second,
+                               " for submodel ",
+                               link.first,
+                               " (outputs: ",
+                               submodel_desc.compiled_model->outputs().size(),
+                               ")");
+            }
+        };
+
+    for (std::size_t idx = 0u; idx < compiled->m_compiled_submodels.size(); ++idx) {
+        const auto& submodel_desc = compiled->m_compiled_submodels[idx];
+        if (submodel_desc.replaced_by.has_value() && submodel_desc.replaced_by.value() >= num_submodels) {
+            OPENVINO_THROW("Invalid m_compiled_submodels[",
+                           idx,
+                           "].replaced_by index ",
+                           submodel_desc.replaced_by.value(),
+                           " (submodel count: ",
+                           num_submodels,
+                           ")");
+        }
+    }
+
+    if (compiled->m_inputs_to_submodels_inputs.size() != compiled->inputs().size()) {
+        OPENVINO_THROW("Invalid m_inputs_to_submodels_inputs size ",
+                       compiled->m_inputs_to_submodels_inputs.size(),
+                       " (expected ",
+                       compiled->inputs().size(),
+                       ")");
+    }
+
+    if (compiled->m_outputs_to_submodels_outputs.size() != compiled->outputs().size()) {
+        OPENVINO_THROW("Invalid m_outputs_to_submodels_outputs size ",
+                       compiled->m_outputs_to_submodels_outputs.size(),
+                       " (expected ",
+                       compiled->outputs().size(),
+                       ")");
+    }
+
+    for (std::size_t idx = 0u; idx < compiled->m_inputs_to_submodels_inputs.size(); ++idx) {
+        ensure_input_port_index("m_inputs_to_submodels_inputs", idx, compiled->m_inputs_to_submodels_inputs[idx], true);
+    }
+
+    for (std::size_t idx = 0u; idx < compiled->m_outputs_to_submodels_outputs.size(); ++idx) {
+        ensure_output_port_index("m_outputs_to_submodels_outputs",
+                                 idx,
+                                 compiled->m_outputs_to_submodels_outputs[idx],
+                                 false);
+    }
+
+    for (const auto& kvp : compiled->m_param_subscribers) {
+        const auto input_idx = kvp.first;
+        if (input_idx >= compiled->m_inputs_to_submodels_inputs.size()) {
+            OPENVINO_THROW("Invalid m_param_subscribers key ",
+                           input_idx,
+                           " (inputs: ",
+                           compiled->m_inputs_to_submodels_inputs.size(),
+                           ")");
+        }
+        for (const auto& link_to : kvp.second) {
+            ensure_input_port_index("m_param_subscribers", input_idx, link_to, false);
+        }
+    }
+
+    std::size_t routing_idx = 0u;
+    for (const auto& kvp : compiled->m_submodels_input_to_prev_output) {
+        ensure_input_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.first, false);
+        ensure_output_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.second, false);
+        ++routing_idx;
+    }
 }
 
 void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& enc_ctx) const {
@@ -1416,6 +1795,11 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
 
         const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
         auto& desc_closure = comp_model_desc.closure.get();
+
+        validate_closure_metadata_sizes(desc_closure.closure.size(),
+                                        desc_closure.closure.size(),
+                                        desc_closure.is_remote.size(),
+                                        desc_closure.closure_uid.size());
 
         for (std::size_t cidx = 0; cidx < desc_closure.closure.size(); ++cidx) {
             if (desc_closure.closure[cidx]) {
@@ -1462,6 +1846,11 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             }
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+
+            validate_closure_metadata_sizes(comp_model_desc.closure.unsafe_get().closure.size(),
+                                            comp_model_desc.lazy_closure.size(),
+                                            comp_model_desc.closure.unsafe_get().is_remote.size(),
+                                            comp_model_desc.closure.unsafe_get().closure_uid.size());
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {

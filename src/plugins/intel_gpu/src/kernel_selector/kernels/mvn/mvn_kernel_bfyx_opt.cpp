@@ -69,6 +69,20 @@ MVNKernelBfyxOpt::Parent::DispatchData MVNKernelBfyxOpt::SetDefault(const mvn_pa
             dispatchData.itemsNum /= 2;
         }
 
+        // One loop iteration of the kernel stores lws[0] contiguous output elements. When that spans less than a
+        // cache line the store is a partial write, which costs extra read-modify-write traffic. It shows up most
+        // clearly when a fused quantize narrows the output to 1 byte per element while the input stays at 2:
+        // a 256-element data set picks lws[0]=32 above, i.e. a 32-byte store into a 64-byte line.
+        // Keep doubling the work group until an iteration covers a full line. This can only raise lws[0], so
+        // data sets that already store a full line or more keep their previous dispatch.
+        const size_t bytes_per_cache_line = 64;
+        const size_t output_elem_size = BytesPerElement(params.outputs[0].GetDType());
+        while (dispatchData.lws[0] * output_elem_size < bytes_per_cache_line &&
+               2 * dispatchData.lws[0] <= std::min<uint64_t>(max_lws, dispatchData.dataSetSize)) {
+            dispatchData.lws[0] *= 2;
+            dispatchData.itemsNum /= 2;
+        }
+
         dispatchData.gws[0] = dispatchData.lws[0];
         dispatchData.leftovers = dispatchData.dataSetSize % dispatchData.lws[0];
     }

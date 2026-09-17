@@ -74,10 +74,20 @@ void regclass_graph_PyRTMap(py::module m) {
         return PyRTMap();
     }));
 
-    py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const std::string v) {
+    auto warn_if_precise = [](const std::string& key) {
+        if (key == "precise_0") {
+            Common::utils::deprecation_warning(
+                "Setting 'precise_0' on node rt_info",
+                "2027.0",
+                "This relies on a deprecated internal C++ API attribute (DisableFP16Compression).");
+        }
+    };
+    py_map.def("__setitem__", [warn_if_precise](PyRTMap& m, const std::string& k, const std::string v) {
+        warn_if_precise(k);
         m[k] = v;
     });
-    py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const int64_t v) {
+    py_map.def("__setitem__", [warn_if_precise](PyRTMap& m, const std::string& k, const int64_t v) {
+        warn_if_precise(k);
         m[k] = v;
     });
     py_map.def("__getitem__", [](PyRTMap& m, const std::string& k) -> py::object {
