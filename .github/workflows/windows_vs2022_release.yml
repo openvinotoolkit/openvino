@@ -567,7 +567,7 @@ jobs:
         fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test
       }}
     with:
-      runner: 'aks-win-8-cores-16gb-test'
+      runner: 'aks-win-4-cores-8gb-test'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
 
   CXX_Unit_Tests:
