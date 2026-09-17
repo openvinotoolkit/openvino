@@ -12,6 +12,11 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Evaluator corresponding to a single section instance during CRE evaluation.
+ * @details The class was designed to evaluate the given compatibility string in a lazy manner, and then cache the
+ * result.
+ */
 class SingleSectionInstanceEvaluator {
 public:
     SingleSectionInstanceEvaluator(const std::shared_ptr<ISectionInstanceEvaluator>& impl,

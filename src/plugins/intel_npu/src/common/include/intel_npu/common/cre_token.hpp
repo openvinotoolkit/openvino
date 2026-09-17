@@ -6,6 +6,9 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Basic unit that composes the compatibility requirements expression
+ */
 class CREToken {
 public:
     virtual ~CREToken() = default;

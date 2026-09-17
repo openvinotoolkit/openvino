@@ -15,6 +15,7 @@ using namespace intel_npu;
 constexpr char OPERAND_AND_SPECIAL_TOKEN_SEPARATOR = '.';
 constexpr char SECTION_TYPE_AND_INSTANCE_SEPARATOR = '_';
 
+// Warning: do not change these. Doing so may break compatibility
 constexpr std::string_view AND_TOKEN_NAME = "AND";
 constexpr std::string_view OR_TOKEN_NAME = "OR";
 constexpr std::string_view NOT_TOKEN_NAME = "NOT";
@@ -183,6 +184,10 @@ ov::CompatibilityCheck bool_to_compatibility_check(const bool a) {
     return a ? ov::CompatibilityCheck::SUPPORTED : ov::CompatibilityCheck::UNSUPPORTED;
 }
 
+/**
+ * @warning Do not modify the string values. These values are stored as part of the CRE within the blob's runtime
+ * requirements. Changing these may break compatibility.
+ */
 std::string cre_special_token_to_string(const CRESpecialToken token) {
     switch (token.get_code()) {
     case CRESpecialTokenCode::AND: {
@@ -206,6 +211,10 @@ std::string cre_special_token_to_string(const CRESpecialToken token) {
     }
 }
 
+/**
+ * @warning Do not modify the string values. These values are stored as part of the CRE within the blob's runtime
+ * requirements. Changing these may break compatibility.
+ */
 std::shared_ptr<CREToken> cre_special_token_from_string(const std::string_view token) {
     if (token == AND_TOKEN_NAME) {
         return CRE::AND_PTR;

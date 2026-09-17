@@ -11,6 +11,14 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Evaluator used to "teach" the CRE how to evaluate section instances corresponding to compiler schedules
+ * (ELF_MAIN_SCHEDULE_X & DYNAMIC_SCHEDULE_Y).
+ * @details The evaluation is performed by sending a compatibility string to the compiler and querying the evaluation
+ * result.
+ * @note The class follows a singleton pattern since the state of the class and its behavior should not vary at all
+ * within the scope of the process.
+ */
 class CompilerScheduleInstanceEvaluator : public ISectionInstanceEvaluator {
 public:
     CompilerScheduleInstanceEvaluator() = delete;
@@ -23,6 +31,13 @@ public:
         const ov::SoPtr<intel_npu::IEngineBackend>& backend,
         const std::shared_ptr<CompilerOptionSupportHelper>& option_support_helper);
 
+    /**
+     * @brief Evaluate by sending a compatibility string to the compiler and querying the evaluation
+     * result.
+     * @return "NOT_APPLICABLE" if the string is empty (because older software versions do not have this feature
+     * implemented) or the method failed to query the compiler. "SUPPORTED" or "UNSUPPORTED" if the compiler was queried
+     * successfully, according to its reply.
+     */
     ov::CompatibilityCheck evaluate(std::string_view runtime_requirements) const override;
 
 protected:

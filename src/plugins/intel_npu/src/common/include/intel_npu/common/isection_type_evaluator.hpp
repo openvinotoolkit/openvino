@@ -12,6 +12,8 @@ namespace intel_npu {
 
 /**
  * @brief Abstract class that standardizes the evaluation of section types support in a lazy manner.
+ * @note Inheriting this class and registering it within a BlobReader object w.r.t. some section type will "teach" the
+ * CRE how to evaluate the support for that section type at evaluation time.
  */
 class ISectionTypeEvaluator {
 public:

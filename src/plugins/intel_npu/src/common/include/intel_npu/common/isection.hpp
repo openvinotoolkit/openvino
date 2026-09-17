@@ -76,17 +76,17 @@ public:
 
     /**
      * @brief Get the compatibility requirements subexpression corresponding to the current section.
-     * @details The base implementation returns the section ID (type ID + type instance ID) as the required
-     * subexpression. This implementation can be overriden to take into consideration other registered sections as
-     * well.
+     * @details The base implementation doesn't return any requirements. If there are any compatibility requirements,
+     * these would typically be <section type> (e.g. ELF_INIT_SCHEDULE) or <section type> + <section ID> (e.g.
+     * ELF_INIT_SCHEDULE_1). This method can be overriden correspondingly.
      *
-     * For example, if we wish to register something like "ELF_INIT_SCHEDULE_1 OR ELF_INIT_SCHEDULE_2", then we may
-     * override this function to have the section of the first schedule write the OR relationship. The other section
-     * could then write nothing.
-     * @note The subexpression returned by this function is meant to be stitched to the main CRE using a logical
-     * "AND".
+     * More complex expressions, that take into account some other registered sections can also be returned. For
+     * example, if we wish to register something like "ELF_INIT_SCHEDULE_1 OR ELF_INIT_SCHEDULE_2", then we may override
+     * this function to have the section of the first schedule write the OR relationship. The other section could then
+     * write nothing (to avoid redundancy).
+     * @note The subexpression returned by this function will be stitched to the main CRE using a logical "AND".
      * @param all_registered_sections A map offering access to all sections registered for the current writing
-     * section.
+     * section. Relevant if the requirements should take other sections into account.
      * @return The subexpression describing the requirements of the current section.
      */
     virtual std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
@@ -99,9 +99,9 @@ private:
     friend class BlobReader;
 
     /**
-     * @note Only BlobWriters & BlobReaders should be allowed to manipulate the type instance ID. This is because the
-     * instance ID denotes, by convention, the order in which the sections of the given type have been registered to be
-     * written in the blob.
+     * @note Only BlobWriters & BlobReaders should be allowed to manipulate the section ID. This is because the
+     * instance ID denotes, by convention, the order in which the sections of the given type have been registered within
+     * the writing queue.
      */
     void set_id(const SectionID& id) const;
 

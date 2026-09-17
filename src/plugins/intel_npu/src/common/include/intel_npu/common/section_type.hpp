@@ -49,8 +49,20 @@ public:
 
     bool operator<(const SectionType& other) const;
 
+    /**
+     * @brief Serializes the section type
+     * @warning The list of section type codes & strings can be expanded, but already existing entries should be never
+     * modified. This is because these values are stored within the blob and act as unique identifiers. Modifying these
+     * may break compatibility.
+     */
     std::string to_string() const;
 
+    /**
+     * @brief Parses the section type
+     * @warning The list of section type codes & strings can be expanded, but already existing entries should be never
+     * modified. This is because these values are stored within the blob and act as unique identifiers. Modifying these
+     * may break compatibility.
+     */
     static SectionType from_string(const std::string_view type);
 
 private:

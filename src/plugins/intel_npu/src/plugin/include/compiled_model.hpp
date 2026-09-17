@@ -72,6 +72,9 @@ private:
     std::unique_ptr<CompiledModelPropertyManager> _propertiesManager;
 
     std::shared_ptr<IGraph> _graph;
+    /**
+     * @brief Contains the information required to export the compiled model and provides an API to do so
+     */
     std::shared_ptr<BlobWriter> _blobWriter;
 
     std::shared_ptr<ov::threading::ITaskExecutor> _resultExecutor = nullptr;

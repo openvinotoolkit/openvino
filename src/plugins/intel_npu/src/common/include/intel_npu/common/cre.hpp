@@ -17,6 +17,10 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Exception used to indicate an invalid expression. Logic errors or other type of failures should not be
+ * represented by this.
+ */
 class InvalidCRE final : public ov::AssertFailure {
 public:
     [[noreturn]] static void create(const char* file,
@@ -32,6 +36,9 @@ protected:
 // TODO double check it's fine to have no predetermined value (these are not stored)
 enum class CRESpecialTokenCode { AND, OR, NOT, OPEN, CLOSE };
 
+/**
+ * @brief All tokens that are not operands. This set is made by operators and parrenthesis.
+ */
 class CRESpecialToken final : public CREToken {
 public:
     CRESpecialToken(const CRESpecialTokenCode code);
@@ -48,6 +55,13 @@ private:
 
 bool is_cre_special_token(const std::shared_ptr<CREToken>& candidate);
 
+/**
+ * @brief Handles the construction, validation, evaluation and serialization of the Compatibility Requirements
+ * Expression.
+ * @details The CRE is used to evaluate the high-level compatibility requirements *between* sections types and/or
+ * instances using a logical expression. This evaluation happens during model import or when a compatibility descriptor
+ * is validated using the "Plugin::get_property" API call.
+ */
 class CRE final {
 public:
     CRE(const ov::log::Level log_level = ov::log::Level::WARNING);
@@ -74,19 +88,28 @@ public:
     bool empty() const;
 
     /**
-     * @brief Evaluates the expression against all known section types.
-     * @details The support for section types is evaluated in a lazy manner: the check support function is called only
-     * upon encountering the corresponding CRE token.
+     * @brief Evaluates the expression using the given evaluators for section types and instances.
+     * @details The support for both section types and instances is evaluated in a lazy manner: the check support
+     * function is called only upon encountering the corresponding CRE token.
      *
-     * @param section_type_evaluators A mapping between CRE tokens and their (lazy) evaluators.
+     * @param section_type_evaluators A mapping between section types and their (lazy) evaluators.
+     * @param section_instance_evaluators A mapping between section IDs and their (lazy) evaluators.
      */
     ov::CompatibilityCheck check_compatibility(
         const std::unordered_map<SectionType, std::shared_ptr<ISectionTypeEvaluator>>& section_type_evaluators,
         const std::unordered_map<SectionID, SingleSectionInstanceEvaluator>& section_instance_evaluators) const;
 
+    /**
+     * @brief Serializes the CRE.
+     * @note This "human-readable" form is meant to be used:
+     *   1. Inside the runtime requirements section, as part of a compiled model and
+     *   2. As part of the compatibility descriptor returned to the user via the "Plugin::get_property" API call.
+     */
     std::string to_string() const;
 
-    // TODO test these
+    /**
+     * @brief Deserializes the CRE string into internal token codes.
+     */
     static CRE from_string(const std::string_view cre, const ov::log::Level log_level = ov::log::Level::WARNING);
 
     // TODO reconsider these
@@ -155,6 +178,9 @@ private:
         const bool skip_all_evaluations = false,
         const bool force_all_evaluations = false) const;
 
+    /**
+     * @note Stitched together using "AND"s, these subexpression form the whole expression.
+     */
     std::vector<std::vector<std::shared_ptr<CREToken>>> m_subexpressions;
 
     Logger m_logger;

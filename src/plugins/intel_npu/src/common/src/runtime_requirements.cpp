@@ -64,7 +64,8 @@ std::unordered_map<SectionID, SectionType> RuntimeRequirements::get_section_id_t
     return m_section_id_to_type;
 }
 
-std::unordered_map<SectionID, SingleSectionInstanceEvaluator> RuntimeRequirements::build_section_instance_evaluators(
+std::unordered_map<SectionID, SingleSectionInstanceEvaluator>
+RuntimeRequirements::build_single_section_instance_evaluators(
     const std::unordered_map<SectionType, std::shared_ptr<ISectionInstanceEvaluator>>& instance_evaluators) {
     m_logger.debug("Building the instance evaluators");
     std::unordered_map<SectionID, SingleSectionInstanceEvaluator> single_instance_evaluators;
@@ -99,7 +100,7 @@ ov::CompatibilityCheck RuntimeRequirements::get_compatibility_check_result(
         OPENVINO_ASSERT(m_instance_evaluators.empty(), "Invalid state");
 
         m_type_evaluators = type_evaluators;
-        m_instance_evaluators = build_section_instance_evaluators(instance_evaluators);
+        m_instance_evaluators = build_single_section_instance_evaluators(instance_evaluators);
         m_compatibility_check_result = m_cre.check_compatibility(type_evaluators, m_instance_evaluators);
     }
     return m_compatibility_check_result.value();

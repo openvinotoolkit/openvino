@@ -466,8 +466,8 @@ public:
 private:
     /**
      * @brief Registers all blob sections readers known to the plugin.
-     * @note The CRE & Manifest sections should have been already registered (e.g. in the BlobReader ctor) since
-     * these sections are a core part of the format.
+     * @note The runtime requirements & manifest sections should have been already registered (e.g. in the BlobReader
+     * ctor) since these sections are a core part of the format.
      */
     void register_known_sections_and_evaluators(const std::shared_ptr<CompilerOptionSupportHelper>& option_helper) {
         m_blob_reader.register_reader(SectionTypeCode::ELF_MAIN_SCHEDULE, ELFMainScheduleSection::read);
