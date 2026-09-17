@@ -880,14 +880,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
-
+   
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
-        ov::npuw::InsertVocabSub128 pass;
-        if (!pass.run_on_model(kvcache_model)) {
-            LOG_INFO("No asymmetric u8 vocab found - graph Sub128 insertion is skipped.");
+        bool shared_vocab = false;
+        ov::npuw::DetectVocabSharing detect_vocab_sharing(shared_vocab);
+        detect_vocab_sharing.run_on_model(kvcache_model);
+        if (shared_vocab) {
+            ov::npuw::InsertVocabSub128 pass;
+            if (!pass.run_on_model(kvcache_model)) {
+                LOG_WARN("No asymmetric u8 vocab found - vocab sharing is skipped.");
+            }
         }
     }
 
