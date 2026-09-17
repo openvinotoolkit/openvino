@@ -13,9 +13,48 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4305)
 endif()
 
+set(OV_AUTO_FUNC_TESTS_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/async_compiled_for_multiple_device_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/auto_func_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/auto_func_test.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/caching_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/callback_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/infer_consistency_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/infer_consistency_test.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/infer_multi_threading_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/infer_schedule_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/io_tensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/io_tensor.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/life_time_batch_enabled_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/property_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/remote_tensor_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/wait_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_executable_network/core_integration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_executable_network/exec_network_base.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_executable_network/ov_exec_net_import_export.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_executable_network/properties.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/callback.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/inference_chaining.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/infer_request_dynamic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/io_tensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/memory_states.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/multithreading.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/perf_counters.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/wait.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/caching_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/core_integration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/life_time.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/properties_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/version.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/core_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/skip_tests_config.cpp
+)
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES
+            ${OV_AUTO_FUNC_TESTS_SRC}
         LINK_LIBRARIES
             openvino::runtime::dev
             gtest
@@ -25,6 +64,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}
             ${TEST_COMMON_INCLUDE_DIR}
         ADD_CLANG_FORMAT
+        CHECK_SOURCES_LISTED
         LABELS
             Multi
             Auto

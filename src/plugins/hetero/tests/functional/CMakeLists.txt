@@ -3,9 +3,38 @@
 #
 
 set(TARGET_NAME ov_hetero_func_tests)
+
+set(OV_HETERO_FUNC_TESTS_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/compile_model_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/core_config.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hetero_synthetic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hetero_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/hetero_tests.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/import_model_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/properties_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/query_model_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/set_device_name.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_compiled_model/compiled_model_base.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_compiled_model/import_export.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_compiled_model/properties.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/gpu_dyn_batch_shape_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/inference_chaining.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/infer_request_dynamic.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/io_tensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/iteration_chaining.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_infer_request/memory_states.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/caching_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/core_threading_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/life_time.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/properties_tests.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/behavior/ov_plugin/version.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/skip_tests_config.cpp
+)
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES
+            ${OV_HETERO_FUNC_TESTS_SRC}
         DEPENDENCIES
             mock_engine
             openvino_hetero_plugin
@@ -19,6 +48,7 @@ ov_add_test_target(
             PUBLIC
                 $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src
         ADD_CLANG_FORMAT
+        CHECK_SOURCES_LISTED
         LABELS
             OV HETERO
 )
