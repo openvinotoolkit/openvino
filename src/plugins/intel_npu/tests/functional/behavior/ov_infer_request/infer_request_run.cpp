@@ -462,6 +462,11 @@ TEST_P(ProfilingBlobInferOnly, PerfCountOnInferProfilingCompilesUnprofiledBlob) 
     ov::InferRequest inferReq;
     OV_ASSERT_NO_THROW(inferReq = imported_model.create_infer_request());
     ASSERT_ANY_THROW(inferReq.infer());
+
+    ov::InferRequest inferProfilingReq;
+    OV_ASSERT_NO_THROW(inferProfilingReq = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inferProfilingReq.infer());
+    EXPECT_FALSE(inferProfilingReq.get_profiling_info().empty());
 }
 
 TEST_P(ProfilingBlobInferOnly, CacheDirDoesNotReuseBlobAcrossProfilingTypes) {
