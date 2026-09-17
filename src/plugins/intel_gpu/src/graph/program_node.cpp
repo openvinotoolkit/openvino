@@ -185,7 +185,7 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
 
 void program_node::replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i) {
-        if (dependencies[i].first == &old_dep  && dependencies[i].second == new_dep.second) {
+        if (dependencies[i].first == &old_dep) {
             return replace_dependency(i, new_dep, remove_if_dangling);
         }
     }

@@ -1017,9 +1017,14 @@ void program::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
-    const size_t num_outputs = old_node.num_outputs;
-    for (size_t i = 0; i < num_outputs; ++i) {
-        replace_all_usages(old_node, std::make_pair(&new_node, static_cast<int32_t>(i)), remove_if_dangling);
+    const std::list<program_node*> users(old_node.users);
+    for (auto* user : users) {
+        for (size_t i = 0; i < user->dependencies.size(); ++i) {
+            if (user->dependencies[i].first == &old_node) {
+                const auto port = user->dependencies[i].second;
+                user->replace_dependency(i, {&new_node, port}, remove_if_dangling);
+            }
+        }
     }
 }
 
