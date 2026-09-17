@@ -626,6 +626,7 @@ void PluginPropertyManager::registerProperties() {
     registerCompilerProperty(ENABLE_WEIGHTLESS{}, false);
     registerCompilerProperty(MODEL_SERIALIZER_VERSION{}, false);
     registerCompilerProperty(SEPARATE_WEIGHTS_VERSION{}, false);
+    registerCompilerProperty(WS_COMPILE_CALL_NUMBER{}, false);
 
     // clang-format off
     register_property(ov::log::level.name(), true, ov::PropertyMutability::RW,

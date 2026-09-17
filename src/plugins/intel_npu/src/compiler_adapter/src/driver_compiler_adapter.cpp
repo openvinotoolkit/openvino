@@ -212,8 +212,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
-        if (!updatedConfig.hasInternal("WS_COMPILE_CALL_NUMBER")) {
-            updatedConfig.addOrUpdateInternal("WS_COMPILE_CALL_NUMBER", std::to_string(callNumber));
+        if (!updatedConfig.has(ov::intel_npu::ws_compile_call_number.name())) {
+            updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber));
         }
 
         _logger.debug("build flags");

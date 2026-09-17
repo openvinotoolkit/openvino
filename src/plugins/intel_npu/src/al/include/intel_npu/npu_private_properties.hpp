@@ -366,6 +366,15 @@ static constexpr ov::Property<ModelSerializerVersion> model_serializer_version{"
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: integer.
+ *
+ * Used for communicating a state to the compiler when compiling a model using the compiler-in-driver interfaces. This
+ * takes effect only when weights separation is enabled and "NPU_SEPARATE_WEIGHTS_VERSION" is set to "ITERATIVE".
+ */
+static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: String. Default is "".
  * This option is added for providing a fine-grained batched model compilation control, otherwise batching compilation
  * params will be determined automatically. Should be specified only when a model compilation is failed due to incorrect

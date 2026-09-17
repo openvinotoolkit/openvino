@@ -486,8 +486,8 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIter
     size_t callNumber) const {
     _logger.debug("compileWsIterative start");
     FilteredConfig updatedConfig = config;
-    if (!updatedConfig.hasInternal("WS_COMPILE_CALL_NUMBER")) {
-        updatedConfig.addOrUpdateInternal("WS_COMPILE_CALL_NUMBER", std::to_string(callNumber));
+    if (!updatedConfig.has(ov::intel_npu::ws_compile_call_number.name())) {
+        updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber));
     }
     // Return the compatibility descriptor together with the compiled blob.
     return compile(model, updatedConfig, true);
