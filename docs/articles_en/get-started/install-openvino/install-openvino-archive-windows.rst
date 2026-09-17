@@ -41,23 +41,38 @@ Step 1: Download and Install OpenVINO Core Components
       ``C:\Program Files (x86)\Intel`` is the recommended folder. You may also use a different path if desired or if you don't have administrator privileges on your computer.
 
 
-2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/windows/>`__ to your local ``Downloads`` folder.
+2. Download the `OpenVINO Runtime archive file for Windows <https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.4/windows/>`__ to your local ``Downloads`` folder.
 
    If you prefer using command-lines, run the following commands in the command prompt window you opened:
 
    .. code-block:: sh
 
       cd <user_home>/Downloads
-      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/windows/openvino_toolkit_windows_2026.2.1.21919.ede283a88e3_x86_64.zip --output openvino_2026.2.1.zip
+      curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.4/windows/openvino_toolkit_windows_2026.4.0.22959.99c81491cc3_x86_64.zip --output openvino_2026.4.0.zip
 
    .. note::
 
       A ``.sha256`` file is provided together with the archive file to validate your download
       process. To do that, download the ``.sha256`` file from the same repository and run
-      ``CertUtil -hashfile openvino_2026.2.1.zip SHA256``. Compare the returned value in the
+      ``CertUtil -hashfile openvino_2026.4.0.zip SHA256``. Compare the returned value in the
       output with what's in the ``.sha256`` file: if the values are the same, you have
       downloaded the correct file successfully; if not, create a Support ticket
       `here <https://www.intel.com/content/www/us/en/support/contact-intel.html>`__.
+
+   .. note::
+
+      If your system does not have the Microsoft Visual C++ Redistributable installed, use the
+      statically-linked VC++ runtime archive instead. Replace the download command above with:
+
+      .. code-block:: sh
+
+         curl -L https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.4/windows_vc_mt/openvino_toolkit_windows_vc_mt_2026.4.0.22959.99c81491cc3_x86_64.zip --output openvino_2026.4.0.zip
+
+      When following step 3, replace its ``ren`` command with:
+
+      .. code-block:: sh
+
+         ren openvino_toolkit_windows_vc_mt_2026.4.0.22959.99c81491cc3_x86_64 openvino_2026.4.0
 
 
 3. Use your favorite tool to extract the archive file, rename the extracted folder, and move it to the ``C:\Program Files (x86)\Intel`` directory.
@@ -66,9 +81,9 @@ Step 1: Download and Install OpenVINO Core Components
 
    .. code-block:: sh
 
-      tar -xf openvino_2026.2.1.zip
-      ren openvino_toolkit_windows_2026.2.1.21919.ede283a88e3_x86_64 openvino_2026.2.1
-      move openvino_2026.2.1 "C:\Program Files (x86)\Intel"
+      tar -xf openvino_2026.4.0.zip
+      ren openvino_toolkit_windows_2026.4.0.22959.99c81491cc3_x86_64 openvino_2026.4.0
+      move openvino_2026.4.0 "C:\Program Files (x86)\Intel"
 
 
 4. (Optional) Install *numpy* Python Library:
@@ -77,11 +92,11 @@ Step 1: Download and Install OpenVINO Core Components
 
       This step is required only when you decide to use Python API.
 
-   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2026.2.1\python`` folder:
+   You can use the ``requirements.txt`` file from the ``C:\Program Files (x86)\Intel\openvino_2026.4.0\python`` folder:
 
    .. code-block:: sh
 
-      cd "C:\Program Files (x86)\Intel\openvino_2026.2.1"
+      cd "C:\Program Files (x86)\Intel\openvino_2026.4.0"
       python -m pip install -r .\python\requirements.txt
 
 
@@ -90,7 +105,7 @@ Step 1: Download and Install OpenVINO Core Components
    .. code-block:: sh
 
       cd C:\Program Files (x86)\Intel
-      mklink /D openvino_2026 openvino_2026.2.1
+      mklink /D openvino_2026 openvino_2026.4.0
 
 
    .. note::

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "pyramid_attention.hpp"
+
 #include <gtest/gtest.h>
 
 #include <map>
@@ -10,6 +12,9 @@
 #include <variant>
 #include <vector>
 
+#include "attn/attn_subgraph.hpp"
+#include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -18,10 +23,9 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/openvino.hpp"
-#include "npuw_transformations/convert_kvcache_to_precision.hpp"
-#include "npuw_transformations/split_kvcache_into_blocks.hpp"
-#include "pyramid_attention.hpp"
+#include "serialization.hpp"
 #include "util.hpp"
+#include "v1/subgraph_pipeline.hpp"
 
 namespace {
 
@@ -122,9 +126,8 @@ const ov::npuw::function::PyramidValidationBlockResult& get_block_result(
     return std::get<ov::npuw::function::PyramidValidationBlockResult>(validation);
 }
 // Helper function to apply SplitKVCacheIntoBlocks transformation
-std::shared_ptr<ov::Model> apply_split_kvcache_into_blocks(
-    const std::shared_ptr<ov::Model>& model,
-    uint32_t block_size = 32) {
+std::shared_ptr<ov::Model> apply_split_kvcache_into_blocks(const std::shared_ptr<ov::Model>& model,
+                                                           uint32_t block_size = 32) {
     auto cloned = model->clone();
     // Use v_transposed=false to match test model structure where both key and value use axis 2
     ov::npuw::pass::SplitKVCacheIntoBlocks(block_size, false).run_on_model(cloned);
@@ -140,7 +143,7 @@ TEST(PyramidAttentionTest, ValidateSucceedsOnValidAttentionModel) {
 
     auto result = ov::npuw::function::validate_and_setup_pyramid_attention(model);
     ASSERT_TRUE(result.has_value());
-    
+
     const auto& contiguous = get_contiguous_result(*result);
     EXPECT_TRUE(contiguous.is_valid());
     EXPECT_EQ(contiguous.query_length, 1u);
@@ -160,18 +163,19 @@ TEST(PyramidAttentionTest, ValidateExtractsCorrectSequenceDimForSingleLayer) {
 
     ASSERT_TRUE(result.has_value()) << "Validation failed for single-layer model";
     const auto& contiguous = get_contiguous_result(*result);
-    
+
     // Concat axis is 2 (sequence dim)
     auto key_it = contiguous.past_key_sequence_dims.find("past_key_values.0.key");
-    EXPECT_NE(key_it, contiguous.past_key_sequence_dims.end()) 
+    EXPECT_NE(key_it, contiguous.past_key_sequence_dims.end())
         << "Key 'past_key_values.0.key' not found. Map has " << contiguous.past_key_sequence_dims.size() << " entries.";
     if (key_it != contiguous.past_key_sequence_dims.end()) {
         EXPECT_EQ(key_it->second, 2u);
     }
-    
+
     auto val_it = contiguous.past_value_sequence_dims.find("past_key_values.0.value");
     EXPECT_NE(val_it, contiguous.past_value_sequence_dims.end())
-        << "Key 'past_key_values.0.value' not found. Map has " << contiguous.past_value_sequence_dims.size() << " entries.";
+        << "Key 'past_key_values.0.value' not found. Map has " << contiguous.past_value_sequence_dims.size()
+        << " entries.";
     if (val_it != contiguous.past_value_sequence_dims.end()) {
         EXPECT_EQ(val_it->second, 2u);
     }
@@ -181,16 +185,16 @@ TEST(PyramidAttentionTest, DebugRegexPatternMatching) {
     // Verify that our regex patterns match expected parameter names
     EXPECT_TRUE(ov::npuw::util::isPastKeyValuesKeyContiguous("past_key_values.0.key").has_value());
     EXPECT_EQ(ov::npuw::util::isPastKeyValuesKeyContiguous("past_key_values.0.key").value(), 0);
-    
+
     EXPECT_TRUE(ov::npuw::util::isPastKeyValuesKeyContiguous("past_key_values.1.key").has_value());
     EXPECT_EQ(ov::npuw::util::isPastKeyValuesKeyContiguous("past_key_values.1.key").value(), 1);
-    
+
     EXPECT_TRUE(ov::npuw::util::isPastKeyValuesValueContiguous("past_key_values.0.value").has_value());
     EXPECT_EQ(ov::npuw::util::isPastKeyValuesValueContiguous("past_key_values.0.value").value(), 0);
-    
+
     EXPECT_TRUE(ov::npuw::util::isPastKeyValuesValueContiguous("past_key_values.1.value").has_value());
     EXPECT_EQ(ov::npuw::util::isPastKeyValuesValueContiguous("past_key_values.1.value").value(), 1);
-    
+
     // Should NOT match
     EXPECT_FALSE(ov::npuw::util::isPastKeyValuesKeyContiguous("query.0").has_value());
     EXPECT_FALSE(ov::npuw::util::isPastKeyValuesKeyContiguous("past_key_values.0.key_block_0").has_value());
@@ -555,8 +559,7 @@ TEST(PyramidAttentionTest, ProcessPyramidModelAfterI8KVCacheConversion) {
                                                             contiguous.past_key_sequence_dims,
                                                             contiguous.past_value_sequence_dims);
 
-    ASSERT_TRUE(result.has_value())
-        << "process_pyramid_model should succeed after i8 KV cache conversion";
+    ASSERT_TRUE(result.has_value()) << "process_pyramid_model should succeed after i8 KV cache conversion";
 }
 
 TEST(PyramidAttentionTest, ProcessPyramidModelI8IncludesDQParamsInAttentionInputs) {
@@ -667,15 +670,17 @@ TEST(PyramidAttentionTest, DebugBlockModeTransformation) {
         const auto& name = param->get_friendly_name();
         if (name.find("_block_") != std::string::npos) {
             block_params++;
-            if (name.find("_block_0") != std::string::npos) found_block_0 = true;
-            if (name.find("_block_tail") != std::string::npos) found_block_tail = true;
+            if (name.find("_block_0") != std::string::npos)
+                found_block_0 = true;
+            if (name.find("_block_tail") != std::string::npos)
+                found_block_tail = true;
         }
     }
-    
+
     EXPECT_TRUE(found_block_0) << "Block 0 parameters not found after split";
     EXPECT_TRUE(found_block_tail) << "Block tail parameters not found after split";
     EXPECT_GE(block_params, 4u) << "Expected at least 4 block params (2 keys + 2 values), got " << block_params;
-    
+
     // Verify that original contiguous parameters were removed
     for (const auto& param : block_model->get_parameters()) {
         const auto& name = param->get_friendly_name();
@@ -696,7 +701,7 @@ TEST(PyramidAttentionTest, ValidateSucceedsOnBlockModeModel) {
 
     // After block split, model should validate and return PyramidValidationBlockResult
     auto result = ov::npuw::function::validate_and_setup_pyramid_attention(block_model);
-    
+
     ASSERT_TRUE(result.has_value());
     const auto& block_result = get_block_result(*result);
     EXPECT_TRUE(block_result.is_valid());
@@ -716,6 +721,58 @@ TEST(PyramidAttentionTest, ValidateExtractsCorrectBlockIndicesForSingleLayer) {
     const auto& block_result = get_block_result(*result);
     EXPECT_EQ(block_result.past_key_block_global_param_indices.size(), 1u);
     EXPECT_EQ(block_result.past_value_block_global_param_indices.size(), 1u);
+}
+
+// Regression test using real production values (query=1024, past_kv=3072, step=1024,
+// 4 models): a regression to full_past_kv_length=0 would make every context length below
+// wrong (too large), mis-sizing the tile models fed to the device.
+TEST(PyramidAttentionTest, ProcessBlockModeMatchesReportedProductionScenario) {
+    AttentionModelConfig cfg;
+    cfg.query_len = 1024;
+    cfg.past_len = 3072;
+    auto model = build_isolated_attention_model(cfg);
+
+    const uint32_t kv_step = 1024;
+    auto block_model = apply_split_kvcache_into_blocks(model, kv_step);
+
+    auto validation = ov::npuw::function::validate_and_setup_pyramid_attention(block_model);
+    ASSERT_TRUE(validation.has_value());
+    const auto& block_result = get_block_result(*validation);
+    ASSERT_EQ(block_result.past_key_block_global_param_indices.size(), 3u);
+    ASSERT_EQ(block_result.past_value_block_global_param_indices.size(), 3u);
+    EXPECT_EQ(block_result.query_length, 1024u);
+    EXPECT_EQ(block_result.full_context_length, 4096u);
+    EXPECT_EQ(block_result.past_kv_length, 3072u);
+
+    const size_t pyramid_step = 1024;
+    const size_t num_models = block_result.full_context_length / pyramid_step;
+    ASSERT_EQ(num_models, 4u);
+
+    const std::vector<size_t> expected_context_lengths = {1024u, 2048u, 3072u};
+    for (size_t model_idx = 0; model_idx < num_models - 1; ++model_idx) {
+        auto result = ov::npuw::function::process_pyramid_model(block_model,
+                                                                model_idx,
+                                                                pyramid_step,
+                                                                block_result.query_length,
+                                                                block_result.past_kv_length,
+                                                                block_result.full_context_length,
+                                                                {},
+                                                                {},
+                                                                true);
+        ASSERT_TRUE(result.has_value()) << "Failed to process pyramid model " << model_idx;
+        EXPECT_EQ(result->attention.context_len(), expected_context_lengths[model_idx])
+            << "Unexpected context length for model " << model_idx;
+    }
+
+    // End-to-end check: PyramidAttention::from() must reproduce the same context lengths.
+    auto pyramid = ov::npuw::function::PyramidAttention::from(block_model);
+    ASSERT_TRUE(pyramid.has_value());
+    ASSERT_EQ(pyramid->num_models(), num_models);
+    for (size_t model_idx = 0; model_idx < num_models - 1; ++model_idx) {
+        EXPECT_EQ(pyramid->_attentions[model_idx].context_len(), expected_context_lengths[model_idx])
+            << "Unexpected context length for model " << model_idx;
+    }
+    EXPECT_EQ(pyramid->_attentions.back().context_len(), block_result.full_context_length);
 }
 
 TEST(PyramidAttentionTest, ProcessPyramidModelSucceedsForBlockModePrefillCase) {
