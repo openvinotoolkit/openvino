@@ -47,13 +47,14 @@ protected:
         // across attention layers in Gemma4).  Guard the shared-state mutations so they
         // are applied exactly once; per-branch matmul transpose_b is always set.
         if (matched_concat->get_axis() != 3u) {
-            auto param_shape = matched_param->get_partial_shape();
-            NPUW_ASSERT(param_shape.size() == 4u);
-            // NB: Transpose Parameter that correspond to V-tensor it will
-            // speed-up its multiplication with attention scores
-            std::swap(param_shape[2], param_shape[3]);
-
-            matched_param->set_partial_shape(param_shape);
+            if (ctx.get().transposed_params.insert(matched_param.get()).second) {
+                auto param_shape = matched_param->get_partial_shape();
+                NPUW_ASSERT(param_shape.size() == 4u);
+                // NB: Transpose Parameter that correspond to V-tensor it will
+                // speed-up its multiplication with attention scores
+                std::swap(param_shape[2], param_shape[3]);
+                matched_param->set_partial_shape(param_shape);
+            }
 
             auto order_cst = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 2, 3, 1});
             matched_transpose->set_argument(1, order_cst);
