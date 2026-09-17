@@ -11,7 +11,10 @@
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/scatter_nd_update.hpp>
 
+#include <intel_gpu/primitives/activation.hpp>
+
 #include <cmath>
+#include <limits>
 #include <stdlib.h>
 #include <time.h>
 #include <algorithm>
@@ -210,6 +213,71 @@ public:
 #define CASE_SCATTER_ND_UPDATE_FP32_BSV32_FSV16_4D_5 { 6, 7, 8, 9 }, { 6, 2, 1, 1 }, { 6, 9, 1, 8 }, 2, data_types::f32, format::bs_fs_yx_bsv32_fsv16, data_types::f32, format::bfyx
 #define CASE_SCATTER_ND_UPDATE_FP32_BSV32_FSV16_4D_6 { 6, 7, 8, 9 }, { 6, 3, 1, 1 }, { 6, 8, 1, 1 }, 2, data_types::f32, format::bs_fs_yx_bsv32_fsv16, data_types::f32, format::bfyx
 
+
+class scatter_nd_update_prelu_nan : public ScatterNDUpdatePrimitiveFusingTest {};
+TEST_P(scatter_nd_update_prelu_nan, basic) {
+    auto p = GetParam();
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    auto input = engine.allocate_memory(get_input_layout(p));
+    auto updates = engine.allocate_memory(get_updates_layout(p));
+    auto indices = engine.allocate_memory(get_indices_layout(p));
+    auto slopes = engine.allocate_memory(get_per_channel_layout(p));
+    set_values<int32_t>(indices, {1});
+    if (p.data_type == data_types::f16) {
+        set_values<ov::float16>(input, {nan, -4, 8, -8, 1, 2, 3, 4});
+        set_values<ov::float16>(updates, {-6, nan, -12, 16});
+        set_values<ov::float16>(slopes, {0.5f, 0.25f});
+    } else {
+        set_values<float>(input, {nan, -4, 8, -8, 1, 2, 3, 4});
+        set_values<float>(updates, {-6, nan, -12, 16});
+        set_values<float>(slopes, {0.5f, 0.25f});
+    }
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("indices", indices),
+        data("updates", updates),
+        data("slopes", slopes),
+        scatter_nd_update("scatter", input_info("input"), input_info("indices"), input_info("updates"), p.indices_rank),
+        activation("prelu", input_info("scatter"), "slopes", activation_func::relu_negative_slope),
+        reorder("output", input_info("prelu"), format::bfyx, data_types::f32)
+    );
+
+    ov::intel_gpu::ImplementationDesc scatter_impl = {format::bfyx, "ocl::scatter_nd_update", impl_types::ocl};
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"scatter", scatter_impl}}));
+    network network_fused(engine, topology_fused, cfg_fused);
+    network_fused.set_input_data("input", input);
+    ASSERT_NO_FATAL_FAILURE(check_fusions_correctness(network_fused, {{"scatter", {"prelu"}}}));
+    const auto primitives = network_fused.get_primitives_info();
+    const auto producer = std::find_if(primitives.begin(), primitives.end(), [](const primitive_info& info) {
+        return info.original_id == "scatter";
+    });
+    ASSERT_NE(producer, primitives.end());
+    ASSERT_EQ(producer->kernel_id.find("ocl::scatter_nd_update__"), 0);
+
+    auto outputs = network_fused.execute();
+    const auto executed = network_fused.get_executed_primitives();
+    ASSERT_EQ(executed.count("scatter"), 1);
+    ASSERT_EQ(executed.count("prelu"), 0);
+    ASSERT_EQ(outputs.size(), 1);
+    const auto actual = get_output_values_to_float(network_fused, outputs.begin()->second);
+    // Both the untouched batch and the updated batch contain NaN, so the copy
+    // and update kernels must each preserve it through the fused PReLU.
+    const std::vector<float> expected = {nan, -2, 8, -2, -3, nan, -3, 16};
+    ASSERT_EQ(actual.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        if (std::isnan(expected[i])) {
+            ASSERT_TRUE(std::isnan(actual[i])) << "at index " << i << ": got " << actual[i];
+        } else {
+            ASSERT_FLOAT_EQ(actual[i], expected[i]) << "at index " << i;
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, scatter_nd_update_prelu_nan, ::testing::ValuesIn(std::vector<scatter_nd_update_test_params>{
+    {{2, 2, 2, 1}, {1, 1, 1, 1}, {1, 2, 2, 1}, 2, data_types::f16, format::bfyx, data_types::f16, format::bfyx, 2, 3},
+    {{2, 2, 2, 1}, {1, 1, 1, 1}, {1, 2, 2, 1}, 2, data_types::f32, format::bfyx, data_types::f32, format::bfyx, 2, 3},
+}));
 
 class scatter_nd_update_quantize : public ScatterNDUpdatePrimitiveFusingTest {};
 TEST_P(scatter_nd_update_quantize, basic) {
