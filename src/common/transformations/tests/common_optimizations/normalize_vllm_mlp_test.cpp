@@ -1,10 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Covers NormalizeVLLMMLP's two top-level input forms and its no-op case.
-// Deliberately does not cover the narrow-Convert (bf16 round-trip + fp16
-// weight recast) or rank-2-to-rank-3 unsqueeze/squeeze sub-cases -- both are
-// layered on top of the VariadicSplit form and are out of scope here.
+// Covers NormalizeVLLMMLP's two top-level input forms and its no-op case;
+// not the narrow-Convert or rank-2-to-rank-3 sub-cases.
 #include "transformations/common_optimizations/normalize_vllm_mlp.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"

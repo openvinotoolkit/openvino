@@ -336,21 +336,9 @@ PadType convert_pad(const std::string& pt_pad) {
 };
 
 Output<Node> flatten_list_element_for_concat(const Output<Node>& elem) {
-    // Elements of a shape-building list reach us with inconsistent ranks. A
-    // literal int in the FX graph translates to a rank-0 Constant, while
-    // aten.sym_size.int lowers to Gather(ShapeOf(x), dim) and is rank-1. So
-    // `view(x, [sym_size(x, 0), 32, 64])` yields elements of rank 1, 0 and 0.
-    // Unsqueezing every element at axis 0 turns the rank-0 ones into [1] but
-    // the rank-1 one into [1,1], and Concat then rejects the mixed ranks:
-    //
-    //   Check 'TRShape::merge_into(output_shape, in_copy)' failed at
-    //   concat_shape_inference.hpp:43 ... with shapes {[1,1],[1],[1]}
-    //
-    // Reshaping to 1-D is rank-agnostic and gives the right answer in every
-    // case: rank-0 -> [1], [1] -> [1], and a genuine multi-element shape
-    // fragment (aten::size with no dim, i.e. a whole ShapeOf) keeps its length
-    // instead of gaining a leading axis. Concatenation along axis 0 wants
-    // exactly that. Constant elements still fold away afterwards.
+    // Elements of a shape-building list reach us with inconsistent ranks
+    // (rank-0 literal ints vs rank-1 Gather(ShapeOf,dim)); reshape to 1-D
+    // rather than unsqueeze, so Concat doesn't reject the mixed ranks.
     const auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
     return std::make_shared<v1::Reshape>(elem, minus_one, false);
 }

@@ -58,9 +58,8 @@ public:
 
     OutputVector convert_node(const NodeContext& context);
 
-    // Shared PagedAttention side-channel Parameters. Keyed by tag
-    // ("__pa__shared__<field>"); populated lazily by the paged_attention
-    // translator so all PA ops in the model reuse the same Parameter set.
+    // Shared PagedAttention side-channel Parameters, keyed by tag, so all
+    // PA ops in the model reuse the same Parameter set.
     std::map<std::string, std::shared_ptr<ov::op::v0::Parameter>> m_shared_pa_params;
     // Shared derived PA side-channel Outputs (graph-level computations of
     // past_lens, max_context_len etc. from seq_lens + query_start_loc).

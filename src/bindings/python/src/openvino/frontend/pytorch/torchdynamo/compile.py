@@ -113,9 +113,8 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
         om = fe.convert(im)
 
-        # vLLM-specific compile hooks (register __pa__ Parameters, normalize
-        # symint-heavy Concat ranks, MatMul weight decompression). No-op on
-        # graphs that don't have the matching patterns.
+        # vLLM-specific compile hooks (PA Parameters, Concat ranks, weight
+        # decompression). No-op on graphs without the matching patterns.
         try:
             from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
             _vh.apply_post_convert(om, options)
@@ -137,19 +136,10 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.bool: Type.boolean
     }
 
-    # vLLM path handles int/symint inputs itself, either baking them as
-    # Constants or rebuilding them from a ShapeOf of the tensor input whose
-    # dimension they denote (which needs gm, for the FX symbol metadata). The
-    # hook returns False for non-vLLM graphs, in which case we fall through
-    # to the upstream loop below.
-    # Only an ImportError is recoverable here. Once apply_input_shapes starts
-    # it removes the int Parameters from `om`, so om.inputs is no longer 1:1
-    # with args -- falling through to the upstream loop below would then write
-    # each arg's shape onto whichever Parameter now sits at that index,
-    # including the appended __pa__ side-channel ones. The resulting model
-    # fails validation far away from the real cause (e.g. "Rank of
-    # `value_cache` input should be in [dynamic,2,3,4,5], but it is 1"). Let
-    # real failures surface instead.
+    # vLLM path bakes/rebuilds int inputs itself; returns False for
+    # non-vLLM graphs to fall through to the upstream loop below.
+    # Only ImportError is recoverable: apply_input_shapes removes Parameters
+    # from `om`, so any other failure must surface rather than mis-shape.
     _shaped = False
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
@@ -175,10 +165,8 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         if not _is_cache_dir_in_config(options):
             config["CACHE_DIR"] = cache_root
 
-    # vLLM-specific OV-config defaults (KV cache precision, FC dynamic-
-    # quantization group, narrow-float GEMM hint). No-op on non-CPU devices.
-    # `om` is passed so the float precisions can be derived from the model's own
-    # dtype rather than pinned; see compile_hooks.model_float_precision.
+    # vLLM-specific OV-config defaults (KV cache precision, FC quantization,
+    # narrow-float hint). `om` lets precisions derive from the model's dtype.
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
         _vh.apply_post_config(config, device, options, om=om)

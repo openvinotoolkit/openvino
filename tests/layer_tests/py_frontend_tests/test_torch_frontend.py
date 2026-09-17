@@ -3263,9 +3263,8 @@ def test_compressed_weights_trailing_cast_is_marked(zero_point):
         _PackedInt4WeightCast(zero_point).eval(),
         example_input=torch.randn(2, 16, dtype=torch.bfloat16))
 
-    # Guard the precondition rather than assuming it: if the packed uint8 buffer
-    # were not repacked into an int4 Constant, the chain below has no
-    # Constant -> Convert head and the assertions after it would be vacuous.
+    # Guard the precondition: without an int4 Constant, assertions below
+    # would be vacuous.
     assert any(op.get_element_type() == Type.i4
                for op in ov_model.get_ops() if op.get_type_name() == "Constant"), \
         "Expected U4BlockRepack to have produced an i4 weights Constant"

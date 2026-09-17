@@ -281,11 +281,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     }
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
     manager.register_pass<ov::frontend::pytorch::pass::U4ConvertReshape>();
-    // Mark the trailing precision cast of a weight-decompression subgraph, which
-    // MarkCompressedFloatConstants cannot see: it only marks Converts sitting directly on a
-    // Constant. Must run after U4BlockRepack/U4ConvertReshape -- until those collapse the packed
-    // uint8 plus bitwise unpack into a u4/i4 Constant, there is no Constant->Convert head for the
-    // pattern to anchor on and the mark is silently skipped.
+    // Marks a decompression cast MarkCompressedFloatConstants can't see;
+    // must run after the U4 passes produce a Constant->Convert head.
     manager.register_pass<ov::frontend::pytorch::pass::MarkCompressedWeightsCast>();
 
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();

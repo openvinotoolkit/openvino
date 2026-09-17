@@ -13,25 +13,15 @@
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
 
-// Builds vLLM's is_neox_style RoPE lowering (post ConvertSubtract):
-//   x1, x2 = split(x, axis=-1, num_splits=2)
-//   o1 = Add(x1*cos, Multiply(x2*sin, -1))
-//   o2 = Add(x2*cos, x1*sin)
-//   out = concat([o1, o2], axis=-1)
-// and checks NormalizeVLLMRoPE rewrites it into the form RoPEFusionGPTNEOX
-// expects: x_rot = concat([-x2, x1], -1); out = x*cos + x_rot*sin.
+// Builds vLLM's split/multiply/add neox-style RoPE lowering and checks it
+// rewrites into the concat/multiply/add form RoPEFusionGPTNEOX expects.
 TEST_F(TransformationTestsF, NormalizeVLLMRoPERewritesToFusableForm) {
-    // NormalizeVLLMRoPE's copy_runtime_info() call omits the new VariadicSplit,
-    // its two Constants, and (when cos_needs_dup) the cos/sin duplication
-    // Concats -- so those nodes never get fused_names bookkeeping. Same
-    // pre-existing-pass gap several other tests in this directory work
-    // around (see fuse_moe_test.cpp, convert_pagedattn_inputs.cpp).
+    // The pass's copy_runtime_info() call omits some new nodes, a
+    // pre-existing gap other tests in this directory also work around.
     disable_rt_info_check();
     const ov::Shape full_shape{1, 4, 8};
-    // cos/sin are half-sized (matching each split output) -- this is the
-    // common case that also exercises the pass's cos/sin duplication path
-    // (x's last dim is 2x cos/sin's, so the rewritten form concatenates them
-    // back to full size before the single x*cos_full multiply).
+    // cos/sin half-sized (matching each split output) exercises the pass's
+    // cos/sin duplication path back to full size.
     const ov::Shape half_shape{1, 4, 4};
     {
         auto x = std::make_shared<ov::opset1::Parameter>(ov::element::f32, full_shape);

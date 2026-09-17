@@ -31,16 +31,13 @@ MarkCompressedWeightsCast::MarkCompressedWeightsCast() {
     using namespace ov::pass::pattern;
     using ov::pass::operator|;  // declared in ov::pass, not in ov::pass::pattern
 
-    // Kept deliberately in step with ov::pass::pattern::op::CompressedWeightsBlock: the point of
-    // the mark is to let that block absorb the chain, so matching a shape it cannot absorb would
-    // only disable constant folding for no gain. Hence at most one Reshape and one Transpose
-    // between the Multiply and the cast, in that order.
+    // At most one Reshape and one Transpose between the Multiply and the
+    // cast, matching what CompressedWeightsBlock can absorb.
     auto weights = wrap_type<v0::Constant>(type_matches_any({element::u4, element::i4, element::u8, element::i8}));
     auto convert = wrap_type<v0::Convert>({weights});
 
-    // Zero point, present only for asymmetric compression. Left unconstrained (it may itself be a
-    // Convert of a Constant), same as the scale below -- the compressed form is established by the
-    // integer Constant and the dequantizing Multiply, not by how those operands are spelled.
+    // Zero point (asymmetric compression only), left unconstrained like the
+    // scale below -- the compressed form is the integer Constant + Multiply.
     auto subtract = wrap_type<v1::Subtract>({convert, any_input()});
     auto scaled_input = subtract | convert;
     auto multiply = wrap_type<v1::Multiply>({scaled_input, any_input()});
@@ -65,9 +62,8 @@ MarkCompressedWeightsCast::MarkCompressedWeightsCast() {
                              return false;
                          }
                          ov::mark_as_decompression(cast_node);
-                         // The weights must not be materialized in the cast's destination type; the integer
-                         // Constant underneath is already protected by MarkDequantization in the consuming
-                         // plugin, this covers the cast itself for pipelines that mark neither.
+                         // Weights must not materialize in the cast's destination type;
+                         // covers pipelines that don't already mark the cast via MarkDequantization.
                          ov::disable_constant_folding(cast_node);
                          // Nothing else in the graph changed, so report no rewrite.
                          return false;

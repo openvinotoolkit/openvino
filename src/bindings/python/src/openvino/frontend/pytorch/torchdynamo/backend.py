@@ -49,9 +49,8 @@ logger.setLevel(logging.WARNING)
 
 openvino_options = {}
 
-# Real (non-fake) example inputs of the dynamo graph currently being compiled,
-# pushed by openvino() for _freeze_static_inputs. A stack rather than a single
-# slot only so that an exception cannot leave a stale entry behind.
+# Real example inputs of the graph being compiled, pushed by openvino() for
+# _freeze_static_inputs. A stack so an exception can't leave a stale entry.
 _real_example_inputs = []
 
 
@@ -84,10 +83,8 @@ def _freeze_static_inputs(gm, example_inputs, fw_metadata):
     from torch._functorch._aot_autograd.schemas import MutationType
 
     placeholders = gm.graph.find_nodes(op="placeholder")
-    # example_inputs are aot_autograd's FakeTensors; the real ones were
-    # stashed by openvino(). Require an exact length match -- if the two
-    # graphs ever stop lining up 1:1, folding by index would bake the wrong
-    # tensor into the weights, so fall back to the upstream helper instead.
+    # example_inputs are FakeTensors; real ones were stashed by openvino().
+    # Require an exact length match, or fall back to the upstream helper.
     real = _real_example_inputs[-1] if _real_example_inputs else None
     if real is None or len(real) != len(placeholders):
         logger.debug("static-input freezing skipped: real inputs %s vs %d placeholders",
@@ -127,11 +124,8 @@ def openvino(subgraph, example_inputs, options=None):
         global openvino_options
         openvino_options = options
         decompositions = _get_decompositions(options) + get_inf_decomposition_list() + get_aot_decomposition_list()
-        # aot_autograd hands fw_compiler FakeTensors, which cannot be folded
-        # into Constants. @fake_tensor_unsupported means the inputs here are
-        # real and in the same order as the AOT placeholders, so stash them
-        # for _freeze_static_inputs. Dynamo compiles one graph at a time, so a
-        # single slot is enough; it is cleared once the compile returns.
+        # aot_autograd hands fw_compiler FakeTensors; stash the real ones
+        # (same order as AOT placeholders) here for _freeze_static_inputs.
         _real_example_inputs.append(list(example_inputs))
         try:
             return aot_autograd(fw_compiler=fx_openvino, bw_compiler=fx_openvino, decompositions=get_decompositions(decompositions))(subgraph, example_inputs)
@@ -181,10 +175,7 @@ def fx_openvino(subgraph, example_inputs, options=None):
                         tracing_context, "params_flat_unwrap_subclasses", None) or []
                 assert fw_metadata is not None and params_flat is not None
                 # static_input_indices marks the weights on every torch
-                # version we support, and on the ones where params_flat is
-                # also populated the two agree exactly, so this single path
-                # covers both. replace_params_with_constants below stays as
-                # the fallback for the case static_input_indices is empty.
+                # version; falls back to replace_params_with_constants if empty.
                 preserved_arg_indices = _freeze_static_inputs(
                     subgraph, example_inputs, fw_metadata)
             if preserved_arg_indices is None:

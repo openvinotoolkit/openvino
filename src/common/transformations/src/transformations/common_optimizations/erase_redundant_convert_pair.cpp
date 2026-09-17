@@ -13,28 +13,13 @@
 
 namespace ov::pass {
 
-// Eliminates redundant Convert ops on activations:
-//
-//   1. Round-trip pair `wide -> Convert(narrow) -> Convert(wide)`: the outer
-//      Convert is replaced with the original wide source, since the bytes
-//      have round-tripped through narrow precision (value-preserving modulo
-//      the narrow-precision rounding of the inner Convert; the narrow side
-//      remains available for any branch that actually consumes it).
-//
-//   2. Identity Convert `x:T -> Convert(T) -> y:T`: the Convert is bypassed
-//      (its consumers read x directly). This shape arises when a frontend
-//      emits an explicit dtype cast that turns into a no-op after the OV
-//      pipeline normalizes precision (e.g. PyTorch `_to_copy.default` from
-//      a model that runs entirely in one dtype).
-//
-// Dtype-agnostic: pattern only checks element-type relationships, so it
-// works for {fp16, bf16, fp32, future narrow types} without per-dtype code.
-// ISA-agnostic: no AVX2/AVX-512/AMX assumptions.
+// Eliminates redundant Converts: a round-trip pair
+// wide->Convert(narrow)->Convert(wide), and an identity Convert(T)->T.
 EraseRedundantConvertPair::EraseRedundantConvertPair() {
     MATCHER_SCOPE(EraseRedundantConvertPair);
     using namespace pattern;
 
-    // Match any Convert; classify in the callback into round-trip vs identity.
+    // Match any Convert; classify round-trip vs identity in the callback.
     auto cvt = wrap_type<ov::op::v0::Convert>();
 
     auto callback = [=](Matcher& m) -> bool {

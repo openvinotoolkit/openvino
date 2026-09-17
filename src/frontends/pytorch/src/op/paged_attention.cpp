@@ -2,20 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Translator for torch.ops.openvino.paged_attention.default -> PagedAttentionExtension.
-//
-// vLLM's attention comes into the FX graph as:
-//   auto_functionalized_v2(vllm.unified_attention_with_output, query, key, value,
-//                          output, layer_name=..., ...)
-//
-// A Python FX pre-pass rewrites this to a direct call of
-//   torch.ops.openvino.paged_attention(query, key, value, layer_name)
-// which reaches this translator. The KV cache, block tables, past_lens etc.
-// are not in the FX graph - they live in vLLM's ForwardContext sidechannel.
-// We create extra v0::Parameter nodes for those side-channel tensors, tag
-// them with friendly names like "__pa__<layer_name>__<field>", and emit a
-// PagedAttentionExtension. The execute-time backend inspects the compiled
-// model for these tagged parameters and binds them from ForwardContext.
+// Translator for torch.ops.openvino.paged_attention.default. KV cache/block
+// tables aren't in the FX graph; creates side-channel Parameters instead.
 
 #include "openvino/op/paged_attention.hpp"
 
@@ -61,10 +49,8 @@ std::shared_ptr<v0::Parameter> make_tagged_parameter(const NodeContext& context,
     return param;
 }
 
-// Get-or-create a shared PA side-channel Parameter, scoped to the current
-// TranslateSession so all PA layers reuse the same Parameter for per-sequence
-// metadata (past_lens, subsequence_begins, etc.) rather than each emitting its
-// own copy.
+// Get-or-create a shared PA side-channel Parameter, scoped to the session
+// so all PA layers reuse one Parameter for per-sequence metadata.
 std::shared_ptr<v0::Parameter> get_or_make_shared_pa_param(const NodeContext& context,
                                                            const std::string& tag,
                                                            const element::Type& et,
@@ -121,23 +107,8 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
 
     const std::string prefix = "__pa__" + layer_name + "__";
 
-    // PagedAttentionExtension requires q/k/v to be rank 2 [num_tokens,
-    // num_heads*head_dim]. vLLM passes them as rank-2 already in the FX graph
-    // for CPU (output shape from unified_attention is [num_tokens, hidden]).
-    // Emit a Reshape(-1, H) to guarantee rank-2 even if upstream is dynamic.
-    // For Llama-3.2-1B the hidden dims are:
-    //   q hidden = 32 * 64 = 2048
-    //   k hidden = 8 * 64 = 512
-    //   v hidden = 8 * 64 = 512
-    // We don't know them statically here - trust that upstream reshape has
-    // already produced rank-2 tensors. If not rank 2, wrap in Reshape(-1, C)
-    // with C taken from the last known static dim.
-    // Flatten q/k/v to 2D [N, H*D] by collapsing all trailing dims. The
-    // leading dim (num_tokens) is kept dynamic; we build target shape [N, -1]
-    // at runtime via ShapeOf + Gather(0) + Concat([dim0, -1]).
-    // Extract head_dim from q's pre-flattening shape for dynamic scale.
-    // q arrives as rank-3 [num_tokens, num_heads, head_dim]; head_dim is last dim.
-    // If q is already rank-2, we can't recover head_dim here and fall back to 0.125.
+    // PagedAttentionExtension requires rank-2 q/k/v; flatten any higher-rank
+    // input, and read head_dim off q pre-flattening for the scale.
     Output<Node> scale_from_q;
     {
         const auto& q_ps = query.get_partial_shape();
@@ -153,11 +124,8 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         }
     }
 
-    // Capture per-layer K/V head geometry BEFORE force_rank2 flattens them.
-    // K/V arrive rank-3 [num_tokens, num_kv_heads, head_dim]. This is what the
-    // CPU plugin's ConvertPagedAttnInputs pass reads via rt_info to size each
-    // layer's key_cache/value_cache Parameter independently — required for
-    // models like Gemma-4 with heterogeneous head sizes across layers.
+    // Capture per-layer K/V head geometry before flattening -- the CPU
+    // plugin reads it via rt_info to size each layer's cache independently.
     auto capture_kv_geom = [](const Output<Node>& t, size_t& num_heads_out, size_t& head_size_out) {
         const auto& ps = t.get_partial_shape();
         if (ps.rank().is_static() && ps.rank().get_length() >= 3 &&
@@ -171,10 +139,8 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     capture_kv_geom(key, k_num_heads, k_head_size);
     capture_kv_geom(value, v_num_heads, v_head_size);
 
-    // Flatten q/k/v to rank-2. Prefer a static Reshape([-1, H*D]) when the
-    // trailing dims are known: that's a single Reshape op vs the dynamic
-    // path's ShapeOf+Gather+Concat+Reshape chain (4 ops × 3 tensors × 16
-    // layers = 192 extra ops of pure shape plumbing).
+    // Flatten q/k/v to rank-2. Prefer a static Reshape([-1, H*D]) when
+    // trailing dims are known -- cheaper than the dynamic ShapeOf chain.
     auto force_rank2 = [&](Output<Node>& t, bool safe_to_fuse_upstream = false) {
         const auto& ps = t.get_partial_shape();
         const auto r = ps.rank();
@@ -195,10 +161,8 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
                 }
             }
             if (trailing_static) {
-                // Fuse into upstream: if this input is produced by a Reshape
-                // with a single consumer (this PA), retarget that upstream
-                // Reshape to [-1, trailing] and reuse it — one Reshape
-                // instead of Reshape->Reshape. Saves ~48 ops/iter on Llama.
+                // If this input is a single-consumer Reshape, retarget it
+                // to [-1, trailing] instead of adding a second Reshape.
                 static const bool _pa_fuse_upstream =
                     std::getenv("OV_PA_FUSE_UPSTREAM_RESHAPE") == nullptr ||
                     std::string(std::getenv("OV_PA_FUSE_UPSTREAM_RESHAPE")) != "0";
@@ -229,50 +193,31 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         auto target = std::make_shared<v0::Concat>(OutputVector{dim0, neg1}, 0);
         t = std::make_shared<v1::Reshape>(t, target, false);
     };
-    // Only Q's upstream Reshape can be fused: K/V upstream Reshapes have a
-    // second consumer (Result -> vLLM CPU attention KV-cache writeback) that
-    // needs the original rank-3 shape.
+    // Only Q's upstream Reshape can be fused: K/V's has a second consumer
+    // that needs the original rank-3 shape.
     force_rank2(query, /*safe_to_fuse_upstream=*/true);
     force_rank2(key);
     force_rank2(value);
 
-    // Q/K/V flow at their native dtype (typically bf16 from vLLM bf16 models).
-    // KV cache Parameters use the same dtype as a placeholder; the CPU plugin's
-    // KV_CACHE_PRECISION config and INFERENCE_PRECISION_HINT drive the actual
-    // compute and cache precisions at compile time. This matches how OV GenAI
-    // handles KV cache quant via runtime_options.kv_cache_precision.
+    // Q/K/V flow at their native dtype; KV cache Parameters use it as a
+    // placeholder, with the plugin's config driving actual precision.
     auto original_q_et = query.get_element_type();
     element::Type pa_dtype = original_q_et;
 
-    // Side-channel Parameters bound at infer time from ForwardContext.
-    // Shapes/types here mirror PagedAttentionExtension::validate_and_infer_types().
-    // key_cache/value_cache must have rank 2-5 per PA validator. vLLM CPU uses
-    // [num_blocks, num_kv_heads, block_size, head_size] (rank 4).
-    // KV caches are per-layer (different storage per attention layer).
-    // KV cache Parameter dtype: use pa_dtype as placeholder. Plugin's
-    // KV_CACHE_PRECISION config overrides at compile time (matches genai).
+    // Side-channel Parameters bound at infer time from ForwardContext, one
+    // key_cache/value_cache pair per layer (rank 2-5 per the PA validator).
     auto kv_et = pa_dtype;
     auto key_cache = make_tagged_parameter(context, prefix + "key_cache", kv_et,
                                            PartialShape{-1, -1, -1, -1});
     auto value_cache = make_tagged_parameter(context, prefix + "value_cache", kv_et,
                                              PartialShape{-1, -1, -1, -1});
-    // Per-sequence metadata is identical across layers, so share a single
-    // Parameter set across all PA ops in the model. Tagged "__pa__shared__*"
-    // so the execute-time binding can recognize and populate them once.
-    //
-    // past_lens, subsequence_begins, and max_context_len are *derived* from
-    // seq_lens + query_start_loc (vLLM's native attn_metadata format) via
-    // graph ops, so Python binding only has to populate the two source
-    // Parameters. block_indices / block_indices_begins still computed in
-    // Python (CSR trim is awkward in graph ops with dynamic rows).
+    // Per-sequence metadata is identical across layers, so share one
+    // Parameter set, tagged "__pa__shared__*", across all PA ops.
     const std::string sprefix = "__pa__shared__";
     auto seq_lens = get_or_make_shared_pa_param(context, sprefix + "seq_lens", element::i32, PartialShape{-1});
     auto query_start_loc = get_or_make_shared_pa_param(context, sprefix + "query_start_loc", element::i32, PartialShape{-1});
-    // block_indices and block_indices_begins are per-layer, not shared: models
-    // with multiple KV-cache groups (e.g. Gemma-4 hybrid: sliding block_size=64
-    // + global block_size=32) have a distinct block_table per KV-cache group.
-    // Using a single shared Parameter would silently overwrite indices from one
-    // group with those of another and produce wrong results.
+    // block_indices/block_indices_begins are per-layer, not shared: models
+    // with multiple KV-cache groups have a distinct block_table per group.
     auto block_indices = make_tagged_parameter(context, prefix + "block_indices", element::i32, PartialShape{-1});
     auto block_indices_begins = make_tagged_parameter(context, prefix + "block_indices_begins", element::i32, PartialShape{-1});
 
@@ -311,10 +256,8 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         return std::make_shared<v1::ReduceMax>(seq_lens, axis0, false);
     });
 
-    // Default scalar/empty constants for unused PA inputs.
-    // Element type for real-valued PA inputs. PA validator only accepts
-    // f16/f32 for rotation_trig_lut/xattention_threshold; bf16 is rejected.
-    // Use f32 for all these LUTs regardless of PA compute dtype.
+    // Default scalar/empty constants for unused PA inputs. f32 for LUTs
+    // regardless of pa_dtype: the PA validator rejects bf16 here.
     auto scale_et = (pa_dtype == element::bf16) ? element::f32 : pa_dtype;
     // scale is attention 1/sqrt(head_dim); extracted from q's pre-flatten shape
     // above. Falls back to 0.125 (head_dim=64) if q's rank/last-dim was dynamic.
@@ -322,10 +265,8 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         ? scale_from_q
         : v0::Constant::create(scale_et, Shape{}, {0.125f});
 
-    // sliding_window is per-layer: hybrid models like Gemma-4 mix
-    // sliding-attention layers (window=512) with full-attention layers
-    // (window=0). Emit as a side-channel Parameter so bind time can pass in
-    // each layer's actual window value from vLLM's layer_obj.impl.sliding_window.
+    // sliding_window is per-layer (hybrid models mix sliding/full attention);
+    // emit as a side-channel Parameter bound to each layer's real value.
     auto sliding_window = make_tagged_parameter(context, prefix + "sliding_window",
                                                 element::i32, PartialShape{});
     auto alibi_slopes = v0::Constant::create(scale_et, Shape{0}, std::vector<float>{});
@@ -377,12 +318,8 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     };
 
     auto pa = context.mark_node(std::make_shared<PagedAttentionExtension>(pa_inputs));
-    // Attach per-layer KV head geometry as rt_info so the CPU plugin's
-    // ConvertPagedAttnInputs pass can size each layer's key_cache / value_cache
-    // Parameter to its actual head dims (e.g. Gemma-4 has some layers with
-    // head_size=256 and others with head_size=512). Without this, all layers
-    // fall back to the plugin's default (uniform) shape and PA fails at
-    // runtime with dim mismatches on the heterogeneous-head layers.
+    // Attach per-layer KV head geometry as rt_info so ConvertPagedAttnInputs
+    // can size each layer's cache Parameter to its actual head dims.
     if (k_num_heads && k_head_size && v_num_heads && v_head_size) {
         pa->get_rt_info()["num_k_heads"] = k_num_heads;
         pa->get_rt_info()["k_head_size"] = k_head_size;
@@ -395,9 +332,8 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
                   << ", k=(" << k_num_heads << "," << k_head_size << ")"
                   << ", v=(" << v_num_heads << "," << v_head_size << ")" << std::endl;
     }
-    // PagedAttentionExtension has multiple outputs; the FX op returns just the
-    // attention output (output 0). Convert back to query's original dtype
-    // (typically f16) so downstream MatMul weight dtypes match.
+    // The FX op returns only output 0; convert back to query's original
+    // dtype so downstream MatMul weight dtypes match.
     Output<Node> pa_out = pa->output(0);
     if (original_q_et != element::f32 && !original_q_et.is_dynamic()) {
         pa_out = std::make_shared<ov::op::v0::Convert>(pa_out, original_q_et);

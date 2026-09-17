@@ -22,13 +22,8 @@
 
 namespace ov::pass {
 
-// vLLM lowers a fused gate_up MLP block in two possible forms:
-//   Form A: split via two Slice ops on the same source.
-//   Form B: split via a VariadicSplit but with i64 split_lengths or with a
-//           positive-axis (axis=1 for [B*S, H]) instead of axis=-1.
-// CPU LLMMLPFusion requires a VariadicSplit with i32 lengths shape [2] and
-// axis = -1 (literal). This pass canonicalizes both forms so that fusion
-// can collapse Swish(gate) * up + down_proj into a single LLMMLP primitive.
+// Canonicalizes vLLM's gate_up MLP split (two Slices, or a VariadicSplit
+// with the wrong dtype/axis) into what CPU LLMMLPFusion requires.
 NormalizeVLLMMLP::NormalizeVLLMMLP() {
     MATCHER_SCOPE(NormalizeVLLMMLP);
     using namespace pattern;
@@ -64,12 +59,8 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
             return std::make_shared<ov::op::v4::Swish>(in);
         };
 
-        // Branch B: already a VariadicSplit. Canonicalize lengths to i32 [2]
-        // and axis to -1 if needed. Also elide the narrow-residual Convert
-        // pair (f32->bf16 before VariadicSplit, bf16->f32 after Multiply)
-        // that vLLM emits for bf16 model dtype. Removing the pair skips a
-        // bf16 round-trip that LLMMLPFusion would otherwise have to tolerate
-        // via optional-Convert relaxations in intel_cpu/mlp_fusion.cpp.
+        // Branch B: already a VariadicSplit -- canonicalize lengths/axis
+        // and elide the narrow-residual Convert pair around it, if any.
         if (up_vsplit) {
             auto sw_in = activation->input_value(0);
             auto gate_vs = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(sw_in.get_node_shared_ptr());
@@ -88,10 +79,8 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
                 if (!av.empty() && av[0] == -1) axis_is_neg_one = true;
             }
 
-            // Detect narrow-Convert wedged between the gate_up MatMul (f32)
-            // and this VariadicSplit. In vLLM bf16 graphs it takes the form
-            // `MatMul(f32) -> Convert(f32->bf16) -> VariadicSplit(bf16)`.
-            // Bypass it if present so LLMMLPFusion's f32 pattern matches.
+            // Detect a narrow-Convert wedged between the gate_up MatMul and
+            // this VariadicSplit, and bypass it so the f32 pattern matches.
             ov::Output<ov::Node> new_vs_data = up_vsplit->input_value(0);
             auto pre_cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(
                 new_vs_data.get_node_shared_ptr());
@@ -107,14 +96,9 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
                 }
             }
 
-            // If we bypassed the pre-Convert, we also need the gate_up MatMul
-            // weight Constant to match intel_cpu LLMMLPFusion's f16 predicate.
-            // vLLM stores weights in the model's native dtype (bf16 for
-            // Llama-3.2-family); recast statically to fp16 so the pattern
-            // fires. bf16 has narrower mantissa (7 vs f16's 10 bits) but
-            // wider exponent (8 vs 5). MLP weight magnitudes are <<1 so
-            // fp16 range (max 65504) is not a concern. Precision widens
-            // slightly (7 mantissa -> 10 mantissa).
+            // If we bypassed the pre-Convert, also recast the gate_up weight
+            // to fp16 to match LLMMLPFusion's predicate (safe: MLP weight
+            // magnitudes stay well within fp16 range).
             std::shared_ptr<ov::op::v0::Constant> new_gate_up_weight_const;
             std::shared_ptr<ov::op::v0::Convert> old_weight_cvt;
             if (bypassed_pre_cvt) {
@@ -130,9 +114,8 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
                             wcvt->input_value(0).get_node_shared_ptr());
                         if (wcst && wcst->get_element_type() == ov::element::bf16 &&
                             wcvt->get_destination_type() == ov::element::f32) {
-                            // Static bf16 -> fp16 recast (lossless in range for
-                            // MLP weights). Use Constant::create<float16> from
-                            // upcast-to-f32 vector.
+                            // Static bf16 -> fp16 recast, lossless in range
+                            // for MLP weights.
                             auto vals = wcst->cast_vector<float>();
                             new_gate_up_weight_const = ov::op::v0::Constant::create(
                                 ov::element::f16, wcst->get_shape(), vals);
@@ -153,8 +136,7 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
                 ov::element::i32, ov::Shape{2},
                 {static_cast<int32_t>(vals[0]), static_cast<int32_t>(vals[1])});
             // If we rewrote the weight, redirect the MatMul's weight Convert
-            // input to the new f16 Constant. The Convert becomes f16 -> f32,
-            // matching intel_cpu's `wrap_type<Convert>(gate_up_proj_weight)`.
+            // to the new f16 Constant to match intel_cpu's expected pattern.
             if (new_gate_up_weight_const && old_weight_cvt) {
                 auto new_wcvt = std::make_shared<ov::op::v0::Convert>(
                     new_gate_up_weight_const, ov::element::f32);
@@ -177,22 +159,16 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
             ov::copy_runtime_info({up_vsplit, activation, mul}, {new_vsplit, new_swish, new_mul});
             ov::replace_node(mul, new_mul);
 
-            // Elide any post-Multiply Convert(bf16/f16 -> f32) that vLLM's
-            // narrow-residual graph inserts before down_proj. Route those
-            // consumers back to new_mul directly. Multi-Convert consumers
-            // are handled by walking new_mul's target inputs; other
-            // non-Convert consumers (e.g. residual add expecting narrow
-            // dtype) are left untouched.
+            // Elide any post-Multiply narrow-to-wide Convert before
+            // down_proj, routing its consumers back to new_mul directly.
             std::shared_ptr<ov::op::v0::MatMul> down_proj_mm;
             for (auto& consumer : new_mul->output(0).get_target_inputs()) {
                 auto cvt = ov::as_type<ov::op::v0::Convert>(consumer.get_node());
                 if (!cvt) continue;
                 auto cvt_src = new_mul->output(0).get_element_type();
                 auto cvt_dst = cvt->get_destination_type();
-                // Only elide the narrow-then-wide sequence: mul (f32) skips
-                // the redundant Convert(f32->f32) that appears after we've
-                // bypassed the pre-Convert. If the source is truly narrow
-                // (bf16/f16) then the round-trip is real and we leave it.
+                // Only elide a same-type (redundant) Convert; leave a
+                // genuine narrow round-trip in place.
                 if (cvt_src == cvt_dst) {
                     for (auto& downstream : cvt->output(0).get_target_inputs()) {
                         downstream.replace_source_output(new_mul->output(0));
@@ -200,15 +176,8 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
                 }
             }
 
-            // Rank-2 wrap: if the gate_up MatMul source is rank-2 (vLLM's
-            // flattened [B*S, H]), the intel_cpu MLPFusion pattern which
-            // requires rank-3 [B, S, H] activation won't match. Insert
-            // Unsqueeze(axis=0) at the gate_up MatMul's activation input
-            // and Squeeze(axis=0) after the down_proj MatMul so the
-            // interior chain (MatMul + VariadicSplit + Swish + Multiply +
-            // MatMul) flows as rank-3 [1, B*S, H]. Non-MLP consumers of
-            // the shared source and of the down_proj output continue to
-            // see the rank-2 tensor.
+            // If the source is rank-2, MLPFusion needs rank-3: wrap the
+            // interior chain in Unsqueeze/Squeeze; other consumers see rank-2.
             auto gate_up_mm_walk = std::dynamic_pointer_cast<ov::op::v0::MatMul>(
                 new_vs_data.get_node_shared_ptr());
             if (gate_up_mm_walk) {

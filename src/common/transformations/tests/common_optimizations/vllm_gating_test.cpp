@@ -1,10 +1,8 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Covers the "vllm_model" rt_info gate added around NormalizeVLLMRoPE and
-// EraseRedundantConvertPair in CommonOptimizations::run_on_model: without the
-// vLLM torchdynamo integration's flag, every other CommonOptimizations caller
-// (GPU, plain PyTorch/ONNX, ...) must see neither pass fire.
+// Covers the "vllm_model" rt_info gate around NormalizeVLLMRoPE and
+// EraseRedundantConvertPair: other CommonOptimizations callers see neither fire.
 #include "transformations/common_optimizations/common_optimizations.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
@@ -32,9 +30,8 @@ size_t count_of_type(const std::shared_ptr<ov::Model>& model, const ov::Discrete
 }
 
 std::shared_ptr<ov::Model> build_vllm_rope_model() {
-    // cos/sin half-sized to match each split output -- see
-    // normalize_vllm_rope_test.cpp for why full-sized inputs are shape-invalid
-    // against this pattern.
+    // cos/sin half-sized to match each split output (see
+    // normalize_vllm_rope_test.cpp).
     const ov::Shape full_shape{1, 4, 8};
     const ov::Shape half_shape{1, 4, 4};
     auto x = std::make_shared<ov::opset1::Parameter>(ov::element::f32, full_shape);
@@ -58,11 +55,8 @@ std::shared_ptr<ov::Model> build_vllm_rope_model() {
     return std::make_shared<ov::Model>(concat, ov::ParameterVector{x, cos, sin});
 }
 
-// Round-trip Convert pair (wide -> narrow -> wide), not a plain identity
-// Convert: a generic dead-code pass elsewhere in CommonOptimizations already
-// eliminates identity Converts regardless of this gate, so it can't
-// distinguish EraseRedundantConvertPair firing from something else cleaning
-// up the graph.
+// Round-trip pair, not identity Convert: a generic dead-code pass already
+// eliminates identity Converts regardless of this gate.
 std::shared_ptr<ov::Model> build_round_trip_convert_model() {
     auto x = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 4});
     auto narrow = std::make_shared<ov::op::v0::Convert>(x, ov::element::bf16);

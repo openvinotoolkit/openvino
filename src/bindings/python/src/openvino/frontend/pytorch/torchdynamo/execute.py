@@ -43,9 +43,8 @@ compiled_cache = {}
 req_cache = {}
 max_openvino_partitions = 0
 partitioned_modules = {}
-# Cache keyed by structural hash of submodule FX graph + input dtype/rank.
-# This lets us reuse a compiled OV model across dynamo retraces where the
-# graph is structurally identical (typical during decode loops).
+# Cache keyed by structural hash, reusing a compiled model across dynamo
+# retraces where the graph is structurally identical (decode loops).
 structural_cache = {}
 
 
@@ -72,9 +71,8 @@ def _shape_agnostic_compile(gm, args, options):
         from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
         from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
         n_int = sum(1 for a in args if isinstance(a, int))
-        # Same guard as vllm.compile_hooks.apply_input_shapes: when it falls
-        # through, compile.py's upstream loop pins every Parameter to its
-        # trace-time shape.
+        # Same guard as vllm.compile_hooks.apply_input_shapes: falling
+        # through pins every Parameter to its trace-time shape.
         if not (bool_opt(options, "vllm", False) or n_int):
             return False
         if n_int == 0:
@@ -210,29 +208,8 @@ def openvino_execute(
 
     executor_parameters = executor_parameters or DEFAULT_OPENVINO_PYTHON_CONFIG
 
-    # Free the profile / dummy-run compiled model once it has served the
-    # profile pass (OV_EVICT_PROFILE_COMPILE, default on; set 0 to disable).
-    #
-    # vLLM's profile / dummy run compiles a full OV model whose baked token
-    # count is vLLM's max-batched-tokens, so no later prefill or decode step
-    # ever reuses it; the PA branch below already discards its output and runs
-    # eager (run_pa_infer returns PA_SKIP under attn_metadata None). Baseline
-    # keeps that ~3.2 GB weight-repack copy resident for the whole run. This
-    # compiles it exactly as baseline (unchanged code path, same repack, same
-    # eager execution) and only drops its three cache references once the
-    # profile forward returns, freeing the copy as the locals fall out of
-    # scope. Peak PSS on TinyLlama-1.1B falls 17.9 -> 14.7 GB (-3.2 GB, ~18%),
-    # greedy output stays byte-identical, 13/13 tests pass.
-    #
-    # Earlier attempts at *skipping* the profile compile (never running
-    # openvino_compile() for it, or merging it into the decode model so it
-    # never gets its own compile) cost ~40% decode throughput on the
-    # spawned-worker path even though correctness held -- a durable
-    # OV-internal warm-up side effect of that first in-worker compile not
-    # happening, not something to do with model count. Both were removed
-    # rather than kept as disabled options: evicting after a normal compile
-    # gets the same memory win (49.7 tok/s, indistinguishable from baseline)
-    # without that risk.
+    # Free the never-reused profile/dummy-run compile after use
+    # (OV_EVICT_PROFILE_COMPILE, default on) -- else its weight repack stays resident.
     _evict_profile = os.environ.get("OV_EVICT_PROFILE_COMPILE", "1") != "0"
 
     use_cache = executor_parameters.get(
@@ -249,10 +226,8 @@ def openvino_execute(
         if not fully_supported:
             model_hash_str = model_hash_str + "_p" + str(partition_id)
 
-    # Include input shape in the cache key: OV bakes concrete shapes into the
-    # compiled model, so reusing a compiled partition with different input
-    # shapes yields zero-sized outputs (observed on vLLM decode where each
-    # step has a different seq-length).
+    # Input shape is part of the cache key: reusing a compiled partition at a
+    # different shape yields zero-sized outputs (OV bakes shapes in).
     shape_key = tuple(
         tuple(a.size()) if isinstance(a, torch.Tensor) else (type(a).__name__, a)
         for a in args
@@ -268,9 +243,8 @@ def openvino_execute(
         compiled = compiled_cache[cache_key]
         req = req_cache[cache_key]
     else:
-        # options decides whether the sizes belong in the key at all, so it has
-        # to be threaded in: a shape-agnostic model keyed by size would be
-        # recompiled per prefill length even though it accepts every one.
+        # A shape-agnostic model keyed by size would recompile per prefill
+        # length even though it accepts every one -- options decides this.
         struct_key = _structural_key(gm, args, options)
         if use_cache and struct_key in structural_cache:
             compiled, req = structural_cache[struct_key]
@@ -283,26 +257,8 @@ def openvino_execute(
         req_cache[cache_key] = req
 
     flat_args, _ = tree_flatten(args)
-    # Int args either have no Parameter left in the compiled OV model (vLLM
-    # path: vllm.compile_hooks.bake_symint_constants replaces them with
-    # Constants or with Gather(ShapeOf(tensor)) nodes) or are still int64[1]
-    # Parameters (upstream default). Skip the int entries only in the former
-    # case, otherwise the remaining tensors bind to the wrong ports.
-    #
-    # Counting inputs alone is not enough to tell the cases apart: a
-    # PagedAttention graph carries dozens of extra __pa__ side-channel
-    # Parameters, so compiled.inputs is far *larger* than flat_args even
-    # though every int Parameter is gone. Under torch.compile(dynamic=True)
-    # ints do appear (dynamo passes the symbolic sizes as graph inputs), and
-    # the old count comparison then wrongly kept them, shifting every
-    # subsequent tensor by one port:
-    #
-    #   Can't set the input tensor with index: 1, because the model input
-    #   (shape=[26]) and the tensor (shape=()) are incompatible
-    #
-    # So compare against the ports that positional args can actually bind
-    # to, i.e. excluding the __pa__ ones (see vllm.runtime_hooks.
-    # build_call_kwargs, which walks compiled.inputs in exactly this order).
+    # Skip int args only if their Parameter is gone, or remaining tensors
+    # bind wrong ports; compare against positional (non-__pa__) ports only.
     _n_compiled_inputs = len(compiled.inputs)
     _n_flat = len(flat_args)
     _n_tensor_args = sum(1 for a in flat_args if not isinstance(a, int))
@@ -323,22 +279,16 @@ def openvino_execute(
             t = t.contiguous()
         ov_inputs.append(_torch_to_numpy(t))
 
-    # vLLM PagedAttention side-channel: delegate to the vllm runtime hook.
-    # Returns None on non-PA graphs (fall through to positional infer),
-    # PA_SKIP during vLLM profile_run / dummy_run (fall back to eager gm),
-    # or the raw output-dict on the normal PA path.
+    # PagedAttention side-channel: None on non-PA graphs (positional infer),
+    # PA_SKIP during profile/dummy_run (eager gm), or the raw output-dict.
     res = None
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks as _rh
         _pa_out = _rh.run_pa_infer(compiled, req, ov_inputs)
         if _pa_out is _rh.PA_SKIP:
             _eager_out = gm(*args)
-            # Profile / dummy run: the model just compiled is never used for a
-            # real infer (its baked token count is vLLM's max-batched-tokens,
-            # which no later prefill or decode step matches) and no side
-            # channel was bound (run_pa_infer returns before infer_with_pa).
-            # Dropping the three cache references frees its repacked-weight
-            # copy as soon as the locals below go out of scope.
+            # Profile/dummy run: this compile is never reused for real infer.
+            # Drop its cache references so the repacked weights free on scope exit.
             if _evict_profile and _fresh_compile:
                 compiled_cache.pop(cache_key, None)
                 req_cache.pop(cache_key, None)
@@ -370,9 +320,8 @@ class OpenVINOGraphModule(torch.nn.Module):
         self.options = options
 
     def __call__(self, *args):
-        # Resolve the no_fallback option through the vLLM preset (so vllm
-        # users get no_fallback=True implicitly). Falls back to plain
-        # options[key] lookup when the vllm subpackage is absent.
+        # Resolve no_fallback through the vLLM preset (implicit True for
+        # vllm users); falls back to plain options[key] if vllm is absent.
         try:
             from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt as _bo_nf
         except Exception:
@@ -437,13 +386,8 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 
     signature = str(id(gm))
     if (not _get_aot_autograd(options)):
-        # Coarsen to dtype/rank (tensors) and drop the value (ints) only when
-        # _shape_agnostic_compile agrees the OV model this gm compiles to
-        # really does take any shape -- same predicate _structural_key uses
-        # for the inner compile cache. Otherwise a caller's trace-time shape
-        # constants may still be baked into ops here (not just Parameter
-        # shapes), and dropping int values would collide distinct scalar args
-        # onto one cached partition.
+        # Coarsen to dtype/rank and drop int values only when
+        # _shape_agnostic_compile agrees -- same predicate _structural_key uses.
         shape_agnostic = _shape_agnostic_compile(gm, args, options)
         for idx, input_data in enumerate(args):
             if isinstance(input_data, torch.Tensor):

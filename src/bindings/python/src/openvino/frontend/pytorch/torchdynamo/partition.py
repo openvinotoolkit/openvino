@@ -140,10 +140,8 @@ class Partitioner:
         self.capture_gptq_patterns(graph_module)
         self.capture_nncf_patterns(graph_module)
 
-        # Optional vLLM-specific FX rewrite: convert
-        # auto_functionalized_v2(unified_attention_with_output, ...) HOP nodes
-        # into torch.ops.openvino.paged_attention.default. No-op on non-vLLM
-        # graphs.
+        # Optional: rewrites vLLM's attention HOP node into
+        # torch.ops.openvino.paged_attention.default. No-op on non-vLLM graphs.
         try:
             from openvino.frontend.pytorch.torchdynamo import vllm as _vllm
             _vllm.maybe_rewrite_paged_attention(graph_module, getattr(self, "_ov_options", None))

@@ -21,21 +21,9 @@
 
 namespace ov::pass {
 
-// vLLM lowers is_neox_style RoPE (post the common ConvertSubtract pass) as:
-//   x1, x2 = split(x, axis=-1, num_splits=2)   // x1=split[0], x2=split[1]
-//   o1 = Add(x1*cos, Multiply(x2*sin, -1))     // was Sub(x1*cos, x2*sin)
-//   o2 = Add(x2*cos, x1*sin)
-//   out = concat([o1, o2], axis=-1)
-//
-// The CPU/GPU plugin's RoPEFusionGPTNEOX matcher expects:
-//   x_rot = concat([-x2, x1], axis=-1)
-//   out = x * cos + x_rot * sin
-//
-// Mathematically equivalent. This pass rewrites the vLLM form so
-// RoPEFusion can collapse it into a single RoPE primitive.
-//
-// Note: assumes ConvertSubtract has already run (which is true for all
-// current CPU/GPU pipelines — it lives in ov::pass::CommonOptimizations).
+// Rewrites vLLM's split/multiply/add neox-style RoPE lowering into the
+// concat([-x2,x1])+cos/sin form RoPEFusionGPTNEOX expects. Assumes
+// ConvertSubtract (ov::pass::CommonOptimizations) has already run.
 NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
     MATCHER_SCOPE(NormalizeVLLMRoPE);
     using namespace pattern;
@@ -96,9 +84,8 @@ NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
         mul_d = std::dynamic_pointer_cast<ov::op::v1::Multiply>(add_branch->get_input_node_shared_ptr(1));
         if (!mul_a || !mul_b || !mul_c || !mul_d) return false;
 
-        // Trace each multiply's inputs back to a Split output (possibly through
-        // view-changing ops Unsqueeze/Reshape/Squeeze). Return the split output
-        // (with its .get_index() intact) and the "other side" (cos or sin).
+        // Trace each multiply's inputs back through view ops to a Split
+        // output, returning it (index intact) and the other side (cos/sin).
         auto is_any_split = [](const std::shared_ptr<ov::Node>& n) {
             return std::dynamic_pointer_cast<ov::op::v1::Split>(n) != nullptr ||
                    std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(n) != nullptr;

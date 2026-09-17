@@ -91,11 +91,9 @@ RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert, bool enable_without_
     auto div_x = pattern::wrap_type<v1::Divide>({x, sqrt});
     auto mul_or_div = std::make_shared<pattern::op::Or>(OutputVector{mul1, div_x});
 
-    // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma (gamma is constant)
-    // Allow an optional Convert between the rsqrt-multiply and the gamma
-    // multiply: with model dtype = bf16/f16 the rsqrt branch runs in f32 and
-    // the residual stream is narrow, so a Convert appears in between. The
-    // Convert is matched as an optional node so this is dtype-agnostic.
+    // x * 1/Sqrt(ReduceMean(x^2,axes)+eps) * gamma (gamma is constant).
+    // Convert is optional between rsqrt-multiply and gamma multiply, for
+    // narrow-dtype models where the rsqrt branch runs in f32.
     auto gamma = pattern::wrap_type<v0::Constant>();
     auto gamma_convert = pattern::optional<v0::Convert>(gamma);
     auto mul_or_div_cvt = pattern::optional<v0::Convert>(mul_or_div);
@@ -103,14 +101,8 @@ RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert, bool enable_without_
 
     std::shared_ptr<ov::Node> rms_mul;
     if (enable_without_gamma) {
-        // When enable_without_gamma is true we accept three trailing forms:
-        //   1. Multiply(gamma, rsqrt-branch)                    -- standard RMS
-        //   2. No trailing Multiply at all                      -- Gemma v_norm,
-        //      LTX-Video style (upstream d04123f36d+). Requires
-        //      BackwardGraphRewrite so the gamma Multiply is visited first.
-        //   3. Multiply(rsqrt-branch, dynamic_scale) where the scale is not
-        //      a Constant (e.g. gate / activation / residual). Enables
-        //      partial fusion up to mul_or_div (commit 6b80671ce2).
+        // enable_without_gamma also accepts no trailing Multiply, or one
+        // with a non-Constant (dynamic) scale instead of gamma.
         auto no_gamma = pattern::optional<v1::Multiply>({mul_or_div, gamma_convert});
         auto scale = pattern::any_input(pattern::class_other_than<v0::Constant>());
         auto mul_with_scale = pattern::wrap_type<v1::Multiply>({mul_or_div_cvt, scale});
@@ -141,13 +133,8 @@ RMSFusionMatcher::RMSFusionMatcher(bool force_tail_convert, bool enable_without_
         }
 
         auto mul_or_div_node = pattern_map.at(mul_or_div).get_node_shared_ptr();
-        // Key off gamma itself, not rms_mul: under enable_without_gamma rms_mul
-        // is an Or, which lands in the map whenever any of its three branches
-        // matched -- including the two that carry no gamma (the bare
-        // mul_or_div form, and Multiply(mul_or_div, dynamic_scale)). Keying off
-        // the Or made at(gamma) below throw map::at for those. In practice the
-        // Constant-gamma branch matches first, so this only surfaced once gamma
-        // arrived as a Parameter rather than a Constant (vLLM bf16 weights).
+        // Key off gamma itself, not rms_mul: the Or can match a no-gamma
+        // branch, and keying off it would throw map::at(gamma) for those.
         bool elementwise_affine = pattern_map.count(gamma);
 
         std::shared_ptr<ov::Node> gamma_node;
