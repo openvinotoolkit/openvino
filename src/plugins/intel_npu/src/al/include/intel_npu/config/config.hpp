@@ -70,8 +70,41 @@ TYPE_PRINTER(std::size_t)
 // OptionParser
 //
 
+namespace details {
+
+template <typename T, typename = void>
+struct IsIStreamable : std::false_type {};
+
 template <typename T>
-struct OptionParser;
+struct IsIStreamable<T, std::void_t<decltype(std::declval<std::istream&>() >> std::declval<T&>())>> : std::true_type {};
+
+template <typename T, typename = void>
+struct IsOStreamable : std::false_type {};
+
+template <typename T>
+struct IsOStreamable<T, std::void_t<decltype(std::declval<std::ostream&>() << std::declval<const T&>())>>
+    : std::true_type {};
+
+}  // namespace details
+
+// Default parser, relies on the `operator>>` declared for the value type. All the `ov::` property enums and
+// wrappers provide one, so enum options usually don't need any parsing code of their own. Specialize this
+// template or override `parse()` inside the option for types which have no such operator.
+template <typename T>
+struct OptionParser {
+    static T parse(std::string_view val) {
+        static_assert(details::IsIStreamable<T>::value,
+                      "No `operator>>` is available for the option type, please provide either an `OptionParser` "
+                      "specialization or a `parse()` implementation inside the option");
+
+        std::istringstream stream{std::string(val)};
+        T res{};
+        stream >> res;
+        OPENVINO_ASSERT(!stream.fail(), "Value '", val, "' is not a valid option value");
+
+        return res;
+    }
+};
 
 template <>
 struct OptionParser<std::string> final {
@@ -108,16 +141,6 @@ struct OptionParser<uint64_t> final {
 template <>
 struct OptionParser<double> final {
     static double parse(std::string_view val);
-};
-
-template <>
-struct OptionParser<ov::log::Level> final {
-    static ov::log::Level parse(std::string_view val);
-};
-
-template <>
-struct OptionParser<ov::hint::ExecutionMode> final {
-    static ov::hint::ExecutionMode parse(std::string_view val);
 };
 
 void splitAndApply(const std::string& str, char delim, std::function<void(std::string_view)> callback);
@@ -178,7 +201,8 @@ struct OptionPrinter final {
         std::stringstream ss;
         if constexpr (std::is_floating_point_v<std::decay_t<T>>) {
             ss << std::fixed << std::setprecision(2) << val;
-        } else if constexpr (std::is_enum_v<std::decay_t<T>>) {
+        } else if constexpr (std::is_enum_v<std::decay_t<T>> && !details::IsOStreamable<std::decay_t<T>>::value) {
+            // Enums which don't provide an `operator<<` are expected to provide a `stringifyEnum` overload
             ss << stringifyEnum(val);
         } else {
             ss << val;
@@ -217,16 +241,6 @@ struct OptionPrinter<std::chrono::duration<Rep, Period>> final {
     static std::string toString(const std::chrono::duration<Rep, Period>& val) {
         return std::to_string(val.count());
     }
-};
-
-template <>
-struct OptionPrinter<ov::log::Level> final {
-    static std::string toString(ov::log::Level val);
-};
-
-template <>
-struct OptionPrinter<ov::hint::ExecutionMode> final {
-    static std::string toString(ov::hint::ExecutionMode val);
 };
 
 //
@@ -360,29 +374,19 @@ struct OptionConcept final {
     std::string_view (*key)() = nullptr;
     std::string_view (*envVar)() = nullptr;
     OptionMode (*mode)() = nullptr;
-    std::shared_ptr<OptionValue> (*validateAndParseFromString)(std::string_view val) = nullptr;
-    std::shared_ptr<OptionValue> (*validateAndParseFromAny)(const ov::Any& val) = nullptr;
+    std::shared_ptr<OptionValue> (*validateAndParse)(const ov::Any& val) = nullptr;
 };
 
 template <class Opt>
-std::shared_ptr<OptionValue> validateAndParseFromString(std::string_view val) {
+std::shared_ptr<OptionValue> validateAndParse(const ov::Any& val) {
     using ValueType = typename Opt::ValueType;
 
     try {
-        auto parsedVal = Opt::parse(val);
-        Opt::validateValue(parsedVal);
-        return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
-    } catch (const std::exception& e) {
-        OPENVINO_THROW("Failed to parse '", Opt::key().data(), "' option : ", e.what());
-    }
-}
-
-template <class Opt>
-std::shared_ptr<OptionValue> validateAndParseFromAny(const ov::Any& val) {
-    using ValueType = typename Opt::ValueType;
-
-    try {
-        auto parsedVal = val.as<ValueType>();
+        // A string payload is routed through the option's own parser, so that string based and `ov::Any` based
+        // updates accept exactly the same spellings and any custom `parse()` is honored. `ov::Any::as()` would
+        // otherwise re-parse the string on its own, through `operator>>`, bypassing the option entirely.
+        // For options which are themselves strings this is an identity conversion, hence the uniform handling.
+        auto parsedVal = val.is<std::string>() ? Opt::parse(val.as<std::string>()) : val.as<ValueType>();
         Opt::validateValue(parsedVal);
         return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
     } catch (const std::exception& e) {
@@ -392,7 +396,7 @@ std::shared_ptr<OptionValue> validateAndParseFromAny(const ov::Any& val) {
 
 template <class Opt>
 OptionConcept makeOptionModel() {
-    return {&Opt::key, &Opt::envVar, &Opt::mode, &validateAndParseFromString<Opt>, &validateAndParseFromAny<Opt>};
+    return {&Opt::key, &Opt::envVar, &Opt::mode, &validateAndParse<Opt>};
 }
 
 }  // namespace details
@@ -441,34 +445,91 @@ class Config final {
 public:
     using ConfigMap = std::map<std::string, std::string>;
 
+    /**
+     * @brief Constructs a configuration bound to the given options descriptor.
+     * @param desc Descriptor holding the set of options accepted by this configuration. Must not be null.
+     */
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
+    /**
+     * @brief Parses and stores all the given key/value pairs, overwriting previously set values.
+     * @param options Map of option keys to their string representation.
+     */
     void update(const ConfigMap& options);
-    void updateAny(const ov::AnyMap& options);
 
-    void update(std::string_view key, std::string_view value);
+    /**
+     * @brief Parses and stores a single option value, overwriting a previously set one.
+     * @param key The key of the option to set.
+     * @param value The string representation of the value to set.
+     */
+    void update(std::string_view key, std::string value);
+
+    /**
+     * @brief Parses and stores a single option value given as an "ov::Any", overwriting a previously set one.
+     * @param key The key of the option to set.
+     * @param value The value to set, in its native "ov::Any" representation.
+     */
     void updateAny(std::string_view key, const ov::Any& value);
 
+    /**
+     * @brief Sets the options for which an associated environment variable is defined and exported.
+     * Values which cannot be parsed are ignored and only reported as warnings.
+     */
     void parseEnvVars();
 
+    /**
+     * @brief Checks if a value has been set for the given option.
+     * @tparam Opt The option to check.
+     * @return True if a value was set, false if only the default value (if any) is available.
+     */
     template <class Opt>
     bool has() const;
 
+    /**
+     * @brief Checks if a value has been set for the option identified by the given key.
+     * @param key The key of the option to check.
+     * @return True if a value was set, false if only the default value (if any) is available.
+     */
     bool has(std::string key) const;
+
+    /**
+     * @brief Erases the value set for the given option key. Does nothing if no value was set.
+     * @param key The key of the option to erase.
+     */
     void remove(std::string key);
 
+    /**
+     * @brief Removes all compile-time and internal compiler configuration entries.
+     * This is used when a compiler type is not explicitly selected and the config must be reset
+     * to a runtime-only state.
+     */
+    void removeCompileTimeConfigs();
+
+    /**
+     * @brief Retrieves the value of the given option, falling back to its default value if none was set.
+     * @tparam Opt The option to retrieve.
+     * @return The option's value.
+     * @throws ov::Exception If no value was set and the option has no default value.
+     */
     template <class Opt>
     typename Opt::ValueType get() const;
 
+    /**
+     * @brief Retrieves the value of the given option as a string, using the same fallback rules as "get".
+     * @tparam Opt The option to retrieve.
+     * @return The string representation of the option's value.
+     */
     template <class Opt>
     typename std::string getString() const;
 
+    /**
+     * @brief Restores the configuration from a string previously produced by "toString".
+     * @param str A space-separated sequence of KEY="VALUE" entries.
+     */
     void fromString(const std::string& str);
 
     // Returns a string with all config keys which have set values
     std::string toString() const;
-
-    virtual ~Config() = default;
 
     /**
      * @brief Checks if a specific option exists in the configuration's descriptorDesc.
@@ -499,13 +560,6 @@ public:
     bool hasInternal(std::string_view key) const;
 
     /**
-     * @brief Removes all compile-time and internal compiler configuration entries.
-     * This is used when a compiler type is not explicitly selected and the config must be reset
-     * to a runtime-only state.
-     */
-    void removeCompileTimeConfigs();
-
-    /**
      * @brief Retrieves an internal configuration value by its key.
      * @param key The key of the internal configuration to retrieve.
      * @return The value associated with the specified internal configuration key.
@@ -518,6 +572,8 @@ public:
      * @return A string containing the supported configuration keys and values.
      */
     std::string toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const;
+
+    virtual ~Config() = default;
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;
