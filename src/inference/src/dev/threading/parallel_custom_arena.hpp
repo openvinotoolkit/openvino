@@ -80,6 +80,10 @@ struct constraints {
         max_threads_per_core = threads_number;
         return *this;
     }
+    constraints& set_processor_group_base(int base) {
+        processor_group_base = base;
+        return *this;
+    }
 
     numa_node_id numa_id = tbb::task_arena::automatic;
     int max_concurrency = tbb::task_arena::automatic;
@@ -87,9 +91,12 @@ struct constraints {
     // Upper 4 bits reserved for format marker (single vs multiple core types)
     static constexpr size_t core_type_id_bits = sizeof(core_type_id) * CHAR_BIT - 4;
     int max_threads_per_core = tbb::task_arena::automatic;
+    // Per-stream offset for soft (non-pinning) distribution of the arena's threads across Windows
+    // processor groups (>64 logical processors). Negative means no group policy.
+    int processor_group_base = -1;
 };
 
-#if USE_TBBBIND_2_5
+#    if USE_TBBBIND_2_5
 class binding_handler;
 class binding_observer : public tbb::task_scheduler_observer {
     binding_handler* my_binding_handler;
@@ -110,16 +117,52 @@ struct binding_observer_deleter {
 };
 
 using binding_oberver_ptr = std::unique_ptr<binding_observer, binding_observer_deleter>;
-#endif
+#    endif
+
+#    if defined(_WIN32)
+// Distributes an arena's worker threads across Windows processor groups without core pinning: each
+// entering thread is soft-bound (full active group mask) to group (base + slot) % group_count, and its
+// previous group affinity is restored on scheduler exit. This lets a single stream span multiple groups.
+class group_affinity_observer : public tbb::task_scheduler_observer {
+    // Per-stream group offset stored as a plain type so this header stays free of <windows.h>.
+    int my_group_base = -1;
+    bool my_valid = false;
+
+public:
+    group_affinity_observer(tbb::task_arena& ta, int group_base);
+
+    bool valid() const {
+        return my_valid;
+    }
+
+    void on_scheduler_entry(bool) override;
+    void on_scheduler_exit(bool) override;
+};
+
+struct group_affinity_observer_deleter {
+    void operator()(group_affinity_observer* observer) const {
+        observer->observe(false);
+        delete observer;
+    }
+};
+
+using group_affinity_observer_ptr = std::unique_ptr<group_affinity_observer, group_affinity_observer_deleter>;
+#    endif
 }  // namespace detail
 
 class task_arena {
     tbb::task_arena my_task_arena;
     std::once_flag my_initialization_state;
     detail::constraints my_constraints;
-#if USE_TBBBIND_2_5
+#    if USE_TBBBIND_2_5
     detail::binding_oberver_ptr my_binding_observer;
-#endif
+#    endif
+#    if defined(_WIN32)
+    detail::group_affinity_observer_ptr my_group_affinity_observer;
+    std::once_flag my_group_observer_state;
+#    endif
+
+    void init_group_affinity_observer();
 
 public:
     using constraints = detail::constraints;

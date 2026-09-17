@@ -33,11 +33,12 @@ JitConstants PSROIPoolingKernelRef::GetJitConstants(const roi_pooling_params& rp
         MakeJitConstant("SPATIAL_BINS_Y", rp.spatial_bins_y),
     });
 
-    if (rp.mode == PoolType::DEFORMABLE_BILINEAR)
+    if (rp.mode == PoolType::DEFORMABLE_BILINEAR) {
         jit.AddConstants({MakeJitConstant("TRANS_STD", rp.trans_std),
                           MakeJitConstant("NO_TRANS", rp.no_trans),
                           MakeJitConstant("PART_SIZE", rp.part_size),
                           MakeJitConstant("GROUP_SIZE", rp.group_size)});
+    }
 
     return jit;
 }

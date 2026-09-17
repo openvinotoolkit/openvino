@@ -358,7 +358,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {IsInf,                 {{false, false}, {false, true}, {true, false}, {true, true}}},
         {IsNaN,                 {{}}},
 #endif
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
         {Mish,                  {{}}},
 #endif
         {Sigmoid,               {{}}},
