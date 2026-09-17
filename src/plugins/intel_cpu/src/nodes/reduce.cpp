@@ -2341,11 +2341,11 @@ void Reduce::prepareParams() {
     auto builder = [&]([[maybe_unused]] const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
         std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
 #if defined(OPENVINO_ARCH_X86_64)
-        if (mayiuse(cpu::x64::avx512_core)) {
+        if (ov::with_cpu_x86_avx512_core()) {
             post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::avx512_core>>(key.jcp, *attr.get());
-        } else if (mayiuse(cpu::x64::avx2)) {
+        } else if (ov::with_cpu_x86_avx2()) {
             post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::avx2>>(key.jcp, *attr.get());
-        } else if (mayiuse(cpu::x64::sse41)) {
+        } else if (ov::with_cpu_x86_sse42()) {
             post_kernel = std::make_shared<jit_uni_reduce_post_kernel_f32<cpu::x64::sse41>>(key.jcp, *attr.get());
         }
 #endif  // OPENVINO_ARCH_X86_64
@@ -2462,11 +2462,11 @@ void Reduce::createPrimitive() {
 void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel,
                                   [[maybe_unused]] const jit_reduce_config_params& jcp) {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>>(jcp);
-    } else if (mayiuse(cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx2>>(jcp);
-    } else if (mayiuse(cpu::x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::sse41>>(jcp);
     }
 #endif  // OPENVINO_ARCH_X86_64

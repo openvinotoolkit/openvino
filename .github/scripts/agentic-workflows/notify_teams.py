@@ -18,15 +18,29 @@ from typing import Any
 
 from common import post_adaptive_card, read_agent_item, require_env
 
+# Per-source presentation: badge shown in the card title and the base name used
+# for the uploaded statistics artifact. Defaults to merge queue for backward
+# compatibility when the agent omits the `source` field.
+SOURCE_META: dict[str, dict[str, str]] = {
+    "merge_queue": {"badge": "MQ", "label": "Merge Queue", "artifact": "ci-doctor-mq-statistics"},
+    "post_commit": {"badge": "PC", "label": "Post-Commit", "artifact": "ci-doctor-post-commit-statistics"},
+}
 
-def persist_statistics(item: dict[str, Any]) -> str:
+
+def resolve_source(item: dict[str, Any]) -> dict[str, str]:
+    """Map the agent-supplied `source` field to its presentation metadata."""
+    raw = (item.get("source") or "merge_queue").strip().lower().replace("-", "_").replace(" ", "_")
+    return SOURCE_META.get(raw, SOURCE_META["merge_queue"])
+
+
+def persist_statistics(item: dict[str, Any], artifact_base: str) -> str:
     """Persist the statistics database as workflow-artifact files; return its dir."""
-    stats_dir = os.path.join(os.environ.get("RUNNER_TEMP", "/tmp"), "ci-doctor-mq-stats")
+    stats_dir = os.path.join(os.environ.get("RUNNER_TEMP", "/tmp"), f"{artifact_base}")
     os.makedirs(stats_dir, exist_ok=True)
 
     statistics_json = item.get("statistics_json") or ""
     if statistics_json:
-        stats_json_path = os.path.join(stats_dir, "ci-doctor-mq-statistics.json")
+        stats_json_path = os.path.join(stats_dir, f"{artifact_base}.json")
         try:
             # Validate and pretty-print; fall back to raw on parse error.
             parsed = json.loads(statistics_json)
@@ -40,7 +54,7 @@ def persist_statistics(item: dict[str, Any]) -> str:
 
     statistics = item.get("statistics") or ""
     if statistics:
-        with open(os.path.join(stats_dir, "ci-doctor-mq-statistics.md"), "w", encoding="utf-8") as handle:
+        with open(os.path.join(stats_dir, f"{artifact_base}.md"), "w", encoding="utf-8") as handle:
             handle.write(statistics + "\n")
     return stats_dir
 
@@ -53,9 +67,9 @@ def record_step_output(name: str, value: str) -> None:
             handle.write(f"{name}={value}\n")
 
 
-def build_facts(item: dict[str, Any]) -> list[dict[str, str]]:
+def build_facts(item: dict[str, Any], source: dict[str, str]) -> list[dict[str, str]]:
     """Build the Adaptive Card FactSet, including only populated fields."""
-    facts: list[dict[str, str]] = []
+    facts: list[dict[str, str]] = [{"title": "Source", "value": source["label"]}]
     failed_workflow = item.get("failed_workflow") or ""
     pipeline_url = item.get("pipeline_url") or ""
     pr_number = item.get("pr_number") or ""
@@ -80,14 +94,14 @@ def build_facts(item: dict[str, Any]) -> list[dict[str, str]]:
     return facts
 
 
-def build_body(item: dict[str, Any], facts: list[dict[str, str]]) -> list[dict[str, Any]]:
+def build_body(item: dict[str, Any], facts: list[dict[str, str]], source: dict[str, str]) -> list[dict[str, Any]]:
     """Build the Adaptive Card body blocks for the investigation notification."""
     title = item.get("title") or ""
     description = item.get("description") or ""
     statistics = item.get("statistics") or ""
 
     body: list[dict[str, Any]] = [
-        {"type": "TextBlock", "text": f"\U0001f534 [MQ] {title}", "weight": "Bolder", "size": "Medium", "color": "Attention", "wrap": True},
+        {"type": "TextBlock", "text": f"\U0001f534 [{source['badge']}] {title}", "weight": "Bolder", "size": "Medium", "color": "Attention", "wrap": True},
         {"type": "FactSet", "facts": facts},
         {"type": "TextBlock", "text": description, "wrap": True, "spacing": "Medium"},
     ]
@@ -100,13 +114,15 @@ def build_body(item: dict[str, Any], facts: list[dict[str, str]]) -> list[dict[s
 def main() -> None:
     webhook_url = require_env("TEAMS_WEBHOOK_URL", "TEAMS_WEBHOOK_URL secret is not configured")
     item = read_agent_item("notify_teams")
+    source = resolve_source(item)
 
     # Persist the full statistics database as a workflow artifact for offline review.
-    stats_dir = persist_statistics(item)
+    stats_dir = persist_statistics(item, source["artifact"])
     record_step_output("stats_dir", stats_dir)
+    record_step_output("artifact_name", source["artifact"])
 
-    facts = build_facts(item)
-    body = build_body(item, facts)
+    facts = build_facts(item, source)
+    body = build_body(item, facts, source)
     post_adaptive_card(webhook_url, body)
 
 

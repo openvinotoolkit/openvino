@@ -60,7 +60,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-lin-x64-docker-4c16gb
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -101,7 +101,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-lin-x64-build-16c32gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux_2_28 }}
       volumes:
@@ -328,7 +328,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        nodejs-version: [21, 22, 24, 26]
+        nodejs-version: [22, 24, 26]
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
