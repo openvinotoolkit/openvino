@@ -13,10 +13,10 @@ namespace util {
 
 OPENVINO_API Tensor greater_equal(const ov::Tensor& lhs, const ov::Tensor& rhs);
 template <typename T>
-Tensor greater_equal(const ov::Tensor& lhs, const T& element);
+OPENVINO_API Tensor greater_equal(const ov::Tensor& lhs, const T& element);
 OPENVINO_API bool reduce_and(const ov::Tensor& t);
 template <typename T>
-std::optional<std::vector<T>> to_vector(const ov::Tensor& t);
+OPENVINO_API std::optional<std::vector<T>> to_vector(const ov::Tensor& t);
 
 template <typename T>
 Tensor make_tensor_of_value(const element::Type_t& et, const T& value, Shape shape = {}) {
