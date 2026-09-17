@@ -23,7 +23,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <sdkddkver.h>
 #ifdef NTDDI_WIN10_RS5
 #include <appmodel.h>

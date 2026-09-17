@@ -35,7 +35,7 @@
 #    include <unistd.h>
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #    define stat _stat
 #endif
 
