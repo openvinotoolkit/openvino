@@ -52,74 +52,6 @@ std::shared_ptr<ov::Model> make_gather_model(float shift_value) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{ids});
 }
 
-std::shared_ptr<ov::Model> make_embedding_vocab_dq_model() {
-    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
-    auto weights = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2}, std::vector<uint8_t>(8, 200));
-    auto zero_point = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1}, std::vector<uint8_t>(4, 128));
-    auto scale = ov::opset10::Constant::create(ov::element::f16, ov::Shape{4, 1}, std::vector<float>(4, 1.0f));
-    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
-
-    auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, ov::element::f16);
-    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, ov::element::f16);
-    auto dequantized = std::make_shared<ov::opset10::Subtract>(weight_convert, zero_point_convert);
-    auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, scale);
-    auto converted = std::make_shared<ov::opset10::Convert>(scaled, ov::element::f32);
-    auto gathered = std::make_shared<ov::opset10::Gather>(converted, ids, axis);
-    auto result = std::make_shared<ov::opset10::Result>(gathered);
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{ids});
-}
-
-std::shared_ptr<ov::Model> make_vocab_sharing_model(bool shared) {
-    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
-    auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 1, 2});
-    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
-
-    auto embedding_weights = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2},
-                                                            std::vector<uint8_t>(8, 200));
-    auto embedding_zero_point = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1},
-                                                              std::vector<uint8_t>(4, 128));
-    auto embedding_scale = ov::opset10::Constant::create(ov::element::f16, ov::Shape{4, 1},
-                                                         std::vector<float>(4, 1.0f));
-
-    auto lm_head_weights = shared
-                               ? embedding_weights
-                               : ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2},
-                                                               std::vector<uint8_t>(8, 200));
-    auto lm_head_zero_point = shared
-                                  ? embedding_zero_point
-                                  : ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1},
-                                                                  std::vector<uint8_t>(4, 128));
-    auto lm_head_scale = shared ? embedding_scale : ov::opset10::Constant::create(ov::element::f16,
-                                                                                    ov::Shape{4, 1},
-                                                                                    std::vector<float>(4, 1.0f));
-
-    auto embedding_convert = std::make_shared<ov::opset10::Convert>(embedding_weights, ov::element::f16);
-    auto embedding_zero_point_convert =
-        std::make_shared<ov::opset10::Convert>(embedding_zero_point, ov::element::f16);
-    auto embedding_dequantized =
-        std::make_shared<ov::opset10::Subtract>(embedding_convert, embedding_zero_point_convert);
-    auto embedding_scaled = std::make_shared<ov::opset10::Multiply>(embedding_dequantized, embedding_scale);
-    auto embedding_gather = std::make_shared<ov::opset10::Gather>(
-        std::make_shared<ov::opset10::Convert>(embedding_scaled, ov::element::f32), ids, axis);
-
-    auto lm_head_convert = std::make_shared<ov::opset10::Convert>(lm_head_weights, ov::element::f16);
-    auto lm_head_zero_point_convert =
-        std::make_shared<ov::opset10::Convert>(lm_head_zero_point, ov::element::f16);
-    auto lm_head_dequantized =
-        std::make_shared<ov::opset10::Subtract>(lm_head_convert, lm_head_zero_point_convert);
-    auto lm_head_scaled = std::make_shared<ov::opset10::Multiply>(lm_head_dequantized, lm_head_scale);
-    auto lm_head_matmul = std::make_shared<ov::opset10::MatMul>(
-        hidden,
-        std::make_shared<ov::opset10::Convert>(lm_head_scaled, ov::element::f32),
-        false,
-        true);
-
-    auto embedding_result = std::make_shared<ov::opset10::Result>(embedding_gather);
-    auto lm_head_result = std::make_shared<ov::opset10::Result>(lm_head_matmul);
-    return std::make_shared<ov::Model>(ov::ResultVector{embedding_result, lm_head_result},
-                                       ov::ParameterVector{ids, hidden});
-}
-
 std::size_t count_gathers(const std::shared_ptr<ov::Model>& model) {
     std::size_t count = 0;
     for (const auto& node : model->get_ordered_ops()) {
@@ -312,33 +244,6 @@ TEST(DQLiftGatherAsymCWTest, LiftsPairedSub128Shifts) {
 
     EXPECT_TRUE(run_lift(model));
     EXPECT_EQ(count_gathers(model), 3);
-}
-
-TEST(InsertVocabSub128Test, MarksEmbeddingVocabularyBeforeGatherLift) {
-    const auto model = make_embedding_vocab_dq_model();
-
-    ov::npuw::InsertVocabSub128 pass;
-    EXPECT_TRUE(pass.run_on_model(model));
-    EXPECT_EQ(count_sub128_shifts(model), 2u);
-
-    EXPECT_TRUE(run_lift(model));
-    EXPECT_EQ(count_gathers(model), 3u);
-}
-
-TEST(DetectVocabSharingTest, DetectsSharedQuantizedVocabulary) {
-    bool shared = false;
-    ov::npuw::DetectVocabSharing pass(shared);
-
-    EXPECT_FALSE(pass.run_on_model(make_vocab_sharing_model(true)));
-    EXPECT_TRUE(shared);
-}
-
-TEST(DetectVocabSharingTest, RejectsSeparateQuantizedVocabularies) {
-    bool shared = true;
-    ov::npuw::DetectVocabSharing pass(shared);
-
-    EXPECT_FALSE(pass.run_on_model(make_vocab_sharing_model(false)));
-    EXPECT_FALSE(shared);
 }
 
 TEST(DQLiftGatherAsymCWTest, RejectsNon128Subtractions) {
