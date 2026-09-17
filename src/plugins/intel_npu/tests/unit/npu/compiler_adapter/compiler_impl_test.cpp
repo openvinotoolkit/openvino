@@ -31,6 +31,7 @@ using ::intel_npu::FilteredConfig;
 using ::intel_npu::IDevice;
 using ::intel_npu::OptionsDesc;
 using ::intel_npu::OptionSupportCache;
+using ::intel_npu::ScopedOptionSupportCache;
 using ::intel_npu::VCLCompilerImpl;
 
 namespace {
@@ -75,7 +76,7 @@ struct VCLCompilerImplTest : public ::testing::Test {
     /// cache the compiler is queried on every call, which is the makeCompiler() behaviour above.
     std::shared_ptr<VCLCompilerImpl> makeCachingCompiler(const std::shared_ptr<OptionSupportCache>& cache,
                                                          const OptionSupportCache::CacheKey key = kFirstKey) {
-        return std::make_shared<VCLCompilerImpl>(fake.functions(), std::nullopt, cache, key);
+        return std::make_shared<VCLCompilerImpl>(fake.functions(), std::nullopt, ScopedOptionSupportCache{cache, key});
     }
 
     /// Number of times the compiler library was actually asked about an option.

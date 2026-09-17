@@ -131,12 +131,10 @@ static std::optional<std::string> getVCLCompatibilityString(const VCLFunctionTab
 
 VCLCompilerImpl::VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
                                  const std::optional<IDevice::DeviceProperties>& deviceProperties,
-                                 const std::shared_ptr<OptionSupportCache>& optionSupportCache,
-                                 const OptionSupportCache::CacheKey optionSupportCacheKey)
+                                 ScopedOptionSupportCache optionSupportCache)
     : _functions(std::move(functions)),
       _logHandle(nullptr),
-      _optionSupportCache(optionSupportCache),
-      _optionSupportCacheKey(optionSupportCacheKey),
+      _optionSupportCache(std::move(optionSupportCache)),
       _logger("VCLCompilerImpl", Logger::global().level()) {
     _logger.debug("VCLCompilerImpl constructor start");
 
@@ -661,18 +659,16 @@ std::vector<std::string> VCLCompilerImpl::get_supported_options() const {
         compilerOpts.push_back(option);
     }
 
-    if (_optionSupportCache) {
-        _optionSupportCache->setSupportedOptions(_optionSupportCacheKey, compilerOpts);
-    }
+    _optionSupportCache.setSupportedOptions(compilerOpts);
 
     return compilerOpts;
 }
 
 bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::optional<std::string>& optValue) const {
     // The cache is keyed by option name alone, so it can only answer queries that do not carry a value.
-    const bool useCache = _optionSupportCache && !optValue.has_value();
+    const bool useCache = !optValue.has_value();
     if (useCache) {
-        const auto cachedSupport = _optionSupportCache->isOptionSupported(_optionSupportCacheKey, option);
+        const auto cachedSupport = _optionSupportCache.isOptionSupported(option);
         if (cachedSupport.has_value()) {
             return cachedSupport.value();
         }
@@ -693,7 +689,7 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     }
 
     if (useCache) {
-        _optionSupportCache->addSupportedOption(_optionSupportCacheKey, option, supported);
+        _optionSupportCache.addSupportedOption(option, supported);
     }
 
     return supported;

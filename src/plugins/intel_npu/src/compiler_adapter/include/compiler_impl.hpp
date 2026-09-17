@@ -27,16 +27,13 @@ class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImp
 public:
     /**
      * @param functions A shared pointer to the VCL function table
-     * @param optionSupportCache The cache used for storing the compiler's option support answers. May be null, in
-     *        which case the compiler is queried every time.
-     * @param optionSupportCacheKey The key under which this compiler's entries are stored inside the option support
-     *        cache. Only meaningful if an option support cache was provided.
      * @param deviceProperties The properties of the device the compilation targets, if known
+     * @param optionSupportCache The cache used for storing the compiler's option support answers, already bound to
+     *        this compiler's cache key. May be disabled, in which case the compiler is queried every time.
      */
     VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
                     const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
-                    const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr,
-                    const OptionSupportCache::CacheKey optionSupportCacheKey = 0);
+                    ScopedOptionSupportCache optionSupportCache = {});
     ~VCLCompilerImpl();
 
     /**
@@ -133,8 +130,7 @@ private:
     vcl_version_info_t _vclVersion;
     vcl_version_info_t _vclProfilingVersion;
 
-    std::shared_ptr<OptionSupportCache> _optionSupportCache;
-    OptionSupportCache::CacheKey _optionSupportCacheKey;
+    ScopedOptionSupportCache _optionSupportCache;
 
     Logger _logger;
 };
