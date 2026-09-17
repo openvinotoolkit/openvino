@@ -552,17 +552,23 @@ inline size_t micro_get_num_heads(const kernel_impl_params& params, size_t qkv_i
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         switch (qkv_idx) {
-        case 0:
-            return get_num_heads(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
-        case 1:
-            return get_num_heads(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-        case 2:
-            return get_num_heads(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+        case 0: {
+            const auto num_heads = get_num_heads(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for Q");
+        }
+        case 1: {
+            const auto num_heads = get_num_heads(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for K");
+        }
+        case 2: {
+            const auto num_heads = get_num_heads(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+            return ensure_positive_dim(num_heads, "number of heads for V");
+        }
         default:
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
         }
     }
-    return -1;
+    OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_num_heads");
 }
 
 inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_idx) {
@@ -581,17 +587,23 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         switch (qkv_idx) {
-        case 0:
-            return get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
-        case 1:
-            return get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-        case 2:
-            return get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+        case 0: {
+            const auto head_size = get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+            return ensure_positive_dim(head_size, "head size for Q");
+        }
+        case 1: {
+            const auto head_size = get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+            return ensure_positive_dim(head_size, "head size for K");
+        }
+        case 2: {
+            const auto head_size = get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+            return ensure_positive_dim(head_size, "head size for V");
+        }
         default:
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
         }
     }
-    return -1;
+    OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_head_size");
 }
 
 inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, int32_t qkv_idx) {
@@ -1376,6 +1388,10 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
 
     size_t scale_input_idx = 4;
     jit.make("IS_CAUSAL", config.is_causal);
+    // Stateless decode (seq_q < seq_kv with a causal mask aligned to the bottom-right corner)
+    // shifts the causal diagonal by (k - q). Only the plain-SDPA kernel consumes this: paged
+    // attention derives the same shift from past_len in the .cl, so the macro stays off there.
+    jit.make("CAUSAL_MASK_LOWER_RIGHT", config.is_paged_attention ? false : config.causal_lower_right);
     if (!config.is_paged_attention) {
         const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
         if (config.has_const_attn_mask_val) {
@@ -1413,6 +1429,12 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
                     // with a per-key mask [B,H,1,K] (kind 1). Both stages are compiled as
                     // separate kernels (regular_micro_multi_tokens / _single_token), each
                     // getting the right specialization here.
+                    // This is an inference, not a proof: a DYNAMIC per-key mask [B,H,1,K] at
+                    // prefill is also compiled as kind 2. The kernel therefore re-checks the
+                    // runtime dims (MSK_D2/MSK_D3) when it loads the full-2D tile and clamps
+                    // to row/column 0 -- see the mask_full block in sdpa_ocl.cl -- so a
+                    // 1-row/1-col mask stays in bounds and correct without disabling the
+                    // specialization for the common full-2D case.
                     mask_kind = m_is_prefill ? 2 : 1;
                 }
             }
