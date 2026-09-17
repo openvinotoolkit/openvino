@@ -1096,6 +1096,7 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
         LOG_DEBUG("Deserializing CompiledModelDesc...");
     }
     LOG_BLOCK();
+
     ov::SoPtr<ov::ICompiledModel> imported_compiled_model;
     std::optional<ov::npuw::s11n::SubmodelDeserializeCtx> resolved_submodel_ctx;
     if (orc_device_index.has_value() || (stream.input() && submodel_ctx != nullptr && submodel_ctx->device_by_index)) {
