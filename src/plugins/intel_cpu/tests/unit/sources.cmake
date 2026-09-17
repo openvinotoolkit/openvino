@@ -11,6 +11,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_zero_dims_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rt_cache.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph/dummy_node.hpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/enforce_inference_precision_bf16_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/inplace_resolve_io.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/memory_state.cpp
@@ -150,6 +151,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/transpose_shape_infernece_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/unsqueeze_shape_inference_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/utils.hpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/variadic_split_shape_inference_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/adaptive_avg_pool.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/adaptive_max_pool.cpp
@@ -157,6 +159,7 @@ set(CPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/color_covert_shape_inference.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/convolution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/custom_shape_infer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/custom_shape_infer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/elementwises.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/fullconnect.cpp
     ${CMAKE_CURRENT_LIST_DIR}/shape_inference_test/custom_shape_infer/gather.cpp

@@ -47,8 +47,8 @@ endif()
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
-    SOURCES
-        ${CPU_UNIT_TESTS_SRCS}
+        SOURCES
+            ${CPU_UNIT_TESTS_SRCS}
         INCLUDES
             PUBLIC
                 $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src

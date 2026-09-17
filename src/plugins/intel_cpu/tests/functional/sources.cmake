@@ -155,14 +155,23 @@ set(TMP_LIST_OF_COMMON_SUBGRAPH_TESTS
 
 set(TMP_LIST_OF_SUBGRAPH_TEST_CLASSES
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/concat_sdp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/concat_sdp.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/conv_concat.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/conv_concat.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/conv_maxpool_activ.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/conv_maxpool_activ.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/eltwise_chain.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/eltwise_chain.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/fuse_transpose_reorder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/fuse_transpose_reorder.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/matmul_weights_decompression.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/matmul_weights_decompression.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/moe.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/moe.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/paged_attn.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/paged_attn.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/selective_ssm.cpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/stateful_sdpa_bool_mask.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/stateful_sdpa_bool_mask.hpp
     ${CMAKE_CURRENT_LIST_DIR}/custom/subgraph_tests/src/classes/undefined_et.cpp
 )
