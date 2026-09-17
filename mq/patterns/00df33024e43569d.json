@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "test process was killed with a signal 3221225477 during npu model hub pytorch tests|Flaky Test",
+  "signature_hash": "00df33024e43569d",
+  "title": "EasyOCR detector model test killed with signal on NPU Model Hub tests (Windows)",
+  "category": "Flaky Test",
+  "count": 1,
+  "first_seen": "2026-09-17T08:43:38Z",
+  "last_seen": "2026-09-17T08:43:38Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35192554362"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38209"
+  ],
+  "recent_timestamps": [
+    "2026-09-17T08:43:38Z"
+  ],
+  "rerun_search_string": "was killed with a signal 3221225477"
+}

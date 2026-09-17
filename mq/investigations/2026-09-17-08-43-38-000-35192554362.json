@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-17-08-43-38-000-35192554362",
+  "timestamp": "2026-09-17T08:43:38Z",
+  "run_id": "35192554362",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35192554362",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38209",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38209",
+  "author": "andrew-k-park",
+  "category": "Flaky Test",
+  "title": "EasyOCR detector model test killed with signal on NPU Model Hub tests (Windows)",
+  "signature": "test process was killed with a signal 3221225477 during npu model hub pytorch tests|Flaky Test",
+  "signature_hash": "00df33024e43569d",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 5020",
+      "conclusion": "failure",
+      "symptom": "test_easyocr.py::TestEasyOCRConvertModel::test_convert_model[NPU-detector] subprocess killed with signal 3221225477 (STATUS_ACCESS_VIOLATION) on Windows NPU runner"
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregated status check failed because NPU Models Tests job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED install\\tests\\model_hub_tests\\pytorch\\test_easyocr.py::TestEasyOCRConvertModel::test_convert_model[NPU-detector] - multiprocessing.context.ProcessError: detector was killed with a signal 3221225477",
+    "===== 1 failed, 3 passed, 7 skipped, 232 deselected in 755.19s (0:12:35) ======"
+  ],
+  "root_cause": "The EasyOCR 'detector' model conversion/inference subprocess crashed on the Windows NPU runner with exit code 3221225477 (0xC0000005, STATUS_ACCESS_VIOLATION). This is not tied to the PR under test (#38209 only touches a GPU FP16 precision transformation for Qwen-Image gated residual, unrelated to EasyOCR/NPU model-hub conversion). The multiprocessing wrapper (multiprocessing_utils.py) detected the child process exited via an OS-level access violation rather than a Python exception, consistent with a native crash inside the NPU driver/runtime or model conversion path for this specific model, not a deterministic code regression from the PR diff.",
+  "reproduction_steps": "Run pytest install/tests/model_hub_tests/pytorch/test_easyocr.py::TestEasyOCRConvertModel::test_convert_model -k 'NPU-detector' on a Windows machine with an NPU device and the same driver/runtime stack as the CI runner (5020 platform). Reproduction outside CI is unreliable since it depends on native NPU driver state.",
+  "recommended_actions": [
+    "Re-run the failed NPU Models Tests job; access-violation crashes in native NPU inference are frequently transient runner/driver state issues.",
+    "If the failure recurs consistently for the EasyOCR detector model, escalate to the NPU plugin team to check for a native crash (e.g., via crash dump or driver logs) in the detector model's compiled graph.",
+    "Consider adding a skip/xfail marker for this specific model on NPU precommit until root-caused, if it keeps blocking unrelated merge-queue PRs."
+  ],
+  "prevention_strategies": "Track NPU model-hub test stability separately from PR-specific validation; consider adding a health-check gate that flags known-flaky NPU model tests instead of blocking the merge queue for unrelated changes.",
+  "historical_context": "No prior pattern record for this specific ProcessError/signal combination was found in the CI Doctor MQ database. A related but distinct pattern (EasyOCR model download failing with HTTP 504) has occurred twice (signature_hash 9cb03e077ef3024a), confirming EasyOCR-related NPU/PyTorch model-hub tests have a history of infrastructure-level flakiness in this repository."
+}
