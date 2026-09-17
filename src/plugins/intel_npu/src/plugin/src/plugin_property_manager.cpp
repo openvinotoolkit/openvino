@@ -265,9 +265,8 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     return propertyDescriptorIt->second.isPublic && propertyDescriptorIt->second.isSupported(propertyArguments);
 }
 
-std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownProperties(
-    const ov::AnyMap& properties,
-    ConfigMergeMode mergeMode) {
+std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownProperties(const ov::AnyMap& properties,
+                                                                                         ConfigMergeMode mergeMode) {
     bool loadedFromCache = false;
     if (mergeMode == ConfigMergeMode::Import) {
         // In case of importing a model, the loaded_from_cache property is used to determine whether the model was

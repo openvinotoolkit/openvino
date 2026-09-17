@@ -214,7 +214,7 @@ Plugin::Plugin() : _logger("NPUPlugin", Logger::global().level()) {
 
     // parse env_variables to get LOG_LEVEL if needed
     options->add<LOG_LEVEL>();
-    std::shared_ptr<FilteredConfig> config = std::make_shared<FilteredConfig>(options);
+    std::shared_ptr<Config> config = std::make_shared<Config>(options);
     config->parseEnvVars();
     Logger::global().setLevel(config->get<LOG_LEVEL>());
     _logger.setLevel(config->get<LOG_LEVEL>());

@@ -209,10 +209,6 @@ stores user-defined values from the `OptionsDesc` layer and implements the top-l
 get/update/updateAny/has/getString/toString/fromString and handles typecasts, type verification, parsing and conversions.
 It also applies availability and support filtering based on the current system configuration and compiler type.
 
-The target design is one unified `Config` class that combines the current `Config` and `FilteredConfig` responsibilities.
-Today, `FilteredConfig` is still a derived implementation used by the NPU plugin; it is not a separate conceptual
-configuration layer in the target design.
-
 In plugin bootstrap, `Config` is created early from a minimal descriptor (`LOG_LEVEL`), then expanded in place as the
 shared `OptionsDesc` is populated and environment variables are reparsed.
 
@@ -256,56 +252,48 @@ Example:
 // 
 // EXAMPLE_PROPERTY 
 //  
-struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::ExampleType> {  
+struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::ExampleType> {
 
-    static std::string_view key() { 
+    static std::string_view key() {
         return ov::intel_npu::example_property.name();
-        } 
+    }
 
-    static constexpr std::string_view getTypeName() { 
-        return "ov::intel_npu::ExampleType"; 
-    } 
+    static constexpr std::string_view getTypeName() {
+        return "ov::intel_npu::ExampleType";
+    }
 
-    static ov::intel_npu::ExampleType defaultValue() { 
-        return ov::intel_npu::ExampleType::VAL3; 
-    } 
+    static ov::intel_npu::ExampleType defaultValue() {
+        return ov::intel_npu::ExampleType::VAL3;
+    }
 
-    static bool isPublic() { 
-        return true; 
-    } 
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
 
-    static OptionMode mode() { 
-        return OptionMode::Both; 
-    } 
-     
-    static ov::PropertyMutability mutability() { 
-        return ov::PropertyMutability::RW; 
-    } 
-     
-    static std::string_view envVar() { 
-        return "IE_NPU_EXAMPLE_PROPERTY"; 
-    } 
+    static std::string_view envVar() {
+        return "IE_NPU_EXAMPLE_PROPERTY";
+    }
 
-    static ov::intel_npu::ExampleType parse(std::string_view val) { 
-        if (val == "VAL1") { 
-            return ov::intel_npu::ExampleType::VAL1; 
-        } else if (val == "VAL2") { 
-            return ov::intel_npu::ExampleType::VAL2; 
-        } else if (val == "VAL3") { 
-            return ov::intel_npu::ExampleType::VAL3; 
-        } 
+    static ov::intel_npu::ExampleType parse(std::string_view val) {
+        if (val == "VAL1") {
+            return ov::intel_npu::ExampleType::VAL1;
+        } else if (val == "VAL2") {
+            return ov::intel_npu::ExampleType::VAL2;
+        } else if (val == "VAL3") {
+            return ov::intel_npu::ExampleType::VAL3;
+        }
 
-        OPENVINO_THROW("Value '", val, "'is not a valid EXAMPLE_PROPERTY option"); 
-    } 
+        OPENVINO_THROW("Value '", val, "'is not a valid EXAMPLE_PROPERTY option");
+    }
 
-    static std::string toString(const ov::intel_npu::ExampleType& val) { 
-        std::stringstream strStream; 
+    static std::string toString(const ov::intel_npu::ExampleType& val) {
+        std::stringstream strStream;
 
-        strStream << val; 
+        strStream << val;
 
-        return strStream.str(); 
-    } 
-}; 
+        return strStream.str();
+    }
+};
 ```
 Notes:  
 - key(): needs to return the string name of the property (the NPU_EXAMPLE_PROPERTY defined in the property at step 1)  
