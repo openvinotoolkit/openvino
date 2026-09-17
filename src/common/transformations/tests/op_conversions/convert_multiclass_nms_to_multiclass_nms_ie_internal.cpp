@@ -40,8 +40,8 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
         auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
         auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
         auto nms = std::make_shared<ov::op::internal::MulticlassNmsIEInternal>(boxes,
-                                          scores,
-                                          ov::op::v9::MulticlassNms::Attributes());
+                                                                               scores,
+                                                                               ov::op::v9::MulticlassNms::Attributes());
 
         model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
