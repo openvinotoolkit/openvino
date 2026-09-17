@@ -30,6 +30,27 @@ MAX_NEW_TOKENS = 32
 SKIP_WARMUP_TOKENS = 5
 
 
+def _worker_kv_update_flags(worker):
+    """Read the KV-cache-update flags from inside the engine worker.
+
+    Shipped to the worker by `LLM.collective_rpc`: the model runner lives in
+    its own process, so the flags the plugin touches during load are not
+    visible from the test process. Returns `(stock class flag, sorted set of
+    the loaded model's per-layer flags)`.
+    """
+    from vllm.v1.attention.backends.cpu_attn import CPUAttentionBackend
+
+    model = worker.model_runner.get_model()
+    layer_flags = {
+        m.attn_backend.forward_includes_kv_cache_update
+        for m in model.modules()
+        # Not every layer holding `attn_backend` holds a backend class there;
+        # the encoder ones hold an AttentionBackendEnum.
+        if isinstance(getattr(m, "attn_backend", None), type)
+    }
+    return CPUAttentionBackend.forward_includes_kv_cache_update, sorted(layer_flags)
+
+
 def _generate(llm, prompt, params):
     out = llm.generate([{"prompt": prompt}], params)
     return out[0].outputs[0]
@@ -86,8 +107,23 @@ def test_openvino_matches_eager_greedy():
     )
     try:
         ov_text = _run(ov_llm, PROMPT, MAX_NEW_TOKENS, SKIP_WARMUP_TOKENS)
+        kv_update_flags = ov_llm.collective_rpc(_worker_kv_update_flags)
     finally:
         del ov_llm
 
     assert eager_text == ov_text, (
         f"OV and eager outputs diverge:\n  eager:    {eager_text!r}\n  openvino: {ov_text!r}")
+
+    # The OV backend takes over the paged KV-cache write, which means telling
+    # vLLM that forward() already updates the cache. It must do that on its own
+    # attention layers only: flipping the flag on CPUAttentionBackend itself
+    # would silently disarm unified_kv_cache_update for every other model in
+    # that worker (a draft/eagle model loaded alongside, a second engine in an
+    # in-process executor), which is exactly the kind of mutated reference this
+    # test exists to rule out. See plugin._own_kv_cache_update.
+    stock_flag, layer_flags = kv_update_flags[0]
+    assert stock_flag is False, (
+        "OV load mutated CPUAttentionBackend.forward_includes_kv_cache_update "
+        "process-wide in the engine worker")
+    assert layer_flags == [True], (
+        f"OV model's attention layers did not take over the KV-cache write: {layer_flags}")

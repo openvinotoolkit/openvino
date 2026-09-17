@@ -71,6 +71,49 @@ def _install_ov_lm_head(model) -> None:
         logger.debug("[OV plugin] lm_head fast path unavailable: %s", _e)
 
 
+_KV_UPDATE_BACKENDS: dict = {}
+
+
+def _kv_update_owned_backend(base):
+    """Memoized `base` subclass reporting forward_includes_kv_cache_update=True.
+
+    Memoized because the runner dedupes attention groups by backend class
+    (`full_cls_name`, gpu_model_runner.py:6997) and also collects the classes
+    themselves into a set: handing out a freshly built class per layer would
+    split the one CPU_ATTN group into N.
+    """
+    cached = _KV_UPDATE_BACKENDS.get(base)
+    if cached is None:
+        from vllm.v1.attention.backend import subclass_attention_backend_with_overrides
+        cached = subclass_attention_backend_with_overrides(
+            name_prefix="OVKVUpdate",
+            attention_backend_cls=base,
+            overrides={"forward_includes_kv_cache_update": True},
+        )
+        _KV_UPDATE_BACKENDS[base] = cached
+    return cached
+
+
+def _own_kv_cache_update(model) -> int:
+    """Point this model's attention layers at a kv-update-owning backend.
+
+    OV's PagedAttention does the paged write itself, so vLLM's separate
+    unified_kv_cache_update op (attention.py:546,566) is redundant and, having
+    no OV translator, would be stranded in eager PyTorch by the partitioner.
+    Scoped per layer, not on CPUAttentionBackend, which is process-global.
+    """
+    from vllm.v1.attention.backend import AttentionBackend
+    swapped = 0
+    for module in model.modules():
+        # Some layers hold an AttentionBackendEnum here, not a backend class.
+        backend = getattr(module, "attn_backend", None)
+        if (isinstance(backend, type) and issubclass(backend, AttentionBackend)
+                and not backend.forward_includes_kv_cache_update):
+            module.attn_backend = _kv_update_owned_backend(backend)
+            swapped += 1
+    return swapped
+
+
 def _patch_cpu_model_runner():
     try:
         from vllm.v1.worker.cpu_model_runner import CPUModelRunner
@@ -106,42 +149,20 @@ def _patch_cpu_model_runner():
             except Exception as _e:
                 logger.debug("[OV plugin] _supports_onednn restore skipped: %s", _e)
 
-        # OV's PagedAttentionExtension writes KV cache itself; suppress vLLM's
-        # separate op, which else strands ~49 eager nodes per graph.
-        if is_ov:
-            try:
-                from vllm.v1.attention.backends import cpu_attn as _cpu_attn
-                _cls = _cpu_attn.CPUAttentionBackend
-                if not getattr(_cls, "_ov_plugin_kv_update_patched", False):
-                    _cls._ov_plugin_kv_update_saved = _cls.forward_includes_kv_cache_update
-                    _cls.forward_includes_kv_cache_update = True
-                    _cls._ov_plugin_kv_update_patched = True
-                    logger.debug(
-                        "[OV plugin] CPUAttentionBackend."
-                        "forward_includes_kv_cache_update forced True "
-                        "(OV PagedAttention owns the KV-cache write)")
-            except Exception as _e:
-                logger.debug(
-                    "[OV plugin] kv_cache_update suppression skipped: %s", _e)
-        else:
-            try:
-                from vllm.v1.attention.backends import cpu_attn as _cpu_attn
-                _cls = _cpu_attn.CPUAttentionBackend
-                if getattr(_cls, "_ov_plugin_kv_update_patched", False):
-                    _cls.forward_includes_kv_cache_update = getattr(
-                        _cls, "_ov_plugin_kv_update_saved", False)
-                    _cls._ov_plugin_kv_update_patched = False
-                    logger.debug(
-                        "[OV plugin] CPUAttentionBackend."
-                        "forward_includes_kv_cache_update restored "
-                        "(backend != openvino)")
-            except Exception as _e:
-                logger.debug(
-                    "[OV plugin] kv_cache_update restore skipped: %s", _e)
-
         _orig_load_model(self, load_dummy_weights)
         if not is_ov:
             return
+
+        # Hand the KV-cache write to OV's PagedAttention for this model's
+        # layers only; see _own_kv_cache_update.
+        try:
+            _n = _own_kv_cache_update(self.model)
+            logger.debug(
+                "[OV plugin] kv-cache update ownership moved to OV "
+                "PagedAttention for %d attention layer(s)", _n)
+        except Exception as _e:
+            logger.debug(
+                "[OV plugin] kv_cache_update suppression skipped: %s", _e)
 
         # Gated here rather than in register() so eager/inductor workers do not
         # get monkey-patched with the OV sampler path.
