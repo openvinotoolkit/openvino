@@ -120,50 +120,14 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
         return cpu::make_output_event(stream, instance.is_output());
     }
 
-    /// The original path: drain this rank's stream, then run the collective on
-    /// the coordinator's own queues and wait for it.  Kept for A/B against the
-    /// spliced path and as the fallback when the driver has no splice.
+    /// Fallback for drivers without zeCommandListImmediateAppendCommandListsExp,
+    /// and what TP_FORCE_SYNC_COLLECTIVE selects.  Drains this rank's stream,
+    /// then runs the collective on the coordinator's own queues and waits for
+    /// it.  Deliberately unmeasured: it is a correctness path, not a
+    /// performance one, and the A/B against the spliced path that its timers
+    /// once served is long settled.
     void run_synchronously(tp_allreduce_inst& instance, stream& stream) {
-        // This call is the seam in the stretch between two collectives:
-        // everything before it is the host dispatching the model's operations,
-        // and the call itself is the wait for this rank's GPU to catch up.
-        // The ranks arrive at the next collective ~90 us apart and the group
-        // moves at the speed of the last one, so which side of this seam the
-        // spread comes from decides whether anything can be done about it.
-        const bool skew_enabled = coordinator_of(instance)->profiling_host();
-        const auto t_fin = std::chrono::steady_clock::now();
         stream.finish();
-        if (skew_enabled) {
-            constexpr int kMaxRanks = 16;
-            // One thread per rank is inside a collective at a time, so plain
-            // counters indexed by rank race with nothing.
-            static uint64_t fin_calls[kMaxRanks]{};
-            static uint64_t fin_sum[kMaxRanks]{};
-            static uint64_t fin_min[kMaxRanks]{};
-            static uint64_t fin_max[kMaxRanks]{};
-            const auto dt = static_cast<uint64_t>(
-                std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    std::chrono::steady_clock::now() - t_fin)
-                    .count());
-            const int r = static_cast<int>(rank) % kMaxRanks;
-            fin_min[r] = fin_calls[r] == 0 ? dt : std::min(fin_min[r], dt);
-            fin_max[r] = std::max(fin_max[r], dt);
-            fin_sum[r] += dt;
-            if ((++fin_calls[r] % 6400) == 0 && r == 0) {
-                for (int i = 0; i < kMaxRanks; ++i) {
-                    if (fin_calls[i] == 0) {
-                        continue;
-                    }
-                    TP_REPORT << "[TP][SKEW] stream.finish rank " << i << " over "
-                                 << fin_calls[i] << " calls: mean="
-                                 << (static_cast<double>(fin_sum[i]) / 1.0e3 /
-                                     static_cast<double>(fin_calls[i]))
-                                 << "us min=" << (static_cast<double>(fin_min[i]) / 1.0e3)
-                                 << "us max=" << (static_cast<double>(fin_max[i]) / 1.0e3) << "us"
-                                 << std::endl;
-                }
-            }
-        }
 
         auto [in_dev, out_dev, num_elements, ov_dtype] = collective_operands(instance);
         coordinator_of(instance)->allreduce(static_cast<int>(collective_id),

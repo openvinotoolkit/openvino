@@ -41,11 +41,13 @@ public:
     FanOutVariableState(const std::string& name,
                         std::vector<ov::SoPtr<ov::IVariableState>> per_rank,
                         bool sharded,
-                        bool profiling)
+                        bool profiling,
+                        std::size_t dump_period)
         : ov::IVariableState(name),
           m_per_rank(std::move(per_rank)),
           m_sharded(sharded),
-          m_profiling(profiling) {}
+          m_profiling(profiling),
+          m_dump_period(std::max<std::size_t>(1, dump_period)) {}
 
     void reset() override {
         if (TP_VERBOSE_AT_LEAST(ov::log::Level::DEBUG)) {
@@ -61,22 +63,21 @@ public:
             }
         }
         using clk = std::chrono::steady_clock;
-        // Aggregate reset timings across all variables, dump once per
-        // batch (state.reset() is typically called for ~num_layers states
-        // back-to-back; reporting per-variable would be too noisy).
-        static thread_local std::vector<double> agg_ms;
-        static thread_local size_t agg_n = 0;
-        auto t0 = clk::now();
+        // Aggregate reset timings across all variables, dump once per period
+        // (state.reset() is typically called for ~num_layers states
+        // back-to-back; reporting per-variable would be too noisy).  Members,
+        // not statics: one accumulator per state object rather than one
+        // shared by every state of every model in the process.
+        const auto t0 = m_profiling ? clk::now() : clk::time_point{};
         for (auto& s : m_per_rank)
             s->reset();
         if (m_profiling) {
-            double ms = std::chrono::duration<double, std::milli>(clk::now() - t0).count();
-            if (agg_ms.size() < m_per_rank.size()) agg_ms.assign(m_per_rank.size(), 0.0);
-            agg_ms[0] += ms; // single timer covers all ranks (sequential calls)
-            ++agg_n;
-            if (agg_n % 32 == 0) {
-                TP_REPORT << "[TP][STATE] reset agg over " << agg_n
-                          << " calls: total_ms=" << agg_ms[0] << std::endl;
+            m_reset_ms += std::chrono::duration<double, std::milli>(clk::now() - t0).count();
+            ++m_reset_calls;
+            if (m_reset_calls - m_reset_last_dump >= m_dump_period) {
+                m_reset_last_dump = m_reset_calls;
+                TP_REPORT << "[TP][STATE] reset agg over " << m_reset_calls
+                          << " calls: total_ms=" << m_reset_ms << std::endl;
             }
         }
     }
@@ -224,6 +225,10 @@ private:
     std::vector<ov::SoPtr<ov::IVariableState>> m_per_rank;
     bool m_sharded;
     bool m_profiling;
+    std::size_t m_dump_period;
+    double m_reset_ms{0.0};
+    uint64_t m_reset_calls{0};
+    uint64_t m_reset_last_dump{0};
     mutable std::vector<size_t> m_rank_heads;
 };
 
@@ -413,9 +418,18 @@ void InferRequest::infer() {
     const auto& rank_compiled = m_compiled_model->get_rank_compiled();
     const size_t num_ranks = rank_compiled.size();
     const bool profiling_enabled = m_compiled_model->config().profiling_host();
+    if (profiling_enabled) {
+        ++m_infer_calls;
+    }
 
     using clock = std::chrono::steady_clock;
-    auto t0 = clock::now();
+    // Same rule as in the coordinator: with profiling off these are not cheap
+    // reads, they are no reads at all, and in a build without TP debug caps
+    // the whole block folds away.
+    auto stamp = [profiling_enabled]() -> clock::time_point {
+        return profiling_enabled ? clock::now() : clock::time_point{};
+    };
+    const auto t0 = stamp();
 
     // 1. Set user inputs on all rank requests.
     const auto& user_inputs = m_compiled_model->inputs();
@@ -436,12 +450,12 @@ void InferRequest::infer() {
 
     bind_cache();
 
-    auto t1 = clock::now();
+    const auto t1 = stamp();
 
     // 2. Launch all ranks in parallel.
     std::vector<double> per_rank_ms(profiling_enabled ? num_ranks : 0, 0.0);
     if (num_ranks == 1) {
-        auto r0 = clock::now();
+        const auto r0 = stamp();
         m_rank_requests[0]->infer();
         if (profiling_enabled) {
             per_rank_ms[0] = std::chrono::duration<double, std::milli>(clock::now() - r0).count();
@@ -450,22 +464,18 @@ void InferRequest::infer() {
         // Persistent threads, not one per inference.  How long a rank takes to
         // actually start matters far more than it looks: the ranks meet at
         // every AllReduce point, so the group moves at the speed of whichever
-        // rank started last, 64 times per token.  start_us records that spread
-        // so the two schemes can be compared on the same footing.
-        const bool skew_enabled = m_compiled_model->config().profiling_host();
-        static std::mutex skew_mutex;
-        static uint64_t skew_calls = 0;
-        static double skew_spread_us = 0.0;
-        static double skew_first_us = 0.0;
+        // rank started last, 65 times per token.  start_us records that
+        // spread.
+        const bool skew_enabled = profiling_enabled;
         std::vector<double> start_us(skew_enabled ? num_ranks : 0, 0.0);
-        const auto t_launch = clock::now();
+        const auto t_launch = stamp();
 
         m_compiled_model->rank_workers().run([&](std::size_t rank) {
             if (!start_us.empty()) {
                 start_us[rank] =
                     std::chrono::duration<double, std::micro>(clock::now() - t_launch).count();
             }
-            auto r0 = clock::now();
+            const auto r0 = stamp();
             m_rank_requests[rank]->infer();
             if (!per_rank_ms.empty()) {
                 per_rank_ms[rank] =
@@ -476,21 +486,28 @@ void InferRequest::infer() {
         if (skew_enabled) {
             const double lo = *std::min_element(start_us.begin(), start_us.end());
             const double hi = *std::max_element(start_us.begin(), start_us.end());
-            std::lock_guard<std::mutex> lock(skew_mutex);
-            skew_spread_us += hi - lo;
-            skew_first_us += lo;
-            if ((++skew_calls % 500) == 0) {
-                TP_REPORT << "[TP][SKEW] rank dispatch over " << skew_calls
+            m_dispatch_spread_us += hi - lo;
+            m_dispatch_first_us += lo;
+            ++m_dispatch_calls;
+            // One report per dump period, counted in inferences rather than
+            // collectives -- the period is expressed in rank-0 collective
+            // calls, and one inference issues one per slot.
+            const auto period = std::max<std::size_t>(
+                1, m_compiled_model->config().dump_period());
+            if (m_dispatch_calls - m_dispatch_last_dump >= period) {
+                m_dispatch_last_dump = m_dispatch_calls;
+                const auto n = static_cast<double>(m_dispatch_calls);
+                TP_REPORT << "[TP][RANK|host] rank dispatch over " << m_dispatch_calls
                           << " inferences: first rank starts after "
-                          << (skew_first_us / static_cast<double>(skew_calls)) << "us"
+                          << (m_dispatch_first_us / n) << "us"
                           << ", spread between ranks "
-                          << (skew_spread_us / static_cast<double>(skew_calls)) << "us"
+                          << (m_dispatch_spread_us / n) << "us"
                           << std::endl;
             }
         }
     }
 
-    auto t2 = clock::now();
+    const auto t2 = stamp();
 
     // 3. Collect outputs from rank 0.
     const auto& outputs = m_compiled_model->outputs();
@@ -501,9 +518,14 @@ void InferRequest::infer() {
         set_tensor(outputs[i], tensor);
     }
 
-    auto t3 = clock::now();
+    const auto t3 = stamp();
 
-    if (profiling_enabled) {
+    // Every profiling print obeys the dump period, this one included.  Unset
+    // means 1, so by default nothing is suppressed.
+    if (profiling_enabled && m_infer_calls - m_infer_last_dump >=
+                                 std::max<std::size_t>(
+                                     1, m_compiled_model->config().dump_period())) {
+        m_infer_last_dump = m_infer_calls;
         double ms_set = std::chrono::duration<double, std::milli>(t1 - t0).count();
         double ms_infer = std::chrono::duration<double, std::milli>(t2 - t1).count();
         double ms_collect = std::chrono::duration<double, std::milli>(t3 - t2).count();
@@ -559,7 +581,8 @@ std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
                         " of ", m_rank_requests.size(), " ranks");
         m_fanout_states.emplace_back(std::make_shared<FanOutVariableState>(
             kv.first, std::move(kv.second), sharded.count(kv.first) != 0,
-            m_compiled_model->config().profiling_host()));
+            m_compiled_model->config().profiling_host(),
+            m_compiled_model->config().dump_period()));
     }
     return m_fanout_states;
 }

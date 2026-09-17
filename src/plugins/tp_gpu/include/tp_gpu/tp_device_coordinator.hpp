@@ -120,14 +120,6 @@ public:
         return async_supported() && !m_config.force_sync_collective();
     }
 
-    /// Whether host-side timings are being kept.  Read by the primitives in
-    /// the intel_gpu plugin for the same reason as `run_spliced`: the
-    /// coordinator is the only handle they have on the configuration.
-    bool profiling_host() const {
-        return m_config.profiling_host();
-    }
-
-
     /// Marks the group as failed, wakes every waiting rank and makes all
     /// subsequent calls throw.  Safe to call from any rank; the first reason
     /// wins.  Must not be called while holding a rendezvous mutex.
@@ -218,17 +210,6 @@ private:
         ze_command_queue_handle_t   compute_queue{nullptr};
         ze_command_list_handle_t    compute_list{nullptr};
 
-        // Optional dedicated copy engine.  When the device exposes a
-        // copy-only queue group, we route the cross-device memcpy of the
-        // allreduce onto it.  This offloads the bulk PCIe DMA from the
-        // compute engine and typically lowers per-call submission latency
-        // for small transfers and improves throughput for large ones.
-        // When no dedicated copy engine exists, copy_queue stays null and
-        // the memcpy is recorded into compute_list as before.
-        bool                        has_dedicated_copy{false};
-        uint32_t                    copy_ordinal{0};
-        ze_command_queue_handle_t   copy_queue{nullptr};
-
         ze_module_handle_t          module{nullptr};
         ze_kernel_handle_t          kernel_f16{nullptr};
         ze_kernel_handle_t          kernel_f32{nullptr};
@@ -249,6 +230,14 @@ private:
         // the same command lists and the same rendezvous.
         enum class Kind { allreduce, gather };
         Kind                        kind{Kind::allreduce};
+
+        // Which schedule the recorded lists implement.  Chosen per recording
+        // by record_rank from the world size and the payload, and kept here
+        // because the events a rank is allowed to clear depend on it: every
+        // event has exactly one waiter, and which ones those are differs
+        // between the three schedules.
+        enum class Schedule { pair, ring, halving };
+        Schedule                    schedule{Schedule::pair};
 
         // Which of the coordinator's resource sets this plan draws on.  Baked
         // into the recording, because the staging addresses are.
@@ -283,6 +272,15 @@ private:
         // write it.
         std::unique_ptr<std::atomic<uint8_t>[]> in_flight;  // [N]
 
+        // What the splice that set in_flight[r] is moving across a device
+        // boundary.  Held per rank until the completion event of that same
+        // splice is read, so the bytes and the duration that get divided into
+        // a bandwidth belong to one instance.  Counting them at splice time
+        // instead made the two run at different rates -- the first dump
+        // divided a prefill's bytes by one decode sample and reported
+        // 734 GB/s.
+        std::vector<std::size_t>    spliced_bytes;  // [N]
+
         // Ring schedule: one event per (step, rank), signaled by the rank's
         // outgoing copy at that step and waited on by its successor.  Laid
         // out as [step * N + rank] over 2*(N-1) steps.
@@ -310,7 +308,6 @@ private:
         // all 64 collectives for nothing.  Empty on the immediate path,
         // which appends directly at execute time.
         std::vector<ze_command_list_handle_t> compute_lists;  // [N]
-        std::vector<ze_command_list_handle_t> copy_lists;     // [N], null without a copy engine
 
         // Per rank: whether that rank's lists hold commands matching the
         // signature above, and which scratch generation they were recorded
@@ -405,44 +402,77 @@ private:
         std::size_t                 n{0};
         ov::element::Type           dtype{ov::element::dynamic};
         // When the first rank reached this collective, used to measure how
-        // far behind the others are.  Only written under TP_SKEW.
+        // far behind the others are.  Only written when profiling is on.
         std::chrono::steady_clock::time_point first_arrival{};
     };
 
+    // A counter a std::vector can hold.  The slots are written by their own
+    // rank and read by rank 0 at dump time, so they have to be atomic; plain
+    // std::atomic is neither copyable nor movable and a vector of them cannot
+    // be sized with assign(), hence the wrapper.  Relaxed throughout: these
+    // are statistics, and no other memory is published through them.
+    struct Counter {
+        std::atomic<uint64_t> v{0};
+        Counter() = default;
+        explicit Counter(uint64_t init) : v(init) {}
+        Counter(const Counter& o) : v(o.get()) {}
+        Counter& operator=(const Counter& o) {
+            v.store(o.get(), std::memory_order_relaxed);
+            return *this;
+        }
+        uint64_t get() const { return v.load(std::memory_order_relaxed); }
+        void add(uint64_t d) { v.fetch_add(d, std::memory_order_relaxed); }
+        void bump() { add(1); }
+        void keep_max(uint64_t d) {
+            if (d > get()) {
+                v.store(d, std::memory_order_relaxed);
+            }
+        }
+        void keep_min(uint64_t d) {
+            if (d < get()) {
+                v.store(d, std::memory_order_relaxed);
+            }
+        }
+    };
+    using CounterVec = std::vector<Counter>;
+
+    /// Buckets of the device-occupancy histogram.  Bucket b covers
+    /// [2^b, 2^(b+1)) microseconds, so 20 of them reach a full second -- past
+    /// anything a collective should ever take, and the top one is a catch-all
+    /// anyway.
+    static constexpr int kDevBuckets = 20;
+
     // How far apart the ranks arrive at a collective, and what each of them
-    // spends its time waiting for.  Collected only when TP_SKEW is set, and
-    // deliberately separate from TP_PROF: profiling adds hundreds of
-    // microseconds per collective and would drown the imbalance being
-    // measured.  Every counter is indexed by rank and written only by that
-    // rank, except the two totals, which are written under the rendezvous
+    // spends its time waiting for.  Collected only when TP_PROFILING is set to
+    // anything but NONE.  Every counter is indexed by rank and written only by
+    // that rank, except the totals, which are written under the rendezvous
     // mutex by whichever rank arrives last.
     struct SkewStats {
-        std::vector<uint64_t> ph1_ns;      // [N] time spent in the enter barrier
-        std::vector<uint64_t> ph2_ns;      // [N] time spent in the execute phase
-        std::vector<uint64_t> ph3_ns;      // [N] time spent in the exit barrier
-        std::vector<uint64_t> late_ns;     // [N] arrival minus the first arrival
-        std::vector<uint64_t> last_count;  // [N] how often this rank arrived last
+        CounterVec ph1_ns;      // [N] time spent in the enter barrier
+        CounterVec ph2_ns;      // [N] time spent in the execute phase
+        CounterVec late_ns;     // [N] arrival minus the first arrival
+        CounterVec last_count;  // [N] how often this rank arrived last
         // The stretch of model work between leaving one collective and
         // reaching the next.  This is where the arrival skew is built, so it
         // is measured per rank with its extremes kept, not just averaged.
-        std::vector<uint64_t> seg_ns;      // [N] sum of segment durations
-        std::vector<uint64_t> seg_min_ns;  // [N]
-        std::vector<uint64_t> seg_max_ns;  // [N]
-        std::vector<uint64_t> seg_count;   // [N]
+        CounterVec seg_ns;      // [N] sum of segment durations
+        CounterVec seg_min_ns;  // [N]
+        CounterVec seg_max_ns;  // [N]
+        CounterVec seg_count;   // [N]
         std::vector<std::chrono::steady_clock::time_point> last_exit;  // [N]
         // Breakdown of ph2 on the splice path.  The phase looked far more
         // expensive than the 1.3 us the append itself costs, and the pieces
         // are not guessable from the outside: the gate is a condvar handoff
         // for every rank but rank 0, and the event wait is only supposed to
         // fire when the host has run two collectives ahead of the device.
-        std::vector<uint64_t> p2_gate_ns;    // [N] rank 0: prep; others: wait for `done`
-        std::vector<uint64_t> p2_rec_ns;     // [N] recording this rank's commands
-        std::vector<uint64_t> p2_wait_ns;    // [N] zeEventHostSynchronize on the previous splice
-        std::vector<uint64_t> p2_reset_ns;   // [N] zeEventHostReset
-        std::vector<uint64_t> p2_append_ns;  // [N] the splice itself
-        std::vector<uint64_t> p2_rec_count;  // [N] how often a re-record happened
-        std::vector<uint64_t> p2_wait_count; // [N] how often the previous splice was still in flight
-        std::vector<uint64_t> p2_block_count;// [N] how often that wait actually had to block
+        CounterVec p2_gate_ns;    // [N] rank 0: prep; others: wait for the record gate
+        CounterVec p2_rec_ns;     // [N] recording this rank's commands
+        CounterVec p2_wait_ns;    // [N] zeEventHostSynchronize on the previous splice
+        CounterVec p2_reset_ns;   // [N] zeEventHostReset
+        CounterVec p2_append_ns;  // [N] the splice itself
+        CounterVec p2_rec_count;  // [N] how often a re-record happened
+        CounterVec p2_wait_count; // [N] how often the previous splice was still in flight
+        CounterVec p2_block_count;// [N] how often that wait actually had to block
         // How long the spliced collective occupied the rank's queue, read off
         // the completion event's kernel timestamps.  This is the one part of
         // the cost that no host phase contains: the splice hands the work over
@@ -450,13 +480,107 @@ private:
         // all happen after every host measurement has ended.  Sampled where
         // the previous splice is already being queried anyway, so it costs one
         // extra call per collective and no synchronization.
-        std::vector<uint64_t> p2_dev_ns;     // [N] sum of (kernelEnd - kernelStart)
-        std::vector<uint64_t> p2_dev_max_ns; // [N]
-        std::vector<uint64_t> p2_dev_count;  // [N]
+        CounterVec p2_dev_ns;     // [N] sum of (kernelEnd - kernelStart)
+        CounterVec p2_dev_max_ns; // [N]
+        CounterVec p2_dev_count;  // [N]
+        // Which collective was responsible for that maximum.  All 65 slots are
+        // averaged together otherwise, and they are not the same size: knowing
+        // whether one of them dominates decides whether there is a single
+        // thing to optimize or a uniform cost to live with.
+        CounterVec p2_dev_max_cid; // [N]
+        // The mean above is useless on its own -- prefill and decode differ by
+        // two orders of magnitude and land in the same average.  A histogram
+        // over powers of two separates them without keeping samples.
+        // Flat [N * kDevBuckets]; bucket b holds durations in [2^b, 2^(b+1)) us.
+        CounterVec p2_dev_hist;
+        // Device time this rank spent NOT in a collective, between the end of
+        // one and the start of the next.  Both numbers come off completion
+        // events that are read anyway, so this costs nothing and answers the
+        // question the whole design rests on: what share of the token does the
+        // collective actually own.
+        CounterVec dev_gap_ns;    // [N]
+        CounterVec dev_gap_count; // [N]
+        // Where the previous collective ended on this rank, in that device's
+        // raw ticks, and which collective it was.  Written and read only by
+        // the owning rank, so they need no atomics; the id is what keeps the
+        // wrap from collective 64 back to 0 -- a gap containing the whole rest
+        // of the model -- out of the average.
+        std::vector<uint64_t> dev_last_end_ticks;  // [N]
+        std::vector<int>      dev_last_cid;        // [N]
+        // Bytes this rank pushed across a device boundary, summed over the
+        // collectives it took part in.  Arithmetic rather than measurement:
+        // the schedule fixes exactly how much every rank sends, so counting it
+        // is exact and free, and dividing it by the queue occupancy above is
+        // the only bandwidth figure the production path can produce.
+        CounterVec dev_bytes;     // [N]
+        // Which schedule the recordings used.  Written by the recording rank.
+        CounterVec n_pair;        // [N]
+        CounterVec n_ring;        // [N]
+        CounterVec n_halving;     // [N]
+        // The record gate has a fast path a rank takes when it can see for
+        // itself that neither the signature nor the arena moved.  It is the
+        // difference between a condvar handoff on every collective and almost
+        // none, so how often it actually holds is worth knowing rather than
+        // assuming.
+        CounterVec gate_fast;     // [N]
+        CounterVec gate_slow;     // [N]
         uint64_t spread_ns{0};             // sum of (last arrival - first arrival)
         uint64_t calls{0};
+        // Value of `calls` at the previous dump.  The trigger is "a period has
+        // passed", not "the count divides by the period": rank 0 makes one
+        // allreduce call per allreduce slot, but the period defaults to the
+        // number of collective slots, which also counts the gather.  The two
+        // differ by one, so an exact-division test lands on a multiple only by
+        // coincidence and a short run prints nothing at all.
+        uint64_t last_dump{0};
     };
     SkewStats                       m_skew;
+
+    /// The gather kept apart from the allreduces.  It is one collective out of
+    /// sixty-five but nothing like the others -- one strided copy per rank into
+    /// the root, sized by the vocabulary rather than the hidden dimension -- so
+    /// folding it into the same averages would hide both it and them.
+    struct GatherStats {
+        CounterVec barrier_ns;  // [N] the enter barrier
+        CounterVec append_ns;   // [N] the splice itself
+        CounterVec calls;       // [N]
+        CounterVec spliced;     // [N] how many of those rode the model queue
+        CounterVec records;     // [N] how often the recording had to be redone
+        CounterVec dev_ns;      // [N] queue occupancy, from the completion event
+        CounterVec dev_max_ns;  // [N]
+        CounterVec dev_count;   // [N]
+        CounterVec bytes;       // [N] what this rank copies into the root
+    };
+    GatherStats                     m_gather;
+
+    /// How far the host runs ahead of the devices, which is the entire point
+    /// of splicing and was until now the one thing nobody measured.  Kept as a
+    /// running count of this rank's handed-over-but-unaccounted splices: up on
+    /// every splice, down when its completion event is consumed.
+    struct RunAhead {
+        CounterVec now;    // [N] outstanding right now
+        CounterVec sum;    // [N] sum of `now` sampled at every splice
+        CounterVec max;    // [N]
+        CounterVec count;  // [N]
+    };
+    RunAhead                        m_ahead;
+
+    /// Rank-0 totals for the whole coordinator.  These used to be function
+    /// statics inside run_allreduce, which made them process-global: two
+    /// models in one process added their numbers together and neither report
+    /// meant anything.  Only rank 0 writes them and only rank 0 reads them at
+    /// dump time, but they are Counters anyway so the type matches the rest.
+    struct HostTotals {
+        Counter ph1_ns;
+        Counter ph2_ns;
+        Counter record_ns;   // the record gate
+        Counter splice_ns;   // handing the recording over
+        Counter prep_ns;     // barrier exit to the start of plan work
+        Counter tail_ns;     // handover done to returning
+        Counter rebuilds;    // arena growths
+        Counter records;     // re-recordings
+    };
+    HostTotals                      m_totals;
 
     void init_rank(RankState& rs);
     void destroy_rank(RankState& rs);
@@ -574,25 +698,20 @@ private:
     /// build_plan for safety.
     void ensure_plan_lists(Plan& plan);
 
-    /// True when the collective's events are cleared by commands appended to
-    /// the tail of the recorded command lists instead of by zeEventHostReset
-    /// in execute_plan.  The host reset is one driver round-trip per event on
-    /// every collective (64 per model step); the device-side reset is one
-    /// command-processor slot on a list that is already being drained.  The
-    /// saving grows with the world size: N=2 has 2 events, the N>2 ring has
-    /// one per (step, rank).  Excluded is device profiling, which reads kernel
-    /// timestamps back from those same events after the sync and would find
-    /// them wiped.
-    bool use_device_event_reset() const {
-        return !m_config.profiling_device();
-    }
+    /// Closes out one collective for the measurement bookkeeping: advances the
+    /// call counter and emits the reports when a dump period has gone by.
+    ///
+    /// Every collective must call this exactly once, from rank 0 and any rank
+    /// for the counter to stay honest -- allreduce, gather, and whatever is
+    /// added next.  Keeping the decision here rather than in one operation's
+    /// body is what stops a new collective from silently not counting: the
+    /// gather used to advance the counter but never close a period, so its
+    /// share of the work never produced a report.
+    void note_collective_done(int rank);
 
-    /// How many rank-0 collectives pass between two measurement dumps, or 0
-    /// when nothing is being measured.  One inference issues one call per
-    /// collective slot, so that count is what an unset period resolves to.
-    std::size_t dump_period() const {
-        return m_config.dump_period(static_cast<std::size_t>(m_num_collectives));
-    }
+    /// Prints the accumulated measurements.  Split out of note_collective_done
+    /// so the decision to report and the reporting itself stay separable.
+    void emit_report();
 
     bool ensure_scratch_capacity(std::size_t payload_bytes);
 
@@ -604,32 +723,6 @@ private:
     }
     void destroy_scratch();
     void* scratch_buffer(int index, int buffer) const;
-
-    // Per-call host-side breakdown of execute_plan().  Shaped so it stays
-    // meaningful for any world size: the per-rank sync times are folded into
-    // "the first queue we waited on" and "everything after it" instead of a
-    // per-rank vector that would allocate on a path taken 64 times per step.
-    struct ExecStats {
-        std::chrono::nanoseconds reset{};       // time spent resetting events on the host
-        std::chrono::nanoseconds submit{};      // all ExecuteCommandLists calls
-        std::chrono::nanoseconds sync_first{};  // first zeCommandQueueSynchronize
-        std::chrono::nanoseconds sync_rest{};   // sum of the remaining ones
-        // Device-side durations queried via kernel timestamps after sync.
-        // Aggregated along the critical path: concurrent transfers are folded
-        // with max, sequential phases are added.
-        std::chrono::nanoseconds dev_copy{};    // cross-device memcpy
-        std::chrono::nanoseconds dev_kernel{};  // reduce kernel(s)
-        std::chrono::nanoseconds dev_ts_query{};// time spent in zeEventQueryKernelTimestamp
-        // Payload of a single cross-device transfer (n*elem_bytes).  Used for
-        // per-link bandwidth, which is what the hardware limit is expressed in.
-        std::size_t              copy_bytes{0};
-        // Every byte that crosses a device boundary during the collective.
-        // N=2 moves 2*payload (one transfer each way); the N>2 ring moves
-        // 2*(N-1)*payload spread evenly over the N links.
-        std::size_t              copy_bytes_total{0};
-    };
-
-    void execute_plan(Plan& plan, ExecStats* stats = nullptr);
 
     /// Timeout translated to the nanosecond argument L0 sync calls take.
     /// Zero timeout maps to "no limit".
@@ -730,11 +823,23 @@ private:
     std::atomic<uint64_t>                    m_rec_reset_ns{0};
     std::atomic<uint64_t>                    m_rec_build_ns{0};
     std::atomic<uint64_t>                    m_rec_close_ns{0};
+    /// Closing a gather recording, kept apart: the gather never goes through
+    /// record_rank, so folding its close into m_rec_close_ns made the
+    /// "append" figure -- build minus close -- able to come out negative.
+    std::atomic<uint64_t>                    m_gather_close_ns{0};
 
-    /// zeCommandListClose with its cost attributed to m_rec_close_ns: closing
-    /// is where the driver finalizes the list, and it is the stage most likely
-    /// to dominate re-recording.
-    void close_list(ze_command_list_handle_t list);
+    /// Time rank 0 spends inside ensure_scratch_capacity when it has to grow
+    /// the arena.  That path drains every rank's queues before it can move the
+    /// staging addresses, so it is a full stop of the whole group -- rare, but
+    /// it lands in time to first token, which is where it is least welcome.
+    std::atomic<uint64_t>                    m_scratch_stall_ns{0};
+
+    /// zeCommandListClose with its cost attributed to `into`: closing is where
+    /// the driver finalizes the list, and it is the stage most likely to
+    /// dominate re-recording.  The accumulator is a parameter so the gather,
+    /// which does not share the rest of the recording breakdown, does not
+    /// contaminate it.
+    void close_list(ze_command_list_handle_t list, std::atomic<uint64_t>& into);
 };
 
 using TPDeviceCoordinatorPtr = std::shared_ptr<TPDeviceCoordinator>;

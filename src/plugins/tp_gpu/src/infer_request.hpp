@@ -76,6 +76,20 @@ private:
     mutable std::mutex m_state_mutex;
     mutable std::vector<ov::SoPtr<ov::IVariableState>> m_fanout_states;
 
+    /// How far apart the ranks start inside one inference.  Members rather
+    /// than function statics: statics are shared by every request in the
+    /// process, so with continuous batching the numbers of unrelated requests
+    /// were being averaged together.  Written only from infer(), which the
+    /// compiled model serializes.
+    double m_dispatch_spread_us{0.0};
+    double m_dispatch_first_us{0.0};
+    uint64_t m_dispatch_calls{0};
+    uint64_t m_dispatch_last_dump{0};
+
+    /// Same, for the per-inference breakdown line.
+    uint64_t m_infer_calls{0};
+    uint64_t m_infer_last_dump{0};
+
     /// User inputs that name a paged-attention cache port.  They are filled
     /// from the cache controller, not from the caller's tensors.
     std::unordered_set<size_t> m_cache_input_indices;
