@@ -302,7 +302,7 @@ Known Issues
 | **Component: CPU Plugin**
 | ID: CVS-193299
 | Description:
-| After upgrading to oneDNN rls-v3.13, a slight performance regression may be observed on Intel® Xeon® platforms for some convolution-intensive models.
+| After upgrading to oneDNN v3.13, a slight performance regression may be observed on Intel® Xeon® platforms for some convolution-intensive models.
 
 Previous 2026 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
