@@ -10,7 +10,7 @@ Sources of truth:
 - `src/plugins/intel_cpu/src/nodes/color_convert.cpp` — NV12/I420 converters on IR mode
 - `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel_target.{hpp,cpp}` — target capability queries (TTI analogue)
 - `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel_emit.hpp` — the arch emission interface (TargetInstrInfo analogue)
-- `src/plugins/intel_cpu/tests/unit/jit_kernel_ir_test.cpp` — 55 tests
+- `src/plugins/intel_cpu/tests/unit/jit_kernel_ir_test.cpp` — 56 tests
 - `src/plugins/intel_cpu/tests/unit/jit_kernel_test.cpp` — 4 tests
 
 ## Where the implementation stands relative to the design docs
@@ -278,14 +278,27 @@ Measured on this host (AVX-512), same kernels, both strategies passing:
 
 | Kernel | `mask` | `epilogue` | legacy |
 |---|---|---|---|
-| NV12→RGB f32 converter | 833 B | 1309 B | — |
+| NV12→RGB f32 converter | 924 B | 1444 B | — |
 | RoPE half (Llama2, f32) | 236 B | 301 B | 1088 B |
 
 The masked form is smaller because the body is recorded once instead of
-twice. `store_interleaved3` is the exception: x86 has no predicated
-interleaved store (`supports_masked_interleaved_access()` is false), so it
-uses the counted path even under mask folding — SVE's `ST3` and RVV's
-segment stores would take the predicate directly.
+twice. (Both grew by ~6% when the interleaved store became predicated; see
+hazard 6.)
+
+### Interleaved access
+
+`store_interleaved3` has two realizations for a short active length and
+the target chooses: predicate the three stores that write the interleave
+out, or build the interleave in a stack slot and copy `count*3` elements.
+x86 has no interleaved-store instruction and does not need one — the
+interleave is built with permutes and blends either way, so only the
+stores differ. SVE would use `ST3` under a governing predicate and RVV a
+segment store honouring `vl`.
+
+The three masks are slices of one computation: interleaving `count`
+elements writes `3*count` consecutive outputs, so the low `3*count` lane
+bits shifted by `N` and `2N` give the mask for each store. Constraint:
+`3*N` must fit a GPR.
 
 ### Arch emission interface
 
@@ -482,39 +495,47 @@ comparison against the peeled kernel. Findings:
    addressing off a displacement, and the remainder is a predicated
    full-width step rather than a narrower unpredicated one. Both are
    measured to be worth ~2 µs on QwenVL.
-6. **No predicated interleaved store on x86.** `store_interleaved3` under
-   a short active length still builds the interleave in a stack slot and
-   copies `count*3` elements out. Three separately-derived masks would fix
-   it on AVX-512 — output element `j` is active iff `j < 3*count`, so the
-   three stores want masks for `min(3c, N)`, `clamp(3c-N, 0, N)` and
-   `clamp(3c-2N, 0, N)`, all expressible with the primitives that already
-   exist. SVE (`ST3`) and RVV (segment stores) take the predicate
-   directly. `supports_masked_interleaved_access()` is the switch.
+6. ~~**No predicated interleaved store on x86.**~~ **Fixed** —
+   `supports_masked_interleaved_access()` answers true on AVX-512 and the
+   three stores that write the interleave out carry write-masks. The masks
+   are one computation, not three: interleaving `count` elements writes
+   `3*count` consecutive outputs, so the low `3*count` lane bits shifted
+   by `N` and `2N` give all three. Needs `3*N` to fit a GPR, true for
+   every x86 width (N=16 → 48 bits); wider falls back.
 
-   **This is now also the route to Phase A's second exit criterion.** The
-   plan was to test the predicated branch with a mock target, but there is
-   nothing to test: the branch does not exist, so a mock would assert on
-   code that throws. Implementing it for real on AVX-512 makes the query
-   return true natively and the branch reachable without a mock, which is
-   strictly better than mocking it.
-7. **The epilogue strategy records the body twice** — inherent to it, and
+   **Taken as a deliberate code-size regression**: 924 B against 869 B on
+   the NV12 converter, ~6% worse. It buys ~6 live GPR values instead of
+   ~20, no stack slot, and three vector stores instead of a
+   `3*count`-iteration scalar copy loop. Register pressure is what tips
+   it, since exhaustion is a hard failure with no spiller and has blocked
+   two kernels already. The runtime effect is **unmeasured** — there is no
+   ConvertColor benchmark instance, and on this branch's record
+   instruction counts have repeatedly not translated into time.
+7. **No ConvertColor benchmark instance.** `color_convert` is the only
+   `store_interleaved3` user and the only kernel whose tail realization
+   just changed, and there is nothing to measure it with. The RoPE
+   `BenchmarkLayerTest` wrappers are the pattern to copy
+   (`jit_kernel_validation.md` item 4).
+8. **The epilogue strategy records the body twice** — inherent to it, and
    now only chosen on targets without predication (AVX2, SSE, NEON). The
    masked strategy records once and is 36% smaller on the NV12 converter.
-8. **`length` (RVV) tail folding is declared, not implemented.** Needs a
+9. **`length` (RVV) tail folding is declared, not implemented.** Needs a
    RISC-V generator and `vl` modelled as machine state with `vsetvli`
    insertion in the loop header. `foreach_vec` throws instead of
    approximating it.
-9. **Only an x86-64 generator exists.** The DSL now has an arch boundary
+10. **Only an x86-64 generator exists.** The DSL now has an arch boundary
    for the portable constructs (`arch_emitter`, 16 primitives) but not for
    the ~50 vector operations kernels call directly, and `variable<T>` still
    names an Xbyak register type through `reg_traits`. See
    "Multi-architecture plan" below.
-10. **`bf16` store truncates** instead of rounding to nearest even
+11. **`bf16` store truncates** instead of rounding to nearest even
    (`vcvtneps2bf16` where available).
-11. **GPR-hungry scalarized access.** `ir_load_partial` /
+12. **GPR-hungry scalarized access.** `ir_load_partial` /
     `ir_store_partial` / `ir_memcpy` cost ~20 GPR values, which is why
-    they are now only reached on targets without predication.
-12. **Repo hygiene.** `jit_kernel.hpp` is past 2700 lines; the worktree
+    they are now only reached on targets without predication — and, since
+    hazard 6 was fixed, no longer reached by interleaved stores at all on
+    AVX-512.
+13. **Repo hygiene.** `jit_kernel.hpp` is past 2700 lines; the worktree
    carries `llvm-project/`, `dnnl_dump_*.bin` and `report_*.xml`
    untracked. The branch is not clang-format-clean
    and was not before this work either, so that belongs in its own commit.
@@ -745,11 +766,14 @@ register type through `reg_traits` (42 sites: byte size -> `Reg8` ...
 the other way round** — which is exactly what this phase existed to find
 out, and it inverts the assumed order.
 
-Second exit criterion revised: the predicated-interleaved-store branch
-cannot be tested with a mock, because the branch does not exist — a mock
-would assert on code that throws. Implement it for real on AVX-512
-instead (hazard 6); that makes the query return true natively and needs
-no mock.
+Second exit criterion: **met, by implementing the branch rather than
+mocking it.** Testing the predicated interleaved store with a mock turned
+out to be impossible — the branch did not exist, so the mock would have
+asserted on code that throws. It is now implemented on AVX-512 (hazard 6),
+the query answers true natively, and the test builds the same kernel under
+both answers in one process and checks the two realizations agree. That
+arrangement is what keeps the *losing* path tested once a target stops
+choosing it, which a mock alone would not have done.
 
 **Phase B — AArch64/NEON, fixed `N = 4`, one kernel.**
 No predication, so the target reports `epilogue` folding — the path
@@ -904,8 +928,8 @@ Every suite run in all **eight** combinations of `OV_JIT_IR_PEEL` ×
 strategies are env-selected, and `OV_JIT_TAIL_FOLDING=epilogue` is the
 only way to exercise the AVX2/NEON-shaped path on an AVX-512 machine:
 
-- `ov_cpu_unit_tests --gtest_filter='JitKernel*'`: **59/59 pass**
-  (55 `JitKernelIR.*`, 4 `JitKernel.*`).
+- `ov_cpu_unit_tests --gtest_filter='JitKernel*'`: **60/60 pass**
+  (56 `JitKernelIR.*`, 4 `JitKernel.*`).
 - `ov_cpu_func_tests --gtest_filter='smoke_TestsConvertColor*'`: **26/26
   pass**, including the `u8` accuracy case (144×16).
 - `OV_JIT_IR_ROPE=1 ov_cpu_func_tests --gtest_filter='smoke_RoPETest*'`:
