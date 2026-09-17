@@ -26,11 +26,11 @@ public:
 
     /// @brief Start recording operations executed on the associated stream.
     /// Executed commands are not submitted to the device during recording.
-    /// @param cmd_list Command list to record executed commands.
+    /// @param cmd_list Open command list to record executed commands.
     void start_recording(command_list::ptr cmd_list) {
+        OPENVINO_ASSERT(cmd_list->get_status() == command_list_status::open, "Can't start recording command list that is not open");
         std::lock_guard<std::mutex> lock(_mutex);
-        OPENVINO_ASSERT(_active_cmd_list == nullptr, "[GPU] Can't start recording while another recording is in progress");
-        cmd_list->reset();
+        OPENVINO_ASSERT(_active_cmd_list == nullptr, "Can't start recording while another recording is in progress");
         _active_cmd_list = cmd_list;
     }
     /// @brief Get command list that is currently being recorded.
@@ -43,9 +43,11 @@ public:
     /// @brief Stop recording and submit all recorded commands to the device.
     /// @return Command list with recorded commands or nullptr if stream was not recording.
     command_list::ptr stop_recording() {
-        std::lock_guard<std::mutex> lock(_mutex);
         command_list::ptr ret = nullptr;
-        _active_cmd_list.swap(ret);
+        {
+            std::lock_guard<std::mutex> lock(_mutex);
+            _active_cmd_list.swap(ret);
+        }
         if (ret != nullptr) {
             ret->close();
             ret->enqueue();

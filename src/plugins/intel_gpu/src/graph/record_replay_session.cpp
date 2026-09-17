@@ -22,6 +22,9 @@ void record_replay_session::begin_recording(const std::vector<std::shared_ptr<ev
         // Ensure dependencies complete before recording
         _stream.enqueue_barrier(deps);
     }
+    if (_cmd_list->get_status() != command_list_status::open) {
+        _cmd_list->reset();
+    }
     _recorder.start_recording(_cmd_list);
     GPU_DEBUG_TRACE_DETAIL << "[REC] Started recording command list" << std::endl;
 }
