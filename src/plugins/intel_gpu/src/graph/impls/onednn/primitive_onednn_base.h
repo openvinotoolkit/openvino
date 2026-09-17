@@ -556,7 +556,7 @@ protected:
 #endif
                 _prim.execute(stream.get_onednn_stream(), _args[net_id]);
             } catch (dnnl::error& err) {
-                OPENVINO_THROW(err.what());
+                OPENVINO_THROW("[", instance.id(), "] ", err.what());
             }
 
             if (_enable_profiling) {
