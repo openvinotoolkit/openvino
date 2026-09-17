@@ -11,10 +11,7 @@
 #include "intel_npu/common/icompiled_model.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
-<<<<<<< HEAD
 #include "openvino/runtime/properties.hpp"
-=======
->>>>>>> 9b00887405 (Remove the property 'model_sharing_context' from the list of exposed properties from all plugins, to prevent them from activating OV-cache inadvertently)
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
@@ -38,10 +35,7 @@ public:
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
                   const FilteredConfig& config,
-<<<<<<< HEAD
                   const ov::AnyMap& properties,
-=======
->>>>>>> 9b00887405 (Remove the property 'model_sharing_context' from the list of exposed properties from all plugins, to prevent them from activating OV-cache inadvertently)
                   const std::optional<int64_t>& batchSize);
 
     CompiledModel(const CompiledModel&) = delete;
