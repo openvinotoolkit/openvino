@@ -153,11 +153,10 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
                                                      _config.get<COMPILER_TYPE>(),
                                                      _config.get<DEVICE_ID>(),
                                                      _config.get<PLATFORM>());
-    ov::AnyMap supportCheckArguments = {
-        {ov::intel_npu::compiler_type.name(), normalizedArguments.compilerType},
-        {ov::device::id.name(), normalizedArguments.deviceId},
-        {ov::intel_npu::platform.name(), normalizedArguments.platform},
-    };
+    ov::AnyMap supportCheckArguments = properties;
+    supportCheckArguments[ov::intel_npu::compiler_type.name()] = normalizedArguments.compilerType;
+    supportCheckArguments[ov::device::id.name()] = normalizedArguments.deviceId;
+    supportCheckArguments[ov::intel_npu::platform.name()] = normalizedArguments.platform;
 
     for (auto&& value : properties) {
         const auto propertyDescriptorIt = _properties.find(value.first);
@@ -585,18 +584,6 @@ void PluginPropertyManager::registerProperties() {
     registerConfigProperty(IMPORT_RAW_BLOB{}, false);
     registerConfigProperty(ALLOW_BYTECODE{}, false);
     registerConfigProperty(PROFILING_TYPE{}, false);
-    registerConfigProperty(SHARED_COMMON_QUEUE{}, false);
-
-    // Special case: this property is always registered because it's supported by the implementation,
-    // but it's not visible in supported_properties if the driver doesn't support it.
-    registerConfigProperty(RUN_INFERENCES_SEQUENTIALLY{}, [this] {
-        if (_backend && _backend->getInitStructs()) {
-            if (_backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
-                return true;
-            }
-        }
-        return false;
-    }());
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     registerConfigProperty(ENABLE_CPU_PINNING{}, false);
@@ -770,6 +757,86 @@ void PluginPropertyManager::registerProperties() {
         }
     );
 
+    const auto hasRequiredCommandQueueVersion = [this] {
+        return _backend && _backend->getInitStructs() &&
+               _backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+    };
+    // Returns the value a property would have once the request is applied: the requested value when the caller
+    // supplied one, otherwise the value currently stored in the config.
+    const auto resolveRequestedBool = [](const ov::AnyMap& arguments,
+                                         const std::string& propertyName,
+                                         bool currentValue) {
+        const auto argumentIt = arguments.find(propertyName);
+        return argumentIt != arguments.end() ? argumentIt->second.as<bool>() : currentValue;
+    };
+    // Special case: this property is always registered because it's supported by the implementation, but it's not visible in supported_properties if the driver doesn't support it.
+    register_property(ov::intel_npu::run_inferences_sequentially.name(), hasRequiredCommandQueueVersion(), ov::PropertyMutability::RW,
+        [this, hasRequiredCommandQueueVersion, resolveRequestedBool](const ov::AnyMap& arguments) {
+            if (!_config.hasOpt(ov::intel_npu::run_inferences_sequentially.name())) {
+                return false;
+            }
+            // If SHARED_COMMON_QUEUE is not registered, RUN_INFERENCES_SEQUENTIALLY is considered supported.
+            if (!_config.hasOpt(ov::intel_npu::shared_common_queue.name())) {
+                return true;
+            }
+
+            // Disabling RUN_INFERENCES_SEQUENTIALLY is always allowed, whatever the SHARED_COMMON_QUEUE value is.
+            if (!resolveRequestedBool(arguments,
+                                      ov::intel_npu::run_inferences_sequentially.name(),
+                                      _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
+                return true;
+            }
+
+            const bool sharedCommonQueue = resolveRequestedBool(arguments,
+                                                                ov::intel_npu::shared_common_queue.name(),
+                                                                _config.get<SHARED_COMMON_QUEUE>());
+
+            // Only the combination of both properties enabled needs the required command queue version.
+            if (!sharedCommonQueue || hasRequiredCommandQueueVersion()) {
+                return true;
+            }
+            return false;
+        },
+        [this](const ov::AnyMap&) {
+            return _config.get<RUN_INFERENCES_SEQUENTIALLY>();
+        },
+        [this](const ov::Any& value) {
+            _config.updateAny(ov::intel_npu::run_inferences_sequentially.name(), value);
+        }
+    );
+
+    register_property(ov::intel_npu::shared_common_queue.name(), false, ov::PropertyMutability::RW,
+        [this, resolveRequestedBool](const ov::AnyMap& arguments) {
+            if (!_config.hasOpt(ov::intel_npu::shared_common_queue.name())) {
+                return false;
+            }
+            // If RUN_INFERENCES_SEQUENTIALLY is not registered, SHARED_COMMON_QUEUE is considered supported.
+            if (!_config.hasOpt(ov::intel_npu::run_inferences_sequentially.name())) {
+                return true;
+            }
+
+            // Disabling SHARED_COMMON_QUEUE is always allowed, whatever the RUN_INFERENCES_SEQUENTIALLY value is.
+            if (!resolveRequestedBool(arguments,
+                                      ov::intel_npu::shared_common_queue.name(),
+                                      _config.get<SHARED_COMMON_QUEUE>())) {
+                return true;
+            }
+
+            const bool runInferencesSequentially = resolveRequestedBool(arguments,
+                                                                        ov::intel_npu::run_inferences_sequentially.name(),
+                                                                        _config.get<RUN_INFERENCES_SEQUENTIALLY>());
+
+            // SHARED_COMMON_QUEUE is unsupported only when RUN_INFERENCES_SEQUENTIALLY is also enabled and that property is not public.
+            return !runInferencesSequentially ||
+                   _properties.at(ov::intel_npu::run_inferences_sequentially.name()).isPublic;
+        },
+        [this](const ov::AnyMap&) {
+            return _config.get<SHARED_COMMON_QUEUE>();
+        },
+        [this](const ov::Any& value) {
+            _config.updateAny(ov::intel_npu::shared_common_queue.name(), value);
+        }
+    );
     register_property(ov::intel_npu::stepping.name(), false, ov::PropertyMutability::RW, 
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::intel_npu::stepping.name());

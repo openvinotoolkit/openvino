@@ -45,7 +45,7 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
-  NODEJS_VERSION: '21'
+  NODEJS_VERSION: '22'
 
 jobs:
   Build:
