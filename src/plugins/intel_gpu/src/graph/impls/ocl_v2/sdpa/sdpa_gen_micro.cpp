@@ -525,11 +525,11 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
         }
         if (quantized) {
             if (thin_q) {
-               // xehpg_q_h128_2nd (unroll_m_kq = 32) does not fit the Xe HPG register budget once K
+                // xehpg_q_h128_2nd (unroll_m_kq = 32) does not fit the Xe HPG register budget once K
                 // is integer-typed: the KQ strategy is rejected, micro-kernel generation throws, and
                 // SDPA silently falls back to sdpa_opt - which cannot index per-channel scales at
                 // all. xehpg_h128_2nd differs only in unroll_m_kq (8) and does fit.
-                if (seq <= 96 && seq > 1){
+                if (seq <= 96 && seq > 1) {
                     return &xehpg_q_h128_s96_2nd;
                 }
                 return &xehpg_q_h128_2nd;
@@ -1391,10 +1391,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const bool is_byte_packed_int4 = !config.is_paged_attention && data_type_traits::is_i4_u4(compressed_dt);
     if (is_byte_packed_int4)
         jit.make("IS_INT4_KV_CACHE", 1);
-    jit.make("KEY_ELEMENTS_PER_BYTE",
-             elems_per_byte(compressed_dt.is_dynamic() ? K.data_type : ov::element::Type(compressed_dt)));
-    jit.make("VAL_ELEMENTS_PER_BYTE",
-             elems_per_byte(compressed_dt.is_dynamic() ? V.data_type : ov::element::Type(compressed_dt)));
+    jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? K.data_type : ov::element::Type(compressed_dt)));
+    jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? V.data_type : ov::element::Type(compressed_dt)));
 
     int tile_k = gemm_kq.getSetting("wg_tile_m");
     int tile_q = gemm_kq.getSetting("wg_tile_n");
@@ -1447,7 +1445,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
         jit.make("PREFETCH_MASK", 1);
-        const bool enable_kv_prefetch = !(config.is_paged_attention && !m_is_prefill) && !is_byte_packed_int4;
+        const bool enable_kv_prefetch = (!config.is_paged_attention || m_is_prefill) && !is_byte_packed_int4;
         jit.make("PREFETCH_K0", enable_kv_prefetch);
         jit.make("PREFETCH_K", enable_kv_prefetch);
         jit.make("PREFETCH_V", enable_kv_prefetch);
