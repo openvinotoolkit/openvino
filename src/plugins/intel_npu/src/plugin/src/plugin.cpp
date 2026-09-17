@@ -69,8 +69,14 @@ void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov:
 std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
+    const auto use_npuw_it = properties.find(ov::intel_npu::use_npuw.name());
+    const bool npuw_enabled = use_npuw_it == properties.end() || use_npuw_it->second.as<bool>();
+    constexpr const char* npuw_disabled_message =
+        "The blob was exported via NPUW, but NPU_USE_NPUW is disabled.";
+
     if (const auto header = ov::npuw::orc::is_orc(stream);
         header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
+        OPENVINO_ASSERT(npuw_enabled, npuw_disabled_message);
         return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
     }
 
@@ -79,6 +85,7 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
     ov::npuw::s11n::IndicatorType serialization_indicator;
     if (ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
         serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
+        OPENVINO_ASSERT(npuw_enabled, npuw_disabled_message);
         ov::npuw::s11n::IndicatorType compiled_model_indicator;
         if (ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size())) {
             stream.clear();
@@ -92,8 +99,8 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                 // Properties are required for ov::weights_path
                 return ov::npuw::LLMCompiledModel::import_model(stream, pluginSO, properties);
             } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
-                OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
-                               "the current ORC serializer.");
+                OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model "
+                               "with the current ORC serializer.");
             } else {
                 OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
             }
@@ -158,6 +165,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(DISABLE_VERSION_CHECK);
     REGISTER_OPTION(EXPORT_RAW_BLOB);
     REGISTER_OPTION(IMPORT_RAW_BLOB);
+    REGISTER_OPTION(ALLOW_BYTECODE);
     REGISTER_OPTION(BATCH_COMPILER_MODE_SETTINGS);
     REGISTER_OPTION(TURBO);
     REGISTER_OPTION(ENABLE_WEIGHTLESS);
