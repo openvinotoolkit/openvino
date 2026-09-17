@@ -13,7 +13,11 @@ const fullScenario = "zero-copy-async";
 const diagnosticScenarios = [
   "empty",
   "addon",
-  "compile",
+  "core",
+  "read-sync",
+  "read-async",
+  "compile-sync",
+  "compile-async",
   "owned-async",
   "zero-copy",
   "zero-copy-sync",
@@ -21,6 +25,12 @@ const diagnosticScenarios = [
 ];
 const diagnosticsEnabled = process.env.OPENVINO_E2E_DIAGNOSTICS === "1";
 const scenarios = diagnosticsEnabled ? diagnosticScenarios : [fullScenario];
+const asyncCompileScenarios = new Set([
+  "compile-async",
+  "owned-async",
+  "zero-copy-sync",
+  fullScenario,
+]);
 const inferRequestScenarios = new Set(["owned-async", fullScenario]);
 const tensorScenarios = new Set(["zero-copy", "zero-copy-sync", fullScenario]);
 const tensorCleanupScenarios = new Set(["zero-copy-sync", fullScenario]);
@@ -98,9 +108,15 @@ function assertLifecycleTrace(scenario, stderr) {
 
       return { component: match[1], event: match[2], context: match[3] };
     });
+  const coreCompileTraces = traces.filter(({ component }) => component === "CoreCompile");
   const inferRequestTraces = traces.filter(({ component }) => component === "InferRequest");
   const tensorTraces = traces.filter(({ component }) => component === "TensorImpl");
 
+  assert.strictEqual(
+    coreCompileTraces.length > 0,
+    asyncCompileScenarios.has(scenario),
+    `Check CoreCompile lifecycle trace for scenario ${scenario}`,
+  );
   assert.strictEqual(
     inferRequestTraces.length > 0,
     inferRequestScenarios.has(scenario),
@@ -111,6 +127,21 @@ function assertLifecycleTrace(scenario, stderr) {
     tensorScenarios.has(scenario),
     `Check TensorImpl lifecycle trace for scenario ${scenario}`,
   );
+
+  if (asyncCompileScenarios.has(scenario)) {
+    assertLifecycleEventOrder(scenario, coreCompileTraces, [
+      "create-context",
+      "create-tsfn",
+      "worker-start",
+      "worker-finished",
+      "blocking-call-returned",
+      "release-tsfn",
+      "tsfn-finalizer",
+      "thread-joined",
+      "tsfn-finalizer-complete",
+    ]);
+    assertLifecycleEventOrder(scenario, coreCompileTraces, ["callback", "promise-resolved"]);
+  }
 
   if (tensorScenarios.has(scenario)) {
     assertLifecycleEventOrder(scenario, tensorTraces, ["create-context", "add-cleanup-hook"]);

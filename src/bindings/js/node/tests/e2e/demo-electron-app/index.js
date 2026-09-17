@@ -6,12 +6,17 @@ const scenario = process.env.OV_ELECTRON_SCENARIO ?? "zero-copy-async";
 const supportedScenarios = new Set([
   "empty",
   "addon",
-  "compile",
+  "core",
+  "read-sync",
+  "read-async",
+  "compile-sync",
+  "compile-async",
   "owned-async",
   "zero-copy",
   "zero-copy-sync",
   "zero-copy-async",
 ]);
+const syncReadScenarios = new Set(["read-sync", "compile-sync", "compile-async"]);
 
 main();
 
@@ -49,12 +54,32 @@ async function main() {
     console.log("Creating OpenVINO Runtime Core");
     const core = new ov.Core();
     console.log("Created OpenVINO Runtime Core");
+    if (scenario === "core") {
+      finishScenario();
 
-    const model = await core.readModel(pathToModel);
+      return;
+    }
+
+    const syncRead = syncReadScenarios.has(scenario);
+    const model = syncRead ? core.readModelSync(pathToModel) : await core.readModel(pathToModel);
+    console.error(
+      `[OV_E2E] scenario=${scenario} stage=model-read mode=${syncRead ? "sync" : "async"}`,
+    );
     console.log("Model read successfully:", model);
-    const compiledModel = await core.compileModel(model, "CPU");
-    console.error(`[OV_E2E] scenario=${scenario} stage=model-compiled`);
-    if (scenario === "compile") {
+    if (scenario === "read-sync" || scenario === "read-async") {
+      finishScenario();
+
+      return;
+    }
+
+    const syncCompile = scenario === "compile-sync";
+    const compiledModel = syncCompile
+      ? core.compileModelSync(model, "CPU")
+      : await core.compileModel(model, "CPU");
+    console.error(
+      `[OV_E2E] scenario=${scenario} stage=model-compiled mode=${syncCompile ? "sync" : "async"}`,
+    );
+    if (scenario === "compile-sync" || scenario === "compile-async") {
       finishScenario();
 
       return;
