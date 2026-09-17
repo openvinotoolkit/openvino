@@ -25,9 +25,12 @@ def apply_post_convert(om, options):
     Runs right after ``fe.convert(im)`` and before serialization or input
     shaping.
     """
+    from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+    if bool_opt(options, "vllm", False):
+        # Read back in CommonOptimizations/CPU PostLpt to gate vLLM-only passes.
+        om.set_rt_info(True, "vllm_model")
     register_pa_parameters(om)
     normalize_concat_ranks(om)
-    from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
     if bool_opt(options, "fc_decompress", True):
         rewrite_fc_decompression(om)
 
@@ -365,9 +368,8 @@ def apply_kv_cache_config_defaults(config, device, options=None, om=None):
             "may reject this combination.",
             config["KV_CACHE_PRECISION"], config["INFERENCE_PRECISION_HINT"])
 
-    # Make the graph agree with the config just resolved, or the cache
-    # Parameters keep the model dtype and the plugin splices in a Convert that
-    # silently drops every cache write.
+    # Make the graph agree with the config, or the plugin splices in a
+    # Convert that silently drops every cache write.
     retype_kv_cache_parameters(om, config["KV_CACHE_PRECISION"])
 
     if "DYNAMIC_QUANTIZATION_GROUP_SIZE" not in config:

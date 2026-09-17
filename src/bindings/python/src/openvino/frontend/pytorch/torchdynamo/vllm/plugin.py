@@ -83,12 +83,8 @@ def _patch_cpu_model_runner():
     _orig_load_model = CPUModelRunner.load_model
 
     def patched_load_model(self, load_dummy_weights: bool = False) -> None:
-        # Flip _supports_onednn BEFORE _orig_load_model so vLLM's FC layers see
-        # the False value when they are constructed during model load. Every
-        # CPUModelRunner.load_model call reaches this patch, OV or not, so the
-        # else branch restores it for a later non-OV model in the same
-        # process -- otherwise an OV load's flip leaks into that model's FC
-        # dispatch with no OV backend around to need it.
+        # Flip _supports_onednn before load so vLLM's FC layers see it built.
+        # else restores it for a later non-OV model in the same process.
         is_ov = _ov_active(self)
         if is_ov:
             try:
@@ -110,14 +106,8 @@ def _patch_cpu_model_runner():
             except Exception as _e:
                 logger.debug("[OV plugin] _supports_onednn restore skipped: %s", _e)
 
-        # Suppress vLLM's standalone unified_kv_cache_update op: OV's
-        # PagedAttentionExtension already performs the KV-cache write, and the
-        # separate op has no OV translator, so it strands ~49 eager nodes per
-        # graph that otherwise block a single fused OV partition. Must run
-        # before _orig_load_model, which can trigger dummy/profile forwards.
-        # CPUAttentionBackend is shared by eager and OV models alike, so the
-        # else branch restores it for a later non-OV model, same reasoning
-        # as the onednn flip above.
+        # OV's PagedAttentionExtension writes KV cache itself; suppress vLLM's
+        # separate op, which else strands ~49 eager nodes per graph.
         if is_ov:
             try:
                 from vllm.v1.attention.backends import cpu_attn as _cpu_attn
@@ -168,9 +158,8 @@ def _patch_cpu_model_runner():
             logger.warning("OV plugin: failed to import openvino.torch: %s", e)
             return
 
-        # Undo vLLM's init_cpu_threads_env pinning to a single core. Must run
-        # before torch.compile so TBB/OV pools inherit the wide mask at
-        # creation.
+        # Undo vLLM's 1-core pin before torch.compile so OV's pool inherits
+        # the wide mask at creation.
         try:
             from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh_aff
             _vh_aff.widen_affinity_if_needed(None)
@@ -181,10 +170,8 @@ def _patch_cpu_model_runner():
         # "vllm": True turns on every vLLM-required flag (see preset.py).
         # Precision keys are deliberately absent: derived per-model dtype.
         options = {"aot_autograd": True, "vllm": True}
-        # dynamic=None: specializes the first shape, then lets
-        # automatic_dynamic_shapes symbolize the dim that actually varies.
-        # dynamic=False retraces+recompiles per distinct prefill length;
-        # dynamic=True costs ~1.7x steady-state vs specializing only what varies.
+        # dynamic=None: specializes first, then symbolizes only the dim that
+        # varies -- cheaper than dynamic=True (~1.7x steady-state cost).
         compiled = torch.compile(
             self.model.forward,
             backend="openvino",

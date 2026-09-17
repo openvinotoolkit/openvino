@@ -18,8 +18,7 @@ import torch
 logger = logging.getLogger(__name__)
 
 # Per-layer KV-cache ov.Tensor wrappers, keyed by meta layer name so they
-# persist across torch-compile invocations. The underlying torch tensors live
-# for the whole generate call, so wrap once and reuse.
+# persist across torch-compile invocations.
 _pa_kv_ovt_cache = {}
 
 # torch dtype -> the OV element type an ov.Tensor over that buffer must declare.
@@ -49,9 +48,7 @@ def _ov_tensor_over_torch(t, param_dt, _ov):
 
 _pa_sliding_window_cache = {}  # (id(compiled), layer_name) -> np.int32 array
 # (id(compiled), layer_name) -> {meta_layer_name, layer_obj, kv_cache_id}.
-# Architecture-static within a generate() call, so caching it skips the
-# per-step _placeholder_to_real / nc_layers.get / kv_sharing chase.
-# kv_cache_id is the invalidation key: vLLM may re-allocate the cache.
+# Architecture-static per generate() call; kv_cache_id invalidates on realloc.
 _pa_layer_static_cache = {}
 
 
@@ -70,8 +67,7 @@ def _zero_scalar_i32():
 
 
 # id(compiled) -> {"layer_to_fields": {layer_name: {field: parameter_name}}}.
-# Built on first bind so the regex walk over compiled.inputs does not rerun on
-# every decode step.
+# Built on first bind so the regex walk doesn't rerun every decode step.
 _pa_layout_cache = {}
 
 
@@ -200,11 +196,8 @@ def _bind_paged_attention_side_channel(compiled):
             _am = ctx.attn_metadata
             if isinstance(_am, dict):
                 _real_layer_names = list(_am.keys())
-                # attn_metadata groups layers by KV-cache spec (Gemma-4 hybrid:
-                # all 28 sliding, then all 7 global), not by layer index, while
-                # the frontend numbers PA nodes in FX-graph == model order. Sort
-                # by the ".layers.<N>." index to match; fall back to dict order
-                # for names without that pattern.
+                # attn_metadata groups by KV-cache spec, not layer index; sort
+                # by ".layers.<N>." to match FX-graph order.
                 import re as _re_sort
 
                 def _layer_idx(name):
@@ -319,23 +312,19 @@ def _bind_paged_attention_side_channel(compiled):
         key_cache_ovt = value_cache_ovt = None
         if kv_cache is not None:
             try:
-                # Key by real layer name so the OV tensor persists across
-                # torch-compile invocations: prefill and decode share one
-                # underlying buffer.
+                # Key by real layer name so prefill and decode share one
+                # persisted OV tensor.
                 cache_key = meta_layer_name
                 cached = _pa_kv_ovt_cache.get(cache_key)
                 if cached is not None:
                     key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np = cached
                 else:
-                    # vLLM's CPU KV cache is rank-4 [blocks, kv_heads,
-                    # block_size, 2*head_size], K/V interleaved on the last
-                    # dim, so unbind(0) picks the wrong axis.
+                    # vLLM's CPU KV cache is rank-4 with K/V interleaved on
+                    # the last dim, so unbind(0) picks the wrong axis.
                     if kv_cache.ndim == 4:
                         _nb, _hk, _bs, _last = kv_cache.shape
-                        # A real K/V split is non-contiguous (needs a copy);
-                        # OV is the sole reader/writer here (plugin.py
-                        # suppresses vLLM's own KV write) and the buffer was
-                        # freshly zeroed, so two disjoint halves work too.
+                        # A real K/V split needs a copy; OV is the sole
+                        # reader/writer here, so two disjoint halves work too.
                         if (kv_cache.is_contiguous() and _last % 2 == 0
                                 and os.environ.get("OV_KV_SPLIT", "1") != "0"):
                             _flat = kv_cache.view(-1)
@@ -353,10 +342,8 @@ def _bind_paged_attention_side_channel(compiled):
                     # PA writes back into this buffer via shared memory.
                     import openvino as _ov
                     _kv_shape = tuple(kc.shape)
-                    # OV CPU PA hard-requires block_size==32; if vLLM uses a
-                    # larger multiple (Gemma-4 hybrid), reshape to
-                    # (N*ratio, Hk, 32, S) -- same element count, block
-                    # indices re-expanded to match below.
+                    # OV CPU PA hard-requires block_size==32; reshape a larger
+                    # multiple to (N*ratio, Hk, 32, S), same element count.
                     if len(_kv_shape) >= 4 and _kv_shape[-2] > 32 and _kv_shape[-2] % 32 == 0:
                         _ratio = _kv_shape[-2] // 32
                         _param_shape = (_kv_shape[0] * _ratio,) + _kv_shape[1:-2] + (32, _kv_shape[-1])
@@ -372,9 +359,8 @@ def _bind_paged_attention_side_channel(compiled):
                             break
                     if _param_dt is None:
                         _param_dt = _ov.Type.f32
-                    # Prefer aliasing vLLM's own buffer: OV is the only writer
-                    # here, so a private copy just doubles the KV cache (and
-                    # the fill(0) below faults in the whole copy at once).
+                    # Prefer aliasing vLLM's own buffer: OV is the only
+                    # writer, so a private copy just doubles the cache.
                     key_cache_ovt = value_cache_ovt = None
                     if (tuple(_param_shape) == tuple(_kv_shape)
                             and os.environ.get("OV_KV_ALIAS", "1") != "0"):
@@ -407,9 +393,8 @@ def _bind_paged_attention_side_channel(compiled):
             except Exception:
                 pass
         if key_cache_np is None:
-            # Fallback dummy. Hk and S must match what PA sees at real runtime,
-            # or CPU PA caches Hk=1, S=1 from the dummy and then asserts against
-            # the real K.
+            # Fallback dummy: Hk/S must match real runtime, or CPU PA caches
+            # Hk=1, S=1 and later asserts against the real K.
             import openvino as _ov_fb
             _fb_dt_ov = _ov_fb.Type.f32
             _fb_Hk, _fb_S = _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=layer_name)
@@ -496,9 +481,8 @@ def _bind_paged_attention_side_channel(compiled):
                         if sw is None:
                             sw = getattr(lo, "sliding_window", None)
                     if sw is not None:
-                        # vLLM: a tuple (w-1, w-1) or (w-1, 0) on sliding
-                        # layers, (-1, -1) on full attention. OV PA wants a
-                        # scalar: N for "last N tokens", 0 for disabled.
+                        # vLLM gives a tuple, -1 on full attention; OV PA
+                        # wants a scalar (N tokens, or 0 disabled).
                         if isinstance(sw, (tuple, list)):
                             sw = sw[0] if sw else -1
                         sw_int = int(sw)

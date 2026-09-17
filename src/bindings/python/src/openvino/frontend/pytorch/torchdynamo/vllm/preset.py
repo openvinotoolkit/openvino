@@ -48,9 +48,8 @@ _PRESET_FLAGS = {
     "dynamic_shapes": False,
 }
 
-# Model-independent OV CPU config defaults; caller-supplied keys win. The
-# float-precision keys are deliberately absent: they follow the model dtype and
-# are derived per-model by precision_config().
+# Model-independent OV CPU config defaults; caller-supplied keys win.
+# Float-precision keys are absent -- derived per-model by precision_config().
 _PRESET_CONFIG = {
     "DYNAMIC_QUANTIZATION_GROUP_SIZE": 32,
 }

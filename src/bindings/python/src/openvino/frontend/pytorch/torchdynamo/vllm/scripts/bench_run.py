@@ -169,9 +169,8 @@ def main():
 
     if args.mode in ("openvino", "both"):
         print(f"[openvino] loading {args.model} ...")
-        # OV CPU PagedAttention requires block_size=32 (hard kernel constraint).
-        # custom_ops=["none"] keeps vLLM from expanding RMSNorm/SiLU into custom
-        # CUDA ops that the CPU torch.compile path can't handle.
+        # block_size=32 is a hard PA kernel constraint; custom_ops=["none"]
+        # stops vLLM expanding RMSNorm/SiLU into CUDA-only custom ops.
         llm = LLM(
             model=args.model,
             dtype=args.dtype,

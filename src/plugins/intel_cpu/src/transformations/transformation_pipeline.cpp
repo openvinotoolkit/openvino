@@ -1137,10 +1137,11 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
-    // vLLM MLP normalization runs postLPT because LPT re-inserts precision
-    // Converts around MatMul that only postLPT can canonicalize away.
-    // RoPE and generic Convert cleanup are handled in CommonOptimizations.
-    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::NormalizeVLLMMLP);
+    // Runs postLPT: LPT re-inserts precision Converts around MatMul that
+    // only this position can canonicalize away. Gated on "vllm_model" rt_info.
+    if (model->has_rt_info("vllm_model") && model->get_rt_info<bool>("vllm_model")) {
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::NormalizeVLLMMLP);
+    }
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionCohere);

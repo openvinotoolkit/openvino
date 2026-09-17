@@ -17,9 +17,8 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# Distinct row-counts to keep staging buffers for. Decode is one row per running
-# sequence, so this covers the batch sizes actually seen; past it we realloc
-# rather than grow without bound, as varying prefill chunk sizes would.
+# Distinct row-counts to keep staging buffers for; past it we realloc rather
+# than grow without bound.
 _MAX_CACHED_SHAPES = 32
 
 
@@ -78,16 +77,14 @@ def build_ov_lm_head(weight, nthreads=None):
     wt = ov.Tensor(et, [V, H])
     _copy_into(wt, weight)
 
-    # transpose_b: vLLM stores lm_head as [vocab, hidden] like F.linear does,
-    # so consume b transposed rather than materialize a second copy of a
-    # 131-467 MB weight.
+    # transpose_b: vLLM stores lm_head as [vocab, hidden]; avoids copying a
+    # 131-467 MB weight to consume it the other way.
     p = op.parameter([-1, H], et, name="x")
     model = ov.Model([op.result(op.matmul(p, op.constant(wt), False, True))],
                      [p], "ov_lm_head")
 
-    # Compute at the model's own dtype, not preset.precision_config()'s f16->bf16
-    # substitute: that's needed for RMSNorm's overflow risk, not a plain matmul,
-    # and bf16's narrower mantissa would flip greedy argmax on near-ties.
+    # Compute at the model's own dtype, not preset's f16->bf16 substitute --
+    # bf16's narrower mantissa would flip greedy argmax on near-ties.
     cfg = {"INFERENCE_PRECISION_HINT": et.get_type_name()}
     if nthreads:
         cfg["INFERENCE_NUM_THREADS"] = nthreads
@@ -109,9 +106,8 @@ def build_ov_lm_head(weight, nthreads=None):
         req.infer()
 
         out = req.get_tensor(oport).data
-        # .clone(): `data` views the request's output buffer, which the next
-        # infer() overwrites in place. Callers may hold the logits across steps
-        # (spec decode does), so this must not alias.
+        # .clone(): the next infer() overwrites this buffer in place, but
+        # callers may hold logits across steps.
         out = torch.from_numpy(np.asarray(out)).clone()
         if et == ov.Type.bf16:
             out = out.view(torch.bfloat16)

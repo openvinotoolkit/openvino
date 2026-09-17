@@ -149,9 +149,8 @@ def infer_with_pa(req, compiled, call_kwargs):
             _slot[0] = _val_id
             _slot[1] = _t  # keep alive
         req.infer()
-        # Cached output views pin the first call's shape/address, so only
-        # reuse them for statically-shaped outputs -- a dynamic-output model
-        # can reallocate per call and hand back a stale shape otherwise.
+        # Cached output views pin the first call's shape; only reuse for
+        # statically-shaped outputs, or a dynamic model hands back a stale one.
         _static_out = _fastinfer_out_static.get(_pc_key)
         if _static_out is None:
             _static_out = all(o.get_partial_shape().is_static for o in compiled.outputs)

@@ -18,9 +18,8 @@ def _is_fastpath_eligible(sampling_metadata) -> bool:
         return False
     procs = getattr(sampling_metadata, "logitsprocs", None)
     if procs is not None:
-        # Allow processors that are no-ops on the current batch. The built-in
-        # MinPLogitsProcessor is always present but short-circuits when no row
-        # has min_p set (min_p_count == 0).
+        # Allow processors that are no-ops on the current batch (e.g.
+        # MinPLogitsProcessor when no row has min_p set).
         def _is_noop(p):
             if hasattr(p, "min_p_count"):
                 return p.min_p_count == 0
@@ -151,9 +150,8 @@ def install():
         B, V = logits.shape
 
         if _use_native:
-            # Opt-in via OV_NATIVE_SAMPLER=1: no torch.compile overhead, but it
-            # ignores top_p (pure Gumbel-max over the top_k values) and has no
-            # per-request seed, so the distribution differs when top_p < 1.0.
+            # OV_NATIVE_SAMPLER=1: skips torch.compile, but ignores top_p and
+            # per-request seed -- distribution differs when top_p < 1.0.
             top_k_meta = getattr(sampling_metadata, "top_k", None)
             try:
                 k_val = int(top_k_meta.max().item()) if top_k_meta is not None else 0

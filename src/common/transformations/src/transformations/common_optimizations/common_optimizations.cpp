@@ -268,15 +268,12 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // folding for bool inputs
     REGISTER_PASS(manager, ConvertBitwiseToLogical)
 
-    // vLLM torch.compile canonicalization: rewrite RoPE subgraph into the
-    // form plugin RoPEFusion matches; elide identity / round-trip Converts
-    // that mixed-precision passes leave behind. Runs late in
-    // CommonOptimizations so ConvertSubtract has already fired. All plugins
-    // that invoke CommonOptimizations inherit these; NormalizeVLLMMLP stays
-    // in the plugin postLPT phase because LPT re-inserts Converts around
-    // MatMul that only the postLPT position can canonicalize.
-    REGISTER_PASS(manager, NormalizeVLLMRoPE)
-    REGISTER_PASS(manager, EraseRedundantConvertPair)
+    // vLLM torch.compile canonicalization, gated on "vllm_model" rt_info so
+    // other CommonOptimizations callers are unaffected.
+    if (f->has_rt_info("vllm_model") && f->get_rt_info<bool>("vllm_model")) {
+        REGISTER_PASS(manager, NormalizeVLLMRoPE)
+        REGISTER_PASS(manager, EraseRedundantConvertPair)
+    }
 
     // StridesOptimization should be at the very end
     // because we cannot insert any MaxPools since they may prevent
