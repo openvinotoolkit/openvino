@@ -24,13 +24,12 @@ OV_CONFIG_RELEASE_OPTION(ov::tp_gpu, communication_timeout_ms, 5000u, "Milliseco
 
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::tp_gpu, enable_halving, true, "Use recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::tp_gpu, halving_max_bytes, uint64_t{256 * 1024}, "Payload ceiling in bytes above which halving falls back to the ring")
-OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::tp_gpu, use_copy_engine, false, "Route cross-device transfers onto a copy-only command queue where the device exposes one")
 OV_CONFIG_RELEASE_INTERNAL_OPTION(ov::tp_gpu, input_stage_max_bytes, uint64_t{4096}, "Size ceiling in bytes for staging a user input through plugin-owned host memory. 0 always stages on the device")
 
 OV_CONFIG_TP_DEBUG_GLOBAL_OPTION(ov::tp_gpu, verbose, ov::log::Level::NO, "Verbosity of the plugin's diagnostics. Values: LOG_NONE, LOG_ERROR, LOG_WARNING, LOG_INFO, LOG_DEBUG, LOG_TRACE")
 
 OV_CONFIG_TP_DEBUG_OPTION(ov::tp_gpu, profiling, ov::tp_gpu::ProfilingMode::NONE, "What to measure. Values: NONE, HOST, DEVICE, ALL. DEVICE changes the execution schedule, see internal_properties.hpp")
-OV_CONFIG_TP_DEBUG_OPTION(ov::tp_gpu, dump_period, uint64_t{0}, "Rank-0 collectives between two measurement dumps. 0 means one dump per inference")
+OV_CONFIG_TP_DEBUG_OPTION(ov::tp_gpu, dump_period, uint64_t{0}, "Rank-0 collectives between two measurement dumps. 0 means report every one")
 OV_CONFIG_TP_DEBUG_OPTION(ov::tp_gpu, force_sync_collective, false, "Force collectives off the spliced model queue onto their own queue with a full drain")
 OV_CONFIG_TP_DEBUG_OPTION(ov::tp_gpu, disable_lm_head_sharding, false, "Leave the vocabulary projection unsharded. Changes the collective count baked into an exported blob")
 OV_CONFIG_TP_DEBUG_OPTION(ov::tp_gpu, shard_only, false, "DANGEROUS: compile one rank's shard with every collective stripped. Output is wrong by construction")

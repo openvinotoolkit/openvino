@@ -353,7 +353,6 @@ through the public API:
 |---|---|---|
 | `TP_ENABLE_HALVING` | `true` | Recursive halving/doubling instead of the ring for small payloads on power-of-two world sizes. |
 | `TP_HALVING_MAX_BYTES` | `262144` | Payload ceiling above which halving falls back to the ring. |
-| `TP_USE_COPY_ENGINE` | `false` | Route cross-device transfers onto the dedicated copy ordinal. Net negative on small (decode) transfers due to the extra `ExecuteCommandLists` per rank; useful only for prefill-bound benchmarks. |
 | `TP_INPUT_STAGE_MAX_BYTES` | `4096` | Size ceiling for staging a user input through plugin-owned host memory. `0` always stages on the device. |
 
 Only in builds configured with `-DENABLE_TP_GPU_DEBUG_CAPS=ON`. In a release

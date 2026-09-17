@@ -82,11 +82,6 @@ static constexpr Property<bool> enable_halving{"TP_ENABLE_HALVING"};
 /// Payload ceiling in bytes above which halving falls back to the ring.
 static constexpr Property<uint64_t> halving_max_bytes{"TP_HALVING_MAX_BYTES"};
 
-/// Route the cross-device transfers onto a copy-only command queue where the
-/// device exposes one.  Net positive for prefill-bound workloads, net negative
-/// for warm decode.  Ignored on devices without a dedicated copy engine.
-static constexpr Property<bool> use_copy_engine{"TP_USE_COPY_ENGINE"};
-
 /// Size ceiling in bytes for routing a user input through plugin-owned host
 /// memory instead of a device staging copy.  0 always stages on the device.
 static constexpr Property<uint64_t> input_stage_max_bytes{"TP_INPUT_STAGE_MAX_BYTES"};
@@ -108,9 +103,8 @@ static constexpr Property<ov::log::Level> verbose{"TP_VERBOSE"};
 /// anything but NONE, independently of `verbose`.
 static constexpr Property<ProfilingMode> profiling{"TP_PROFILING"};
 
-/// How many rank-0 collectives pass between two aggregated measurement dumps.
-/// 0 -- the default -- means one dump per inference, derived from the
-/// collective count of the compiled model.
+/// Rank-0 collectives between two measurement dumps.  Unset reports every
+/// one; set it to throttle.
 static constexpr Property<uint64_t> dump_period{"TP_DUMP_PERIOD"};
 
 /// Force collectives off the spliced model queue onto their own queue with a

@@ -53,42 +53,69 @@ so the guarded code folds away instead of costing a branch.
 | `OV_TP_VERBOSE=LOG_INFO` | One-line summaries per compile: sharding plan, shared context, per-rank op counts, which queue the collective rides. | First thing to reach for when something looks wrong. |
 | `OV_TP_VERBOSE=LOG_TRACE` | Per-call `[TP][L0]` step-by-step tracing. | Only when chasing a hang or a correctness crash. |
 | `OV_TP_PROFILING=HOST` | Host-side measurement: rendezvous phases, per-phase splits per rank, record breakdown, scratch arena. Costs about 0.6 ms a token and leaves the execution schedule alone. | The default choice when measuring. |
-| `OV_TP_PROFILING=DEVICE` | Device-side kernel timestamps: memcpy and kernel durations, PCIe throughput. Needs timestamp event pools, which forbid the device-side event reset and move the group onto the single-threaded rank-0 schedule -- about 2.4 ms a token, and what it measures is **not** a production run. | Only when the device-side numbers are the question. |
+| `OV_TP_PROFILING=DEVICE` | Device-side numbers only: how long the collective owns the model queue, bytes moved, effective bandwidth, and what share of device time the collectives take. Runs the production schedule; the kernel-timestamp query costs about 3 us a collective, so host figures from such a run are not comparable with a HOST run -- which is why it does not print them. | Only when the device-side numbers are the question. |
 | `OV_TP_PROFILING=ALL` | Both of the above. | |
 | `OV_TP_DUMP_PERIOD=N` | Rank-0 collectives between two dumps. Unset means one dump per inference. | When one report per inference is too coarse or too noisy. |
-| `OV_TP_USE_COPY_ENGINE=1` | Route the cross-device memcpy onto the dedicated copy ordinal (when the device exposes one). | Only for prefill-bound benchmarks. Net-negative for warm decode (extra `ExecuteCommandLists` per rank). |
 
 Verbosity and profiling are deliberately separate: raising the verbosity to see
 what a run is doing should not start timing it, and asking for timings should
 not require guessing which log level carries them.
 
-Profile output anatomy (one line per inference):
+Profile output anatomy (one block per dump period, one dump per inference by
+default):
 
 ```
-[TP][PROF] r0 calls=44 rebuilds=0  totals: ph1=… ph2=… (record=… exec=…) ph3=…  per-call: …
-[TP][PROF]   exec breakdown: reset=…ms (…%) submit=…ms (…%) sync_r0=…ms (…%) sync_r1=…ms (…%)
-[TP][PROF]   device steps (max across ranks): memcpy=…ms kernel=…ms (sum=…) ts_query_overhead=…ms
-[TP][PROF]   throughput: bytes/call=…MB  per-dir(dev_copy)=… GB/s  full-duplex(dev_copy)=… GB/s  effective(exec)=… GB/s
+[TP][RANK|host] calls=…  arrival spread=…us/call
+[TP][RANK|host]   rank N: late=…us arrived_last=…%  ph1=…us ph2=…us  segment mean=…us min=…us max=…us
+[TP][RANK|host]     ph2 split: gate=…us record=…us(Nx) evt_wait=…us evt_reset=…us(Nx, blocked Nx) append=…us rest=…us
+[TP][RANK|dev]    rank N: collective holds the queue for …us max=…us (N samples)
+[TP][TOTAL|host] r0 calls=…  rebuilds=… records=…  totals: … per-call: …
+[TP][TOTAL|host]   schedule of N recordings: pair=… ring=… halving=…
+[TP][TOTAL|host]   record breakdown: records=… per-record=…ms (drain=… reset=… append=… close=…)
+[TP][TOTAL|host]   scratch: payload_capacity=…MB total=…MB generation=… grows=… allocations=…
 ```
+
+The tags say what the numbers are about and where they came from.
+`RANK` is per rank and exists to expose imbalance between them; `TOTAL` is
+rank 0's aggregate and exists to price the collective as a whole. `host` means
+a host clock, `dev` means GPU kernel timestamps -- the `dev` lines appear only
+under `TP_PROFILING=DEVICE` or `ALL`.
 
 Field semantics:
 
-- **rebuilds** — number of full plan rebuilds since process start. After
-  the first prefill of a given max-shape this should be 0.
-- **record** vs **exec** — host time spent (re-)recording cmdlists vs
-  submitting + syncing them.
-- **sync_r0 / sync_r1** — first and second `zeCommandQueueSynchronize`
-  in the regular path. `sync_r1` near zero means rank 1 finished before
-  rank 0; otherwise rank 1 was the straggler.
-- **memcpy / kernel** — max across the two ranks' device-side timings;
-  this is the critical path on the device.
-- **per-dir(dev_copy)** — `bytes_per_call / dev_copy_time` — the actual
-  one-direction PCIe DMA bandwidth. Compare to PCIe practical sustained
-  (~12–14 GB/s for PCIe 4.0 x8). The `full-duplex` figure is `2×` the
-  per-direction value (both peers pump in opposite directions
-  simultaneously).
-- **effective(exec)** — `bytes_per_call / exec_per_call` — a
-  user-visible figure including event-reset, submit, and sync overhead.
+- **ph1** — the enter barrier: waiting for the other ranks to arrive.
+- **ph2** — everything from leaving the barrier to having handed the work over.
+- **late / arrived_last / arrival spread** — how far behind the first arrival
+  this rank was, and how often it was the last one in. The group moves at the
+  speed of the last rank, 65 times per token.
+- **segment** — model work between leaving one collective and reaching the
+  next. This is where the arrival skew is built, which is why its extremes are
+  kept rather than just the mean.
+- **gate** — waiting for rank 0 to settle the signature and the staging arena.
+  On rank 0 itself it is the time spent settling them.
+- **record** — laying down this rank's command lists, with the count in
+  brackets. Rare, but every miss lands in time to first token.
+- **evt_wait / blocked** — waiting for the previous splice of this same list to
+  finish. `blocked` counts how often that wait actually had to block; anything
+  but zero means the host has caught up with the device.
+- **evt_reset** — clearing the completion event. Under `DEVICE` this also
+  carries the kernel-timestamp query, which is the one measurable cost device
+  profiling adds.
+- **append** — the splice call itself.
+- **rest** — ph2 minus everything above, i.e. what is not accounted for.
+- **holds the queue for** — how long the collective occupied the rank's model
+  queue, read off the completion event. This is the one part of the cost no
+  host phase contains: the splice hands the work over and returns, so the
+  copies, the reduce kernel and the waits on peers all happen after every host
+  measurement has ended.
+- **rebuilds** — staging arena growths since process start. After the first
+  prefill of a given max-shape this should stop moving.
+- **schedule** — which of the three schedules the recordings chose. `halving`
+  is default-on and bounded by payload, so the split says whether that bound is
+  anywhere near right.
+- **record breakdown** — divided by the number of recordings, not calls:
+  `drain` is the queue drain before a reset, `append` the command building,
+  `close` the `zeCommandListClose`.
 
 ## Tests
 
@@ -165,13 +192,6 @@ the event pool come from a single `ze_context` created over all
 participating devices (`zeContextCreateEx`). The plugin builds it once
 in `plugin.cpp` and hands it to every rank.
 
-### Dedicated copy engines are optional
-
-Discrete GPUs expose a copy-only command queue group (Link Copy Engine)
-that lets transfers overlap with kernel work; integrated GPUs usually do
-not. Code that selects a copy ordinal must fall back to the compute
-ordinal rather than assume the group exists — see `select_copy_ordinal`.
-
 ### Topology cost
 
 A gather/scatter through one coordinating rank costs `2*(N-1)*bytes`
@@ -204,8 +224,8 @@ Almost always traces back to issuing `zeMemFree` / `zeCommandListReset`
 on resources still in flight from the previous submission. The
 coordinator currently guards against this in three places:
 
-- `destroy_plan` syncs every rank's compute_queue (and copy_queue when
-  set) before calling `zeMemFree`/`zeEventDestroy`.
+- `destroy_plan` syncs every rank's compute_queue before calling
+  `zeMemFree`/`zeEventDestroy`.
 - `record_rank` syncs queues before `zeCommandListReset`.
 - `~TPDeviceCoordinator` indirectly relies on the same syncs via
   `destroy_plan`.

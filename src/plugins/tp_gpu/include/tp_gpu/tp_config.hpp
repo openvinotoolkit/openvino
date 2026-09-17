@@ -106,27 +106,28 @@ struct TPConfig : public ov::PluginConfig {
         return mode == ProfilingMode::HOST || mode == ProfilingMode::ALL;
     }
 
-    /// Device-side kernel timestamps.  Forces the host event reset, which puts
-    /// the group on the single-threaded rank-0 schedule -- so this measures a
-    /// different system than a production run.
+    /// Device-side kernel timestamps.  Reads the timestamps the collectives'
+    /// completion events already carry, so it measures the same schedule a
+    /// production run executes -- no path is switched to make it observable.
     bool profiling_device() const {
         const auto mode = profiling_mode();
         return mode == ProfilingMode::DEVICE || mode == ProfilingMode::ALL;
     }
 
     /// Rank-0 collectives between two measurement dumps, or 0 when nothing is
-    /// being measured.  `per_inference` is what one inference costs in
-    /// collective calls and is what an unset period resolves to, so the
-    /// default is one report per inference without anyone doing arithmetic.
-    std::size_t dump_period(std::size_t per_inference) const {
+    /// being measured.
+    ///
+    /// Unset means 1, which suppresses nothing: asking for profiling gets
+    /// every execution reported.  Throttling is something you opt into, not
+    /// something that silently hides the first runs -- a default derived from
+    /// the collective count did exactly that, and a short benchmark printed
+    /// nothing at all.
+    std::size_t dump_period() const {
         if (profiling_mode() == ProfilingMode::NONE) {
             return 0;
         }
         const auto configured = static_cast<std::size_t>(TP_DEBUG_OPT(*this, dump_period, uint64_t{0}));
-        if (configured != 0) {
-            return configured;
-        }
-        return per_inference != 0 ? per_inference : 1;
+        return configured != 0 ? configured : 1;
     }
 
     bool force_sync_collective() const {

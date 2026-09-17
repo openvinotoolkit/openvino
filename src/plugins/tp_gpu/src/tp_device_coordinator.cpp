@@ -103,26 +103,6 @@ void select_compute_ordinal(ze_device_handle_t dev, uint32_t& ordinal) {
     OPENVINO_THROW("[TP][L0] no compute-capable queue group found");
 }
 
-// Pick a copy-only queue group (dedicated DMA engine).  Returns false when
-// the device exposes no copy-only group, in which case the caller should
-// route memcpy onto the compute queue.
-bool select_copy_ordinal(ze_device_handle_t dev, uint32_t& ordinal) {
-    uint32_t qg_count = 0;
-    ZE_THROW(ov::zeDeviceGetCommandQueueGroupProperties(dev, &qg_count, nullptr));
-    std::vector<ze_command_queue_group_properties_t> qgp(
-        qg_count, {ZE_STRUCTURE_TYPE_COMMAND_QUEUE_GROUP_PROPERTIES, nullptr});
-    ZE_THROW(ov::zeDeviceGetCommandQueueGroupProperties(dev, &qg_count, qgp.data()));
-    for (uint32_t g = 0; g < qg_count; ++g) {
-        const bool copy    = (qgp[g].flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COPY) != 0;
-        const bool compute = (qgp[g].flags & ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE) != 0;
-        if (copy && !compute) {
-            ordinal = g;
-            return true;
-        }
-    }
-    return false;
-}
-
 // cl_khr_device_uuid: clGetDeviceInfo with this name returns 16 bytes.
 #ifndef CL_DEVICE_UUID_KHR
 #  define CL_DEVICE_UUID_KHR 0x106A
@@ -253,28 +233,29 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
         m_started[r].store(0, std::memory_order_relaxed);
     }
 
-    m_skew.ph1_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.ph2_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.ph3_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.late_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.last_count.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.seg_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.seg_min_ns.assign(static_cast<std::size_t>(world_size), ~uint64_t{0});
-    m_skew.seg_max_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.seg_count.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.last_exit.assign(static_cast<std::size_t>(world_size),
-                            std::chrono::steady_clock::time_point{});
-    m_skew.p2_gate_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.p2_rec_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.p2_wait_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.p2_reset_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.p2_append_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.p2_rec_count.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.p2_wait_count.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.p2_block_count.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.p2_dev_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.p2_dev_max_ns.assign(static_cast<std::size_t>(world_size), 0);
-    m_skew.p2_dev_count.assign(static_cast<std::size_t>(world_size), 0);
+    const auto n_ranks = static_cast<std::size_t>(world_size);
+    for (auto* c : {&m_skew.ph1_ns,       &m_skew.ph2_ns,        &m_skew.late_ns,
+                    &m_skew.last_count,   &m_skew.seg_ns,        &m_skew.seg_max_ns,
+                    &m_skew.seg_count,    &m_skew.p2_gate_ns,    &m_skew.p2_rec_ns,
+                    &m_skew.p2_wait_ns,   &m_skew.p2_reset_ns,   &m_skew.p2_append_ns,
+                    &m_skew.p2_rec_count, &m_skew.p2_wait_count, &m_skew.p2_block_count,
+                    &m_skew.p2_dev_ns,    &m_skew.p2_dev_max_ns, &m_skew.p2_dev_count,
+                    &m_skew.p2_dev_max_cid, &m_skew.dev_gap_ns,  &m_skew.dev_gap_count,
+                    &m_skew.dev_bytes,    &m_skew.n_pair,        &m_skew.n_ring,
+                    &m_skew.n_halving,    &m_skew.gate_fast,     &m_skew.gate_slow,
+                    &m_gather.barrier_ns, &m_gather.append_ns,   &m_gather.calls,
+                    &m_gather.spliced,    &m_gather.records,     &m_gather.dev_ns,
+                    &m_gather.dev_max_ns, &m_gather.dev_count,   &m_gather.bytes,
+                    &m_ahead.now,         &m_ahead.sum,          &m_ahead.max,
+                    &m_ahead.count}) {
+        c->assign(n_ranks, Counter{});
+    }
+    m_skew.p2_dev_hist.assign(n_ranks * static_cast<std::size_t>(kDevBuckets), Counter{});
+    m_skew.dev_last_end_ticks.assign(n_ranks, 0);
+    m_skew.dev_last_cid.assign(n_ranks, -1);
+    // The only counter that is a running minimum, so it cannot start at zero.
+    m_skew.seg_min_ns.assign(n_ranks, Counter{~uint64_t{0}});
+    m_skew.last_exit.assign(n_ranks, std::chrono::steady_clock::time_point{});
 
     try {
         for (int r = 0; r < world_size; ++r) {
@@ -377,16 +358,6 @@ void TPDeviceCoordinator::init_rank(RankState& rs) {
     // No rank-wide command list: each collective owns its own, so a
     // recording is not clobbered by the next collective.
 
-    // Optional dedicated copy engine for the cross-device memcpy step.
-    if (m_config.get_use_copy_engine() && select_copy_ordinal(dev, rs.copy_ordinal)) {
-        rs.has_dedicated_copy = true;
-        ze_command_queue_desc_t cqd{ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC, nullptr};
-        cqd.ordinal  = rs.copy_ordinal;
-        cqd.mode     = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
-        cqd.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
-        ZE_THROW(ov::zeCommandQueueCreate(ctx, dev, &cqd, &rs.copy_queue));
-    }
-
     // Build kernel module.
     //
     // Intel's L0 driver does not expose the OCLC compiler extension on this
@@ -443,7 +414,6 @@ void TPDeviceCoordinator::destroy_rank(RankState& rs) {
     if (rs.kernel_f16)   { ov::zeKernelDestroy(rs.kernel_f16);   rs.kernel_f16 = nullptr; }
     if (rs.kernel_f32)   { ov::zeKernelDestroy(rs.kernel_f32);   rs.kernel_f32 = nullptr; }
     if (rs.module)       { ov::zeModuleDestroy(rs.module);       rs.module = nullptr; }
-    if (rs.copy_queue)   { ov::zeCommandQueueDestroy(rs.copy_queue);   rs.copy_queue = nullptr; }
     if (rs.compute_list) { ov::zeCommandListDestroy(rs.compute_list);  rs.compute_list = nullptr; }
     if (rs.compute_queue){ ov::zeCommandQueueDestroy(rs.compute_queue); rs.compute_queue = nullptr; }
 }
@@ -458,9 +428,6 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
             if (rs.compute_queue) {
                 ov::zeCommandQueueSynchronize(rs.compute_queue, timeout_ns());
             }
-            if (rs.copy_queue) {
-                ov::zeCommandQueueSynchronize(rs.copy_queue, timeout_ns());
-            }
         }
     }
 
@@ -473,7 +440,6 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     for (auto& e : plan.ev_done) if (e) ov::zeEventDestroy(e);
     if (plan.done_pool) ov::zeEventPoolDestroy(plan.done_pool);
     for (auto& l : plan.compute_lists) if (l) ov::zeCommandListDestroy(l);
-    for (auto& l : plan.copy_lists)    if (l) ov::zeCommandListDestroy(l);
     plan.ev_recv.clear();
     plan.ev_ring.clear();
     plan.ev_gather.clear();
@@ -481,10 +447,10 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
     plan.pool = nullptr;
     plan.ev_ts_kernel.clear();
     plan.ev_done.clear();
+    plan.spliced_bytes.clear();
     plan.in_flight.reset();
     plan.done_pool = nullptr;
     plan.compute_lists.clear();
-    plan.copy_lists.clear();
     std::fill(plan.recorded.begin(), plan.recorded.end(), 0);
     std::fill(plan.recorded_scratch_generation.begin(),
               plan.recorded_scratch_generation.end(), 0);
@@ -500,6 +466,9 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
     if (payload_bytes <= m_scratch.payload_capacity_bytes) {
         return false;
     }
+    const bool measure = m_config.profiling_host();
+    const auto stall_start = measure ? std::chrono::steady_clock::now()
+                                     : std::chrono::steady_clock::time_point{};
 
     std::vector<void*> new_allocations(static_cast<std::size_t>(m_world_size), nullptr);
     std::vector<std::size_t> new_bytes_per_rank(static_cast<std::size_t>(m_world_size), 0);
@@ -561,9 +530,6 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
             if (rs.compute_queue) {
                 sync_queue(rs.compute_queue, "scratch grow: compute queue drain");
             }
-            if (rs.copy_queue) {
-                sync_queue(rs.copy_queue, "scratch grow: copy queue drain");
-            }
         }
     } catch (...) {
         for (auto* ptr : new_allocations) {
@@ -600,6 +566,13 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
             ov::tp_gpu::log_stream() << " r" << rank << "=" << m_scratch.bytes_per_rank[rank];
         }
         ov::tp_gpu::log_stream() << std::endl;
+    }
+    if (measure) {
+        m_scratch_stall_ns.fetch_add(
+            static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                      std::chrono::steady_clock::now() - stall_start)
+                                      .count()),
+            std::memory_order_relaxed);
     }
     return true;
 }
@@ -756,6 +729,7 @@ void TPDeviceCoordinator::create_plan_events(Plan& plan) {
                                        static_cast<uint32_t>(devs_nc.size()),
                                        devs_nc.data(), &plan.done_pool));
         plan.ev_done.assign(static_cast<std::size_t>(N), nullptr);
+        plan.spliced_bytes.assign(static_cast<std::size_t>(N), 0);
         plan.in_flight = std::make_unique<std::atomic<uint8_t>[]>(static_cast<std::size_t>(N));
         for (int r = 0; r < N; ++r) {
             plan.in_flight[r].store(0, std::memory_order_relaxed);
@@ -863,17 +837,11 @@ void TPDeviceCoordinator::ensure_plan_lists(Plan& plan) {
 
     auto ctx = m_shared->context;
     plan.compute_lists.assign(static_cast<std::size_t>(m_world_size), nullptr);
-    plan.copy_lists.assign(static_cast<std::size_t>(m_world_size), nullptr);
     for (int r = 0; r < m_world_size; ++r) {
         auto& rs = m_ranks[r];
         ze_command_list_desc_t ld{ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr};
         ld.commandQueueGroupOrdinal = rs.compute_ordinal;
         ZE_THROW(ov::zeCommandListCreate(ctx, rs.device, &ld, &plan.compute_lists[r]));
-        if (rs.has_dedicated_copy) {
-            ze_command_list_desc_t cld{ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC, nullptr};
-            cld.commandQueueGroupOrdinal = rs.copy_ordinal;
-            ZE_THROW(ov::zeCommandListCreate(ctx, rs.device, &cld, &plan.copy_lists[r]));
-        }
     }
 }
 
@@ -1033,15 +1001,13 @@ void TPDeviceCoordinator::record_ring_rank(Plan& plan, int r) {
     // ones it consumed: the per-step events of its predecessor and the
     // reduce-scatter handshake of its successor.  The in-order list
     // already orders these behind the waits above.
-    if (use_device_event_reset()) {
-        order(list);
-        for (int s = 0; s < 2 * steps; ++s) {
-            ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(s, prev)));
-        }
-        ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(2 * steps, next)));
+    order(list);
+    for (int s = 0; s < 2 * steps; ++s) {
+        ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(s, prev)));
     }
+    ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(2 * steps, next)));
 
-    close_list(list);
+    close_list(list, m_rec_close_ns);
 }
 
 void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
@@ -1161,21 +1127,23 @@ void TPDeviceCoordinator::record_halving_rank(Plan& plan, int r) {
             static_cast<std::size_t>(partner)]));
     }
 
-    if (use_device_event_reset()) {
-        order(list);
-        for (int step = 0; step < 2 * levels; ++step) {
-            const int j = (step < levels) ? step : (2 * levels - 1 - step);
-            ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(step, r ^ (1 << j))));
-        }
+    order(list);
+    for (int step = 0; step < 2 * levels; ++step) {
+        const int j = (step < levels) ? step : (2 * levels - 1 - step);
+        ZE_THROW(ze_api()->zeCommandListAppendEventReset(list, ev(step, r ^ (1 << j))));
     }
 
-    close_list(list);
+    close_list(list, m_rec_close_ns);
 }
 
-void TPDeviceCoordinator::close_list(ze_command_list_handle_t list) {
+void TPDeviceCoordinator::close_list(ze_command_list_handle_t list, std::atomic<uint64_t>& into) {
+    if (!m_config.profiling_host()) {
+        ZE_THROW(ze_api()->zeCommandListClose(list));
+        return;
+    }
     const auto t0 = std::chrono::steady_clock::now();
     ZE_THROW(ze_api()->zeCommandListClose(list));
-    m_rec_close_ns.fetch_add(
+    into.fetch_add(
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
                                   std::chrono::steady_clock::now() - t0)
                                   .count()),
@@ -1184,13 +1152,6 @@ void TPDeviceCoordinator::close_list(ze_command_list_handle_t list) {
 
 void TPDeviceCoordinator::submit_rank(Plan& plan, int rank) {
     auto& rs = m_ranks[rank];
-    // The ring records nothing onto the copy engine, so with TP_COPY_ENGINE
-    // set its copy list exists but is empty and was never closed; submitting
-    // that would be an error.
-    if (!m_use_ring && rs.copy_queue && plan.copy_lists[rank]) {
-        ZE_THROW(ze_api()->zeCommandQueueExecuteCommandLists(
-            rs.copy_queue, 1, &plan.copy_lists[rank], nullptr));
-    }
     ZE_THROW(ze_api()->zeCommandQueueExecuteCommandLists(
         rs.compute_queue, 1, &plan.compute_lists[rank], nullptr));
 }
@@ -1205,9 +1166,6 @@ void TPDeviceCoordinator::sync_rank(Plan& plan, int rank) {
                              (m_use_ring ? ", ring" : "") +
                              ")";
     sync_queue(rs.compute_queue, what.c_str());
-    // On the two-rank exchange the compute queue's first command waits on the
-    // event the peer's copy queue signals, so draining both compute queues
-    // already implies both copies landed; there is nothing left to wait for.
 }
 
 void TPDeviceCoordinator::record_rank(Plan& plan, int rank) {
@@ -1221,20 +1179,18 @@ void TPDeviceCoordinator::record_rank(Plan& plan, int rank) {
     // time to first token, so the stages are timed separately: the drain, the
     // reset, and the appends that follow.
     using rec_clk = std::chrono::steady_clock;
+    const bool measure = m_config.profiling_host();
+    auto stamp = [measure]() -> rec_clk::time_point {
+        return measure ? rec_clk::now() : rec_clk::time_point{};
+    };
     auto& rs = m_ranks[rank];
-    const auto t0 = rec_clk::now();
+    const auto t0 = stamp();
     if (rs.compute_queue) {
         sync_queue(rs.compute_queue, "re-record: compute queue drain");
     }
-    if (rs.copy_queue) {
-        sync_queue(rs.copy_queue, "re-record: copy queue drain");
-    }
-    const auto t1 = rec_clk::now();
+    const auto t1 = stamp();
     ZE_THROW(ze_api()->zeCommandListReset(plan.compute_lists[rank]));
-    if (plan.copy_lists[rank]) {
-        ZE_THROW(ze_api()->zeCommandListReset(plan.copy_lists[rank]));
-    }
-    const auto t2 = rec_clk::now();
+    const auto t2 = stamp();
 
     if (m_use_ring) {
         // Halving needs the world to be a power of two; anything else stays
@@ -1243,14 +1199,26 @@ void TPDeviceCoordinator::record_rank(Plan& plan, int rank) {
         const bool power_of_two = (m_world_size & (m_world_size - 1)) == 0;
         const std::size_t payload = plan.n * plan.dtype.size();
         if (m_config.get_enable_halving() && power_of_two && payload <= m_config.get_halving_max_bytes()) {
+            plan.schedule = Plan::Schedule::halving;
             record_halving_rank(plan, rank);
         } else {
+            plan.schedule = Plan::Schedule::ring;
             record_ring_rank(plan, rank);
         }
     } else {
+        plan.schedule = Plan::Schedule::pair;
         record_pair_rank(plan, rank);
     }
-    const auto t3 = rec_clk::now();
+    const auto t3 = stamp();
+
+    if (!measure) {
+        return;
+    }
+    switch (plan.schedule) {
+    case Plan::Schedule::pair:    m_skew.n_pair[rank].bump();    break;
+    case Plan::Schedule::ring:    m_skew.n_ring[rank].bump();    break;
+    case Plan::Schedule::halving: m_skew.n_halving[rank].bump(); break;
+    }
 
     m_rec_drain_ns.fetch_add(
         static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()),
@@ -1279,16 +1247,11 @@ void TPDeviceCoordinator::record_pair_rank(Plan& plan, int r) {
     ZE_THROW(ze_api()->zeKernelSetGroupSize(kernel, kGroupSize, 1, 1));
 
     // 1. Push our `in` to peer's local staging (source-side memcpy).
-    //    Route onto the dedicated copy engine when available so cross-device
-    //    DMA does not contend with the reduce kernel on the compute engine.
-    //    ev_recv[r] is signaled by the copy queue; the cross-device wait below
-    //    resolves on the peer's compute queue regardless of which engine
-    //    signaled.  The destination is the coordinator's staging, never the
-    //    peer's own buffer, which is what lets each rank record on its own.
-    ze_command_list_handle_t copy_target =
-        plan.copy_lists[r] ? plan.copy_lists[r] : self_compute;
+    //    ev_recv[r] tells the peer the bytes have landed.  The destination is
+    //    the coordinator's staging, never the peer's own buffer, which is what
+    //    lets each rank record on its own.
     ZE_THROW(ze_api()->zeCommandListAppendMemoryCopy(
-        copy_target,
+        self_compute,
         scratch_buffer(peer, plan.buffer),
         plan.in_ptrs[r],
         bytes,
@@ -1304,9 +1267,7 @@ void TPDeviceCoordinator::record_pair_rank(Plan& plan, int r) {
     // staged data the kernel is about to read.  Placing the reset here rather
     // than after the kernel is what makes it free: the wait already orders
     // everything appended after it, so no barrier is needed.
-    if (use_device_event_reset()) {
-        ZE_THROW(ze_api()->zeCommandListAppendEventReset(self_compute, plan.ev_recv[peer]));
-    }
+    ZE_THROW(ze_api()->zeCommandListAppendEventReset(self_compute, plan.ev_recv[peer]));
 
     // 3. Reduce: out_self = in_self + staging_self.
     void* dst   = plan.out_ptrs[r];
@@ -1320,157 +1281,16 @@ void TPDeviceCoordinator::record_pair_rank(Plan& plan, int r) {
                                                       kernel, &gc,
                                                       plan.ev_ts_kernel[r], 0, nullptr));
 
-    close_list(self_compute);
-    if (plan.copy_lists[r]) {
-        close_list(plan.copy_lists[r]);
-    }
+    close_list(self_compute, m_rec_close_ns);
 }
 
-void TPDeviceCoordinator::execute_plan(Plan& plan, ExecStats* stats) {
-    auto trace = [](const char* msg) {
-        TP_LOG_TRACE << "[TP][L0] " << msg << std::endl;
-    };
-
-    using clk = std::chrono::steady_clock;
-    auto tr0 = clk::now();
-    // Reset events on host (they are signal-once, must be reset between calls).
-    // When the recorded lists clear them on the device there is nothing left
-    // to do here; the profiling path still needs the host reset.
-    trace("execute: reset events");
-    const bool device_reset = use_device_event_reset();
-    if (!device_reset) {
-        for (auto& e : plan.ev_recv)  ZE_THROW(ze_api()->zeEventHostReset(e));
-        for (auto& e : plan.ev_ring)  ZE_THROW(ze_api()->zeEventHostReset(e));
-    }
-    for (auto& e : plan.ev_ts_kernel) if (e) ZE_THROW(ze_api()->zeEventHostReset(e));
-    auto tr1 = clk::now();
-    if (stats) {
-        stats->reset = tr1 - tr0;
-        // Payload of a single cross-device transfer, and everything that
-        // crosses a device boundary during the collective.  The direct N=2
-        // exchange runs two full-payload transfers; the ring runs 2*(N-1)
-        // steps of one chunk on every one of the N links.
-        const auto payload = collective_payload_bytes(plan.n, plan.dtype);
-        const std::size_t links = static_cast<std::size_t>(m_world_size);
-        if (m_use_ring) {
-            stats->copy_bytes_total = 2u * (links - 1u) * payload;
-            stats->copy_bytes = stats->copy_bytes_total / links;
-        } else {
-            stats->copy_bytes = payload;
-            stats->copy_bytes_total = payload * 2u;
-        }
-    }
-
-    if (m_use_ring) {
-        // Every rank runs the same self-contained chain, so there is no
-        // launch order to get right and nothing to submit on rank 0's behalf.
-        trace("execute: submit ring");
-        auto tg0 = clk::now();
-        for (int r = 0; r < m_world_size; ++r) {
-            submit_rank(plan, r);
-        }
-        auto tg1 = clk::now();
-
-        auto tprev = tg1;
-        for (int r = 0; r < m_world_size; ++r) {
-            sync_rank(plan, r);
-            if (stats) {
-                const auto tnow = clk::now();
-                (r == 0 ? stats->sync_first : stats->sync_rest) += tnow - tprev;
-                tprev = tnow;
-            }
-        }
-
-        if (stats) {
-            stats->submit = tg1 - tg0;
-        }
-        if (stats && m_config.profiling_device()) {
-            // The steps are sequential and every rank runs them in lockstep,
-            // so the critical path is the sum over steps of the slowest rank.
-            auto tq0 = clk::now();
-            uint64_t total_ns = 0;
-            const int steps = 2 * (m_world_size - 1);
-            for (int s = 0; s < steps; ++s) {
-                uint64_t step_ns = 0;
-                for (int r = 0; r < m_world_size; ++r) {
-                    ze_kernel_timestamp_result_t kt{};
-                    auto* e = plan.ev_ring[static_cast<std::size_t>(s) *
-                                           static_cast<std::size_t>(m_world_size) +
-                                           static_cast<std::size_t>(r)];
-                    if (!e || ze_api()->zeEventQueryKernelTimestamp(e, &kt) != ZE_RESULT_SUCCESS) {
-                        continue;
-                    }
-                    const uint64_t mask = m_ranks[r].timestamp_mask;
-                    const uint64_t a = kt.global.kernelStart & mask;
-                    const uint64_t b = kt.global.kernelEnd   & mask;
-                    const uint64_t d = (b >= a) ? (b - a) : ((mask + 1 - a) + b);
-                    step_ns = std::max(step_ns, d * m_ranks[r].timer_ns_per_tick);
-                }
-                total_ns += step_ns;
-            }
-            stats->dev_copy = std::chrono::nanoseconds{total_ns};
-            stats->dev_kernel = std::chrono::nanoseconds{0};
-            stats->dev_ts_query = clk::now() - tq0;
-        }
-        trace("execute: done (ring)");
-        return;
-    }
-
-    if (m_world_size == 2) {
-        // Symmetric: just submit both queues, then sync.
-        // When a dedicated copy engine is present per rank, also submit
-        // copy_list to copy_queue.  The compute queue's first command is
-        // AppendWaitOnEvents on ev_recv[peer], which is signaled by the
-        // peer's copy queue completing — so we only need to host-sync the
-        // compute queue here; the copy queue is implicitly drained.
-        auto ts0 = clk::now();
-        for (int r = 0; r < 2; ++r) {
-            submit_rank(plan, r);
-        }
-        auto ts1 = clk::now();
-        sync_rank(plan, 0);
-        auto ts2 = clk::now();
-        sync_rank(plan, 1);
-        auto ts3 = clk::now();
-        if (stats) {
-            stats->submit = ts1 - ts0;
-            stats->sync_first = ts2 - ts1;
-            stats->sync_rest  = ts3 - ts2;
-
-            // Device-side breakdown via kernel timestamps.
-            auto tq0 = clk::now();
-            auto ticks_to_ns = [](uint64_t start, uint64_t end,
-                                  uint64_t mask, uint64_t ns_per_tick) -> uint64_t {
-                const uint64_t s = start & mask;
-                const uint64_t e = end   & mask;
-                const uint64_t delta = (e >= s) ? (e - s) : ((mask + 1 - s) + e);
-                return delta * ns_per_tick;
-            };
-            uint64_t copy_ns_max = 0;
-            uint64_t kern_ns_max = 0;
-            for (int r = 0; r < 2; ++r) {
-                ze_kernel_timestamp_result_t kt{};
-                if (ze_api()->zeEventQueryKernelTimestamp(plan.ev_recv[r], &kt) == ZE_RESULT_SUCCESS) {
-                    uint64_t ns = ticks_to_ns(kt.global.kernelStart, kt.global.kernelEnd,
-                                              m_ranks[r].timestamp_mask,
-                                              m_ranks[r].timer_ns_per_tick);
-                    if (ns > copy_ns_max) copy_ns_max = ns;
-                }
-                if (plan.ev_ts_kernel[r] &&
-                    ze_api()->zeEventQueryKernelTimestamp(plan.ev_ts_kernel[r], &kt) == ZE_RESULT_SUCCESS) {
-                    uint64_t ns = ticks_to_ns(kt.global.kernelStart, kt.global.kernelEnd,
-                                              m_ranks[r].timestamp_mask,
-                                              m_ranks[r].timer_ns_per_tick);
-                    if (ns > kern_ns_max) kern_ns_max = ns;
-                }
-            }
-            stats->dev_copy   = std::chrono::nanoseconds{copy_ns_max};
-            stats->dev_kernel = std::chrono::nanoseconds{kern_ns_max};
-            auto tq1 = clk::now();
-            stats->dev_ts_query = tq1 - tq0;
-        }
-        trace("execute: done (sym)");
-    }
+// Duration between two kernel timestamps of one device, in nanoseconds.
+// The counter is narrower than 64 bits on Intel GPUs, so it wraps.
+static uint64_t ticks_to_ns(uint64_t start, uint64_t end, uint64_t mask, uint64_t ns_per_tick) {
+    const uint64_t s = start & mask;
+    const uint64_t e = end & mask;
+    const uint64_t delta = (e >= s) ? (e - s) : ((mask + 1 - s) + e);
+    return delta * ns_per_tick;
 }
 
 namespace {
@@ -1779,7 +1599,7 @@ void TPDeviceCoordinator::record_gather_rank(Plan& plan, int rank) {
         }
     }
 
-    close_list(list);
+    close_list(list, m_gather_close_ns);
 }
 
 void TPDeviceCoordinator::await_previous_splice(Plan& plan, int rank, int collective_id) {
@@ -1844,6 +1664,18 @@ void TPDeviceCoordinator::run_gather(int collective_id,
                     "[TP][L0] gather of an empty slice (rows=", rows, ", slice=", slice_elems, ")");
     throw_if_aborted();
 
+    using gclk = std::chrono::steady_clock;
+    const bool g_host = m_config.profiling_host();
+    const bool g_dev = m_config.profiling_device();
+    auto g_stamp = [g_host]() -> gclk::time_point {
+        return g_host ? gclk::now() : gclk::time_point{};
+    };
+    auto g_ns = [](gclk::time_point a, gclk::time_point b) -> uint64_t {
+        return static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count());
+    };
+    const auto g_t0 = g_stamp();
+
     auto& rdz = *m_rendezvous[collective_id];
     // The gather touches no staging of its own -- every rank writes straight
     // into the root's output, at an offset nobody else uses -- so one set of
@@ -1870,6 +1702,10 @@ void TPDeviceCoordinator::run_gather(int collective_id,
                                 "gather enter barrier");
             }
         }
+    }
+    if (g_host) {
+        m_gather.barrier_ns[rank].add(g_ns(g_t0, gclk::now()));
+        m_gather.calls[rank].bump();
     }
 
     struct AbortOnFailure {
@@ -1921,6 +1757,9 @@ void TPDeviceCoordinator::run_gather(int collective_id,
             std::fill(slot->recorded.begin(), slot->recorded.end(), 1);
             std::fill(slot->recorded_scratch_generation.begin(),
                       slot->recorded_scratch_generation.end(), m_scratch.generation);
+            if (g_host) {
+                m_gather.records[rank].bump();
+            }
         }
         std::unique_lock<std::mutex> lk(rdz.mtx);
         rdz.done = true;
@@ -1939,12 +1778,45 @@ void TPDeviceCoordinator::run_gather(int collective_id,
     // Ranks write disjoint columns, so there is nothing to order between them
     // beyond the root's wait, which the recording carries.
     if (model_queue != nullptr) {
+        // The completion event of the previous instance still holds its
+        // timestamps; read them before await_previous_splice clears it.  The
+        // wait has to be blocking: with the host running a hundred splices
+        // ahead the event is usually still pending, and a query-only check
+        // would skip almost every sample.
+        if (g_dev && slot->in_flight[rank].load(std::memory_order_acquire)) {
+            if (ze_api()->zeEventHostSynchronize(slot->ev_done[rank], timeout_ns()) ==
+                ZE_RESULT_SUCCESS) {
+                ze_kernel_timestamp_result_t kt{};
+                if (ze_api()->zeEventQueryKernelTimestamp(slot->ev_done[rank], &kt) ==
+                    ZE_RESULT_SUCCESS) {
+                    const uint64_t ns = ticks_to_ns(kt.global.kernelStart, kt.global.kernelEnd,
+                                                    m_ranks[rank].timestamp_mask,
+                                                    m_ranks[rank].timer_ns_per_tick);
+                    m_gather.dev_ns[rank].add(ns);
+                    m_gather.dev_max_ns[rank].keep_max(ns);
+                    m_gather.dev_count[rank].bump();
+                    m_gather.bytes[rank].add(
+                        slot->spliced_bytes[static_cast<std::size_t>(rank)]);
+                }
+            }
+        }
         await_previous_splice(*slot, rank, collective_id);
         // See run_allreduce: the flag has to be up before the driver call so a
         // block inside it still looks like outstanding work to the watchdog.
+        const auto g_a0 = g_stamp();
         slot->in_flight[rank].store(1, std::memory_order_release);
         ZE_THROW(ze_api()->zeCommandListImmediateAppendCommandListsExp(
             model_queue, 1, &slot->compute_lists[rank], slot->ev_done[rank], 0, nullptr));
+        if (g_host) {
+            m_gather.append_ns[rank].add(g_ns(g_a0, gclk::now()));
+            m_gather.spliced[rank].bump();
+        }
+        if (g_dev) {
+            // A rank copies its own slice into the root: rows * slice_elems.
+            slot->spliced_bytes[static_cast<std::size_t>(rank)] =
+                checked_multiply(checked_multiply(rows, slice_elems, "gather slice"),
+                                 dtype.size(), "gather bytes");
+        }
         note_collective_started(rank);
     } else {
         submit_rank(*slot, rank);
@@ -1978,6 +1850,8 @@ void TPDeviceCoordinator::run_gather(int collective_id,
             }
         }
     }
+
+    note_collective_done(rank);
 }
 
 bool TPDeviceCoordinator::async_supported() const {
@@ -2007,12 +1881,12 @@ void TPDeviceCoordinator::allreduce_async(int collective_id,
 }
 
 void TPDeviceCoordinator::run_allreduce(int collective_id,
-                                    int rank,
-                                    void* in_dev,
-                                    void* out_dev,
-                                    std::size_t n,
-                                    ov::element::Type dtype,
-                                    ze_command_list_handle_t model_queue) {
+                                        int rank,
+                                        void* in_dev,
+                                        void* out_dev,
+                                        std::size_t n,
+                                        ov::element::Type dtype,
+                                        ze_command_list_handle_t model_queue) {
     OPENVINO_ASSERT(m_ready, "[TP][L0] coordinator not initialized");
     OPENVINO_ASSERT(collective_id >= 0 && collective_id < m_num_collectives,
                     "[TP][L0] collective_id out of range: ", collective_id);
@@ -2045,29 +1919,33 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
         TP_LOG_TRACE << "[TP][L0] r" << rank << " " << msg << std::endl;
     };
 
-    // Aggregated timings are dumped every `dump_period` calls of rank 0.
-    const std::size_t prof_every = dump_period();
     using clk = std::chrono::steady_clock;
-    // Not thread_local: InferRequest launches every rank through std::async,
-    // so rank 0's collectives run on a fresh thread each inference.  With
-    // thread-local counters the totals reset every step and a dump period
-    // larger than the number of collectives per step never fires.  Outer
-    // inferences are serialized by CompiledModel::lock_inference(), and
-    // future::get() orders the writes, so plain statics are safe here.
-    static std::chrono::nanoseconds t_phase1{}, t_phase2{}, t_exec{},
-                                    t_record{}, t_phase3{};
-    static std::chrono::nanoseconds t_reset{}, t_submit{},
-                                    t_sync_first{}, t_sync_rest{};
-    static std::chrono::nanoseconds t_dev_copy{}, t_dev_kernel{},
-                                    t_dev_ts_query{};
-    // ph2 minus record minus exec turned out to be the largest single item in
-    // continuous batching, and none of the code in between looks expensive.
-    // Split it: t_prep is barrier-exit to start of the plan work, t_tail is
-    // end of execution to releasing the other ranks.
-    static std::chrono::nanoseconds t_prep{}, t_tail{};
-    static std::atomic<uint64_t> n_calls{0}, n_rebuild{0}, n_record{0};
-    static uint64_t t_copy_bytes{0}, t_copy_bytes_total{0};
-    auto t0 = clk::now();
+
+    // The two halves are independent: HOST measures what the host spends,
+    // DEVICE what the GPU spends, and neither prints the other's numbers.
+    // ALL is how you ask for both.  Keeping them apart is what makes a HOST
+    // run comparable with a plain one -- the kernel-timestamp query that
+    // DEVICE adds lands in the middle of the host phases and shifts them.
+    const bool measure_host = m_config.profiling_host();
+    const bool measure_dev = m_config.profiling_device();
+
+    // Every host clock read below goes through this.  Not "cheap when
+    // profiling is off" but absent: with ENABLE_TP_GPU_DEBUG_CAPS off the
+    // whole option chain is a literal, `measure_host` folds to false and the
+    // compiler drops the reads, the accumulators and the reports.  With debug
+    // caps on and TP_PROFILING unset it costs one predictable branch per site
+    // and no clock_gettime, which at 65 collectives a token is what matters.
+    auto stamp = [measure_host]() -> clk::time_point {
+        return measure_host ? clk::now() : clk::time_point{};
+    };
+
+    // Not thread_local and no longer function statics: the ranks run on the
+    // persistent worker threads of RankWorkers, so a thread-local total would
+    // be split across whichever workers happened to serve rank 0, and a
+    // function static would be shared by every coordinator in the process.
+    // Outer inferences are serialized by CompiledModel::lock_inference() and
+    // only rank 0 writes these.
+    const auto t0 = stamp();
 
     auto& rdz = *m_rendezvous[collective_id];
 
@@ -2075,10 +1953,6 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
     // Uses a generation counter so the wait predicate is monotonic and the
     // last-in resets `arrived` immediately for the next epoch.
     trace("phase1: enter");
-    const std::size_t skew_period = dump_period();
-    // Kernel timestamps only exist when the event pools were created with the
-    // timestamp flag, which is what device profiling turns on.
-    const bool device_prof = m_config.profiling_device();
     auto elapsed_ns = [](clk::time_point a, clk::time_point b) -> uint64_t {
         return static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(b - a).count());
@@ -2101,24 +1975,24 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             rdz.n     = n;
             rdz.dtype = dtype;
         }
-        if (skew_period > 0) {
+        if (measure_host) {
             const auto t_arrive = clk::now();
             if (rdz.arrived == 0) {
                 rdz.first_arrival = t_arrive;
             }
-            m_skew.late_ns[rank] += elapsed_ns(rdz.first_arrival, t_arrive);
+            m_skew.late_ns[rank].add(elapsed_ns(rdz.first_arrival, t_arrive));
             if (rdz.arrived + 1 == m_world_size) {
                 m_skew.spread_ns += elapsed_ns(rdz.first_arrival, t_arrive);
-                ++m_skew.last_count[rank];
+                m_skew.last_count[rank].bump();
             }
             // How long this rank's own model work took since it left the
             // previous collective.  Only this rank touches these slots.
             if (m_skew.last_exit[rank] != std::chrono::steady_clock::time_point{}) {
                 const uint64_t seg = elapsed_ns(m_skew.last_exit[rank], t_arrive);
-                m_skew.seg_ns[rank] += seg;
-                m_skew.seg_min_ns[rank] = std::min(m_skew.seg_min_ns[rank], seg);
-                m_skew.seg_max_ns[rank] = std::max(m_skew.seg_max_ns[rank], seg);
-                ++m_skew.seg_count[rank];
+                m_skew.seg_ns[rank].add(seg);
+                m_skew.seg_min_ns[rank].keep_min(seg);
+                m_skew.seg_max_ns[rank].keep_max(seg);
+                m_skew.seg_count[rank].bump();
             }
         }
         if (++rdz.arrived == m_world_size) {
@@ -2135,27 +2009,31 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
         }
     }
     trace("phase1: passed");
-    auto t1 = clk::now();
+    const auto t1 = stamp();
 
     // Which set of resources this instance uses.  The generation is read
     // before the last rank bumps it, so every rank of one instance picks the
     // same set and consecutive instances pick different ones.
     const int buffer = static_cast<int>(entry_gen & 1ull) % plan_buffers();
 
-    // Phase 2.  Recording needs every rank's pointers at once, so rank 0 does
-    // it for the whole group and `done` releases the others once it has.
+    // Phase 2.  Recording needs the signature and the staging arena to be
+    // settled, and only rank 0 can see every rank's pointers at once, so it
+    // settles them and the record gate releases the others.
     //
     // Execution is a different matter.  On a per-rank schedule each rank owns
     // a queue of its own, and having a single thread submit four of them
     // serialized what the hardware can do at once while three threads slept --
-    // submit alone measured 0.6 ms per token at four ranks.  Every rank now
-    // drives its own queue, which is why `done` here means "recorded, go"
-    // rather than "finished".
+    // submit alone measured 0.6 ms per token at four ranks.  Every rank drives
+    // its own queue, which is why the gate means "recorded, go" rather than
+    // "finished".
     //
-    // Profiling and the host-reset toggle stay on the old single-threaded
-    // path: both read events back after the sync, and that wants one thread
-    // that knows every rank has finished.
-    const bool per_rank_exec = use_device_event_reset();
+    // Profiling does not change any of this.  It used to: device profiling
+    // needed the events to survive until their timestamps were read, that was
+    // expressed as a host reset, and the host reset was only reachable from a
+    // single-threaded rank-0 schedule -- so asking for numbers replaced the
+    // system being measured.  The reset is now deferred to
+    // harvest_previous_instance() instead, which runs where the host already
+    // knows the recording finished.
 
     // Whoever fails leaves the rest of the group waiting for something that
     // will never arrive, so every rank arms the guard, not just rank 0.
@@ -2174,7 +2052,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
     } abort_guard{this, collective_id, rank};
 
     Plan* const slot = &plan_at(collective_id, buffer);
-    auto tr0 = clk::now();
+    auto tr0 = stamp();
     auto tr1 = tr0;
 
     if (rank == 0) {
@@ -2206,7 +2084,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
         trace(scratch_grew ? "phase2: grow scratch and re-record"
                            : need_record ? "phase2: re-record" : "phase2: reuse recording");
         if (scratch_grew) {
-            ++n_rebuild;
+            m_totals.rebuilds.bump();
         }
 
         const auto previous_max_payload = slot->max_payload_bytes;
@@ -2228,34 +2106,23 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
         slot->max_payload_bytes = std::max(previous_max_payload, payload_bytes);
 
         if (need_record) {
-            if (per_rank_exec) {
-                // Only invalidate here.  A ring or pair recording reads none
-                // of its neighbours' pointers -- just its own and the staging
-                // arena -- so each rank can lay down its own commands, and
-                // doing it here would serialize four recordings behind rank 0
-                // for no reason.  The arena and the signature are settled by
-                // the time the others are released, which is what they need.
-                std::fill(slot->recorded.begin(), slot->recorded.end(), 0);
-            } else {
-                // The profiling and host-reset paths keep a single thread in
-                // charge of everything, so there is nobody else to record.
-                for (int r = 0; r < m_world_size; ++r) {
-                    record_rank(*slot, r);
-                }
-                std::fill(slot->recorded.begin(), slot->recorded.end(), 1);
-                std::fill(slot->recorded_scratch_generation.begin(),
-                          slot->recorded_scratch_generation.end(), m_scratch.generation);
-            }
-            ++n_record;
+            // Only invalidate here.  A ring or pair recording reads none of
+            // its neighbours' pointers -- just its own and the staging arena
+            // -- so each rank can lay down its own commands, and doing it
+            // here would serialize four recordings behind rank 0 for no
+            // reason.  The arena and the signature are settled by the time
+            // the others are released, which is what they need.
+            std::fill(slot->recorded.begin(), slot->recorded.end(), 0);
+            m_totals.records.bump();
         }
-        tr1 = clk::now();
+        tr1 = stamp();
 
-        if (per_rank_exec) {
+        {
             std::unique_lock<std::mutex> lk(rdz.mtx);
             rdz.record_gen++;
             rdz.cv.notify_all();
         }
-    } else if (per_rank_exec) {
+    } else {
         // The gate exists so that nobody records against a signature or an
         // arena rank 0 is still settling.  When this rank can see for itself
         // that neither moved -- the published pointers are the ones its own
@@ -2267,6 +2134,9 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             slot->recorded[rank] != 0 &&
             slot->recorded_scratch_generation[rank] == m_scratch.generation &&
             !scratch_needs_growth(collective_payload_bytes(n, dtype));
+        if (measure_host) {
+            (nothing_to_settle ? m_skew.gate_fast[rank] : m_skew.gate_slow[rank]).bump();
+        }
         if (!nothing_to_settle) {
             std::unique_lock<std::mutex> lk(rdz.mtx);
             const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
@@ -2276,24 +2146,24 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                 fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank, "record phase");
             }
         }
-        tr1 = clk::now();
+        tr1 = stamp();
     }
 
     auto te1 = tr1;
-    if (per_rank_exec) {
+    {
         // Lay down this rank's commands if they are not already there.  The
         // check is per rank because the invalidation is: rank 0 cleared the
         // flags for everyone when the signature or the arena moved.
         if (!slot->recorded[rank] ||
             slot->recorded_scratch_generation[rank] != m_scratch.generation) {
             trace("phase2: record own commands");
-            const auto rec0 = clk::now();
+            const auto rec0 = stamp();
             record_rank(*slot, rank);
             slot->recorded[rank] = 1;
             slot->recorded_scratch_generation[rank] = m_scratch.generation;
-            if (skew_period > 0) {
-                m_skew.p2_rec_ns[rank] += elapsed_ns(rec0, clk::now());
-                ++m_skew.p2_rec_count[rank];
+            if (measure_host) {
+                m_skew.p2_rec_ns[rank].add(elapsed_ns(rec0, clk::now()));
+                m_skew.p2_rec_count[rank].bump();
             }
         }
 
@@ -2309,7 +2179,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             // peer would otherwise turn into memory corruption instead of an
             // error.
             if (slot->in_flight[rank].load(std::memory_order_acquire)) {
-                const auto w0 = clk::now();
+                const auto w0 = stamp();
                 // Query before waiting.  Two buffers alternate, so this asks
                 // about work handed over two collectives ago, which the device
                 // has long finished: the status query is a memory read and
@@ -2319,8 +2189,8 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                 // case the device really is behind.
                 ze_result_t r = ze_api()->zeEventQueryStatus(slot->ev_done[rank]);
                 if (r == ZE_RESULT_NOT_READY) {
-                    if (skew_period > 0) {
-                        ++m_skew.p2_block_count[rank];
+                    if (measure_host) {
+                        m_skew.p2_block_count[rank].bump();
                     }
                     r = ze_api()->zeEventHostSynchronize(slot->ev_done[rank], timeout_ns());
                     if (r == ZE_RESULT_NOT_READY) {
@@ -2328,8 +2198,8 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                     }
                 }
                 ZE_THROW(r);
-                const auto w1 = clk::now();
-                if (device_prof) {
+                const auto w1 = stamp();
+                if (measure_dev) {
                     // The event still holds the timestamps of the splice that
                     // just finished; the reset below clears them.  Gated on
                     // device profiling rather than on the dump period because
@@ -2340,35 +2210,97 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                     if (ze_api()->zeEventQueryKernelTimestamp(slot->ev_done[rank], &kt) ==
                         ZE_RESULT_SUCCESS) {
                         const uint64_t mask = m_ranks[rank].timestamp_mask;
-                        const uint64_t s = kt.global.kernelStart & mask;
-                        const uint64_t e = kt.global.kernelEnd & mask;
-                        const uint64_t d = (e >= s) ? (e - s) : ((mask + 1 - s) + e);
-                        const uint64_t ns = d * m_ranks[rank].timer_ns_per_tick;
-                        m_skew.p2_dev_ns[rank] += ns;
-                        m_skew.p2_dev_max_ns[rank] = std::max(m_skew.p2_dev_max_ns[rank], ns);
-                        ++m_skew.p2_dev_count[rank];
+                        const uint64_t tick = m_ranks[rank].timer_ns_per_tick;
+                        const uint64_t ns = ticks_to_ns(kt.global.kernelStart, kt.global.kernelEnd,
+                                                        mask, tick);
+                        m_skew.p2_dev_ns[rank].add(ns);
+                        if (ns > m_skew.p2_dev_max_ns[rank].get()) {
+                            m_skew.p2_dev_max_ns[rank].keep_max(ns);
+                            m_skew.p2_dev_max_cid[rank].v.store(
+                                static_cast<uint64_t>(collective_id), std::memory_order_relaxed);
+                        }
+                        m_skew.p2_dev_count[rank].bump();
+
+                        // Powers of two in microseconds.  Anything under 1us
+                        // and anything over the top bucket is clamped into an
+                        // end bucket rather than dropped.
+                        const uint64_t us = ns / 1000u;
+                        int bucket = 0;
+                        for (uint64_t v = us; v > 1 && bucket < kDevBuckets - 1; v >>= 1) {
+                            ++bucket;
+                        }
+                        m_skew.p2_dev_hist[static_cast<std::size_t>(rank) *
+                                               static_cast<std::size_t>(kDevBuckets) +
+                                           static_cast<std::size_t>(bucket)]
+                            .bump();
+
+                        // Device time between the end of the previous
+                        // collective and the start of this one -- the model's
+                        // own work.  The rule is the tick order itself rather
+                        // than collective ids: a window that starts before the
+                        // previous one ended means the two readings did not
+                        // come back in device order, and there is no gap to
+                        // speak of.  That self-check also covers the counter
+                        // wrapping, which is indistinguishable from it here.
+                        const uint64_t prev_end = m_skew.dev_last_end_ticks[rank] & mask;
+                        const uint64_t cur_start = kt.global.kernelStart & mask;
+                        if (m_skew.dev_last_cid[rank] >= 0 && cur_start >= prev_end) {
+                            m_skew.dev_gap_ns[rank].add((cur_start - prev_end) * tick);
+                            m_skew.dev_gap_count[rank].bump();
+                        }
+                        m_skew.dev_last_end_ticks[rank] = kt.global.kernelEnd;
+                        m_skew.dev_last_cid[rank] = collective_id;
+
+                        // The bytes of the very splice this timestamp belongs
+                        // to, recorded when it was handed over.
+                        m_skew.dev_bytes[rank].add(
+                            slot->spliced_bytes[static_cast<std::size_t>(rank)]);
                     }
                 }
                 ZE_THROW(ze_api()->zeEventHostReset(slot->ev_done[rank]));
                 slot->in_flight[rank].store(0, std::memory_order_release);
-                if (skew_period > 0) {
+                if (measure_host) {
+                    m_ahead.now[rank].v.fetch_sub(1, std::memory_order_relaxed);
                     const auto w2 = clk::now();
-                    m_skew.p2_wait_ns[rank] += elapsed_ns(w0, w1);
-                    m_skew.p2_reset_ns[rank] += elapsed_ns(w1, w2);
-                    ++m_skew.p2_wait_count[rank];
+                    m_skew.p2_wait_ns[rank].add(elapsed_ns(w0, w1));
+                    m_skew.p2_reset_ns[rank].add(elapsed_ns(w1, w2));
+                    m_skew.p2_wait_count[rank].bump();
                 }
             }
 
             trace("phase2: splice into the model queue");
-            const auto a0 = clk::now();
+            const auto a0 = stamp();
             slot->in_flight[rank].store(1, std::memory_order_release);
             ZE_THROW(ze_api()->zeCommandListImmediateAppendCommandListsExp(
                 model_queue, 1, &slot->compute_lists[rank], slot->ev_done[rank], 0, nullptr));
-            if (skew_period > 0) {
-                m_skew.p2_append_ns[rank] += elapsed_ns(a0, clk::now());
+            if (measure_host) {
+                m_skew.p2_append_ns[rank].add(elapsed_ns(a0, clk::now()));
+                // How many of this rank's splices the devices have not caught
+                // up with.  Sampled here rather than scanned at dump time,
+                // which would cost a pass over every plan.
+                const uint64_t depth = m_ahead.now[rank].v.fetch_add(
+                                           1, std::memory_order_relaxed) + 1;
+                m_ahead.sum[rank].add(depth);
+                m_ahead.max[rank].keep_max(depth);
+                m_ahead.count[rank].bump();
+            }
+            if (measure_dev) {
+                // What this rank is about to push across a device boundary.
+                // The schedule fixes it exactly: the pair exchange sends one
+                // payload, and both the ring and recursive halving send
+                // 2*(N-1)/N of it -- the bandwidth optimum, which is why the
+                // two agree.  Counting rather than measuring keeps this free
+                // and exact.  Parked on the plan, not added to the total:
+                // it is only counted once the duration of this same splice
+                // comes back, or the two would advance at different rates.
+                const auto payload = collective_payload_bytes(n, dtype);
+                slot->spliced_bytes[static_cast<std::size_t>(rank)] =
+                    m_use_ring ? 2u * static_cast<std::size_t>(m_world_size - 1) * payload /
+                                     static_cast<std::size_t>(m_world_size)
+                               : payload;
             }
             note_collective_started(rank);
-            te1 = clk::now();
+            te1 = stamp();
         } else {
             // Submit before syncing, on every rank: a rank's list blocks on
             // events its neighbours only signal once they run, so draining one
@@ -2377,188 +2309,156 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             trace("phase2: submit own queue");
             submit_rank(*slot, rank);
             sync_rank(*slot, rank);
-            te1 = clk::now();
+            te1 = stamp();
             trace("phase2: own queue drained");
         }
-    } else if (rank == 0) {
-        trace("phase2: execute");
-        ExecStats es{};
-        execute_plan(*slot, &es);
-        te1 = clk::now();
-        trace("phase2: executed");
-
-        t_reset  += es.reset;
-        t_submit += es.submit;
-        t_sync_first += es.sync_first;
-        t_sync_rest  += es.sync_rest;
-        t_dev_copy     += es.dev_copy;
-        t_dev_kernel   += es.dev_kernel;
-        t_dev_ts_query += es.dev_ts_query;
-        t_copy_bytes   += es.copy_bytes;
-        t_copy_bytes_total += es.copy_bytes_total;
-
-        std::unique_lock<std::mutex> lk(rdz.mtx);
-        rdz.done = true;
-        rdz.cv.notify_all();
-    } else {
-        std::unique_lock<std::mutex> lk(rdz.mtx);
-        const auto outcome = wait_for_condition(lk, rdz.cv, m_collective_timeout, m_aborted,
-                                                [&] { return rdz.done; });
-        if (outcome != WaitOutcome::ready) {
-            lk.unlock();
-            fail_collective(outcome == WaitOutcome::timed_out, collective_id, rank, "execute phase");
-        }
-        te1 = clk::now();
     }
     abort_guard.armed = false;
 
-    if (rank == 0) {
-        t_record += tr1 - tr0;
-        t_exec   += te1 - tr1;
-        t_prep   += tr0 - t1;
-        t_tail   += clk::now() - te1;
+    if (measure_host && rank == 0) {
+        m_totals.record_ns.add(elapsed_ns(tr0, tr1));
+        m_totals.splice_ns.add(elapsed_ns(tr1, te1));
+        m_totals.prep_ns.add(elapsed_ns(t1, tr0));
+        m_totals.tail_ns.add(elapsed_ns(te1, clk::now()));
     }
     trace("phase2: passed");
-    auto t2 = clk::now();
+    const auto t2 = stamp();
 
-    // Phase 3 used to be an exit barrier here.  It guarded one thing: a rank
-    // that had already left could reach this collective again and overwrite
-    // the published pointers a slower peer was still reading.  The two
-    // pointer sets, picked by the parity of the entry generation, guard that
-    // directly -- reaching the same set again means passing the enter barrier
-    // twice, which the slow peer has to take part in.  Everything else the
-    // barrier appeared to protect is already device-side: a rank does not
-    // re-splice a recording before its previous splice signalled completion,
-    // and the order between ranks is held by the ring's own events.
-    auto t3 = clk::now();
+    // There used to be an exit barrier here, and a phase-3 counter to measure
+    // it.  It guarded one thing: a rank that had already left could reach this
+    // collective again and overwrite the published pointers a slower peer was
+    // still reading.  The two pointer sets, picked by the parity of the entry
+    // generation, guard that directly -- reaching the same set again means
+    // passing the enter barrier twice, which the slow peer has to take part
+    // in.  Everything else the barrier appeared to protect is already
+    // device-side: a rank does not re-splice a recording before its previous
+    // splice signalled completion, and the order between ranks is held by the
+    // ring's own events.
+    //
     // Only rank 0's phases are accumulated, to match record/exec/prep/tail and
     // the call counter below.  Adding every rank here would double the phase
     // totals while the inner breakdown stayed single-rank.
-    if (rank == 0) {
-        t_phase1 += t1 - t0;
-        t_phase2 += t2 - t1;
-        t_phase3 += t3 - t2;
+    if (measure_host && rank == 0) {
+        m_totals.ph1_ns.add(elapsed_ns(t0, t1));
+        m_totals.ph2_ns.add(elapsed_ns(t1, t2));
     }
-    if (skew_period > 0) {
-        // Every rank records its own slots, so no lock is needed here.
-        m_skew.ph1_ns[rank] += elapsed_ns(t0, t1);
-        m_skew.ph2_ns[rank] += elapsed_ns(t1, t2);
-        m_skew.ph3_ns[rank] += elapsed_ns(t2, t3);
-        m_skew.p2_gate_ns[rank] += elapsed_ns(tr0, tr1);
-        m_skew.last_exit[rank] = t3;
-        if (rank == 0 && (++m_skew.calls % static_cast<uint64_t>(skew_period)) == 0) {
-            const double c = static_cast<double>(m_skew.calls);
-            auto us = [c](uint64_t v) { return static_cast<double>(v) / 1.0e3 / c; };
-            TP_REPORT << "[TP][SKEW] calls=" << m_skew.calls
+    if (measure_host) {
+        m_skew.ph1_ns[rank].add(elapsed_ns(t0, t1));
+        m_skew.ph2_ns[rank].add(elapsed_ns(t1, t2));
+        m_skew.p2_gate_ns[rank].add(elapsed_ns(tr0, tr1));
+        m_skew.last_exit[rank] = t2;
+    }
+    note_collective_done(rank);
+}
+
+void TPDeviceCoordinator::note_collective_done(int rank) {
+    const bool measure_host = m_config.profiling_host();
+    const bool measure_dev = m_config.profiling_device();
+    if (!(measure_host || measure_dev) || rank != 0) {
+        return;
+    }
+    // One counter for every kind of collective, advanced in one place.
+    ++m_skew.calls;
+    const auto period = static_cast<uint64_t>(m_config.dump_period());
+    if (m_skew.calls - m_skew.last_dump < period) {
+        return;
+    }
+    m_skew.last_dump = m_skew.calls;
+    emit_report();
+}
+
+void TPDeviceCoordinator::emit_report() {
+    const bool measure_host = m_config.profiling_host();
+    const bool measure_dev = m_config.profiling_device();
+    {
+        const double c = static_cast<double>(m_skew.calls);
+        auto us = [c](uint64_t v) { return static_cast<double>(v) / 1.0e3 / c; };
+
+        if (measure_host) {
+            TP_REPORT << "[TP][RANK|host] calls=" << m_skew.calls
                       << " arrival spread=" << us(m_skew.spread_ns) << "us/call"
                       << std::endl;
             for (int r = 0; r < m_world_size; ++r) {
                 const double last_share =
-                    100.0 * static_cast<double>(m_skew.last_count[r]) / c;
+                    100.0 * static_cast<double>(m_skew.last_count[r].get()) / c;
                 const double sc =
-                    std::max<double>(1.0, static_cast<double>(m_skew.seg_count[r]));
-                TP_REPORT << "[TP][SKEW]   rank " << r
-                          << ": late=" << us(m_skew.late_ns[r]) << "us"
+                    std::max<double>(1.0, static_cast<double>(m_skew.seg_count[r].get()));
+                TP_REPORT << "[TP][RANK|host]   rank " << r
+                          << ": late=" << us(m_skew.late_ns[r].get()) << "us"
                           << " arrived_last=" << last_share << "%"
-                          << "  ph1=" << us(m_skew.ph1_ns[r]) << "us"
-                          << " ph2=" << us(m_skew.ph2_ns[r]) << "us"
-                          << " ph3=" << us(m_skew.ph3_ns[r]) << "us"
+                          << "  ph1=" << us(m_skew.ph1_ns[r].get()) << "us"
+                          << " ph2=" << us(m_skew.ph2_ns[r].get()) << "us"
                           << "  segment mean="
-                          << (static_cast<double>(m_skew.seg_ns[r]) / 1.0e3 / sc) << "us"
-                          << " min=" << (static_cast<double>(m_skew.seg_min_ns[r]) / 1.0e3)
-                          << "us max=" << (static_cast<double>(m_skew.seg_max_ns[r]) / 1.0e3)
+                          << (static_cast<double>(m_skew.seg_ns[r].get()) / 1.0e3 / sc) << "us"
+                          << " min=" << (static_cast<double>(m_skew.seg_min_ns[r].get()) / 1.0e3)
+                          << "us max=" << (static_cast<double>(m_skew.seg_max_ns[r].get()) / 1.0e3)
                           << "us" << std::endl;
                 const uint64_t p2_known =
-                    m_skew.p2_gate_ns[r] + m_skew.p2_rec_ns[r] + m_skew.p2_wait_ns[r] +
-                    m_skew.p2_reset_ns[r] + m_skew.p2_append_ns[r];
-                TP_REPORT << "[TP][SKEW]     ph2 split: gate=" << us(m_skew.p2_gate_ns[r]) << "us"
-                          << " record=" << us(m_skew.p2_rec_ns[r]) << "us"
-                          << "(" << m_skew.p2_rec_count[r] << "x)"
-                          << " evt_wait=" << us(m_skew.p2_wait_ns[r]) << "us"
-                          << " evt_reset=" << us(m_skew.p2_reset_ns[r]) << "us"
-                          << "(" << m_skew.p2_wait_count[r] << "x, blocked "
-                          << m_skew.p2_block_count[r] << "x)"
-                          << " append=" << us(m_skew.p2_append_ns[r]) << "us"
-                          << " rest=" << us(m_skew.ph2_ns[r] - std::min(p2_known, m_skew.ph2_ns[r]))
+                    m_skew.p2_gate_ns[r].get() + m_skew.p2_rec_ns[r].get() +
+                    m_skew.p2_wait_ns[r].get() + m_skew.p2_reset_ns[r].get() +
+                    m_skew.p2_append_ns[r].get();
+                TP_REPORT << "[TP][RANK|host]     ph2 split: gate=" << us(m_skew.p2_gate_ns[r].get()) << "us"
+                          << " record=" << us(m_skew.p2_rec_ns[r].get()) << "us"
+                          << "(" << m_skew.p2_rec_count[r].get() << "x)"
+                          << " evt_wait=" << us(m_skew.p2_wait_ns[r].get()) << "us"
+                          << " evt_reset=" << us(m_skew.p2_reset_ns[r].get()) << "us"
+                          << "(" << m_skew.p2_wait_count[r].get() << "x, blocked "
+                          << m_skew.p2_block_count[r].get() << "x)"
+                          << " append=" << us(m_skew.p2_append_ns[r].get()) << "us"
+                          << " rest="
+                          << us(m_skew.ph2_ns[r].get() - std::min(p2_known, m_skew.ph2_ns[r].get()))
                           << "us" << std::endl;
-                const double dc =
-                    std::max<double>(1.0, static_cast<double>(m_skew.p2_dev_count[r]));
-                TP_REPORT << "[TP][SKEW]     device: collective holds the queue for "
-                          << (static_cast<double>(m_skew.p2_dev_ns[r]) / 1.0e3 / dc) << "us"
-                          << " max=" << (static_cast<double>(m_skew.p2_dev_max_ns[r]) / 1.0e3)
-                          << "us (" << m_skew.p2_dev_count[r] << " samples)" << std::endl;
+                const uint64_t ahead_n = m_ahead.count[r].get();
+                const uint64_t gate_all = m_skew.gate_fast[r].get() + m_skew.gate_slow[r].get();
+                if (ahead_n > 0 || gate_all > 0) {
+                    TP_REPORT << "[TP][RANK|host]     run-ahead: mean="
+                              << (ahead_n > 0 ? static_cast<double>(m_ahead.sum[r].get()) /
+                                                    static_cast<double>(ahead_n)
+                                              : 0.0)
+                              << " splices max=" << m_ahead.max[r].get()
+                              << "  record gate: fast="
+                              << (gate_all > 0 ? 100.0 * static_cast<double>(m_skew.gate_fast[r].get()) /
+                                                     static_cast<double>(gate_all)
+                                               : 0.0)
+                              << "% of " << gate_all << std::endl;
+                }
             }
-        }
-    }
-    if (prof_every > 0 && rank == 0) {
-        uint64_t c = ++n_calls;
-        if ((c % prof_every) == 0) {
-            using ms = std::chrono::duration<double, std::milli>;
-            const double cf = static_cast<double>(c);
-            TP_REPORT << "[TP][PROF] r0 calls=" << c
-                      << " rebuilds=" << n_rebuild.load()
-                      << " records=" << n_record.load()
-                      << "  totals: ph1=" << ms(t_phase1).count() << "ms"
-                      << " ph2=" << ms(t_phase2).count() << "ms"
-                      << " (record=" << ms(t_record).count() << "ms"
-                      << ", exec=" << ms(t_exec).count() << "ms)"
-                      << " ph3=" << ms(t_phase3).count() << "ms"
-                      << "  per-call: ph1=" << ms(t_phase1).count() / cf << "ms"
-                      << " prep=" << ms(t_prep).count() / cf << "ms"
-                      << " exec=" << ms(t_exec).count() / cf << "ms"
-                      << " tail=" << ms(t_tail).count() / cf << "ms"
-                      << " ph3=" << ms(t_phase3).count() / cf << "ms"
+            auto tms = [](uint64_t ns) { return static_cast<double>(ns) / 1.0e6; };
+            TP_REPORT << "[TP][TOTAL|host] r0 calls=" << m_skew.calls
+                      << " rebuilds=" << m_totals.rebuilds.get()
+                      << " records=" << m_totals.records.get()
+                      << "  totals: ph1=" << tms(m_totals.ph1_ns.get()) << "ms"
+                      << " ph2=" << tms(m_totals.ph2_ns.get()) << "ms"
+                      << " (record=" << tms(m_totals.record_ns.get()) << "ms"
+                      << ", splice=" << tms(m_totals.splice_ns.get()) << "ms)"
+                      << "  per-call: ph1=" << tms(m_totals.ph1_ns.get()) / c << "ms"
+                      << " prep=" << tms(m_totals.prep_ns.get()) / c << "ms"
+                      << " splice=" << tms(m_totals.splice_ns.get()) / c << "ms"
+                      << " tail=" << tms(m_totals.tail_ns.get()) / c << "ms"
                       << std::endl;
-            // exec breakdown: reset events / submit / sync of the first queue
-            // we waited on / sum of the remaining ones.  sync_first absorbs
-            // the wait for whichever rank was slowest up to that point;
-            // sync_rest > 0 means a later rank was the straggler.
-            const double exec_total = ms(t_exec).count();
-            const double r_pct = exec_total > 0 ? 100.0 * ms(t_reset).count()  / exec_total : 0;
-            const double s_pct = exec_total > 0 ? 100.0 * ms(t_submit).count() / exec_total : 0;
-            const double a_pct = exec_total > 0 ? 100.0 * ms(t_sync_first).count() / exec_total : 0;
-            const double b_pct = exec_total > 0 ? 100.0 * ms(t_sync_rest).count()  / exec_total : 0;
-            TP_REPORT << "[TP][PROF]   exec breakdown (world=" << m_world_size << "):"
-                      << " reset="  << ms(t_reset).count()  / cf << "ms (" << r_pct << "%)"
-                      << " submit=" << ms(t_submit).count() / cf << "ms (" << s_pct << "%)"
-                      << " sync_first=" << ms(t_sync_first).count() / cf << "ms (" << a_pct << "%)"
-                      << " sync_rest="  << ms(t_sync_rest).count()  / cf << "ms (" << b_pct << "%)"
-                      << std::endl;
-            // Device-side per-step timing along the critical path.
-            const double ts_query_per = ms(t_dev_ts_query).count() / cf;
-            TP_REPORT << "[TP][PROF]   device steps:"
-                      << " memcpy=" << ms(t_dev_copy).count()   / cf << "ms"
-                      << " kernel=" << ms(t_dev_kernel).count() / cf << "ms"
-                      << " (sum=" << (ms(t_dev_copy).count() + ms(t_dev_kernel).count()) / cf << "ms)"
-                      << " ts_query_overhead=" << ts_query_per << "ms"
-                      << std::endl;
-            // Link bandwidth is per single transfer: on N=2 the two transfers
-            // run concurrently in opposite directions, on the ring every link
-            // carries one chunk per step.  The aggregate line is what actually
-            // crosses device boundaries per collective.
-            const double bytes_per_link  = cf > 0 ? double(t_copy_bytes) / cf : 0.0;
-            const double bytes_total     = cf > 0 ? double(t_copy_bytes_total) / cf : 0.0;
-            const double dev_copy_s      = ms(t_dev_copy).count() / cf / 1.0e3;
-            const double bw_per_dir_gbs  = dev_copy_s > 0 ? (bytes_per_link / 1.0e9) / dev_copy_s : 0.0;
-            const double bw_aggregate_gbs= dev_copy_s > 0 ? (bytes_total / 1.0e9) / dev_copy_s : 0.0;
-            const double exec_per_s      = ms(t_exec).count() / cf / 1.0e3;
-            const double bw_walltime_gbs = exec_per_s > 0 ? (bytes_total / 1.0e9) / exec_per_s : 0.0;
-            TP_REPORT << "[TP][PROF]   throughput:"
-                      << " bytes/link=" << (bytes_per_link / (1024.0 * 1024.0)) << "MB"
-                      << " bytes/call=" << (bytes_total / (1024.0 * 1024.0)) << "MB"
-                      << "  per-link(dev_copy)=" << bw_per_dir_gbs << " GB/s"
-                      << "  aggregate(dev_copy)=" << bw_aggregate_gbs << " GB/s"
-                      << "  effective(exec)=" << bw_walltime_gbs << " GB/s"
+            // Which schedule the recordings chose.  halving is default-on and
+            // bounded by payload, so the split is what says whether that bound
+            // is anywhere near right.
+            uint64_t pair = 0, ring = 0, halving = 0;
+            for (int r = 0; r < m_world_size; ++r) {
+                pair += m_skew.n_pair[r].get();
+                ring += m_skew.n_ring[r].get();
+                halving += m_skew.n_halving[r].get();
+            }
+            TP_REPORT << "[TP][TOTAL|host]   schedule of " << (pair + ring + halving)
+                      << " recordings: pair=" << pair
+                      << " ring=" << ring
+                      << " halving=" << halving
                       << std::endl;
             // Where re-recording time goes.  Divided by the number of
             // recordings, not by calls: recording is rare but every miss
             // lands in time to first token.
-            const double rc = std::max<double>(1.0, static_cast<double>(n_record.load()));
+            const double rc = std::max<double>(1.0, static_cast<double>(m_totals.records.get()));
             auto rec_ms = [](const std::atomic<uint64_t>& v) {
                 return static_cast<double>(v.load(std::memory_order_relaxed)) / 1.0e6;
             };
-            TP_REPORT << "[TP][PROF]   record breakdown: records=" << n_record.load()
-                      << " per-record=" << ms(t_record).count() / rc << "ms"
+            TP_REPORT << "[TP][TOTAL|host]   record breakdown: records=" << m_totals.records.get()
+                      << " per-record=" << tms(m_totals.record_ns.get()) / rc << "ms"
                       << " (drain=" << rec_ms(m_rec_drain_ns) / rc << "ms"
                       << " reset=" << rec_ms(m_rec_reset_ns) / rc << "ms"
                       << " append="
@@ -2566,13 +2466,150 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
                       << " close=" << rec_ms(m_rec_close_ns) / rc << "ms)"
                       << std::endl;
             const auto scratch = get_scratch_stats();
-            TP_REPORT << "[TP][PROF]   scratch: payload_capacity="
+            TP_REPORT << "[TP][TOTAL|host]   scratch: payload_capacity="
                       << (scratch.payload_capacity_bytes / (1024.0 * 1024.0)) << "MB"
                       << " total=" << (scratch.total_allocated_bytes / (1024.0 * 1024.0)) << "MB"
                       << " generation=" << scratch.generation
                       << " grows=" << scratch.growth_count
                       << " allocations=" << scratch.allocation_count
+                      << " stall="
+                      << (static_cast<double>(m_scratch_stall_ns.load(std::memory_order_relaxed)) /
+                          1.0e6)
+                      << "ms"
                       << std::endl;
+            // The gather, kept out of the averages above: one collective, but
+            // sized by the vocabulary rather than the hidden dimension.
+            for (int r = 0; r < m_world_size; ++r) {
+                const uint64_t gc_calls = m_gather.calls[r].get();
+                if (gc_calls == 0) {
+                    continue;
+                }
+                const auto gus = [gc_calls](uint64_t v) {
+                    return static_cast<double>(v) / 1.0e3 / static_cast<double>(gc_calls);
+                };
+                TP_REPORT << "[TP][TOTAL|host]   gather rank " << r
+                          << ": calls=" << gc_calls
+                          << " spliced=" << m_gather.spliced[r].get()
+                          << " records=" << m_gather.records[r].get()
+                          << " barrier=" << gus(m_gather.barrier_ns[r].get()) << "us"
+                          << " append=" << gus(m_gather.append_ns[r].get()) << "us"
+                          << " close="
+                          << (static_cast<double>(m_gather_close_ns.load(std::memory_order_relaxed)) /
+                              1.0e6)
+                          << "ms total"
+                          << std::endl;
+            }
+        }
+
+        if (measure_dev) {
+            uint64_t total_samples = 0;
+            for (int r = 0; r < m_world_size; ++r) {
+                total_samples += m_skew.p2_dev_count[r].get();
+            }
+            if (total_samples == 0) {
+                // A completion event is only read when the same recording is
+                // spliced again, and the two plan buffers alternate, so the
+                // first device numbers appear on the third instance of a
+                // collective.  Saying so beats an empty heading.
+                TP_REPORT << "[TP][RANK|dev] calls=" << m_skew.calls
+                          << ": no samples yet -- device timings start after a"
+                             " collective has run three times" << std::endl;
+            } else {
+            TP_REPORT << "[TP][RANK|dev] calls=" << m_skew.calls
+                      << " schedule=" << (m_use_ring ? "ring/halving" : "pair")
+                      << " world=" << m_world_size << std::endl;
+            uint64_t all_bytes = 0;
+            uint64_t all_ns = 0;
+            for (int r = 0; r < m_world_size; ++r) {
+                const uint64_t samples = m_skew.p2_dev_count[r].get();
+                if (samples == 0) {
+                    continue;
+                }
+                const uint64_t ns = m_skew.p2_dev_ns[r].get();
+                const uint64_t bytes = m_skew.dev_bytes[r].get();
+                all_bytes += bytes;
+                all_ns += ns;
+                const double busy_us = static_cast<double>(ns) / 1.0e3 /
+                                       static_cast<double>(samples);
+                const double mb = static_cast<double>(bytes) / (1024.0 * 1024.0) /
+                                  static_cast<double>(samples);
+                // Bytes over the time the recording owned the queue.  Not the
+                // link rate: that window also contains the reduce kernel and
+                // every wait on a peer, and separating those needs per-step
+                // timestamps the production path cannot hand back.  It is the
+                // rate the model actually sees, which is the one that decides
+                // whether the collective is worth optimizing.
+                const double gbs = ns > 0 ? (static_cast<double>(bytes) / 1.0e9) /
+                                                (static_cast<double>(ns) / 1.0e9)
+                                          : 0.0;
+                TP_REPORT << "[TP][RANK|dev]   rank " << r
+                          << ": queue busy mean=" << busy_us << "us"
+                          << " max=" << (static_cast<double>(m_skew.p2_dev_max_ns[r].get()) / 1.0e3)
+                          << "us(cid " << m_skew.p2_dev_max_cid[r].get() << ")"
+                          << "  sent=" << mb << "MB/call"
+                          << " effective=" << gbs << " GB/s"
+                          << " (" << samples << " samples)" << std::endl;
+
+                // Percentiles off the histogram.  The mean above mixes prefill
+                // and decode, which differ by two orders of magnitude; this is
+                // where they separate.  Each figure is the upper bound of the
+                // bucket the percentile falls in, so it reads "at most".
+                auto pct_us = [&](double frac) -> uint64_t {
+                    const auto want = static_cast<uint64_t>(
+                        static_cast<double>(samples) * frac);
+                    uint64_t seen = 0;
+                    for (int b = 0; b < kDevBuckets; ++b) {
+                        seen += m_skew.p2_dev_hist[static_cast<std::size_t>(r) *
+                                                       static_cast<std::size_t>(kDevBuckets) +
+                                                   static_cast<std::size_t>(b)]
+                                    .get();
+                        if (seen >= want) {
+                            return uint64_t{1} << (b + 1);
+                        }
+                    }
+                    return uint64_t{1} << kDevBuckets;
+                };
+                TP_REPORT << "[TP][RANK|dev]     queue busy under: p50=" << pct_us(0.50) << "us"
+                          << " p90=" << pct_us(0.90) << "us"
+                          << " p99=" << pct_us(0.99) << "us" << std::endl;
+
+                // What the GPU was doing between two collectives: the model.
+                const uint64_t gaps = m_skew.dev_gap_count[r].get();
+                if (gaps > 0) {
+                    const double gap_us = static_cast<double>(m_skew.dev_gap_ns[r].get()) / 1.0e3 /
+                                          static_cast<double>(gaps);
+                    const double duty = 100.0 * busy_us / (busy_us + gap_us);
+                    TP_REPORT << "[TP][RANK|dev]     between collectives: model=" << gap_us << "us"
+                              << " -> collectives own " << duty << "% of device time"
+                              << " (" << gaps << " gaps)" << std::endl;
+                }
+            }
+            if (all_ns > 0) {
+                TP_REPORT << "[TP][TOTAL|dev] across " << m_world_size << " ranks: sent="
+                          << (static_cast<double>(all_bytes) / (1024.0 * 1024.0) / c) << "MB/call"
+                          << " aggregate="
+                          << ((static_cast<double>(all_bytes) / 1.0e9) /
+                              (static_cast<double>(all_ns) / 1.0e9 / m_world_size))
+                          << " GB/s"
+                          << "  (time is queue occupancy, kernel and peer waits included)"
+                          << std::endl;
+            }
+            for (int r = 0; r < m_world_size; ++r) {
+                const uint64_t gd = m_gather.dev_count[r].get();
+                if (gd == 0) {
+                    continue;
+                }
+                const double busy_us = static_cast<double>(m_gather.dev_ns[r].get()) / 1.0e3 /
+                                       static_cast<double>(gd);
+                const double mb = static_cast<double>(m_gather.bytes[r].get()) /
+                                  (1024.0 * 1024.0) / static_cast<double>(gd);
+                TP_REPORT << "[TP][RANK|dev]   gather rank " << r
+                          << ": queue busy mean=" << busy_us << "us"
+                          << " max=" << (static_cast<double>(m_gather.dev_max_ns[r].get()) / 1.0e3)
+                          << "us  sent=" << mb << "MB/call"
+                          << " (" << gd << " samples)" << std::endl;
+            }
+            }
         }
     }
 }
