@@ -11,6 +11,7 @@
 #include "node/include/compiled_model.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
+#include "node/include/lifecycle_trace.hpp"
 #include "node/include/node_output.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
@@ -216,12 +217,15 @@ Napi::Value InferRequestWrap::get_compiled_model(const Napi::CallbackInfo& info)
     return CompiledModelWrap::wrap(info.Env(), _infer_request.get_compiled_model());
 }
 void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) {
+    ov::js::lifecycle_trace("InferRequest", "tsfn-finalizer", context);
     context->native_thread.join();
+    ov::js::lifecycle_trace("InferRequest", "tsfn-finalizer-complete", context);
     delete context;
 };
 
 namespace {
 void perform_inference_thread(TsfnContext* context) {
+    ov::js::lifecycle_trace("InferRequest", "worker-start", context);
     std::exception_ptr stored_exception;
     try {
         const std::lock_guard<std::mutex> lock(infer_mutex);
@@ -252,6 +256,7 @@ void perform_inference_thread(TsfnContext* context) {
     }
 
     auto callback = [stored_exception](Napi::Env env, Napi::Function, TsfnContext* context) {
+        ov::js::lifecycle_trace("InferRequest", "callback", context);
         try {
             if (stored_exception) {
                 std::rethrow_exception(stored_exception);
@@ -263,16 +268,20 @@ void perform_inference_thread(TsfnContext* context) {
                 outputs_obj.Set(key, TensorWrap::wrap(env, tensor));
             }
             context->deferred.Resolve(outputs_obj);
+            ov::js::lifecycle_trace("InferRequest", "promise-resolved", context);
         } catch (const std::exception& e) {
             context->deferred.Reject(Napi::Error::New(env, e.what()).Value());
+            ov::js::lifecycle_trace("InferRequest", "promise-rejected", context);
         }
     };
 
     const auto status = context->tsfn.BlockingCall(context, callback);
+    ov::js::lifecycle_trace("InferRequest", "blocking-call-returned", context, status);
     if (status != napi_ok && status != napi_closing) {
         std::cerr << "ThreadSafeFunction::BlockingCall failed with status " << status << '\n';
     }
-    context->tsfn.Release();
+    const auto release_status = context->tsfn.Release();
+    ov::js::lifecycle_trace("InferRequest", "release-tsfn", context, release_status);
 }
 }  // namespace
 
@@ -283,6 +292,7 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
         OPENVINO_ASSERT(info.Length() == 1, "InferAsync method takes as an argument an array or an object.");
 
         context = new TsfnContext(env, _infer_request);
+        ov::js::lifecycle_trace("InferRequest", "create-context", context);
         context->_inputs = parse_input_data(info[0]);
 
         context->tsfn = Napi::ThreadSafeFunction::New(env,
@@ -293,6 +303,7 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
                                                       context,
                                                       FinalizerCallback,
                                                       static_cast<void*>(nullptr));
+        ov::js::lifecycle_trace("InferRequest", "create-tsfn", context);
         auto promise = context->deferred.Promise();
         context->native_thread = std::thread(perform_inference_thread, context);
         return promise;
