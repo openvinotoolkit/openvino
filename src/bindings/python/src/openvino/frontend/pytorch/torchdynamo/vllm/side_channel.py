@@ -312,34 +312,29 @@ def _bind_paged_attention_side_channel(compiled):
         key_cache_ovt = value_cache_ovt = None
         if kv_cache is not None:
             try:
-                # Key by real layer name so prefill and decode share one
-                # persisted OV tensor.
-                cache_key = meta_layer_name
+                # Key by the KV-cache buffer's own identity, not id(compiled):
+                # prefill and decode are separate compiled graphs for the same
+                # model and must share one persisted OV tensor per layer.
+                # id(kv_cache) still separates distinct models/reloads that
+                # happen to reuse a layer name (it changes on realloc, same
+                # signal _pa_layer_static_cache already keys invalidation on).
+                cache_key = (id(kv_cache), meta_layer_name)
                 cached = _pa_kv_ovt_cache.get(cache_key)
                 if cached is not None:
-                    key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np = cached
+                    key_cache_ovt, value_cache_ovt, key_cache_np, value_cache_np = cached
                 else:
                     # vLLM's CPU KV cache is rank-4 with K/V interleaved on
-                    # the last dim, so unbind(0) picks the wrong axis.
+                    # the last dim, so unbind(0) picks the wrong axis. Two
+                    # disjoint contiguous halves alias it without copying.
                     if kv_cache.ndim == 4:
                         _nb, _hk, _bs, _last = kv_cache.shape
-                        # A real K/V split needs a copy; OV is the sole
-                        # reader/writer here, so two disjoint halves work too.
-                        if (kv_cache.is_contiguous() and _last % 2 == 0
-                                and os.environ.get("OV_KV_SPLIT", "1") != "0"):
-                            _flat = kv_cache.view(-1)
-                            _half = _flat.numel() // 2
-                            kc = _flat[:_half].view(_nb, _hk, _bs, _last // 2)
-                            vc = _flat[_half:].view(_nb, _hk, _bs, _last // 2)
-                        else:
-                            _view = kv_cache.view(_nb, _hk, _bs * 2, _last // 2)
-                            kc, vc = _view.chunk(2, dim=2)
-                            kc = kc.contiguous()
-                            vc = vc.contiguous()
+                        _flat = kv_cache.view(-1)
+                        _half = _flat.numel() // 2
+                        kc = _flat[:_half].view(_nb, _hk, _bs, _last // 2)
+                        vc = _flat[_half:].view(_nb, _hk, _bs, _last // 2)
                     else:
                         kc, vc = kv_cache.unbind(0)
-                    # OV-native Tensor matching the PA Parameter dtype; OV CPU
-                    # PA writes back into this buffer via shared memory.
+                    # OV-native Tensor matching the PA Parameter dtype.
                     import openvino as _ov
                     _kv_shape = tuple(kc.shape)
                     # OV CPU PA hard-requires block_size==32; reshape a larger
@@ -389,7 +384,7 @@ def _bind_paged_attention_side_channel(compiled):
                         logger.debug("[OV plugin] KV cache aliased for %s (%s)",
                                      cache_key, _param_dt)
                     _pa_kv_ovt_cache[cache_key] = (
-                        key_cache_ovt, value_cache_ovt, kc, vc, key_cache_np, value_cache_np)
+                        key_cache_ovt, value_cache_ovt, key_cache_np, value_cache_np)
             except Exception:
                 pass
         if key_cache_np is None:

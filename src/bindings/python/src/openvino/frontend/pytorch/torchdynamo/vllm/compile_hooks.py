@@ -225,8 +225,9 @@ def normalize_concat_ranks(om):
 
     vLLM's symint-heavy graphs emit Unsqueeze wrappers that leave
     rank-mismatched Concat inputs on list-construct nodes. Bypasses each
-    Unsqueeze whose inner input is already rank>=1, until shape inference
-    succeeds. No-op on graphs that already pass it.
+    Unsqueeze whose inner input is already rank>=1, scoped to Concats whose
+    inputs actually disagree in static rank -- not any validation failure,
+    which may be unrelated. No-op on graphs that already pass it.
     """
     def _rank_ge_1(val):
         n = val.get_node()
@@ -237,30 +238,34 @@ def normalize_concat_ranks(om):
             return len(n.get_output_shape(0)) >= 1
         return False
 
+    def _find_targets():
+        for node in om.get_ordered_ops():
+            if node.get_type_name() != "Concat" or node.get_input_size() < 2:
+                continue
+            ranks = set()
+            for i in range(node.get_input_size()):
+                ps = node.input_value(i).get_partial_shape()
+                if ps.rank.is_static:
+                    ranks.add(ps.rank.get_length())
+            if len(ranks) < 2:
+                continue  # Inputs already rank-agree: not this pass's pattern.
+            for i in range(node.get_input_size()):
+                src = node.input_value(i)
+                src_node = src.get_node()
+                if src_node.get_type_name() != "Unsqueeze":
+                    continue
+                inner = src_node.input_value(0)
+                if _rank_ge_1(inner):
+                    yield node, i, inner
+
     try:
         for _ in range(64):
-            try:
-                om.validate_nodes_and_infer_types()
-                return
-            except Exception:
-                pass
-            made_change = False
-            for node in list(om.get_ordered_ops()):
-                if node.get_type_name() != "Concat":
-                    continue
-                if node.get_input_size() < 2:
-                    continue
-                for i in range(node.get_input_size()):
-                    src = node.input_value(i)
-                    src_node = src.get_node()
-                    if src_node.get_type_name() != "Unsqueeze":
-                        continue
-                    inner = src_node.input_value(0)
-                    if _rank_ge_1(inner):
-                        node.input(i).replace_source_output(inner)
-                        made_change = True
-            if not made_change:
-                return
+            targets = list(_find_targets())
+            if not targets:
+                break
+            for node, i, inner in targets:
+                node.input(i).replace_source_output(inner)
+        om.validate_nodes_and_infer_types()
     except Exception as e:
         logger.debug("concat-rank normalization skipped: %s", e)
 
