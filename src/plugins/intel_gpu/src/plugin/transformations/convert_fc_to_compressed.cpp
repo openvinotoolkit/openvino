@@ -51,6 +51,16 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         bool sub_with_convert = pattern_map.count(sub_with_convert_m) > 0;
 
         auto weight_shape = fc->get_input_shape(1);
+        const auto output_features_idx =
+            fc->get_transpose_b() ? weight_shape.size() - 2 : weight_shape.size() - 1;
+        const auto output_features = weight_shape[output_features_idx];
+        auto has_output_features_in_inner_dimension = [output_features](const std::shared_ptr<ov::Node>& node) {
+            const auto& shape = node->get_output_shape(0);
+            const auto inner_dim = std::find_if(shape.rbegin(), shape.rend(), [](size_t dim) {
+                return dim > 1;
+            });
+            return inner_dim != shape.rend() && *inner_dim == output_features;
+        };
         bool is_weight_3d = (std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) {
                                  return d > 1;
                              }) == 3);
@@ -175,12 +185,14 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             fc_input_b = transpose->clone_with_new_inputs({fc_input_b->output(0), transpose_const});
             result_nodes.push_back(fc_input_b);
 
-            if (ov::shape_size(scale->output(0).get_shape()) > 1) {
+            if (ov::shape_size(scale->output(0).get_shape()) > 1 &&
+                !has_output_features_in_inner_dimension(scale)) {
                 fc_input_scale = transpose->clone_with_new_inputs({scale->output(0), transpose_const});
                 result_nodes.push_back(fc_input_scale);
             }
 
-            if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
+            if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1 &&
+                !has_output_features_in_inner_dimension(optional_zero_point)) {
                 fc_input_zp = transpose->clone_with_new_inputs({optional_zero_point->output(0), transpose_const});
                 result_nodes.push_back(fc_input_zp);
             }
