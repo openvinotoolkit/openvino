@@ -141,3 +141,15 @@ void runTest(const std::function<void(std::string, std::string, int)> &tests_pip
     ASSERT_EQ(status, 0) << "Test failed with exitcode " << std::to_string(status);
 #endif
 }
+
+void runStressTest(const std::string& scenario, const TestCase& params) {
+    const std::vector<std::string> arguments = {get_executable_path(),
+                                                "--stress_child",
+                                                "--stress_scenario=" + scenario,
+                                                "--stress_model=" + params.model,
+                                                "--stress_device=" + params.device,
+                                                "--stress_iterations=" + std::to_string(params.numiters),
+                                                "--stress_threads=" + std::to_string(params.numthreads)};
+    const int status = run_in_processes_exec(params.numprocesses, arguments);
+    ASSERT_EQ(status, 0) << "Test failed with exitcode " << std::to_string(status);
+}
