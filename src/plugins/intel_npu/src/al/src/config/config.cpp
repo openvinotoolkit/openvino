@@ -4,6 +4,8 @@
 
 #include "intel_npu/config/config.hpp"
 
+#include <limits>
+
 namespace intel_npu {
 
 // Splits the `str` string onto separate elements using `delim` as delimiter and
@@ -37,9 +39,11 @@ bool OptionParser<bool>::parse(std::string_view val) {
     std::transform(strVal.begin(), strVal.end(), strVal.begin(), [](char c) {
         return std::toupper(c);
     });
-    if (strVal == "YES" || strVal == "TRUE" || strVal == "1") {
+    // Note: the spellings accepted here must stay a superset of the ones `ov::util::Read<bool>` accepts, since
+    // both paths lead to the same options (`update()` vs `updateAny()` with a string payload)
+    if (strVal == "YES" || strVal == "TRUE" || strVal == "ON" || strVal == "1") {
         return true;
-    } else if (strVal == "NO" || strVal == "FALSE" || strVal == "0") {
+    } else if (strVal == "NO" || strVal == "FALSE" || strVal == "OFF" || strVal == "0") {
         return false;
     }
 
@@ -48,58 +52,50 @@ bool OptionParser<bool>::parse(std::string_view val) {
 
 int32_t OptionParser<int32_t>::parse(std::string_view val) {
     try {
-        return std::stol(val.data());
+        const auto parsed = std::stoll(std::string(val));
+        OPENVINO_ASSERT(parsed >= std::numeric_limits<int32_t>::min() && parsed <= std::numeric_limits<int32_t>::max());
+        return static_cast<int32_t>(parsed);
     } catch (...) {
-        OPENVINO_THROW("Value '", val.data(), "' is not a valid INT32 option");
+        OPENVINO_THROW("Value '", val, "' is not a valid INT32 option");
     }
 }
 
 uint32_t OptionParser<uint32_t>::parse(std::string_view val) {
     try {
-        return std::stoul(val.data());
+        // Note: "std::stoul" silently wraps negative values around, hence the signed intermediate
+        const auto parsed = std::stoll(std::string(val));
+        OPENVINO_ASSERT(parsed >= 0 && parsed <= std::numeric_limits<uint32_t>::max());
+        return static_cast<uint32_t>(parsed);
     } catch (...) {
-        OPENVINO_THROW("Value '", val.data(), "' is not a valid UINT32 option");
+        OPENVINO_THROW("Value '", val, "' is not a valid UINT32 option");
     }
 }
 
 int64_t OptionParser<int64_t>::parse(std::string_view val) {
     try {
-        return std::stoll(val.data());
+        return std::stoll(std::string(val));
     } catch (...) {
-        OPENVINO_THROW("Value '", val.data(), "' is not a valid INT64 option");
+        OPENVINO_THROW("Value '", val, "' is not a valid INT64 option");
     }
 }
 
 uint64_t OptionParser<uint64_t>::parse(std::string_view val) {
     try {
-        return std::stoull(val.data());
+        // Note: "std::stoull" silently wraps negative values around, hence the explicit check
+        const std::string str(val);
+        OPENVINO_ASSERT(str.find('-') == std::string::npos);
+        return std::stoull(str);
     } catch (...) {
-        OPENVINO_THROW("Value '", val.data(), "' is not a valid UINT64 option");
+        OPENVINO_THROW("Value '", val, "' is not a valid UINT64 option");
     }
 }
 
 double OptionParser<double>::parse(std::string_view val) {
     try {
-        return std::stod(val.data());
+        return std::stod(std::string(val));
     } catch (...) {
-        OPENVINO_THROW("Value '", val.data(), "' is not a valid FP64 option");
+        OPENVINO_THROW("Value '", val, "' is not a valid FP64 option");
     }
-}
-
-ov::log::Level OptionParser<ov::log::Level>::parse(std::string_view val) {
-    std::string strVal(val);
-    std::istringstream is(strVal);
-    ov::log::Level level;
-    is >> level;
-    return level;
-}
-
-ov::hint::ExecutionMode OptionParser<ov::hint::ExecutionMode>::parse(std::string_view val) {
-    std::string strVal(val);
-    std::istringstream is(strVal);
-    ov::hint::ExecutionMode mode;
-    is >> mode;
-    return mode;
 }
 
 //
@@ -108,18 +104,6 @@ ov::hint::ExecutionMode OptionParser<ov::hint::ExecutionMode>::parse(std::string
 
 std::string OptionPrinter<bool>::toString(bool val) {
     return val ? "YES" : "NO";
-}
-
-std::string OptionPrinter<ov::log::Level>::toString(ov::log::Level val) {
-    std::ostringstream os;
-    os << val;
-    return os.str();
-}
-
-std::string OptionPrinter<ov::hint::ExecutionMode>::toString(ov::hint::ExecutionMode val) {
-    std::ostringstream os;
-    os << val;
-    return os.str();
 }
 
 //
@@ -207,7 +191,7 @@ void Config::parseEnvVars() {
                            opt.envVar().data());
 
                 try {
-                    _impl[opt.key().data()] = opt.validateAndParseFromString(envVar);
+                    _impl[opt.key().data()] = opt.validateAndParse(std::string(envVar));
                 } catch (const std::exception& e) {
                     _log.warning(
                         "Environment variable '%s' with value '%s' was ignored for option '%s' due to error:\n%s",
@@ -234,31 +218,22 @@ void Config::update(const ConfigMap& options) {
         _log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
 
         const auto opt = _desc->get(p.first);
-        _impl[opt.key().data()] = opt.validateAndParseFromString(p.second);
+        _impl[opt.key().data()] = opt.validateAndParse(p.second);
     }
 }
 
-void Config::updateAny(const ov::AnyMap& options) {
-    for (const auto& p : options) {
-        _log.trace("Update option '%s' to given 'ov::Any' value", p.first.c_str());
-
-        const auto opt = _desc->get(p.first);
-        _impl[opt.key().data()] = opt.validateAndParseFromAny(p.second);
-    }
-}
-
-void Config::update(std::string_view key, std::string_view value) {
-    _log.trace("Update option '%s' to value '%s'", std::string(key).c_str(), std::string(value).c_str());
+void Config::update(std::string_view key, std::string value) {
+    _log.trace("Update option '%s' to value '%s'", std::string(key).c_str(), value.c_str());
 
     const auto opt = _desc->get(key);
-    _impl[opt.key().data()] = opt.validateAndParseFromString(value);
+    _impl[opt.key().data()] = opt.validateAndParse(value);
 }
 
 void Config::updateAny(std::string_view key, const ov::Any& value) {
     _log.trace("Update option '%s' to given 'ov::Any' value", std::string(key).c_str());
 
     const auto opt = _desc->get(key);
-    _impl[opt.key().data()] = opt.validateAndParseFromAny(value);
+    _impl[opt.key().data()] = opt.validateAndParse(value);
 }
 
 std::string Config::toString() const {
