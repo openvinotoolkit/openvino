@@ -1323,10 +1323,15 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            const JitTerm input_f = out_dt == Datatype::F16 ? JitTerm{"convert_float(input)"} : input;
-            const JitTerm output =
-                out_dt == Datatype::F16 ? JitTerm{"convert_half(" + (log(exp(input_f) + one)).str() + ")"} : JitTerm{(log(exp(input_f) + one)).str()};
-            jitConstants.AddConstant(MakeJitConstant(macro_def, output.str()));
+            // Numerically stable softplus: max(x, 0) + log(1 + exp(-|x|)).
+            // Mathematically equivalent to log(1 + exp(x)) for all x, but
+            // exp(-|x|) is in [0, 1] so it never overflows even at the
+            // float16 limit (~65504). Uses only type-dispatched helpers and
+            // vector-generic builtins, so it compiles for both the scalar ref
+            // kernel and the vectorised opt kernel without width-specific
+            // type conversions.
+            jitConstants.AddConstant(MakeJitConstant(macro_def,
+                    (max_func(input, zero) + log(one + exp(neg(abs_func(input))))).str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {

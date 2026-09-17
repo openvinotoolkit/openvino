@@ -93,6 +93,8 @@ void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
 
     for (const auto& property : properties) {
         const auto propertyIt = _properties.find(property.first);
+        // This should never happen due to the previous check, fixing potential issue with missing property
+        OPENVINO_ASSERT(propertyIt != _properties.end(), "Unsupported configuration key: ", property.first);
         propertyIt->second.set(property.second);
     }
 }
@@ -272,7 +274,9 @@ void CompiledModelPropertyManager::registerProperties() {
             return true;
         },
         [this](const ov::AnyMap&) {
-            return _config.get<MODEL_PTR>().lock();
+            // Retrieve the weak pointer to the model and lock it to get a shared pointer. Fix potential dangling pointer issue.
+            const auto model = _config.get<MODEL_PTR>();
+            return model.lock();
         },
         readOnlySetter
     );
