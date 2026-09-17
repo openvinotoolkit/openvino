@@ -332,19 +332,20 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize without graph handle");
 
     uint32_t commandQueueOptions = 0;
-    if (config.has<TURBO>() && config.get<TURBO>()) {
+    if (config.get<TURBO>()) {
         OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
                         "Turbo is not supported by the current driver");
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
     }
-    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
                         "Running inferences sequentially is not supported by the current driver");
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
+    bool sharedCommonQueue = config.get<SHARED_COMMON_QUEUE>();
     {
         std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
         _commandQueueDesc = CommandQueueDesc{
@@ -352,9 +353,9 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
             this,
-            config.get<SHARED_COMMON_QUEUE>()};
+            sharedCommonQueue};
 
-        if (config.get<SHARED_COMMON_QUEUE>() == false) {
+        if (sharedCommonQueue == false) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
             _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
         }
