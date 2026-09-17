@@ -256,8 +256,9 @@ private:
     struct CompiledModelDesc {
         static constexpr ov::npuw::orc::TypeId kOrcType =
             static_cast<ov::npuw::orc::TypeId>(ov::npuw::orc::schema_npuw::Subgraph::ID);
-        // Version 1 includes separate regular/final HFA tile input maps.
-        static constexpr ov::npuw::orc::Version kOrcVersion = 1u;
+        // Version 0 is the frozen baseline on the wire. Any further layout
+        // changes must be introduced through a new versioned payload.
+        static constexpr ov::npuw::orc::Version kOrcVersion = 0u;
 
         std::set<std::string> devices_to_avoid;
         std::shared_ptr<ov::Model> model;
