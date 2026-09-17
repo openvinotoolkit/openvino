@@ -621,12 +621,12 @@ struct qsa_prepare_only_result {
 /// in place exactly as it already does inside a normal QSA call -- Q0/Q2/Q3 never run,
 /// and the primitive's declared attention output is left uninitialized (not read here).
 ///
-/// This is the primitive-level foundation of the future `QSAIndexerCache` op:
-/// that op would wrap this exact call pattern behind a
-/// `VariableExtension`, so verifying here that (a) Q1 alone correctly extends raw-K/
-/// summary from an arbitrary partially-populated starting point, and (b) doing so is
-/// numerically IDENTICAL to what a normal (non-prepare_only) call already produces, is
-/// exactly the load-bearing assumption that op will depend on.
+/// This is the primitive-level behavior used by the `QSAIndexerCache` lowering:
+/// the op wraps this exact call pattern behind persistent Variables. Verifying here
+/// that (a) Q1 alone correctly extends raw-K/summary from an arbitrary partially-
+/// populated starting point, and (b) doing so is numerically IDENTICAL to what a
+/// normal (non-prepare_only) call already produces, covers the load-bearing assumption
+/// used by that lowering.
 ///
 /// The main K/V cache inputs are irrelevant in this mode (Q0/Q3 never touch them) and are
 /// left zero-filled; `query`/`key`/`value` are likewise zero-filled since Q1 never reads
@@ -1768,7 +1768,7 @@ TEST(qsa_gpu_test, prepare_only_extends_raw_k_and_summary_from_partial_history) 
 
 TEST(qsa_gpu_test, prepare_only_matches_reference_with_degenerate_paging) {
     // Same as above but pa_block_size covers the whole history in one page (identity
-    // block_indices) -- the exact addressing a future QSAIndexerCache would use.
+    // block_indices) -- the degenerate paging used by QSAIndexerCache's lowering.
     if (!cm_qsa_available()) {
         GTEST_SKIP() << "CM JIT / systolic GPU is required for qsa";
     }
@@ -1785,8 +1785,9 @@ TEST(qsa_gpu_test, prepare_only_matches_reference_with_degenerate_paging) {
 }
 
 // ---------------------------------------------------------------------------
-// QSASDPA op: host-side (no GPU dispatch, no ProgramBuilder lowering yet)
-// construction/shape-inference tests for the new ov::intel_gpu::op::QSASDPA class. 
+// QSASDPA op: host-side construction/shape-inference tests for the
+// ov::intel_gpu::op::QSASDPA class. GPU lowering and dispatch are covered by the
+// end-to-end tests below.
 // It reuses ov::op::internal::QSA::Config verbatim -- only InputIdx
 // (dense/KVCache-managed caches, no page table) differs from QSA 
 // -- so these tests mirror qsa_gpu_test's own
@@ -1869,8 +1870,9 @@ TEST(qsa_gpu_test, qsasdpa_reuses_qsa_config_validation) {
 }
 
 // ---------------------------------------------------------------------------
-// QSAIndexerCache op: host-side (no GPU dispatch, no ProgramBuilder lowering yet)
-// construction/shape-inference tests for the new ov::intel_gpu::op::QSAIndexerCache
+// QSAIndexerCache op: host-side construction/shape-inference tests for the
+// ov::intel_gpu::op::QSAIndexerCache class. GPU lowering and state persistence are
+// covered by the end-to-end test below.
 // class (design section 4.3, "Option 2"). It is a VariableExtension holding the
 // raw-K Variable as its single VariableExtension-visible variable, plus a second,
 // explicitly-accessed summary Variable (VariableExtension only supports one
@@ -1962,9 +1964,9 @@ TEST(qsa_gpu_test, qsa_indexer_cache_clone_preserves_both_variables) {
 // The main K/V and indexer raw-K/summary caches are supplied as PLAIN, dense
 // ov::op::v0::Parameter inputs -- i.e. this test exercises the "advanced caller manages
 // all cache state externally" usage mode (a real, intentionally-supported mode: nothing
-// requires an external KVCache/QSAIndexerCache node to feed QSASDPA,
-// NOT the KVCache-fused or QSAIndexerCache-backed path (QSASDPAFusion and
-// QSAIndexerCache's own ProgramBuilder lowering remain future work, see the design doc).
+// requires an external KVCache/QSAIndexerCache node to feed QSASDPA). This is NOT the
+// KVCache-fused or QSAIndexerCache-backed path produced by QSASDPAFusion; that path is
+// covered separately by the QSAIndexerCache end-to-end test below.
 //
 // Per the lowering's own static-shape requirement (see ops/qsa_sdpa.cpp's block comment:
 // pa_block_size is a JIT compile-time constant, so both B and the max-sequence-length
