@@ -152,7 +152,7 @@ jobs:
       matrix:
         nodejs-version: [21, 22, 24, 26]
     with:
-      runner: 'aks-linux-4-cores-8gb-arm'
+      runner: 'aks-linux-8-cores-16gb-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       nodejs-version: ${{ matrix.nodejs-version }}
 
