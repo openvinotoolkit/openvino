@@ -34,7 +34,7 @@ ze_command_list_handle_t model_queue_of(stream& s) {
 }  // namespace
 
 // "OCL" impl that does not actually compile an OpenCL kernel. All work is
-// dispatched via Level Zero by TPDeviceCoordinator.  Registering as
+// dispatched via Level Zero by TPDeviceCoordinator. Registering as
 // impl_types::ocl with is_cpu()=false makes intel_gpu allocate IO buffers
 // in usm_device, which is the only way to get device-local bandwidth on
 // the all-reduce hot path.
@@ -86,11 +86,6 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
                             tp_allreduce_inst& instance) override {
         auto& stream = instance.get_network().get_stream();
 
-        // Handing the collective to the model's queue instead of draining the
-        // stream and running it on our own. The queue is in-order, so the
-        // spliced recording lands after the operations that produced our
-        // input and before whatever reads our output -- `events` and
-        // stream.finish() were both only ever standing in for that.
         const auto& coordinator = coordinator_of(instance);
         const bool async = coordinator->run_spliced();
 
@@ -104,43 +99,33 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
             });
         }
 
+        // Spliced, the recording lands in the model's in-order queue after
+        // the operations that produced our input and before whatever reads
+        // our output -- `events` and stream.finish() were both only ever
+        // standing in for that.  Draining is the fallback: on the
+        // coordinator's own queue the collective has no ordering against the
+        // model at all, and the drain is what supplies it.
         if (!async) {
             if (!events.empty()) {
                 stream.wait_for_events(events);
             }
-            run_synchronously(instance, stream);
-            return cpu::make_output_event(stream, instance.is_output());
+            stream.finish();
         }
 
         auto [in_dev, out_dev, num_elements, ov_dtype] = collective_operands(instance);
-        coordinator->allreduce_async(static_cast<int>(collective_id),
-                                     static_cast<int>(rank),
-                                     in_dev, out_dev, num_elements, ov_dtype,
-                                     model_queue_of(stream));
+        coordinator->allreduce(static_cast<int>(collective_id),
+                               static_cast<int>(rank),
+                               in_dev, out_dev, num_elements, ov_dtype,
+                               async ? model_queue_of(stream) : nullptr);
         return cpu::make_output_event(stream, instance.is_output());
     }
 
-    /// Fallback for drivers without zeCommandListImmediateAppendCommandListsExp,
-    /// and what TP_FORCE_SYNC_COLLECTIVE selects.  Drains this rank's stream,
-    /// then runs the collective on the coordinator's own queues and waits for
-    /// it.  Deliberately unmeasured: it is a correctness path, not a
-    /// performance one, and the A/B against the spliced path that its timers
-    /// once served is long settled.
-    void run_synchronously(tp_allreduce_inst& instance, stream& stream) {
-        stream.finish();
-
-        auto [in_dev, out_dev, num_elements, ov_dtype] = collective_operands(instance);
-        coordinator_of(instance)->allreduce(static_cast<int>(collective_id),
-                                            static_cast<int>(rank),
-                                            in_dev, out_dev, num_elements, ov_dtype);
-    }
-
     /// The coordinator is runtime state of the network, injected by the
-    /// tensor-parallel plugin after this model was compiled or imported.
+    /// TP plugin after this model was compiled or imported.
     const ov::tp_gpu::TPDeviceCoordinatorPtr& coordinator_of(tp_allreduce_inst& instance) const {
         const auto& registry = instance.get_network().get_collective_comm_registry();
         OPENVINO_ASSERT(registry != nullptr,
-            "[GPU] tp_allreduce requires a collective registry; the tensor-parallel plugin must inject "
+            "[GPU] tp_allreduce requires a collective registry; the TP plugin must inject "
             "one into the compiled model before inference");
 
         const auto& coordinator = registry->get_group(group_id);
@@ -158,21 +143,11 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
 
     static Operands collective_operands(tp_allreduce_inst& instance) {
         const auto& input_layout = instance.get_impl_params()->input_layouts[0];
-        const auto etype = input_layout.data_type;
-
-        ov::element::Type ov_dtype;
-        if (etype == data_types::f16) {
-            ov_dtype = ov::element::f16;
-        } else if (etype == data_types::f32) {
-            ov_dtype = ov::element::f32;
-        } else {
-            OPENVINO_THROW("[GPU] tp_allreduce: unsupported data type ", etype);
-        }
 
         return {instance.input_memory_ptr()->buffer_ptr(),
                 instance.output_memory_ptr()->buffer_ptr(),
                 input_layout.count(),
-                ov_dtype};
+                ov::element::Type{input_layout.data_type}};
     }
 
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}

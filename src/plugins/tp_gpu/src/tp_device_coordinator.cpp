@@ -1627,32 +1627,8 @@ void TPDeviceCoordinator::gather_to_root(int collective_id,
                                          void* out_dev,
                                          std::size_t rows,
                                          std::size_t slice_elems,
-                                         ov::element::Type dtype) {
-    run_gather(collective_id, rank, in_dev, out_dev, rows, slice_elems, dtype, nullptr);
-}
-
-void TPDeviceCoordinator::gather_to_root_async(int collective_id,
-                                               int rank,
-                                               void* in_dev,
-                                               void* out_dev,
-                                               std::size_t rows,
-                                               std::size_t slice_elems,
-                                               ov::element::Type dtype,
-                                               ze_command_list_handle_t model_queue) {
-    // Without the splice there is nowhere to put the recording but our own
-    // queue, and that means draining it -- the synchronous path exactly.
-    run_gather(collective_id, rank, in_dev, out_dev, rows, slice_elems, dtype,
-               async_supported() ? model_queue : nullptr);
-}
-
-void TPDeviceCoordinator::run_gather(int collective_id,
-                                     int rank,
-                                     void* in_dev,
-                                     void* out_dev,
-                                     std::size_t rows,
-                                     std::size_t slice_elems,
-                                     ov::element::Type dtype,
-                                     ze_command_list_handle_t model_queue) {
+                                         ov::element::Type dtype,
+                                         ze_command_list_handle_t model_queue) {
     OPENVINO_ASSERT(m_ready, "[TP][L0] coordinator not initialized");
     OPENVINO_ASSERT(collective_id >= 0 && collective_id < m_num_collectives,
                     "[TP][L0] collective_id out of range: ", collective_id);
@@ -1746,7 +1722,7 @@ void TPDeviceCoordinator::run_gather(int collective_id,
                 // undefined, and where that work lives depends on how the
                 // last recording was handed over: its own queue, or somebody
                 // else's queue via a splice.
-                if (model_queue != nullptr) {
+                if (model_queue != nullptr && run_spliced()) {
                     await_previous_splice(*slot, r, collective_id);
                 } else if (rs.compute_queue) {
                     sync_queue(rs.compute_queue, "gather re-record: compute queue drain");
@@ -1777,7 +1753,7 @@ void TPDeviceCoordinator::run_gather(int collective_id,
 
     // Ranks write disjoint columns, so there is nothing to order between them
     // beyond the root's wait, which the recording carries.
-    if (model_queue != nullptr) {
+    if (model_queue != nullptr && run_spliced()) {
         // The completion event of the previous instance still holds its
         // timestamps; read them before await_previous_splice clears it.  The
         // wait has to be blocking: with the host running a hundred splices
@@ -1801,7 +1777,7 @@ void TPDeviceCoordinator::run_gather(int collective_id,
             }
         }
         await_previous_splice(*slot, rank, collective_id);
-        // See run_allreduce: the flag has to be up before the driver call so a
+        // See allreduce(): the flag has to be up before the driver call so a
         // block inside it still looks like outstanding work to the watchdog.
         const auto g_a0 = g_stamp();
         slot->in_flight[rank].store(1, std::memory_order_release);
@@ -1863,30 +1839,8 @@ void TPDeviceCoordinator::allreduce(int collective_id,
                                     void* in_dev,
                                     void* out_dev,
                                     std::size_t n,
-                                    ov::element::Type dtype) {
-    run_allreduce(collective_id, rank, in_dev, out_dev, n, dtype, nullptr);
-}
-
-void TPDeviceCoordinator::allreduce_async(int collective_id,
-                                          int rank,
-                                          void* in_dev,
-                                          void* out_dev,
-                                          std::size_t n,
-                                          ov::element::Type dtype,
-                                          ze_command_list_handle_t model_queue) {
-    // Without the splice there is nowhere to put the recording but our own
-    // queue, and that means draining it -- the synchronous path exactly.
-    run_allreduce(collective_id, rank, in_dev, out_dev, n, dtype,
-                  async_supported() ? model_queue : nullptr);
-}
-
-void TPDeviceCoordinator::run_allreduce(int collective_id,
-                                        int rank,
-                                        void* in_dev,
-                                        void* out_dev,
-                                        std::size_t n,
-                                        ov::element::Type dtype,
-                                        ze_command_list_handle_t model_queue) {
+                                    ov::element::Type dtype,
+                                    ze_command_list_handle_t model_queue) {
     OPENVINO_ASSERT(m_ready, "[TP][L0] coordinator not initialized");
     OPENVINO_ASSERT(collective_id >= 0 && collective_id < m_num_collectives,
                     "[TP][L0] collective_id out of range: ", collective_id);
@@ -2167,7 +2121,7 @@ void TPDeviceCoordinator::run_allreduce(int collective_id,
             }
         }
 
-        if (model_queue != nullptr) {
+        if (model_queue != nullptr && run_spliced()) {
             // Splice the recording into the queue the model runs on and
             // leave.  Nothing here waits for the device.
             //

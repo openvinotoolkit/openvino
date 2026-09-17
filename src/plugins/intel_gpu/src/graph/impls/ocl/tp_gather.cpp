@@ -92,7 +92,7 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
 
         // The gathered axis is the innermost one for a vocabulary projection,
         // so a rank's slice is contiguous in its own buffer but strided in the
-        // root's.  rows is everything above that axis flattened.
+        // root's. rows is everything above that axis flattened.
         const auto shape = input_layout.get_shape();
         const int64_t rank_len = static_cast<int64_t>(shape.size());
         const int64_t norm_axis = axis >= 0 ? axis : axis + rank_len;
@@ -102,15 +102,7 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
         const size_t slice_elems = shape.back();
         const size_t rows = input_layout.count() / std::max<size_t>(slice_elems, 1);
 
-        const auto etype = input_layout.data_type;
-        ov::element::Type ov_dtype;
-        if (etype == data_types::f16) {
-            ov_dtype = ov::element::f16;
-        } else if (etype == data_types::f32) {
-            ov_dtype = ov::element::f32;
-        } else {
-            OPENVINO_THROW("[GPU] tp_gather: unsupported data type ", etype);
-        }
+        const ov::element::Type ov_dtype{input_layout.data_type};
 
         const auto& registry = instance.get_network().get_collective_comm_registry();
         OPENVINO_ASSERT(registry != nullptr,
@@ -122,7 +114,7 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
 
         // Spliced, the recording lands in the model's in-order queue after the
         // projection that produced our slice, so nothing has to be waited for
-        // here.  Draining is only the fallback: on its own queue the copy has
+        // here. Draining is only the fallback: on its own queue the copy has
         // no ordering against the model at all, and the drain is what supplies
         // it.
         const bool async = coordinator->run_spliced();
@@ -133,14 +125,14 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
             stream.finish();
         }
 
-        coordinator->gather_to_root_async(static_cast<int>(collective_id),
-                                          static_cast<int>(rank),
-                                          input_mem_ptr->buffer_ptr(),
-                                          output_mem_ptr->buffer_ptr(),
-                                          rows,
-                                          slice_elems,
-                                          ov_dtype,
-                                          async ? model_queue_of(stream) : nullptr);
+        coordinator->gather_to_root(static_cast<int>(collective_id),
+                                    static_cast<int>(rank),
+                                    input_mem_ptr->buffer_ptr(),
+                                    output_mem_ptr->buffer_ptr(),
+                                    rows,
+                                    slice_elems,
+                                    ov_dtype,
+                                    async ? model_queue_of(stream) : nullptr);
         return cpu::make_output_event(stream, instance.is_output());
     }
 
