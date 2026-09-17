@@ -1000,6 +1000,15 @@ public:
                             const variable<float[N]>& c,
                             const variable<size_t>& count);
 
+    // Same, with the three stores predicated instead of bounced through a
+    // stack slot. Selected by supports_masked_interleaved_access().
+    template <typename T, size_t N>
+    void store_interleaved3_predicated(const variable<T*>& dst,
+                                       const variable<float[N]>& a,
+                                       const variable<float[N]>& b,
+                                       const variable<float[N]>& c,
+                                       const variable<size_t>& count);
+
     // 2-way deinterleave: separates even/odd elements across two vectors.
     //   in:  a = [x0 x1 x2 x3 ...], b = [xN xN+1 xN+2 xN+3 ...]
     //   out: evens = [x0 x2 x4 ...], odds = [x1 x3 x5 ...]
@@ -1250,6 +1259,12 @@ public:
     // them into a predicate register.
     template <size_t N>
     jit_kernel_ir::value_id ir_active_lane_mask(const variable<size_t>& count);
+
+    // Just the lane bits in a GPR, without moving them into the predicate
+    // file. Split out because one computation can feed several predicates:
+    // a 3-way interleaved store of `count` elements wants the low 3*count
+    // bits, sliced into three predicates by shifting.
+    jit_kernel_ir::value_id ir_lane_mask_bits(jit_kernel_ir::value_id count_vid, size_t lanes);
 
     // Same, for an active length known at kernel-build time: the lane bits
     // are an immediate, so the runtime compare/bts/dec disappears and no
@@ -2615,17 +2630,29 @@ void jit_kernel::store_interleaved3(const ir_ptr<T>& dst,
     // instead of the pointer bumps it saved.
     auto base = variable<T*>(*this, ir_offset_ptr(dst.ptr, dst.disp));
 
-    // x86 has no predicated interleaved store (the target says so), so a
-    // short iteration goes through the counted form: build the interleave
-    // in a stack slot and copy count*3 elements out. On SVE/RVV the same
-    // call would lower to a predicated ST3 / a segment store honouring vl.
-    if (!vl.is_all()) {
-        OPENVINO_ASSERT(vl.has_count(),
-                        "store_interleaved3: this target needs an element count, not just a mask");
-        store_interleaved3(base, a, b, c, variable<size_t>(*this, vl.count()));
-    } else {
+    if (vl.is_all()) {
         store_interleaved3(base, a, b, c);
+        return;
     }
+
+    OPENVINO_ASSERT(vl.has_count(),
+                    "store_interleaved3: a short iteration needs an element count, "
+                    "since the three output masks are derived from it");
+    auto count = variable<size_t>(*this, vl.count());
+
+    // Predicate the three stores where the target can, and only otherwise
+    // fall back to building the interleave in a stack slot and copying
+    // count*3 elements out — which costs ~20 GPR values and a copy loop.
+    // On SVE this same call is ST3 under a governing predicate, and on RVV
+    // a segment store honouring vl; on AVX-512 the interleave is built by
+    // hand and the stores that write it out carry the masks.
+    if constexpr (3 * N <= 64) {
+        if (target().supports_masked_interleaved_access()) {
+            store_interleaved3_predicated(base, a, b, c, count);
+            return;
+        }
+    }
+    store_interleaved3(base, a, b, c, count);
 }
 
 template <size_t N>
@@ -2680,14 +2707,7 @@ jit_kernel_ir::value_id jit_kernel::ir_active_lane_mask(const variable<size_t>& 
         return cached->second;
     }
 
-    // Early clobber: the expansion writes its destination before reading
-    // the count, so the destination must not be the count's register. The
-    // allocator would otherwise be free to reuse it — the count often dies
-    // at this op.
-    auto bits_vid = _ir->def_early_clobber({count_vid}, lane_mask_bits(N),
-                                           "lane_mask_bits",
-                                           jit_kernel_ir::RegisterClass::GPR);
-
+    auto bits_vid = ir_lane_mask_bits(count_vid, N);
     auto mask_vid = ir_def_mask({bits_vid}, mask_from_bits(N), "active_lane_mask");
 
     _lane_masks.emplace(count_vid, mask_vid);
@@ -2932,14 +2952,54 @@ void jit_kernel::store_interleaved3(const variable<T*>& dst,
     ir_store(dst, 2 * step, o2);
 }
 
+// Predicated form: the interleave is built in registers as usual, and the
+// three stores that write it out are predicated.
+//
+// The masks come from one computation, not three. Interleaving `count`
+// elements three ways writes `3*count` consecutive output elements, so
+// output element j is active iff j < 3*count — and the three stores cover
+// [0,N), [N,2N) and [2N,3N). Computing the low `3*count` bits once and
+// shifting by N and 2N gives all three, which is cheaper and shorter-lived
+// than three separately clamped subtractions.
+//
+// Needs 3*N bits to fit a GPR: N=16 (AVX-512) uses 48, N=8 (AVX2) 24.
+// Wider vectors fall back to the counted form, checked by the caller.
+template <typename T, size_t N>
+void jit_kernel::store_interleaved3_predicated(const variable<T*>& dst,
+                                               const variable<float[N]>& a,
+                                               const variable<float[N]>& b,
+                                               const variable<float[N]>& c,
+                                               const variable<size_t>& count) {
+    static_assert(3 * N <= 64, "store_interleaved3_predicated: 3*N lane bits must fit a GPR");
+
+    auto [o0, o1, o2] = interleave_regs(a, b, c);
+
+    auto total = ir_imul(count, 3);
+    auto all_bits = ir_lane_mask_bits(total.vid(), 3 * N);
+
+    // Each slice is a fresh value: ir_shr is destructive (tied), so
+    // shifting in place would consume the bits the next slice needs.
+    auto slice = [this, all_bits](size_t shift) {
+        if (shift == 0) {
+            return ir_def_mask({all_bits}, mask_from_bits(N), "interleave_mask");
+        }
+        auto copy = variable<size_t>(*this, ir_def_gpr({all_bits}, gpr_copy(), "mask_bits_copy"));
+        auto shifted = ir_shr(copy, static_cast<int>(shift));
+        return ir_def_mask({shifted.vid()}, mask_from_bits(N), "interleave_mask");
+    };
+
+    const size_t step = N * sizeof(T);
+    ir_store(dst, size_t{0}, o0, vlen::predicated(slice(0)));
+    ir_store(dst, step, o1, vlen::predicated(slice(N)));
+    ir_store(dst, 2 * step, o2, vlen::predicated(slice(2 * N)));
+}
+
 template <typename T, size_t N>
 void jit_kernel::store_interleaved3(const variable<T*>& dst,
                                     const variable<float[N]>& a,
                                     const variable<float[N]>& b,
                                     const variable<float[N]>& c,
                                     const variable<size_t>& count) {
-    // @todo claude: add ir_if(count >= N) fast-path for direct stores
-    // when nested ir_if register pressure is resolved.
     auto [o0, o1, o2] = interleave_regs(a, b, c);
 
     constexpr size_t t_step = N * sizeof(T);

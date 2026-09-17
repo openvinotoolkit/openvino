@@ -2452,6 +2452,164 @@ TEST(JitKernelIR, TargetWithoutLegalOffsetKeepsPointerIncrements) {
     }
 }
 
+// ── Predicated vs scalarized interleaved store ─────────────────────────
+//
+// store_interleaved3 under a short active length has two realizations and
+// the target picks: predicate the three stores that write the interleave
+// out, or build the interleave in a stack slot and copy count*3 elements.
+// Both are exercised here in one process by injecting the target, which is
+// the only way the losing one stays tested once a target stops choosing
+// it.
+
+namespace {
+
+struct InterleaveCountParams {
+    const float* a;
+    const float* b;
+    const float* c;
+    float* dst;
+    size_t count;
+};
+
+// Mirrors the AVX-512 host except for the one answer under test.
+template <bool MaskedInterleave>
+struct interleave_target final : vector_target {
+    [[nodiscard]] bool supports_masked_access(std::size_t elem_bytes) const override {
+        return elem_bytes == 1 || elem_bytes == 2 || elem_bytes == 4;
+    }
+    [[nodiscard]] bool supports_masked_interleaved_access() const override {
+        return MaskedInterleave;
+    }
+    [[nodiscard]] tail_folding preferred_tail_folding() const override {
+        return tail_folding::mask;
+    }
+    [[nodiscard]] bool is_legal_access_offset(std::size_t, std::size_t,
+                                              std::size_t bytes) const override {
+        return bytes <= 0x7fffffff;
+    }
+    [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {
+        static const std::vector<std::uint32_t> pool{1, 2, 3, 4, 5, 6, 7};
+        return pool;
+    }
+};
+
+template <size_t N>
+struct jit_ir_interleave_count_kernel : public jit_kernel {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_interleave_count_kernel)
+
+    explicit jit_ir_interleave_count_kernel(const vector_target& t) : jit_kernel(jit_name()) {
+        set_target(t);
+    }
+
+    using fn_t = void (*)(const InterleaveCountParams*);
+    fn_t fn_ = nullptr;
+
+    void init() {
+        if (create_kernel() != dnnl::impl::status::success) {
+            OPENVINO_THROW("Can't generate jit kernel");
+        }
+        fn_ = (fn_t)(jit_ker());  // NOLINT
+    }
+
+    void operator()(const InterleaveCountParams& args) const { fn_(&args); }
+
+    void generate() override {
+        preamble();
+        set_vec_width(N * sizeof(float) * 8);
+        begin_ir();
+
+        auto a = make_ir_ptr(arg<const float*>(&InterleaveCountParams::a), N);
+        auto b = make_ir_ptr(arg<const float*>(&InterleaveCountParams::b), N);
+        auto c = make_ir_ptr(arg<const float*>(&InterleaveCountParams::c), N);
+        auto dst = make_ir_ptr(arg<float*>(&InterleaveCountParams::dst), 3 * N);
+        auto count = arg(&InterleaveCountParams::count);
+
+        // One short iteration, straight to the tail realization.
+        store_interleaved3(dst, ir_load<N>(a), ir_load<N>(b), ir_load<N>(c),
+                           vlen::elements(count.vid(), /*terminal=*/true));
+
+        end_ir();
+        postamble();
+    }
+};
+
+template <size_t N>
+void run_interleave_count(size_t count, std::vector<float>& dst, size_t& code_size,
+                          const vector_target& t) {
+    constexpr float sentinel = -999.0f;
+    std::vector<float> a(N);
+    std::vector<float> b(N);
+    std::vector<float> c(N);
+    for (size_t i = 0; i < N; ++i) {
+        a[i] = static_cast<float>(i) + 0.5f;
+        b[i] = static_cast<float>(i) + 100.5f;
+        c[i] = static_cast<float>(i) + 200.5f;
+    }
+    dst.assign(3 * N + 8, sentinel);
+
+    jit_ir_interleave_count_kernel<N> kernel(t);
+    kernel.init();
+    code_size = kernel.getSize();
+
+    InterleaveCountParams args{a.data(), b.data(), c.data(), dst.data(), count};
+    kernel(args);
+}
+
+}  // namespace
+
+TEST(JitKernelIR, PredicatedInterleavedStoreMatchesScalarizedForm) {
+    using namespace dnnl::impl::cpu::x64;
+    if (!mayiuse(cpu_isa_t::avx512_core)) {
+        GTEST_SKIP() << "the injected targets mirror an AVX-512 host";
+    }
+    constexpr size_t N = 16;
+    constexpr float sentinel = -999.0f;
+
+    const interleave_target<true> predicated;
+    const interleave_target<false> scalarized;
+
+    // Counts either side of the per-store boundaries: 3*count crosses into
+    // the second output vector at count 6 and the third at count 11, so the
+    // mask slices are what these exercise.
+    for (size_t count : {size_t{0}, size_t{1}, size_t{5}, size_t{6}, size_t{7},
+                         size_t{10}, size_t{11}, size_t{12}, size_t{15}, size_t{16}}) {
+        std::vector<float> dst_pred;
+        std::vector<float> dst_scal;
+        size_t size_pred = 0;
+        size_t size_scal = 0;
+        run_interleave_count<N>(count, dst_pred, size_pred, predicated);
+        run_interleave_count<N>(count, dst_scal, size_scal, scalarized);
+
+        // Reference: dst[3i+0..2] = a[i], b[i], c[i] for i < count.
+        for (size_t i = 0; i < count; ++i) {
+            EXPECT_FLOAT_EQ(dst_pred[3 * i + 0], static_cast<float>(i) + 0.5f)
+                << "count=" << count << " i=" << i;
+            EXPECT_FLOAT_EQ(dst_pred[3 * i + 1], static_cast<float>(i) + 100.5f)
+                << "count=" << count << " i=" << i;
+            EXPECT_FLOAT_EQ(dst_pred[3 * i + 2], static_cast<float>(i) + 200.5f)
+                << "count=" << count << " i=" << i;
+        }
+        // Nothing past 3*count, which is what a mis-sliced mask would hit.
+        for (size_t i = 3 * count; i < dst_pred.size(); ++i) {
+            EXPECT_FLOAT_EQ(dst_pred[i], sentinel) << "count=" << count << " wrote index " << i;
+        }
+        // And the two realizations agree everywhere.
+        EXPECT_EQ(dst_pred, dst_scal) << "count=" << count;
+
+        // Proof the query is actually consulted rather than one path being
+        // taken regardless: the two targets must not produce the same code.
+        //
+        // Deliberately not an inequality. For a single store the predicated
+        // form is slightly *larger* (310 vs 293 bytes on this host): the
+        // 3*count lane-bit computation plus three kmovs costs more bytes
+        // than an alloca and a compact copy loop. What it buys is not size
+        // — it is no stack slot, no per-element copy loop at run time, and
+        // about six live GPR values instead of about twenty, which is what
+        // made the scalarized path a pool-exhaustion risk.
+        EXPECT_NE(size_pred, size_scal) << "count=" << count;
+    }
+}
+
 // ── Type-converting store must not clobber its source ──────────────────
 //
 // The u8 store narrows f32 -> i32 -> u8. That conversion used to run in

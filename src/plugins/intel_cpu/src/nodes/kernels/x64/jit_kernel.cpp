@@ -732,6 +732,20 @@ jit_kernel_ir::EmitFn jit_kernel::branch_always(const label_ref& to) const {
     };
 }
 
+jit_kernel_ir::value_id jit_kernel::ir_lane_mask_bits(jit_kernel_ir::value_id count_vid,
+                                                      size_t lanes) {
+    OPENVINO_ASSERT(lanes <= 64, "lane mask bits: at most 64 lanes fit a GPR");
+    OPENVINO_ASSERT(count_vid != jit_kernel_ir::invalid_value,
+                    "ir_lane_mask_bits: count is not an IR value");
+
+    // Early clobber: the expansion writes its destination before reading
+    // the count, so the destination must not be the count's register. The
+    // allocator would otherwise be free to reuse it — the count often dies
+    // at this op.
+    return _ir->def_early_clobber({count_vid}, lane_mask_bits(lanes), "lane_mask_bits",
+                                  jit_kernel_ir::RegisterClass::GPR);
+}
+
 jit_kernel::variable<size_t> jit_kernel::ir_shr(const variable<size_t>& src, int shift) {
     return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0,
                                                  gpr_shr_imm(static_cast<unsigned>(shift)),
