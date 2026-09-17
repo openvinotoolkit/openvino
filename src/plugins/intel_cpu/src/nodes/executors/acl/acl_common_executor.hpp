@@ -55,9 +55,6 @@ protected:
     virtual std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
                                                                     const arm_compute::DataType& dataType,
                                                                     const arm_compute::DataLayout& dataLayout);
-    static std::shared_ptr<arm_compute::TensorInfo> makeTensorInfo(const arm_compute::TensorShape& tensorShape,
-                                                                   const arm_compute::DataType& dataType,
-                                                                   const arm_compute::DataLayout& dataLayout);
 
 private:
     ACLTensors aclMemoryTensors;

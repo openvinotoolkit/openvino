@@ -61,13 +61,6 @@ public:
     void updateTensorsShapes(ACLShapes& aclMemoryShapes) override {}
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
-
-protected:
-    std::shared_ptr<arm_compute::TensorInfo> initTensorInfo(const arm_compute::TensorShape& tensorShape,
-                                                            const arm_compute::DataType& dataType,
-                                                            const arm_compute::DataLayout& dataLayout) override {
-        return makeTensorInfo(tensorShape, dataType, dataLayout);
-    }
 };
 
 class ACLWeightFormatGenerator : public ACLCommonExecutor {

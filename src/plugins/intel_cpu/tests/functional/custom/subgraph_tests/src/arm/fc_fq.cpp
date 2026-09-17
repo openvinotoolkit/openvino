@@ -11,6 +11,7 @@
 #include "openvino/op/multiply.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/filter_cpu_info.hpp"
 #include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
@@ -26,9 +27,10 @@ namespace test {
  * compile_model(). An f32 destination takes a different probe arm, so keep the i8 output.
  */
 
-typedef std::tuple<InputShape,     // input shape
-                   element::Type,  // network precision
-                   std::string     // device name
+typedef std::tuple<InputShape,         // input shape
+                   element::Type,      // network precision
+                   CPUSpecificParams,  // expected implementation
+                   std::string         // device name
                    >
     FCAndFQTestParams;
 
@@ -37,9 +39,10 @@ class FCAndFQ : public testing::WithParamInterface<FCAndFQTestParams>,
                 public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FCAndFQTestParams>& obj) {
-        const auto& [inputShape, netPrecision, targetName] = obj.param;
+        const auto& [inputShape, netPrecision, cpuParams, targetName] = obj.param;
         std::ostringstream results;
-        results << "IS=" << inputShape << "_netPRC=" << netPrecision << "_targetDevice=" << targetName;
+        results << "IS=" << inputShape << "_netPRC=" << netPrecision << "_targetDevice=" << targetName
+                << CPUTestsBase::getTestCaseName(cpuParams);
         return results.str();
     }
 
@@ -48,12 +51,11 @@ protected:
     static constexpr size_t outChannels = 32;
 
     void SetUp() override {
-        const auto& [inputShape, netPrecision, targetName] = this->GetParam();
+        const auto& [inputShape, netPrecision, cpuParams, targetName] = this->GetParam();
         abs_threshold = 1e-2f;
         targetDevice = targetName;
         // Pin the implementation: the whole point is that the ACL low-precision executor runs.
-        std::tie(inFmts, outFmts, priority, selectedType) =
-            CPUSpecificParams{{}, {}, {}, makeSelectedTypeStr("gemm_acl", element::i8)};
+        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         init_input_shapes({inputShape});
 
         ov::ParameterVector input_params{std::make_shared<ov::op::v0::Parameter>(netPrecision, inputDynamicShapes[0])};
@@ -127,15 +129,15 @@ protected:
                 continue;
             }
             const auto runtimePrecision = rt.at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>();
-            const auto outputPrecisions = rt.at(ov::exec_model_info::OUTPUT_PRECISIONS).as<std::string>();
+            const auto outputPrecision = rt.at(ov::exec_model_info::OUTPUT_PRECISIONS).as<ov::element::Type>();
             const auto implType = rt.at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
-            if (runtimePrecision == element::i8 && outputPrecisions.find("i8") != std::string::npos &&
+            if (runtimePrecision == element::i8 && outputPrecision == element::i8 &&
                 implType.find("acl") != std::string::npos) {
                 ++quantizedAclCount;
             }
         }
-        EXPECT_GT(quantizedAclCount, 0U)
-            << "Expected an ACL FullyConnected with i8 activations and an i8 destination";
+        EXPECT_EQ(quantizedAclCount, 1U)
+            << "Expected one ACL FullyConnected with i8 activations and an i8 destination";
     }
 };
 
@@ -144,11 +146,12 @@ TEST_P(FCAndFQ, CompareWithRefs) {
     // This used to SIGSEGV in compile_model(), so completing run() is itself part of the check.
     run();
 
-#if defined(OPENVINO_ARCH_ARM64)
     checkQuantizedAclFullyConnected();
-#endif
     CheckPluginRelatedResults(compiledModel, "FullyConnected");
 }
+
+// On 32-bit ARM filterCPUInfo() leaves no parameters, so the suite is legitimately empty there.
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(FCAndFQ);
 
 namespace {
 
@@ -159,10 +162,14 @@ std::vector<InputShape> inputShapes{
     {{-1, -1, 64}, {{1, 16, 64}, {1, 32, 64}}},
 };
 
+const std::vector<CPUSpecificParams> cpuParams{
+    CPUSpecificParams{{}, {}, {}, CPUTestsBase::makeSelectedTypeStr("gemm_acl", element::i8)}};
+
 INSTANTIATE_TEST_SUITE_P(smoke_FCAndFQ_CPU,
                          FCAndFQ,
                          ::testing::Combine(::testing::ValuesIn(inputShapes),
                                             ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(filterCPUInfo(cpuParams)),
                                             ::testing::Values(ov::test::utils::DEVICE_CPU)),
                          FCAndFQ::getTestCaseName);
 

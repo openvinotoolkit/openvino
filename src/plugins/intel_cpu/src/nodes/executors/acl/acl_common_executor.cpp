@@ -50,20 +50,15 @@ static void initACLTensorParams(const MemoryPtr& memoryPtr,
     }
 }
 
-std::shared_ptr<arm_compute::TensorInfo> ACLCommonExecutor::makeTensorInfo(const arm_compute::TensorShape& tensorShape,
-                                                                           const arm_compute::DataType& dataType,
-                                                                           const arm_compute::DataLayout& dataLayout) {
-    std::shared_ptr<arm_compute::TensorInfo> aclMemoryInfo = nullptr;
-    if (dataType != arm_compute::DataType::UNKNOWN) {
-        aclMemoryInfo = std::make_shared<arm_compute::TensorInfo>(tensorShape, 1, dataType, dataLayout);
-    }
-    return aclMemoryInfo;
-}
-
 std::shared_ptr<arm_compute::TensorInfo> ACLCommonExecutor::initTensorInfo(const arm_compute::TensorShape& tensorShape,
                                                                            const arm_compute::DataType& dataType,
                                                                            const arm_compute::DataLayout& dataLayout) {
-    return makeTensorInfo(tensorShape, convertToQuantizedType(dataType), dataLayout);
+    const auto quantizedDataType = convertToQuantizedType(dataType);
+    std::shared_ptr<arm_compute::TensorInfo> aclMemoryInfo = nullptr;
+    if (quantizedDataType != arm_compute::DataType::UNKNOWN) {
+        aclMemoryInfo = std::make_shared<arm_compute::TensorInfo>(tensorShape, 1, quantizedDataType, dataLayout);
+    }
+    return aclMemoryInfo;
 }
 
 static std::shared_ptr<arm_compute::Tensor> initTensor(const std::shared_ptr<arm_compute::TensorInfo>& aclMemoryInfo) {
