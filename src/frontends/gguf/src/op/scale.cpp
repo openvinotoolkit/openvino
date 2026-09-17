@@ -58,7 +58,7 @@ OutputVector translate_scale(const NodeContext& context) {
         res = scaled.get_node_shared_ptr();
     }
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

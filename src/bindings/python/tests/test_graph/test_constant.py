@@ -293,6 +293,24 @@ def test_constant_direct_packing(ov_type, src_dtype, shared_flag, data_getter):
 
 
 @pytest.mark.parametrize(
+    ("ov_type", "high"),
+    [
+        (Type.u3, 8),
+        (Type.u6, 64),
+    ],
+)
+@pytest.mark.parametrize("num_elements", [1, 3, 13, 64])
+def test_pack_data_matches_core_layout(ov_type, high, num_elements):
+    # `pack_data` must produce byte-for-byte the same buffer as the core packs a Constant into,
+    # including sizes where the bit-stream ends in the middle of the last byte.
+    data = (np.arange(num_elements) % high).astype(np.uint8)
+
+    ov_const = ops.constant(data, dtype=ov_type)
+
+    assert np.array_equal(ov_const.data, pack_data(data, ov_type))
+
+
+@pytest.mark.parametrize(
     ("shared_flag"),
     [
         (True),

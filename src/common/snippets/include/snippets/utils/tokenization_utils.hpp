@@ -17,6 +17,9 @@
 #include "snippets/pass/tokenization.hpp"
 
 namespace ov::snippets::utils {
+
+bool is_numpy_broadcast(const std::shared_ptr<const ov::Node>& node);
+
 /**
  * @brief Tokenizes a node into Subgraph. 2 options are possible (depending on config's values and internal logic)L
  *        1. The node is wrapped in a trivial Subgraph which contains only this node

@@ -111,8 +111,9 @@ struct experimental_detectron_detection_output : public primitive_base<experimen
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const experimental_detectron_detection_output>(rhs);
 
@@ -163,11 +164,13 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (output_classes.is_valid())
+        if (output_classes.is_valid()) {
             ret[idx++] = &output_classes;
+        }
 
-        if (output_scores.is_valid())
+        if (output_scores.is_valid()) {
             ret[idx++] = &output_scores;
+        }
 
         return ret;
     }
