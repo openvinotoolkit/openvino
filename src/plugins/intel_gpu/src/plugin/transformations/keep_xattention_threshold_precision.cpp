@@ -16,11 +16,13 @@ KeepXAttentionThresholdPrecision::KeepXAttentionThresholdPrecision() {
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(m.get_match_root());
-        if (!pa)
+        if (!pa) {
             return false;
+        }
 
-        if (transformation_callback(pa))
+        if (transformation_callback(pa)) {
             return false;
+        }
 
         constexpr size_t thr_idx = cldnn::paged_attention::PagedAttentionInputIdx::XATTENTION_THRESHOLD;
         ov::mark_as_precision_sensitive(pa->input(thr_idx));

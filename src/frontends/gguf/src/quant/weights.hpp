@@ -19,9 +19,9 @@ namespace ov::frontend::gguf {
 
 // Element type of the zero-point constant for an asymmetric quantized weight. Both ingest
 // paths must agree on this: it decides whether the CPU folds the dequant into the MatMul.
-// Q4_K defaults to an integer (u8) zero-point (faster, lossy); set the environment variable
-// OV_GGUF_Q4_K_ZP_F16=1 to use a faithful f16 zero-point instead (llama.cpp's test-backend-ops
-// CI does this to meet its accuracy tolerance).
+// Q4_K matmul weights are faithfully decoded and requantized to u4 with an integer zero-point,
+// which keeps the CPU compressed-FullyConnected path available. Q4_K tensors selected for the
+// channel-wise Q8_0_C path retain an f16 zero-point while feeding that separate requantization.
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype);
 
 // A lossy weight approximation the frontend deliberately makes, reported to the user once so a
@@ -29,9 +29,8 @@ ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType q
 enum class LossyWeightApproximation {
     // token_embd / output / Q6_K / Q5_K tensors requantized channel-wise to Q8_0_C.
     Q8_0_C_REQUANT,
-    // Q4_K asymmetric weights expressed with an INTEGER (u8) zero-point, which forces each
-    // sub-block's min to a multiple of its scale.
-    INTEGER_ZERO_POINT,
+    // Q4_K asymmetric weights faithfully decoded and requantized group-wise to OpenVINO u4.
+    Q4_K_REQUANT,
 };
 
 // Warn -- ONCE per process and per approximation kind -- that weights are being converted with a

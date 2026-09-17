@@ -86,7 +86,6 @@ std::shared_ptr<ov::opset1::Convolution> make_convolution(
         const Add& add,
         const ov::element::Type precisionBeforeDequantization,
         const DequantizationOperations& dequantization,
-        const ov::element::Type precisionAfterDequantization,
         const ov::element::Type precisionFqOnData,
         const FakeQuantizeOnDataWithConstant& fqOnData) {
         const auto input = std::make_shared<ov::opset1::Parameter>(add.empty() ? precisionBeforeDequantization : precisionBeforeAdd, inputShape);

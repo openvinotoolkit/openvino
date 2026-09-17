@@ -262,19 +262,24 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
                                                           abs_threshold);
         break;
     case ov::element::u3:
-        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
-                                                          static_cast<const int8_t*>(outBlob.data()),
-                                                          3 * (actual_comparision_size / 8),
+    case ov::element::u6: {
+        // Linear LSB-first bit-stream. The unused tail bits of the last byte hold no value,
+        // so they are masked out instead of being compared.
+        const auto used_bits = actual_comparision_size * element_type.bitwidth();
+        const auto* ref_ptr = static_cast<const uint8_t*>(refBlob.data());
+        const auto* out_ptr = static_cast<const uint8_t*>(outBlob.data());
+        ov::test::utils::compare_raw_data<int8_t, int8_t>(reinterpret_cast<const int8_t*>(ref_ptr),
+                                                          reinterpret_cast<const int8_t*>(out_ptr),
+                                                          used_bits / 8,
                                                           threshold,
                                                           abs_threshold);
+        if (const auto tail_bits = used_bits % 8) {
+            const auto mask = static_cast<uint8_t>(0xffU >> (8 - tail_bits));
+            EXPECT_EQ(ref_ptr[used_bits / 8] & mask, out_ptr[used_bits / 8] & mask)
+                << "Mismatch in the tail bits of blob with index " << blob_idx;
+        }
         break;
-    case ov::element::u6:
-        ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
-                                                          static_cast<const int8_t*>(outBlob.data()),
-                                                          3 * (actual_comparision_size / 4),
-                                                          threshold,
-                                                          abs_threshold);
-        break;
+    }
     case ov::element::nf4:
         ov::test::utils::compare_raw_data<int8_t, int8_t>(static_cast<const int8_t*>(refBlob.data()),
                                                           static_cast<const int8_t*>(outBlob.data()),
