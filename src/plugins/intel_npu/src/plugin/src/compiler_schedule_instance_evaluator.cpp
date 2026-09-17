@@ -30,6 +30,8 @@ namespace intel_npu {
 std::shared_ptr<CompilerScheduleInstanceEvaluator> CompilerScheduleInstanceEvaluator::get_instance(
     const ov::SoPtr<intel_npu::IEngineBackend>& backend,
     const std::shared_ptr<CompilerOptionSupportHelper>& option_support_helper) {
+    OPENVINO_ASSERT(backend != nullptr && option_support_helper != nullptr, "Incomplete arguments");
+
     static std::mutex mutex;
     static std::weak_ptr<CompilerScheduleInstanceEvaluator> weak_instance;
 
