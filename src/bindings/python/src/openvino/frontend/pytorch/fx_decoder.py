@@ -6,6 +6,7 @@
 
 import logging
 import inspect
+import operator
 from functools import lru_cache
 import torch
 
@@ -25,6 +26,15 @@ from openvino.frontend.pytorch.utils import (
     make_constant, fetch_attr, pt_to_ov_type_map, torch_tensor_to_ov_const)
 
 logger = logging.getLogger(__name__)
+
+# torch.dtype to the ScalarType index which TorchScript's ATen schemas take as an integer input.
+TORCH_DTYPE_TO_SCALAR_TYPE = {
+    torch.uint8: 0, torch.int8: 1, torch.int16: 2, torch.int32: 3,
+    torch.int64: 4, torch.float16: 5, torch.float32: 6, torch.float64: 7,
+    torch.complex32: 8, torch.complex64: 9, torch.complex128: 10,
+    torch.bool: 11, torch.qint8: 12, torch.quint8: 13, torch.qint32: 14,
+    torch.bfloat16: 15,
+}
 
 
 class BaseFXDecoder(Decoder):
@@ -63,15 +73,7 @@ class BaseFXDecoder(Decoder):
     @staticmethod
     def arg_to_constant(arg):
         if isinstance(arg, torch.dtype):
-            # ScalarType is an integer input in TorchScript's ATen schemas.
-            scalar_types = {
-                torch.uint8: 0, torch.int8: 1, torch.int16: 2, torch.int32: 3,
-                torch.int64: 4, torch.float16: 5, torch.float32: 6, torch.float64: 7,
-                torch.complex32: 8, torch.complex64: 9, torch.complex128: 10,
-                torch.bool: 11, torch.qint8: 12, torch.quint8: 13, torch.qint32: 14,
-                torch.bfloat16: 15,
-            }
-            return make_constant(OVType.i64, Shape([]), [scalar_types[arg]])
+            return make_constant(OVType.i64, Shape([]), [TORCH_DTYPE_TO_SCALAR_TYPE[arg]])
         elif isinstance(arg, list):
             if len(arg) > 0:
                 return make_constant(pt_to_ov_type_map[type(
@@ -98,9 +100,8 @@ class BaseFXDecoder(Decoder):
         if issubclass(type(value), torch.fx.Node):
             tensor = value.meta.get("val")
             if isinstance(tensor, torch.Tensor) and tensor.is_complex():
-                part_type = {torch.complex32: OVType.f16, torch.complex64: OVType.f32,
-                             torch.complex128: OVType.f64}[tensor.dtype]
-                return OVAny(DecoderType.Complex(OVAny(part_type)))
+                # pt_to_ov_type_map already maps complex dtypes to DecoderType.Complex.
+                return OVAny(pt_to_ov_type_map[str(tensor.dtype)])
             if ("tensor_meta" in value.meta.keys()):
                 if value.meta["tensor_meta"] and isinstance(value.meta["tensor_meta"], torch.Tensor):
                     pt_type = value.meta["tensor_meta"].dtype
@@ -652,7 +653,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         input_node = self._raw_input(in_index)
         input_value = input_node.meta.get("val") if isinstance(input_node, torch.fx.Node) else None
         output_value = self.pt_module.meta.get("val")
-        if str(self.pt_module.target) == "<built-in function getitem>":
+        if self.pt_module.target is operator.getitem:
             producer_schema = getattr(getattr(input_node, "target", None), "_schema", None)
             if producer_schema is None or not producer_schema.returns[0].alias_info:
                 return False
@@ -660,10 +661,14 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 isinstance(value, torch.Tensor) and torch._C._is_alias_of(value, output_value)
                 for value in input_value)
         schema = getattr(self.pt_module.target, "_schema", None)
-        if schema is None or in_index >= len(schema.arguments) or out_index >= len(schema.returns):
+        if schema is None:
             return False
-        input_alias = schema.arguments[in_index].alias_info
-        output_alias = schema.returns[out_index].alias_info
+        # Each schema.arguments/returns access materializes a fresh list of Argument objects.
+        arguments, returns = schema.arguments, schema.returns
+        if in_index >= len(arguments) or out_index >= len(returns):
+            return False
+        input_alias = arguments[in_index].alias_info
+        output_alias = returns[out_index].alias_info
         if input_alias is None or output_alias is None:
             return False
         # Reshape and contiguous may copy. FakeTensor metadata distinguishes the
@@ -701,7 +706,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             return len(value)
         max_out_id = -1
         for user in self.pt_module.users:
-            if "<built-in function getitem>" == str(user.target) and max_out_id < user.args[1]:
+            if user.target is operator.getitem and max_out_id < user.args[1]:
                 max_out_id = user.args[1]
         return max_out_id + 1
 

@@ -91,7 +91,7 @@ class unary_op_out_net(torch.nn.Module):
         super().__init__()
         self.dtype = dtype
         self.op = op
-        self.out_op = torch.ops.aten.relu.out if PytorchLayerTest.use_torch_export() and op == torch.relu else op
+        self.out_op = PytorchLayerTest.out_variant(op, torch.ops.aten.relu.out) if op == torch.relu else op
 
     def forward(self, x):
         x1 = x.to(self.dtype)

@@ -23,7 +23,7 @@ class TestFlip(PytorchLayerTest):
                 self.dim = dim
                 if out:
                     self.forward = self.forward_out
-                    self.out_op = torch.ops.aten.flip.out if PytorchLayerTest.use_torch_export() else torch.flip
+                    self.out_op = PytorchLayerTest.out_variant(torch.flip, torch.ops.aten.flip.out)
 
             def forward(self, x):
                 return torch.flip(x, self.dim)

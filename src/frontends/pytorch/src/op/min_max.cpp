@@ -179,8 +179,7 @@ OutputVector translate_aminmax(const NodeContext& context) {
     auto dim = (dim_input.get_node() == nullptr || is_empty_axes(dim_input)) ? get_axes_range(context, 0) : dim_input;
 
     // check if keepdim is provided, if not, set it to false like PyTorch
-    bool keep_dims = context.has_attribute("keepdim") ? context.get_attribute<bool>("keepdim")
-                                                      : (!context.input_is_none(2) && context.const_input<bool>(2));
+    bool keep_dims = get_const_input_or_attribute(context, 2, "keepdim", false);
 
     auto amin = context.mark_node(std::make_shared<v1::ReduceMin>(input, dim, keep_dims));
     auto amax = context.mark_node(std::make_shared<v1::ReduceMax>(input, dim, keep_dims));

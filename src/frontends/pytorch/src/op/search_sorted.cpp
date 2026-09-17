@@ -19,13 +19,9 @@ OutputVector translate_search_sorted(const NodeContext& context) {
     Output<Node> sorted;
     Output<Node> values;
     std::tie(sorted, values) = get_inputs_with_promoted_types(context, 0, 1);
-    const bool out_int32 = context.has_attribute("out_int32")
-                               ? context.get_attribute<bool>("out_int32")
-                               : (!context.input_is_none(2) && context.const_input<bool>(2));
+    const bool out_int32 = get_const_input_or_attribute(context, 2, "out_int32", false);
     PYTORCH_OP_CONVERSION_CHECK(out_int32 == false, "aten::searchsorted(out_int32=true) unsupported");
-    const bool right_mode = context.has_attribute("right")
-                                ? context.get_attribute<bool>("right")
-                                : (!context.input_is_none(3) && context.const_input<bool>(3));
+    const bool right_mode = get_const_input_or_attribute(context, 3, "right", false);
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(4) && !context.has_attribute("side"),
                                 "aten::searchsorted(side) unsupported");
     PYTORCH_OP_CONVERSION_CHECK(context.input_is_none(5), "aten::searchsorted(out) unsupported");

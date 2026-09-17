@@ -88,9 +88,7 @@ OutputVector translate_list_view_fx(const NodeContext& context) {
 OutputVector translate_list_unpack_fx(const NodeContext& context) {
     // Reuse TorchScript's list-unpack normalization for ATen list operations.
     // Export fixes the list length, even when the tensor dimensions are dynamic.
-    const auto& fx_name = context.get_op_type();
-    const auto overload = fx_name.find('.', 5);
-    const auto ts_name = "aten::" + fx_name.substr(5, overload - 5);
+    const auto ts_name = normalize_op_type(context.get_op_type());
     const auto count = context.get_decoder()->output_list_size();
     auto operation = context.mark_node(
         std::make_shared<PtFrameworkNode>(std::make_shared<InternalOpDecoder>(ts_name, 1), context.inputs()));

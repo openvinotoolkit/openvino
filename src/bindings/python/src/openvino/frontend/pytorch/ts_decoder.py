@@ -7,6 +7,7 @@
 import inspect
 import logging
 import typing
+from functools import lru_cache
 import torch
 
 from openvino.frontend.pytorch.py_pytorch_frontend import (
@@ -30,6 +31,12 @@ from openvino.frontend.pytorch.patch_functions import FunctionsPatcher
 
 
 log = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=None)
+def _parse_schema(schema_text: str):
+    """Parse a TorchScript schema string. Nodes of the same operator share one schema text."""
+    return torch._C.parse_schema(schema_text)
 
 
 # A marker for a special type of conversion extension that is inlined in Trampoline class
@@ -556,9 +563,9 @@ class TorchScriptPythonDecoder(Decoder):
         try:
             schema_text = self.get_schema()
             if schema_text != "(no schema)":
-                schema = torch._C.parse_schema(schema_text)
-                if out_index < len(schema.returns):
-                    result = schema.returns[out_index]
+                returns = _parse_schema(schema_text).returns
+                if out_index < len(returns):
+                    result = returns[out_index]
                     # Container use can put independent tensors in AliasDb's wildcard set.
                     # A tensor return without a schema alias annotation has fresh storage.
                     if isinstance(result.type, torch.TensorType) and result.alias_info is None:

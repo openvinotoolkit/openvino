@@ -13,10 +13,23 @@ from pytorch_layer_test_class import PytorchLayerTest
 @pytest.mark.precommit_torch_export
 @pytest.mark.nightly
 class TestExportMutations(PytorchLayerTest):
+    """Mutation cases which only exist in the exported ATen graph.
+
+    View mutations shared with TorchScript are covered by test_aliases.py::TestViewMutations,
+    which the harness also runs in export mode.
+    """
+
+    @pytest.fixture(autouse=True)
+    def forbid_decompositions(self):
+        # Conversion must handle the exported ATen ops directly.
+        with patch.object(torch.export.ExportedProgram, "run_decompositions",
+                          side_effect=AssertionError("Conversion must not run decompositions")):
+            yield
+
     def _prepare_input(self):
         return (self.random.randn(3, 4, 5).astype("float32"),)
 
-    @pytest.mark.parametrize("view", ["slice", "select", "view", "transpose", "permute", "squeeze", "detach", "copy"])
+    @pytest.mark.parametrize("view", ["slice", "select", "copy"])
     @pytest.mark.parametrize("mutate_base", [False, True])
     def test_view_mutation(self, view, mutate_base, ie_device, precision, ir_version):
         class Model(torch.nn.Module):
@@ -26,16 +39,6 @@ class TestExportMutations(PytorchLayerTest):
                     alias = base[:, 1:3, ::2]
                 elif view == "select":
                     alias = base[1]
-                elif view == "view":
-                    alias = base.view(3, 20)
-                elif view == "transpose":
-                    alias = base.transpose(0, 2)
-                elif view == "permute":
-                    alias = base.permute(2, 0, 1)
-                elif view == "squeeze":
-                    alias = base.unsqueeze(0).squeeze(0)
-                elif view == "detach":
-                    alias = base.detach()
                 else:
                     # A non-contiguous reshape allocates new storage.
                     alias = base.transpose(0, 2).reshape(-1)
@@ -46,23 +49,7 @@ class TestExportMutations(PytorchLayerTest):
                     alias.add_(2)
                 return base, alias, before, alias * 3
 
-        with patch.object(torch.export.ExportedProgram, "run_decompositions",
-                          side_effect=AssertionError("Conversion must not run decompositions")):
-            self._test(Model(), "aten::add_", ie_device, precision, ir_version)
-
-    def test_sibling_views(self, ie_device, precision, ir_version):
-        class Model(torch.nn.Module):
-            def forward(self, x):
-                base = x.clone()
-                left = base[:, :3]
-                right = base[:, 1:]
-                before = right + 1
-                left.add_(2)
-                right.mul_(3)
-                left[:, 1].fill_(7)
-                return base, left, right, before, right + 1
-
-        self._test(Model(), ["aten::add_", "aten::mul_", "aten::fill_"], ie_device, precision, ir_version)
+        self._test(Model(), "aten::add_", ie_device, precision, ir_version)
 
     def test_inplace_result_alias(self, ie_device, precision, ir_version):
         class Model(torch.nn.Module):
@@ -117,49 +104,3 @@ class TestExportMutations(PytorchLayerTest):
 
         self._test(Model(), ["aten::add", "aten::add_", "aten::mul_"], ie_device, precision, ir_version,
                    fx_kind=["aten.add.out", "aten.add_.Tensor", "aten.mul_.Tensor"])
-
-    @pytest.mark.parametrize("change_base", [False, True])
-    @pytest.mark.parametrize("metadata_op", ["unsqueeze", "squeeze", "transpose"])
-    def test_metadata_then_data_mutation(self, change_base, metadata_op, ie_device, precision, ir_version):
-        class Model(torch.nn.Module):
-            def forward(self, x):
-                base = x.clone().unsqueeze(0)
-                view = base[:, :, 1:]
-                before = view + 1
-                target = base if change_base else view
-                if metadata_op == "unsqueeze":
-                    target.unsqueeze_(0)
-                elif metadata_op == "squeeze":
-                    target.squeeze_(0)
-                else:
-                    target.transpose_(1, 3)
-                target.add_(2)
-                return base, view, before
-
-        self._test(Model(), [f"aten::{metadata_op}_", "aten::add_"], ie_device, precision, ir_version)
-
-    @pytest.mark.parametrize("view", ["real", "imag", "view_as_real", "view_as_complex"])
-    @pytest.mark.parametrize("mutate_base", [False, True])
-    def test_complex_view_mutation(self, view, mutate_base, ie_device, precision, ir_version):
-        class Model(torch.nn.Module):
-            def forward(self, x):
-                if view == "view_as_complex":
-                    base = torch.stack((x, x * 2), dim=-1)
-                    alias = torch.view_as_complex(base)
-                else:
-                    base = torch.complex(x, x * 2)
-                    if view == "real":
-                        alias = base.real
-                    elif view == "imag":
-                        alias = base.imag
-                    else:
-                        alias = torch.view_as_real(base)
-                before = alias + 1
-                if mutate_base:
-                    base.add_(2)
-                else:
-                    alias.add_(2)
-                return tuple(torch.view_as_real(value) if value.is_complex() else value
-                             for value in (base, alias, before))
-
-        self._test(Model(), "aten::add_", ie_device, precision, ir_version)

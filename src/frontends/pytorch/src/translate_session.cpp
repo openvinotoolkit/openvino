@@ -260,7 +260,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             const bool has_inputs = !node->inputs().empty();
             const size_t first_input_id =
                 has_out ? node->get_named_input("out") : (has_inputs ? node->inputs().at(0) : 0);
-            const auto op_type = node->get_op_type();
+            const auto& op_type = context.get_op_type();
             const bool constructs_sequence = op_type == "prim::TupleConstruct" || op_type == "prim::ListConstruct";
             std::vector<size_t> unpacked_ids;
             const auto sequence = m_may_be_alias.find(first_input_id);
@@ -418,17 +418,20 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
 OutputVector TranslateSession::convert_node(const NodeContext& context) {
     std::string exception;
     try {
-        auto op_type = context.get_op_type();
-        auto it = m_translator_map.find(op_type);
-        if (it == m_translator_map.end() && op_type.find("aten.") == 0) {
-            const auto overload = op_type.find('.', 5);
-            op_type = "aten::" + op_type.substr(5, overload - 5);
-            it = m_translator_map.find(op_type);
+        const auto& raw_op_type = context.get_op_type();
+        auto it = m_translator_map.find(raw_op_type);
+        // FX names carry an overload suffix; fall back to the shared TorchScript translator for the same operator.
+        // Stays empty unless that fallback is needed, so the common path does not copy the name.
+        std::string canonical_op_type;
+        if (it == m_translator_map.end()) {
+            canonical_op_type = normalize_op_type(raw_op_type);
+            it = m_translator_map.find(canonical_op_type);
         }
+        const std::string& op_type = canonical_op_type.empty() ? raw_op_type : canonical_op_type;
         if (it != m_translator_map.end()) {
             auto outputs = it->second(context);
             // FX represents multiple operator results as a single tuple value.
-            if (context.get_decoder()->decoder_type_name() == "fx" && outputs.size() > 1) {
+            if (outputs.size() > 1 && context.get_decoder()->decoder_type_name() == "fx") {
                 return {context.mark_node(make_list_construct(outputs))};
             }
             return outputs;

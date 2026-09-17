@@ -29,7 +29,7 @@ class TestMaskedScatter(PytorchLayerTest):
                     self.forward = self.forward_inplace
                 if out:
                     self.forward = self.forward_out
-                    self.out_op = torch.ops.aten.masked_scatter.out if PytorchLayerTest.use_torch_export() else torch.masked_scatter
+                    self.out_op = PytorchLayerTest.out_variant(torch.masked_scatter, torch.ops.aten.masked_scatter.out)
 
             def forward(self, x, mask, source):
                 return torch.masked_scatter(x, mask, source)

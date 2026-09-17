@@ -24,8 +24,11 @@ namespace pytorch {
 using namespace ov::op;
 
 namespace {
-Output<Node> rebase_view(const Output<Node>& view, const Output<Node>& old_base, const Output<Node>& new_base) {
-    std::map<Output<Node>, Output<Node>> replacements{{old_base, new_base}};
+using ViewReplacements = std::map<Output<Node>, Output<Node>>;
+
+// Maps a base value onto its replacement, including the parts of a structured base which views can be built from.
+ViewReplacements view_replacements(const Output<Node>& old_base, const Output<Node>& new_base) {
+    ViewReplacements replacements{{old_base, new_base}};
     if (ov::is_type<SequenceMark>(old_base.get_node_shared_ptr())) {
         const auto old_elements = old_base.get_node_shared_ptr()->input_values();
         const auto new_elements = new_base.get_node_shared_ptr()->input_values();
@@ -41,30 +44,39 @@ Output<Node> rebase_view(const Output<Node>& view, const Output<Node>& old_base,
         replacements[old_complex->get_real()] = new_complex->get_real();
         replacements[old_complex->get_imag()] = new_complex->get_imag();
     }
-    std::function<Output<Node>(const Output<Node>&)> clone = [&](const Output<Node>& output) -> Output<Node> {
-        const auto found = replacements.find(output);
-        if (found != replacements.end()) {
-            return found->second;
-        }
-        const auto node = output.get_node_shared_ptr();
-        const auto inputs = node->input_values();
-        OutputVector new_inputs;
-        for (const auto& input : inputs) {
-            new_inputs.push_back(clone(input));
-        }
-        if (new_inputs == inputs) {
-            replacements[output] = output;
-            return output;
-        }
-        const auto updated = node->clone_with_new_inputs(new_inputs);
-        updated->set_friendly_name(node->get_friendly_name());
-        copy_runtime_info(node, updated);
-        for (size_t i = 0; i < node->get_output_size(); ++i) {
-            replacements[node->output(i)] = updated->output(i);
-        }
-        return updated->output(output.get_index());
-    };
-    return clone(view);
+    return replacements;
+}
+
+// Replays a view on top of a replaced base. `replacements` memoizes the walk, so passing the same map for every view
+// of one base keeps the shared upstream chain cloned only once.
+Output<Node> replay_view(const Output<Node>& view, ViewReplacements& replacements) {
+    const auto found = replacements.find(view);
+    if (found != replacements.end()) {
+        return found->second;
+    }
+    const auto node = view.get_node_shared_ptr();
+    const auto inputs = node->input_values();
+    OutputVector new_inputs;
+    new_inputs.reserve(inputs.size());
+    for (const auto& input : inputs) {
+        new_inputs.push_back(replay_view(input, replacements));
+    }
+    if (new_inputs == inputs) {
+        replacements[view] = view;
+        return view;
+    }
+    const auto updated = node->clone_with_new_inputs(new_inputs);
+    updated->set_friendly_name(node->get_friendly_name());
+    copy_runtime_info(node, updated);
+    for (size_t i = 0; i < node->get_output_size(); ++i) {
+        replacements[node->output(i)] = updated->output(i);
+    }
+    return updated->output(view.get_index());
+}
+
+Output<Node> rebase_view(const Output<Node>& view, const Output<Node>& old_base, const Output<Node>& new_base) {
+    auto replacements = view_replacements(old_base, new_base);
+    return replay_view(view, replacements);
 }
 }  // namespace
 
@@ -127,19 +139,19 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         const auto alias = m_translate_session->m_may_be_alias.find(input_id);
         if (alias != m_translate_session->m_may_be_alias.end()) {
             alias->second.output = ov_output;
-            if (!alias->second.element_ids.empty() && m_decoder->get_op_type() == "aten::append") {
+            if (!alias->second.element_ids.empty() && normalize_op_type(get_op_type()) == "aten::append") {
                 alias->second.element_ids.push_back(m_decoder_inputs.at(1));
             }
         }
         return;
     }
 
-    auto op_type = m_decoder->get_op_type();
-    if (op_type.find("aten::") == 0) {
-        op_type = "aten." + op_type.substr(6) + ".";
-    }
-    if (op_type.find("aten.unsqueeze_.") == 0 || op_type.find("aten.squeeze_.") == 0 ||
-        op_type.find("aten.transpose_.") == 0 || op_type.find("aten.t_.") == 0) {
+    // In-place operations which only rewrite the base tensor's metadata, leaving its storage untouched.
+    static const std::set<std::string> metadata_ops{"aten::unsqueeze_",
+                                                    "aten::squeeze_",
+                                                    "aten::transpose_",
+                                                    "aten::t_"};
+    if (metadata_ops.count(normalize_op_type(get_op_type()))) {
         // Existing views retain their shape when the base tensor's metadata changes.
         const auto old_shape_view =
             m_translate_session->get_reverseprop_op(m_decoder, ov_output, ov_output, previous_value);
@@ -277,37 +289,45 @@ Output<Node> NodeContext::get_input(int index) const {
             }
         }
     }
-    auto tensor_it = m_tensor_map->find(input);
-    FRONT_END_GENERAL_CHECK(tensor_it != m_tensor_map->end(), "No tensor corresponding input: ", input, " exist.");
     return resolve_tensor(input);
 }
 
 Output<Node> NodeContext::resolve_tensor(size_t index) const {
+    const auto tensor_it = m_tensor_map->find(index);
+    FRONT_END_GENERAL_CHECK(tensor_it != m_tensor_map->end(), "No tensor corresponding input: ", index, " exist.");
     const auto alias = m_translate_session->m_may_be_alias.find(index);
-    if (alias != m_translate_session->m_may_be_alias.end() && alias->second.base_value.get_node()) {
-        auto& info = alias->second;
-        if (!info.element_ids.empty()) {
-            OutputVector elements;
-            for (const auto element_id : info.element_ids) {
-                elements.push_back(resolve_tensor(element_id));
-            }
-            if (elements != info.output.get_node()->input_values()) {
-                info.output = make_list_construct(elements);
-                (*m_tensor_map)[index] = info.output;
-                m_translate_session->encode_tensor_name(info.output, index);
-            }
-            return m_tensor_map->at(index);
+    if (alias == m_translate_session->m_may_be_alias.end() || !alias->second.base_value.get_node()) {
+        return tensor_it->second;
+    }
+    // Recursive resolution may insert into the tensor map, so `tensor_it` must not be reused below.
+    auto& info = alias->second;
+    if (!info.element_ids.empty()) {
+        OutputVector elements;
+        elements.reserve(info.element_ids.size());
+        for (const auto element_id : info.element_ids) {
+            elements.push_back(resolve_tensor(element_id));
         }
-        const auto base = resolve_tensor(info.base_id);
-        if (base != info.base_value) {
-            // Replaying a view against the current base updates sibling views and
-            // views created before an in-place write. Previously consumed values
-            // remain connected to their original OpenVINO nodes.
-            info.output = rebase_view(info.output, info.base_value, base);
-            info.base_value = base;
+        const auto list = info.output.get_node();
+        bool changed = elements.size() != list->get_input_size();
+        for (size_t i = 0; !changed && i < elements.size(); ++i) {
+            changed = elements[i] != list->input_value(i);
+        }
+        if (changed) {
+            info.output = make_list_construct(elements);
             (*m_tensor_map)[index] = info.output;
             m_translate_session->encode_tensor_name(info.output, index);
         }
+        return m_tensor_map->at(index);
+    }
+    const auto base = resolve_tensor(info.base_id);
+    if (base != info.base_value) {
+        // Replaying a view against the current base updates sibling views and
+        // views created before an in-place write. Previously consumed values
+        // remain connected to their original OpenVINO nodes.
+        info.output = rebase_view(info.output, info.base_value, base);
+        info.base_value = base;
+        (*m_tensor_map)[index] = info.output;
+        m_translate_session->encode_tensor_name(info.output, index);
     }
     return m_tensor_map->at(index);
 }

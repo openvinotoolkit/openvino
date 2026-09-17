@@ -198,11 +198,7 @@ OutputVector translate_linalg_vector_norm(const NodeContext& context) {
     }
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
     // linalg.vector_norm(x.to(dtype))
-    if (context.has_attribute("dtype")) {
-        x = context.mark_node(std::make_shared<v0::Convert>(x, context.get_attribute<element::Type>("dtype")));
-    } else if (!context.input_is_none(4)) {
-        x = apply_dtype(context, 4, x);
-    }
+    x = apply_optional_dtype(context, 4, x);
     result = norm_vector(context, x, dim, ord, keep_dim);
     // output tensor
     if (!context.input_is_none(5)) {
@@ -226,11 +222,7 @@ OutputVector translate_linalg_matrix_norm(const NodeContext& context) {
 
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
     // linalg.matrix_norm(x.to(dtype))
-    if (context.has_attribute("dtype")) {
-        x = context.mark_node(std::make_shared<v0::Convert>(x, context.get_attribute<element::Type>("dtype")));
-    } else if (!context.input_is_none(4)) {
-        x = apply_dtype(context, 4, x);
-    }
+    x = apply_optional_dtype(context, 4, x);
     if (ord_type.is<type::Str>()) {
         auto p_str = context.const_input<std::string>(1);
         if (p_str == "fro") {
@@ -261,11 +253,7 @@ OutputVector translate_linalg_norm(const NodeContext& context) {
     Output<Node> dim;
     // dtype may be used to perform the computation in a more precise dtype. It is semantically equivalent to calling
     // linalg.norm(x.to(dtype))
-    if (context.has_attribute("dtype")) {
-        x = context.mark_node(std::make_shared<v0::Convert>(x, context.get_attribute<element::Type>("dtype")));
-    } else if (!context.input_is_none(4)) {
-        x = apply_dtype(context, 4, x);
-    }
+    x = apply_optional_dtype(context, 4, x);
     // If dim=None apply for all dimensions
     if (context.input_is_none(2)) {
         dim = get_node_axes_range(context, x);

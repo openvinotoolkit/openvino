@@ -123,8 +123,7 @@ OutputVector translate_scatter_reduce(const NodeContext& context) {
     auto src = context.get_input(3);
     auto reduce_mode = context.const_input<std::string>(4);
     auto reduction = get_reduction_mode(reduce_mode);
-    auto include_self =
-        context.input_is_none(5) ? context.get_attribute<bool>("include_self", true) : context.const_input<bool>(5);
+    auto include_self = get_const_input_or_attribute(context, 5, "include_self", true);
     auto src_input_dtype = prepare_source(context, src, index, input);
     auto scatter_result = context.mark_node(
         std::make_shared<v12::ScatterElementsUpdate>(input, index, src_input_dtype, dim, reduction, include_self));
