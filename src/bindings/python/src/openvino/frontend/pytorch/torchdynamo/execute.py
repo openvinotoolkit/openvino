@@ -284,22 +284,30 @@ def openvino_execute(
     res = None
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm import runtime_hooks as _rh
-        _pa_out = _rh.run_pa_infer(compiled, req, ov_inputs)
-        if _pa_out is _rh.PA_SKIP:
-            _eager_out = gm(*args)
-            # Profile/dummy run: this compile is never reused for real infer.
-            # Drop its cache references so the repacked weights free on scope exit.
-            if _evict_profile and _fresh_compile:
-                compiled_cache.pop(cache_key, None)
-                req_cache.pop(cache_key, None)
-                if struct_key is not None:
-                    structural_cache.pop(struct_key, None)
-            if isinstance(_eager_out, (list, tuple)):
-                return list(_eager_out)
-            return _eager_out
-        res = _pa_out
     except Exception:
-        pass
+        _rh = None
+    if _rh is not None:
+        try:
+            _pa_out = _rh.run_pa_infer(compiled, req, ov_inputs)
+            if _pa_out is _rh.PA_SKIP:
+                _eager_out = gm(*args)
+                # Profile/dummy run: this compile is never reused for real infer.
+                # Drop its cache references so the repacked weights free on scope exit.
+                if _evict_profile and _fresh_compile:
+                    compiled_cache.pop(cache_key, None)
+                    req_cache.pop(cache_key, None)
+                    if struct_key is not None:
+                        structural_cache.pop(struct_key, None)
+                if isinstance(_eager_out, (list, tuple)):
+                    return list(_eager_out)
+                return _eager_out
+            res = _pa_out
+        except Exception:
+            # A PA-shaped graph failing mid-bind must surface: falling
+            # through to positional infer would silently skip its __pa__
+            # side-channel inputs (see apply_input_shapes in compile.py).
+            if _rh.has_pa_inputs(compiled):
+                raise
     if res is None:
         res = req.infer(ov_inputs, share_inputs=True, share_outputs=True)
 
