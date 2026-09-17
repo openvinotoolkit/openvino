@@ -738,6 +738,66 @@ TEST_P(CompatibilityCheckTests, CheckCacheEncryptionCallbacksWithGetMergedConfig
     ASSERT_TRUE(unknownProperties.empty());
 }
 
+using WSCompileCallNumberPropertyTests = PropertiesManagerTests;
+
+TEST_P(WSCompileCallNumberPropertyTests, IsNotExposedToTheUser) {
+    ASSERT_FALSE(propertiesManager->isPropertySupported(ov::intel_npu::ws_compile_call_number.name()));
+
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(supportedProperties =
+                           propertiesManager->getProperty(ov::supported_properties.name())
+                               .as<std::vector<ov::PropertyName>>());
+    ASSERT_EQ(std::find(supportedProperties.cbegin(),
+                        supportedProperties.cend(),
+                        ov::intel_npu::ws_compile_call_number.name()),
+              supportedProperties.cend());
+}
+
+TEST_P(WSCompileCallNumberPropertyTests, CannotBeReadThroughGetProperty) {
+    OV_EXPECT_THROW(propertiesManager->getProperty(ov::intel_npu::ws_compile_call_number.name()),
+                    ov::Exception,
+                    HasSubstr("Property 'WS_COMPILE_CALL_NUMBER' cannot be accessed."));
+}
+
+TEST_P(WSCompileCallNumberPropertyTests, CannotBeWrittenThroughSetProperty) {
+    OV_EXPECT_THROW(propertiesManager->setProperty({{ov::intel_npu::ws_compile_call_number(5)}}),
+                    ov::Exception,
+                    HasSubstr("READ-ONLY configuration key: WS_COMPILE_CALL_NUMBER"));
+
+    // The rejected value must not have been stored as an internal compiler option either.
+    OV_EXPECT_THROW(propertiesManager->getProperty(ov::intel_npu::ws_compile_call_number.name()),
+                    ov::Exception,
+                    HasSubstr("Property 'WS_COMPILE_CALL_NUMBER' cannot be accessed."));
+}
+
+TEST_P(WSCompileCallNumberPropertyTests, IsRejectedByGetMergedConfigAndUnknownProperties) {
+    for (const auto mergeMode :
+         {::intel_npu::ConfigMergeMode::Compile, ::intel_npu::ConfigMergeMode::Import,
+          ::intel_npu::ConfigMergeMode::Query}) {
+        OV_EXPECT_THROW(propertiesManager->getMergedConfigAndUnknownProperties(
+                            {{ov::intel_npu::ws_compile_call_number(1),
+                              ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+                            mergeMode),
+                        ov::Exception,
+                        HasSubstr("READ-ONLY configuration key: WS_COMPILE_CALL_NUMBER"));
+    }
+}
+
+TEST_P(WSCompileCallNumberPropertyTests, RemainsAvailableAsInternalCompilerOption) {
+    // The option itself stays registered so that the compiler adapters can still set it internally, it is only the
+    // user-facing property which is unusable.
+    auto [filteredConfig, unknownProperties] = propertiesManager->getMergedConfigAndUnknownProperties(
+        {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+        ::intel_npu::ConfigMergeMode::Compile);
+
+    ASSERT_TRUE(filteredConfig.hasOpt(ov::intel_npu::ws_compile_call_number.name()));
+    ASSERT_FALSE(filteredConfig.hasInternal(ov::intel_npu::ws_compile_call_number.name()));
+    ASSERT_TRUE(unknownProperties.empty());
+
+    OV_ASSERT_NO_THROW(filteredConfig.update(ov::intel_npu::ws_compile_call_number.name(), "3"));
+    ASSERT_EQ(filteredConfig.get<::intel_npu::WS_COMPILE_CALL_NUMBER>(), 3);
+}
+
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;
 
 TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported) {
@@ -837,6 +897,12 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
 
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          CompatibilityCheckTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
+                         PropertiesManagerTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         WSCompileCallNumberPropertyTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);
