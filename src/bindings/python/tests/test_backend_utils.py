@@ -4,6 +4,8 @@
 
 import pytest
 
+pytest.importorskip("torch")
+
 from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
 
