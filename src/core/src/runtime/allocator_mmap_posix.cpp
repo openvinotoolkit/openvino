@@ -36,8 +36,11 @@ size_t align_up(size_t value, size_t alignment) {
 }
 
 size_t get_page_size() {
-    const long page_size = ::sysconf(_SC_PAGESIZE);
-    return page_size > 0 ? static_cast<size_t>(page_size) : static_cast<size_t>(4096);
+    static const size_t page_size = [] {
+        const long value = ::sysconf(_SC_PAGESIZE);
+        return value > 0 ? static_cast<size_t>(value) : static_cast<size_t>(4096);
+    }();
+    return page_size;
 }
 
 std::filesystem::path get_temporary_directory() {
@@ -47,8 +50,7 @@ std::filesystem::path get_temporary_directory() {
     return temp_dir;
 }
 
-void check_available_space(size_t bytes) {
-    const auto temp_dir = get_temporary_directory();
+void check_available_space(const std::filesystem::path& temp_dir, size_t bytes) {
     std::error_code error;
     const auto space = std::filesystem::space(temp_dir, error);
     OPENVINO_ASSERT(!error,
@@ -64,13 +66,12 @@ void check_available_space(size_t bytes) {
                     " bytes.");
 }
 
-int create_temporary_file(size_t bytes) {
-    auto path = get_temporary_directory() / "openvino_mmap_XXXXXX";
-    std::string path_template = path.string();
+int create_temporary_file(const std::filesystem::path& temp_dir, size_t bytes) {
+    std::string path_template = (temp_dir / "openvino_mmap_XXXXXX").string();
     int fd = ::mkstemp(path_template.data());
     if (fd < 0) {
         OPENVINO_THROW("Cannot create temporary file for mmap constant storage in '",
-                       get_temporary_directory().string(),
+                       temp_dir.string(),
                        "': ",
                        std::strerror(errno));
     }
@@ -119,19 +120,20 @@ void* TemporaryFileBackedAllocator::allocate(size_t bytes, size_t alignment) {
     OPENVINO_ASSERT(bytes <= (std::numeric_limits<size_t>::max)() - sizeof(AllocationHeader) - min_alignment + 1,
                     "Requested mmap allocation is too large");
     const size_t request = align_up(bytes + sizeof(AllocationHeader) + min_alignment - 1, page_size);
-    check_available_space(request);
+    const auto temp_dir = get_temporary_directory();
+    check_available_space(temp_dir, request);
 
     int fd = -1;
     void* base = MAP_FAILED;
     try {
-        fd = create_temporary_file(request);
+        fd = create_temporary_file(temp_dir, request);
         base = ::mmap(nullptr, request, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (base == MAP_FAILED) {
             OPENVINO_THROW("mmap() failed for temporary constant storage: ",
                            std::strerror(errno),
                            ". Every mmap-backed constant needs its own mapping, so a small "
-                           "MMAP_MIN_CONSTANT_SIZE can exceed the vm.max_map_count limit. "
-                           "Increase MMAP_MIN_CONSTANT_SIZE or raise vm.max_map_count.");
+                           "CONSTANT_OFFLOAD_MIN_SIZE can exceed the vm.max_map_count limit. "
+                           "Increase CONSTANT_OFFLOAD_MIN_SIZE or raise vm.max_map_count.");
         }
 
         const auto base_address = reinterpret_cast<std::uintptr_t>(base);

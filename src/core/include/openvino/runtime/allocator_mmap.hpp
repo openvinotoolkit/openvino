@@ -17,26 +17,24 @@
 
 namespace ov {
 
-struct MMapConstantsConfig {
-    bool enabled = false;
-    uint64_t min_constant_size = 64ULL * 1024ULL * 1024ULL;
-};
+/// @brief Returns the minimum constant size, in bytes, offloaded to temporary files. Zero disables offloading.
+OPENVINO_API uint64_t get_constant_offload_min_size();
 
-OPENVINO_API const MMapConstantsConfig& get_mmap_constants_config();
+/// @brief Tells whether a constant buffer of the given type and size should be offloaded to a temporary file.
+OPENVINO_API bool should_offload_constant(const element::Type& element_type, size_t byte_size);
 
-/// @brief Tells whether a buffer of the given type and size should be placed in temporary file-backed storage.
-OPENVINO_API bool use_mmap_constant_buffer(const element::Type& element_type, size_t byte_size);
-
-class OPENVINO_API ScopedMMapConstantsConfig {
+/// @brief Applies a constant offload threshold to the calling thread and restores the previous one on destruction.
+class OPENVINO_API ScopedConstantOffloadConfig {
 public:
-    explicit ScopedMMapConstantsConfig(const MMapConstantsConfig& config);
-    ~ScopedMMapConstantsConfig();
+    explicit ScopedConstantOffloadConfig(uint64_t min_constant_size);
+    ~ScopedConstantOffloadConfig();
 
-    ScopedMMapConstantsConfig(const ScopedMMapConstantsConfig&) = delete;
-    ScopedMMapConstantsConfig& operator=(const ScopedMMapConstantsConfig&) = delete;
+    ScopedConstantOffloadConfig(const ScopedConstantOffloadConfig&) = delete;
+    ScopedConstantOffloadConfig& operator=(const ScopedConstantOffloadConfig&) = delete;
 
 private:
-    MMapConstantsConfig m_previous_config;
+    uint64_t m_previous_min_constant_size;
+    bool m_enables_offload;
 };
 
 class OPENVINO_API TemporaryFileBackedAllocator {

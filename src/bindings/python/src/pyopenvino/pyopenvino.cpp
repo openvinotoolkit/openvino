@@ -109,12 +109,10 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     "OpenVINO Runtime and Python libraries point to same release.");
 
     m.def("get_version", &get_version);
-    py::class_<ov::ScopedMMapConstantsConfig>(m, "_TemporaryMMapConstantsScope")
-        .def(py::init([](bool enabled, uint64_t min_constant_size) {
-                 return std::make_unique<ov::ScopedMMapConstantsConfig>(
-                     ov::MMapConstantsConfig{enabled, min_constant_size});
+    py::class_<ov::ScopedConstantOffloadConfig>(m, "_TemporaryConstantOffloadScope")
+        .def(py::init([](uint64_t min_constant_size) {
+                 return std::make_unique<ov::ScopedConstantOffloadConfig>(min_constant_size);
              }),
-             py::arg("enabled"),
              py::arg("min_constant_size"));
     m.def(
         "serialize",

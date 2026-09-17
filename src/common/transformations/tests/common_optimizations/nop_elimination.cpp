@@ -314,6 +314,32 @@ TEST(nop_elimination, reshape_arithmetical_reduce_elimination_dynamic) {
     ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 0);
 }
 
+TEST_F(TransformationTestsF, reshape_arithmetical_reduce_elimination_keep_dims_false_negative) {
+    auto data = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 11, 4});
+    auto reduce_axes = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto reduce = std::make_shared<op::v1::ReduceMean>(data, reduce_axes, false);
+    auto pattern = op::v0::Constant::create(element::i64, Shape{2}, {16, 1});
+    auto reshape_v1 = std::make_shared<op::v1::Reshape>(reduce, pattern, false);
+
+    model = std::make_shared<ov::Model>(OutputVector{reshape_v1}, ParameterVector{data});
+
+    manager.register_pass<ov::pass::NopElimination>(false);
+}
+
+TEST(nop_elimination, reshape_arithmetical_reduce_elimination_keep_dims_false) {
+    auto arg = std::make_shared<op::v0::Parameter>(element::f32, Shape{4, 11, 4});
+    auto reduce_axes = v0::Constant::create(element::i64, Shape{1}, {1});
+    auto reduce = std::make_shared<op::v1::ReduceMean>(arg, reduce_axes, false);
+    auto pattern = op::v0::Constant::create(element::i64, Shape{2}, {4, 4});
+    auto reshape_v1 = std::make_shared<op::v1::Reshape>(reduce, pattern, false);
+    auto abs = std::make_shared<op::v0::Abs>(reshape_v1);
+    auto f = std::make_shared<ov::Model>(OutputVector{abs}, ParameterVector{arg});
+    pass::Manager pass_manager;
+    pass_manager.register_pass<ov::pass::NopElimination>(false);
+    pass_manager.run_passes(f);
+    ASSERT_TRUE(count_ops_of_type<op::v1::Reshape>(f) == 0);
+}
+
 TEST(nop_elimination, reshape_logical_reduce_elimination_dynamic) {
     auto arg = std::make_shared<op::v0::Parameter>(element::boolean, PartialShape({-1, 96, 100, 100}));
     auto reduce_axes = v0::Constant::create(element::i64, Shape{2}, {2, 3});

@@ -294,7 +294,7 @@ void Constant::allocate_buffer(bool memset_allocation) {
         m_data = std::make_shared<StringAlignedBuffer>(num_elements, *byte_size, host_alignment(), memset_allocation);
     } else {
         constexpr uint8_t init_value = 0;
-        if (use_mmap_constant_buffer(m_element_type, *byte_size)) {
+        if (should_offload_constant(m_element_type, *byte_size)) {
             m_data = std::make_shared<TemporaryFileBackedAlignedBuffer>(*byte_size, host_alignment());
         } else {
             m_data = std::make_shared<AlignedBuffer>(*byte_size, host_alignment());

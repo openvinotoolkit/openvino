@@ -396,7 +396,8 @@ EliminateReduceReshape::EliminateReduceReshape() {
             return false;
         }
 
-        auto in_rank = reshape->get_input_partial_shape(0).rank();
+        const auto& in_shape = reshape->get_input_partial_shape(0);
+        auto in_rank = in_shape.rank();
         auto out_rank = reshape->get_output_partial_shape(0).rank();
         if (in_rank.is_dynamic() || out_rank.is_dynamic() || in_rank.get_length() != out_rank.get_length()) {
             return false;
@@ -407,14 +408,14 @@ EliminateReduceReshape::EliminateReduceReshape() {
             return false;
         }
 
-        auto requested_shape_vec = requested_shape->cast_vector<int64_t>();
-        auto axes = reduce->get_reduction_axes();
+        const auto requested_shape_vec = requested_shape->cast_vector<int64_t>();
 
         int cnt_dyn = 0;
         for (size_t i = 0; i < requested_shape_vec.size(); ++i) {
-            // if we use reshape special zero or this dim was reduced
-            cnt_dyn += !((requested_shape_vec[i] == 0 && reshape->get_special_zero()) ||
-                         (axes.count(i) && requested_shape_vec[i] == 1));
+            // a dim is known when special zero copies it or when it provably equals the static input dim
+            const bool is_known = (requested_shape_vec[i] == 0 && reshape->get_special_zero()) ||
+                                  (in_shape[i].is_static() && requested_shape_vec[i] == in_shape[i].get_length());
+            cnt_dyn += !is_known;
         }
 
         // if the number of dyn dims here is equal to 0 or 1, we can unambiguously define output shape

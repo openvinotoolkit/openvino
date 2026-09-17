@@ -39,9 +39,12 @@ size_t align_up(size_t value, size_t alignment) {
 }
 
 size_t get_page_size() {
-    SYSTEM_INFO system_info{};
-    ::GetSystemInfo(&system_info);
-    return system_info.dwPageSize > 0 ? static_cast<size_t>(system_info.dwPageSize) : static_cast<size_t>(4096);
+    static const size_t page_size = [] {
+        SYSTEM_INFO system_info{};
+        ::GetSystemInfo(&system_info);
+        return system_info.dwPageSize > 0 ? static_cast<size_t>(system_info.dwPageSize) : static_cast<size_t>(4096);
+    }();
+    return page_size;
 }
 
 std::filesystem::path get_temporary_directory() {
@@ -51,8 +54,7 @@ std::filesystem::path get_temporary_directory() {
     return temp_dir;
 }
 
-void check_available_space(size_t bytes) {
-    const auto temp_dir = get_temporary_directory();
+void check_available_space(const std::filesystem::path& temp_dir, size_t bytes) {
     std::error_code error;
     const auto space = std::filesystem::space(temp_dir, error);
     OPENVINO_ASSERT(!error,
@@ -72,11 +74,10 @@ std::string get_windows_error_message(DWORD error) {
     return std::system_category().message(static_cast<int>(error));
 }
 
-HANDLE create_temporary_file(size_t bytes) {
+HANDLE create_temporary_file(const std::filesystem::path& temp_dir, size_t bytes) {
     OPENVINO_ASSERT(bytes <= static_cast<size_t>((std::numeric_limits<LONGLONG>::max)()),
                     "Requested mmap allocation is too large");
 
-    const auto temp_dir = get_temporary_directory();
     const DWORD process_id = ::GetCurrentProcessId();
     const DWORD thread_id = ::GetCurrentThreadId();
     const ULONGLONG tick_count = ::GetTickCount64();
@@ -136,13 +137,14 @@ void* TemporaryFileBackedAllocator::allocate(size_t bytes, size_t alignment) {
     OPENVINO_ASSERT(bytes <= (std::numeric_limits<size_t>::max)() - sizeof(AllocationHeader) - min_alignment + 1,
                     "Requested mmap allocation is too large");
     const size_t request = align_up(bytes + sizeof(AllocationHeader) + min_alignment - 1, page_size);
-    check_available_space(request);
+    const auto temp_dir = get_temporary_directory();
+    check_available_space(temp_dir, request);
 
     HANDLE file = INVALID_HANDLE_VALUE;
     HANDLE mapping = nullptr;
     void* base = nullptr;
     try {
-        file = create_temporary_file(request);
+        file = create_temporary_file(temp_dir, request);
         const auto mapping_size = static_cast<unsigned long long>(request);
         mapping = ::CreateFileMappingW(file,
                                        nullptr,

@@ -22,12 +22,14 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
 
   * Temporary mapping for generated constants - large constants created while reading a model or
     running graph transformations can be stored in temporary ``mmap``-backed files instead of RAM.
-    Enable it by passing ``ov::enable_mmap_for_constants(true)`` to ``ov::Core::read_model()`` or by
-    setting the property on ``ov::Core``. The minimum constant size is controlled by
-    ``ov::mmap_min_constant_size(BYTES)`` and defaults to 64 MiB. Constants below the limit use the
-    regular allocator to minimize overhead. This mode is supported on Linux, macOS, and Windows.
-    Make sure the temporary directory has enough free disk space for the generated constants;
-    otherwise, model reading fails with an error.
+    Enable it by passing ``ov::constant_offload_min_size(BYTES)`` to ``ov::Core::read_model()``,
+    ``ov::Core::compile_model()``, or by setting the property on ``ov::Core``. The value is the
+    minimum constant size that goes to file-backed storage; ``0`` disables the feature and is the
+    default. Constants below the limit use the regular allocator to minimize overhead. Keep the
+    limit large enough, because every file-backed constant needs its own mapping and the operating
+    system limits how many mappings a process may have. This mode is supported on Linux, macOS, and
+    Windows. Make sure the temporary directory has enough free disk space for the generated
+    constants; otherwise, model reading fails with an error.
 
     .. tab-set::
 
@@ -40,8 +42,7 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
              auto model = core.read_model(
                  "model.xml",
                  "model.bin",
-                 ov::enable_mmap_for_constants(true),
-                 ov::mmap_min_constant_size(64ULL * 1024ULL * 1024ULL));
+                 ov::constant_offload_min_size(64ULL * 1024ULL * 1024ULL));
 
        .. tab-item:: Python
           :sync: py
@@ -54,8 +55,7 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
              model = core.read_model(
                  "model.xml",
                  "model.bin",
-                 enable_mmap_for_constants=True,
-                 mmap_min_constant_size=64 * 1024 * 1024,
+                 constant_offload_min_size=64 * 1024 * 1024,
              )
 
   * Decrease the number of threads for compilation - to change the number of threads, specify

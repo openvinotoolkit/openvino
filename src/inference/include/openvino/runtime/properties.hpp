@@ -994,24 +994,18 @@ static constexpr Property<bool, PropertyMutability::RW> force_tbb_terminate{"FOR
 static constexpr Property<bool, PropertyMutability::RW> enable_mmap{"ENABLE_MMAP"};
 
 /**
- * @brief Read-write property to configure file-backed temporary storage for large constants created during model
- * conversion and graph transformations. Disabled by default.
+ * @brief Read-write property that offloads large constants created during model conversion and graph
+ * transformations to temporary files instead of keeping them in RAM.
  *
- * value type: boolean
- *   - True enables file-backed mmap allocation for generated constants
- *   - False disables file-backed mmap allocation for generated constants
- * @ingroup ov_runtime_cpp_prop_api
- */
-static constexpr Property<bool, PropertyMutability::RW> enable_mmap_for_constants{"ENABLE_MMAP_FOR_CONSTANTS"};
-
-/**
- * @brief Read-write property to set the minimum constant size in bytes for file-backed mmap allocation during model
- * conversion and graph transformations. Constants below this limit use the default allocator.
+ * The value is the minimum constant size, in bytes, that is offloaded. Smaller constants use the default
+ * allocator. Setting it to 0 disables offloading, which is the default. Keep the value large enough, because
+ * every offloaded constant needs its own memory mapping and the operating system limits how many mappings a
+ * process may have.
  *
  * value type: uint64_t
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<uint64_t, PropertyMutability::RW> mmap_min_constant_size{"MMAP_MIN_CONSTANT_SIZE"};
+static constexpr Property<uint64_t, PropertyMutability::RW> constant_offload_min_size{"CONSTANT_OFFLOAD_MIN_SIZE"};
 
 /**
  * @brief Namespace with device properties
