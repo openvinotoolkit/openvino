@@ -257,4 +257,10 @@ set(samples_dirs
     model_creation_sample
 )
 
+# DO NOT REMOVE: the installed samples dir is a merge of OV's and GenAI's samples archives,
+# merging their two CMakeLists.txt isn't trivial.
+file(GLOB extra_samples_dirs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *)
+list(REMOVE_ITEM extra_samples_dirs common thirdparty ${samples_dirs})
+list(APPEND samples_dirs ${extra_samples_dirs})
+
 ov_add_samples_to_build(${samples_dirs})

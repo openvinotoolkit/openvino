@@ -33,7 +33,7 @@ OutputVector translate_set_rows(const NodeContext& context) {
     auto indices = context.get_input(1);
     auto dst = context.get_input(2);
 
-    data = std::make_shared<ov::op::v0::Convert>(data, context.get_output_type());
+    data = std::make_shared<ov::op::v0::Convert>(data, dst.get_element_type());
 
     // Row size = the destination cache's innermost dim. Using the dst input (not the SET_ROWS
     // output shape) matters for the flattened KV-cache write (gpt-oss cache_v is stored as
@@ -55,7 +55,7 @@ OutputVector translate_set_rows(const NodeContext& context) {
         true);
 
     auto set_rows = std::make_shared<SetRows>(data_reshaped, ind_squeezed, dst);
-    return rename_outputs_with_suffix({set_rows}, context.get_name());
+    return rename_outputs_with_suffix({std::move(set_rows)}, context.get_name());
 }
 
 }  // namespace op
