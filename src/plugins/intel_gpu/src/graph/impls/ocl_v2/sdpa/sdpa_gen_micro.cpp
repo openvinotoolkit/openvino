@@ -1391,8 +1391,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const bool is_byte_packed_int4 = !config.is_paged_attention && data_type_traits::is_i4_u4(compressed_dt);
     if (is_byte_packed_int4)
         jit.make("IS_INT4_KV_CACHE", 1);
-    jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? K.data_type : ov::element::Type(compressed_dt)));
-    jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? V.data_type : ov::element::Type(compressed_dt)));
+    jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? ov::element::Type(K.data_type) : ov::element::Type(compressed_dt)));
+    jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(compressed_dt.is_dynamic() ? ov::element::Type(V.data_type) : ov::element::Type(compressed_dt)));
 
     int tile_k = gemm_kq.getSetting("wg_tile_m");
     int tile_q = gemm_kq.getSetting("wg_tile_n");
