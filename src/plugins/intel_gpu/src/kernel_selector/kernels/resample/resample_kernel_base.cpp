@@ -185,16 +185,21 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     });
 
     if (params.resampleType == ResampleType::CAFFE_BILINEAR_INTERP) {
-        if (axesUsed[0] == 1)
+        if (axesUsed[0] == 1) {
             jit.AddConstant(MakeJitConstant("AXES_USED_B", 1));
-        if (axesUsed[1] == 1)
+        }
+        if (axesUsed[1] == 1) {
             jit.AddConstant(MakeJitConstant("AXES_USED_F", 1));
-        if (axesUsed[2] == 1)
+        }
+        if (axesUsed[2] == 1) {
             jit.AddConstant(MakeJitConstant("AXES_USED_Z", 1));
-        if (axesUsed[3] == 1)
+        }
+        if (axesUsed[3] == 1) {
             jit.AddConstant(MakeJitConstant("AXES_USED_Y", 1));
-        if (axesUsed[4] == 1)
+        }
+        if (axesUsed[4] == 1) {
             jit.AddConstant(MakeJitConstant("AXES_USED_X", 1));
+        }
 
         jit.AddConstants({
             MakeJitConstant("PADDED_B", b_size_padded),
