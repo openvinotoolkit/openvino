@@ -64,10 +64,10 @@ struct sdpa_test_params {
             scale_val(scale), use_scalar_attn_mask(use_mask), attn_mask_val(mask), bit_width(0), asymmetric(false), dt(dt){}
     
     // constructor for quantization tests
-    sdpa_test_params(int h_size, int q_heads, int kv_heads, int seq_q, int seq_kv, int b, int bits, bool asym)
+    sdpa_test_params(int h_size, int q_heads, int kv_heads, int seq_q, int seq_kv, int b, int bits, bool asym, data_types dt = data_types::f16)
           : head_size(h_size), num_heads(q_heads), kv_num_heads(kv_heads), sequence_length_q(seq_q),
             sequence_length_kv(seq_kv), batch(b), dynamic(false), use_scalar_scale_val(false), scale_val(1.0f),
-            use_scalar_attn_mask(false), attn_mask_val(0.0f), bit_width(bits), asymmetric(asym) {}
+            use_scalar_attn_mask(false), attn_mask_val(0.0f), bit_width(bits), asymmetric(asym), dt(dt) {}
 };
 
 struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {

@@ -135,7 +135,8 @@ SDPAKVCompressionFusion::SDPAKVCompressionFusion() {
                                                            sdpa->get_input2_transpose_order(),
                                                            sdpa->get_output_transpose_order(),
                                                            config,
-                                                           sdpa->get_output_type());
+                                                           sdpa->get_output_type(),
+                                                           sdpa->get_causal_mask_alignment());
         compressed_sdpa->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), compressed_sdpa);
         ov::replace_node(sdpa, compressed_sdpa);
