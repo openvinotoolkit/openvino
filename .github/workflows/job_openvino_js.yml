@@ -17,6 +17,11 @@ on:
         type: string
         required: false
         default: "21"
+      electron-version:
+        description: 'Electron version used by the E2E tests. E.g., "43.0.0"'
+        type: string
+        required: false
+        default: "43.0.0"
 
 permissions: read-all
 
@@ -81,7 +86,14 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test --loglevel=silly
 
-      - name: Install electron deps and run Xvfb
+      - name: Configure Electron ${{ inputs.electron-version }}
+        if: fromJSON(inputs.nodejs-version) >= 22
+        working-directory: ${{ env.OPENVINO_JS_DIR }}/tests/e2e/demo-electron-app
+        env:
+          ELECTRON_VERSION: ${{ inputs.electron-version }}
+        run: npm install --package-lock-only --ignore-scripts --save-exact "electron@${ELECTRON_VERSION}"
+
+      - name: Start Xvfb
         if: runner.os == 'Linux' && fromJSON(inputs.nodejs-version) >= 22
         run: Xvfb "$DISPLAY" &
 
@@ -92,7 +104,7 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm run test:e2e --loglevel=silly
 
-      - name: Diagnose Electron teardown on ARM64
+      - name: Diagnose Node and Electron CPU teardown on ARM64
         if: runner.os == 'Linux' && runner.arch == 'ARM64' && fromJSON(inputs.nodejs-version) == 22
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         env:

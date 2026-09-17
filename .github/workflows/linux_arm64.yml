@@ -151,10 +151,13 @@ jobs:
       fail-fast: false
       matrix:
         nodejs-version: [21, 22, 24, 26]
+        electron-version: ["44.4.1", "43.7.1", "42.11.4", "39.8.10"]
+
     with:
       runner: 'aks-linux-8-cores-16gb-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       nodejs-version: ${{ matrix.nodejs-version }}
+      electron-version: ${{ matrix.electron-version }}
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
