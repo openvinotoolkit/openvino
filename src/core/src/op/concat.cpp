@@ -4,6 +4,9 @@
 
 #include "openvino/op/concat.hpp"
 
+#include <algorithm>
+#include <type_traits>
+
 #include "bound_evaluate.hpp"
 #include "concat_shape_inference.hpp"
 #include "itt.hpp"
@@ -14,6 +17,44 @@
 namespace ov {
 namespace op {
 namespace v0 {
+namespace {
+template <class T>
+std::vector<const T*> get_data_ptrs(const TensorVector& inputs) {
+    std::vector<const T*> ptrs;
+    ptrs.reserve(inputs.size());
+    for (auto& input : inputs) {
+        if constexpr (std::is_same_v<T, std::string>) {
+            ptrs.emplace_back(input.data<T>());
+        } else {
+            ptrs.emplace_back(static_cast<const T*>(input.data()));
+        }
+    }
+    return ptrs;
+}
+
+enum class concat_kind { unsupported, string, packed, regular };
+
+concat_kind get_concat_kind(const element::Type& elem_type,
+                            const std::vector<Shape>& input_shapes,
+                            const Shape& output_shape,
+                            size_t axis) {
+    if (elem_type == element::string) {
+        return concat_kind::string;
+    } else if (const auto bitwidth = elem_type.bitwidth(); bitwidth >= 8) {
+        return concat_kind::regular;
+    } else if (bitwidth == 0 || elem_type == element::u3 || elem_type == element::u6) {
+        return concat_kind::unsupported;
+    } else {
+        const auto steps = ov::shape_size(output_shape.begin(), output_shape.begin() + axis);
+        const auto is_misaligned = [steps, bitwidth](auto&& shape) {
+            return (ov::shape_size(shape) / steps * bitwidth) % 8 != 0;
+        };
+        return steps == 0 || std::none_of(input_shapes.begin(), input_shapes.end(), is_misaligned)
+                   ? concat_kind::packed
+                   : concat_kind::unsupported;
+    }
+}
+}  // namespace
 
 Concat::Concat(const OutputVector& args, int64_t axis) : Op(args), m_axis(axis) {
     constructor_validate_and_infer_types();
@@ -56,30 +97,50 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto inputs_count = inputs.size();
     std::vector<Shape> arg_shapes;
     std::vector<PartialShape> input_shapes;
-    std::vector<const char*> arg_bufs;
     arg_shapes.reserve(inputs_count);
     input_shapes.reserve(inputs_count);
-    arg_bufs.reserve(inputs_count);
 
     for (auto& input : inputs) {
         const auto& input_shape = input.get_shape();
         arg_shapes.emplace_back(input_shape);
         input_shapes.emplace_back(input_shape);
-        arg_bufs.emplace_back(static_cast<const char*>(input.data()));
     }
 
+    const auto& elem_type = outputs[0].get_element_type();
     const auto& out_shape = shape_infer(this, input_shapes).front().to_shape();
-    outputs.front().set_shape(out_shape);
-    const auto elem_type = outputs.front().get_element_type();
-    reference::concat(arg_bufs,
-                      static_cast<char*>(outputs.front().data()),
-                      arg_shapes,
-                      out_shape,
-                      ov::util::normalize(this->get_axis(), out_shape.size()),
-                      elem_type.size(),
-                      elem_type);
+    const auto axis = ov::util::normalize(get_axis(), out_shape.size());
 
-    return true;
+    switch (get_concat_kind(elem_type, arg_shapes, out_shape, axis)) {
+    case concat_kind::string:
+        outputs.front().set_shape(out_shape);
+        reference::concat(get_data_ptrs<std::string>(inputs),
+                          outputs[0].data<std::string>(),
+                          arg_shapes,
+                          out_shape,
+                          axis);
+        return true;
+    case concat_kind::packed:
+        outputs.front().set_shape(out_shape);
+        reference::concat(get_data_ptrs<int8_t>(inputs),
+                          outputs[0].data<int8_t>(),
+                          arg_shapes,
+                          out_shape,
+                          axis,
+                          elem_type.bitwidth());
+        return true;
+    case concat_kind::regular:
+        outputs.front().set_shape(out_shape);
+        reference::concat(get_data_ptrs<char>(inputs),
+                          static_cast<char*>(outputs[0].data()),
+                          arg_shapes,
+                          out_shape,
+                          axis,
+                          elem_type.size());
+        return true;
+    case concat_kind::unsupported:
+    default:
+        return false;
+    }
 }
 
 bool Concat::has_evaluate() const {

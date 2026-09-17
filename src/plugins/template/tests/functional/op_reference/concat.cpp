@@ -146,6 +146,52 @@ std::vector<ConcatParams> generateParams() {
     return params;
 }
 
+template <element::Type_t ET>
+std::vector<ConcatParams> generateParamsNibblePacked() {
+    // 4-bit "nibble" types (u4, i4, nf4, f4e2m1)
+    using T = typename element_type_traits<ET>::value_type;
+    std::vector<ConcatParams> params{
+        ConcatParams({},
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x21, 0x43}),  // rows [1,2],[3,4]
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x65, 0x17}),  // rows [5,6],[7,1]
+                     reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
+                     1,
+                     reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x21, 0x65, 0x43, 0x17}),
+                     "concat_nibble_packed_axis_1"),
+    };
+    return params;
+}
+
+std::vector<ConcatParams> generateParamsBitPackedU2() {
+    const auto ET = element::u2;
+    using T = element_type_traits<element::Type_t::u2>::value_type;
+    std::vector<ConcatParams> params{
+        ConcatParams({},
+                     reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x39, 0x1B}),
+                     reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x14, 0x41}),
+                     reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
+                     1,
+                     reference_tests::Tensor(ET, {2, 8}, std::vector<T>{0x39, 0x14, 0x1B, 0x41}),
+                     "concat_u2_packed_axis_1"),
+    };
+    return params;
+}
+
+std::vector<ConcatParams> generateParamsBitPackedU1() {
+    const auto ET = element::u1;
+    using T = element_type_traits<element::Type_t::u1>::value_type;
+    std::vector<ConcatParams> params{
+        ConcatParams({},
+                     reference_tests::Tensor(ET, {2, 8}, std::vector<T>{0x2A, 0x15}),
+                     reference_tests::Tensor(ET, {2, 8}, std::vector<T>{0x33, 0x0C}),
+                     reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
+                     1,
+                     reference_tests::Tensor(ET, {2, 16}, std::vector<T>{0x2A, 0x33, 0x15, 0x0C}),
+                     "concat_u1_packed_axis_1"),
+    };
+    return params;
+}
+
 std::vector<ConcatParams> generateStringParams() {
     const auto ET = ov::element::string;
     using T = typename element_type_traits<ov::element::string>::value_type;
@@ -240,6 +286,12 @@ std::vector<ConcatParams> generateCombinedParams() {
         generateParams<element::Type_t::f16>(),
         generateParams<element::Type_t::f32>(),
         generateParams<element::Type_t::f64>(),
+        generateParamsNibblePacked<element::Type_t::u4>(),
+        generateParamsNibblePacked<element::Type_t::i4>(),
+        generateParamsNibblePacked<element::Type_t::nf4>(),
+        generateParamsNibblePacked<element::Type_t::f4e2m1>(),
+        generateParamsBitPackedU2(),
+        generateParamsBitPackedU1(),
         generateStringParams(),
         generateParams4Bit<element::Type_t::i4>(),
         generateParams4Bit<element::Type_t::u4>(),
@@ -256,6 +308,41 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs,
                          ReferenceConcatTest,
                          testing::ValuesIn(generateCombinedParams()),
                          ReferenceConcatTest::getTestCaseName);
+
+TEST(concat_evaluate, u3_and_u6_are_never_supported) {
+    for (const auto& et : {element::u3, element::u6}) {
+        auto arg1 = std::make_shared<op::v0::Parameter>(et, Shape{2, 8});
+        auto arg2 = std::make_shared<op::v0::Parameter>(et, Shape{2, 8});
+        auto concat = std::make_shared<op::v0::Concat>(NodeVector{arg1, arg2}, 1);
+
+        EXPECT_FALSE(concat->has_evaluate()) << et;
+
+        ov::Tensor a_tensor(et, Shape{2, 8});
+        ov::Tensor b_tensor(et, Shape{2, 8});
+        ov::TensorVector outputs{ov::Tensor()};
+        ov::TensorVector inputs{a_tensor, b_tensor};
+        EXPECT_FALSE(concat->evaluate(outputs, inputs)) << et;
+    }
+}
+
+TEST(concat_evaluate, misaligned_bit_packed_segment_is_not_supported) {
+    for (const auto& et : {element::u1, element::u2, element::u4}) {
+        for (const auto& shape : {Shape{2, 3}, Shape{3}}) {
+            const auto axis = shape.size() - 1;
+            auto arg1 = std::make_shared<op::v0::Parameter>(et, shape);
+            auto arg2 = std::make_shared<op::v0::Parameter>(et, shape);
+            auto concat = std::make_shared<op::v0::Concat>(NodeVector{arg1, arg2}, axis);
+
+            EXPECT_TRUE(concat->has_evaluate()) << et << " " << shape;
+
+            ov::Tensor a_tensor(et, shape);
+            ov::Tensor b_tensor(et, shape);
+            ov::TensorVector outputs{ov::Tensor()};
+            ov::TensorVector inputs{a_tensor, b_tensor};
+            EXPECT_FALSE(concat->evaluate(outputs, inputs)) << et << " " << shape;
+        }
+    }
+}
 
 //// concat_vector_params, concat_vector_large
 

@@ -92,8 +92,14 @@ void CommonReferenceTest::ValidateBlobs(const ov::Tensor& refBlob,
 
     // compare() get fundamental element type with element_type_traits firstly and cast data to relative ov type with
     // 'from' types listed below have a fundamental analogue as int8_t, but int8_t is converted only to i8 with from
-    std::vector<ov::element::Type> raw_data_comp_only =
-        {ov::element::u1, ov::element::u2, ov::element::u3, ov::element::u4, ov::element::u6, ov::element::i4};
+    std::vector<ov::element::Type> raw_data_comp_only = {ov::element::u1,
+                                                         ov::element::u2,
+                                                         ov::element::u3,
+                                                         ov::element::u4,
+                                                         ov::element::u6,
+                                                         ov::element::i4,
+                                                         ov::element::nf4,
+                                                         ov::element::f4e2m1};
     const auto& element_type = refBlob.get_element_type();
     if (!legacy_compare &&
         std::find(raw_data_comp_only.begin(), raw_data_comp_only.end(), element_type) == raw_data_comp_only.end()) {
