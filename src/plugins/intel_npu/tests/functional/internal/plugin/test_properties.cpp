@@ -837,6 +837,60 @@ TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 }
 
+using SharedCommonQueueCompatibilityTests = PropertiesManagerTests;
+
+TEST_P(SharedCommonQueueCompatibilityTests, BothDisabledIsAlwaysSupported) {
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty(
+        {{ov::intel_npu::run_inferences_sequentially(false)}, {ov::intel_npu::shared_common_queue(false)}}));
+
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::run_inferences_sequentially.name()).as<bool>());
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::shared_common_queue.name()).as<bool>());
+}
+
+TEST_P(SharedCommonQueueCompatibilityTests, SharedCommonQueueEnabledWithSequentialInferencesDisabledIsSupported) {
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty(
+        {{ov::intel_npu::run_inferences_sequentially(false)}, {ov::intel_npu::shared_common_queue(true)}}));
+
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::run_inferences_sequentially.name()).as<bool>());
+    ASSERT_TRUE(propertiesManager->getProperty(ov::intel_npu::shared_common_queue.name()).as<bool>());
+}
+
+TEST_P(SharedCommonQueueCompatibilityTests, SequentialInferencesEnabledWithSharedCommonQueueDisabledIsSupported) {
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty(
+        {{ov::intel_npu::run_inferences_sequentially(true)}, {ov::intel_npu::shared_common_queue(false)}}));
+
+    ASSERT_TRUE(propertiesManager->getProperty(ov::intel_npu::run_inferences_sequentially.name()).as<bool>());
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::shared_common_queue.name()).as<bool>());
+}
+
+TEST_P(SharedCommonQueueCompatibilityTests, BothEnabledDependsOnCommandQueueVersion) {
+    const ov::AnyMap bothEnabled = {{ov::intel_npu::run_inferences_sequentially(true)},
+                                    {ov::intel_npu::shared_common_queue(true)}};
+
+    // Ask the properties manager instead of re-deriving the driver requirement here: RUN_INFERENCES_SEQUENTIALLY is
+    // reported as supported only when the driver provides the required command queue version.
+    if (propertiesManager->isPropertySupported(ov::intel_npu::run_inferences_sequentially.name())) {
+        OV_ASSERT_NO_THROW(propertiesManager->setProperty(bothEnabled));
+        ASSERT_TRUE(propertiesManager->getProperty(ov::intel_npu::run_inferences_sequentially.name()).as<bool>());
+        ASSERT_TRUE(propertiesManager->getProperty(ov::intel_npu::shared_common_queue.name()).as<bool>());
+    } else {
+        OV_EXPECT_THROW(propertiesManager->setProperty(bothEnabled),
+                        ov::Exception,
+                        HasSubstr("Unsupported configuration key"));
+    }
+}
+
+// A single-property update must be judged on its own requested value: disabling one of them while the other one is
+// already enabled in the config is a no-op with respect to the driver requirement.
+TEST_P(SharedCommonQueueCompatibilityTests, DisablingOnePropertyWhileTheOtherIsEnabledIsSupported) {
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::shared_common_queue(true)}}));
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::run_inferences_sequentially(false)}}));
+
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::shared_common_queue(false)}}));
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::run_inferences_sequentially(true)}}));
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::shared_common_queue(false)}}));
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
@@ -864,6 +918,12 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ExpectLoadingCompilerPropertySupported,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(supported_compiler_configs)),
+                         PropertiesManagerTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         SharedCommonQueueCompatibilityTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
