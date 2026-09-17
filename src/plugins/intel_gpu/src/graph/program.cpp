@@ -635,9 +635,11 @@ void program::post_optimize_graph(bool is_internal) {
     apply_opt_pass<update_inner_program_io_map>();
 
     // Recalculate processing order after all graph transformation to keep optimal primitives ordering
-    // for OOO queue
-    if (_config.get_queue_type() == QueueTypes::out_of_order)
+    if (_config.get_queue_type() == QueueTypes::out_of_order) {
         get_processing_order().calculate_BFS_processing_order();
+    } else {
+        get_processing_order().calculate_in_order_processing_order(*this);
+    }
 
     apply_opt_pass<mark_state_init_subgraphs>();
 }
@@ -831,7 +833,8 @@ void program::prepare_memory_dependencies() {
     }
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
-    apply_opt_pass<oooq_memory_dependencies>();
+    if (_config.get_queue_type() == QueueTypes::out_of_order)
+        apply_opt_pass<oooq_memory_dependencies>();
 }
 
 std::string program::get_memory_dependencies_string() const {
