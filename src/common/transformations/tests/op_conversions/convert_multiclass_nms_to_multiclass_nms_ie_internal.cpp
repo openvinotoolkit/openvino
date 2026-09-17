@@ -11,8 +11,8 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
-#include "openvino/opsets/opset9_decl.hpp"
+#include "openvino/op/multiclass_nms.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/multiclass_nms_ie_internal.hpp"
@@ -25,10 +25,10 @@ using namespace ov;
 
 TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
     {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
 
-        auto nms = std::make_shared<opset9::MulticlassNms>(boxes, scores, opset9::MulticlassNms::Attributes());
+        auto nms = std::make_shared<ov::op::v9::MulticlassNms>(boxes, scores, ov::op::v9::MulticlassNms::Attributes());
 
         model = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
 
@@ -37,11 +37,11 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
     }
 
     {
-        auto boxes = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1000, 4});
-        auto scores = std::make_shared<opset1::Parameter>(element::f32, Shape{1, 1, 1000});
+        auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1000, 4});
+        auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, Shape{1, 1, 1000});
         auto nms = std::make_shared<ov::op::internal::MulticlassNmsIEInternal>(boxes,
-                                                                               scores,
-                                                                               opset9::MulticlassNms::Attributes());
+                                          scores,
+                                          ov::op::v9::MulticlassNms::Attributes());
 
         model_ref = std::make_shared<Model>(OutputVector{nms}, ParameterVector{boxes, scores});
     }
@@ -51,10 +51,10 @@ TEST_F(TransformationTestsF, ConvertMulticlassNmsToMulticlassNmsIE) {
 // internal op's output shape must stay dynamic instead of being collapsed to a static
 // upper-bound shape (see get_max_shape() usage removed in validate_and_infer_types()).
 TEST(TransformationTests, ConvertMulticlassNmsToMulticlassNmsIE_DynamicShape) {
-    auto boxes = std::make_shared<opset1::Parameter>(element::f32, PartialShape{DYN, DYN, 4});
-    auto scores = std::make_shared<opset1::Parameter>(element::f32, PartialShape{DYN, 1, DYN});
+    auto boxes = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{DYN, DYN, 4});
+    auto scores = std::make_shared<ov::op::v0::Parameter>(element::f32, PartialShape{DYN, 1, DYN});
 
-    auto nms = std::make_shared<opset9::MulticlassNms>(boxes, scores, opset9::MulticlassNms::Attributes());
+    auto nms = std::make_shared<ov::op::v9::MulticlassNms>(boxes, scores, ov::op::v9::MulticlassNms::Attributes());
     auto model = std::make_shared<Model>(OutputVector{nms->output(0), nms->output(1), nms->output(2)},
                                          ParameterVector{boxes, scores});
 
