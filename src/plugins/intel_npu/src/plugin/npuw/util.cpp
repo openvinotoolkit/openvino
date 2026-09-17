@@ -291,9 +291,13 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         NPUW_ASSERT(type_zerop == ov::element::u4 || type_zerop == ov::element::f16 || type_zerop == ov::element::f32);
         NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
         NPUW_ASSERT(type_to == ov::element::f16);
-    } else if (type_from == ov::element::u8 || type_from == ov::element::i8) {
+    } else if (type_from == ov::element::u8) {
         NPUW_ASSERT(type_zerop == type_from);
         NPUW_ASSERT(type_scale == ov::element::f16);
+        NPUW_ASSERT(type_to == ov::element::f16);
+    } else if (type_from == ov::element::i8) {
+        NPUW_ASSERT(type_zerop == type_from);
+        NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
         NPUW_ASSERT(type_to == ov::element::f16);
     } else {
         NPUW_ASSERT(false && "Unsupported combination");

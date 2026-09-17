@@ -283,6 +283,25 @@ TEST(HostGatherQuantAsymmTest, MarksPairedSub128Sources) {
         EXPECT_TRUE(shifted_and_source.second == model->get_parameters().at(1) ||
                     shifted_and_source.second == model->get_parameters().at(2));
     }
+    // Simulating partitioning behavior
+    for (const auto& shifted_and_source : context.closures_to_subtract_128) {
+        model->add_parameters({shifted_and_source.first});
+        if (shifted_and_source.second->output(0).get_target_inputs().empty()) {
+            model->remove_parameter(shifted_and_source.second);
+        }
+    }
+
+    std::size_t i8_parameter_count = 0;
+    std::size_t u8_parameter_count = 0;
+    for (const auto& parameter : model->get_parameters()) {
+        if (parameter->get_element_type() == ov::element::i8) {
+            ++i8_parameter_count;
+        } else if (parameter->get_element_type() == ov::element::u8) {
+            ++u8_parameter_count;
+        }
+    }
+    EXPECT_EQ(i8_parameter_count, 2u);
+    EXPECT_EQ(u8_parameter_count, 0u);
 }
 
 TEST(HostGatherQuantAsymmTest, KeepsRawSourcesWithoutMarkedPattern) {
@@ -328,16 +347,19 @@ TEST(ConvertDQVocabTest, ReplacesMarkedShiftsWithLazySources) {
         EXPECT_EQ(shifted_and_source.first->get_element_type(), ov::element::i8);
         EXPECT_TRUE(shifted_and_source.second == model->get_parameters().at(0) ||
                     shifted_and_source.second == model->get_parameters().at(1));
+        EXPECT_EQ(model->get_parameter_index(shifted_and_source.first), -1);
     }
-    EXPECT_EQ(count_sub128_shifts(model), 0u);
 
-    std::size_t i8_parameter_count = 0;
-    for (const auto& parameter : model->get_parameters()) {
-        if (parameter->get_element_type() == ov::element::i8) {
-            ++i8_parameter_count;
+    std::size_t reachable_i8_parameter_count = 0;
+    for (const auto& node : model->get_ordered_ops()) {
+        const auto parameter = ov::as_type_ptr<ov::op::v0::Parameter>(node);
+        if (parameter && parameter->get_element_type() == ov::element::i8) {
+            ++reachable_i8_parameter_count;
         }
     }
-    EXPECT_EQ(i8_parameter_count, 2u);
+    EXPECT_EQ(reachable_i8_parameter_count, 2u);
+
+    EXPECT_EQ(count_sub128_shifts(model), 0u);
 }
 
 using VocabSub128TestParams = std::tuple<bool, bool>;

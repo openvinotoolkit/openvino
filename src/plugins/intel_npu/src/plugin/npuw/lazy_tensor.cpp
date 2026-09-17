@@ -4,10 +4,10 @@
 
 #include "lazy_tensor.hpp"
 
+#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <variant>
-#include <optional>
 
 #include "logging.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -52,8 +52,8 @@ std::size_t Const::hash() const {
         weightless_offset = m_offset;
     }
 
-    std::size_t seed = weightless_offset ? std::hash<std::size_t>()(*weightless_offset)
-                                         : std::hash<const void*>()(m_cached_ptr);
+    std::size_t seed =
+        weightless_offset ? std::hash<std::size_t>()(*weightless_offset) : std::hash<const void*>()(m_cached_ptr);
     seed ^= m_cached_type.hash() + 0x9e3779b9;
     seed ^= std::hash<std::size_t>()(m_byte_size) + 0x9e3779b9;
     for (const auto& dim : m_cached_shape) {
@@ -72,8 +72,9 @@ bool Const::operator==(const Const& other) const {
 
     const auto this_offset = get_weightless_offset(*this);
     const auto other_offset = get_weightless_offset(other);
-    const bool same_storage = this_offset && other_offset ? *this_offset == *other_offset
-                                                          : !this_offset && !other_offset && m_cached_ptr == other.m_cached_ptr;
+    const bool same_storage = this_offset && other_offset
+                                  ? *this_offset == *other_offset
+                                  : !this_offset && !other_offset && m_cached_ptr == other.m_cached_ptr;
     return m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
            m_byte_size == other.m_byte_size && same_storage;
 }
