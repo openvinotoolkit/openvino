@@ -9,8 +9,8 @@
 #include <memory>
 #include <string>
 
-#include "npuw_transformations/detect_causal_mask.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
+#include "npuw_transformations/detect_causal_mask.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
@@ -18,6 +18,8 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
+#include "openvino/runtime/iplugin.hpp"
 
 namespace {
 
@@ -407,7 +409,8 @@ TEST(HostFlashAttentionFromTest, Fused_MaskTileIndexInMapIsSix) {
 TEST(HostFlashAttentionFromTest, Fused_TileSizeAndQuerySizeAreCorrect) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
     ASSERT_TRUE(result.has_value());
-    EXPECT_EQ(result->_tile_size, static_cast<int64_t>(QUERY_SIZE));
+    EXPECT_EQ(result->_past_tile_size, static_cast<int64_t>(QUERY_SIZE));
+    EXPECT_EQ(result->_final_tile_size, static_cast<int64_t>(QUERY_SIZE));
     EXPECT_EQ(result->_query_size, QUERY_SIZE);
 }
 
@@ -415,6 +418,38 @@ TEST(HostFlashAttentionFromTest, Fused_ContextSizeIsCorrect) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(result->_context_size, QUERY_SIZE + PAST_LEN);
+}
+
+// ============================================================================
+// analyze_past_tiling (past_tile_size / final_tile_size split for SWA support)
+// ============================================================================
+
+// SWA-shrunk past (past_len < query_size): the single past input has nothing to chunk
+// with, so past_tile_size takes on its own (shorter) length instead of query_size.
+TEST(HostFlashAttentionFromTest, Fused_ShortPastYieldsPastTileSizeEqualToPastLen) {
+    constexpr size_t short_past_len = QUERY_SIZE / 2;
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(QUERY_SIZE, short_past_len), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_past_tile_size, static_cast<int64_t>(short_past_len));
+    EXPECT_EQ(result->_final_tile_size, static_cast<int64_t>(QUERY_SIZE));
+}
+
+// Past length that is an exact multiple of query_size (block-split/continuous, non-SWA):
+// past_tile_size stays equal to query_size regardless of how many multiples the past holds.
+TEST(HostFlashAttentionFromTest, Fused_PastMultipleOfQuerySizeYieldsPastTileSizeEqualToQuerySize) {
+    constexpr size_t multi_past_len = QUERY_SIZE * 3;
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(QUERY_SIZE, multi_past_len), true);
+    ASSERT_TRUE(result.has_value());
+    EXPECT_EQ(result->_past_tile_size, static_cast<int64_t>(QUERY_SIZE));
+    EXPECT_EQ(result->_final_tile_size, static_cast<int64_t>(QUERY_SIZE));
+}
+
+// Past length >= query_size but not an exact multiple of it: analyze_past_tiling must
+// reject this (PREFILL is expected to fill the KV cache in exact query_size increments).
+TEST(HostFlashAttentionFromTest, Fused_PastNotMultipleOfQuerySizeThrows) {
+    constexpr size_t bad_past_len = QUERY_SIZE + QUERY_SIZE / 2;
+    EXPECT_THROW(ov::npuw::function::HostFlashAttention::from(build_sdpa_model(QUERY_SIZE, bad_past_len), true),
+                 ov::Exception);
 }
 
 namespace {
@@ -653,4 +688,134 @@ TEST(HostFlashAttentionTransposedVTest, ContextSizeIsCorrect) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
     ASSERT_TRUE(result.has_value());
     EXPECT_EQ(result->_context_size, QUERY_SIZE + PAST_LEN);
+}
+
+// ---------------------------------------------------------------------------
+// runtime::host_flash_attention::PositionIDs::find() shape matching
+// ---------------------------------------------------------------------------
+namespace {
+
+// Minimal IPlugin stub needed to construct an ICompiledModel.
+class PosIdsNullPlugin final : public ov::IPlugin {
+public:
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
+        return {};
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&, const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override {
+        return {};
+    }
+};
+
+// ICompiledModel stub that just exposes the wrapped model's inputs/outputs.
+class PosIdsStubCompiledModel final : public ov::ICompiledModel {
+public:
+    PosIdsStubCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::ICompiledModel(model, plugin) {}
+
+    void export_model(std::ostream&) const override {}
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        return nullptr;
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        return nullptr;
+    }
+};
+
+// Minimal ISyncInferRequest: find() only reads get_inputs(), so no tensors are needed.
+class PosIdsFakeInferRequest final : public ov::ISyncInferRequest {
+public:
+    explicit PosIdsFakeInferRequest(const std::shared_ptr<const ov::ICompiledModel>& cm) : ov::ISyncInferRequest(cm) {}
+
+    void infer() override {}
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        return {};
+    }
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
+        return {};
+    }
+    void check_tensors() const override {}
+};
+
+// Builds a model with a single "position_ids" parameter of the given shape (plus a dummy
+// output so the model is valid) and wraps it into a fake infer request usable by find().
+std::shared_ptr<ov::ISyncInferRequest> make_position_ids_request(const ov::Shape& position_ids_shape) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, position_ids_shape);
+    position_ids->set_friendly_name("position_ids");
+    position_ids->output(0).get_tensor().set_names({"position_ids"});
+    auto result = std::make_shared<ov::op::v0::Result>(position_ids);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{position_ids});
+
+    auto plugin = std::make_shared<PosIdsNullPlugin>();
+    auto compiled = std::make_shared<PosIdsStubCompiledModel>(model, plugin);
+    return std::make_shared<PosIdsFakeInferRequest>(compiled);
+}
+
+}  // namespace
+
+TEST(HostFlashAttentionPositionIdsFindTest, Matches1D) {
+    auto rq = make_position_ids_request(ov::Shape{16});
+    EXPECT_NE(ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq), nullptr);
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, Matches2D) {
+    auto rq = make_position_ids_request(ov::Shape{1, 16});
+    EXPECT_NE(ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq), nullptr);
+}
+
+// Qwen2.5-VL mrope layout: [3, 1, seq_len].
+TEST(HostFlashAttentionPositionIdsFindTest, Matches3DMropeThreeSections) {
+    auto rq = make_position_ids_request(ov::Shape{3, 1, 16});
+    EXPECT_NE(ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq), nullptr);
+}
+
+// Qwen3.5-VL mrope layout: [4, 1, seq_len].
+TEST(HostFlashAttentionPositionIdsFindTest, Matches3DMropeFourSections) {
+    auto rq = make_position_ids_request(ov::Shape{4, 1, 16});
+    EXPECT_NE(ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq), nullptr);
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, RejectsNonUnitBatchDim) {
+    auto rq = make_position_ids_request(ov::Shape{2, 16});
+    EXPECT_EQ(ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq), nullptr);
+}
+
+TEST(HostFlashAttentionPositionIdsFindTest, RejectsNonUnitBatchDimIn3D) {
+    auto rq = make_position_ids_request(ov::Shape{3, 2, 16});
+    EXPECT_EQ(ov::npuw::runtime::host_flash_attention::PositionIDs::find(16, *rq), nullptr);
 }

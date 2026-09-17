@@ -57,6 +57,7 @@ public:
 
     // Version of the compiled-model blob layout. Bump this whenever the compatibility descriptor
     // or a serialized GPU primitive payload changes so the importer rejects incompatible blobs.
+    // v2: added the compile-time runtime tag (rt=) to partition OCL/ZE blobs.
     static constexpr uint32_t runtime_requirements_version = 2;
 
     // Magic marker that prefixes the compatibility-descriptor block in the exported blob, letting
