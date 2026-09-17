@@ -9,6 +9,7 @@
 #include "../../logging.hpp"
 #include "../online/group.hpp"     // online::Group
 #include "../online/snapshot.hpp"  // online::Snapshot
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
 #include "openvino/pass/pattern/op/optional.hpp"
@@ -636,6 +637,7 @@ ShapeOfConcat::ShapeOfConcat() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_shape_out = node_to_output.at(concat_shp);
+        ov::util::evaluate_both_bounds(matched_shape_out);
         auto& matched_shape_tensor = matched_shape_out.get_tensor();
         if (matched_shape_tensor.has_and_set_bound()) {
             auto new_const = std::make_shared<ov::op::v0::Constant>(matched_shape_tensor.get_upper_value());

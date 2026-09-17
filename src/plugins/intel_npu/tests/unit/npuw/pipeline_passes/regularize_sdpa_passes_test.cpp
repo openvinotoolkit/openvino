@@ -218,15 +218,6 @@ TEST(ShapeOfConcatTest, FoldsShapeOfIntoConstantWhenBound) {
     auto model = build_shape_of_concat_static_model();
     ASSERT_EQ(count_ops<op::v3::ShapeOf>(model), 1u) << "expect one ShapeOf before the pass";
 
-    // Propagate bounds through the ShapeOf output without folding any nodes, mirroring how a
-    // fully-static Concat would carry them by the time this pass runs in the real pipeline.
-    for (const auto& op : model->get_ops()) {
-        if (ov::is_type<op::v3::ShapeOf>(op)) {
-            ov::util::evaluate_both_bounds(op->output(0));
-            break;
-        }
-    }
-
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>();
     rewr.run_on_model(model);
