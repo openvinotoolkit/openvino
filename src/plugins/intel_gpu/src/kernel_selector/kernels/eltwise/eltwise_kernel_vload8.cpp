@@ -22,8 +22,9 @@ bool IsFeatureBroadcast(const DataTensor& input, const DataTensor& output) {
         output.GetFirstElementOffset() != 0)
         return false;
 
+    const size_t feature_plane_size = input.Y().v * input.X().v;
     return input.Batch().v == output.Batch().v && input.Feature().v == 1 && output.Feature().v > 1 && input.Y().v == output.Y().v &&
-           input.X().v == output.X().v && (input.Y().v * input.X().v) % 8 == 0;
+           input.X().v == output.X().v && feature_plane_size != 0 && feature_plane_size % 8 == 0;
 }
 
 }  // namespace

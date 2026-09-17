@@ -4709,6 +4709,22 @@ struct vload8_padding_options {
     bool pad_weights = true;
 };
 
+static kernel_selector::eltwise_params make_vload8_feature_broadcast_params(size_t x, size_t y) {
+    kernel_selector::eltwise_params params;
+    params.inputs = {
+        kernel_selector::DataTensor(std::vector<size_t>{x, y, 4, 2}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx),
+        kernel_selector::DataTensor(std::vector<size_t>{x, y, 1, 2}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx),
+    };
+    params.outputs = {
+        kernel_selector::DataTensor(std::vector<size_t>{x, y, 4, 2}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx),
+    };
+    params.operations.push_back({
+        {kernel_selector::eltwise_params::InputType::Buffer(0), kernel_selector::eltwise_params::InputType::Buffer(1)},
+        kernel_selector::EltwiseMode::MUL,
+    });
+    return params;
+}
+
 template <typename T>
 void test_vload8_feature_broadcast(data_types data_type,
                                    bool broadcast_first,
@@ -4873,24 +4889,18 @@ TEST(eltwise_gpu, vload8_accepts_aligned_logical_size_with_unaligned_physical_pa
 }
 
 TEST(eltwise_gpu, vload8_rejects_shape_agnostic_feature_broadcast) {
-    kernel_selector::eltwise_params params;
-    params.inputs = {
-        kernel_selector::DataTensor(std::vector<size_t>{16, 3, 4, 2}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx),
-        kernel_selector::DataTensor(std::vector<size_t>{16, 3, 1, 2}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx),
-    };
-    params.outputs = {
-        kernel_selector::DataTensor(std::vector<size_t>{16, 3, 4, 2}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx),
-    };
-    params.operations.push_back({
-        {kernel_selector::eltwise_params::InputType::Buffer(0), kernel_selector::eltwise_params::InputType::Buffer(1)},
-        kernel_selector::EltwiseMode::MUL,
-    });
-
+    auto params = make_vload8_feature_broadcast_params(16, 3);
     eltwise_kernel_vload8_for_test kernel;
     params.is_shape_agnostic = true;
     ASSERT_FALSE(kernel.Validate(params));
     params.is_shape_agnostic = false;
     ASSERT_TRUE(kernel.Validate(params));
+}
+
+TEST(eltwise_gpu, vload8_rejects_empty_feature_broadcast) {
+    eltwise_kernel_vload8_for_test kernel;
+    ASSERT_FALSE(kernel.Validate(make_vload8_feature_broadcast_params(0, 3)));
+    ASSERT_FALSE(kernel.Validate(make_vload8_feature_broadcast_params(16, 0)));
 }
 
 TEST(eltwise_gpu, vload8_rejects_batch_broadcast) {
