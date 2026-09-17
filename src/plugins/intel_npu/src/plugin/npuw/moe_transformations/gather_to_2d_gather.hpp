@@ -31,6 +31,12 @@ namespace pass {
  *
  * This transformation enables better hardware support for Gather operations
  * by converting multi-dimensional gather into flattened 2D gather.
+ *
+ * Gathers that read the exact same indices tensor share steps 0-4 -- built once per group
+ * instead of once per Gather: members with equal M reuse the identical [I, M] tensor directly,
+ * members with different M each get their own slice out of a single combined Multiply/Add via
+ * VariadicSplit. A Gather with no siblings sharing its indices degenerates to exactly the
+ * single-Gather sequence above.
  */
 class GatherTo2DGather : public ov::pass::ModelPass {
 public:
