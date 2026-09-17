@@ -1517,12 +1517,62 @@ TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_dynamic_scatter_elements_up
     ASSERT_EQ(cval, out);
 }
 
+TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_scatter_elements_update_out_of_bounds_positive_index) {
+    const Shape data_shape{3, 3};
+    const Shape indices_shape{2, 3};
+
+    auto arg1 = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto arg2 = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto arg3 = make_shared<ov::op::v0::Parameter>(element::f32, indices_shape);
+    auto arg4 = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
+
+    auto scatter_elements_update = make_shared<TypeParam>(arg1, arg2, arg3, arg4);
+    auto model = make_shared<Model>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
+    auto result_tensor = ov::Tensor();
+    auto out_vector = ov::TensorVector{result_tensor};
+    // Index value 3 is out of range for axis 0 whose dimension is 3 (valid range is [-3, 2]).
+    auto in_vector =
+        ov::TensorVector{make_tensor<element::Type_t::f32>(data_shape, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}),
+                         make_tensor<element::Type_t::i32>(indices_shape, {1, 0, 3, 0, 2, 1}),
+                         make_tensor<element::Type_t::f32>(indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
+                         make_tensor<element::Type_t::i64>({}, {0})};
+    OV_EXPECT_THROW(model->evaluate(out_vector, in_vector),
+                    ov::AssertFailure,
+                    HasSubstr("is out of bounds for the axis of size"));
+}
+
+TYPED_TEST_P(ScatterElementsUpdateEvalTest, evaluate_scatter_elements_update_out_of_bounds_negative_index) {
+    const Shape data_shape{3, 3};
+    const Shape indices_shape{2, 3};
+
+    auto arg1 = make_shared<ov::op::v0::Parameter>(element::f32, data_shape);
+    auto arg2 = make_shared<ov::op::v0::Parameter>(element::i32, indices_shape);
+    auto arg3 = make_shared<ov::op::v0::Parameter>(element::f32, indices_shape);
+    auto arg4 = make_shared<ov::op::v0::Parameter>(element::i64, Shape{});
+
+    auto scatter_elements_update = make_shared<TypeParam>(arg1, arg2, arg3, arg4);
+    auto model = make_shared<Model>(OutputVector{scatter_elements_update}, ParameterVector{arg1, arg2, arg3, arg4});
+    auto result_tensor = ov::Tensor();
+    auto out_vector = ov::TensorVector{result_tensor};
+    // Index value -4 is out of range for axis 0 whose dimension is 3 (valid range is [-3, 2]).
+    auto in_vector =
+        ov::TensorVector{make_tensor<element::Type_t::f32>(data_shape, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}),
+                         make_tensor<element::Type_t::i32>(indices_shape, {1, 0, -4, 0, 2, 1}),
+                         make_tensor<element::Type_t::f32>(indices_shape, {1.0f, 1.1f, 1.2f, 2.0f, 2.1f, 2.2f}),
+                         make_tensor<element::Type_t::i64>({}, {0})};
+    OV_EXPECT_THROW(model->evaluate(out_vector, in_vector),
+                    ov::AssertFailure,
+                    HasSubstr("is out of bounds for the axis of size"));
+}
+
 REGISTER_TYPED_TEST_SUITE_P(ScatterElementsUpdateEvalTest,
                             evaluate_dynamic_scatter_elements_update_one_elem_i32,
                             evaluate_dynamic_scatter_elements_update_1d_axis,
                             evaluate_dynamic_scatter_elements_update_negative_axis,
                             evaluate_dynamic_scatter_elements_update_basic,
-                            evaluate_static_scatter_elements_update_basic);
+                            evaluate_static_scatter_elements_update_basic,
+                            evaluate_scatter_elements_update_out_of_bounds_positive_index,
+                            evaluate_scatter_elements_update_out_of_bounds_negative_index);
 
 using OpVersions = ::testing::Types<ov::op::v3::ScatterElementsUpdate, ov::op::v12::ScatterElementsUpdate>;
 INSTANTIATE_TYPED_TEST_SUITE_P(eval, ScatterElementsUpdateEvalTest, OpVersions);
