@@ -14,6 +14,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/model_serializer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/parser.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/plugin_compiler_adapter.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/vcl_version_utils.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/weightless_graph.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/weightless_utils.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/xml_serializer.hpp
