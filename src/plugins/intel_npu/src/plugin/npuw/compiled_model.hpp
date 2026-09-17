@@ -306,8 +306,7 @@ private:
         void serialize(ov::npuw::s11n::Stream& stream,
                        const ov::npuw::s11n::WeightsContext& ctx,
                        std::optional<std::size_t> orc_device_index = std::nullopt,
-                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr,
-                       ov::npuw::orc::Version version = kOrcVersion);
+                       const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
 

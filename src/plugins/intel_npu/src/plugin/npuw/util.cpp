@@ -1013,10 +1013,12 @@ std::optional<std::size_t> normalize_static_axis(int64_t axis, const ov::Partial
     }
 
     const auto rank_length = rank.get_length();
-    if (axis < -rank_length || axis >= rank_length) {
+    if (!ov::util::is_axis_valid(axis, rank_length)) {
         return std::nullopt;
     }
-    return static_cast<std::size_t>(axis < 0 ? axis + rank_length : axis);
+    std::vector<int64_t> axes{axis};
+    ov::util::normalize_axes(axes, rank_length);
+    return static_cast<std::size_t>(axes.front());
 }
 
 std::optional<int64_t> static_dimension(const ov::PartialShape& shape, std::size_t axis) {
