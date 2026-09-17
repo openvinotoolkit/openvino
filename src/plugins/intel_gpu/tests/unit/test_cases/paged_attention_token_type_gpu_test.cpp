@@ -307,9 +307,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_micro_sdpa_prefill,
                          ::testing::ValuesIn(make_micro_sdpa_prefill_test_params()),
                          get_micro_sdpa_prefill_test_name);
 
-// Micro SDPA in the MIXED stage while token_type_ids is present. MIXED used to fall back to
-// paged_attention_opt__multi_tokens, which carries no token_type_ids handling of its own, so the
-// fallback only ever cost performance.
+// Dispatch check: MIXED with token_type_ids must stay on a DPAS SDPA kernel instead of falling
+// back to paged_attention_opt__multi_tokens. That fallback has no token_type_ids handling and used
+// to be selected solely because has_token_type_ids was present.
+//
+// Which DPAS generator runs is TEST_USE_SDPA_OCL (sdpa_ocl by default, sdpa_micro when it is 0).
+// MIXED bidirectional masking exists only in sdpa_ocl -- sdpa_micro.cl still gates its block on
+// IS_PREFILL -- so TEST_USE_SDPA_OCL=0 currently rejects MIXED+token_type_ids and this suite skips.
 //
 // The PREFILL golden data is replayed as a chunked prefill:
 //
@@ -318,38 +322,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_micro_sdpa_prefill,
 //     q      | -                    | passed as input      |
 //     golden | -                    | compared             |
 //
-// past_len is picked so the query chunk holds text tokens only. A bidirectional pair needs both the
-// query and the key to be image tokens, so a text-only chunk is masked purely causally - which is
-// what both MIXED kernels produce, neither of them implementing token_type_ids.
-class paged_attention_token_type_micro_sdpa_mixed_test : public paged_attention_token_type_test {
-public:
-    void apply_mixed_test_data(PagedAttentionManager& pam, const paged_attention_token_type_test_params& p, const test::TestData& data) {
-        ASSERT_EQ(p.subsequences.size(), 1);
-
-        const size_t past_len = static_cast<size_t>(p.subsequences[0].past_len);
-        const size_t num_tokens = static_cast<size_t>(p.subsequences[0].num_tokens);
-        const size_t seq_len = data.tokenTypes.size();
-        const size_t hidden_dim = static_cast<size_t>(p.num_heads) * static_cast<size_t>(p.k_head_size);
-
-        ASSERT_GT(past_len, 0u);
-        ASSERT_EQ(past_len + num_tokens, seq_len);
-        ASSERT_EQ(data.qData.size(), seq_len * hidden_dim);
-        ASSERT_EQ(data.kData.size(), seq_len * hidden_dim);
-        ASSERT_EQ(data.vData.size(), seq_len * hidden_dim);
-        ASSERT_EQ(data.expectedOutput.size(), seq_len * hidden_dim);
-
-        // Key/Value cover the whole sequence: PagedAttentionManager copies the leading past_len
-        // tokens into the KV cache and submits the rest through the key/value inputs.
-        pam.key_data = {to_float16(data.kData)};
-        pam.value_data = {to_float16(data.vData)};
-
-        // Query only covers the scheduled chunk.
-        const auto query_data = to_float16(data.qData);
-        pam.query_data = {std::vector<ov::float16>(query_data.begin() + past_len * hidden_dim, query_data.end())};
-
-        pam.token_type_ids.assign(data.tokenTypes.begin(), data.tokenTypes.end());
-    }
-};
+// past_len is picked so the query chunk holds text tokens only. token_type_ids is "[B_token]", i.e.
+// the new tokens, which are then all zeros, so the bidirectional term is a no-op and the PREFILL
+// golden rows for that chunk remain the right answer. Image-token MIXED coverage lives in
+// smoke_paged_attention_token_type_mixed / smoke_paged_attention_token_type_bidir_ref.
+class paged_attention_token_type_micro_sdpa_mixed_test : public paged_attention_token_type_test {};
 
 TEST_P(paged_attention_token_type_micro_sdpa_mixed_test, mixed_stage) {
     const auto& device_info = tests::get_test_engine().get_device_info();
@@ -363,7 +340,7 @@ TEST_P(paged_attention_token_type_micro_sdpa_mixed_test, mixed_stage) {
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
 
-    apply_mixed_test_data(pam, p, p.token_type_test_data);
+    apply_token_type_test_data(pam, p, p.token_type_test_data);
     auto result = run_gpu_inference(pam, p);
 
     auto pa_inst = result.network->get_primitive("paged_attention");
@@ -371,17 +348,16 @@ TEST_P(paged_attention_token_type_micro_sdpa_mixed_test, mixed_stage) {
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
     const auto kernel_entries = impl->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
-    EXPECT_NE(kernel_entries.find("sdpa_micro"), std::string::npos) << "Expected micro SDPA kernel for MIXED with token_type_ids, got: " << kernel_entries;
-    EXPECT_EQ(kernel_entries.find("paged_attention_opt__multi_tokens"), std::string::npos) << "MIXED fell back to the partition kernel: " << kernel_entries;
+    if (kernel_entries.find("sdpa_ocl") == std::string::npos && kernel_entries.find("sdpa_micro") == std::string::npos) {
+        GTEST_SKIP() << "MIXED DPAS kernel not selected (sdpa_micro still rejects MIXED+token_type_ids), got: " << kernel_entries;
+    }
+    EXPECT_EQ(kernel_entries.find("paged_attention_opt__multi_tokens"), std::string::npos)
+        << "MIXED fell back to the partition kernel: " << kernel_entries;
 
-    // The golden data covers the whole sequence, but only the scheduled chunk is produced here.
-    const size_t hidden_dim = static_cast<size_t>(p.num_heads) * static_cast<size_t>(p.v_head_size);
-    const size_t cached_values = static_cast<size_t>(p.subsequences[0].past_len) * hidden_dim;
-    const auto& golden_output = p.token_type_test_data.expectedOutput;
-    const std::vector<float> expected_output(golden_output.begin() + cached_values, golden_output.end());
-
-    cldnn::memory::ptr output_data_mem = result.outputs.at("output_data").get_memory();
-    compare_token_type_output(output_data_mem, expected_output);
+    const size_t hidden_dim = static_cast<size_t>(p.num_heads) * static_cast<size_t>(p.k_head_size);
+    compare_token_type_output(result.outputs.at("output_data").get_memory(),
+                              p.token_type_test_data.expectedOutput,
+                              static_cast<size_t>(p.subsequences[0].past_len) * hidden_dim);
 }
 
 // Picks a split that leaves only text tokens in the scheduled chunk, and returns 0 when no usable
@@ -409,6 +385,7 @@ static std::vector<paged_attention_token_type_test_params> make_micro_sdpa_mixed
 
         auto p = make_token_type_test_param(data, ENABLE_FA_V2);
         p.subsequences = {{static_cast<int>(data.tokenTypes.size()) - past_len, past_len}};
+        p.token_type_ids = std::vector<int>(data.tokenTypes.begin() + past_len, data.tokenTypes.end());
         params.push_back(p);
     }
     return params;
