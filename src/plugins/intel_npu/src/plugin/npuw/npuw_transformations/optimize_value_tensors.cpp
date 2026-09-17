@@ -42,10 +42,8 @@ protected:
                             const std::shared_ptr<ov::op::v0::Concat>& matched_concat,
                             const std::shared_ptr<ov::op::v1::Transpose>& matched_transpose,
                             const std::shared_ptr<ov::op::v0::MatMul>& matched_matmul) {
-        // NB: The same param->concat pair may be matched multiple times when the
-        // V-concat output feeds more than one downstream branch (e.g. shared KV-cache
-        // across attention layers in Gemma4).  Guard the shared-state mutations so they
-        // are applied exactly once; per-branch matmul transpose_b is always set.
+        // A V Parameter may feed multiple matched attention branches. Guard its shape mutation
+        // so it is applied exactly once; per-branch updates are always applied.
         if (matched_concat->get_axis() != 3u) {
             if (ctx.get().transposed_params.insert(matched_param.get()).second) {
                 auto param_shape = matched_param->get_partial_shape();
