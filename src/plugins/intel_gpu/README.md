@@ -26,6 +26,7 @@ GPU Plugin contains the following components:
   * [Memory allocation in GPU plugin](./docs/memory_allocation_gpu_plugin.md)
 * [Memory formats](./docs/gpu_memory_formats.md)
 * [Kernels and kernel selectors](./docs/gpu_kernels.md)
+* [Kernel synchronization](./docs/gpu_kernel_synchronization.md)
 * [GPU plugin operations enabling flow](./docs/gpu_plugin_ops_enabling.md)
 * [GPU plugin unit test](./docs/gpu_plugin_unit_test.md)
 * [Run benchmark from device_mem](./docs/use_device_mem.md)
