@@ -69,6 +69,8 @@ private:
 
     std::map<size_t, std::pair<size_t, Output<Node>>> m_counter_map;
     std::map<std::string, uint64_t> m_op_statistics;
+    // Set per converted graph in convert_pytorch_model; the decoder type never varies within one.
+    bool m_is_fx = false;
 };
 
 }  // namespace pytorch

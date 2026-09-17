@@ -151,6 +151,9 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
     const TensorMap& external_tensor_map,
     const std::shared_ptr<pytorch::InputModel>& input_model) {
     AliasScope alias_scope(*this);
+    // The decoder type is a property of the decoder class, so read it once per graph rather
+    // than per node; every access crosses into Python.
+    m_is_fx = pytorch_model->decoder_type_name() == "fx";
     std::shared_ptr<Model> resulting_model;  // define here to make a conversion in a nested scope
     {
         auto parameters = std::make_shared<ParameterVector>();
@@ -238,7 +241,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             // Add op type in the statistics
             m_op_statistics[context.get_op_type()]++;
             auto converted_outputs = convert_node(context);
-            const bool has_out = node->decoder_type_name() == "fx" && context.has_attribute("out");
+            const bool has_out = m_is_fx && context.has_attribute("out");
             if (has_out) {
                 FRONT_END_OP_CONVERSION_CHECK(converted_outputs.size() == 1, "Expected a single out tensor.");
                 const auto out = context.get_input("out");
@@ -246,7 +249,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 context.mutate_input("out", converted_outputs[0]);
             }
 
-            const auto& fw_outputs = node->outputs();
+            const auto fw_outputs = context.outputs();
             // Ops with subgraphs or with mutated inputs may have more outputs after conversion compared to pytorch ones
             FRONT_END_OP_CONVERSION_CHECK(fw_outputs.size() <= converted_outputs.size(),
                                           "Number of ",
@@ -257,9 +260,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                                           converted_outputs.size(),
                                           " respectively.");
 
-            const bool has_inputs = !node->inputs().empty();
-            const size_t first_input_id =
-                has_out ? node->get_named_input("out") : (has_inputs ? node->inputs().at(0) : 0);
+            const bool has_inputs = !raw_inputs.empty();
+            const size_t first_input_id = has_out ? node->get_named_input("out") : (has_inputs ? raw_inputs.at(0) : 0);
             const auto& op_type = context.get_op_type();
             const bool constructs_sequence = op_type == "prim::TupleConstruct" || op_type == "prim::ListConstruct";
             std::vector<size_t> unpacked_ids;
@@ -281,7 +283,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 }
             }
             for (size_t i = 0; i < fw_outputs.size(); ++i) {
-                size_t fw_tensor_id = node->output(i);
+                size_t fw_tensor_id = fw_outputs.at(i);
                 const auto in_tensor_id = unpacked_ids.empty() ? first_input_id : unpacked_ids.at(i);
                 if (has_out || (has_inputs && (constructs_sequence || node->may_produce_alias(0, i)))) {
                     auto alias_iter = m_may_be_alias.find(fw_tensor_id);
@@ -431,7 +433,7 @@ OutputVector TranslateSession::convert_node(const NodeContext& context) {
         if (it != m_translator_map.end()) {
             auto outputs = it->second(context);
             // FX represents multiple operator results as a single tuple value.
-            if (outputs.size() > 1 && context.get_decoder()->decoder_type_name() == "fx") {
+            if (outputs.size() > 1 && m_is_fx) {
                 return {context.mark_node(make_list_construct(outputs))};
             }
             return outputs;

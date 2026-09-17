@@ -19,38 +19,64 @@ except ImportError:
     _HAS_HIGHER_ORDER_OPERATOR = False
     HigherOrderOperator = None
 
-from openvino.frontend.pytorch.py_pytorch_frontend import _FrontEndPytorchDecoder as Decoder
 from openvino.frontend.pytorch.py_pytorch_frontend import _Type as DecoderType
+from openvino.frontend.pytorch.decoder_base import TorchDecoderBase
 from openvino import PartialShape, Type as OVType, OVAny, Shape
 from openvino.frontend.pytorch.utils import (
-    make_constant, fetch_attr, pt_to_ov_type_map, torch_tensor_to_ov_const)
+    make_constant, fetch_attr, pt_to_ov_type_map, pt_to_scalar_type_map,
+    torch_tensor_to_ov_const)
 
 logger = logging.getLogger(__name__)
 
-# torch.dtype to the ScalarType index which TorchScript's ATen schemas take as an integer input.
-TORCH_DTYPE_TO_SCALAR_TYPE = {
-    torch.uint8: 0, torch.int8: 1, torch.int16: 2, torch.int32: 3,
-    torch.int64: 4, torch.float16: 5, torch.float32: 6, torch.float64: 7,
-    torch.complex32: 8, torch.complex64: 9, torch.complex128: 10,
-    torch.bool: 11, torch.qint8: 12, torch.quint8: 13, torch.qint32: 14,
-    torch.bfloat16: 15,
-}
+
+class IndexedNodes:
+    """The nodes of an FX graph, with a constant-time reverse lookup.
+
+    Decoders need both positional access (``nodes[i]``, to resolve an input id back to a
+    node) and the reverse lookup (``index(node)``, to turn an argument into an input id).
+    ``list.index`` makes the reverse lookup linear in the graph size, and it is performed
+    once per node plus once per node-valued argument, so a plain list makes decoding the
+    whole graph quadratic. ``torch.fx.Node`` hashes and compares by identity, so a dict
+    keyed on the node gives the same answer as ``list.index``.
+    """
+
+    __slots__ = ("_nodes", "_positions")
+
+    def __init__(self, nodes) -> None:
+        self._nodes = list(nodes)
+        self._positions = {}
+        for position, node in enumerate(self._nodes):
+            # Keep the first occurrence, matching list.index.
+            self._positions.setdefault(node, position)
+
+    def __len__(self):
+        return len(self._nodes)
+
+    def __iter__(self):
+        return iter(self._nodes)
+
+    def __getitem__(self, index):
+        return self._nodes[index]
+
+    def index(self, node):
+        position = self._positions.get(node)
+        if position is None:
+            raise ValueError(f"{node} is not in the graph")
+        return position
 
 
-class BaseFXDecoder(Decoder):
+class BaseFXDecoder(TorchDecoderBase):
     """Extends Decoder to handle FX graph decoding in PyTorch.
 
     Provides a common interface for all FX decoders.
     """
 
     def __init__(self, mark_node_callback=None) -> None:
-        Decoder.__init__(self)
+        super().__init__()
         self.mark_node_callback = mark_node_callback
-        # We store every decoder created by this decoder so that
-        # all them are not deleted until the first decoder is deleted
-        self.m_decoders = []
         self._inputs = []
         self._outputs = []
+        self._output_ids = None
 
     @staticmethod
     def unpack_containers(arg):
@@ -73,7 +99,7 @@ class BaseFXDecoder(Decoder):
     @staticmethod
     def arg_to_constant(arg):
         if isinstance(arg, torch.dtype):
-            return make_constant(OVType.i64, Shape([]), [TORCH_DTYPE_TO_SCALAR_TYPE[arg]])
+            return make_constant(OVType.i64, Shape([]), [pt_to_scalar_type_map[arg]])
         elif isinstance(arg, list):
             if len(arg) > 0:
                 return make_constant(pt_to_ov_type_map[type(
@@ -130,9 +156,6 @@ class BaseFXDecoder(Decoder):
         # Consider 0 a special case which may mean the input is inlined, but not guaranteed
         return [x if not isinstance(x, InlinedInput) else 0 for x in self._inputs]
 
-    def output(self, index):
-        return self.outputs()[index]
-
     def get_input_debug_name(self, index):
         return "input" + str(index)
 
@@ -168,25 +191,11 @@ class BaseFXDecoder(Decoder):
         return "NONE"
 
     def mark_node(self, node):
+        super().mark_node(node)
+        # Hook for attaching framework data to the converted node.
         if self.mark_node_callback is not None:
             self.mark_node_callback(self, node)
         return node
-
-    def get_subgraphs(self):
-        return []
-
-    def get_subgraph_size(self):
-        return len(self.get_subgraphs())
-
-    def as_string(self):
-        return None
-
-    def may_produce_alias(self, in_index: int, out_index: int) -> bool:
-        return False
-
-    def get_rt_info(self):
-        rt_info = {}
-        return rt_info
 
 
 class TorchFXPythonDecoder (BaseFXDecoder):
@@ -227,7 +236,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
         if isinstance(pt_module, torch.fx.graph_module.GraphModule):
             self._input_is_list = None
-            self._nodes = list(pt_module.graph.nodes)
+            self._nodes = IndexedNodes(pt_module.graph.nodes)
             found_types = []
             found_shapes = []
             for i, value in enumerate(self._nodes):
@@ -497,11 +506,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
             return True, subgraph
         return False, None
 
-    def get_input_signature_name(self, index: int) -> str:
-        if self._input_signature is not None and index < len(self._input_signature):
-            return self._input_signature[index]
-        return self.get_input_debug_name(index)
-
     def get_input_shape(self, index):
         if index < len(self.input_shapes) and self.input_shapes[index] is not None:
             return PartialShape(self.input_shapes[index])
@@ -680,25 +684,18 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         return bool(input_alias.after_set.intersection(output_alias.after_set))
 
     def outputs(self):
-        return [o[1] for o in self._outputs]
-
-    def _raw_outputs(self):
-        return [self._nodes[x[1]] for x in self._outputs]
+        if self._output_ids is None:
+            self._output_ids = [o[1] for o in self._outputs]
+        return self._output_ids
 
     def _raw_output(self, index):
-        return self._raw_outputs()[index]
-
-    def _raw_inputs(self):
-        return [
-            self._nodes[x] if not isinstance(x, InlinedInput) and x < len(self._nodes) else x.data
-            for x in self._inputs
-        ]
+        return self._nodes[self._outputs[index][1]]
 
     def _raw_input(self, index):
-        return self._raw_inputs()[index]
-
-    def num_of_outputs(self):
-        return len(self.outputs())
+        item = self._inputs[index]
+        if not isinstance(item, InlinedInput) and item < len(self._nodes):
+            return self._nodes[item]
+        return item.data
 
     def output_list_size(self):
         value = self.pt_module.meta.get("val")
@@ -710,13 +707,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 max_out_id = user.args[1]
         return max_out_id + 1
 
-    def mark_node(self, node):
-        name = self.get_op_type()
-        if "FrameworkNode" not in node.get_type_name():
-            name += "/" + node.get_type_name()
-        node.set_friendly_name(self.pt_module.name + "/" + name)
-        super().mark_node(node)
-        return node
+    def _node_name_prefix(self):
+        return self.pt_module.name
 
     def as_constant(self):
         assert self.pt_module.op == "get_attr", "Only get_attr is supported"
@@ -783,9 +775,6 @@ class InlinedInputDecoder (BaseFXDecoder):
     def outputs(self):
         return [0]
 
-    def num_of_outputs(self):
-        return 1
-
     def get_input_shape(self, index):
         return PartialShape.dynamic()
 
@@ -809,11 +798,3 @@ class InlinedInputDecoder (BaseFXDecoder):
         if constant is not None:
             return constant.outputs()
         return []
-
-    def mark_node(self, node):
-        name = self.get_op_type()
-        if "FrameworkNode" not in node.get_type_name():
-            name += "/" + node.get_type_name()
-        node.set_friendly_name(name)
-        super().mark_node(node)
-        return node
