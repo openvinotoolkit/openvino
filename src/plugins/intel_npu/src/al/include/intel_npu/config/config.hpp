@@ -289,16 +289,6 @@ struct OptionBase {
         return OptionMode::Both;
     }
 
-    // Overload this for public options.
-    static bool isPublic() {
-        return false;
-    }
-
-    // Overload this for read-only options (metrics)
-    static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RW;
-    }
-
     static bool isValueSupported(std::string_view val) {
         try {
             (void)ActualOpt::parse(val);
@@ -370,20 +360,8 @@ struct OptionConcept final {
     std::string_view (*key)() = nullptr;
     std::string_view (*envVar)() = nullptr;
     OptionMode (*mode)() = nullptr;
-    bool (*isPublic)() = nullptr;
-    ov::PropertyMutability (*mutability)() = nullptr;
-    bool (*isValueSupportedImpl)(std::string_view val) =
-        nullptr;  // better make this private, but won't be able to use aggregate initialization anymore in
-                  // "makeOptionModel"
     std::shared_ptr<OptionValue> (*validateAndParseFromString)(std::string_view val) = nullptr;
     std::shared_ptr<OptionValue> (*validateAndParseFromAny)(const ov::Any& val) = nullptr;
-    std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt;
-    bool isValueSupported(std::string_view val) {
-        if (customValueCheckerOpt.has_value()) {
-            return customValueCheckerOpt.value()(val);
-        }
-        return isValueSupportedImpl(val);
-    }
 };
 
 template <class Opt>
@@ -413,17 +391,8 @@ std::shared_ptr<OptionValue> validateAndParseFromAny(const ov::Any& val) {
 }
 
 template <class Opt>
-OptionConcept makeOptionModel(
-    std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt) {
-    return {&Opt::key,
-            &Opt::envVar,
-            &Opt::mode,
-            &Opt::isPublic,
-            &Opt::mutability,
-            &Opt::isValueSupported,
-            &validateAndParseFromString<Opt>,
-            &validateAndParseFromAny<Opt>,
-            std::move(customValueCheckerOpt)};
+OptionConcept makeOptionModel() {
+    return {&Opt::key, &Opt::envVar, &Opt::mode, &validateAndParseFromString<Opt>, &validateAndParseFromAny<Opt>};
 }
 
 }  // namespace details
@@ -435,15 +404,11 @@ OptionConcept makeOptionModel(
 class OptionsDesc final {
 public:
     template <class Opt>
-    void add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt = std::nullopt);
+    void add();
 
     bool has(std::string_view key) const;
 
     void reset();
-
-    std::vector<std::string> getSupported(bool includePrivate = false) const;
-    std::vector<ov::PropertyName> getSupportedOptions(bool includePrivate = false) const;
-    std::string getSupportedAsString(bool includePrivate = false) const;
 
     details::OptionConcept get(std::string_view key) const;
     void walk(std::function<void(const details::OptionConcept&)> cb) const;
@@ -455,9 +420,9 @@ private:
 };
 
 template <class Opt>
-void OptionsDesc::add(std::optional<std::function<bool(std::string_view)>> customValueCheckerOpt) {
+void OptionsDesc::add() {
     OPENVINO_ASSERT(_impl.count(Opt::key().data()) == 0, "Option '", Opt::key().data(), "' was already registered");
-    _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>(std::move(customValueCheckerOpt))});
+    _impl.insert({Opt::key().data(), details::makeOptionModel<Opt>()});
 
     for (const auto& deprecatedKey : Opt::deprecatedKeys()) {
         OPENVINO_ASSERT(_deprecated.count(deprecatedKey.data()) == 0,
@@ -472,10 +437,9 @@ void OptionsDesc::add(std::optional<std::function<bool(std::string_view)>> custo
 // Config
 //
 
-class Config {
+class Config final {
 public:
     using ConfigMap = std::map<std::string, std::string>;
-    using ImplMap = std::unordered_map<std::string_view, std::shared_ptr<details::OptionValue>>;
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
@@ -506,11 +470,61 @@ public:
 
     virtual ~Config() = default;
 
-protected:
-    std::shared_ptr<const OptionsDesc> _desc;
-    ImplMap _impl;
+    /**
+     * @brief Checks if a specific option exists in the configuration's descriptorDesc.
+     * @param key The key of the option to check.
+     * @return True if the option exists, false otherwise.
+     */
+    bool hasOpt(std::string_view key) const;
+
+    /**
+     * @brief Retrieves the OptionBase concept associated with a specific option. Used to check option details.
+     * @param key The key of the option to retrieve.
+     * @return The `OptionConcept` object representing the option's details.
+     */
+    details::OptionConcept getOpt(std::string_view key) const;
+
+    /**
+     * @brief Adds or updates an internal configuration value for compiler-specific needs.
+     * @param key The key of the internal configuration to add or update.
+     * @param value The value to set for the internal configuration.
+     */
+    void addOrUpdateInternal(std::string key, std::string value);
+
+    /**
+     * @brief Checks if an internal compiler configuration exists.
+     * @param key The key of the internal configuration to check.
+     * @return True if the internal configuration exists, false otherwise.
+     */
+    bool hasInternal(std::string_view key) const;
+
+    /**
+     * @brief Removes all compile-time and internal compiler configuration entries.
+     * This is used when a compiler type is not explicitly selected and the config must be reset
+     * to a runtime-only state.
+     */
+    void removeCompileTimeConfigs();
+
+    /**
+     * @brief Retrieves an internal configuration value by its key.
+     * @param key The key of the internal configuration to retrieve.
+     * @return The value associated with the specified internal configuration key.
+     */
+    std::string getInternal(std::string key) const;
+
+    /**
+     * @brief Generates a compiler configuration string for options supported by the current compiler.
+     * @param isSupported Predicate used to filter compile-time and internal compiler options.
+     * @return A string containing the supported configuration keys and values.
+     */
+    std::string toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const;
 
 private:
+    std::shared_ptr<const OptionsDesc> _desc;
+    std::unordered_map<std::string_view, std::shared_ptr<details::OptionValue>> _impl;
+
+    ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.
+
     Logger _log{Logger::global().clone("Config")};
 };
 
@@ -567,11 +581,5 @@ typename std::string Config::getString() const {
 
     return Opt::toString(value);
 }
-
-//
-// envVarStrToBool
-//
-
-bool envVarStrToBool(const char* varName, const char* varValue);
 
 }  // namespace intel_npu

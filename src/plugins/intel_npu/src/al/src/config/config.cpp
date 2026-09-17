@@ -183,45 +183,6 @@ bool OptionsDesc::has(std::string_view key) const {
     return false;
 }
 
-std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
-    std::vector<std::string> res;
-    res.reserve(_impl.size());
-
-    for (const auto& p : _impl) {
-        if (p.second.isPublic() || includePrivate) {
-            res.push_back(p.first.data());
-        }
-    }
-
-    return res;
-}
-
-std::vector<ov::PropertyName> OptionsDesc::getSupportedOptions(bool includePrivate) const {
-    std::vector<ov::PropertyName> res;
-    res.reserve(_impl.size());
-
-    for (const auto& p : _impl) {
-        if (p.second.isPublic() || includePrivate) {
-            res.push_back({p.first.data(), p.second.mutability()});
-        }
-    }
-
-    return res;
-}
-
-std::string OptionsDesc::getSupportedAsString(bool includePrivate) const {
-    std::string res;
-
-    for (const auto& p : _impl) {
-        if (p.second.isPublic() || includePrivate) {
-            res += p.first;
-            res += " ";
-        }
-    }
-
-    return res;
-}
-
 void OptionsDesc::walk(std::function<void(const details::OptionConcept&)> cb) const {
     for (const auto& itr : _impl) {
         cb(itr.second);
@@ -337,20 +298,95 @@ void Config::fromString(const std::string& str) {
     parse_token(str_cfg);
 }
 
-//
-// envVarStrToBool
-//
+bool Config::hasOpt(std::string_view key) const {
+    return _desc->has(key);
+}
 
-bool envVarStrToBool(const char* varName, const char* varValue) {
-    try {
-        const auto intVal = std::stoi(varValue);
-        if (intVal != 0 && intVal != 1) {
-            throw std::invalid_argument("Only 0 and 1 values are supported");
-        }
-        return (intVal != 0);
-    } catch (const std::exception& e) {
-        OPENVINO_THROW(std::string("Environment variable ") + varName + " has wrong value : " + e.what());
+details::OptionConcept Config::getOpt(std::string_view key) const {
+    return _desc->get(key);
+}
+
+void Config::addOrUpdateInternal(std::string key, std::string value) {
+    auto log = Logger::global().clone("Config");
+    if (_internal_compiler_configs.count(key) != 0) {
+        log.warning("Internal compiler option '%s' was already registered! Updating value only!", key.c_str());
+        _internal_compiler_configs.at(key) = std::move(value);
+    } else {
+        // manual insert
+        log.trace("Store internal compiler option %s: %s", key.c_str(), value.c_str());
+        _internal_compiler_configs.emplace(key, std::move(value));
     }
+}
+
+bool Config::hasInternal(std::string_view key) const {
+    return _internal_compiler_configs.count(std::string(key)) != 0;
+}
+
+void Config::removeCompileTimeConfigs() {
+    for (auto it = _impl.begin(); it != _impl.end();) {
+        if (_desc->get(it->first).mode() == OptionMode::CompileTime) {
+            it = _impl.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    _internal_compiler_configs.clear();
+}
+
+std::string Config::getInternal(std::string key) const {
+    if (_internal_compiler_configs.count(key) == 0) {
+        OPENVINO_THROW(std::string("Internal compiler option " + key + " does not exist! "));
+    }
+    return _internal_compiler_configs.at(key);
+}
+
+std::string Config::toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const {
+    if (!isSupported) {
+        OPENVINO_THROW("Config::toStringForCompiler requires a valid support predicate");
+    }
+
+    std::stringstream resultStream;
+    bool hasSerializedValue = false;
+
+    const auto append = [&](const std::string& key, const std::string& serializedValue) {
+        if (hasSerializedValue) {
+            resultStream << " ";
+        }
+        resultStream << key << "=\"" << serializedValue << "\"";
+        hasSerializedValue = true;
+    };
+
+    for (const auto& [key, value] : _impl) {
+        if (!_desc->has(key)) {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
+                           "' is not supported for current configuration");
+        }
+
+        const auto mode = _desc->get(key).mode();
+        if (mode != OptionMode::CompileTime && mode != OptionMode::Both) {
+            continue;
+        }
+        if (mode == OptionMode::CompileTime && !isSupported(std::string(key))) {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
+                           "' is not supported for current configuration");
+        }
+        if (mode == OptionMode::Both && !isSupported(std::string(key))) {
+            continue;
+        }
+
+        append(std::string(key), value->toString());
+    }
+
+    for (const auto& [key, value] : _internal_compiler_configs) {
+        if (!isSupported(std::string(key))) {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
+                           "' is not supported for current configuration");
+        }
+        append(std::string(key), value);
+    }
+
+    return resultStream.str();
 }
 
 }  // namespace intel_npu
