@@ -89,8 +89,12 @@ bool BlobReaderInterface::source_is_contiguous() const {
     return m_source.get().is_contiguous();
 }
 
-size_t BlobReaderInterface::get_section_length() const {
+size_t BlobReaderInterface::get_total_section_size() const {
     return m_section_end - m_section_start;
+}
+
+size_t BlobReaderInterface::get_remaining_section_size() const {
+    return m_section_end - m_source.get().tellg();
 }
 
 std::optional<FilteredConfig> BlobReaderInterface::get_config() const {

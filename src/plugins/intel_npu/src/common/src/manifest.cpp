@@ -125,7 +125,7 @@ std::shared_ptr<ISection> ManifestSection::read(BlobReaderInterface& blob_reader
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ManifestSection::read");
     Logger logger("ManifestSection", blob_reader.get_log_level());
 
-    const size_t section_length = blob_reader.get_section_length();
+    const size_t section_length = blob_reader.get_total_section_size();
     const size_t entry_size = Manifest::get_entry_size();
     OPENVINO_ASSERT(
         section_length % entry_size == 0,

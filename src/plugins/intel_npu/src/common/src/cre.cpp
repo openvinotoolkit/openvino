@@ -586,11 +586,14 @@ std::string CRE::to_string() const {
         result += std::dynamic_pointer_cast<SectionID>(token)->to_string();
     }
 
+    m_logger.debug("Converted the CRE to string. Result: %s", result.data());
+
     return result;
 }
 
 CRE CRE::from_string(const std::string_view cre, const ov::log::Level log_level) {
     Logger logger("CRE::from_string", log_level);
+    logger.debug("Converting the string CRE \"%s\" to internal tokens", cre.data());
 
     std::vector<std::shared_ptr<CREToken>> expression;
     std::string_view remaining = cre;

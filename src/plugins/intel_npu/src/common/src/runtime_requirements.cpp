@@ -172,7 +172,7 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::read");
     Logger logger("RuntimeRequirementsSection", blob_reader.get_log_level());
 
-    const size_t section_length = blob_reader.get_section_length();
+    const size_t section_length = blob_reader.get_total_section_size();
     // TODO test this
     // TODO check manifest section lengths are not greater than the size of the NPU region
     OPENVINO_ASSERT(section_length >= MINIMUM_RUNTIME_REQUIREMENTS_SIZE,

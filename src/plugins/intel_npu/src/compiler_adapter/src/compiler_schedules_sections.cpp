@@ -18,6 +18,7 @@ using namespace intel_npu;
 constexpr std::string_view INVALID_STATE_MESSAGE = "Invalid state";
 constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
     "A new, page aligned buffer of size %zu has been allocated to host a compiled model";
+constexpr size_t SIZE_OF_INIT_SCHEDULE_SIZE = sizeof(uint64_t);
 constexpr char LIST_START_DELIMITER = '[';
 constexpr char LIST_END_DELIMITER = ']';
 
@@ -122,7 +123,7 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
     // TODO double check no "size_t" used for r/w sizes
     uint16_t padding_size;
     blob_reader.read_into_buffer(&padding_size, sizeof(padding_size));
-    OPENVINO_ASSERT(padding_size <= blob_reader.get_section_length(),
+    OPENVINO_ASSERT(padding_size <= blob_reader.get_total_section_size(),
                     "The read padding size is greater than the length of the blob section");
     blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
                                                         padding_size);
@@ -130,7 +131,7 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
     logger.debug("Skipped %lu padding from offset %lu", padding_size, blob_reader.get_offset_relative_to_npu_region());
 
     // TODO check this is secure
-    const size_t main_schedule_size = blob_reader.get_section_length() - sizeof(padding_size) - padding_size;
+    const size_t main_schedule_size = blob_reader.get_total_section_size() - sizeof(padding_size) - padding_size;
 
     if (!blob_reader.source_is_contiguous()) {
         ov::Tensor main_schedule = utils::allocate_aligned_tensor(main_schedule_size);
@@ -253,17 +254,15 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::read");
     Logger logger("ELFInitSchedulesSection", blob_reader.get_log_level());
 
-    const size_t section_length = blob_reader.get_section_length();
+    const size_t section_length = blob_reader.get_total_section_size();
 
     uint64_t number_of_inits;
+    OPENVINO_ASSERT(section_length >= sizeof(number_of_inits),
+                    "The section length is smaller than the minimum required");
+
     blob_reader.read_into_buffer(&number_of_inits, sizeof(number_of_inits));
-    // TODO tighter constraints
-    OPENVINO_ASSERT(
-        number_of_inits * sizeof(uint64_t) < section_length,
-        "The parsed number of init schedules is too big for the current section size. Number of init schedules: ",
-        number_of_inits,
-        ". Section length: ",
-        section_length);
+    OPENVINO_ASSERT(number_of_inits <= blob_reader.get_remaining_section_size() / SIZE_OF_INIT_SCHEDULE_SIZE,
+                    "The number of init schedules read from the blob is too great relative to the size of the section");
 
     logger.debug("Parsed number of init schedules: %lu", number_of_inits);
 
@@ -280,14 +279,11 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         logger.debug("Init schedule parsed size: %lu", value);
     }
 
-    OPENVINO_ASSERT(total_init_sizes < section_length,
-                    "The sum of the parsed init schedule sizes is too big for the current section size. Sum: ",
-                    total_init_sizes,
-                    ". Section length: ",
-                    section_length);
+    OPENVINO_ASSERT(total_init_sizes < blob_reader.get_remaining_section_size(),
+                    "The sum of the parsed init schedule sizes is too big for the current section size");
 
     // Skip the first padding
-    size_t padding_size;
+    uint16_t padding_size;
     blob_reader.read_into_buffer(&padding_size, sizeof(padding_size));
     blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
                                                         padding_size);

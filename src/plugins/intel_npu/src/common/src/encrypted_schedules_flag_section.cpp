@@ -39,7 +39,7 @@ bool EncryptedSchedulesFlagSection::get_flag() const {
 std::shared_ptr<ISection> EncryptedSchedulesFlagSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "EncryptedSchedulesFlagSection::read");
 
-    const size_t section_length = blob_reader.get_section_length();
+    const size_t section_length = blob_reader.get_total_section_size();
     OPENVINO_ASSERT(section_length == sizeof(bool),
                     "EncryptedSchedulesFlagSection: incorrect section length ",
                     section_length,

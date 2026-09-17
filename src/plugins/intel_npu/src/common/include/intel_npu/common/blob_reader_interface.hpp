@@ -61,7 +61,9 @@ public:
 
     bool source_is_contiguous() const;
 
-    size_t get_section_length() const;
+    size_t get_total_section_size() const;
+
+    size_t get_remaining_section_size() const;
 
     std::optional<FilteredConfig> get_config() const;
 

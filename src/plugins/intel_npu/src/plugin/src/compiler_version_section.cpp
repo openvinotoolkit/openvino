@@ -19,7 +19,7 @@ CompilerVersionSection::CompilerVersionSection(const int32_t version, const ov::
 
 void CompilerVersionSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompilerVersionSection::write");
-    m_logger.debug("Writting batch size %lu", m_compiler_version);
+    m_logger.debug("Writting compiler version %lu", m_compiler_version);
 
     writer.write_from(&m_compiler_version, sizeof(m_compiler_version));
 }
@@ -31,7 +31,7 @@ int32_t CompilerVersionSection::get_compiler_version() const {
 std::shared_ptr<ISection> CompilerVersionSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompilerVersionSection::read");
 
-    const size_t section_length = blob_reader.get_section_length();
+    const size_t section_length = blob_reader.get_total_section_size();
     OPENVINO_ASSERT(section_length == sizeof(int32_t),
                     "CompilerVersionSection: incorrect section length ",
                     section_length,

@@ -38,7 +38,7 @@ int64_t BatchSizeSection::get_batch_size() const {
 std::shared_ptr<ISection> BatchSizeSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::read");
 
-    const size_t section_length = blob_reader.get_section_length();
+    const size_t section_length = blob_reader.get_total_section_size();
     OPENVINO_ASSERT(section_length == sizeof(int64_t),
                     "BatchSizeSection: incorrect section length ",
                     section_length,
