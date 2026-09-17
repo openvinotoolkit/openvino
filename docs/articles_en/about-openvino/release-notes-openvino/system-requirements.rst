@@ -268,21 +268,21 @@ to learn more about the release types.
 
             All x86_64 / arm64 architectures are supported.
 
-            * `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
+            * `Node.js version 22.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
 
          .. tab-item:: macOS
             :sync: macos
 
             All x86_64 / arm64 architectures are supported, however, only for CPU inference.
 
-            * `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
+            * `Node.js version 22.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
 
          .. tab-item:: Windows
             :sync: Windows
 
             All x86_64 architectures are supported. Windows ARM is not supported.
 
-            * `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/package-manager/>`__
+            * `Node.js version 22.0.0 and higher <https://nodejs.org/en/download/package-manager/>`__
 
    .. tab-item:: YUM
       :name: yum-sysreq

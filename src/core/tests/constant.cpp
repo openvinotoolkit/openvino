@@ -970,9 +970,9 @@ TEST(constant, uint3_string) {
     EXPECT_THAT(v, ElementsAre(3, 0, 1, 2, 4, 7, 5, 6));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0b11000110);
-    EXPECT_EQ(p[1], 0b00110110);
-    EXPECT_EQ(p[2], 0b00001111);
+    EXPECT_EQ(p[0], 0b01000011);
+    EXPECT_EQ(p[1], 0b11000100);
+    EXPECT_EQ(p[2], 0b11010111);
 
     EXPECT_EQ(c.convert_value_to_string(6), "5");
     EXPECT_THAT(c.get_value_strings(), ElementsAre("3", "0", "1", "2", "4", "7", "5", "6"));
@@ -989,12 +989,11 @@ TEST(constant, uint3_string_broadcast) {
     EXPECT_THAT(v, Each(5));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0b01010101);
-    EXPECT_EQ(p[1], 0b01000000);
-    EXPECT_EQ(p[2], 0b11111000);
+    EXPECT_EQ(p[0], 0b01101101);
+    EXPECT_EQ(p[1], 0b01011011);
 }
 
-TEST(constant, uint3_vector_less_than_one_storage_unit) {
+TEST(constant, uint3_vector_with_tail_bits) {
     const auto shape = Shape{3};
     const auto input = std::vector<uint8_t>{5, 3, 1};
 
@@ -1005,12 +1004,11 @@ TEST(constant, uint3_vector_less_than_one_storage_unit) {
     EXPECT_THAT(v, ElementsAre(5, 3, 1));
 
     const auto p = c.get_vector<uint8_t>();
-    EXPECT_EQ(p[0], 0b01110100);
+    EXPECT_EQ(p[0], 0b01011101);
     EXPECT_EQ(p[1], 0);
-    EXPECT_EQ(p[2], 0b10000000);
 }
 
-TEST(constant, uint3_vector_greater_than_one_storage_unit) {
+TEST(constant, uint3_vector_multiple_bytes_with_tail_bits) {
     const auto shape = Shape{10};
     const auto input = std::vector<uint8_t>{2, 3, 1, 0, 4, 5, 6, 7, 5, 2};
 
@@ -1021,13 +1019,10 @@ TEST(constant, uint3_vector_greater_than_one_storage_unit) {
     EXPECT_THAT(v, ElementsAre(2, 3, 1, 0, 4, 5, 6, 7, 5, 2));
 
     const auto p = c.get_vector<uint8_t>();
-    EXPECT_EQ(p[0], 0b10110100);
-    EXPECT_EQ(p[1], 0b00011011);
-    EXPECT_EQ(p[2], 0b00001111);
-
-    EXPECT_EQ(p[3], 0b01100000);
-    EXPECT_EQ(p[4], 0);
-    EXPECT_EQ(p[5], 0b10000000);
+    EXPECT_EQ(p[0], 0b01011010);
+    EXPECT_EQ(p[1], 0b11000000);
+    EXPECT_EQ(p[2], 0b11111010);
+    EXPECT_EQ(p[3], 0b00010101);
 }
 
 TEST(constant, uint3_vector_broadcast) {
@@ -1039,9 +1034,27 @@ TEST(constant, uint3_vector_broadcast) {
     EXPECT_THAT(v, Each(2));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0b10101010);
-    EXPECT_EQ(p[1], 0b10101010);
-    EXPECT_EQ(p[2], 0b00000000);
+    EXPECT_EQ(p[0], 0b10010010);
+    EXPECT_EQ(p[1], 0b00100100);
+    EXPECT_EQ(p[2], 0b01001001);
+}
+
+TEST(constant, uint3_single_element) {
+    op::v0::Constant c(element::u3, Shape{1}, std::vector<uint8_t>{7});
+
+    ASSERT_EQ(c.get_byte_size(), 1);
+    EXPECT_EQ(c.get_data_ptr<uint8_t>()[0], 0b00000111);
+    EXPECT_THAT(c.cast_vector<uint8_t>(), ElementsAre(7));
+}
+
+TEST(constant, uint3_unused_tail_bits_are_zeroed) {
+    // 5 values * 3 bits = 15 bits -> 2 bytes, the most significant bit of the last byte is unused.
+    op::v0::Constant c(element::u3, Shape{5}, std::vector<uint8_t>{7, 7, 7, 7, 7});
+
+    ASSERT_EQ(c.get_byte_size(), 2);
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0xff);
+    EXPECT_EQ(p[1], 0x7f);
 }
 
 TEST(constant, uint3_write_then_cast_custom_type) {
@@ -1173,9 +1186,9 @@ TEST(constant, uint6_string) {
     EXPECT_THAT(v, ElementsAre(4, 9, 15, 16));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0x49);
-    EXPECT_EQ(p[1], 0xf0);
-    EXPECT_EQ(p[2], 0b00000001);
+    EXPECT_EQ(p[0], 0x44);
+    EXPECT_EQ(p[1], 0xf2);
+    EXPECT_EQ(p[2], 0x40);
 
     EXPECT_EQ(c.convert_value_to_string(2), "15");
     EXPECT_THAT(c.get_value_strings(), ElementsAre("4", "9", "15", "16"));
@@ -1192,12 +1205,12 @@ TEST(constant, uint6_string_broadcast) {
     EXPECT_THAT(v, Each(5));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0x55);
-    EXPECT_EQ(p[1], 0x55);
-    EXPECT_EQ(p[2], 0b00000000);
+    EXPECT_EQ(p[0], 0x45);
+    EXPECT_EQ(p[1], 0x51);
+    EXPECT_EQ(p[2], 0x14);
 }
 
-TEST(constant, uint6_vector_less_than_one_storage_unit) {
+TEST(constant, uint6_vector_with_tail_bits) {
     const auto shape = Shape{3};
     const auto input = std::vector<uint8_t>{5, 23, 1};
 
@@ -1208,12 +1221,12 @@ TEST(constant, uint6_vector_less_than_one_storage_unit) {
     EXPECT_THAT(v, ElementsAre(5, 23, 1));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0x57);
-    EXPECT_EQ(p[1], 0x10);
-    EXPECT_EQ(p[2], 0b00010000);
+    EXPECT_EQ(p[0], 0xc5);
+    EXPECT_EQ(p[1], 0x15);
+    EXPECT_EQ(p[2], 0);
 }
 
-TEST(constant, uint6_vector_greater_than_one_storage_unit) {
+TEST(constant, uint6_vector_multiple_bytes_with_tail_bits) {
     const auto shape = Shape{6};
     const auto input = std::vector<uint8_t>{25, 3, 1, 0, 45, 5};
 
@@ -1224,13 +1237,11 @@ TEST(constant, uint6_vector_greater_than_one_storage_unit) {
     EXPECT_THAT(v, ElementsAre(25, 3, 1, 0, 45, 5));
 
     const auto p = c.get_vector<uint8_t>();
-    EXPECT_EQ(p[0], 0x93);
+    EXPECT_EQ(p[0], 0xd9);
     EXPECT_EQ(p[1], 0x10);
-    EXPECT_EQ(p[2], 0b01000000);
-
-    EXPECT_EQ(p[3], 0xd5);
-    EXPECT_EQ(p[4], 0);
-    EXPECT_EQ(p[5], 0b10000000);
+    EXPECT_EQ(p[2], 0x00);
+    EXPECT_EQ(p[3], 0x6d);
+    EXPECT_EQ(p[4], 0x01);
 }
 
 TEST(constant, uint6_vector_broadcast) {
@@ -1242,9 +1253,29 @@ TEST(constant, uint6_vector_broadcast) {
     EXPECT_THAT(v, Each(45));
 
     const auto p = c.get_data_ptr<uint8_t>();
-    EXPECT_EQ(p[0], 0xdd);
-    EXPECT_EQ(p[1], 0xdd);
-    EXPECT_EQ(p[2], 0b10101010);
+    EXPECT_EQ(p[0], 0x6d);
+    EXPECT_EQ(p[1], 0xdb);
+    EXPECT_EQ(p[2], 0xb6);
+}
+
+TEST(constant, uint6_single_element) {
+    op::v0::Constant c(element::u6, Shape{1}, std::vector<uint8_t>{63});
+
+    ASSERT_EQ(c.get_byte_size(), 1);
+    EXPECT_EQ(c.get_data_ptr<uint8_t>()[0], 0b00111111);
+    EXPECT_THAT(c.cast_vector<uint8_t>(), ElementsAre(63));
+}
+
+TEST(constant, uint6_unused_tail_bits_are_zeroed) {
+    // 5 values * 6 bits = 30 bits -> 4 bytes, the two most significant bits of the last byte are unused.
+    op::v0::Constant c(element::u6, Shape{5}, std::vector<uint8_t>{63, 63, 63, 63, 63});
+
+    ASSERT_EQ(c.get_byte_size(), 4);
+    const auto p = c.get_data_ptr<uint8_t>();
+    EXPECT_EQ(p[0], 0xff);
+    EXPECT_EQ(p[1], 0xff);
+    EXPECT_EQ(p[2], 0xff);
+    EXPECT_EQ(p[3], 0x3f);
 }
 
 TEST(constant, uint6_write_then_cast_custom_type) {
