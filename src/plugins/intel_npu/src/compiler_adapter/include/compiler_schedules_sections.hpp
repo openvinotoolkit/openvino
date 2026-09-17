@@ -14,6 +14,9 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Class handling the writing, parsing and encryption/decryption of a compiler ELF main schedule.
+ */
 class ELFMainScheduleSection final : public ISection {
 public:
     ELFMainScheduleSection(const std::shared_ptr<Graph>& graph,
@@ -32,23 +35,37 @@ public:
      */
     void write(BlobWriterInterface& writer) override;
 
+    /**
+     * @brief Stores the given graph. The previously stored graph or schedule (as tensor) will be discarded.
+     */
     void set_graph(const std::shared_ptr<Graph>& graph);
 
     ov::Tensor get_schedule() const;
 
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
+    // TODO can't this happend during `read`, by getting the callbacks from the BlobReader?
     void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
 
     std::optional<std::string> get_individual_compatibility_requirements() const override;
 
 private:
+    /**
+     * @brief Where the compiler schedule is found. Either the graph or the current class handles ownership.
+     */
     std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
+    /**
+     * @brief If available, the decryption callback from here is used when `decrypt()` is called.
+     */
     std::optional<ov::EncryptionCallbacks> m_encryption_callbacks;
 
     Logger m_logger;
 };
 
+/**
+ * @brief Class handling the writing, parsing and encryption/decryption of compiler ELF init schedules.
+ * @note This section should be deployed only when weights separation is involved.
+ */
 class ELFInitSchedulesSection final : public ISection {
 public:
     ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
@@ -76,12 +93,23 @@ public:
     void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
 
 private:
+    /**
+     * @brief Where the compiler schedules are found. Either the graph or the current class handles ownership.
+     */
     std::variant<std::shared_ptr<WeightlessGraph>, std::vector<ov::Tensor>> m_graph_or_schedules;
+    /**
+     * @brief If available, the decryption callback from here is used when `decrypt()` is called.
+     */
     std::optional<ov::EncryptionCallbacks> m_encryption_callbacks;
+
+    std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
 
     Logger m_logger;
 };
 
+/**
+ * @brief Class handling the writing, parsing and encryption/decryption of a compiler dynamic schedule.
+ */
 class DynamicScheduleSection final : public ISection {
 public:
     DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
@@ -115,6 +143,9 @@ public:
     std::optional<std::string> get_individual_compatibility_requirements() const override;
 
 private:
+    /**
+     * @note The dynamic schedule is handled almost the same as the ELFMainSchedule. Thus this attribute.
+     */
     ELFMainScheduleSection m_impl;
     BlobType m_blob_type;
 

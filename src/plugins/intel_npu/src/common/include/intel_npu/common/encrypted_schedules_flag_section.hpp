@@ -10,6 +10,10 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Section containing a flag that indicates whether or not the compiler schedules within the compiled models have
+ * been encrypted.
+ */
 class EncryptedSchedulesFlagSection final : public ISection {
 public:
     EncryptedSchedulesFlagSection(const bool applied_encryption,
