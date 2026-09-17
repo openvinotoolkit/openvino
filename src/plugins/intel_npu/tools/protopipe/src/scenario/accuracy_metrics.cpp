@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
-#include <utility>
 #include <vector>
 
 #include "utils/error.hpp"
@@ -163,10 +162,7 @@ std::vector<int> squeezeDims(const cv::Mat& mat) {
             dims.push_back(mat.size[i]);
         }
     }
-    if (dims.empty()) {
-        dims.push_back(1);
-    }
-    if (dims.size() == 1) {
+    while (dims.size() < 2u) {
         dims.insert(dims.begin(), 1);
     }
     return dims;
@@ -407,8 +403,14 @@ void logDetections(const char* tag, const std::vector<Detection>& dets) {
     }
 }
 
+struct ClassSamples {
+    std::vector<Detection> preds;
+    std::vector<Detection> gts;
+};
+
 double computeMAP(const std::vector<Detection>& preds, const std::vector<Detection>& gts,
-                  const std::vector<double>& iou_thresholds) {    if (gts.empty()) {
+                  const std::vector<double>& iou_thresholds) {
+    if (gts.empty()) {
         // Without reference objects a perfect score requires the model to predict nothing.
         LOG_WARN() << "MAP: reference contains no detections"
                    << (preds.empty() ? ", neither does the actual output - the comparison is vacuous" : "")
@@ -417,24 +419,24 @@ double computeMAP(const std::vector<Detection>& preds, const std::vector<Detecti
     }
 
     // AP is averaged over the classes present in the reference.
-    std::map<int, std::pair<std::vector<Detection>, std::vector<Detection>>> per_class;
+    std::map<int, ClassSamples> per_class;
     for (const auto& gt : gts) {
-        per_class[gt.label].second.push_back(gt);
+        per_class[gt.label].gts.push_back(gt);
     }
     for (const auto& pred : preds) {
         auto it = per_class.find(pred.label);
         if (it != per_class.end()) {
-            it->second.first.push_back(pred);
+            it->second.preds.push_back(pred);
         }
     }
 
     double total = 0.0;
     for (double iou_threshold : iou_thresholds) {
         double sum_ap = 0.0;
-        for (const auto& entry : per_class) {
-            const double ap = averagePrecision(entry.second.first, entry.second.second, iou_threshold);
-            LOG_DEBUG() << "    class " << entry.first << ": AP: " << ap << " (actual: " << entry.second.first.size()
-                        << ", reference: " << entry.second.second.size() << ")" << std::endl;
+        for (const auto& [label, samples] : per_class) {
+            const double ap = averagePrecision(samples.preds, samples.gts, iou_threshold);
+            LOG_DEBUG() << "    class " << label << ": AP: " << ap << " (actual: " << samples.preds.size()
+                        << ", reference: " << samples.gts.size() << ")" << std::endl;
             sum_ap += ap;
         }
         const double map_at_iou = sum_ap / static_cast<double>(per_class.size());
