@@ -8,6 +8,7 @@
 #include <mutex>
 #include <set>
 #include <vector>
+#include <cstdlib>
 
 namespace ov::op::v0 {
 class Constant;
@@ -36,6 +37,11 @@ public:
      *        Returns immediately, subsequent calls are no-ops.
      */
     void prefetchOnce();
+
+    static bool is_disabled() {
+        static const bool disable_weights_prefetch = std::getenv("OV_CPU_DISABLE_WEIGHTS_PREFETCH") != nullptr;
+        return disable_weights_prefetch;
+    }
 
 private:
     using ConstantRef = std::weak_ptr<const ov::op::v0::Constant>;
