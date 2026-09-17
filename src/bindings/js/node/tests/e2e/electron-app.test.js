@@ -1,60 +1,121 @@
 /* global describe, it, before, after */
 const fs = require("node:fs");
+const path = require("node:path");
+const readline = require("node:readline");
 const util = require("node:util");
 const assert = require("node:assert");
-const { exec } = require("child_process");
+const { exec, spawn } = require("node:child_process");
 const execPromise = util.promisify(exec);
 const { testModels, downloadTestModel } = require("../utils.js");
 
+const appDirectory = "demo-electron-app-project";
+const fullScenario = "zero-copy-async";
+const defaultModel = "test-model-fp32";
+const alternateModels = ["add-model", "relu-model"];
+const diagnosticModels = [defaultModel, ...alternateModels];
+const diagnosticScenarios = [
+  "empty",
+  "addon",
+  "core",
+  "cpu-plugin",
+  "read-sync",
+  "read-async",
+  "compile-sync",
+  "compile-async",
+  "owned-async",
+  "zero-copy",
+  "zero-copy-sync",
+  fullScenario,
+];
+const diagnosticsEnabled = process.env.OPENVINO_E2E_DIAGNOSTICS === "1";
+const scenarios = diagnosticsEnabled ? diagnosticScenarios : [fullScenario];
+const asyncCompileScenarios = new Set([
+  "compile-async",
+  "owned-async",
+  "zero-copy-sync",
+  fullScenario,
+]);
+const inferRequestScenarios = new Set(["owned-async", fullScenario]);
+const tensorScenarios = new Set(["zero-copy", "zero-copy-sync", fullScenario]);
+const tensorCleanupScenarios = new Set(["zero-copy-sync", fullScenario]);
+
 describe("E2E testing for OpenVINO as an Electron dependency.", function () {
-  this.timeout(50000);
+  this.timeout(diagnosticsEnabled ? 120000 : 50000);
 
   before(async () => {
     await downloadTestModel(testModels.testModelFP32);
-    await execPromise("cp -r ./tests/e2e/demo-electron-app/ demo-electron-app-project");
+    await execPromise(`cp -r ./tests/e2e/demo-electron-app/ ${appDirectory}`);
   });
 
   it("should install dependencies", (done) => {
-    exec("cd demo-electron-app-project && npm install", (error) => {
+    exec(`cd ${appDirectory} && npm install`, (error) => {
       if (error) {
         console.error(`exec error: ${error}`);
 
         return done(error);
       }
-      const packageJson = JSON.parse(
-        fs.readFileSync("demo-electron-app-project/package-lock.json", "utf8"),
-      );
+      const packageJson = JSON.parse(fs.readFileSync(`${appDirectory}/package-lock.json`, "utf8"));
       assert.equal(packageJson.name, "demo-electron-app");
       done();
     });
   });
 
-  it("should run electron package and verify output", (done) => {
-    exec("cd demo-electron-app-project && npm start", (error, stdout) => {
-      if (error) {
-        console.error(`exec error: ${error}`);
+  if (diagnosticsEnabled) {
+    for (const modelName of diagnosticModels) {
+      it(`should compile ${modelName} with Node.js`, async () => {
+        const { stdout } = await runNodeCompile(modelName);
+        assert(
+          stdout.includes(`Node compile completed: model=${modelName} mode=async`),
+          `Check that Node.js compiled ${modelName} and completed environment teardown`,
+        );
+      });
+    }
+  }
 
-        return done(error);
+  for (const scenario of scenarios) {
+    it(`should complete Electron scenario: ${scenario}`, async () => {
+      const { stdout, stderr } = await runElectron(scenario);
+      assert(
+        stdout.includes(`Scenario completed: ${scenario}`),
+        `Check that the ${scenario} scenario reached application teardown`,
+      );
+
+      if (diagnosticsEnabled) {
+        assertLifecycleTrace(scenario, stderr);
       }
 
-      assert(
-        stdout.includes("Created OpenVINO Runtime Core"),
-        "Check that openvino-node operates fine",
-      );
-      assert(
-        stdout.includes("Model read successfully: ModelWrap {}"),
-        "Check that model is read successfully",
-      );
-      assert(
-        stdout.includes("Infer request result: { fc_out: TensorWrap {} }"),
-        "Check that infer request result is successful",
-      );
-      done();
+      if (scenario === fullScenario) {
+        assert(
+          stdout.includes("Created OpenVINO Runtime Core"),
+          "Check that openvino-node operates fine",
+        );
+        assert(
+          stdout.includes("Model read successfully: ModelWrap {}"),
+          "Check that model is read successfully",
+        );
+        assert(
+          stdout.includes("Infer request result: { fc_out: TensorWrap {} }"),
+          "Check that infer request result is successful",
+        );
+      }
     });
-  });
+  }
+
+  if (diagnosticsEnabled) {
+    for (const modelName of alternateModels) {
+      it(`should complete Electron compile-async with ${modelName}`, async () => {
+        const { stdout, stderr } = await runElectron("compile-async", modelName);
+        assert(
+          stdout.includes(`Scenario completed: compile-async model=${modelName}`),
+          `Check that Electron compiled ${modelName} and reached application teardown`,
+        );
+        assertLifecycleTrace("compile-async", stderr);
+      });
+    }
+  }
 
   after((done) => {
-    exec("rm -rf demo-electron-app-project", (error) => {
+    exec(`rm -rf ${appDirectory}`, (error) => {
       if (error) {
         console.error(`exec error: ${error}`);
 
@@ -65,3 +126,146 @@ describe("E2E testing for OpenVINO as an Electron dependency.", function () {
     });
   });
 });
+
+function assertLifecycleTrace(scenario, stderr) {
+  const traces = stderr
+    .split("\n")
+    .filter((line) => line.startsWith("[OV_NODE_LIFECYCLE]"))
+    .map((line) => {
+      const match = line.match(/component=(\S+) event=(\S+) context=(\S+)/);
+      assert(match, `Parse lifecycle trace line: ${line}`);
+
+      return { component: match[1], event: match[2], context: match[3] };
+    });
+  const coreCompileTraces = traces.filter(({ component }) => component === "CoreCompile");
+  const inferRequestTraces = traces.filter(({ component }) => component === "InferRequest");
+  const tensorTraces = traces.filter(({ component }) => component === "TensorImpl");
+
+  assert.strictEqual(
+    coreCompileTraces.length > 0,
+    asyncCompileScenarios.has(scenario),
+    `Check CoreCompile lifecycle trace for scenario ${scenario}`,
+  );
+  assert.strictEqual(
+    inferRequestTraces.length > 0,
+    inferRequestScenarios.has(scenario),
+    `Check InferRequest lifecycle trace for scenario ${scenario}`,
+  );
+  assert.strictEqual(
+    tensorTraces.length > 0,
+    tensorScenarios.has(scenario),
+    `Check TensorImpl lifecycle trace for scenario ${scenario}`,
+  );
+
+  if (asyncCompileScenarios.has(scenario)) {
+    assertLifecycleEventOrder(scenario, coreCompileTraces, [
+      "create-context",
+      "create-tsfn",
+      "worker-start",
+      "worker-finished",
+      "blocking-call-returned",
+      "release-tsfn",
+      "tsfn-finalizer",
+      "thread-joined",
+      "tsfn-finalizer-complete",
+    ]);
+    assertLifecycleEventOrder(scenario, coreCompileTraces, ["callback", "promise-resolved"]);
+  }
+
+  if (tensorScenarios.has(scenario)) {
+    assertLifecycleEventOrder(scenario, tensorTraces, ["create-context", "add-cleanup-hook"]);
+  }
+
+  if (tensorCleanupScenarios.has(scenario)) {
+    assertLifecycleEventOrder(scenario, tensorTraces, [
+      "cleanup-hook",
+      "release-tsfn",
+      "tsfn-finalizer",
+      "remove-cleanup-hook",
+      "tsfn-finalizer-complete",
+    ]);
+  }
+}
+
+function assertLifecycleEventOrder(scenario, traces, expectedEvents) {
+  let previousIndex = -1;
+  for (const expectedEvent of expectedEvents) {
+    const eventIndex = traces.findIndex(
+      ({ event }, index) => index > previousIndex && event === expectedEvent,
+    );
+    assert.notStrictEqual(
+      eventIndex,
+      -1,
+      `Check ${expectedEvent} lifecycle order for scenario ${scenario}`,
+    );
+    previousIndex = eventIndex;
+  }
+}
+
+function runElectron(scenario, modelName = defaultModel) {
+  const electronExecutable = require(path.resolve(appDirectory, "node_modules/electron"));
+
+  return runDiagnosticProcess({
+    runtime: "electron",
+    executable: electronExecutable,
+    args: ["--disable-gpu", "--no-sandbox", "."],
+    scenario,
+    modelName,
+    env: { OV_ELECTRON_SCENARIO: scenario, OV_E2E_MODEL: modelName },
+  });
+}
+
+function runNodeCompile(modelName) {
+  return runDiagnosticProcess({
+    runtime: "node",
+    executable: process.execPath,
+    args: ["node-compile.js"],
+    scenario: "compile-async",
+    modelName,
+    env: { OV_NODE_COMPILE_MODE: "async", OV_E2E_MODEL: modelName },
+  });
+}
+
+function runDiagnosticProcess({ runtime, executable, args, scenario, modelName, env }) {
+  return new Promise((resolve, reject) => {
+    const output = { stdout: [], stderr: [] };
+    let outputSequence = 0;
+    const child = spawn(executable, args, {
+      cwd: appDirectory,
+      env: { ...process.env, ...env },
+    });
+
+    for (const streamName of ["stdout", "stderr"]) {
+      const lineReader = readline.createInterface({ input: child[streamName] });
+      lineReader.on("line", (line) => {
+        output[streamName].push(line);
+        process.stdout.write(
+          `[OV_E2E_PARENT] seq=${++outputSequence} runtime=${runtime} scenario=${scenario} model=${modelName} stream=${streamName} ${line}\n`,
+        );
+      });
+    }
+
+    child.once("error", reject);
+    child.once("close", (exitCode, signal) => {
+      process.stdout.write(
+        `[OV_E2E_PARENT] runtime=${runtime} scenario=${scenario} model=${modelName} exit_code=${exitCode ?? "null"} signal=${signal ?? "none"}\n`,
+      );
+
+      const result = {
+        stdout: output.stdout.join("\n"),
+        stderr: output.stderr.join("\n"),
+      };
+      if (exitCode !== 0) {
+        reject(
+          new Error(
+            `${runtime} scenario ${scenario} with ${modelName} failed: exit_code=${exitCode ?? "null"}, signal=${signal ?? "none"}`,
+          ),
+        );
+
+        return;
+      }
+
+      resolve(result);
+    });
+  });
+}

@@ -6,6 +6,7 @@
 
 #include <cassert>
 
+#include "node/include/lifecycle_trace.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -14,7 +15,10 @@ namespace js {
 
 // Drops one native owner of the shared cleanup state and deletes it on the last release.
 void TensorImpl::CleanupContext::release_owner() noexcept {
-    if (owners.fetch_sub(1) == 1) {
+    const auto previous_owners = owners.fetch_sub(1);
+    lifecycle_trace("TensorImpl", "release-owner", this, previous_owners - 1);
+    if (previous_owners == 1) {
+        lifecycle_trace("TensorImpl", "delete-context", this);
         delete this;
     }
 }
@@ -22,23 +26,29 @@ void TensorImpl::CleanupContext::release_owner() noexcept {
 // Releases the TSFN exactly once because both destructor and env cleanup may race here.
 void TensorImpl::CleanupContext::release_tsfn() noexcept {
     if (!tsfn_released.exchange(true)) {
-        [[maybe_unused]] const auto status = tsfn.Release();
+        const auto status = tsfn.Release();
+        lifecycle_trace("TensorImpl", "release-tsfn", this, status);
         assert((status == napi_ok) && "TensorImpl: TSFN release failed");
+    } else {
+        lifecycle_trace("TensorImpl", "release-tsfn-skipped", this);
     }
 }
 
 // Unregisters the async cleanup hook exactly once to avoid double removal during shutdown.
 void TensorImpl::CleanupContext::remove_cleanup_hook() noexcept {
     if (cleanup_handle != nullptr && !cleanup_handle_removed.exchange(true)) {
-        napi_remove_async_cleanup_hook(cleanup_handle);
+        const auto status = napi_remove_async_cleanup_hook(cleanup_handle);
+        lifecycle_trace("TensorImpl", "remove-cleanup-hook", this, status);
+    } else {
+        lifecycle_trace("TensorImpl", "remove-cleanup-hook-skipped", this);
     }
 }
 
-// Handles Node environment teardown by forcing TSFN shutdown through the cleanup hook path.
+// Keeps environment teardown pending until the TSFN finalizer completes cleanup on the JS thread.
 void TensorImpl::CleanupContext::cleanup_hook(napi_async_cleanup_hook_handle /*handle*/, void* data) noexcept {
     auto* cleanup_ctx = static_cast<TensorImpl::CleanupContext*>(data);
+    lifecycle_trace("TensorImpl", "cleanup-hook", cleanup_ctx);
     cleanup_ctx->release_tsfn();
-    cleanup_ctx->remove_cleanup_hook();
 }
 
 TensorImpl::TensorImpl(Napi::Env env,
@@ -54,6 +64,7 @@ TensorImpl::TensorImpl(Napi::Env env,
     // - ~TensorImpl() calls Release() from any thread (thread-safe) and releases the strong reference.
     auto* ref = new Napi::Reference<Napi::TypedArray>(Napi::Persistent(typed_array));
     _cleanup_ctx = new CleanupContext(ref);
+    lifecycle_trace("TensorImpl", "create-context", _cleanup_ctx);
     auto tsfn =
         Napi::ThreadSafeFunction::New(env,
                                       Napi::Function{},  // no JS callback needed
@@ -62,7 +73,10 @@ TensorImpl::TensorImpl(Napi::Env env,
                                       1,             // initial_thread_count
                                       _cleanup_ctx,  // context (passed to finalizer)
                                       [](Napi::Env, CleanupContext* cleanup_ctx) {
+                                          lifecycle_trace("TensorImpl", "tsfn-finalizer", cleanup_ctx);
                                           delete cleanup_ctx->ref;  // runs on JS thread: releases strong reference
+                                          cleanup_ctx->remove_cleanup_hook();
+                                          lifecycle_trace("TensorImpl", "tsfn-finalizer-complete", cleanup_ctx);
                                           cleanup_ctx->release_owner();
                                       });
     OPENVINO_ASSERT(tsfn, "TensorImpl: failed to create ThreadSafeFunction for cleanup.");
@@ -71,6 +85,7 @@ TensorImpl::TensorImpl(Napi::Env env,
     _cleanup_ctx->tsfn = tsfn;
     const auto status =
         napi_add_async_cleanup_hook(env, CleanupContext::cleanup_hook, _cleanup_ctx, &_cleanup_ctx->cleanup_handle);
+    lifecycle_trace("TensorImpl", "add-cleanup-hook", _cleanup_ctx, status);
     OPENVINO_ASSERT(status == napi_ok, "TensorImpl: failed to register async cleanup hook.");
 
     // Unref so the TSFN does not prevent the event loop from exiting.
@@ -79,7 +94,7 @@ TensorImpl::TensorImpl(Napi::Env env,
 
 // Tears down the shutdown coordination state from any thread-safe destruction path.
 TensorImpl::~TensorImpl() {
-    _cleanup_ctx->remove_cleanup_hook();
+    lifecycle_trace("TensorImpl", "destructor", _cleanup_ctx);
     _cleanup_ctx->release_tsfn();
     _cleanup_ctx->release_owner();
 }

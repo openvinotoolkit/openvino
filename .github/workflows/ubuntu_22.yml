@@ -173,10 +173,12 @@ jobs:
       fail-fast: false
       matrix:
         nodejs-version: [22, 24, 26]
+        electron-version: ["44.4.1", "43.7.1", "42.11.4", "39.8.10"]
     with:
       runner: 'aks-linux-4-cores-16gb'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       nodejs-version: ${{ matrix.nodejs-version }}
+      electron-version: ${{ matrix.electron-version }}
 
   Conformance:
     needs: [ Docker, Build, Smart_CI ]

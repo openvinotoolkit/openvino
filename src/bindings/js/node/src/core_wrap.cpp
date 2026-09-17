@@ -11,6 +11,7 @@
 #include "node/include/compiled_model.hpp"
 #include "node/include/errors.hpp"
 #include "node/include/helper.hpp"
+#include "node/include/lifecycle_trace.hpp"
 #include "node/include/model_wrap.hpp"
 #include "node/include/read_model_args.hpp"
 #include "node/include/type_validation.hpp"
@@ -174,11 +175,15 @@ Napi::Value CoreWrap::compile_model_sync_dispatch(const Napi::CallbackInfo& info
 }
 
 void tsfn_finalizer_callback(Napi::Env env, void* finalize_data, TsfnCompileModelContext* context) {
+    ov::js::lifecycle_trace("CoreCompile", "tsfn-finalizer", context);
     context->native_thread.join();
+    ov::js::lifecycle_trace("CoreCompile", "thread-joined", context);
+    ov::js::lifecycle_trace("CoreCompile", "tsfn-finalizer-complete", context);
     delete context;
 };
 
 void compile_model_thread(TsfnCompileModelContext* context) {
+    ov::js::lifecycle_trace("CoreCompile", "worker-start", context);
     std::exception_ptr stored_exception;
     try {
         std::visit(
@@ -190,22 +195,28 @@ void compile_model_thread(TsfnCompileModelContext* context) {
     } catch (...) {
         stored_exception = std::current_exception();
     }
+    ov::js::lifecycle_trace("CoreCompile", "worker-finished", context, stored_exception ? 1 : 0);
     auto callback = [stored_exception](Napi::Env env, Napi::Function, TsfnCompileModelContext* context) {
+        ov::js::lifecycle_trace("CoreCompile", "callback", context);
         try {
             if (stored_exception) {
                 std::rethrow_exception(stored_exception);
             }
             context->deferred.Resolve(CompiledModelWrap::wrap(env, context->_compiled_model));
+            ov::js::lifecycle_trace("CoreCompile", "promise-resolved", context);
         } catch (const std::exception& e) {
             context->deferred.Reject(Napi::Error::New(env, e.what()).Value());
+            ov::js::lifecycle_trace("CoreCompile", "promise-rejected", context);
         }
     };
 
     const auto status = context->tsfn.BlockingCall(context, callback);
-    if (status != napi_ok) {
-        std::cerr << "Error: ThreadSafeFunction::BlockingCall failed in compile_model_thread function\n";
+    ov::js::lifecycle_trace("CoreCompile", "blocking-call-returned", context, status);
+    if (status != napi_ok && status != napi_closing) {
+        std::cerr << "ThreadSafeFunction::BlockingCall failed with status " << status << '\n';
     }
-    context->tsfn.Release();
+    const auto release_status = context->tsfn.Release();
+    ov::js::lifecycle_trace("CoreCompile", "release-tsfn", context, release_status);
 }
 
 Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
@@ -228,6 +239,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
 
         std::unique_ptr<TsfnCompileModelContext> context_data(
             new TsfnCompileModelContext(env, _core, std::move(model_variant), device, std::move(config)));
+        ov::js::lifecycle_trace("CoreCompile", "create-context", context_data.get());
         context_data->tsfn = Napi::ThreadSafeFunction::New(env,
                                                            Napi::Function(),
                                                            "TSFN",
@@ -236,6 +248,7 @@ Napi::Value CoreWrap::compile_model_async(const Napi::CallbackInfo& info) {
                                                            context_data.get(),
                                                            tsfn_finalizer_callback,
                                                            (void*)nullptr);
+        ov::js::lifecycle_trace("CoreCompile", "create-tsfn", context_data.get());
 
         context_data->native_thread = std::thread(compile_model_thread, context_data.get());
         const auto promise = context_data->deferred.Promise();
