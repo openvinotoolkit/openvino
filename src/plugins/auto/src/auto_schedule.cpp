@@ -647,6 +647,9 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
                         context.m_err_message.c_str());
         return false;
     }
+    // try_to_compile_model() may have internally reselected and registered a fallback device on compile
+    // failure; drop that registration right away, same as the primary per inference selection above
+    m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
     device = context.m_device_info;
     m_dynamic_compiled_models[device.device_name] = context.m_compiled_model;
     generate_workers(device.device_name, context.m_compiled_model);
