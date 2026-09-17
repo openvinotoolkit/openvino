@@ -8,9 +8,7 @@ if(BUILD_SHARED_LIBS)
     set (OBJ_LIB $<TARGET_OBJECTS:openvino_hetero_plugin_obj>)
 endif()
 
-set(OV_HETERO_UNIT_TESTS_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/subgraph_collector.cpp
-)
+include(sources.cmake)
 
 ov_add_test_target(
         NAME

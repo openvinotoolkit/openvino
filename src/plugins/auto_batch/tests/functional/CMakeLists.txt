@@ -6,22 +6,7 @@ set(TARGET_NAME ov_auto_batch_func_tests)
 
 set(SHARED_HEADERS_DIR "${OpenVINO_SOURCE_DIR}/src/tests/functional/plugin/shared/include")
 
-set(OV_AUTO_BATCH_FUNC_TESTS_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_executable_network/exec_net_base.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_executable_network/properties.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_infer_request/callback.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_infer_request/cancellation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_infer_request/io_tensor.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_infer_request/multithreading.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_infer_request/perf_counters.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_infer_request/wait.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_plugin/auto_batching_tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_plugin/life_time.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_plugin/properties_tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/behavior/ov_plugin/remote.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/set_device_name.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/skip_tests_config.cpp
-)
+include(sources.cmake)
 
 ov_add_test_target(
         NAME

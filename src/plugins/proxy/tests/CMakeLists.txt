@@ -25,17 +25,7 @@ if(ENABLE_OV_IR_FRONTEND)
     list(APPEND COMPILE_DEFINITIONS IR_FRONTEND_ENABLED)
 endif()
 
-set(OV_PROXY_PLUGIN_TESTS_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/batch_compliance_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/import_tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/load_proxy_plugin_tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/properties_tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/proxy_tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/proxy_tests.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/query_model_tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/remote_context_tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/remote_tensor_tests.cpp
-)
+include(sources.cmake)
 
 ov_add_test_target(
         NAME ${TARGET_NAME}
