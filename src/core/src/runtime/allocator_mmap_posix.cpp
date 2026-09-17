@@ -6,6 +6,10 @@
 
 #if defined(__unix__) || defined(__APPLE__)
 
+#    include <fcntl.h>
+#    include <sys/mman.h>
+#    include <unistd.h>
+
 #    include <algorithm>
 #    include <cerrno>
 #    include <cstddef>
@@ -15,10 +19,6 @@
 #    include <limits>
 #    include <string>
 #    include <system_error>
-
-#    include <fcntl.h>
-#    include <sys/mman.h>
-#    include <unistd.h>
 
 namespace ov {
 namespace {
@@ -160,8 +160,8 @@ void TemporaryFileBackedAllocator::deallocate(void* handle, size_t, size_t) noex
         return;
     }
 
-    const auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<std::uintptr_t>(handle) -
-                                                                 sizeof(AllocationHeader));
+    const auto* header_ptr =
+        reinterpret_cast<AllocationHeader*>(reinterpret_cast<std::uintptr_t>(handle) - sizeof(AllocationHeader));
     const AllocationHeader header = *header_ptr;
     if (header.base && header.map_size) {
         (void)::munmap(header.base, header.map_size);

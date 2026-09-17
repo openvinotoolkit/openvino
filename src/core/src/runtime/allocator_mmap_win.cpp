@@ -83,9 +83,9 @@ HANDLE create_temporary_file(const std::filesystem::path& temp_dir, size_t bytes
     const ULONGLONG tick_count = ::GetTickCount64();
 
     for (uint32_t attempt = 0; attempt < 1024; ++attempt) {
-        const auto path = temp_dir / (L"openvino_mmap_" + std::to_wstring(process_id) + L"_" +
-                                      std::to_wstring(thread_id) + L"_" + std::to_wstring(tick_count) + L"_" +
-                                      std::to_wstring(attempt) + L".tmp");
+        const auto path =
+            temp_dir / (L"openvino_mmap_" + std::to_wstring(process_id) + L"_" + std::to_wstring(thread_id) + L"_" +
+                        std::to_wstring(tick_count) + L"_" + std::to_wstring(attempt) + L".tmp");
         HANDLE file = ::CreateFileW(path.wstring().c_str(),
                                     GENERIC_READ | GENERIC_WRITE,
                                     FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -191,8 +191,8 @@ void TemporaryFileBackedAllocator::deallocate(void* handle, size_t, size_t) noex
         return;
     }
 
-    const auto* header_ptr = reinterpret_cast<AllocationHeader*>(reinterpret_cast<std::uintptr_t>(handle) -
-                                                                 sizeof(AllocationHeader));
+    const auto* header_ptr =
+        reinterpret_cast<AllocationHeader*>(reinterpret_cast<std::uintptr_t>(handle) - sizeof(AllocationHeader));
     const AllocationHeader header = *header_ptr;
     if (header.base) {
         (void)::UnmapViewOfFile(header.base);
