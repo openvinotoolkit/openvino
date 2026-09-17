@@ -112,6 +112,24 @@ TEST_F(SingleFileStorageTest, WriteReadCacheEntry) {
     blob_read_test(reopened_storage);
 }
 
+TEST_F(SingleFileStorageTest, WriteReadPageAlignedCacheEntry) {
+    const std::string blob_id{"42"};
+    const std::vector<uint8_t> blob_data(2 * 1024 + 1, 0xAB);
+    const auto aligned_size = util::align_size_up(blob_data.size(), SingleFileStorage::blob_alignment);
+
+    m_storage->write_cache_entry(blob_id, [&](std::ostream& stream) {
+        stream.write(reinterpret_cast<const char*>(blob_data.data()), blob_data.size());
+    }, true);
+
+    m_storage->read_cache_entry(blob_id, true, [&](const ICacheManager::CompiledBlobVariant& compiled_blob) {
+        ASSERT_TRUE(std::holds_alternative<const ov::Tensor>(compiled_blob));
+        const auto& tensor = std::get<const ov::Tensor>(compiled_blob);
+        ASSERT_EQ(tensor.get_byte_size(), aligned_size);
+        EXPECT_EQ(tensor.get_byte_size() % SingleFileStorage::blob_alignment, 0);
+        EXPECT_TRUE(std::equal(blob_data.begin(), blob_data.end(), static_cast<const uint8_t*>(tensor.data())));
+    }, true);
+}
+
 TEST_F(SingleFileStorageTest, BlobAlignment) {
     const std::unordered_map<uint64_t, std::vector<uint8_t>> test_blobs{{1, std::vector<uint8_t>(4099, 0xAB)},
                                                                         {2, std::vector<uint8_t>(400, 0xCD)},
@@ -140,6 +158,9 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
             SingleFileStorage::BlobIdType id;
             stream.read(reinterpret_cast<char*>(&id), sizeof(id));
             ASSERT_TRUE(stream.good());
+            uint64_t logical_size;
+            stream.read(reinterpret_cast<char*>(&logical_size), sizeof(logical_size));
+            ASSERT_TRUE(stream.good());
             SingleFileStorage::PadSizeType padding_size;
             stream.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
             ASSERT_TRUE(stream.good());
@@ -150,7 +171,9 @@ TEST_F(SingleFileStorageTest, BlobAlignment) {
                 << "Blob with id " << id << " is not properly aligned";
 
             const auto expected_pos = blob_id_pos + static_cast<std::streamoff>(length);
-            stream.seekg(test_blobs.at(id).size(), std::ios::cur);
+            EXPECT_EQ(logical_size, test_blobs.at(id).size());
+            stream.seekg(length - sizeof(id) - sizeof(logical_size) - sizeof(padding_size) - padding_size,
+                         std::ios::cur);
             ASSERT_EQ(expected_pos, stream.tellg()) << "Blob with id " << id << " has incorrect record size";
         } else {
             stream.seekg(length, std::ios::cur);

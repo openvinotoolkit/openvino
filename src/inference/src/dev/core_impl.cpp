@@ -1148,14 +1148,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                 config_with_batch,
                                                 is_proxy_device(patched_device_name));
     auto plugin = get_plugin(parsed.m_device_name, parsed.m_config);
-    const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
+    const auto& [cache_dir, cache_manager, align_mmap_to_page] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, {}, config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (compiled_model) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
-        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
+        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config), align_mmap_to_page};
         get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
                                                           cache_content.m_shared_ctx);
 
@@ -1188,14 +1188,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
     auto parsed =
         parse_device_name_into_config(device_name, m_core_config, config_with_batch, is_proxy_device(device_name));
     auto plugin = get_plugin(parsed.m_device_name, parsed.m_config);
-    const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
+    const auto& [cache_dir, cache_manager, align_mmap_to_page] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, context, parsed.m_config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (compiled_model) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
-        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config)};
+        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), get_cache_model_path(config), align_mmap_to_page};
         get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
                                                           cache_content.m_shared_ctx);
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
@@ -1221,7 +1221,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
     auto parsed = parse_device_config(device_name, m_core_config, config, false);
     // in case of compile_model(file_name), we need to clear-up core-level properties
     auto plugin = get_plugin(parsed.m_device_name, parsed.m_config);
-    const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
+    const auto& [cache_dir, cache_manager, align_mmap_to_page] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, {}, parsed.m_config, model_path);
 
     if (compiled_model) {
@@ -1230,7 +1230,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
         // Skip caching for proxy plugin. HW plugin will load network from the cache
         CoreConfig::remove_core(parsed.m_config);
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
-        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), model_path};
+        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), model_path, align_mmap_to_page};
         get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
                                                           cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
@@ -1255,14 +1255,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::compile_model::from_memory");
     auto parsed = parse_device_name_into_config(device_name, m_core_config, config);
     auto plugin = get_plugin(parsed.m_device_name, parsed.m_config);
-    const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
+    const auto& [cache_dir, cache_manager, align_mmap_to_page] = parsed.m_core_config.get_cache_config_for_device(plugin);
     auto compiled_model = import_compiled_model(plugin, {}, parsed.m_config);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (compiled_model) {
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
-        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap()};
+        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), {}, align_mmap_to_page};
         get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
                                                           cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
@@ -1941,7 +1941,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model_and_cache(ov::Plugin& 
                                                  compiled_model_runtime_properties,
                                                  header_size_alignment);
                 compiled_model->export_model(stream);
-            });
+            }, cache_content.m_align_mmap_to_page);
         } catch (const std::ios_base::failure&) {
             cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
         } catch (const ov::Exception&) {
@@ -2056,7 +2056,8 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                                        : plugin.import_model(stream, update_config);
                     }};
                 compiled_model = std::visit(model_importer, compiled_blob);
-            });
+                },
+            cache_content.m_align_mmap_to_page);
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
         cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
@@ -2164,18 +2165,38 @@ bool ov::CoreConfig::get_enable_mmap() const {
     return m_flag_enable_mmap;
 }
 
+namespace {
+// GPU-specific "GPU_RUNTIME_TYPE" property queried generically by name so this core-level config
+// code doesn't need to depend on the intel_gpu plugin headers. Returns "ZE" for Level Zero.
+bool is_gpu_ze_device(const ov::Plugin& device) {
+    if (device.get_name().rfind("GPU", 0) != 0) {
+        return false;
+    }
+    try {
+        return device.get_property("GPU_RUNTIME_TYPE", {}).as<std::string>() == "ZE";
+    } catch (const ov::Exception&) {
+        return false;
+    }
+}
+}  // namespace
+
 ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov::Plugin& plugin) const {
     std::lock_guard<std::mutex> lock(m_cache_config_mutex);
-    return m_devices_cache_config.count(plugin.get_name()) ? m_devices_cache_config.at(plugin.get_name())
-                                                           : m_cache_config;
+    auto cfg = m_devices_cache_config.count(plugin.get_name()) ? m_devices_cache_config.at(plugin.get_name())
+                                                               : m_cache_config;
+    cfg.m_align_mmap_to_page = is_gpu_ze_device(plugin);
+    return cfg;
 }
 
-ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& dir) {
+ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& dir, const ov::Plugin* device) {
     auto cfg = CacheConfig{dir, nullptr};
     if (dir.extension() == ".bin") {
         cfg.m_cache_manager = std::make_shared<runtime::SingleFileStorage>(dir);
     } else if (!dir.empty()) {
         cfg.m_cache_manager = std::make_shared<FileStorageCacheManager>(dir);
+    }
+    if (device != nullptr) {
+        cfg.m_align_mmap_to_page = is_gpu_ze_device(*device);
     }
     return cfg;
 }

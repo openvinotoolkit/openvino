@@ -38,7 +38,7 @@ public:
      * @param id Id of cache (hash of the model)
      * @param writer Lambda function to be called when stream is created
      */
-    virtual void write_cache_entry(const std::string& id, StreamWriter writer) = 0;
+    virtual void write_cache_entry(const std::string& id, StreamWriter writer, bool align_mmap_to_page = false) = 0;
 
     /**
      * @brief Variant type for compiled blob representation
@@ -60,7 +60,10 @@ public:
      * @param enable_mmap use mmap or ifstream to read model file
      * @param reader Lambda function to be called when input stream is created
      */
-    virtual void read_cache_entry(const std::string& id, bool enable_mmap, StreamReader reader) = 0;
+    virtual void read_cache_entry(const std::string& id,
+                                  bool enable_mmap,
+                                  StreamReader reader,
+                                  bool align_mmap_to_page = false) = 0;
 
     /**
      * @brief Callback when OpenVINO intends to remove cache entry
