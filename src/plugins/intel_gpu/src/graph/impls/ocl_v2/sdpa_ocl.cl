@@ -827,7 +827,17 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // per-tile inner loop.
     // The non-causal case keeps the full range, and the bound is a no-op there.
 #if IS_CAUSAL
+    #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+    // Stateless decode: the causal mask is aligned to the bottom-right corner of the
+    // [q, k] score matrix, so query row `query` may attend keys [0, query + (k - q)].
+    // The shift is what sdpa_micro/ref/opt apply for CAUSAL_MASK_LOWER_RIGHT (see
+    // sdpa_micro.cl causal_offset); without it a single new token (q == 1, k == 512) would
+    // visit only the first 32 keys and produce a wrong softmax over the whole row.
+    const int causal_offset = max(0, k - q);
+    int causal_k = min(k, causal_offset + (int)wg_j0 + kq_wg_tile_queries);
+    #else
     int causal_k = min(k, query_position_offset + (int)wg_j0 + kq_wg_tile_queries);
+    #endif
 #else
     const int causal_k = k;
 #endif
@@ -1712,22 +1722,38 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // same access pattern as sdpa_micro's tile_load_t). Pre-scale by iscale at
             // load time and keep it as float so the softmax max-loop below only does a
             // branchless add (mirrors micro's tile_elementwise(unscale)+tile_binary add).
+            //
+            // MASK_IS_FULL_2D is a compile-time specialization (MASK_KIND, see the host), but the
+            // mask's trailing dims can still be dynamic: for a DYNAMIC mask the host infers the kind
+            // from the SDPA stage (prefill -> 2), so a [B, H, 1, K] per-key mask at prefill is
+            // compiled as kind 2. Its query dim MSK_D2 is then 1, and indexing it with the real
+            // query (up to q) walks past the single row -- a 1-row buffer read OOB, which on Xe2
+            // surfaces as CL_OUT_OF_RESOURCES (or, when the read lands in mapped memory, a NaN
+            // mask value leaking into the output). Clamp to row 0: for a per-key mask every query
+            // row IS row 0, so this is the correct value, not a best-effort guard.
+            // When MSK_D2/MSK_D3 are compile-time literals the two selects below fold away and the
+            // preprocessed text is identical to the old form.
             float16 mask_full[kq_query_blocks][kq_sg_tile_keys / SUBGROUP_SIZE];
             if (MASK_IS_FULL_2D) {
                 #pragma unroll
                 for (int qb = 0; qb < kq_query_blocks; ++qb) {
-                    const int mask_query = wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + lane;
+                    const int mask_query = (MSK_D2 == 1) ? 0
+                                                         : (wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + lane);
                     #pragma unroll
                     for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
                         const int mask_key = key_base + ii * SUBGROUP_SIZE;
                         half16 mv = (half16)0.0f;
-                        if (mask_query < q) {
-                            if (mask_key + SUBGROUP_SIZE <= k) {
+                        if (mask_query < MSK_D2) {
+                            // Same 1-row guard for the KEY side: a [B, H, q, 1] broadcast mask
+                            // compiled as kind 2 would read key columns past its single column.
+                            if (MSK_D3 == 1) {
+                                mv = (half16)msk[MSK_OFF(0, 0, mask_query, 0)];
+                            } else if (mask_key + SUBGROUP_SIZE <= MSK_D3) {
                                 mv = vload16(0, msk + MSK_OFF(0, 0, mask_query, mask_key));
                             } else {
                                 #pragma unroll
                                 for (int kk = 0; kk < SUBGROUP_SIZE; ++kk) {
-                                    if (mask_key + kk < k)
+                                    if (mask_key + kk < MSK_D3)
                                         mv[kk] = msk[MSK_OFF(0, 0, mask_query, mask_key + kk)];
                                 }
                             }
@@ -1757,7 +1783,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if IS_CAUSAL
     #if BLOCK_SKIP_CAUSAL
             const int blk_key_last = key_base + kq_sg_tile_keys - 1;
-            const int blk_query_first = query_position_offset + (int)(wg_j0 + sg_j0_kq) + qb * SUBGROUP_SIZE;
+            const int blk_query_first = query_position_offset + (int)(wg_j0 + sg_j0_kq) + qb * SUBGROUP_SIZE
+        #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+                                        + causal_offset;
+        #else
+                                        ;
+        #endif
         #if SLIDING_WINDOW_SIZE
             // With a window the block must also sit fully inside it: the oldest key the block's
             // LAST query may attend is (blk_query_last - SLIDING_WINDOW_SIZE), so the block's
@@ -1803,10 +1834,23 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     if (!causal_block_clear) {
     #if SLIDING_WINDOW_SIZE
                         // Keys outside (query - SLIDING_WINDOW_SIZE, query] are dropped, matching
-                        // sdpa_micro's greater_than() predicate.
-                        if (key > query_position || key <= query_position - SLIDING_WINDOW_SIZE) {
+                        // sdpa_micro's greater_than() predicate. With a bottom-right-aligned mask
+                        // the whole window shifts by (k - q), exactly as micro's col_offset does.
+                        if (key > query_position
+        #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+                                + causal_offset
+        #endif
+                                || key <= query_position - SLIDING_WINDOW_SIZE
+        #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+                                + causal_offset
+        #endif
+                                ) {
     #else
-                        if (key > query_position) {
+                        if (key > query_position
+        #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+                                + causal_offset
+        #endif
+                                ) {
     #endif
     #if IS_CAUSAL && BIDIR_MASK
                             // ...unless the key is inside this query's own image group, which is
