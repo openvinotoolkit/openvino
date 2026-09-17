@@ -511,8 +511,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                             localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
         const bool shouldDisablePerfCountForInferProfiling =
             localConfig.has<PROFILING_TYPE>() &&
-            localConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER &&
-            localConfig.has<PERF_COUNT>() && localConfig.get<PERF_COUNT>();
+            localConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER && localConfig.has<PERF_COUNT>() &&
+            localConfig.get<PERF_COUNT>();
 
         std::optional<FilteredConfig> modifiedConfig;  // Copy only when needed
         if (shouldDisablePerfCountForInferProfiling || shouldForceThroughput) {
@@ -521,9 +521,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         FilteredConfig& compilerConfig = modifiedConfig.has_value() ? *modifiedConfig : localConfig;
 
         if (shouldDisablePerfCountForInferProfiling) {
-            _logger.info("%s=INFER: overriding compiler-only %s from YES to NO; runtime configuration remains unchanged",
-                        ov::intel_npu::profiling_type.name(),
-                        ov::enable_profiling.name());
+            _logger.info(
+                "%s=INFER: overriding compiler-only %s from YES to NO; runtime configuration remains unchanged",
+                ov::intel_npu::profiling_type.name(),
+                ov::enable_profiling.name());
             compilerConfig.update(ov::enable_profiling.name(), PERF_COUNT::toString(false));
         }
 
