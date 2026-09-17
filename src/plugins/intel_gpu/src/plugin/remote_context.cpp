@@ -15,6 +15,7 @@
 #include "intel_gpu/runtime/utils.hpp"
 #ifdef OV_GPU_WITH_ZE_RT
 #    include "ze/ze_device.hpp"
+#    include "ze/ze_engine.hpp"
 #endif
 #include <memory>
 
@@ -84,50 +85,6 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
     int target_tile_id = -1;
     m_type = get_default_context_type();
 
-#ifdef OV_GPU_WITH_ZE_RT
-    // Fast path for an externally-managed L0 context shared across multiple
-    // engines (e.g. tensor-parallel ranks). The caller supplies the L0
-    // (driver, device, context) triple directly and retains ownership of the
-    // context. This bypasses device_query because L0 has no API to enumerate
-    // devices belonging to a context.
-    if (params.find(ov::intel_gpu::context_type.name()) != params.end() &&
-        extract_object(params, ov::intel_gpu::context_type) == ov::intel_gpu::ContextType::ZE &&
-        params.find(ov::intel_gpu::ze_context.name()) != params.end()) {
-        auto ze_ctx_h = extract_object(params, ov::intel_gpu::ze_context);
-        OPENVINO_ASSERT(ze_ctx_h != nullptr,
-                        "[GPU] Shared ZE context handle must not be null");
-        OPENVINO_ASSERT(params.find(ov::intel_gpu::ze_device_handle.name()) != params.end(),
-                        "[GPU] Shared ZE context requires ", ov::intel_gpu::ze_device_handle.name());
-        OPENVINO_ASSERT(params.find(ov::intel_gpu::ze_driver_handle.name()) != params.end(),
-                        "[GPU] Shared ZE context requires ", ov::intel_gpu::ze_driver_handle.name());
-
-        auto ze_dev_h    = extract_object(params, ov::intel_gpu::ze_device_handle);
-        auto ze_driver_h = extract_object(params, ov::intel_gpu::ze_driver_handle);
-
-        // Wrap the caller-supplied handles as borrowed resources so ze_device
-        // does NOT call zeContextDestroy in its RAII teardown — the ze_context
-        // is owned by the caller (e.g. TP_GPU's shared multi-device
-        // context on TPL0SharedContext) and must outlive this rank device.
-        // `initialize_device=false` also skips the internal zeContextCreate
-        // that would otherwise fire when the passed ze_context_resource is
-        // non-empty (ze_device::initialize is a no-op in that case, but we
-        // pass false anyway to make the intent explicit).
-        m_device = std::make_shared<cldnn::ze::ze_device>(
-            cldnn::ze::ze_driver_resource(reinterpret_cast<ze_driver_handle_t>(ze_driver_h),
-                                          /*is_borrowed=*/true),
-            cldnn::ze::ze_device_resource(reinterpret_cast<ze_device_handle_t>(ze_dev_h),
-                                          /*is_borrowed=*/true),
-            cldnn::ze::ze_context_resource(reinterpret_cast<ze_context_handle_t>(ze_ctx_h),
-                                           /*is_borrowed=*/true),
-            /*initialize_device=*/false);
-        m_type = ContextType::ZE;
-        m_device_name = get_device_name(known_contexts, m_device);
-
-        initialize();
-        return;
-    }
-#endif  // OV_GPU_WITH_ZE_RT
-
     if (!params.empty()) {
         auto ctx_type = extract_object(params, ov::intel_gpu::context_type);
 
@@ -145,6 +102,27 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
             m_va_display = extract_object(params, ov::intel_gpu::va_device);
             OPENVINO_ASSERT(m_va_display != nullptr, "[GPU] Can't create shared VA/DX context as user handle is nullptr! Params:\n", params);
         } else if (ctx_type == ov::intel_gpu::ContextType::ZE) {
+#ifdef OV_GPU_WITH_ZE_RT
+            if (params.find(ov::intel_gpu::ocl_context.name()) != params.end() &&
+                params.find(ov::intel_gpu::ze_device_handle.name()) != params.end() &&
+                params.find(ov::intel_gpu::ze_driver_handle.name()) != params.end()) {
+
+                auto ze_ctx_h = extract_object(params, ov::intel_gpu::ocl_context);
+                auto ze_dev_h = extract_object(params, ov::intel_gpu::ze_device_handle);
+                auto ze_driver_h = extract_object(params, ov::intel_gpu::ze_driver_handle);
+
+                m_device = std::make_shared<cldnn::ze::ze_device>(
+                    cldnn::ze::ze_driver_resource(reinterpret_cast<ze_driver_handle_t>(ze_driver_h), /*is_borrowed=*/true),
+                    cldnn::ze::ze_device_resource(reinterpret_cast<ze_device_handle_t>(ze_dev_h), /*is_borrowed=*/true),
+                    cldnn::ze::ze_context_resource(reinterpret_cast<ze_context_handle_t>(ze_ctx_h), /*is_borrowed=*/true),
+                    /*initialize_device=*/false);
+                m_type = ctx_type;
+                m_device_name = get_device_name(known_contexts, m_device);
+
+                initialize();
+                return;
+            }
+#endif
             OPENVINO_THROW("Level Zero interoperability is not supported");
         } else {
             OPENVINO_THROW("Invalid execution context type", ctx_type);
@@ -200,16 +178,10 @@ void RemoteContextImpl::init_properties() {
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::ZE));
         properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ze)));
 #ifdef OV_GPU_WITH_ZE_RT
-        // TP_GPU plugin (and any external caller wiring up their own
-        // ze_context) reads these explicit ZE handles from the property map
-        // when re-creating a rank-scoped remote context.  Master's refactor
-        // routes the same ze context through the `ocl_context` key for the
-        // generic runtime-agnostic path; the block below preserves the
-        // typed keys for the ZE-specific consumers.
-        if (auto ze_dev = std::dynamic_pointer_cast<cldnn::ze::ze_device>(m_device)) {
-            properties.insert(ov::intel_gpu::ze_context(static_cast<gpu_handle_param>(ze_dev->get_context().handle())));
-            properties.insert(ov::intel_gpu::ze_device_handle(static_cast<gpu_handle_param>(ze_dev->get_device().handle())));
-            properties.insert(ov::intel_gpu::ze_driver_handle(static_cast<gpu_handle_param>(ze_dev->get_driver().handle())));
+        {
+            const auto& ze_engine = cldnn::downcast<const cldnn::ze::ze_engine>(*m_engine);
+            properties.insert(ov::intel_gpu::ze_device_handle(static_cast<gpu_handle_param>(ze_engine.get_device().handle())));
+            properties.insert(ov::intel_gpu::ze_driver_handle(static_cast<gpu_handle_param>(ze_engine.get_driver().handle())));
         }
 #endif
         break;

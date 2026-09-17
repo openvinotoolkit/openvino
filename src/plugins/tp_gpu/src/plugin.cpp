@@ -215,7 +215,7 @@ Plugin::SharedL0Setup Plugin::create_shared_l0(const std::vector<std::string>& d
     for (uint32_t rank = 0; rank < tp_degree; ++rank) {
         ov::AnyMap rank_params{
             {ov::intel_gpu::context_type.name(), ov::intel_gpu::ContextType::ZE},
-            {ov::intel_gpu::ze_context.name(), static_cast<ov::intel_gpu::gpu_handle_param>(shared_ctx_h)},
+            {ov::intel_gpu::ocl_context.name(), static_cast<ov::intel_gpu::gpu_handle_param>(shared_ctx_h)},
             {ov::intel_gpu::ze_device_handle.name(), static_cast<ov::intel_gpu::gpu_handle_param>(rank_devs[rank])},
             {ov::intel_gpu::ze_driver_handle.name(), static_cast<ov::intel_gpu::gpu_handle_param>(drivers[0])},
         };
@@ -230,9 +230,8 @@ Plugin::SharedL0Setup Plugin::create_shared_l0(const std::vector<std::string>& d
 
 /// \brief Hands the collective state to the rank networks.
 ///
-/// Done after the networks exist rather than through compile_model properties:
-/// that keeps runtime pointers out of the graph and out of the cache hash, and
-/// makes the very same path work for an imported model.
+/// State of a compiled model, not a compilation parameter -- hence through the
+/// compiled model, which also covers the imported one.
 ///
 /// One registry per stream worker, shared by every rank of that worker. Only a
 /// single worker exists until ov::num_streams is supported.

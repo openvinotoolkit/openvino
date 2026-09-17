@@ -312,10 +312,9 @@ std::shared_ptr<Graph> CompiledModel::get_graph(size_t n) const {
 }
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
-    // The only property accepted after compilation is the collective registry
-    // set: it is runtime state that cannot exist before the networks do, and it
-    // has to be settable on an imported model too.  Everything else still has
-    // to go through Core::compile_model.
+    // Only the collective registry set: it is state of a compiled model rather
+    // than a compilation parameter, and the same path has to serve an imported
+    // model, which was never compiled here.
     for (const auto& [name, value] : properties) {
         OPENVINO_ASSERT(name == ov::intel_gpu::collective_comm_registry_set.name(),
                         "[GPU] It's not possible to set property of an already compiled model. Set property "

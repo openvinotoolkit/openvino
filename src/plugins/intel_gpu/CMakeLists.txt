@@ -237,10 +237,7 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
             ${CMAKE_CURRENT_SOURCE_DIR}/include/)
 
     if(ENABLE_TP_GPU)
-        # Collective ops come from the TP_GPU plugin's ops library: the factory below
-        # casts to ov::tp_gpu::op::TPAllReduce and needs its typeinfo.
         target_link_libraries(${MODULE_NAME} PRIVATE openvino_tp_gpu_ops)
-        target_compile_definitions(${MODULE_NAME} PRIVATE ENABLE_TP_GPU)
     endif()
 
     ov_set_threading_interface_for(${MODULE_NAME})

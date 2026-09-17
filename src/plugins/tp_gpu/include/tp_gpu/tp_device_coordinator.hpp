@@ -84,30 +84,7 @@ public:
     /// a rank that dies takes the whole inference down into a hang.
     void note_collective_started(int rank);
 
-    /// Hands this rank's share of an AllReduce to `model_queue` -- the
-    /// immediate command list intel_gpu already runs the model on -- and
-    /// returns without waiting for it.
-    ///
-    /// The queue is in-order, so the recording lands after the operations
-    /// that produced `in_dev` and before whatever reads `out_dev`, with no
-    /// drain in between.  That is the whole point: the host goes on
-    /// dispatching the next stretch of the model while four devices work
-    /// through the collective, instead of stopping at every one of them.
-    ///
-    /// Falls back to the synchronous path when the driver has no splice.
-    ///
-    /// Virtual for the same reason allreduce() is: the GPU plugin calls the
-    /// coordinator through this vtable without linking against the plugin
-    /// that defines it.
-    virtual void allreduce_async(int collective_id,
-                                 int rank,
-                                 void* in_dev,
-                                 void* out_dev,
-                                 std::size_t n,
-                                 ov::element::Type dtype,
-                                 ze_command_list_handle_t model_queue);
-
-    /// Whether allreduce_async can do anything but forward to allreduce().
+    /// Whether the driver has the splice extension at all.
     virtual bool async_supported() const;
 
     /// Whether the collectives should run spliced into the model's queue.
@@ -149,12 +126,29 @@ public:
     /// in the shared L0 context on the rank's device.
     ///
     /// Phase 2 supports `dtype` in {f16, f32}.
+    ///
+    /// With `model_queue` -- the immediate command list intel_gpu already
+    /// runs the model on -- the recording is spliced there and the call
+    /// returns without waiting.  The queue is in-order, so the recording
+    /// lands after the operations that produced `in_dev` and before whatever
+    /// reads `out_dev`, with no drain in between: the host goes on
+    /// dispatching the next stretch of the model while the devices work
+    /// through the collective.  Without a queue the collective runs on the
+    /// coordinator's own queues and the call blocks until it is done.
+    ///
+    /// A queue is honoured only when run_spliced() agrees, so a driver
+    /// without the extension and force_sync_collective both land on the
+    /// blocking path no matter what the caller passed.
+    ///
+    /// Virtual because the GPU plugin calls the coordinator through this
+    /// vtable without linking against the plugin that defines it.
     virtual void allreduce(int collective_id,
                            int rank,
                            void* in_dev,
                            void* out_dev,
                            std::size_t n,
-                           ov::element::Type dtype);
+                           ov::element::Type dtype,
+                           ze_command_list_handle_t model_queue = nullptr);
 
     /// Collects each rank's slice of a row-major matrix into rank 0's buffer.
     ///
@@ -169,38 +163,25 @@ public:
     /// per rank for a result nobody would look at.
     ///
     /// `out_dev` is the destination on rank 0 and ignored on every other rank.
-    /// Blocking, like allreduce: returns once every slice has landed.
+    ///
+    /// `model_queue` works exactly as it does for allreduce().  It matters
+    /// more here: blocking drains the rank's model stream and waits for a copy
+    /// on the coordinator's own queue, once per token on the vocabulary
+    /// projection.  Splicing removes both waits, and with them what made the
+    /// blocking form correct -- the host barrier no longer implies the slices
+    /// have landed, because the ranks now write from independent queues.  The
+    /// recording carries that ordering instead: every other rank signals when
+    /// its slice is down and the root's recording waits on all of them, so the
+    /// model queue of the rank that reads the gathered buffer is held until it
+    /// is whole.
     virtual void gather_to_root(int collective_id,
                                 int rank,
                                 void* in_dev,
                                 void* out_dev,
                                 std::size_t rows,
                                 std::size_t slice_elems,
-                                ov::element::Type dtype);
-
-    /// gather_to_root spliced into the model's queue, the counterpart of
-    /// allreduce_async.
-    ///
-    /// The blocking form is the expensive one here: it drains the rank's
-    /// model stream, runs the copy on the coordinator's own queue and waits
-    /// for it, once per token on the vocabulary projection.  Splicing removes
-    /// both waits, but it also removes what made the blocking form correct --
-    /// the host barrier no longer implies the slices have landed, because the
-    /// ranks now write from four independent queues.  The recording carries
-    /// that ordering instead: every other rank signals when its slice is
-    /// down, and the root's recording waits on all of them, so the model
-    /// queue of the rank that reads the gathered buffer is held until it is
-    /// whole.
-    ///
-    /// Falls back to the synchronous path when the driver has no splice.
-    virtual void gather_to_root_async(int collective_id,
-                                      int rank,
-                                      void* in_dev,
-                                      void* out_dev,
-                                      std::size_t rows,
-                                      std::size_t slice_elems,
-                                      ov::element::Type dtype,
-                                      ze_command_list_handle_t model_queue);
+                                ov::element::Type dtype,
+                                ze_command_list_handle_t model_queue = nullptr);
 
 private:
     // Per-rank L0 state.
@@ -566,7 +547,7 @@ private:
     RunAhead                        m_ahead;
 
     /// Rank-0 totals for the whole coordinator.  These used to be function
-    /// statics inside run_allreduce, which made them process-global: two
+    /// statics inside allreduce(), which made them process-global: two
     /// models in one process added their numbers together and neither report
     /// meant anything.  Only rank 0 writes them and only rank 0 reads them at
     /// dump time, but they are Counters anyway so the type matches the rest.
@@ -628,16 +609,6 @@ private:
     /// so the list can be appended or re-recorded.  The allreduce path has
     /// the same wait inlined, where it also feeds the skew counters.
     void await_previous_splice(Plan& plan, int rank, int collective_id);
-
-    /// The body behind gather_to_root() and gather_to_root_async().
-    void run_gather(int collective_id,
-                    int rank,
-                    void* in_dev,
-                    void* out_dev,
-                    std::size_t rows,
-                    std::size_t slice_elems,
-                    ov::element::Type dtype,
-                    ze_command_list_handle_t model_queue);
 
     /// Records the recursive halving/doubling exchange for one rank.
     ///
@@ -738,17 +709,6 @@ private:
     /// Aborts the group and throws.  `timed_out` distinguishes "this rank ran
     /// out of patience" from "somebody else already failed".
     [[noreturn]] void fail_collective(bool timed_out, int collective_id, int rank, const char* stage);
-
-    /// The body behind allreduce() and allreduce_async().  A null
-    /// `model_queue` means the caller wants the collective drained before it
-    /// returns; a handle means splice it and go.
-    void run_allreduce(int collective_id,
-                       int rank,
-                       void* in_dev,
-                       void* out_dev,
-                       std::size_t n,
-                       ov::element::Type dtype,
-                       ze_command_list_handle_t model_queue);
 
     /// Watches the per-rank progress counters and turns a device-side wait
     /// that stopped advancing into an aborted group.  Started on the first

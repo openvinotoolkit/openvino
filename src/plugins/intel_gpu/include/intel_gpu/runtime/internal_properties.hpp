@@ -129,11 +129,11 @@ static constexpr Property<std::shared_ptr<GpuWeightlessCacheMap>, PropertyMutabi
 /**
  * @brief Collective groups the compiled model takes part in, one registry per
  * stream worker. Injected by the tensor-parallel plugin through
- * `ICompiledModel::set_property` right after compile or import, so the same
- * path serves both and neither the graph nor the primitives hold runtime-only
- * pointers.
+ * `ICompiledModel::set_property` after compile or import, so the same path
+ * serves both.
  *
- * Not an ExecutionConfig option: it arrives after the config is finalized.
+ * State of a compiled model rather than a compilation parameter, which is why
+ * it is not an ExecutionConfig option.
  */
 static constexpr Property<std::vector<CollectiveCommRegistryPtr>, PropertyMutability::RW>
     collective_comm_registry_set{"GPU_COLLECTIVE_COMM_REGISTRY_SET"};
