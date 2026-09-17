@@ -7,6 +7,7 @@
 // For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
 #include "sdpa_gen_micro.hpp"
 #include "sdpa_gen_ocl.hpp"
+#include "sdpa_gen_ocl_decode.hpp"
 // clang-format on
 
 #include "sdpa_opt.hpp"
