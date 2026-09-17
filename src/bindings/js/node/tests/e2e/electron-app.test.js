@@ -10,10 +10,14 @@ const { testModels, downloadTestModel } = require("../utils.js");
 
 const appDirectory = "demo-electron-app-project";
 const fullScenario = "zero-copy-async";
+const defaultModel = "test-model-fp32";
+const alternateModels = ["add-model", "relu-model"];
+const diagnosticModels = [defaultModel, ...alternateModels];
 const diagnosticScenarios = [
   "empty",
   "addon",
   "core",
+  "cpu-plugin",
   "read-sync",
   "read-async",
   "compile-sync",
@@ -56,6 +60,18 @@ describe("E2E testing for OpenVINO as an Electron dependency.", function () {
     });
   });
 
+  if (diagnosticsEnabled) {
+    for (const modelName of diagnosticModels) {
+      it(`should compile ${modelName} with Node.js`, async () => {
+        const { stdout } = await runNodeCompile(modelName);
+        assert(
+          stdout.includes(`Node compile completed: model=${modelName} mode=async`),
+          `Check that Node.js compiled ${modelName} and completed environment teardown`,
+        );
+      });
+    }
+  }
+
   for (const scenario of scenarios) {
     it(`should complete Electron scenario: ${scenario}`, async () => {
       const { stdout, stderr } = await runElectron(scenario);
@@ -83,6 +99,19 @@ describe("E2E testing for OpenVINO as an Electron dependency.", function () {
         );
       }
     });
+  }
+
+  if (diagnosticsEnabled) {
+    for (const modelName of alternateModels) {
+      it(`should complete Electron compile-async with ${modelName}`, async () => {
+        const { stdout, stderr } = await runElectron("compile-async", modelName);
+        assert(
+          stdout.includes(`Scenario completed: compile-async model=${modelName}`),
+          `Check that Electron compiled ${modelName} and reached application teardown`,
+        );
+        assertLifecycleTrace("compile-async", stderr);
+      });
+    }
   }
 
   after((done) => {
@@ -173,14 +202,37 @@ function assertLifecycleEventOrder(scenario, traces, expectedEvents) {
   }
 }
 
-function runElectron(scenario) {
+function runElectron(scenario, modelName = defaultModel) {
+  const electronExecutable = require(path.resolve(appDirectory, "node_modules/electron"));
+
+  return runDiagnosticProcess({
+    runtime: "electron",
+    executable: electronExecutable,
+    args: ["--disable-gpu", "--no-sandbox", "."],
+    scenario,
+    modelName,
+    env: { OV_ELECTRON_SCENARIO: scenario, OV_E2E_MODEL: modelName },
+  });
+}
+
+function runNodeCompile(modelName) {
+  return runDiagnosticProcess({
+    runtime: "node",
+    executable: process.execPath,
+    args: ["node-compile.js"],
+    scenario: "compile-async",
+    modelName,
+    env: { OV_NODE_COMPILE_MODE: "async", OV_E2E_MODEL: modelName },
+  });
+}
+
+function runDiagnosticProcess({ runtime, executable, args, scenario, modelName, env }) {
   return new Promise((resolve, reject) => {
     const output = { stdout: [], stderr: [] };
     let outputSequence = 0;
-    const electronExecutable = require(path.resolve(appDirectory, "node_modules/electron"));
-    const child = spawn(electronExecutable, ["--disable-gpu", "--no-sandbox", "."], {
+    const child = spawn(executable, args, {
       cwd: appDirectory,
-      env: { ...process.env, OV_ELECTRON_SCENARIO: scenario },
+      env: { ...process.env, ...env },
     });
 
     for (const streamName of ["stdout", "stderr"]) {
@@ -188,7 +240,7 @@ function runElectron(scenario) {
       lineReader.on("line", (line) => {
         output[streamName].push(line);
         process.stdout.write(
-          `[OV_E2E_PARENT] seq=${++outputSequence} scenario=${scenario} stream=${streamName} ${line}\n`,
+          `[OV_E2E_PARENT] seq=${++outputSequence} runtime=${runtime} scenario=${scenario} model=${modelName} stream=${streamName} ${line}\n`,
         );
       });
     }
@@ -196,7 +248,7 @@ function runElectron(scenario) {
     child.once("error", reject);
     child.once("close", (exitCode, signal) => {
       process.stdout.write(
-        `[OV_E2E_PARENT] scenario=${scenario} exit_code=${exitCode ?? "null"} signal=${signal ?? "none"}\n`,
+        `[OV_E2E_PARENT] runtime=${runtime} scenario=${scenario} model=${modelName} exit_code=${exitCode ?? "null"} signal=${signal ?? "none"}\n`,
       );
 
       const result = {
@@ -206,7 +258,7 @@ function runElectron(scenario) {
       if (exitCode !== 0) {
         reject(
           new Error(
-            `Electron scenario ${scenario} failed: exit_code=${exitCode ?? "null"}, signal=${signal ?? "none"}`,
+            `${runtime} scenario ${scenario} with ${modelName} failed: exit_code=${exitCode ?? "null"}, signal=${signal ?? "none"}`,
           ),
         );
 

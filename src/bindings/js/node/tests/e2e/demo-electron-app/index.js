@@ -1,12 +1,18 @@
 const { app } = require("electron");
 
 const epsilon = 0.5; // To avoid very small numbers
-const pathToModel = "../tests/unit/test_models/test_model_fp32.xml";
+const modelName = process.env.OV_E2E_MODEL ?? "test-model-fp32";
+const modelPaths = new Map([
+  ["test-model-fp32", "../tests/unit/test_models/test_model_fp32.xml"],
+  ["add-model", "../tests/unit/test_models/add_model.xml"],
+  ["relu-model", "../tests/unit/test_models/relu_model.xml"],
+]);
 const scenario = process.env.OV_ELECTRON_SCENARIO ?? "zero-copy-async";
 const supportedScenarios = new Set([
   "empty",
   "addon",
   "core",
+  "cpu-plugin",
   "read-sync",
   "read-async",
   "compile-sync",
@@ -27,8 +33,11 @@ async function main() {
     if (!supportedScenarios.has(scenario)) {
       throw new Error(`Unsupported E2E scenario: ${scenario}`);
     }
+    if (!modelPaths.has(modelName)) {
+      throw new Error(`Unsupported E2E model: ${modelName}`);
+    }
 
-    console.error(`[OV_E2E] scenario=${scenario} stage=ready`);
+    console.error(`[OV_E2E] scenario=${scenario} model=${modelName} stage=ready`);
     if (scenario === "empty") {
       finishScenario();
 
@@ -59,11 +68,20 @@ async function main() {
 
       return;
     }
+    if (scenario === "cpu-plugin") {
+      const versions = core.getVersions("CPU");
+      console.error(`[OV_E2E] scenario=${scenario} model=${modelName} stage=plugin-loaded`);
+      console.log("CPU plugin loaded successfully:", versions);
+      finishScenario();
+
+      return;
+    }
 
     const syncRead = syncReadScenarios.has(scenario);
+    const pathToModel = modelPaths.get(modelName);
     const model = syncRead ? core.readModelSync(pathToModel) : await core.readModel(pathToModel);
     console.error(
-      `[OV_E2E] scenario=${scenario} stage=model-read mode=${syncRead ? "sync" : "async"}`,
+      `[OV_E2E] scenario=${scenario} model=${modelName} stage=model-read mode=${syncRead ? "sync" : "async"}`,
     );
     console.log("Model read successfully:", model);
     if (scenario === "read-sync" || scenario === "read-async") {
@@ -77,7 +95,7 @@ async function main() {
       ? core.compileModelSync(model, "CPU")
       : await core.compileModel(model, "CPU");
     console.error(
-      `[OV_E2E] scenario=${scenario} stage=model-compiled mode=${syncCompile ? "sync" : "async"}`,
+      `[OV_E2E] scenario=${scenario} model=${modelName} stage=model-compiled mode=${syncCompile ? "sync" : "async"}`,
     );
     if (scenario === "compile-sync" || scenario === "compile-async") {
       finishScenario();
@@ -116,7 +134,7 @@ function createTensor(ov, zeroCopy) {
 }
 
 function finishScenario() {
-  console.error(`[OV_E2E] scenario=${scenario} stage=app-exit`);
-  console.log(`Scenario completed: ${scenario}`);
+  console.error(`[OV_E2E] scenario=${scenario} model=${modelName} stage=app-exit`);
+  console.log(`Scenario completed: ${scenario} model=${modelName}`);
   app.exit(0);
 }
