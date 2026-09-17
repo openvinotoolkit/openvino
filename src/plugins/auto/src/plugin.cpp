@@ -490,11 +490,25 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     if (!device_utilization_thresholds.empty()) {
         auto_s_context->m_selection_policy.utilization_thresholds.insert(device_utilization_thresholds.begin(),
                                                                         device_utilization_thresholds.end());
+        // Log once here, where the property is actually read, instead of on every select_device() call.
+        for (const auto& item : device_utilization_thresholds) {
+            LOG_DEBUG_TAG("Device: %s. Utilization threshold: %s",
+                          item.first.c_str(),
+                          std::to_string(item.second).c_str());
+        }
     }
     // Values are already validated by PerfCurveTableValidator when the property is set, so no re-check here.
     auto perf_curve_table = load_config.get_property(ov::intel_auto::perf_curve_table);
     if (!perf_curve_table.empty()) {
         auto_s_context->m_selection_policy.perf_curve_table = perf_curve_table;
+        // Log once here, where the property is actually read, instead of on every select_device() call.
+        LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %s device curves", std::to_string(perf_curve_table.size()).c_str());
+        for (const auto& [device_key, curve] : perf_curve_table) {
+            LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %s points", device_key.c_str(), std::to_string(curve.size()).c_str());
+            for (const auto& [utilization, score] : curve) {
+                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%lf", device_key.c_str(), utilization, score);
+            }
+        }
     }
     auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
     if (!low_power_device.empty()) {
@@ -746,25 +760,6 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         (!utilization_thresholds.empty() || !perf_curve_table.empty()) ? get_device_utilizations(valid_devices)
                                                                        : std::unordered_map<std::string, float>{};
 
-    if (!perf_curve_table.empty()) {
-        // Dump the (static, per-Plugin) perf_curve_table only once: it never changes across
-        // select_device() calls, so repeating this on every decision is pure logging overhead.
-        std::call_once(m_perf_curve_table_logged_once, [this, &perf_curve_table]() {
-            LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %s device curves",
-                          std::to_string(perf_curve_table.size()).c_str());
-            for (const auto& [device_key, curve] : perf_curve_table) {
-                LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %s points",
-                              device_key.c_str(),
-                              std::to_string(curve.size()).c_str());
-                for (const auto& [utilization, score] : curve) {
-                    LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s]: utilization=%u, score=%lf",
-                                  device_key.c_str(),
-                                  utilization,
-                                  score);
-                }
-            }
-        });
-    }
 
     // all available Devices are in valid_devices now
     // need to remove higher priority devices
@@ -844,8 +839,6 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         if (!utilization_thresholds.empty()) {
             last_device = valid_devices.front();
             std::list<DeviceInformation> threshold_filtered_devices;
-            for (const auto& item : utilization_thresholds)
-                LOG_DEBUG_TAG("Device: %s. Utilization threshold: %s", item.first.c_str(), std::to_string(item.second).c_str());
 
             for (const auto& device : valid_devices) {
                 bool is_excluded = false;
