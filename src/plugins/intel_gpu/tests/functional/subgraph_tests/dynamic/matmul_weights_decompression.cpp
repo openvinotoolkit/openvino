@@ -252,8 +252,10 @@ TEST_P(MatmulWeightsDecompression, Inference) {
                  abs_threshold_f16] = GetParam();
     // Sub-byte parameter weights need the non-transposed FC path which requires XMX
     if (param_weights && weights_precision.bitwidth() < 8) {
-        if (transpose_weights) {
-            GTEST_SKIP() << "Sub-byte parameter weights with transposed layout need runtime transpose, which GPU can't do";
+        // oneDNN is the only implementation of that path and accepts u4/i4 as the narrowest compressed weights
+        if (transpose_weights || !cldnn::one_of(weights_precision, {ov::element::u4, ov::element::i4})) {
+            GTEST_SKIP() << "Sub-byte parameter weights with transposed layout or with a precision other than u4/i4 "
+                            "need runtime transpose, which GPU can't do";
         }
         const auto caps = core->get_property(targetDevice, ov::device::capabilities);
         if (std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::HW_MATMUL) == caps.end()) {
