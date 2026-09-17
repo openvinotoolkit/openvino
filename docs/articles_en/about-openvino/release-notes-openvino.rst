@@ -299,6 +299,11 @@ Known Issues
 | Description:
 | Fixed an issue where applications using OpenVINO™ 2026.2, 2026.3, 2026.3.1, or 2026.4 on Windows may crash unexpectedly when specific Intel® NPU PV drivers (32.0.100.4300, 32.0.100.4509, or 32.0.100.4512) are installed on Intel® Core™ Ultra Series 3 processors. It is recommended to update to NPU driver version 32.0.100.5540 or later, available at `Intel® NPU Driver – Windows <https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html>`__. If a driver update is not possible, using an OpenVINO™ version prior to 2026.2 is recommended as an alternative workaround.
 
+| **Component: CPU Plugin**
+| ID: CVS-193299
+| Description:
+| After upgrading to oneDNN rls-v3.13, a slight performance regression may be observed on Intel® Xeon® platforms for some convolution-intensive models.
+
 Previous 2026 releases
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
