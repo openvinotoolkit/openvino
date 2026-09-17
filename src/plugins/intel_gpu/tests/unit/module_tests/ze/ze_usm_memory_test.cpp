@@ -7,12 +7,14 @@
 #include "ze_test_context.hpp"
 
 #include "intel_gpu/runtime/memory.hpp"
-#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "ze/ze_memory.hpp"
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <numeric>
 #include <vector>
 
@@ -36,6 +38,15 @@ std::vector<allocation_type> get_supported_ze_alloc_types(const std::shared_ptr<
 	return alloc_types;
 }
 
+// Removes the backing file for a memory-mapped cache buffer once the test is done with it.
+struct scoped_file_remover {
+	std::filesystem::path path;
+	~scoped_file_remover() {
+		std::error_code ec;
+		std::filesystem::remove(path, ec);
+	}
+};
+
 } // namespace
 
 class ze_host_buffer_cache_test : public ::testing::TestWithParam<size_t> {};
@@ -47,15 +58,43 @@ TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
 	} catch (const std::exception& e) {
 		GTEST_SKIP() << "No usable Level Zero GPU device found: " << e.what();
 	}
-	if (!ctx.ze_test_engine->can_use_host_usm_zero_copy()) {
-		GTEST_SKIP() << "Device does not support zero-copy cache loading";
+
+
+
+	// The cache file itself may be smaller than a page (e.g. a small user cache); create_hostbuffer's
+	// native zeMemAllocHost path still needs a page-aligned mapping, so load_mmap_object pads the file.
+	const size_t requested_size = GetParam();
+
+	// create_hostbuffer maps the pointer directly via zeMemAllocHost when the driver supports it
+	// and the buffer is page-aligned; otherwise it falls back to the OpenCL/Level-Zero interop (LEO)
+	// bridge, which requires driver support that isn't guaranteed to be present.
+	const auto& device_info = ctx.ze_test_engine->get_device_info();
+	if (!device_info.supports_external_memmap_sysmem && !device_info.supports_leo) {
+		GTEST_SKIP() << "Neither native ZE host-pointer import nor "
+		                "Level Zero - OpenCL interoperability (LEO) is supported on this device/driver";
 	}
 
-	const size_t data_size = GetParam();
-	const size_t alignment = std::max(ov::util::min_page_alignment,
-	                                  static_cast<size_t>(ctx.ze_test_engine->get_device_info().cacheline_size.value_or(0)));
-	ov::AlignedBuffer cache_buffer(data_size, alignment);
-	auto* cache_data = cache_buffer.get_ptr<uint8_t>();
+	// Back the cache by a real memory-mapped file (mmap on Linux, MapViewOfFile on Windows) instead of a
+	// plain heap buffer, matching how OpenVINO actually maps cached model weights on disk.
+	const auto cache_path = std::filesystem::temp_directory_path() /
+	    ("ov_ze_host_buffer_cache_test_" + std::to_string(requested_size) + ".bin");
+	{
+		std::ofstream file(cache_path, std::ios::binary);
+		ASSERT_TRUE(file.good()) << "Failed to create temporary cache file: " << cache_path;
+		std::vector<char> zeros(requested_size, 0);
+		file.write(zeros.data(), static_cast<std::streamsize>(zeros.size()));
+	}
+	scoped_file_remover file_remover{cache_path};
+
+	// size_alignment pads the file (with real zero bytes) up to a page boundary if it isn't already one.
+	auto mm = ov::load_mmap_object(cache_path, 0, requested_size, false, ov::MmapMode::READ_WRITE,
+	                               ov::util::min_page_alignment);
+	ASSERT_NE(mm, nullptr);
+	const size_t data_size = mm->size();
+	ASSERT_EQ(data_size % ov::util::min_page_alignment, 0u);
+	ASSERT_GE(data_size, requested_size);
+	auto* cache_data = reinterpret_cast<uint8_t*>(mm->data());
+
 	// Fill the whole cache buffer with a deterministic, non-trivial pattern so a full
 	// readback can catch any corruption/mis-offset introduced by the zero-copy wrapping,
 	// not just a handful of sampled positions.
@@ -64,11 +103,14 @@ TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
 	}
 
 	const layout cache_layout = {{static_cast<int64_t>(data_size)}, data_types::u8, format::bfyx};
-	auto memory = ctx.ze_test_engine->create_hostbuffer(cache_data,
-	                                                   data_size,
-	                                                   allocation_type::cl_mem,
-	                                                   cache_layout,
-	                                                   true);
+	memory::ptr memory;
+	// The spec only guarantees heap/stack/statically-allocated host memory can be zero-copy imported;
+	// mmap'd file memory is explicitly "platform- and driver-dependent" and may be rejected.
+	try {
+		memory = ctx.ze_test_engine->create_hostbuffer(cache_data, data_size, allocation_type::cl_mem, cache_layout, true);
+	} catch (const std::exception& e) {
+		GTEST_SKIP() << "Wrapping memory-mapped file memory is not supported on this device/driver: " << e.what();
+	}
 
 	ASSERT_NE(memory, nullptr);
 	ASSERT_EQ(memory->buffer_ptr(), cache_data);
@@ -94,9 +136,10 @@ INSTANTIATE_TEST_SUITE_P(cache_buffer_sizes,
                          ze_host_buffer_cache_test,
                          ::testing::Values(size_t{2} * 1024,
                                            size_t{4} * 1024,
-                                           size_t{1} * 1024 * 1024,
-                                           size_t{2} * 1024 * 1024,
-                                           size_t{1} * 1024 * 1024 * 1024));
+                                           size_t{4} * 1024 + size_t{1} * 1024,
+                                           size_t{1} * 1024 * 1024 + size_t{1} * 1024,
+                                           size_t{2} * 1024 * 1024 + size_t{1} * 1024,
+                                           size_t{1} * 1024 * 1024 * 1024 + size_t{1} * 1024));
 
 TEST(ze_usm_memory, copy_and_read_buffer) {
 	auto ctx = create_ze_test_context();

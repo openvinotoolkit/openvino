@@ -5,6 +5,7 @@
 #include "ze_engine.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/util/memory.hpp"
 #include "ze_kernel_builder.hpp"
 #include "openvino/zero_api.hpp"
 #include "ze_engine_factory.hpp"
@@ -202,6 +203,31 @@ memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
                     " bytes");
 
     auto ctx = get_context();
+
+    // Prefer mapping the host pointer directly via the native ZE_extension_external_memmap_sysmem
+    // extension: it avoids the OpenCL interop round-trip (ze_export_ocl_context + clCreateBuffer +
+    // ze_import_usm) entirely. The extension requires the pointer and size to be page-aligned.
+    const bool is_page_aligned = (reinterpret_cast<std::uintptr_t>(cpu_address) % ov::util::min_page_alignment) == 0 &&
+                                  (data_size % ov::util::min_page_alignment) == 0;
+    if (get_device_info().supports_external_memmap_sysmem && is_page_aligned) {
+        ze_external_memmap_sysmem_ext_desc_t sysmem_desc = {};
+        sysmem_desc.stype = ZE_STRUCTURE_TYPE_EXTERNAL_MEMMAP_SYSMEM_EXT_DESC;
+        sysmem_desc.pSystemMemory = cpu_address;
+        sysmem_desc.size = data_size;
+
+        ze_host_mem_alloc_desc_t host_desc = {};
+        host_desc.stype = ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC;
+        host_desc.pNext = &sysmem_desc;
+        host_desc.flags = (access_flags & CL_MEM_READ_ONLY) ? ZE_HOST_MEM_ALLOC_FLAG_MEM_READ_ONLY : 0;
+
+        ov_ze_usm_handle usm_handle{ctx.handle(), nullptr};
+        OV_ZE_EXPECT(ze::zeMemAllocHost(usm_handle.context, &host_desc, data_size, 0, &usm_handle.ptr));
+        OPENVINO_ASSERT(usm_handle.ptr == cpu_address,
+                        "[GPU] zeMemAllocHost with external system memory mapping returned a different pointer than requested");
+        ze_usm_resource imported_buffer(usm_handle);
+        return std::make_shared<ze::gpu_usm>(this, output_layout, imported_buffer, allocation, nullptr);
+    }
+
     ze_export_ocl_context(ctx, get_device());
     cl_int err = CL_SUCCESS;
     cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;

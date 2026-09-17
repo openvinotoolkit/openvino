@@ -145,18 +145,20 @@ class MapHolder final : public MappedMemory {
 public:
     MapHolder() = default;
 
-    void set(const std::filesystem::path& path, const size_t offset, const size_t size, const MmapMode mmap_mode) {
+    void set(const std::filesystem::path& path, const size_t offset, const size_t size, const MmapMode mmap_mode,
+              const size_t size_alignment = 0) {
         int mode = (mmap_mode == MmapMode::READ_WRITE) ? O_RDWR : O_RDONLY;
         int fd = open(path.c_str(), mode);
         if (fd == -1) {
             throw std::runtime_error("Can not open file " + util::path_to_string(path) +
                                      " for mapping. Ensure that file exists and has appropriate permissions.");
         }
-        set_from_fd(fd, offset, size, mmap_mode);
+        set_from_fd(fd, offset, size, mmap_mode, size_alignment);
         m_id = (mmap_mode == MmapMode::READ_WRITE) ? no_mapping_id : util::get_id_for_file(path, offset, size);
     }
 
-    void set_from_fd(const int fd, const size_t offset, const size_t size, const MmapMode mmap_mode = MmapMode::READ) {
+    void set_from_fd(const int fd, const size_t offset, const size_t size, const MmapMode mmap_mode = MmapMode::READ,
+                      const size_t size_alignment = 0) {
         m_handle = HandleHolder(fd);
 
         struct stat sb = {};
@@ -169,9 +171,35 @@ public:
             throw std::runtime_error("Requested mapping range exceeds file size for fd=" + std::to_string(fd));
         }
 
+        // Real cache/weight files are not guaranteed to be a multiple of size_alignment (e.g. page size),
+        // so pad the underlying file with real zero bytes to reach the requested alignment.
+        if (size_alignment > 0) {
+            // gap below is only ever 0 when offset is itself a multiple of size_alignment; otherwise
+            // the returned data() pointer would not actually be aligned even though m_size is.
+            if (offset % size_alignment != 0) {
+                throw std::runtime_error("offset must be a multiple of size_alignment (" +
+                                         std::to_string(size_alignment) + ") for the mapped pointer to be aligned");
+            }
+            const size_t aligned_size = util::align_size_up(m_size, size_alignment);
+            if (aligned_size > m_size) {
+                if (mmap_mode != MmapMode::READ_WRITE) {
+                    throw std::runtime_error("Padding mapping to a " + std::to_string(size_alignment) +
+                                             "-byte alignment requires MmapMode::READ_WRITE to extend the file");
+                }
+                if (ftruncate(fd, static_cast<off_t>(offset + aligned_size)) != 0) {
+                    throw std::runtime_error("Can not extend file for aligned mapping, fd=" + std::to_string(fd) +
+                                             ", err=" + std::strerror(errno));
+                }
+                m_size = aligned_size;
+            }
+        }
+
         if (m_size > 0) {
             const auto prot = (mmap_mode == MmapMode::READ_WRITE) ? (PROT_READ | PROT_WRITE) : PROT_READ;
             const auto& [aligned_offset, length, gap] = util::make_mmap_region(offset, m_size);
+            if (size_alignment > 0 && gap != 0) {
+                throw std::runtime_error("[internal error] mapped pointer is not aligned");
+            }
             m_mapped_view_size = length;
             m_mapped_view = mmap(nullptr, length, prot, MAP_SHARED, fd, aligned_offset);
             if (m_mapped_view == MAP_FAILED) {
@@ -240,9 +268,10 @@ std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path
                                                size_t offset,
                                                size_t size,
                                                bool /* no_placeholder */,
-                                               MmapMode mode) {
+                                               MmapMode mode,
+                                               size_t size_alignment) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path, offset, size, mode);
+    holder->set(path, offset, size, mode, size_alignment);
     return holder;
 }
 

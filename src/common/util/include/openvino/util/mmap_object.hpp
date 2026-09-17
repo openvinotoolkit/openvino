@@ -93,13 +93,20 @@ public:
  *                       across the whole mapping, required for NPU zero-copy blob import. On Linux ignored.
  * @param mode Access mode of the mapping. A read_write mapping requires the file to be writable and reports
  *             no_mapping_id, because get_id() marks an immutable data source that consumers may share.
+ * @param size_alignment When non-zero, pads the mapping's reported size up to this byte alignment (e.g. the
+ *                        system page size) by physically extending the underlying file with zero bytes.
+ *                        Requires MmapMode::READ_WRITE and offset to be a multiple of size_alignment (otherwise
+ *                        the returned data() pointer would not itself be aligned); throws otherwise. Useful when
+ *                        a caller needs a page-aligned pointer and size (e.g. for zero-copy import into another
+ *                        API) but the source file itself may be smaller than one page.
  * @return MappedMemory shared ptr object which keep mmaped memory and control the lifetime.
  */
 std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& path,
                                                    size_t offset = 0,
                                                    size_t size = auto_size,
                                                    bool no_placeholder = false,
-                                                   MmapMode mode = MmapMode::READ);
+                                                   MmapMode mode = MmapMode::READ,
+                                                   size_t size_alignment = 0);
 
 /**
  * @brief Returns mapped memory for a file from provided file handle (cross-platform).

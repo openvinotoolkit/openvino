@@ -55,15 +55,21 @@ std::vector<cl_device_id> find_ocl_devices() {
 }
 
 std::vector<std::pair<ze_driver_handle_t, ze_device_handle_t>> find_ze_devices() {
-    ze_init_driver_type_desc_t desc = { ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC, nullptr, ZE_INIT_DRIVER_TYPE_FLAG_GPU };
+    // Use the same zeInit/zeDriverGet enumeration as ze_device_detector so that driver/device
+    // handles match the ones used to create engine devices (zeInitDrivers enumerates a
+    // separate driver instance and yields handles that don't compare equal to these).
     ze_result_t error;
+    error = zeInit(ZE_INIT_FLAG_GPU_ONLY);
+    if (error != ZE_RESULT_SUCCESS) {
+        return {};
+    }
     uint32_t driver_count = 0;
-    error = zeInitDrivers(&driver_count, nullptr, &desc);
+    error = zeDriverGet(&driver_count, nullptr);
     if (error != ZE_RESULT_SUCCESS || driver_count == 0) {
         return {};
     }
     std::vector<ze_driver_handle_t> drivers(driver_count);
-    error = zeInitDrivers(&driver_count, drivers.data(), &desc);
+    error = zeDriverGet(&driver_count, drivers.data());
     if (error != ZE_RESULT_SUCCESS) {
         return {};
     }
