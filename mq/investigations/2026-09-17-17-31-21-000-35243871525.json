@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-17-17-31-21-000-35243871525",
+  "timestamp": "2026-09-17T17:31:21Z",
+  "run_id": "35243871525",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35243871525",
+  "workflow_name": "OpenVINO JS API",
+  "pr_number": "38121",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38121",
+  "author": "alvoron",
+  "category": "External Service",
+  "title": "OpenVINO JS API tests fail to download test model with 503 from raw.githubusercontent.com",
+  "signature": "Server returned status code 503|External Service",
+  "signature_hash": "ffd22b8ddfd9b602",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO JS API (22) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "npm run test_setup fails with UnhandledPromiseRejection downloading test_model_fp32.xml, 503 from raw.githubusercontent.com"
+    },
+    {
+      "name": "OpenVINO JS API (24) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "npm run test_setup fails with UnhandledPromiseRejection downloading test_model_fp32.xml, 503 from raw.githubusercontent.com"
+    },
+    {
+      "name": "OpenVINO JS API (26) / OpenVINO JS API",
+      "conclusion": "failure",
+      "symptom": "npm run test_setup fails with UnhandledPromiseRejection downloading test_model_fp32.xml, 503 from raw.githubusercontent.com"
+    }
+  ],
+  "key_errors": [
+    "Failed to download the model: Server returned status code 503..",
+    "UnhandledPromiseRejection: This error originated either by throwing inside of an async function without a catch block, or by rejecting a promise which was not handled with .catch(). The promise rejected with the reason \"Server returned status code 503.\".",
+    "Downloading file by link: https://raw.githubusercontent.com/openvinotoolkit/testdata/master/models/test_model/test_model_fp32.xml to /__w/openvino/openvino/src/bindings/js/node/tests/unit/test_models"
+  ],
+  "root_cause": "The `npm run test_setup` step for the OpenVINO JS API tests downloads test fixture models from `raw.githubusercontent.com/openvinotoolkit/testdata`. All three parallel shards of the JS API job hit an identical `Server returned status code 503` from that GitHub-hosted raw-content endpoint while fetching `test_model_fp32.xml`, an unhandled promise rejection then crashes `tests/setup.js` with exit code 1 before any actual JS API test runs. Nothing in the PR's changed files (CPU/ARM ACL executor and FC weight-format code) touches the JS bindings, npm scripts, or test fixtures, so this is an external GitHub raw-content availability blip, not a regression introduced by the PR.",
+  "reproduction_steps": "Not reliably reproducible locally - depends on transient 503 responses from raw.githubusercontent.com at fetch time. To attempt reproduction: cd src/bindings/js/node && npm run test_setup (may succeed once the upstream 503 clears).",
+  "recommended_actions": [
+    "Re-run the failed OpenVINO JS API jobs; a plain retry very likely succeeds once GitHub's raw-content CDN clears the 503.",
+    "Consider adding retry/backoff logic around the model download in src/bindings/js/node/tests/setup.js so a single transient 503 doesn't fail the whole test_setup step.",
+    "Consider caching the testdata fixture files (e.g., via actions/cache) so JS API jobs don't repeatedly re-download the same static model files on every merge-queue run."
+  ],
+  "prevention_strategies": "Add exponential-backoff retry (e.g., 2-3 attempts) around the HTTP fetch in tests/setup.js for downloading testdata fixtures, and surface a clearer error distinguishing infra/network failures from real test failures. Caching the small, rarely-changing test_model_fp32.xml/.bin fixtures would also remove the network dependency entirely from most runs.",
+  "historical_context": "No prior CI Doctor MQ pattern was found for this specific 503-on-testdata-download signature; this is the first recorded occurrence in the merge-queue pattern database."
+}

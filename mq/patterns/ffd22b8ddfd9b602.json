@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "Server returned status code 503|External Service",
+  "signature_hash": "ffd22b8ddfd9b602",
+  "title": "OpenVINO JS API tests fail to download test model with 503 from raw.githubusercontent.com",
+  "category": "External Service",
+  "count": 1,
+  "first_seen": "2026-09-17T17:31:21Z",
+  "last_seen": "2026-09-17T17:31:21Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35243871525"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38121"
+  ],
+  "recent_timestamps": [
+    "2026-09-17T17:31:21Z"
+  ],
+  "rerun_search_string": "Server returned status code 503"
+}

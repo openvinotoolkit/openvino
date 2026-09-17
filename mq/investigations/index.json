@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 246,
+  "total": 247,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2413,6 +2413,17 @@
       "category": "Flaky Test",
       "signature_hash": "00df33024e43569d",
       "pr_number": "38209"
+    },
+    {
+      "investigation_id": "2026-09-17-17-31-21-000-35243871525",
+      "run_id": "35243871525",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35243871525",
+      "workflow_name": "OpenVINO JS API",
+      "timestamp": "2026-09-17T17:31:21Z",
+      "title": "OpenVINO JS API tests fail to download test model with 503 from raw.githubusercontent.com",
+      "category": "External Service",
+      "signature_hash": "ffd22b8ddfd9b602",
+      "pr_number": "38121"
     }
   ]
 }
