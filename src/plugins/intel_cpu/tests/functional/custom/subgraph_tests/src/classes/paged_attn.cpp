@@ -637,7 +637,6 @@ void PagedAttnTestBase::prepare() {
     ASSERT_NE(runtime_model, nullptr);
     if (runtime_model->has_rt_info("paged_attention_block_size")) {
         EXPECT_EQ(runtime_model->get_rt_info<size_t>("paged_attention_block_size"), 32);
-        EXPECT_EQ(compiledModel.get_property("PAGED_ATTENTION_BLOCK_SIZE").as<size_t>(), 32);
     }
 }
 void PagedAttnTestBase::reset() {

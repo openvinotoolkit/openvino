@@ -343,10 +343,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
             ov::PropertyName{ov::runtime_requirements.name(), PropertyMutability::RO},
         };
-        if (!m_graphs.empty() && get_graph(0)->get_paged_attention_block_size().has_value()) {
-            supported_properties.push_back(
-                ov::PropertyName{ov::internal::paged_attention_block_size.name(), PropertyMutability::RO});
-        }
         return supported_properties;
     }
     if (name == ov::model_name) {
@@ -367,15 +363,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
     if (name == ov::runtime_requirements) {
         return decltype(ov::runtime_requirements)::value_type{m_runtime_requirements};
-    }
-    if (name == ov::internal::paged_attention_block_size || name == "paged_attention_block_size") {
-        if (!m_graphs.empty()) {
-            auto pa_bs = get_graph(0)->get_paged_attention_block_size();
-            if (pa_bs.has_value()) {
-                return pa_bs.value();
-            }
-        }
-        OPENVINO_THROW("[GPU] Model does not contain PagedAttention");
     }
 
     return m_config.get_property(name, OptionVisibility::RELEASE);

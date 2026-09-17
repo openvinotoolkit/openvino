@@ -222,11 +222,6 @@ class CompiledModel(openvino._pyopenvino.CompiledModel):
         """
     def get_runtime_model(self) -> Model:
         ...
-    def get_rt_info(self, *args: typing.Any) -> typing.Any:
-        ...
-    @property
-    def rt_info(self) -> typing.Any:
-        ...
     def infer_new_request(self, inputs: typing.Any = None) -> openvino.utils.data_helpers.wrappers.OVDict:
         """
         Infers specified input(s) in synchronous mode.
