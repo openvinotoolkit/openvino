@@ -24,7 +24,7 @@ namespace ov::op::internal {
 ///     containing the full history for this call;
 ///   - the indexer raw-K/summary cache inputs are expected to be the outputs of a
 ///     `QSAIndexerCache` node (a `VariableExtension` that internally reuses the existing
-///     Q1 kernel unchanged; see QSA_SDPA_DESIGN.md section 4.3 for the full rationale).
+///     Q1 kernel unchanged).
 ///
 /// Lowering (`ops/qsa_sdpa.cpp::CreateQSASDPAOp`) reinterprets these dense
 /// `[num_seqs, ..., S, ...]` tensors as a "degenerate" page table (one physical page per

@@ -25,6 +25,7 @@
 #include <intel_gpu/primitives/qsa.hpp>
 #include <intel_gpu/runtime/internal_properties.hpp>
 #include <intel_gpu/runtime/profiling.hpp>
+#include "openvino/core/graph_util.hpp"
 #include <iostream>
 #include <limits>
 #include <map>
@@ -620,8 +621,8 @@ struct qsa_prepare_only_result {
 /// in place exactly as it already does inside a normal QSA call -- Q0/Q2/Q3 never run,
 /// and the primitive's declared attention output is left uninitialized (not read here).
 ///
-/// This is the primitive-level foundation of the future `QSAIndexerCache` op (see
-/// QSA_SDPA_DESIGN.md "Option 2"): that op would wrap this exact call pattern behind a
+/// This is the primitive-level foundation of the future `QSAIndexerCache` op:
+/// that op would wrap this exact call pattern behind a
 /// `VariableExtension`, so verifying here that (a) Q1 alone correctly extends raw-K/
 /// summary from an arbitrary partially-populated starting point, and (b) doing so is
 /// numerically IDENTICAL to what a normal (non-prepare_only) call already produces, is
@@ -1961,8 +1962,8 @@ TEST(qsa_gpu_test, qsa_indexer_cache_clone_preserves_both_variables) {
 // The main K/V and indexer raw-K/summary caches are supplied as PLAIN, dense
 // ov::op::v0::Parameter inputs -- i.e. this test exercises the "advanced caller manages
 // all cache state externally" usage mode (a real, intentionally-supported mode: nothing
-// requires an external KVCache/QSAIndexerCache node to feed QSASDPA, see QSA_SDPA_DESIGN.md
-// section 4.2), NOT the KVCache-fused or QSAIndexerCache-backed path (QSASDPAFusion and
+// requires an external KVCache/QSAIndexerCache node to feed QSASDPA,
+// NOT the KVCache-fused or QSAIndexerCache-backed path (QSASDPAFusion and
 // QSAIndexerCache's own ProgramBuilder lowering remain future work, see the design doc).
 //
 // Per the lowering's own static-shape requirement (see ops/qsa_sdpa.cpp's block comment:
@@ -2353,7 +2354,7 @@ TEST(qsa_gpu_test, qsasdpa_ov_model_mixed_batch_matches_reference) {
 }
 
 // Dynamic B (or an unbounded/dynamic max-sequence-length capacity) must be rejected at
-// graph-compile time with a clear error, per QSA_SDPA_DESIGN.md section 7 -- not silently
+// graph-compile time with a clear error -- not silently
 // produce wrong numbers. This exercises ops/qsa_sdpa.cpp::CreateQSASDPAOp's own static-shape
 // assertions (see its block comment), reached only once the op participates in a real
 // compile_model("GPU") call (the host-side tests earlier in this file never lower the op).
@@ -2408,7 +2409,7 @@ TEST(qsa_gpu_test, qsasdpa_rejects_dynamic_key_cache_shape) {
                            position_ids_p});
 
     ASSERT_THROW(core.compile_model(model, "GPU"), ov::Exception)
-        << "dynamic B / KEY_CACHE_DENSE shape must be rejected at compile time (QSA_SDPA_DESIGN.md section 7), not silently mis-lowered";
+        << "dynamic B / KEY_CACHE_DENSE shape must be rejected at compile time, not silently mis-lowered";
 }
 
 // ---------------------------------------------------------------------------

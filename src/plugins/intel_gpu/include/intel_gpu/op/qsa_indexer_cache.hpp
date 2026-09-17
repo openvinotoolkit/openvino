@@ -12,7 +12,7 @@
 namespace ov::intel_gpu::op {
 
 /// @brief GPU-internal stateful cache for the QSA indexer's raw-K and block-summary tensors,
-/// used by the SDPA-style `QSASDPA` op (see QSA_SDPA_DESIGN.md section 4.3, "Option 2").
+/// used by the SDPA-style `QSASDPA` op.
 ///
 /// `QSA` (PagedAttention-style) keeps the indexer raw-K/summary caches as physically-paged
 /// graph inputs managed by an external continuous-batching scheduler. `QSASDPA` instead

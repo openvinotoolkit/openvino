@@ -23,7 +23,7 @@ std::vector<layout> qsa_inst::calc_output_layouts(const qsa_node& /*node*/, cons
     const auto& desc = impl_param.typed_desc<qsa>();
 
     if (desc->prepare_only) {
-        // QSAIndexerCache lowering (see QSA_SDPA_DESIGN.md section 4.3): Q1 mutates the
+        // QSAIndexerCache lowering: Q1 mutates the
         // INDEXER_RAW_K_CACHE / INDEXER_SUMMARY_CACHE inputs in place, so the primitive's
         // two declared outputs are simply those same (post-mutation) buffers -- there is
         // no separate "attention output" to compute when Q2/Q3 never run. Declaring them

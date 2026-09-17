@@ -31,7 +31,7 @@ struct qsa : public primitive_base<qsa> {
     // prepare_only: when true, ONLY Q1 (qsa_prepare / qsa_project_dpas) is dispatched --
     // Q0 is skipped exactly as if skip_kv_write were also set, and Q2 (score/top-k) and
     // Q3 (sparse attention) are skipped too. This is the primitive-level building block
-    // for the future QSAIndexerCache op (see QSA_SDPA_DESIGN.md "Option 2"): Q1 is reused
+    // for the future QSAIndexerCache op: Q1 is reused
     // completely unchanged, just addressed through a degenerate (one-page-per-sequence)
     // page table, to own the indexer raw-K/summary persistent state independently of the
     // main-attention side. The primitive's declared attention output is left uninitialized
