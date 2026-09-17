@@ -1051,7 +1051,9 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                         "HFA tile output index out of range");
 
                         ov::SoPtr<ov::ITensor> state_acc, state_max, state_sum;
-                        if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
+                        const bool has_state_buffers =
+                            state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers();
+                        if (has_state_buffers) {
                             const auto& current_buffer = state.hfa_runtime_ctx->get_current_state_buffers();
                             state_acc = current_buffer.acc;
                             state_max = current_buffer.max;
@@ -1073,7 +1075,7 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                             state_sum = regular_tile_request->get_tensor(
                                 hfa_desc->_compiled_tile_model->inputs()[regular_tile_in.d]);
                         }
-                        if (attention_sink_tensor) {
+                        if (!has_state_buffers || attention_sink_tensor) {
                             runtime::host_flash_attention::HFARuntimeContext::initialize_state_tensors(
                                 state_acc,
                                 state_max,
