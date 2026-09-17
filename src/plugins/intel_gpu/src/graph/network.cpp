@@ -61,6 +61,31 @@
 namespace cldnn {
 namespace {
 
+// Check if layouts are the same after expanding the lower-rank shape with ones
+bool compare_expanded_layout(layout left, layout right) {
+    auto left_shape = left.get_partial_shape();
+    auto right_shape = right.get_partial_shape();
+
+    // Fall back to strict equality for dynamic shapes
+    if (left_shape.rank().is_dynamic() || right_shape.rank().is_dynamic()) {
+        return left == right;
+    }
+
+    const size_t max_rank = std::max(left_shape.size(), right_shape.size());
+    auto expand_with_trailing_ones = [max_rank](ov::PartialShape& shape) {
+        while (shape.size() < max_rank) {
+            shape.push_back(ov::Dimension(1));
+        }
+    };
+    expand_with_trailing_ones(left_shape);
+    expand_with_trailing_ones(right_shape);
+
+    left.set_partial_shape(left_shape);
+    right.set_partial_shape(right_shape);
+
+    return left == right;
+}
+
 #ifdef GPU_DEBUG_CONFIG
 void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>& exec_order) {
     auto layouts_to_str = [](const std::vector<layout>& layouts) -> std::string {
@@ -422,7 +447,7 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
     const auto new_mem = input->output_memory_ptr();
     const bool same_buffer = prev_mem && new_mem &&
                              get_engine().is_the_same_buffer(*prev_mem, *new_mem) &&
-                             prev_mem->get_layout().compatible(new_mem->get_layout());
+                             compare_expanded_layout(prev_mem->get_layout(), new_mem->get_layout());
     if (!same_buffer)
         invalidate_stream_recording();
 
@@ -587,10 +612,10 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
     std::shared_ptr<primitive_inst> p_inst = find_primitive(id);
 
     const auto prev_out = p_inst->output_memory_ptr();
-    const bool same_output_buffer = prev_out && mem_new &&
+    const bool same_buffer = prev_out && mem_new &&
                                     get_engine().is_the_same_buffer(*prev_out, *mem_new) &&
-                                    prev_out->get_layout().compatible(mem_new->get_layout());
-    if (!same_output_buffer)
+                                    compare_expanded_layout(prev_out->get_layout(), mem_new->get_layout());
+    if (!same_buffer)
         invalidate_stream_recording();
 
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
