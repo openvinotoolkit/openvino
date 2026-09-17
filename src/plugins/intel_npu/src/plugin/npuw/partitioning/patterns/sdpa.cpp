@@ -623,7 +623,7 @@ ShapeOfParameter::ShapeOfParameter() {
                 input.replace_source_output(new_const);
             }
         }
-        return false;  // root hasn't changed (?)
+        return false;
     };
     register_matcher(std::make_shared<opp::Matcher>(param_shp, "ShapeOfParameter"), std::move(callback));
 }
@@ -645,7 +645,7 @@ ShapeOfConcat::ShapeOfConcat() {
                 input.replace_source_output(new_const);
             }
         }
-        return false;  // root hasn't changed (?)
+        return false;
     };
     register_matcher(std::make_shared<opp::Matcher>(concat_shp, "ShapeOfConcat"), std::move(callback));
 }
