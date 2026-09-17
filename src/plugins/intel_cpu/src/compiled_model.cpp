@@ -10,7 +10,6 @@
 #include <exception>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <ostream>
 #include <utility>
 #include <vector>
@@ -29,7 +28,6 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
-#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"

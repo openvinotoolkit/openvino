@@ -313,7 +313,7 @@ std::shared_ptr<Graph> CompiledModel::get_graph(size_t n) const {
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::supported_properties) {
-        auto supported_properties = decltype(ov::supported_properties)::value_type{
+        return decltype(ov::supported_properties)::value_type{
             // Metrics
             ov::PropertyName{ov::supported_properties.name(), PropertyMutability::RO},
             ov::PropertyName{ov::model_name.name(), PropertyMutability::RO},
@@ -346,7 +346,6 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             ov::PropertyName{ov::execution_devices.name(), PropertyMutability::RO},
             ov::PropertyName{ov::runtime_requirements.name(), PropertyMutability::RO},
         };
-        return supported_properties;
     }
     if (name == ov::model_name) {
         return decltype(ov::model_name)::value_type {m_model_name};

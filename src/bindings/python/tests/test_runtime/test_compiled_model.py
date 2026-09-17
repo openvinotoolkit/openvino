@@ -18,7 +18,7 @@ from tests.utils.helpers import (
     decrypt_base64,
     create_filenames_for_ir,
     create_filename_for_test)
-from openvino import Model, Shape, Core, Tensor, serialize, RTMap
+from openvino import Model, Shape, Core, Tensor, serialize
 from openvino import ConstOutput
 
 import openvino.properties as props
