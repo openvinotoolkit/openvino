@@ -7,6 +7,9 @@ Example:
             <backend></backend> (special case for no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
+            <driver_version>1688</driver_version> (exact build number, safe only for PV builds)
+            <driver_release>PV</driver_release> (driver type from --driver_release CLI arg: PV | RELEASE | LATEST)
+            <driver_release>!LATEST</driver_release> (negate: applies on PV and RELEASE)
             <operating_system>windows</operating_system>
             <operating_system>linux</operating_system>
         </enable_rules>
@@ -105,7 +108,7 @@ Example:
         <message>Data types not supported by NPU3720 PV Driver.</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
         </enable_rules>
         <filters>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*</filter>
@@ -163,7 +166,7 @@ Example:
         <message>Failing Windows PV Driver core threading tests</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
             <operating_system>windows</operating_system>
         </enable_rules>
         <filters>
@@ -274,9 +277,10 @@ Example:
 
     <!-- C#191861 -->
     <skip_config>
-        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
+        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010 and NPU6010</message>
         <enable_rules>
             <device>5010</device>
+            <device>6010</device>
         </enable_rules>
         <filters>
             <filter>.*OVBlobCompatibilityNPU.*</filter>
@@ -287,7 +291,7 @@ Example:
         <message>PV driver cannot create infer request for models with boolean inputs</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
         </enable_rules>
         <filters>
             <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
@@ -330,7 +334,7 @@ Example:
         <message>UD12 driver does not support CACHE_ENCRYPTION_CALLBACKS on MTL</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>2020568</driver_version>
+            <driver_release>RELEASE</driver_release>
         </enable_rules>
         <filters>
             <filter>.*OVClassCompiledModelPropertiesTests.CanUseCache.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
@@ -344,7 +348,7 @@ Example:
     <skip_config>
         <message>UD12 driver does not support secure compilation</message>
         <enable_rules>
-            <driver_version>2020568</driver_version>
+            <driver_release>RELEASE</driver_release>
         </enable_rules>
         <filters>
             <filter>.*WeightlessCacheAccuracy.ReadConcatSplitAssign.*do_encryption=True.*(config=_|NPU_COMPILER_TYPE\[DRIVER\]).*</filter>
@@ -357,7 +361,7 @@ Example:
         <message>PV driver cannot compile models securely</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
         </enable_rules>
         <filters>
             <filter>.*OVHoldersTestNPU.CompileModelWithEncryptionWorksAfterConfigDeallocate.*</filter>
@@ -392,6 +396,40 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*InferWithHostCompileTests.*model=MaxPool.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#191823 -->
+    <skip_config>
+        <message>HostCompile cannot compile the dynamic Add model because AdjustScaleShiftForDWConv requires static Reshape shapes.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*DynamicBatchingTests.DynamicCheckMultipleBatchingRun0.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchingTests.DynamicCheckMultipleBatchingRunsSeq.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsMultipleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsDynamicBatchInflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsDynamicBatchDeflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorSingleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorSingleInferWithExportImport.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchInflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchInflationWithExportImport.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchDeflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputDifferentTensorsMultipleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*RoiTensorsTestsRun.RunStridedTensorWithDynamicBoundedBatching.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>HostCompile cannot compile the dynamic MaxPool model because ConvertBatchedLayerTo1N requires static AffineReshape shapes.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferWithDefaultHostCompileTests.CompileDynamicModelWithNoHostCompileMode.*model=MaxPool_NCHW_DynBatch.*</filter>
         </filters>
     </skip_config>
 

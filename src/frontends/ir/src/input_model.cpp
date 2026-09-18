@@ -21,7 +21,7 @@
 
 namespace {
 void parse_pre_process(pugi::xml_node& root,
-                       std::shared_ptr<ov::util::WeightsProvider> weights_provider,
+                       const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
                        std::shared_ptr<ov::Model> model) {
     /* Preprocessing block can have two preprocessing types:
      *

@@ -427,8 +427,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
     // Helper: for a quantized tensor, compute (weights_bytes, scale_bytes, zp_bytes).
     // Symmetric types (Q4_0, Q8_0, Q5_0, Q6_K): zp_bytes = 0.
-    // Asymmetric types (Q4_1, Q4_K): zp u4 packed (same count as scales, half the bytes).
-    // Asymmetric Q5_K: zp u8 (one byte per sub-block, same count as scales).
+    // Asymmetric types: zero-points use the element type selected by gguf_zero_point_type.
     //
     // Every dim comes straight from the file, so shape products (and the total below) use
     // ov::util::mul_overflow/add_overflow instead of raw `*=`/`+=`: wrapped products could
@@ -500,8 +499,8 @@ GGUFLoad get_gguf_data(const std::string& file) {
             return {w_bytes, s_nelems * sizeof(uint16_t), 0};  // symmetric: no zp
         }
 
-        // Weights: i8 or u8 stored in byte arrays (not u32-packed anymore for sym; u32 only for 4-bit).
-        // 4-bit types: Q4_0(i4 in u32), Q4_1(u4 in u32), Q4_K(u4 in u32).
+        // Weights: i8 or u8 stored in byte arrays (u32 only for asymmetric 4-bit).
+        // 4-bit types: Q4_0(i4), Q4_1(u4 in u32), Q4_K(u4 in u32).
         // 8-bit types: Q8_0(i8), Q5_0(i8), Q5_1(i8), Q5_K(i8), Q6_K(i8).
         const bool is_4bit = (ti.type == GGUF_TYPE_Q4_0 || ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K);
         uint64_t weights_per_byte = is_4bit ? 2 : 1;
@@ -522,15 +521,16 @@ GGUFLoad get_gguf_data(const std::string& file) {
         const size_t s_nelems = size_prod(scale_shape);
         const size_t s_bytes = s_nelems * sizeof(uint16_t);
 
-        // Zero-point bytes:
-        //   Symmetric (Q4_0, Q8_0, Q5_0, Q6_K): no zp.
-        //   Q4_1, Q4_K: u4 zp — same element count as scales, packed 2/byte.
-        //   Q5_K, Q5_1: u8 zp — one byte per sub-block.
+        // Zero-point bytes. Symmetric formats have none; asymmetric formats use the same
+        // element count as scales and the representation selected by gguf_zero_point_type.
         size_t z_bytes = 0;
-        if (ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K) {
-            z_bytes = (s_nelems + 1) / 2;  // u4 packed
-        } else if (ti.type == GGUF_TYPE_Q5_K || ti.type == GGUF_TYPE_Q5_1) {
-            z_bytes = s_nelems;  // u8
+        if (ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K || ti.type == GGUF_TYPE_Q5_K ||
+            ti.type == GGUF_TYPE_Q5_1) {
+            OPENVINO_ASSERT(
+                !ov::util::mul_overflow(s_nelems,
+                                        gguf_zero_point_type(ti.name, static_cast<GgufTensorType>(ti.type)).size(),
+                                        z_bytes),
+                "[load_gguf] zero-point byte count overflows size_t");
         }
         return {w_bytes, s_bytes, z_bytes};
     };
@@ -611,20 +611,18 @@ GGUFLoad get_gguf_data(const std::string& file) {
             auto [wb, sb, bb] = quant_sizes(ti);
             char* buf_ptr = quant_buf->get_ptr<char>();
             auto shape = get_shape(tensor);
-            auto weights_shape = shape;
-            weights_shape.back() /= 8;  // u32 packs 8 i4 nibbles
             auto scale_shape = shape;
             scale_shape.back() /= 32;
 
             std::shared_ptr<void> so_buf(quant_buf);
-            ov::Tensor w_view(ov::element::u32, weights_shape, static_cast<void*>(buf_ptr + quant_offset));
+            ov::Tensor w_view(ov::element::i4, shape, static_cast<void*>(buf_ptr + quant_offset));
             ov::Tensor weights(w_view, so_buf);
             quant_offset += wb;
             ov::Tensor s_view(ov::element::f16, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
             ov::Tensor scales(s_view, so_buf);
             quant_offset += sb;
 
-            gguf_fill_q4_0(tensor, weights, scales);
+            gguf_fill_sym(tensor, weights, scales);
             mapped->hint_evict(abs_off, tensor.bsize);
 
             arrays.emplace(name, std::move(weights));
@@ -762,9 +760,8 @@ GGUFLoad get_gguf_data(const std::string& file) {
             qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
         } else if (ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K || ti.type == GGUF_TYPE_Q5_K ||
                    ti.type == GGUF_TYPE_Q5_1) {
-            // Asymmetric: weights + f16 scales + integer zp.
-            // 4-bit (Q4_1, Q4_K): u32-packed u4 weights, u4 zp.
-            // 8-bit (Q5_K, Q5_1): i8 weights, u8 zp.
+            // Asymmetric: weights + f16 scales + zero-point. Q4_K matmul weights are decoded and
+            // requantized group-wise to u4 with an integer zero-point; Q8_0_C sources keep f16.
             auto [wb, sb, zb] = quant_sizes(ti);
             char* buf_ptr = quant_buf->get_ptr<char>();
 
@@ -789,9 +786,9 @@ GGUFLoad get_gguf_data(const std::string& file) {
             // Both ingest paths must agree on the zero-point representation; see
             // gguf_zero_point_type in quant/weights.hpp for why it matters.
             const auto zp_elem = gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type));
-            // Only Q4_K's integer zp actually rounds: Q2_0's zero-point is the exact integer 1.
+            // Q4_K performs a real group-wise requantization; Q2_0's integer zero-point is exact.
             if (zp_elem == ov::element::u8 && ti.type == GGUF_TYPE_Q4_K) {
-                notify_lossy_weight_approximation(LossyWeightApproximation::INTEGER_ZERO_POINT);
+                notify_lossy_weight_approximation(LossyWeightApproximation::Q4_K_REQUANT);
             }
             ov::Tensor zp(zp_elem, scale_shape);
             quant_offset += zb;
@@ -859,20 +856,14 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     const std::string arch = *arch_ptr;
     config["architecture"] = arch;
     config["layer_num"] = metadata_to_int(metadata, arch + ".block_count");
-    config["head_num"] = metadata_to_int(metadata, arch + ".attention.head_count");
-    // When key_length is absent, head_size falls back to embedding_length / head_count, which
-    // runs before supported_archs() can reject anything; a malformed/adversarial file with
-    // head_count == 0 would otherwise be an uncatchable SIGFPE crash rather than a clear error.
-    if (!metadata.count(arch + ".attention.key_length")) {
-        OPENVINO_ASSERT(std::get<int>(config["head_num"]) > 0,
-                        "[GGUF] '",
-                        arch,
-                        ".attention.head_count' must be positive");
-    }
+    const int head_count = metadata_to_int(metadata, arch + ".attention.head_count");
+    // Validate this independently of key_length: head_count is also used by the builder and,
+    // when key_length is absent, is the divisor for the head-size fallback below.
+    OPENVINO_ASSERT(head_count > 0, "[GGUF] '", arch, ".attention.head_count' must be positive");
+    config["head_num"] = head_count;
     config["head_size"] = metadata.count(arch + ".attention.key_length")
                               ? metadata_to_int(metadata, arch + ".attention.key_length")
-                              : (metadata_to_int(metadata, arch + ".embedding_length") /
-                                 metadata_to_int(metadata, arch + ".attention.head_count"));
+                              : (metadata_to_int(metadata, arch + ".embedding_length") / head_count);
     {
         const std::string kv_key = arch + ".attention.head_count_kv";
         if (metadata.count(kv_key)) {
@@ -913,6 +904,11 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
         const bool is_yarn = metadata.count(arch + ".rope.scaling.type") &&
                              std::get<std::string>(metadata.at(arch + ".rope.scaling.type")) == "yarn";
         config["rope_ext_factor"] = is_yarn ? 1.0f : 0.0f;
+        config["rope_yarn_beta_fast"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_beta_fast", 32.0f);
+        config["rope_yarn_beta_slow"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_beta_slow", 1.0f);
+        config["rope_yarn_log_mul"] = metadata_to_float_or(metadata, arch + ".rope.scaling.yarn_log_multiplier", 0.0f);
+        config["attention_temperature_scale"] =
+            metadata_to_float_or(metadata, arch + ".attention.temperature_scale", 0.0f);
 
         // n_ctx_orig: use rope.scaling.original_context_length when present; fall back to
         // context_length (the training context, which is also n_ctx_train in llama.cpp).
@@ -965,7 +961,9 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     const float def_logit_scale = is_minicpm ? 256.0f / static_cast<float>(std::get<int>(config["hidden_size"])) : 1.0f;
     config["embedding_scale"] = metadata_to_float_or(metadata, arch + ".embedding_scale", def_embedding_scale);
     config["residual_scale"] = metadata_to_float_or(metadata, arch + ".residual_scale", def_residual_scale);
-    config["logit_scale"] = metadata_to_float_or(metadata, arch + ".logit_scale", def_logit_scale);
+    const float logit_scale = metadata_to_float_or(metadata, arch + ".logit_scale", def_logit_scale);
+    // MiniCPM shares llama.cpp's Granite graph, which divides logits by this scale.
+    config["logit_scale"] = is_minicpm && logit_scale != 0.0f ? 1.0f / logit_scale : logit_scale;
     // Hybrid linear-attention (Gated DeltaNet) parameters: qwen35 / qwen3next / kimi-linear.
     // 0 for every non-SSM architecture, which is what the builder tests against.
     auto ssm_key = [&](const std::string& k) {
@@ -1016,7 +1014,11 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // Gemma3 (like gemma/gemma2) uses 1/sqrt(n_embd_head_k); llama.cpp applies it as a
     // Qcur pre-scale with build_attn(scale=1.0), which is numerically 1/sqrt(head_size) --
     // exactly the default branch here, so gemma3 must NOT force scale=1.0.
-    const float def_attention_scale = (arch == "gemma4") ? 1.0f : 0.0f;
+    const float def_attention_scale = arch == "gemma4" ? 1.0f
+                                      : arch == "gemma2" && std::get<int>(config["layer_num"]) == 46
+                                          ? 1.0f / std::sqrt(static_cast<float>(std::get<int>(config["hidden_size"]) /
+                                                                                std::get<int>(config["head_num"])))
+                                          : 0.0f;
     config["attention_scale"] = metadata_to_float_or(metadata, arch + ".attention.scale", def_attention_scale);
 
     // gpt-oss SWA: separate RoPE frequency base for sliding-window attention layers.
@@ -1038,7 +1040,8 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     // (swa_window_size below): a token at position q may then attend to keys in
     // [q - swa_window_size + 1, q], which AdaptToGenAI needs to build a correctly windowed
     // self_kq_mask_swa instead of reusing the full causal mask.
-    uint32_t swa_window_value = 0;
+    uint32_t swa_window_value =
+        (arch == "gemma2" || (arch == "exaone4" && std::get<int>(config["layer_num"]) == 64)) ? 4096 : 0;
     if (metadata.count(arch + ".attention.sliding_window")) {
         const auto& t = std::get<ov::Tensor>(metadata.at(arch + ".attention.sliding_window"));
         const uint32_t v = *t.data<uint32_t>();
@@ -1079,15 +1082,18 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     } else {
         // No explicit pattern key. gemma3 defaults to period 6 (llama.cpp gemma3 load_arch_hparams
         // passes swa_period=6 to get_key_or_arr); gpt-oss and others default to 2.
-        config["swa_layer_pattern"] = (arch == "gemma3") ? 6 : 2;
+        config["swa_layer_pattern"] = arch == "gemma3" ? 6 : arch == "exaone4" ? 4 : 2;
         config["swa_layer_flags"] = std::vector<int32_t>{};
     }
 
     // gpt-oss MoE: optional per-expert routing weight scale applied after softmax (0 = 1.0 no-op).
     config["expert_weights_scale"] = metadata_to_float_or(metadata, arch + ".expert_weights_scale", 0.0f);
 
-    // qwen3moe/glm4moe/bailingmoe2 MoE: renormalize the selected top-K gate weights to sum to 1
-    // (llama.cpp build_moe_ffn's norm_w / "norm_topk_prob"); absent -> no renormalization.
+    // Routing metadata; architecture-required normalization is resolved in DecoderConfig.
+    config["moe_layer_step"] = metadata_to_int_or(metadata, arch + ".interleave_moe_layer_step", 1);
+    config["expert_groups"] = metadata_to_int_or(metadata, arch + ".expert_group_count", 1);
+    config["expert_groups_used"] = metadata_to_int_or(metadata, arch + ".expert_group_used_count", 1);
+    config["expert_gating_func"] = metadata_to_int_or(metadata, arch + ".expert_gating_func", 1);
     config["expert_weights_norm"] = metadata_to_bool_or(metadata, arch + ".expert_weights_norm", false) ? 1 : 0;
 
     // Gemma2 attention soft-cap: tanh(QK^T * (1/cap)) * cap applied inside the attention.

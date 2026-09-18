@@ -99,7 +99,7 @@ OutputVector translate_soft_max(const NodeContext& context) {
     // Disambiguate a 2nd input: it is either the additive mask or (gpt-oss) the attention sinks.
     const bool second_input_is_sinks =
         context.get_input_size() == 2 &&
-        is_attention_sinks_input_shape(context.get_input_shape(1), context.get_output_shape());
+        is_attention_sinks_input_shape(context.get_input_shape(1), context.get_input_shape(0));
     const bool has_mask = context.get_input_size() > 1 && !second_input_is_sinks;
     const bool has_sinks = second_input_is_sinks || context.get_input_size() > 2;
     const int sinks_input_idx = second_input_is_sinks ? 1 : 2;
@@ -107,10 +107,10 @@ OutputVector translate_soft_max(const NodeContext& context) {
     if (!has_mask) {
         if (has_sinks) {
             res = apply_sinks(context, scaled_input, context.get_input(sinks_input_idx));
-            return rename_outputs_with_suffix({res}, context.get_name());
+            return rename_outputs_with_suffix({std::move(res)}, context.get_name());
         }
         res = std::make_shared<ov::op::v8::Softmax>(scaled_input, softmax_axis);
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     ov::Output<ov::Node> mask_node_sliced;
@@ -124,7 +124,7 @@ OutputVector translate_soft_max(const NodeContext& context) {
         mask_node_sliced = std::make_shared<ov::op::v8::Slice>(mask_node, zero, token_len, one, one);
     }
 
-    auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    auto output_type = input0.get_element_type();
     if (mask_node_sliced.get_element_type() != output_type) {
         mask_node_sliced = std::make_shared<ov::op::v0::Convert>(mask_node_sliced, output_type);
     }
@@ -161,12 +161,12 @@ OutputVector translate_soft_max(const NodeContext& context) {
 
     if (has_sinks) {
         res = apply_sinks(context, biased_input, context.get_input(sinks_input_idx));
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     res = std::make_shared<ov::op::v8::Softmax>(biased_input, softmax_axis);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op
