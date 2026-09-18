@@ -561,7 +561,7 @@ void PluginPropertyManager::registerProperties() {
                 return _config.get<OptionType>();
             },
             [this, propertyName](const ov::Any& value) {
-                _config.updateAny(propertyName, value);
+                _config.update(propertyName, value);
             });
     };
 

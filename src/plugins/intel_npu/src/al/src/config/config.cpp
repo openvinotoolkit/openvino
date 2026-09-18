@@ -4,9 +4,24 @@
 
 #include "intel_npu/config/config.hpp"
 
+#include <cctype>
 #include <limits>
 
 namespace intel_npu {
+
+namespace {
+
+// `std::sto*` stops at the first character which is not part of the number, so without this check a valid
+// prefix would be enough to accept malformed values such as "12oops". Only trailing whitespace is tolerated.
+void assertFullyConsumed(const std::string& str, size_t pos) {
+    while (pos < str.size() && std::isspace(static_cast<unsigned char>(str[pos]))) {
+        ++pos;
+    }
+
+    OPENVINO_ASSERT(pos == str.size());
+}
+
+}  // namespace
 
 // Splits the `str` string onto separate elements using `delim` as delimiter and
 // call `callback` for each element.
@@ -52,7 +67,10 @@ bool OptionParser<bool>::parse(std::string_view val) {
 
 int32_t OptionParser<int32_t>::parse(std::string_view val) {
     try {
-        const auto parsed = std::stoll(std::string(val));
+        const std::string str(val);
+        size_t pos = 0;
+        const auto parsed = std::stoll(str, &pos);
+        assertFullyConsumed(str, pos);
         OPENVINO_ASSERT(parsed >= std::numeric_limits<int32_t>::min() && parsed <= std::numeric_limits<int32_t>::max());
         return static_cast<int32_t>(parsed);
     } catch (...) {
@@ -63,7 +81,10 @@ int32_t OptionParser<int32_t>::parse(std::string_view val) {
 uint32_t OptionParser<uint32_t>::parse(std::string_view val) {
     try {
         // Note: "std::stoul" silently wraps negative values around, hence the signed intermediate
-        const auto parsed = std::stoll(std::string(val));
+        const std::string str(val);
+        size_t pos = 0;
+        const auto parsed = std::stoll(str, &pos);
+        assertFullyConsumed(str, pos);
         OPENVINO_ASSERT(parsed >= 0 && parsed <= std::numeric_limits<uint32_t>::max());
         return static_cast<uint32_t>(parsed);
     } catch (...) {
@@ -73,7 +94,11 @@ uint32_t OptionParser<uint32_t>::parse(std::string_view val) {
 
 int64_t OptionParser<int64_t>::parse(std::string_view val) {
     try {
-        return std::stoll(std::string(val));
+        const std::string str(val);
+        size_t pos = 0;
+        const auto parsed = std::stoll(str, &pos);
+        assertFullyConsumed(str, pos);
+        return parsed;
     } catch (...) {
         OPENVINO_THROW("Value '", val, "' is not a valid INT64 option");
     }
@@ -84,7 +109,10 @@ uint64_t OptionParser<uint64_t>::parse(std::string_view val) {
         // Note: "std::stoull" silently wraps negative values around, hence the explicit check
         const std::string str(val);
         OPENVINO_ASSERT(str.find('-') == std::string::npos);
-        return std::stoull(str);
+        size_t pos = 0;
+        const auto parsed = std::stoull(str, &pos);
+        assertFullyConsumed(str, pos);
+        return parsed;
     } catch (...) {
         OPENVINO_THROW("Value '", val, "' is not a valid UINT64 option");
     }
@@ -92,7 +120,11 @@ uint64_t OptionParser<uint64_t>::parse(std::string_view val) {
 
 double OptionParser<double>::parse(std::string_view val) {
     try {
-        return std::stod(std::string(val));
+        const std::string str(val);
+        size_t pos = 0;
+        const auto parsed = std::stod(str, &pos);
+        assertFullyConsumed(str, pos);
+        return parsed;
     } catch (...) {
         OPENVINO_THROW("Value '", val, "' is not a valid FP64 option");
     }
@@ -222,8 +254,8 @@ void Config::update(const ConfigMap& options) {
     }
 }
 
-void Config::update(std::string_view key, std::string value) {
-    _log.trace("Update option '%s' to value '%s'", std::string(key).c_str(), value.c_str());
+void Config::update(std::string_view key, const ov::Any& value) {
+    _log.trace("Update option '%s'", std::string(key).c_str());
 
     const auto opt = _desc->get(key);
     _impl[opt.key().data()] = opt.validateAndParse(value);
