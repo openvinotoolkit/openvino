@@ -4,6 +4,7 @@
 
 #include "openvino/decompositions/rope.hpp"
 
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -53,6 +54,70 @@ OutputVector translate_rope(const NodeContext& context) {
     constexpr int TYPE_NORMAL = 0;
     constexpr int TYPE_NEOX = 1;
     constexpr int TYPE_IMROPE = 2;
+    constexpr int TYPE_VISION = 3;
+
+    if (mode == TYPE_VISION) {
+        // ggml vision RoPE rotates the full head in two halves; n_dims is half the
+        // head width, and each position section restarts its frequency progression.
+        using namespace ov::op;
+        const auto shape = data.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(shape.rank() == 4 && shape[3].is_static(),
+                                      "Vision RoPE requires rank four and a static head width");
+        const int64_t half = shape[3].get_length() / 2;
+        FRONT_END_OP_CONVERSION_CHECK(2 * half == shape[3].get_length() && rope_config.n_dims == half,
+                                      "Vision RoPE n_dims must equal half the head width");
+        FRONT_END_OP_CONVERSION_CHECK(rope_config.ext_factor == 0.f && context.get_input_size() == 2,
+                                      "Vision RoPE with YaRN or frequency-factor weights is not supported");
+        auto sections = rope_config.sections;
+        int total = 0;
+        for (auto section : sections) {
+            FRONT_END_OP_CONVERSION_CHECK(section >= 0, "Negative vision RoPE section");
+            total += section;
+        }
+        FRONT_END_OP_CONVERSION_CHECK(total > 0 && total <= 2 * half && rope_config.freq_base > 0.f,
+                                      "Invalid vision RoPE sections or frequency base");
+        std::vector<int64_t> axes(half);
+        std::vector<float> factors(half);
+        for (int64_t i = 0; i < half; ++i) {
+            int offset = int(i % total), section = 0;
+            while (section < 3 && offset >= sections[section]) {
+                offset -= sections[section];
+                ++section;
+            }
+            axes[i] = section;
+            factors[i] = std::pow(rope_config.freq_base, -2.f * offset / half) * rope_config.freq_scale;
+        }
+        auto positions = std::make_shared<v1::Reshape>(context.get_input(1),
+                                                       v0::Constant::create(ov::element::i64, {2}, {4, -1}),
+                                                       false);
+        auto transposed =
+            std::make_shared<v1::Transpose>(positions, v0::Constant::create(ov::element::i64, {2}, {1, 0}));
+        auto selected = std::make_shared<v8::Gather>(transposed,
+                                                     v0::Constant::create(ov::element::i64, {size_t(half)}, axes),
+                                                     v0::Constant::create(ov::element::i64, {}, {1}));
+        auto theta = std::make_shared<v1::Multiply>(std::make_shared<v0::Convert>(selected, ov::element::f32),
+                                                    v0::Constant::create(ov::element::f32, {size_t(half)}, factors));
+        auto expand = v0::Constant::create(ov::element::i64, {2}, {0, 2});
+        auto scale = v0::Constant::create(ov::element::f32, {}, {rope_config.attn_factor});
+        auto cos =
+            std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Cos>(theta), expand),
+                                           scale);
+        auto sin =
+            std::make_shared<v1::Multiply>(std::make_shared<v0::Unsqueeze>(std::make_shared<v0::Sin>(theta), expand),
+                                           scale);
+        const auto type = data.get_element_type();
+        if (type != ov::element::f32)
+            data = std::make_shared<v0::Convert>(data, ov::element::f32);
+        auto split = std::make_shared<v1::Split>(data, v0::Constant::create(ov::element::i64, {}, {3}), 2);
+        auto first = std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(split->output(0), cos),
+                                                    std::make_shared<v1::Multiply>(split->output(1), sin));
+        auto second = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(split->output(0), sin),
+                                                std::make_shared<v1::Multiply>(split->output(1), cos));
+        res = std::make_shared<v0::Concat>(OutputVector{first, second}, 3);
+        if (type != ov::element::f32)
+            res = std::make_shared<v0::Convert>(res, type);
+        return rename_outputs_with_suffix({res}, context.get_name());
+    }
 
     Output<Node> cos_theta_node;
     Output<Node> sin_theta_node;

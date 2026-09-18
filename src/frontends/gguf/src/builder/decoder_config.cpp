@@ -236,6 +236,10 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     rope_config_swa = rope_config;
     rope_config_swa.freq_base = cfg_f("rope_freq_base_swa");
     rope_config_swa.n_dims = cfg_i("rope_dimension_count_swa");
+    // Gemma local attention uses the training default, independently of global
+    // linear RoPE scaling (for example 1/8 in Gemma3 4B).
+    if (arch == "gemma3" || arch == "gemma4")
+        rope_config_swa.freq_scale = 1.0f;
     if (options.geglu)
         is_geglu = *options.geglu;
     if (options.value_norm)
@@ -276,7 +280,8 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // share the global table and SWA layers would be roped wrong.
     const bool swa_dims_differ = rope_dim_swa > 0 && rope_dim_swa != rope_config.n_dims;
     const bool swa_freq_differs = rope_config_swa.freq_base != rope_config.freq_base;
-    if (has_swa && (swa_dims_differ || swa_freq_differs)) {
+    const bool swa_scale_differs = rope_config_swa.freq_scale != rope_config.freq_scale;
+    if (has_swa && (swa_dims_differ || swa_freq_differs || swa_scale_differs)) {
         use_per_op_rope = true;
     }
     // M-RoPE: inp_pos carries 4 sections per token and only the first n_dims of each head
@@ -285,6 +290,8 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // case (see RopeConfig::is_imrope / use_per_op_rope).
     if (rope_op_case == ROPE_OP_CASE_IMROPE) {
         rope_config.is_imrope = true;
+        OPENVINO_ASSERT(rope_sections.size() <= rope_config.sections.size(), "[GGUF] too many M-RoPE sections");
+        std::copy(rope_sections.begin(), rope_sections.end(), rope_config.sections.begin());
         use_per_op_rope = true;
     }
 }

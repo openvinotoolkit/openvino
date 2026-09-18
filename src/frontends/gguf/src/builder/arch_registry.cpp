@@ -5,6 +5,7 @@
 #include "arch_registry.hpp"
 
 #include "builder/arch/mamba_builder.hpp"
+#include "builder/arch/mmproj_builder.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::frontend::gguf {
@@ -41,6 +42,7 @@ std::vector<ArchitectureDefinition> builtin_architectures() {
     }
     definitions.push_back(mamba2_architecture("mamba2"));
     definitions.push_back(mamba2_architecture("nemotron_h"));
+    definitions.push_back(mmproj_architecture());
     return definitions;
 }
 

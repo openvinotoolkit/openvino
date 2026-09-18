@@ -313,6 +313,11 @@ std::shared_ptr<Model> TranslateSession::translate_graph(const frontend::InputMo
     // non-serializable attribute, so a downstream consumer (OpenVINO GenAI) can build the
     // tokenizer without reopening the .gguf. Empty when the decoder carries no tokenizer config.
     const auto& tok_cfg = gguf_model_decoder->get_tokenizer_config();
+    if (builder)
+        resulting_model->get_rt_info()["gguf_architecture"] = builder->get_attribute("architecture");
+    if (!gguf_model_decoder->get_mmproj_config().empty()) {
+        resulting_model->get_rt_info()["gguf_mmproj"] = gguf_model_decoder->get_mmproj_config();
+    }
     if (!tok_cfg.empty()) {
         resulting_model->get_rt_info()[gguf_tokenizer_metadata_key()] =
             std::make_shared<GGUFTokenizerMetadata>(tok_cfg);

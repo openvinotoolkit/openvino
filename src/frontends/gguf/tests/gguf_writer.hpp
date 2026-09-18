@@ -21,6 +21,7 @@ enum : uint32_t {
     GGUF_TYPE_FLOAT32 = 6,
     GGUF_TYPE_BOOL = 7,
     GGUF_TYPE_STRING = 8,
+    GGUF_TYPE_ARRAY = 9,
 };
 
 // ggml tensor type F32 (ggml.h GGML_TYPE_F32).
@@ -44,6 +45,20 @@ public:
         kv_key(key, GGUF_TYPE_STRING);
         put(static_cast<uint64_t>(v.size()));
         m_kv.insert(m_kv.end(), v.begin(), v.end());
+    }
+    void kv_u32_array(const std::string& key, const std::vector<uint32_t>& values) {
+        kv_key(key, GGUF_TYPE_ARRAY);
+        put(uint32_t(GGUF_TYPE_UINT32));
+        put(uint64_t(values.size()));
+        for (auto value : values)
+            put(value);
+    }
+    void kv_str_array(const std::string& key, const std::vector<std::string>& values) {
+        kv_key(key, GGUF_TYPE_ARRAY);
+        put(uint32_t(GGUF_TYPE_STRING));
+        put(uint64_t(values.size()));
+        for (const auto& value : values)
+            put_str(m_kv, value);
     }
 
     // dims uses GGUF order (fastest axis first). Empty values produce zero-filled data.

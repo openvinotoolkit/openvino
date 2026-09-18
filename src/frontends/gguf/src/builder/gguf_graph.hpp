@@ -39,6 +39,7 @@ struct GgufOp {
 // model-level I/O the decoder reports. Built by an architecture builder (e.g. qwen3) from
 // a parsed GGUF file; consumed by GgufBuilderDecoder.
 struct GgufGraph {
+    std::string architecture;
     std::vector<GgufOp> nodes;
     std::shared_ptr<TensorMap> values = std::make_shared<TensorMap>();
 
@@ -75,6 +76,8 @@ struct GgufGraph {
     // by TranslateSession so a downstream consumer can build the tokenizer without re-reading
     // the .gguf. Empty if the file carries no tokenizer metadata.
     ov::AnyMap tokenizer_config;
+    // Serializable strings containing the full clip.* keys and resolved graph contracts.
+    ov::AnyMap mmproj_config;
 };
 
 }  // namespace ov::frontend::gguf

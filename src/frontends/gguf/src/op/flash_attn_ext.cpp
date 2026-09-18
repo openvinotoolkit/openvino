@@ -73,6 +73,19 @@ ov::Output<ov::Node> reshape_flat_kv(const NodeContext& context,
 }  // namespace
 
 OutputVector translate_flash_attn_ext(const NodeContext& context) {
+    if (context.get_attribute<bool>("encoder_attention", false)) {
+        num_inputs_check(context, 3, 4);
+        const auto order = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
+        auto q = std::make_shared<ov::op::v1::Transpose>(context.get_input(0), order);
+        auto k = std::make_shared<ov::op::v1::Transpose>(context.get_input(1), order);
+        auto v = std::make_shared<ov::op::v1::Transpose>(context.get_input(2), order);
+        ov::Output<ov::Node> mask = context.get_input_size() == 4
+                                        ? context.get_input(3)
+                                        : ov::op::v0::Constant::create(ov::element::f32, {}, {0})->output(0);
+        auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {context.get_attribute<float>("scale")});
+        auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, scale, false);
+        return rename_outputs_with_suffix({std::make_shared<ov::op::v1::Transpose>(sdpa, order)}, context.get_name());
+    }
     num_inputs_check(context, 3, 5);
     auto q_f32 = context.get_input(0);
     auto k = context.get_input(1);
