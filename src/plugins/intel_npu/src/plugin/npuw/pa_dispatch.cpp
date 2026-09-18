@@ -15,31 +15,20 @@ void ov::npuw::pa::validate_dispatch(const Dispatch& d, std::size_t block_size, 
 
     const auto& past = d.past_lens;
     const auto& sub = d.subsequence_begins;
+    const auto& bib = d.block_indices_begins;
     const auto n_seqs = d.sequences();
     const auto n_tokens = d.tokens();
 
-    // input_ids is absent on embedding-input models (inputs_embeds), so it is
-    // only cross-checked when present; position_ids may be multi-dimensional
-    // (M-RoPE), so its token count is the last shape dim.
-    if (d.input_ids_size >= 0) {
-        expect(d.input_ids_size == n_tokens, "input_ids size != subsequence_begins token count");
-    }
+    expect(d.input_ids_size == n_tokens, "input_ids size != subsequence_begins token count");
     expect(d.position_ids_token_count == n_tokens, "position_ids last dim != subsequence_begins token count");
     expect(static_cast<int64_t>(sub.size()) == n_seqs + 1, "subsequence_begins size != past_lens size + 1");
     expect(sub.front() == 0, "subsequence_begins does not start at 0");
     expect(std::is_sorted(sub.begin(), sub.end()) && std::adjacent_find(sub.begin(), sub.end()) == sub.end(),
            "subsequence_begins is not strictly increasing");
-
-    // The shared block table. Cache-eviction models carry per-layer
-    // block_indices.<L> inputs instead; those dispatches run 1:1 and only the
-    // common controls above are validated.
-    if (d.has_block_table) {
-        const auto& bib = d.block_indices_begins;
-        expect(static_cast<int64_t>(bib.size()) == n_seqs + 1, "block_indices_begins size != past_lens size + 1");
-        expect(bib.front() == 0 && bib.back() == static_cast<int64_t>(d.block_indices.size()) &&
-                   std::is_sorted(bib.begin(), bib.end()),
-               "block_indices_begins is not a prefix-sum over block_indices");
-    }
+    expect(static_cast<int64_t>(bib.size()) == n_seqs + 1, "block_indices_begins size != past_lens size + 1");
+    expect(bib.front() == 0 && bib.back() == static_cast<int64_t>(d.block_indices.size()) &&
+               std::is_sorted(bib.begin(), bib.end()),
+           "block_indices_begins is not a prefix-sum over block_indices");
 
     // Per-subsequence: the provided blocks must cover past + scheduled tokens,
     // and max_context_len bounds every context.
@@ -47,45 +36,110 @@ void ov::npuw::pa::validate_dispatch(const Dispatch& d, std::size_t block_size, 
         const auto ctx_after = past[s] + (sub[s + 1] - sub[s]);
         expect(past[s] >= 0, "negative past_lens entry");
         expect(d.max_context_len >= ctx_after, "max_context_len < a subsequence's context length");
-        if (d.has_block_table && block_size > 0) {
-            expect((d.block_indices_begins[s + 1] - d.block_indices_begins[s]) * static_cast<int64_t>(block_size) >=
-                       ctx_after,
-                   "block_indices do not cover a subsequence's context");
-        }
+        expect((bib[s + 1] - bib[s]) * static_cast<int64_t>(block_size) >= ctx_after,
+               "block_indices do not cover a subsequence's context");
     }
 
     // Gather contract: sampled_tokens_indices picks which flat token rows get
     // logits; an empty selection is legal (intermediate prefill chunks).
-    if (d.has_sampled_tokens) {
-        for (auto idx : d.sampled_tokens_indices) {
-            expect(idx >= 0 && idx < n_tokens, "sampled_tokens_indices out of token range");
-        }
+    for (auto idx : d.sampled_tokens_indices) {
+        expect(idx >= 0 && idx < n_tokens, "sampled_tokens_indices out of token range");
     }
 }
 
-bool ov::npuw::pa::variants_serve(const Dispatch& dispatch, const std::vector<std::size_t>& variant_token_dims) {
-    if (variant_token_dims.empty() || dispatch.tokens() == 0) {
-        return false;
+int64_t ov::npuw::pa::Chunk::tokens() const {
+    int64_t n = 0;
+    for (const auto& p : pieces) {
+        n += p.tokens;
     }
+    return n;
+}
 
-    bool has_one_token_variant = false;
-    std::size_t min_multi_token = 0u;
-    for (const auto token_dim : variant_token_dims) {
-        has_one_token_variant |= (token_dim == 1u);
-        if (token_dim > 1u && (min_multi_token == 0u || token_dim < min_multi_token)) {
-            min_multi_token = token_dim;
+std::vector<ov::npuw::pa::Chunk> ov::npuw::pa::plan_dispatch(const Dispatch& d,
+                                                             const std::vector<std::size_t>& variant_token_dims,
+                                                             std::size_t max_sampled) {
+    OPENVINO_ASSERT(!variant_token_dims.empty() && max_sampled > 0, "PA dispatch: no variants to plan over");
+    std::vector<int64_t> dims(variant_token_dims.begin(), variant_token_dims.end());
+    std::sort(dims.begin(), dims.end());
+    dims.erase(std::unique(dims.begin(), dims.end()), dims.end());
+    OPENVINO_ASSERT(dims.front() == 1, "PA dispatch: the 1-token variant is required");
+    const auto largest = dims.back();
+
+    // Padding into the smallest multi-token variant is always cheap enough;
+    // beyond it, a variant may hold at most four times the real tokens. One
+    // infer with padding beats several small ones: the per-infer cost of
+    // the trunk (its weights) dominates at these sizes.
+    const auto smallest_multi = dims.size() > 1 ? dims[1] : dims[0];
+    constexpr int64_t kMaxPadFactor = 4;
+
+    // The smallest variant that holds n tokens (n <= largest).
+    const auto fit = [&](int64_t n) {
+        return *std::lower_bound(dims.begin(), dims.end(), n);
+    };
+    // Sampled rows falling into tokens [offset, offset + n) of subsequence seq.
+    const auto sampled_in = [&](int64_t seq, int64_t offset, int64_t n) {
+        const auto g0 = d.subsequence_begins[seq] + offset;
+        return std::count_if(d.sampled_tokens_indices.begin(), d.sampled_tokens_indices.end(), [&](int64_t g) {
+            return g >= g0 && g < g0 + n;
+        });
+    };
+
+    std::vector<Chunk> chunks;
+    Chunk singles;  // single-token subsequences, at most one sampled row each
+    const auto flush_singles = [&]() {
+        if (!singles.pieces.empty()) {
+            singles.token_dim = static_cast<std::size_t>(fit(singles.tokens()));
+            chunks.push_back(std::move(singles));
+            singles = Chunk{};
+        }
+    };
+
+    for (int64_t seq = 0; seq < d.sequences(); ++seq) {
+        const auto len = d.subsequence_begins[seq + 1] - d.subsequence_begins[seq];
+        if (len == 1) {
+            if (singles.pieces.size() == max_sampled) {
+                flush_singles();
+            }
+            singles.pieces.push_back(Piece{seq, 0, 1});
+            continue;
+        }
+        for (int64_t offset = 0; offset < len;) {
+            const auto remaining = len - offset;
+            int64_t n = 0, dim = 0;
+            if (remaining >= largest) {
+                n = dim = largest;
+            } else if (const auto padded = fit(remaining);
+                       padded <= std::max(kMaxPadFactor * remaining, smallest_multi)) {
+                n = remaining;
+                dim = padded;
+            } else {
+                // Too much padding: take the largest variant that fits and
+                // keep going.
+                n = dim = *std::prev(std::upper_bound(dims.begin(), dims.end(), remaining));
+            }
+            OPENVINO_ASSERT(sampled_in(seq, offset, n) <= static_cast<int64_t>(max_sampled),
+                            "PA dispatch: a chunk of subsequence ",
+                            seq,
+                            " samples more than ",
+                            max_sampled,
+                            " tokens");
+            chunks.push_back(Chunk{static_cast<std::size_t>(dim), {Piece{seq, offset, n}}});
+            offset += n;
         }
     }
+    flush_singles();
+    return chunks;
+}
 
-    if (dispatch.sequences() == 1 && dispatch.tokens() == 1) {
-        return has_one_token_variant;
-    }
-
-    for (int64_t s = 0; min_multi_token > 0u && s < dispatch.sequences(); ++s) {
-        const auto seq_len = dispatch.subsequence_begins[s + 1] - dispatch.subsequence_begins[s];
-        if (seq_len >= static_cast<int64_t>(min_multi_token)) {
-            return true;
+std::string ov::npuw::pa::to_string(const std::vector<Chunk>& chunks) {
+    std::string out;
+    for (const auto& c : chunks) {
+        out += (out.empty() ? "" : " ") + std::to_string(c.tokens()) + "/" + std::to_string(c.token_dim) + "[";
+        for (const auto& p : c.pieces) {
+            out += (&p == &c.pieces.front() ? "" : ",") + std::to_string(p.seq) + "+" + std::to_string(p.offset) + ":" +
+                   std::to_string(p.tokens);
         }
+        out += "]";
     }
-    return false;
+    return out;
 }

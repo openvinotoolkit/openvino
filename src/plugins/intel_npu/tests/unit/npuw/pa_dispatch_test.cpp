@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-// Unit tests for the PA dispatch-contract validation (ov::npuw::pa). The
-// contract is a pure function over the parsed control tensors, so the tests
-// construct Dispatch values directly and assert on the specific violation
-// each malformed dispatch must report.
+// Unit tests for the PA dispatch contract and planner (ov::npuw::pa). Both
+// are pure functions over the parsed control tensors, so the tests construct
+// Dispatch values directly: the validation tests assert on the specific
+// violation each malformed dispatch must report, the planner tests on the
+// variant infers a dispatch is split into.
 
 #include "pa_dispatch.hpp"
 
@@ -17,9 +18,10 @@
 
 namespace {
 
+using ov::npuw::pa::Chunk;
 using ov::npuw::pa::Dispatch;
+using ov::npuw::pa::plan_dispatch;
 using ov::npuw::pa::validate_dispatch;
-using ov::npuw::pa::variants_serve;
 
 // A well-formed two-subsequence dispatch: 4 + 2 scheduled tokens on top of
 // 0 / 6 past tokens, a covering block table (block_size 4) and one sampled
@@ -34,8 +36,6 @@ Dispatch make_valid_dispatch() {
     d.max_context_len = 8;
     d.input_ids_size = 6;
     d.position_ids_token_count = 6;
-    d.has_block_table = true;
-    d.has_sampled_tokens = true;
     return d;
 }
 
@@ -61,11 +61,6 @@ TEST(PADispatchContract, TokenAndSequenceCountsDerive) {
 }
 
 // input_ids is absent on embedding-input models; -1 skips the cross-check.
-TEST(PADispatchContract, AbsentInputIdsIsLegal) {
-    auto d = make_valid_dispatch();
-    d.input_ids_size = -1;
-    EXPECT_NO_THROW(validate_dispatch(d, kBlockSize, 0u));
-}
 
 TEST(PADispatchContract, InputIdsSizeMismatchRejected) {
     auto d = make_valid_dispatch();
@@ -127,22 +122,6 @@ TEST(PADispatchContract, BlocksMustCoverEachContext) {
 
 // A block_size of 0 means the cache geometry is still dynamic; coverage is
 // not checked, everything else still is.
-TEST(PADispatchContract, DynamicBlockSizeSkipsCoverageOnly) {
-    auto d = make_valid_dispatch();
-    d.block_indices = {0};
-    d.block_indices_begins = {0, 0, 1};
-    EXPECT_NO_THROW(validate_dispatch(d, 0u, 0u));
-    d.max_context_len = 7;
-    expect_violation(d, "max_context_len < a subsequence's context length", 0u);
-}
-
-TEST(PADispatchContract, AbsentBlockTableSkipsBlockChecks) {
-    auto d = make_valid_dispatch();
-    d.has_block_table = false;
-    d.block_indices.clear();
-    d.block_indices_begins.clear();
-    EXPECT_NO_THROW(validate_dispatch(d, kBlockSize, 0u));
-}
 
 // An empty selection is legal (intermediate prefill chunks gather nothing).
 TEST(PADispatchContract, EmptySampledTokensIsLegal) {
@@ -168,46 +147,75 @@ TEST(PADispatchContract, ViolationNamesTheDispatch) {
     }
 }
 
-// A dispatch shaped as N subsequences of the given scheduled lengths; only the
-// fields variants_serve reads are populated.
+// A dispatch shaped as N subsequences of the given scheduled lengths, each
+// sampling its last token; only the fields the planner reads are populated.
 Dispatch make_dispatch_of(const std::vector<int64_t>& seq_lens) {
     Dispatch d;
     d.subsequence_begins = {0};
     for (const auto len : seq_lens) {
         d.past_lens.push_back(0);
         d.subsequence_begins.push_back(d.subsequence_begins.back() + len);
+        d.sampled_tokens_indices.push_back(d.subsequence_begins.back() - 1);
     }
     return d;
 }
 
-const std::vector<std::size_t> kVariantDims = {1024u, 128u, 1u};
+const std::vector<std::size_t> kVariantDims = {1024u, 128u, 16u, 1u};
+constexpr std::size_t kMaxSampled = 16u;
 
-TEST(PADispatchRouting, SingleSequenceDecodeServedByTheOneTokenVariant) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({1}), kVariantDims));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({1}), {1024u, 128u}));
+std::string plan_of(const std::vector<int64_t>& seq_lens) {
+    return ov::npuw::pa::to_string(plan_dispatch(make_dispatch_of(seq_lens), kVariantDims, kMaxSampled));
 }
 
-TEST(PADispatchRouting, DecodeBatchRunsOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({1, 1, 1, 1}), kVariantDims));
+TEST(PADispatchPlan, SingleDecodeTakesTheOneTokenVariant) {
+    EXPECT_EQ(plan_of({1}), "1/1[0+0:1]");
 }
 
-TEST(PADispatchRouting, ShortPrefillRunsOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({32, 32, 32, 32}), kVariantDims));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({127}), kVariantDims));
+TEST(PADispatchPlan, DecodeBatchIsOneInfer) {
+    EXPECT_EQ(plan_of({1, 1, 1}), "3/16[0+0:1,1+0:1,2+0:1]");
 }
 
-TEST(PADispatchRouting, LongPrefillIsChunked) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({128}), kVariantDims));
-    EXPECT_TRUE(variants_serve(make_dispatch_of({7638}), kVariantDims));
+TEST(PADispatchPlan, DecodeBatchSplitsAtMaxSampled) {
+    const auto plan = plan_dispatch(make_dispatch_of(std::vector<int64_t>(20, 1)), kVariantDims, kMaxSampled);
+    ASSERT_EQ(plan.size(), 2u);
+    EXPECT_EQ(plan[0].pieces.size(), 16u);
+    EXPECT_EQ(plan[0].token_dim, 16u);
+    EXPECT_EQ(plan[1].pieces.size(), 4u);
+    EXPECT_EQ(plan[1].token_dim, 16u);
 }
 
-TEST(PADispatchRouting, MixedDispatchWithOneLongSubsequenceIsChunked) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({1, 1, 200, 1}), kVariantDims));
+TEST(PADispatchPlan, PrefillTakesTheLargestVariantFirst) {
+    EXPECT_EQ(plan_of({2048}), "1024/1024[0+0:1024] 1024/1024[0+1024:1024]");
 }
 
-TEST(PADispatchRouting, NoVariantsOrNoTokensRunOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({7638}), {}));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({}), kVariantDims));
+TEST(PADispatchPlan, RemainderIsPaddedWhenPaddingIsCheap) {
+    EXPECT_EQ(plan_of({86}), "86/128[0+0:86]");
+    EXPECT_EQ(plan_of({1029}), "1024/1024[0+0:1024] 5/16[0+1024:5]");
+}
+
+TEST(PADispatchPlan, RemainderIsSplitWhenPaddingIsTooMuch) {
+    // 176 would pad to 1024, over four times the tokens: take 128, then 48
+    // pads to 128. 17 would pad to 128: 16 and 1.
+    EXPECT_EQ(plan_of({1200}), "1024/1024[0+0:1024] 128/128[0+1024:128] 48/128[0+1152:48]");
+    EXPECT_EQ(plan_of({17}), "16/16[0+0:16] 1/1[0+16:1]");
+    EXPECT_EQ(plan_of({46}), "46/128[0+0:46]");
+}
+
+TEST(PADispatchPlan, MixedDispatchKeepsSequencesApartAndDecodesTogether) {
+    EXPECT_EQ(plan_of({200, 1, 1}), "128/128[0+0:128] 72/128[0+128:72] 2/16[1+0:1,2+0:1]");
+}
+
+TEST(PADispatchPlan, TooManySampledRowsInOneChunkRejected) {
+    auto d = make_dispatch_of({1024});
+    d.sampled_tokens_indices.clear();
+    for (int64_t i = 0; i < 1024; ++i) {
+        d.sampled_tokens_indices.push_back(i);  // echo: every prompt token sampled
+    }
+    EXPECT_THROW(plan_dispatch(d, kVariantDims, kMaxSampled), ov::Exception);
+}
+
+TEST(PADispatchPlan, RequiresTheOneTokenVariant) {
+    EXPECT_THROW(plan_dispatch(make_dispatch_of({1}), {1024u, 128u}, kMaxSampled), ov::Exception);
 }
 
 }  // namespace
