@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "plugin.hpp"
+#include "transformations.hpp"
 
 #include <gtest/gtest.h>
 
