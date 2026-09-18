@@ -47,7 +47,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     // [N, K, H, B] with head_size at index 2. Kept in sync with transformations_pipeline.cpp's
     // keyCacheDimOrder selection.
     const bool use_cm_kernel_layout =
-        (p.get_config().get_attn_kernel_mode() == ov::hint::AttnKernelMode::PA_CM);
+        (p.get_config().get_attn_kernel_mode() == ov::hint::AttnMode::PA_CM);
     const bool key_cache_token_major = prim.has_xattention || use_cm_kernel_layout;
     const auto k_head_size_idx = key_cache_token_major ? 3 : 2;
 
@@ -136,7 +136,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     }
     prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.write_kv_cache = op->get_write_kv_cache();
-    prim.use_cm_kernel = p.get_config().get_attn_kernel_mode() == ov::hint::AttnKernelMode::PA_CM;
+    prim.use_cm_kernel = p.get_config().get_attn_kernel_mode() == ov::hint::AttnMode::PA_CM;
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {

@@ -87,10 +87,10 @@ def test_properties_rw_base():
             ),
         ),
         (
-            hints.AttnKernelMode,
+            hints.AttnMode,
             (
-                (hints.AttnKernelMode.AUTO, "AttnKernelMode.AUTO", 0),
-                (hints.AttnKernelMode.PA_CM, "AttnKernelMode.PA_CM", 1),
+                (hints.AttnMode.AUTO, "AttnMode.AUTO", 0),
+                (hints.AttnMode.PA_CM, "AttnMode.PA_CM", 1),
             ),
         ),
         (
@@ -313,7 +313,7 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.attn_kernel_mode,
             "ATTENTION_KERNEL_MODE",
-            ((hints.AttnKernelMode.PA_CM, hints.AttnKernelMode.PA_CM),),
+            ((hints.AttnMode.PA_CM, hints.AttnMode.PA_CM),),
         ),
         (
             hints.enable_cpu_pinning,

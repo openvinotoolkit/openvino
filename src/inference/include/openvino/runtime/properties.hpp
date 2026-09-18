@@ -381,30 +381,30 @@ static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
  * @brief Enum to define attention kernel backend hints.
  * @ingroup ov_runtime_cpp_prop_api
  */
-enum class AttnKernelMode {
+enum class AttnMode {
     AUTO = 0,   //!< Plugin chooses attention kernel backend automatically
     PA_CM = 1,  //!< Prefer CM PagedAttention kernel backend
 };
 
 /** @cond INTERNAL */
-inline std::ostream& operator<<(std::ostream& os, const AttnKernelMode& attn_kernel_mode) {
+inline std::ostream& operator<<(std::ostream& os, const AttnMode& attn_kernel_mode) {
     switch (attn_kernel_mode) {
-    case AttnKernelMode::AUTO:
+    case AttnMode::AUTO:
         return os << "AUTO";
-    case AttnKernelMode::PA_CM:
+    case AttnMode::PA_CM:
         return os << "PA_CM";
     default:
         OPENVINO_THROW("Unsupported attention kernel mode hint");
     }
 }
 
-inline std::istream& operator>>(std::istream& is, AttnKernelMode& attn_kernel_mode) {
+inline std::istream& operator>>(std::istream& is, AttnMode& attn_kernel_mode) {
     std::string str;
     is >> str;
     if (str == "AUTO") {
-        attn_kernel_mode = AttnKernelMode::AUTO;
+        attn_kernel_mode = AttnMode::AUTO;
     } else if (str == "PA_CM") {
-        attn_kernel_mode = AttnKernelMode::PA_CM;
+        attn_kernel_mode = AttnMode::PA_CM;
     } else {
         OPENVINO_THROW("Unsupported attention kernel mode: ", str);
     }
@@ -416,7 +416,7 @@ inline std::istream& operator>>(std::istream& is, AttnKernelMode& attn_kernel_mo
  * @brief Hint for selecting attention kernel backend.
  * @ingroup ov_runtime_cpp_prop_api
  */
-static constexpr Property<AttnKernelMode> attn_kernel_mode{"ATTENTION_KERNEL_MODE"};
+static constexpr Property<AttnMode> attn_kernel_mode{"ATTENTION_KERNEL_MODE"};
 
 /**
  * @enum       SchedulingCoreType

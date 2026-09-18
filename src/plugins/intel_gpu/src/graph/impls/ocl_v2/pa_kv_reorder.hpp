@@ -27,7 +27,7 @@ struct PA_KV_reorder : public ImplementationManager {
 
         const auto desc = node.as<cldnn::pa_kv_reorder>().get_primitive();
         const auto& config = node.get_program().get_config();
-        return !desc->has_xattention && config.get_attn_kernel_mode() != ov::hint::AttnKernelMode::PA_CM;
+        return !desc->has_xattention && config.get_attn_kernel_mode() != ov::hint::AttnMode::PA_CM;
     }
 };
 

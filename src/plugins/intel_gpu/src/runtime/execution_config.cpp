@@ -288,7 +288,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         if (auxiliary_kv_prec != ov::element::dynamic) {
             m_kv_cache_precision = auxiliary_kv_prec;
         } else if (is_paged_attention_model && has_4bit_weights && m_key_cache_quant_mode != ov::internal::CacheQuantMode::BY_TOKEN &&
-                   get_attn_kernel_mode() != ov::hint::AttnKernelMode::PA_CM) {
+                   get_attn_kernel_mode() != ov::hint::AttnMode::PA_CM) {
             // Enable 4-bit KV-cache compression for PA models with 4-bit compressed weights
             m_kv_cache_precision = ov::element::u4;
             GPU_DEBUG_INFO << "[Info] 4-bit weights detected. Setting KV-cache precision to u4." << std::endl;
@@ -315,7 +315,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     }
     // 4-bit KV cache with PA backend does not support BY_TOKEN quantization mode.
     if (is_paged_attention_model && ov::element::Type(get_kv_cache_precision()).bitwidth() == 4) {
-        OPENVINO_ASSERT(get_attn_kernel_mode() != ov::hint::AttnKernelMode::PA_CM,
+        OPENVINO_ASSERT(get_attn_kernel_mode() != ov::hint::AttnMode::PA_CM,
                         "[GPU] 4-bit KV cache (u4/i4) is not supported with PA_CM attention kernel mode. "
                         "Please use i8 KV cache precision or switch attention kernel mode to AUTO.");
         OPENVINO_ASSERT(get_key_cache_quant_mode() != ov::internal::CacheQuantMode::BY_TOKEN,

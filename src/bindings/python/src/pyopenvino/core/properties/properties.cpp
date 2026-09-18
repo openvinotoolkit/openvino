@@ -82,9 +82,9 @@ void regmodule_properties(py::module m) {
         .value("THROUGHPUT", ov::hint::PerformanceMode::THROUGHPUT)
         .value("CUMULATIVE_THROUGHPUT", ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT);
 
-    py::enum_<ov::hint::AttnKernelMode>(m_hint, "AttnKernelMode", py::arithmetic())
-        .value("AUTO", ov::hint::AttnKernelMode::AUTO)
-        .value("PA_CM", ov::hint::AttnKernelMode::PA_CM);
+    py::enum_<ov::hint::AttnMode>(m_hint, "AttnMode", py::arithmetic())
+        .value("AUTO", ov::hint::AttnMode::AUTO)
+        .value("PA_CM", ov::hint::AttnMode::PA_CM);
 
     py::enum_<ov::hint::SchedulingCoreType>(m_hint, "SchedulingCoreType", py::arithmetic())
         .value("ANY_CORE", ov::hint::SchedulingCoreType::ANY_CORE)

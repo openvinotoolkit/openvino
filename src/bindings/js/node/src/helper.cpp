@@ -485,8 +485,8 @@ Napi::Value any_to_js(const Napi::CallbackInfo& info, ov::Any value) {
     else if (value.is<ov::hint::PerformanceMode>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
     }
-    // Check for ov::hint::AttnKernelMode
-    else if (value.is<ov::hint::AttnKernelMode>()) {
+    // Check for ov::hint::AttnMode
+    else if (value.is<ov::hint::AttnMode>()) {
         return Napi::String::New(info.Env(), value.as<std::string>());
     }
     // Check for ov::hint::ExecutionMode

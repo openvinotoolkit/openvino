@@ -872,7 +872,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             kv_cache_config.valueCachePrecision = kv_cache_precision;
             kv_cache_config.inferencePrecision = infer_precision;
             const bool use_pa_cm_layout =
-                (config.get_attn_kernel_mode() == ov::hint::AttnKernelMode::PA_CM);
+                (config.get_attn_kernel_mode() == ov::hint::AttnMode::PA_CM);
             if (use_xattention) {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size_xattn;
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
