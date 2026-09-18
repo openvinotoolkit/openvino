@@ -272,14 +272,7 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     validate_primitives();
     preallocate_shape_info_buffers();
     add_default_output_chains();
-
-    bool use_record_replay = get_config().get_record_replay();
-    bool skip_record_replay_check = GPU_DEBUG_VALUE_OR(get_config().get_record_replay_dynamic(), false);
-    if (!_internal && (use_record_replay || skip_record_replay_check)) {
-        OPENVINO_ASSERT(skip_record_replay_check || is_recording_supported(), "[GPU] Record and replay is not supported on the provided model");
-        OPENVINO_ASSERT(_stream->get_recorder() != nullptr, "[GPU] Stream recording is not supported by the current stream implementation");
-        _record_replay_session = std::make_shared<record_replay_session>(*_stream);
-    }
+    prepare_record_replay();
 }
 
 network::network(program::ptr program, bool is_internal, bool is_primary_stream)
@@ -449,7 +442,7 @@ event::ptr network::set_input_data(const primitive_id& id, memory::ptr data, boo
                              get_engine().is_the_same_buffer(*prev_mem, *new_mem) &&
                              compare_expanded_layout(prev_mem->get_layout(), new_mem->get_layout());
     if (!same_buffer)
-        invalidate_stream_recording();
+        invalidate_recording();
 
     if (was_unallocated) {
         // The initial set_arguments() skipped nodes whose dep buffer was null —
@@ -616,7 +609,7 @@ std::vector<event::ptr> network::set_output_memory(const primitive_id& id, memor
                                     get_engine().is_the_same_buffer(*prev_out, *mem_new) &&
                                     compare_expanded_layout(prev_out->get_layout(), mem_new->get_layout());
     if (!same_buffer)
-        invalidate_stream_recording();
+        invalidate_recording();
 
     auto iter = std::find(_outputs.begin(), _outputs.end(), p_inst);
     if (iter == _outputs.end()) {
@@ -884,17 +877,17 @@ void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu
         if (it->second == block) {
             return;  // Same block already registered — nothing to do
         }
-        invalidate_stream_recording();
+        invalidate_recording();
         it->second = block;
     } else {
-        invalidate_stream_recording();
+        invalidate_recording();
     }
 }
 
 void network::unregister_output_memory_block(const primitive_id& id) {
     auto it = _output_memory_blocks.find(id);
     if (it != _output_memory_blocks.end()) {
-        invalidate_stream_recording();
+        invalidate_recording();
         _output_memory_blocks.erase(it);
         invalidate_ext_block_compute_nodes(id);
     }
@@ -907,7 +900,7 @@ ov::intel_gpu::OutputMemoryBlock* network::get_output_memory_block(const primiti
 
 void network::clear_output_memory_blocks() {
     if (!_output_memory_blocks.empty()) {
-        invalidate_stream_recording();
+        invalidate_recording();
     }
     // Move map out first so _output_memory_blocks is empty even if invalidation throws.
     auto blocks = std::move(_output_memory_blocks);
@@ -1049,39 +1042,47 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     }
 }
 
-void network::invalidate_stream_recording() {
+void network::invalidate_recording() {
     if (_record_replay_session) {
         _record_replay_session->invalidate();
     }
 }
 
-bool network::is_recording_supported() const {
-    // Record & replay re-submits a fixed sequence of GPU commands.
-    // Only safe when recording iteration produces self-contained GPU command stream that remains valid across iterations.
-
-    // When model is dynamic it is not safe to fully skip prepare_primitive and execute logic on replay iterations
-    if (_is_dynamic)
-        return false;
-
-    // Variable state might invalidate recording when updated
-    if (!_variables_state_info.empty())
-        return false;
-
-    for (const auto& inst : _exec_order) {
-        // Inner network execution (loop/condition primitives) is based on host-side logic
-        if (inst->has_inner_networks())
-            return false;
-
-        // Check for any implementations that are not replay safe
-        const auto* impl = inst->get_impl();
-        if (impl == nullptr)
-            return false;
-
-        if (!impl->supports_replay())
-            return false;
+void network::prepare_record_replay() {
+    bool use_record_replay = get_config().get_record_replay();
+    bool skip_model_check = GPU_DEBUG_VALUE_OR(get_config().get_record_replay_dynamic(), false);
+    bool should_use_record_replay = !_internal && (use_record_replay || skip_model_check);
+    if (!should_use_record_replay) {
+        return;
     }
+    OPENVINO_ASSERT(_stream->get_recorder() != nullptr, "[GPU] Stream recording is not supported by the current stream implementation");
+    auto check_model_support = [this]() {
+        // Record & replay re-submits a fixed sequence of GPU commands.
+        // Only safe when recording iteration produces self-contained GPU command stream that remains valid across iterations.
 
-    return true;
+        // When model is dynamic it is not safe to fully skip prepare_primitive and execute logic on replay iterations
+        if (_is_dynamic)
+            return false;
+        // Variable state might invalidate recording when updated
+        if (!_variables_state_info.empty())
+            return false;
+        for (const auto& inst : _exec_order) {
+            // Inner network execution (loop/condition primitives) is based on host-side logic
+            if (inst->has_inner_networks())
+                return false;
+            // Check for any implementations that are not replay safe
+            const auto* impl = inst->get_impl();
+            if (impl == nullptr)
+                return false;
+            if (!impl->supports_replay())
+                return false;
+        }
+        return true;
+    };
+    if (!skip_model_check) {
+        OPENVINO_ASSERT(check_model_support(), "[GPU] Record and replay is not supported on the provided model");
+    }
+    _record_replay_session = std::make_shared<record_replay_session>(*_stream);
 }
 
 std::vector<primitive_id> network::get_input_ids() const {

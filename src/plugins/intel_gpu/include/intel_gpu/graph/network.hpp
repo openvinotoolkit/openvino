@@ -281,9 +281,10 @@ private:
     std::shared_ptr<ShapePredictor> _shape_predictor;
 
     /// @brief Invalidate the recording of the previous iteration
-    void invalidate_stream_recording();
-    /// @brief Check if recording is supported for the current network
-    bool is_recording_supported() const;
+    void invalidate_recording();
+    /// @brief Prepares record and replay session
+    /// @note expects that exec_order is constructed
+    void prepare_record_replay();
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
