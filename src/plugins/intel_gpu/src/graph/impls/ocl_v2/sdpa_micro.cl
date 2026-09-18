@@ -629,7 +629,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             // to avoid exceeding bounds for single dimension.
             tile_load_t(&mask_tile, msk, MSK_D2, MSK_D3, 0, 0, k0 + sg_i0_kq);
         } else {
-            tile_load_t(&mask_tile, msk, q, k, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
+            /* Must pass ldmsk explicitly: the 6-arg overload defaults ld to k (the K/V
+               sequence length), which is wrong whenever the mask's physical row stride
+               (MSK_S2) differs from k, e.g. when the mask is padded to max_seq_len. */
+            tile_load_t(&mask_tile, msk, q, k, ldmsk, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
         }
 #endif
 
