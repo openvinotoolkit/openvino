@@ -6,6 +6,7 @@
 #include "intel_gpu/runtime/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "ze_kernel_builder.hpp"
 #include "openvino/zero_api.hpp"
 #include "ze_engine_factory.hpp"
@@ -201,15 +202,23 @@ memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
                     "[GPU] shared buffer size must be a multiple of ",
                     minimal_alignment,
                     " bytes");
+    const auto page_size = static_cast<size_t>(ov::util::get_system_page_size());
+    OPENVINO_ASSERT(page_size > 0, "[GPU] system page size must be > 0 for host pointer import");
+    OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % page_size) == 0,
+                    "[GPU] shared buffer pointer must be ",
+                    page_size,
+                    "-byte page aligned");
+    OPENVINO_ASSERT((data_size % page_size) == 0,
+                    "[GPU] shared buffer size must be a multiple of ",
+                    page_size,
+                    " bytes");
 
     auto ctx = get_context();
 
     // Prefer mapping the host pointer directly via the native ZE_extension_external_memmap_sysmem
     // extension: it avoids the OpenCL interop round-trip (ze_export_ocl_context + clCreateBuffer +
     // ze_import_usm) entirely. The extension requires the pointer and size to be page-aligned.
-    const bool is_page_aligned = (reinterpret_cast<std::uintptr_t>(cpu_address) % ov::util::min_page_alignment) == 0 &&
-                                  (data_size % ov::util::min_page_alignment) == 0;
-    if (get_device_info().supports_external_memmap_sysmem && is_page_aligned) {
+    if (get_device_info().supports_external_memmap_sysmem) {
         ze_external_memmap_sysmem_ext_desc_t sysmem_desc = {};
         sysmem_desc.stype = ZE_STRUCTURE_TYPE_EXTERNAL_MEMMAP_SYSMEM_EXT_DESC;
         sysmem_desc.pSystemMemory = cpu_address;
