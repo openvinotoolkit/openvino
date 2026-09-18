@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
@@ -42,6 +44,12 @@ public:
 
 protected:
     void enable_profiling();
+
+    // Helper function handling strides for Zero Pipeline and ZeroDynamicPipeline. Stateless regarding pipeline
+    // instances, hence static
+    static std::vector<size_t> get_strides(const std::vector<size_t>& strides_in_bytes,
+                                           size_t element_size,
+                                           bool reverse_order = false);
 
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
     std::shared_ptr<IGraph> _graph;

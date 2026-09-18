@@ -131,29 +131,34 @@ inline std::vector<InputShape> static_shapes_to_test_representation(const std::v
     return result;
 }
 
+inline std::vector<std::shared_ptr<ov::Node>> GetNodesWithTypes(std::shared_ptr<const ov::Model> function,
+                                                                const std::unordered_set<std::string>& nodeTypes) {
+    std::vector<std::shared_ptr<ov::Node>> result;
+    if (!function)
+        return result;
+    for (const auto& node : function->get_ops()) {
+        const auto& rtInfo = node->get_rt_info();
+        auto it = rtInfo.find(ov::exec_model_info::LAYER_TYPE);
+        if (it == rtInfo.end())
+            continue;
+        if (nodeTypes.count(it->second.as<std::string>())) {
+            result.push_back(node);
+        }
+    }
+    return result;
+}
+
 inline void CheckNumberOfNodesWithTypes(std::shared_ptr<const ov::Model> function,
                                         const std::unordered_set<std::string>& nodeTypes,
                                         size_t expectedCount) {
     ASSERT_NE(nullptr, function);
-    size_t actualNodeCount = 0;
-    for (const auto& node : function->get_ops()) {
-        const auto& rtInfo = node->get_rt_info();
-        auto getExecValue = [&rtInfo](const std::string& paramName) -> std::string {
-            auto it = rtInfo.find(paramName);
-            OPENVINO_ASSERT(rtInfo.end() != it);
-            return it->second.as<std::string>();
-        };
-
-        if (nodeTypes.count(getExecValue(ov::exec_model_info::LAYER_TYPE))) {
-            actualNodeCount++;
-        }
-    }
+    auto nodes = GetNodesWithTypes(function, nodeTypes);
 
     std::string nodeTypesStr;
     for (const auto& t : nodeTypes) {
         nodeTypesStr += t + ",";
     }
-    ASSERT_EQ(expectedCount, actualNodeCount)
+    ASSERT_EQ(expectedCount, nodes.size())
         << "Unexpected count of the node types '{" << nodeTypesStr << "}'";
 }
 

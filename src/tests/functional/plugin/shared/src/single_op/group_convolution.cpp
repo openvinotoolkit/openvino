@@ -40,7 +40,7 @@ std::string GroupConvolutionLayerTest::getTestCaseName(const testing::TestParamI
     result << "G=" << num_groups << "_";
     result << "AP=" << pad_type << "_";
     result << "modelType=" << model_type.get_type_name() << "_";
-    result << "trgDev=" << target_device;
+    result << "targetDevice=" << target_device;
     return result.str();
 }
 

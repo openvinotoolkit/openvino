@@ -161,6 +161,7 @@ ov::intel_cpu::MoveReadValueInputsToSubgraph::MoveReadValueInputsToSubgraph() {
         new_rv->set_output(output);
 
         // Replace ReadValue with ov::intel_cpu::ReadValueWithSubgraph
+        new_rv->set_friendly_name(readvalue->get_friendly_name());
         ov::replace_node(readvalue, new_rv);
         ov::copy_runtime_info(subgraph_nodes, new_rv);
         new_rv->validate_and_infer_types();

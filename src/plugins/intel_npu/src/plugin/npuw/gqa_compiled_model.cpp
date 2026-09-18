@@ -30,100 +30,149 @@ void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
     }
 }
 
-ov::AnyMap with_gqa_defaults(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) {
-    enum class GQAModelStage {
-        UNKNOWN,
-        PREFILL,
-        GENERATE,
-    };
+enum class GQAModelStage {
+    UNKNOWN,
+    PREFILL,
+    GENERATE,
+};
 
+std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov::Model>& model,
+                                                       const ov::AnyMap& properties) {
     const auto detect_gqa_model_stage = [&]() {
-        const auto to_lower = [](std::string value) {
-            std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-                return static_cast<char>(std::tolower(ch));
-            });
-            return value;
-        };
-
-        const auto is_cache_parameter_name = [&](const std::string& name) {
-            const auto lower_name = to_lower(name);
-            return lower_name.find("past") != std::string::npos || lower_name.find("present") != std::string::npos ||
-                   lower_name.find("cache") != std::string::npos;
-        };
-
-        bool saw_generate_input = false;
-        bool saw_prefill_input = false;
-
+        // The activation tensor ("input_hidden_states") is what the embedding
+        // model stage feeds into the transformer.  For the generate (iter) model
+        // the seq dim is specialized to 1 via a free-dim override; for the
+        // prefill (ctx) model the seq dim is either >1 or left dynamic (the
+        // context length varies at runtime).  KV-cache slicing has no effect on
+        // this input at all.
         for (const auto& parameter : model->get_parameters()) {
-            if (is_cache_parameter_name(parameter->get_friendly_name())) {
-                continue;
-            }
-
-            const auto element_type = parameter->get_element_type();
-            if (!element_type.is_real()) {
+            const auto& name = parameter->get_friendly_name();
+            if (name != "input_hidden_states" && name != "input_ids") {
                 continue;
             }
 
             const auto& partial_shape = parameter->get_partial_shape();
-            if (partial_shape.rank().is_dynamic() || partial_shape.rank().get_length() != 3) {
+            if (partial_shape.rank().is_dynamic() || partial_shape.rank().get_length() < 2) {
                 continue;
             }
 
             const auto& token_dim = partial_shape[1];
+
+            // Dynamic seq dim → prefill model with variable context length.
             if (token_dim.is_dynamic()) {
-                continue;
+                return GQAModelStage::PREFILL;
             }
 
             const auto token_count = token_dim.get_length();
             if (token_count == 1) {
-                saw_generate_input = true;
-            } else if (token_count > 1) {
-                saw_prefill_input = true;
+                return GQAModelStage::GENERATE;
             }
-
-            if (saw_generate_input && saw_prefill_input) {
-                return GQAModelStage::UNKNOWN;
-            }
-        }
-
-        if (saw_generate_input) {
-            return GQAModelStage::GENERATE;
-        }
-        if (saw_prefill_input) {
             return GQAModelStage::PREFILL;
         }
         return GQAModelStage::UNKNOWN;
     };
 
+    const auto get_model_max_seq_length = [&]() {
+        std::size_t max_seq_length = 0;
+        for (const auto& res : model->get_parameters()) {
+            if (res->get_friendly_name().find("past_keys_") == std::string::npos) {
+                continue;
+            }
+
+            const auto& past_keys_shape = res->get_output_partial_shape(0);
+            if (past_keys_shape.rank().is_static() && past_keys_shape.size() > 2) {
+                const auto& seq_dim = past_keys_shape[2];
+                if (seq_dim.is_static()) {
+                    max_seq_length = static_cast<std::size_t>(seq_dim.get_length());
+                    break;
+                }
+            }
+            break;
+        }
+
+        return max_seq_length;
+    };
+
+    const auto has_transposed_value_tensors = [&]() {
+        ov::PartialShape past_keys_shape;
+        ov::PartialShape past_values_shape;
+
+        for (const auto& parameter : model->get_parameters()) {
+            const auto& name = parameter->get_friendly_name();
+            if (name.find("past_keys_") != std::string::npos) {
+                past_keys_shape = parameter->get_partial_shape();
+            } else if (name.find("past_values_") != std::string::npos) {
+                past_values_shape = parameter->get_partial_shape();
+            }
+        }
+
+        if (past_keys_shape.rank().is_static() && past_values_shape.rank().is_static() && past_keys_shape.size() >= 4 &&
+            past_values_shape.size() >= 4) {
+            const auto& key_seq_dim = past_keys_shape[2];
+            const auto& key_dim = past_keys_shape[3];
+            const auto& value_seq_dim = past_values_shape[2];
+            const auto& value_dim = past_values_shape[3];
+
+            if (key_seq_dim.is_static() && key_dim.is_static() && value_seq_dim.is_static() && value_dim.is_static()) {
+                return (value_seq_dim.get_length() == key_dim.get_length() &&
+                        value_dim.get_length() == key_seq_dim.get_length());
+            }
+        }
+
+        return false;
+    };
+
     ov::AnyMap config = {
         {"NPUW_ONLINE_PIPELINE", "REP"},
         {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
-        {std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
         {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
     };
 
-    if (detect_gqa_model_stage() != GQAModelStage::GENERATE) {
+    const auto stage = detect_gqa_model_stage();
+    if (stage == GQAModelStage::PREFILL) {
         merge_config_with(config,
-                          {{"NPUW_ONLINE_ISOLATE", "ATTN"},
+                          {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
                            {"NPUW_FOLD_ONLY", "attn"},
-                           {"NPUW_ATTN", "STATIC"},
-                           {"NPUW_ONLINE_KEEP_BLOCK_SIZE", "9"}});
-    } else {
+                           {"NPUW_ONLINE_ISOLATE", "ATTN"},
+                           {"NPUW_ONLINE_KEEP_BLOCKS_TAGGED", "attn"},
+                           {"NPUW_ATTN", "STATIC"}});
+        LOG_INFO("Detected prefill-style GQA model; applying FOLD with ATTN isolation");
+    } else if (stage == GQAModelStage::GENERATE) {
         merge_config_with(config,
-                          {{std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key()), "YES"},
+                          {{std::string(::intel_npu::NPUW_FOLD::key()), "YES"},
+                           {"NPUW_FOLD_ONLY", "attn"},
+                           {std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key()), "YES"},
                            {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "YES"}});
-        LOG_INFO("Detected generate-style GQA model; skipping ATTN isolation defaults");
+
+        // WA: Disable NPUW_UNFOLD_IREQS with long sequence lengths and not transposed value tensors.
+        const auto max_seq_length = get_model_max_seq_length();
+        const auto transposed_value_tensors = has_transposed_value_tensors();
+        if (max_seq_length > 8192 && !transposed_value_tensors) {
+            merge_config_with(config, {{std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "NO"}});
+            LOG_INFO("Detected generate-style GQA model with max sequence length "
+                     << max_seq_length << " and transposed value tensors=" << transposed_value_tensors
+                     << "; disabling NPUW_UNFOLD_IREQS");
+        }
+        LOG_INFO("Detected generate-style GQA model; applying FOLD with async funcall");
+    } else {
+        LOG_INFO("GQA model stage unknown; FOLD disabled");
     }
     merge_config_with(config, properties);
-    return config;
+    return {config, stage};
 }
 
 }  // namespace
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
-    auto prepared_properties = with_gqa_defaults(model, properties);
+    auto [prepared_properties, stage] = with_gqa_defaults(model, properties);
+
+    model->set_friendly_name(model->get_friendly_name() + "_gqa_" +
+                             (stage == GQAModelStage::PREFILL    ? "prefill"
+                              : stage == GQAModelStage::GENERATE ? "generate"
+                                                                 : "unknown"));
+
     // Untangle shared scale constants so every DequantizeLinear Multiply
     // gets its own copy.  Some exporters reuse a single scale node across
     // multiple layers; NPUW's FOLD pass requires per-instance scalars.

@@ -18,6 +18,7 @@
 #include <openvino/core/except.hpp>
 #include <openvino/reference/adaptive_rkv_diversity.hpp>
 #include <openvino/reference/xattention.hpp>
+#include <cstring>
 #include <optional>
 
 #include "openvino/runtime/properties.hpp"
@@ -1523,6 +1524,7 @@ private:
         }
     }
 
+public:
     std::vector<ov::float16> read_key_from_cache(cldnn::memory::ptr key_cache_mem, size_t seq_idx, int total_tokens) {
         // Read key vectors from key_cache memory
         // key_cache layout: [num_blocks, num_kv_heads, head_size, block_size]
@@ -1727,6 +1729,7 @@ private:
         return key_data;
     }
 
+private:
     std::vector<ov::float16> compute_diversity_reference(cldnn::memory::ptr key_cache_mem) {
         std::vector<ov::float16> diversity_output;
 
@@ -1798,6 +1801,12 @@ public:
                     p.has_xattention,
                     p.rotation_config,
                     p.kv_cache_precision);
+
+        if (p.zero_key_data) {
+            for (auto& sequence_key_data : pam->key_data) {
+                std::fill(sequence_key_data.begin(), sequence_key_data.end(), ov::float16{0.0f});
+            }
+        }
     }
 
     std::vector<ov::float16> get_output_data() {
@@ -1820,7 +1829,43 @@ public:
     struct gpu_outputs {
         std::map<cldnn::primitive_id, cldnn::network_output> outputs;
         cldnn::memory::ptr key_cache_mem;
+        cldnn::memory::ptr value_cache_mem;
+        cldnn::network::ptr network;
     };
+
+    void validate_zero_key_cache_scales(const cldnn::memory::ptr& key_cache_mem, const T& p) {
+        ASSERT_TRUE(p.kv_cache_compression);
+        ASSERT_EQ(p.key_cache_quant_mode, ov::internal::CacheQuantMode::BY_CHANNEL);
+
+        constexpr float zero_range = 0.004f;
+        const bool is_int4 = p.kv_cache_precision == ov::element::u4 || p.kv_cache_precision == ov::element::i4;
+        const size_t quantized_values = is_int4 ? p.block_size / 2 : p.block_size;
+        const size_t adjusted_block_size = quantized_values + 2 * sizeof(ov::float16);
+        const float expected_inv_scale = zero_range / (is_int4 ? 15.0f : 255.0f);
+        const float tolerance = is_int4 ? 1e-5f : 1e-6f;
+        cldnn::mem_lock<uint8_t, cldnn::mem_lock_type::read> cache_bytes(key_cache_mem,
+                                                                         tests::get_test_stream());
+
+        for (const int physical_block : pam->block_indices) {
+            for (size_t head = 0; head < static_cast<size_t>(p.num_kv_heads); ++head) {
+                const size_t block_head_offset =
+                    (static_cast<size_t>(physical_block) * p.num_kv_heads + head) * p.k_head_size * adjusted_block_size;
+                for (size_t dim = 0; dim < static_cast<size_t>(p.k_head_size); ++dim) {
+                    const size_t scale_offset = block_head_offset + dim * adjusted_block_size + quantized_values;
+                    ov::float16 stored_inv_scale;
+                    std::memcpy(&stored_inv_scale, cache_bytes.data() + scale_offset, sizeof(stored_inv_scale));
+                    const float inv_scale = static_cast<float>(stored_inv_scale);
+
+                    EXPECT_TRUE(std::isfinite(inv_scale))
+                        << "block=" << physical_block << ", head=" << head << ", dim=" << dim;
+                    EXPECT_GT(inv_scale, 0.0f)
+                        << "block=" << physical_block << ", head=" << head << ", dim=" << dim;
+                    EXPECT_NEAR(inv_scale, expected_inv_scale, tolerance)
+                        << "block=" << physical_block << ", head=" << head << ", dim=" << dim;
+                }
+            }
+        }
+    }
 
     gpu_outputs run_gpu_inference(PagedAttentionManager& pam, T& p) {
         gpu_outputs result;
@@ -1894,7 +1939,7 @@ public:
         } else {
             result.key_cache_mem = pam.get_key_cache_memory();
         }
-        auto value_cache_mem = pam.get_value_cache_memory();
+        result.value_cache_mem = pam.get_value_cache_memory();
 
         auto past_lens_mem = pam.get_past_lens_memory();
         auto subsequence_begins_mem = pam.get_subsequence_begins_memory();
@@ -1930,7 +1975,7 @@ public:
         auto key_layout = key_mem->get_layout();
         auto value_layout = value_mem->get_layout();
         auto key_cache_layout = result.key_cache_mem->get_layout();
-        auto value_cache_layout = value_cache_mem->get_layout();
+        auto value_cache_layout = result.value_cache_mem->get_layout();
         auto past_lens_layout = past_lens_mem->get_layout();
         auto subsequence_begins_layout = subsequence_begins_mem->get_layout();
         auto block_indices_layout = block_indices_mem->get_layout();
@@ -2137,7 +2182,7 @@ public:
         network->set_input_data("key", key_mem);
         network->set_input_data("value", value_mem);
         network->set_input_data("key_cache", result.key_cache_mem);
-        network->set_input_data("value_cache", value_cache_mem);
+        network->set_input_data("value_cache", result.value_cache_mem);
         network->set_input_data("past_lens", past_lens_mem);
         network->set_input_data("subsequence_begins", subsequence_begins_mem);
         network->set_input_data("block_indices", block_indices_mem);
@@ -2168,6 +2213,7 @@ public:
         last_block_indices_begins = pam.block_indices_begins;
 
         result.outputs = network->execute();
+        result.network = network;
 
         last_output_data_mem = result.outputs.at("output_data").get_memory();
 
@@ -2179,6 +2225,10 @@ public:
         auto& pam = *this->pam;
 
         auto result = run_gpu_inference(pam, p);
+
+        if (p.zero_key_data) {
+            validate_zero_key_cache_scales(result.key_cache_mem, p);
+        }
 
         if (!run_reference) {
             return;
@@ -2945,6 +2995,9 @@ struct paged_attention_test_params {
     std::optional<std::vector<ov::float16>> sink_values = std::nullopt;
     // When true, forces could_use_flashattn_v2(true) to guarantee the FA_V2 kernel path.
     bool force_flashattn_v2 = false;
+
+    // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
+    bool zero_key_data = false;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;

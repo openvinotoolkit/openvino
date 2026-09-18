@@ -81,7 +81,7 @@ std::shared_ptr<void> load_shared_object(const std::filesystem::path& path) {
         IEGetDllDirectoryW = reinterpret_cast<GetDllDirectoryW_Fnc>(GetProcAddress(hm, "GetDllDirectoryW"));
     }
     // ExcludeCurrentDirectory
-#    if !WINAPI_PARTITION_SYSTEM
+#if !WINAPI_PARTITION_SYSTEM
     if (IEGetDllDirectoryW && IEGetDllDirectoryW(0, NULL) <= 1) {
         SetDllDirectoryW(L"");
     }
@@ -95,7 +95,7 @@ std::shared_ptr<void> load_shared_object(const std::filesystem::path& path) {
 
         SetDllDirectoryW(&lpBuffer.front());
     }
-#    endif
+#endif
     if (!shared_object) {
         shared_object = LoadLibraryW(path.c_str());
     }

@@ -16,8 +16,31 @@ from openvino import Model, Node, Tensor, Type
 from openvino.utils.types import NumericData, get_shape, get_dtype
 import openvino.properties.hint as hints
 
-from onnx.helper import float32_to_float8e5m2, float32_to_float8e4m3
-from onnx.numpy_helper import float8e5m2_to_float32, float8e4m3_to_float32
+try:
+    # onnx < 1.20 exposes explicit float8 conversion helpers
+    from onnx.helper import float32_to_float8e5m2, float32_to_float8e4m3
+    from onnx.numpy_helper import float8e5m2_to_float32, float8e4m3_to_float32
+except ImportError:
+    # onnx >= 1.20 removed these helpers and relies on ml_dtypes instead. Import ml_dtypes
+    # lazily inside each helper so that merely importing this module does not fail when
+    # ml_dtypes is absent; it is only needed when a float8 test actually runs.
+    def float32_to_float8e5m2(value, fn=False, uz=False):
+        import ml_dtypes
+        return np.asarray(value, dtype=np.float32).astype(ml_dtypes.float8_e5m2).view(np.uint8)
+
+    def float32_to_float8e4m3(value, fn=True, uz=False):
+        import ml_dtypes
+        f8_dtype = ml_dtypes.float8_e4m3fnuz if uz else ml_dtypes.float8_e4m3fn
+        return np.asarray(value, dtype=np.float32).astype(f8_dtype).view(np.uint8)
+
+    def float8e5m2_to_float32(data, fn=False, uz=False):
+        import ml_dtypes
+        return np.asarray(data, dtype=np.uint8).view(ml_dtypes.float8_e5m2).astype(np.float32)
+
+    def float8e4m3_to_float32(data, fn=True, uz=False):
+        import ml_dtypes
+        f8_dtype = ml_dtypes.float8_e4m3fnuz if uz else ml_dtypes.float8_e4m3fn
+        return np.asarray(data, dtype=np.uint8).view(f8_dtype).astype(np.float32)
 
 import tests
 

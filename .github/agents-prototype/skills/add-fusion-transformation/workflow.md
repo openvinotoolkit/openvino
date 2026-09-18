@@ -1,6 +1,6 @@
 # Skill: Add OpenVINO Fusion Transformation (End-to-End)
 
-> **Upstream skill spec:** `skills/add-fusion-transformation/SKILL.md`
+> **Upstream skill spec:** [`skills/add-fusion-transformation/SKILL.md`](SKILL.md)
 > This file is the Copilot-ready, agent-executable version of that specification.
 
 ## Purpose

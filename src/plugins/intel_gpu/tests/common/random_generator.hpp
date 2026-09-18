@@ -4,14 +4,34 @@
 
 #pragma once
 
+#include <cmath>
+#include <cstdint>
+#include <iostream>
 #include <random>
 #include <set>
+#include <string>
+#include <string_view>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+
 
 #define GET_SUITE_NAME  (std::string(::testing::UnitTest::GetInstance()->current_test_info()->test_suite_name()) + \
                          std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()))
 
 namespace tests {
 static const uint32_t DEFAULT_SEED = 0;
+
+
+inline uint64_t stable_string_seed(std::string_view seed) {
+    uint64_t hash = 14695981039346656037ull;
+    for (unsigned char ch : seed) {
+        hash ^= ch;
+        hash *= 1099511628211ull;
+    }
+    return hash;
+}
+
 
 class random_generator {
 public:
@@ -26,18 +46,25 @@ public:
     }
 
     void set_seed(const std::string& seed) {
-        auto seed_hash = std::hash<std::string>{}(seed);
-        set_seed(static_cast<uint32_t>(seed_hash));
+        const auto seed_hash = stable_string_seed(seed);
+        set_seed(seed_hash);
     }
 
     void set_seed(const uint32_t seed) {
-        generator = std::default_random_engine{seed};
+        generator.seed(seed);
+    }
+
+    void set_seed(const uint64_t seed) {
+        const uint32_t seed_lo = static_cast<uint32_t>(seed);
+        const uint32_t seed_hi = static_cast<uint32_t>(seed >> 32);
+        std::seed_seq seed_seq{seed_lo, seed_hi};
+        generator.seed(seed_seq);
     }
 
     template<typename ReturnType>
-    ReturnType generate_random_val(int min, int max, int k = 8) {
+    ReturnType generate_random_val(double min, double max, int k = 8) {
         // 1/k is the resolution of the floating point numbers
-        std::uniform_int_distribution<int> distribution(k * min, k * max);
+        auto distribution = make_distribution(min, max, k);
         ReturnType val = static_cast<ReturnType>(distribution(this->generator));
         val /= k;
 
@@ -45,9 +72,9 @@ public:
     }
 
     template<typename ReturnType>
-    std::vector<ReturnType> generate_random_1d(size_t a, int min, int max, int k = 8) {
+    std::vector<ReturnType> generate_random_1d(size_t a, double min, double max, int k = 8) {
         // 1/k is the resolution of the floating point numbers
-        std::uniform_int_distribution<int> distribution(k * min, k * max);
+        auto distribution = make_distribution(min, max, k);
         std::vector<ReturnType> v(a);
 
         for (size_t i = 0; i < a; ++i) {
@@ -58,7 +85,7 @@ public:
     }
 
     template<typename ReturnType>
-    std::vector<std::vector<ReturnType>> generate_random_2d(size_t a, size_t b, int min, int max, int k = 8) {
+    std::vector<std::vector<ReturnType>> generate_random_2d(size_t a, size_t b, double min, double max, int k = 8) {
         std::vector<std::vector<ReturnType>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_1d<ReturnType>(b, min, max, k);
@@ -66,7 +93,7 @@ public:
     }
 
     template<typename ReturnType>
-    std::vector<std::vector<std::vector<ReturnType>>> generate_random_3d(size_t a, size_t b, size_t c, int min, int max, int k = 8) {
+    std::vector<std::vector<std::vector<ReturnType>>> generate_random_3d(size_t a, size_t b, size_t c, double min, double max, int k = 8) {
         std::vector<std::vector<std::vector<ReturnType>>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_2d<ReturnType>(b, c, min, max, k);
@@ -75,7 +102,8 @@ public:
 
     // parameters order is assumed to be bfyx or bfyx
     template<typename ReturnType>
-    std::vector<std::vector<std::vector<std::vector<ReturnType>>>> generate_random_4d(size_t a, size_t b, size_t c, size_t d, int min, int max, int k = 8) {
+    std::vector<std::vector<std::vector<std::vector<ReturnType>>>> generate_random_4d(size_t a, size_t b, size_t c, size_t d,
+                                                                                     double min, double max, int k = 8) {
         std::vector<std::vector<std::vector<std::vector<ReturnType>>>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_3d<ReturnType>(b, c, d, min, max, k);
@@ -85,7 +113,7 @@ public:
     // parameters order is assumed to be sbfyx for filters when split > 1
     template<typename ReturnType>
     std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>> generate_random_5d(size_t a, size_t b, size_t c, size_t d, size_t e,
-                                                                                                   int min, int max, int k = 8) {
+                                                                                                   double min, double max, int k = 8) {
         std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_4d<ReturnType>(b, c, d, e, min, max, k);
@@ -94,7 +122,7 @@ public:
 
     template<typename ReturnType>
     std::vector<std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>>> generate_random_6d(size_t a, size_t b, size_t c, size_t d,
-                                                                                                    size_t e, size_t f, int min, int max, int k = 8) {
+                                                                                                    size_t e, size_t f, double min, double max, int k = 8) {
         std::vector<std::vector<std::vector<std::vector<std::vector<std::vector<ReturnType>>>>>> v(a);
         for (size_t i = 0; i < a; ++i)
             v[i] = generate_random_5d<ReturnType>(b, c, d, e, f, min, max, k);
@@ -131,6 +159,28 @@ public:
     }
 
 private:
+    // Values are drawn on a 1/k grid, so the integer bounds are k*min and k*max.
+    // min/max are taken as floating point on purpose: they used to be int, which silently truncated
+    // calls such as generate_random_1d<ov::float16>(n, -0.25f, 0.25f) into a constant-zero range.
+    static std::uniform_int_distribution<int> make_distribution(double min, double max, int k) {
+        OPENVINO_ASSERT(min <= max, "random_generator: min (", min, ") must not exceed max (", max, ")");
+        OPENVINO_ASSERT(k > 0, "random_generator: resolution k must be positive, got ", k);
+
+        if (min == max) {
+            const auto val = static_cast<int>(std::lround(min * k));
+            return std::uniform_int_distribution<int>(val, val);
+        }
+
+        // ceil/floor (rather than rounding) keeps every generated value inside [min, max]
+        const auto lo = static_cast<int>(std::ceil(min * k));
+        const auto hi = static_cast<int>(std::floor(max * k));
+        OPENVINO_ASSERT(lo < hi,
+                        "random_generator: range [", min, ", ", max, "] holds fewer than 2 values at resolution 1/", k,
+                        ", so the data would be constant. Pass k >= ", static_cast<int>(std::ceil(2.0 / (max - min))));
+
+        return std::uniform_int_distribution<int>(lo, hi);
+    }
+
     std::default_random_engine generator{DEFAULT_SEED};
 };
 

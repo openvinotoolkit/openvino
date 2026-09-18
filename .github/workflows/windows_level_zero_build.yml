@@ -53,7 +53,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,*/layer_tests_summary/*,*/conformance/*,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
       - name: Get target branch
         id: set_target_branch
@@ -65,7 +65,8 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-16-cores-32gb-build'
+      runner: 'aks-win-x64-build-16c32gb'
+      cmake-build-parallel-level: '15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
       build-variant: 'vs2022_levelzero'

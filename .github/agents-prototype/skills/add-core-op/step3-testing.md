@@ -1,6 +1,6 @@
 # Skill: Core Op Testing
 
-> Source: `skills/add-core-op/SKILL.md` (Step 3)
+> Source: [`skills/add-core-op/SKILL.md`](SKILL.md) (Step 3)
 > Agent: `core_opspec_agent`
 
 ## Prerequisites

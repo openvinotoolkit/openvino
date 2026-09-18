@@ -49,19 +49,17 @@ std::string GatherWeightsDecompression::get_test_case_name(
                  shape_params,
                  data_precision,
                  output_precision,
-                 decompression_sub,
-                 reshape_on_decompression,
-                 per_tensor_zp,
-                 per_tensor_scale] = obj.param;
+                 decompression_multiply_type,
+                 decompression_subtract_type,
+                 reshape_on_decompression] = obj.param;
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
     result << shape_params << "_";
     result << "data_precision=" << data_precision << "_";
     result << "output_precision=" << output_precision << "_";
-    result << "decompression_subtract=" << decompression_sub << "_";
-    result << "reshape_on_decompression=" << reshape_on_decompression << "_";
-    result << "per_tensor_zp=" << per_tensor_zp;
-    result << "per_tensor_scale=" << per_tensor_scale;
+    result << "decompression_multiply=" << decompression_multiply_type << "_";
+    result << "decompression_subtract=" << decompression_subtract_type << "_";
+    result << "reshape_on_decompression=" << reshape_on_decompression;
 
     return result.str();
 }
@@ -73,20 +71,18 @@ std::shared_ptr<ov::Model> GatherWeightsDecompression::init_subgraph(const ov::S
                                                                      const int group_size,
                                                                      const ov::element::Type data_precision,
                                                                      const ov::element::Type output_precision,
-                                                                     const bool add_subtract,
-                                                                     const bool reshape_on_decompression,
-                                                                     const bool per_tensor_zp,
-                                                                     const bool per_tensor_scale) {
+                                                                     const ov::test::utils::DecompressionType decompression_multiply_type,
+                                                                     const ov::test::utils::DecompressionType decompression_subtract_type,
+                                                                     const bool reshape_on_decompression) {
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(ov::element::i32, indices_shape)};
     auto axis_const = ov::op::v0::Constant::create(ov::element::i32, {1}, {axis});
     const auto data_subgraph = ov::test::utils::initGatherDecompressionSubgraph(data_shape,
                                                                                 group_size,
                                                                                 data_precision,
                                                                                 output_precision,
-                                                                                add_subtract,
-                                                                                reshape_on_decompression,
-                                                                                per_tensor_zp,
-                                                                                per_tensor_scale);
+                                                                                decompression_multiply_type,
+                                                                                decompression_subtract_type,
+                                                                                reshape_on_decompression);
 
     auto gather = std::make_shared<ov::op::v8::Gather>(data_subgraph, params[0], axis_const, batch_dims);
     gather->set_friendly_name("gather_node");
@@ -104,10 +100,9 @@ void GatherWeightsDecompression::SetUp() {
                  shape_params,
                  data_precision,
                  output_precision,
-                 decompression_sub,
-                 reshape_on_decompression,
-                 per_tensor_zp,
-                 per_tensor_scale] = GetParam();
+                 decompression_multiply_type,
+                 decompression_subtract_type,
+                 reshape_on_decompression] = GetParam();
     targetDevice = _targetDevice;
 
     init_input_shapes({shape_params.indices_shape, {{}, {{shape_params.data_shape}}}});
@@ -122,10 +117,9 @@ void GatherWeightsDecompression::SetUp() {
                              shape_params.decompression_group_size,
                              data_precision,
                              output_precision,
-                             decompression_sub,
-                             reshape_on_decompression,
-                             per_tensor_zp,
-                             per_tensor_scale);
+                             decompression_multiply_type,
+                             decompression_subtract_type,
+                             reshape_on_decompression);
 
     if (output_precision == ov::element::f16) {
         abs_threshold = 1.0f;

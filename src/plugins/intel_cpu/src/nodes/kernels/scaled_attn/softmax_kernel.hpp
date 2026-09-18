@@ -235,7 +235,7 @@ inline void scale_add_reduce_max(float* a, const float scale, const float* b, co
 
     // process tails
     if (i < size) {
-        auto mask = get_mask(size - i);
+        auto mask = get_mask(static_cast<int>(size - i));
         v_a = _mm256_maskload_ps(a + i, mask);
         v_b = _mm256_maskload_ps(b + i, mask);
         v_a = _mm256_fmadd_ps(v_a, v_scale, v_b);
@@ -498,7 +498,7 @@ inline void scale_add2_reduce_max(float* a,
 
     // process tails
     if (i < size) {
-        auto mask = get_mask(size - i);
+        auto mask = get_mask(static_cast<int>(size - i));
         v_a = _mm256_maskload_ps(a + i, mask);
         v_a = _mm256_mul_ps(v_a, v_scale);
 
@@ -897,7 +897,7 @@ inline void exp_reduce_sum(float* a, const float max, const size_t size, float& 
     }
 
     if (i < size) {
-        auto mask = get_mask(size - i);
+        auto mask = get_mask(static_cast<int>(size - i));
         v_a = _mm256_maskload_ps(a + i, mask);
         v_a = _mm256_sub_ps(v_a, v_max);
         exp_ps_avx2(v_a);
@@ -1243,7 +1243,7 @@ inline void attn_softmax_kernel<float>(float* a,
         sum += std::exp(*sink - max);
     }
     // divide sum
-    float scalar = 1.0F / sum;
+    float scalar = (sum != 0.0F) ? (1.0F / sum) : 0.0F;
     if (dst_precision == ov::element::f32) {
         multiply_scalar(a, reinterpret_cast<float*>(a_dst), scalar, len);
         // apply causual mask to final result instead of attn_score

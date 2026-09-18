@@ -130,11 +130,10 @@ Refer to the [official GitHub Actions documentation](https://docs.github.com/en/
 
 You can refer to the [structural overview of the existing workflows](./overview.md#workflow-structure) as a template for a new workflow.
 
-The [`fedora_29.yml`](./../../../../.github/workflows/fedora_29.yml) workflow example includes:
+The [`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml) workflow example includes:
 * The following jobs:
   * `Smart_CI` - the [Smart CI system](./smart_ci.md).
   * `Build` - installing prerequisites, building OpenVINO with the specified CMake configuration, packaging and uploading artifacts.
-  * `RPM_Packages` - installing prerequisites, downloading artifacts and tests.
   * `Overall_Status` - the job for collecting statuses of other jobs
 * uploading and downloading the build artifacts between jobs using `actions/upload-artifact` and `actions/download-artifact`
 * usage of the [Smart CI system](./smart_ci.md)

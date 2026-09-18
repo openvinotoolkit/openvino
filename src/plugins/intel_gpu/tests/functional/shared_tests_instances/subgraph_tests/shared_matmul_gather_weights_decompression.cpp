@@ -32,7 +32,10 @@ const std::vector<GatherDecompressionShapeParams> input_shapes = {
 };
 const std::vector<ElementType> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
 const std::vector<ElementType> decompression_precisions = {ov::element::f32, ov::element::f16};
-const std::vector<bool> decompression_subtract = {true, false};
+const std::vector<ov::test::utils::DecompressionType> decompression_subtract_types = {
+    ov::test::utils::DecompressionType::full,
+    ov::test::utils::DecompressionType::empty
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatmulAndGatherSharedWeightsDecompression,
                          SharedMatmulAndGatherWeightsDecompression,
@@ -40,7 +43,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatmulAndGatherSharedWeightsDecompression,
                                             ::testing::ValuesIn(input_shapes),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
-                                            ::testing::ValuesIn(decompression_subtract),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::ValuesIn(decompression_subtract_types),
                                             ::testing::Values(true)),
                          SharedMatmulAndGatherWeightsDecompression::getTestCaseName);
 

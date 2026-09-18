@@ -123,7 +123,6 @@ RUN cd Python-3.11.3 && make distclean && \
     make -j4 && make altinstall
 
 ENV PATH="$SCCACHE_HOME:$PATH"
-ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
 # Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build
@@ -134,7 +133,7 @@ ENV PATH="/venv/bin:$PATH"
 RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 
 # Install Node
-ENV NODE_VERSION=21.7.3
+ENV NODE_VERSION=22.23.2
 ENV NVM_DIR=/.nvm
 RUN mkdir -p $NVM_DIR
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
@@ -143,7 +142,7 @@ ENV PATH="$NVM_DIR/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 
 # Install doxygen
 ENV DOXYGEN_HOME="/opt/doxygen"
-ENV DOXYGEN_VERSION='1.9.6'
+ENV DOXYGEN_VERSION='1.18.0'
 RUN mkdir -p ${DOXYGEN_HOME} && cd ${DOXYGEN_HOME} && wget https://www.doxygen.nl/files/doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
     tar -I pigz -xf doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz && \
     rm -f doxygen-$DOXYGEN_VERSION.linux.bin.tar.gz

@@ -22,7 +22,7 @@
 namespace ov::intel_cpu {
 
 static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims& dims, VectorDims& indexes) {
-    for (int j = nDims - 1; j >= 0; j--) {
+    for (auto j = static_cast<int64_t>(nDims) - 1; j >= 0; j--) {
         indexes[j] = start % dims[j];
         start = start / dims[j];
     }
@@ -30,7 +30,7 @@ static inline size_t parallel_init(size_t start, size_t nDims, const VectorDims&
 }
 
 static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDims& indexes) {
-    for (int j = nDims - 1; j >= 0; --j) {
+    for (auto j = static_cast<int64_t>(nDims) - 1; j >= 0; --j) {
         ++indexes[j];
         if (indexes[j] < dims[j]) {
             break;
@@ -42,18 +42,18 @@ static inline void parallel_step(size_t nDims, const VectorDims& dims, VectorDim
 void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
                                             uint8_t* dst_data,
                                             const jit_permute_config_params& jcp,
-                                            const int mb) {
+                                            const size_t mb) {
     VectorDims dst_dims = jcp.dst_block_dims;
     const VectorDims dst_strides = jcp.dst_strides;
     const VectorDims src_strides = jcp.src_strides;
     const size_t data_size = jcp.data_size;
     const size_t ndims = dst_dims.size();
 
-    if (static_cast<int>(dst_dims[0]) != mb) {
+    if (dst_dims[0] != mb) {
         dst_dims[0] = mb;
     }
 
-    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1, std::multiplies<>());
+    size_t work_amount = std::accumulate(dst_dims.begin(), dst_dims.end(), 1LLU, std::multiplies<>());
 
     auto get_idx = [ndims, data_size](const VectorDims& indexes, const VectorDims& strides) {
         size_t idx = 0;
@@ -84,7 +84,7 @@ void RefTransposeExecutor::referenceExecute(const uint8_t* src_data,
 void RefTransposeExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
     const auto* src_data = src[0]->getDataAs<const uint8_t>();
     auto* dst_data = dst[0]->getDataAs<uint8_t>();
-    const int MB = src[0]->getStaticDims()[0];
+    const auto MB = src[0]->getStaticDims()[0];
     referenceExecute(src_data, dst_data, jcp, MB);
 }
 

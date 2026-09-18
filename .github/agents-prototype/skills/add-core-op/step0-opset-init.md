@@ -7,7 +7,7 @@ description: Initializes a new opset (operation set) in OpenVINO. Use when start
 
 > **When to invoke:** Run this step **only when the target opset does not yet exist**
 > in the OpenVINO repository. If `opsetX.hpp` already exists, skip to
-> `skills/add-core-op/step1-analysis.md`.
+> [`skills/add-core-op/step1-analysis.md`](step1-analysis.md).
 
 ## When This Skill Applies
 Use this skill when:

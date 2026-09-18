@@ -18,10 +18,10 @@
 
 namespace intel_npu {
 
-struct vcl_allocator_3 : vcl_allocator2_t {
-    vcl_allocator_3() : vcl_allocator2_t{allocate, deallocate}, m_allocator(intel_npu::utils::STANDARD_PAGE_SIZE) {}
+struct vcl_allocator_2 : vcl_allocator2_t {
+    vcl_allocator_2() : vcl_allocator2_t{allocate, deallocate}, m_allocator(intel_npu::utils::STANDARD_PAGE_SIZE) {}
 
-    ~vcl_allocator_3() {
+    ~vcl_allocator_2() {
         for (auto& item : m_info) {
             if (item.first) {
                 m_allocator.deallocate(item.first, item.second, intel_npu::utils::STANDARD_PAGE_SIZE);
@@ -31,7 +31,7 @@ struct vcl_allocator_3 : vcl_allocator2_t {
     }
 
     static uint8_t* allocate(vcl_allocator2_t* allocator, size_t size) noexcept {
-        vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
+        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
         size_t alignedSize = intel_npu::utils::align_size_to_standard_page_size(size);
 
         // Prevent integer wraparound on extremely large allocation sizes
@@ -63,7 +63,7 @@ struct vcl_allocator_3 : vcl_allocator2_t {
         if (ptr == nullptr) {
             return;
         }
-        vcl_allocator_3* vclAllocator = static_cast<vcl_allocator_3*>(allocator);
+        vcl_allocator_2* vclAllocator = static_cast<vcl_allocator_2*>(allocator);
 
         auto it = std::find_if(vclAllocator->m_info.begin(),
                                vclAllocator->m_info.end(),
@@ -83,14 +83,14 @@ struct vcl_allocator_3 : vcl_allocator2_t {
 
 inline ov::Tensor make_tensor_from_aligned_addr(uint8_t* allocated,
                                                 size_t size,
-                                                std::shared_ptr<vcl_allocator_3> sourceAllocator) {
+                                                std::shared_ptr<vcl_allocator_2> sourceAllocator) {
     auto tensor = ov::Tensor(ov::element::u8, ov::Shape{size}, allocated);
     auto impl = ov::get_tensor_impl(std::move(tensor));
     std::shared_ptr<void> ptr(allocated, [sourceAllocator](uint8_t* p) noexcept {
         if (p == nullptr) {
             return;
         }
-        vcl_allocator_3::deallocate(sourceAllocator.get(), p);
+        vcl_allocator_2::deallocate(sourceAllocator.get(), p);
     });
     impl._so = std::move(ptr);
     return ov::make_tensor(impl);

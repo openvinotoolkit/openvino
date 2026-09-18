@@ -217,9 +217,11 @@ typedef struct {
 } ov_encryption_callbacks;
 
 /**
- * @brief Print the error info.
+ * @brief Returns a human-readable description of the given status code.
  * @ingroup ov_base_c_api
- * @param ov_status_e a status code.
+ * @param status A status code.
+ * @return A pointer to a static, null-terminated string describing the status.
+ *         The returned pointer is valid for the lifetime of the process and MUST NOT be passed to ov_free().
  */
 OPENVINO_C_API(const char*)
 ov_get_error_info(ov_status_e status);

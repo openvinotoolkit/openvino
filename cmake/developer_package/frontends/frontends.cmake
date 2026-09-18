@@ -108,12 +108,28 @@ endmacro()
 #                 [PROTOBUF_REQUIRED] # options to denote that protobuf is used
 #                 [PROTOBUF_LITE] # requires only libprotobuf-lite
 #                 [SKIP_NCC_STYLE] # use custom NCC rules
-#                 [LINK_LIBRARIES <lib1 lib2 ...>])
+#                 [LINK_LIBRARIES <lib1 lib2 ...>]
+#                 [SOURCES <src1.cpp src2.cpp ...>]         # [PREFERRED] explicit *.cpp list; skips the
+#                                                            # legacy src/*.cpp glob entirely when provided
+#                 [HEADERS <hdr1.hpp hdr2.hpp ...>]          # [PREFERRED] explicit private src/*.hpp list
+#                 [PUBLIC_HEADERS <hdr1.hpp hdr2.hpp ...>])  # [PREFERRED] explicit include/*.hpp list
+#
+# SOURCE LISTING - preferred vs. legacy
+# --------------------------------------
+# SOURCES/HEADERS/PUBLIC_HEADERS (preferred)
+#   Pass explicit file lists (typically via a sibling sources.cmake, see
+#   src/frontends/onnx/frontend/sources.cmake for a worked example). When SOURCES is provided, the
+#   legacy directory-glob below is skipped entirely for all three lists.
+#
+# (no arguments passed - legacy / deprecated)
+#   Falls back to file(GLOB_RECURSE) over src/*.cpp, src/*.hpp and include/*.hpp under the frontend
+#   root directory. Existing frontends should migrate to explicit SOURCES/HEADERS/PUBLIC_HEADERS when
+#   the opportunity arises; new frontends should not rely on this fallback.
 #
 macro(ov_add_frontend)
     set(options LINKABLE_FRONTEND PROTOBUF_REQUIRED PROTOBUF_LITE SKIP_NCC_STYLE SKIP_INSTALL DISABLE_CPP_INSTALL)
     set(oneValueArgs NAME FILEDESCRIPTION)
-    set(multiValueArgs LINK_LIBRARIES PROTO_FILES)
+    set(multiValueArgs LINK_LIBRARIES PROTO_FILES SOURCES HEADERS PUBLIC_HEADERS)
     cmake_parse_arguments(OV_FRONTEND "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
     foreach(prop NAME FILEDESCRIPTION)
@@ -132,9 +148,18 @@ macro(ov_add_frontend)
         get_filename_component(frontend_root_dir "${frontend_root_dir}" DIRECTORY)
     endif()
 
-    file(GLOB_RECURSE LIBRARY_SRC ${frontend_root_dir}/src/*.cpp)
-    file(GLOB_RECURSE LIBRARY_HEADERS ${frontend_root_dir}/src/*.hpp)
-    file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${frontend_root_dir}/include/*.hpp)
+    if(OV_FRONTEND_SOURCES)
+        # Explicit list provided - skip glob entirely (preferred)
+        set(LIBRARY_SRC ${OV_FRONTEND_SOURCES})
+        set(LIBRARY_HEADERS ${OV_FRONTEND_HEADERS})
+        set(LIBRARY_PUBLIC_HEADERS ${OV_FRONTEND_PUBLIC_HEADERS})
+    else()
+        # [LEGACY] directory-based glob discovery; prefer SOURCES/HEADERS/PUBLIC_HEADERS for new
+        # or migrated frontends - see src/frontends/onnx/frontend/CMakeLists.txt for an example.
+        file(GLOB_RECURSE LIBRARY_SRC ${frontend_root_dir}/src/*.cpp)
+        file(GLOB_RECURSE LIBRARY_HEADERS ${frontend_root_dir}/src/*.hpp)
+        file(GLOB_RECURSE LIBRARY_PUBLIC_HEADERS ${frontend_root_dir}/include/*.hpp)
+    endif()
 
     set(${TARGET_NAME}_INCLUDE_DIR ${frontend_root_dir}/include)
 
@@ -223,7 +248,10 @@ macro(ov_add_frontend)
                 $<BUILD_INTERFACE:${${TARGET_NAME}_INCLUDE_DIR}>
             PRIVATE
                 $<TARGET_PROPERTY:openvino::frontend::common,INTERFACE_INCLUDE_DIRECTORIES>
-                ${frontend_root_dir}/src
+                ${frontend_root_dir}/src)
+
+    # Add binary dir as SYSTEM so generated protobuf headers don't trigger warnings
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
                 ${CMAKE_CURRENT_BINARY_DIR})
 
     ov_add_vs_version_file(NAME ${TARGET_NAME}
@@ -251,12 +279,21 @@ macro(ov_add_frontend)
             set(protobuf_target_name libprotobuf)
             set(protobuf_install_name "protobuf_installed")
         endif()
+
         if(ENABLE_SYSTEM_PROTOBUF)
             # use imported target name with namespace
             set(protobuf_target_name "protobuf::${protobuf_target_name}")
         endif()
 
         ov_link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
+
+        # GCC emits warnings even from SYSTEM includes of header-only libraries
+        if(CMAKE_COMPILER_IS_GNUCXX)
+            target_compile_options(${TARGET_NAME} PRIVATE
+                -Wno-error=array-bounds
+                -Wno-error=stringop-overflow
+            )
+        endif()
 
         # protobuf generated code emits -Wsuggest-override error
         if(SUGGEST_OVERRIDE_SUPPORTED)
@@ -269,7 +306,10 @@ macro(ov_add_frontend)
                 # we have to add find_package(Protobuf) to the OpenVINOConfig.cmake for static build
                 # no needs to install protobuf
             else()
-                ov_install_static_lib(${protobuf_target_name} ${OV_CPACK_COMP_CORE})
+                # Installs protobuf plus its transitive dependencies
+                set(_ov_protobuf_roots ${protobuf_target_name})
+                ov_install_static_deps(_ov_protobuf_roots ${OV_CPACK_COMP_CORE})
+                unset(_ov_protobuf_roots)
                 set("${protobuf_install_name}" ON CACHE INTERNAL "" FORCE)
             endif()
         endif()

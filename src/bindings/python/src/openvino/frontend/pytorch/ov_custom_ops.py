@@ -145,4 +145,93 @@ def _gptq_gemm_cpu(
     return out.to(data.dtype)
 
 
+# ──────────────────────────────────────────────────────────────────────
+#  ov_ext::ct_gemm  (input, weight_packed, weight_scale, group_size,
+#                    sym, weight_zero_point?, bias?) → Tensor
+#
+#  Compressed-tensors pack-quantized int4 gemm.
+#  weight_packed:      [out_features, in_features // 8]  int32
+#                      8 nibbles per int32, low nibble first.
+#                      Nibble values = q_uint = q_int8 + 8 ∈ [0, 15].
+#  weight_scale:       [out_features, n_groups]  float32
+#  weight_zero_point:  [out_features // 8, n_groups]  int32  (asym only)
+#                      Same nibble packing, values = zp_uint ∈ [0, 15].
+#  sym=True  → i4 weights, no zero-point subtraction.
+#  sym=False → u4 weights, zero-point subtracted before scaling.
+# ──────────────────────────────────────────────────────────────────────
+_ov_ext_lib.define(
+    "ct_gemm(Tensor input, Tensor weight_packed, Tensor weight_scale, "
+    "int group_size, bool sym, Tensor? weight_zero_point, "
+    "Tensor? bias) -> Tensor")
+
+
+@torch.library.impl(_ov_ext_lib, "ct_gemm", "Meta")
+def _ct_gemm_meta(
+    data: torch.Tensor, weight_packed: torch.Tensor,
+    _weight_scale: torch.Tensor, _group_size: int, _sym: bool,
+    _weight_zero_point: torch.Tensor | None, _bias: torch.Tensor | None,
+) -> torch.Tensor:
+    out_features = weight_packed.shape[0]  # weight_packed shape: [out_features, in_features // 8]
+    return torch.empty(
+        *data.shape[:-1], out_features,
+        dtype=data.dtype, device="meta")
+
+
+@torch.library.impl(_ov_ext_lib, "ct_gemm", "CPU")
+def _ct_gemm_cpu(
+    data: torch.Tensor, weight_packed: torch.Tensor,
+    _weight_scale: torch.Tensor, _group_size: int, _sym: bool,
+    _weight_zero_point: torch.Tensor | None, bias: torch.Tensor | None,
+) -> torch.Tensor:
+    # Placeholder – actual dequantisation happens in the C++ OV translator.
+    out_features = weight_packed.shape[0]
+    out = torch.zeros(
+        *data.shape[:-1], out_features,
+        dtype=torch.float32, device=data.device)
+    if bias is not None:
+        out = out + bias.float()
+    return out.to(data.dtype)
+
+
+# ──────────────────────────────────────────────────────────────────────
+#  ov_ext::ct_embedding  (weight_packed, weight_scale, group_size,
+#                         sym, indices, weight_zero_point?) → Tensor
+#
+#  Compressed-tensors pack-quantized int4 embedding lookup.
+#  Same weight packing as ct_gemm; weight_packed is [num_embeddings,
+#  embedding_dim // 8] int32. Output is [*indices.shape, embedding_dim].
+#  weight_zero_point is kept last (trailing optional) so TorchScript does
+#  not drop it from the middle of the positional args in the symmetric case.
+# ──────────────────────────────────────────────────────────────────────
+_ov_ext_lib.define(
+    "ct_embedding(Tensor weight_packed, Tensor weight_scale, "
+    "int group_size, bool sym, Tensor indices, "
+    "Tensor? weight_zero_point) -> Tensor")
+
+
+@torch.library.impl(_ov_ext_lib, "ct_embedding", "Meta")
+def _ct_embedding_meta(
+    weight_packed: torch.Tensor, _weight_scale: torch.Tensor,
+    _group_size: int, _sym: bool, indices: torch.Tensor,
+    _weight_zero_point: torch.Tensor | None,
+) -> torch.Tensor:
+    embedding_dim = weight_packed.shape[1] * 8
+    return torch.empty(
+        *indices.shape, embedding_dim,
+        dtype=torch.float32, device="meta")
+
+
+@torch.library.impl(_ov_ext_lib, "ct_embedding", "CPU")
+def _ct_embedding_cpu(
+    weight_packed: torch.Tensor, _weight_scale: torch.Tensor,
+    _group_size: int, _sym: bool, indices: torch.Tensor,
+    _weight_zero_point: torch.Tensor | None,
+) -> torch.Tensor:
+    # Placeholder – actual dequantisation happens in the C++ OV translator.
+    embedding_dim = weight_packed.shape[1] * 8
+    return torch.zeros(
+        *indices.shape, embedding_dim,
+        dtype=torch.float32, device=indices.device)
+
+
 log.debug("Registered ov_ext custom ops for torch.export")

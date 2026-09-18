@@ -155,8 +155,8 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
                 pop(reg_src);
             }
 
-            add(reg_src, jcp.src_strides[n] * jcp.data_size);
-            add(reg_dst, jcp.dst_strides[n] * jcp.data_size);
+            add(reg_src, static_cast<uint32_t>(jcp.src_strides[n]) * jcp.data_size);
+            add(reg_dst, static_cast<uint32_t>(jcp.dst_strides[n]) * jcp.data_size);
             sub(reg_work_amount, 1);
 
             jmp(tail_loop_label, T_NEAR);
@@ -216,11 +216,11 @@ void PermuteKernel::execute(const uint8_t* src_data,
 void PermuteKernel::execute(const uint8_t* src_data, uint8_t* dst_data, const CpuParallelPtr& cpu_parallel) {
     VectorDims dst_dims = jcp.dst_block_dims;
     if (permute_kernel) {
-        optimizedExecute(src_data, dst_data, dst_dims[0], cpu_parallel);
+        optimizedExecute(src_data, dst_data, static_cast<int>(dst_dims[0]), cpu_parallel);
         return;
     }
 
-    RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, dst_dims[0]);
+    RefTransposeExecutor::referenceExecute(src_data, dst_data, jcp, static_cast<int>(dst_dims[0]));
 }
 
 void PermuteKernel::optimizedExecute(const uint8_t* src_data,
@@ -232,7 +232,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data,
     const VectorDims src_strides = jcp.src_strides;
 
     if (static_cast<int>(dst_dims[0]) != mb) {
-        dst_dims[0] = mb;
+        dst_dims[0] = static_cast<size_t>(mb);
     }
 
     switch (jcp.n) {
@@ -256,7 +256,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data,
         }
         break;
     case 1:
-        cpu_parallel->parallel_for(dst_dims[0], [&](int i0) {
+        cpu_parallel->parallel_for(dst_dims[0], [&](size_t i0) {
             auto arg = jit_args_permute();
 
             size_t dst_off = i0 * dst_strides[0];
@@ -268,7 +268,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data,
         });
         break;
     case 2:
-        cpu_parallel->parallel_for2d(dst_dims[0], dst_dims[1], [&](int i0, int i1) {
+        cpu_parallel->parallel_for2d(dst_dims[0], dst_dims[1], [&](size_t i0, size_t i1) {
             auto arg = jit_args_permute();
 
             size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1];
@@ -280,7 +280,7 @@ void PermuteKernel::optimizedExecute(const uint8_t* src_data,
         });
         break;
     case 3:
-        cpu_parallel->parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](int i0, int i1, int i2) {
+        cpu_parallel->parallel_for3d(dst_dims[0], dst_dims[1], dst_dims[2], [&](size_t i0, size_t i1, size_t i2) {
             auto arg = jit_args_permute();
 
             size_t dst_off = i0 * dst_strides[0] + i1 * dst_strides[1] + i2 * dst_strides[2];

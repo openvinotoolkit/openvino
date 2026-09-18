@@ -102,6 +102,7 @@ private:
     std::shared_ptr<SubMemoryManager> m_sub_memory_manager = nullptr;
     bool m_has_sub_compiled_models = false;
     bool m_optimized_single_stream = false;
+    std::string m_runtime_requirements;
 };
 
 // This class provides safe access to the internal CompiledModel structures and helps to decouple SyncInferRequest and

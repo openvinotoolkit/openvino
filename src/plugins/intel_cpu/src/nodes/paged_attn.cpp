@@ -35,6 +35,7 @@
 
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "openvino/core/shape.hpp"
+#    include "utils/arm_isa_support.h"
 #endif
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
@@ -45,7 +46,6 @@ using namespace ov::Extensions::Cpu::XARCH;
 
 using namespace ov::Extensions::Cpu;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
 
@@ -293,6 +293,13 @@ void PagedAttention::createPrimitive() {
 
     auto builder = [&]([[maybe_unused]] const PagedAttentionKey& key) -> std::shared_ptr<PagedAttentionExecutor> {
 #if defined(OPENVINO_ARCH_X86_64) || (defined(OPENVINO_ARCH_ARM64))
+#    if defined(OPENVINO_ARCH_ARM64)
+        // The ARM PagedAttention kernels exist only in the SVE clone; decline on a core
+        // without SVE so make_pa_executor's SVE-autovectorized init is never reached.
+        if (!hasArmISASupport(ArmISA::SVE)) {
+            return nullptr;
+        }
+#    endif
         PagedAttnQuantParams params{cpuConfig.keyCacheGroupSize,
                                     cpuConfig.valueCacheGroupSize,
                                     quantKeybyChannel,

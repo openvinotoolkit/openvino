@@ -82,6 +82,11 @@ public:
 #define CASE_SOFTMAX_FP16_3 {1, 15, 1, 1}, data_types::f16, format::bfyx, 1, data_types::f16, format::bfyx
 #define CASE_SOFTMAX_FP16_4 {1, 15, 1, 2}, data_types::f16, format::bfyx, 2, data_types::f16, format::bfyx
 
+#define CASE_SOFTMAX_BF16_1 {1, 15, 4, 5}, data_types::bf16, format::bfyx, 1, data_types::bf16, format::bfyx
+#define CASE_SOFTMAX_BF16_2 {1, 15, 4, 5}, data_types::bf16, format::bfyx, 3, data_types::bf16, format::bfyx
+#define CASE_SOFTMAX_BF16_3 {1, 15, 1, 1}, data_types::bf16, format::bfyx, 1, data_types::bf16, format::bfyx
+#define CASE_SOFTMAX_BF16_4 {1, 15, 1, 2}, data_types::bf16, format::bfyx, 2, data_types::bf16, format::bfyx
+
 // Keep batch > 1 and use larger odd feature count to force both packed and tail
 // fused-output write loops in softmax_gpu_bf (the pre-fix bug used wrong index in tail writes).
 #define CASE_SOFTMAX_FP32_BF_FUSED_INDEXING {2, 8193, 1, 1}, data_types::f32, format::bfyx, 1, data_types::f32, format::bfyx
@@ -92,11 +97,13 @@ public:
 class softmax_quantize : public SoftmaxPrimitiveFusingTest {};
 TEST_P(softmax_quantize, basic) {
     auto p = GetParam();
+    auto quant_layout = get_single_element_layout(p);
+    if (p.default_type == data_types::bf16) quant_layout.data_type = data_types::f32;
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -127)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(quant_layout, min_random, 0)),
+        data("in_hi", get_mem(quant_layout, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
         softmax("softmax", input_info("input"), p.dimension),
         quantize("quantize", input_info("softmax"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 255, data_types::i8),
@@ -116,6 +123,10 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_quantize,
                         softmax_test_params{ CASE_SOFTMAX_FP16_1, 2, 3 },
                         softmax_test_params{ CASE_SOFTMAX_FP16_2, 3, 3 },
                         softmax_test_params{ CASE_SOFTMAX_FP16_3, 2, 3 },
+
+                        softmax_test_params{ CASE_SOFTMAX_BF16_1, 2, 3 },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_2, 3, 3 },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_3, 2, 3 },
 }));
 
 class softmax_activation : public SoftmaxPrimitiveFusingTest {};
@@ -129,6 +140,9 @@ TEST_P(softmax_activation, basic) {
     );
 
     tolerance = default_tolerance(p.data_type);
+    if (p.default_type == data_types::f16 || p.default_type == data_types::bf16)
+        tolerance *= 2; // Issue: 185375
+
     execute(p);
 }
 
@@ -145,6 +159,8 @@ TEST_P(softmax_eltwise_activation, basic) {
     );
 
     tolerance = default_tolerance(p.data_type);
+    if (p.default_type == data_types::bf16)
+        tolerance = 1.6e-2f; // Default 1e-2 is too small for this test, but error is still within 1ULP, so it's OK
     execute(p);
 }
 
@@ -183,19 +199,23 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_activation,
                         softmax_test_params{ CASE_SOFTMAX_FP32_4, 2, 3, "softmax_gpu_bf" },
                         softmax_test_params{ CASE_SOFTMAX_FP32_BF_FUSED_INDEXING, 2, 3, "softmax_gpu_bf" },
                         softmax_test_params{ CASE_SOFTMAX_FP16_3, 2, 3, "softmax_gpu_bf" },
-                        softmax_test_params{ CASE_SOFTMAX_FP16_4, 2, 3, "softmax_gpu_bf" }
+                        softmax_test_params{ CASE_SOFTMAX_FP16_4, 2, 3, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_3, 2, 3, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_4, 2, 3, "softmax_gpu_bf" }
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_eltwise_activation,
     ::testing::ValuesIn(std::vector<softmax_test_params>{
                         softmax_test_params{ CASE_SOFTMAX_FP32_BF_FUSED_INDEXING, 3, 4, "softmax_gpu_bf" },
-                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 4, "softmax_gpu_bf" }
+                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 4, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_3, 3, 4, "softmax_gpu_bf" }
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_eltwise_per_element,
     ::testing::ValuesIn(std::vector<softmax_test_params>{
                         softmax_test_params{ CASE_SOFTMAX_FP32_BF_FUSED_INDEXING, 3, 3, "softmax_gpu_bf" },
-                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3, "softmax_gpu_bf" }
+                        softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3, "softmax_gpu_bf" },
+                        softmax_test_params{ CASE_SOFTMAX_BF16_3, 3, 3, "softmax_gpu_bf" }
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_activation_bug_repro,
@@ -207,11 +227,13 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_activation_bug_repro,
 class softmax_quantize_fusing_through : public SoftmaxPrimitiveFusingTest {};
 TEST_P(softmax_quantize_fusing_through, reshape) {
     auto p = GetParam();
+    auto quant_layout = get_single_element_layout(p);
+    if (p.default_type == data_types::bf16) quant_layout.data_type = data_types::f32;
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -127)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(quant_layout, min_random, 0)),
+        data("in_hi", get_mem(quant_layout, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
         softmax("softmax", input_info("input"), p.dimension),
         reshape("reshape", input_info("softmax"), get_reshape_shape(p)),
         quantize("quantize", input_info("reshape"), input_info("in_lo"), input_info("in_hi"),
@@ -226,11 +248,13 @@ TEST_P(softmax_quantize_fusing_through, reshape) {
 TEST_P(softmax_quantize_fusing_through, reorder) {
     auto p = GetParam();
     auto reorder_layout = layout{ p.data_type, p.input_format, get_reshape_shape(p), padding{} };
+    auto quant_layout = get_single_element_layout(p);
+    if (p.default_type == data_types::bf16) quant_layout.data_type = data_types::f32;
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -127)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(quant_layout, min_random, 0)),
+        data("in_hi", get_mem(quant_layout, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
         softmax("softmax", input_info("input"), p.dimension),
         reorder("reorder", input_info("softmax"), reorder_layout),
         quantize("quantize", input_info("reorder"), input_info("in_lo"), input_info("in_hi"),
@@ -245,11 +269,13 @@ TEST_P(softmax_quantize_fusing_through, reorder) {
 TEST_P(softmax_quantize_fusing_through, chain) {
     auto p = GetParam();
     auto reorder_layout = layout{ p.data_type, p.input_format, get_reshape_shape(p), padding{} };
+    auto quant_layout = get_single_element_layout(p);
+    if (p.default_type == data_types::bf16) quant_layout.data_type = data_types::f32;
     create_topologies(input_layout("input", get_input_layout(p)),
-        data("in_lo", get_mem(get_single_element_layout(p), min_random, 0)),
-        data("in_hi", get_mem(get_single_element_layout(p), 1, max_random)),
-        data("out_lo", get_mem(get_single_element_layout(p), -127)),
-        data("out_hi", get_mem(get_single_element_layout(p), 127)),
+        data("in_lo", get_mem(quant_layout, min_random, 0)),
+        data("in_hi", get_mem(quant_layout, 1, max_random)),
+        data("out_lo", get_mem(quant_layout, -127)),
+        data("out_hi", get_mem(quant_layout, 127)),
         softmax("softmax", input_info("input"), p.dimension),
         reshape("reshape_first", input_info("softmax"), get_reshape_shape(p)),
         reorder("reorder", input_info("reshape_first"), reorder_layout),
@@ -274,4 +300,9 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, softmax_quantize_fusing_through,
                         // Such fusions not allowed yet
                         // softmax_test_params{ CASE_SOFTMAX_FP16_2, 3, 3 },
                         // softmax_test_params{ CASE_SOFTMAX_FP16_3, 3, 3 },
+
+                        softmax_test_params{ CASE_SOFTMAX_BF16_1, 2, 3 },
+                        // Such fusions not allowed yet
+                        // softmax_test_params{ CASE_SOFTMAX_BF16_2, 3, 3 },
+                        // softmax_test_params{ CASE_SOFTMAX_BF16_3, 3, 3 },
 }));

@@ -42,7 +42,9 @@
 #include "openvino/op/result.hpp"
 #include "openvino/util/log.hpp"
 #include "ops_bridge.hpp"
+#include "sequence_array_lowering.hpp"
 #include "sequence_concat_replacer.hpp"
+#include "sequence_if_replacer.hpp"
 #include "transformations/resolve_names_collisions.hpp"
 #include "translate_session.hpp"
 #include "unconverted_ops_report.hpp"
@@ -102,10 +104,20 @@ bool is_graph_iterator_enabled() {
 }
 
 // !!! Experimental feature, it may be changed or removed in the future !!!
+// Constants loaded from an external data file are already marked with a real offset there.
+// If a model has such constants, the rest are left unmarked, otherwise all constants are marked
+// with an index in order of walking through the model.
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
     const auto& operations = model->get_ordered_ops();
+    const auto has_external_data =
+        std::any_of(operations.begin(), operations.end(), [](const std::shared_ptr<ov::Node>& operation) {
+            return operation->get_rt_info().count(ov::WeightlessCacheAttribute::get_type_info_static()) > 0;
+        });
+    if (has_external_data)
+        return;
+
     for (uint32_t idx = 0; idx < operations.size(); ++idx) {
-        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
+        const auto& const_node = ov::as_type_ptr<ov::op::v0::Constant>(operations[idx]);
         if (const_node == nullptr)
             continue;
         const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
@@ -159,7 +171,7 @@ ONNX_FRONTEND_C_API void* get_front_end_data() {
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
 #    ifdef OV_PROTOBUF_ABSL_IS_USED
-    absl::SetGlobalVLogLevel(0);
+    absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfinity);
 #    else
     google::protobuf::SetLogHandler(nullptr);
 #    endif
@@ -180,7 +192,6 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         enable_mmap = variants[1].as<bool>();
 
     const auto create_iterator_model = [&](const std::filesystem::path& model_path) {
-        OPENVINO_DEBUG("[ONNX Frontend] Enabled an experimental GraphIteratorProto interface!!!");
         GraphIteratorProto::Ptr graph_iterator =
             std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
         graph_iterator->initialize(model_path);
@@ -269,6 +280,8 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
     ov::pass::Manager manager("Frontend:ONNX:normalize");
+    manager.register_pass<ov::frontend::pass::SequenceIfReplacer>();
+    manager.register_pass<ov::frontend::pass::SequenceArrayLowering>();
     manager.register_pass<ov::frontend::pass::SequenceConcatReplacer>();
     manager.register_pass<ov::pass::ResolveNameCollisions>(true);
     manager.run_passes(model);
@@ -281,13 +294,24 @@ ov::frontend::AdditionalErrorCallback make_onnx_tokenizer_callback() {
                            "documentation: "
                            "https://docs.openvino.ai/latest/openvino_docs_Extensibility_UG_Frontend_Extensions.html \n";
 
-        // Check for tokenizer operations
+        // Check for tokenizer operations. Unsupported operation names are formatted by make_onnx_extractor() as
+        // "OpType-version" for the default ONNX opset (empty domain) or "domain.OpType" for custom domains.
         const auto& all_tokenizer_ops = ov::frontend::onnx::get_supported_ops_via_tokenizers();
         std::string unsupported_ops_from_tokenizers;
         size_t tokenizer_counter = 0;
         for (const auto& unsupported_operation : unsupported_ops) {
-            if (std::find(all_tokenizer_ops.begin(), all_tokenizer_ops.end(), unsupported_operation) !=
-                all_tokenizer_ops.end()) {
+            const auto is_tokenizer_op =
+                std::any_of(all_tokenizer_ops.begin(),
+                            all_tokenizer_ops.end(),
+                            [&unsupported_operation](const std::pair<std::string, std::string>& op_and_domain) {
+                                const auto& [op_type, domain] = op_and_domain;
+                                if (domain.empty()) {
+                                    const auto prefix = op_type + "-";
+                                    return unsupported_operation.rfind(prefix, 0) == 0;
+                                }
+                                return unsupported_operation == domain + "." + op_type;
+                            });
+            if (is_tokenizer_op) {
                 if (tokenizer_counter > 0) {
                     unsupported_ops_from_tokenizers += ", ";
                 }

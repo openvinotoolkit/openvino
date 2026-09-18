@@ -1,6 +1,6 @@
 # Skill: Core Op Analysis
 
-> Source: `skills/add-core-op/SKILL.md` (Step 1)
+> Source: [`skills/add-core-op/SKILL.md`](SKILL.md) (Step 1)
 > Agent: `core_opspec_agent`
 
 ## When to Use

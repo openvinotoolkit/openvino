@@ -98,6 +98,22 @@ const std::vector<std::vector<InputShape>> tinyRowBf16Shapes{
     },
 };
 
+// RMS without gamma: data input only
+const std::vector<std::vector<InputShape>> noScaleShapes{
+    {
+        // data shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 1024 + 16 + 1},
+            {ov::Shape{1, 8, 1024 + 16 + 1}, ov::Shape{2, 3, 1024 + 16 + 1}}}
+        },
+    },
+    {
+        // data shape
+        {ov::test::InputShape{ov::PartialShape{-1, -1, 31},
+            {ov::Shape{1, 8, 31}, ov::Shape{2, 3, 31}}}
+        },
+    },
+};
+
 const auto params = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
                                                   testing::ValuesIn(shapes),
                                                   testing::Values(ov::test::utils::DEVICE_CPU),
@@ -116,6 +132,16 @@ INSTANTIATE_TEST_SUITE_P(smoke_RMSNorm_CPU,
 INSTANTIATE_TEST_SUITE_P(smoke_RMSNorm_TinyRow_BF16_CPU,
                          RMSNormLayerCPUTest,
                          tinyRowBf16Params,
+                         RMSNormLayerCPUTest::getTestCaseName);
+
+const auto noScaleParams = testing::Combine(testing::Values(ElementType::f32, ElementType::bf16, ElementType::f16),
+                                            testing::ValuesIn(noScaleShapes),
+                                            testing::Values(ov::test::utils::DEVICE_CPU),
+                                            testing::Values(cpuSpec));
+
+INSTANTIATE_TEST_SUITE_P(smoke_RMSNorm_NoScale_CPU,
+                         RMSNormLayerCPUTest,
+                         noScaleParams,
                          RMSNormLayerCPUTest::getTestCaseName);
 
 }  // namespace RMSNorm

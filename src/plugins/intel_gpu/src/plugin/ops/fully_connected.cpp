@@ -43,7 +43,7 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
 
     float zp_value = 0.0f;
     bool has_scalar_zp = false;
-    if (zp_name.size() > 0) {
+    if (!zp_name.empty()) {
         auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(W_ZP_IDX));
         if (zp_const && ov::shape_size(zp_const->get_output_shape(0)) == 1) {
             has_scalar_zp = true;

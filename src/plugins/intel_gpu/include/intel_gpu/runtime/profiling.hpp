@@ -56,7 +56,7 @@ class timer {
 
 public:
     /// @brief Timer value type.
-    typedef typename ClockTy::duration val_type;
+    using val_type = typename ClockTy::duration;
 
     /// @brief Starts timer.
     timer() : start_point(ClockTy::now()) {}
@@ -89,8 +89,10 @@ private:
 
 /// @brief Represents profiling interval as its type and value.
 struct profiling_interval {
-    profiling_stage stage;                    ///< @brief Display name.
-    std::shared_ptr<profiling_period> value;  ///< @brief Interval value.
+    profiling_stage stage;                                              ///< @brief Display name.
+    std::shared_ptr<profiling_period> value;                            ///< @brief Interval value.
+    std::chrono::nanoseconds start = std::chrono::nanoseconds::zero();  ///< @brief Interval start timestamp.
+    bool is_valid_start = false;                                        ///< @brief Whether start is valid.
 };
 
 /// @brief Represents list of @ref profiling_interval
@@ -137,17 +139,17 @@ struct perf_counter_hash {
         seed = hash_combine(seed, static_cast<std::underlying_type<instrumentation::pipeline_stage>::type>(k.stage));
         seed = hash_combine(seed, static_cast<int>(k.cache_hit));
         seed = hash_combine(seed, k.iteration_num);
-        for (auto& layout : k.network_input_layouts) {
+        for (const auto& layout : k.network_input_layouts) {
             for (auto& d : layout.get_shape()) {
                 seed = hash_combine(seed, d);
             }
         }
-        for (auto& layout : k.input_layouts) {
+        for (const auto& layout : k.input_layouts) {
             for (auto& d : layout.get_shape()) {
                 seed = hash_combine(seed, d);
             }
         }
-        for (auto& layout : k.output_layouts) {
+        for (const auto& layout : k.output_layouts) {
             for (auto& d : layout.get_shape()) {
                 seed = hash_combine(seed, d);
             }
@@ -187,14 +189,14 @@ public:
 
 private:
     bool profiling_enabled = false;
-    std::chrono::high_resolution_clock::time_point _start = {};
-    std::chrono::high_resolution_clock::time_point _finish = {};
+    std::chrono::high_resolution_clock::time_point _start;
+    std::chrono::high_resolution_clock::time_point _finish;
     std::chrono::nanoseconds custom_duration = {};
     ProfiledObjectType& _obj;
     instrumentation::pipeline_stage _stage;
     bool _per_iter_mode = false;
     bool cache_hit = false;
-    std::string memalloc_info = "";
+    std::string memalloc_info;
 };
 
 class mem_usage_logger {
@@ -210,15 +212,18 @@ public:
         : _stage_name(stage_name)
         , _lifetime_logging_mode(lifetime_logging_mode)
         , _print_mem_usage(print_mem_usage) {
-        if (_lifetime_logging_mode)
+        if (_lifetime_logging_mode) {
             start_logging();
+        }
     }
 
     ~mem_usage_logger() {
-        if (_lifetime_logging_mode)
+        if (_lifetime_logging_mode) {
             stop_logging();
-        if (_print_mem_usage && _is_active)
+        }
+        if (_print_mem_usage && _is_active) {
             print_mem_usage_info();
+        }
     }
 
     void start_logging() {
@@ -367,23 +372,25 @@ private:
         footprint.peak_rss = (int64_t)(pmc.PeakWorkingSetSize/1024);
 #elif !defined(__APPLE__)
         std::ifstream status("/proc/self/status");
-        if (!status.is_open())
+        if (!status.is_open()) {
             return footprint;
+        }
 
         std::string line, title;
         while (std::getline(status, line)) {
             std::istringstream iss(line);
             iss >> title;
-            if (title == "VmHWM:")
+            if (title == "VmHWM:") {
                 iss >> footprint.peak_rss;
-            else if (title == "VmRSS:")
+            } else if (title == "VmRSS:") {
                 iss >> footprint.rss;
+            }
         }
 #endif
         return footprint;
     }
 
-    std::string _stage_name = {};
+    std::string _stage_name;
     bool _lifetime_logging_mode = false;
     bool _print_mem_usage = false;
     bool _is_active = false;

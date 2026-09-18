@@ -9,7 +9,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 
 namespace {
 void aux_unpack_string_tensor(const char* const data,

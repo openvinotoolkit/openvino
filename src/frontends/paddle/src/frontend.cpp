@@ -579,7 +579,7 @@ PADDLE_FRONTEND_C_API void* get_front_end_data() {
 #ifndef OPENVINO_DEBUG_ENABLE
     // disable protobuf logging
 #    ifdef OV_PROTOBUF_ABSL_IS_USED
-    absl::SetGlobalVLogLevel(0);
+    absl::SetMinLogLevel(absl::LogSeverityAtLeast::kInfinity);
 #    else
     google::protobuf::SetLogHandler(nullptr);
 #    endif

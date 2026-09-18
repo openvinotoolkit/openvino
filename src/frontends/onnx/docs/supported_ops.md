@@ -20,7 +20,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Asinh                                                   |9                       |22, 9                           |                                |
 |                        |Atan                                                    |7                       |22, 7                           |                                |
 |                        |Atanh                                                   |9                       |22, 9                           |                                |
-|                        |Attention                                               |23                      |23                              |                                |
+|                        |Attention                                               |24, 23                  |24, 23                          |                                |
 |                        |AveragePool                                             |1                       |22, 19, 11, 10, 7, 1            |                                |
 |                        |BatchNormalization                                      |14, 7, 1                |15, 14, 9, 7, 6, 1              |                                |
 |                        |Bernoulli                                               |                        |22, 15                          |                                |
@@ -103,7 +103,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |LogSoftmax                                              |13, 1                   |13, 11, 1                       |                                |
 |                        |Loop                                                    |1                       |21, 19, 16, 13, 11, 1           |                                |
 |                        |LpNormalization                                         |1                       |22, 1                           |                                |
-|                        |LpPool                                                  |                        |22, 18, 11, 2, 1                |                                |
+|                        |LpPool                                                  |2, 1                    |22, 18, 11, 2, 1                |                                |
 |                        |MatMul                                                  |1                       |13, 9, 1                        |                                |
 |                        |MatMulInteger                                           |10                      |10                              |                                |
 |                        |Max                                                     |8, 1                    |13, 12, 8, 6, 1                 |                                |
@@ -192,13 +192,14 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Sqrt                                                    |1                       |13, 6, 1                        |                                |
 |                        |Squeeze                                                 |13, 1                   |21, 13, 11, 1                   |                                |
 |                        |StringConcat                                            |                        |20                              |                                |
-|                        |StringNormalizer                                        |                        |10                              |                                |
+|                        |StringNormalizer                                        |                        |10                              |Supported through openvino_tokenizers|
 |                        |StringSplit                                             |                        |20                              |                                |
 |                        |Sub                                                     |7, 1                    |14, 13, 7, 6, 1                 |                                |
 |                        |Sum                                                     |8, 1                    |13, 8, 6, 1                     |                                |
+|                        |Swish                                                   |24                      |24                              |                                |
 |                        |Tan                                                     |7                       |22, 7                           |                                |
 |                        |Tanh                                                    |1                       |13, 6, 1                        |                                |
-|                        |TfIdfVectorizer                                         |                        |9                               |                                |
+|                        |TfIdfVectorizer                                         |                        |9                               |Supported through openvino_tokenizers|
 |                        |ThresholdedRelu                                         |10                      |22, 10                          |                                |
 |                        |Tile                                                    |1                       |13, 6, 1                        |                                |
 |                        |TopK                                                    |11, 10, 1               |11, 10, 1                       |                                |
@@ -243,6 +244,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |FusedMatMul                                             |1                       |1                               |                                |
 |com.microsoft           |FusedMatMulActivation                                   |                        |1                               |                                |
 |com.microsoft           |GatedRelativePositionBias                               |                        |1                               |                                |
+|com.microsoft           |GatherBlockQuantized                                    |1                       |1                               |                                |
 |com.microsoft           |GatherND                                                |1                       |1                               |                                |
 |com.microsoft           |Gelu                                                    |1                       |1                               |                                |
 |com.microsoft           |GemmFastGelu                                            |                        |1                               |                                |
@@ -311,7 +313,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |com.microsoft           |Snpe                                                    |                        |1                               |                                |
 |com.microsoft           |SparseAttention                                         |                        |1                               |                                |
 |com.microsoft           |SparseToDenseMatMul                                     |                        |1                               |                                |
-|com.microsoft           |Tokenizer                                               |                        |1                               |                                |
+|com.microsoft           |Tokenizer                                               |                        |1                               |Supported through openvino_tokenizers|
 |com.microsoft           |TorchEmbedding                                          |                        |1                               |                                |
 |com.microsoft           |TransposeMatMul                                         |                        |1                               |                                |
 |com.microsoft           |Trilu                                                   |1                       |1                               |                                |
@@ -337,4 +339,10 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |org.pytorch.aten        |adaptive_avg_pool2d                                     |1                       |1                               |                                |
 |mmdeploy                |MMCVRoIAlignRotated                                     |1                       |1                               |                                |
 |mmdeploy                |NMSRotated                                              |1                       |1                               |                                |
+|ai.onnx.ml              |LabelEncoder                                            |                        |1                               |Supported through openvino_tokenizers|
 |ai.onnx.ml              |Normalizer                                              |1                       |1                               |                                |
+|ai.onnx.contrib         |SentencepieceDecoder                                    |                        |1                               |Supported through openvino_tokenizers|
+|ai.onnx.contrib         |SentencepieceTokenizer                                  |                        |1                               |Supported through openvino_tokenizers|
+|ai.onnx.contrib         |StringJoin                                              |                        |1                               |Supported through openvino_tokenizers|
+|ai.onnx.contrib         |StringSplit                                             |                        |1                               |Supported through openvino_tokenizers|
+|ai.onnx.contrib         |VectorToString                                          |                        |1                               |Supported through openvino_tokenizers|

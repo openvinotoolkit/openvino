@@ -33,13 +33,13 @@ JitConstants MakeAxisJitConstants(size_t rank, int64_t axis, const std::string& 
     }();
     auto& axis_dimension = dimensions.at(axis);
 
-    const auto axis_length_name = "AXIS_LENGTH";
+    const auto* const axis_length_name = "AXIS_LENGTH";
     const auto axis_length_val = "INPUT0" + dimensions_sizes_map.at(axis_dimension);
 
     // Mark axis dimension as 'i' for indexing
     axis_dimension = 'i';
 
-    const auto get_index_name = "GET_INDEX(prefix, i)";
+    const auto* const get_index_name = "GET_INDEX(prefix, i)";
     const auto get_index_val = [&dimensions]() {
         std::string str = "CAT(prefix, _GET_INDEX)";
         str += '(';
@@ -51,7 +51,7 @@ JitConstants MakeAxisJitConstants(size_t rank, int64_t axis, const std::string& 
         return str;
     }();
 
-    const auto iterate_name = "ITERATE(body)";
+    const auto* const iterate_name = "ITERATE(body)";
     const auto iterate_val = [&dimensions, &dimensions_sizes_map, &prefix_for_iterate]() {
         std::stringstream ss;
         for (auto ch : dimensions) {
@@ -76,10 +76,10 @@ JitConstants MakeAxisJitConstants(size_t rank, int64_t axis, const std::string& 
 }
 
 JitConstants MakeFlattenedJitConstants(size_t rank, bool simple_layout) {
-    const auto get_index_name = "GET_INDEX(prefix, i)";
+    const auto* const get_index_name = "GET_INDEX(prefix, i)";
 
     if (simple_layout) {
-        const auto get_index_val = "i";
+        const auto* const get_index_val = "i";
         return {MakeJitConstant("FLATTENED", true), MakeJitConstant(get_index_name, get_index_val)};
     }
 

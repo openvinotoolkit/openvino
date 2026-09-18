@@ -46,7 +46,9 @@ public:
     using OutputSet = std::set<Output>;
     using InputVector = std::vector<Input>;
     using OutputVector = std::vector<Output>;
-    SubgraphCollector(const std::shared_ptr<ov::Model>& model, const AffinitiesMap& affinities);
+    SubgraphCollector(const std::shared_ptr<ov::Model>& model,
+                      const AffinitiesMap& affinities,
+                      std::string log_context = {});
     SubgraphIdsMap get_subgraph_ids() {
         return _subgraph_ids;
     }
@@ -75,6 +77,7 @@ private:
     InputSet _subgraph_inputs;
     SubgraphIdsMap _subgraph_ids;
     ParameterResultMap _subgraph_parameter_to_prev_result;
+    std::string _log_context;
 };
 
 void merge_submodels(SubmodelsVector& submodels, const std::map<NodeInfo, NodeInfo>& submodels_input_to_prev_output);
@@ -83,12 +86,14 @@ std::pair<SubgraphsVector, SubgraphsMappingInfo> get_model_subgraphs(const std::
                                                                      ov::SupportedOpsMap& supported_ops,
                                                                      const bool user_set_affinities = false,
                                                                      const bool dump_dot_files = false,
-                                                                     const std::string default_device = "");
+                                                                     const std::string default_device = "",
+                                                                     const std::string log_context = "");
 
 SubgraphsMappingInfo mask_model_subgraphs_by_ops(std::shared_ptr<ov::Model>& model,
                                                  ov::SupportedOpsMap& supported_ops,
                                                  const bool dump_dot_files = false,
-                                                 const std::string default_device = "");
+                                                 const std::string default_device = "",
+                                                 const std::string log_context = "");
 
 void fix_submodel_with_paged_attention(std::shared_ptr<ov::Model>& model);
 
