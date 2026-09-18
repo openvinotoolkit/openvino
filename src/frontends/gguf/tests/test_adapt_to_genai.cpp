@@ -20,6 +20,7 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -202,11 +203,15 @@ TEST(GGUFAdaptToGenAI, NoOpWithoutGgufInputs) {
 TEST(GGUFAdaptToGenAI, EmbeddingModeExtractsLookupAndAcceptsInjectedValues) {
     auto m = build_minimal_gguf_model();
     m.embd->get_rt_info()["gguf.token_embedding"] = true;
+    // Keep an unreachable consumer alive across adaptation. Rewiring inp_tokens also
+    // updates this node, but it must not keep input_ids in the decoder's input contract.
+    auto detached = std::make_shared<v0::Convert>(m.inp_tokens, ov::element::i64);
     AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
     ASSERT_TRUE(pass.run_on_model(m.model));
     ASSERT_NE(pass.get_embedding_model(), nullptr);
     EXPECT_EQ(find_parameter(m.model, "input_ids"), nullptr);
     ASSERT_NE(find_parameter(m.model, "inputs_embeds"), nullptr);
+    EXPECT_NE(detached->input_value(0).get_node(), m.inp_tokens.get());
     for (size_t length : {1, 3}) {
         ov::Tensor ids(ov::element::i64, {1, length});
         for (size_t i = 0; i < length; ++i)
