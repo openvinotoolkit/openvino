@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -107,20 +108,20 @@ def symint_shape_sources(gm, args):
         # carrying it is an equally valid source.
         symbol_src = {}
         for idx, node in enumerate(placeholders):
-            val = node.meta.get("val", None)
-            if not isinstance(val, torch.Tensor):
+            meta_val = node.meta.get("val", None)
+            if not isinstance(meta_val, torch.Tensor):
                 continue
-            for dim, extent in enumerate(val.shape):
+            for dim, extent in enumerate(meta_val.shape):
                 if isinstance(extent, torch.SymInt):
                     symbol_src.setdefault(str(extent.node.expr), (idx, dim))
         sources = {}
         for idx, node in enumerate(placeholders):
             if not isinstance(args[idx], int):
                 continue
-            val = node.meta.get("val", None)
-            if not isinstance(val, torch.SymInt):
+            meta_val = node.meta.get("val", None)
+            if not isinstance(meta_val, torch.SymInt):
                 continue
-            src = symbol_src.get(str(val.node.expr))
+            src = symbol_src.get(str(meta_val.node.expr))
             if src is not None:
                 sources[idx] = src
         return sources
@@ -172,8 +173,8 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
             for consumer in list(param_node.output(0).get_target_inputs()):
                 consumer.replace_source_output(repl.output(0))
             params_to_remove.append(param_node)
-    for p in params_to_remove:
-        om.remove_parameter(p)
+    for param in params_to_remove:
+        om.remove_parameter(param)
 
     all_symints_sourced = n_int_args > 0 and len(sources) == n_int_args
     if all_symints_sourced and not dyn_shapes:
@@ -229,13 +230,13 @@ def normalize_concat_ranks(om):
     inputs actually disagree in static rank -- not any validation failure,
     which may be unrelated. No-op on graphs that already pass it.
     """
-    def _rank_ge_1(val):
-        n = val.get_node()
-        ps = val.get_partial_shape()
+    def _rank_ge_1(output):
+        node = output.get_node()
+        ps = output.get_partial_shape()
         if ps.rank.is_static and ps.rank.get_length() >= 1:
             return True
-        if n.get_type_name() == "Constant":
-            return len(n.get_output_shape(0)) >= 1
+        if node.get_type_name() == "Constant":
+            return len(node.get_output_shape(0)) >= 1
         return False
 
     def _find_targets():
@@ -353,8 +354,8 @@ def apply_kv_cache_config_defaults(config, device, options=None, om=None):
     if device != "CPU":
         return
     if _preset.is_vllm_preset(options):
-        for k, v in _preset._PRESET_CONFIG.items():
-            config.setdefault(k, v)
+        for key, value in _preset._PRESET_CONFIG.items():
+            config.setdefault(key, value)
 
     # Derived together from the model's float dtype: the CPU PA kernel only
     # exists for matching (compute, cache) pairs.
