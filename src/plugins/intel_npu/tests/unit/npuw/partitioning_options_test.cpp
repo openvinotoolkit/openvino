@@ -196,6 +196,45 @@ std::shared_ptr<ov::Model> build_repeated_model(std::size_t repetitions = 10) {
     return mb.get_model_with_repeated_blocks(repetitions);
 }
 
+std::shared_ptr<ov::Model> build_model_with_multiple_results_from_same_producer() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    input->set_friendly_name("input");
+
+    auto producer = std::make_shared<ov::op::v1::Add>(input, input);
+    producer->set_friendly_name("producer");
+
+    auto logits = std::make_shared<ov::op::v0::Result>(producer);
+    logits->set_friendly_name("logits");
+    logits->output(0).set_names({"logits"});
+
+    auto hidden_states = std::make_shared<ov::op::v0::Result>(producer);
+    hidden_states->set_friendly_name("hidden_states");
+    hidden_states->output(0).set_names({"hidden_states"});
+
+    return std::make_shared<ov::Model>(ov::ResultVector{logits, hidden_states}, ov::ParameterVector{input});
+}
+
+std::shared_ptr<ov::Model> build_model_with_result_and_cross_subgraph_consumer() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 4});
+    input->set_friendly_name("input");
+
+    auto producer = std::make_shared<ov::op::v1::Add>(input, input);
+    producer->set_friendly_name("producer");
+
+    auto consumer = std::make_shared<ov::op::v1::Multiply>(producer, producer);
+    consumer->set_friendly_name("consumer");
+
+    auto hidden_states = std::make_shared<ov::op::v0::Result>(producer);
+    hidden_states->set_friendly_name("hidden_states");
+    hidden_states->output(0).set_names({"hidden_states"});
+
+    auto logits = std::make_shared<ov::op::v0::Result>(consumer);
+    logits->set_friendly_name("logits");
+    logits->output(0).set_names({"logits"});
+
+    return std::make_shared<ov::Model>(ov::ResultVector{logits, hidden_states}, ov::ParameterVector{input});
+}
+
 // Build a model with N repetitions of (Relu -> Sigmoid -> Tanh).
 // Each op type forms its own isolated tag so mergeTriangles cannot merge the
 // three families into one combined repeating block.
@@ -478,6 +517,80 @@ TEST(PartitioningOptionsTest, PlanFileReusesDumpedPartitioningStructure) {
 
     ASSERT_TRUE(std::filesystem::exists(plan_path));
     EXPECT_EQ(partitioning.subgraphs.size(), online_ens.groups.size());
+
+    std::filesystem::remove(plan_path);
+}
+
+TEST(PartitioningOptionsTest, PreservesMultipleResultsFromSameProducer) {
+    const auto plan_path = make_unique_temp_path("npuw_multiple_results_plan", ".xml");
+    {
+        std::ofstream plan(plan_path);
+        ASSERT_TRUE(plan.good());
+        plan << R"xml(<root gflops="1"><partitioning><group gflops="1">
+                    <input name="producer"/>
+                    <output name="producer"/>
+                    <layer name="producer"/>
+                </group></partitioning></root>)xml";
+    }
+
+    auto cfg = make_cfg({{"NPUW_PLAN", plan_path.string()}});
+    const auto model = build_model_with_multiple_results_from_same_producer();
+    const auto partitioning = ov::npuw::getPartitioning(model, cfg);
+
+    ASSERT_EQ(partitioning.subgraphs.size(), 1u);
+    const auto& subgraph_results = partitioning.subgraphs.front()._results;
+    ASSERT_EQ(subgraph_results.size(), 2u);
+    std::set<std::string> result_names;
+    for (const auto& result : subgraph_results) {
+        result_names.insert(result->get_friendly_name());
+    }
+    EXPECT_EQ(result_names, (std::set<std::string>{"logits", "hidden_states"}));
+
+    std::filesystem::remove(plan_path);
+}
+
+TEST(PartitioningOptionsTest, PreservesResultAlongsideCrossSubgraphConsumer) {
+    const auto plan_path = make_unique_temp_path("npuw_result_and_boundary_plan", ".xml");
+    {
+        std::ofstream plan(plan_path);
+        ASSERT_TRUE(plan.good());
+        plan << R"xml(<root gflops="1"><partitioning>
+                    <group gflops="1">
+                        <input name="producer"/>
+                        <output name="producer"/>
+                        <layer name="producer"/>
+                    </group>
+                    <group gflops="1">
+                        <input name="consumer"/>
+                        <output name="consumer"/>
+                        <layer name="consumer"/>
+                    </group>
+                </partitioning></root>)xml";
+    }
+
+    auto cfg = make_cfg({{"NPUW_PLAN", plan_path.string()}});
+    const auto model = build_model_with_result_and_cross_subgraph_consumer();
+    const auto original_results = model->get_results();
+    const auto partitioning = ov::npuw::getPartitioning(model, cfg);
+
+    ASSERT_EQ(partitioning.subgraphs.size(), 2u);
+    const auto& producer_results = partitioning.subgraphs.front()._results;
+    ASSERT_EQ(producer_results.size(), 2u);
+
+    const auto hidden_states_result =
+        std::find_if(original_results.begin(), original_results.end(), [](const auto& result) {
+            return result->get_friendly_name() == "hidden_states";
+        });
+    ASSERT_NE(hidden_states_result, original_results.end());
+    EXPECT_NE(std::find(producer_results.begin(), producer_results.end(), *hidden_states_result),
+              producer_results.end());
+
+    const auto synthetic_result =
+        std::find_if(producer_results.begin(), producer_results.end(), [&](const auto& result) {
+            return result != *hidden_states_result;
+        });
+    ASSERT_NE(synthetic_result, producer_results.end());
+    EXPECT_EQ((*synthetic_result)->input_value(0).get_element_type(), ov::element::f16);
 
     std::filesystem::remove(plan_path);
 }

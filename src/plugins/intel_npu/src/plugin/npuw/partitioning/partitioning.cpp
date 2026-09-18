@@ -821,7 +821,7 @@ void Partitioner::identifySubgraphs() {
                 //    v
                 //    op102
                 bool has_external_readers = false;
-                NodeSPtr maybe_result = nullptr;
+                std::vector<std::shared_ptr<ov::op::v0::Result>> result_readers;
                 auto readers = output_desc.get_target_inputs();
                 // This is possible then some of layer's outputs are not used in the model.
                 if (readers.empty()) {
@@ -835,20 +835,15 @@ void Partitioner::identifySubgraphs() {
                     // at the npuw::CompiledModel level)
                     auto reader_node_ptr = r.get_node()->shared_from_this();
                     if (ov::op::util::is_output(reader_node_ptr)) {
-                        maybe_result = std::move(reader_node_ptr);
+                        result_readers.push_back(ov::as_type_ptr<ov::op::v0::Result>(reader_node_ptr));
                     } else if (group_nodes.find(reader_node_ptr) == group_nodes.end()) {
                         has_external_readers = true;
                     }
                 }
-                if (maybe_result) {
-                    // This layer's output was connected to Result already.
-                    // It happens when this layer is the original model's output
-                    // Keep it to make the ugly top-level I/O matching procedure work.
-                    // FIXME: This needs to be refactored
-                    group.sg._results.push_back(ov::as_type_ptr<ov::op::v0::Result>(maybe_result));
-                    result_cache[output_desc] =
-                        LinkPtrFrom{this_group_idx, ov::as_type_ptr<ov::op::v0::Result>(maybe_result)};
-                } else if (has_external_readers) {
+                // A producer can feed both a subgraph boundary and one or more
+                // top-level Results. Keep the original Results below and add a
+                // synthetic boundary Result when necessary.
+                if (has_external_readers) {
                     // Introduce and record a new Result
                     // As the graph is processed in the topological order,
                     // details recorded about this output at this point will
@@ -878,8 +873,17 @@ void Partitioner::identifySubgraphs() {
                         result_cache[output_desc] = LinkPtrFrom{this_group_idx, new_result};
 
                         ov::copy_runtime_info(output_desc.get_node_shared_ptr(), new_result);
-                        group.sg._results.push_back(std::move(new_result));
+                        group.sg._results.push_back(new_result);
                     }
+                }
+                // Multiple Results may share the same producer (for example
+                // output_embeds and hidden_states). Keep all of them so every
+                // original model output can be mapped to a subgraph output.
+                for (const auto& result : result_readers) {
+                    group.sg._results.push_back(result);
+                }
+                if (!result_readers.empty() && !result_cache.count(output_desc)) {
+                    result_cache[output_desc] = LinkPtrFrom{this_group_idx, result_readers.front()};
                 }
             }  // for (outputs)
             if (num_optimized_out == output_layer_ptr->outputs().size()) {
