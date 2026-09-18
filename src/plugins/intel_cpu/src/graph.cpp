@@ -230,7 +230,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     const auto orderedOps = model->get_ordered_ops();
     // OV_CPU_DISABLE_WEIGHTS_PREFETCH=1 turns this off for A/B measurements.
     if (const auto& weightsPrefetch = m_context->getWeightsPrefetch(); weightsPrefetch) {
-        // Collected here only to reuse the orderedOps walk; the prefetch itself is deferred to the first infer.
+        // Collected here only to reuse the orderedOps walk.
         std::vector<std::shared_ptr<const op::v0::Constant>> constants;
         for (const auto& op : orderedOps) {
             if (auto constant = ov::as_type_ptr<op::v0::Constant>(op)) {
@@ -238,6 +238,10 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
             }
         }
         weightsPrefetch->registerConstants(constants);
+        // By default start prefetching right away; OV_CPU_WEIGHTS_PREFETCH_AT_INFER=1 defers it to the first infer.
+        if (!WeightsPrefetch::is_deferred_to_infer()) {
+            weightsPrefetch->prefetchOnce();
+        }
     }
 
     for (const auto& op : orderedOps) {

@@ -43,6 +43,12 @@ public:
         return disable_weights_prefetch;
     }
 
+    // OV_CPU_WEIGHTS_PREFETCH_AT_INFER=1 delays the prefetch start from compile_model to the first infer.
+    static bool is_deferred_to_infer() {
+        static const bool deferred = std::getenv("OV_CPU_WEIGHTS_PREFETCH_AT_INFER") != nullptr;
+        return deferred;
+    }
+
 private:
     using ConstantRef = std::weak_ptr<const ov::op::v0::Constant>;
 
