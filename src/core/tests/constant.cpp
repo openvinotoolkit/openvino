@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <type_traits>
 #include <variant>
 
 #include "common_test_utils/test_assertions.hpp"
@@ -2029,6 +2030,109 @@ TEST(constant, f4e2m1_write_then_cast_custom_type) {
 
     ASSERT_EQ(v.size(), shape_size(shape));
     EXPECT_EQ(v, input);
+}
+
+TEST(constant, empty_tensor) {
+    auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
+
+    ASSERT_EQ(c->get_data_ptr(), nullptr);
+    ASSERT_EQ(c->get_byte_size(), 0);
+    ASSERT_EQ(c->cast_vector<int32_t>().size(), 0);
+}
+
+// Covers fill_data(), which writes through the non-const data pointer.
+TEST(constant, empty_tensor_filled_with_single_value) {
+    const auto c = op::v0::Constant(element::i32, Shape{0}, 42);
+
+    EXPECT_EQ(c.get_data_ptr(), nullptr);
+    EXPECT_EQ(c.get_byte_size(), 0);
+    EXPECT_TRUE(c.cast_vector<int32_t>().empty());
+}
+
+// Covers the memory copying constructor, whose source pointer is null for an empty vector.
+TEST(constant, empty_tensor_from_memory_ptr) {
+    const std::vector<int32_t> source{};
+    const auto c = op::v0::Constant(element::i32, Shape{0}, source.data());
+
+    EXPECT_EQ(c.get_data_ptr(), nullptr);
+    EXPECT_EQ(c.get_byte_size(), 0);
+    EXPECT_TRUE(c.cast_vector<int32_t>().empty());
+}
+
+TEST(constant, empty_tensor_low_precision) {
+    for (const auto& et : {element::u1, element::u4, element::i4}) {
+        const auto c = op::v0::Constant(et, Shape{0});
+
+        EXPECT_EQ(c.get_data_ptr(), nullptr) << et;
+        EXPECT_EQ(c.get_byte_size(), 0) << et;
+        EXPECT_TRUE(c.cast_vector<int32_t>().empty()) << et;
+    }
+}
+
+TEST(constant, empty_tensor_string) {
+    const auto c = op::v0::Constant(element::string, Shape{0}, std::vector<std::string>{});
+
+    EXPECT_EQ(c.get_byte_size(), 0);
+    EXPECT_TRUE(c.get_vector<std::string>().empty());
+    EXPECT_TRUE(c.cast_vector<std::string>().empty());
+}
+
+TEST(constant, empty_tensor_from_empty_constant) {
+    auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0});
+    auto another = std::make_shared<op::v0::Constant>(*c);
+
+    EXPECT_EQ(another->get_data_ptr(), nullptr);
+    EXPECT_EQ(another->get_byte_size(), 0);
+    EXPECT_EQ(another->get_shape(), Shape{0});
+    EXPECT_EQ(another->get_element_type(), element::i32);
+
+    EXPECT_TRUE(another->cast_vector<int32_t>().empty());
+    EXPECT_TRUE(another->get_vector<int32_t>().empty());
+
+    ov::TensorVector outputs;
+    EXPECT_TRUE(another->evaluate_upper(outputs));
+    ASSERT_EQ(outputs.size(), 1);
+    EXPECT_EQ(outputs[0].get_element_type(), element::i32);
+    EXPECT_EQ(outputs[0].get_shape(), Shape{0});
+
+    EXPECT_TRUE(another->evaluate_lower(outputs));
+    ASSERT_EQ(outputs.size(), 1);
+    EXPECT_EQ(outputs[0].get_element_type(), element::i32);
+    EXPECT_EQ(outputs[0].get_shape(), Shape{0});
+
+    EXPECT_TRUE(another->evaluate(outputs, {}));
+    ASSERT_EQ(outputs.size(), 1);
+    EXPECT_EQ(outputs[0].get_element_type(), element::i32);
+    EXPECT_EQ(outputs[0].get_shape(), Shape{0});
+
+    auto tensor = another->get_tensor_view();
+    EXPECT_TRUE(tensor);
+    EXPECT_EQ(tensor.get_element_type(), element::i32);
+    EXPECT_EQ(tensor.get_shape(), Shape{0});
+}
+
+TEST(constant, empty_tensor_copy_constructor) {
+    auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
+    op::v0::Constant c_copy(*c);
+    ASSERT_EQ(c_copy.get_data_ptr(), nullptr);
+    ASSERT_EQ(c_copy.get_byte_size(), 0);
+    ASSERT_EQ(c_copy.cast_vector<int32_t>().size(), 0);
+}
+
+TEST(constant, empty_tensor_move_constructor) {
+    auto c = std::make_shared<op::v0::Constant>(element::i32, Shape{0}, std::vector<int32_t>{});
+    op::v0::Constant c_move(std::move(*c));
+    ASSERT_EQ(c_move.get_data_ptr(), nullptr);
+    ASSERT_EQ(c_move.get_byte_size(), 0);
+    ASSERT_EQ(c_move.cast_vector<int32_t>().size(), 0);
+}
+
+TEST(constant, empty_tensor_copy_assignment) {
+    static_assert(!std::is_copy_assignable_v<op::v0::Constant>);
+}
+
+TEST(constant, empty_tensor_move_assignment) {
+    static_assert(!std::is_move_assignable_v<op::v0::Constant>);
 }
 
 //
