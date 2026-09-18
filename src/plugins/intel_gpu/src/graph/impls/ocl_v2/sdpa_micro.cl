@@ -80,6 +80,14 @@ typedef ugemm_vs_c_type a_tile_type;
 #error "I8_VS is incompatible with the compressed KV cache"
 #endif
 
+/* I8_KQ requires Q to arrive holding exact integer codes, so that rounding it into SLM loses
+   nothing. Rotating Q first mixes two codes into each output element, which is neither integral
+   nor bounded by the original code range -- it saturates against the s8 grid. RoPESDPAFusion
+   declines to fuse onto an i8 key for this reason; this is the kernel-side statement of it. */
+#if I8_KQ && WITH_ROPE_Q
+#error "I8_KQ is incompatible with a fused Q rotation"
+#endif
+
 DECLARE_2D_TILE(q_tile_type, uint, SUBGROUP_SIZE, Q_SLM_ROWS, 1, 1, q_tile_sg_n)
 
 #if !I8_KQ
@@ -429,9 +437,9 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 /* Leading dimension the V*S microkernel indexes A by. Under TRANSPOSE_V the value tensor is
-   physically (head_dim, tokens), so A is k-contiguous and its stride is the head_dim one --
-   as K*Q already gets under TRANSPOSE_K. `ldv` stays the token stride in both layouts, which
-   is what every V pointer advance below is expressed in. */
+   physically (head_dim, tokens), so A is k-contiguous and the distance between two head_dim
+   rows is the token count -- that is VAL_S3. `ldv` stays the token stride in both layouts,
+   which is what every V pointer advance below is expressed in. */
     const uint ldv_g = TRANSPOSE_V ? VAL_S3 : ldv;
 
 #if KEY_SCALES || KEY_ZERO_POINTS
@@ -561,22 +569,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
        VNNI-packed dword of s8, which is the crosspack-4 layout ugemm_kq wants for B. */
     {
         const uint lid = get_sub_group_local_id();
-#if WITH_ROPE_Q
-        /* The cos/sin table is (batch, tokens, d) and shared by every head and layer. Four
-           consecutive head-dim values are two interleaved rotation pairs, so the rotation
-           happens here, on the float values, before they are rounded onto the s8 grid. */
-        const global half *rope_c = rope_cos + (size_t)b1 * q * d;
-        const global half *rope_s = rope_sin + (size_t)b1 * q * d;
-#endif
 #pragma unroll
         for (int j = 0; j < q_tile_sg_n; j++) {
             int q_col = wg_j0 + q0_copy + j;
             bool in_range = (q_col < q);
             const global QRY_DATA_T *qp = Q + (size_t)q_col * ldq;
-#if WITH_ROPE_Q
-            const global half *cp = rope_c + (size_t)q_col * d;
-            const global half *sp = rope_s + (size_t)q_col * d;
-#endif
 #pragma unroll
             for (int i0 = 0; i0 < Q_SLM_ROWS; i0 += SUBGROUP_SIZE) {
                 int r = i0 + lid;
@@ -586,20 +583,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                     v.s1 = convert_float(qp[4 * r + 1]);
                     v.s2 = convert_float(qp[4 * r + 2]);
                     v.s3 = convert_float(qp[4 * r + 3]);
-#if WITH_ROPE_Q
-                    float4 rc = (float4)(convert_float(cp[4 * r + 0]),
-                            convert_float(cp[4 * r + 1]),
-                            convert_float(cp[4 * r + 2]),
-                            convert_float(cp[4 * r + 3]));
-                    float4 rs = (float4)(convert_float(sp[4 * r + 0]),
-                            convert_float(sp[4 * r + 1]),
-                            convert_float(sp[4 * r + 2]),
-                            convert_float(sp[4 * r + 3]));
-                    v = (float4)(rc.s0 * v.s0 - rs.s0 * v.s1,
-                            rc.s1 * v.s1 + rs.s1 * v.s0,
-                            rc.s2 * v.s2 - rs.s2 * v.s3,
-                            rc.s3 * v.s3 + rs.s3 * v.s2);
-#endif
                 }
                 char4 c = convert_char4_sat_rte(v);
                 tile_access(Q_tile, i0, j, SUBGROUP_SIZE, Q_SLM_ROWS, 1, 1)
@@ -617,7 +600,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     tile_load_packed_half(&Q_tile, Q, d, q, ldq, 0, wg_j0 + q0_copy);
 #endif
 
-#if WITH_ROPE_Q && !I8_KQ
+#if WITH_ROPE_Q
     /* Interleaved RoPE, fused into the Q staging above. Q_tile elements are uints holding two
        consecutive head-dim halves, which is exactly one rotation pair (2i, 2i+1), so the whole
        rotation is register-local. The cos/sin table is (batch, tokens, d) and shared by every

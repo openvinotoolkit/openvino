@@ -1804,8 +1804,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
         }
         manager.register_pass<ov::intel_gpu::ExpandBroadcastReshapeSDPAFusion>();
-        // Hand SDPA the RoPE cos/sin table so Q is rotated inside the tile load it already does.
-        manager.register_pass<ov::intel_gpu::RoPESDPAFusion>();
 
         manager.register_pass<ov::pass::GLUFusion>();
         manager.register_pass<ov::intel_gpu::IndirectKVCache>();
@@ -1813,6 +1811,92 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!has_shared_kv_cache_vars(func)) {
             auto kv_cache_compression_dt = config.get_kv_cache_precision();
             manager.register_pass<ov::intel_gpu::KVCacheCompression>(kv_cache_compression_dt, device_info.supports_immad);
+        }
+
+        // Hand SDPA the RoPE cos/sin table so Q is rotated inside the tile load it already does.
+        // This runs after IndirectKVCache and KVCacheCompression on purpose: both match an SDPA by
+        // input count, and a fused SDPA carries two extra inputs that IndirectKVCache's five-input
+        // pattern would otherwise accept, reinterpreting the cos/sin tables as an attention mask
+        // and a scale.
+        //
+        // Only the micro-kernel implements the fused rotation. Once the RoPE is folded away there
+        // is no rotation left to fall back to, and an SDPA implementation manager declining the
+        // node fails model compilation rather than picking another kernel -- so everything that
+        // decides whether the micro-kernel can run has to be decided here, before folding.
+        const bool micro_sdpa_available = device_info.supports_immad &&
+                                          cldnn::query_microkernels_supported(m_context->get_engine(), config) &&
+                                          device_info.arch >= cldnn::gpu_arch::xe_hpg &&
+                                          // ARL-H steers single-token decode away from the micro kernel, so a
+                                          // fused node would compile for prefill and fail at the second token.
+                                          !(device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 74) &&
+                                          // A 4-bit KV cache disables the micro kernel at execute time.
+                                          ov::element::Type(config.get_kv_cache_precision()).bitwidth() != 4;
+        if (micro_sdpa_available) {
+            const bool is_xe3p = device_info.arch == cldnn::gpu_arch::xe3p;
+            pass_config->set_callback<ov::intel_gpu::RoPESDPAFusion>([is_xe3p](const_node_ptr& node) -> bool {
+                // Returning true skips the fusion. Mirrors the per-node conditions in
+                // SDPAOpt::supports_micro_sdpa that are visible on the graph. Anything left
+                // unmirrored is a model that folds here and then fails to compile, because by
+                // then there is no rotation left to fall back to.
+                const auto sdpa = ov::as_type_ptr<const ov::intel_gpu::op::SDPA>(node);
+                if (!sdpa || sdpa->get_output_transpose_order().size() != 4) {
+                    return true;
+                }
+                const auto& key_ps = node->get_input_partial_shape(1);
+                const auto& value_ps = node->get_input_partial_shape(2);
+                if (key_ps.rank().is_dynamic() || value_ps.rank().is_dynamic()) {
+                    return true;
+                }
+                // Read the head and head-count axes through the transpose orders, the way
+                // supports_micro_sdpa does. Indexing the physical shape instead compares the
+                // token counts, which are always equal, so the check would never fire -- and for
+                // the {0, 1, 3, 2} value order this PR introduces it would compare a token count
+                // against a head size and decline every shape where those differ.
+                const auto& order_k = sdpa->get_input1_transpose_order();
+                const auto& order_v = sdpa->get_input2_transpose_order();
+                // The fusion already pins a rank-4 order_q; decline anything else rather than
+                // reproduce the rank-3 extension here.
+                if (order_k.size() != 4 || order_v.size() != 4) {
+                    return true;
+                }
+                // micro-SDPA wants head_size last, and admits exactly one order that moves it:
+                // the {0, 1, 3, 2} marker, and then only through micro_transpose_v, which further
+                // needs static K and V. Its other conditions are pinned by the pattern instead --
+                // a compressed KV cache and IndirectSDPA are rejected there, and paged attention
+                // is a different primitive.
+                static const std::vector<int64_t> transposed_v{0, 1, 3, 2};
+                if (order_v[3] != 3) {
+                    if (order_v != transposed_v || key_ps.is_dynamic() || value_ps.is_dynamic()) {
+                        return true;
+                    }
+                }
+                const auto& k_head_dim = key_ps[order_k[3]];
+                const auto& v_head_dim = value_ps[order_v[3]];
+                const auto& k_heads_dim = key_ps[order_k[1]];
+                const auto& v_heads_dim = value_ps[order_v[1]];
+                if (k_head_dim.is_dynamic() || v_head_dim.is_dynamic() || k_heads_dim.is_dynamic() || v_heads_dim.is_dynamic()) {
+                    return true;
+                }
+                if (k_head_dim != v_head_dim || k_heads_dim != v_heads_dim) {
+                    return true;
+                }
+                const auto k_head_size = k_head_dim.get_length();
+                if (k_head_size > 512) {
+                    return true;
+                }
+                // A single-element attention mask is folded into a scalar only when it is a
+                // Constant; otherwise micro-SDPA declines the node.
+                if (node->get_input_size() > 3) {
+                    const auto& mask_ps = node->get_input_partial_shape(3);
+                    if (mask_ps.is_static() && ov::shape_size(mask_ps.to_shape()) == 1 &&
+                        !ov::is_type<ov::op::v0::Constant>(node->get_input_node_ptr(3))) {
+                        return true;
+                    }
+                }
+                // WA carried from supports_micro_sdpa: micro-SDPA is off on xe3p below head size 64.
+                return is_xe3p && k_head_size <= 64;
+            });
+            manager.register_pass<ov::intel_gpu::RoPESDPAFusion>();
         }
 
         manager.register_pass<ov::intel_gpu::ConvertConvolutionToInternal>();

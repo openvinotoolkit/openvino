@@ -7,6 +7,7 @@
 #include "common_utils/dispatch_utils.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "scaled_dot_product_attention_inst.h"
 
 namespace ov::intel_gpu::ocl {
@@ -178,6 +179,38 @@ inline ChannelName get_transposed_channel(ChannelName c, const std::vector<int64
         }
     }
     return ChannelName::UNKNOWN;
+}
+
+// true when V has been physically materialised as (batch, heads, head_size, tokens), which the
+// graph signals with input_v_transpose_order == {0, 1, 3, 2}. The V*S microkernel contracts V
+// over tokens, so that layout makes its reduction axis the contiguous one and gemmstone can load
+// A straight to registers instead of staging it through SLM.
+//
+// This is the single source of truth for that decision. It sets TRANSPOSE_V in the generator and
+// it decides `value_transposed` in SDPAOpt::supports_micro_sdpa, and the two must agree: the
+// VAL_S* strides are emitted from the same extended order unconditionally, so a node that runs
+// the micro kernel with TRANSPOSE_V off would contract V with a leading dimension of 1.
+//
+// Everything it tests is visible on the graph, which matters because RoPESDPAFusion has to
+// predict this answer: it folds the rotation away, and a node the micro kernel then declines
+// cannot fall back to anything.
+inline bool micro_transpose_v(const cldnn::kernel_impl_params& params) {
+    if (params.is_type<cldnn::paged_attention>()) {
+        return false;
+    }
+    // The V*S leading dimension becomes the key count, so K's sequence length must be static too.
+    if (params.input_layouts[1].get_partial_shape().is_dynamic() || params.input_layouts[2].get_partial_shape().is_dynamic()) {
+        return false;
+    }
+    const auto desc = params.typed_desc<cldnn::scaled_dot_product_attention>();
+    // A compressed KV cache leaves the V*S scale grid in the untransposed orientation, so the
+    // scales would no longer line up with a transposed A operand.
+    if (desc->is_kv_compressed) {
+        return false;
+    }
+    // Compare the same extended order that produces the VAL_S* strides: a rank-3 {0, 2, 1}
+    // extends to exactly this.
+    return extend_order_in_num_heads_dim(desc->input_v_transpose_order) == std::vector<int64_t>{0, 1, 3, 2};
 }
 
 inline bool is_prefill_stage(const RuntimeParams& params) {
