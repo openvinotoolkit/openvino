@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-18-08-34-55-000-35317134422",
+  "timestamp": "2026-09-18T08:34:55Z",
+  "run_id": "35317134422",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35317134422",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "37654",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37654",
+  "author": "michal-miotk",
+  "category": "Flaky Test",
+  "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
+  "signature": "test keras lstm flags numerical mismatch with dropout float32|Flaky Test",
+  "signature_hash": "a284d27dfee44614",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "1 test failed: test_keras_lstm_flags_float32 with dropout=(0.1,0.3) - small numerical accuracy mismatch vs TF"
+    }
+  ],
+  "key_errors": [
+    "FAILED tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[ ie_device:CPU - precision: - params:{'input_names': ['x'], 'input_shapes': [[4, 8, 3]], 'input_type': tf.float32, 'dropouts': (0.1, 0.3), 'units': 3, 'activation': 'relu', 'use_bias': False, 'recurrent_activation': 'tanh', 'flags': True} ] - AssertionError: Comparing with Framework failed",
+    "ie_res={'output_0': array([[-0., 4.0237236, -0.], [0., -2.9042783, -0.], [-0., 6.319838, 0.], [2.646835, -4.4866743, 0.4102927]])}; framework_res={'output_0': array([[-0., 4.0242763, -0.], [0., -2.7405753, -0.], [-0., 6.320467, 0.], [2.647179, -4.49084, 0.40958554]])}",
+    "= 1 failed, 2113 passed, 111 skipped, 7 xfailed, 26 xpassed, 2528 warnings in 567.08s ="
+  ],
+  "root_cause": "The TestKerasLSTM test_keras_lstm_flags_float32 case with non-zero dropout (0.1, 0.3) is inherently numerically unstable: dropout masks applied inside the LSTM recurrent cell introduce small floating-point divergences between OpenVINO's CPU LSTM sequence implementation and TensorFlow's reference computation that accumulate across the 8 time steps. This is the second recorded occurrence of the exact same test/parameter combination (previously seen on PR #37611, run 33025151669) with the same order-of-magnitude diffs (~0.01-0.16 absolute), confirming it is a pre-existing flaky test rather than a regression introduced by this PR's GPU gather_elements changes, which do not touch the CPU LSTM kernel or the TensorFlow frontend.",
+  "reproduction_steps": "cd src/frontends/tensorflow/tests/layer_tests && pytest tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32 -k 'dropouts' --repeat=20",
+  "recommended_actions": [
+    "Re-run the failed TensorFlow Layer Tests job - this is a flaky numerical test unrelated to the PR's GPU gather_elements changes",
+    "Raise the comparison tolerance (rtol/atol) for LSTM tests parameterized with non-zero dropout, or mark them xfail given dropout's inherent non-determinism under test=False semantics",
+    "Track this recurring pattern (2nd occurrence) and consider filing a dedicated ticket to fix or quarantine the flaky test rather than relying on doctor re-runs"
+  ],
+  "prevention_strategies": "Mark LSTM tests with non-zero dropout as xfail or increase the numerical tolerance threshold; consider seeding/disabling dropout at inference comparison time so the test is deterministic.",
+  "historical_context": "Identical failure (same test, same dropout params, same order-of-magnitude diffs) previously recorded on 2026-08-27 for PR #37611 (run 33025151669). This is now a 2-occurrence recurring pattern; general TF layer test numerical flakiness has also been seen historically (pattern 134f01149f41adcc, 3 occurrences)."
+}

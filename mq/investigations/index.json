@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 248,
+  "total": 249,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2433,6 +2433,17 @@
       "category": "Network",
       "signature_hash": "dfd265b1c0ea3af5",
       "pr_number": "38219"
+    },
+    {
+      "investigation_id": "2026-09-18-08-34-55-000-35317134422",
+      "run_id": "35317134422",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35317134422",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-09-18T08:34:55Z",
+      "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
+      "category": "Flaky Test",
+      "signature_hash": "a284d27dfee44614",
+      "pr_number": "37654"
     }
   ]
 }
