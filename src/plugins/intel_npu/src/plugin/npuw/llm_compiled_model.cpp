@@ -894,8 +894,7 @@ void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(
     NPUW_ASSERT(plugin && "Plugin for assigning shared weights must not be null");
     NPUW_ASSERT(shared_weight_property.is<std::string>() && "NPU shared weight property must be a std::string");
 
-    auto shared_device_contexts =
-        ov::DeviceIDParser::get_hetero_devices(shared_weight_property.as<std::string>());
+    auto shared_device_contexts = ov::DeviceIDParser::get_hetero_devices(shared_weight_property.as<std::string>());
     size_t kMinRelocateBytes = ov::util::get_system_page_size();
     constexpr size_t single_weigh_shared_source_size_max = static_cast<size_t>(2ULL * 1024 * 1024 * 1024);
     auto is_constant_shareable = [shared_device_contexts,
