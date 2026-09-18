@@ -25,10 +25,12 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "orc/schema_npuw.hpp"
 #include "pa_compiled_model.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "pipelines/kokoro/kokoro_compiled_model.hpp"
 #include "plugin.hpp"
+#include "serialization.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
 #include "v1/elements/accuracy_checked.hpp"
@@ -356,12 +358,39 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     return compiled_model;
 }
 
+namespace {
+bool is_partitioned_orc(std::istream& stream) {
+    const auto header = ov::npuw::orc::is_orc(stream);
+    return header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA;
+}
+
+bool has_npuw_indicator(std::istream& stream) {
+    const auto start = stream.tellg();
+    ov::npuw::s11n::IndicatorType indicator;
+    const bool found = ov::npuw::orc::try_read_bytes(stream, indicator.data(), indicator.size()) &&
+                       indicator == NPUW_SERIALIZATION_INDICATOR;
+    stream.clear();
+    stream.seekg(start);
+    return found;
+}
+}  // anonymous namespace
+
+bool ov::npuw::ICompiledModel::is_npuw_blob(std::istream& stream) {
+    return is_partitioned_orc(stream) || has_npuw_indicator(stream);
+}
+
 std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties) {
     LOG_INFO("Choosing which NPUW CompiledModel to import");
     LOG_BLOCK();
+
+    // The partitioned CompiledModel is a plain ORC container with no indicator
+    // header of its own.
+    if (is_partitioned_orc(stream)) {
+        return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+    }
 
     const auto stream_start_pos = stream.tellg();
     ov::npuw::s11n::IndicatorType serialization_indicator;
@@ -386,6 +415,8 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
     } else if (compiled_model_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR) {
         return ov::npuw::batched::CompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+        // The flat CompiledModel moved to the ORC container above; its old
+        // indicator-headed layout has no reader anymore.
         OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
                        "the current ORC serializer.");
     }
