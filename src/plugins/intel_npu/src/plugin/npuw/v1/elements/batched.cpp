@@ -15,6 +15,7 @@
 #include "intel_npu/npuw_private_properties.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/version.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -127,15 +128,29 @@ ov::npuw::batched::InferRequest::InferRequest(const std::shared_ptr<const ov::IC
     m_profile.report_on_die = ov::npuw::profiling_enabled();
     m_profile.area = "batched/execution";
 
-    // Surface the inner request's own tensors as the public defaults (the ports are
-    // the same objects, see CompiledModel::inputs()). Nothing is allocated here: a
-    // batch-1 caller works directly on the inner's tensors, and a batched caller
-    // replaces them with its [N, ...] tensors via set_tensor().
-    for (const auto& port : get_inputs()) {
-        if (auto tensor = m_inner->get_tensor(port)) {
-            set_tensor(port, tensor);
-        }
+    // The stacked outputs are allocated through the compiled model's context when
+    // there is one, the way the core allocates its own batched inputs, so a device
+    // gets host memory it can map. Without a device there is no context and they
+    // are plain host tensors.
+    try {
+        m_context = compiled_model->get_context();
+    } catch (const ov::Exception&) {
+        m_context = {};
     }
+}
+
+ov::SoPtr<ov::ITensor> ov::npuw::batched::InferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
+    // A caller-bound tensor first, then the element's own stacked output, else
+    // the inner request's tensor: the ports are the same objects, so a batch-1
+    // caller works on the inner's buffers directly and nothing is allocated for it.
+    if (auto bound = ov::ISyncInferRequest::get_tensor(port)) {
+        return bound;
+    }
+    const auto own = m_own_outputs.find(port.get_tensor_ptr());
+    if (own != m_own_outputs.end() && own->second) {
+        return own->second;
+    }
+    return m_inner->get_tensor(port);
 }
 
 ov::npuw::batched::InferRequest::BatchedInputs ov::npuw::batched::InferRequest::extract_batch() const {
@@ -249,30 +264,40 @@ void ov::npuw::batched::InferRequest::prepare_outputs(std::size_t batch) {
                         "Batched element: output '",
                         port_name(port),
                         "' of the inner request is not a [1, ...] tensor");
+        const auto type = inner_out->get_element_type();
         ov::Shape shape = inner_out->get_shape();
         shape[0] = batch;
 
-        const auto current = get_tensor(port);
-        if (!current) {
-            // A plain host tensor. The inner request only ever holds [1, ...]
-            // buffers, so the stacked output cannot come from it directly. Getting
-            // it allocated by the inner's device instead is a follow-up.
-            set_tensor(port, ov::get_tensor_impl(ov::Tensor(inner_out->get_element_type(), shape)));
+        // A caller-bound tensor stays bound and is written into, the way plugins
+        // treat dynamic outputs: set_shape() resizes an owning tensor when the
+        // produced shape differs and throws for a fixed view too small for the data.
+        if (const auto bound = ov::ISyncInferRequest::get_tensor(port)) {
+            OPENVINO_ASSERT(bound->get_element_type() == type,
+                            "Batched element: output '",
+                            port_name(port),
+                            "' is bound to a tensor of type ",
+                            bound->get_element_type(),
+                            ", but this inference produces type ",
+                            type,
+                            " - bind a tensor of the produced type or leave the output unset.");
+            bound->set_shape(shape);
             continue;
         }
-        // Whatever is bound stays bound and is written into, the way plugins treat
-        // dynamic outputs: set_shape() resizes an owning tensor when the produced
-        // shape differs and throws for a fixed view too small for the data.
-        OPENVINO_ASSERT(current->get_element_type() == inner_out->get_element_type(),
-                        "Batched element: output '",
-                        port_name(port),
-                        "' is bound to a tensor of type ",
-                        current->get_element_type(),
-                        ", but this inference produces type ",
-                        inner_out->get_element_type(),
-                        " - bind a tensor of the produced type or leave the output unset.");
-        current->set_shape(shape);
+        // The element's own output is reused while the shape holds and allocated
+        // afresh when it changes: a device tensor cannot grow in place.
+        auto& own = m_own_outputs[port.get_tensor_ptr()];
+        if (!own || own->get_element_type() != type || own->get_shape() != shape) {
+            own = allocate_output(type, shape);
+        }
     }
+}
+
+ov::SoPtr<ov::ITensor> ov::npuw::batched::InferRequest::allocate_output(const ov::element::Type& type,
+                                                                        const ov::Shape& shape) const {
+    if (m_context) {
+        return m_context->create_host_tensor(type, shape);
+    }
+    return ov::get_tensor_impl(ov::Tensor(type, shape));
 }
 
 void ov::npuw::batched::InferRequest::check_tensors() const {
