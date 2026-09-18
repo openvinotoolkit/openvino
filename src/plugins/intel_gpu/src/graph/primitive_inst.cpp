@@ -365,6 +365,14 @@ void primitive_inst::update_shape() {
         }
     }
 
+    // Unlike shape_of, this root's dependencies are ordinary data-typed scalars whose layout never
+    // changes between iterations (only their value does), so the layout diff above can never observe
+    // a change here. Treat every run as changed: it is the only safe signal available, and this node
+    // is a cheap scalar computation, so always recomputing it is not a meaningful perf concern.
+    if (get_node().get_primitive()->is_shape_of_subgraph_root) {
+        input_shape_changed = true;
+    }
+
     set_flag(ExecutionFlags::SHAPE_CHANGED, input_shape_changed);
 
     // We assume that tensor ranks are static, thus shape_of doesn't need to update anything even if input shape is dynamic

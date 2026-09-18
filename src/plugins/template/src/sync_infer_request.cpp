@@ -256,7 +256,10 @@ void ov::template_plugin::InferRequest::infer_postprocess() {
         const auto& result = get_template_model()->m_model->get_results()[i];
         const auto& host_tensor = m_backend_output_tensors[i];
         auto tensor = get_tensor(get_outputs()[i]);
-        if (result->get_output_partial_shape(0).is_dynamic()) {
+        // The outer tensor may have been allocated earlier from a still-dynamic shape, before this
+        // plugin's post-transform model resolved it to static - so is_dynamic() alone can wrongly
+        // skip the copy below. Also copy whenever the shapes don't already match.
+        if (result->get_output_partial_shape(0).is_dynamic() || tensor->get_shape() != host_tensor.get_shape()) {
             ov::Output<const ov::Node> output{result->output(0).get_node(), result->output(0).get_index()};
             allocate_tensor(output, [&host_tensor](ov::SoPtr<ov::ITensor>& tensor) {
                 allocate_tensor_impl(tensor, host_tensor.get_element_type(), host_tensor.get_shape());
