@@ -349,13 +349,13 @@ def retype_kv_cache_parameters(om, et_name):
 def apply_kv_cache_config_defaults(config, device, options=None, om=None):
     """Fill the vLLM KV-cache and FC-quantization defaults into the OV CPU config.
 
-    Caller-supplied entries win. No-op on non-CPU devices.
+    Caller-supplied entries win. No-op on non-CPU devices and on non-vLLM
+    callers, which compile.py also routes here.
     """
-    if device != "CPU":
+    if device != "CPU" or not _preset.is_vllm_preset(options):
         return
-    if _preset.is_vllm_preset(options):
-        for key, value in _preset._PRESET_CONFIG.items():
-            config.setdefault(key, value)
+    for key, value in _preset._PRESET_CONFIG.items():
+        config.setdefault(key, value)
 
     # Derived together from the model's float dtype: the CPU PA kernel only
     # exists for matching (compute, cache) pairs.
