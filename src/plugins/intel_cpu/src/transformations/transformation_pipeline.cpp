@@ -33,6 +33,10 @@
 #include "openvino/itt.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/avg_pool.hpp"
+#if !defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/op/bitwise_not.hpp"
+#    include "openvino/op/util/binary_elementwise_bitwise.hpp"
+#endif
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
@@ -1572,6 +1576,10 @@ void Transformations::MainSnippets() {
     CPU_SET_CALLBACK_COMMON(
         snippetsManager,
         [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+#if !defined(OPENVINO_ARCH_ARM64)
+            if (ov::is_type_any_of<const ov::op::util::BinaryElementwiseBitwise, const ov::op::v13::BitwiseNot>(n))
+                return true;
+#endif
             if (!ignoreCallback) {
                 if (n->is_dynamic() || !is_supported_op(n))
                     return true;
