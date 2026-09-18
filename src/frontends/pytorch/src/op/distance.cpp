@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -30,14 +31,24 @@ Output<Node> pairwise_distance(const NodeContext& context,
                                Output<Node> eps,
                                bool keepdim) {
     auto one = context.mark_node(v0::Constant::create(element::f32, Shape{}, {1}));
-    auto p_plus_eps = context.mark_node(std::make_shared<v1::Add>(p, eps));
-    auto inv_p = context.mark_node(std::make_shared<v1::Divide>(one, p_plus_eps));
+    
+    // Fix 1: Calculate inverse power using only p, do not add eps here
+    auto inv_p = context.mark_node(std::make_shared<v1::Divide>(one, p));
     auto minus_one = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {-1}));
+    
     align_eltwise_input_types(context, x, y, is_python_scalar_input(context, 0), is_python_scalar_input(context, 1));
     auto x_y_diff = context.mark_node(std::make_shared<v1::Subtract>(x, y));
-    auto x_y_diff_in_p_power = context.mark_node(std::make_shared<v1::Power>(x_y_diff, p));
+    
+    // Fix 2: Take the absolute difference and add eps to the base
+    auto abs_diff = context.mark_node(std::make_shared<v0::Abs>(x_y_diff));
+    auto base = context.mark_node(std::make_shared<v1::Add>(abs_diff, eps));
+    
+    // Raise the corrected base to the power of p
+    auto x_y_diff_in_p_power = context.mark_node(std::make_shared<v1::Power>(base, p));
+    
     auto summation = context.mark_node(std::make_shared<v1::ReduceSum>(x_y_diff_in_p_power, minus_one, keepdim));
     auto summation_in_inv_p = context.mark_node(std::make_shared<v1::Power>(summation, inv_p));
+    
     return summation_in_inv_p;
 }
 };  // namespace
