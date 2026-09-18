@@ -10,20 +10,17 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-// Graph that exercises the parameter deduplication path in tokenization.
-// Two eltwise Subgraphs share the same Split output.  When the downstream
-// Add (Add2) merges them, the shared external_input must be reused instead
-// of creating a duplicate body parameter.
+// Graph that exercises parameter deduplication at external input indices 0
+// and 1 during tokenization.
 //
-//   param0 -> Split(axis=0, num_splits=2)
-//     split->output(0) + const1 -> Add
-//                                              Add2 -> Result
-//     split->output(0) * const2 -> Mul
+//   param0 -> VariadicSplit(axis=0, lengths=[1, 2])
+//     split->output(1) + split->output(0) -> Add
+//                                                Add2 -> Result
+//     split->output(0) * split->output(1) -> Mul
 //
-// After tokenization, Add, Mul and Add2 are collapsed into a single
-// Subgraph.  The shared input split->output(0) appears exactly once in
-// external_inputs, and the body parameter for the Mul branch is replaced
-// with the one already created for the Add branch.
+// The Add branch inserts external inputs in [1, 0] order. The Multiply branch
+// visits them in [0, 1] order, so tokenization must reuse parameters by both
+// external input indices.
 class CommonParentTokenizationFunction : public SnippetsFunctionBase {
 public:
     explicit CommonParentTokenizationFunction(const std::vector<PartialShape>& inputShapes)

@@ -122,7 +122,7 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_ThreeFQFunction) {
 }
 
 TEST_F(CollapseSubgraphTests, smoke_Snippets_CommonParentTokenization) {
-    const auto& f = CommonParentTokenizationFunction(std::vector<PartialShape>{{4}});
+    const auto& f = CommonParentTokenizationFunction(std::vector<PartialShape>{{3}});
     execute_and_validate_function(*this, f);
 }
 
