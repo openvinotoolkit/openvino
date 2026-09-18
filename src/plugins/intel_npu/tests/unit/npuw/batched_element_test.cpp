@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -28,11 +29,11 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
-#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
@@ -632,17 +633,23 @@ TEST_F(NPUWBatchedElementTest, SingleRowPreBoundOutputWrittenInPlace) {
     EXPECT_EQ(m_recorder->events, (std::vector<std::string>{"reset", "infer"}));
 }
 
-// The wrap is part of the blob end to end. A real LLM compiled through NPUW on
-// CPU with the rerank tag exports a batched blob, the import dispatch rebuilds
-// the wrapper from it (tag restored, no property re-supplied beyond the model
-// pointer the weightless blob needs), and the imported model stacks a batch row
-// for row like the compiled one scores single prompts.
+// The blob round trip on the real import path: the synthetic LLM is written to
+// disk like a converted model, so its constants carry weights-file offsets and
+// the blob is weightless. Compiled with the rerank tag it exports a batched blob,
+// the import dispatch rebuilds the wrapper from it with only WEIGHTS_PATH
+// supplied, and the imported model stacks a batch row for row like the compiled
+// one scores single prompts.
 TEST(NPUWBatchedElementRoundTrip, ExportImportRebuildsTheWrapAndStacks) {
     constexpr std::size_t kRows = 3;
     constexpr std::size_t kLen = 6;
 
     ov::Core core;
-    auto model = build_llm_test_model();
+    const auto tmp = std::filesystem::temp_directory_path() / "npuw_batched_round_trip";
+    std::filesystem::create_directories(tmp);
+    const auto xml = tmp / "model.xml";
+    const auto bin = tmp / "model.bin";
+    ov::serialize(build_llm_test_model(), xml.string(), bin.string());
+    auto model = core.read_model(xml.string());
     // The online partitioner's repeated-block detection does not cope with the
     // synthetic model, so the sub-models are compiled whole on CPU.
     const ov::AnyMap props = {{"NPU_USE_NPUW", "YES"},
@@ -658,7 +665,7 @@ TEST(NPUWBatchedElementRoundTrip, ExportImportRebuildsTheWrapAndStacks) {
     std::stringstream blob;
     compiled.export_model(blob);
     auto import_props = props;
-    import_props[ov::hint::model.name()] = std::static_pointer_cast<const ov::Model>(model);
+    import_props[ov::weights_path.name()] = bin.string();
     auto imported = core.import_model(blob, "NPU", import_props);
     EXPECT_TRUE(imported.get_property("NPUW_TEXT_RERANK").as<bool>());
 
@@ -702,6 +709,5 @@ TEST(NPUWBatchedElementRoundTrip, ExportImportRebuildsTheWrapAndStacks) {
         }
     }
 }
-
 
 }  // namespace
