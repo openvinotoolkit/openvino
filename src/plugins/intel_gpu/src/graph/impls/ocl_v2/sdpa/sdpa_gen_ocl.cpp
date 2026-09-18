@@ -803,10 +803,10 @@ bool SDPAOclGenerator::supports_head_sizes(gpu_arch arch, size_t k_head_size, si
 
 bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
     const auto is_f16 = [](data_types dt) {
-        return dt == ov::element::f16;
+        return dt == ov::element::f16 || dt == ov::element::bf16;
     };
     const auto is_compilable_kv = [](data_types dt) {
-        return dt == ov::element::f16 || data_type_traits::is_i8_u8(dt) || data_type_traits::is_i4_u4(dt);
+        return dt == ov::element::f16 || dt == ov::element::bf16 || data_type_traits::is_i8_u8(dt) || data_type_traits::is_i4_u4(dt);
     };
 
     if (!is_f16(params.input_layouts[0].data_type) || !is_f16(params.output_layouts[0].data_type)) {
@@ -930,7 +930,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         }
     }
 
-    jit.make("DPAS_K", 16);          // intel_sub_group_f16_f16_matrix_mad_k16 only supports KSTEP of 16
+    jit.make("DPAS_K", 16);          // f16 and bf16 k16 DPAS both fix KSTEP at 16
     jit.make("DPAS_ROWS", 8);
     jit.make("kq_sg_tile_keys", ocl_config.kq_sg_tile_keys);
     jit.make("kq_sg_tile_queries", ocl_config.kq_sg_tile_queries);

@@ -50,9 +50,9 @@ public:
     // dispatched with.
     static bool supports_head_sizes(gpu_arch arch, size_t k_head_size, size_t v_head_size);
 
-    // Whether sdpa_ocl.cl can be compiled for these layouts. The kernel is f16-only (as_ushort Q/K
-    // loads, DPAS f16-f16, `global half *A`); an added stage is COMPILED even when it is never
-    // dispatched, so non-f16 Q/output and uncompressed non-f16 K/V must be rejected here.
+    // Whether sdpa_ocl.cl can be compiled for these layouts. Q/output are f16 or bf16 (16-bit DPAS);
+    // uncompressed K/V match Q, or K/V are i8/u4 compressed cache. An added stage is COMPILED even
+    // when it is never dispatched, so other types must be rejected here.
     static bool supported(const kernel_impl_params& params);
 
 private:
