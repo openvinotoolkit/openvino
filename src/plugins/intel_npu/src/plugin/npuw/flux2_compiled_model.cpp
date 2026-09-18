@@ -233,7 +233,8 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::Flux2CompiledModel::import_m
     read(stream, vmajor);
     read(stream, vminor);
     read(stream, vpatch);
-    read(stream, s11n_version);
+    constexpr auto version_size = std::char_traits<char>::length(NPUW_SERIALIZATION_VERSION);
+    read_bounded(stream, s11n_version, version_size, version_size);
 
     if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
         s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {

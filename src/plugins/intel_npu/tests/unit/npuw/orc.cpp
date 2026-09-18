@@ -6,9 +6,13 @@
 
 #include <gtest/gtest.h>
 
+#include <cstring>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include "common_test_utils/test_assertions.hpp"
 
 namespace {
 
@@ -129,6 +133,19 @@ TEST(OrcTest, RejectsTruncatedFile) {
 
     std::stringstream truncated(bytes, std::ios::in | std::ios::out | std::ios::binary);
     EXPECT_THROW(read_file(truncated), ov::Exception);
+}
+
+TEST(OrcTest, BoundedStringRejectsSizeExceedingRemainingMemoryPayloadBeforeAllocation) {
+    const auto claimed_size = std::numeric_limits<std::size_t>::max();
+    std::vector<std::byte> payload(sizeof(claimed_size) + 1u);
+    std::memcpy(payload.data(), &claimed_size, sizeof(claimed_size));
+
+    auto stream = Stream::memory_reader(payload.data(), payload.size());
+    std::string value;
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(read_bounded(stream, value, 0u, claimed_size),
+                                  ov::Exception,
+                                  "exceeds remaining payload 1");
 }
 
 TEST(OrcTest, ScopedSectionsRoundTripMetadataBeforeChildren) {
