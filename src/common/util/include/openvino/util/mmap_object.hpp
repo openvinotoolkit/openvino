@@ -55,9 +55,6 @@ inline constexpr uint64_t no_mapping_id = 0;
  */
 class MappedMemory : public util::IMutableBuffer {
 public:
-    using util::IMemoryHints::hint_prefetch;
-    using util::IMutableBuffer::data;
-
     ~MappedMemory() override = default;
 
     virtual const std::byte* data() const noexcept override = 0;

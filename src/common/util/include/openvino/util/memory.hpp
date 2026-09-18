@@ -123,14 +123,12 @@ void vm_release(void* ptr, size_t size) noexcept;
  * @brief Queryable facts about a memory buffer's allocation, set once at construction/mapping time.
  */
 struct MemoryProperties {
-    /// @brief This buffer's byte offset within the buffer identified by IBuffer::get_id().
-    size_t offset = 0;
+    size_t offset = 0;  //!< Offset of this buffer within the allocation identified by IBuffer::get_id().
 };
 
-/// @brief Read-only, non-owning view (pointer + size) of a buffer's contents.
+/** @brief Read-only, non-owning view (pointer + size) of a buffer's contents. */
 class MemoryView {
 public:
-    constexpr MemoryView() noexcept = default;
     constexpr MemoryView(const std::byte* data, size_t size) noexcept : m_data{data}, m_size{size} {}
 
     constexpr const std::byte* data() const noexcept {
@@ -158,9 +156,9 @@ class IMemoryHints {
 public:
     virtual ~IMemoryHints() = default;
 
-    /// @brief Hint to release the underlying memory if possible (e.g. unmaps/decommits).
+    /** @brief Hint to release the underlying memory if possible (e.g. unmaps/decommits). */
     virtual void hint_evict() noexcept = 0;
-    /// @brief Hint to fetch the data to memory.
+    /** @brief Hint to fetch the data to memory. */
     virtual void hint_prefetch() noexcept = 0;
 };
 
@@ -175,18 +173,18 @@ public:
     virtual size_t size() const noexcept = 0;
     virtual const MemoryProperties& get_properties() const noexcept = 0;
 
-    /// @brief Typed reinterpretation of data(), e.g. data_as<char>() for APIs needing pointer arithmetic.
+    /** @brief Typed reinterpretation of data(), e.g. data_as<char>() for APIs needing pointer arithmetic. */
     template <typename T>
     const T* data_as() const noexcept {
         return reinterpret_cast<const T*>(data());
     }
 
-    /// @brief Read-only view for bulk reads/copies (e.g. memcpy, std::copy); not virtual, built on data()/size().
+    /** @brief Read-only view for bulk reads/copies (e.g. memcpy, std::copy); not virtual, built on data()/size(). */
     MemoryView view() const noexcept {
         return {data(), size()};
     }
 
-    /// @brief Buffer ID, Default: no id.
+    /** @brief Buffer ID, Default: no id. */
     virtual std::optional<uint64_t> get_id() const noexcept {
         return std::nullopt;
     }
