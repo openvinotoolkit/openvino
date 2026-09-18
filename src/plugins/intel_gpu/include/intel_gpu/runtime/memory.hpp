@@ -55,6 +55,10 @@ struct memory {
     }
     // only supports gpu_usm
     virtual void* buffer_ptr() const { return nullptr; }
+#ifdef ENABLE_MLIR_FOR_GPU
+    // Returns the handle to the underlying memory object (e.g. cl_mem for OpenCL)
+    virtual void* get_native_handle() const { return nullptr; }
+#endif
 
     size_t size() const { return _bytes_count; }
     size_t count() const { return _layout.count(); }
