@@ -288,7 +288,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto& localConfig = mergedConfigAndUnknownProperties.first;
     auto& unknownProperties = mergedConfigAndUnknownProperties.second;
 
-    localConfig.updateAny(ov::intel_npu::compiler_version.name(), compiler->get_version());
+    localConfig.update(ov::intel_npu::compiler_version.name(), compiler->get_version());
 
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN && !localConfig.has<COMPILATION_MODE>() &&
@@ -344,7 +344,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     bool successfullyDebatched = false;
 
     auto updateBatchMode = [&](ov::intel_npu::BatchMode mode) {
-        localConfig.updateAny(ov::intel_npu::batch_mode.name(), mode);
+        localConfig.update(ov::intel_npu::batch_mode.name(), mode);
     };
 
     const auto batchIsAvailable = [&]() {
@@ -488,7 +488,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             _logger.info(
                 "%s=INFER: overriding compiler-only PERF_COUNT from YES to NO; runtime configuration remains unchanged",
                 ov::intel_npu::profiling_type.name());
-            compilerConfig.update(ov::enable_profiling.name(), PERF_COUNT::toString(false));
+            compilerConfig.update(ov::enable_profiling.name(), false);
         }
 
         if (shouldWarnAboutLatency) {
@@ -503,7 +503,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
         if (shouldForceThroughput) {
             _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
-            compilerConfig.updateAny(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
+            compilerConfig.update(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
         }
 
         graph = compileWithConfig(std::move(modelToCompile), compilerConfig);

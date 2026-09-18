@@ -206,7 +206,7 @@ then with the full plugin and backend options before property-manager initializa
 ### Config
 `Config` is the high-level configuration database that maps `OptionBase` descriptors to typed option values. It maps and
 stores user-defined values from the `OptionsDesc` layer and implements the top-level configuration functions:
-get/update/updateAny/has/getString/toString/fromString and handles typecasts, type verification, parsing and conversions.
+get/update/has/getString/toString/fromString and handles typecasts, type verification, parsing and conversions.
 It also applies availability and support filtering based on the current system configuration and compiler type.
 
 In plugin bootstrap, `Config` is created early from a minimal descriptor (`LOG_LEVEL`), then expanded in place as the
@@ -339,13 +339,13 @@ register_property(
         return _config.get<EXAMPLE_PROPERTY>();
     },
     [this](const ov::Any& value) {
-        _config.updateAny(EXAMPLE_PROPERTY::key(), value);
+        _config.update(EXAMPLE_PROPERTY::key(), value);
     });
 ```
 **Explanation:**
 `register_property` stores the property name, visibility, mutability, support predicate, getter, and setter in one
 descriptor. The support predicate determines whether the property is exposed. The getter reads the typed option from
-`Config`, and the setter validates and stores the supplied value through `updateAny`.
+`Config`, and the setter validates and stores the supplied value through `update`.
 ### For compiled-model (if required)
 src/plugins/intel_npu/src/plugin/src/compiled_model_property_manager.cpp > function CompiledModelPropertyManager::registerProperties()
 ```cpp

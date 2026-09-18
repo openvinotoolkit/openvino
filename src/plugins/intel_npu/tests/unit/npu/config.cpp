@@ -26,7 +26,7 @@ enum class DummyTestOption {
     TESTVALUE_3 = 3  // not parsed
 };
 
-std::string_view stringifyEnum(DummyTestOption dummyTestOption) {
+static std::string_view stringifyEnum(DummyTestOption dummyTestOption) {
     switch (dummyTestOption) {
     case DummyTestOption::TESTVALUE_0:
         return "TESTVALUE_0";
@@ -343,24 +343,18 @@ TEST_F(OptionParserUnitTests, DoubleParserWorks) {
 // `std::sto*` stops at the first character which is not part of the number, so a valid prefix alone must
 // not be enough to accept the value
 TEST_F(OptionParserUnitTests, NumericParsersRejectTrailingGarbage) {
-    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse("12oops"),
-                                  ov::Exception,
-                                  "is not a valid INT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse("12oops"), ov::Exception, "is not a valid INT32 option");
     OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse("12 oops"),
                                   ov::Exception,
                                   "is not a valid INT32 option");
     OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<uint32_t>::parse("12oops"),
                                   ov::Exception,
                                   "is not a valid UINT32 option");
-    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int64_t>::parse("12oops"),
-                                  ov::Exception,
-                                  "is not a valid INT64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int64_t>::parse("12oops"), ov::Exception, "is not a valid INT64 option");
     OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<uint64_t>::parse("12oops"),
                                   ov::Exception,
                                   "is not a valid UINT64 option");
-    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<double>::parse("1.5oops"),
-                                  ov::Exception,
-                                  "is not a valid FP64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<double>::parse("1.5oops"), ov::Exception, "is not a valid FP64 option");
 }
 
 // Surrounding whitespace is still tolerated, only actual content may not be left over
@@ -659,75 +653,71 @@ TEST_F(ConfigUnitTests, UpdateRunsTheOptionValidation) {
     OV_EXPECT_THROW_HAS_SUBSTRING(config.update(DUMMY_VALIDATED_OPTION::key(), "-1"),
                                   ov::Exception,
                                   "expects non-negative values");
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(DUMMY_VALIDATED_OPTION::key(), ov::Any(int64_t{-1})),
+                                  ov::Exception,
+                                  "expects non-negative values");
 }
 
-TEST_F(ConfigUnitTests, UpdateAnyTakesTheValueAsIs) {
+TEST_F(ConfigUnitTests, UpdateTakesTheValueAsIs) {
     auto config = makeConfig();
-    config.updateAny(DUMMY_RUN_TIME_OPTION::key(), ov::Any(int64_t{7}));
-    config.updateAny(DUMMY_BOTH_OPTION::key(), ov::Any(std::string("custom")));
+    config.update(DUMMY_RUN_TIME_OPTION::key(), ov::Any(int64_t{7}));
+    config.update(DUMMY_BOTH_OPTION::key(), ov::Any(std::string("custom")));
 
     EXPECT_EQ(7, config.get<DUMMY_RUN_TIME_OPTION>());
     EXPECT_EQ("custom", config.get<DUMMY_BOTH_OPTION>());
 }
 
-TEST_F(ConfigUnitTests, UpdateAnyRunsTheOptionValidation) {
-    auto config = makeConfig();
-
-    OV_EXPECT_THROW_HAS_SUBSTRING(config.updateAny(DUMMY_VALIDATED_OPTION::key(), ov::Any(int64_t{-1})),
-                                  ov::Exception,
-                                  "expects non-negative values");
-}
-
 // A string payload must reach the option's own parser instead of being re-parsed by `ov::Any::as()`
-TEST_F(ConfigUnitTests, UpdateAnyWithStringPayloadUsesTheOptionParser) {
+TEST_F(ConfigUnitTests, UpdateWithStringPayloadUsesTheOptionParser) {
     auto config = makeConfig();
-    config.updateAny(DUMMY_CUSTOM_PARSE_OPTION::key(), ov::Any(std::string("AUTO")));
+    config.update(DUMMY_CUSTOM_PARSE_OPTION::key(), ov::Any(std::string("AUTO")));
 
     EXPECT_EQ(-1, config.get<DUMMY_CUSTOM_PARSE_OPTION>());
 }
 
-TEST_F(ConfigUnitTests, UpdateAnyAndUpdateAcceptTheSameBooleanSpellings) {
+TEST_F(ConfigUnitTests, UpdateAndUpdateAcceptTheSameBooleanSpellings) {
     for (const auto& val : {"YES", "yes", "TRUE", "ON", "1"}) {
         auto fromString = makeConfig();
         fromString.update(DUMMY_BOOL_OPTION::key(), val);
 
         auto fromAny = makeConfig();
-        fromAny.updateAny(DUMMY_BOOL_OPTION::key(), ov::Any(std::string(val)));
+        fromAny.update(DUMMY_BOOL_OPTION::key(), ov::Any(std::string(val)));
 
         EXPECT_TRUE(fromString.get<DUMMY_BOOL_OPTION>()) << "value: " << val;
         EXPECT_TRUE(fromAny.get<DUMMY_BOOL_OPTION>()) << "value: " << val;
     }
 }
 
-TEST_F(ConfigUnitTests, UpdateAnyKeepsStringOptionsIntact) {
+TEST_F(ConfigUnitTests, UpdateKeepsStringOptionsIntact) {
     auto config = makeConfig();
-    config.updateAny(DUMMY_BOTH_OPTION::key(), ov::Any(std::string("some value with spaces")));
+    config.update(DUMMY_BOTH_OPTION::key(), ov::Any(std::string("some value with spaces")));
 
     EXPECT_EQ("some value with spaces", config.get<DUMMY_BOTH_OPTION>());
 }
 
-TEST_F(ConfigUnitTests, UpdateAnyWithUnparsableStringPayloadReportsTheOption) {
+TEST_F(ConfigUnitTests, UpdateWithUnparsableStringPayloadReportsTheOption) {
     auto config = makeConfig();
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(config.updateAny(DUMMY_RUN_TIME_OPTION::key(), ov::Any(std::string("abc"))),
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(DUMMY_RUN_TIME_OPTION::key(), ov::Any(std::string("abc"))),
                                   ov::Exception,
                                   "Failed to parse 'DUMMY_RUN_TIME_OPTION' option");
 }
 
-TEST_F(ConfigUnitTests, UpdateAnyWithStringPayloadRunsTheOptionValidation) {
+TEST_F(ConfigUnitTests, UpdateWithStringPayloadRunsTheOptionValidation) {
     auto config = makeConfig();
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(config.updateAny(DUMMY_VALIDATED_OPTION::key(), ov::Any(std::string("-1"))),
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(DUMMY_VALIDATED_OPTION::key(), ov::Any(std::string("-1"))),
                                   ov::Exception,
                                   "expects non-negative values");
 }
 
 // Payloads which already have the option's exact type must keep bypassing the parser, as some options
 // cannot be built from a string at all
-TEST_F(ConfigUnitTests, UpdateAnyWithExactlyTypedPayloadSkipsTheOptionParser) {
+TEST_F(ConfigUnitTests, UpdateWithExactlyTypedPayloadSkipsTheOptionParser) {
     auto config = makeConfig();
-    config.updateAny(DUMMY_CUSTOM_PARSE_OPTION::key(), ov::Any(int64_t{-1}));
-    config.updateAny(DUMMY_BOOL_OPTION::key(), ov::Any(true));
+    config.update(DUMMY_CUSTOM_PARSE_OPTION::key(), ov::Any(int64_t{-1}));
+    config.update(DUMMY_BOOL_OPTION::key(), ov::Any(true));
 
     EXPECT_EQ(-1, config.get<DUMMY_CUSTOM_PARSE_OPTION>());
     EXPECT_TRUE(config.get<DUMMY_BOOL_OPTION>());
@@ -735,13 +725,13 @@ TEST_F(ConfigUnitTests, UpdateAnyWithExactlyTypedPayloadSkipsTheOptionParser) {
 
 // `ov::Any::as<uint32_t>()` would convert -2.0f through an unchecked arithmetic cast, wrapping it around
 // into a huge positive value which then passes any range validation
-TEST_F(ConfigUnitTests, UpdateAnyWithMismatchedArithmeticPayloadIsRejected) {
+TEST_F(ConfigUnitTests, UpdateWithMismatchedArithmeticPayloadIsRejected) {
     auto config = makeConfig();
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(config.updateAny(DUMMY_UINT32_OPTION::key(), ov::Any(-2.0f)),
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(DUMMY_UINT32_OPTION::key(), ov::Any(-2.0f)),
                                   ov::Exception,
                                   "Failed to parse 'DUMMY_UINT32_OPTION' option");
-    OV_EXPECT_THROW_HAS_SUBSTRING(config.updateAny(DUMMY_UINT32_OPTION::key(), ov::Any(int64_t{-2})),
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(DUMMY_UINT32_OPTION::key(), ov::Any(int64_t{-2})),
                                   ov::Exception,
                                   "Failed to parse 'DUMMY_UINT32_OPTION' option");
 
@@ -750,9 +740,9 @@ TEST_F(ConfigUnitTests, UpdateAnyWithMismatchedArithmeticPayloadIsRejected) {
 }
 
 // A payload of a different type is still usable as long as its value fits the option
-TEST_F(ConfigUnitTests, UpdateAnyWithMismatchedArithmeticPayloadGoesThroughTheParser) {
+TEST_F(ConfigUnitTests, UpdateWithMismatchedArithmeticPayloadGoesThroughTheParser) {
     auto config = makeConfig();
-    config.updateAny(DUMMY_UINT32_OPTION::key(), ov::Any(int64_t{7}));
+    config.update(DUMMY_UINT32_OPTION::key(), ov::Any(int64_t{7}));
 
     EXPECT_EQ(7u, config.get<DUMMY_UINT32_OPTION>());
 }
@@ -1000,7 +990,7 @@ TEST_F(RealOptionsUnitTests, MalformedValuesAreRejectedForPublicOptions) {
                                   ov::Exception,
                                   "Failed to parse 'PERFORMANCE_HINT_NUM_REQUESTS' option");
     // the value `OVPropertiesIncorrectTests` passes for this property
-    OV_EXPECT_THROW_HAS_SUBSTRING(config.updateAny(intel_npu::PERFORMANCE_HINT_NUM_REQUESTS::key(), ov::Any(-2.0f)),
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(intel_npu::PERFORMANCE_HINT_NUM_REQUESTS::key(), ov::Any(-2.0f)),
                                   ov::Exception,
                                   "Failed to parse 'PERFORMANCE_HINT_NUM_REQUESTS' option");
 

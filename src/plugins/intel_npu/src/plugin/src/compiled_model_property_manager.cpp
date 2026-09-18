@@ -266,7 +266,7 @@ void CompiledModelPropertyManager::registerProperties() {
             return ov::EncryptionCallbacks{nullptr, nullptr};
         },
         [this](const ov::Any& value) {
-            _config.updateAny(ov::cache_encryption_callbacks.name(), value);
+            _config.update(ov::cache_encryption_callbacks.name(), value);
         }
     );
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::RO,
