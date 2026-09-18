@@ -149,6 +149,45 @@ const NpuTestEnvConfig& NpuTestEnvConfig::getInstance() {
     return instance;
 }
 
+std::string driverTypeToString(DriverType type) {
+    switch (type) {
+    case DriverType::PV:
+        return "PV";
+    case DriverType::RELEASE:
+        return "RELEASE";
+    case DriverType::LATEST:
+        return "LATEST";
+    }
+    return "";
+}
+
+std::optional<DriverType> parseDriverType(const std::string& str) {
+    // accept any case ("PV", "pv", "Pv", ...) and ignore surrounding whitespace
+    const auto begin = std::find_if_not(str.begin(), str.end(), [](unsigned char c) {
+        return std::isspace(c);
+    });
+    const auto end = std::find_if_not(str.rbegin(), str.rend(), [](unsigned char c) {
+                         return std::isspace(c);
+                     }).base();
+
+    std::string normalized;
+    if (begin < end) {
+        normalized.reserve(static_cast<size_t>(end - begin));
+        std::transform(begin, end, std::back_inserter(normalized), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
+    }
+
+    if (normalized == "pv") {
+        return DriverType::PV;
+    } else if (normalized == "release") {
+        return DriverType::RELEASE;
+    } else if (normalized == "latest") {
+        return DriverType::LATEST;
+    }
+    return std::nullopt;
+}
+
 std::string getTestsDeviceNameFromEnvironmentOr(const std::string& instead) {
     return (!NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME.empty())
                ? NpuTestEnvConfig::getInstance().IE_NPU_TESTS_DEVICE_NAME
