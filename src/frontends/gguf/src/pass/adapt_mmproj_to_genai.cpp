@@ -6,12 +6,12 @@
 
 #include <unordered_set>
 
-#include "openvino/core/graph_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "pass/prune_orphaned_parameters.hpp"
 
 namespace ov::frontend::gguf::pass {
 bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -22,10 +22,8 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             selected = result;
     }
     OPENVINO_ASSERT(selected, "[GGUF] mmproj has no ", prefix, "embeddings output");
-    std::unordered_set<ov::Node*> reachable;
-    ov::traverse_nodes(ov::NodeVector{selected}, [&](const std::shared_ptr<ov::Node>& node) {
-        reachable.insert(node.get());
-    });
+    auto live_before = std::make_shared<std::unordered_set<const ov::Node*>>();
+    SnapshotLiveParameters(live_before).run_on_model(model);
     const auto results = model->get_results();
     for (const auto& result : results)
         model->remove_result(result);
@@ -46,17 +44,13 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     } else {
         model->add_results({std::make_shared<ov::op::v0::Result>(embeddings)});
     }
-    const auto params = model->get_parameters();
-    for (const auto& p : params) {
-        if (!reachable.count(p.get())) {
-            model->remove_parameter(p);
-        } else {
-            auto name = p->get_friendly_name();
-            if (name.rfind(prefix, 0) == 0) {
-                name = name.substr(prefix.size());
-                p->set_friendly_name(name);
-                p->output(0).set_names({name});
-            }
+    PruneParametersOrphanedSince(live_before).run_on_model(model);
+    for (const auto& p : model->get_parameters()) {
+        auto name = p->get_friendly_name();
+        if (name.rfind(prefix, 0) == 0) {
+            name = name.substr(prefix.size());
+            p->set_friendly_name(name);
+            p->output(0).set_names({name});
         }
     }
     model->validate_nodes_and_infer_types();

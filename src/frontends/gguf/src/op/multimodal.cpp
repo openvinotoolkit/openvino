@@ -25,6 +25,12 @@
 
 namespace ov::frontend::gguf::op {
 
+namespace {
+std::shared_ptr<ov::op::v0::Constant> i64_const(std::vector<int64_t> v) {
+    return ov::op::v0::Constant::create(ov::element::i64, {v.size()}, v);
+}
+}  // namespace
+
 OutputVector translate_upscale(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
     const int flags = context.get_attribute<int>("interpolation_mode", 1);
@@ -112,9 +118,7 @@ OutputVector translate_win_part(const NodeContext& context) {
     auto x = context.get_input(0);
     const auto window = context.get_attribute<int64_t>("window");
     FRONT_END_OP_CONVERSION_CHECK(window > 0 && x.get_partial_shape().rank() == 4, "Invalid window partition");
-    const auto c = [](std::vector<int64_t> v) {
-        return v0::Constant::create(ov::element::i64, {v.size()}, v);
-    };
+    const auto& c = i64_const;
     auto spatial = get_dimensions(x, {1, 2});
     auto padding = std::make_shared<v1::FloorMod>(std::make_shared<v1::Subtract>(c({window, window}), spatial),
                                                   c({window, window}));
@@ -143,9 +147,7 @@ OutputVector translate_win_unpart(const NodeContext& context) {
     auto x = context.get_input(0), reference = context.get_input(1);
     const auto window = context.get_attribute<int64_t>("window");
     FRONT_END_OP_CONVERSION_CHECK(window > 0, "Invalid window unpartition");
-    const auto c = [](std::vector<int64_t> v) {
-        return v0::Constant::create(ov::element::i64, {v.size()}, v);
-    };
+    const auto& c = i64_const;
     auto spatial = get_dimensions(reference, {1, 2});
     auto blocks = std::make_shared<v1::Divide>(std::make_shared<v1::Add>(spatial, c({window - 1, window - 1})),
                                                c({window, window}),
@@ -189,9 +191,7 @@ OutputVector translate_get_rel_pos(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(context.get_op_case() == 1, "Indexed relative positions require case 1");
     using namespace ov::op;
     auto table = context.get_input(0), indices = context.get_input(1);
-    const auto c = [](std::vector<int64_t> v) {
-        return v0::Constant::create(ov::element::i64, {v.size()}, v);
-    };
+    const auto& c = i64_const;
     // SAM decomposed relative positions: resize the distance table before gathering.
     auto length =
         std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(get_dimensions(indices, {2}), c({2})), c({1}));
