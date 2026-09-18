@@ -44,9 +44,19 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                              cldnn::data_types out_dtype,
                                              const cldnn::format& const_format,
                                              const cldnn::layout& const_layout) {
+    return try_prepare_partial_upload(p.get_engine(), p.get_config(), op, const_shape, out_dtype, const_format, const_layout);
+}
+
+PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
+                                             const ExecutionConfig& config,
+                                             const std::shared_ptr<ov::op::v0::Constant>& op,
+                                             const ov::Shape& const_shape,
+                                             cldnn::data_types out_dtype,
+                                             const cldnn::format& const_format,
+                                             const cldnn::layout& const_layout) {
     PartialUploadDesc desc;
 
-    const size_t otd_ratio = p.get_config().get_offload_ratio();
+    const size_t otd_ratio = config.get_offload_ratio();
     // Only routed expert weights are partially uploaded; shared experts stay fully resident.
     // ratio=0 (all resident) or ratio=100 (all on disk, invalid) → no partial upload.
     const bool partial_moe_const_upload = otd_ratio > 0 && otd_ratio < 100 && get_moe_constant_role(op) == MoEConstantRole::RoutedExpert;
@@ -62,9 +72,7 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
     desc.upload_shape[0] = std::min<size_t>(const_shape[0], resident_expert_num);
 
     auto upload_layout = cldnn::layout(desc.upload_shape, out_dtype, const_format);
-    auto upload_mem = p.get_engine().allocate_memory(upload_layout,
-                                                      p.get_engine().get_preferred_memory_allocation_type(),
-                                                      false);
+    auto upload_mem = engine.allocate_memory(upload_layout, engine.get_preferred_memory_allocation_type(), false);
     // Reinterpret the smaller physical allocation as the full constant layout so the
     // graph sees the expected shape/layout. This is safe because:
     // 1. constant.cpp marks this data node with skip_device_transfer=true (partial_upload.enabled),
@@ -77,7 +85,7 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
     OPENVINO_ASSERT(upload_layout.bytes_count() <= const_layout.bytes_count(),
                     "Partial upload layout (", upload_layout.bytes_count(),
                     " bytes) exceeds full constant layout (", const_layout.bytes_count(), " bytes)");
-    desc.memory = p.get_engine().reinterpret_buffer(*upload_mem, const_layout);
+    desc.memory = engine.reinterpret_buffer(*upload_mem, const_layout);
     desc.upload_bytes = upload_layout.bytes_count();
 
     get_partial_upload_log_state().log(op->get_friendly_name(),

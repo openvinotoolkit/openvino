@@ -82,4 +82,12 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                              const cldnn::format& const_format,
                                              const cldnn::layout& const_layout);
 
+PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
+                                             const ExecutionConfig& config,
+                                             const std::shared_ptr<ov::op::v0::Constant>& op,
+                                             const ov::Shape& const_shape,
+                                             cldnn::data_types out_dtype,
+                                             const cldnn::format& const_format,
+                                             const cldnn::layout& const_layout);
+
 }  // namespace ov::intel_gpu
