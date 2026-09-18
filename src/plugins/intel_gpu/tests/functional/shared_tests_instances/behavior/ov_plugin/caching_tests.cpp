@@ -5,6 +5,7 @@
 #include "behavior/ov_plugin/caching_tests.hpp"
 
 #include <cstdlib>
+#include <filesystem>
 
 using namespace ov::test::behavior;
 
@@ -83,6 +84,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          CompileModelLoadFromCacheTest::getTestCaseName);
 
 class CompileModelZeroCopyCacheLoadTest : public CompileModelLoadFromCacheTest {
+protected:
     void SetUp() override {
         setenv("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", "YES", 1);
         CompileModelLoadFromCacheTest::SetUp();
@@ -103,6 +105,29 @@ INSTANTIATE_TEST_SUITE_P(smoke_ZeroCopyCacheLoad_GPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(ov::AnyMap{})),
                          CompileModelZeroCopyCacheLoadTest::getTestCaseName);
+
+class CompileModelZeroCopySingleFileCacheLoadTest : public CompileModelZeroCopyCacheLoadTest {
+    void SetUp() override {
+        CompileModelZeroCopyCacheLoadTest::SetUp();
+        m_cacheFolderName += ".cache.bin";
+        std::filesystem::remove(m_cacheFolderName);
+    }
+
+    void TearDown() override {
+        CompileModelZeroCopyCacheLoadTest::TearDown();
+        std::filesystem::remove(m_cacheFolderName);
+    }
+};
+
+TEST_P(CompileModelZeroCopySingleFileCacheLoadTest, CanLoadFromCache) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ZeroCopySingleFileCacheLoad_GPU,
+                         CompileModelZeroCopySingleFileCacheLoadTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(ov::AnyMap{})),
+                         CompileModelZeroCopySingleFileCacheLoadTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          CompileModelWithCacheEncryptionTest,
                          ::testing::Values(ov::test::utils::DEVICE_GPU),
