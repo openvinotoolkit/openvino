@@ -6,7 +6,6 @@
 
 #include <cstddef>
 #include <limits>
-#include <stdexcept>
 #include <type_traits>
 
 #include "openvino/core/shape.hpp"
@@ -24,30 +23,22 @@ constexpr T div(const T x, const T y) {
     return x / y;
 }
 
-// NOTE: Execution throws `std::domain_error` if either a non-integral value or an
+// NOTE: Execution throws `ov::AssertFailure` if either a non-integral value or an
 // out-of-bounds value is detected in the input tensor.
 template <class T>
 T try_div(const T x, const T y) {
-    if (y == 0) {
-        throw std::domain_error("integer division by zero");
-    }
+    OPENVINO_ASSERT(y != 0, "integer division by zero");
     if constexpr (std::is_signed_v<T>) {
-        if (x == std::numeric_limits<T>::min() && y == -1) {
-            throw std::domain_error("integer division overflow");
-        }
+        OPENVINO_ASSERT(!(x == std::numeric_limits<T>::min() && y == -1), "integer division overflow");
     }
     return div(x, y);
 }
 
 template <class T>
 T try_python_div(const T x, const T y) {
-    if (y == 0) {
-        throw std::domain_error("integer division by zero");
-    }
+    OPENVINO_ASSERT(y != 0, "integer division by zero");
     if constexpr (std::is_signed_v<T>) {
-        if (x == std::numeric_limits<T>::min() && y == -1) {
-            throw std::domain_error("integer division overflow");
-        }
+        OPENVINO_ASSERT(!(x == std::numeric_limits<T>::min() && y == -1), "integer division overflow");
     }
 
     T quot = div(x, y);
