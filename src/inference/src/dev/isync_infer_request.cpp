@@ -4,8 +4,10 @@
 
 #include "openvino/runtime/isync_infer_request.hpp"
 
+#include <algorithm>
 #include <functional>
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 #include "openvino/core/except.hpp"
@@ -190,10 +192,19 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         auto ptr = static_cast<uint8_t*>(input_tensor->data());
 
         // Perform memory copy
-        ov::parallel_for(item.second.size(), [&](size_t i) {
-            const auto& tensor = item.second.at(i);
-            memcpy(ptr + i * tensor->get_byte_size(), tensor->data(), tensor->get_byte_size());
-        });
+        if (tmp_et == ov::element::string) {
+            ov::parallel_for(item.second.size(), [&](size_t i) {
+                const auto& tensor = item.second.at(i);
+                std::copy_n(tensor->data<const std::string>(),
+                            tensor->get_size(),
+                            input_tensor->data<std::string>() + i * tensor->get_size());
+            });
+        } else {
+            ov::parallel_for(item.second.size(), [&](size_t i) {
+                const auto& tensor = item.second.at(i);
+                memcpy(ptr + i * tensor->get_byte_size(), tensor->data(), tensor->get_byte_size());
+            });
+        }
         prepared_tensors[item.first] = std::move(input_tensor);
     }
 
