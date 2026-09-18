@@ -56,7 +56,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_FLUX2_COMPILED_MODEL_INDICATO
 const constexpr ov::npuw::s11n::IndicatorType NPUW_BATCHED_COMPILED_MODEL_INDICATOR =
     {char{0x42}, char{0x41}, char{0x54}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.32";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.33";
 
 // Forward declaration
 namespace intel_npu {
