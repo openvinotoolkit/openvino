@@ -12,7 +12,7 @@ template <>
 bool evaluate_node<ov::op::v16::Identity>(std::shared_ptr<ov::Node> node,
                                           ov::TensorVector& outputs,
                                           const ov::TensorVector& inputs) {
-    const auto input_shape = inputs[0].get_shape();
+    const auto& input_shape = inputs[0].get_shape();
 
     outputs[0].set_shape(input_shape);
     auto element_type = node->get_element_type();

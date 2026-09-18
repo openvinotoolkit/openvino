@@ -11,7 +11,7 @@ class RMSKernelRef : public RMSKernelBase {
 public:
     using Parent = RMSKernelBase;
     RMSKernelRef() : RMSKernelBase("rms_gpu_ref") {}
-    ~RMSKernelRef() override {}
+    ~RMSKernelRef() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

@@ -25,6 +25,11 @@ table.dataTable {
     width: 100%;
 }
 
+table.dataTable tbody td {
+    overflow-wrap: anywhere;
+    word-break: normal;
+}
+
 .dt-container {
     background-color: white !important;
     padding: .5rem !important;

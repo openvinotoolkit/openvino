@@ -55,7 +55,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-lin-x64-docker-4c16gb
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -92,7 +92,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-lin-x64-build-16c32gb
     strategy:
       fail-fast: false
       matrix:
@@ -138,11 +138,15 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_android_${{ matrix.arch }}_release
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
@@ -183,6 +187,7 @@ jobs:
         uses: ./openvino/.github/actions/system_info
 
       #
+      #
       # Build
       #
 
@@ -217,7 +222,7 @@ jobs:
             -B ${TBB_BUILD}
 
       - name: Build OneTBB project
-        run: cmake --build ${TBB_BUILD} --parallel $(nproc) -- --quiet
+        run: cmake --build ${TBB_BUILD} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
 
       - name: Install OneTBB project
         run: cmake --install ${TBB_BUILD}
@@ -255,7 +260,7 @@ jobs:
             -B ${BUILD_DIR}
 
       - name: CMake - build OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
+        run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
 
       - name: Show ccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -413,6 +418,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          # Legacy "tools" package was removed from the SDK; ov_test image already has emulator/system-images.
+          packages: platform-tools
 
       - name: AVD cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -426,7 +434,7 @@ jobs:
 
       - name: Run CPU unit tests on emulator
         id: unit-tests
-        uses: reactivecircus/android-emulator-runner@e89f39f1abbbd05b1113a29cf4db69e7540cae5a # v2.37.0
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: ${{ env.ANDROID_API_LEVEL }}
           target: ${{ env.ANDROID_TARGET }}
@@ -507,6 +515,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          # Legacy "tools" package was removed from the SDK; ov_test image already has emulator/system-images.
+          packages: platform-tools
 
       - name: AVD cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -520,7 +531,7 @@ jobs:
 
       - name: Run CPU func tests on emulator
         id: func-tests
-        uses: reactivecircus/android-emulator-runner@e89f39f1abbbd05b1113a29cf4db69e7540cae5a # v2.37.0
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: ${{ env.ANDROID_API_LEVEL }}
           target: ${{ env.ANDROID_TARGET }}

@@ -38,7 +38,7 @@ permissions: read-all
 
 env:
   PYTHON_VERSION: '3.11'
-  NODEJS_VERSION: '21'
+  NODEJS_VERSION: '22'
   MANIFEST_FILE: manifest.yml
   PRODUCT_TYPE: public_macos_arm64_release
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
@@ -217,6 +217,10 @@ jobs:
       - name: Pack openvino_developer_package
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/developer_package.tar.gz
         working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}/developer_package
+
+      # Samples are built by the main build (ENABLE_SAMPLES=ON); install their binaries into the package
+      - name: Install OpenVINO samples
+        run: cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -DCOMPONENT=samples_bin -P ${{ env.BUILD_DIR }}/cmake_install.cmake
 
       - name: Pack Artifacts
         run: |
@@ -401,7 +405,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        nodejs-version: [21, 22, 24, 26]
+        nodejs-version: [22, 24, 26]
     with:
       runner: 'macos-15'
       nodejs-version: ${{ matrix.nodejs-version }}

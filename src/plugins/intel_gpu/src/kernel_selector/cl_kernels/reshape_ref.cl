@@ -42,5 +42,5 @@ KERNEL (reshape_ref)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE* ou
                          od5*OUTPUT_PITCHES[4] +
                          od6*OUTPUT_PITCHES[5];
 
-    output[output_offset] = ACTIVATION(TO_OUTPUT_TYPE(input[input_offset]), ACTIVATION_PARAMS);
+    output[output_offset] = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[input_offset])), ACTIVATION_PARAMS));
 }

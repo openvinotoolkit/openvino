@@ -26,8 +26,9 @@ static void CreateTransposeOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v
     int rank = std::max(4, static_cast<int>(op->get_input_partial_shape(0).size()));
     if (order.empty()) {
         // if order size is less than 4 - fill the rest with just copy
-        for (int o = rank - 1; o >= 0; o--)
+        for (int o = rank - 1; o >= 0; o--) {
             order.push_back((uint16_t)o);
+        }
     }
 
     auto permutePrim = cldnn::permute(layerName,

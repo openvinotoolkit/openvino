@@ -155,7 +155,7 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
   Input token embeddings from all sequences in the batch. **Required.**
 
 * **1**: ``conv_state_table``
-  A 3D tensor of type *T* with shape ``[num_physical_blocks, hidden_size, kernel_size]``.
+  A 3D tensor of type *T_cache* with shape ``[num_physical_blocks, hidden_size, kernel_size]``.
   Paged block table holding the convolution cache states. The paged memory block size is fixed at ``BLOCK_SIZE=1``,
   meaning each physical block stores exactly one convolution state of shape ``[hidden_size, kernel_size]``,
   representing the last ``kernel_size`` input vectors seen by the corresponding sequence.
@@ -221,7 +221,11 @@ the constraint ``out_channels == hidden_size``), and ``out_channels`` must equal
 **Types**
 
 * *T*: any floating point type.
+
 * *T_IND*: ``int32``.
+
+* *T_cache* - cache precision; may differ from *T*.
+  Allowed for ``conv_state_table`` (input 1): ``f16``, ``f32``, ``bf16``.
 
 
 **Example**

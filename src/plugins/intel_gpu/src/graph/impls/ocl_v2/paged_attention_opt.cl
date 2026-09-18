@@ -179,11 +179,21 @@ KERNEL(pa_sdpa_opt)(
 
     const uint partition_idx = get_group_id(2);
 
-    if (partition_idx * SEQ_LEN_PARTITION_SIZE >= seq_len) {
+    const uint total_blocks_num = CEIL_DIV(seq_len, PAGED_ATTENTION_BLOCK_SIZE);
+
+#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
+    const uint swa_start_block = (seq_len > SLIDING_WINDOW_SIZE) ? ((seq_len - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE) : 0;
+    const uint swa_start_token = swa_start_block * PAGED_ATTENTION_BLOCK_SIZE;
+    const uint effective_blocks_num = total_blocks_num - swa_start_block;
+#else
+    const uint swa_start_block = 0;
+    const uint swa_start_token = 0;
+    const uint effective_blocks_num = total_blocks_num;
+#endif
+
+    if (partition_idx * SEQ_LEN_PARTITION_SIZE >= effective_blocks_num * PAGED_ATTENTION_BLOCK_SIZE) {
         return;
     }
-
-    const uint total_blocks_num = CEIL_DIV(seq_len, PAGED_ATTENTION_BLOCK_SIZE);
 
 #ifdef STORE_QUERY_TO_SLM
     // SLM buffer for query inputs
@@ -247,16 +257,17 @@ KERNEL(pa_sdpa_opt)(
         }
 #endif // STORE_QUERY_TO_SLM
 
-        const uint blocks_num_per_partition = min(total_blocks_num - partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION, (uint)PAGED_ATTENTION_BLOCKS_PER_PARTITION);
+        const uint blocks_num_per_partition = min(effective_blocks_num - partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION, (uint)PAGED_ATTENTION_BLOCKS_PER_PARTITION);
 
         uint blocks_num = blocks_num_per_partition / SUBGROUPS_PER_WG;
         if (sgid < blocks_num_per_partition % SUBGROUPS_PER_WG)
             blocks_num++;
 
-        const uint start_block_idx = block_indices_begins[subsequence_idx] + partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION + sgid;
+        const uint start_block_idx = block_indices_begins[subsequence_idx] + swa_start_block + partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION + sgid;
         for (uint block_num = 0; block_num < blocks_num; block_num++) {
             const uint head_idx = head_num_idx / KV_HEADS_GROUP_SIZE;
             const uint block_indice = block_indices[start_block_idx + block_num * SUBGROUPS_PER_WG];
+
 
             SOFTMAX_ACCUMULATOR_VEC_TYPE qk_acc = SOFTMAX_ACCUMULATOR_VAL_ZERO;
 
@@ -420,7 +431,7 @@ KERNEL(pa_sdpa_opt)(
             }
 #endif  // !(IS_KV_COMPRESSED && IS_INT4_COMPRESSED)
 
-            const uint token_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
+            const uint token_idx = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + block_num * SUBGROUPS_PER_WG * SUBGROUP_SIZE + sgid * SUBGROUP_SIZE + sglid;
 
 #ifdef HAS_ALIBI
             const int alibi_val = (1 - seq_len) + token_idx;
@@ -503,8 +514,8 @@ KERNEL(pa_sdpa_opt)(
         const uint qk_iters_num = CEIL_DIV(SEQ_LEN_PARTITION_SIZE, SUBGROUPS_PER_WG * SUBGROUP_SIZE);
         for (uint qk_idx = 0; qk_idx < qk_iters_num; qk_idx++) {
             const uint local_data_idx = qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
-            // TODO: const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx
-            const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
+            // TODO: const uint global_data_idx = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx
+            const uint global_data_idx = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
 #if (SEQ_LEN_PARTITION_SIZE % (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) == 0
             if (global_data_idx < seq_len) {
@@ -552,7 +563,7 @@ KERNEL(pa_sdpa_opt)(
 
         for (uint qk_idx = 0; qk_idx < qk_iters_num; qk_idx++) {
             const uint local_data_idx = qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
-            const uint global_data_idx = partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
+            const uint global_data_idx = swa_start_token + partition_idx * SEQ_LEN_PARTITION_SIZE + qk_idx * (SUBGROUPS_PER_WG * SUBGROUP_SIZE) + sgid * SUBGROUP_SIZE + sglid;
 
 #if (SEQ_LEN_PARTITION_SIZE % (SUBGROUPS_PER_WG * SUBGROUP_SIZE)) == 0
             if (global_data_idx < seq_len) {
@@ -563,6 +574,10 @@ KERNEL(pa_sdpa_opt)(
                     const uint slm_idx = q_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx;
                     SOFTMAX_ACCUMULATOR_TYPE qk_new = TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[slm_idx]) / GET_VECTOR_ELEMENT(exp_sum, q_idx);
                     slm_qk_vals[slm_idx] = qk_new;
+                }
+            } else if (local_data_idx < SEQ_LEN_PARTITION_SIZE) {
+                unroll_for (uint q_idx = 0; q_idx < QUERIES_PER_WI; q_idx++) {
+                    slm_qk_vals[q_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx] = 0;
                 }
             }
         }
@@ -643,7 +658,12 @@ KERNEL(pa_sdpa_opt)(
         MAKE_VECTOR_TYPE(OUTPUT_TYPE, QUERIES_PER_WI) acc = OUTPUT_VAL_ZERO;
 #endif
 
-        const uint partition_seq_len = min(seq_len - partition_idx * SEQ_LEN_PARTITION_SIZE, (uint)SEQ_LEN_PARTITION_SIZE);
+#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
+        const uint effective_seq_len = seq_len - swa_start_token;
+#else
+        const uint effective_seq_len = seq_len;
+#endif
+        const uint partition_seq_len = min(effective_seq_len - partition_idx * SEQ_LEN_PARTITION_SIZE, (uint)SEQ_LEN_PARTITION_SIZE);
 
 #if SG_SCALE_FACTOR > 1
         const uint block_start_idx = (sgid / (SUBGROUPS_PER_WG / SG_SCALE_FACTOR)) * (SEQ_LEN_PARTITION_SIZE / SG_SCALE_FACTOR / SUBGROUP_SIZE);
@@ -653,7 +673,7 @@ KERNEL(pa_sdpa_opt)(
         const uint block_end_idx = partition_seq_len / SUBGROUP_SIZE;
 #endif
 
-        uint blocks_num_per_partition = min(total_blocks_num - partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION, (uint)PAGED_ATTENTION_BLOCKS_PER_PARTITION);
+        uint blocks_num_per_partition = min(effective_blocks_num - partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION, (uint)PAGED_ATTENTION_BLOCKS_PER_PARTITION);
 
         uint leftovers = blocks_num_per_partition * PAGED_ATTENTION_BLOCK_SIZE - partition_seq_len;
         if (leftovers != 0) {
@@ -661,13 +681,14 @@ KERNEL(pa_sdpa_opt)(
             blocks_num_per_partition = blocks_num_per_partition - 1;
         }
 
-        const uint start_block_idx = block_indices_begins[subsequence_idx] + partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION;
+        const uint start_block_idx = block_indices_begins[subsequence_idx] + swa_start_block + partition_idx * PAGED_ATTENTION_BLOCKS_PER_PARTITION;
 
         for (uint block_num = block_start_idx; block_num < block_end_idx; block_num++) {
             const uint head_idx = head_num_idx / KV_HEADS_GROUP_SIZE;
             const uint block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE + head_idx * ADJUSTED_V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
 
             const uint value_offset = block_offset + head_size_idx;
+
 
 #if IS_KV_COMPRESSED
             const uint packed_block_offset = block_indices[start_block_idx + block_num] * KV_HEADS_NUM * phys_adjusted_v_head_size * PAGED_ATTENTION_BLOCK_SIZE
@@ -898,7 +919,7 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #ifdef USE_DUAL_NIBBLE_V_OPT
-        if (seq_len > SEQ_LEN_PARTITION_SIZE) {
+        if (effective_seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
             unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
 #if HEADS_LEFTOVERS_NUM > 0
                 if (q_idx >= iter_heads_num)
@@ -925,7 +946,7 @@ KERNEL(pa_sdpa_opt)(
             }
         }
 #else  // !USE_DUAL_NIBBLE_V_OPT
-        if (seq_len > SEQ_LEN_PARTITION_SIZE) {
+        if (effective_seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
             unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
 #if HEADS_LEFTOVERS_NUM > 0
                 if (q_idx >= iter_heads_num)
@@ -1007,9 +1028,15 @@ KERNEL(pa_sdpa_finalization_stage)(
     const uint seq_len = past_lens[seq_idx] + 1;
 #endif
 
-    const uint num_of_partitions = CEIL_DIV(seq_len, SEQ_LEN_PARTITION_SIZE);
+#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
+    const uint swa_start_block = (seq_len > SLIDING_WINDOW_SIZE) ? ((seq_len - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE) : 0;
+    const uint effective_seq_len = seq_len - swa_start_block * PAGED_ATTENTION_BLOCK_SIZE;
+#else
+    const uint effective_seq_len = seq_len;
+#endif
+    const uint num_of_partitions = min((uint)CEIL_DIV(effective_seq_len, SEQ_LEN_PARTITION_SIZE), total_partitions_num);
 
-    if (seq_len <= SEQ_LEN_PARTITION_SIZE) {
+    if (num_of_partitions <= 1) {
         /* Short path, no need any actions for currently processing sequence */
         return;
     } else if (num_of_partitions <= SUBGROUP_SIZE * REG_VERSION_MAX_VALUES_PER_WI) {
@@ -1150,7 +1177,7 @@ KERNEL(pa_sdpa_scores_calculation)(
     const int subsequence_end = subsequence_begins[subsequence_idx + 1];
     const uint seq_len = (subsequence_end - subsequence_begin) + past_lens[subsequence_idx];
 
-    const uint num_of_partitions = CEIL_DIV(seq_len, partition_size);
+    const uint num_of_partitions = min((uint)CEIL_DIV(seq_len, partition_size), max_partitions_num);
 
     if (partition_idx >= num_of_partitions)
         return;

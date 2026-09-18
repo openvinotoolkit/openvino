@@ -7,12 +7,13 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include "openvino/frontend/input_model.hpp"
 #include <string>
 #include <vector>
 
+#include "builder/gguf_builder.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
+#include "openvino/frontend/input_model.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -29,15 +30,27 @@ class GGUF_FRONTEND_API InputModel : public ov::frontend::InputModel {
 
 public:
     explicit InputModel(const std::shared_ptr<GgufDecoder>& gdecoder);
+    InputModel(GraphBuilder builder, std::vector<ov::Extension::Ptr> extensions)
+        : m_extensions(std::move(extensions)),
+          m_builder(std::move(builder)) {}
 
     // Model-scope topology (forwarded to the underlying decoder's model-scope accessors).
     const std::map<std::string, std::shared_ptr<ov::Node>>& get_model_inputs() const;
     std::vector<std::string> get_model_output_names() const;
+    const std::vector<std::pair<std::string, std::string>>& get_recurrent_states() const;
     RopeConfig get_rope_config() const;
     void visit_subgraph(const std::function<void(std::shared_ptr<GgufDecoder>)>& node_visitor) const;
 
+    // The underlying node-scoped decoder. TranslateSession uses it for the remaining model-scope
+    // questions that are only relevant on the native .gguf builder / stateful path (weights,
+    // extra inputs, KV param/result pairs, is_stateful / is_static, tokenizer metadata).
+    const std::shared_ptr<GgufDecoder>& get_model_decoder() const;
+
 private:
     std::shared_ptr<GgufDecoder> m_decoder;
+    // Keep the builder library loaded until its factory has been destroyed.
+    std::vector<ov::Extension::Ptr> m_extensions;
+    GraphBuilder m_builder;
 };
 
 }  // namespace ov::frontend::gguf

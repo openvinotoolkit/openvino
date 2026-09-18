@@ -98,16 +98,21 @@ public:
         }
 
         // Update ids
-        if (get_trip_count_id() == prevID)
+        if (get_trip_count_id() == prevID) {
             trip_count_id = newID;
-        if (get_initial_execution_id() == prevID)
+        }
+        if (get_initial_execution_id() == prevID) {
             initial_execution_id = newID;
-        if (get_current_iteration_id() == prevID)
+        }
+        if (get_current_iteration_id() == prevID) {
             current_iteration_id = newID;
-        if (get_execution_condition_id() == prevID)
+        }
+        if (get_execution_condition_id() == prevID) {
             execution_condition_id = newID;
-        if (get_num_iterations_id() == prevID)
+        }
+        if (get_num_iterations_id() == prevID) {
             num_iterations_id = newID;
+        }
     }
 
     // current_iteration is necessary to calculate output layout in dynamic shape
@@ -152,14 +157,7 @@ public:
             sliced_data_prim(std::move(sliced_data_prim)),
             io_prim_map(io_prim_map) {}
 
-        concatenated_memory_mapping(const concatenated_memory_mapping& o) :
-            concatenated_mem(o.concatenated_mem),
-            sliced_mems(o.sliced_mems),
-            stream(o.stream),
-            engine(o.engine),
-            concat_data_prim(o.concat_data_prim),
-            sliced_data_prim(o.sliced_data_prim),
-            io_prim_map(o.io_prim_map) {}
+        concatenated_memory_mapping(const concatenated_memory_mapping& o) = default;
 
         void update_concatenated_mem(memory::ptr mem) {
             concatenated_mem = mem;

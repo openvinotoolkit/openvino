@@ -122,7 +122,6 @@ struct ImplementationDesc {
 
     ImplementationDesc() :
         output_format(cldnn::format::any),
-        kernel_name(""),
         impl_type(cldnn::impl_types::any) {}
 
     ImplementationDesc(cldnn::format::type output_format,

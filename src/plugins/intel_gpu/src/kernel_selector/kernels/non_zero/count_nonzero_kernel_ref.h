@@ -18,7 +18,7 @@ struct count_nonzero_params : public base_params {
 class CountNonzeroKernelRef : public KernelBaseOpenCL {
 public:
     CountNonzeroKernelRef() : KernelBaseOpenCL("count_nonzero_ref") {}
-    ~CountNonzeroKernelRef() override {}
+    ~CountNonzeroKernelRef() override = default;
 
     struct DispatchData : public CommonDispatchData {
         size_t dataSize;

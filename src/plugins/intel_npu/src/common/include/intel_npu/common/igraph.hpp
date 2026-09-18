@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -17,6 +18,22 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
+
+enum class BlobType : uint8_t { ELF, LLVM, BYTECODE };
+
+enum class GraphKind : uint8_t { Weightful, Weightless, Dynamic };
+
+constexpr const char* to_string(GraphKind kind) noexcept {
+    switch (kind) {
+    case GraphKind::Weightful:
+        return "weightful";
+    case GraphKind::Weightless:
+        return "weightless";
+    case GraphKind::Dynamic:
+        return "dynamic";
+    }
+    return "unknown";
+}
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
@@ -50,8 +67,10 @@ public:
     // Callers must static_cast the result to the type matching the concrete graph implementation.
     virtual void* get_handle() const;
 
-    // Returns true if the graph is executed through the VM runtime (dynamic graph), false otherwise.
-    virtual bool is_dynamic() const;
+    // Returns the concrete kind of this graph. Derived classes override to identify themselves.
+    virtual GraphKind get_kind() const;
+
+    virtual BlobType get_blob_type() const;
 
     virtual void update_network_name(std::string_view name);
 

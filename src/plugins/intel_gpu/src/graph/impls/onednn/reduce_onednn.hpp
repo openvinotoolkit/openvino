@@ -101,7 +101,7 @@ struct ReduceImplementationManager : public ImplementationManager {
             case reduce_mode::l1:
             case reduce_mode::l2:
                 // modes have a limitation of data type
-                if (one_of(in_dt, {data_types::f16, data_types::f32}))
+                if (one_of(in_dt, {data_types::f16, data_types::f32, data_types::bf16}))
                     break;
             default:
                 return false;
@@ -114,10 +114,7 @@ struct ReduceImplementationManager : public ImplementationManager {
 
         // Onednn reduction does NOT support reordering of unreduced-axes.
         // Currently, an Onednn reduce layer which contains reduction of blocked axes(b-f) is expected to select planar format.
-        if (reduce_prim->keep_dims == false && is_reduce_blocked_axes(node))
-            return false;
-
-        return true;
+        return reduce_prim->keep_dims || !is_reduce_blocked_axes(node);
     }
 };
 

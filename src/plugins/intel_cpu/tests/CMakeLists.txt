@@ -2,6 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+# Static oneDNN exports use the CPU-plugin-prefixed symbols. Apply the matching
+# definitions to all CPU test targets without leaking them to third-party targets.
+if(NOT BUILD_SHARED_LIBS)
+    add_compile_definitions(${onednn_renamed_definitions})
+endif()
+
 # Suppress warnings in all test code (applies to unit and functional tests)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd4018)  # signed/unsigned mismatch

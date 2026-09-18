@@ -72,6 +72,56 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
         return GQAModelStage::UNKNOWN;
     };
 
+    const auto get_model_max_seq_length = [&]() {
+        std::size_t max_seq_length = 0;
+        for (const auto& res : model->get_parameters()) {
+            if (res->get_friendly_name().find("past_keys_") == std::string::npos) {
+                continue;
+            }
+
+            const auto& past_keys_shape = res->get_output_partial_shape(0);
+            if (past_keys_shape.rank().is_static() && past_keys_shape.size() > 2) {
+                const auto& seq_dim = past_keys_shape[2];
+                if (seq_dim.is_static()) {
+                    max_seq_length = static_cast<std::size_t>(seq_dim.get_length());
+                    break;
+                }
+            }
+            break;
+        }
+
+        return max_seq_length;
+    };
+
+    const auto has_transposed_value_tensors = [&]() {
+        ov::PartialShape past_keys_shape;
+        ov::PartialShape past_values_shape;
+
+        for (const auto& parameter : model->get_parameters()) {
+            const auto& name = parameter->get_friendly_name();
+            if (name.find("past_keys_") != std::string::npos) {
+                past_keys_shape = parameter->get_partial_shape();
+            } else if (name.find("past_values_") != std::string::npos) {
+                past_values_shape = parameter->get_partial_shape();
+            }
+        }
+
+        if (past_keys_shape.rank().is_static() && past_values_shape.rank().is_static() && past_keys_shape.size() >= 4 &&
+            past_values_shape.size() >= 4) {
+            const auto& key_seq_dim = past_keys_shape[2];
+            const auto& key_dim = past_keys_shape[3];
+            const auto& value_seq_dim = past_values_shape[2];
+            const auto& value_dim = past_values_shape[3];
+
+            if (key_seq_dim.is_static() && key_dim.is_static() && value_seq_dim.is_static() && value_dim.is_static()) {
+                return (value_seq_dim.get_length() == key_dim.get_length() &&
+                        value_dim.get_length() == key_seq_dim.get_length());
+            }
+        }
+
+        return false;
+    };
+
     ov::AnyMap config = {
         {"NPUW_ONLINE_PIPELINE", "REP"},
         {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
@@ -94,6 +144,16 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
                            {"NPUW_FOLD_ONLY", "attn"},
                            {std::string(::intel_npu::NPUW_FUNCALL_ASYNC::key()), "YES"},
                            {std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "YES"}});
+
+        // WA: Disable NPUW_UNFOLD_IREQS with long sequence lengths and not transposed value tensors.
+        const auto max_seq_length = get_model_max_seq_length();
+        const auto transposed_value_tensors = has_transposed_value_tensors();
+        if (max_seq_length > 8192 && !transposed_value_tensors) {
+            merge_config_with(config, {{std::string(::intel_npu::NPUW_UNFOLD_IREQS::key()), "NO"}});
+            LOG_INFO("Detected generate-style GQA model with max sequence length "
+                     << max_seq_length << " and transposed value tensors=" << transposed_value_tensors
+                     << "; disabling NPUW_UNFOLD_IREQS");
+        }
         LOG_INFO("Detected generate-style GQA model; applying FOLD with async funcall");
     } else {
         LOG_INFO("GQA model stage unknown; FOLD disabled");

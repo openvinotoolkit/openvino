@@ -1,0 +1,42 @@
+ir_version: 12
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  node {
+    input: "x"
+    input: "scale"
+    output: "y"
+    name: "DequantizeLinear"
+    op_type: "DequantizeLinear"
+    attribute {
+      name: "output_dtype"
+      i: 6
+      type: INT
+    }
+  }
+  name: "test_graph"
+  initializer {
+    dims: 6
+    data_type: 3
+    name: "x"
+    raw_data: "\000\001\002\003\004\005"
+  }
+  initializer {
+    data_type: 1
+    name: "scale"
+    raw_data: "\000\000\000\100"
+  }
+  output {
+    name: "y"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim { dim_value: 6 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 24
+}

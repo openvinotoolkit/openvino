@@ -16,7 +16,7 @@ public:
 
     mvn_kernel_selector();
 
-    ~mvn_kernel_selector() override {}
+    ~mvn_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

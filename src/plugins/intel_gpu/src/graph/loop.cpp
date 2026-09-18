@@ -76,7 +76,7 @@ static std::vector<layout> get_output_layouts(kernel_impl_params const& impl_par
     std::vector<layout> output_layouts;
 
     const auto& output_primitive_maps = prim->output_primitive_maps;
-    for (auto& output_mapping : output_primitive_maps) {
+    for (const auto& output_mapping : output_primitive_maps) {
         const primitive_id& output_internal_id = output_mapping.internal_id.pid;
         auto target = std::find_if(body_outputs.begin(), body_outputs.end(), [&](const T output) {
             return output->id() == output_internal_id;
@@ -96,8 +96,9 @@ static std::vector<layout> get_output_layouts(kernel_impl_params const& impl_par
             if (num_iterations == 0) {
                 auto shape = loop_output_layout.get_partial_shape();
                 for (size_t i = 0; i < shape.size(); i++) {
-                    if (shape[i].is_dynamic())
+                    if (shape[i].is_dynamic()) {
                         shape[i] = 0;
+                    }
                 }
                 loop_output_layout.set_partial_shape(shape);
             }
@@ -116,7 +117,7 @@ std::vector<layout> loop_inst::calc_output_layouts(loop_node const& /*node*/, ke
         const auto& body_outputs = impl_param.inner_progs.front()->get_outputs();
         output_layouts = get_output_layouts<program_node*>(impl_param, body_outputs, prim->max_num_iterations);
     } else {
-        auto& memory_deps = impl_param.memory_deps;
+        const auto& memory_deps = impl_param.memory_deps;
         const size_t current_iteration_idx = 0;
         OPENVINO_ASSERT(memory_deps.count(current_iteration_idx) > 0, "The count of memory deps(current_iteration) should not be zero");
         cldnn::mem_lock<int64_t, mem_lock_type::read> current_iterations_lock(memory_deps.at(current_iteration_idx), impl_param.get_stream());
@@ -246,7 +247,7 @@ void loop_inst::update_input_mapped_memory() {
 
         auto memory = input_memory_ptr(memory_num);
         for (size_t i = 0; i < input_map_ptrs.size(); ++i) {
-            const auto input_map = input_map_ptrs.at(i);
+            const auto* const input_map = input_map_ptrs.at(i);
             bool is_concatenated_input = (input_map->axis >= 0);
             if (is_concatenated_input) {
                 for (auto& mem_mapping : concatenated_input_mem_mappings) {
@@ -314,12 +315,11 @@ void loop_inst::update_backedge_mapped_memory() {
                         if (backedge_to_prim.get() == backedge_from_prim->dependencies().front().first) {
                             backedge_mapping.initial_mem = initial_mem;
                             continue;
-                        } else {
-                            // generally, shouldn't go this way, but...
+                        }  // generally, shouldn't go this way, but...
                             auto output_prim = body_network->get_primitive(back_edge.from);
                             layout output_layout = output_prim->output_memory().get_layout();
                             backedge_mem = body_network->get_engine().allocate_memory(output_layout, false);
-                        }
+
                     } else {
                         auto external_id = output_mapping.front()->external_id;
                         backedge_mem = get_external_memory(external_id.pid, external_id.idx);
@@ -420,8 +420,9 @@ loop_inst::concatenated_memory_mapping::ptr loop_inst::create_concat_memory_map(
 }
 
 void loop_inst::preprocess_output_memory(const int64_t num_iterations) {
-    if (concatenated_output_mem_mappings.empty())
+    if (concatenated_output_mem_mappings.empty()) {
         concatenated_output_mem_mappings.reserve(_output_primitive_maps.size());
+    }
     for (size_t i = 0; i < _output_primitive_maps.size(); ++i) {
         const auto& output_mapping = _output_primitive_maps.at(i);
         const auto& external_id = output_mapping.external_id;
@@ -469,7 +470,7 @@ void loop_inst::preprocess_input_memory(const int64_t num_iterations) {
 
         auto memory = input_memory_ptr(memory_num);
         for (size_t i = 0; i < input_map_ptrs.size(); ++i) {
-            const auto input_map = input_map_ptrs.at(i);
+            const auto* const input_map = input_map_ptrs.at(i);
             const auto& external_id = input_map->external_id;
             const auto& internal_id = input_map->internal_id;
             GPU_DEBUG_LOG << i << ") input mapping - external " << external_id.to_string() << std::endl;
@@ -585,7 +586,7 @@ void loop_inst::preprocess_backedge_memory() {
                                     << ") from back_edge.from(" << back_edge.from << ")" << std::endl;
                 } else {
                     // Set input and output memory for body_network using external output memory of loop op
-                    auto& out_mapping_ext_id = output_mapping.front()->external_id;
+                    const auto& out_mapping_ext_id = output_mapping.front()->external_id;
                     backedge_mem = get_external_memory(out_mapping_ext_id.pid, out_mapping_ext_id.idx);
                     GPU_DEBUG_LOG << idx << ") Get backedge_mem(" << backedge_mem << ") from output_mapping_external_id.pid("
                                     << out_mapping_ext_id.pid << ")" << std::endl;
@@ -769,8 +770,9 @@ void loop_inst::reset_memory() {
 
 
 void loop_inst::update_output_layout() {
-    if (_node == nullptr)
+    if (_node == nullptr) {
         return;
+    }
 
     auto memory_deps = get_node().get_const_memory_deps();
     for (auto& i : get_node().get_shape_infer_dependencies()) {
@@ -805,14 +807,16 @@ void loop_inst::handle_zero_iterations() {
     update_output_layout();
 
     for (const auto& output_mapping : _output_primitive_maps) {
-        if (output_mapping.axis >= 0)
+        if (output_mapping.axis >= 0) {
             continue;
+        }
 
         const auto back_edge = std::find_if(_back_edges.begin(), _back_edges.end(), [&](const loop::backedge_mapping& mapping) {
             return mapping.from == output_mapping.internal_id.pid;
         });
-        if (back_edge == _back_edges.end())
+        if (back_edge == _back_edges.end()) {
             continue;
+        }
 
         const auto input_map_ptrs = find_io_primitive_maps(_input_primitive_maps,
                                                            _output_primitive_maps,
@@ -836,12 +840,14 @@ void loop_inst::handle_zero_iterations() {
         }
 
         auto output_mem = _outputs[output_idx];
-        if (output_mem == initial_mem)
+        if (output_mem == initial_mem) {
             continue;
+        }
 
         if (_network.get_engine().is_the_same_buffer(*output_mem, *initial_mem)) {
-            if (output_mem->get_layout() != initial_layout)
+            if (output_mem->get_layout() != initial_layout) {
                 _outputs[output_idx] = initial_mem;
+            }
         } else if (output_mem->get_layout() == initial_layout) {
             output_mem->copy_from(get_network().get_stream(), *initial_mem);
         } else {
@@ -886,7 +892,7 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
         const size_t part_length = concat_mem_shape.at(axis) / num_iters;
         const size_t inner_axis = axis + 1;
         auto output_shape = concat_mem_shape;
-        auto out_data = pointers_to_data.data();
+        auto* out_data = pointers_to_data.data();
         output_shape[axis] = part_length;
 
         ov::Coordinate lower_bounds(concat_mem_shape.size(), 0);
@@ -902,16 +908,17 @@ void loop_inst::concatenated_memory_mapping::slice_mem(const int64_t num_iterati
 
         // Set stride values of inner axes to get a continuous copy size
         auto strides = ov::Strides(lower_bounds.size(), 1);
-        for (size_t iter = inner_axis; iter < dims ; ++iter)
+        for (size_t iter = inner_axis; iter < dims ; ++iter) {
             strides[iter] = upper_bounds[iter];
+        }
 
         const auto strides_copy_size = elem_size * continuous_size;
-        const auto out_last = std::next(out_data, num_iters);
-        for (auto out_iter = out_data; out_iter != out_last; ++out_iter) {
-            auto dst_mem = *out_iter;
+        auto* const out_last = std::next(out_data, num_iters);
+        for (auto* out_iter = out_data; out_iter != out_last; ++out_iter) {
+            auto* dst_mem = *out_iter;
             auto slice_ranges = ov::coordinates::slice(concat_mem_shape, lower_bounds, upper_bounds, strides);
             for (const auto& range : slice_ranges) {
-                const auto src_mem = concat_data + range.begin_index * elem_size;
+                auto* const src_mem = concat_data + range.begin_index * elem_size;
                 std::memcpy(dst_mem, src_mem, strides_copy_size);
                 std::advance(dst_mem, strides_copy_size);
             }
@@ -1010,14 +1017,16 @@ int64_t loop_inst::get_num_iterations() {
     int64_t num_iterations = -1;
     bool is_default_num_iter = true;
     for (auto& input_map : _input_primitive_maps) {
-        if (input_map.axis == -1)
+        if (input_map.axis == -1) {
             continue;
+        }
         const auto& external_id = input_map.external_id;
         auto exteranl_input_inst = get_network().get_primitive(external_id.pid);
         auto concat_shape = exteranl_input_inst->get_output_layout(external_id.idx).get_partial_shape();
 
-        if (concat_shape[input_map.axis].get_length() == 0)
+        if (concat_shape[input_map.axis].get_length() == 0) {
             continue;
+        }
 
         const auto current_num_iterations = calculate_num_iterations(input_map, concat_shape);
         if (is_default_num_iter) {
@@ -1029,15 +1038,17 @@ int64_t loop_inst::get_num_iterations() {
     }
 
     for (auto& output_map : _output_primitive_maps) {
-        if (output_map.axis == -1)
+        if (output_map.axis == -1) {
             continue;
+        }
 
         const auto& external_id = output_map.external_id;
         auto exteranl_output_inst = get_network().get_primitive(external_id.pid);
         auto concat_shape = exteranl_output_inst->get_output_layout(external_id.idx).get_partial_shape();
 
-        if (concat_shape[output_map.axis].is_dynamic() || concat_shape[output_map.axis].get_length() == 0)
+        if (concat_shape[output_map.axis].is_dynamic() || concat_shape[output_map.axis].get_length() == 0) {
             continue;
+        }
 
         const auto current_num_iterations = calculate_num_iterations(output_map, concat_shape);
         if (is_default_num_iter) {
@@ -1045,9 +1056,10 @@ int64_t loop_inst::get_num_iterations() {
             num_iterations = current_num_iterations;
         }
         // only check num_terations when shape is not changed.
-        if (preproc_memories_done)
+        if (preproc_memories_done) {
             OPENVINO_ASSERT(num_iterations == current_num_iterations,
                             "iteration num shuld be same between ", num_iterations, " and ", current_num_iterations);
+        }
     }
     return num_iterations;
 }

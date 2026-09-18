@@ -386,4 +386,176 @@ TEST_F(Qwen3RouterTest, RouterNodesNotIsolated_WithConvertAndSlice) {
     }
 }
 
+// ============================================================================
+// Gemma4 Router graph helpers
+// ============================================================================
+
+// Build one Gemma4 Router layer attached to router_input and return its
+// Unsqueeze output (the pattern root).
+// Gemma4 differences vs Qwen3:
+//   - FP32 plain-weight MatMul (no dequantisation chain)
+//   - Per-expert learned scale via Gather before scatter
+//   - Extra Slice between scores and ScatterElementsUpdate
+std::shared_ptr<Node> build_gemma4_router_layer(const std::shared_ptr<op::v0::Parameter>& router_input,
+                                                int64_t k_value,
+                                                int layer_idx,
+                                                size_t num_experts) {
+    const size_t hidden_dim = router_input->get_shape()[1];
+    const std::string prefix = "__module.model.layer" + std::to_string(layer_idx) + ".router/";
+
+    // FP32 plain weight (Gemma4 router weights are not quantized)
+    auto w_fp32 = op::v0::Constant::create(element::f32,
+                                           Shape{num_experts, hidden_dim},
+                                           std::vector<float>(num_experts * hidden_dim, 1.0f));
+    auto matmul = std::make_shared<op::v0::MatMul>(router_input, w_fp32, false, true);
+    matmul->set_friendly_name(prefix + "MatMul");
+
+    auto softmax = std::make_shared<op::v8::Softmax>(matmul, 1);
+    softmax->set_friendly_name(prefix + "Softmax");
+
+    auto k_const = op::v0::Constant::create(element::i64, Shape{}, std::vector<int64_t>{k_value});
+    auto topk =
+        std::make_shared<op::v11::TopK>(softmax, k_const, -1, op::v11::TopK::Mode::MAX, op::v11::TopK::SortType::NONE);
+    topk->set_friendly_name(prefix + "TopK");
+
+    // Renormalise over K selected experts: ReduceSum -> Divide
+    auto reduce_axes = op::v0::Constant::create(element::i64, Shape{1}, {1LL});
+    auto reduce_sum = std::make_shared<op::v1::ReduceSum>(topk->output(0), reduce_axes, /*keep_dims=*/true);
+    auto divide = std::make_shared<op::v1::Divide>(topk->output(0), reduce_sum);
+
+    // Per-expert learned scale: Gather(per_expert_scale, Convert(topk_indices), axis=0)
+    auto per_expert_scale =
+        op::v0::Constant::create(element::f32, Shape{num_experts}, std::vector<float>(num_experts, 1.0f));
+    auto topk_indices_convert = std::make_shared<op::v0::Convert>(topk->output(1), element::i64);
+    auto gather_axis = op::v0::Constant::create(element::i64, Shape{}, {0LL});
+    auto gather = std::make_shared<op::v8::Gather>(per_expert_scale, topk_indices_convert, gather_axis);
+
+    // Combine renormalised scores with per-expert scale
+    auto scores_multiply = std::make_shared<op::v1::Multiply>(divide, gather);
+
+    // Slice(scores_multiply, 0, k_value, step=1, axis=1) — Gemma4-specific trim
+    auto sl_begin = op::v0::Constant::create(element::i64, Shape{1}, {0LL});
+    auto sl_end = op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{k_value});
+    auto sl_step = op::v0::Constant::create(element::i64, Shape{1}, {1LL});
+    auto sl_axes = op::v0::Constant::create(element::i64, Shape{1}, {1LL});
+    auto slice = std::make_shared<op::v8::Slice>(scores_multiply, sl_begin, sl_end, sl_step, sl_axes);
+
+    // Scatter selected scores to full-expert dimension
+    auto zero_base =
+        op::v0::Constant::create(element::f32, Shape{1, num_experts}, std::vector<float>(num_experts, 0.0f));
+    auto scatter_axis = op::v0::Constant::create(element::i64, Shape{}, {1LL});
+    auto scatter_indices = std::make_shared<op::v0::Convert>(topk->output(1), element::i64);
+    auto scatter = std::make_shared<op::v12::ScatterElementsUpdate>(zero_base, scatter_indices, slice, scatter_axis);
+
+    // Tail: Transpose -> Reshape -> Unsqueeze  (pattern root)
+    auto t_order = op::v0::Constant::create(element::i32, Shape{2}, std::vector<int32_t>{1, 0});
+    auto transpose = std::make_shared<op::v1::Transpose>(scatter, t_order);
+
+    auto reshape_shape =
+        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{static_cast<int64_t>(num_experts), 1, 1});
+    auto reshape = std::make_shared<op::v1::Reshape>(transpose, reshape_shape, false);
+
+    auto unsqueeze_axis = op::v0::Constant::create(element::i64, Shape{}, {3LL});
+    return std::make_shared<op::v0::Unsqueeze>(reshape, unsqueeze_axis);
+}
+
+std::shared_ptr<Model> build_gemma4_router_graph(int64_t k_value, size_t hidden_dim = 16, size_t num_experts = 8) {
+    auto router_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_dim});
+    router_input->set_friendly_name("router_input");
+    auto out = build_gemma4_router_layer(router_input, k_value, 0, num_experts);
+    return std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(out)}, ParameterVector{router_input});
+}
+
+std::shared_ptr<Model> build_two_gemma4_router_model(int64_t k0,
+                                                     int64_t k1,
+                                                     size_t hidden_dim = 16,
+                                                     size_t num_experts = 8) {
+    auto router_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_dim});
+    router_input->set_friendly_name("router_input");
+    ResultVector results;
+    for (int i = 0; i < 2; ++i) {
+        auto out = build_gemma4_router_layer(router_input, i == 0 ? k0 : k1, i, num_experts);
+        results.push_back(std::make_shared<op::v0::Result>(out));
+    }
+    return std::make_shared<Model>(results, ParameterVector{router_input});
+}
+
+// ============================================================================
+// Test fixture — Gemma4Router
+// ============================================================================
+
+class Gemma4RouterTest : public ::testing::Test {
+protected:
+    void run_pass(const std::shared_ptr<Model>& model) {
+        auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::moe::Gemma4Router>(snapshot, "router");
+        rewr.run_on_model(model);
+    }
+};
+
+// ============================================================================
+// Gemma4Router tests
+// ============================================================================
+
+TEST_F(Gemma4RouterTest, TagsTopKWithCorrectK) {
+    constexpr int64_t K = 4;
+    auto model = build_gemma4_router_graph(K);
+    run_pass(model);
+
+    auto topks = find_all_topk(model);
+    ASSERT_EQ(topks.size(), 1u);
+    const auto& rt = topks[0]->get_rt_info();
+    ASSERT_NE(rt.find(ov::npuw::patterns::moe::RT_INFO_MOE_K), rt.end());
+    EXPECT_EQ(rt.at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>(), static_cast<size_t>(K));
+}
+
+TEST_F(Gemma4RouterTest, ZeroKNotTagged) {
+    // K=0 is invalid; tag_topk_k() must return false without tagging.
+    auto model = build_gemma4_router_graph(/*k_value=*/0);
+    run_pass(model);
+
+    auto topks = find_all_topk(model);
+    ASSERT_EQ(topks.size(), 1u);
+    EXPECT_EQ(topks[0]->get_rt_info().find(ov::npuw::patterns::moe::RT_INFO_MOE_K), topks[0]->get_rt_info().end())
+        << "rt_info K must NOT be set when K=0";
+}
+
+TEST_F(Gemma4RouterTest, RouterNodesNotIsolated) {
+    // Callback must return false without isolating any node.
+    constexpr int64_t K = 4;
+    auto model = build_gemma4_router_graph(K);
+    auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
+    snapshot->buildGraph();
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::moe::Gemma4Router>(snapshot, "router");
+    rewr.run_on_model(model);
+
+    for (const auto& [node, group] : *snapshot->getNodeToGroupMap()) {
+        EXPECT_NE(group->isolatedTag(), "router")
+            << "Node \"" << node->get_friendly_name() << "\" was unexpectedly isolated";
+    }
+}
+
+TEST_F(Gemma4RouterTest, ConsistentKAcrossLayersTagsBothNodes) {
+    constexpr int64_t K = 4;
+    auto model = build_two_gemma4_router_model(K, K);
+    ASSERT_NO_THROW(run_pass(model));
+
+    auto topks = find_all_topk(model);
+    ASSERT_EQ(topks.size(), 2u);
+    for (const auto& topk : topks) {
+        const auto& rt = topk->get_rt_info();
+        ASSERT_NE(rt.find(ov::npuw::patterns::moe::RT_INFO_MOE_K), rt.end())
+            << "TopK \"" << topk->get_friendly_name() << "\" was not tagged";
+        EXPECT_EQ(rt.at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>(), static_cast<size_t>(K));
+    }
+}
+
+TEST_F(Gemma4RouterTest, InconsistentKAcrossLayersThrows) {
+    auto model = build_two_gemma4_router_model(/*k0=*/2, /*k1=*/4);
+    EXPECT_THROW(run_pass(model), ov::Exception) << "Inconsistent K values across MoE layers must throw";
+}
+
 }  // namespace
