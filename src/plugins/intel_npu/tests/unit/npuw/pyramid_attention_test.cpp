@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -18,12 +19,15 @@
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "serialization.hpp"
 #include "util.hpp"
@@ -105,6 +109,57 @@ std::shared_ptr<ov::Model> build_isolated_attention_model(const AttentionModelCo
     }
 
     auto model = std::make_shared<Model>(results, params, "isolated_attention_model");
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+std::shared_ptr<ov::Model> build_reshaped_attention_model(size_t query_len, size_t past_len, size_t head_dim) {
+    using namespace ov;
+    const size_t context_len = query_len + past_len;
+    auto query = ov::test::utils::make_param(element::f32, Shape{1, 8, query_len, head_dim}, "query.0");
+    auto past_key = ov::test::utils::make_param(element::f32, Shape{1, 2, past_len, head_dim}, "past_key_values.0.key");
+    auto new_key = ov::test::utils::make_param(element::f32, Shape{1, 2, query_len, head_dim}, "new_key.0");
+    auto past_value =
+        ov::test::utils::make_param(element::f32, Shape{1, 2, head_dim, past_len}, "past_key_values.0.value");
+    auto new_value = ov::test::utils::make_param(element::f32, Shape{1, 2, head_dim, query_len}, "new_value.0");
+    auto mask = ov::test::utils::make_param(element::f32, Shape{1, 1, query_len, context_len}, "mask.0");
+
+    auto key_concat = std::make_shared<op::v0::Concat>(OutputVector{past_key, new_key}, 2);
+    auto value_concat = std::make_shared<op::v0::Concat>(OutputVector{past_value, new_value}, 3);
+    auto axis = op::v0::Constant::create(element::i64, Shape{1}, {2});
+    auto key_unsqueeze = std::make_shared<op::v0::Unsqueeze>(key_concat, axis);
+    auto value_unsqueeze = std::make_shared<op::v0::Unsqueeze>(value_concat, axis);
+    auto key_broadcast_shape = op::v0::Constant::create(
+        element::i64,
+        Shape{5},
+        std::vector<int64_t>{1, 2, 4, static_cast<int64_t>(context_len), static_cast<int64_t>(head_dim)});
+    auto value_broadcast_shape = op::v0::Constant::create(
+        element::i32,
+        Shape{5},
+        std::vector<int32_t>{1, 2, 4, static_cast<int32_t>(head_dim), static_cast<int32_t>(context_len)});
+    auto key_broadcast =
+        std::make_shared<op::v3::Broadcast>(key_unsqueeze, key_broadcast_shape, op::BroadcastType::BIDIRECTIONAL);
+    auto value_broadcast =
+        std::make_shared<op::v3::Broadcast>(value_unsqueeze, value_broadcast_shape, op::BroadcastType::BIDIRECTIONAL);
+    auto key_shape = op::v0::Constant::create(
+        element::i64,
+        Shape{4},
+        std::vector<int64_t>{1, 8, static_cast<int64_t>(context_len), static_cast<int64_t>(head_dim)});
+    auto value_shape = op::v0::Constant::create(
+        element::i32,
+        Shape{4},
+        std::vector<int32_t>{1, 8, static_cast<int32_t>(head_dim), static_cast<int32_t>(context_len)});
+    auto key_reshape = std::make_shared<op::v1::Reshape>(key_broadcast, key_shape, false);
+    auto value_reshape = std::make_shared<op::v1::Reshape>(value_broadcast, value_shape, false);
+    key_reshape->set_friendly_name("key_reshape");
+    value_reshape->set_friendly_name("value_reshape");
+
+    auto qk = std::make_shared<op::v0::MatMul>(query, key_reshape, false, true);
+    auto add = std::make_shared<op::v1::Add>(qk, mask);
+    auto softmax = std::make_shared<op::v8::Softmax>(add, 3);
+    auto attention = std::make_shared<op::v0::MatMul>(softmax, value_reshape, false, true);
+    auto model = std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(attention)},
+                                         ParameterVector{query, past_key, new_key, past_value, new_value, mask});
     model->validate_nodes_and_infer_types();
     return model;
 }
@@ -329,6 +384,43 @@ TEST(PyramidAttentionTest, ProcessPyramidModelSucceedsForPrefillCase) {
         if (ov::npuw::util::isPastKeyValuesKey(name) || ov::npuw::util::isPastKeyValuesValue(name)) {
             EXPECT_EQ(param->get_shape()[2], 0u) << "Parameter " << name << " sequence dim should be 0";
         }
+    }
+}
+
+TEST(PyramidAttentionTest, PrefillSpecializesBothKVReshapeSequenceAxes) {
+    for (const auto& [query_len, past_len] : {std::pair<size_t, size_t>{64, 128}, {128, 128}}) {
+        const size_t full_context = query_len + past_len;
+        SCOPED_TRACE("full context: " + std::to_string(full_context));
+        auto model = build_reshaped_attention_model(query_len, past_len, full_context);
+        auto validation = ov::npuw::function::validate_and_setup_pyramid_attention(model);
+        ASSERT_TRUE(validation.has_value());
+        const auto& info = get_contiguous_result(*validation);
+
+        auto variant = ov::npuw::function::process_pyramid_model(model,
+                                                                 0,
+                                                                 query_len,
+                                                                 info.query_length,
+                                                                 info.past_kv_length,
+                                                                 info.full_context_length,
+                                                                 info.past_key_sequence_dims,
+                                                                 info.past_value_sequence_dims);
+        ASSERT_TRUE(variant.has_value());
+        EXPECT_EQ(variant->model->output(0).get_shape(), (ov::Shape{1, 8, query_len, full_context}));
+        size_t patched_reshapes = 0;
+        for (const auto& op : variant->model->get_ordered_ops()) {
+            auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(op);
+            if (!reshape) {
+                continue;
+            }
+            if (reshape->get_friendly_name() == "key_reshape") {
+                EXPECT_EQ(reshape->get_output_shape(0), (ov::Shape{1, 8, query_len, full_context}));
+                ++patched_reshapes;
+            } else if (reshape->get_friendly_name() == "value_reshape") {
+                EXPECT_EQ(reshape->get_output_shape(0), (ov::Shape{1, 8, full_context, query_len}));
+                ++patched_reshapes;
+            }
+        }
+        EXPECT_EQ(patched_reshapes, 2u);
     }
 }
 
