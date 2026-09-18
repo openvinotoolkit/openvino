@@ -1856,9 +1856,8 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
                     continue;  // host-side closure
                 }
-                const auto registration_device = submodel_device(real_idx);
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
-                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], registration_device);
+                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], submodel_device(real_idx));
             }
         }
 
@@ -1876,7 +1875,6 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
             auto& desc_closure = comp_model_desc.closure.unsafe_get();
-            const auto registration_device = submodel_device(real_idx);
 
             for (std::size_t tidx = 0; tidx < desc_closure.closure.size(); ++tidx) {
                 if (desc_closure.closure[tidx]) {
@@ -1887,9 +1885,8 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 const auto& uid = desc_closure.closure_uid[tidx];
                 NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
                 desc_closure.closure[tidx] = m_weights_bank->get(uid, submodel_device(real_idx));
-                const auto remote = m_weights_bank->is_remote(uid);
                 // FIXME: find a more reliable way to do so
-                desc_closure.is_remote[tidx] = remote;
+                desc_closure.is_remote[tidx] = m_weights_bank->is_remote(uid);
             }
         }
 
@@ -2721,7 +2718,6 @@ bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx, const std::
     const auto closure_param_id = comp_model_desc.param_base + cidx;
 
     auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-
     return (closure.get_element_type() != iport.get_element_type());
 }
 
