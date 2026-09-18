@@ -28,7 +28,7 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   # To debug NPU compiler, set OV_NPU_LOG_LEVEL=LOG_INFO or higher
-  # OV_NPU_LOG_LEVEL: 'LOG_INFO'
+  OV_NPU_LOG_LEVEL: 'LOG_INFO'
 
 jobs:
   NPU_Models_Tests:
@@ -140,7 +140,7 @@ jobs:
         run: |
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch `
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\torchvision.txt `
-            -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\imm.txt `
+            -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\timm.txt `
             -r ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\envs\edsr.txt
 
       - name: PyTorch Models Tests - NPU compile-only (group A)
@@ -155,9 +155,6 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_timm.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_edsr.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s > ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log 2>&1
-          set PYTEST_EXIT_CODE=%ERRORLEVEL%
-          type ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log
-          exit /b %PYTEST_EXIT_CODE%
 
       # Group B: hf_transformers + easyocr + gfpgan + tpsmm share compatible deps.
       - name: Install PyTorch tests requirements (group B - hf_transformers/easyocr/gfpgan/tpsmm)
