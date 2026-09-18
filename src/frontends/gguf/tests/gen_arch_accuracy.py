@@ -28,6 +28,7 @@ CASES = {
     "qwen3moe": {"qk": True, "moe": True},
     "gemma": {"mqa": True, "tied": True},
     "gemma2": {"post": True, "swa": True, "tied": True, "softcap": True},
+    "gemma3": {"post": True, "swa": True, "tied": True, "qk": True, "linear": 8.0},
     "exaone4": {"qk": True, "post_only": True},
     "ernie4_5-moe": {"moe": True, "lead": 1, "selection_bias": True, "shared": True},
     "bailingmoe2": {"qk": True, "fused": True, "moe": True, "lead": 1,
@@ -125,6 +126,10 @@ def write_model(path, arch, opts):
     w.add_layer_norm_rms_eps(1e-5)
     w.add_vocab_size(vocab)
     w.add_tokenizer_model("none")
+    if opts.get("linear"):
+        w.add_rope_scaling_type(gguf.RopeScalingType.LINEAR)
+        w.add_rope_scaling_factor(opts["linear"])
+        w.add_rope_freq_base_swa(100.0)
     if opts.get("yarn"):
         w.add_rope_scaling_type(gguf.RopeScalingType.YARN)
         w.add_rope_scaling_factor(opts["yarn"])

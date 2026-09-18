@@ -135,6 +135,16 @@ GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
     return node("GGML_OP_GET_ROWS", {tok_embd, tokens});
 }
 
+GgufValue GgufGraphContext::add_constant(const std::string& name, const ov::Tensor& value) {
+    m_impl->check_open();
+    auto& emitter = m_impl->emitter;
+    OPENVINO_ASSERT(!emitter.graph()->values->count(name) && !emitter.has_weight(name),
+                    "[GGUF] constant name is already used: ",
+                    name);
+    emitter.add_extra_input_node(name, std::make_shared<ov::op::v0::Constant>(value));
+    return GgufValue(name, emitter.value(name));
+}
+
 GgufValue GgufGraphContext::build_inp_pos() {
     return add_input("inp_pos", i32, ov::PartialShape({1, 1, 1, D}));
 }
@@ -202,6 +212,17 @@ void GgufGraphContext::set_primary_output(const GgufValue& value) {
     m_impl->check_open();
     auto& outputs = m_impl->emitter.graph()->model_output_names;
     outputs.insert(outputs.begin(), m_impl->value_name(value));
+}
+
+void GgufGraphContext::set_output(const GgufValue& value, const std::string& name) {
+    m_impl->check_open();
+    auto& emitter = m_impl->emitter;
+    OPENVINO_ASSERT(!name.empty() && !emitter.graph()->values->count(name) && !emitter.has_weight(name),
+                    "[GGUF] output name is already used: ",
+                    name);
+    emitter.add_op("GGML_OP_CONT", name, {m_impl->value_name(value)}, 1, {{"op_case", 1}});
+    emitter.value(name).get_tensor().set_names({name});
+    emitter.graph()->model_output_names.push_back(name);
 }
 
 void GgufGraphContext::set_sliding_window(int64_t tokens) {

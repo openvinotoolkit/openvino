@@ -42,6 +42,9 @@ that loads but emits garbage is **not** counted as supported.
 
 ## Native GGUF path
 
+Experimental vision/audio encoder-projector conversion is described separately in
+[native multimodal conversion](mmproj.md), including its coverage and validation gaps.
+
 The native architecture catalog is defined in
 [`src/builder/arch_registry.cpp`](../src/builder/arch_registry.cpp):
 

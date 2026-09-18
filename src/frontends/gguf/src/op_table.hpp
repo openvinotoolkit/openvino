@@ -77,6 +77,10 @@ GGUF_OP_CONVERTER(translate_fill);
 
 // Convolution-family / sequence ops.
 GGUF_OP_CONVERTER(translate_im2col);
+GGUF_OP_CONVERTER(translate_pool_2d);
+GGUF_OP_CONVERTER(translate_conv_2d);
+GGUF_OP_CONVERTER(translate_upscale);
+GGUF_OP_CONVERTER(translate_unary_gelu_erf);
 GGUF_OP_CONVERTER(translate_pad);
 GGUF_OP_CONVERTER(translate_ssm_conv);
 GGUF_OP_CONVERTER(translate_ssm_scan);

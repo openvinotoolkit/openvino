@@ -82,6 +82,7 @@ std::string DecoderBuilder::build_embeddings() {
     // GET_ROWS(token_embd.weight, inp_tokens) -> "embd"
     m_emit.add_weight("token_embd.weight");
     std::string cur = m_emit.add_op("GGML_OP_GET_ROWS", "embd", {"token_embd.weight", "inp_tokens"});
+    m_emit.value(cur).get_node_shared_ptr()->get_rt_info()["gguf.token_embedding"] = true;
     // MiniCPM scales the embeddings by a constant.
     if (m_cfg.embedding_scale != 1.0f) {
         cur = blocks::scale(m_emit, cur, m_cfg.embedding_scale, "embd_scaled");

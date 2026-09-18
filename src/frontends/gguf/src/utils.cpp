@@ -4,9 +4,11 @@
 
 #include "utils.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <numeric>
 #include <string>
 
 #include "openvino/core/model.hpp"
@@ -188,8 +190,21 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
     float mscale = attn_factor;
     if (imrope) {
         std::vector<int64_t> gather_indices(n_dims_half);
+        const auto& sections = rope_config.sections;
+        const int total = std::accumulate(sections.begin(), sections.end(), 0);
+        FRONT_END_GENERAL_CHECK(std::all_of(sections.begin(),
+                                            sections.end(),
+                                            [](int32_t s) {
+                                                return s >= 0;
+                                            }),
+                                "M-RoPE sections must be nonnegative");
         for (size_t j = 0; j < n_dims_half; j++) {
-            gather_indices[j] = j % 3;
+            const size_t sector = total ? j % total : j;
+            gather_indices[j] = !total                                                             ? j % 3
+                                : sector % 3 == 1 && sector < 3 * static_cast<size_t>(sections[1]) ? 1
+                                : sector % 3 == 2 && sector < 3 * static_cast<size_t>(sections[2]) ? 2
+                                : sector % 3 == 0 && sector < 3 * static_cast<size_t>(sections[0]) ? 0
+                                                                                                   : 3;
             factor[j] = static_cast<float>(std::pow(theta_scale, j));
         }
         auto gather_indices_const =
