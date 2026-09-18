@@ -159,6 +159,16 @@ struct DUMMY_VALIDATED_OPTION final : intel_npu::OptionBase<DUMMY_VALIDATED_OPTI
     }
 };
 
+struct DUMMY_UINT32_OPTION final : intel_npu::OptionBase<DUMMY_UINT32_OPTION, uint32_t> {
+    static std::string_view key() {
+        return "DUMMY_UINT32_OPTION";
+    }
+
+    static uint32_t defaultValue() {
+        return 1u;
+    }
+};
+
 struct DUMMY_ENV_OPTION final : intel_npu::OptionBase<DUMMY_ENV_OPTION, int64_t> {
     static std::string_view key() {
         return "DUMMY_ENV_OPTION";
@@ -255,6 +265,7 @@ std::shared_ptr<OptionsDesc> makeDummyOptionsDesc() {
     desc->add<DUMMY_RUN_TIME_OPTION>();
     desc->add<DUMMY_NO_DEFAULT_OPTION>();
     desc->add<DUMMY_VALIDATED_OPTION>();
+    desc->add<DUMMY_UINT32_OPTION>();
     desc->add<DUMMY_ENV_OPTION>();
     desc->add<DUMMY_BOOL_OPTION>();
     desc->add<DUMMY_CUSTOM_PARSE_OPTION>();
@@ -329,6 +340,38 @@ TEST_F(OptionParserUnitTests, DoubleParserWorks) {
     OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<double>::parse("abc"), ov::Exception, "is not a valid FP64 option");
 }
 
+// `std::sto*` stops at the first character which is not part of the number, so a valid prefix alone must
+// not be enough to accept the value
+TEST_F(OptionParserUnitTests, NumericParsersRejectTrailingGarbage) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse("12oops"),
+                                  ov::Exception,
+                                  "is not a valid INT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse("12 oops"),
+                                  ov::Exception,
+                                  "is not a valid INT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<uint32_t>::parse("12oops"),
+                                  ov::Exception,
+                                  "is not a valid UINT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int64_t>::parse("12oops"),
+                                  ov::Exception,
+                                  "is not a valid INT64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<uint64_t>::parse("12oops"),
+                                  ov::Exception,
+                                  "is not a valid UINT64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<double>::parse("1.5oops"),
+                                  ov::Exception,
+                                  "is not a valid FP64 option");
+}
+
+// Surrounding whitespace is still tolerated, only actual content may not be left over
+TEST_F(OptionParserUnitTests, NumericParsersIgnoreSurroundingWhitespace) {
+    EXPECT_EQ(12, OptionParser<int32_t>::parse(" 12 "));
+    EXPECT_EQ(12u, OptionParser<uint32_t>::parse(" 12 "));
+    EXPECT_EQ(12, OptionParser<int64_t>::parse(" 12 "));
+    EXPECT_EQ(12u, OptionParser<uint64_t>::parse(" 12 "));
+    EXPECT_DOUBLE_EQ(1.5, OptionParser<double>::parse(" 1.5 "));
+}
+
 TEST_F(OptionParserUnitTests, StringParserKeepsTheWholeView) {
     const std::string_view view = "PREFIX_VALUE";
     EXPECT_EQ("PREFIX", OptionParser<std::string>::parse(view.substr(0, 6)));
@@ -356,6 +399,11 @@ TEST_F(OptionParserUnitTests, DurationParserRejectsNegativeAndGarbage) {
     OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<Milliseconds>::parse("abc"), ov::Exception, "as time duration");
 }
 
+TEST_F(OptionParserUnitTests, DurationParserRejectsTrailingGarbage) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<Milliseconds>::parse("10ms"), ov::Exception, "as time duration");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<Milliseconds>::parse("10 oops"), ov::Exception, "as time duration");
+}
+
 // Types providing an `operator>>` (all the `ov::` property enums do) need no parser of their own
 TEST_F(OptionParserUnitTests, DefaultParserReliesOnStreamOperator) {
     EXPECT_EQ(ov::log::Level::DEBUG, OptionParser<ov::log::Level>::parse("LOG_DEBUG"));
@@ -365,6 +413,21 @@ TEST_F(OptionParserUnitTests, DefaultParserReliesOnStreamOperator) {
 TEST_F(OptionParserUnitTests, DefaultParserPropagatesStreamOperatorErrors) {
     EXPECT_ANY_THROW(OptionParser<ov::log::Level>::parse("LOG_SOMETHING"));
     EXPECT_ANY_THROW(OptionParser<ov::hint::ExecutionMode>::parse("SOMETHING"));
+}
+
+// `operator>>` stops at the first character it can't consume, so a valid prefix alone must not be enough
+TEST_F(OptionParserUnitTests, DefaultParserRejectsTrailingGarbage) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<ov::log::Level>::parse("LOG_DEBUG garbage"),
+                                  ov::Exception,
+                                  "is not a valid option value");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<ov::hint::ExecutionMode>::parse("ACCURACY PERFORMANCE"),
+                                  ov::Exception,
+                                  "is not a valid option value");
+}
+
+// Surrounding whitespace is still tolerated, only actual content may not be left over
+TEST_F(OptionParserUnitTests, DefaultParserIgnoresSurroundingWhitespace) {
+    EXPECT_EQ(ov::log::Level::DEBUG, OptionParser<ov::log::Level>::parse(" LOG_DEBUG "));
 }
 
 //
@@ -659,14 +722,39 @@ TEST_F(ConfigUnitTests, UpdateAnyWithStringPayloadRunsTheOptionValidation) {
                                   "expects non-negative values");
 }
 
-// Typed payloads must keep bypassing the parser, as some options cannot be built from a string at all
-TEST_F(ConfigUnitTests, UpdateAnyWithTypedPayloadSkipsTheOptionParser) {
+// Payloads which already have the option's exact type must keep bypassing the parser, as some options
+// cannot be built from a string at all
+TEST_F(ConfigUnitTests, UpdateAnyWithExactlyTypedPayloadSkipsTheOptionParser) {
     auto config = makeConfig();
     config.updateAny(DUMMY_CUSTOM_PARSE_OPTION::key(), ov::Any(int64_t{-1}));
     config.updateAny(DUMMY_BOOL_OPTION::key(), ov::Any(true));
 
     EXPECT_EQ(-1, config.get<DUMMY_CUSTOM_PARSE_OPTION>());
     EXPECT_TRUE(config.get<DUMMY_BOOL_OPTION>());
+}
+
+// `ov::Any::as<uint32_t>()` would convert -2.0f through an unchecked arithmetic cast, wrapping it around
+// into a huge positive value which then passes any range validation
+TEST_F(ConfigUnitTests, UpdateAnyWithMismatchedArithmeticPayloadIsRejected) {
+    auto config = makeConfig();
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.updateAny(DUMMY_UINT32_OPTION::key(), ov::Any(-2.0f)),
+                                  ov::Exception,
+                                  "Failed to parse 'DUMMY_UINT32_OPTION' option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.updateAny(DUMMY_UINT32_OPTION::key(), ov::Any(int64_t{-2})),
+                                  ov::Exception,
+                                  "Failed to parse 'DUMMY_UINT32_OPTION' option");
+
+    EXPECT_FALSE(config.has<DUMMY_UINT32_OPTION>());
+    EXPECT_EQ(1u, config.get<DUMMY_UINT32_OPTION>());
+}
+
+// A payload of a different type is still usable as long as its value fits the option
+TEST_F(ConfigUnitTests, UpdateAnyWithMismatchedArithmeticPayloadGoesThroughTheParser) {
+    auto config = makeConfig();
+    config.updateAny(DUMMY_UINT32_OPTION::key(), ov::Any(int64_t{7}));
+
+    EXPECT_EQ(7u, config.get<DUMMY_UINT32_OPTION>());
 }
 
 TEST_F(ConfigUnitTests, RemoveDropsThePreviouslySetValue) {
@@ -896,6 +984,35 @@ TEST_F(RealOptionsUnitTests, LogLevelIsParsedAndPrintedThroughTheDefaults) {
     OV_EXPECT_THROW_HAS_SUBSTRING(config.update(intel_npu::LOG_LEVEL::key(), "LOG_SOMETHING"),
                                   ov::Exception,
                                   "Failed to parse 'LOG_LEVEL' option");
+}
+
+// A malformed public setting must be rejected instead of being silently applied from its valid prefix
+TEST_F(RealOptionsUnitTests, MalformedValuesAreRejectedForPublicOptions) {
+    auto desc = std::make_shared<OptionsDesc>();
+    desc->add<intel_npu::COMPILER_TYPE>();
+    desc->add<intel_npu::PERFORMANCE_HINT_NUM_REQUESTS>();
+    Config config(desc);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(intel_npu::COMPILER_TYPE::key(), "PLUGIN garbage"),
+                                  ov::Exception,
+                                  "Failed to parse 'NPU_COMPILER_TYPE' option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(intel_npu::PERFORMANCE_HINT_NUM_REQUESTS::key(), "12oops"),
+                                  ov::Exception,
+                                  "Failed to parse 'PERFORMANCE_HINT_NUM_REQUESTS' option");
+    // the value `OVPropertiesIncorrectTests` passes for this property
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.updateAny(intel_npu::PERFORMANCE_HINT_NUM_REQUESTS::key(), ov::Any(-2.0f)),
+                                  ov::Exception,
+                                  "Failed to parse 'PERFORMANCE_HINT_NUM_REQUESTS' option");
+
+    EXPECT_EQ(ov::intel_npu::CompilerType::PREFER_PLUGIN, config.get<intel_npu::COMPILER_TYPE>());
+    EXPECT_FALSE(config.has<intel_npu::PERFORMANCE_HINT_NUM_REQUESTS>());
+
+    // the well formed spellings still go through
+    config.update(intel_npu::COMPILER_TYPE::key(), "PLUGIN");
+    config.update(intel_npu::PERFORMANCE_HINT_NUM_REQUESTS::key(), "12");
+
+    EXPECT_EQ(ov::intel_npu::CompilerType::PLUGIN, config.get<intel_npu::COMPILER_TYPE>());
+    EXPECT_EQ(12u, config.get<intel_npu::PERFORMANCE_HINT_NUM_REQUESTS>());
 }
 
 TEST_F(RealOptionsUnitTests, ExecutionModeHintIsParsedAndPrintedThroughTheDefaults) {

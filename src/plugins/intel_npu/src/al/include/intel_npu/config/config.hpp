@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cassert>
+#include <cctype>
 #include <chrono>
 #include <functional>
 #include <iomanip>
@@ -85,6 +86,19 @@ template <typename T>
 struct IsOStreamable<T, std::void_t<decltype(std::declval<std::ostream&>() << std::declval<const T&>())>>
     : std::true_type {};
 
+// `operator>>` stops at the first character it can't consume, so a successfully parsed prefix alone is not
+// enough to accept a value. Returns false when anything besides trailing whitespace is left in the stream.
+inline bool isFullyConsumed(std::istream& stream) {
+    for (auto next = stream.peek(); next != std::istream::traits_type::eof(); next = stream.peek()) {
+        if (!std::isspace(static_cast<unsigned char>(next))) {
+            return false;
+        }
+        stream.ignore();
+    }
+
+    return true;
+}
+
 }  // namespace details
 
 // Default parser, relies on the `operator>>` declared for the value type. All the `ov::` property enums and
@@ -101,6 +115,8 @@ struct OptionParser {
         T res{};
         stream >> res;
         OPENVINO_ASSERT(!stream.fail(), "Value '", val, "' is not a valid option value");
+        // Reject values whose prefix alone is valid, e.g. "PLUGIN garbage" for an enum option
+        OPENVINO_ASSERT(details::isFullyConsumed(stream), "Value '", val, "' is not a valid option value");
 
         return res;
     }
@@ -176,10 +192,11 @@ struct OptionParser<std::map<K, V>> final {
 template <typename Rep, typename Period>
 struct OptionParser<std::chrono::duration<Rep, Period>> final {
     static std::chrono::duration<Rep, Period> parse(std::string_view val) {
-        std::istringstream stream(val.data());
+        std::istringstream stream{std::string(val)};
 
         Rep count{};
-        if (stream >> count) {
+        // Anything left in the stream means the value is malformed, e.g. "12oops"
+        if (stream >> count && details::isFullyConsumed(stream)) {
             OPENVINO_ASSERT(count >= 0,
                             "Value '",
                             count,
@@ -187,7 +204,7 @@ struct OptionParser<std::chrono::duration<Rep, Period>> final {
             return std::chrono::duration<Rep, Period>(count);
         }
 
-        OPENVINO_THROW("Can't parse '", val.data(), "' as time duration");
+        OPENVINO_THROW("Can't parse '", val, "' as time duration");
     }
 };
 
@@ -382,11 +399,14 @@ std::shared_ptr<OptionValue> validateAndParse(const ov::Any& val) {
     using ValueType = typename Opt::ValueType;
 
     try {
-        // A string payload is routed through the option's own parser, so that string based and `ov::Any` based
-        // updates accept exactly the same spellings and any custom `parse()` is honored. `ov::Any::as()` would
-        // otherwise re-parse the string on its own, through `operator>>`, bypassing the option entirely.
-        // For options which are themselves strings this is an identity conversion, hence the uniform handling.
-        auto parsedVal = val.is<std::string>() ? Opt::parse(val.as<std::string>()) : val.as<ValueType>();
+        // Only a payload which already has the option's exact type is taken as is. Everything else - the string
+        // spellings coming from `update()` as well as any other type - is routed through the option's own
+        // parser, so that string based and `ov::Any` based updates accept exactly the same values and any
+        // custom `parse()` is honored. `ov::Any::as<ValueType>()` would otherwise perform an unchecked
+        // arithmetic conversion (e.g. -2.0f silently wrapping around into a `uint32_t`, which then passes the
+        // option validation) or re-parse a string on its own, through `operator>>`, bypassing the option
+        // entirely. For options which are themselves strings the parser is an identity conversion.
+        auto parsedVal = val.is<ValueType>() ? val.as<ValueType>() : Opt::parse(val.as<std::string>());
         Opt::validateValue(parsedVal);
         return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
     } catch (const std::exception& e) {
@@ -460,9 +480,9 @@ public:
     /**
      * @brief Parses and stores a single option value, overwriting a previously set one.
      * @param key The key of the option to set.
-     * @param value The string representation of the value to set.
+     * @param value The value to set, in its native "ov::Any" representation.
      */
-    void update(std::string_view key, std::string value);
+    void update(std::string_view key, const ov::Any& value);
 
     /**
      * @brief Parses and stores a single option value given as an "ov::Any", overwriting a previously set one.
