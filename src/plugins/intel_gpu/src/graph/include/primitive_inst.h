@@ -300,6 +300,7 @@ public:
     void unset_flag(size_t flag);
     bool get_flag(size_t flag) const;
     void reset_flags();
+    // Defers output memory invalidation until prepare_primitive(), after runtime shapes are known.
     void request_output_reallocation() { _output_reallocation_requested = true; }
 
     void reset_events();
@@ -432,6 +433,7 @@ protected:
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
     std::vector<memory::ptr> _outputs;
+    // Borrowed view of a remote output tensor while a runtime-skippable permute stays optimized out.
     memory::ptr _remote_permute_output_alias;
 
     std::vector<memory::ptr> _intermediates_memory;
@@ -482,6 +484,7 @@ protected:
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
+    bool try_bind_remote_permute_output(const layout& actual_layout);
     void realloc_if_needed(bool prev_execution_skipped = false);
     void realloc_outputs(bool prev_execution_skipped = false);
     void realloc_intermediates();

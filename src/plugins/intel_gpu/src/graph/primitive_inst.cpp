@@ -281,6 +281,7 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     // skip all the buzz if no action actually required
     event::ptr ev = nullptr;
     if (_outputs[idx] && eng.is_the_same_buffer(*mem_new, *_outputs[idx])) {
+        // The remote permute alias is stored only for the primary output owned by this primitive.
         if (idx == 0)
             _remote_permute_output_alias.reset();
         return nullptr;
@@ -297,6 +298,7 @@ event::ptr primitive_inst::set_output_memory(memory::ptr mem_new, bool check, si
     } else {
         _outputs[idx] = mem_new;
         _max_output_layout_count[idx] = mem_new->get_layout().get_linear_size();
+        // Replacing the primary output means any borrowed remote permute view is no longer active.
         if (idx == 0)
             _remote_permute_output_alias.reset();
     }
@@ -739,6 +741,65 @@ void primitive_inst::realloc_intermediates() {
     GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
 }
 
+bool primitive_inst::try_bind_remote_permute_output(const layout& actual_layout) {
+    const auto& users = get_user_insts();
+
+    if (can_be_optimized() || !is_dynamic() || is_input() || is_output() || is_constant() || has_inner_networks() ||
+        get_node().is_type<mutable_data>() || dynamic_cast<memory_state::variable*>(this) ||
+        _outputs.size() != 1 || users.size() != 1) {
+        return false;
+    }
+
+    auto* permute_inst = users.front();
+    if (!permute_inst->get_node().is_type<permute>() || permute_inst->is_output() ||
+        !permute_inst->get_node().is_runtime_skippable() || permute_inst->_impl_params->has_fused_primitives() ||
+        permute_inst->_impl_params->get_input_layout(0).data_type != permute_inst->_impl_params->get_output_layout().data_type ||
+        permute_inst->_outputs.size() != 1 || !permute_inst->output_memory_ptr() ||
+        !get_network().is_output_remote_memory(*permute_inst->output_memory_ptr())) {
+        return false;
+    }
+
+    // The permute skip decision is only final after its runtime shape is updated. If it can skip,
+    // this producer writes directly into the remote destination; otherwise the alias is detached
+    // and the permute executes with distinct producer and output memories.
+    if (!permute_inst->_update_shape_done_by_other) {
+        permute_inst->update_shape();
+        permute_inst->_update_shape_done_by_other = true;
+    }
+
+    permute_inst->do_runtime_skip_permute();
+    auto remote_memory = permute_inst->output_memory_ptr();
+    const bool can_bind_remote = permute_inst->can_be_optimized() && actual_layout.bytes_count() <= remote_memory->size();
+    if (can_bind_remote) {
+        const bool memory_changed = !_outputs[0] ||
+            !get_network().get_engine().is_the_same_buffer(*_outputs[0], *remote_memory);
+        if (memory_changed && _outputs[0] && !_remote_permute_output_alias &&
+            get_node().get_program().get_config().get_enable_memory_pool()) {
+            get_network().get_memory_pool().release_memory(_outputs[0].get(),
+                                                           get_node().get_unique_id(),
+                                                           get_node().id(),
+                                                           get_network_id());
+        }
+        _outputs[0] = get_network().get_engine().reinterpret_buffer(*remote_memory, actual_layout);
+        _remote_permute_output_alias = _outputs[0];
+        _max_output_layout_count[0] = remote_memory->size() / data_type_traits::size_of(actual_layout.data_type);
+        _mem_allocated = false;
+        if (memory_changed)
+            set_flag(ExecutionFlags::MEMORY_CHANGED);
+        GPU_DEBUG_TRACE_DETAIL << id() << ": use runtime-skippable permute user's remote tensor memory "
+                               << _outputs[0]->buffer_ptr() << std::endl;
+        return true;
+    }
+
+    permute_inst->set_can_be_optimized(false);
+    if (_outputs[0] && get_network().get_engine().is_the_same_buffer(*_outputs[0], *remote_memory)) {
+        clear_output_memory();
+        _mem_allocated = false;
+    }
+
+    return false;
+}
+
 void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_outputs: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
@@ -771,50 +832,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     const auto& actual_layouts = updated_params.output_layouts;
     OPENVINO_ASSERT(actual_layouts[0].is_static(), "[GPU] Can't realloc mem for dynamic layout");
 
-    if (!can_be_optimized() && is_dynamic() && !is_input() && !is_output() && !is_constant() && !has_inner_networks() &&
-        !get_node().is_type<mutable_data>() && !dynamic_cast<memory_state::variable*>(this) &&
-        _outputs.size() == 1 && users.size() == 1) {
-        auto* permute_inst = users.front();
-        if (permute_inst->get_node().is_type<permute>() && !permute_inst->is_output() &&
-            permute_inst->get_node().is_runtime_skippable() && !permute_inst->_impl_params->has_fused_primitives() &&
-            permute_inst->_impl_params->get_input_layout(0).data_type == permute_inst->_impl_params->get_output_layout().data_type &&
-            permute_inst->_outputs.size() == 1 && permute_inst->output_memory_ptr() &&
-            get_network().is_output_remote_memory(*permute_inst->output_memory_ptr())) {
-            if (!permute_inst->_update_shape_done_by_other) {
-                permute_inst->update_shape();
-                permute_inst->_update_shape_done_by_other = true;
-            }
-
-            permute_inst->do_runtime_skip_permute();
-            auto remote_memory = permute_inst->output_memory_ptr();
-            const bool can_bind_remote = permute_inst->can_be_optimized() && actual_layouts[0].bytes_count() <= remote_memory->size();
-            if (can_bind_remote) {
-                const bool memory_changed = !_outputs[0] ||
-                    !get_network().get_engine().is_the_same_buffer(*_outputs[0], *remote_memory);
-                if (memory_changed && _outputs[0] && !_remote_permute_output_alias &&
-                    get_node().get_program().get_config().get_enable_memory_pool()) {
-                    get_network().get_memory_pool().release_memory(_outputs[0].get(),
-                                                                   get_node().get_unique_id(),
-                                                                   get_node().id(),
-                                                                   get_network_id());
-                }
-                _outputs[0] = get_network().get_engine().reinterpret_buffer(*remote_memory, actual_layouts[0]);
-                _remote_permute_output_alias = _outputs[0];
-                _max_output_layout_count[0] = remote_memory->size() / data_type_traits::size_of(actual_layouts[0].data_type);
-                _mem_allocated = false;
-                if (memory_changed)
-                    set_flag(ExecutionFlags::MEMORY_CHANGED);
-                GPU_DEBUG_TRACE_DETAIL << id() << ": use runtime-skippable permute user's remote tensor memory "
-                                       << _outputs[0]->buffer_ptr() << std::endl;
-                return;
-            }
-
-            permute_inst->set_can_be_optimized(false);
-            if (_outputs[0] && get_network().get_engine().is_the_same_buffer(*_outputs[0], *remote_memory)) {
-                clear_output_memory();
-                _mem_allocated = false;
-            }
-        }
+    if (try_bind_remote_permute_output(actual_layouts[0])) {
+        return;
     }
 
     if (_remote_permute_output_alias) {
