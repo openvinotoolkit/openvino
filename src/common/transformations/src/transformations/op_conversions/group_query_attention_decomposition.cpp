@@ -275,24 +275,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     } else if (is_static_input) {
         // Static full-length cache (max length, valid KVs left-aligned). Insert current K/V at
         // [past_seqlen, past_seqlen + curr_seqlen] with ScatterUpdate, keeping the buffer shape.
-        // past_seqlen is a runtime value (derived from seqlens_k) and cannot be bounded at trace time, so a
-        // caller that overruns the declared cache capacity would otherwise scatter past the end of the C
-        // buffer. C and curr_seqlen are both statically known here (is_static_input), so clamp past_seqlen to
-        // the largest value that keeps the whole write in bounds. Measured what an unclamped ScatterUpdate
-        // actually does on an overrun (PR #37653 review, sgbihu): CPU throws cleanly ("indices value that
-        // points to non-existing output tensor element"), but GPU hits an unhandled SEH access violation
-        // (0xc0000005) - a process crash, not a graceful error. The clamp trades a caller's mis-sized
-        // seqlens_k for a silently-truncated write instead of a device-dependent crash. ORT enforces the
-        // same bound with an explicit runtime check (group_query_attention.cc:336-345); OV has no
-        // graph-level assert primitive to replicate that hard-stop, so clamping is the safe substitute.
-        const int64_t capacity = past_key.get_partial_shape()[2].get_length();
-        const int64_t curr_len = K.get_partial_shape()[2].get_length();
-        const auto max_past_seqlen =
-            register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {capacity - curr_len}));
-        const auto clamped_past_seqlen = register_new_node<v1::Minimum>(past_seqlen, max_past_seqlen);
+        // An out-of-range past_seqlen is ScatterUpdate's own bounds-check responsibility, not something to
+        // guard against here via a graph-level clamp; the decomposition assumes the caller-supplied
+        // seqlens_k stays within the declared cache capacity.
         std::shared_ptr<ov::Node> scatter_idx =
             register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        scatter_idx = register_new_node<v1::Add>(scatter_idx, clamped_past_seqlen);
+        scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
         const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
         K = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, scatter_axis);
         V = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, scatter_axis);
@@ -342,6 +330,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     if (has_input(GQAInputs::ATTENTION_BIAS)) {
         external_bias = get_input(GQAInputs::ATTENTION_BIAS);
     }
+    const bool has_head_sink = has_input(GQAInputs::HEAD_SINK);
+    const bool has_sink = has_head_sink || smooth_softmax;
     const auto mask = make_attention_mask(curr_seqlen_scalar,
                                           concat_kv_len_scalar,
                                           concat_kv_len,
@@ -350,14 +340,16 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                                           causal,
                                           local_window_size,
                                           external_bias,
-                                          bias_col_offset);
+                                          bias_col_offset,
+                                          node->get_sliding_window_cache(),
+                                          scale,
+                                          has_sink);
 
     // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
     // the softmax, then sliced out. head_sink provides a per-head value; plain smooth_softmax uses 0.
     ov::Output<ov::Node> sink;
-    const bool has_head_sink = has_input(GQAInputs::HEAD_SINK);
-    if (has_head_sink || smooth_softmax) {
+    if (has_sink) {
         const auto sink_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{4}, {1, -1, 1, 1}));
         if (has_head_sink) {
             auto head_sink = get_input(GQAInputs::HEAD_SINK);
@@ -385,12 +377,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
             scale_node = register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
         }
-        qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, sink, false);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false);
     } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, scale_node, false);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false);
     } else {
-        qga_output = register_new_node<v13::ScaledDotProductAttention>(Q, K, V, mask, false);
+        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask);
     }
 
     // transpose the result from (batch_size, num_heads, sequence_length, head_size)
@@ -401,6 +393,25 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
 
     return {output, present_k, present_v};
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(const ov::Output<ov::Node>& query,
+                                                                                const ov::Output<ov::Node>& key,
+                                                                                const ov::Output<ov::Node>& value,
+                                                                                const ov::Output<ov::Node>& mask,
+                                                                                const ov::Output<ov::Node>& scale,
+                                                                                const ov::Output<ov::Node>& sink,
+                                                                                bool is_causal) {
+    if (sink.get_node()) {
+        return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, is_causal);
+    }
+    if (scale.get_node()) {
+        return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, scale, is_causal);
+    }
+    if (mask.get_node()) {
+        return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, is_causal);
+    }
+    return register_new_node<v13::ScaledDotProductAttention>(query, key, value, is_causal);
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_cache_end(
@@ -423,7 +434,10 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_c
     const auto reclaimed = register_new_node<v1::Multiply>(blocks, gap);
     const auto evicted = register_new_node<v1::Subtract>(seqlen_scalar, reclaimed);
     const auto overflowed = register_new_node<v1::Greater>(seqlen_scalar, capacity_scalar);
-    return register_new_node<v1::Select>(overflowed, evicted, seqlen_scalar);
+    const auto end = register_new_node<v1::Select>(overflowed, evicted, seqlen_scalar);
+    // Data-dependent index (feeds Slice/Gather/ScatterUpdate bounds); GPU protects it from fusion.
+    end->get_rt_info()["gpu_shape_of_subgraph_root"] = true;
+    return end;
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_attention_mask(
@@ -435,7 +449,10 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     bool causal,
     int64_t local_window_size,
     const ov::Output<ov::Node>& external_bias,
-    const ov::Output<ov::Node>& bias_col_offset) {
+    const ov::Output<ov::Node>& bias_col_offset,
+    [[maybe_unused]] bool sliding_window_cache,
+    [[maybe_unused]] float scale,
+    [[maybe_unused]] bool has_sink) {
     const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
     // A window is active for local_window_size >= 1; -1 disables it and 0 is rejected upstream (FE + op).
     // A window is only ever paired with causal=1 (enforced upstream by the FE and the op), so it is only
