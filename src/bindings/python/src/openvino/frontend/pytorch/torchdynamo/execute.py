@@ -102,36 +102,36 @@ def _structural_key(gm, args, options=None):
         # produce different hashes for structurally identical graphs.
         node_id = {}
         ph_i = 0
-        for n in gm.graph.nodes:
-            if n.op == "placeholder":
-                node_id[n] = f"ph{ph_i}"
+        for node in gm.graph.nodes:
+            if node.op == "placeholder":
+                node_id[node] = f"ph{ph_i}"
                 ph_i += 1
                 parts.append("placeholder")
                 continue
             # node target (stable)
-            t = str(n.target) if hasattr(n, "target") else str(n.op)
+            target = str(node.target) if hasattr(node, "target") else str(node.op)
             # input edge descriptor: refer by node_id if known, else by op
             arg_descs = []
-            for a in n.args:
-                arg_descs.append(node_id.get(a, type(a).__name__))
-            parts.append(f"{n.op}:{t}({','.join(arg_descs)})")
-            node_id[n] = f"n{len(node_id)}"
+            for arg in node.args:
+                arg_descs.append(node_id.get(arg, type(arg).__name__))
+            parts.append(f"{node.op}:{target}({','.join(arg_descs)})")
+            node_id[node] = f"n{len(node_id)}"
     except Exception:
         parts = [str(id(gm))]
     shape_agnostic = _shape_agnostic_compile(gm, args, options)
     sig = ["|".join(parts)]
-    for a in args:
-        if isinstance(a, torch.Tensor):
+    for arg in args:
+        if isinstance(arg, torch.Tensor):
             # Rank and dtype still matter even when sizes don't: they change
             # which ops the frontend emits, not just the Parameter shapes.
             if shape_agnostic:
-                sig.append(f"T{a.dtype}:r{a.dim()}")
+                sig.append(f"T{arg.dtype}:r{arg.dim()}")
             else:
-                sig.append(f"T{a.dtype}:{tuple(a.size())}")
-        elif isinstance(a, int):
-            sig.append("I:dyn" if shape_agnostic else f"I:{a}")
+                sig.append(f"T{arg.dtype}:{tuple(arg.size())}")
+        elif isinstance(arg, int):
+            sig.append("I:dyn" if shape_agnostic else f"I:{arg}")
         else:
-            sig.append(f"S{type(a).__name__}")
+            sig.append(f"S{type(arg).__name__}")
     import hashlib
     return hashlib.sha256("|".join(sig).encode()).hexdigest()
 
@@ -160,10 +160,10 @@ def execute(
 import numpy as np
 
 
-def _torch_to_numpy(t):
+def _torch_to_numpy(tensor):
     """Hand a torch tensor to OV as numpy, preserving bf16.
 
-    `t.numpy()` raises "Got unsupported ScalarType BFloat16" because numpy has
+    `tensor.numpy()` raises "Got unsupported ScalarType BFloat16" because numpy has
     no bfloat16 dtype. OV's Python bindings represent a bf16 buffer as a numpy
     float16 array of the same 2-byte elements (see pyopenvino common.cpp), so
     re-tag the bits as float16 and pass those through. The OV Parameter is
@@ -171,9 +171,9 @@ def _torch_to_numpy(t):
     it renames the dtype without touching the data. Inverse of
     _ov_result_to_torch.
     """
-    if t.dtype == torch.bfloat16:
-        return t.view(torch.float16).numpy()
-    return t.numpy()
+    if tensor.dtype == torch.bfloat16:
+        return tensor.view(torch.float16).numpy()
+    return tensor.numpy()
 
 
 def _ov_result_to_torch(res, port):
@@ -184,10 +184,10 @@ def _ov_result_to_torch(res, port):
     a genuine bf16 result silently becomes f16 and every downstream op runs at
     the wrong precision.
     """
-    t = torch.from_numpy(res[port])
-    if port.get_element_type() == Type.bf16 and t.dtype == torch.float16:
-        t = t.view(torch.bfloat16)
-    return t
+    tensor = torch.from_numpy(res[port])
+    if port.get_element_type() == Type.bf16 and tensor.dtype == torch.float16:
+        tensor = tensor.view(torch.bfloat16)
+    return tensor
 
 
 def execute_cached(compiled_model, *args):
@@ -274,10 +274,10 @@ def openvino_execute(
                 continue
             ov_inputs.append(arg)
             continue
-        t = arg.detach()
-        if not t.is_contiguous():
-            t = t.contiguous()
-        ov_inputs.append(_torch_to_numpy(t))
+        tensor = arg.detach()
+        if not tensor.is_contiguous():
+            tensor = tensor.contiguous()
+        ov_inputs.append(_torch_to_numpy(tensor))
 
     # PagedAttention side-channel: None on non-PA graphs (positional infer),
     # PA_SKIP during profile/dummy_run (eager gm), or the raw output-dict.
@@ -349,7 +349,8 @@ class OpenVINOGraphModule(torch.nn.Module):
             )
             logger.debug("OpenVINO graph execution successful")
         except Exception as e:
-            logger.exception("OV partition %d execution failed; falling back to PyTorch", self.partition_id)
+            logger.debug("OV partition %d execution failed; falling back to PyTorch",
+                         self.partition_id, exc_info=True)
             if _no_fallback:
                 raise  # Fail loudly so we can see where OV actually breaks
             logger.debug(
@@ -423,9 +424,15 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 def clear_caches():
     global partitioned_modules  # noqa: F824
     global compiled_cache  # noqa: F824
+    global structural_cache  # noqa: F824
+    global req_cache  # noqa: F824
 
     compiled_cache.clear()
     partitioned_modules.clear()
+    # structural_cache holds the compiled models reused across dynamo
+    # retraces, and req_cache their InferRequests
+    structural_cache.clear()
+    req_cache.clear()
     # Also clear vLLM side-channel caches when the subpackage is present.
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm.side_channel import _pa_kv_ovt_cache

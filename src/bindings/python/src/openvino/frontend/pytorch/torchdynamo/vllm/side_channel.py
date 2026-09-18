@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -25,7 +26,7 @@ _pa_kv_ovt_cache = {}
 _TORCH_TO_OV_TYPE = {}
 
 
-def _ov_tensor_over_torch(t, param_dt, _ov):
+def _ov_tensor_over_torch(tensor, param_dt, _ov):
     """Zero-copy ov.Tensor aliasing a torch tensor's buffer, or None if it can't.
 
     numpy has no bfloat16, so a bf16 buffer is reinterpreted as float16 (same
@@ -40,11 +41,17 @@ def _ov_tensor_over_torch(t, param_dt, _ov):
             torch.int8: _ov.Type.i8,
             torch.uint8: _ov.Type.u8,
         })
-    if not t.is_contiguous() or _TORCH_TO_OV_TYPE.get(t.dtype) != param_dt:
+    if not tensor.is_contiguous() or _TORCH_TO_OV_TYPE.get(tensor.dtype) != param_dt:
         return None
-    npv = t.view(torch.float16).numpy() if t.dtype == torch.bfloat16 else t.numpy()
-    return _ov.Tensor(npv, _ov.Shape(list(t.shape)), param_dt)
+    npv = (tensor.view(torch.float16).numpy()
+           if tensor.dtype == torch.bfloat16 else tensor.numpy())
+    return _ov.Tensor(npv, _ov.Shape(list(tensor.shape)), param_dt)
 
+
+# OV CPU PagedAttention hard-requires block_size == 32. Larger
+# multiples are reshaped to it; this is the fallback when the real KV-cache
+# layout can't be read.
+_PA_BLOCK_SIZE = 32
 
 _pa_sliding_window_cache = {}  # (id(compiled), layer_name) -> np.int32 array
 # (id(compiled), layer_name) -> {meta_layer_name, layer_obj, kv_cache_id}.
@@ -102,9 +109,9 @@ def _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=None):
         nc = ctx.no_compile_layers if ctx is not None else None
         if isinstance(nc, dict) and nc and placeholder_layer_name is not None:
             import re as _re_ord
-            m = _re_ord.match(r"unknown_layer(?:_(\d+))?$", placeholder_layer_name)
-            if m is not None:
-                idx = int(m.group(1)) if m.group(1) else 0
+            match = _re_ord.match(r"unknown_layer(?:_(\d+))?$", placeholder_layer_name)
+            if match is not None:
+                idx = int(match.group(1)) if match.group(1) else 0
                 keys = list(nc.keys())
                 if idx < len(keys):
                     got = _extract(nc.get(keys[idx]))
@@ -201,8 +208,8 @@ def _bind_paged_attention_side_channel(compiled):
                 import re as _re_sort
 
                 def _layer_idx(name):
-                    m = _re_sort.search(r"layers\.(\d+)", name)
-                    return int(m.group(1)) if m else -1
+                    match = _re_sort.search(r"layers\.(\d+)", name)
+                    return int(match.group(1)) if match else -1
                 if all(_layer_idx(n) >= 0 for n in _real_layer_names):
                     _real_layer_names = sorted(_real_layer_names, key=_layer_idx)
         except Exception:
@@ -216,11 +223,12 @@ def _bind_paged_attention_side_channel(compiled):
         if not _real_layer_names:
             return None
         import re as _re_map
-        m = _re_map.match(r"unknown_layer(?:_(\d+))?$", placeholder)
-        if m is None:
+        match = _re_map.match(r"unknown_layer(?:_(\d+))?$", placeholder)
+        if match is None:
             return None
-        idx = int(m.group(1)) if m.group(1) else 0
-        idx = idx % len(_real_layer_names)
+        idx = int(match.group(1)) if match.group(1) else 0
+        # noqa S001: integer modulo, not a %-format string.
+        idx = idx % len(_real_layer_names)  # noqa: S001
         return _real_layer_names[idx]
 
     # Per-seq metadata is identical across layers within a forward pass:
@@ -339,9 +347,11 @@ def _bind_paged_attention_side_channel(compiled):
                     _kv_shape = tuple(kc.shape)
                     # OV CPU PA hard-requires block_size==32; reshape a larger
                     # multiple to (N*ratio, Hk, 32, S), same element count.
-                    if len(_kv_shape) >= 4 and _kv_shape[-2] > 32 and _kv_shape[-2] % 32 == 0:
-                        _ratio = _kv_shape[-2] // 32
-                        _param_shape = (_kv_shape[0] * _ratio,) + _kv_shape[1:-2] + (32, _kv_shape[-1])
+                    if (len(_kv_shape) >= 4 and _kv_shape[-2] > _PA_BLOCK_SIZE
+                            and _kv_shape[-2] % _PA_BLOCK_SIZE == 0):
+                        _ratio = _kv_shape[-2] // _PA_BLOCK_SIZE
+                        _param_shape = ((_kv_shape[0] * _ratio,) + _kv_shape[1:-2]
+                                        + (_PA_BLOCK_SIZE, _kv_shape[-1]))
                     else:
                         _param_shape = _kv_shape
                     # Take the dtype from this layer's own key_cache Parameter:
@@ -392,14 +402,15 @@ def _bind_paged_attention_side_channel(compiled):
             # Hk=1, S=1 and later asserts against the real K.
             import openvino as _ov_fb
             _fb_dt_ov = _ov_fb.Type.f32
-            _fb_Hk, _fb_S = _pa_auto_detect_kv_geom(ctx, meta_layer_name, placeholder_layer_name=layer_name)
-            _fb_block = 32  # CPU PA hard requirement
+            _fb_kv_heads, _fb_head_size = _pa_auto_detect_kv_geom(
+                ctx, meta_layer_name, placeholder_layer_name=layer_name)
+            _fb_block = _PA_BLOCK_SIZE  # CPU PA hard requirement
             _target_fb = fields.get("key_cache", f"__pa__{layer_name}__key_cache")
             for _pi in compiled.inputs:
                 if _target_fb in _pi.get_names():
                     _fb_dt_ov = _pi.get_element_type()
                     break
-            _fb_shape = (1, _fb_Hk, _fb_block, _fb_S)
+            _fb_shape = (1, _fb_kv_heads, _fb_block, _fb_head_size)
             key_cache_ovt = _ov_fb.Tensor(_fb_dt_ov, _fb_shape)
             value_cache_ovt = _ov_fb.Tensor(_fb_dt_ov, _fb_shape)
             key_cache_np = key_cache_ovt.data if _fb_dt_ov != _ov_fb.Type.bf16 else None
@@ -430,7 +441,11 @@ def _bind_paged_attention_side_channel(compiled):
                 seq_lens = getattr(attn_meta, "seq_lens", None)
                 block_table = getattr(attn_meta, "block_table", None)
                 if block_table is not None and seq_lens is not None:
-                    block_size = int(kv_cache.shape[3]) if kv_cache.ndim >= 5 else 16
+                    # block_size is the second-to-last dim in both layouts:
+                    # rank-5 (2, N, Hk, block, S) and rank-4 (N, Hk, block,
+                    # S*2, K/V interleaved -- see the unbind above).
+                    block_size = (int(kv_cache.shape[-2]) if kv_cache.ndim >= 4
+                                  else _PA_BLOCK_SIZE)
                     _bi_key = (id(block_table), block_size)
                     _bi_cached = _bi_cache.get(_bi_key)
                     if _bi_cached is not None:
@@ -441,7 +456,10 @@ def _bind_paged_attention_side_channel(compiled):
                         rows = bt.shape[0] if bt.ndim > 0 else 1
                         bps_np = blocks_per_seq.numpy()
                         bt_np = bt.numpy()
-                        _ov_ratio = block_size // 32 if block_size > 32 and block_size % 32 == 0 else 1
+                        _exact = block_size % _PA_BLOCK_SIZE == 0  # noqa: S001
+                        _ov_ratio = (block_size // _PA_BLOCK_SIZE
+                                     if block_size > _PA_BLOCK_SIZE and _exact
+                                     else 1)
                         if rows > 0 and bps_np.sum() > 0:
                             max_blocks = bt_np.shape[1] if bt_np.ndim > 1 else bt_np.shape[0]
                             col_idx = np.arange(max_blocks, dtype=np.int32)

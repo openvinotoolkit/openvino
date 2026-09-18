@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -275,10 +276,10 @@ def _apply_default_env():
         # across steps. +5-15% greedy, no correctness regression.
         "OV_FAST_INFER": "1",
     }
-    for k, v in defaults.items():
-        if os.environ.get(k) is None:
-            os.environ[k] = v
-            logger.debug("[OV plugin] %s=%s (default)", k, v)
+    for key, value in defaults.items():
+        if os.environ.get(key) is None:
+            os.environ[key] = value
+            logger.debug("[OV plugin] %s=%s (default)", key, value)
 
 
 def _warn_if_unpinned():
