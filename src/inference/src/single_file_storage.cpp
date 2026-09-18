@@ -94,12 +94,12 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         if (size == 0) {
             return true;
         }
-        constexpr auto header_size = sizeof(BlobIdType) + sizeof(uint64_t) + sizeof(PadSizeType);
+        constexpr auto header_size = sizeof(BlobIdType) + sizeof(BlobSizeType) + sizeof(PadSizeType);
         if (size < header_size) {
             return false;
         }
         BlobIdType id;
-        uint64_t blob_data_size;
+        BlobSizeType blob_data_size;
         PadSizeType padding_size;
         s.read(reinterpret_cast<char*>(&id), sizeof(id));
         s.read(reinterpret_cast<char*>(&blob_data_size), sizeof(blob_data_size));
@@ -111,7 +111,7 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         if (!s.good() || blob_data_pos < 0) {
             return false;
         }
-        const auto mapped_blob_size = static_cast<uint64_t>(size - header_size - padding_size);
+        const auto mapped_blob_size = static_cast<BlobSizeType>(size - header_size - padding_size);
         if (blob_data_size > mapped_blob_size) {
             return false;
         }
@@ -228,7 +228,7 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream,
     const auto blob_writer = [&](std::ostream& s) {
         s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
         const auto size_pos = s.tellp();
-        uint64_t blob_size_placeholder = 0;
+        BlobSizeType blob_size_placeholder = 0;
         s.write(reinterpret_cast<const char*>(&blob_size_placeholder), sizeof(blob_size_placeholder));
         write_padding(s, blob_alignment);
         blob_pos = s.tellp();
@@ -242,7 +242,7 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream,
         s.write(trailing_padding.data(), trailing_padding.size());
         const auto end_pos = s.tellp();
         s.seekp(size_pos);
-        const auto logical_blob_size = static_cast<uint64_t>(blob_size);
+        const auto logical_blob_size = static_cast<BlobSizeType>(blob_size);
         s.write(reinterpret_cast<const char*>(&logical_blob_size), sizeof(logical_blob_size));
         s.seekp(end_pos);
     };
@@ -259,8 +259,8 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream,
     const auto mapped_blob_size = align_mmap_to_page ? util::align_size_up(static_cast<size_t>(blob_size), blob_alignment)
                                                      : static_cast<size_t>(blob_size);
     m_blob_index[blob_id] = {static_cast<uint64_t>(blob_pos),
-                             static_cast<uint64_t>(blob_size),
-                             static_cast<uint64_t>(mapped_blob_size),
+                             static_cast<BlobSizeType>(blob_size),
+                             static_cast<BlobSizeType>(mapped_blob_size),
                              std::move(model_name)};
 }
 

@@ -65,6 +65,7 @@ public:
     void initialize(std::shared_ptr<ov::wsh::Context> weight_sharing_context = {}) override;
 
     using BlobIdType = uint64_t;
+    using BlobSizeType = uint64_t;
     using DataIdType = uint64_t;
     using PadSizeType = uint64_t;
 
@@ -75,8 +76,8 @@ private:
 
     struct BlobInfo {
         uint64_t offset;
-        uint64_t size;
-        uint64_t mapped_size;
+        BlobSizeType size;
+        BlobSizeType mapped_size;
         std::string model_name;
     };
     std::unordered_map<BlobIdType, BlobInfo> m_blob_index;
