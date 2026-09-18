@@ -144,8 +144,8 @@ TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchWithDynamicSpatialDoesNo
     EXPECT_FALSE(run(make_relu_model({bounded(), 3, bounded(), 32})));
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedDimensionDoesNotEnableHostCompile) {
-    EXPECT_FALSE(run(make_relu_model({1, unbounded(), 16, 32})));
+TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedDimensionEnablesHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({1, unbounded(), 16, 32})));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, StaticOutputDoesNotEnableHostCompile) {
@@ -156,10 +156,10 @@ TEST_F(ShouldUseHostCompileInterpreterTest, StaticInputDynamicOutputDoesNotEnabl
     EXPECT_FALSE(run(make_static_input_dynamic_output_model({1, 3, 16, 32})));
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedAdditionalPortDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedAdditionalPortEnablesHostCompile) {
     const auto model = make_two_input_relu_model({1, bounded(), 16, 32}, {1, unbounded(), 16, 32});
 
-    EXPECT_FALSE(run(model));
+    EXPECT_TRUE(run(model));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, MultipleDynamicOutputsEnableHostCompile) {

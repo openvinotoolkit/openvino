@@ -17,7 +17,7 @@
 namespace intel_npu {
 
 /**
- * @brief Decides whether the bounded dynamic 4D I/O model should be compiled with the
+ * @brief Decides whether the dynamic 4D I/O model should be compiled with the
  * 'HostCompile_Interpreter' compilation mode. This is a pure predicate: it does not read from or
  * mutate any Config. The caller is responsible for updating the config when this returns true.
  * @param model The OpenVINO model to inspect
