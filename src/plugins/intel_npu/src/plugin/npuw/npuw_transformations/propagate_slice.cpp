@@ -1130,107 +1130,111 @@ public:
         // Match any Slice node
         auto slice_pattern = wrap_type<ov::op::v8::Slice>();
 
-        register_matcher(std::make_shared<Matcher>(slice_pattern, "MergeDuplicateSlices"), [](Matcher& m) {
-            auto slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(m.get_match_root());
-            if (!slice)
-                return false;
+        register_matcher(
+            std::make_shared<Matcher>(slice_pattern, "MergeDuplicateSlices"),
+            with_debug_trace("MergeDuplicateSlices", [](Matcher& m) {
+                auto slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(m.get_match_root());
+                if (!slice)
+                    return false;
 
-            // Get the data input (includes both node and output port)
-            auto data_input = slice->input_value(0);
-            auto parent_node = data_input.get_node_shared_ptr();
-            size_t parent_output_port = data_input.get_index();
+                // Get the data input (includes both node and output port)
+                auto data_input = slice->input_value(0);
+                auto parent_node = data_input.get_node_shared_ptr();
+                size_t parent_output_port = data_input.get_index();
 
-            // Collect all Slice consumers of the SAME output port
-            // This prevents merging slices from different TopK outputs (values vs indices)
-            std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
-            for (const auto& consumer_input : parent_node->get_output_target_inputs(parent_output_port)) {
-                auto consumer = consumer_input.get_node()->shared_from_this();
-                auto other_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(consumer);
-                if (other_slice) {
-                    slice_consumers.push_back(other_slice);
-                }
-            }
-
-            if (slice_consumers.size() <= 1) {
-                return false;  // Only one or zero Slice consumers, nothing to merge
-            }
-
-            // Helper to get constant values as vector
-            auto get_const_values = [](const std::shared_ptr<ov::Node>& node) -> std::vector<int64_t> {
-                auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-                if (!const_node)
-                    return {};
-                return const_node->cast_vector<int64_t>();
-            };
-
-            const auto& input_shape = slice->get_input_shape(0);
-            size_t rank = input_shape.size();
-
-            // Normalize axes to positive indices and create a map: axis -> (start, stop, step)
-            auto build_slice_map =
-                [&](const std::vector<int64_t>& axes,
-                    const std::vector<int64_t>& starts,
-                    const std::vector<int64_t>& stops,
-                    const std::vector<int64_t>& steps,
-                    const ov::Shape& in_shape,
-                    const ov::Shape& out_shape) -> std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> {
-                std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> result;
-                for (size_t i = 0; i < axes.size(); ++i) {
-                    int64_t axis = static_cast<int64_t>(ov::util::normalize_axis(axes[i], static_cast<int64_t>(rank)));
-                    // Only include axes that actually reduce the dimension
-                    if (out_shape[axis] < in_shape[axis]) {
-                        result[axis] = {starts[i], stops[i], steps[i]};
+                // Collect all Slice consumers of the SAME output port
+                // This prevents merging slices from different TopK outputs (values vs indices)
+                std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
+                for (const auto& consumer_input : parent_node->get_output_target_inputs(parent_output_port)) {
+                    auto consumer = consumer_input.get_node()->shared_from_this();
+                    auto other_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(consumer);
+                    if (other_slice) {
+                        slice_consumers.push_back(other_slice);
                     }
                 }
-                return result;
-            };
 
-            // Extract this Slice's own parameters once - they are invariant across the
-            // comparison loop below (only `other_slice`'s parameters change per iteration).
-            auto start1 = get_const_values(slice->get_input_node_shared_ptr(1));
-            auto stop1 = get_const_values(slice->get_input_node_shared_ptr(2));
-            auto step1 = get_const_values(slice->get_input_node_shared_ptr(3));
-            auto axes1 = get_const_values(slice->get_input_node_shared_ptr(4));
-
-            if (start1.empty() || stop1.empty() || step1.empty() || axes1.empty()) {
-                return false;
-            }
-
-            auto map1 = build_slice_map(axes1, start1, stop1, step1, input_shape, slice->get_output_shape(0));
-
-            // Check all consumers of the same output port for duplicate Slices
-            for (const auto& other_slice : slice_consumers) {
-                if (other_slice == slice)
-                    continue;  // Skip self
-
-                // For semantic equivalence, we need:
-                // 1. Same output shape
-                // 2. Same slice parameters (start, stop, step, axes values)
-                // Note: element_type is implicitly same since they consume the same output port
-
-                if (slice->get_output_shape(0) != other_slice->get_output_shape(0)) {
-                    continue;
+                if (slice_consumers.size() <= 1) {
+                    return false;  // Only one or zero Slice consumers, nothing to merge
                 }
 
-                auto start2 = get_const_values(other_slice->get_input_node_shared_ptr(1));
-                auto stop2 = get_const_values(other_slice->get_input_node_shared_ptr(2));
-                auto step2 = get_const_values(other_slice->get_input_node_shared_ptr(3));
-                auto axes2 = get_const_values(other_slice->get_input_node_shared_ptr(4));
+                // Helper to get constant values as vector
+                auto get_const_values = [](const std::shared_ptr<ov::Node>& node) -> std::vector<int64_t> {
+                    auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+                    if (!const_node)
+                        return {};
+                    return const_node->cast_vector<int64_t>();
+                };
 
-                if (start2.empty() || stop2.empty() || step2.empty() || axes2.empty()) {
-                    continue;
+                const auto& input_shape = slice->get_input_shape(0);
+                size_t rank = input_shape.size();
+
+                // Normalize axes to positive indices and create a map: axis -> (start, stop, step)
+                auto build_slice_map =
+                    [&](const std::vector<int64_t>& axes,
+                        const std::vector<int64_t>& starts,
+                        const std::vector<int64_t>& stops,
+                        const std::vector<int64_t>& steps,
+                        const ov::Shape& in_shape,
+                        const ov::Shape& out_shape) -> std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> {
+                    std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> result;
+                    for (size_t i = 0; i < axes.size(); ++i) {
+                        int64_t axis =
+                            static_cast<int64_t>(ov::util::normalize_axis(axes[i], static_cast<int64_t>(rank)));
+                        // Only include axes that actually reduce the dimension
+                        if (out_shape[axis] < in_shape[axis]) {
+                            result[axis] = {starts[i], stops[i], steps[i]};
+                        }
+                    }
+                    return result;
+                };
+
+                // Extract this Slice's own parameters once - they are invariant across the
+                // comparison loop below (only `other_slice`'s parameters change per iteration).
+                auto start1 = get_const_values(slice->get_input_node_shared_ptr(1));
+                auto stop1 = get_const_values(slice->get_input_node_shared_ptr(2));
+                auto step1 = get_const_values(slice->get_input_node_shared_ptr(3));
+                auto axes1 = get_const_values(slice->get_input_node_shared_ptr(4));
+
+                if (start1.empty() || stop1.empty() || step1.empty() || axes1.empty()) {
+                    return false;
                 }
 
-                auto map2 = build_slice_map(axes2, start2, stop2, step2, input_shape, other_slice->get_output_shape(0));
+                auto map1 = build_slice_map(axes1, start1, stop1, step1, input_shape, slice->get_output_shape(0));
 
-                if (map1 == map2) {
-                    ov::replace_node(other_slice, slice);
-                    return true;  // Made a change, will re-run
+                // Check all consumers of the same output port for duplicate Slices
+                for (const auto& other_slice : slice_consumers) {
+                    if (other_slice == slice)
+                        continue;  // Skip self
+
+                    // For semantic equivalence, we need:
+                    // 1. Same output shape
+                    // 2. Same slice parameters (start, stop, step, axes values)
+                    // Note: element_type is implicitly same since they consume the same output port
+
+                    if (slice->get_output_shape(0) != other_slice->get_output_shape(0)) {
+                        continue;
+                    }
+
+                    auto start2 = get_const_values(other_slice->get_input_node_shared_ptr(1));
+                    auto stop2 = get_const_values(other_slice->get_input_node_shared_ptr(2));
+                    auto step2 = get_const_values(other_slice->get_input_node_shared_ptr(3));
+                    auto axes2 = get_const_values(other_slice->get_input_node_shared_ptr(4));
+
+                    if (start2.empty() || stop2.empty() || step2.empty() || axes2.empty()) {
+                        continue;
+                    }
+
+                    auto map2 =
+                        build_slice_map(axes2, start2, stop2, step2, input_shape, other_slice->get_output_shape(0));
+
+                    if (map1 == map2) {
+                        ov::replace_node(other_slice, slice);
+                        return true;  // Made a change, will re-run
+                    }
                 }
-            }
 
-            return false;  // No duplicate found
-        });
+                return false;  // No duplicate found
+            }));
     }
 };
 
@@ -1538,7 +1542,7 @@ public:
 
         register_matcher(
             std::make_shared<Matcher>(slice, "PropagateSliceThroughScatterElementsUpdate"),
-            [=](Matcher& m) {
+            with_debug_trace("PropagateSliceThroughScatterElementsUpdate", [=](Matcher& m) {
                 auto& map = m.get_pattern_value_map();
                 auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
                 auto scatter_node = std::dynamic_pointer_cast<ov::op::v12::ScatterElementsUpdate>(
@@ -1616,7 +1620,7 @@ public:
                 // Replace the original Slice with the new ScatterElementsUpdate
                 ov::replace_node(slice_node, new_scatter);
                 return true;
-            });
+            }));
     }
 };
 
@@ -1782,98 +1786,100 @@ public:
         auto k = any_input();
         auto topk = wrap_type<ov::op::v1::TopK, ov::op::v3::TopK, ov::op::v11::TopK>({data, k});
 
-        register_matcher(std::make_shared<Matcher>(topk, "PropagateSliceThroughTopK"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto topk_node = map.at(topk).get_node_shared_ptr();
+        register_matcher(
+            std::make_shared<Matcher>(topk, "PropagateSliceThroughTopK"),
+            with_debug_trace("PropagateSliceThroughTopK", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto topk_node = map.at(topk).get_node_shared_ptr();
 
-            if (!topk_node) {
-                return false;
-            }
+                if (!topk_node) {
+                    return false;
+                }
 
-            // TopK has two outputs: values (output 0) and indices (output 1)
-            if (topk_node->get_output_size() != 2) {
-                return false;
-            }
+                // TopK has two outputs: values (output 0) and indices (output 1)
+                if (topk_node->get_output_size() != 2) {
+                    return false;
+                }
 
-            // Check if both outputs are consumed by exactly one live consumer each
-            auto values_live = get_live_consumers(topk_node, 0);
-            auto indices_live = get_live_consumers(topk_node, 1);
-            if (values_live.size() != 1 || indices_live.size() != 1) {
-                return false;
-            }
+                // Check if both outputs are consumed by exactly one live consumer each
+                auto values_live = get_live_consumers(topk_node, 0);
+                auto indices_live = get_live_consumers(topk_node, 1);
+                if (values_live.size() != 1 || indices_live.size() != 1) {
+                    return false;
+                }
 
-            auto values_consumer = values_live[0].get_node()->shared_from_this();
-            auto indices_consumer = indices_live[0].get_node()->shared_from_this();
+                auto values_consumer = values_live[0].get_node()->shared_from_this();
+                auto indices_consumer = indices_live[0].get_node()->shared_from_this();
 
-            auto values_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(values_consumer);
-            auto indices_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(indices_consumer);
+                auto values_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(values_consumer);
+                auto indices_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(indices_consumer);
 
-            if (!values_slice || !indices_slice) {
-                return false;
-            }
+                if (!values_slice || !indices_slice) {
+                    return false;
+                }
 
-            // Get slice axes
-            int64_t values_slice_axis = get_single_sliced_axis(values_slice);
-            int64_t indices_slice_axis = get_single_sliced_axis(indices_slice);
-            if (values_slice_axis == -1 || indices_slice_axis == -1) {
-                return false;
-            }
+                // Get slice axes
+                int64_t values_slice_axis = get_single_sliced_axis(values_slice);
+                int64_t indices_slice_axis = get_single_sliced_axis(indices_slice);
+                if (values_slice_axis == -1 || indices_slice_axis == -1) {
+                    return false;
+                }
 
-            // Check if both slices are on the same axis
-            if (values_slice_axis != indices_slice_axis) {
-                return false;
-            }
+                // Check if both slices are on the same axis
+                if (values_slice_axis != indices_slice_axis) {
+                    return false;
+                }
 
-            // Check semantic equivalence of slice parameters
-            int64_t v_start = 0, v_stop = 0, v_step = 0;
-            int64_t i_start = 0, i_stop = 0, i_step = 0;
-            bool v_found = get_slice_axis_params(values_slice, values_slice_axis, v_start, v_stop, v_step);
-            bool i_found = get_slice_axis_params(indices_slice, indices_slice_axis, i_start, i_stop, i_step);
+                // Check semantic equivalence of slice parameters
+                int64_t v_start = 0, v_stop = 0, v_step = 0;
+                int64_t i_start = 0, i_stop = 0, i_step = 0;
+                bool v_found = get_slice_axis_params(values_slice, values_slice_axis, v_start, v_stop, v_step);
+                bool i_found = get_slice_axis_params(indices_slice, indices_slice_axis, i_start, i_stop, i_step);
 
-            if (!v_found || !i_found) {
-                return false;
-            }
+                if (!v_found || !i_found) {
+                    return false;
+                }
 
-            if (v_start != i_start || v_stop != i_stop || v_step != i_step) {
-                return false;
-            }
+                if (v_start != i_start || v_stop != i_stop || v_step != i_step) {
+                    return false;
+                }
 
-            // Get TopK axis parameter. All TopK versions (v1/v3/v11) derive from TopKBase,
-            // which already exposes the resolved axis regardless of opset version.
-            auto topk_base = std::dynamic_pointer_cast<ov::op::util::TopKBase>(topk_node);
-            if (!topk_base) {
-                return false;
-            }
-            int64_t topk_axis = static_cast<int64_t>(topk_base->get_axis());
+                // Get TopK axis parameter. All TopK versions (v1/v3/v11) derive from TopKBase,
+                // which already exposes the resolved axis regardless of opset version.
+                auto topk_base = std::dynamic_pointer_cast<ov::op::util::TopKBase>(topk_node);
+                if (!topk_base) {
+                    return false;
+                }
+                int64_t topk_axis = static_cast<int64_t>(topk_base->get_axis());
 
-            // Normalize TopK axis
-            topk_axis = static_cast<int64_t>(
-                ov::util::normalize_axis(topk_axis, static_cast<int64_t>(topk_node->get_input_shape(0).size())));
+                // Normalize TopK axis
+                topk_axis = static_cast<int64_t>(
+                    ov::util::normalize_axis(topk_axis, static_cast<int64_t>(topk_node->get_input_shape(0).size())));
 
-            // Check if slice axis == topk axis (would change TopK result, not safe)
-            if (values_slice_axis == topk_axis) {
-                return false;
-            }
+                // Check if slice axis == topk axis (would change TopK result, not safe)
+                if (values_slice_axis == topk_axis) {
+                    return false;
+                }
 
-            // Safe to propagate: insert Slice before TopK
+                // Safe to propagate: insert Slice before TopK
 
-            // Create new Slice on TopK input
-            auto new_slice =
-                create_slice_with_params(topk_node->input_value(0), values_slice_axis, v_start, v_stop, v_step);
-            new_slice->set_friendly_name(topk_node->get_friendly_name() + "/slice_input");
+                // Create new Slice on TopK input
+                auto new_slice =
+                    create_slice_with_params(topk_node->input_value(0), values_slice_axis, v_start, v_stop, v_step);
+                new_slice->set_friendly_name(topk_node->get_friendly_name() + "/slice_input");
 
-            // Create new TopK with sliced input, preserving all other attributes
-            auto new_topk = topk_node->clone_with_new_inputs({new_slice->output(0), topk_node->input_value(1)});
-            new_topk->set_friendly_name(topk_node->get_friendly_name());
-            new_topk->validate_and_infer_types();
+                // Create new TopK with sliced input, preserving all other attributes
+                auto new_topk = topk_node->clone_with_new_inputs({new_slice->output(0), topk_node->input_value(1)});
+                new_topk->set_friendly_name(topk_node->get_friendly_name());
+                new_topk->validate_and_infer_types();
 
-            // Replace original Slices' outputs with new TopK outputs
-            // Note: Cannot use replace_node because TopK has 2 outputs while Slice has 1
-            values_slice->output(0).replace(new_topk->output(0));
-            indices_slice->output(0).replace(new_topk->output(1));
+                // Replace original Slices' outputs with new TopK outputs
+                // Note: Cannot use replace_node because TopK has 2 outputs while Slice has 1
+                values_slice->output(0).replace(new_topk->output(0));
+                indices_slice->output(0).replace(new_topk->output(1));
 
-            return true;
-        });
+                return true;
+            }));
     }
 };
 
@@ -2074,7 +2080,16 @@ public:
                 if (indices_rank.is_dynamic() || (indices_rank.get_length() != 0 && indices_rank.get_length() != 1)) {
                     return false;
                 }
-                const bool gather_removes_axis = (indices_rank.get_length() == 0);
+                // With batch_dims > 0, the leading batch_dims axes of indices don't contribute
+                // extra output axes (they're shared with data), so rank-1 indices with
+                // batch_dims == indices_rank behave like scalar indices for this rule's purposes.
+                // Unreachable today since indices_rank is already restricted to {0,1} above (so
+                // batch_dims can only be 0 or == indices_rank); kept as a guard against future changes.
+                const int64_t batch_dims = gather_base->get_batch_dims();
+                if (batch_dims != 0 && batch_dims != indices_rank.get_length()) {
+                    return false;
+                }
+                const bool gather_removes_axis = (indices_rank.get_length() - batch_dims == 0);
 
                 // Normalize axes
                 const auto& gather_input_shape = gather_node->get_input_shape(0);
@@ -2129,62 +2144,64 @@ public:
         auto slice1 = wrap_type<ov::op::v8::Slice>({data, any_input(), any_input(), any_input(), any_input()});
         auto slice2 = wrap_type<ov::op::v8::Slice>({slice1, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice2, "MergeConsecutiveSlices"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto child_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice2).get_node_shared_ptr());
-            auto parent_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice1).get_node_shared_ptr());
+        register_matcher(
+            std::make_shared<Matcher>(slice2, "MergeConsecutiveSlices"),
+            with_debug_trace("MergeConsecutiveSlices", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto child_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice2).get_node_shared_ptr());
+                auto parent_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice1).get_node_shared_ptr());
 
-            if (!child_slice || !parent_slice) {
-                return false;
-            }
-
-            // Check single consumer for parent slice
-            if (!single_consumer(parent_slice)) {
-                return false;
-            }
-
-            // Get parameters from both slices (axes already normalized to their own input rank)
-            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> parent_params, child_params;
-            if (!get_slice_all_axis_params(parent_slice, parent_params) ||
-                !get_slice_all_axis_params(child_slice, child_params)) {
-                return false;
-            }
-
-            // Build merged parameters: start with parent slice params, then merge in child's
-            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> merged_params = parent_params;
-            for (const auto& [axis, params] : child_params) {
-                if (merged_params.count(axis)) {
-                    // Same axis - need to compose the slicing operations
-                    // This is complex, for now just skip this case
+                if (!child_slice || !parent_slice) {
                     return false;
                 }
-                merged_params[axis] = params;
-            }
 
-            // Build merged constant vectors
-            std::vector<int64_t> merged_axes;
-            std::vector<int64_t> merged_start;
-            std::vector<int64_t> merged_stop;
-            std::vector<int64_t> merged_step;
+                // Check single consumer for parent slice
+                if (!single_consumer(parent_slice)) {
+                    return false;
+                }
 
-            for (const auto& [axis, params] : merged_params) {
-                merged_axes.push_back(axis);
-                merged_start.push_back(std::get<0>(params));
-                merged_stop.push_back(std::get<1>(params));
-                merged_step.push_back(std::get<2>(params));
-            }
+                // Get parameters from both slices (axes already normalized to their own input rank)
+                std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> parent_params, child_params;
+                if (!get_slice_all_axis_params(parent_slice, parent_params) ||
+                    !get_slice_all_axis_params(child_slice, child_params)) {
+                    return false;
+                }
 
-            // Create merged slice
-            auto merged_slice = create_slice_with_params(parent_slice->input_value(0),
-                                                         merged_axes,
-                                                         merged_start,
-                                                         merged_stop,
-                                                         merged_step);
-            merged_slice->set_friendly_name(child_slice->get_friendly_name());
+                // Build merged parameters: start with parent slice params, then merge in child's
+                std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> merged_params = parent_params;
+                for (const auto& [axis, params] : child_params) {
+                    if (merged_params.count(axis)) {
+                        // Same axis - need to compose the slicing operations
+                        // This is complex, for now just skip this case
+                        return false;
+                    }
+                    merged_params[axis] = params;
+                }
 
-            ov::replace_node(child_slice, merged_slice);
-            return true;
-        });
+                // Build merged constant vectors
+                std::vector<int64_t> merged_axes;
+                std::vector<int64_t> merged_start;
+                std::vector<int64_t> merged_stop;
+                std::vector<int64_t> merged_step;
+
+                for (const auto& [axis, params] : merged_params) {
+                    merged_axes.push_back(axis);
+                    merged_start.push_back(std::get<0>(params));
+                    merged_stop.push_back(std::get<1>(params));
+                    merged_step.push_back(std::get<2>(params));
+                }
+
+                // Create merged slice
+                auto merged_slice = create_slice_with_params(parent_slice->input_value(0),
+                                                             merged_axes,
+                                                             merged_start,
+                                                             merged_stop,
+                                                             merged_step);
+                merged_slice->set_friendly_name(child_slice->get_friendly_name());
+
+                ov::replace_node(child_slice, merged_slice);
+                return true;
+            }));
     }
 };
 
@@ -2345,9 +2362,10 @@ public:
     ExtractCommonSliceBeforeFanout() {
         auto fanout = wrap_type<ov::op::v1::Transpose, ov::op::v1::Multiply, ov::op::v8::Slice>();
 
-        register_matcher(std::make_shared<Matcher>(fanout, "ExtractCommonSliceBeforeFanout"), [=](Matcher& m) {
-            return extract_common_slice_before_fanout(m.get_match_root());
-        });
+        register_matcher(std::make_shared<Matcher>(fanout, "ExtractCommonSliceBeforeFanout"),
+                         with_debug_trace("ExtractCommonSliceBeforeFanout", [=](Matcher& m) {
+                             return extract_common_slice_before_fanout(m.get_match_root());
+                         }));
     }
 };
 
@@ -2368,7 +2386,6 @@ bool PropagateSliceUp::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // GraphRewrite.run_on_model() returns true when any matcher succeeds
     while (iter_changed && iteration < max_iterations) {
         LOG_DEBUG("PropagateSliceUp: iteration " << iteration);
-        const std::string iter_tag = std::to_string(iteration);
         iteration++;
 
         ov::pass::GraphRewrite rewrite;
@@ -2395,21 +2412,18 @@ bool PropagateSliceUp::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
         iter_changed = rewrite.run_on_model(model);
         overall_changed |= iter_changed;
-
-        // Validate unconditionally (not just under the debug flag): if a rule produced an
-        // invalid graph, stop immediately instead of looping up to max_iterations while the
-        // corruption compounds on every pass.
-        try {
-            model->validate_nodes_and_infer_types();
-        } catch (const std::exception& e) {
-            LOG_ERROR("PropagateSliceUp: model became invalid after iteration " << iter_tag << ": " << e.what());
-            throw;
-        }
     }
 
     if (iteration >= max_iterations) {
         LOG_WARN("PropagateSliceUp: reached maximum iterations (" << max_iterations
                                                                   << "), stopping to prevent infinite loop");
+    }
+
+    try {
+        model->validate_nodes_and_infer_types();
+    } catch (const std::exception& e) {
+        LOG_ERROR("PropagateSliceUp: model became invalid: " << e.what());
+        throw;
     }
 
     return overall_changed;

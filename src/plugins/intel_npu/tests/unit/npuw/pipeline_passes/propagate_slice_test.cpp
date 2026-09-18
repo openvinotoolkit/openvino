@@ -1096,6 +1096,66 @@ TEST(PropagateSliceTest, PropagateSliceThroughGather_ScalarIndicesShiftsLaterAxe
     EXPECT_TRUE(is_type<v0::Parameter>(new_slice->input_value(0).get_node_shared_ptr()));
 }
 
+// Regression test: with batch_dims == indices_rank, indices contribute zero output axes (the
+// same rank-reduction as scalar indices), so this must shift later axes by one just like the
+// scalar-indices case above - NOT be treated as rank-preserving.
+// Build: Param[4,8,1024,32] -> Gather(axis=1, indices=[4], batch_dims=1) -> [4,1024,32]
+//        -> Slice(axis=1, 1024->11) -> [4,11,32]
+TEST(PropagateSliceTest, PropagateSliceThroughGather_BatchDimsEqualsIndicesRankShiftsLaterAxes) {
+    auto param = std::make_shared<v0::Parameter>(element::f32, Shape{4, 8, 1024, 32});
+
+    auto indices = v0::Constant::create(element::i64, Shape{4}, {0, 1, 2, 3});
+    auto gather_axis = v0::Constant::create(element::i64, Shape{}, {1});
+    auto gather = std::make_shared<v8::Gather>(param, indices, gather_axis, /*batch_dims=*/1);
+    ASSERT_EQ(gather->get_output_shape(0), (Shape{4, 1024, 32}));
+
+    // Slice on output axis=1 (the 1024 dim), which on the Parameter is actually axis=2.
+    auto slice = make_slice(gather, 1, 0, 11);
+
+    auto result = std::make_shared<v0::Result>(slice);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param});
+
+    apply_propagate_slice_up(model);
+
+    auto result_input = model->get_results()[0]->input_value(0).get_node_shared_ptr();
+    auto new_gather = std::dynamic_pointer_cast<v8::Gather>(result_input);
+    ASSERT_TRUE(new_gather);
+    EXPECT_EQ(new_gather->get_output_shape(0), (Shape{4, 11, 32}));
+
+    auto gather_input = new_gather->input_value(0).get_node_shared_ptr();
+    auto new_slice = std::dynamic_pointer_cast<v8::Slice>(gather_input);
+    ASSERT_TRUE(new_slice);
+    // The Slice must land on Parameter axis=2 (the 1024 dim), not axis=1 (the size-8 batch dim).
+    EXPECT_EQ(new_slice->get_output_shape(0), (Shape{4, 8, 11, 32}));
+    EXPECT_TRUE(is_type<v0::Parameter>(new_slice->input_value(0).get_node_shared_ptr()));
+}
+
+// Regression test: indices rank > 1 is rejected by the indices_rank guard alone, regardless of
+// batch_dims - the rule only reasons about scalar/rank-1 indices, so the graph must stay unchanged.
+// Build: Param[4,5,1024,32] -> Gather(axis=1, indices=[4,3], batch_dims=1) -> [4,3,1024,32]
+//        -> Slice(axis=2, 1024->11)
+TEST(PropagateSliceTest, PropagateSliceThroughGather_MultiDimIndicesBlocksPropagation) {
+    auto param = std::make_shared<v0::Parameter>(element::f32, Shape{4, 5, 1024, 32});
+
+    auto indices = v0::Constant::create(element::i64, Shape{4, 3}, std::vector<int64_t>(12, 0));
+    auto gather_axis = v0::Constant::create(element::i64, Shape{}, {1});
+    auto gather = std::make_shared<v8::Gather>(param, indices, gather_axis, /*batch_dims=*/1);
+    ASSERT_EQ(gather->get_output_shape(0), (Shape{4, 3, 1024, 32}));
+
+    auto slice = make_slice(gather, 2, 0, 11);
+
+    auto result = std::make_shared<v0::Result>(slice);
+    auto model = std::make_shared<ov::Model>(ResultVector{result}, ParameterVector{param});
+
+    apply_propagate_slice_up(model);
+
+    // The rule must not fire: Slice stays directly on top of Gather.
+    auto result_input = model->get_results()[0]->input_value(0).get_node_shared_ptr();
+    auto remaining_slice = std::dynamic_pointer_cast<v8::Slice>(result_input);
+    ASSERT_TRUE(remaining_slice);
+    EXPECT_TRUE(is_type<v8::Gather>(remaining_slice->input_value(0).get_node_shared_ptr()));
+}
+
 // Test R3: Slice(SDPA(Q,K,V), axis=seq) -> SDPA(Slice(Q,axis=seq), K, V)
 TEST(PropagateSliceTest, PropagateSliceThroughSDPA) {
     // Build: Q,K,V[1,8,1024,64] -> SDPA(causal=false) -> [1,8,1024,64]
