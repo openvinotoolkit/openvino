@@ -5,6 +5,7 @@
 #include "compiler_impl.hpp"
 
 #include <algorithm>
+#include <cinttypes>
 #include <cstring>
 #include <limits>
 #include <mutex>
@@ -621,7 +622,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
 
 std::vector<std::string> VCLCompilerImpl::get_supported_options() const {
     _logger.debug("get_supported_options start");
-    size_t str_size = 0;
+    uint64_t str_size = 0;
     THROW_ON_FAIL_FOR_VCL(*_functions,
                           "vclGetCompilerSupportedOptions",
                           _functions->vclGetCompilerSupportedOptions(_compilerHandle, nullptr, &str_size),
@@ -639,7 +640,7 @@ std::vector<std::string> VCLCompilerImpl::get_supported_options() const {
                           _functions->vclGetCompilerSupportedOptions(_compilerHandle, options.data(), &str_size),
                           _logHandle);
 
-    _logger.debug("Option list size %d, got option list", str_size);
+    _logger.debug("Option list size %" PRIu64 ", got option list", str_size);
 
     size_t optionsSize = options.size();
     while (optionsSize > 0 && options[optionsSize - 1] == '\0') {
@@ -653,7 +654,7 @@ std::vector<std::string> VCLCompilerImpl::get_supported_options() const {
     _logger.debug("VCLCompilerImpl return supported_options: %s", compilerOptionsStr.c_str());
     // vectorize string
     std::istringstream suppstream(compilerOptionsStr);
-    std::vector<std::string> compilerOpts = {};
+    std::vector<std::string> compilerOpts;
     std::string option;
     while (suppstream >> option) {
         compilerOpts.push_back(option);
