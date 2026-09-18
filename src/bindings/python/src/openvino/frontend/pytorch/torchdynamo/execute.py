@@ -349,7 +349,8 @@ class OpenVINOGraphModule(torch.nn.Module):
             )
             logger.debug("OpenVINO graph execution successful")
         except Exception as e:
-            logger.exception("OV partition %d execution failed; falling back to PyTorch", self.partition_id)
+            logger.debug("OV partition %d execution failed; falling back to PyTorch",
+                         self.partition_id, exc_info=True)
             if _no_fallback:
                 raise  # Fail loudly so we can see where OV actually breaks
             logger.debug(
@@ -423,9 +424,15 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
 def clear_caches():
     global partitioned_modules  # noqa: F824
     global compiled_cache  # noqa: F824
+    global structural_cache  # noqa: F824
+    global req_cache  # noqa: F824
 
     compiled_cache.clear()
     partitioned_modules.clear()
+    # structural_cache holds the compiled models reused across dynamo
+    # retraces, and req_cache their InferRequests
+    structural_cache.clear()
+    req_cache.clear()
     # Also clear vLLM side-channel caches when the subpackage is present.
     try:
         from openvino.frontend.pytorch.torchdynamo.vllm.side_channel import _pa_kv_ovt_cache

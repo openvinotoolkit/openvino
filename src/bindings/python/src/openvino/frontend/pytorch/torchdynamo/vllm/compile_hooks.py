@@ -395,6 +395,10 @@ def rewrite_fc_decompression(om):
     """
     from openvino import opset1 as _o1
     from openvino import Type
+    # (id(Constant), target type) -> decompression Convert. Tied weights
+    # (embedding and lm_head sharing one Constant) would otherwise get a
+    # Convert each, duplicating a 131-467 MB weight per extra MatMul.
+    _conv_cache = {}
     try:
         for mm in list(om.get_ordered_ops()):
             if mm.get_type_name() != "MatMul":
@@ -426,13 +430,23 @@ def rewrite_fc_decompression(om):
             w_et = const.get_element_type()
             if w_et not in (Type.f16, Type.bf16):
                 continue
-            conv_w = _o1.convert(const.output(0), "f32")
-            try:
-                # Key name matters: is_decompression() looks for exactly
-                # "decompression_0".
-                conv_w.get_rt_info()["decompression_0"] = True
-            except Exception:
-                pass
+            # Keyed on the Constant's stable node name, not id(): the Python
+            # wrapper is transient, so a GC'd address could be reused and
+            # alias the wrong Convert.
+            _conv_key = (const.get_friendly_name(), "f32")
+            _cached = _conv_cache.get(_conv_key)
+            if _cached is None:
+                conv_w = _o1.convert(const.output(0), "f32")
+                try:
+                    # Key name matters: is_decompression() looks for exactly
+                    # "decompression_0".
+                    conv_w.get_rt_info()["decompression_0"] = True
+                except Exception:
+                    pass
+                # Keep const alive alongside the Convert so the name stays valid.
+                _conv_cache[_conv_key] = (conv_w, const)
+            else:
+                conv_w = _cached[0]
             mm.input(1).replace_source_output(conv_w.output(0))
             # Upcast activation to f32; downcast each consumer of MatMul back.
             act_src = mm.input_value(0)
