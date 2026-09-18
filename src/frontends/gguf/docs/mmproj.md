@@ -21,8 +21,8 @@ Verified language architectures take priority over experimental registrations.
 | Dense Qwen3.5 | `qwen35` | `qwen3vl_merger` implemented | Real encoder comparison, preprocessing, multimodal positions, DeepStack assembly and cached generation |
 | MiniCPM-V/o resampler variants | Checkpoint-dependent `minicpm`, `llama`, `qwen2` | `resampler` implemented | Real checkpoint comparisons, tiling, query placement and GenAI adapter; audio qualified separately |
 | MiniCPM-V 4.6 | `qwen35` | `minicpmv4_6` implemented; window/downsample merger oracle passes | Real checkpoints and full pipeline validation |
-| Gemma4 | `gemma4` | `gemma4v`, `gemma4a`, `gemma4uv`, `gemma4ua` implemented | E2B dequantized F32 vision/audio encoder checks pass; other checkpoints, preprocessing and generation pending |
-| Pixtral / Mistral multimodal | Checkpoint-dependent `llama`, `mistral3` | `pixtral` implemented, including patch merger and row separators | Ministral 3 dequantized F32 encoder check passes; preprocessing and GenAI validation pending |
+| Gemma4 | `gemma4` | `gemma4v`, `gemma4a`, `gemma4uv`, `gemma4ua` implemented | E2B Q8 vision/audio pass against dequantized F32 reference; other checkpoints, preprocessing and generation pending |
+| Pixtral / Mistral multimodal | Checkpoint-dependent `llama`, `mistral3` | `pixtral` implemented, including patch merger and row separators | Ministral 3 Q8 passes against dequantized F32 reference; preprocessing and GenAI validation pending |
 | DeepSeek-OCR / OCR2 | `deepseek2-ocr` | `deepseekocr`, `deepseekocr2` implemented; SAM and projector oracles pass | Real checkpoints, crops/layout preprocessing and OCR generation |
 | Phi4 multimodal | `phi3` | `phi4` implemented; dynamic-resolution oracle passes | Real checkpoints, preprocessing and GenAI validation |
 | Eligible LLaVA variants | Checkpoint-dependent `llama`, `qwen2` | `mlp` implemented | Checkpoint-specific feature selection, image assembly and generation |
@@ -44,11 +44,11 @@ promise of support for every similarly named marketing release.
 | Vision | `idefics3`, `janus_pro`, `internvl` | Pass | Pending | Pending |
 | Vision | `resampler` | Pass, rectangular grids, explicit queries and legacy defaults | Pending | Pending |
 | Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | Pass, rectangular grids, temporal merging, window ordering and DeepStack | Pending | Pending |
-| Vision | `pixtral` | Pass, rectangular grids, patch merger, row separators | Pass, Ministral 3 dequantized F32 | Pending |
+| Vision | `pixtral` | Pass, rectangular grids, patch merger, row separators | Pass, Ministral 3 Q8 against dequantized F32 reference | Pending |
 | Vision | `phi4`, `minicpmv4_6` | Pass, resized positions / window attention and two-stage merging | Pending | Pending |
-| Vision | `gemma4v`, `gemma4uv` | Pass, two-axis positions, clipping, pooling / patch normalization | E2B `gemma4v` dequantized F32 passes; unified pending | Pending |
+| Vision | `gemma4v`, `gemma4uv` | Pass, two-axis positions, clipping, pooling / patch normalization | E2B `gemma4v` Q8 passes against dequantized F32 reference; unified pending | Pending |
 | Vision | `deepseekocr`, `deepseekocr2` | Pass, SAM local/global attention, position resize, tile rows, GQA, queries, overview separators | Pending | Pending |
-| Audio | `gemma4a`, `gemma4ua` | Pass, context boundaries, causal convolution / waveform frames | E2B `gemma4a` dequantized F32 passes; unified pending | Pending |
+| Audio | `gemma4a`, `gemma4ua` | Pass, context boundaries, causal convolution / waveform frames | E2B `gemma4a` Q8 passes against dequantized F32 reference; unified pending | Pending |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Pass | Pending | Pending |
 
 The legacy `qwen2.5o` name resolves to Qwen2.5 VL for vision and Qwen2 audio.
@@ -204,17 +204,37 @@ or conversation qualification.
 
 Further checkpoint evidence is recorded in
 [supported_backbones_validation.json](../tests/test_data/mmproj_accuracy/supported_backbones_validation.json).
-Gemma4 E2B vision/audio and Ministral 3 vision pass on F32 copies dequantized from
-published Q8_0 projector files (NMSE `2.95e-7`, `2.71e-8`, `4.72e-7`, respectively).
-These are encoder comparisons on synthetic media/features, not GenAI generation
-or publisher-F32 qualification. The original Q8_0 executions do not meet the strict
-`1e-5` encoder threshold and remain recorded failures.
+Gemma4 E2B vision/audio and Ministral 3 vision **pass with the published Q8_0 files
+on OpenVINO against a llama.cpp F32 reference** (NMSE `2.95e-7`, `2.71e-8`,
+`4.72e-7`, respectively). The reference copies are dequantized from those same
+Q8_0 files, preserving their represented weights. Acceptance requires finite
+normalized MSE strictly below `1e-5`; the report records the threshold and both
+checkpoint hashes. These are encoder comparisons on synthetic media/features,
+not GenAI generation or qualification against original publisher-F32 weights.
+
+Use this F32 reference for quantized encoder conversion acceptance. Comparisons
+against llama.cpp's quantized execution are separate diagnostics: its Q8 CPU
+matmuls quantize activations, whereas this OpenVINO validation disables dynamic
+activation quantization. Those comparisons exceed `1e-5` and are retained under
+`quantized_execution_diagnostics`, without determining frontend acceptance.
+OpenVINO Q8 versus OpenVINO dequantized F32 output NMSE is zero for Pixtral and
+below `7e-13` for both Gemma4 branches in the isolation runs. To measure error
+introduced when originally quantizing a checkpoint, use the publisher's matching
+unquantized weights instead and qualify an appropriate threshold separately.
 
 The pinned `llama-quantize` rejects `clip` files; use the offline
-`tests/dequantize_mmproj.py` with the pinned gguf-py for the F32 copies.
-`validate_mmproj.py` accepts `--width`, `--height` and `--modality audio`, and extracts
-only the requested branch of combined models. Remaining real-checkpoint gaps include
-Phi4, MiniCPM-V 4.6, OCR/OCR2 and the Gemma4 unified variants.
+`tests/dequantize_mmproj.py` with the pinned gguf-py for the F32 copies:
+
+```sh
+PYTHONPATH=<llama.cpp>/gguf-py python3 tests/dequantize_mmproj.py mmproj-Q8_0.gguf mmproj-dequant-F32.gguf
+python3 tests/validate_mmproj.py mmproj-Q8_0.gguf --reference-model mmproj-dequant-F32.gguf --oracle /path/to/mmproj_oracle --nmse-threshold 1e-5 --report encoder.json
+```
+
+Omitting `--reference-model` runs the same checkpoint in both runtimes, preserving
+the previous diagnostic behavior. `validate_mmproj.py` also accepts `--width`,
+`--height` and `--modality audio`, and extracts only the requested branch of
+combined models. Remaining real-checkpoint gaps include Phi4, MiniCPM-V 4.6,
+OCR/OCR2 and the Gemma4 unified variants.
 
 ## Remaining reference coverage
 
