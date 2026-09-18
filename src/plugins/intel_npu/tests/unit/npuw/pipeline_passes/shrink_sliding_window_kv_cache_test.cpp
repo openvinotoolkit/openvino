@@ -25,9 +25,12 @@
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
@@ -260,6 +263,57 @@ TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_SlidingKVShapeConstantsPatc
 
     // Sliding layers (0, 2) only, each patching its K and V repeat_kv Broadcast.
     EXPECT_EQ(num_patched, 4u);
+}
+
+// Regression test for scan_kv_path's CSE-shared-node handling: two sliding layers whose
+// K-path Reshape/Broadcast target-shape subgraph is the *same* node instance (as CSE would
+// produce when two layers build structurally identical repeat_kv chains). The second layer's
+// walk-back reaches an already-patched node (kv_axis == new_kv_total) and must skip it instead
+// of tripping the "expected kvcache_size or -1" assertion.
+TEST_F(ShrinkSlidingWindowKVCacheTest, GenerateModel_SharedKVShapeSubgraphAcrossLayers_DoesNotThrow) {
+    auto model = build_hybrid_gqa_model();
+    ov::npuw::AddPositionIdsParam().run_on_model(model);
+    ov::pass::StatefulToStateless().run_on_model(model);
+    ov::npuw::DetectAttentionMask().run_on_model(model);
+    ov::npuw::ReshapeToStatic(kGenerateInputSize,
+                              kKvCacheSize,
+                              kAxes,
+                              /*lora_rank=*/0,
+                              /*lhs_seq_size=*/0,
+                              /*is_prefill=*/false)
+        .run_on_model(model);
+
+    // Force layer 2 (sliding) to consume layer 0's (also sliding) K-path Reshape/Broadcast
+    // output directly, simulating the node CSE that motivated the fix.
+    auto sdpa_map = sdpa_by_layer(model);
+    ASSERT_EQ(sdpa_map.size(), kNumLayers);
+    const auto shared_k_source = sdpa_map.at(0)->input_value(1);
+    sdpa_map.at(2)->input(1).replace_source_output(shared_k_source);
+
+    ASSERT_NO_THROW(ov::npuw::ShrinkSlidingWindowKVCache(kKvCacheSize, kGenerateInputSize, kAxes).run_on_model(model));
+
+    // Walk back from the shared node to the first Reshape/Broadcast that actually carries the
+    // KV extent (kv_axis != -1) and confirm it moved away from the stale full kvcache_size,
+    // rather than being left stale or rejected by the "expected kvcache_size or -1" assertion.
+    auto cur = shared_k_source.get_node_shared_ptr();
+    bool found_patched = false;
+    while (cur && !ov::is_type<ov::op::v0::Concat>(cur)) {
+        if (ov::is_type<ov::op::v1::Reshape>(cur) || ov::is_type<ov::op::util::BroadcastBase>(cur)) {
+            auto folded = ov::util::get_constant_from_source(cur->input_value(1));
+            ASSERT_TRUE(folded) << cur->get_type_name();
+            const auto vals = folded->cast_vector<int64_t>();
+            ASSERT_GE(vals.size(), 2u);
+            const int64_t kv_axis_val = vals[vals.size() - 2];
+            if (kv_axis_val != -1) {
+                EXPECT_NE(kv_axis_val, static_cast<int64_t>(kKvCacheSize))
+                    << "shared node must be patched away from the stale full kvcache_size";
+                found_patched = true;
+                break;
+            }
+        }
+        cur = cur->input_value(0).get_node_shared_ptr();
+    }
+    EXPECT_TRUE(found_patched) << "expected the shared K-path target-shape node to carry a concrete KV extent";
 }
 
 // SWA window-size detection is internal to the pass, exercised here indirectly through
