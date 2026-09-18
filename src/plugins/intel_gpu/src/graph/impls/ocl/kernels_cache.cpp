@@ -417,7 +417,7 @@ void kernels_cache::build_all() {
     // build_batch crashes randomly when threaded while running from a Microsoft Store app
     // it seems to be a bug in Intel's graphics driver, disabling threading is a work around
     auto use_threads{true};
-#if defined(WIN32) && defined(NTDDI_WIN10_RS5)
+#if defined(_WIN32) && defined(NTDDI_WIN10_RS5)
     UINT32 length{0};
     auto error_code{GetCurrentPackageFullName(&length, nullptr)};
     // If we get this error, it means we're a regular desktop application, and we can use threads

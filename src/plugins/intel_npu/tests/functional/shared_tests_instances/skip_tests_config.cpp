@@ -95,7 +95,7 @@ private:
 class CurrentOS {
 public:
     CurrentOS() {
-#ifdef WIN32
+#ifdef _WIN32
         _name = "windows";
 #elif defined(__linux__)
         _name = "linux";
