@@ -199,35 +199,58 @@ TEST_F(GGUFMMProj, ResamplerRequiresQueryNormalization) {
     }
 }
 
-class GGUFMMProjAccuracy : public ::testing::TestWithParam<const char*> {};
+class GGUFMMProjAccuracy : public ::testing::TestWithParam<const char*> {
+protected:
+    cnpy::npz_t arrays;
+    std::shared_ptr<ov::Model> model;
+    ov::Core core;
+    std::string model_path =
+        (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
 
-TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
-    const auto path =
-        (std::filesystem::path(ov_gguf_test::test_data_dir()) / "mmproj_accuracy" / (std::string(GetParam()) + ".npz"))
-            .string();
-    const auto arrays = cnpy::npz_load(path);
-    const auto array = [&](const char* name) -> const cnpy::NpyArray& {
+    const cnpy::NpyArray& array(const std::string& name) const {
         auto it = std::find_if(arrays.begin(), arrays.end(), [&](const auto& entry) {
             return entry.first == name;
         });
         OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
         return it->second;
-    };
-    struct Temporary {
-        std::string path =
-            (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
-        ~Temporary() {
-            std::filesystem::remove(path);
-        }
-    } model_file;
-    {
-        std::ofstream file(model_file.path, std::ios::binary);
-        const auto& bytes = array("model");
-        file.write(bytes.data<char>(), bytes.num_vals);
-        ASSERT_TRUE(file);
     }
-    ov::frontend::gguf::FrontEnd frontend;
-    auto model = frontend.convert(frontend.load(model_file.path));
+    void SetUp() override {
+        arrays = cnpy::npz_load((std::filesystem::path(ov_gguf_test::test_data_dir()) / "mmproj_accuracy" /
+                                 (std::string(GetParam()) + ".npz"))
+                                    .string());
+        {
+            std::ofstream file(model_path, std::ios::binary);
+            const auto& bytes = array("model");
+            file.write(bytes.data<char>(), bytes.num_vals);
+            ASSERT_TRUE(file);
+        }
+        ov::frontend::gguf::FrontEnd frontend;
+        model = frontend.convert(frontend.load(model_path));
+    }
+    void TearDown() override {
+        std::filesystem::remove(model_path);
+    }
+    ov::InferRequest compile(const std::shared_ptr<ov::Model>& current) {
+        return core
+            .compile_model(current,
+                           "CPU",
+                           ov::hint::inference_precision(ov::element::f32),
+                           ov::hint::dynamic_quantization_group_size(0),
+                           ov::inference_num_threads(2))
+            .create_infer_request();
+    }
+    ov::Tensor tensor(const std::string& name, ov::element::Type type) const {
+        const auto& values = array(name);
+        ov::Tensor result(type, values.shape);
+        OPENVINO_ASSERT(result.get_byte_size() == values.num_vals * values.word_size,
+                        "Reference tensor type mismatch: ",
+                        name);
+        std::memcpy(result.data(), values.data<char>(), result.get_byte_size());
+        return result;
+    }
+};
+
+TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     if (std::string(GetParam()).find("resampler") == 0) {
         const std::string name = GetParam();
         EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.query_count"}),
@@ -239,19 +262,10 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
                   : name == "resampler_v4" ? "4"
                                            : "3");
     }
-    ov::Core core;
-    auto request = core.compile_model(model,
-                                      "CPU",
-                                      ov::hint::inference_precision(ov::element::f32),
-                                      ov::hint::dynamic_quantization_group_size(0),
-                                      ov::inference_num_threads(2))
-                       .create_infer_request();
+    auto request = compile(model);
     const auto& inputs = array("inputs");
-    ov::Tensor data(ov::element::f32, inputs.shape);
-    std::memcpy(data.data(), inputs.data<float>(), data.get_byte_size());
-    const bool audio = std::string(GetParam()) == "qwen2a" || std::string(GetParam()) == "ultravox" ||
-                       std::string(GetParam()).find("voxtral") == 0 || std::string(GetParam()) == "musicflamingo" ||
-                       std::string(GetParam()) == "meralion" || std::string(GetParam()) == "glma";
+    auto data = tensor("inputs", ov::element::f32);
+    const bool audio = model->has_rt_info({"gguf_mmproj", "audio.projector"});
     request.set_tensor(audio ? "audio.features" : "vision.pixel_values", data);
     if (audio) {
         const auto frames = inputs.shape.back() / 2;
@@ -263,10 +277,7 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     for (const auto& input : model->inputs()) {
         const auto name = input.get_any_name();
         if (name.rfind("vision.", 0) == 0 && name != "vision.pixel_values") {
-            const auto& values = array(name.substr(7).c_str());
-            ov::Tensor tensor(input.get_element_type(), values.shape);
-            std::memcpy(tensor.data(), values.data<char>(), tensor.get_byte_size());
-            request.set_tensor(name, tensor);
+            request.set_tensor(name, tensor(name.substr(7), input.get_element_type()));
         }
     }
     request.infer();
@@ -289,12 +300,7 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     auto adapted = model->clone();
     using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
     Adapter(audio ? Adapter::Modality::Audio : Adapter::Modality::Vision).run_on_model(adapted);
-    auto adapted_request = core.compile_model(adapted,
-                                              "CPU",
-                                              ov::hint::inference_precision(ov::element::f32),
-                                              ov::hint::dynamic_quantization_group_size(0),
-                                              ov::inference_num_threads(2))
-                               .create_infer_request();
+    auto adapted_request = compile(adapted);
     for (const auto& input : adapted->inputs())
         adapted_request.set_tensor(
             input.get_any_name(),
@@ -317,55 +323,21 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     }
 }
 
-class GGUFMMProjDynamicAccuracy : public ::testing::TestWithParam<const char*> {};
+class GGUFMMProjDynamicAccuracy : public GGUFMMProjAccuracy {};
 
 TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
-    const auto path =
-        (std::filesystem::path(ov_gguf_test::test_data_dir()) / "mmproj_accuracy" / (std::string(GetParam()) + ".npz"))
-            .string();
-    const auto arrays = cnpy::npz_load(path);
-    const auto array = [&](const std::string& name) -> const cnpy::NpyArray& {
-        auto it = std::find_if(arrays.begin(), arrays.end(), [&](const auto& entry) {
-            return entry.first == name;
-        });
-        OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
-        return it->second;
-    };
-    struct Temporary {
-        std::string path =
-            (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
-        ~Temporary() {
-            std::filesystem::remove(path);
-        }
-    } file;
-    {
-        std::ofstream stream(file.path, std::ios::binary);
-        const auto& bytes = array("model");
-        stream.write(bytes.data<char>(), bytes.num_vals);
-        ASSERT_TRUE(stream);
-    }
-    ov::frontend::gguf::FrontEnd frontend;
-    auto model = frontend.convert(frontend.load(file.path));
-    ov::Core core;
     for (bool adapt : {false, true}) {
         auto current = model->clone();
-        const bool audio = std::string(GetParam()).find("gemma4a") == 0 || std::string(GetParam()) == "gemma4ua";
+        const bool audio = model->has_rt_info({"gguf_mmproj", "audio.projector"});
         using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
         if (adapt)
             Adapter(audio ? Adapter::Modality::Audio : Adapter::Modality::Vision).run_on_model(current);
-        auto request = core.compile_model(current,
-                                          "CPU",
-                                          ov::hint::inference_precision(ov::element::f32),
-                                          ov::hint::dynamic_quantization_group_size(0),
-                                          ov::inference_num_threads(2))
-                           .create_infer_request();
+        auto request = compile(current);
         for (int step : {0, 1, 0}) {
             for (const auto& input : current->inputs()) {
                 const auto name = input.get_any_name();
-                const auto& values = array(std::to_string(step) + "." + (adapt ? name : name.substr(audio ? 6 : 7)));
-                ov::Tensor tensor(input.get_element_type(), values.shape);
-                std::memcpy(tensor.data(), values.data<char>(), tensor.get_byte_size());
-                request.set_tensor(name, tensor);
+                const auto key = std::to_string(step) + "." + (adapt ? name : name.substr(audio ? 6 : 7));
+                request.set_tensor(name, tensor(key, input.get_element_type()));
             }
             request.infer();
             const auto output = request.get_output_tensor();
@@ -393,6 +365,7 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "pixtral_merge",
                                            "phi4",
                                            "gemma4v",
+                                           "gemma4v_one_sided",
                                            "gemma4uv",
                                            "gemma4ua",
                                            "minicpmv4_6",

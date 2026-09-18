@@ -17,7 +17,8 @@ import numpy as np
 
 
 def write_model(path, family):
-    family = family.removesuffix("_resize").removesuffix("_overview")
+    one_sided = family.endswith("_one_sided")
+    family = family.removesuffix("_resize").removesuffix("_overview").removesuffix("_one_sided")
     audio = family in {"gemma4ua", "gemma4a"}
     width, heads, hidden, output = 16, 2, 24, 12
     prefix, modality = ("a.", "audio") if audio else ("v.", "vision")
@@ -171,8 +172,10 @@ def write_model(path, family):
                     norm(p + "attn_k_norm", width // heads, False)
                     # Nontrivial clipping catches omission or bias/clamp ordering errors.
                     for side in ("input", "output"):
-                        w.add_tensor(p + f"attn_q.{side}_min", np.array([-.2], np.float32))
-                        w.add_tensor(p + f"attn_q.{side}_max", np.array([.25], np.float32))
+                        if not one_sided or i == 0:
+                            w.add_tensor(p + f"attn_q.{side}_min", np.array([-.2], np.float32))
+                        if not one_sided or i == 1:
+                            w.add_tensor(p + f"attn_q.{side}_max", np.array([.25], np.float32))
                 linear(p + "ffn_up", width, hidden)
                 linear(p + "ffn_down", hidden, width)
                 if family.startswith("pixtral") or family in {"gemma4v", "deepseekocr2"}:
@@ -186,7 +189,7 @@ def write_model(path, family):
 
 def inputs(family, width, height):
     overview = family.endswith("_overview")
-    family = family.removesuffix("_resize").removesuffix("_overview")
+    family = family.removesuffix("_resize").removesuffix("_overview").removesuffix("_one_sided")
     raw = np.random.default_rng(42).normal(.1, .4, (height, width) if family in {"gemma4ua", "gemma4a"} else (height, width, 3)).astype(np.float32)
     if family == "gemma4ua":
         return raw, {"waveform_frames": raw.T.reshape(1, 1, width, height)}
@@ -254,7 +257,11 @@ def main():
     parser.add_argument("--oracle", type=Path, required=True)
     parser.add_argument("--geometry-oracle", type=Path, help="Optional mmproj_ops_oracle executable")
     parser.add_argument("--output", type=Path, default=Path(__file__).parent / "test_data/mmproj_accuracy")
-    parser.add_argument("--families", nargs="+", default=["pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4ua", "minicpmv4_6", "gemma4a", "deepseekocr", "deepseekocr2", "deepseekocr_resize", "deepseekocr_overview", "deepseekocr2_overview"])
+    parser.add_argument("--families", nargs="+", default=[
+        "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4ua",
+        "gemma4v_one_sided", "minicpmv4_6", "gemma4a", "deepseekocr", "deepseekocr2", "deepseekocr_resize",
+        "deepseekocr_overview", "deepseekocr2_overview",
+    ])
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     if args.geometry_oracle:
@@ -269,11 +276,24 @@ def main():
             model = d / "model.gguf"
             out = write_model(model, family)
             fixtures = {"model": np.frombuffer(model.read_bytes(), np.uint8)}
-            for step, (width, height) in enumerate([(768, 768), (1024, 1024)] if family.startswith("deepseekocr2") else [(128, 128), (512, 512)] if family == "deepseekocr_resize" else [(256, 256), (256, 256)] if family == "deepseekocr_overview" else [(256, 256), (256, 512)] if family == "deepseekocr" else [(49, 8), (101, 8)] if family == "gemma4a" else [(3, 640), (5, 640)] if family == "gemma4ua" else [(16, 8), (8, 24)]):
+            sizes = {
+                "deepseekocr2": [(768, 768), (1024, 1024)],
+                "deepseekocr2_overview": [(768, 768), (1024, 1024)],
+                "deepseekocr_resize": [(128, 128), (512, 512)],
+                "deepseekocr_overview": [(256, 256), (256, 256)],
+                "deepseekocr": [(256, 256), (256, 512)],
+                "gemma4a": [(49, 8), (101, 8)],
+                "gemma4ua": [(3, 640), (5, 640)],
+            }.get(family, [(16, 8), (8, 24)])
+            modality = "audio" if family in {"gemma4ua", "gemma4a"} else "vision"
+            environment = dict(os.environ)
+            if family.endswith("_overview"):
+                environment["GGUF_ORACLE_OVERVIEW"] = "1"
+            for step, (width, height) in enumerate(sizes):
                 raw, values = inputs(family, width, height)
                 raw.tofile(d / "input.bin")
-                subprocess.run([str(args.oracle.resolve()), str(model), "audio" if family in {"gemma4ua", "gemma4a"} else "vision",
-                                str(width), str(height), str(d / "input.bin"), str(d / "output.bin")], check=True, env={**os.environ, **({"GGUF_ORACLE_OVERVIEW": "1"} if family.endswith("_overview") else {})})
+                subprocess.run([str(args.oracle.resolve()), str(model), modality, str(width), str(height),
+                                str(d / "input.bin"), str(d / "output.bin")], check=True, env=environment)
                 values["embeddings"] = np.fromfile(d / "output.bin", np.float32).reshape(1, 1, -1, out)
                 fixtures.update({f"{step}.{k}": np.ascontiguousarray(v) for k, v in values.items()})
             np.savez_compressed(args.output / f"{family}.npz", **fixtures)
