@@ -97,9 +97,9 @@ TEST(BoundEvaluatorTest, reduce_prod_no_bounds_for_possibly_negative_data) {
     const auto axes = Constant::create(element::i64, Shape{1}, {0});
     const auto prod = std::make_shared<ReduceProd>(shifted, axes, false);
 
-    const auto bounds = ov::util::evaluate_both_bounds(prod->output(0));
-    EXPECT_FALSE(bounds.first);
-    EXPECT_FALSE(bounds.second);
+    const auto& [lower, upper] = ov::util::evaluate_both_bounds(prod->output(0));
+    EXPECT_FALSE(lower);
+    EXPECT_FALSE(upper);
 }
 
 TEST(BoundEvaluatorTest, reduce_prod_bounds_for_non_negative_data) {
@@ -108,8 +108,8 @@ TEST(BoundEvaluatorTest, reduce_prod_bounds_for_non_negative_data) {
     const auto axes = Constant::create(element::i64, Shape{1}, {0});
     const auto prod = std::make_shared<ReduceProd>(shape, axes, false);
 
-    const auto bounds = ov::util::evaluate_both_bounds(prod->output(0));
-    ASSERT_TRUE(bounds.first && bounds.second);
-    EXPECT_EQ(bounds.first.data<int64_t>()[0], 1);
-    EXPECT_EQ(bounds.second.data<int64_t>()[0], 6);
+    const auto& [lower, upper] = ov::util::evaluate_both_bounds(prod->output(0));
+    ASSERT_TRUE(lower && upper);
+    EXPECT_EQ(lower.data<int64_t>()[0], 1);
+    EXPECT_EQ(upper.data<int64_t>()[0], 6);
 }
