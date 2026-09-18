@@ -369,4 +369,13 @@ TEST_F(Flux2CompiledModelTest, ImportRejectsExcessiveSerializationVersionLengthB
                                   "is outside bounds [4, 4]");
 }
 
+TEST_F(Flux2CompiledModelTest, ImportRejectsShortSerializationVersionLength) {
+    const auto header = make_flux2_header(3u, "0.3");
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::Flux2CompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "is outside bounds [4, 4]");
+}
+
 }  // namespace

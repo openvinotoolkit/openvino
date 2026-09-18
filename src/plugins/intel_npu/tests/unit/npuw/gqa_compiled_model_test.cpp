@@ -448,6 +448,15 @@ TEST_F(GQACompiledModelTest, ImportRejectsExcessiveSerializationVersionLengthBef
                                   "is outside bounds [4, 4]");
 }
 
+TEST_F(GQACompiledModelTest, ImportRejectsShortSerializationVersionLength) {
+    const auto header = make_gqa_header(3u, "0.3");
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "is outside bounds [4, 4]");
+}
+
 TEST_F(GQACompiledModelTest, BoundedSerializationVersionReadAcceptsCurrentVersion) {
     std::ostringstream encoded;
     ov::npuw::s11n::write(encoded, std::string(NPUW_SERIALIZATION_VERSION));

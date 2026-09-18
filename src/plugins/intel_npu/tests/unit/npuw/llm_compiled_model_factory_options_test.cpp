@@ -1028,4 +1028,13 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ImportRejectsExcessiveSerializationVe
                                   "is outside bounds [4, 4]");
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, ImportRejectsShortSerializationVersionLength) {
+    const auto header = make_llm_header(3u, "0.3");
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::LLMCompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "is outside bounds [4, 4]");
+}
+
 }  // namespace
