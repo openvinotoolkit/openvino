@@ -59,15 +59,6 @@ static bool interleaved_reversed_gws(const RuntimeParams& params) {
     return cfg.is_interleaved && !cfg.is_qwen && !cfg.is_chatglm && !cfg.is_ltx_video && !cfg.support_3d_rope;
 }
 
-// Upstream reverses the rotate-half dispatch only at vec_size 1, so a vectorised rotate-half
-// keeps BATCH on the fast dimension and its subgroups straddle whole tensors. The reversal is
-// just as valid vectorised: the kernel already reads b from gws dim 2 under REVERSED_GWS.
-static bool half_reversed_gws(const RuntimeParams& params, size_t vec_size) {
-    auto desc = params.typed_desc<rope>();
-    const auto& cfg = desc->config;
-    return !cfg.is_interleaved && vec_size > 1 && !cfg.is_qwen && !cfg.is_chatglm && !cfg.is_ltx_video && !cfg.support_3d_rope;
-}
-
 class RopeGenerator : public KernelGenerator {
 public:
     RopeGenerator() : KernelGenerator("rope_opt") {}
@@ -125,7 +116,7 @@ protected:
             }
         } else {
             jit.make("RotateHalf", true);
-            if (get_vec_size(params) == 1 || half_reversed_gws(params, get_vec_size(params))) {
+            if (get_vec_size(params) == 1) {
                 jit.make("REVERSED_GWS", true);
             }
         }
@@ -223,21 +214,13 @@ protected:
                     return size_t{1};
                 };
 
-                if (half_reversed_gws(params, vec_size)) {
-                    std::swap(wgs.global[0], wgs.global[2]);
-                    // gws0 is a multiple of the rotary half-width here, so a whole number of
-                    // 16-wide subgroups fits and every lane stays inside one row.
-                    const size_t l0 = wgs.global[0] % 32 == 0 ? 32 : (wgs.global[0] % 16 == 0 ? 16 : 1);
-                    wgs.local = {l0, largest_divisor(wgs.global[1], std::max(size_t{1}, 256 / l0)), 1};
-                    return;
-                }
-
                 if (interleaved_reversed_gws(params)) {
                     std::swap(wgs.global[0], wgs.global[2]);
-                    // Keep dim 0 whole where possible so a subgroup stays inside one row, then
-                    // spend what is left of the workgroup budget on the sequence dimension.
-                    const size_t l0 = largest_divisor(wgs.global[0], 32);
-                    wgs.local = {l0, largest_divisor(wgs.global[1], std::max(size_t{1}, 256 / l0)), 1};
+                    // Take as much of dim 0 as divides it, up to two subgroups, then spend what is
+                    // left of the workgroup budget on the sequence dimension.
+                    const size_t max_lws = params.get_device_info().max_work_group_size;
+                    const size_t l0 = largest_divisor(wgs.global[0], std::min<size_t>(32, max_lws));
+                    wgs.local = {l0, largest_divisor(wgs.global[1], std::max(size_t{1}, max_lws / l0)), 1};
                     return;
                 }
 

@@ -4,8 +4,7 @@
 
 #include "rope_sdpa_fusion.hpp"
 
-#include <cstdlib>
-#include <string>
+#include <vector>
 
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/sdpa.hpp"
@@ -18,19 +17,42 @@
 
 namespace ov::intel_gpu {
 
-// The kernel indexes the table as (batch, token, head_size) halves, so the leading dims have to
-// collapse to batch*tokens with head_size innermost and nothing else in between. That is a product
-// over an unknown number of dimensions, so it stays out of the pattern.
+// The kernel reads the table densely as (batch, tokens, head_size) halves: row stride head_size,
+// batch stride tokens*head_size. So head_size has to be innermost and the dimensions carrying
+// batch and tokens have to appear in that order with nothing but unit dims around them. Matching
+// on the product instead would admit [1, batch*tokens, 1, head_size], which is the same element
+// count laid out so that the reference RoPE kernel and this one read different elements. Unit
+// dimensions do not move anything in memory, so they are dropped rather than rejected.
 static bool is_flat_cos_sin(const ov::Output<ov::Node>& out, int64_t batch, int64_t tokens, int64_t head_size) {
     const auto& pshape = out.get_partial_shape();
     if (pshape.is_dynamic() || pshape.size() < 2)
         return false;
     if (pshape[pshape.size() - 1].get_length() != head_size)
         return false;
-    int64_t lead = 1;
-    for (size_t i = 0; i + 1 < pshape.size(); i++)
-        lead *= pshape[i].get_length();
-    return lead == batch * tokens;
+
+    // The token axis is the one the kernel strides by head_size, so it has to be the innermost
+    // leading dimension that carries anything. Matching it by value anywhere in the shape would
+    // accept a table whose batch and token axes are swapped whenever one of the two happens to
+    // be 1 -- same element count, different arrangement, and the kernel reads the wrong rows.
+    size_t lead = pshape.size() - 1;
+    if (tokens != 1) {
+        while (lead > 1 && pshape[lead - 1].get_length() == 1)
+            lead--;
+    }
+    if (lead == 0 || pshape[lead - 1].get_length() != tokens)
+        return false;
+
+    std::vector<int64_t> outer;
+    for (size_t i = 0; i + 1 < lead; i++) {
+        const int64_t dim = pshape[i].get_length();
+        if (dim != 1)
+            outer.push_back(dim);
+    }
+
+    std::vector<int64_t> expected;
+    if (batch != 1)
+        expected.push_back(batch);
+    return outer == expected;
 }
 
 RoPESDPAFusion::RoPESDPAFusion() {
@@ -47,7 +69,7 @@ RoPESDPAFusion::RoPESDPAFusion() {
         },
         "plain_sdpa()");
 
-    // Q side of a rotate-half RoPE: exactly three inputs, f16 in and out because that is all the
+    // Q side of an interleaved RoPE: exactly three inputs, f16 in and out because that is all the
     // fused rotation in the micro-kernel reads, and a rank-4 [batch, tokens, heads, head_size] Q
     // whose three indexed dimensions the callback then requires to be constants.
     auto x_m = any_input(shape_matches("[batch, tokens, ?, head_size]"));
@@ -57,7 +79,9 @@ RoPESDPAFusion::RoPESDPAFusion() {
                                                     consumers_count(1) && type_matches(ov::element::f16));
 
     // SDPA carries three to five inputs; spelling each arity out is what pins the RoPE to Q at
-    // input 0 inside the pattern, since argument matching requires an exact input count.
+    // input 0 inside the pattern, since argument matching requires an exact input count. A sixth
+    // input (the attention sink) is deliberately absent: the fusion appends cos/sin after the
+    // existing inputs, and the generator reads them as the last two, which a sink would displace.
     auto k_m = any_input();
     auto v_m = any_input();
     auto sdpa_qkv_m = wrap_type<ov::intel_gpu::op::SDPA>({rope_m, k_m, v_m}, plain_sdpa);
@@ -75,6 +99,21 @@ RoPESDPAFusion::RoPESDPAFusion() {
         if (!cfg.is_interleaved || cfg.input_trans0213 || cfg.output_trans0213 || cfg.is_chatglm ||
             cfg.is_qwen || cfg.support_2d_rope || cfg.support_3d_rope || cfg.is_ltx_video ||
             cfg.use_rope_cache || cfg.gather_position_arg_id != 0 || cfg.slice_start != cfg.slice_stop)
+            return false;
+
+        // The kernel indexes the cos/sin table with the sequence length and head size it reads
+        // through input_q_transpose_order, while the pattern binds them from Q's physical shape.
+        // Those coincide only for the canonical [batch, tokens, heads, head_size] -> BHLS order,
+        // and any other permutation makes the kernel walk the table along the wrong axis.
+        static const std::vector<int64_t> bhls_from_btns{0, 2, 1, 3};
+        if (sdpa->get_input0_transpose_order() != bhls_from_btns)
+            return false;
+
+        // An i8 key selects the integer K^T*Q contraction, whose contract is that Q already holds
+        // exact integer codes so the micro-kernel's rounding into SLM is lossless. A rotation
+        // mixes two codes per output element, so the rotated value is neither integral nor
+        // bounded by the original code range -- it saturates. The two cannot both apply.
+        if (sdpa->get_input_element_type(1) == ov::element::i8)
             return false;
 
         // shape_matches also binds a dynamic dimension that carries a symbol; the three the kernel
@@ -111,7 +150,8 @@ RoPESDPAFusion::RoPESDPAFusion() {
                                                                  sdpa->get_input2_transpose_order(),
                                                                  sdpa->get_output_transpose_order(),
                                                                  sdpa->get_output_type(),
-                                                                 true);
+                                                                 true,
+                                                                 sdpa->get_causal_mask_alignment());
         new_sdpa->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(ov::NodeVector{rope, sdpa}, new_sdpa);
         ov::replace_node(sdpa, new_sdpa);

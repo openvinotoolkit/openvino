@@ -653,7 +653,7 @@ KERNEL(rope_opt)(
 #else
     *(half16*)(output + output_idx + r) = outputv1;
     *(half16*)(output + output_idx + r + VEC_SIZE) = outputv2;
-    #endif
+#endif
 #endif
 #endif
 }

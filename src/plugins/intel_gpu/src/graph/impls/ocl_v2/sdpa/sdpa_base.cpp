@@ -413,12 +413,24 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
     return jit;
 }
 
+// A fused Q rotation appends two cos/sin tables after the mask and scale slots. They are not
+// data inputs, and canonicalising one of them as if it were the attention mask would rewrite its
+// rank while the other keeps the generic treatment -- two tables the kernel indexes identically
+// would then disagree.
+static size_t sdpa_inputs_before_rope_tables(const kernel_impl_params& impl_params) {
+    const size_t inputs_num = impl_params.input_layouts.size();
+    if (impl_params.is_type<scaled_dot_product_attention>() && impl_params.typed_desc<scaled_dot_product_attention>()->has_rope_q) {
+        return inputs_num - 2;
+    }
+    return inputs_num;
+}
+
 bool SDPABase::requires_shape_canonicalization(const kernel_impl_params& impl_params) {
     auto extend_output = impl_params.output_layouts[0].get_partial_shape().size() < 4;
     auto extend_attn_mask = false;
     // According to SDPA specification, attention mask should have 2-dimensions or more or empty
     size_t attn_mask_idx = 3;
-    if (impl_params.input_layouts.size() > attn_mask_idx) {
+    if (sdpa_inputs_before_rope_tables(impl_params) > attn_mask_idx) {
         const auto& attn_mask_shape = impl_params.get_input_layout(attn_mask_idx).get_partial_shape();
         extend_attn_mask = attn_mask_shape.size() != 0 && attn_mask_shape.size() < 4;
     }
@@ -453,11 +465,11 @@ kernel_impl_params SDPABase::static_canonicalize_shapes(const kernel_impl_params
         return padding(pad_low, pad_up, input_padding._dynamic_dims_mask);
     };
 
-    const auto attn_mask_idx = 3;
+    const size_t attn_mask_idx = 3;
     // An attention_mask input with an empty (rank 0) shape is just a placeholder (e.g. used when only a
     // scalar attn_mask_val is provided, or no mask is used at all) and must remain scalar - do not extend
     // it to a false higher-rank shape, otherwise it becomes indistinguishable from a real static mask.
-    if (updated_impl_params.input_layouts.size() > attn_mask_idx) {
+    if (sdpa_inputs_before_rope_tables(updated_impl_params) > attn_mask_idx) {
         const auto attn_mask_shape = updated_impl_params.input_layouts[attn_mask_idx].get_partial_shape();
         if (attn_mask_shape.size() != 0) {
             updated_impl_params.input_layouts[attn_mask_idx].set_partial_shape(extend_shape_to_rank_from_begin(attn_mask_shape));

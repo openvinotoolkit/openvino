@@ -205,12 +205,12 @@ TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
 }
 
 TransposeSDPAMatcher::TransposeSDPAMatcher() {
-    // i8 and u8 are accepted alongside the float types because micro-SDPA can contract
-    // an integer K on the systolic pipe. This matcher folds q, k and v ALL-OR-NOTHING, so a
-    // single narrowed operand rejecting here does not merely leave one transpose materialised
-    // -- it materialises all three and, downstream, un-fuses the q-side RoPE as well.
+    // i8 joins the float types because micro-SDPA can contract an s8 key on the systolic pipe.
+    // This matcher folds q, k and v all-or-nothing, so one narrowed operand rejecting here
+    // materialises all three transposes rather than only its own. u8 is deliberately absent:
+    // neither SDPA implementation manager accepts a u8 key or value.
     auto supported_types = op::SDPA::get_supported_precisions();
-    supported_types.insert(supported_types.end(), {ov::element::i8, ov::element::u8});
+    supported_types.push_back(ov::element::i8);
     auto is_supported_type = type_matches_any(supported_types);
     auto not_transpose = [is_supported_type](const ov::Output<ov::Node>& output) -> bool {
         return ov::as_type_ptr<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr && is_supported_type(output);
