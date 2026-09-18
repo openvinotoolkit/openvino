@@ -55,15 +55,18 @@ public:
 };
 
 /// This transformation handles the non-constant case where a binary element-wise op
-/// consumes the output of a unit-dimension Unsqueeze/Reshape whose producer is a
-/// "fusable" op (one that can absorb the eltwise as a post-op, e.g. FullyConnected,
-/// MatMul, Transpose). Instead of reshaping the other input (which is not a constant),
-/// it squeezes the other input's unit dimension, performs the eltwise in the lower rank,
+/// consumes the output of an op that inserts a single unit dimension (Unsqueeze or a
+/// rank-increasing Reshape) whose producer is a "fusable" op (one that can absorb the
+/// eltwise as a post-op, e.g. FullyConnected, MatMul, Transpose). Instead of reshaping
+/// the other input (which is not a constant), it squeezes the other input's unit
+/// dimension, performs the eltwise in the lower rank,
 /// and unsqueezes the result:
 ///     Eltwise(R, Unsqueeze(P, axis))
 ///       => Unsqueeze(Eltwise(Squeeze(R, axis), P), axis)
 ///
 /// so the eltwise operates in the lower rank and can be fused as a post-op on P.
+/// For non-commutative element-wise ops the fusable producer has to be the first eltwise input,
+/// otherwise fusing it would reverse the operation.
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMovFusableProducer : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("MoveEltwiseUpThroughDataMovFusableProducer");
@@ -72,11 +75,10 @@ public:
     ///        compile-time wrap_type<...>()) because callers may include plugin-private
     ///        ops that are not visible to this device-agnostic common transformation,
     ///        e.g. ov::intel_gpu::op::FullyConnected. The common library must not depend
-    ///        on a plugin, so those types can only be injected at runtime.
-    /// @param check_bias_add If true, also considers Add(fusable_op, bias) as a fusable
-    ///        producer (for cases where a bias add is fused into the preceding op's kernel).
-    MoveEltwiseUpThroughDataMovFusableProducer(std::vector<DiscreteTypeInfo> fusable_producer_types,
-                                               bool check_bias_add = false);
+    ///        on a plugin, so those types can only be injected at runtime. A bias Add on
+    ///        top of such a producer is always treated as a fusable producer as well,
+    ///        since the bias is folded into the producer's kernel.
+    MoveEltwiseUpThroughDataMovFusableProducer(std::vector<DiscreteTypeInfo> fusable_producer_types);
 };
 
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMov : public ov::pass::GraphRewrite {

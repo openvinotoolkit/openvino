@@ -21,11 +21,15 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/depth_to_space.hpp"
 #include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/reverse_sequence.hpp"
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/squared_difference.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -456,41 +460,44 @@ ov::pass::MoveEltwiseUpThroughDataMovPerChannel::MoveEltwiseUpThroughDataMovPerC
 }
 
 ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMovFusableProducer(
-    std::vector<DiscreteTypeInfo> fusable_producer_types,
-    bool check_bias_add) {
+    std::vector<DiscreteTypeInfo> fusable_producer_types) {
     MATCHER_SCOPE(MoveEltwiseUpThroughDataMovFusableProducer);
 
-    // Producer whose kernel can absorb the eltwise as a post-op: one of the configured
-    // op types, optionally seen through a single bias Add. Add is commutative, so the
-    // matcher already tries both input orders - no need to spell them out separately.
-    // Built from a runtime vector (not wrap_type<...>()) because the types may be
-    // plugin-private and thus invisible here, e.g. ov::intel_gpu::op::FullyConnected.
-    auto fusable_op = std::make_shared<ov::pass::pattern::op::WrapType>(fusable_producer_types);
-    std::shared_ptr<ov::Node> fusable_producer = fusable_op;
-    if (check_bias_add) {
-        auto bias_in = ov::pass::pattern::any_input();
-        fusable_producer = fusable_op | wrap_type<v1::Add>({fusable_op, bias_in});
-    }
+    // Producer whose kernel can absorb the eltwise as a post-op: one of the configured op types,
+    // optionally seen through a bias Add whose bias is folded into the producer's kernel.
+    // The types are injected at runtime (not wrap_type<...>()) because callers may include
+    // plugin-private ops that are not visible here, e.g. ov::intel_gpu::op::FullyConnected.
+    std::shared_ptr<ov::Node> fusable_op = std::make_shared<ov::pass::pattern::op::WrapType>(fusable_producer_types);
+    std::shared_ptr<ov::Node> fusable_producer =
+        fusable_op | wrap_type<v1::Add>({fusable_op, ov::pass::pattern::any_input()});
 
-    // Rank-changing data movement (e.g. a unit-dim insertion) applied to the producer output.
-    auto data_mov = wrap_type<v1::Reshape, v0::Unsqueeze, v0::Squeeze>(
-        ov::OutputVector{fusable_producer, ov::pass::pattern::any_input()});
-
-    // The eltwise's other operand.
-    auto other_in = ov::pass::pattern::any_input();
-
-    auto eltw_predicate_fusable = [](const ov::Output<ov::Node>& output) {
-        return !output.get_node()->get_output_partial_shape(0).rank().is_dynamic();
+    // Data movement that inserts a single unit dimension. Reshape may keep the rank or reduce it,
+    // so require the rank increase explicitly instead of relying on the op type alone.
+    auto rank_increase_by_one = [](const ov::Output<ov::Node>& output) {
+        const auto& input_rank = output.get_node()->get_input_partial_shape(0).rank();
+        const auto& output_rank = output.get_partial_shape().rank();
+        return input_rank.is_static() && output_rank.is_static() &&
+               output_rank.get_length() == input_rank.get_length() + 1;
     };
+    auto data_mov =
+        wrap_type<v1::Reshape, v0::Unsqueeze>(ov::OutputVector{fusable_producer, ov::pass::pattern::any_input()},
+                                              rank_increase_by_one);
 
-    // Binary eltwise consuming the data-movement op on either input. Both input orders
-    // are spelled out because BinaryElementwiseArithmetic also covers non-commutative ops
-    // (Subtract, Divide, Power, ...), for which the matcher does NOT try input permutations
-    // - e.g. we must match both Subtract(data_mov, R) and Subtract(R, data_mov). For
-    // commutative ops (Add, Multiply) the second alternative is redundant but harmless.
+    // Binary eltwise consuming the data-movement op. The input order has to be spelled out
+    // explicitly because BinaryElementwiseArithmetic also covers non-commutative ops (Subtract,
+    // Divide, Power, ...) and the matcher does not try input permutations.
+    //
+    // The producer may only be seen on the second eltwise input for commutative ops: the GPU post-op
+    // path evaluates the fused eltwise as `producer <op> peer` (for oneDNN it is the binary_sub /
+    // binary_div post-ops, see program_node.cpp), so fusing a producer that sits on the second input
+    // of a non-commutative op would silently reverse the operation.
+    auto commutative_eltwise = wrap_type<v1::Add, v1::Multiply, v1::Maximum, v1::Minimum, v0::SquaredDifference>(
+        ov::OutputVector{ov::pass::pattern::any_input(), data_mov},
+        ov::pass::pattern::has_static_rank());
     auto eltwise_pattern =
-        wrap_type<op_util::BinaryElementwiseArithmetic>(ov::OutputVector{data_mov, other_in}, eltw_predicate_fusable) |
-        wrap_type<op_util::BinaryElementwiseArithmetic>(ov::OutputVector{other_in, data_mov}, eltw_predicate_fusable);
+        wrap_type<op_util::BinaryElementwiseArithmetic>(ov::OutputVector{data_mov, ov::pass::pattern::any_input()},
+                                                        ov::pass::pattern::has_static_rank()) |
+        commutative_eltwise;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -542,8 +549,8 @@ ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMo
                 }
             }
         }
-        // Squeeze lowers the rank and cannot be a unit-dimension insertion.
-        // Fall back to input/output shape comparison for non-constant patterns.
+        // The axes/target-shape input may be dynamic, in which case the inserted unit dimension
+        // is located by comparing the input and output shapes.
         if (axis < 0)
             axis = unsqueeze_axis(rn->get_input_partial_shape(0), rn->get_output_partial_shape(0));
         if (axis < 0)
@@ -556,9 +563,7 @@ ov::pass::MoveEltwiseUpThroughDataMovFusableProducer::MoveEltwiseUpThroughDataMo
         if (out_rank.is_dynamic())
             return false;
         const int64_t rank = out_rank.get_length();
-        if (axis < 0)
-            axis += rank;
-        if (axis < 0 || axis >= rank)
+        if (axis >= rank)
             return false;
 
         // Both eltwise inputs must have the same rank as the output so the
