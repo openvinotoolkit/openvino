@@ -18,8 +18,6 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "npuw/compiled_model.hpp"
-#include "npuw/orc/schema_npuw.hpp"
-#include "npuw/serialization.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
@@ -66,31 +64,12 @@ void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov:
 std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
-    const auto use_npuw_it = properties.find(ov::intel_npu::use_npuw.name());
-    const bool npuw_enabled = use_npuw_it == properties.end() || use_npuw_it->second.as<bool>();
-    constexpr const char* npuw_disabled_message =
-        "The blob was exported via NPUW, but NPU_USE_NPUW is disabled.";
-
-    if (const auto header = ov::npuw::orc::is_orc(stream);
-        header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA) {
-        OPENVINO_ASSERT(npuw_enabled, npuw_disabled_message);
-        return ov::npuw::CompiledModel::import_model(stream, pluginSO, properties);
-    }
-
-    // If was exported via NPUW
-    auto stream_start_pos = stream.tellg();
-    ov::npuw::s11n::IndicatorType serialization_indicator;
-    if (ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
-        serialization_indicator == NPUW_SERIALIZATION_INDICATOR) {
-        OPENVINO_ASSERT(npuw_enabled, npuw_disabled_message);
-        stream.clear();
-        stream.seekg(stream_start_pos);
-        // Every indicator-headed NPUW blob names its compiled model right after the
-        // NPUW indicator - the common dispatch picks the implementation from it.
+    if (ov::npuw::ICompiledModel::is_npuw_blob(stream)) {
+        const auto use_npuw_it = properties.find(ov::intel_npu::use_npuw.name());
+        const bool npuw_enabled = use_npuw_it == properties.end() || use_npuw_it->second.as<bool>();
+        OPENVINO_ASSERT(npuw_enabled, "The blob was exported via NPUW, but NPU_USE_NPUW is disabled.");
         return ov::npuw::ICompiledModel::import_model(stream, pluginSO, properties);
     }
-    stream.clear();
-    stream.seekg(stream_start_pos);
 
     // Drop NPUW properties if there are any
     for (auto it = properties.begin(); it != properties.end();) {
