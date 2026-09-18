@@ -98,7 +98,7 @@ def _own_kv_cache_update(model) -> int:
     """Point this model's attention layers at a kv-update-owning backend.
 
     OV's PagedAttention does the paged write itself, so vLLM's separate
-    unified_kv_cache_update op (attention.py:546,566) is redundant and, having
+    unified_kv_cache_update op is redundant and, having
     no OV translator, would be stranded in eager PyTorch by the partitioner.
     Scoped per layer, not on CPUAttentionBackend, which is process-global.
     """

@@ -39,6 +39,7 @@ def _worker_kv_update_flags(worker):
     the loaded model's per-layer flags)`.
     """
     from vllm.v1.attention.backends.cpu_attn import CPUAttentionBackend
+    from vllm.v1.attention.backend import AttentionBackend
 
     model = worker.model_runner.get_model()
     layer_flags = {
@@ -46,7 +47,10 @@ def _worker_kv_update_flags(worker):
         for m in model.modules()
         # Not every layer holding `attn_backend` holds a backend class there;
         # the encoder ones hold an AttentionBackendEnum.
-        if isinstance(getattr(m, "attn_backend", None), type)
+        if (
+            isinstance(getattr(m, "attn_backend", None), type)
+            and issubclass(m.attn_backend, AttentionBackend)
+        )
     }
     return CPUAttentionBackend.forward_includes_kv_cache_update, sorted(layer_flags)
 
