@@ -170,6 +170,17 @@ void ov::npuw::FuncMemMgr::assign_memory() {
 
     const auto num_submodels = m_model->m_compiled_submodels.size();
 
+    // Global results don't need pre-allocation because the user will provide tensors
+    // via set_tensor() or they will be allocated via get_tensor() on-demand.
+    for (auto&& go : m_model->m_outputs_to_submodels_outputs) {
+        m_global_outputs.insert(go);
+    }
+
+    if (!m_global_outputs.empty()) {
+        LOG_VERB("Skipping FMM allocation for " << m_global_outputs.size()
+                                                << " global funcall outputs - will be allocated on-demand");
+    }
+
     // Walk over the subgraphs, pre-allocate and pre-assign tensors to the subgraphs
     // outputs.
     for (std::size_t idx = 0u; idx < num_submodels; idx++) {
@@ -194,6 +205,11 @@ void ov::npuw::FuncMemMgr::assign_memory() {
             const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
             for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
                 const LinkFrom this_out = LinkFrom{idx, out_idx};
+                if (m_global_outputs.count(this_out)) {
+                    // Skip allocation - user will provide tensor via set_tensor() or
+                    // will be allocated via get_tensor() on-demand
+                    continue;
+                }
                 assign(this_out);
             }
         }
@@ -272,7 +288,11 @@ void ov::npuw::FuncMemMgr::assign(const LinkFrom& from) {
 }
 
 ov::npuw::TensorPtr ov::npuw::FuncMemMgr::get_tensor(const LinkFrom& from) {
-    return m_table.at(from);
+    auto it = m_table.find(from);
+    if (it == m_table.end()) {
+        return {};  // Global-output-only: not pre-allocated
+    }
+    return it->second;
 }
 
 ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::CompiledModel>& compiled_model)
@@ -355,7 +375,11 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
 
             for (size_t out_idx = 0; out_idx < num_outputs; out_idx++) {
                 const auto from = LinkFrom{i, out_idx};
-                m_funcall_result[from] = m_func_mem_mgr.get_tensor(from);
+                auto tensor = m_func_mem_mgr.get_tensor(from);
+                if (tensor) {
+                    m_funcall_result[from] = tensor;
+                }
+                // else: global-output-only, they will be allocated on demand
             }
             if (real_idx != i) {
                 // If this function call is NOT the function body, do nothing here - the original
@@ -562,20 +586,10 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
     std::unique_lock lock(m_io_storages_mutex);
     m_port_to_tensor[port] = TensorStorage{tensor, true};
 
-    // Check if setting output tensor
     for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
         if (m_npuw_model->outputs()[i] == port) {
             const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
-            auto funcall_result_iter = m_funcall_result.find(from_submodel);
-            // This is a tricky case:
-            // 1) We already allocated an output tensor in m_funcall_result via FMM
-            // 2) We got an output tensor from outside
-            // m_funcall_result and m_port_to_tensor aren't connected, thus we will only write
-            // to m_funcall_result, but get_tensor() would return an empty tensor from m_port_to_tensor.
-            // Here we have to set the tensor to function's output, so the function will write to the correct tensor.
-            if (funcall_result_iter != m_funcall_result.end()) {
-                funcall_result_iter->second = tensor;
-            }
+            m_funcall_result[from_submodel] = tensor;
         }
     }
 
@@ -685,6 +699,14 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     for (auto&& id : m_funcall_heads) {
         LOG_DEBUG("Pre-initializing weights for subgraph[" << id << "]");
         unpack_closure(id, m_subrequests[id]);
+    }
+
+    // Check that all global function output tensors are set by user. Otherwise, allocating here.
+    for (std::size_t out_idx = 0; out_idx < m_npuw_model->outputs().size(); ++out_idx) {
+        const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx);
+        if (m_funcall_result.count(from_submodel) == 0) {
+            m_funcall_result[from_submodel] = get_tensor(m_npuw_model->outputs()[out_idx]);
+        }
     }
 
     LOG_DEBUG("Done");
@@ -836,7 +858,17 @@ void ov::npuw::JustInferRequest::function_prologue(std::size_t idx) {
     for (std::size_t i = 0; i < func_desc.compiled_model->outputs().size(); i++) {
         LOG_DEBUG("Binding result[" << i << "]...");
         auto& oport = func_desc.compiled_model->outputs()[i];
-        auto o_tensor = m_funcall_result.at({idx, i});
+
+        auto result_iter = m_funcall_result.find({idx, i});
+        if (result_iter == m_funcall_result.end()) {
+            OPENVINO_THROW("Funcall output Subgraph[",
+                           idx,
+                           "]/",
+                           i,
+                           " has no tensor. Check if set_tensor() or get_tensor() was called for this output");
+        }
+        auto o_tensor = result_iter->second;
+
         if (ov::npuw::moe::has_compiled_experts(func_desc.pipeline)) {
             // MoE case - delegate to executor for output binding
             m_moe_executor->function_prologue_moe_output(idx, i, o_tensor);

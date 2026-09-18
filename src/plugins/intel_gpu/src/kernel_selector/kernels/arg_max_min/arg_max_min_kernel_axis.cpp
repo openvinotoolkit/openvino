@@ -92,8 +92,9 @@ bool ArgMaxMinKernelAxis::Validate(const Params& p) const {
     const arg_max_min_params& params = static_cast<const arg_max_min_params&>(p);
 
     if (params.inputs.size() > 1) {
-        if (params.inputs[1].PitchesDifferFromLogicalDims() || params.outputs[0].PitchesDifferFromLogicalDims())
+        if (params.inputs[1].PitchesDifferFromLogicalDims() || params.outputs[0].PitchesDifferFromLogicalDims()) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
@@ -205,13 +206,15 @@ JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& para
         const size_t operation_num = getOperationNumber(params);
         jit.AddConstant(MakeJitConstant("OPERATION_NUM", operation_num));
     }
-    if (params.argMaxMinSortType == ArgMaxMinSortType::VALUE)
+    if (params.argMaxMinSortType == ArgMaxMinSortType::VALUE) {
         jit.AddConstant(MakeJitConstant("SORT_BY_VALUE", 1));
-    else
+    } else {
         jit.AddConstant(MakeJitConstant("SORT_BY_INDEX", 1));
+    }
 
-    if (params.values_first)
+    if (params.values_first) {
         jit.AddConstant(MakeJitConstant("TOP_K_ORDER", 1));
+    }
 
     if (params.has_dynamic_tensors() || getSortSize(params) * params.inputs[0].ElementSize() > 4096) {
         jit.AddConstant(MakeJitConstant("USE_INTERNAL_BUFFERS", 1));

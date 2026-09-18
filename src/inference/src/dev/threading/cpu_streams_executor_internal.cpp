@@ -10,6 +10,13 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
+#if defined(_WIN32)
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
+#    include <windows.h>
+#endif
+
 namespace ov {
 namespace threading {
 
@@ -267,6 +274,27 @@ void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_tab
             _proc_type_table.erase(_proc_type_table.begin());
         }
     }
+}
+
+int get_thread_processor_group(int stream_id, int thread_index, int group_count) {
+    if (group_count <= 1) {
+        return -1;
+    }
+    // Spread an arena's worker threads across groups by slot index, offset per stream so single-thread
+    // streams still fan out. numa id is deliberately not used as a group id (Windows does not match them).
+    const int base = stream_id > 0 ? stream_id : 0;
+    const int slot = thread_index > 0 ? thread_index : 0;
+    return (base + slot) % group_count;
+}
+
+int get_num_processor_groups() {
+#if defined(_WIN32)
+    // GetActiveProcessorGroupCount() returns 0 on failure; normalize to a single group so callers can
+    // rely on the count being at least 1 (matching get_thread_processor_group's group_count <= 1 path).
+    return std::max<int>(1, static_cast<int>(GetActiveProcessorGroupCount()));
+#else
+    return 1;
+#endif
 }
 
 }  // namespace threading
