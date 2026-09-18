@@ -27,7 +27,7 @@ OutputVector translate_transpose(const NodeContext& context) {
     auto res =
         std::make_shared<ov::op::v1::Transpose>(context.get_input(0),
                                                 ov::op::v0::Constant::create(ov::element::i64, {perm.size()}, perm));
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

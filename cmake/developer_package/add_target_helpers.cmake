@@ -207,6 +207,7 @@ function(ov_add_test_target_per_source)
 
     set(options
         GTEST_DISCOVER
+        ADD_CLANG_FORMAT
     )
     set(oneValueRequiredArgs
         NAME
@@ -218,6 +219,9 @@ function(ov_add_test_target_per_source)
         INCLUDES
         # accept but ignore
         DEPENDENCIES
+        DEFINES
+        LINK_LIBRARIES_WHOLE_ARCHIVE
+        LINK_FLAGS
     )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN})
 

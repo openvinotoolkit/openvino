@@ -63,43 +63,50 @@ public:
         const void* data,
         const size_t bytes,
         const bool is_input) {
-        std::lock_guard<std::mutex> lock(init_structs->getZeroMemPool().mem_pool_mutex);
-        std::unique_lock<std::mutex> deleter_lock(init_structs->getZeroMemPool().mem_pool_deleter_mutex);
+        bool out_of_bounds = false;
+        {
+            std::lock_guard<std::mutex> lock(init_structs->getZeroMemPool().mem_pool_mutex);
+            std::unique_lock<std::mutex> deleter_lock(init_structs->getZeroMemPool().mem_pool_deleter_mutex);
 
-        auto memory_id = zeroUtils::get_l0_context_memory_allocation_id(init_structs->getContext(), data);
-        if (memory_id == 0) {
-            // try to import memory if it isn't part of the same zero context
-            return import_standard_allocation(init_structs, data, bytes, is_input);
-        }
-
-        auto& zero_mem_pool = init_structs->getZeroMemPool().mem_pool;
-        auto& notify_zero_mem_pool = init_structs->getZeroMemPool().notify_mem_pool;
-
-        if (zero_mem_pool.find(memory_id) != zero_mem_pool.end()) {
-            // found one weak pointer in the pool; check it if it's valid
-            auto obj = zero_mem_pool.at(memory_id).lock();
-            if (obj) {
-                auto user_addr_end = static_cast<uint8_t*>(const_cast<void*>(data)) + bytes;
-                auto host_addr_end = static_cast<uint8_t*>(obj->data()) + obj->size();
-                if (user_addr_end > host_addr_end) {
-                    throw ZeroMemException("Tensor memory range is out of bounds of the allocated host memory");
-                }
-
-                return obj;
-            } else {
-                // shared_ptr counter is 0, we can not lock memory; wait until the deleter frees the memory
-                std::shared_future<void> done_future = notify_zero_mem_pool[memory_id].get_future().share();
-                // allow (any) deleter to be executed. it will remove the pool entry and deallocate the level zero
-                // memory
-                deleter_lock.unlock();
-                // waiting for the corresponding deleter to be executed
-                done_future.wait();
-                deleter_lock.lock();
-                notify_zero_mem_pool.erase(memory_id);
-
-                // import again memory after make sure it is destroyed
-                return ZeroMemPoolManager::import_standard_allocation(init_structs, data, bytes, is_input);
+            auto memory_id = zeroUtils::get_l0_context_memory_allocation_id(init_structs->getContext(), data);
+            if (memory_id == 0) {
+                // try to import memory if it isn't part of the same zero context
+                return import_standard_allocation(init_structs, data, bytes, is_input);
             }
+
+            auto& zero_mem_pool = init_structs->getZeroMemPool().mem_pool;
+            auto& notify_zero_mem_pool = init_structs->getZeroMemPool().notify_mem_pool;
+
+            if (zero_mem_pool.find(memory_id) != zero_mem_pool.end()) {
+                // found one weak pointer in the pool; check it if it's valid
+                auto obj = zero_mem_pool.at(memory_id).lock();
+                if (obj) {
+                    auto user_addr_end = static_cast<uint8_t*>(const_cast<void*>(data)) + bytes;
+                    auto host_addr_end = static_cast<uint8_t*>(obj->data()) + obj->size();
+                    if (user_addr_end <= host_addr_end) {
+                        return obj;
+                    }
+                    deleter_lock.unlock();
+                    obj.reset();
+                    out_of_bounds = true;
+                } else {
+                    // shared_ptr counter is 0, we can not lock memory; wait until the deleter frees the memory
+                    std::shared_future<void> done_future = notify_zero_mem_pool[memory_id].get_future().share();
+                    // allow (any) deleter to be executed. it will remove the pool entry and deallocate the level zero
+                    // memory
+                    deleter_lock.unlock();
+                    // waiting for the corresponding deleter to be executed
+                    done_future.wait();
+                    deleter_lock.lock();
+                    notify_zero_mem_pool.erase(memory_id);
+
+                    // import again memory after make sure it is destroyed
+                    return ZeroMemPoolManager::import_standard_allocation(init_structs, data, bytes, is_input);
+                }
+            }
+        }
+        if (out_of_bounds) {
+            throw ZeroMemException("Tensor memory range is out of bounds of the allocated host memory");
         }
 
         throw ZeroMemException("Unexpected error");

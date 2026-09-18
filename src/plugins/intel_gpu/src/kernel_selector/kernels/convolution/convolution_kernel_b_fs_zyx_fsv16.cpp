@@ -3,9 +3,11 @@
 //
 
 #include "convolution_kernel_b_fs_zyx_fsv16.h"
-#include "kernel_selector_utils.h"
+
 #include <algorithm>
 #include <string>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 
@@ -15,55 +17,56 @@ static const size_t feature_block_size = 16;
 constexpr float large_conv_threshold = 1.0e9f;
 
 namespace {
-FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::string input_name, Datatype dt,
-                                                        bool is_vector) {
+FusedOpsConfiguration GenerateFusedOpsConfiguration_f16(size_t conf_id, std::string input_name, Datatype dt, bool is_vector) {
     std::vector<std::string> idx_order;
     std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + toCodeString(conf_id);
     std::string input_var_name = input_name + toCodeString(conf_id) + (is_vector ? "" : "[i]");
     size_t vec_size = is_vector ? 8 : 1;
-    if (is_vector)
+    if (is_vector) {
         idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC)", "od", "oh", "(ow + " + toCodeString(conf_id * 8) + ")"};
-    else
+    } else {
         idx_order = {"(mb)", "(oc*OC_BLOCK + g*OC + local_id)", "od", "oh", "(ow + " + toCodeString(conf_id * 8) + " + i)"};
+    }
 
-    return { suffix,
-             idx_order,
-             input_var_name,
-             dt,
-             vec_size,
-             is_vector ? FusedOpsConfiguration::LoadType::LT_ALIGNED_READ : FusedOpsConfiguration::LoadType::LT_UNALIGNED,
-             FusedOpsConfiguration::BoundaryCheck::ENABLED,
-             FusedOpsConfiguration::IndexType::TENSOR_COORD,
-             Tensor::DataChannelName::X };
+    return {suffix,
+            idx_order,
+            input_var_name,
+            dt,
+            vec_size,
+            is_vector ? FusedOpsConfiguration::LoadType::LT_ALIGNED_READ : FusedOpsConfiguration::LoadType::LT_UNALIGNED,
+            FusedOpsConfiguration::BoundaryCheck::ENABLED,
+            FusedOpsConfiguration::IndexType::TENSOR_COORD,
+            Tensor::DataChannelName::X};
 }
 
-FusedOpsConfiguration GenerateFusedOpsConfiguration_bsv16_fsv16(size_t conf_id, std::string input_name, Datatype dt,
-                                                                size_t dims, bool is_vector) {
+FusedOpsConfiguration GenerateFusedOpsConfiguration_bsv16_fsv16(size_t conf_id, std::string input_name, Datatype dt, size_t dims, bool is_vector) {
     std::string suffix = (is_vector ? "_VEC" : "_SCALAR") + toCodeString(conf_id);
     std::string input_var_name = input_name + toCodeString(conf_id) + (is_vector ? "" : "[i]");
     size_t vec_size = is_vector ? 8 : 1;
     std::vector<std::string> idx_order;
     if (is_vector) {
-        if (dims == 5)
+        if (dims == 5) {
             idx_order = {"(mb + " + toCodeString(conf_id * 8) + ")", "(oc*16)", "od", "oh", "ow"};
-        else
+        } else {
             idx_order = {"(mb + " + toCodeString(conf_id * 8) + ")", "(oc*16)", "oh", "ow"};
+        }
     } else {
-        if (dims == 5)
+        if (dims == 5) {
             idx_order = {"(mb + " + toCodeString(conf_id * 8) + ")", "(oc*16 + local_id)", "od", "oh", "(ow + i)"};
-        else
+        } else {
             idx_order = {"(mb + " + toCodeString(conf_id * 8) + ")", "(oc*16 + local_id)", "oh", "(ow + i)"};
+        }
     }
 
-    return { suffix,
-             idx_order,
-             input_var_name,
-             dt,
-             vec_size,
-             is_vector ? FusedOpsConfiguration::LoadType::LT_ALIGNED_READ : FusedOpsConfiguration::LoadType::LT_UNALIGNED,
-             FusedOpsConfiguration::BoundaryCheck::ENABLED,
-             FusedOpsConfiguration::IndexType::TENSOR_COORD,
-             Tensor::DataChannelName::BATCH };
+    return {suffix,
+            idx_order,
+            input_var_name,
+            dt,
+            vec_size,
+            is_vector ? FusedOpsConfiguration::LoadType::LT_ALIGNED_READ : FusedOpsConfiguration::LoadType::LT_UNALIGNED,
+            FusedOpsConfiguration::BoundaryCheck::ENABLED,
+            FusedOpsConfiguration::IndexType::TENSOR_COORD,
+            Tensor::DataChannelName::BATCH};
 }
 }  // namespace
 
@@ -98,8 +101,7 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_zyx_fsv16::get_required_device_features
     return k;
 }
 
-ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault(const convolution_params& params,
-                                                                           int autoTuneIndex) const {
+ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault(const convolution_params& params, int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params, autoTuneIndex);
 
     const auto& out = params.outputs[0];
@@ -113,24 +115,22 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
     auto g = params.groups;
 
     const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
-    const bool ver_16mb16c = !is_1stconv &&
-        ((out.GetDType() == Datatype::F16 && b % 32 == 0) ||
-        (out.GetDType() == Datatype::F32 && b % 16 == 0));
+    const bool ver_16mb16c = !is_1stconv && ((out.GetDType() == Datatype::F16 && b % 32 == 0) || (out.GetDType() == Datatype::F32 && b % 16 == 0));
     // Use 32 pixel per work item for large conv for performance in fp32 1d conv
     float workload = static_cast<float>(f * std::sqrt(y) * std::pow(params.filterSize.y, 1.5));
-    const bool is_1d_large_conv = (out.GetDType() == Datatype::F32 && b % 32 == 0) &&
-                                  (x == 1 && z == 1) && // check 1d conv
-                                  (workload > large_conv_threshold) && // check large conv
-                                  params.engineInfo.arch == kernel_selector::gpu_arch::xe_hpg; // this case requires in xe microarchitecture only
+    const bool is_1d_large_conv = (out.GetDType() == Datatype::F32 && b % 32 == 0) && (x == 1 && z == 1) &&  // check 1d conv
+                                  (workload > large_conv_threshold) &&                                       // check large conv
+                                  params.engineInfo.arch == kernel_selector::gpu_arch::xe_hpg;               // this case requires in xe microarchitecture only
 
     if (is_1stconv) {
         auto oh_block = 1;
         auto ow_block = 8;
         while (ow_block > 1) {
-            if (params.stride.x * ow_block + params.weights.X().v * params.dilation.x > 32)
+            if (params.stride.x * ow_block + params.weights.X().v * params.dilation.x > 32) {
                 ow_block--;
-            else
+            } else {
                 break;
+            }
         }
         dispatchData.cldnnStyle.blockWidth = ow_block;
         if (out.GetDType() == Datatype::F16) {
@@ -152,7 +152,7 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
             dispatchData.gws[2] = b * f / ocb;
         }
     } else if (ver_16mb16c) {
-        f = (g > 1) ? f/g : Align(f, 16);
+        f = (g > 1) ? f / g : Align(f, 16);
         dispatchData.lws[0] = sub_group_size;
         dispatchData.lws[1] = 1;
         dispatchData.lws[2] = 1;
@@ -168,16 +168,18 @@ ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_zyx_fsv16::SetDefault
 
         auto div = 16;
         while (div > 1) {
-            if (x % div == 0)
+            if (x % div == 0) {
                 break;
+            }
             div--;
         }
         auto ow_block = std::max(8, div);
 
         auto ocb = 128;
         while (ocb > 16) {
-            if (f % ocb == 0)
+            if (f % ocb == 0) {
                 break;
+            }
             ocb /= 2;
         }
 
@@ -211,18 +213,21 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
     const auto& input = params.inputs[0];
     const auto& output = params.outputs[0];
 
-    if (output.GetDType() != use_data_type)
+    if (output.GetDType() != use_data_type) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     if (input.GetLayout() == DataLayout::bfzyx) {
-        if (input.Feature().v != 3 || output.Feature().v % feature_block_size != 0)
+        if (input.Feature().v != 3 || output.Feature().v % feature_block_size != 0) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
-        if (output.GetDType() == Datatype::F16 && (output.Feature().v % 32 != 0))
+        }
+        if (output.GetDType() == Datatype::F16 && (output.Feature().v % 32 != 0)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     } else {
-        if ((params.groups > 1) && (input.Feature().v / params.groups) % feature_block_size != 0 &&
-            (input.Feature().v / params.groups) != 8)
+        if ((params.groups > 1) && (input.Feature().v / params.groups) % feature_block_size != 0 && (input.Feature().v / params.groups) != 8) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     // Check that padding before features doesn't miss-align the blocks
@@ -234,7 +239,7 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
     if (!params.fused_ops.empty()) {
         const bool is_1stconv = input.Feature().v == 3 && input.GetLayout() == DataLayout::bfzyx;
         const bool ver_16mb16c = !is_1stconv && ((output.GetDType() == Datatype::F16 && output.Batch().v % 32 == 0) ||
-                                                (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
+                                                 (output.GetDType() == Datatype::F32 && output.Batch().v % 16 == 0));
 
         if (!ver_16mb16c && is_1stconv && output.GetDType() == Datatype::F16) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
@@ -244,8 +249,7 @@ bool ConvolutionKernel_b_fs_zyx_fsv16::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution_params& params,
-                                                               const DispatchData& dispatchData) const {
+JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution_params& params, const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
     auto output = params.outputs[0];
     auto jit = Parent::GetJitConstants(params, dispatchData);
@@ -256,24 +260,26 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
     // Use 32 pixel per work item for large conv for performance in fp32 1d conv
     float workload = static_cast<float>(output.Feature().v * std::sqrt(output.Y().v) * std::pow(params.filterSize.y, 1.5));
     const bool is_1d_large_conv = (output.GetDType() == Datatype::F32 && output.Batch().v % 32 == 0) &&
-                                  (output.X().v == 1 && output.Z().v == 1) && // check 1d conv
-                                  (workload > large_conv_threshold) && // check large conv
-                                  params.engineInfo.arch == kernel_selector::gpu_arch::xe_hpg; // this case requires in xe microarchitecture only
+                                  (output.X().v == 1 && output.Z().v == 1) &&                   // check 1d conv
+                                  (workload > large_conv_threshold) &&                          // check large conv
+                                  params.engineInfo.arch == kernel_selector::gpu_arch::xe_hpg;  // this case requires in xe microarchitecture only
 
     if (ver_16mb16c) {
         jit.AddConstant(MakeJitConstant("VER_16MB16C", 1));
-        if (is_1d_large_conv)
+        if (is_1d_large_conv) {
             jit.AddConstant(MakeJitConstant("VER_32MB_LARGE_1D", 1));
+        }
     } else {
         jit.AddConstant(MakeJitConstant("VER_8OW16C", 1));
     }
     jit.AddConstant(MakeJitConstant("OC_BLOCK", 16));
     jit.AddConstant(MakeJitConstant("NCHW", 1));
 
-    if (input.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16)
+    if (input.GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16) {
         jit.AddConstant(MakeJitConstant("CASE_3D", 0));
-    else
+    } else {
         jit.AddConstant(MakeJitConstant("CASE_3D", 1));
+    }
 
     jit.AddConstant(MakeJitConstant("LWS_0", dispatchData.lws[0]));
     jit.AddConstant(MakeJitConstant("LWS_1", dispatchData.lws[1]));
@@ -283,8 +289,7 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
         if (output.GetDType() == Datatype::F16) {
             jit.AddConstant(MakeJitConstant("OCB", 1));
         } else {
-            jit.AddConstant(MakeJitConstant("OCB",
-                (output.Feature().v % 32 == 0) ? 32 : 16));
+            jit.AddConstant(MakeJitConstant("OCB", (output.Feature().v % 32 == 0) ? 32 : 16));
         }
     } else if (ver_16mb16c) {
         jit.AddConstant(MakeJitConstant("OCB", 1));
@@ -299,14 +304,16 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
         jit.AddConstant(MakeJitConstant("MB_BLOCK", 16));
     } else {
         int mb_block;
-        if (output.GetDType() == Datatype::F16)
+        if (output.GetDType() == Datatype::F16) {
             mb_block = (is_1stconv && output.Batch().v % 32 == 0) ? 16 : 1;
-        else
+        } else {
             mb_block = (is_1stconv && output.Batch().v % 16 == 0) ? 16 : 1;
+        }
 
         // If batch dim of output layout is not blocked format, mb_block should be set as 1.
-        if (mb_block == 16 && output.GetLayout() == DataLayout::b_fs_zyx_fsv16)
+        if (mb_block == 16 && output.GetLayout() == DataLayout::b_fs_zyx_fsv16) {
             mb_block = 1;
+        }
 
         jit.AddConstant(MakeJitConstant("MB_BLOCK", mb_block));
     }
@@ -334,8 +341,8 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
                 FusedOpsConfiguration conf_vec3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "blockC0", input_dt, dims_num, true);
                 FusedOpsConfiguration conf_scalar2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "blockC0", input_dt, dims_num, false);
                 FusedOpsConfiguration conf_scalar3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "blockC0", input_dt, dims_num, false);
-                jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3,
-                                                        conf_scalar0, conf_scalar1, conf_scalar2, conf_scalar3}));
+                jit.Merge(
+                    MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3, conf_scalar0, conf_scalar1, conf_scalar2, conf_scalar3}));
             }
         } else {
             FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_bsv16_fsv16(0, "C0", input_dt, dims_num, true);
@@ -346,8 +353,7 @@ JitConstants ConvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const convolution
             FusedOpsConfiguration conf_scalar1 = GenerateFusedOpsConfiguration_bsv16_fsv16(1, "C0", input_dt, dims_num, false);
             FusedOpsConfiguration conf_scalar2 = GenerateFusedOpsConfiguration_bsv16_fsv16(2, "C0", input_dt, dims_num, false);
             FusedOpsConfiguration conf_scalar3 = GenerateFusedOpsConfiguration_bsv16_fsv16(3, "C0", input_dt, dims_num, false);
-            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3,
-                                                        conf_scalar0, conf_scalar1, conf_scalar2, conf_scalar3}));
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec0, conf_vec1, conf_vec2, conf_vec3, conf_scalar0, conf_scalar1, conf_scalar2, conf_scalar3}));
         }
     } else if ((!is_1stconv || output.GetDType() == Datatype::F32) && !params.fused_ops.empty()) {
         FusedOpsConfiguration conf_vec0 = GenerateFusedOpsConfiguration_f16(0, "blockC0", input_dt, true);

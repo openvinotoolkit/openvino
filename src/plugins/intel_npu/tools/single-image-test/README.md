@@ -77,6 +77,9 @@ single-image-test.exe: Usage: Release\single-image-test.exe[<options>]
       default: "BGR"
     -compiled_blob (Output compiled network file (compiled result blob))
       type: string default: ""
+    -blob_name_prefix (Optional prefix overriding model-derived blob file
+      naming for auto-generated input/reference/output blobs. Explicit
+      --ref_results paths are not modified.) type: string default: ""
     -confidence_threshold (Confidence threshold for Detection mode. Can be a
       single value or per-layer: 'layer1:0.5;layer2:0.3') type: string
       default: "0.000100"
@@ -238,6 +241,7 @@ For example, to run inference with mobilenet-v2 model on Intel® Core™ Ultra N
         Network file:                             mobilenet-v2.xml
         Input file(s):                            validation-set/224x224/watch.bmp
         Output compiled network file:
+        Blob name prefix override:
         Color format:                             RGB
         Input precision:                          FP16
         Output precision:                         FP16
@@ -316,6 +320,7 @@ For example, to run inference with mobilenet-v2 model on Intel® Core™ Ultra N
         Network file:                             mobilenet-v2.blob
         Input file(s):                            validation-set/224x224/watch.bmp
         Output compiled network file:
+        Blob name prefix override:
         Color format:                             RGB
         Input precision:                          FP16
         Output precision:                         FP16
