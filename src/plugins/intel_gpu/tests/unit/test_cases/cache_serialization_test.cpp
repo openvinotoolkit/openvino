@@ -12,6 +12,7 @@
 #include "test_utils.h"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/graph/serialization/utils.hpp"
+#include "intel_gpu/primitives/data.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -376,4 +377,34 @@ TEST(cache_serialization, load_weights_rejects_data_size_exceeding_layout) {
     // path, so mem is allocated from output_layout and the oversized read would
     // overflow it. The cross-check must reject the blob first.
     ASSERT_THROW(data_prim.load_weights(ib, /*weights_memory=*/nullptr, /*model_tensor_base=*/nullptr), ov::AssertFailure);
+}
+
+TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
+    auto& engine = get_test_engine();
+    const layout full_layout({1, 1, 1, 64}, data_types::u8, format::bfyx);
+    const layout resident_layout({1, 1, 1, 16}, data_types::u8, format::bfyx);
+    auto resident_memory = engine.allocate_memory(resident_layout, true);
+    auto partial_memory = engine.reinterpret_buffer(*resident_memory, full_layout);
+
+    data partial_data("partial", partial_memory, true);
+    partial_data.cache_info->set_constant_info(0,
+                                                full_layout.bytes_count(),
+                                                ov::element::u8,
+                                                ov::element::u8,
+                                                full_layout.get_shape());
+
+    auto full_memory = engine.allocate_memory(full_layout, true);
+    data plain_data("plain", full_memory);
+
+    const auto serialized_size = [](const data& data_prim) {
+        membuf mem_buf;
+        std::ostream out_mem(&mem_buf);
+        BinaryOutputBuffer ob(out_mem);
+        data_prim.save(ob);
+        return static_cast<size_t>(std::distance(mem_buf.begin(), mem_buf.end()));
+    };
+
+    // OTD exposes the full Constant layout while allocating only resident slots.
+    // Weightless caching must serialize metadata instead of reading that full layout.
+    EXPECT_LT(serialized_size(partial_data), serialized_size(plain_data));
 }
