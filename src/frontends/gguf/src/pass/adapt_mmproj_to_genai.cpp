@@ -6,6 +6,7 @@
 
 #include <unordered_set>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -22,15 +23,9 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     }
     OPENVINO_ASSERT(selected, "[GGUF] mmproj has no ", prefix, "embeddings output");
     std::unordered_set<ov::Node*> reachable;
-    std::vector<std::shared_ptr<ov::Node>> stack{selected};
-    while (!stack.empty()) {
-        auto node = stack.back();
-        stack.pop_back();
-        if (!reachable.insert(node.get()).second)
-            continue;
-        for (const auto& input : node->input_values())
-            stack.push_back(input.get_node_shared_ptr());
-    }
+    ov::traverse_nodes(ov::NodeVector{selected}, [&](const std::shared_ptr<ov::Node>& node) {
+        reachable.insert(node.get());
+    });
     const auto results = model->get_results();
     for (const auto& result : results)
         model->remove_result(result);

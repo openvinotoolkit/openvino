@@ -164,8 +164,9 @@ Build `ov_gguf_frontend_tests` and `ov_gguf_architecture_library_tests`. Run bot
 without filters to include decoder architecture, quantization, extension and op
 coverage gates. `tests/gen_mmproj_accuracy.py` regenerates small nonzero fixtures
 using `tests/mmproj_oracle.cpp` linked against the pinned CPU-only libmtmd/libggml.
-`tests/gen_mmproj_supported_accuracy.py` adds 13 fixtures for the nine newly added
+`tests/gen_mmproj_supported_accuracy.py` adds 14 fixtures for the nine newly added
 projector types, reusing compiled raw/adapted models across shapes and back again.
+Gemma4 fixtures also cover one-sided clipping bounds and their reference defaults.
 Pass `--geometry-oracle /path/to/mmproj_ops_oracle` to regenerate the standalone
 window/relative-position expectations as well. Both oracle sources are in `tests/`.
 `GGUF_ORACLE_DUMP=<directory>` enables intermediate reference tensor dumps.
