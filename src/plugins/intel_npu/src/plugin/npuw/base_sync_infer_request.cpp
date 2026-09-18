@@ -425,7 +425,7 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
 
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-    
+
     const bool do_copy = needs_copy(idx);
     const auto& iodesc = m_subrequests_gio.at(idx);
 

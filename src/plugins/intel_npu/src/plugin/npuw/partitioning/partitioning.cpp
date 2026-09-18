@@ -2180,6 +2180,7 @@ void Partitioner::optimize(const std::string& func_name) {
             });
         }
     };
+    
     // Regardless of DQ setting, run this first
     {
         ov::npuw::patterns::opt::Context ctx;

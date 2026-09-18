@@ -163,7 +163,7 @@ Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
     const auto& w_shape = w->get_shape();
     const auto& ids_shape = ids->get_shape();
 
-    NPUW_ASSERT(w_shape.size() == 2);
+    NPUW_ASSERT(ids_shape.size() == 2);
     NPUW_ASSERT(ids_shape[0] == 1);
 
     Context::PPtr new_param;
