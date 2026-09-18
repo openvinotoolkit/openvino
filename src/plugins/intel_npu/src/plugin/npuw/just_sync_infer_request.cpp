@@ -621,6 +621,17 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
                               << port_idx_to);
         LOG_BLOCK();
 
+        // An output-less partition can remain in the routing table when its
+        // producer is folded away. It has no request to connect, so ignore
+        // the stale edge before selecting a connection path below.
+        const auto is_optimized_out = [](const auto& desc) {
+            return !desc.compiled_model && !desc.replaced_by;
+        };
+        if (is_optimized_out(subm[subm_idx_from]) || is_optimized_out(subm[subm_idx_to])) {
+            LOG_DEBUG("Skip: connection involves an optimized-out subgraph");
+            continue;
+        }
+
         if (subm[subm_idx_from].replaced_by && subm[subm_idx_to].replaced_by) {
             // A function call to function call connection:
             // - Skip it here, setting in/out tensors will be handled in runtime
