@@ -7,8 +7,6 @@
 #include <arm_compute/core/CoreTypes.h>
 #include <arm_compute/core/Error.h>
 #include <arm_compute/core/QuantizationInfo.h>
-#include <arm_compute/core/TensorInfo.h>
-#include <arm_compute/core/TensorShape.h>
 #include <arm_compute/core/Types.h>
 #include <arm_compute/runtime/NEON/functions/NEConvolutionLayer.h>
 
@@ -195,13 +193,6 @@ ACLFunction ACLConvolutionExecutor::configureFunction(const ACLTensors& aclMemor
                       false,  // enable fast math
                       1);     // num_groups
     return neConv;
-}
-
-std::shared_ptr<arm_compute::TensorInfo> ACLConvolutionExecutor::initTensorInfo(
-    const arm_compute::TensorShape& tensorShape,
-    const arm_compute::DataType& dataType,
-    const arm_compute::DataLayout& dataLayout) {
-    return ACLCommonExecutor::initTensorInfo(tensorShape, convertToQuantizedType(dataType), dataLayout);
 }
 
 }  // namespace ov::intel_cpu

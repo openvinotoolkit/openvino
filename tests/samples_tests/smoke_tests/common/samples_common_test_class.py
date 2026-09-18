@@ -19,6 +19,7 @@ import io
 import os
 import itertools
 import re
+import signal
 import subprocess
 import sys
 import requests
@@ -48,6 +49,32 @@ def get_cmd_output(*cmd):
         print(error.output)
         raise
     return output
+
+
+def get_cmd_output_after_signal(*cmd, ready_message, output_path):
+    """Run until a readiness message, then send a stop signal and require a clean exit."""
+    with output_path.open('w', encoding='utf-8') as output_file:
+        process = subprocess.Popen(
+            cmd, stdout=output_file, stderr=subprocess.STDOUT,
+            env={**os.environ, 'PYTHONIOENCODING': 'utf-8'},
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
+        try:
+            deadline = time.monotonic() + 60
+            while ready_message not in output_path.read_text(encoding='utf-8'):
+                assert process.poll() is None, output_path.read_text(encoding='utf-8')
+                assert time.monotonic() < deadline, f'Sample did not print {ready_message!r}'
+                time.sleep(0.05)
+            # Allow work to begin and ensure the sample stays alive until signaled.
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                process.wait(timeout=0.5)
+            assert process.poll() is None, output_path.read_text(encoding='utf-8')
+            process.send_signal(signal.CTRL_BREAK_EVENT if os.name == 'nt' else signal.SIGTERM)
+            assert process.wait(timeout=10) == 0, output_path.read_text(encoding='utf-8')
+        finally:
+            if process.poll() is None:
+                process.kill()
+            process.wait(timeout=10)
+    return output_path.read_text(encoding='utf-8')
 
 
 @retry(max_retries=3, exceptions=(requests.RequestException,), delay=5, exponential_backoff=True)

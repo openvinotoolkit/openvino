@@ -218,6 +218,11 @@ const std::vector<GatherShapeParams> dynamicAxisStaticOutputScalarIndices = {
         ov::test::InputShape(ov::PartialShape({-1, 300}), {{271, 300}}),
         ov::test::InputShape(ov::PartialShape({}), {{}}),
         0, 0
+    },
+    {
+        ov::test::InputShape(ov::PartialShape({8, 300}), {{8, 300}}),
+        ov::test::InputShape(ov::PartialShape({}), {{}}),
+        0, 0
     }
 };
 
@@ -225,7 +230,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_dynamic_axis0_scalar_indices_static_output, Gathe
                 ::testing::Combine(
                     ::testing::ValuesIn(dynamicAxisStaticOutputScalarIndices),  // input shapes
                     ::testing::Values(ov::element::f32),                        // network precision
-                    ::testing::Values(false),                                   // is const indices
+                    ::testing::Values(false, true),                             // is const indices
                     ::testing::Values(true)),                                   // is const axis
                 GatherGPUTest::getTestCaseName);
 } // namespace

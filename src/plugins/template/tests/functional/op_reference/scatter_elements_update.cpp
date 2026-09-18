@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "common_test_utils/test_assertions.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -362,4 +363,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdate,
                          ReferenceScatterElementsUpdateV12LayerTest,
                          ::testing::ValuesIn(collect_scatter_eu_v12_params()),
                          ReferenceScatterElementsUpdateV12LayerTest::getTestCaseName);
+
+// Regression test for CVS-193801: out-of-range indices used to cause a heap-buffer-overflow
+// write in the reference kernel instead of a graceful validation failure.
+class ReferenceScatterElementsUpdateV12LayerTestNegative : public ReferenceScatterElementsUpdateV12LayerTest {};
+
+TEST_P(ReferenceScatterElementsUpdateV12LayerTestNegative, IndicesOutOfRangeThrows) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(Exec(), ov::Exception, "Accessing out-of-range dimension");
+}
+
+std::vector<ScatterElementsUpdateParams> generateScatterOutOfRangeIndicesParams() {
+    return {
+        ScatterElementsUpdateParams(reference_tests::Tensor({2, 2}, element::f32, std::vector<float>{1, 2, 3, 4}),
+                                    reference_tests::Tensor({2, 2}, element::i64, std::vector<int64_t>{5, 1, 0, 0}),
+                                    reference_tests::Tensor({2, 2}, element::f32, std::vector<float>{10, 20, 30, 40}),
+                                    reference_tests::Tensor({1}, element::i64, std::vector<int64_t>{0}),
+                                    reference_tests::Tensor({2, 2}, element::f32, std::vector<float>{0, 0, 0, 0})),
+    };
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdateNegative,
+                         ReferenceScatterElementsUpdateV12LayerTestNegative,
+                         ::testing::ValuesIn(generateScatterOutOfRangeIndicesParams()),
+                         ReferenceScatterElementsUpdateV12LayerTestNegative::getTestCaseName);
 }  // namespace

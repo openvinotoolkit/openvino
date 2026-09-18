@@ -20,8 +20,9 @@ layout scaled_dot_product_attention_inst::calc_output_layout(scaled_dot_product_
                                                              kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<scaled_dot_product_attention>();
     auto transpose_shape = [](const ov::PartialShape& shape, const std::vector<int64_t>& order) {
-        if (order.empty())
+        if (order.empty()) {
             return shape;
+        }
 
         auto shape_transposed = ov::PartialShape(shape);
         auto rank_diff = shape.size() - order.size();

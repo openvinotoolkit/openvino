@@ -5,6 +5,10 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <utility>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
@@ -12,10 +16,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/slice.hpp"
-#include <utility>
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -67,7 +67,7 @@ OutputVector translate_glu_swiglu(const NodeContext& context) {
     auto silu = std::make_shared<ov::op::v1::Multiply>(src0, sigmoid);
     auto res = std::make_shared<ov::op::v1::Multiply>(silu, src1);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 // gpt-oss gated SiLU: clamp gate to (-inf, limit], scale by alpha, sigmoid-gate, then multiply by
@@ -91,7 +91,7 @@ OutputVector translate_glu_swiglu_oai(const NodeContext& context) {
     auto up_plus_one = std::make_shared<ov::op::v1::Add>(up, one);
     auto res = std::make_shared<ov::op::v1::Multiply>(out_glu, up_plus_one);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

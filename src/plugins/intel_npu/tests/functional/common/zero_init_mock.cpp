@@ -51,7 +51,7 @@ std::tuple<uint32_t, std::string> queryDriverExtensionVersion(const char* extNam
 
 namespace intel_npu {
 
-void ZeroInitStructsMock::initNpuDriver() {
+void ZeroInitStructsMock::initNpuDriver(const ze_api_version_t zeApiVersion) {
     auto setNpuDriver = [&](uint32_t drivers_count, std::vector<ze_driver_handle_t> all_drivers) {
         _driver_properties.stype = ZE_STRUCTURE_TYPE_DRIVER_PROPERTIES;
         _log.debug("ZeroInitStructsHolder::initNpuDriver - get NPU driver");
@@ -121,8 +121,12 @@ void ZeroInitStructsMock::initNpuDriver() {
     if (loader_version.major > 1 || (loader_version.major == 1 && loader_version.minor > 18) ||
         (loader_version.major == 1 && loader_version.minor == 18 && loader_version.patch >= 5)) {
         uint32_t drivers_count = 0;
+        ze_init_driver_app_version_ext_desc_t desc_app_version_ext = {};
+        desc_app_version_ext.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_APP_VERSION_EXT_DESC;
+        desc_app_version_ext.apiVersionHint = zeApiVersion;
         ze_init_driver_type_desc_t desc = {};
         desc.stype = ZE_STRUCTURE_TYPE_INIT_DRIVER_TYPE_DESC;
+        desc.pNext = &desc_app_version_ext;
         desc.flags = ZE_INIT_DRIVER_TYPE_FLAG_NPU;
         auto result = zeInitDrivers(&drivers_count, nullptr, &desc);
         if (result != ZE_RESULT_SUCCESS) {
@@ -151,27 +155,28 @@ ZeroInitStructsMock::ZeroInitStructsMock(uint32_t zeDriverNpuExtVersion,
                                          uint32_t zeProfilingNpuExtVersion,
                                          uint32_t zeContextNpuExtVersion,
                                          uint32_t zeMutableCommandListExtVersion,
-                                         uint32_t zeExternalMemMapSysMemExtVersion)
+                                         uint32_t zeExternalMemMapSysMemExtVersion,
+                                         ze_api_version_t zeApiVersion)
     : _zero_api(ZeroApi::get_instance()),
       _log("NPUZeroInitStructsHolder", Logger::global().level()) {
     _log.debug("ZeroInitStructsHolder - initialize NPU Driver");
-    initNpuDriver();
+    initNpuDriver(zeApiVersion);
 
     // Check L0 API version
     THROW_ON_FAIL_FOR_LEVELZERO("zeDriverGetApiVersion", zeDriverGetApiVersion(_driver_handle, &_ze_drv_api_version));
 
-    if (ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MAJOR_VERSION(_ze_drv_api_version)) {
+    if (ZE_MAJOR_VERSION(zeApiVersion) != ZE_MAJOR_VERSION(_ze_drv_api_version)) {
         OPENVINO_THROW("Incompatibility between NPU plugin and driver! ",
                        "Plugin L0 API major version = ",
-                       ZE_MAJOR_VERSION(ZE_API_VERSION_CURRENT),
+                       ZE_MAJOR_VERSION(zeApiVersion),
                        ", ",
                        "Driver L0 API major version = ",
                        ZE_MAJOR_VERSION(_ze_drv_api_version));
     }
-    if (ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT) != ZE_MINOR_VERSION(_ze_drv_api_version)) {
+    if (ZE_MINOR_VERSION(zeApiVersion) != ZE_MINOR_VERSION(_ze_drv_api_version)) {
         _log.warning("Some features might not be available! "
                      "Plugin L0 API minor version = %d, Driver L0 API minor version = %d",
-                     ZE_MINOR_VERSION(ZE_API_VERSION_CURRENT),
+                     ZE_MINOR_VERSION(zeApiVersion),
                      ZE_MINOR_VERSION(_ze_drv_api_version));
     }
 
