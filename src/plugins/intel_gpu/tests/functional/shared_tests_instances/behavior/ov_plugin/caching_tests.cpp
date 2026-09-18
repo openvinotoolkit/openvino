@@ -4,6 +4,8 @@
 
 #include "behavior/ov_plugin/caching_tests.hpp"
 
+#include <cstdlib>
+
 using namespace ov::test::behavior;
 
 namespace {
@@ -56,6 +58,7 @@ const std::vector<ov::AnyMap> GPULoadFromFileConfigs = {
     {ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)},
     {},
 };
+
 INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          CompileModelLoadFromFileTestBase,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
@@ -78,6 +81,28 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::ValuesIn(GPULoadFromFileConfigs)),
                          CompileModelLoadFromCacheTest::getTestCaseName);
+
+class CompileModelZeroCopyCacheLoadTest : public CompileModelLoadFromCacheTest {
+    void SetUp() override {
+        setenv("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", "YES", 1);
+        CompileModelLoadFromCacheTest::SetUp();
+    }
+
+    void TearDown() override {
+        CompileModelLoadFromCacheTest::TearDown();
+        unsetenv("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD");
+    }
+};
+
+TEST_P(CompileModelZeroCopyCacheLoadTest, CanLoadFromCache) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_ZeroCopyCacheLoad_GPU,
+                         CompileModelZeroCopyCacheLoadTest,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
+                                            ::testing::Values(ov::AnyMap{})),
+                         CompileModelZeroCopyCacheLoadTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          CompileModelWithCacheEncryptionTest,
                          ::testing::Values(ov::test::utils::DEVICE_GPU),
