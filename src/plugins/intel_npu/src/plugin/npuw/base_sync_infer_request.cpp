@@ -362,9 +362,6 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
         }
 
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-        if (!closure) {
-            continue;
-        }
         if (m_npuw_model->unpack_required(idx, cidx)) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
