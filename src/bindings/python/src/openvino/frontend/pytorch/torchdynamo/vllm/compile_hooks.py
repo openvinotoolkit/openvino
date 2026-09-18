@@ -397,7 +397,7 @@ def rewrite_fc_decompression(om):
     from openvino import Type
     # (id(Constant), target type) -> decompression Convert. Tied weights
     # (embedding and lm_head sharing one Constant) would otherwise get a
-    # Convert each, duplicating a 131-467 MB weight per extra MatMul.
+    # Convert each, duplicating the weight per extra MatMul.
     _conv_cache = {}
     try:
         for mm in list(om.get_ordered_ops()):
