@@ -373,6 +373,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_Snippets,
                          EltwiseLayerCPUTest,
                          params_4D_bitwise_snippets,
                          EltwiseLayerCPUTest::getTestCaseName);
+
+const auto params_4D_bitwise_scalar_snippets =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(bitwise_in_shapes_4D),
+                                          ::testing::ValuesIn({ov::test::utils::EltwiseTypes::BITWISE_AND,
+                                                               ov::test::utils::EltwiseTypes::BITWISE_OR,
+                                                               ov::test::utils::EltwiseTypes::BITWISE_XOR}),
+                                          ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                          ::testing::Values(ov::test::utils::OpType::SCALAR),
+                                          ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8}),
+                                          ::testing::Values(ov::element::Type_t::dynamic),
+                                          ::testing::Values(ov::element::Type_t::dynamic),
+                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                          ::testing::Values(ov::AnyMap())),
+                       ::testing::ValuesIn(bitwiseSnippetsCpuParams()),
+                       ::testing::Values(emptyFusingSpec),
+                       ::testing::Values(true));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_Scalar_Snippets,
+                         EltwiseLayerCPUTest,
+                         params_4D_bitwise_scalar_snippets,
+                         EltwiseLayerCPUTest::getTestCaseName);
 #endif
 
 const auto params_2D_bitwise_broadcast =
