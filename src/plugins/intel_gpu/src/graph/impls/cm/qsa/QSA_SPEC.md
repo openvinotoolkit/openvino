@@ -23,19 +23,19 @@ The design deliberately preserves OpenVINO fallback behavior. A graph transforma
 
 ### 2.1 Goals
 
-1. Provide a first-class Intel GPU implementation of Qwen Sparse Attention.
-2. Keep the existing paged `QSA` contract stable.
-3. Provide an SDPA-style interface for dense/KVCache-managed deployments.
-4. Reuse the existing QSA Q0-Q3 implementation and validated CM kernels.
+1. Provide a fused operation definition for Qwen Sparse Attention(QSA).
+2. Define PA-style QSA interface (`ov::intel_gpu::op::QSA`) for callers that manage physical pages and block tables.
+3. Definie SDPA-style QSA interface (`ov::intel_gpu::op::QSASDPA`) and Indexer Cache (`ov::intel_gpu::op::QSAIndexerCache`) for dense/KVCache-managed deployments.
+4. Make sure to reuse the same kernels for both the PA-style and SDPA-style QSA implementations.
 5. Preserve causal, ragged-token, GQA/MQA, compressed-indexer, and output-gate semantics.
-6. Integrate with OpenVINO graph transformations without requiring model authors to manually construct page tables for the SDPA-style path.
-7. Make unsupported cases explicit through validation or conservative graph-pass bail-out.
-8. Leave room for dynamic batch, beam reordering, rotary-table repacking, and more efficient dense kernels in later revisions.
+6. Provide OpenVINO graph transformations pattern pass for both PA-style and SDPA-style QSA operations.
+7. QSA indexer's RoPE is not standard RoPE, fuse it into the QSA operation instead of handling it out of QSA operation.
+8. Make unsupported cases explicit through validation or conservative graph-pass bail-out.
+9. Leave room for dynamic batch, beam reordering, rotary-table repacking, and more efficient dense kernels in later revisions.
 
 ### 2.2 Non-goals for version 1
 
-- Replacing standard `ScaledDotProductAttention` for arbitrary models.
-- Implementing a general-purpose sparse-attention API for all sparsity patterns.
+- Define and implement a general-purpose sparse-attention API for all sparsity patterns.
 - Modifying or reusing the implementation of `PagedAttention` or standard `ScaledDotProductAttention`.
 - Supporting arbitrary dynamic batch size in the dense `QSASDPA` lowering.
 - Supporting beam reordering inside QSA kernels.
@@ -66,6 +66,14 @@ $$
 The score path is followed by the causal mask and `TopK`. The selected complete blocks are passed to the sparse main-attention stage. The current incomplete block is handled by the causal-tail path and is not incorrectly discarded merely because it is not complete.
 
 The operation does not own the surrounding model projections. Main `q_proj`, `k_proj`, `v_proj`, `o_proj`, gated residual operations, and unrelated post-processing remain ordinary OpenVINO graph nodes unless a separate, independently proven transformation handles them.
+
+
+The whole QSA operation can be broken down into the following stages:
+  - Q0: Append the current projected K/V to the paged main cache 
+  - Q1: Build indexer Q/K, apply normalization and RoPE, append raw K, and produce completed-block summaries 
+  - Q2: Score visible compressed blocks and select TopK candidates 
+  - Q3: Read selected blocks and the causal tail, then evaluate sparse attention
+
 
 ## 4. Operation definitions
 
