@@ -2285,7 +2285,13 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         // 32 bytes of k per crosspack group, matching tile_store_t_sys_src2's
         // cp = 32 / sizeof(element). At f16 that spelling is 16 elements; at s8 it is 32.
         problem_vs.B.crosspack = 32;
-        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(n_keys.get_length() * problem_vs.Ta)));
+        // The leading dimension is the token count -- unless V carries padding, in which case the
+        // kernel strides by V's y pitch and the token count overstates the alignment. Claim just
+        // the element size there: gemmstone only narrows its candidate set on this number, so
+        // understating it costs the wide loads and never emits an illegal one.
+        const bool v_padded = static_cast<bool>(params.input_layouts[2].data_padding);
+        problem_vs.A.setAlignment(
+            micro::alignment_for_ld(v_padded ? static_cast<int>(problem_vs.Ta.size()) : static_cast<int>(n_keys.get_length() * problem_vs.Ta)));
     }
 
     /* Ask microkernel provider for microkernel */

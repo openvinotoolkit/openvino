@@ -96,6 +96,11 @@ public:
                     // In this case, fallback to opt kernel.
                     if (!has_stage(regular_micro_multi_tokens)) {
                         OPENVINO_ASSERT(!SDPAOpt::has_per_channel_compressed_kv(params), "Per-channel compressed KV requires the micro SDPA kernel");
+                        // The fallback kernel has no fused Q rotation, so taking it for a node that
+                        // carries one would silently compute attention over an unrotated Q.
+                        OPENVINO_ASSERT(!params.typed_desc<scaled_dot_product_attention>()->has_rope_q,
+                                        "SDPA: the micro kernel carrying the fused Q rotation could not be built and "
+                                        "no other stage implements it");
                         GPU_DEBUG_TRACE_DETAIL << "fail to create micro kernel, fallback to regular_multi_tokens for prefill \n";
                         add_stage(regular_multi_tokens, params);
                     }
@@ -113,6 +118,10 @@ public:
                 if (can_use_micro_sdpa) {
                     add_stage(regular_micro_single_token, params);
                 }
+                // ARL-H and the indirect path steer single-token decode away from the micro kernel,
+                // which is the only one that implements the fused Q rotation.
+                OPENVINO_ASSERT(can_use_micro_sdpa || !params.typed_desc<scaled_dot_product_attention>()->has_rope_q,
+                                "SDPA: a fused Q rotation reached a single-token stage that cannot apply it");
 #endif
                 add_stage(is_indirect ? indirect_single_token : regular_single_token, params);
                 if (get_partitions_num(params, SDPAStage::SINGLE_TOKEN) > 1) {
@@ -149,6 +158,8 @@ public:
         // If we need to optimize unaligned head size SDPA for 2nd+ token phase of LM model,
         // we'll need to fix single_token kernel to support unaligned head size.
         if (is_prefill || unaligned_head_size(new_params)) {
+            OPENVINO_ASSERT(!new_params.typed_desc<scaled_dot_product_attention>()->has_rope_q,
+                            "SDPA: a fused Q rotation reached a stage that cannot apply it");
             GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
@@ -157,6 +168,13 @@ public:
             return execute_stage(events, instance, regular_micro_single_token);
         }
 #endif
+        // The micro kernel is the only one that applies a fused Q rotation, and both dispatches
+        // above have been declined by now -- the reachable reason is a micro stage that failed to
+        // build. Running the remaining stages would compute attention over an unrotated Q and
+        // report success.
+        OPENVINO_ASSERT(!new_params.typed_desc<scaled_dot_product_attention>()->has_rope_q,
+                        "SDPA: a fused Q rotation reached a stage that cannot apply it");
+
         const auto num_of_partitions = get_partitions_num(new_params, SDPAStage::SINGLE_TOKEN);
         GPU_DEBUG_TRACE_DETAIL << "execute single_tokens with indirect = " << is_indirect << "\n";
         auto ev = execute_stage(events, instance, is_indirect ? indirect_single_token : regular_single_token);
