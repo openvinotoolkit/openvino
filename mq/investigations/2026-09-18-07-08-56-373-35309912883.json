@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-18-07-08-56-373-35309912883",
+  "timestamp": "2026-09-18T07:08:56Z",
+  "run_id": "35309912883",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35309912883",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38219",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38219",
+  "author": "ankitm3k",
+  "category": "Network",
+  "title": "NPU Models Tests fail downloading EasyOCR detector model - DNS resolution failure",
+  "signature": "urlerror urlopen error errno 11001 getaddrinfo failed downloading easyocr detector model|Network",
+  "signature_hash": "dfd265b1c0ea3af5",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 3720",
+      "conclusion": "failure",
+      "symptom": "test_easyocr.py::TestEasyOCRConvertModel::test_convert_model[NPU-detector] fails: subprocess raised URLError getaddrinfo failed while downloading the EasyOCR detector model weights"
+    }
+  ],
+  "key_errors": [
+    "E           multiprocessing.context.ProcessError: \nE           detector running failed: \nE             File \"...\\install\\tests\\model_hub_tests\\pytorch\\test_easyocr.py\", line 24, in load_model\nE               model = easyocr.Reader([\"en\"], quantize=False).detector\nE             File \"...\\easyocr\\easyocr.py\", line 253, in getDetectorPath\nE               download_and_unzip(self.detection_models[self.detect_network]['url'], ...)\nE             File \"...\\easyocr\\utils.py\", line 628, in download_and_unzip\nE               urlretrieve(url, zip_path, reporthook=reporthook)\nE             File \"urllib\\request.py\", line 216, in urlopen\nE               return opener.open(url, data, timeout)\nE           URLError: <urlopen error [Errno 11001] getaddrinfo failed>",
+    "FAILED install\\tests\\model_hub_tests\\pytorch\\test_easyocr.py::TestEasyOCRConvertModel::test_convert_model[NPU-detector] - multiprocessing.context.ProcessError:",
+    "===== 1 failed, 3 passed, 7 skipped, 232 deselected in 150.86s (0:02:30) ======"
+  ],
+  "root_cause": "The NPU Models Tests (3720 platform) job runs the EasyOCR PyTorch model-hub conversion test, which attempts to download the EasyOCR detector model weights (craft_mlt_25k.pth) from an external CDN at test time via easyocr's built-in download_and_unzip helper. On this Windows self-hosted runner, that outbound DNS lookup failed with Errno 11001 (getaddrinfo failed), most likely because the runner's network/DNS/proxy configuration does not allow ad-hoc external downloads outside the configured pip/artifact proxies. This is unrelated to any code change in the analysed PR - the PR only touches GQA/MatMulNBits/GPU Gather/NPU model-serializer code, none of which affects the EasyOCR test or its model-download path. The job was already automatically retried (run_attempt 2, in_progress) at investigation time, consistent with a transient network blip rather than a deterministic break.",
+  "reproduction_steps": "N/A - requires the same Windows self-hosted runner network environment; cannot be reproduced from a developer machine with normal internet access. To reproduce in CI, re-run 'NPU Models Tests / 3720' and observe whether the EasyOCR detector download succeeds or fails intermittently.",
+  "recommended_actions": [
+    "Re-run the failed 'NPU Models Tests / 3720' job (already in progress as attempt 2 at analysis time); a transient DNS failure to the external EasyOCR CDN is unlikely to reproduce on retry.",
+    "If this recurs, consider vendoring/caching the EasyOCR detector/recognizer model weights through the existing pip-proxy/artifact-cache infrastructure instead of relying on ad-hoc HTTPS downloads mid-test on Windows runners.",
+    "Verify the Windows self-hosted runner pool's outbound DNS/proxy allowlist covers the EasyOCR model CDN host, or mark this specific EasyOCR NPU test as skippable/retryable when external downloads are blocked."
+  ],
+  "prevention_strategies": "Avoid unmocked, ad-hoc network downloads inside CI test bodies; prefer models pre-cached in the artifact/pip proxy used elsewhere in this workflow. Add a retry-with-backoff wrapper around EasyOCR's download_and_unzip call (or monkeypatch it in the test fixture) so a single transient DNS hiccup does not fail the whole precommit run.",
+  "historical_context": "No prior CI Doctor MQ pattern record for this specific EasyOCR/DNS signature was found; this is the first recorded occurrence. Other NPU Models Tests infrastructure failures previously recorded include artifact upload ENOTFOUND and openvino_wheels download-after-retries failures, both categorized Infrastructure, suggesting the Windows NPU runner pool has recurring outbound-network flakiness worth tracking."
+}

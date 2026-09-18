@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 247,
+  "total": 248,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2424,6 +2424,15 @@
       "category": "External Service",
       "signature_hash": "ffd22b8ddfd9b602",
       "pr_number": "38121"
+    },
+    {
+      "investigation_id": "2026-09-18-07-08-56-373-35309912883",
+      "run_id": "35309912883",
+      "timestamp": "2026-09-18T07:08:56Z",
+      "title": "NPU Models Tests fail downloading EasyOCR detector model - DNS resolution failure",
+      "category": "Network",
+      "signature_hash": "dfd265b1c0ea3af5",
+      "pr_number": "38219"
     }
   ]
 }

@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "urlerror urlopen error errno 11001 getaddrinfo failed downloading easyocr detector model|Network",
+  "signature_hash": "dfd265b1c0ea3af5",
+  "title": "NPU Models Tests fail downloading EasyOCR detector model - DNS resolution failure",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-09-18T07:08:56Z",
+  "last_seen": "2026-09-18T07:08:56Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35309912883"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38219"
+  ],
+  "recent_timestamps": [
+    "2026-09-18T07:08:56Z"
+  ],
+  "rerun_search_string": "urlopen error errno 11001 getaddrinfo failed"
+}
