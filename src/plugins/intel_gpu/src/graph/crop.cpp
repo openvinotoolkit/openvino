@@ -85,7 +85,6 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
             auto out_shape = ov::PartialShape::dynamic(input0_layout.get_partial_shape().size());
             return { layout{out_shape, input0_layout.data_type, input0_layout.format } };
         }
-        OPENVINO_ASSERT(desc->output_idx < output_shapes.size(), "[GPU] Shape_infer returns less ouput shape than request index");
     } else if (desc->op_mode == cldnn::crop_ngraph_op_mode::split) {
         std::unordered_map<size_t, ov::Tensor> const_data;
 
