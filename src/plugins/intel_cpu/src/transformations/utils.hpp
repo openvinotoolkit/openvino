@@ -111,7 +111,12 @@ bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
 
     const auto& pattern_map = matcher.get_pattern_value_map();
     const auto gemm_node = pattern_map.at(gemm_m).get_node_shared_ptr();
-    if (gemm_node->get_input_element_type(0) != node->get_output_element_type(0)) {
+    if (const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(gemm_node->get_input_node_shared_ptr(0))) {
+        if (subtract->get_input_element_type(0) != node->get_output_element_type(0)) {
+            return false;
+        }
+    }
+    else if (gemm_node->get_input_element_type(0) != node->get_output_element_type(0)) {
         return false;
     }
 

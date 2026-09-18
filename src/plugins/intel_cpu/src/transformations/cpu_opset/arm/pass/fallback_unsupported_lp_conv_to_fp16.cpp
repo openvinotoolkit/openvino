@@ -31,7 +31,6 @@
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "ov_ops/type_relaxed.hpp"
-#include "transformations/cpu_opset/arm/pass/extract_conv_activation_zero_point.hpp"
 
 using namespace ov::pass;
 
@@ -72,10 +71,24 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
             return false;
         }
 
-        const bool zero_point_fused =
-            conv->get_rt_info().count(ov::intel_cpu::ExtractConvActivationZeroPoint::rt_info_key) > 0;
-        const bool has_subtract = !zero_point_fused && ov::is_type<ov::op::v1::Subtract>(conv->get_input_node_ptr(0));
-        if (!has_subtract && fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
+        const bool has_subtract = ov::is_type<ov::op::v1::Subtract>(conv->get_input_node_ptr(0));
+        const auto activation_out = conv_mul_add_fq->get_anchor("activation", pattern_map);
+        if (has_subtract) {
+            if (const auto zp_constant = ov::as_type_ptr<ov::op::v0::Constant>(conv->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
+                const auto zp = zp_constant->cast_vector<float>();
+                if (zp.empty()) {
+                    return false;
+                }
+                const auto zp_values = zp[0];
+                const bool uniform = std::all_of(zp.begin(), zp.end(), [zp_values](float value) {
+                    return value == zp_values;
+                });
+                if (uniform && !activation_out && fake_quantize->get_output_element_type(0) == element::u8) {
+                    return false;
+                }
+            }
+        }
+        else if (fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)){
             return false;
         }
 

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 
 #include "low_precision/network_helper.hpp"
@@ -61,9 +62,28 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
         if (activation_out) {
             return false;
         }
-        // ACL int8 requantization requires the activation and FakeQuantize output types to match.
-        if (fakeQuantize->get_output_element_type(0) != gemm->get_input_element_type(0)) {
-            return false;
+
+        // Subtract could be optional
+        if (const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(gemm->get_input_node_shared_ptr(0))) {
+            if (fakeQuantize->get_output_element_type(0) != subtract->get_input_element_type(0)) {
+                return false;
+            }
+
+            const auto zp_constant = ov::as_type_ptr<ov::op::v0::Constant>(subtract->get_input_node_shared_ptr(1));
+            if (!zp_constant) {
+                return false;
+            }
+            const auto zp = zp_constant->cast_vector<float>();
+            if (zp.empty() || !std::all_of(zp.begin(), zp.end(), [&zp](float value) {
+                    return value == zp[0];
+                })) {
+                return false;
+            }
+        }
+        else {
+            if (fakeQuantize->get_output_element_type(0) != gemm->get_input_element_type(0)) {
+                return false;
+            }
         }
         auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(
             ov::pass::low_precision::NetworkHelper::swapMultiplyAndAdd(ov::as_type_ptr<ov::opset1::Add>(add), 0));
