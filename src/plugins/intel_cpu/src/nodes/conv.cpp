@@ -52,7 +52,6 @@
 #include "openvino/runtime/system_conf.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
-#include "transformations/cpu_opset/arm/pass/extract_conv_activation_zero_point.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -256,12 +255,6 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
         } else {
             m_attrs.autoPadding = AutoPaddingType::None;
         }
-    }
-    // check for zero point activation on ARM
-    const auto& rtInfo = op->get_rt_info();
-    if (auto it = rtInfo.find(ExtractConvActivationZeroPoint::rt_info_key); it != rtInfo.end()) {
-        m_attrs.inputZeroPoint = it->second.as<int32_t>();
-        m_attrs.inputZeroPointsType = ZeroPointsType::PerTensor;
     }
     // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
     const bool isAvx2FP32 = !ov::with_cpu_x86_avx512_core() && ov::with_cpu_x86_avx2() && !context->isGraphQuantized();
@@ -896,6 +889,11 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
     } else {
         m_attrs.inputZeroPointsType = ZeroPointsType::PerChannel;
     }
+}
+void Convolution::initializeInputZeroPointsACL(int32_t zeroPoint) {
+    CPU_NODE_ASSERT(inputZeroPoints.empty() && legacyInputZeroPoints.empty(), "input zero points are already set");
+    m_attrs.inputZeroPoint = zeroPoint;
+    m_attrs.inputZeroPointsType = ZeroPointsType::PerTensor;
 }
 
 }  // namespace ov::intel_cpu::node

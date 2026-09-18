@@ -936,10 +936,92 @@ void GraphOptimizer::FuseFCAndTransposeOnWeights(Graph& graph) {
 
 void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
-// zero points fusing is skipped on ARM platforms because oneDNN is not involved into int8 convolution inference
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    return;
-#endif
+    // zero point is applied inside ACL via QuantizationInfo so just read per-tensor value and use typed setter
+    auto isSuitableConvNode = [](const NodePtr& node) {
+        return node->getType() == Type::Convolution;
+    };
+
+    auto tryFuseZeroPoint = [](const NodePtr& conv, const NodePtr&dataParent) {
+        auto* convNode = dynamic_cast<Convolution*>(conv.get());
+        OPENVINO_ASSERT(convNode, "Cannot cast to convolution ", conv->getName());
+
+        if (dataParent->getType() != Type::Eltwise ||
+            dataParent->getAlgorithm() != Algorithm::EltwiseSubtract ||
+            !dataParent->getFusedWith().empty() ||
+            // check if parent has only activation + zero point constant
+            dataParent->getParentEdges().size() != 2) {
+                return false;
+        }
+
+        const auto zpNode = dataParent->getParentEdgeAt(1)->getParent();
+        if (zpNode->getType() != Type::Input || !zpNode->isConstant()) {
+            return false;
+        }
+
+        auto* zpInput = dynamic_cast<node::Input*>(zpNode.get());
+        OPENVINO_ASSERT(zpInput, "Cannot cast zero point to Input node");
+        const auto zpBlob = zpInput->getMemoryPtr();
+        OPENVINO_ASSERT(zpBlob && zpBlob->getData(), "zero point blob not allocated");
+        const auto* zpData = static_cast<const uint8_t*>(zpBlob->getData());
+
+        //per-tensor only
+        const auto zpShape = dataParent->getInputShapeAtPort(1);
+        const auto zpCount = zpShape.getElementsCount();
+        for (size_t i = 1; i<zpCount; i++) {
+            if (zpData[i] != zpData[0]) {
+                return false;
+            }
+        }
+        
+        // compare precision of Fakequantize output and real activation output to prevent u8->i8 case
+        NodePtr current = conv;
+        NodePtr fakeQuantizeNode = nullptr;
+        for (int hop = 0; hop < 3; hop++) {
+            if (current->getChildEdges().size() != 1) {
+                break;
+            }
+            current = current->getChildEdgeAt(0)->getChild();
+            if (current->getType() == Type::FakeQuantize) {
+                fakeQuantizeNode = current;
+                break;
+            }
+        }
+        if (!fakeQuantizeNode) {
+            return false;
+        }
+
+        const auto activationPrecision = dataParent->getOriginalInputPrecisionAtPort(0);
+        if (fakeQuantizeNode->getOriginalOutputPrecisionAtPort(0) != activationPrecision) {
+            return false;
+        }
+
+        const auto offset = static_cast<int32_t>(zpData[0]);
+
+        convNode->initializeInputZeroPointsACL(offset);
+        return true;
+
+    };
+
+    for (const auto& conv: graphNodes) {
+        if (!isSuitableConvNode(conv)) {
+            continue;
+        }
+
+        CPU_GRAPH_OPTIMIZER_SCOPE(FuseConvolutionAndZeroPoints_ConvNode);
+        const auto dataParent = conv->getParentEdgeAt(0)->getParent();
+        if (tryFuseZeroPoint(conv, dataParent)) {
+            const auto zpEdge = dataParent->getParentEdgeAt(1);
+            DEBUG_LOG("[GraphOptimizer(ARM)]:Eltwise Subtract Node ##",
+                    dataParent->getName(),
+                " is optimized as zeropoint of Conv ##",
+            conv->getName());
+            conv->setOriginalInputPrecisionAtPort(0, dataParent->getOriginalInputPrecisionAtPort(0));
+            graph.RemoveEdge(zpEdge);
+            graph.DropNode(dataParent);
+        }
+    }
+#else
 
     auto isSuitableConvNode = [](const NodePtr& node) {
         bool retVal = false;
@@ -1117,6 +1199,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
             initializeOutputCompensation(conv);
         }
     }
+#endif
 }
 
 void GraphOptimizer::FuseFullyConnectedAndSimpleOperation(Graph& graph) {
