@@ -116,7 +116,6 @@ private:
     const void* m_cached_ptr = nullptr;
     std::size_t m_offset = 0;
     std::size_t m_byte_size = 0;
-    bool m_has_weightless_offset = false;
     ov::Tensor m_read_from_bin;
     std::string m_weights_path;
     ov::FileHandleProvider m_handle_provider = nullptr;

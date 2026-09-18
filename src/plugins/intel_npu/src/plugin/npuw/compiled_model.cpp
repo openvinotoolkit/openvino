@@ -2721,9 +2721,7 @@ bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx, const std::
     const auto closure_param_id = comp_model_desc.param_base + cidx;
 
     auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-    if (!closure) {
-        return false;
-    }
+
     return (closure.get_element_type() != iport.get_element_type());
 }
 

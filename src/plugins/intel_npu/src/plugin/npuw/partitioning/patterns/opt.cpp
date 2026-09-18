@@ -1325,7 +1325,9 @@ ConvertDQVocab::ConvertDQVocab(Context::Ref ctx) {
             const auto source = ov::as_type_ptr<ov::op::v0::Parameter>(convert->input_value(0).get_node_shared_ptr());
             OPENVINO_ASSERT(source, "ConvertDQVocab source must be a parameter");
             auto shifted = ctx.get().subtract_128(source);
+            // after this we have: i8 derived Parameter -> Convert -> Subtract(128) -> outer Subtract
             convert->input(0).replace_source_output(shifted);
+            // after this we have: i8 derived Parameter -> Convert -> outer Subtract
             ov::replace_node(matched_shift, convert);
         }
         return true;

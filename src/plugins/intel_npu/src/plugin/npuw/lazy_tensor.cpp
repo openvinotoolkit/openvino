@@ -4,7 +4,6 @@
 
 #include "lazy_tensor.hpp"
 
-#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <variant>
@@ -38,7 +37,6 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
     if (weightless_cache_attr != rt_info.end()) {
         m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
-        m_has_weightless_offset = true;
     } else {
         // See the comment in serialize() for more details
         LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. We need to "
@@ -48,15 +46,8 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
 }
 
 std::size_t Const::hash() const {
-    std::optional<std::size_t> weightless_offset;
-    if (m_has_weightless_offset) {
-        weightless_offset = m_offset;
-    }
-
-    std::size_t seed =
-        weightless_offset ? std::hash<std::size_t>()(*weightless_offset) : std::hash<const void*>()(m_cached_ptr);
+    std::size_t seed = std::hash<const void*>()(m_cached_ptr) + 0x9e3779b9;
     seed ^= m_cached_type.hash() + 0x9e3779b9;
-    seed ^= std::hash<std::size_t>()(m_byte_size) + 0x9e3779b9;
     for (const auto& dim : m_cached_shape) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
     }
@@ -64,20 +55,8 @@ std::size_t Const::hash() const {
 }
 
 bool Const::operator==(const Const& other) const {
-    auto get_weightless_offset = [](const Const& constant) -> std::optional<std::size_t> {
-        if (constant.m_has_weightless_offset) {
-            return constant.m_offset;
-        }
-        return std::nullopt;
-    };
-
-    const auto this_offset = get_weightless_offset(*this);
-    const auto other_offset = get_weightless_offset(other);
-    const bool same_storage = this_offset && other_offset
-                                  ? *this_offset == *other_offset
-                                  : !this_offset && !other_offset && m_cached_ptr == other.m_cached_ptr;
-    return m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
-           m_byte_size == other.m_byte_size && same_storage;
+    return (m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
+            m_cached_ptr == other.m_cached_ptr);
 }
 
 void Const::validate_weight_range(std::size_t weights_size) const {
@@ -151,7 +130,6 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         // already deserialized, see the comment in serialize() for more details
         return;
     }
-    m_has_weightless_offset = true;
     if (ctx.weights) {
         // ctx.weights maps the very same file eval() maps lazily later on, so a malformed
         // weight description is rejected already at import time - for both branches below.

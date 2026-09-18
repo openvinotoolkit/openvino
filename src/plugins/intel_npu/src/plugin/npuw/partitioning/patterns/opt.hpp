@@ -72,7 +72,7 @@ struct Context {
     PPtr host_gather(const PPtr& w, const PPtr& ids);
 
     struct QuantizedGather {
-        // New gathered-and-unpacked parameter -> quantized gather inputs.
+        // New param -> orig params
         std::map<PPtr, DQUnpack> params_to_runtime_unpack_gather;
         PPtr pids;
     };
@@ -155,12 +155,6 @@ public:
 
 // Head vocab unpacks
 
-class ConvertDQVocab : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ConvertDQVocab");
-    explicit ConvertDQVocab(Context::Ref ctx);
-};
-
 class DQUnpackDictGatheru : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::DQUnpackDictGatheru");
@@ -206,6 +200,12 @@ public:
 };
 
 // Tail vocab unpacks
+
+class ConvertDQVocab : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::ConvertDQVocab");
+    explicit ConvertDQVocab(Context::Ref ctx);
+};
 
 class DQUnpackDictMatMulCWu : public ov::pass::MatcherPass {
 public:
