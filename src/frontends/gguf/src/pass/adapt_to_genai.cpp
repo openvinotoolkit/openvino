@@ -201,19 +201,21 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         return false;
     }
 
-    std::string embedding_name;
+    std::shared_ptr<ov::Node> embedding;
     if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
         for (const auto& node : model->get_ordered_ops()) {
             if (node->get_rt_info().count("gguf.token_embedding")) {
-                OPENVINO_ASSERT(embedding_name.empty(), "[GGUF] ambiguous token embedding boundary");
-                embedding_name = node->get_friendly_name();
+                OPENVINO_ASSERT(!embedding, "[GGUF] ambiguous token embedding boundary");
+                embedding = node;
             }
         }
-        OPENVINO_ASSERT(!embedding_name.empty(), "[GGUF] missing native token embedding boundary");
+        OPENVINO_ASSERT(embedding, "[GGUF] missing native token embedding boundary");
     }
 
     // Must run before inp_out_ids's value is replaced below, while these patterns can still
-    // structurally identify "embd" and the inp_out_ids-rooted row-selection call sites.
+    // structurally identify "embd" and the inp_out_ids-rooted row-selection call sites. Neither
+    // pass replaces the rt_info-marked embedding node itself (only its downstream consumers), so
+    // the `embedding` pointer captured above stays valid across this run.
     ov::pass::Manager self_correcting_axis_manager;
     self_correcting_axis_manager.register_pass<FixInpOutIdsRowSelect>();
     self_correcting_axis_manager.register_pass<FixEmbdAxis>();
@@ -221,14 +223,6 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     std::shared_ptr<v0::Parameter> inputs_embeds;
     if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
-        std::shared_ptr<ov::Node> embedding;
-        for (const auto& node : model->get_ordered_ops()) {
-            if (node->get_friendly_name() == embedding_name) {
-                OPENVINO_ASSERT(!embedding, "[GGUF] ambiguous token embedding boundary");
-                embedding = node;
-            }
-        }
-        OPENVINO_ASSERT(embedding, "[GGUF] EMBEDS_TO_LOGITS requires a marked native token embedding boundary");
         const auto width = embedding->get_output_partial_shape(0)[3].get_length();
         // Clone the lookup graph before rewiring the language model. Constants retain shared buffers.
         auto raw =
@@ -527,12 +521,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     model->validate_nodes_and_infer_types();
     if (inputs_embeds) {
         // Only retain IDs if a reachable auxiliary branch still needs them.
-        bool uses_ids = false;
-        for (const auto& node : model->get_ordered_ops()) {
-            for (const auto& input : node->input_values())
-                uses_ids |= input.get_node() == input_ids.get();
-        }
-        if (!uses_ids)
+        if (input_ids->output(0).get_target_inputs().empty())
             model->remove_parameter(input_ids);
     }
     return true;
