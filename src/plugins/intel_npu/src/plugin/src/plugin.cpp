@@ -510,9 +510,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
                                             localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
         const bool shouldDisablePerfCountForInferProfiling =
-            localConfig.has<PROFILING_TYPE>() &&
-            localConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER && localConfig.has<PERF_COUNT>() &&
-            localConfig.get<PERF_COUNT>();
+            localConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER && localConfig.get<PERF_COUNT>();
 
         std::optional<FilteredConfig> modifiedConfig;  // Copy only when needed
         if (shouldDisablePerfCountForInferProfiling || shouldForceThroughput) {
