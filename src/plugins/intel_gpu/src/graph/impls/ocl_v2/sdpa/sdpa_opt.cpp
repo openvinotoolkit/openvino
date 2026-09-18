@@ -61,13 +61,13 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr regular_micro_single_token;
     Stage::Ptr regular_micro_multi_tokens;
+    // TEST_USE_SDPA_OCL=0 selects SDPAMicroGenerator; unset or =1 selects SDPAOclGenerator.
+    const char* env = std::getenv("TEST_USE_SDPA_OCL");
+    const bool use_ocl = env == nullptr ? true : (env && env[0] == '1');
 #endif
 
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        // TEST_USE_SDPA_OCL=0 (default): SDPAMicroGenerator, =1: SDPAOclGenerator
-        const char* env = std::getenv("TEST_USE_SDPA_OCL");
-        const bool use_ocl = env == nullptr ? true : (env && env[0] == '1');
         if (use_ocl) {
             regular_micro_single_token = make_stage<SDPAOclGenerator>(!prefill);
             regular_micro_multi_tokens = make_stage<SDPAOclGenerator>(prefill);
@@ -89,7 +89,7 @@ public:
             add_stage(regular_finalization, params);
             add_stage(indirect_finalization, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            if (SDPAOpt::supports_micro_sdpa(params)) {
+            if (SDPAOpt::supports_micro_sdpa(params) && (!use_ocl || SDPAOclGenerator::supported(params))) {
                 GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa  dynamic ...\n";
                 add_stage(regular_micro_multi_tokens, params);
                 add_stage(regular_micro_single_token, params);
@@ -104,7 +104,7 @@ public:
                     GPU_DEBUG_TRACE_DETAIL << "add stage for indirect non-dynamic with prefill_stage \n";
                     add_stage(indirect_multi_tokens, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
-                } else if (SDPAOpt::supports_micro_sdpa(params)) {
+                } else if (SDPAOpt::supports_micro_sdpa(params) && (!use_ocl || SDPAOclGenerator::supported(params))) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa non-dynamic with prefill_stage \n";
                     add_stage(regular_micro_multi_tokens, params);
                     // Sometimes micro kernel will fail due to "Insufficient registers in requested bundle",
@@ -124,7 +124,8 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
-                bool can_use_micro_sdpa = SDPAOpt::supports_micro_sdpa(params) && !is_ARL_H && !is_indirect;
+                bool can_use_micro_sdpa = SDPAOpt::supports_micro_sdpa(params) && !is_ARL_H && !is_indirect &&
+                                          (!use_ocl || SDPAOclGenerator::supported(params));
                 if (can_use_micro_sdpa) {
                     add_stage(regular_micro_single_token, params);
                 }

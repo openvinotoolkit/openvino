@@ -1554,6 +1554,10 @@ public:
             return false;
         }
 
+        if (use_ocl && !SDPAOclGenerator::supported(params)) {
+            return false;
+        }
+
         ov::Dimension head_num = desc->heads_num;
         ov::Dimension kv_heads_num = desc->kv_heads_num;
 

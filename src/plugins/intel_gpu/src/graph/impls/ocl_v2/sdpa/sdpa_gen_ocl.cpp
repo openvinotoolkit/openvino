@@ -801,6 +801,33 @@ bool SDPAOclGenerator::supports_head_sizes(gpu_arch arch, size_t k_head_size, si
     return solve_sv_split(config, vd_max);
 }
 
+bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
+    const auto is_f16 = [](data_types dt) {
+        return dt == ov::element::f16;
+    };
+    const auto is_compilable_kv = [](data_types dt) {
+        return dt == ov::element::f16 || data_type_traits::is_i8_u8(dt) || data_type_traits::is_i4_u4(dt);
+    };
+
+    if (!is_f16(params.input_layouts[0].data_type) || !is_f16(params.output_layouts[0].data_type)) {
+        return false;
+    }
+
+    if (params.is_type<paged_attention>()) {
+        // Prefill binds KEY_DATA_T to current-token K/V; mixed binds it to the cache. Both stages
+        // are add_stage'd together. Current tokens are typed as QRY_DATA_T for Kc/Vc and must be f16.
+        // The cache may be i8/u4 (dequant paths compile); uncompressed f32 does not.
+        if (!is_f16(params.input_layouts[PagedAttentionInputIdx::KEY].data_type) ||
+            !is_f16(params.input_layouts[PagedAttentionInputIdx::VALUE].data_type)) {
+            return false;
+        }
+        return is_compilable_kv(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type) &&
+               is_compilable_kv(params.input_layouts[PagedAttentionInputIdx::VALUE_CACHE].data_type);
+    }
+
+    return is_compilable_kv(params.input_layouts[1].data_type) && is_compilable_kv(params.input_layouts[2].data_type);
+}
+
 // Use 'maybe_unused' to avoid DPC++ build error
 [[maybe_unused]] const bool kq_common_scales = false;
 [[maybe_unused]] const bool kq_common_zp = false;
