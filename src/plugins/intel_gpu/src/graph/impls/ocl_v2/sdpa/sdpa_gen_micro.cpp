@@ -273,28 +273,6 @@ inline size_t micro_get_value_cache_id(const kernel_impl_params& params) {
     return get_value_cache_id(*desc);
 }
 
-// true when V has been physically materialised as (batch, heads, head_size, tokens),
-// which the graph signals with input_v_transpose_order == {0, 1, 3, 2}. The V*S microkernel
-// contracts V over tokens, so that layout makes its reduction axis the contiguous one and
-// gemmstone can load A straight to registers instead of staging it through SLM.
-inline bool micro_transpose_v(const kernel_impl_params& params) {
-    if (params.is_type<paged_attention>())
-        return false;
-    // The V*S leading dimension becomes the key count, so K's sequence length must be static too.
-    if (params.input_layouts[1].get_partial_shape().is_dynamic() || params.input_layouts[2].get_partial_shape().is_dynamic())
-        return false;
-    return params.typed_desc<scaled_dot_product_attention>()->input_v_transpose_order == std::vector<int64_t>{0, 1, 3, 2};
-}
-
-// Integer V*S, selected by an s8 value. The gemm reads V as its A operand on the systolic
-// pipe, which needs the contraction dimension -- the keys -- to be the contiguous one. Only
-// the transposed V has that, so an i8 value in the ordinary (batch, heads, tokens, head_size)
-// layout keeps the f16 V*S path: gemmstone will still hand out a kernel for some shapes if it
-// is asked, and that kernel reads the operand wrong.
-inline bool micro_i8_vs(const kernel_impl_params& params, bool external_i8_kv) {
-    return external_i8_kv && params.input_layouts[2].data_type == ov::element::i8 && micro_transpose_v(params);
-}
-
 struct sdpa_config_t {
     int unroll_m_kq, unroll_n_kq;  // Subgroup tile sizes for K*Q GEMM
     int unroll_m_vs, unroll_n_vs;  // Subgroup tile sizes for V*S GEMM
@@ -1254,7 +1232,12 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     jit.make("Q_ALIGN", micro::alignment_for_ld(static_cast<int>(ldq)));
     jit.make("K_ALIGN", micro::alignment_for_ld(static_cast<int>(ldk)));
-    jit.make("V_ALIGN", micro::alignment_for_ld(static_cast<int>(ldv)));
+    // Same reasoning as problem_vs.A's alignment: a padded V is strided by its y pitch, which the
+    // token count does not describe, so fall back to the element alignment.
+    jit.make("V_ALIGN",
+             micro::alignment_for_ld(transpose_v && params.input_layouts[2].data_padding
+                                         ? static_cast<int>(ov::element::Type(V.data_type).size())
+                                         : static_cast<int>(ldv)));
     jit.make("A_ALIGN", micro::alignment_for_ld(static_cast<int>(lda)));
 
     jit.make("IS_PREFILL", m_is_prefill);
@@ -2044,6 +2027,21 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_vs.B.layout = micro::MatrixLayout::Pr;
     problem_vs.C.layout = micro::MatrixLayout::N;
 
+    // The transposed V*S A operand's leading dimension is the token count -- unless V carries
+    // padding, in which case the kernel strides by V's y pitch instead and the token count
+    // overstates the alignment. Claim just the element size there: gemmstone only ever narrows
+    // its candidate set on this number and clamps back up to the element size itself, so
+    // understating it costs the wide loads and never emits an illegal one.
+    const bool v_padded = static_cast<bool>(params.input_layouts[2].data_padding);
+    auto transposed_v_alignment = [&](micro::Type ta) {
+        return micro::alignment_for_ld(v_padded ? static_cast<int>(ta.size())
+                                                : static_cast<int>(n_keys.get_length() * ta));
+    };
+    GPU_DEBUG_IF(transpose_v && v_padded) {
+        GPU_DEBUG_TRACE_DETAIL << "sdpa micro: V is padded, claiming element alignment for the "
+                                  "transposed V*S operand -- block-2D A loads will not be selected\n";
+    }
+
     if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
         // INT4 V: ldv = packed_head_bytes + scales = v_head_size * u4 + 4 = 68
         problem_vs.A.setAlignment(static_cast<int>(v_head_size * problem_vs.Ta_ext) + 4);
@@ -2051,7 +2049,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         // V is physically (batch, heads, head_size, tokens): A is k-contiguous, leading
         // dimension is the token count. Lets gemmstone load A to registers instead of SLM.
         problem_vs.A.layout = micro::MatrixLayout::T;
-        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(n_keys.get_length() * problem.Ta)));
+        problem_vs.A.setAlignment(transposed_v_alignment(problem_vs.Ta));
     } else {
         problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
     }
@@ -2088,7 +2086,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         // 32 bytes of k per crosspack group, matching tile_store_t_sys_src2's
         // cp = 32 / sizeof(element). At f16 that spelling is 16 elements; at s8 it is 32.
         problem_vs.B.crosspack = 32;
-        problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(n_keys.get_length() * problem_vs.Ta)));
+        problem_vs.A.setAlignment(transposed_v_alignment(problem_vs.Ta));
     }
 
     /* Ask microkernel provider for microkernel */
