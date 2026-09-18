@@ -8,8 +8,8 @@
 
 #include "compiled_model.hpp"
 #include "npuw_transformations/kv_axes_position.hpp"
-#include "partitioning/patterns/pre_compute.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
+#include "partitioning/patterns/pre_compute.hpp"
 
 namespace ov {
 namespace test {
