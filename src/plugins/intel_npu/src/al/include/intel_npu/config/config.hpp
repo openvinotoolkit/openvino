@@ -485,13 +485,6 @@ public:
     void update(std::string_view key, const ov::Any& value);
 
     /**
-     * @brief Parses and stores a single option value given as an "ov::Any", overwriting a previously set one.
-     * @param key The key of the option to set.
-     * @param value The value to set, in its native "ov::Any" representation.
-     */
-    void updateAny(std::string_view key, const ov::Any& value);
-
-    /**
      * @brief Sets the options for which an associated environment variable is defined and exported.
      * Values which cannot be parsed are ignored and only reported as warnings.
      */

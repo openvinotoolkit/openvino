@@ -54,8 +54,6 @@ bool OptionParser<bool>::parse(std::string_view val) {
     std::transform(strVal.begin(), strVal.end(), strVal.begin(), [](char c) {
         return std::toupper(c);
     });
-    // Note: the spellings accepted here must stay a superset of the ones `ov::util::Read<bool>` accepts, since
-    // both paths lead to the same options (`update()` vs `updateAny()` with a string payload)
     if (strVal == "YES" || strVal == "TRUE" || strVal == "ON" || strVal == "1") {
         return true;
     } else if (strVal == "NO" || strVal == "FALSE" || strVal == "OFF" || strVal == "0") {
@@ -256,13 +254,6 @@ void Config::update(const ConfigMap& options) {
 
 void Config::update(std::string_view key, const ov::Any& value) {
     _log.trace("Update option '%s'", std::string(key).c_str());
-
-    const auto opt = _desc->get(key);
-    _impl[opt.key().data()] = opt.validateAndParse(value);
-}
-
-void Config::updateAny(std::string_view key, const ov::Any& value) {
-    _log.trace("Update option '%s' to given 'ov::Any' value", std::string(key).c_str());
 
     const auto opt = _desc->get(key);
     _impl[opt.key().data()] = opt.validateAndParse(value);
