@@ -219,7 +219,7 @@ bool SingleFileStorage::has_blob_id(BlobIdType blob_id) const {
 void SingleFileStorage::write_blob_entry(std::fstream& stream,
                                          BlobIdType blob_id,
                                          StreamWriter& writer,
-                                         bool align_mmap_to_page) {
+                                         bool) {
     OPENVINO_ASSERT(!has_blob_id(blob_id), "Blob with id ", blob_id, " already exists in cache.");
 
     std::streampos blob_pos;
@@ -236,10 +236,6 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream,
         writer(s);
         blob_size = s.tellp() - blob_pos;
         OPENVINO_ASSERT(blob_size >= 0, "Invalid blob size ", blob_size, " for blob id ", blob_id);
-        const auto mapped_blob_size = align_mmap_to_page ? util::align_size_up(static_cast<size_t>(blob_size), blob_alignment)
-                                 : static_cast<size_t>(blob_size);
-        std::vector<char> trailing_padding(mapped_blob_size - static_cast<size_t>(blob_size), 0);
-        s.write(trailing_padding.data(), trailing_padding.size());
         const auto end_pos = s.tellp();
         s.seekp(size_pos);
         const auto logical_blob_size = static_cast<BlobSizeType>(blob_size);
@@ -256,11 +252,9 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream,
     };
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::BlobMap), blob_map_writer);
 
-    const auto mapped_blob_size = align_mmap_to_page ? util::align_size_up(static_cast<size_t>(blob_size), blob_alignment)
-                                                     : static_cast<size_t>(blob_size);
     m_blob_index[blob_id] = {static_cast<uint64_t>(blob_pos),
                              static_cast<BlobSizeType>(blob_size),
-                             static_cast<BlobSizeType>(mapped_blob_size),
+                             static_cast<BlobSizeType>(blob_size),
                              std::move(model_name)};
 }
 
