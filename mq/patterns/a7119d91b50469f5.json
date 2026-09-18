@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "docker buildx failed to resolve source metadata connection refused azure container registry|External Service",
+  "signature_hash": "a7119d91b50469f5",
+  "title": "Docker_arm64 build fails - Azure Container Registry unreachable (connection refused)",
+  "category": "External Service",
+  "count": 1,
+  "first_seen": "2026-09-18T12:19:26Z",
+  "last_seen": "2026-09-18T12:19:26Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35341593964"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38004"
+  ],
+  "recent_timestamps": [
+    "2026-09-18T12:19:26Z"
+  ],
+  "rerun_search_string": "failed to resolve source metadata for openvinogithubactions.azurecr.io"
+}

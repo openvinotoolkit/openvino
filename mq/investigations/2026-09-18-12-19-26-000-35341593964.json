@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-18-12-19-26-000-35341593964",
+  "timestamp": "2026-09-18T12:19:26Z",
+  "run_id": "35341593964",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35341593964",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38004",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38004",
+  "author": "axinging",
+  "category": "External Service",
+  "title": "Docker_arm64 build fails - Azure Container Registry unreachable (connection refused)",
+  "signature": "docker buildx failed to resolve source metadata connection refused azure container registry|External Service",
+  "signature_hash": "a7119d91b50469f5",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Docker_arm64",
+      "conclusion": "failure",
+      "symptom": "docker buildx build failed to resolve source metadata for openvinogithubactions.azurecr.io/dockerio/library/ubuntu:22.04 due to connection refused"
+    }
+  ],
+  "key_errors": [
+    "09-18-2026 11:55:02 run  INFO  #2 ERROR: failed to do request: Head \"https://openvinogithubactions.azurecr.io/v2/dockerio/library/ubuntu/manifests/22.04\": dial tcp 172.16.0.197:443: connect: connection refused",
+    "09-18-2026 11:55:02 run  INFO  ERROR: failed to solve: openvinogithubactions.azurecr.io/dockerio/library/ubuntu:22.04: failed to resolve source metadata for openvinogithubactions.azurecr.io/dockerio/library/ubuntu:22.04: failed to do request: Head ...",
+    "RuntimeError: Command 'docker buildx build --builder=builder-3776b8a9-5fb8-4c5c-a9f9-d1a874ad48b0 ... --tag openvinogithubactions.azurecr.io/ov_test/ubuntu_22_04_arm64:pr-38160 ...' returned non-zero exit status",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The Docker_arm64 job invokes docker buildx build, which needs to pull the base ubuntu:22.04 image mirrored through the self-hosted Azure Container Registry (openvinogithubactions.azurecr.io). The build agent's outbound connection to the registry's IP (172.16.0.197:443) was refused, indicating a transient network/infrastructure issue reaching the ACR endpoint from the runner rather than any problem in the PR's code changes (which only touch src/core/src/runtime/aligned_buffer.cpp and its test). The run's second attempt (run_attempt=2) subsequently succeeded for Docker_arm64, confirming the failure was transient and unrelated to the PR content.",
+  "reproduction_steps": "N/A - transient network connectivity issue between the GitHub Actions runner and openvinogithubactions.azurecr.io; not reproducible locally or deterministically in CI.",
+  "recommended_actions": [
+    "Re-run the failed Docker_arm64 job (a retry already succeeded on run_attempt=2, confirming transience).",
+    "No code changes needed for this PR (#38004); the failure is unrelated to the changed files.",
+    "If this ACR connectivity issue recurs frequently, escalate to infra/DevOps to check ACR endpoint health/network peering for the affected runner pool."
+  ],
+  "prevention_strategies": "Add retry/backoff logic around docker buildx pulls of base images from the internal ACR mirror, or configure a fallback registry mirror, to reduce the impact of transient network blips.",
+  "historical_context": "Similar Azure Container Registry connectivity failures have occurred before (pattern 2831f4ffa148d7b6: 'failed to fetch oauth token docker registry connection refused', External Service, first seen 2026-07-15) though with a different specific error string (OAuth token fetch vs. manifest HEAD request). Both point to intermittent reachability issues with openvinogithubactions.azurecr.io from CI runners."
+}
