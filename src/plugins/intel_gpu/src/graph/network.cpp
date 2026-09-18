@@ -847,21 +847,6 @@ void network::reset_output_remote_memory_ptrs() {
     }
 }
 
-void network::invalidate_output_memory_chain(const primitive_id& id) {
-    auto p_inst = find_primitive(id);
-    p_inst->clear_output_memory();
-    invalidate_stream_recording();
-
-    auto o_iter = _output_chains.find(id);
-    if (o_iter != _output_chains.end()) {
-        for (auto* prim : o_iter->second) {
-            if (prim != p_inst.get()) {
-                prim->clear_output_memory();
-            }
-        }
-    }
-}
-
 void network::invalidate_ext_block_compute_nodes(const primitive_id& output_id) {
     // Walk backward from the output node through optimized single-dependency
     // predecessors until we reach the compute node (the first non-optimized one).
