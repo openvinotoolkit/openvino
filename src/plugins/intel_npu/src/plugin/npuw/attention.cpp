@@ -4,10 +4,16 @@
 
 #include "attention.hpp"
 
+#include <algorithm>
+
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"  // is_parameter
 #include "openvino/opsets/opset13.hpp"
 #include "util.hpp"
@@ -44,62 +50,70 @@ void ov::npuw::function::patch_broadcast_constants(const std::shared_ptr<ov::Mod
     }
 }
 
-// Helper function to patch reshape constants for pre-reshape (-1 substitution)
-void ov::npuw::function::patch_reshape_constants(const std::shared_ptr<ov::Model>& model,
-                                                 const std::map<std::string, size_t>& past_value_sequence_dims) {
-    for (auto&& op : model->get_ordered_ops()) {
-        if (!ov::is_type<ov::op::v1::Reshape>(op)) {
+// Preserve folded K/V sequence lengths as inferred dimensions before reshaping a pyramid variant.
+void ov::npuw::function::patch_reshape_constants(const std::shared_ptr<ov::Model>& model, size_t full_context_length) {
+    for (const auto& pattern : ov::npuw::util::find_all_sdpa_pattern_nodes(model)) {
+        if (!pattern.is_valid()) {
             continue;
         }
 
-        // Check if Reshape's single consumer is MatMul
-        auto target_inputs = op->output(0).get_target_inputs();
-        if (target_inputs.size() != 1) {
-            continue;  // Reshape should have exactly one consumer
-        }
+        auto patch_input = [&](const std::shared_ptr<ov::Node>& node, bool is_key) {
+            const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node);
+            const auto rhs = matmul->input_value(1);
+            const auto rank = rhs.get_partial_shape().rank();
+            if (!rank.is_static() || rank.get_length() < 2) {
+                return;
+            }
 
-        auto matmul_node = target_inputs.begin()->get_node()->shared_from_this();
-        if (!ov::is_type<ov::op::v0::MatMul>(matmul_node)) {
-            continue;
-        }
+            // MatMul's contracted K axis and its sequence axis swap when transpose_b changes.
+            size_t sequence_axis =
+                static_cast<size_t>(rank.get_length()) - ((is_key == matmul->get_transpose_b()) ? 2u : 1u);
+            auto current = rhs.get_node_shared_ptr();
+            while (current && !ov::is_type<ov::op::v1::Reshape>(current)) {
+                if (auto transpose = ov::as_type_ptr<ov::op::v1::Transpose>(current)) {
+                    auto order = ov::util::get_constant_from_source(transpose->input_value(1));
+                    if (!order) {
+                        return;
+                    }
+                    const auto order_values = order->cast_vector<int64_t>();
+                    if (order_values.size() != static_cast<size_t>(rank.get_length())) {
+                        return;
+                    }
+                    sequence_axis = static_cast<size_t>(order_values[sequence_axis]);
+                } else if (!ov::is_type<ov::op::v0::Convert>(current) && !ov::is_type<ov::op::v1::Multiply>(current)) {
+                    return;
+                }
+                current = current->input_value(0).get_node_shared_ptr();
+            }
 
-        // Check if MatMul's input 0 is from Softmax
-        auto matmul_input0 = matmul_node->input(0).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v8::Softmax>(matmul_input0)) {
-            continue;
-        }
+            const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(current);
+            if (!reshape) {
+                return;
+            }
+            const auto shape_source = reshape->input_value(1);
+            const auto shape_const = ov::util::get_constant_from_source(shape_source);
+            if (!shape_const) {
+                LOG_WARN("KV Reshape's shape input is not constant-foldable: " << reshape->get_friendly_name());
+                return;
+            }
+            auto shape_values = shape_const->cast_vector<int64_t>();
+            if (sequence_axis >= shape_values.size() ||
+                shape_values[sequence_axis] != static_cast<int64_t>(full_context_length)) {
+                return;
+            }
+            if (std::find(shape_values.begin(), shape_values.end(), -1) != shape_values.end()) {
+                LOG_WARN("KV Reshape already has an inferred dimension: " << reshape->get_friendly_name());
+                return;
+            }
+            shape_values[sequence_axis] = -1;
+            auto new_const = std::make_shared<ov::op::v0::Constant>(shape_source.get_element_type(),
+                                                                    shape_const->get_shape(),
+                                                                    shape_values);
+            reshape->input(1).replace_source_output(new_const);
+        };
 
-        LOG_INFO("Found Reshape -> MatMul pattern where MatMul input 0 is from Softmax, "
-                 "patching Reshape constant");
-
-        // Inspect the reshape constant (shape input)
-        auto shape_source = op->input(1).get_source_output().get_node_shared_ptr();
-        if (!ov::is_type<ov::op::v0::Constant>(shape_source)) {
-            LOG_WARN("Reshape's shape input is not Const: " << shape_source << ", skipping");
-            continue;
-        }
-
-        auto shape_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(shape_source);
-        auto shape_values = shape_const->cast_vector<int32_t>();
-
-        // Find the first past value sequence dimension from the map
-        // All past value parameters should have the same sequence dimension
-        if (past_value_sequence_dims.empty()) {
-            LOG_WARN("No past value sequence dimensions provided for reshape patching");
-            continue;
-        }
-
-        size_t value_seq_dim = past_value_sequence_dims.begin()->second;
-        NPUW_ASSERT(value_seq_dim < shape_values.size());
-        shape_values[value_seq_dim] = -1;
-
-        auto new_const = std::make_shared<ov::op::v0::Constant>(shape_const->get_element_type(),
-                                                                shape_const->get_shape(),
-                                                                shape_values);
-        op->input(1).replace_source_output(new_const);
-
-        LOG_INFO("Done");
-        return;
+        patch_input(pattern.matmul1_node, true);
+        patch_input(pattern.matmul2_node, false);
     }
 }
 

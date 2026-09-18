@@ -377,13 +377,6 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
             return std::nullopt;
         }
 
-        // Capture value Concat axis before shrinking — needed for patch_reshape_constants below.
-        int64_t value_concat_axis = 0;
-        if (auto vc = std::dynamic_pointer_cast<ov::op::v0::Concat>(cloned_pattern.past_value_concat_node)) {
-            const auto& out_shape = vc->get_output_partial_shape(0);
-            value_concat_axis = ov::util::try_normalize_axis(vc->get_axis(), out_shape.rank(), *vc);
-        }
-
         auto shrunk_key = shrink_concat_inputs(cloned_pattern.past_key_concat_node);
         auto shrunk_value = shrink_concat_inputs(cloned_pattern.past_value_concat_node);
         if (!shrunk_key || !shrunk_value) {
@@ -395,13 +388,11 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 
         // Apply the same pre-reshape patching + reshape sequence as the non-block path:
         //   1. patch_broadcast_constants — fix Broadcast shape constants referencing full_context_length
-        //   2. patch_reshape_constants  — set seq dim to -1 in value-path Reshape shape constant
-        //                                 (pattern: value_Concat → Reshape → MatMul2 ← Softmax)
+        //   2. patch_reshape_constants  — infer K/V Reshape sequence dimensions
         //   3. reshape(new_shapes)      — apply mask shape update and propagate all shapes
         //   4. validate_nodes_and_infer_types
         ov::npuw::function::patch_broadcast_constants(cloned_model, full_context_length);
-        // The map key is unused by patch_reshape_constants; only the dim-index value matters.
-        ov::npuw::function::patch_reshape_constants(cloned_model, {{"", static_cast<size_t>(value_concat_axis)}});
+        ov::npuw::function::patch_reshape_constants(cloned_model, full_context_length);
 
         // Directly set partial shape on the Parameter node — bypasses reshape() name/pointer
         // lookup entirely. reshape(Output<Node>) can silently miss, reshape(string) uses
@@ -524,7 +515,7 @@ std::optional<PyramidModelResult> process_pyramid_model(const std::shared_ptr<ov
 
     // Apply pre-reshape patching using helper functions
     ov::npuw::function::patch_broadcast_constants(cloned_model, full_context_length);
-    ov::npuw::function::patch_reshape_constants(cloned_model, past_value_sequence_dims);
+    ov::npuw::function::patch_reshape_constants(cloned_model, full_context_length);
 
     cloned_model->reshape(new_shapes);
     cloned_model->validate_nodes_and_infer_types();
