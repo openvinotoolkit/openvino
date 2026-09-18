@@ -317,6 +317,92 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     }
 }
 
+class GGUFMMProjDynamicAccuracy : public ::testing::TestWithParam<const char*> {};
+
+TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
+    const auto path =
+        (std::filesystem::path(ov_gguf_test::test_data_dir()) / "mmproj_accuracy" / (std::string(GetParam()) + ".npz"))
+            .string();
+    const auto arrays = cnpy::npz_load(path);
+    const auto array = [&](const std::string& name) -> const cnpy::NpyArray& {
+        auto it = std::find_if(arrays.begin(), arrays.end(), [&](const auto& entry) {
+            return entry.first == name;
+        });
+        OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
+        return it->second;
+    };
+    struct Temporary {
+        std::string path =
+            (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
+        ~Temporary() {
+            std::filesystem::remove(path);
+        }
+    } file;
+    {
+        std::ofstream stream(file.path, std::ios::binary);
+        const auto& bytes = array("model");
+        stream.write(bytes.data<char>(), bytes.num_vals);
+        ASSERT_TRUE(stream);
+    }
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = frontend.convert(frontend.load(file.path));
+    ov::Core core;
+    for (bool adapt : {false, true}) {
+        auto current = model->clone();
+        const bool audio = std::string(GetParam()).find("gemma4a") == 0 || std::string(GetParam()) == "gemma4ua";
+        using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
+        if (adapt)
+            Adapter(audio ? Adapter::Modality::Audio : Adapter::Modality::Vision).run_on_model(current);
+        auto request = core.compile_model(current,
+                                          "CPU",
+                                          ov::hint::inference_precision(ov::element::f32),
+                                          ov::hint::dynamic_quantization_group_size(0),
+                                          ov::inference_num_threads(2))
+                           .create_infer_request();
+        for (int step : {0, 1, 0}) {
+            for (const auto& input : current->inputs()) {
+                const auto name = input.get_any_name();
+                const auto& values = array(std::to_string(step) + "." + (adapt ? name : name.substr(audio ? 6 : 7)));
+                ov::Tensor tensor(input.get_element_type(), values.shape);
+                std::memcpy(tensor.data(), values.data<char>(), tensor.get_byte_size());
+                request.set_tensor(name, tensor);
+            }
+            request.infer();
+            const auto output = request.get_output_tensor();
+            const auto& expected = array(std::to_string(step) + ".embeddings");
+            auto shape = expected.shape;
+            if (adapt)
+                shape.erase(shape.begin());
+            ASSERT_EQ(output.get_shape(), shape);
+            double error = 0, energy = 0;
+            for (size_t i = 0; i < output.get_size(); ++i) {
+                const double ref = expected.data<float>()[i], actual = output.data<float>()[i];
+                ASSERT_TRUE(std::isfinite(actual));
+                error += (actual - ref) * (actual - ref);
+                energy += ref * ref;
+            }
+            ASSERT_GT(energy, 1e-12);
+            EXPECT_LT(error / energy, 1e-5) << GetParam() << " step=" << step << " adapted=" << adapt;
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(Reference,
+                         GGUFMMProjDynamicAccuracy,
+                         ::testing::Values("pixtral",
+                                           "pixtral_merge",
+                                           "phi4",
+                                           "gemma4v",
+                                           "gemma4uv",
+                                           "gemma4ua",
+                                           "minicpmv4_6",
+                                           "gemma4a",
+                                           "deepseekocr",
+                                           "deepseekocr2",
+                                           "deepseekocr_resize",
+                                           "deepseekocr_overview",
+                                           "deepseekocr2_overview"));
+
 INSTANTIATE_TEST_SUITE_P(Reference,
                          GGUFMMProjAccuracy,
                          ::testing::Values("gemma3",

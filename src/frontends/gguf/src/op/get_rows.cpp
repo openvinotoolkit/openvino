@@ -6,6 +6,8 @@
 #include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
@@ -34,6 +36,16 @@ OutputVector translate_get_rows(const NodeContext& context) {
         return rows;
     };
 
+    if (context.get_attribute<bool>("gather_elements", false)) {
+        // Select a column independently in each row; singleton index batches broadcast.
+        auto shape = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{get_dimensions(data, {0, 1, 2}), get_dimensions(indices, {3})},
+            0);
+        indices = std::make_shared<ov::op::v3::Broadcast>(indices, shape);
+        return rename_outputs_with_suffix(
+            {convert_rows(std::make_shared<ov::op::v6::GatherElements>(data, indices, 3))},
+            context.get_name());
+    }
     if (op_case == 3) {
         return {convert_rows(data)};
     }

@@ -17,7 +17,23 @@
 namespace ov::frontend::gguf {
 namespace {
 
-enum class EncoderTopology { Siglip, Clip, Whisper, Qwen, Internvl, Resampler };
+enum class EncoderTopology {
+    Siglip,
+    Clip,
+    Whisper,
+    Qwen,
+    Internvl,
+    Resampler,
+    Pixtral,
+    Gemma4,
+    UnifiedVision,
+    UnifiedAudio,
+    MiniCPM46,
+    Phi4,
+    Gemma4Audio,
+    Ocr,
+    Ocr2
+};
 
 struct ProjectorDefinition {
     const char* modality;
@@ -27,6 +43,15 @@ struct ProjectorDefinition {
 
 // Entries describe implemented graph topologies, independently of language DecoderConfig.
 constexpr ProjectorDefinition projector_catalog[] = {
+    {"vision", "deepseekocr", EncoderTopology::Ocr},
+    {"vision", "deepseekocr2", EncoderTopology::Ocr2},
+    {"vision", "pixtral", EncoderTopology::Pixtral},
+    {"vision", "phi4", EncoderTopology::Phi4},
+    {"vision", "gemma4v", EncoderTopology::Gemma4},
+    {"vision", "gemma4uv", EncoderTopology::UnifiedVision},
+    {"audio", "gemma4a", EncoderTopology::Gemma4Audio},
+    {"audio", "gemma4ua", EncoderTopology::UnifiedAudio},
+    {"vision", "minicpmv4_6", EncoderTopology::MiniCPM46},
     {"vision", "gemma3", EncoderTopology::Siglip},
     {"vision", "idefics3", EncoderTopology::Siglip},
     {"vision", "janus_pro", EncoderTopology::Siglip},
@@ -49,7 +74,7 @@ struct EncoderConfig {
     int64_t width, heads, layers, image_size = 0, patch = 0, merge = 1;
     EncoderTopology topology;
     int64_t window_pattern = 0;
-    int64_t version = 0, queries = 0;
+    int64_t version = 0, queries = 0, kv_heads = 0;
     std::vector<int64_t> feature_layers;
     float eps;
 };
@@ -84,9 +109,17 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
                     c.projector,
                     "'");
     c.topology = entry->topology;
+    if (c.topology == EncoderTopology::UnifiedAudio) {
+        c.width = 640;
+        c.heads = 1;
+        c.layers = 0;
+        c.eps = 1e-6f;
+        return c;
+    }
     c.width = positive(meta, key + "embedding_length");
-    c.heads = positive(meta, key + "attention.head_count");
-    c.layers = positive(meta, key + "block_count");
+    c.heads = c.topology == EncoderTopology::UnifiedVision ? 1 : positive(meta, key + "attention.head_count");
+    c.kv_heads = c.topology == EncoderTopology::Ocr2 ? positive(meta, key + "attention.head_count_kv") : c.heads;
+    c.layers = c.topology == EncoderTopology::UnifiedVision ? 0 : positive(meta, key + "block_count");
     if (c.topology == EncoderTopology::Clip) {
         c.feature_layers = meta.get_int_array(key + "feature_layer");
         for (auto layer : c.feature_layers)
@@ -97,7 +130,7 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
     OPENVINO_ASSERT(c.width % c.heads == 0, "[GGUF] mmproj embedding width must be divisible by head count");
     const auto eps = meta.get_float(key + "attention.layer_norm_epsilon");
     OPENVINO_ASSERT(eps && std::isfinite(*eps) && *eps > 0, "[GGUF] invalid ", key, "attention.layer_norm_epsilon");
-    c.eps = static_cast<float>(*eps);
+    c.eps = c.topology == EncoderTopology::Gemma4Audio ? 1e-6f : static_cast<float>(*eps);
     const bool gelu = meta.get_bool("clip.use_gelu").value_or(false);
     const bool silu = meta.get_bool("clip.use_silu").value_or(false);
     OPENVINO_ASSERT(!(gelu && silu), "[GGUF] mmproj cannot enable both GELU and SiLU");
@@ -108,6 +141,36 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
         c.activation = "GGML_UNARY_OP_SILU";
     if (modality == "vision") {
         c.patch = positive(meta, key + "patch_size");
+        if (c.topology == EncoderTopology::Ocr || c.topology == EncoderTopology::Ocr2) {
+            c.patch = 16;
+            c.merge = 4;
+            if (c.topology == EncoderTopology::Ocr)
+                c.eps = 1e-5f;
+            else
+                c.activation = "GGML_UNARY_OP_SILU";
+            return c;
+        }
+        if (c.topology == EncoderTopology::Pixtral || c.topology == EncoderTopology::Gemma4 ||
+            c.topology == EncoderTopology::UnifiedVision || c.topology == EncoderTopology::MiniCPM46 ||
+            c.topology == EncoderTopology::Phi4) {
+            c.merge = c.topology == EncoderTopology::Pixtral ? meta.get_int(key + "spatial_merge_size").value_or(1)
+                      : c.topology == EncoderTopology::Phi4
+                          ? 1
+                          : meta.get_int(key + "projector.scale_factor")
+                                .value_or(c.topology == EncoderTopology::MiniCPM46 ? 4 : 3);
+            OPENVINO_ASSERT(c.merge > 0, "[GGUF] invalid vision merge size");
+            if (c.topology == EncoderTopology::UnifiedVision) {
+                c.patch *= c.merge;
+                c.merge = 1;
+            }
+            if (c.topology == EncoderTopology::MiniCPM46) {
+                auto layers = meta.get_int_array(key + "wa_layer_indexes");
+                c.window_pattern = layers.empty() ? 0 : layers.front();
+                OPENVINO_ASSERT(c.merge == 4 && c.window_pattern >= 0 && c.window_pattern < c.layers,
+                                "[GGUF] invalid minicpmv4_6 merger configuration");
+            }
+            return c;
+        }
         if (c.topology == EncoderTopology::Resampler) {
             c.version = meta.get_int("clip.minicpmv_version").value_or(2);
             if (c.version == 0)
@@ -215,8 +278,8 @@ private:
     GgufGraphContext g;
     std::vector<GgufValue> auxiliary;
 
-    GgufValue reshape(const GgufValue& x, std::vector<int64_t> shape) {
-        return g.node("GGML_OP_RESHAPE", {x}, 0, {{"reshape_target", shape}});
+    GgufValue reshape(const GgufValue& x, std::vector<int64_t> shape, bool special_zero = false) {
+        return g.node("GGML_OP_RESHAPE", {x}, 0, {{"reshape_target", shape}, {"special_zero", special_zero}});
     }
     GgufValue transpose(const GgufValue& x, std::vector<int64_t> perm = {0, 1, 3, 2}) {
         return g.node("GGML_OP_TRANSPOSE", {x}, 0, {{"perm", perm}});
@@ -227,18 +290,56 @@ private:
     GgufValue mul(const GgufValue& x, const GgufValue& y) {
         return g.node("GGML_OP_MUL", {x, y});
     }
-    GgufValue linear(const GgufValue& x, const std::string& base) {
-        auto y = g.node("GGML_OP_MUL_MAT", {g.tensors().require(base + ".weight"), x});
-        if (auto bias = g.tensors()(base + ".bias"))
+    GgufValue scale(const GgufValue& x, float value, float bias = 0.f) {
+        return g.node("GGML_OP_SCALE", {x}, 0, {{"scale", value}, {"bias", bias}});
+    }
+    GgufValue slice(const GgufValue& x, int64_t axis, int64_t begin, int64_t count) {
+        return g.node("GGML_OP_VIEW", {x}, 3, {{"view_slice", std::vector<int64_t>{axis, begin, count}}});
+    }
+    GgufValue concat(const GgufValue& a, const GgufValue& b, int64_t axis = 0) {
+        return g.node("GGML_OP_CONCAT", {a, b}, 0, {{"concat_axis", axis}});
+    }
+    GgufValue grid(const GgufValue& x, const GgufValue& reference, int64_t width) {
+        return g.node("GGML_OP_RESHAPE",
+                      {x, reference},
+                      0,
+                      {{"reshape_target", std::vector<int64_t>{1, width, 0, 0}},
+                       {"shape_axes", std::vector<int64_t>{-1, -1, 2, 3}}});
+    }
+    GgufValue clip_linear(const GgufValue& x, const std::string& base, const std::string& side) {
+        auto lo = g.tensors()(base + "." + side + "_min"), hi = g.tensors()(base + "." + side + "_max");
+        if (!lo && !hi)
+            return x;
+        const auto bound = [&](float v) {
+            ov::Tensor t(ov::element::f32, {1});
+            t.data<float>()[0] = v;
+            return g.add_constant(base + side + std::to_string(v), t);
+        };
+        return g.node("GGML_OP_CLAMP",
+                      {x,
+                       lo ? lo : bound(-std::numeric_limits<float>::max()),
+                       hi ? hi : bound(std::numeric_limits<float>::max())});
+    }
+    bool clippable = false;
+    GgufValue linear(const GgufValue& x, const std::string& base, bool with_bias = true) {
+        auto y = g.node("GGML_OP_MUL_MAT",
+                        {g.tensors().require(base + ".weight"), clippable ? clip_linear(x, base, "input") : x});
+        if (clippable)
+            y = clip_linear(y, base, "output");
+        if (auto bias = with_bias ? g.tensors()(base + ".bias") : GgufValue{})
             y = add(y, bias);
         return y;
     }
     GgufValue norm(const GgufValue& x, const std::string& base, float eps) {
         return g.build_norm_ln(x, g.tensors()(base + ".weight"), g.tensors()(base + ".bias"), eps);
     }
+    bool rms_encoder(const EncoderConfig& c) const {
+        return c.projector == "qwen2.5vl_merger" || c.topology == EncoderTopology::Pixtral ||
+               c.topology == EncoderTopology::Gemma4 || c.topology == EncoderTopology::Ocr2 ||
+               (c.topology == EncoderTopology::Internvl && c.width == 3200 && c.layers == 45);
+    }
     GgufValue encoder_norm(const GgufValue& x, const std::string& base, const EncoderConfig& c) {
-        if (c.projector != "qwen2.5vl_merger" &&
-            !(c.topology == EncoderTopology::Internvl && c.width == 3200 && c.layers == 45))
+        if (!rms_encoder(c))
             return norm(x, base, c.eps);
         auto y = g.build_norm(x, g.tensors()(base + ".weight"), c.eps);
         if (auto bias = g.tensors()(base + ".bias"))
@@ -249,13 +350,16 @@ private:
                   const std::string& up,
                   const std::string& down,
                   const std::string& activation,
-                  const std::string& gate = "") {
-        auto y = linear(x, up);
+                  const std::string& gate = "",
+                  bool with_bias = true) {
+        // The pinned ggml CLAMP aliases its source; the following gate observes the clipped input.
+        auto input = clippable ? clip_linear(x, up, "input") : x;
+        auto y = linear(input, up, with_bias);
         if (!gate.empty() && g.tensors().has(gate + ".weight"))
-            y = mul(y, g.node(activation, {linear(x, gate)}));
+            y = mul(y, g.node(activation, {linear(input, gate)}));
         else
             y = g.node(activation, {y});
-        return linear(y, down);
+        return linear(y, down, with_bias);
     }
     GgufValue pool(const GgufValue& x, int64_t kx, int64_t ky) {
         return g.node("GGML_OP_POOL_2D", {x}, 0, {{"pool_params", std::vector<int64_t>{1, kx, ky, kx, ky, 0, 0}}});
@@ -264,23 +368,32 @@ private:
                   const EncoderConfig& c,
                   const GgufValue& positions,
                   const GgufValue& rope_positions = {},
-                  const GgufValue& window_mask = {}) {
+                  const GgufValue& window_mask = {},
+                  const GgufValue& rope_positions_b = {},
+                  int64_t first = 0,
+                  int64_t end = -1,
+                  bool post_norm = true) {
+        if (end < 0)
+            end = c.layers;
         if (positions)
             x = add(x, positions);
-        if (g.tensors().has(c.prefix + "pre_ln.weight"))
+        if (first == 0 && g.tensors().has(c.prefix + "pre_ln.weight"))
             x = encoder_norm(x, c.prefix + "pre_ln", c);
         std::vector<GgufValue> features;
         const auto save_feature = [&](int64_t layer, const GgufValue& value) {
             if (std::find(c.feature_layers.begin(), c.feature_layers.end(), layer) != c.feature_layers.end())
                 features.push_back(value);
         };
-        for (int64_t i = 0; i < c.layers; ++i) {
+        for (int64_t i = first; i < end; ++i) {
             save_feature(i, x);
             const auto p = c.prefix + "blk." + std::to_string(i) + ".";
             auto z = encoder_norm(x, p + "ln1", c);
             const bool fused = g.tensors().has(p + "attn_qkv.weight");
             auto qkv = fused ? linear(z, p + "attn_qkv") : GgufValue{};
             const auto projection = [&](const std::string& name, int64_t offset) {
+                // ggml CLAMP is in-place: Q input clipping carries into K, then V.
+                if (clippable && !fused)
+                    z = clip_linear(z, p + name, "input");
                 auto value = fused ? g.node("GGML_OP_VIEW",
                                             {qkv},
                                             3,
@@ -291,16 +404,60 @@ private:
                     fused || (g.tensors().has(p + "attn_q_norm.weight") &&
                               g.tensors().require(p + "attn_q_norm.weight").ne(0) == c.width / c.heads);
                 if (weight && !per_head)
-                    value = g.build_norm_ln(value, weight, {}, c.eps);
-                value = reshape(value, {1, -1, c.heads, c.width / c.heads});
+                    value =
+                        rms_encoder(c) ? g.build_norm(value, weight, c.eps) : g.build_norm_ln(value, weight, {}, c.eps);
+                value = reshape(value, {0, -1, name == "attn_q" ? c.heads : c.kv_heads, c.width / c.heads}, true);
                 if (weight && per_head)
-                    value = g.build_norm_ln(value, weight, {}, c.eps);
+                    value =
+                        rms_encoder(c) ? g.build_norm(value, weight, c.eps) : g.build_norm_ln(value, weight, {}, c.eps);
                 return value;
             };
             auto q = projection("attn_q", 0);
             auto k = projection("attn_k", 1);
             auto v = projection("attn_v", 2);
-            if (rope_positions) {
+            if (c.kv_heads != c.heads) {
+                OPENVINO_ASSERT(c.heads % c.kv_heads == 0, "[GGUF] encoder GQA head count mismatch");
+                const auto repeat = [&](const GgufValue& value) {
+                    auto split = reshape(value, {0, 0, c.kv_heads, 1, c.width / c.heads}, true);
+                    return reshape(g.node("GGML_OP_REPEAT",
+                                          {split},
+                                          0,
+                                          {{"repeats", std::vector<int64_t>{1, 1, 1, c.heads / c.kv_heads, 1}}}),
+                                   {0, -1, c.heads, c.width / c.heads},
+                                   true);
+                };
+                k = repeat(k);
+                v = repeat(v);
+            }
+            if (c.topology == EncoderTopology::Ocr2 && rope_positions) {
+                RopeConfig r;
+                r.n_dims = int(c.width / c.heads);
+                r.freq_base = 1000000.f;
+                r.freq_scale = r.attn_factor = 1.f;
+                q = g.node("GGML_OP_ROPE", {q, rope_positions}, 1 << 16, {{"rope_config", r}});
+                k = g.node("GGML_OP_ROPE", {k, rope_positions}, 1 << 16, {{"rope_config", r}});
+            } else if (rope_positions_b) {
+                const auto rotate = [&](const GgufValue& value) {
+                    RopeConfig r;
+                    r.n_dims = int(c.width / c.heads / 2);
+                    r.freq_base = c.topology == EncoderTopology::Gemma4 ? 100.f : 10000.f;
+                    r.freq_scale = r.attn_factor = 1.f;
+                    const int mode = c.topology == EncoderTopology::Gemma4 ? 1 << 16 : 0;
+                    auto a = g.node("GGML_OP_ROPE",
+                                    {slice(value, 3, 0, r.n_dims), rope_positions},
+                                    mode,
+                                    {{"rope_config", r}});
+                    if (c.topology != EncoderTopology::Gemma4)
+                        r.freq_scale = std::pow(r.freq_base, -2.f / float(c.width / c.heads));
+                    auto b = g.node("GGML_OP_ROPE",
+                                    {slice(value, 3, r.n_dims, r.n_dims), rope_positions_b},
+                                    mode,
+                                    {{"rope_config", r}});
+                    return concat(a, b);
+                };
+                q = rotate(q);
+                k = rotate(k);
+            } else if (rope_positions) {
                 RopeConfig rope;
                 rope.n_dims = int(c.width / c.heads / 2);
                 rope.freq_base = 10000.f;
@@ -309,18 +466,22 @@ private:
                 q = g.node("GGML_OP_ROPE", {q, rope_positions}, 3 << 16, {{"rope_config", rope}});
                 k = g.node("GGML_OP_ROPE", {k, rope_positions}, 3 << 16, {{"rope_config", rope}});
             }
+            if (c.topology == EncoderTopology::Gemma4)
+                v = g.build_norm(v, {}, c.eps);
             std::vector<GgufValue> attention_inputs{q, k, v};
-            if (window_mask && (i + 1) % c.window_pattern != 0)
+            if (window_mask && (c.window_pattern == 0 || (i + 1) % c.window_pattern != 0))
                 attention_inputs.push_back(window_mask);
-            z = g.node("GGML_OP_FLASH_ATTN_EXT",
-                       attention_inputs,
-                       0,
-                       {{"encoder_attention", true}, {"scale", 1.f / std::sqrt(float(c.width / c.heads))}});
-            z = linear(reshape(z, {1, 1, -1, c.width}), p + "attn_out");
+            z = g.node(
+                "GGML_OP_FLASH_ATTN_EXT",
+                attention_inputs,
+                0,
+                {{"encoder_attention", true},
+                 {"scale", c.topology == EncoderTopology::Gemma4 ? 1.f : 1.f / std::sqrt(float(c.width / c.heads))}});
+            z = linear(reshape(z, {0, 1, -1, c.width}, true), p + "attn_out");
             if (auto scale = g.tensors()(p + "ls1.weight"))
                 z = mul(z, scale);
             if (auto weight = g.tensors()(p + "attn_post_norm.weight"))
-                z = g.build_norm_ln(z, weight, {}, c.eps);
+                z = rms_encoder(c) ? g.build_norm(z, weight, c.eps) : g.build_norm_ln(z, weight, {}, c.eps);
             x = add(x, z);
             const bool legacy_swap =
                 (c.projector == "gemma3" || c.projector == "idefics3" || c.topology == EncoderTopology::Clip ||
@@ -332,7 +493,7 @@ private:
                     c.activation,
                     p + "ffn_gate");
             if (auto weight = g.tensors()(p + "ffn_post_norm.weight"))
-                z = g.build_norm_ln(z, weight, {}, c.eps);
+                z = rms_encoder(c) ? g.build_norm(z, weight, c.eps) : g.build_norm_ln(z, weight, {}, c.eps);
             if (auto scale = g.tensors()(p + "ls2.weight"))
                 z = mul(z, scale);
             x = add(x, z);
@@ -346,9 +507,9 @@ private:
         }
         if (c.projector == "qwen2a" || c.projector == "voxtral" || c.projector == "musicflamingo")
             x = transpose(pool(transpose(x), 2, 1));
-        if (g.tensors().has(c.prefix + "post_ln.weight"))
+        if (post_norm && end == c.layers && g.tensors().has(c.prefix + "post_ln.weight"))
             x = encoder_norm(x, c.prefix + "post_ln", c);
-        save_feature(c.layers, x);
+        save_feature(end, x);
         if (!features.empty()) {
             x = features.front();
             for (size_t i = 1; i < features.size(); ++i)
@@ -357,6 +518,14 @@ private:
         return x;
     }
     GgufValue vision(const EncoderConfig& c) {
+        clippable = c.topology == EncoderTopology::Gemma4;
+        if (c.topology == EncoderTopology::Ocr || c.topology == EncoderTopology::Ocr2)
+            return ocr_vision(c);
+        if (c.topology == EncoderTopology::Pixtral || c.topology == EncoderTopology::Gemma4 ||
+            c.topology == EncoderTopology::UnifiedVision || c.topology == EncoderTopology::Phi4)
+            return dynamic_vision(c);
+        if (c.topology == EncoderTopology::MiniCPM46)
+            return minicpm46(c);
         if (c.topology == EncoderTopology::Qwen)
             return qwen_vision(c);
         if (c.topology == EncoderTopology::Resampler)
@@ -417,6 +586,140 @@ private:
             return linear(reshape(x, {1, 1, -1, c.width * c.merge * c.merge}), "mm.model.fc");
         }
         return ffn(x, "mm.0", "mm.1", c.activation);
+    }
+    GgufValue convolution(const GgufValue& pixels, const std::string& weight, int64_t stride, int64_t padding = 0) {
+        return g.node("GGML_OP_CONV_2D",
+                      {g.tensors().require(weight), pixels},
+                      0,
+                      {{"conv_params", std::vector<int64_t>{stride, stride, padding, padding, 1, 1}}});
+    }
+    GgufValue unfold(const GgufValue& x, int64_t channels, int64_t kernel) {
+        ov::Tensor dummy(ov::element::f32, {1, size_t(channels), size_t(kernel), size_t(kernel)});
+        std::fill_n(dummy.data<float>(), dummy.get_size(), 0.f);
+        return g.node("GGML_OP_IM2COL",
+                      {g.add_constant("vision.unfold_kernel", dummy), x},
+                      0,
+                      {{"im2col_params", std::vector<int32_t>{int32_t(kernel), int32_t(kernel), 0, 0, 1, 1, 1}},
+                       {"dst_type", ov::element::f32}});
+    }
+    GgufValue dynamic_vision(const EncoderConfig& c) {
+        auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
+        GgufValue spatial, x;
+        if (c.topology == EncoderTopology::UnifiedVision) {
+            for (int i = 1; i <= 3; ++i) {
+                g.tensors().require("v.patch_norm." + std::to_string(i) + ".weight");
+                g.tensors().require("v.patch_norm." + std::to_string(i) + ".bias");
+            }
+            spatial = pool(pixels, c.patch, c.patch);
+            x = reshape(unfold(pixels, 3, c.patch), {1, 1, -1, 3 * c.patch * c.patch});
+            x = norm(x, "v.patch_norm.1", 1e-5f);
+            x = norm(linear(x, "v.patch_embd"), "v.patch_norm.2", 1e-5f);
+        } else {
+            spatial = convolution(c.topology == EncoderTopology::Gemma4 ? scale(pixels, 2.f, -1.f) : pixels,
+                                  "v.patch_embd.weight",
+                                  c.patch);
+            x = transpose(reshape(spatial, {1, 1, c.width, -1}));
+            if (c.topology != EncoderTopology::Gemma4)
+                if (auto b = g.tensors()("v.patch_embd.bias"))
+                    x = add(x, b);
+        }
+        GgufValue pos_a, pos_b, learned;
+        if (c.topology == EncoderTopology::Phi4) {
+            auto table = g.tensors().require("v.position_embd.weight");
+            const int64_t side = int64_t(std::sqrt(double(table.ne(1))));
+            OPENVINO_ASSERT(side * side == table.ne(1), "[GGUF] phi4 position table must be square");
+            table = transpose(reshape(table, {1, side, side, c.width}), {0, 3, 1, 2});
+            table =
+                g.node("GGML_OP_UPSCALE", {table, spatial}, 0, {{"resize_like", true}, {"interpolation_mode", 0x201}});
+            learned = reshape(transpose(table, {0, 2, 3, 1}), {1, 1, -1, c.width});
+        } else {
+            pos_a = g.add_input("vision.position_x", ov::element::i32, {1, 1, 1, -1});
+            pos_b = g.add_input("vision.position_y", ov::element::i32, {1, 1, 1, -1});
+            if (c.topology != EncoderTopology::Pixtral) {
+                auto table = g.tensors().require("v.position_embd.weight");
+                OPENVINO_ASSERT(table.ne(2) == 2, "[GGUF] Gemma4 position table requires x/y axes");
+                table = reshape(table, {1, 2, table.ne(1), c.width});
+                learned = add(g.node("GGML_OP_GET_ROWS", {slice(table, 1, 0, 1), pos_a}),
+                              g.node("GGML_OP_GET_ROWS", {slice(table, 1, 1, 1), pos_b}));
+            }
+        }
+        if (c.topology == EncoderTopology::UnifiedVision)
+            return linear(g.build_norm(norm(add(x, learned), "v.patch_norm.3", 1e-5f), {}, c.eps),
+                          "mm.input_projection");
+        // Pixtral uses height then width, with alternating frequencies; Gemma4 uses x then y, NEOX halves.
+        x = vit(x,
+                c,
+                learned,
+                c.topology == EncoderTopology::Pixtral ? pos_b : pos_a,
+                {},
+                c.topology == EncoderTopology::Pixtral ? pos_a : pos_b);
+        if (c.topology == EncoderTopology::Phi4) {
+            g.tensors().require("mm.0.bias");
+            g.tensors().require("mm.2.bias");
+            return ffn(x, "mm.0", "mm.2", "GGML_UNARY_OP_GELU");
+        }
+        if (c.topology == EncoderTopology::Gemma4) {
+            x = pool(grid(transpose(x), spatial, c.width), c.merge, c.merge);
+            x = scale(transpose(reshape(x, {1, 1, c.width, -1})), std::sqrt(float(c.width)));
+            if (g.tensors().has("v.std_bias") && g.tensors().has("v.std_scale"))
+                x = mul(g.node("GGML_OP_SUB", {x, g.tensors().require("v.std_bias")}),
+                        g.tensors().require("v.std_scale"));
+            return linear(g.build_norm(x, {}, c.eps), "mm.input_projection");
+        }
+        if (g.tensors().has("mm.patch_merger.weight")) {
+            x = g.build_norm(x, g.tensors().require("mm.input_norm.weight"), c.eps);
+            x = unfold(grid(transpose(x), spatial, c.width), c.width, c.merge);
+            x = linear(reshape(x, {1, 1, -1, c.width * c.merge * c.merge}), "mm.patch_merger");
+            spatial = pool(spatial, c.merge, c.merge);
+        } else {
+            OPENVINO_ASSERT(c.merge == 1, "[GGUF] pixtral merge requires patch merger weights");
+        }
+        x = ffn(x, "mm.1", "mm.2", "GGML_UNARY_OP_GELU");
+        if (auto token = g.tensors()("v.token_embd.img_break")) {
+            const auto width = token.ne(0);
+            x = transpose(grid(transpose(x), spatial, width), {0, 2, 3, 1});
+            auto row_break = add(scale(slice(x, 2, 0, 1), 0.f), token);
+            x = reshape(concat(x, row_break, 1), {1, 1, -1, width});
+            x = slice(x, 2, 0, -1);  // no break after the final row
+        }
+        return x;
+    }
+    GgufValue minicpm46(const EncoderConfig& c) {
+        auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
+        auto x = transpose(reshape(convolution(pixels, "v.patch_embd.weight", c.patch), {1, 1, c.width, -1}));
+        if (auto bias = g.tensors()("v.patch_embd.bias"))
+            x = add(x, bias);
+        auto positions = g.add_input("vision.position_ids", ov::element::i32, {1, 1, 1, -1});
+        auto learned = g.node("GGML_OP_GET_ROWS", {g.tensors().require("v.position_embd.weight"), positions});
+        x = vit(x, c, learned, {}, {}, {}, 0, c.window_pattern + 1, false);
+        const auto rows = [&](const GgufValue& value, const std::string& name) {
+            return g.node("GGML_OP_GET_ROWS", {value, g.add_input("vision." + name, ov::element::i32, {1, 1, 1, -1})});
+        };
+        const std::string p = "v.vit_merger.";
+        auto z = rows(norm(x, p + "ln1", c.eps), "window_indices");
+        auto q = reshape(linear(z, p + "attn_q"), {1, -1, c.heads, c.width / c.heads});
+        auto k = reshape(linear(z, p + "attn_k"), {1, -1, c.heads, c.width / c.heads});
+        auto v = reshape(linear(z, p + "attn_v"), {1, -1, c.heads, c.width / c.heads});
+        auto mask = g.add_input("vision.attention_mask", ov::element::f32, {1, 1, -1, -1});
+        z = g.node("GGML_OP_FLASH_ATTN_EXT",
+                   {q, k, v, mask},
+                   0,
+                   {{"encoder_attention", true}, {"scale", 1.f / std::sqrt(float(c.width / c.heads))}});
+        z = linear(reshape(z, {1, 1, -1, c.width}), p + "attn_out");
+        x = add(x, rows(z, "inverse_window_indices"));
+        const auto downsample = [&](const GgufValue& value, const std::string& name, bool residual) {
+            std::vector<GgufValue> parts;
+            for (int i = 0; i < 4; ++i)
+                parts.push_back(rows(value, name + ".indices." + std::to_string(i)));
+            auto cat = concat(concat(concat(parts[0], parts[1]), parts[2]), parts[3]);
+            auto result =
+                residual ? ffn(norm(cat, p + "ds_ln", c.eps), p + "ds_ffn_up", p + "ds_ffn_down", "GGML_UNARY_OP_GELU")
+                         : ffn(norm(cat, "mm.input_norm", c.eps), "mm.up", "mm.down", "GGML_UNARY_OP_GELU_ERF");
+            return residual ? add(result, scale(add(add(add(parts[0], parts[1]), parts[2]), parts[3]), .25f)) : result;
+        };
+        x = downsample(x, "vit_merger", true);
+        x = vit(x, c, {}, {}, {}, {}, c.window_pattern + 1);
+        return downsample(x, "merger", false);
     }
     GgufValue resampler_vision(const EncoderConfig& c) {
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
@@ -513,7 +816,217 @@ private:
         }
         return x;
     }
+    GgufValue reshape_like(const GgufValue& x,
+                           const GgufValue& reference,
+                           std::vector<int64_t> pattern,
+                           std::vector<int64_t> axes) {
+        return g.node("GGML_OP_RESHAPE", {x, reference}, 0, {{"reshape_target", pattern}, {"shape_axes", axes}});
+    }
+    GgufValue sam(const GgufValue& pixels) {
+        const auto width = positive(ctx.metadata, "clip.vision.sam.embedding_length");
+        const auto heads = positive(ctx.metadata, "clip.vision.sam.head_count");
+        const auto layers = positive(ctx.metadata, "clip.vision.sam.block_count");
+        const auto window = positive(ctx.metadata, "clip.vision.window_size");
+        OPENVINO_ASSERT(width % heads == 0, "[GGUF] invalid SAM head count");
+        const auto head = width / heads;
+        auto x = convolution(pixels, "v.sam.patch_embd.weight", g.tensors().require("v.sam.patch_embd.weight").ne(0));
+        x = transpose(x, {0, 2, 3, 1});
+        x = add(x, g.tensors().require("v.sam.patch_embd.bias"));
+        auto pos = g.tensors().require("v.sam.pos_embd.weight");
+        pos = reshape(pos, {1, pos.ne(2), pos.ne(1), width});
+        pos = g.node("GGML_OP_UPSCALE",
+                     {transpose(pos, {0, 3, 1, 2}), transpose(x, {0, 3, 1, 2})},
+                     0,
+                     {{"resize_like", true}, {"interpolation_mode", 2}});
+        x = add(x, transpose(pos, {0, 2, 3, 1}));
+        auto local = g.add_input("vision.relative_indices_local", ov::element::i32, {1, 1, window, window});
+        auto global = g.add_input("vision.relative_indices_global", ov::element::i32, {1, 1, -1, -1});
+        for (int64_t i = 0; i < layers; ++i) {
+            const auto p = "v.sam.blk." + std::to_string(i) + ".";
+            const bool global_layer = i == 2 || i == 5 || i == 8 || i == 11;
+            auto z = norm(x, p + "pre_ln", 1e-6f);
+            if (!global_layer)
+                z = g.node("GGML_OP_WIN_PART", {z}, 0, {{"window", window}});
+            auto geometry = z;
+            auto qkv = linear(z, p + "attn.qkv");
+            const auto project = [&](int part) {
+                return reshape(slice(qkv, 3, part * width, width), {0, -1, heads, head}, true);
+            };
+            auto q = project(0), k = project(1), v = project(2);
+            auto qr = reshape_like(transpose(q, {0, 2, 1, 3}), geometry, {-1, 0, 0, head}, {-1, 1, 2, -1});
+            auto rw = g.node("GGML_OP_GET_REL_POS",
+                             {g.tensors().require(p + "attn.pos_w.weight"), global_layer ? global : local},
+                             1);
+            auto rh = g.node("GGML_OP_GET_REL_POS",
+                             {g.tensors().require(p + "attn.pos_h.weight"), global_layer ? global : local},
+                             1);
+            rw = transpose(g.node("GGML_OP_MUL_MAT", {rw, transpose(qr, {0, 2, 1, 3})}), {0, 2, 1, 3});
+            rh = g.node("GGML_OP_MUL_MAT", {rh, qr});
+            rw = reshape_like(rw, rw, {0, 0, 0, 1, 0}, {0, 1, 2, -1, 3});
+            rh = reshape_like(rh, rh, {0, 0, 0, 0, 1}, {0, 1, 2, 3, -1});
+            auto mask = reshape_like(add(rw, rh), q, {0, heads, 0, 0}, {0, -1, 1, 1});
+            z = g.node("GGML_OP_FLASH_ATTN_EXT",
+                       {q, k, v, mask},
+                       0,
+                       {{"encoder_attention", true}, {"scale", 1.f / std::sqrt(float(head))}});
+            z = linear(reshape_like(z, geometry, {0, 0, 0, 0}, {0, 1, 2, 3}), p + "attn.out");
+            if (!global_layer)
+                z = g.node("GGML_OP_WIN_UNPART", {z, x}, 0, {{"window", window}});
+            x = add(x, z);
+            x = add(x, ffn(norm(x, p + "post_ln", 1e-6f), p + "mlp.lin1", p + "mlp.lin2", "GGML_UNARY_OP_GELU"));
+        }
+        x = convolution(transpose(x, {0, 3, 1, 2}), "v.sam.neck.0.weight", 1);
+        x = norm(transpose(x, {0, 2, 3, 1}), "v.sam.neck.1", 1e-6f);
+        x = convolution(transpose(x, {0, 3, 1, 2}), "v.sam.neck.2.weight", 1, 1);
+        x = norm(transpose(x, {0, 2, 3, 1}), "v.sam.neck.3", 1e-6f);
+        x = convolution(transpose(x, {0, 3, 1, 2}), "v.sam.net_2.weight", 2, 1);
+        return convolution(x, "v.sam.net_3.weight", 2, 1);
+    }
+    GgufValue ocr_vision(const EncoderConfig& c) {
+        auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {-1, 3, -1, -1});
+        auto spatial = sam(pixels);
+        auto x = reshape(transpose(spatial, {0, 2, 3, 1}), {0, 1, -1, c.width}, true);
+        if (c.topology == EncoderTopology::Ocr2) {
+            auto queries = concat(reshape(g.tensors().require("v.resample_query_768.weight"), {1, 1, 144, c.width}),
+                                  reshape(g.tensors().require("v.resample_query_1024.weight"), {1, 1, 256, c.width}),
+                                  1);
+            auto indices = g.add_input("vision.query_indices", ov::element::i32, {1, 1, 1, -1});
+            x = concat(x, g.node("GGML_OP_GET_ROWS", {queries, indices}), 1);
+            auto positions = g.add_input("vision.position_ids", ov::element::i32, {1, 1, 1, -1});
+            auto mask = g.add_input("vision.attention_mask", ov::element::f32, {1, 1, -1, -1});
+            x = vit(x, c, {}, positions, mask);
+            auto outputs = g.add_input("vision.query_output_indices", ov::element::i32, {1, 1, 1, -1});
+            x = g.node("GGML_OP_GET_ROWS", {x, outputs}, 4);
+        } else {
+            auto cls = reshape(g.tensors().require("v.class_embd"), {1, 1, 1, c.width});
+            // Repeat the class token once per independently encoded tile.
+            cls = add(scale(slice(x, 2, 0, 1), 0.f), cls);
+            x = concat(cls, x, 1);
+            auto pos = g.tensors().require("v.position_embd.weight");
+            // Preserve the pinned loader's legacy CLIP table layout, including the
+            // byte offset of its trailing class position. The caller selects the
+            // original table for an unchanged grid, or the resized table otherwise.
+            const auto side = int64_t(std::sqrt(double(pos.ne(1) - 1)));
+            auto original = reshape(pos, {1, 1, -1, c.width});
+            auto old = slice(original, 2, 0, side * side);
+            auto resized = g.node("GGML_OP_UPSCALE",
+                                  {old, slice(spatial, 0, 0, 1)},
+                                  0,
+                                  {{"resize_like", true}, {"interpolation_mode", 2}});
+            resized = g.node("GGML_OP_REPEAT", {resized}, 0, {{"repeats", std::vector<int64_t>{1, c.width, 1, 1}}});
+            resized = reshape(resized, {1, 1, -1, c.width});
+            auto cls_pos = slice(reshape(pos, {1, 1, 1, -1}), 3, side * side / int64_t(pos.type().size()), c.width);
+            auto tables = concat(original, concat(resized, cls_pos, 1), 1);
+            pos = g.node("GGML_OP_GET_ROWS",
+                         {tables, g.add_input("vision.position_indices", ov::element::i32, {1, 1, 1, -1})});
+            EncoderConfig clip = c;
+            clip.activation = "GGML_UNARY_OP_GELU_QUICK";
+            x = vit(x, clip, pos);
+            x = slice(x, 2, 1, std::numeric_limits<int32_t>::max() - 1);
+            auto sam_features = reshape(transpose(spatial, {0, 2, 3, 1}), {0, 1, -1, c.width}, true);
+            x = concat(x, sam_features);
+        }
+        x = linear(x, "mm.model.fc");
+        const auto width = g.tensors().require("mm.model.fc.weight").ne(1);
+        x = reshape(x, {1, 1, -1, width});
+        // Indexing describes overview/tile row assembly, including learned separators.
+        if (c.topology == EncoderTopology::Ocr)
+            x = concat(x, reshape(g.tensors().require("v.image_newline"), {1, 1, 1, width}), 1);
+        x = concat(x, reshape(g.tensors().require("v.view_seperator"), {1, 1, 1, width}), 1);
+        return g.node("GGML_OP_GET_ROWS", {x, g.add_input("vision.output_indices", ov::element::i32, {1, 1, 1, -1})});
+    }
+    GgufValue gemma4_audio(const EncoderConfig& c) {
+        const auto mel = positive(ctx.metadata, "clip.audio.num_mel_bins");
+        auto x = g.add_input("audio.features", ov::element::f32, {1, 1, mel, -1});
+        x = transpose(x);  // [1, 1, time, frequency]
+        for (int i = 0; i < 2; ++i) {
+            const auto p = "a.conv1d." + std::to_string(i);
+            x = convolution(x, p + ".weight", 2, 1);
+            if (auto bias = g.tensors()(p + ".bias"))
+                x = add(x, bias);
+            x = transpose(x, {0, 2, 3, 1});
+            if (auto weight = g.tensors()(p + ".norm.weight"))
+                x = g.build_norm_ln(x, weight, {}, c.eps);
+            x = transpose(g.node("GGML_UNARY_OP_RELU", {x}), {0, 3, 1, 2});
+        }
+        // Reference flatten order is frequency-major with channels innermost.
+        const auto flattened = g.tensors().require("a.input_projection.weight").ne(0);
+        x = reshape(transpose(x, {0, 2, 3, 1}), {1, 1, -1, flattened});
+        x = linear(x, "a.input_projection");
+        auto positions = g.add_input("audio.position_embeddings", ov::element::f32, {1, 1, 13, c.width});
+        auto mask = g.add_input("audio.attention_mask", ov::element::f32, {1, 1, -1, -1});
+        auto relative = g.add_input("audio.relative_indices", ov::element::i32, {1, 1, -1, -1});
+        const auto rms = [&](const GgufValue& value, const std::string& name) {
+            return g.build_norm(value, g.tensors().require(name + ".weight"), c.eps);
+        };
+        for (int64_t i = 0; i < c.layers; ++i) {
+            const auto p = "a.blk." + std::to_string(i) + ".";
+            auto z = ffn(rms(x, p + "ffn_norm"), p + "ffn_up", p + "ffn_down", "GGML_UNARY_OP_SILU", "", false);
+            if (auto w = g.tensors()(p + "ffn_post_norm.weight"))
+                z = g.build_norm(z, w, c.eps);
+            x = add(x, scale(z, .5f));
+            z = rms(x, p + (g.tensors().has(p + "attn_pre_norm.weight") ? "attn_pre_norm" : "ln1"));
+            auto q = linear(z, p + "attn_q", false);
+            z = clip_linear(z, p + "attn_q", "input");
+            auto k = linear(z, p + "attn_k", false);
+            z = clip_linear(z, p + "attn_k", "input");
+            auto v = linear(z, p + "attn_v", false);
+            const auto head = c.width / c.heads;
+            q = scale(reshape(q, {1, -1, c.heads, head}), 1.f / std::sqrt(float(head)) / std::log(2.f));
+            k = scale(reshape(k, {1, -1, c.heads, head}), std::log1p(std::exp(1.f)) / std::log(2.f));
+            if (auto w = g.tensors()(p + "per_dim_scale.weight"))
+                q = mul(q, reshape(w, {1, 1, 1, head}));
+            if (auto w = g.tensors()(p + "per_dim_k_scale.weight"))
+                k = mul(k, reshape(w, {1, 1, 1, head}));
+            q = transpose(q, {0, 2, 1, 3});
+            k = transpose(k, {0, 2, 1, 3});
+            v = transpose(reshape(v, {1, -1, c.heads, head}), {0, 2, 3, 1});
+            auto scores = g.node("GGML_OP_MUL_MAT", {k, q});
+            if (g.tensors().has(p + "attn_k_rel.weight")) {
+                // The reference projects RPE without clamping, unlike its content projections.
+                auto pos = g.node("GGML_OP_MUL_MAT", {g.tensors().require(p + "attn_k_rel.weight"), positions});
+                pos = transpose(reshape(pos, {1, 13, c.heads, head}), {0, 2, 1, 3});
+                auto bias = g.node("GGML_OP_MUL_MAT", {pos, q});
+                bias = g.node("GGML_OP_GET_ROWS", {bias, relative}, 0, {{"gather_elements", true}});
+                scores = add(scores, bias);
+            }
+            scores = add(scale(g.node("GGML_UNARY_OP_TANH", {scale(scores, 1.f / 50.f)}), 50.f), mask);
+            auto probability = g.node("GGML_OP_SOFT_MAX", {scores}, 0, {{"scale", 1.f}});
+            z = g.node("GGML_OP_MUL_MAT", {v, probability});
+            z = linear(reshape(transpose(z, {0, 2, 1, 3}), {1, 1, -1, c.width}), p + "attn_out");
+            if (auto w = g.tensors()(p + "attn_post_norm.weight"))
+                z = g.build_norm(z, w, c.eps);
+            x = add(x, z);
+            z = linear(rms(x, p + "conv_norm"), p + "conv_pw1", false);
+            z = mul(slice(z, 3, 0, c.width), g.node("GGML_UNARY_OP_SIGMOID", {slice(z, 3, c.width, c.width)}));
+            z = transpose(z);
+            z = g.node("GGML_OP_PAD", {z}, 0, {{"pad_params", std::vector<int32_t>{4, 0, 0, 0, 0, 0, 0, 0}}});
+            z = g.node("GGML_OP_SSM_CONV", {z, g.tensors().require(p + "conv_dw.weight")});
+            if (auto bias = g.tensors()(p + "conv_dw.bias"))
+                z = add(z, bias);
+            if (auto weight = g.tensors()(p + "norm_conv.weight"))
+                z = g.build_norm(z, weight, c.eps);
+            x = add(x, linear(g.node("GGML_UNARY_OP_SILU", {z}), p + "conv_pw2", false));
+            z = ffn(rms(x, p + "ffn_norm_1"), p + "ffn_up_1", p + "ffn_down_1", "GGML_UNARY_OP_SILU", "", false);
+            if (auto w = g.tensors()(p + "ffn_post_norm_1.weight"))
+                z = g.build_norm(z, w, c.eps);
+            x = add(x, scale(z, .5f));
+            if (auto w = g.tensors()(p + "ln2.weight"))
+                x = g.build_norm(x, w, c.eps);
+        }
+        if (g.tensors().has("a.pre_encode.out.weight"))
+            x = linear(x, "a.pre_encode.out");
+        x = g.build_norm(x, g.tensors()("mm.a.soft_emb_norm.weight"), c.eps);
+        return linear(x, "mm.a.input_projection", false);
+    }
     GgufValue audio(const EncoderConfig& c) {
+        clippable = c.topology == EncoderTopology::Gemma4Audio;
+        if (clippable)
+            return gemma4_audio(c);
+        if (c.topology == EncoderTopology::UnifiedAudio) {
+            auto x = g.add_input("audio.waveform_frames", ov::element::f32, {1, 1, -1, 640});
+            return linear(g.build_norm(x, {}, c.eps), "mm.a.input_projection");
+        }
         const auto mel = positive(ctx.metadata, "clip.audio.num_mel_bins");
         auto x = g.add_input("audio.features", ov::element::f32, {1, mel, 1, -1});
         for (int i = 1; i <= 2; ++i) {

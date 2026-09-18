@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Compare a real vision checkpoint against the pinned llama.cpp CPU encoder.
+"""Compare a real encoder checkpoint against the pinned llama.cpp CPU encoder.
 
 Build mmproj_oracle.cpp against llama.cpp 16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb.
 Inputs are normalized encoder tensors; media preprocessing is validated separately.
@@ -23,25 +23,74 @@ def main():
     parser.add_argument("model", type=Path)
     parser.add_argument("--oracle", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--modality", choices=["vision", "audio"], default="vision")
+    parser.add_argument("--width", type=int, help="Image width or audio feature-frame count")
+    parser.add_argument("--height", type=int, help="Image height")
     args = parser.parse_args()
     frontend = FrontEndManager().load_by_framework("gguf")
     model = frontend.convert(frontend.load(str(args.model)))
-    shape = list(model.input("vision.pixel_values").shape)
+    metadata = model.get_rt_info(["gguf_mmproj"]).value
+    projector = metadata[args.modality + ".projector"]
+    # Extract only the reachable modality, matching AdaptMmprojToGenAI branch selection.
+    output = model.output(args.modality + ".embeddings")
+    reachable = set()
+    def visit(node):
+        if node in reachable:
+            return
+        reachable.add(node)
+        for value in node.input_values():
+            visit(value.get_node())
+    visit(output.get_node())
+    model = ov.Model([output], [p for p in model.get_parameters() if p in reachable])
     rng = np.random.default_rng(42)
-    values = rng.uniform(-1, 1, shape).astype(np.float32)
+    feeds = {}
+    if args.modality == "vision":
+        if projector not in {"gemma3", "gemma4v", "gemma4uv", "pixtral", "phi4"}:
+            raise ValueError(f"Add processor/index inputs for {projector} before checkpoint validation")
+        default = int(metadata["clip.vision.image_size"])
+        width, height = args.width or default, args.height or default
+        shape = [1, 3, height, width]
+        values = rng.uniform(0 if projector == "gemma4v" else -1, 1, shape).astype(np.float32)
+        feeds["vision.pixel_values"] = values
+        patch = int(metadata["clip.vision.patch_size"])
+        if projector == "gemma4uv":
+            patch *= int(metadata.get("clip.vision.projector.scale_factor", 3))
+        if projector in {"gemma4v", "gemma4uv", "pixtral"}:
+            rows, cols = np.indices((height // patch, width // patch))
+            feeds["vision.position_x"] = cols.astype(np.int32).reshape(1, 1, 1, -1)
+            feeds["vision.position_y"] = rows.astype(np.int32).reshape(1, 1, 1, -1)
+        raw = values[0].transpose(1, 2, 0)
+    else:
+        if projector != "gemma4a":
+            raise ValueError(f"Add audio input contract for {projector}")
+        width, height = args.width or 101, int(metadata["clip.audio.num_mel_bins"])
+        shape = [1, 1, height, width]
+        values = rng.normal(0, .4, shape).astype(np.float32)
+        feeds["audio.features"] = values
+        channels = int(metadata["clip.audio.embedding_length"])
+        n = (width + 3) // 4
+        q, k = np.indices((n, n))
+        distance = q - k
+        timescale = np.exp(-np.arange(channels // 2, dtype=np.float32) *
+                           (np.log(np.float32(10000)) / max(channels // 2 - 1, 1)))
+        theta = np.arange(12, -1, -1, dtype=np.float32)[:, None] * timescale[None]
+        feeds["audio.position_embeddings"] = np.concatenate([np.sin(theta), np.cos(theta)], axis=1)[None, None]
+        feeds["audio.attention_mask"] = np.where((distance >= 0) & (distance < 12), 0, -1e9).astype(np.float32)[None, None]
+        feeds["audio.relative_indices"] = np.clip(12 - distance, 0, 12).astype(np.int32)[None, None]
+        raw = values
     with tempfile.TemporaryDirectory() as directory:
         directory = Path(directory)
-        values[0].transpose(1, 2, 0).tofile(directory / "input.f32")
-        subprocess.run([str(args.oracle.resolve()), str(args.model.resolve()), "vision",
-                        str(shape[3]), str(shape[2]), str(directory / "input.f32"),
+        raw.tofile(directory / "input.f32")
+        subprocess.run([str(args.oracle.resolve()), str(args.model.resolve()), args.modality,
+                        str(width), str(height), str(directory / "input.f32"),
                         str(directory / "output.f32")], check=True)
         expected = np.fromfile(directory / "output.f32", dtype=np.float32)
     request = ov.Core().compile_model(model, "CPU", {
         "INFERENCE_PRECISION_HINT": "f32", "DYNAMIC_QUANTIZATION_GROUP_SIZE": 0,
         "INFERENCE_NUM_THREADS": 4,
     }).create_infer_request()
-    request.infer({"vision.pixel_values": values})
-    actual = request.get_tensor("vision.embeddings").data.reshape(-1).copy()
+    request.infer(feeds)
+    actual = request.get_output_tensor().data.reshape(-1).copy()
     assert actual.shape == expected.shape
     error = actual.astype(np.float64) - expected
     nmse = float(np.dot(error, error) / np.dot(expected.astype(np.float64), expected))
@@ -52,6 +101,7 @@ def main():
     report = {"model": str(args.model.resolve()), "sha256": digest.hexdigest(),
               "reference_revision": "16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb",
               "openvino_version": ov.get_version(), "input_shape": shape,
+              "modality": args.modality, "projector": projector,
               "normalized_mse": nmse, "max_absolute_error": float(np.max(np.abs(error))),
               "passed": bool(np.isfinite(nmse) and nmse < 1e-5)}
     args.report.write_text(json.dumps(report, indent=2) + "\n")
