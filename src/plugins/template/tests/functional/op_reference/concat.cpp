@@ -209,6 +209,23 @@ std::vector<ConcatParams> generateStringParams() {
     return params;
 }
 
+template <element::Type_t ET>
+std::vector<ConcatParams> generateParams4Bit() {
+    static_assert(ET == element::Type_t::u4 || ET == element::Type_t::i4,
+                  "generateParams4Bit is only valid for packed 4-bit types (u4/i4)");
+    using T = typename element_type_traits<ET>::value_type;
+    std::vector<ConcatParams> params{
+        ConcatParams({},
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x12, 0x34}),
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x56, 0x78}),
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x1A, 0x2C}),
+                     1,
+                     reference_tests::Tensor(ET, {2, 6}, std::vector<T>{0x12, 0x56, 0x1A, 0x34, 0x78, 0x2C}),
+                     "concat_4bit_non_outermost_axis"),
+    };
+    return params;
+}
+
 std::vector<ConcatParams> generateCombinedParams() {
     const std::vector<std::vector<ConcatParams>> generatedParams{
         generateParams<element::Type_t::i8>(),
@@ -224,6 +241,8 @@ std::vector<ConcatParams> generateCombinedParams() {
         generateParams<element::Type_t::f32>(),
         generateParams<element::Type_t::f64>(),
         generateStringParams(),
+        generateParams4Bit<element::Type_t::i4>(),
+        generateParams4Bit<element::Type_t::u4>(),
     };
     std::vector<ConcatParams> combinedParams;
 

@@ -455,6 +455,15 @@ static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
 
 /**
  * @brief [Only for NPU Plugin]
+ * Type: boolean, default is true.
+ * Allows importing a blob that declares a payload running in-process on the host VM runtime instead of the NPU driver.
+ * Enabled by default. A higher-privilege importer that only expects native device blobs can set this to false to refuse
+ * such a payload forged across a trust boundary.
+ */
+static constexpr ov::Property<bool> allow_bytecode{"NPU_ALLOW_BYTECODE"};
+
+/**
+ * @brief [Only for NPU Plugin]
  * Type: boolean, default is false.
  * This option allows to enable/disable the usage of a shared common queue for all compiled models. If set to false,
  * each compiled model will have its own common queue. This option is added for enabling the isolation of compiled

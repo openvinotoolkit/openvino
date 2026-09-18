@@ -152,16 +152,29 @@ Properties will get registered and advertised based on the following logic:
 - Does the compiler report supported properties? (older compilers from driver do not)
     - Yes:
         - check if property is supported by compiler
-            - if supported: **Enable** and advertise in supported_properties
-            - if NOT supported: **Disable** and don't advertise in supported properties
+            - if supported: advertise in supported_properties
+            - if NOT supported: don't advertise in supported properties
     - No (fallback to legacy mode):
         - check if property's support version >= compiler version
-            - true: **Enable** and advertise in supported properties
-            - false: **Disable** and don't advertise in supported properties
+            - true: advertise in supported properties
+            - false: don't advertise in supported properties
 
-![Properties registration logic](./docs/img/properties_init_sequence.png)
 
 Note: this logic does not affect OptionMode::Runtime type of options/properties. Those will get registered w/o any criteria, with the exception of some special cases, like NPU_TURBO or WORKLOAD_TYPE (which are tied to driver graph extension version).
+
+### Property manager and configuration flow
+
+The property manager handles individual property requests through `getProperty`, `setProperty`, and
+`isPropertySupported`. For compilation, import, and query operations, it also provides
+`getMergedConfigAndUnknownProperties`, which returns a merged `Config` and an `ov::AnyMap` of properties that are not
+consumed by the plugin.
+
+The merged `Config` is shared with the compiler, import path, and other runtime components. During compilation and
+import, the `Config` and `unknownProperties` are passed together to the compiled model, which uses them to initialize its
+property manager. Compiler-supported internal options are kept in `Config`; only the remaining unconsumed properties are
+forwarded in `unknownProperties`.
+
+The detailed property and configuration design, is described in [NPU Properties](./docs/npu-properties-howto.md).
 
 The following methods are made available to return the value of a given property (at core level or model specific):
 ```
