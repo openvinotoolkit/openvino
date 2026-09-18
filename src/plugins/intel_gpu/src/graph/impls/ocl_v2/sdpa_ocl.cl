@@ -4,8 +4,27 @@
 #pragma OPENCL EXTENSION cl_intel_subgroups_short                   : enable
 
 #include "include/batch_headers/sdpa_utils.cl"
+#if INPUT0_IS_BF16
+#include "include/batch_headers/bf16_utils.cl"
+#endif
 
 float __builtin_IB_atomic_max_local_f32(__local float *, float);
+
+#if INPUT0_IS_BF16
+#  define DPAS_MAD_K16 intel_sub_group_bf16_bf16_matrix_mad_k16
+#  define PACK_SOFTMAX8(x) _convert_bfloat168_as_ushort8(x)
+#  define ACC_TO_OUT8(x)   _convert_bfloat168_as_ushort8(x)
+#  define MASK_TO_FLOAT(x) _convert_as_bfloat16_float(as_ushort(x))
+#  define MASK_TO_FLOAT2(x) _convert_as_bfloat162_float2(as_ushort2(x))
+#  define MASK_TO_FLOAT16(x) _convert_as_bfloat1616_float16(as_ushort16(x))
+#else
+#  define DPAS_MAD_K16 intel_sub_group_f16_f16_matrix_mad_k16
+#  define PACK_SOFTMAX8(x) convert_half8(x)
+#  define ACC_TO_OUT8(x)   convert_half8(x)
+#  define MASK_TO_FLOAT(x) convert_float(x)
+#  define MASK_TO_FLOAT2(x) convert_float2(x)
+#  define MASK_TO_FLOAT16(x) convert_float16(x)
+#endif
 
 #define kq_wg_tile_keys      (kq_sg_tile_keys * kq_sg_per_wg_keys)
 #define kq_wg_tile_queries   (kq_sg_tile_queries * kq_sg_per_wg_queries)
@@ -361,7 +380,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const global QRY_DATA_T *Kc,
         const global QRY_DATA_T *Vc,
 #endif
-    global half *A,
+    global OUTPUT_TYPE *A,
 #if IS_PAGED_ATTENTION
         const __global INPUT3_TYPE* subsequence_begins,
     #if !IS_PREFILL
@@ -579,7 +598,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const int QD_w = d * (int)sizeof(QRY_DATA_T), QD_h = q, QD_p = (int)ldq * (int)sizeof(QRY_DATA_T);
     const int KD_w = d * (int)sizeof(KEY_DATA_T), KD_h = k, KD_p = (int)ldk * (int)sizeof(KEY_DATA_T);
     const int VD_w = dv * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = (int)ldv * (int)sizeof(VAL_DATA_T);
-    const int AD_w = dv * (int)sizeof(half), AD_h = q, AD_p = (int)lda * (int)sizeof(half);
+    const int AD_w = dv * (int)sizeof(OUTPUT_TYPE), AD_h = q, AD_p = (int)lda * (int)sizeof(OUTPUT_TYPE);
 
 #if PA_CUR_KV_F16
     // Surfaces for the NEW-token half of the key range. Deliberately NOT KD_*/VD_*: those describe the
@@ -1056,7 +1075,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             const uint sc_off = k_comp_base + KEY_COMP_OFF(0, 0, sc_key, 0);
             k_scale_lane[ii] = (sc_key < k) ? convert_half(K_scales[sc_off]) : (half)0.0f;
             #if KEY_ZERO_POINTS
+            #if INPUT0_IS_BF16
+            k_zpb_lane[ii] = (sc_key < k) ? convert_half(K_zp[sc_off]) : (half)0.0f;
+            #else
             k_zpb_lane[ii] = (sc_key < k) ? (convert_half(K_zp[sc_off]) + (half)1152.0h) : (half)1152.0h;
+            #endif
             #endif
         }
 #endif
@@ -1617,6 +1640,17 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     #pragma unroll
                     for (int bb = 0; bb < 4; ++bb) {
                         const int krel = u * 4 + bb;           // key's subgroup-local index 0..kq_sg_tile_keys-1
+#if INPUT0_IS_BF16
+                        const float wide = convert_float(as_char((uchar)((w >> (bb * 8)) & 0xFFu)));
+                        const float k_sc = convert_float(sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
+                        #if KEY_ZERO_POINTS
+                            const float k_zpb = convert_float(sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
+                            const float deq_k = (wide - k_zpb) * k_sc;
+                        #else
+                            const float deq_k = wide * k_sc;
+                        #endif
+                        k_raw[krel / 8][krel % 8] = _convert_bfloat16_as_ushort(deq_k);
+#else
                         const ushort wbits = (ushort)0x6480 ^ (ushort)((w >> (bb * 8)) & 0xFFu);
                         const half wide = as_half(wbits);
                         const half k_sc = sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
@@ -1627,6 +1661,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             const half deq_k = (wide - (half)1152.0h) * k_sc;
                         #endif
                         k_raw[krel / 8][krel % 8] = as_ushort(deq_k);
+#endif
                     }
                 }
             }
@@ -1661,8 +1696,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         const int krel = mb * 8 + key_offset;
                         const float k_sc = convert_float(sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
                         #if KEY_ZERO_POINTS
+                            #if INPUT0_IS_BF16
+                            const float k_zp = convert_float(sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
+                            #else
                             // k_zpb_lane holds zp+1152.0h; recover the raw zp for this scalar path.
                             const float k_zp = convert_float(sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE)) - 1152.0f;
+                            #endif
                         #endif
                     #endif
                     if (head < d && key < k) {
@@ -1672,7 +1711,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             #else
                                 const float deq_k = convert_float(K[(size_t)key * ldk + head]) * k_sc;
                             #endif
+                            #if INPUT0_IS_BF16
+                            k_raw[mb][key_offset] = _convert_bfloat16_as_ushort(deq_k);
+                            #else
                             k_raw[mb][key_offset] = as_ushort((half)deq_k);
+                            #endif
                         #else
                             k_raw[mb][key_offset] = as_ushort(K[(size_t)key * ldk + head]);
                         #endif
@@ -1685,7 +1728,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
                 #pragma unroll
                 for (int qb = 0; qb < kq_query_blocks; ++qb)
-                    S_tile[mb][qb] = intel_sub_group_f16_f16_matrix_mad_k16(as_short8(k_raw[mb]), qB[qb], S_tile[mb][qb]);
+                    S_tile[mb][qb] = DPAS_MAD_K16(as_short8(k_raw[mb]), qB[qb], S_tile[mb][qb]);
             }
         }
 
@@ -1712,7 +1755,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             k_mask[ii] = (key < causal_k) ? 0.0f : -INFINITY;
 #endif
         }
-        float2 mask_tile_float = convert_float2(mask_tile);
+        float2 mask_tile_float = MASK_TO_FLOAT2(mask_tile);
         #pragma unroll
         for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii)
             mask_tile_float[ii] = mask_tile_float[ii] * iscale;
@@ -1758,7 +1801,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                                 }
                             }
                         }
-                        mask_full[qb][ii] = convert_float16(mv) * iscale;
+                        mask_full[qb][ii] = MASK_TO_FLOAT16(mv) * iscale;
                     }
                 }
             }
@@ -1827,7 +1870,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         } else if (query < q && key < k) {
                             const int mask_query = (MSK_D2 == 1) ? 0 : query;
                             const int mask_key = (MSK_D3 == 1) ? 0 : key;
-                            s += convert_float(msk[MSK_OFF(0, 0, mask_query, mask_key)]) * iscale;
+                            s += MASK_TO_FLOAT(msk[MSK_OFF(0, 0, mask_query, mask_key)]) * iscale;
                         }
                     #endif
 #if IS_CAUSAL
@@ -1953,7 +1996,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 const int key_block = key / SUBGROUP_SIZE;
                 const int key_lane = key - key_block * SUBGROUP_SIZE;
                 const int s_half_offset = (key_block * kq_wg_tile_queries + query) * SUBGROUP_SIZE + key_lane;
-                vstore4(as_uint4(convert_half8(exp_tile)), 0, &S_slm[s_half_offset >> 1]);
+                vstore4(as_uint4(PACK_SOFTMAX8(exp_tile)), 0, &S_slm[s_half_offset >> 1]);
             }
 #if MICRO_MATH
             if (!first)
@@ -2124,16 +2167,25 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 // int8 range (verified), so this avoids the half->float->half round trips.
                 const half vs_c = (vs_key < k) ? V_scales[vs_co] : (half)0.0f;
                 #if VAL_ZERO_POINTS
+                    #if INPUT0_IS_BF16
+                    const half vzb_c = (vs_key < k) ? convert_half(V_zp[vs_co]) : (half)0.0f;
+                    #else
                     // Fold the bias-trick widen bias (+1152.0h) into zp: the V dequant below widens
                     // via as_half(0x6480 ^ byte) (== signed_byte + 1152), so subtracting (zp+1152)
                     // gives (signed_byte - zp) with no convert_half widen. OOB keys -> vzb_c=1152
                     // (zp=0), and the score-side scale (vs_c=0 for OOB) still zeroes the product.
                     const half vzb_c = (vs_key < k) ? (convert_half(V_zp[vs_co]) + (half)1152.0h) : (half)1152.0h;
+                    #endif
                 #endif
 
                 #pragma unroll
                 for (int r = 0; r < sv_score_blocks; ++r)
+#if INPUT0_IS_BF16
+                    pA[r] = as_short8(_convert_bfloat168_as_ushort8(
+                        _convert_as_bfloat168_float8(as_ushort8(pA[r])) * convert_float(vs_c)));
+#else
                     pA[r] = as_short8(as_half8(pA[r]) * vs_c);
+#endif
             #elif IS_PA_KV_COMPRESSED && !IS_PREFILL
                 // Same scale/zp split as the plain-SDPA i8 path above, but the per-key scale and zp
                 // come from INSIDE the V page rather than from separate tensors: two f16 arrays at
@@ -2493,6 +2545,20 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         #pragma unroll
                         for (int u = 0; u < 4; ++u) {
                             const uint w = vt[cd * 8 + vt_half + u];
+#if INPUT0_IS_BF16
+                            const float4 wide4 = (float4)(convert_float(as_char((uchar)((w >>  0) & 0xFFu))),
+                                                          convert_float(as_char((uchar)((w >>  8) & 0xFFu))),
+                                                          convert_float(as_char((uchar)((w >> 16) & 0xFFu))),
+                                                          convert_float(as_char((uchar)((w >> 24) & 0xFFu))));
+                            #if VAL_ZERO_POINTS
+                                const float4 deq4 = wide4 - convert_float4(zpb4[u]);
+                            #else
+                                const float4 deq4 = wide4;
+                            #endif
+                            const ushort4 enc4 = _convert_bfloat164_as_ushort4(deq4);
+                            vb[cd][u * 2 + 0] = as_int(enc4.lo);
+                            vb[cd][u * 2 + 1] = as_int(enc4.hi);
+#else
                             const half4 wide4 = (half4)(as_half((ushort)(0x6480 ^ ((w >>  0) & 0xFFu))),
                                                         as_half((ushort)(0x6480 ^ ((w >>  8) & 0xFFu))),
                                                         as_half((ushort)(0x6480 ^ ((w >> 16) & 0xFFu))),
@@ -2508,6 +2574,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             // straight into vb instead of round-tripping through an array.
                             vb[cd][u * 2 + 0] = as_int(deq4.lo);
                             vb[cd][u * 2 + 1] = as_int(deq4.hi);
+#endif
                         }
                     }
                 }
@@ -2533,6 +2600,33 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         for (int key_pair = 0; key_pair < 8; ++key_pair) {
                             const int key0 = k0 + cp * SUBGROUP_SIZE + key_pair * 2;
                             const int key1 = key0 + 1;
+#if INPUT0_IS_BF16
+                            ushort2 vv = (ushort2)0;
+                            if (key0 < k) {
+                                #ifdef KV_COMPRESSED
+                                    const uint v_comp_off0 = VAL_COMP_OFF(b1, b0_kv, key0, 0);
+                                    #if VAL_ZERO_POINTS
+                                        vv[0] = _convert_bfloat16_as_ushort((convert_float(V[(size_t)key0 * ldv + value]) - convert_float(V_zp[v_comp_off0])) * convert_float(V_scales[v_comp_off0]));
+                                    #else
+                                        vv[0] = _convert_bfloat16_as_ushort(convert_float(V[(size_t)key0 * ldv + value]) * convert_float(V_scales[v_comp_off0]));
+                                    #endif
+                                #else
+                                    vv[0] = as_ushort(V[(size_t)key0 * ldv + value]);
+                                #endif
+                            }
+                            if (key1 < k) {
+                                #ifdef KV_COMPRESSED
+                                    const uint v_comp_off1 = VAL_COMP_OFF(b1, b0_kv, key1, 0);
+                                    #if VAL_ZERO_POINTS
+                                        vv[1] = _convert_bfloat16_as_ushort((convert_float(V[(size_t)key1 * ldv + value]) - convert_float(V_zp[v_comp_off1])) * convert_float(V_scales[v_comp_off1]));
+                                    #else
+                                        vv[1] = _convert_bfloat16_as_ushort(convert_float(V[(size_t)key1 * ldv + value]) * convert_float(V_scales[v_comp_off1]));
+                                    #endif
+                                #else
+                                    vv[1] = as_ushort(V[(size_t)key1 * ldv + value]);
+                                #endif
+                            }
+#else
                             half2 vv = (half2)0.0h;
                             if (key0 < k) {
                                 #ifdef KV_COMPRESSED
@@ -2561,6 +2655,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                                     vv[1] = V[(size_t)key1 * ldv + value];
                                 #endif
                             }
+#endif
                             vb[cd][key_pair] = as_int(vv);
                         }
                     }
@@ -2572,9 +2667,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 #pragma unroll
                 for (int cd = 0; cd < sv_value_blocks; ++cd)
 #if MICRO_MATH
-                    A_tile1[r][cd] = intel_sub_group_f16_f16_matrix_mad_k16(pA[r], vb[cd], A_tile1[r][cd]);
+                    A_tile1[r][cd] = DPAS_MAD_K16(pA[r], vb[cd], A_tile1[r][cd]);
 #else
-                    A_tile[r][cd] = intel_sub_group_f16_f16_matrix_mad_k16(pA[r], vb[cd], A_tile[r][cd]);
+                    A_tile[r][cd] = DPAS_MAD_K16(pA[r], vb[cd], A_tile[r][cd]);
 #endif
         }
 #if MICRO_MATH
@@ -2610,7 +2705,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     for (int r = 0; r < sv_score_blocks; ++r) {
         #pragma unroll
         for (int cd = 0; cd < sv_value_blocks; ++cd) {
+#if INPUT0_IS_BF16
+            ushort8 out = ACC_TO_OUT8(A_tile[r][cd]);
+#else
             half8 out = convert_half8(A_tile[r][cd]);
+#endif
             const int col = sg_j0_sv + cd * SUBGROUP_SIZE;
             const int row = wg_j0 + sg_i0_sv + r * 8;
 #if USE_2D_BLOCK_IO_A
