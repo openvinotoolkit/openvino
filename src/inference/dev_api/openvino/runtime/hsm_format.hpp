@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -89,7 +90,7 @@ struct HSMFormatVersion {
    | 0      | 5    | magic           |
    | 5      | 2    | version_major   |
    | 7      | 1    | version_minor   |
-   | 8      | 8    | total_size      |
+   | 8      | 8    | container_size  |
    | 16     | 8    | manifest_offset |
    | 24     | 8    | manifest_size   |
    +--------+------+-----------------+
@@ -104,7 +105,7 @@ struct HSMHeader {
     uint16_t version_major;  //!< Format major version this container was written with - see #HSMFormatVersion.
     uint8_t version_minor;   //!< Format minor version this container was written with - see #HSMFormatVersion.
 
-    HSMSizeType total_size;         //!< Whole container size, in bytes.
+    HSMSizeType container_size;     //!< Whole container size, in bytes.
     HSMOffsetType manifest_offset;  //!< Byte offset of the first ManifestEntry.
     HSMSizeType manifest_size;      //!< Manifest size in bytes; entry count = manifest_size / sizeof(ManifestEntry).
 
@@ -128,6 +129,9 @@ static_assert(sizeof(HSMHeader) == 32,
  * devices may reuse the same tag id for unrelated content.
  */
 using DeviceId = uint8_t;
+
+/** @brief Reserved #DeviceId for sections not tied to one specific device. */
+inline constexpr DeviceId any_device_id = 0;
 
 /**
  * @brief Semantic content of a ManifestEntry section (or inline payload); a raw 3-byte value split into a
@@ -172,16 +176,12 @@ struct SectionTag {
  */
 inline constexpr uint32_t core_tag_id_range_end = 0x1000;
 
-/// Highest id representable by the 23-bit #SectionTag id space.
+/** @brief Maximum tag id representable by the 23-bit #SectionTag id space. */
 inline constexpr uint32_t max_tag_id = 0x7FFFFF;
 
 /**
- * @brief Core-owned tag ids. `invalid` (0) is reserved and never assigned to a real tag; mode is fixed per
- * tag (model id always inlines, model data never does) - use the `_tag()` factories below rather than
- * #SectionTag::make() so mode can't be set inconsistently.
- * @note Ids are auto-assigned via the enumerator order, so a new tag can never accidentally collide with
- * an existing one. `sentinel_count` is always one past the last real tag; the `static_assert` below guards
- * it against ever growing past #core_tag_id_range_end.
+ * @brief Core-owned HSM tag identifiers. These are automatically assigned in declaration order and should not collide
+ * with device-specific tags.
  */
 enum class HSMTags : uint32_t {
     invalid = 0,           //!< Reserved: never a real tag id.
@@ -274,6 +274,46 @@ struct ManifestEntry {
 static_assert(sizeof(ManifestEntry) == 32, "ManifestEntry layout changed.");
 
 /**
+ * @brief Checks if the HSM header has a recognized magic number and version.
+ *
+ * @param header The HSM header to check.
+ * @return true if the header has a recognized magic number and version, false otherwise.
+ */
+constexpr bool is_recognized_header(const HSMHeader& header) noexcept {
+    return (header.magic == BlobMagic::single || header.magic == BlobMagic::multi) &&
+           header.version_major == HSMFormatVersion::major && header.container_size >= sizeof(HSMHeader);
+}
+
+/**
+ * @brief Checks that the header fields satisfy basic consistency rules.
+ *
+ * Ensures that the magic number is valid, the version matches the expected format, the total size is at least
+ * as large as the header, the manifest size is a multiple of the manifest entry size, and the manifest offset
+ * and size fit within the total size.
+ * @param header The HSM header to validate.
+ * @return true if the header fields satisfy the basic consistency rules, false otherwise.
+ */
+constexpr bool is_valid_header_fields(const HSMHeader& header) noexcept {
+    return is_recognized_header(header) && header.manifest_size % sizeof(ManifestEntry) == 0 &&
+           header.manifest_offset >= sizeof(HSMHeader) && header.manifest_offset <= header.container_size &&
+           header.container_size - header.manifest_offset >= header.manifest_size;
+}
+
+/**
+ * @brief Checks that a manifest entry's section bounds are valid within the container.
+ *
+ * Returns true for an inline-mode entry (nothing to bounds-check), or a pointer-mode one whose offset/size stay
+ * within `header.manifest_offset` (payload always precedes the manifest - see #HSMHeader::manifest_offset).
+ * @param entry The manifest entry to validate.
+ * @param header The HSM header providing context for bounds checking.
+ * @return true if the section bounds are valid, false otherwise.
+ */
+constexpr bool is_valid_section_bounds(const ManifestEntry& entry, const HSMHeader& header) noexcept {
+    return !entry.tag.is_pointer() || (entry.offset >= sizeof(HSMHeader) && entry.offset <= header.manifest_offset &&
+                                       header.manifest_offset - entry.offset >= entry.size);
+}
+
+/**
  * @brief Reader-side plugin hook: interprets one manifest entry's section content. A concrete extension
  * self-dispatches by checking `(entry.device, entry.tag)` and returning whether it recognized it - per the
  * unknown-tag rule on #SectionTag, the reader must skip any entry no extension recognizes, never fail
@@ -299,6 +339,8 @@ public:
  */
 class HSMContainerView {
 public:
+    /// Empty (zero-size, null-data) view - #validate() is false for it.
+    constexpr HSMContainerView() noexcept = default;
     explicit constexpr HSMContainerView(const std::byte* data, size_t size) noexcept : m_view{data, size} {}
     explicit HSMContainerView(const uint8_t* data, size_t size) noexcept
         : HSMContainerView{reinterpret_cast<const std::byte*>(data), size} {}
@@ -307,12 +349,18 @@ public:
         return m_view.size();
     }
 
-    /// Header at the start of the buffer.
+    /**
+     * @brief Returns the header at the start of the buffer.
+     * @return Reference to the header at the start of the buffer.
+     */
     const HSMHeader& header() const noexcept {
         return HSMHeader::view(reinterpret_cast<const uint8_t*>(begin()));
     }
 
-    /// First of `manifest_count()` entries at `header().manifest_offset`; use `&manifest()` for array access.
+    /**
+     * @brief Returns the first manifest entry at `header().manifest_offset`.
+     * @return The first manifest entry at `header().manifest_offset`.
+     */
     const ManifestEntry& manifest() const noexcept {
         return *reinterpret_cast<const ManifestEntry*>(begin() + header().manifest_offset);
     }
@@ -322,12 +370,15 @@ public:
         return static_cast<size_t>(header().manifest_size / sizeof(ManifestEntry));
     }
 
-    /// Bounds-checked payload bytes of a pointer-mode manifest entry; empty view for an invalid or inline entry.
+    /**
+     * @brief Bounds-checked payload bytes of a pointer-mode manifest entry; empty view for an invalid or inline entry.
+     */
     constexpr ov::util::MemoryView section(const ManifestEntry& entry) const noexcept {
         if (!entry.tag.is_pointer() || entry.offset > size() || entry.size > size() - entry.offset) {
             return {};
+        } else {
+            return {begin() + static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size)};
         }
-        return {begin() + static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size)};
     }
 
     /**
@@ -339,34 +390,18 @@ public:
             return false;
         }
         const auto& hdr = header();
-        if (hdr.magic != BlobMagic::single && hdr.magic != BlobMagic::multi) {
+        if (!is_valid_header_fields(hdr) || hdr.container_size > size()) {
             return false;
         }
-        if (hdr.version_major != HSMFormatVersion::major) {
-            return false;
-        }
-        if (hdr.total_size < sizeof(HSMHeader) || hdr.total_size > size()) {
-            return false;
-        }
-        if (hdr.manifest_size % sizeof(ManifestEntry) != 0) {
-            return false;
-        }
-        if (hdr.manifest_offset < sizeof(HSMHeader) || hdr.manifest_offset > hdr.total_size ||
-            hdr.total_size - hdr.manifest_offset < hdr.manifest_size) {
-            return false;
-        }
+
         if (hdr.manifest_size == 0) {
             return true;
         }
+
         const auto* entries = &manifest();
-        for (size_t i = 0, count = manifest_count(); i < count; ++i) {
-            const auto& entry = entries[i];
-            if (entry.tag.is_pointer() && (entry.offset < sizeof(HSMHeader) || entry.offset > hdr.manifest_offset ||
-                                           hdr.manifest_offset - entry.offset < entry.size)) {
-                return false;
-            }
-        }
-        return true;
+        return std::all_of(entries, entries + manifest_count(), [&hdr](const ManifestEntry& entry) {
+            return is_valid_section_bounds(entry, hdr);
+        });
     }
 
 private:
@@ -377,16 +412,14 @@ private:
         return m_view.end();
     }
 
-    ov::util::MemoryView m_view;
+    ov::util::MemoryView m_view{};
 };
 
 /**
- * @brief View over a multi-blob HSM file: containers concatenated back-to-back, each self-describing via
- * its own `header().total_size`. Two kinds of container appear, disambiguated by magic: #BlobMagic::multi
- * ("shared context" - mandatory as the very first container, optional afterwards; carries data shared by
- * the blobs that follow it, until the next one) and #BlobMagic::single (an actual model blob). #blob_at()
- * only counts/returns the #BlobMagic::single containers - shared-context containers are skipped over.
- * Exact multi-blob framing is still evolving.
+ * @brief View over a multi-blob HSM file, providing access to individual blob containers.
+ *
+ * This class allows iterating over and accessing the #BlobMagic::single containers within a multi-blob HSM file,
+ * skipping over shared-context containers.
  */
 class HSMMultiBlobView {
 public:
@@ -398,9 +431,12 @@ public:
         return m_view.size();
     }
 
-    /// Number of #BlobMagic::single containers; stops counting at the first invalid/out-of-bounds header.
+    /**
+     * @brief Returns the number of #BlobMagic::single containers in the multi-blob HSM file.
+     * @return The number of #BlobMagic::single containers in the multi-blob HSM file.
+     */
     size_t blob_count() const noexcept {
-        ov::util::MemoryView view = m_view;
+        auto view = m_view;
         size_t count = 0;
         while (view.size() >= sizeof(HSMHeader)) {
             const auto next = advance_container(view);
@@ -414,57 +450,60 @@ public:
     }
 
     /**
-     * @brief The `index`-th #BlobMagic::single container (shared-context containers don't count towards
-     * `index`).
+     * @brief The `index`-th #BlobMagic::single container (shared-context containers don't count towards `index`).
      * @return An empty (zero-size) view if `index >= blob_count()`.
      */
     HSMContainerView blob_at(size_t index) const noexcept {
-        ov::util::MemoryView view = m_view;
+        auto view = m_view;
         while (view.size() >= sizeof(HSMHeader)) {
-            const auto container_view = view;
             const auto next = advance_container(view);
             if (!next) {
                 break;
             }
-            view = next->remaining;
             if (next->is_blob) {
                 if (index == 0) {
-                    return HSMContainerView{container_view.data(), container_view.size() - next->remaining.size()};
+                    return HSMContainerView{view.data(), next->container_size};
                 }
                 --index;
             }
+            view = next->remaining;
         }
-        return HSMContainerView{static_cast<const std::byte*>(nullptr), 0};
+        return {};
     }
 
 private:
-    /// Result of walking past one container: remaining bytes after it, and whether it was #BlobMagic::single
-    /// (a blob) rather than #BlobMagic::multi (a shared context).
+    /**
+     * @brief Describes the result of advancing past one container in a memory view.
+     *
+     * This struct contains the remaining view after the container and a flag indicating whether the container was a
+     * blob.
+     */
     struct NextContainer {
-        ov::util::MemoryView remaining;
-        bool is_blob;
+        ov::util::MemoryView remaining;  //!< The remaining view after the container.
+        size_t container_size;           //!< Size of the container just advanced past.
+        bool is_blob;                    //!< True if the container was a blob.
     };
 
-    /// `std::nullopt` if `view`'s header is invalid (bad magic, or `total_size` doesn't fit `view`).
+    /**
+     * @brief Advances past one container in the given view.
+     * @param view The memory view starting at the container header.
+     * @return A NextContainer describing the remaining view and whether it was a blob, or `std::nullopt` if the header
+     * is invalid.
+     */
     static std::optional<NextContainer> advance_container(const ov::util::MemoryView& view) noexcept {
         const auto& hdr = HSMHeader::view(reinterpret_cast<const uint8_t*>(view.data()));
-        if (hdr.magic != BlobMagic::single && hdr.magic != BlobMagic::multi) {
+        if (!is_recognized_header(hdr) || hdr.container_size > view.size()) {
             return std::nullopt;
+        } else {
+            const auto container_size = static_cast<size_t>(hdr.container_size);
+            return std::make_optional(NextContainer{{view.data() + container_size, view.size() - container_size},
+                                                    container_size,
+                                                    hdr.magic == BlobMagic::single});
         }
-        if (hdr.version_major != HSMFormatVersion::major) {
-            return std::nullopt;
-        }
-        if (hdr.total_size < sizeof(HSMHeader) || hdr.total_size > view.size()) {
-            return std::nullopt;
-        }
-        const auto container_size = static_cast<size_t>(hdr.total_size);
-        return NextContainer{{view.data() + container_size, view.size() - container_size},
-                             hdr.magic == BlobMagic::single};
     }
 
     ov::util::MemoryView m_view;
 };
 
 }  // namespace v1
-
 }  // namespace ov::runtime

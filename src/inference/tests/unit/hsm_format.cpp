@@ -28,10 +28,10 @@ std::vector<uint8_t> make_container(const runtime::BlobMagic& magic,
     header.version_minor = runtime::HSMFormatVersion::minor;
     header.manifest_offset = sizeof(runtime::HSMHeader) + section_payload.size();
     header.manifest_size = manifest.size();
-    header.total_size = header.manifest_offset + header.manifest_size;
+    header.container_size = header.manifest_offset + header.manifest_size;
 
     std::vector<uint8_t> buffer;
-    buffer.reserve(header.total_size);
+    buffer.reserve(header.container_size);
     const auto* header_bytes = reinterpret_cast<const uint8_t*>(&header);
     buffer.insert(buffer.end(), header_bytes, header_bytes + sizeof(header));
     buffer.insert(buffer.end(), section_payload.begin(), section_payload.end());
@@ -128,7 +128,7 @@ TEST_F(HsmFormatLayoutCompatibilityTest, hsm_header_layout) {
     static_assert(offsetof(runtime::HSMHeader, magic) == 0, "HSMHeader::magic offset changed");
     static_assert(offsetof(runtime::HSMHeader, version_major) == 5, "HSMHeader::version_major offset changed");
     static_assert(offsetof(runtime::HSMHeader, version_minor) == 7, "HSMHeader::version_minor offset changed");
-    static_assert(offsetof(runtime::HSMHeader, total_size) == 8, "HSMHeader::total_size offset changed");
+    static_assert(offsetof(runtime::HSMHeader, container_size) == 8, "HSMHeader::container_size offset changed");
     static_assert(offsetof(runtime::HSMHeader, manifest_offset) == 16, "HSMHeader::manifest_offset offset changed");
     static_assert(offsetof(runtime::HSMHeader, manifest_size) == 24, "HSMHeader::manifest_size offset changed");
 
@@ -214,7 +214,7 @@ TEST(HsmHeaderTest, check_single_blob_header) {
     EXPECT_EQ(header.magic, runtime::BlobMagic::single);
     EXPECT_EQ(header.version_major, runtime::HSMFormatVersion::major);
     EXPECT_EQ(header.version_minor, runtime::HSMFormatVersion::minor);
-    EXPECT_EQ(header.total_size, blob.size());
+    EXPECT_EQ(header.container_size, blob.size());
     EXPECT_EQ(header.manifest_offset, sizeof(runtime::HSMHeader) + 2u);  // 2 bytes of section payload
     EXPECT_EQ(header.manifest_size, 2 * k_manifest_entry_size);          // 2 entries in the manifest
 };
@@ -227,7 +227,7 @@ TEST(HsmHeaderTest, check_multi_blob_single_blob) {
     EXPECT_EQ(header.magic, runtime::BlobMagic::multi);
     EXPECT_EQ(header.version_major, runtime::HSMFormatVersion::major);
     EXPECT_EQ(header.version_minor, runtime::HSMFormatVersion::minor);
-    EXPECT_EQ(header.total_size, blob.size());
+    EXPECT_EQ(header.container_size, blob.size());
     EXPECT_EQ(header.manifest_offset, sizeof(runtime::HSMHeader));
     EXPECT_EQ(header.manifest_size, 0u);  // no entries in the manifest
 };
@@ -240,15 +240,15 @@ TEST(HsmHeaderTest, check_multi_blob_two_blobs) {
     EXPECT_EQ(header1.magic, runtime::BlobMagic::multi);
     EXPECT_EQ(header1.version_major, runtime::HSMFormatVersion::major);
     EXPECT_EQ(header1.version_minor, runtime::HSMFormatVersion::minor);
-    EXPECT_EQ(header1.total_size, sizeof(runtime::HSMHeader));
+    EXPECT_EQ(header1.container_size, sizeof(runtime::HSMHeader));
     EXPECT_EQ(header1.manifest_offset, sizeof(runtime::HSMHeader));
     EXPECT_EQ(header1.manifest_size, 0u);  // no entries in the manifest
 
-    const auto header2 = runtime::HSMHeader::view(blob.data() + header1.total_size);
+    const auto header2 = runtime::HSMHeader::view(blob.data() + header1.container_size);
     EXPECT_EQ(header2.magic, runtime::BlobMagic::multi);
     EXPECT_EQ(header2.version_major, runtime::HSMFormatVersion::major);
     EXPECT_EQ(header2.version_minor, runtime::HSMFormatVersion::minor);
-    EXPECT_EQ(header2.total_size, sizeof(runtime::HSMHeader));
+    EXPECT_EQ(header2.container_size, sizeof(runtime::HSMHeader));
     EXPECT_EQ(header2.manifest_offset, sizeof(runtime::HSMHeader));
     EXPECT_EQ(header2.manifest_size, 0u);  // no entries in the manifest
 }
@@ -348,7 +348,7 @@ TEST(HsmContainerViewValidateTest, rejects_mismatched_major_version) {
 
 TEST(HsmContainerViewValidateTest, rejects_buffer_smaller_than_total_size) {
     const auto blob = make_sample_container_with_entries();
-    // View sees fewer bytes than HSMHeader::total_size claims.
+    // View sees fewer bytes than HSMHeader::container_size claims.
     const runtime::HSMContainerView view(blob.data(), blob.size() - 1);
     EXPECT_FALSE(view.validate());
 }
@@ -451,7 +451,7 @@ TEST(HsmMultiBlobViewTest, skips_optional_shared_context_between_blobs) {
 TEST(HsmMultiBlobViewTest, stops_on_oversized_total_size) {
     auto blob = make_multi_blob_file(1);
     auto header = runtime::HSMHeader::view(blob.data());  // corrupt the mandatory shared context's header
-    header.total_size = std::numeric_limits<runtime::HSMSizeType>::max();
+    header.container_size = std::numeric_limits<runtime::HSMSizeType>::max();
     std::memcpy(blob.data(), &header, sizeof(header));
 
     const runtime::HSMMultiBlobView view(blob.data(), blob.size());
