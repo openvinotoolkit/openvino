@@ -942,16 +942,15 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         return node->getType() == Type::Convolution;
     };
 
-    auto tryFuseZeroPoint = [](const NodePtr& conv, const NodePtr&dataParent) {
+    auto tryFuseZeroPoint = [](const NodePtr& conv, const NodePtr& dataParent) {
         auto* convNode = dynamic_cast<Convolution*>(conv.get());
         OPENVINO_ASSERT(convNode, "Cannot cast to convolution ", conv->getName());
 
-        if (dataParent->getType() != Type::Eltwise ||
-            dataParent->getAlgorithm() != Algorithm::EltwiseSubtract ||
+        if (dataParent->getType() != Type::Eltwise || dataParent->getAlgorithm() != Algorithm::EltwiseSubtract ||
             !dataParent->getFusedWith().empty() ||
             // check if parent has only activation + zero point constant
             dataParent->getParentEdges().size() != 2) {
-                return false;
+            return false;
         }
 
         const auto zpNode = dataParent->getParentEdgeAt(1)->getParent();
@@ -965,15 +964,15 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         OPENVINO_ASSERT(zpBlob && zpBlob->getData(), "zero point blob not allocated");
         const auto* zpData = static_cast<const uint8_t*>(zpBlob->getData());
 
-        //per-tensor only
+        // per-tensor only
         const auto zpShape = dataParent->getInputShapeAtPort(1);
         const auto zpCount = zpShape.getElementsCount();
-        for (size_t i = 1; i<zpCount; i++) {
+        for (size_t i = 1; i < zpCount; i++) {
             if (zpData[i] != zpData[0]) {
                 return false;
             }
         }
-        
+
         // compare precision of Fakequantize output and real activation output to prevent u8->i8 case
         NodePtr current = conv;
         NodePtr fakeQuantizeNode = nullptr;
@@ -1000,10 +999,9 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
 
         convNode->initializeInputZeroPointsACL(offset);
         return true;
-
     };
 
-    for (const auto& conv: graphNodes) {
+    for (const auto& conv : graphNodes) {
         if (!isSuitableConvNode(conv)) {
             continue;
         }
@@ -1013,9 +1011,9 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         if (tryFuseZeroPoint(conv, dataParent)) {
             const auto zpEdge = dataParent->getParentEdgeAt(1);
             DEBUG_LOG("[GraphOptimizer(ARM)]:Eltwise Subtract Node ##",
-                    dataParent->getName(),
-                " is optimized as zeropoint of Conv ##",
-            conv->getName());
+                      dataParent->getName(),
+                      " is optimized as zeropoint of Conv ##",
+                      conv->getName());
             conv->setOriginalInputPrecisionAtPort(0, dataParent->getOriginalInputPrecisionAtPort(0));
             graph.RemoveEdge(zpEdge);
             graph.DropNode(dataParent);

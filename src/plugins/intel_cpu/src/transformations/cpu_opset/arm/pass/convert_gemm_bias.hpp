@@ -79,8 +79,7 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
                 })) {
                 return false;
             }
-        }
-        else {
+        } else {
             if (fakeQuantize->get_output_element_type(0) != gemm->get_input_element_type(0)) {
                 return false;
             }

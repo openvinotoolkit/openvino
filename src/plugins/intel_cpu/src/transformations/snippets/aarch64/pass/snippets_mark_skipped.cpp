@@ -127,7 +127,7 @@ bool isSuitableConvolutionParent(const std::shared_ptr<const Node>& node) {
 }
 bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type<ov::op::v1::Subtract>(node);
-    //have single output, with 2 parents (activation, zeropoint)
+    // have single output, with 2 parents (activation, zeropoint)
     const auto out = node->outputs();
     const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     const bool has_two_parents = node->get_input_size() == 2;
@@ -138,7 +138,7 @@ bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& nod
 
     const auto child = node->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
     const bool is_conv = ov::is_type<ov::op::v1::Convolution>(child);
-    auto zero_point_node = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)); // can be null
+    auto zero_point_node = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));  // can be null
     return is_conv && zero_point_node;
 }
 bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node>& node) {

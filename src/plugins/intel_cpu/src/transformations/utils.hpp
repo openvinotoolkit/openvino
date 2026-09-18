@@ -115,8 +115,7 @@ bool match_gemm_bias_fq_same_types(const std::shared_ptr<const ov::Node>& node,
         if (subtract->get_input_element_type(0) != node->get_output_element_type(0)) {
             return false;
         }
-    }
-    else if (gemm_node->get_input_element_type(0) != node->get_output_element_type(0)) {
+    } else if (gemm_node->get_input_element_type(0) != node->get_output_element_type(0)) {
         return false;
     }
 
