@@ -33,8 +33,9 @@ JitConstants GatherMatmulSortGenerator::get_jit_constants(const kernel_impl_para
 
 Arguments GatherMatmulSortGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
-    if (params.is_dynamic())
+    if (params.is_dynamic()) {
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
 
     args.push_back({ArgumentDescriptor::Types::INPUT, gather_matmul::BGMInputIdx::INDICES});
     args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});  // group_expert_ids

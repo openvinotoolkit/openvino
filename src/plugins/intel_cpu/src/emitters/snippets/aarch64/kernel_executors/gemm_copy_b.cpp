@@ -11,7 +11,9 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "emitters/utils.hpp"
@@ -25,6 +27,7 @@
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_qsi8cxp_qsi8cx_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_x16p32x1bx16_x16_x16_neon.h"
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_nxk_x32p16x1bx32_x32_x32_neon.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "snippets/kernel_executor_table.hpp"
@@ -346,6 +349,45 @@ void GemmCopyBI8KaiKernelExecutor::execute(const GemmCopyBI8KaiKernelExecutor* e
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
     execute_copy_b_i8_common(config, *kernel->copy_b_ukernel, kernel->scales, in0, out0);
+}
+
+GemmCopyBKernel::GemmCopyBKernel(const ov::element::Type& prc) {
+    if (prc == ov::element::f16) {
+        m_executor = std::make_shared<GemmCopyBF16KaiKernelExecutor>(GemmCopyBKernelKaiConfig());
+    } else if (prc == ov::element::f32) {
+        m_executor = std::make_shared<GemmCopyBF32KaiKernelExecutor>(GemmCopyBKernelKaiConfig());
+    } else if (prc == ov::element::i8) {
+        m_executor = std::make_shared<GemmCopyBI8KaiKernelExecutor>(GemmCopyBKernelKaiConfig());
+    } else {
+        OPENVINO_THROW("Unexpected precision for GemmCopyB executor: ", prc.get_type_name());
+    }
+}
+
+void GemmCopyBKernel::update_by_config(const GemmCopyBKernelKaiConfig& config) const {
+    std::visit(
+        [&config](const auto& executor) {
+            executor->update_by_config(config);
+        },
+        m_executor);
+}
+
+const GemmCopyBKernelKaiConfig& GemmCopyBKernel::get_config() const {
+    return std::visit(
+        [](const auto& executor) -> const GemmCopyBKernelKaiConfig& {
+            return static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
+        },
+        m_executor);
+}
+
+void GemmCopyBKernel::operator()(const void* args) const {
+    const auto* call_args = reinterpret_cast<const GemmCopyBKernel::call_args*>(args);
+    OV_CPU_JIT_EMITTER_ASSERT(call_args, "Call arguments are nullptr!");
+    std::visit(
+        [call_args](const auto& executor) {
+            using ExecutorType = typename std::decay_t<decltype(executor)>::element_type;
+            ExecutorType::execute(executor.get(), const_cast<void*>(call_args->src), call_args->tr_src);
+        },
+        m_executor);
 }
 
 }  // namespace ov::intel_cpu::aarch64

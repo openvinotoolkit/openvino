@@ -11,7 +11,7 @@ template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v6::ExperimentalDetectronGenerateProposalsSingleImage>& op,
               ov::TensorVector& outputs,
               const ov::TensorVector& inputs) {
-    const auto attrs = op->get_attrs();
+    const auto& attrs = op->get_attrs();
 
     size_t post_nms_count = 0;
     if (attrs.post_nms_count < 0) {

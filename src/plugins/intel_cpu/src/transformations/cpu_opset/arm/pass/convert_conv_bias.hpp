@@ -1,17 +1,17 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
+#include "conv_mul_add_fq_block.hpp"
+#include "convert_gemm_bias.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 
 /*
  * Description:
- *     ConvertConvolutionBias detects specific quantized Convolution patterns with
- *     Convolution -> Multiply -> Add -> FQ
- *     and inserts a Convert to i32 between the constant bias and the Add node.
- *     Convert to i32 is neccessary because ACL supports i32 bias only.
- *     Also, the order of Add and Multiply is swapped to satisfy ACL requirements.
+ *     ConvertConvolutionBias is the Convolution specialization of ConvertGemmBias
+ *     It matches the int8 Convolution requantization chain via ConvMulAddFQBlock
  *
  * Supported patterns:
  *     1. u8 source, u8 or i8 weights
@@ -85,10 +85,10 @@
 
 namespace ov::intel_cpu {
 
-class ConvertConvolutionBias : public ov::pass::MatcherPass {
+class ConvertConvolutionBias : public ConvertGemmBias<ConvMulAddFQBlock> {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertConvolutionBias");
-    ConvertConvolutionBias();
+    ConvertConvolutionBias() : ConvertGemmBias("ConvertConvolutionBias") {}
 };
 
 }  // namespace ov::intel_cpu

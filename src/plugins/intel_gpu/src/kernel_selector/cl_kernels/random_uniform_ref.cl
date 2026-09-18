@@ -3,6 +3,7 @@
 //
 
 #include "include/batch_headers/fetch_data.cl"
+#include "include/batch_headers/bf16_utils.cl"
 
 #define N_ROUNDS 10
 #define STATISTIC_MAXIMIZING_MULTIPLIER_N 0xD2511F53UL
@@ -127,12 +128,33 @@ inline void FUNC(fill_half)(const uint4 res,
     }
 }
 
+inline float FUNC(uint32_to_bfloat16)(uint x) {
+    ushort x_uint16 = (ushort) x;
+    ushort out_val = (ushort)(127 << 7) | (x_uint16 & 0x7fu);
+    return _convert_as_bfloat16_float(out_val) - 1.0f;
+}
+
+inline void FUNC(fill_bf16)(const uint4 res,
+               float min_val,
+               float max_val,
+               __global ushort *output,
+               uint output_index,
+               uint output_size) {
+    float diff = max_val - min_val;
+    for (uint i = 0; i < 4; ++i) {
+        if (output_index + i < output_size) {
+            float val = FUNC_CALL(uint32_to_bfloat16)(res[i]) * diff + min_val;
+            output[output_index + i] = _convert_bfloat16_as_ushort(val);
+        }
+    }
+}
+
 KERNEL(random_uniform_ref)(OPTIONAL_SHAPE_INFO_ARG
                             const __global INPUT0_TYPE* shape, const __global INPUT1_TYPE *min_val,
                             const __global INPUT2_TYPE* max_val, __global OUTPUT_TYPE *output) {
     const uint plain_index = get_global_id(0);
     uint4 result = FUNC_CALL(run_philox)(plain_index);
-    FILL_FUNC(FUNC_NAME(OUTPUT_TYPE), result, *min_val, *max_val, output, plain_index * OUTPUT_STEP, OUTPUT_LENGTH);
+    FILL_FUNC(FUNC_NAME(OUTPUT_TYPE_NAME), result, DECODE_INPUT1_COMPUTE_TYPE(*min_val), DECODE_INPUT2_COMPUTE_TYPE(*max_val), output, plain_index * OUTPUT_STEP, OUTPUT_LENGTH);
 }
 
 #undef FILL_FUNC

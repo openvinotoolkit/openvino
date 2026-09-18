@@ -16,7 +16,7 @@ public:
 
     ReorderWeightsKernelSelector();
 
-    ~ReorderWeightsKernelSelector() override {}
+    ~ReorderWeightsKernelSelector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

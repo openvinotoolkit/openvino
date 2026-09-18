@@ -866,8 +866,8 @@ void contract_two_inputs(EinsumDecomposition* einsum_decompose_ptr,
                 subgraph_nodes);
 
     // step 3. apply MatMul operation for formatted inputs
-    const bool transpose_a = (is_separate_first1 ? false : true);
-    const bool transpose_b = (is_separate_first2 ? true : false);
+    const bool transpose_a = (!is_separate_first1);
+    const bool transpose_b = (is_separate_first2);
     const auto matmul = std::make_shared<ov::op::v0::MatMul>(matmul_operand1, matmul_operand2, transpose_a, transpose_b);
 
     // step 4. reshape back by unrolling dimensions corresponding to separate labels if needed

@@ -100,6 +100,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/paged_attention_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_causal_conv1d_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/paged_gated_delta_net_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/paged_selective_ssm_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/pooling_shape_inference_util.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/prior_box_clustered_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/prior_box_shape_inference.hpp
@@ -130,6 +131,7 @@ target_sources(${TARGET_NAME}
     ${SHAPE_INFER_INCLUDE_DIR}/search_sorted_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/segment_max_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/select_shape_inference.hpp
+    ${SHAPE_INFER_INCLUDE_DIR}/selective_ssm_shape_inference.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/sequence_generator.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/shape_infer_type_utils.hpp
     ${SHAPE_INFER_INCLUDE_DIR}/shape_nodes.hpp

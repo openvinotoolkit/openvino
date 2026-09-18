@@ -18,6 +18,7 @@
 
 #include <openvino/core/op_extension.hpp>
 #include <openvino/op/group_query_attention.hpp>
+#include <ov_ops/dynamic_quantize.hpp>
 #include <ov_ops/rms.hpp>
 #include <ov_ops/rotary_positional_embeddings.hpp>
 
@@ -475,6 +476,7 @@ int main(int argc, char* argv[]) {
             std::make_shared<ov::OpExtension<ov::op::internal::RMS>>(),
             std::make_shared<ov::OpExtension<ov::op::internal::RoPE>>(),
             std::make_shared<ov::OpExtension<ov::op::internal::GroupQueryAttention>>(),
+            std::make_shared<ov::OpExtension<ov::op::internal::DynamicQuantize>>(),
             std::make_shared<ov::OpExtension<ov::intel_npu::op::FlashAttentionTile>>()});
 
         std::cout << "Reading model" << std::endl;
@@ -505,7 +507,7 @@ int main(int argc, char* argv[]) {
             configs["PERF_COUNT"] = "YES";
         }
         if (FLAGS_raw_blob) {
-            if (FLAGS_d == "NPU") {
+            if (FLAGS_d.find("NPU") != std::string::npos) {
                 // set only if was not previously parsed from config
                 if (configs.find("NPU_EXPORT_RAW_BLOB") == configs.end()) {
                     configs["NPU_EXPORT_RAW_BLOB"] = "YES";

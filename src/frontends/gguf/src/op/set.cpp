@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <memory>
 
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -13,9 +15,6 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -34,24 +33,22 @@ OutputVector translate_set(const NodeContext& context) {
     ov::Output<ov::Node> dst = context.get_input(0);
     ov::Output<ov::Node> src = context.get_input(1);
 
-    // ScatterUpdate requires data and updates to share an element type, so cast both.
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    // ScatterUpdate requires updates to have the destination type.
+    const auto output_type = dst.get_element_type();
     src = std::make_shared<ov::op::v0::Convert>(src, output_type);
-    if (dst.get_element_type() != output_type) {
-        dst = std::make_shared<ov::op::v0::Convert>(dst, output_type);
-    }
 
     const int64_t offset_elems = context.get_attribute<int64_t>("set_offset_elems");
 
-    auto dst_flat = std::make_shared<ov::op::v1::Reshape>(
-        dst, ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}), false);
-    auto src_flat = std::make_shared<ov::op::v1::Reshape>(
-        src, ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}), false);
+    auto dst_flat =
+        std::make_shared<ov::op::v1::Reshape>(dst, ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}), false);
+    auto src_flat =
+        std::make_shared<ov::op::v1::Reshape>(src, ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}), false);
 
     // Indices [offset, offset + numel(src)) into the flattened destination.
     auto src_shape = std::make_shared<ov::op::v3::ShapeOf>(src_flat, ov::element::i64);
-    auto src_len = std::make_shared<ov::op::v1::ReduceProd>(
-        src_shape, ov::op::v0::Constant::create(ov::element::i64, {1}, {0}), false);
+    auto src_len = std::make_shared<ov::op::v1::ReduceProd>(src_shape,
+                                                            ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                            false);
     auto start = ov::op::v0::Constant::create(ov::element::i64, {}, {offset_elems});
     auto stop = std::make_shared<ov::op::v1::Add>(start, src_len);
     auto step = ov::op::v0::Constant::create(ov::element::i64, {}, {1});
@@ -63,7 +60,7 @@ OutputVector translate_set(const NodeContext& context) {
     auto dst_shape = std::make_shared<ov::op::v3::ShapeOf>(dst, ov::element::i64);
     auto res = std::make_shared<ov::op::v1::Reshape>(updated_flat, dst_shape, false);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

@@ -41,6 +41,7 @@ TEST_F(OVClassConfigTestCPU, smoke_PluginAllSupportedPropertiesAreAvailable) {
         RO_property(ov::device::capabilities.name()),
         RO_property(ov::device::type.name()),
         RO_property(ov::device::architecture.name()),
+        RO_property(ov::compatibility_check.name()),
         // Write only
         WO_property(ov::weights_path.name()),
         // read write

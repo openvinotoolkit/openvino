@@ -12,7 +12,7 @@ class LRNKernelWithinChannel : public LRNKernelBase {
 public:
     using Parent = LRNKernelBase;
     LRNKernelWithinChannel() : LRNKernelBase("lrn_gpu_within_channel") {}
-    ~LRNKernelWithinChannel() override {}
+    ~LRNKernelWithinChannel() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

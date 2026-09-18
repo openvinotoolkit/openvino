@@ -10,7 +10,7 @@ namespace kernel_selector {
 class EltwiseKernel_vload8 : public EltwiseKernelBase {
 public:
     EltwiseKernel_vload8() : EltwiseKernelBase("eltwise_simple_vload8") {}
-    ~EltwiseKernel_vload8() override {}
+    ~EltwiseKernel_vload8() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
@@ -24,5 +24,6 @@ public:
 protected:
     bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const eltwise_params& params) const override;
+    std::string GetVload8InputIndex(const eltwise_params& params, size_t input_idx) const override;
 };
 }  // namespace kernel_selector

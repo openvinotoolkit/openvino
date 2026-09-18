@@ -74,6 +74,7 @@ std::string ZeroDevice::getName() const {
 #define NPU_4000_DEVICE_ID   0x643E
 #define NPU_5010_DEVICE_ID   0xB03E
 #define NPU_5020_DEVICE_ID   0xFD3E
+#define NPU_6010_DEVICE_ID   0xD71D
 
     std::string name;
     switch (_device_properties.deviceId) {
@@ -89,6 +90,9 @@ std::string ZeroDevice::getName() const {
         break;
     case NPU_5020_DEVICE_ID:
         name = ov::intel_npu::Platform::NPU5020;
+        break;
+    case NPU_6010_DEVICE_ID:
+        name = ov::intel_npu::Platform::NPU6010;
         break;
     case LEGACY_NPU_3000_DEVICE_ID:
         OPENVINO_THROW("[LEGACY] NPU device ID 0x", std::hex, _device_properties.deviceId, " is not supported!");
@@ -186,7 +190,7 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 
 std::shared_ptr<InferRequest> ZeroDevice::createInferRequest(const std::shared_ptr<const ICompiledModel>& compiledModel,
                                                              const Config& config) {
-    if (compiledModel->get_graph()->is_dynamic()) {
+    if (compiledModel->get_graph()->get_kind() == GraphKind::Dynamic) {
         return std::make_shared<ZeroDynamicInferRequest>(_initStructs, compiledModel, config);
     }
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);

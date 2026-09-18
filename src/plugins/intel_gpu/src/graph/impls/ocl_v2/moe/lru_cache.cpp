@@ -11,14 +11,16 @@ LRUCache::LRUCache(size_t max_total_experts) : m_max_total_experts(max_total_exp
 }
 
 void LRUCache::move_to_end(std::list<Node>::iterator it) {
-    if (std::next(it) == m_list.end())
+    if (std::next(it) == m_list.end()) {
         return;
+    }
     m_list.splice(m_list.end(), m_list, it);
 }
 
 void LRUCache::evict_one_unlocked() {
-    if (m_list.empty())
+    if (m_list.empty()) {
         return;
+    }
 
     auto& oldest = m_list.front();
 
@@ -53,11 +55,10 @@ std::pair<size_t, bool> LRUCache::get_lru_item(size_t expert) {
         m_map[key] = new_it;
         ++m_total_experts;
         return {to_filled_no, false};
-    } else {
-        move_to_end(it->second);
-        const bool is_hit = m_filled_list[it->second->lru_expert_no];
-        return {it->second->lru_expert_no, is_hit};
     }
+    move_to_end(it->second);
+    const bool is_hit = m_filled_list[it->second->lru_expert_no];
+    return {it->second->lru_expert_no, is_hit};
 }
 
 }  // namespace ov::intel_gpu::ocl::moe

@@ -20,7 +20,7 @@ using ForceList = std::map<std::string, bool>;
 class kernel_selector_base {
 public:
     kernel_selector_base();
-    virtual ~kernel_selector_base() {}
+    virtual ~kernel_selector_base() = default;
 
     KernelData get_best_kernel(const Params& params) const;
     std::shared_ptr<KernelBase> GetImplementation(std::string& kernel_name) const;

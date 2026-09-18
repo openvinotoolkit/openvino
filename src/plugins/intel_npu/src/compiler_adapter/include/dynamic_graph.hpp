@@ -20,14 +20,20 @@ class DynamicGraph final : public IGraph {
 public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
-                 const FilteredConfig& config);
+                 const FilteredConfig& config,
+                 BlobType blobType = BlobType::LLVM);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     void* get_handle() const override;
 
-    bool is_dynamic() const override {
-        return true;
+    GraphKind get_kind() const override {
+        return GraphKind::Dynamic;
+    }
+
+    // HostCompile has no fixed plugin-side batch size; return nullopt for the shared import path.
+    const std::optional<std::size_t> get_batch_size() const override {
+        return std::nullopt;
     }
 
     ~DynamicGraph() override;
@@ -40,10 +46,6 @@ public:
     void set_workload_type(const ov::WorkloadType workloadType) override;
     void set_model_priority(const ov::hint::Priority modelPriority) override;
 
-    void set_batch_size(std::size_t batch) override;
-
-    const std::optional<std::size_t> get_batch_size() const override;
-
     uint32_t get_unique_id() override;
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
@@ -52,12 +54,12 @@ public:
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
 
+    BlobType get_blob_type() const override;
+
 private:
     void initialize_impl(const FilteredConfig& config) override;
 
     bool release_blob(const FilteredConfig& config);
-    std::optional<size_t> determine_batch_size();
-
     void initialize_engine();
     void create_execution_engine();
     void prepare_metadata();
@@ -76,6 +78,7 @@ private:
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
+    BlobType _blobType = BlobType::LLVM;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
@@ -83,12 +86,6 @@ private:
 
     uint32_t _uniqueId = 0;
     uint32_t _lastSubmittedId = 0;
-
-    /**
-     * @brief The batch size used by the corresponding model.
-     * @details The attribute contains a value only if the plugin performs the batches splitting operation.
-     */
-    std::optional<std::size_t> _batchSize = std::nullopt;
 
     Logger _logger;
 

@@ -16,7 +16,7 @@ public:
 
     deconvolution_kernel_selector();
 
-    ~deconvolution_kernel_selector() override {}
+    ~deconvolution_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

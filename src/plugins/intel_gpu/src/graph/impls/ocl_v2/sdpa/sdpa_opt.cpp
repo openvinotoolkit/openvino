@@ -245,10 +245,7 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     // Known limitation: In vision encoding model of qwen-vl, when the shape of sdpa is 3D and num_heads is 1,
     // there is an accuracy issue with sdpa_micro kernel. Therefore, it is currently restricted to execute with sdpa_opt kernel.
     const bool is_output_rank_4d = desc->output_transpose_order.size() == 4;
-    if (!is_output_rank_4d)
-        return false;
-
-    return true;
+    return is_output_rank_4d;
 #else
     return false;
 #endif
