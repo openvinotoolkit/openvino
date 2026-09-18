@@ -80,7 +80,7 @@ def _build_native_sampler(vocab: int, k: int):
     core = Core()
     cfg = {
         "INFERENCE_PRECISION_HINT": os.environ.get("OV_FAST_SAMPLER_HINT", "f32"),
-        "INFERENCE_NUM_THREADS": int(os.environ.get("OV_INFERENCE_NUM_THREADS", "40")),
+        "INFERENCE_NUM_THREADS": int(os.environ.get("OV_INFERENCE_NUM_THREADS", "0")),
     }
     compiled = core.compile_model(model, "CPU", cfg)
     return compiled
@@ -150,8 +150,9 @@ def install():
         B, V = logits.shape
 
         if _use_native:
-            # OV_NATIVE_SAMPLER=1: skips torch.compile, but ignores top_p and
-            # per-request seed -- distribution differs when top_p < 1.0.
+            # OV_NATIVE_SAMPLER=1: skips torch.compile, ignores top_p (diverges
+            # when top_p < 1.0), and can't honor a per-request seed -- its
+            # RandomUniform is unseeded (global_seed=op_seed=0), always random.
             top_k_meta = getattr(sampling_metadata, "top_k", None)
             try:
                 k_val = int(top_k_meta.max().item()) if top_k_meta is not None else 0
