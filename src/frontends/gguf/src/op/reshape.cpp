@@ -25,7 +25,24 @@
 namespace ov::frontend::gguf::op {
 
 OutputVector translate_reshape(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
+    num_inputs_check(context, 1, 2);
+    if (context.get_input_size() == 2) {
+        // Copy selected dimensions from a reference tensor, preserving variable grids.
+        const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target");
+        const auto axes = context.get_attribute<std::vector<int64_t>>("shape_axes");
+        FRONT_END_OP_CONVERSION_CHECK(target.size() == axes.size(), "Invalid reference reshape pattern");
+        ov::OutputVector dimensions;
+        for (size_t i = 0; i < target.size(); ++i) {
+            dimensions.push_back(axes[i] < 0
+                                     ? ov::op::v0::Constant::create(ov::element::i64, {1}, {target[i]})->output(0)
+                                     : get_dimensions(context.get_input(1), {static_cast<int>(axes[i])})->output(0));
+        }
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v1::Reshape>(context.get_input(0),
+                                                   std::make_shared<ov::op::v0::Concat>(dimensions, 0),
+                                                   false)},
+            context.get_name());
+    }
     const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target", {});
     if (!target.empty() && (context.get_op_case() == 0 || context.get_op_case() == 6)) {
         auto pattern = ov::op::v0::Constant::create(ov::element::i64, {target.size()}, target);
