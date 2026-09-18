@@ -23,10 +23,14 @@ namespace util {
 
 // Fills additive causal sliding-window attention mask tensor in-place:
 // 0.0f for visible positions, -inf for masked ones.
+//
+// past_is_circular must match the past-KV buffer's physical layout: true for a ring buffer,
+// false for one kept in chronological order.
 void fill_causal_sliding_window_mask(ov::SoPtr<ov::ITensor> mask_tensor,
                                      uint32_t num_stored_tokens,
                                      uint32_t num_new_tokens,
-                                     uint32_t window_size);
+                                     uint32_t window_size,
+                                     bool past_is_circular);
 
 // Overlays bidirectional visibility for same image vision tokens.
 // token_type_ids is per-call right-aligned token metadata (0 = text, 1 = vision)
@@ -40,7 +44,8 @@ void fill_sliding_window_attention_mask(const std::shared_ptr<ov::IAsyncInferReq
                                         const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports,
                                         uint32_t num_stored_tokens,
                                         uint32_t num_new_tokens,
-                                        uint32_t window_size);
+                                        uint32_t window_size,
+                                        bool past_is_circular);
 
 // Writes SWA KV deltas into a left-aligned past buffer, shifting the
 // surviving tail to the front first when the window is saturated.

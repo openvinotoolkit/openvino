@@ -1166,10 +1166,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                             token_type_ids_in_tensor->data<int64_t>() + total_len - current_prompts_len);
             }
 
-            // Fill the SWA attention mask for this chunk's tokens.
+            // Fill the SWA attention mask for this chunk (prefill's past-KV buffer is not a ring).
             m_swa_cache->fill_attention_masks(m_prefill_request,
                                               m_prefill_in_ports,
-                                              static_cast<uint32_t>(current_prompts_len));
+                                              static_cast<uint32_t>(current_prompts_len),
+                                              /*use_circular_layout=*/false);
 
             // Prepare KV blocks or bind memory for this chunk via strategy.
             m_kvcache_strategy->on_prefill_chunk_begin(static_cast<uint32_t>(current_prompts_len));
@@ -1286,7 +1287,8 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
         m_swa_cache->fill_attention_masks(
             m_prefill_request,
             m_prefill_in_ports,
-            static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]));
+            static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]),
+            /*use_circular_layout=*/false);
     });
 
     m_llm_profile["1/prefill:3b.infer"].record([&]() {
@@ -1583,7 +1585,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             ov::npuw::util::copy_to_right(per_layer_inputs, dst);
         }
 
-        m_swa_cache->fill_attention_masks(m_kvcache_request, m_kvcache_in_ports, input_tokens_len);
+        m_swa_cache->fill_attention_masks(m_kvcache_request,
+                                          m_kvcache_in_ports,
+                                          input_tokens_len,
+                                          /*use_circular_layout=*/true);
     });
 
     m_llm_profile["N/generate:2.infer"].record([&]() {

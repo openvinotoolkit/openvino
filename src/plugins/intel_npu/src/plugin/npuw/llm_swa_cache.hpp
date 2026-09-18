@@ -57,11 +57,12 @@ public:
     // Circular SWA past KV update for the generate model.
     void update_generate(uint32_t num_tokens);
 
-    // Fills the externalized sliding_window_attention_mask input (and, if present, overlays
-    // the vision-bidirectional mask from token_type_ids) for `request`.
+    // Fills the externalized sliding-window attention mask input for `request`, and, if
+    // present, overlays the vision-bidirectional mask from token type ids.
     void fill_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                               const PortsMap& in_ports,
-                              uint32_t num_new_tokens) const;
+                              uint32_t num_new_tokens,
+                              bool use_circular_layout) const;
 
 private:
     void update_cache(const std::shared_ptr<ov::IAsyncInferRequest>& request,

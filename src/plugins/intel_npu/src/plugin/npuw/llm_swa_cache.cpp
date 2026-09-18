@@ -231,12 +231,14 @@ void ov::npuw::SwaKVCacheHelper::update_generate(uint32_t num_tokens) {
 
 void ov::npuw::SwaKVCacheHelper::fill_attention_masks(const std::shared_ptr<ov::IAsyncInferRequest>& request,
                                                       const PortsMap& in_ports,
-                                                      uint32_t num_new_tokens) const {
+                                                      uint32_t num_new_tokens,
+                                                      bool use_circular_layout) const {
     auto& kvcache_desc = m_request.m_npuw_llm_compiled_model->m_kvcache_desc;
     const uint32_t num_stored_before = kvcache_desc.num_stored_tokens;
     ov::npuw::util::fill_sliding_window_attention_mask(request,
                                                        in_ports,
                                                        num_stored_before,
                                                        num_new_tokens,
-                                                       m_window_size);
+                                                       m_window_size,
+                                                       use_circular_layout);
 }
