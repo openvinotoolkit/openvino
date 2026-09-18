@@ -8,6 +8,33 @@ This implementation is partial. Conversion, encoder accuracy and GenAI generatio
 are separate qualification levels. A catalog entry does not certify every checkpoint,
 preprocessing variant or associated language backbone.
 
+## Priority: registered language backbones
+
+Further work prioritizes mmproj checkpoints paired with language architectures in
+the [native catalog](supported_models.md). Eligibility is determined by the language
+file's exact `general.architecture`, not the model's brand or embedding width.
+Verified language architectures take priority over experimental registrations.
+
+| Model family | Eligible language architecture | Frontend conversion gap | Accuracy / GenAI gap |
+|---|---|---|---|
+| Gemma3 | `gemma3` | Initial vision path implemented | Broader checkpoint qualification; original Q4_K_M run failed; companion GenAI integration required |
+| Dense Qwen3.5 | `qwen35` | `qwen3vl_merger` implemented | Real encoder comparison, preprocessing, multimodal positions, DeepStack assembly and cached generation |
+| MiniCPM-V/o resampler variants | Checkpoint-dependent `minicpm`, `llama`, `qwen2` | `resampler` implemented | Real checkpoint comparisons, tiling, query placement and GenAI adapter; audio qualified separately |
+| MiniCPM-V 4.6 | `qwen35` | `minicpmv4_6` missing | Window/downsample merger oracle and full pipeline validation |
+| Gemma4 | `gemma4` | `gemma4v`, `gemma4a`, `gemma4uv`, `gemma4ua` missing | Vision/audio encoders, preprocessing, auxiliary token inputs and generation |
+| Pixtral / Mistral multimodal | Checkpoint-dependent `llama`, `mistral3` | `pixtral` missing | Variable-resolution encoder, image positions/separators and GenAI validation |
+| DeepSeek-OCR / OCR2 | `deepseek2-ocr` | `deepseekocr`, `deepseekocr2` missing | Encoder topology, crops/layout, projector oracle and OCR generation |
+| Phi4 multimodal | `phi3` | `phi4` missing | Vision topology, preprocessing and GenAI validation |
+| Eligible LLaVA variants | Checkpoint-dependent `llama`, `qwen2` | `mlp` implemented | Checkpoint-specific feature selection, image assembly and generation |
+| Eligible InternVL / Idefics / audio variants | Require an exact registered backbone | Several projectors implemented below | Pair-by-pair encoder and processor equivalence, then GenAI integration |
+
+`qwen35moe`, `qwen2vl`, `qwen3vl`, `llama4` and `gemma3n` are distinct,
+unregistered language architectures. Their support does not follow from `qwen35`,
+`qwen2`, `qwen3`, `llama` or `gemma3`. Projector conversion already present for
+such families remains available, but their full pipelines are outside this priority.
+MiniCPM numeric version identifiers describe reference dispatch; they are not a
+promise of support for every similarly named marketing release.
+
 ## Implemented conversion
 
 | Modality | Projectors | F32 CPU oracle | Real-checkpoint encoder | GenAI adapter |
@@ -15,6 +42,7 @@ preprocessing variant or associated language backbone.
 | Vision | `gemma3` | Pass, separate/fused QKV and legacy FFN names | Pass, Gemma3 4B F16 projector | Gemma3, experimental |
 | Vision | `mlp` (including normalized variant) | Pass | Pending | Pending |
 | Vision | `idefics3`, `janus_pro`, `internvl` | Pass | Pending | Pending |
+| Vision | `resampler` | Pass, rectangular grids, explicit queries and legacy defaults | Pending | Pending |
 | Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | Pass, rectangular grids, temporal merging, window ordering and DeepStack | Pending | Pending |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Pass | Pending | Pending |
 
@@ -31,6 +59,8 @@ Preprocessing belongs to the caller. All activation inputs are F32; indices are 
 | Family | Inputs |
 |---|---|
 | Fixed-resolution vision | `vision.pixel_values [1,3,S,S]`, normalized NCHW |
+| MiniCPM resampler | `vision.pixel_values [1,3,H,W]`; `vision.position_ids [1,1,1,T]`, learned position indices |
+| MiniCPM resampler | `vision.position_h` and `vision.position_w [1,1,T,1]`, F32 patch coordinates for sinusoidal positions |
 | Qwen vision | `vision.pixel_values [2,3,H,W]`, temporal pair; repeat a still image twice |
 | Qwen vision | `vision.patch_indices [1,1,1,T]`, patch ordering; `vision.position_ids [1,1,1,4*T]`, four position sections |
 | Qwen2.5 vision | Also `vision.attention_mask [1,1,T,T]`, additive window mask, and `vision.output_indices [1,1,1,T/4]`, inverse window order |
@@ -41,6 +71,12 @@ indices apply spatial grouping and window permutation before the encoder; positi
 must follow that order. Output indices restore the reference spatial ordering.
 Audio feature extraction, chunking, valid lengths and token placement remain the
 caller's responsibility; the learned position table bounds supported lengths.
+MiniCPM resampler dimensions must be divisible by patch size; `T` is the patch
+count. The caller supplies the reference's learned-position buckets and raster
+coordinates. Accepted `clip.minicpmv_version` values are 2, 3, 4, 5, 6 and 100045;
+missing/zero selects 2. Missing/zero `clip.minicpmv_query_num` selects 96 queries
+for version 2 and 64 otherwise. Explicit positive query counts must match the
+query tensor. Resolved version and query count are retained in runtime metadata.
 
 Raw outputs are `vision.embeddings` and/or `audio.embeddings`, shape `[1,1,T,D]`.
 Qwen3 packs primary and DeepStack features along D, in reference order.
@@ -58,7 +94,9 @@ External cgraph decoders return an empty mmproj metadata map by default.
 
 ## GenAI integration
 
-The companion GenAI change accepts a language GGUF and projector GGUF in memory:
+The separately delivered companion GenAI change accepts a language GGUF and
+projector GGUF in memory. This OpenVINO branch alone does not add `mmproj_path`
+to an installed GenAI package; the matching GenAI integration is required:
 
 ```python
 pipe = openvino_genai.VLMPipeline(
@@ -131,15 +169,16 @@ or conversation qualification.
 ## Remaining reference coverage
 
 The following reference projector names still require builders, numerical fixtures
-and checkpoint validation:
+and checkpoint validation. This is a broader inventory; the registered-backbone
+matrix above determines implementation priority:
 
-`ldp`, `ldpv2`, `resampler`, `adapter`, `step3vl`, `gemma3nv`, `gemma4v`, `gemma4a`, `gemma4uv`, `gemma4ua`, `phi4`, `pixtral`, `llama4`, `qwen3a`, `lfm2`, `kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `deepseekocr`, `deepseekocr2`, `lfm2a`, `glm4v`, `youtuvl`, `yasa2`, `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `minicpmv4_6`, `granite_speech`, `mimovl`, `granite4_vision`.
+`ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `gemma4v`, `gemma4a`, `gemma4uv`, `gemma4ua`, `phi4`, `pixtral`, `llama4`, `qwen3a`, `lfm2`, `kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `deepseekocr`, `deepseekocr2`, `lfm2a`, `glm4v`, `youtuvl`, `yasa2`, `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `minicpmv4_6`, `granite_speech`, `mimovl`, `granite4_vision`.
 
 `gemma3na` is a named enum without a graph-builder dispatch in the pinned reference
 and is an explicit exclusion. `mlp_norm` is an internal tensor-detected variant of
 `mlp`, not a separately accepted projector metadata string.
 
-Remaining delivery work includes MiniCPM version dispatch, Gemma4 vision/audio,
-OCR/resampler/convolutional and Conformer topologies; shared-family GenAI adapters;
+Remaining delivery work includes MiniCPM-V 4.6, Gemma4 vision/audio,
+OCR/convolutional and Conformer topologies; shared-family GenAI adapters;
 preprocessing and embedding/logit equivalence across real checkpoints; audio/mixed
 requests and broader multi-turn reference validation. Broad frontend parity is not complete.

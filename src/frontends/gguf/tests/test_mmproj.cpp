@@ -165,6 +165,40 @@ TEST_F(GGUFMMProj, LegacyGlobalProjectorTakesPrecedence) {
     EXPECT_NO_THROW(convert());
 }
 
+TEST_F(GGUFMMProj, ResamplerRejectsUnknownVersion) {
+    encoder("vision", "resampler");
+    writer.kv_u32("clip.minicpmv_version", 999);
+    try {
+        convert();
+        FAIL() << "Expected unsupported resampler version";
+    } catch (const ov::Exception& e) {
+        EXPECT_NE(std::string(e.what()).find("resampler' version 999"), std::string::npos);
+    }
+}
+
+TEST_F(GGUFMMProj, ResamplerRejectsInconsistentQueries) {
+    encoder("vision", "resampler");
+    writer.kv_u32("clip.minicpmv_query_num", 3);
+    weight("resampler.query", {256, 2});
+    try {
+        convert();
+        FAIL() << "Expected query-count mismatch";
+    } catch (const ov::Exception& e) {
+        EXPECT_NE(std::string(e.what()).find("query tensor matching query_count"), std::string::npos);
+    }
+}
+
+TEST_F(GGUFMMProj, ResamplerRequiresQueryNormalization) {
+    encoder("vision", "resampler");
+    weight("resampler.query", {256, 96});
+    try {
+        convert();
+        FAIL() << "Expected missing normalization tensor";
+    } catch (const ov::Exception& e) {
+        EXPECT_NE(std::string(e.what()).find("resampler.ln_q.weight"), std::string::npos);
+    }
+}
+
 class GGUFMMProjAccuracy : public ::testing::TestWithParam<const char*> {};
 
 TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
@@ -194,6 +228,17 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     }
     ov::frontend::gguf::FrontEnd frontend;
     auto model = frontend.convert(frontend.load(model_file.path));
+    if (std::string(GetParam()).find("resampler") == 0) {
+        const std::string name = GetParam();
+        EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.query_count"}),
+                  name == "resampler_v2"   ? "96"
+                  : name == "resampler_v4" ? "64"
+                                           : "3");
+        EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.minicpmv_version"}),
+                  name == "resampler_v2"   ? "2"
+                  : name == "resampler_v4" ? "4"
+                                           : "3");
+    }
     ov::Core core;
     auto request = core.compile_model(model,
                                       "CPU",
@@ -292,5 +337,8 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "qwen3vl_merger",
                                            "internvl",
                                            "qwen2.5vl_merger_window_video",
-                                           "voxtral_odd"));
+                                           "voxtral_odd",
+                                           "resampler",
+                                           "resampler_v2",
+                                           "resampler_v4"));
 }  // namespace
