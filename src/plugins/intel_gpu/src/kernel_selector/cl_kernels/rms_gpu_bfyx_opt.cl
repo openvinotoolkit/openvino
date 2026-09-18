@@ -301,7 +301,7 @@ KERNEL(rms_gpu_bfyx_opt)(
                 max_value = 0.000000059604645h;
             }
         #else
-            output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = TO_OUTPUT_TYPE(normalized);
+            output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = normalized;
         #endif
     }
 
@@ -322,7 +322,7 @@ KERNEL(rms_gpu_bfyx_opt)(
             FUSED_OPS;
             normalized = FUSED_OPS_RESULT;
         #endif
-        output[output_data_offset + workers_per_data * items_num + in_data_idx] = TO_OUTPUT_TYPE(normalized);
+        output[output_data_offset + workers_per_data * items_num + in_data_idx] = normalized;
     }
 }
 #undef USE_BLOCK_WRITE
