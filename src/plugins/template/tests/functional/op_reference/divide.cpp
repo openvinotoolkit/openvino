@@ -147,13 +147,13 @@ struct DivideOverflowParams {
 class ReferenceDivideOverflowTest : public testing::TestWithParam<DivideOverflowParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.inType, params.pythonDivision);
         inputData = {params.inputData1, params.inputData2};
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<DivideOverflowParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "iType=" << param.inType << "_";
         result << "pythonDivision=" << param.pythonDivision;
@@ -176,7 +176,11 @@ TEST_P(ReferenceDivideOverflowTest, ThrowsOnIntMinDividedByMinusOne) {
 INSTANTIATE_TEST_SUITE_P(
     smoke_Divide_Overflow,
     ReferenceDivideOverflowTest,
-    ::testing::Values(DivideOverflowParams(element::i32, std::numeric_limits<int32_t>::min(), int32_t{-1}, true),
+    ::testing::Values(DivideOverflowParams(element::i8, std::numeric_limits<int8_t>::min(), int8_t{-1}, true),
+                      DivideOverflowParams(element::i8, std::numeric_limits<int8_t>::min(), int8_t{-1}, false),
+                      DivideOverflowParams(element::i16, std::numeric_limits<int16_t>::min(), int16_t{-1}, true),
+                      DivideOverflowParams(element::i16, std::numeric_limits<int16_t>::min(), int16_t{-1}, false),
+                      DivideOverflowParams(element::i32, std::numeric_limits<int32_t>::min(), int32_t{-1}, true),
                       DivideOverflowParams(element::i32, std::numeric_limits<int32_t>::min(), int32_t{-1}, false),
                       DivideOverflowParams(element::i64, std::numeric_limits<int64_t>::min(), int64_t{-1}, true),
                       DivideOverflowParams(element::i64, std::numeric_limits<int64_t>::min(), int64_t{-1}, false)),
