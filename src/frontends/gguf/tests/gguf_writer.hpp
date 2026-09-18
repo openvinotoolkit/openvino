@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
@@ -59,6 +60,21 @@ public:
         put(uint64_t(values.size()));
         for (const auto& value : values)
             put_str(m_kv, value);
+    }
+
+    // Fill with a deterministic nonzero pattern. `norm_ramp` slopes norm weights per element so a
+    // norm tensor is not indistinguishable from an identity.
+    void filled_tensor(const std::string& name,
+                       const std::vector<uint64_t>& dims,
+                       bool norm = false,
+                       float norm_ramp = 0.f) {
+        size_t count = 1;
+        for (auto d : dims)
+            count *= d;
+        std::vector<float> values(count);
+        for (size_t i = 0; i < count; ++i)
+            values[i] = norm ? 1.f + norm_ramp * float(i) : 0.1f * std::sin(float(i + 1));
+        tensor(name, dims, values);
     }
 
     // dims uses GGUF order (fastest axis first). Empty values produce zero-filled data.

@@ -15,10 +15,14 @@ from pathlib import Path
 import gguf
 import numpy as np
 
+from mmproj_fixtures import finish, save_npz, split_variants
+
+VARIANTS = ("_resize", "_overview", "_one_sided")
+
 
 def write_model(path, family):
-    one_sided = family.endswith("_one_sided")
-    family = family.removesuffix("_resize").removesuffix("_overview").removesuffix("_one_sided")
+    family, variants = split_variants(family, *VARIANTS)
+    one_sided = "_one_sided" in variants
     audio = family in {"gemma4ua", "gemma4a"}
     width, heads, hidden, output = 16, 2, 24, 12
     prefix, modality = ("a.", "audio") if audio else ("v.", "vision")
@@ -180,16 +184,13 @@ def write_model(path, family):
                 linear(p + "ffn_down", hidden, width)
                 if family.startswith("pixtral") or family in {"gemma4v", "deepseekocr2"}:
                     linear(p + "ffn_gate", width, hidden)
-    w.write_header_to_file()
-    w.write_kv_data_to_file()
-    w.write_tensors_to_file()
-    w.close()
+    finish(w)
     return output
 
 
 def inputs(family, width, height):
-    overview = family.endswith("_overview")
-    family = family.removesuffix("_resize").removesuffix("_overview").removesuffix("_one_sided")
+    family, variants = split_variants(family, *VARIANTS)
+    overview = "_overview" in variants
     raw = np.random.default_rng(42).normal(.1, .4, (height, width) if family in {"gemma4ua", "gemma4a"} else (height, width, 3)).astype(np.float32)
     if family == "gemma4ua":
         return raw, {"waveform_frames": raw.T.reshape(1, 1, width, height)}
@@ -296,7 +297,7 @@ def main():
                                 str(d / "input.bin"), str(d / "output.bin")], check=True, env=environment)
                 values["embeddings"] = np.fromfile(d / "output.bin", np.float32).reshape(1, 1, -1, out)
                 fixtures.update({f"{step}.{k}": np.ascontiguousarray(v) for k, v in values.items()})
-            np.savez_compressed(args.output / f"{family}.npz", **fixtures)
+            save_npz(args.output / f"{family}.npz", fixtures)
 
 
 if __name__ == "__main__":

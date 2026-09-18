@@ -14,6 +14,8 @@ from pathlib import Path
 import gguf
 import numpy as np
 
+from mmproj_fixtures import finish, save_npz
+
 
 def write_model(path, projector, projection_width=6):
     projector, _, variant = projector.partition("_") if projector.startswith("gemma3_") else (projector, "", "")
@@ -179,10 +181,7 @@ def write_model(path, projector, projection_width=6):
                 tensor("mm.a.mlp.2.bias", (6,))
                 tensor("v.boi", (1, 6))
                 tensor("v.eoi", (1, 6))
-    w.write_header_to_file()
-    w.write_kv_data_to_file()
-    w.write_tensors_to_file()
-    w.close()
+    finish(w)
     return audio
 
 
@@ -259,8 +258,9 @@ def main():
                         offset += count
                     extra["attention_mask"] = mask[None, None]
                     extra["output_indices"] = np.argsort(groups).astype(np.int32).reshape(1, 1, 1, -1)
-            np.savez_compressed(args.output / f"{projector}.npz", model=np.frombuffer(path.read_bytes(), np.uint8),
-                                inputs=inputs, embeddings=output, **extra)
+            save_npz(args.output / f"{projector}.npz",
+                     {"model": np.frombuffer(path.read_bytes(), np.uint8),
+                      "inputs": inputs, "embeddings": output, **extra})
 
 
 if __name__ == "__main__":

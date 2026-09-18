@@ -33,13 +33,53 @@
 
 namespace ov::frontend::gguf::op {
 
+namespace {
+// Expand K/V from n_head_kv to n_head (GQA): insert a repeat axis after the head axis, broadcast it
+// to `factor`, then fold it back in. `ggml_natural` selects [B, L, H, S] (head axis 2) over the
+// canonical SDPA [B, H, L, S] (head axis 1).
+ov::Output<Node> tile_kv(int64_t num_heads,
+                         int64_t num_heads_kv,
+                         int64_t head_size,
+                         ov::Output<Node> kv,
+                         bool ggml_natural) {
+    const size_t head_axis = ggml_natural ? 2 : 1;
+    const int64_t factor = num_heads / num_heads_kv;
+    if (factor <= 1 || num_heads_kv <= 1) {
+        return kv;
+    }
+    auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {(int64_t)head_axis + 1});
+    auto kv_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(kv, unsqueeze_axes);
+    std::vector<int64_t> bcast(5, 1);
+    bcast[head_axis + 1] = factor;
+    auto kv_broadcast_shape = ov::op::v0::Constant::create(ov::element::i64, {5}, bcast);
+    // special_zero keeps the leading dims (incl. the dynamic token axis) as-is.
+    std::vector<int64_t> new_shape = ggml_natural ? std::vector<int64_t>{0, 0, num_heads, head_size}
+                                                  : std::vector<int64_t>{0, num_heads, -1, head_size};
+    auto new_kv_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, new_shape);
+    kv = std::make_shared<ov::op::v3::Broadcast>(kv_unsqueezed,
+                                                 kv_broadcast_shape,
+                                                 ov::op::BroadcastType::BIDIRECTIONAL);
+    return std::make_shared<ov::op::v1::Reshape>(kv, new_kv_shape, true);
+}
+}  // namespace
+
 OutputVector translate_flash_attn_ext(const NodeContext& context) {
     if (context.get_attribute<bool>("encoder_attention", false)) {
         num_inputs_check(context, 3, 4);
+        // Encoders hand over ggml-natural [B, L, H(_kv), S]: expand K/V heads, then transpose.
+        const auto q_shape = context.get_input_shape(0);
+        const auto k_shape = context.get_input_shape(1);
+        const auto heads = q_shape[2].get_length();
+        const auto heads_kv = k_shape[2].get_length();
+        const auto head_size = q_shape[3].get_length();
         const auto order = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
         auto q = std::make_shared<ov::op::v1::Transpose>(context.get_input(0), order);
-        auto k = std::make_shared<ov::op::v1::Transpose>(context.get_input(1), order);
-        auto v = std::make_shared<ov::op::v1::Transpose>(context.get_input(2), order);
+        auto k =
+            std::make_shared<ov::op::v1::Transpose>(tile_kv(heads, heads_kv, head_size, context.get_input(1), true),
+                                                    order);
+        auto v =
+            std::make_shared<ov::op::v1::Transpose>(tile_kv(heads, heads_kv, head_size, context.get_input(2), true),
+                                                    order);
         ov::Output<ov::Node> mask = context.get_input_size() == 4
                                         ? context.get_input(3)
                                         : ov::op::v0::Constant::create(ov::element::f32, {}, {0})->output(0);
@@ -95,32 +135,12 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     const bool ggml_natural = op_case == 100;
     const size_t head_axis = ggml_natural ? 2 : 1;
 
-    auto tile_kv = [&](int64_t num_heads, int64_t num_heads_kv, int64_t head_size, ov::Output<Node> kv) {
-        int64_t factor = num_heads / num_heads_kv;
-        if (factor > 1 && num_heads_kv > 1) {
-            // Insert the repeat axis right after the head axis, broadcast it to `factor`, then fold
-            // it back into the head axis: [.., n_head_kv, ..] -> [.., n_head_kv * factor, ..].
-            auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {(int64_t)head_axis + 1});
-            auto kv_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(kv, unsqueeze_axes);
-            std::vector<int64_t> bcast(5, 1);
-            bcast[head_axis + 1] = factor;
-            auto kv_broadcast_shape = ov::op::v0::Constant::create(ov::element::i64, {5}, bcast);
-            // special_zero keeps the leading dims (incl. the dynamic token axis) as-is.
-            std::vector<int64_t> new_shape = ggml_natural ? std::vector<int64_t>{0, 0, num_heads, head_size}
-                                                          : std::vector<int64_t>{0, num_heads, -1, head_size};
-            auto new_kv_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, new_shape);
-            kv = std::make_shared<ov::op::v3::Broadcast>(kv_unsqueezed,
-                                                         kv_broadcast_shape,
-                                                         ov::op::BroadcastType::BIDIRECTIONAL);
-            kv = std::make_shared<ov::op::v1::Reshape>(kv, new_kv_shape, true);
-        }
-        return kv;
-    };
-
     auto q_shape = context.get_input_shape(0);
     auto k_shape = context.get_input_shape(1);
-    k = tile_kv(q_shape[head_axis].get_length(), k_shape[head_axis].get_length(), q_shape[3].get_length(), k);
-    v = tile_kv(q_shape[head_axis].get_length(), k_shape[head_axis].get_length(), q_shape[3].get_length(), v);
+    const auto heads = q_shape[head_axis].get_length();
+    const auto heads_kv = k_shape[head_axis].get_length();
+    k = tile_kv(heads, heads_kv, q_shape[3].get_length(), k, ggml_natural);
+    v = tile_kv(heads, heads_kv, q_shape[3].get_length(), v, ggml_natural);
 
     // SDPA requires q/k/v to share an element type; match k/v to q (ConvertConvertLike lowers these).
     k = std::make_shared<ov::op::v1::ConvertLike>(k, q);

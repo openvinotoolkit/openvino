@@ -60,16 +60,25 @@ int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
     return 0;
 }
 
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
-                                         const std::vector<int>& dims) {
+void name_output(const ov::Output<ov::Node>& out, const std::string& name) {
+    out.get_node_shared_ptr()->set_friendly_name(name);
+    out.get_node_shared_ptr()->output(0).set_names({name});
+}
+
+std::shared_ptr<ov::Node> gather_dims(const ov::Output<ov::Node>& shape, const std::vector<int>& dims) {
     using namespace ov::op;
     const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
     return std::make_shared<v8::Gather>(shape, dims_const, zero);
 }
 
+std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
+                                         const std::vector<int>& dims) {
+    return gather_dims(shape, dims);
+}
+
 std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims) {
-    return get_dimensions(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
+    return gather_dims(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
 }
 
 OutputVector rename_outputs_with_suffix(OutputVector outputs, const std::string& suffix) {
