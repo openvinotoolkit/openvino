@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "could not resolve proxy proxy-dmz.intel.com|Network",
+  "signature_hash": "2e6aac1671dde42f",
+  "title": "LLM accuracy iGPU tests fail installing requirements - git clone of openvino.genai fails, Could not resolve proxy",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-09-18T12:02:47Z",
+  "last_seen": "2026-09-18T12:02:47Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35335531451"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38045"
+  ],
+  "recent_timestamps": [
+    "2026-09-18T12:02:47Z"
+  ],
+  "rerun_search_string": "Could not resolve proxy: proxy-dmz.intel.com"
+}

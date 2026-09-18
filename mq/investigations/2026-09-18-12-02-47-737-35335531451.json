@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-18-12-02-47-737-35335531451",
+  "timestamp": "2026-09-18T12:02:47Z",
+  "run_id": "35335531451",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35335531451",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "38045",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38045",
+  "author": "wilson-seok",
+  "category": "Network",
+  "title": "LLM accuracy iGPU tests fail installing requirements - git clone of openvino.genai fails, Could not resolve proxy",
+  "signature": "could not resolve proxy proxy-dmz.intel.com|Network",
+  "signature_hash": "2e6aac1671dde42f",
+  "confidence": "High",
+  "failed_jobs": [
+    "LLM accuracy iGPU tests / LLM accuracy GPU tests - Install LLM accuracy test requirements",
+    "ci/gha_overall_status_ubuntu_24 - Check status of all jobs"
+  ],
+  "key_errors": [
+    "fatal: unable to access 'https://github.com/openvinotoolkit/openvino.genai.git/': Could not resolve proxy: proxy-dmz.intel.com",
+    "fatal: could not fetch ebe747b7838a6a6f6d27147fd45e4441e240af70 from promisor remote",
+    "error: subprocess-exited-with-error - git clone ... did not run successfully. exit code: 128"
+  ],
+  "root_cause": "The 'Install LLM accuracy test requirements' step ran 'pip install -r tests/llm/requirements.txt', which needs to git-clone openvinotoolkit/openvino.genai (whowhatbench dependency) directly from GitHub over the corporate proxy proxy-dmz.intel.com. The runner's network/proxy could not resolve that proxy hostname at the moment of the clone, causing git clone to fail with exit code 128 and the pip install step (and consequently the whole job and the merge-queue overall-status job) to fail. This is a transient network/infrastructure issue external to the PR's GPU code changes, not a defect introduced by PR #38045."
+}
