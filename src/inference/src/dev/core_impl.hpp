@@ -38,8 +38,7 @@ public:
         std::filesystem::path m_cache_dir;
         std::shared_ptr<ov::ICacheManager> m_cache_manager;
         // True when the target device is GPU running on the Level Zero (ZE) runtime, in which case cached
-        // blobs should be mmap'ed with page address/size alignment so the GPU ZE backend can zero-copy
-        // import them directly (see ov::load_mmap_object's size_alignment parameter).
+        // blobs should be mmap'ed from an aligned address so the GPU ZE backend can zero-copy import them directly.
         bool m_align_mmap_to_page = false;
 
         static CacheConfig create(const std::filesystem::path& dir, const ov::Plugin* device = nullptr);

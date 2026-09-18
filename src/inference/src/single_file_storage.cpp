@@ -94,15 +94,13 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         if (size == 0) {
             return true;
         }
-        constexpr auto header_size = sizeof(BlobIdType) + sizeof(BlobSizeType) + sizeof(PadSizeType);
+        constexpr auto header_size = sizeof(BlobIdType) + sizeof(PadSizeType);
         if (size < header_size) {
             return false;
         }
         BlobIdType id;
-        BlobSizeType blob_data_size;
         PadSizeType padding_size;
         s.read(reinterpret_cast<char*>(&id), sizeof(id));
-        s.read(reinterpret_cast<char*>(&blob_data_size), sizeof(blob_data_size));
         s.read(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
         if (!s.good() || padding_size > size - header_size) {
             return false;
@@ -111,17 +109,13 @@ bool SingleFileStorage::build_content_index(std::ifstream& stream) {
         if (!s.good() || blob_data_pos < 0) {
             return false;
         }
-        const auto mapped_blob_size = static_cast<BlobSizeType>(size - header_size - padding_size);
-        if (blob_data_size > mapped_blob_size) {
-            return false;
-        }
-        s.seekg(mapped_blob_size, std::ios::cur);
+        const auto blob_data_size = static_cast<std::streamoff>(size - header_size - padding_size);
+        s.seekg(blob_data_size, std::ios::cur);
         if (!s.good()) {
             return false;
         }
         m_blob_index[id].offset = static_cast<uint64_t>(blob_data_pos);
-        m_blob_index[id].size = blob_data_size;
-        m_blob_index[id].mapped_size = mapped_blob_size;
+        m_blob_index[id].size = static_cast<uint64_t>(blob_data_size);
         return true;
     };
     const auto blob_map_reader = [this](std::istream& s, TLVTraits::LengthType size) {
@@ -216,10 +210,7 @@ bool SingleFileStorage::has_blob_id(BlobIdType blob_id) const {
     return m_blob_index.find(blob_id) != m_blob_index.end();
 }
 
-void SingleFileStorage::write_blob_entry(std::fstream& stream,
-                                         BlobIdType blob_id,
-                                         StreamWriter& writer,
-                                         bool) {
+void SingleFileStorage::write_blob_entry(std::fstream& stream, BlobIdType blob_id, StreamWriter& writer) {
     OPENVINO_ASSERT(!has_blob_id(blob_id), "Blob with id ", blob_id, " already exists in cache.");
 
     std::streampos blob_pos;
@@ -227,20 +218,12 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream,
 
     const auto blob_writer = [&](std::ostream& s) {
         s.write(reinterpret_cast<const char*>(&blob_id), sizeof(blob_id));
-        const auto size_pos = s.tellp();
-        BlobSizeType blob_size_placeholder = 0;
-        s.write(reinterpret_cast<const char*>(&blob_size_placeholder), sizeof(blob_size_placeholder));
         write_padding(s, blob_alignment);
         blob_pos = s.tellp();
         OPENVINO_ASSERT(blob_pos >= 0, "Invalid blob data position ", blob_pos, " for blob id ", blob_id);
         writer(s);
         blob_size = s.tellp() - blob_pos;
         OPENVINO_ASSERT(blob_size >= 0, "Invalid blob size ", blob_size, " for blob id ", blob_id);
-        const auto end_pos = s.tellp();
-        s.seekp(size_pos);
-        const auto logical_blob_size = static_cast<BlobSizeType>(blob_size);
-        s.write(reinterpret_cast<const char*>(&logical_blob_size), sizeof(logical_blob_size));
-        s.seekp(end_pos);
     };
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::Blob), blob_writer);
 
@@ -252,34 +235,31 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream,
     };
     write_tlv_record(stream, static_cast<TLVTraits::TagType>(Tag::BlobMap), blob_map_writer);
 
-    m_blob_index[blob_id] = {static_cast<uint64_t>(blob_pos),
-                             static_cast<BlobSizeType>(blob_size),
-                             static_cast<BlobSizeType>(blob_size),
-                             std::move(model_name)};
+    m_blob_index[blob_id] = {static_cast<uint64_t>(blob_pos), static_cast<uint64_t>(blob_size), std::move(model_name)};
 }
 
-void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer, bool align_mmap_to_page) {
+void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer, bool) {
     ScopedLocale plocal_C(LC_ALL, "C");
     std::fstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::ate);
     OPENVINO_ASSERT(stream.good(), "Failed to open cache file ", m_file_path, " for writing blob id ", blob_id);
-    write_blob_entry(stream, convert_blob_id(blob_id), writer, align_mmap_to_page);
+    write_blob_entry(stream, convert_blob_id(blob_id), writer);
 }
 
 void SingleFileStorage::read_cache_entry(const std::string& blob_id,
                                          bool enable_mmap,
                                          StreamReader reader,
-                                         bool align_mmap_to_page) {
+                                         bool) {
     ScopedLocale plocal_C(LC_ALL, "C");
 
     const auto cid = convert_blob_id(blob_id);
 
     if (std::filesystem::exists(m_file_path) && has_blob_id(cid)) {
-        const auto& [blob_pos, blob_size, mapped_blob_size, model_name] = m_blob_index[cid];
+        const auto& [blob_pos, blob_size, model_name] = m_blob_index[cid];
         if (enable_mmap) {
             CompiledBlobVariant compiled_blob{std::in_place_index<0>,
                                               read_tensor_data(m_file_path,
                                                                element::u8,
-                                                               {static_cast<PartialShape::value_type>(align_mmap_to_page ? mapped_blob_size : blob_size)},
+                                                               {static_cast<PartialShape::value_type>(blob_size)},
                                                                blob_pos)};
             reader(compiled_blob);
         } else {

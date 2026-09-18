@@ -292,8 +292,7 @@ public:
              size_t offset,
              size_t size,
              bool no_placeholder = false,
-             MmapMode mode = MmapMode::READ,
-             size_t size_alignment = 0);
+             MmapMode mode = MmapMode::READ);
     void set_from_handle(FileHandle handle, size_t offset, size_t size);
     bool try_remap_slot(uintptr_t fault_addr);
 
@@ -339,7 +338,7 @@ private:
     void set_id(HANDLE h, size_t offset, size_t size);
 
     /** @brief Core setup shared by set() and set_from_handle(). */
-    void setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder, MmapMode mode, size_t size_alignment = 0);
+    void setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder, MmapMode mode);
 
     /** @brief Try to establish the placeholder mapping.
      *  Returns true on success; caller falls back to legacy path on false.
@@ -633,41 +632,16 @@ void MapHolder::legacy_setup(size_t aligned_offset, size_t head_pad, size_t size
     }
 }
 
-void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder, MmapMode mode, size_t size_alignment) {
+void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_placeholder, MmapMode mode) {
     LARGE_INTEGER file_size_li{};
     if (!::GetFileSizeEx(file_handle, &file_size_li)) {
         throw std::runtime_error{"GetFileSizeEx failed: " + std::to_string(::GetLastError())};
     }
-    auto file_size = static_cast<size_t>(file_size_li.QuadPart);
+    const auto file_size = static_cast<size_t>(file_size_li.QuadPart);
 
     m_size = (size == auto_size) ? file_size - offset : size;
     if (offset + m_size > file_size || offset + m_size < offset) {
         throw std::runtime_error{"Requested mapping range exceeds file size"};
-    }
-
-    // Real cache/weight files are not guaranteed to be a multiple of size_alignment (e.g. page size),
-    // so pad the underlying file with real zero bytes to reach the requested alignment.
-    if (size_alignment > 0) {
-        // head_pad below is only ever 0 when offset is itself a multiple of size_alignment; otherwise
-        // the returned data() pointer would not actually be aligned even though m_size is.
-        if (offset % size_alignment != 0) {
-            throw std::runtime_error{"offset must be a multiple of size_alignment (" + std::to_string(size_alignment) +
-                                     ") for the mapped pointer to be aligned"};
-        }
-        const size_t aligned_size = util::align_size_up(m_size, size_alignment);
-        if (aligned_size > m_size) {
-            if (mode != MmapMode::READ_WRITE) {
-                throw std::runtime_error{"Padding mapping to a " + std::to_string(size_alignment) +
-                                         "-byte alignment requires MmapMode::READ_WRITE to extend the file"};
-            }
-            LARGE_INTEGER new_end{};
-            new_end.QuadPart = static_cast<LONGLONG>(offset + aligned_size);
-            if (!::SetFilePointerEx(file_handle, new_end, nullptr, FILE_BEGIN) || !::SetEndOfFile(file_handle)) {
-                throw std::runtime_error{"Failed to extend file for aligned mapping: " + std::to_string(::GetLastError())};
-            }
-            file_size = offset + aligned_size;
-            m_size = aligned_size;
-        }
     }
 
     const auto gran = util::get_system_alloc_granularity();
@@ -675,9 +649,6 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
     m_aligned_offset = r_offset;
     // Round up to 64KB - required for VirtualFree MEM_PRESERVE_PLACEHOLDER split.
     const size_t total_va_size = util::align_size_up(r_length, gran);
-    if (size_alignment > 0 && head_pad != 0) {
-        throw std::runtime_error{"[internal error] mapped pointer is not aligned"};
-    }
 
     set_id(file_handle, offset, size);
     if (mode == MmapMode::READ_WRITE) {
@@ -704,8 +675,7 @@ void MapHolder::setup(HANDLE file_handle, size_t offset, size_t size, bool no_pl
     }
 }
 
-void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t size, bool no_placeholder, MmapMode mode,
-                    size_t size_alignment) {
+void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t size, bool no_placeholder, MmapMode mode) {
     const bool writable = mode == MmapMode::READ_WRITE;
     auto fh = ::CreateFileW(
         path.c_str(),
@@ -721,7 +691,7 @@ void MapHolder::set(const std::filesystem::path& path, size_t offset, size_t siz
     }
 
     HandleHolder fh_holder{fh};
-    setup(fh, offset, size, no_placeholder, mode, size_alignment);
+    setup(fh, offset, size, no_placeholder, mode);
     // Keep the file handle alive so the section object can always resolve page faults
     // back to the original file data, even if the caller deletes or renames the file.
     // FILE_SHARE_DELETE allows std::filesystem::remove() to succeed while the mapping is alive.
@@ -991,10 +961,9 @@ std::shared_ptr<ov::MappedMemory> load_mmap_object(const std::filesystem::path& 
                                                    size_t offset,
                                                    size_t size,
                                                    bool no_placeholder,
-                                                   MmapMode mode,
-                                                   size_t size_alignment) {
+                                                   MmapMode mode) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path, offset, size, no_placeholder, mode, size_alignment);
+    holder->set(path, offset, size, no_placeholder, mode);
     return holder;
 }
 

@@ -20,18 +20,6 @@ struct std::hash<ov::intel_gpu::SharedBufferHandle> {
     }
 };
 
-template <>
-struct std::hash<ov::intel_gpu::VirtualAddressMemory> {
-    size_t operator()(const ov::intel_gpu::VirtualAddressMemory& mem) const noexcept {
-        // Hash pointer, size and access mode to distinguish different allocations/imports
-        size_t seed = 0;
-        seed = cldnn::hash_combine(seed, mem.ptr);
-        seed = cldnn::hash_combine(seed, mem.size);
-        seed = cldnn::hash_combine(seed, mem.access);
-        return seed;
-    }
-};
-
 namespace ov::intel_gpu {
 
 namespace {
@@ -477,6 +465,12 @@ bool RemoteTensorImpl::is_shared() const noexcept {
 }
 
 bool RemoteTensorImpl::supports_caching() const {
+    // CPU_VA imports are keyed on a caller-owned virtual address, which the OS is free to hand out
+    // again for unrelated data once the original allocation or mapping is released. Reusing a cached
+    // import would then feed the device memory that no longer belongs to the caller, so host pointer
+    // imports are always performed fresh.
+    if (m_mem_type == TensorType::BT_CPU_VA)
+        return false;
 #ifdef _WIN32
     return is_shared() && !m_mapped_memory;
 #else
@@ -488,7 +482,6 @@ void RemoteTensorImpl::update_hash() {
     if (supports_caching()) {
         m_hash = cldnn::hash_combine(0, m_mem);
         m_hash = cldnn::hash_combine(m_hash, m_shared_buffer_handle);
-        m_hash = cldnn::hash_combine(m_hash, m_va_mem);
         m_hash = cldnn::hash_combine(m_hash, m_surf);
         m_hash = cldnn::hash_combine(m_hash, m_plane);
         m_hash = cldnn::hash_combine(m_hash, m_shape.size());

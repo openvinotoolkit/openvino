@@ -762,7 +762,7 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         return decltype(ov::device::pci_info)::value_type {info};
     }
     if (name == ov::internal::cache_header_alignment) {
-        return decltype(ov::internal::cache_header_alignment)::value_type{4096};
+        return decltype(ov::internal::cache_header_alignment)::value_type{64 * 1024};
     }
     if (name == ov::compatibility_check) {
         if (auto it = options.find(ov::runtime_requirements.name()); it != options.end()) {

@@ -2019,7 +2019,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         host_buffer_base_ptr =
             ib.get_engine().create_hostbuffer(ib.get_tensor(),
                                               ib.get_stream_size(),
-                                              allocation_type::cl_mem,
+                                              allocation_type::usm_host,
                                               layout({{static_cast<tensor::value_type>(ib.get_stream_size()), 1, 1, 1}, data_types::u8, format::bfyx}));
     }
 
@@ -2216,4 +2216,3 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 }
-

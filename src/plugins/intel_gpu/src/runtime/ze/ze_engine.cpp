@@ -190,7 +190,7 @@ memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
                                              allocation_type allocation,
                                              const layout& output_layout,
                                              cl_mem_flags access_flags) {
-    const size_t minimal_alignment = static_cast<size_t>(get_device_info().cacheline_size.value_or(0));
+                                             const size_t minimal_alignment = static_cast<size_t>(get_device_info().cacheline_size.value_or(0));
     OPENVINO_ASSERT(minimal_alignment > 0, "[GPU] cacheline_size must be > 0 for host pointer import");
     OPENVINO_ASSERT(cpu_address != nullptr, "[GPU] shared buffer pointer is invalid");
     OPENVINO_ASSERT((reinterpret_cast<std::uintptr_t>(cpu_address) % minimal_alignment) == 0,

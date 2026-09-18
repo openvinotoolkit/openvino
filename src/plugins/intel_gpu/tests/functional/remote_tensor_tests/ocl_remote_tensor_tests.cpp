@@ -3114,33 +3114,6 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::util::aligned_free(output_ptr);
 }
 
-TEST(GpuRemoteTensorFromCpu, smoke_reuseImportOfSameCPUMemory) {
-    ov::Core core;
-    std::string target_device = ov::test::utils::DEVICE_GPU;
-    uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
-    ASSERT_GT(cacheline_size, 0u);
-    const ov::Shape shape{cacheline_size / sizeof(float)};
-    const size_t byte_size = ov::shape_size(shape) * sizeof(float);
-    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
-    void* input_ptr = ov::util::aligned_alloc(byte_size, cacheline_size);
-
-    {
-        auto first_tensor =
-            ctx.create_tensor(ov::element::f32,
-                              shape,
-                              ov::intel_gpu::VirtualAddressMemory(input_ptr, static_cast<int64_t>(byte_size)));
-        auto second_tensor =
-            ctx.create_tensor(ov::element::f32,
-                              shape,
-                              ov::intel_gpu::VirtualAddressMemory(input_ptr, static_cast<int64_t>(byte_size)));
-
-        // Both tensors are alive, so the second import is expected to be served from the context memory cache.
-        EXPECT_EQ(first_tensor.get(), second_tensor.get());
-    }
-
-    ov::util::aligned_free(input_ptr);
-}
-
 #if !defined(_WIN32)
 // Regression test for a cached host pointer import which outlived every tensor that wrapped it: once the
 // application maps another file over the same virtual address range, the cache key repeats

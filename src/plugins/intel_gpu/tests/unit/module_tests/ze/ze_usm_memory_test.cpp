@@ -59,11 +59,8 @@ TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
 		GTEST_SKIP() << "No usable Level Zero GPU device found: " << e.what();
 	}
 
-
-
-	// The cache file itself may be smaller than a page (e.g. a small user cache); create_hostbuffer's
-	// native zeMemAllocHost path still needs a page-aligned mapping, so load_mmap_object pads the file.
 	const size_t requested_size = GetParam();
+	const size_t data_size = ov::util::align_size_up(requested_size, ov::util::min_page_alignment);
 
 	// create_hostbuffer maps the pointer directly via zeMemAllocHost when the driver supports it
 	// and the buffer is page-aligned; otherwise it falls back to the OpenCL/Level-Zero interop (LEO)
@@ -81,16 +78,14 @@ TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
 	{
 		std::ofstream file(cache_path, std::ios::binary);
 		ASSERT_TRUE(file.good()) << "Failed to create temporary cache file: " << cache_path;
-		std::vector<char> zeros(requested_size, 0);
+		std::vector<char> zeros(data_size, 0);
 		file.write(zeros.data(), static_cast<std::streamsize>(zeros.size()));
 	}
 	scoped_file_remover file_remover{cache_path};
 
-	// size_alignment pads the file (with real zero bytes) up to a page boundary if it isn't already one.
-	auto mm = ov::load_mmap_object(cache_path, 0, requested_size, false, ov::MmapMode::READ_WRITE,
-	                               ov::util::min_page_alignment);
+	auto mm = ov::load_mmap_object(cache_path, 0, data_size, false, ov::MmapMode::READ_WRITE);
 	ASSERT_NE(mm, nullptr);
-	const size_t data_size = mm->size();
+	ASSERT_EQ(mm->size(), data_size);
 	ASSERT_EQ(data_size % ov::util::min_page_alignment, 0u);
 	ASSERT_GE(data_size, requested_size);
 	auto* cache_data = reinterpret_cast<uint8_t*>(mm->data());
@@ -134,8 +129,7 @@ TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
 
 INSTANTIATE_TEST_SUITE_P(cache_buffer_sizes,
                          ze_host_buffer_cache_test,
-                         ::testing::Values(size_t{2} * 1024,
-                                           size_t{4} * 1024,
+                         ::testing::Values(size_t{4} * 1024,
                                            size_t{4} * 1024 + size_t{1} * 1024,
                                            size_t{1} * 1024 * 1024 + size_t{1} * 1024,
                                            size_t{2} * 1024 * 1024 + size_t{1} * 1024,

@@ -13,7 +13,7 @@ namespace ov::runtime {
 class SingleFileStorage final : public ICacheManager, public IContextStore {
 public:
     /** @brief Current version of the single file storage format. */
-    static constexpr util::Version m_version{0, 2, 0};
+    static constexpr util::Version m_version{0, 1, 0};
 
     enum class Tag : TLVTraits::TagType {
         String = 0x02,
@@ -65,7 +65,6 @@ public:
     void initialize(std::shared_ptr<ov::wsh::Context> weight_sharing_context = {}) override;
 
     using BlobIdType = uint64_t;
-    using BlobSizeType = uint64_t;
     using DataIdType = uint64_t;
     using PadSizeType = uint64_t;
 
@@ -76,8 +75,7 @@ private:
 
     struct BlobInfo {
         uint64_t offset;
-        BlobSizeType size;
-        BlobSizeType mapped_size;
+        uint64_t size;
         std::string model_name;
     };
     std::unordered_map<BlobIdType, BlobInfo> m_blob_index;
@@ -85,7 +83,7 @@ private:
     bool build_content_index(std::ifstream& stream);
 
     static BlobIdType convert_blob_id(const std::string& blob_id);
-    void write_blob_entry(std::fstream& stream, BlobIdType blob_id, StreamWriter& writer, bool align_mmap_to_page);
+    void write_blob_entry(std::fstream& stream, BlobIdType blob_id, StreamWriter& writer);
     bool has_blob_id(BlobIdType blob_id) const;
 };
 }  // namespace ov::runtime
