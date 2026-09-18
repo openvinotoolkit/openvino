@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <vector>
 
@@ -61,8 +62,14 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
                                   snapshot_slots);
 
     // kda needs the Loop path; "force_ref" lets tests exercise the Loop path's multi-head packing
-    // against the ggml-CPU oracle for the scalar-gate case too.
-    if (kda || context.get_attribute<bool>("force_ref", false)) {
+    // against the ggml-CPU oracle for the scalar-gate case too. OV_GGUF_GDN_REF is the same switch
+    // for whole models: the internal fused op is not IR-serializable, so callers that need a model
+    // they can save/reload (ovc, GenAI, model caching) can trade the fused kernel for this path.
+    static const bool force_ref_env = []() {
+        const char* v = std::getenv("OV_GGUF_GDN_REF");
+        return v != nullptr && v[0] != '\0' && v[0] != '0';
+    }();
+    if (kda || force_ref_env || context.get_attribute<bool>("force_ref", false)) {
         return translate_gated_delta_net_ref(context);
     }
 
