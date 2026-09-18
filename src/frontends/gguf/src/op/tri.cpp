@@ -66,9 +66,7 @@ OutputVector translate_tri(const NodeContext& context) {
         }
     }
     // Build the mask in the node's own type, or an f16 input gets promoted to f32 by the Multiply.
-    auto keep_mask = ov::op::v0::Constant::create(context.get_attribute<ov::element::Type>("output_type"),
-                                                  ov::Shape{1, 1, n, n},
-                                                  mask);
+    auto keep_mask = ov::op::v0::Constant::create(x.get_element_type(), ov::Shape{1, 1, n, n}, mask);
 
     auto res = std::make_shared<ov::op::v1::Multiply>(x, keep_mask);
 

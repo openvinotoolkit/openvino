@@ -4,20 +4,22 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
+
+#include "node_context.hpp"
 
 namespace ov {
 namespace frontend {
 namespace gguf {
 
 struct GgufGraph;  // defined in gguf_graph.hpp; only used here as a shared_ptr return type
+class ArchRegistry;
 
-// Build a GgufGraph natively from a .gguf file (no llama.cpp / gguf dependency).
-// Parses the container, then dispatches to a per-architecture builder that emits nodes in
-// the GGML op vocabulary reproducing llama.cpp's cgraph topology for that architecture.
-// Throws if the architecture is not supported natively.
-std::shared_ptr<GgufGraph> build_ggml_graph_from_gguf(const std::string& file);
+using GraphBuilder = std::function<std::shared_ptr<GgufGraph>(const std::unordered_map<std::string, CreatorFunction>&)>;
+// Parse the file and select a definition; invoke the builder with the converters active at conversion.
+GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& registry);
 
 }  // namespace gguf
 }  // namespace frontend
