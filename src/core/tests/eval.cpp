@@ -33,7 +33,6 @@
 #include "openvino/op/cos.hpp"
 #include "openvino/op/cosh.hpp"
 #include "openvino/op/cum_sum.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/fake_convert.hpp"
@@ -4347,35 +4346,5 @@ TEST(eval, interpolate_padding_overflow) {
                                      {element::i64, Shape{1}}};
 
     OV_EXPECT_THROW(std::ignore = op->evaluate(outputs, inputs), ov::Exception, _);
-}
-
-template <class T>
-void test_divide_int_min_by_minus_one_throws(const element::Type& type, bool pythondiv) {
-    const auto in1 = std::make_shared<Parameter>(type, Shape{1});
-    const auto in2 = std::make_shared<Parameter>(type, Shape{1});
-    const auto divide = std::make_shared<op::v1::Divide>(in1, in2, pythondiv);
-
-    std::vector<T> lhs{std::numeric_limits<T>::min()};
-    std::vector<T> rhs{T{-1}};
-    const auto inputs = TensorVector{ov::Tensor(type, Shape{1}, lhs.data()), ov::Tensor(type, Shape{1}, rhs.data())};
-    auto outputs = TensorVector{ov::Tensor(type, Shape{1})};
-
-    OV_EXPECT_THROW(std::ignore = divide->evaluate(outputs, inputs), std::domain_error, HasSubstr("overflow"));
-}
-
-TEST(eval, divide_i32_int_min_by_minus_one_throws_pythondiv) {
-    test_divide_int_min_by_minus_one_throws<int32_t>(element::i32, true);
-}
-
-TEST(eval, divide_i32_int_min_by_minus_one_throws_default_div) {
-    test_divide_int_min_by_minus_one_throws<int32_t>(element::i32, false);
-}
-
-TEST(eval, divide_i64_int_min_by_minus_one_throws_pythondiv) {
-    test_divide_int_min_by_minus_one_throws<int64_t>(element::i64, true);
-}
-
-TEST(eval, divide_i64_int_min_by_minus_one_throws_default_div) {
-    test_divide_int_min_by_minus_one_throws<int64_t>(element::i64, false);
 }
 }  // namespace ov::test

@@ -9,7 +9,7 @@
 #include <limits>
 
 #include "base_reference_test.hpp"
-#include "common_test_utils/type_prop.hpp"
+#include "common_test_utils/test_assertions.hpp"
 
 using namespace ov;
 using namespace reference_tests;
@@ -170,22 +170,15 @@ private:
 };
 
 TEST_P(ReferenceDivideOverflowTest, ThrowsOnIntMinDividedByMinusOne) {
-    try {
-        Exec();
-        FAIL() << "Expected ov::Exception to be thrown for INT_MIN / -1 overflow";
-    } catch (const ov::Exception& error) {
-        EXPECT_HAS_SUBSTRING(error.what(), std::string("integer division overflow"));
-    } catch (const std::exception& error) {
-        FAIL() << "Failed for unexpected reason: " << error.what();
-    } catch (...) {
-        FAIL() << "Failed for unknown reason";
-    }
+    OV_EXPECT_THROW(Exec(), ov::Exception, testing::HasSubstr("integer division overflow"));
 }
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_Divide_Overflow,
     ReferenceDivideOverflowTest,
-    ::testing::Values(DivideOverflowParams(element::i64, std::numeric_limits<int64_t>::min(), int64_t{-1}, true),
+    ::testing::Values(DivideOverflowParams(element::i32, std::numeric_limits<int32_t>::min(), int32_t{-1}, true),
+                      DivideOverflowParams(element::i32, std::numeric_limits<int32_t>::min(), int32_t{-1}, false),
+                      DivideOverflowParams(element::i64, std::numeric_limits<int64_t>::min(), int64_t{-1}, true),
                       DivideOverflowParams(element::i64, std::numeric_limits<int64_t>::min(), int64_t{-1}, false)),
     ReferenceDivideOverflowTest::getTestCaseName);
 
