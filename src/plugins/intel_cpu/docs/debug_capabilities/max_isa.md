@@ -63,8 +63,7 @@ OV_CPU_MAX_ISA=AVX512_CORE_FP16 ONEDNN_MAX_CPU_ISA=AVX512_CORE_FP16 ./benchmark_
 
 ## Build requirement
 
-`OV_CPU_MAX_ISA` requires `-DENABLE_DEBUG_CAPS=ON`. In release builds the cap
-check is compiled to `true` and inlined away — zero runtime cost.
+Both knobs are available in all builds, including release.
 
 `ONEDNN_MAX_CPU_ISA` is always available, since OV forces
 `DNNL_ENABLE_MAX_CPU_ISA=ON` for the bundled oneDNN.
