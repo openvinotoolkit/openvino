@@ -101,10 +101,11 @@ time. External definitions and custom-family catalog entries extend the same reg
 
 ### Numerical regression coverage
 
-[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 26 small, nonzero F32
-fixtures covering 21 verified architecture identifiers and experimental `hunyuan-moe`.
+[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 27 small, nonzero F32
+fixtures covering 22 verified architecture identifiers and experimental `hunyuan-moe`.
 Additional model variants exercise YaRN and position-dependent attention scaling under
-`llama` and `mistral3`. The suite does not cover `gemma3`, `gemma4`, `gpt-oss` or `qwen35`.
+`llama` and `mistral3`. Gemma3 covers distinct global/local RoPE scaling. The suite
+does not cover `gemma4`, `gpt-oss` or `qwen35`.
 
 Each fixture compares complete last-token logits with llama.cpp CPU through multi-token
 prefill, one-token decode and a two-token cache append. The normalized MSE limit is `1e-5`.

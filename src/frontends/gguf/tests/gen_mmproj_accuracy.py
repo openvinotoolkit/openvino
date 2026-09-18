@@ -17,6 +17,9 @@ import numpy as np
 
 def write_model(path, projector, projection_width=6):
     projector, _, variant = projector.partition("_") if projector.startswith("gemma3_") else (projector, "", "")
+    if projector.startswith("resampler"):
+        projector, _, variant = projector.partition("_")
+        projection_width = 256  # two 128-wide cross-attention heads
     audio = projector in {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
     clip = projector in {"mlp", "mlp_norm"}
     qwen = projector in {"qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger"}
@@ -26,6 +29,12 @@ def write_model(path, projector, projection_width=6):
     w.add_bool(f"clip.has_{modality}_encoder", True)
     w.add_string("clip.projector_type", "mlp" if projector == "mlp_norm" else projector)
     w.add_bool("clip.use_gelu", True)
+    if projector == "resampler":
+        if variant == "v4":
+            w.add_int32("clip.minicpmv_version", 4)
+        elif not variant:
+            w.add_int32("clip.minicpmv_version", 3)
+            w.add_uint32("clip.minicpmv_query_num", 3)
     for name, value in {"embedding_length": 8, "feed_forward_length": 12, "block_count": 2,
                         "projection_dim": projection_width, "attention.head_count": 2}.items():
         w.add_uint32(key + name, value)
@@ -40,7 +49,8 @@ def write_model(path, projector, projection_width=6):
         values = rng.normal(0, 0.08, shape).astype(np.float32)
         w.add_tensor(name, values + 1 if norm else values)
 
-    tensor(prefix + "position_embd.weight", (17 if clip or projector == "internvl" else 16, 8))
+    tensor(prefix + "position_embd.weight", (4900 if projector == "resampler" else
+                                            17 if clip or projector == "internvl" else 16, 8))
     if clip or projector == "internvl":
         tensor("v.class_embd", (1, 8))
     for i in range(2):
@@ -92,7 +102,19 @@ def write_model(path, projector, projection_width=6):
             w.add_uint32(key + "spatial_merge_size", 2)
             w.add_uint32(key + "n_wa_pattern", 2 if projector == "qwen2.5vl_merger" else 0)
             tensor("v.patch_embd.weight.1", (8, 3, 2, 2))
-        if projector == "gemma3":
+        if projector == "resampler":
+            queries = 96 if variant == "v2" else 64 if variant == "v4" else 3
+            tensor("resampler.query", (queries, projection_width))
+            tensor("resampler.pos_embed_k", (16, projection_width))
+            tensor("resampler.proj.weight", (projection_width, projection_width))
+            tensor("resampler.kv.weight", (projection_width, 8))
+            for name in ("q", "k", "v", "out"):
+                tensor(f"resampler.attn.{name}.weight", (projection_width, projection_width))
+                tensor(f"resampler.attn.{name}.bias", (projection_width,))
+            for name in ("q", "kv", "post"):
+                tensor(f"resampler.ln_{name}.weight", (projection_width,), True)
+                tensor(f"resampler.ln_{name}.bias", (projection_width,))
+        elif projector == "gemma3":
             tensor("mm.soft_emb_norm.weight", (8,), True)
             tensor("mm.input_projection.weight", (8, projection_width))
         elif projector == "idefics3":
@@ -173,7 +195,7 @@ def main():
     for projector in ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro", "mlp", "mlp_norm",
                       "qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma",
                       "qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger", "internvl",
-                      "qwen2.5vl_merger_window_video", "voxtral_odd"):
+                      "qwen2.5vl_merger_window_video", "voxtral_odd", "resampler", "resampler_v2", "resampler_v4"):
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)
             path = directory / "model.gguf"
@@ -181,6 +203,8 @@ def main():
             audio = write_model(path, projector.removesuffix("_window_video").removesuffix("_odd"))
             qwen = "vl_merger" in projector
             width, height = (120, 16) if window_video else (16, 4) if audio else (12, 8) if qwen else (8, 8)
+            if projector.startswith("resampler"):
+                width, height = (12, 8) if projector == "resampler" else (8, 12)
             if projector.endswith("_odd"):
                 width = 18
             shape = (height, width) if audio else (height, width, 3)
@@ -194,10 +218,16 @@ def main():
             subprocess.run([str(args.oracle.resolve()), str(path), "audio" if audio else "vision",
                             str(width), str(height), str(directory / "input.bin"),
                             str(directory / "output.bin"), *second], check=True)
-            output_width = 12 if projector == "qwen3vl_merger" else 6
+            output_width = 256 if projector.startswith("resampler") else 12 if projector == "qwen3vl_merger" else 6
             output = np.fromfile(directory / "output.bin", dtype=np.float32).reshape(1, 1, -1, output_width)
             inputs = raw.reshape(1, height, 1, width) if audio else raw.transpose(2, 0, 1)[None]
             extra = {}
+            if projector.startswith("resampler"):
+                rows, cols = np.indices((height // 2, width // 2))
+                extra["position_h"] = rows.astype(np.float32).reshape(1, 1, -1, 1)
+                extra["position_w"] = cols.astype(np.float32).reshape(1, 1, -1, 1)
+                extra["position_ids"] = ((70 * rows // (height // 2)) * 70 +
+                                          70 * cols // (width // 2)).astype(np.int32).reshape(1, 1, 1, -1)
             if qwen:
                 inputs = np.repeat(inputs, 2, axis=0)
                 indices = [y * (width // 2) + x + dy * (width // 2) + dx

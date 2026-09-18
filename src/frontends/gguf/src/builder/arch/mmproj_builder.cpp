@@ -17,7 +17,7 @@
 namespace ov::frontend::gguf {
 namespace {
 
-enum class EncoderTopology { Siglip, Clip, Whisper, Qwen, Internvl };
+enum class EncoderTopology { Siglip, Clip, Whisper, Qwen, Internvl, Resampler };
 
 struct ProjectorDefinition {
     const char* modality;
@@ -32,6 +32,7 @@ constexpr ProjectorDefinition projector_catalog[] = {
     {"vision", "janus_pro", EncoderTopology::Siglip},
     {"vision", "mlp", EncoderTopology::Clip},
     {"vision", "internvl", EncoderTopology::Internvl},
+    {"vision", "resampler", EncoderTopology::Resampler},
     {"vision", "qwen2vl_merger", EncoderTopology::Qwen},
     {"vision", "qwen2.5vl_merger", EncoderTopology::Qwen},
     {"vision", "qwen3vl_merger", EncoderTopology::Qwen},
@@ -48,6 +49,7 @@ struct EncoderConfig {
     int64_t width, heads, layers, image_size = 0, patch = 0, merge = 1;
     EncoderTopology topology;
     int64_t window_pattern = 0;
+    int64_t version = 0, queries = 0;
     std::vector<int64_t> feature_layers;
     float eps;
 };
@@ -106,6 +108,20 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
         c.activation = "GGML_UNARY_OP_SILU";
     if (modality == "vision") {
         c.patch = positive(meta, key + "patch_size");
+        if (c.topology == EncoderTopology::Resampler) {
+            c.version = meta.get_int("clip.minicpmv_version").value_or(2);
+            if (c.version == 0)
+                c.version = 2;
+            OPENVINO_ASSERT(c.version == 2 || c.version == 3 || c.version == 4 || c.version == 5 || c.version == 6 ||
+                                c.version == 100045,
+                            "[GGUF] unsupported vision mmproj projector 'resampler' version ",
+                            c.version);
+            c.queries = meta.get_int("clip.minicpmv_query_num").value_or(0);
+            OPENVINO_ASSERT(c.queries >= 0, "[GGUF] vision resampler query count must be nonnegative");
+            if (c.queries == 0)
+                c.queries = c.version == 2 ? 96 : 64;
+            return c;
+        }
         if (c.topology == EncoderTopology::Qwen) {
             c.merge = meta.get_int(key + "spatial_merge_size").value_or(2);
             c.window_pattern = c.projector == "qwen2.5vl_merger" ? positive(meta, key + "n_wa_pattern") : 0;
@@ -179,6 +195,10 @@ public:
             graph->mmproj_config[c.modality + ".output"] = c.modality + ".embeddings";
             graph->mmproj_config[c.modality + ".output_layout"] = std::string("1,B,T,D");
             graph->mmproj_config[c.modality + ".merge"] = std::to_string(c.merge);
+            if (c.topology == EncoderTopology::Resampler) {
+                graph->mmproj_config["vision.minicpmv_version"] = std::to_string(c.version);
+                graph->mmproj_config["vision.query_count"] = std::to_string(c.queries);
+            }
         }
         graph->mmproj_config["vision.auxiliary_count"] = std::to_string(auxiliary.size());
         if (!auxiliary.empty()) {
@@ -339,6 +359,8 @@ private:
     GgufValue vision(const EncoderConfig& c) {
         if (c.topology == EncoderTopology::Qwen)
             return qwen_vision(c);
+        if (c.topology == EncoderTopology::Resampler)
+            return resampler_vision(c);
         auto x = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, c.image_size, c.image_size});
         const auto w = g.tensors().require("v.patch_embd.weight");
         x = g.node("GGML_OP_CONV_2D", {w, x}, 0, {{"conv_params", std::vector<int64_t>{c.patch, c.patch, 0, 0, 1, 1}}});
@@ -395,6 +417,56 @@ private:
             return linear(reshape(x, {1, 1, -1, c.width * c.merge * c.merge}), "mm.model.fc");
         }
         return ffn(x, "mm.0", "mm.1", c.activation);
+    }
+    GgufValue resampler_vision(const EncoderConfig& c) {
+        auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
+        auto x = g.node("GGML_OP_CONV_2D",
+                        {g.tensors().require("v.patch_embd.weight"), pixels},
+                        0,
+                        {{"conv_params", std::vector<int64_t>{c.patch, c.patch, 0, 0, 1, 1}}});
+        x = transpose(reshape(x, {1, 1, c.width, -1}));
+        if (auto bias = g.tensors()("v.patch_embd.bias"))
+            x = add(x, bias);
+        auto positions = g.add_input("vision.position_ids", ov::element::i32, {1, 1, 1, -1});
+        auto learned = g.node("GGML_OP_GET_ROWS", {g.tensors().require("v.position_embd.weight"), positions});
+        x = vit(x, c, learned);
+
+        const auto query = g.tensors().require("resampler.query");
+        const auto width = query.ne(0);
+        OPENVINO_ASSERT(width > 0 && width % 128 == 0 && query.ne(1) == c.queries,
+                        "[GGUF] vision resampler requires 128-wide heads and a query tensor matching query_count");
+        for (const auto* name : {"q", "kv", "post"}) {
+            g.tensors().require(std::string("resampler.ln_") + name + ".weight");
+            g.tensors().require(std::string("resampler.ln_") + name + ".bias");
+        }
+        for (const auto* name : {"q", "k", "v", "out"})
+            g.tensors().require(std::string("resampler.attn.") + name + ".bias");
+        auto q = norm(reshape(query, {1, 1, c.queries, width}), "resampler.ln_q", c.eps);
+        auto v = norm(linear(x, "resampler.kv"), "resampler.ln_kv", c.eps);
+        auto pos_h = g.add_input("vision.position_h", ov::element::f32, {1, 1, -1, 1});
+        auto pos_w = g.add_input("vision.position_w", ov::element::f32, {1, 1, -1, 1});
+        ov::Tensor omega(ov::element::f32, {1, 1, 1, size_t(width / 4)});
+        for (int64_t i = 0; i < width / 4; ++i)
+            omega.data<float>()[i] = 1.f / std::pow(10000.f, float(i) / float(width / 4));
+        auto frequency = g.add_constant("vision.resampler_omega", omega);
+        const auto sinusoid = [&](const GgufValue& pos) {
+            auto theta = mul(pos, frequency);
+            return g.node("GGML_OP_CONCAT",
+                          {g.node("GGML_OP_SIN", {theta}), g.node("GGML_OP_COS", {theta})},
+                          0,
+                          {{"concat_axis", 0}});
+        };
+        auto positional = g.node("GGML_OP_CONCAT", {sinusoid(pos_w), sinusoid(pos_h)}, 0, {{"concat_axis", 0}});
+        auto k = add(v, positional);
+        q = reshape(linear(q, "resampler.attn.q"), {1, c.queries, width / 128, 128});
+        k = reshape(linear(k, "resampler.attn.k"), {1, -1, width / 128, 128});
+        v = reshape(linear(v, "resampler.attn.v"), {1, -1, width / 128, 128});
+        x = g.node("GGML_OP_FLASH_ATTN_EXT",
+                   {q, k, v},
+                   0,
+                   {{"encoder_attention", true}, {"scale", 1.f / std::sqrt(128.f)}});
+        x = linear(reshape(x, {1, 1, c.queries, width}), "resampler.attn.out");
+        return linear(norm(x, "resampler.ln_post", c.eps), "resampler.proj");
     }
     GgufValue qwen_vision(const EncoderConfig& c) {
         // A temporal pair; still-image callers duplicate the image. Index inputs specify
