@@ -12,6 +12,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "pass/prune_orphaned_parameters.hpp"
+#include "utils.hpp"
 
 namespace ov::frontend::gguf::pass {
 bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
@@ -29,7 +30,6 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         model->remove_result(result);
     auto embeddings = std::make_shared<ov::op::v0::Squeeze>(selected->input_value(0),
                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
-    embeddings->output(0).set_names({m_modality == Modality::Vision ? "image_features" : "audio_features"});
     size_t auxiliary_count = 0;
     if (m_modality == Modality::Vision && model->has_rt_info({"gguf_mmproj", "vision.auxiliary_count"}))
         auxiliary_count = std::stoull(model->get_rt_info<std::string>({"gguf_mmproj", "vision.auxiliary_count"}));
@@ -42,16 +42,15 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             model->add_results({std::make_shared<ov::op::v0::Result>(split->output(i))});
         }
     } else {
+        // Only the tensor that becomes a Result is named; the Split path names output 0 instead.
+        embeddings->output(0).set_names({m_modality == Modality::Vision ? "image_features" : "audio_features"});
         model->add_results({std::make_shared<ov::op::v0::Result>(embeddings)});
     }
     PruneParametersOrphanedSince(live_before).run_on_model(model);
     for (const auto& p : model->get_parameters()) {
-        auto name = p->get_friendly_name();
-        if (name.rfind(prefix, 0) == 0) {
-            name = name.substr(prefix.size());
-            p->set_friendly_name(name);
-            p->output(0).set_names({name});
-        }
+        const auto& name = p->get_friendly_name();
+        if (name.rfind(prefix, 0) == 0)
+            name_output(p, name.substr(prefix.size()));
     }
     model->validate_nodes_and_infer_types();
     return true;

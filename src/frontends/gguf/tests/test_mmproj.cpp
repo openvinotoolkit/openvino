@@ -31,13 +31,7 @@ protected:
         std::filesystem::remove(path + ".bin");
     }
     void weight(const std::string& name, const std::vector<uint64_t>& dims, bool norm = false) {
-        size_t count = 1;
-        for (auto d : dims)
-            count *= d;
-        std::vector<float> values(count);
-        for (size_t i = 0; i < count; ++i)
-            values[i] = norm ? 1.f + 0.01f * float(i) : 0.1f * std::sin(float(i + 1));
-        writer.tensor(name, dims, values);
+        writer.filled_tensor(name, dims, norm, 0.01f);
     }
     void encoder(const std::string& modality, const std::string& projector) {
         const auto meta = "clip." + modality + ".";
@@ -208,11 +202,7 @@ protected:
         (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
 
     const cnpy::NpyArray& array(const std::string& name) const {
-        auto it = std::find_if(arrays.begin(), arrays.end(), [&](const auto& entry) {
-            return entry.first == name;
-        });
-        OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
-        return it->second;
+        return ov_gguf_test::npz_array(arrays, name);
     }
     void SetUp() override {
         arrays = cnpy::npz_load((std::filesystem::path(ov_gguf_test::test_data_dir()) / "mmproj_accuracy" /
@@ -284,16 +274,10 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     const auto actual = request.get_output_tensor();
     const auto& expected = array("embeddings");
     ASSERT_EQ(actual.get_shape(), expected.shape);
-    double error = 0, norm = 0;
-    for (size_t i = 0; i < actual.get_size(); ++i) {
-        const auto ref = expected.data<float>()[i];
-        const auto value = actual.data<const float>()[i];
-        ASSERT_TRUE(std::isfinite(value));
-        error += double(value - ref) * (value - ref);
-        norm += double(ref) * ref;
-    }
-    ASSERT_GT(norm, 1e-12);
-    EXPECT_LT(error / norm, 1e-5);
+    const auto metric = ov_gguf_test::nmse(actual.data<const float>(), expected.data<float>(), actual.get_size());
+    ASSERT_TRUE(metric.all_finite());
+    ASSERT_GT(metric.reference_norm(), 1e-12);
+    EXPECT_LT(metric.value(), 1e-5);
 
     // Adaptation must preserve every feature, including the channel-packed
     // DeepStack branches, while exposing independently executable modalities.
@@ -311,15 +295,12 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     for (size_t branch = 0; branch < branches; ++branch) {
         const auto output = adapted_request.get_output_tensor(branch);
         EXPECT_EQ(output.get_shape(), (ov::Shape{expected.shape[1], expected.shape[2], width}));
-        double adapted_error = 0, adapted_norm = 0;
-        for (size_t i = 0; i < output.get_size(); ++i) {
-            const float ref = expected.data<float>()[(i / width) * width * branches + branch * width + i % width];
-            const double delta = output.data<const float>()[i] - ref;
-            adapted_error += delta * delta;
-            adapted_norm += double(ref) * ref;
-        }
-        ASSERT_GT(adapted_norm, 1e-12);
-        EXPECT_LT(adapted_error / adapted_norm, 1e-5);
+        ov_gguf_test::Nmse adapted_metric;
+        for (size_t i = 0; i < output.get_size(); ++i)
+            adapted_metric.add(output.data<const float>()[i],
+                               expected.data<float>()[(i / width) * width * branches + branch * width + i % width]);
+        ASSERT_GT(adapted_metric.reference_norm(), 1e-12);
+        EXPECT_LT(adapted_metric.value(), 1e-5);
     }
 }
 
@@ -346,15 +327,11 @@ TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
             if (adapt)
                 shape.erase(shape.begin());
             ASSERT_EQ(output.get_shape(), shape);
-            double error = 0, energy = 0;
-            for (size_t i = 0; i < output.get_size(); ++i) {
-                const double ref = expected.data<float>()[i], actual = output.data<float>()[i];
-                ASSERT_TRUE(std::isfinite(actual));
-                error += (actual - ref) * (actual - ref);
-                energy += ref * ref;
-            }
-            ASSERT_GT(energy, 1e-12);
-            EXPECT_LT(error / energy, 1e-5) << GetParam() << " step=" << step << " adapted=" << adapt;
+            const auto metric =
+                ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size());
+            ASSERT_TRUE(metric.all_finite());
+            ASSERT_GT(metric.reference_norm(), 1e-12);
+            EXPECT_LT(metric.value(), 1e-5) << GetParam() << " step=" << step << " adapted=" << adapt;
         }
     }
 }

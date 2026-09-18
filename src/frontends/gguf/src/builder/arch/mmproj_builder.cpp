@@ -35,6 +35,10 @@ enum class EncoderTopology {
     Ocr2
 };
 
+// ggml rope mode bits, as passed in the op_case.
+constexpr int ROPE_NEOX = 1 << 16;
+constexpr int ROPE_VISION = 3 << 16;
+
 struct ProjectorDefinition {
     const char* modality;
     const char* name;
@@ -77,7 +81,15 @@ struct EncoderConfig {
     int64_t version = 0, queries = 0, kv_heads = 0;
     std::vector<int64_t> feature_layers;
     float eps;
+    bool clip = false;  // clamp linear inputs/outputs to the recorded per-tensor bounds
+    bool rms = false;   // encoder norms are RMS rather than layer norms
 };
+
+bool rms_encoder(const EncoderConfig& c) {
+    return c.projector == "qwen2.5vl_merger" || c.topology == EncoderTopology::Pixtral ||
+           c.topology == EncoderTopology::Gemma4 || c.topology == EncoderTopology::Ocr2 ||
+           (c.topology == EncoderTopology::Internvl && c.width == 3200 && c.layers == 45);
+}
 
 int64_t positive(const GgufMetadata& meta, const std::string& key) {
     const auto value = meta.get_int(key);
@@ -109,6 +121,7 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
                     c.projector,
                     "'");
     c.topology = entry->topology;
+    c.clip = c.topology == EncoderTopology::Gemma4 || c.topology == EncoderTopology::Gemma4Audio;
     if (c.topology == EncoderTopology::UnifiedAudio) {
         c.width = 640;
         c.heads = 1;
@@ -209,15 +222,31 @@ public:
     std::shared_ptr<GgufGraph> build() override {
         std::vector<EncoderConfig> encoders;
         for (const auto* modality : {"vision", "audio"}) {
-            if (ctx.metadata.get_bool(std::string("clip.has_") + modality + "_encoder").value_or(false))
-                encoders.push_back(config(ctx.metadata, modality));
+            if (!ctx.metadata.get_bool(std::string("clip.has_") + modality + "_encoder").value_or(false))
+                continue;
+            auto c = config(ctx.metadata, modality);
+            c.rms = rms_encoder(c);
+            encoders.push_back(std::move(c));
         }
         OPENVINO_ASSERT(!encoders.empty(), "[GGUF] mmproj has no encoder");
         for (const auto& c : encoders) {
+            clippable = c.clip;
             auto output = c.modality == "vision" ? vision(c) : audio(c);
             g.set_output(output, c.modality + ".embeddings");
         }
         auto graph = g.finish();
+        const auto number = [](auto value) {
+            std::ostringstream stream;
+            stream.precision(std::numeric_limits<double>::max_digits10);
+            stream << value;
+            return stream.str();
+        };
+        const auto join = [&](const auto& values) {
+            std::string text;
+            for (size_t i = 0; i < values.size(); ++i)
+                text += (i ? "," : "") + number(values[i]);
+            return text;
+        };
         // Preserve full metadata names. Strings serialize through the standard IR rt_info path.
         for (const auto& [key, value] : detail::MetadataAccess::get(ctx.metadata).map) {
             if (key.rfind("clip.", 0) != 0)
@@ -227,10 +256,7 @@ public:
             } else if (const auto n = ctx.metadata.get_int(key)) {
                 graph->mmproj_config[key] = std::to_string(*n);
             } else if (const auto f = ctx.metadata.get_float(key)) {
-                std::ostringstream stream;
-                stream.precision(std::numeric_limits<double>::max_digits10);
-                stream << *f;
-                graph->mmproj_config[key] = stream.str();
+                graph->mmproj_config[key] = number(*f);
             } else if (std::holds_alternative<std::vector<std::string>>(value)) {
                 // Length-prefixed strings preserve commas, quotes and empty entries.
                 std::ostringstream stream;
@@ -239,17 +265,9 @@ public:
                 graph->mmproj_config[key] = stream.str();
                 graph->mmproj_config[key + ".encoding"] = std::string("length-prefixed-strings");
             } else if (const auto integers = ctx.metadata.get_int_array(key); !integers.empty()) {
-                std::ostringstream stream;
-                for (size_t i = 0; i < integers.size(); ++i)
-                    stream << (i ? "," : "") << integers[i];
-                graph->mmproj_config[key] = stream.str();
+                graph->mmproj_config[key] = join(integers);
             } else {
-                const auto numbers = ctx.metadata.get_float_array(key);
-                std::ostringstream stream;
-                stream.precision(std::numeric_limits<double>::max_digits10);
-                for (size_t i = 0; i < numbers.size(); ++i)
-                    stream << (i ? "," : "") << numbers[i];
-                graph->mmproj_config[key] = stream.str();
+                graph->mmproj_config[key] = join(ctx.metadata.get_float_array(key));
             }
         }
         graph->mmproj_config["version"] = std::string("1");
@@ -277,13 +295,18 @@ private:
     BuildContext ctx;
     GgufGraphContext g;
     std::vector<GgufValue> auxiliary;
-    std::array<GgufValue, 2> default_clip_bounds;
+    GgufValue default_clip_min, default_clip_max;
+    // Set once per encoder in build(); the Gemma4 families clamp every linear's input and output.
+    bool clippable = false;
 
     GgufValue reshape(const GgufValue& x, std::vector<int64_t> shape, bool special_zero = false) {
-        return g.node("GGML_OP_RESHAPE", {x}, 0, {{"reshape_target", shape}, {"special_zero", special_zero}});
+        return g.node("GGML_OP_RESHAPE",
+                      {x},
+                      0,
+                      {{"reshape_target", std::move(shape)}, {"special_zero", special_zero}});
     }
     GgufValue transpose(const GgufValue& x, std::vector<int64_t> perm = {0, 1, 3, 2}) {
-        return g.node("GGML_OP_TRANSPOSE", {x}, 0, {{"perm", perm}});
+        return g.node("GGML_OP_TRANSPOSE", {x}, 0, {{"perm", std::move(perm)}});
     }
     GgufValue add(const GgufValue& x, const GgufValue& y) {
         return g.node("GGML_OP_ADD", {x, y});
@@ -307,18 +330,20 @@ private:
         auto lo = g.tensors()(base + "." + side + "_min"), hi = g.tensors()(base + "." + side + "_max");
         if (!lo && !hi)
             return x;
-        const auto bound = [&](size_t index) {
-            auto& value = default_clip_bounds[index];
-            if (!value) {
+        const auto bound = [&](GgufValue& slot, const char* name, float value) {
+            if (!slot) {
                 ov::Tensor t(ov::element::f32, {1});
-                t.data<float>()[0] = (index == 0 ? -1.f : 1.f) * std::numeric_limits<float>::max();
-                value = g.add_constant(index == 0 ? "mmproj.clip_min" : "mmproj.clip_max", t);
+                t.data<float>()[0] = value;
+                slot = g.add_constant(name, t);
             }
-            return value;
+            return slot;
         };
-        return g.node("GGML_OP_CLAMP", {x, lo ? lo : bound(0), hi ? hi : bound(1)});
+        const auto limit = std::numeric_limits<float>::max();
+        return g.node("GGML_OP_CLAMP",
+                      {x,
+                       lo ? lo : bound(default_clip_min, "mmproj.clip_min", -limit),
+                       hi ? hi : bound(default_clip_max, "mmproj.clip_max", limit)});
     }
-    bool clippable = false;
     GgufValue linear(const GgufValue& x, const std::string& base, bool with_bias = true) {
         auto y = g.node("GGML_OP_MUL_MAT",
                         {g.tensors().require(base + ".weight"), clippable ? clip_linear(x, base, "input") : x});
@@ -331,15 +356,10 @@ private:
     GgufValue norm(const GgufValue& x, const std::string& base, float eps) {
         return g.build_norm_ln(x, g.tensors()(base + ".weight"), g.tensors()(base + ".bias"), eps);
     }
-    bool rms_encoder(const EncoderConfig& c) const {
-        return c.projector == "qwen2.5vl_merger" || c.topology == EncoderTopology::Pixtral ||
-               c.topology == EncoderTopology::Gemma4 || c.topology == EncoderTopology::Ocr2 ||
-               (c.topology == EncoderTopology::Internvl && c.width == 3200 && c.layers == 45);
-    }
     GgufValue encoder_norm(const GgufValue& x, const std::string& base, const EncoderConfig& c, bool with_bias = true) {
         const auto weight = g.tensors()(base + ".weight");
         const auto bias = with_bias ? g.tensors()(base + ".bias") : GgufValue{};
-        if (!rms_encoder(c))
+        if (!c.rms)
             return g.build_norm_ln(x, weight, bias, c.eps);
         auto y = g.build_norm(x, weight, c.eps);
         return bias ? add(y, bias) : y;
@@ -393,6 +413,11 @@ private:
             x = add(x, positions);
         if (first == 0 && g.tensors().has(c.prefix + "pre_ln.weight"))
             x = encoder_norm(x, c.prefix + "pre_ln", c);
+        // Families whose ffn_up/ffn_down tensor names are swapped relative to their roles; the
+        // per-layer width check below confirms it.
+        const bool swappable = c.projector == "gemma3" || c.projector == "idefics3" ||
+                               c.topology == EncoderTopology::Clip || c.projector == "qwen2vl_merger" ||
+                               c.projector == "qwen2.5vl_merger";
         std::vector<GgufValue> features;
         const auto save_feature = [&](int64_t layer, const GgufValue& value) {
             if (std::find(c.feature_layers.begin(), c.feature_layers.end(), layer) != c.feature_layers.end())
@@ -404,6 +429,9 @@ private:
             auto z = encoder_norm(x, p + "ln1", c);
             const bool fused = g.tensors().has(p + "attn_qkv.weight");
             auto qkv = fused ? linear(z, p + "attn_qkv") : GgufValue{};
+            // Whether QK norm weights are per head or whole-tensor is a property of the layer.
+            const bool per_head = fused || (g.tensors().has(p + "attn_q_norm.weight") &&
+                                            g.tensors().require(p + "attn_q_norm.weight").ne(0) == c.width / c.heads);
             const auto projection = [&](const std::string& name, int64_t offset) {
                 // ggml CLAMP is in-place: Q input clipping carries into K, then V.
                 if (clippable && !fused)
@@ -414,9 +442,6 @@ private:
                                             {{"view_slice", std::vector<int64_t>{3, offset * c.width, c.width}}})
                                    : linear(z, p + name);
                 const auto weight = g.tensors()(p + name + "_norm.weight");
-                const bool per_head =
-                    fused || (g.tensors().has(p + "attn_q_norm.weight") &&
-                              g.tensors().require(p + "attn_q_norm.weight").ne(0) == c.width / c.heads);
                 if (weight && !per_head)
                     value = encoder_norm(value, p + name + "_norm", c, false);
                 value = reshape(value, {0, -1, name == "attn_q" ? c.heads : c.kv_heads, c.width / c.heads}, true);
@@ -427,34 +452,25 @@ private:
             auto q = projection("attn_q", 0);
             auto k = projection("attn_k", 1);
             auto v = projection("attn_v", 2);
-            if (c.kv_heads != c.heads) {
-                OPENVINO_ASSERT(c.heads % c.kv_heads == 0, "[GGUF] encoder GQA head count mismatch");
-                const auto repeat = [&](const GgufValue& value) {
-                    auto split = reshape(value, {0, 0, c.kv_heads, 1, c.width / c.heads}, true);
-                    return reshape(g.node("GGML_OP_REPEAT",
-                                          {split},
-                                          0,
-                                          {{"repeats", std::vector<int64_t>{1, 1, 1, c.heads / c.kv_heads, 1}}}),
-                                   {0, -1, c.heads, c.width / c.heads},
-                                   true);
-                };
-                k = repeat(k);
-                v = repeat(v);
-            }
+            // GQA head expansion is done by the FLASH_ATTN_EXT translator.
+            OPENVINO_ASSERT(c.heads % c.kv_heads == 0, "[GGUF] encoder GQA head count mismatch");
             if (c.topology == EncoderTopology::Ocr2 && rope_positions) {
                 RopeConfig r;
                 r.n_dims = int(c.width / c.heads);
                 r.freq_base = 1000000.f;
                 r.freq_scale = r.attn_factor = 1.f;
-                q = g.node("GGML_OP_ROPE", {q, rope_positions}, 1 << 16, {{"rope_config", r}});
-                k = g.node("GGML_OP_ROPE", {k, rope_positions}, 1 << 16, {{"rope_config", r}});
+                const auto rotate = [&](const GgufValue& value) {
+                    return g.node("GGML_OP_ROPE", {value, rope_positions}, ROPE_NEOX, {{"rope_config", r}});
+                };
+                q = rotate(q);
+                k = rotate(k);
             } else if (rope_positions_b) {
                 const auto rotate = [&](const GgufValue& value) {
                     RopeConfig r;
                     r.n_dims = int(c.width / c.heads / 2);
                     r.freq_base = c.topology == EncoderTopology::Gemma4 ? 100.f : 10000.f;
                     r.freq_scale = r.attn_factor = 1.f;
-                    const int mode = c.topology == EncoderTopology::Gemma4 ? 1 << 16 : 0;
+                    const int mode = c.topology == EncoderTopology::Gemma4 ? ROPE_NEOX : 0;
                     auto a = g.node("GGML_OP_ROPE",
                                     {slice(value, 3, 0, r.n_dims), rope_positions},
                                     mode,
@@ -470,13 +486,16 @@ private:
                 q = rotate(q);
                 k = rotate(k);
             } else if (rope_positions) {
-                RopeConfig rope;
-                rope.n_dims = int(c.width / c.heads / 2);
-                rope.freq_base = 10000.f;
-                rope.freq_scale = rope.attn_factor = 1.f;
-                rope.sections.fill(int32_t(c.width / c.heads / 4));
-                q = g.node("GGML_OP_ROPE", {q, rope_positions}, 3 << 16, {{"rope_config", rope}});
-                k = g.node("GGML_OP_ROPE", {k, rope_positions}, 3 << 16, {{"rope_config", rope}});
+                RopeConfig r;
+                r.n_dims = int(c.width / c.heads / 2);
+                r.freq_base = 10000.f;
+                r.freq_scale = r.attn_factor = 1.f;
+                r.sections.fill(int32_t(c.width / c.heads / 4));
+                const auto rotate = [&](const GgufValue& value) {
+                    return g.node("GGML_OP_ROPE", {value, rope_positions}, ROPE_VISION, {{"rope_config", r}});
+                };
+                q = rotate(q);
+                k = rotate(k);
             }
             if (c.topology == EncoderTopology::Gemma4)
                 v = g.build_norm(v, {}, c.eps);
@@ -493,10 +512,7 @@ private:
             if (g.tensors().has(p + "attn_post_norm.weight"))
                 z = encoder_norm(z, p + "attn_post_norm", c, false);
             x = add(x, z);
-            const bool legacy_swap =
-                (c.projector == "gemma3" || c.projector == "idefics3" || c.topology == EncoderTopology::Clip ||
-                 c.projector == "qwen2vl_merger" || c.projector == "qwen2.5vl_merger") &&
-                g.tensors().require(p + "ffn_down.weight").ne(0) == c.width;
+            const bool legacy_swap = swappable && g.tensors().require(p + "ffn_down.weight").ne(0) == c.width;
             z = ffn(encoder_norm(x, p + "ln2", c),
                     p + (legacy_swap ? "ffn_down" : "ffn_up"),
                     p + (legacy_swap ? "ffn_up" : "ffn_down"),
@@ -528,7 +544,6 @@ private:
         return x;
     }
     GgufValue vision(const EncoderConfig& c) {
-        clippable = c.topology == EncoderTopology::Gemma4;
         if (c.topology == EncoderTopology::Ocr || c.topology == EncoderTopology::Ocr2)
             return ocr_vision(c);
         if (c.topology == EncoderTopology::Pixtral || c.topology == EncoderTopology::Gemma4 ||
@@ -705,19 +720,21 @@ private:
         z = attention(q, k, v, 1.f / std::sqrt(float(c.width / c.heads)), mask);
         z = linear(reshape(z, {1, 1, -1, c.width}), p + "attn_out");
         x = add(x, rows(z, "inverse_window_indices"));
-        const auto downsample = [&](const GgufValue& value, const std::string& name, bool residual) {
-            std::vector<GgufValue> parts;
+        // Gather the four cells of each 2x2 merge window, in index order.
+        const auto gather4 = [&](const GgufValue& value, const std::string& name) {
+            std::array<GgufValue, 4> parts;
             for (int i = 0; i < 4; ++i)
-                parts.push_back(rows(value, name + ".indices." + std::to_string(i)));
-            auto cat = concat(concat(concat(parts[0], parts[1]), parts[2]), parts[3]);
-            auto result =
-                residual ? ffn(norm(cat, p + "ds_ln", c.eps), p + "ds_ffn_up", p + "ds_ffn_down", "GGML_UNARY_OP_GELU")
-                         : ffn(norm(cat, "mm.input_norm", c.eps), "mm.up", "mm.down", "GGML_UNARY_OP_GELU_ERF");
-            return residual ? add(result, scale(add(add(add(parts[0], parts[1]), parts[2]), parts[3]), .25f)) : result;
+                parts[i] = rows(value, name + ".indices." + std::to_string(i));
+            return parts;
         };
-        x = downsample(x, "vit_merger", true);
+        auto parts = gather4(x, "vit_merger");
+        auto cat = concat(concat(concat(parts[0], parts[1]), parts[2]), parts[3]);
+        x = add(ffn(norm(cat, p + "ds_ln", c.eps), p + "ds_ffn_up", p + "ds_ffn_down", "GGML_UNARY_OP_GELU"),
+                scale(add(add(add(parts[0], parts[1]), parts[2]), parts[3]), .25f));
         x = vit(x, c, {}, {}, {}, {}, c.window_pattern + 1);
-        return downsample(x, "merger", false);
+        parts = gather4(x, "merger");
+        cat = concat(concat(concat(parts[0], parts[1]), parts[2]), parts[3]);
+        return ffn(norm(cat, "mm.input_norm", c.eps), "mm.up", "mm.down", "GGML_UNARY_OP_GELU_ERF");
     }
     GgufValue resampler_vision(const EncoderConfig& c) {
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
@@ -800,7 +817,10 @@ private:
                            const GgufValue& reference,
                            std::vector<int64_t> pattern,
                            std::vector<int64_t> axes) {
-        return g.node("GGML_OP_RESHAPE", {x, reference}, 0, {{"reshape_target", pattern}, {"shape_axes", axes}});
+        return g.node("GGML_OP_RESHAPE",
+                      {x, reference},
+                      0,
+                      {{"reshape_target", std::move(pattern)}, {"shape_axes", std::move(axes)}});
     }
     GgufValue sam(const GgufValue& pixels) {
         const auto width = positive(ctx.metadata, "clip.vision.sam.embedding_length");
@@ -936,13 +956,24 @@ private:
         const auto rms = [&](const GgufValue& value, const std::string& name) {
             return g.build_norm(value, g.tensors().require(name + ".weight"), c.eps);
         };
+        const auto maybe_rms = [&](const GgufValue& value, const std::string& name) {
+            auto w = g.tensors()(name + ".weight");
+            return w ? g.build_norm(value, w, c.eps) : value;
+        };
+        // Both FFN sublayers are post-normed and added back at half weight.
+        const auto half_ffn = [&](const GgufValue& value, const std::string& p, const std::string& suffix) {
+            auto z = ffn(rms(value, p + "ffn_norm" + suffix),
+                         p + "ffn_up" + suffix,
+                         p + "ffn_down" + suffix,
+                         "GGML_UNARY_OP_SILU",
+                         "",
+                         false);
+            return add(value, scale(maybe_rms(z, p + "ffn_post_norm" + suffix), .5f));
+        };
         for (int64_t i = 0; i < c.layers; ++i) {
             const auto p = "a.blk." + std::to_string(i) + ".";
-            auto z = ffn(rms(x, p + "ffn_norm"), p + "ffn_up", p + "ffn_down", "GGML_UNARY_OP_SILU", "", false);
-            if (auto w = g.tensors()(p + "ffn_post_norm.weight"))
-                z = g.build_norm(z, w, c.eps);
-            x = add(x, scale(z, .5f));
-            z = rms(x, p + (g.tensors().has(p + "attn_pre_norm.weight") ? "attn_pre_norm" : "ln1"));
+            x = half_ffn(x, p, "");
+            auto z = rms(x, p + (g.tensors().has(p + "attn_pre_norm.weight") ? "attn_pre_norm" : "ln1"));
             auto q = linear(z, p + "attn_q", false);
             z = clip_linear(z, p + "attn_q", "input");
             auto k = linear(z, p + "attn_k", false);
@@ -971,9 +1002,7 @@ private:
             auto probability = g.node("GGML_OP_SOFT_MAX", {scores}, 0, {{"scale", 1.f}});
             z = g.node("GGML_OP_MUL_MAT", {v, probability});
             z = linear(reshape(transpose(z, {0, 2, 1, 3}), {1, 1, -1, c.width}), p + "attn_out");
-            if (auto w = g.tensors()(p + "attn_post_norm.weight"))
-                z = g.build_norm(z, w, c.eps);
-            x = add(x, z);
+            x = add(x, maybe_rms(z, p + "attn_post_norm"));
             z = linear(rms(x, p + "conv_norm"), p + "conv_pw1", false);
             z = mul(slice(z, 3, 0, c.width), g.node("GGML_UNARY_OP_SIGMOID", {slice(z, 3, c.width, c.width)}));
             z = transpose(z);
@@ -981,15 +1010,10 @@ private:
             z = g.node("GGML_OP_SSM_CONV", {z, g.tensors().require(p + "conv_dw.weight")});
             if (auto bias = g.tensors()(p + "conv_dw.bias"))
                 z = add(z, bias);
-            if (auto weight = g.tensors()(p + "norm_conv.weight"))
-                z = g.build_norm(z, weight, c.eps);
+            z = maybe_rms(z, p + "norm_conv");
             x = add(x, linear(g.node("GGML_UNARY_OP_SILU", {z}), p + "conv_pw2", false));
-            z = ffn(rms(x, p + "ffn_norm_1"), p + "ffn_up_1", p + "ffn_down_1", "GGML_UNARY_OP_SILU", "", false);
-            if (auto w = g.tensors()(p + "ffn_post_norm_1.weight"))
-                z = g.build_norm(z, w, c.eps);
-            x = add(x, scale(z, .5f));
-            if (auto w = g.tensors()(p + "ln2.weight"))
-                x = g.build_norm(x, w, c.eps);
+            x = half_ffn(x, p, "_1");
+            x = maybe_rms(x, p + "ln2");
         }
         if (g.tensors().has("a.pre_encode.out.weight"))
             x = linear(x, "a.pre_encode.out");
@@ -997,8 +1021,7 @@ private:
         return linear(x, "mm.a.input_projection", false);
     }
     GgufValue audio(const EncoderConfig& c) {
-        clippable = c.topology == EncoderTopology::Gemma4Audio;
-        if (clippable)
+        if (c.topology == EncoderTopology::Gemma4Audio)
             return gemma4_audio(c);
         if (c.topology == EncoderTopology::UnifiedAudio) {
             auto x = g.add_input("audio.waveform_frames", ov::element::f32, {1, 1, -1, 640});

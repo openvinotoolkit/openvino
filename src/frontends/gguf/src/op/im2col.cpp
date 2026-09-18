@@ -17,6 +17,7 @@
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "utils.hpp"
@@ -54,11 +55,12 @@ OutputVector translate_im2col(const NodeContext& context) {
     int32_t dil_h = is_2D ? d1 : 1;
 
     if (!is_2D) {
+        const auto image_shape = std::make_shared<ov::op::v3::ShapeOf>(image, ov::element::i64);
         auto image_reshape_shape = std::make_shared<ov::op::v0::Concat>(
             ov::OutputVector{
-                get_dimensions(image, {1}),
+                gather_dims(image_shape, {1}),
                 ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{static_cast<int64_t>(IC), 1}),
-                get_dimensions(image, {3})},
+                gather_dims(image_shape, {3})},
             0);
         image = std::make_shared<ov::op::v1::Reshape>(image, image_reshape_shape, false);
     }

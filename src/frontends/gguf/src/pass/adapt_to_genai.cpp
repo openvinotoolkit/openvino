@@ -159,11 +159,6 @@ public:
     }
 };
 
-void name_output(const ov::Output<ov::Node>& out, const std::string& name) {
-    out.get_node_shared_ptr()->set_friendly_name(name);
-    out.get_node_shared_ptr()->output(0).set_names({name});
-}
-
 // Largest attention head size across the stateful KV caches (the ReadValue last dim). The
 // frontend emits f16 KV caches mirroring llama.cpp, but the CPU plugin defaults
 // KV_CACHE_PRECISION to u8 (dynamic-quantized) -- faster and accurate enough for the common
@@ -203,7 +198,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     std::shared_ptr<ov::Node> embedding;
     if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
-        for (const auto& node : model->get_ordered_ops()) {
+        // get_ops(): the marker is unique, so a topological sort buys nothing.
+        for (const auto& node : model->get_ops()) {
             if (node->get_rt_info().count("gguf.token_embedding")) {
                 OPENVINO_ASSERT(!embedding, "[GGUF] ambiguous token embedding boundary");
                 embedding = node;
@@ -359,9 +355,14 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         q_pos = make_shared<v4::Range>(past, end, v0::Constant::create(ov::element::i32, {}, {1}), ov::element::i32);
     }
     auto one_1 = v0::Constant::create(ov::element::i64, {1}, {1});
-    auto q_pos_col = make_shared<v1::Reshape>(q_pos,
-                                              make_shared<v0::Concat>(ov::OutputVector{seq_len, one_1}, 0),
-                                              false);  // [seq, 1]
+    // Mask predicates are outer products of a query column [seq, 1] against a key row [1, kv_len].
+    auto as_query_col = [&](const ov::Output<ov::Node>& v) {
+        return make_shared<v1::Reshape>(v, make_shared<v0::Concat>(ov::OutputVector{seq_len, one_1}, 0), false);
+    };
+    auto as_key_row = [&](const ov::Output<ov::Node>& v) {
+        return make_shared<v1::Reshape>(v, make_shared<v0::Concat>(ov::OutputVector{one_1, kv_len}, 0), false);
+    };
+    auto q_pos_col = as_query_col(q_pos);  // [seq, 1]
 
     auto zero_i32 = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     auto one_i32 = v0::Constant::create(ov::element::i32, ov::Shape{}, {1});
@@ -369,9 +370,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto kv_len_i32 = make_shared<v0::Squeeze>(make_shared<v0::Convert>(kv_len, ov::element::i32),
                                                squeeze_axis_0);                              // scalar
     auto k_range = make_shared<v4::Range>(zero_i32, kv_len_i32, one_i32, ov::element::i32);  // [kv_len]
-    auto k_row = make_shared<v1::Reshape>(k_range,
-                                          make_shared<v0::Concat>(ov::OutputVector{one_1, kv_len}, 0),
-                                          false);  // [1, kv_len]
+    auto k_row = as_key_row(k_range);                                                        // [1, kv_len]
 
     auto zero_f = v0::Constant::create(ov::element::f32, ov::Shape{}, {0.0f});
     auto neg_f = v0::Constant::create(ov::element::f32, ov::Shape{}, {NEG_INF});
@@ -395,16 +394,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto groups = make_shared<v0::CumSum>(make_shared<v0::Convert>(non_image, ov::element::i64),
                                               v0::Constant::create(ov::element::i64, {}, {0}));
         auto query_groups = make_shared<v8::Slice>(groups, past, kv_len, one_1);
-        auto query_col =
-            make_shared<v1::Reshape>(query_groups, make_shared<v0::Concat>(ov::OutputVector{seq_len, one_1}, 0), false);
-        auto key_row =
-            make_shared<v1::Reshape>(groups, make_shared<v0::Concat>(ov::OutputVector{one_1, kv_len}, 0), false);
-        auto same_group = make_shared<v1::Equal>(query_col, key_row);
-        auto image_q = make_shared<v1::Reshape>(token_type_ids,
-                                                make_shared<v0::Concat>(ov::OutputVector{seq_len, one_1}, 0),
-                                                false);
-        auto image_k =
-            make_shared<v1::Reshape>(key_types, make_shared<v0::Concat>(ov::OutputVector{one_1, kv_len}, 0), false);
+        auto same_group = make_shared<v1::Equal>(as_query_col(query_groups), as_key_row(groups));
+        auto image_q = as_query_col(token_type_ids);
+        auto image_k = as_key_row(key_types);
         auto one = v0::Constant::create(ov::element::i64, {}, {1});
         auto images =
             make_shared<v1::LogicalAnd>(make_shared<v1::Equal>(image_q, one), make_shared<v1::Equal>(image_k, one));
@@ -448,9 +440,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // [tokens, 1] (batch_dim=tokens, seq_dim=1), giving indices [0, 1, .., tokens - 1] -- the
     // identity that layout needs, since it already carries one token per row.
     if (auto inp_out_ids = find_parameter(model, "inp_out_ids")) {
-        auto axis = v0::Constant::create(ov::element::i64, {}, {0});
-        auto batch_dim = make_shared<v8::Gather>(ids_shape, v0::Constant::create(ov::element::i64, {1}, {0}), axis);
-        auto seq_dim = make_shared<v8::Gather>(ids_shape, v0::Constant::create(ov::element::i64, {1}, {1}), axis);
+        auto batch_dim = gather_dims(ids_shape, {0});
+        auto seq_dim = gather_dims(ids_shape, {1});
         auto seq_dim_i32 = make_shared<v0::Convert>(seq_dim, ov::element::i32);
         auto last_index =
             make_shared<v1::Subtract>(seq_dim_i32,

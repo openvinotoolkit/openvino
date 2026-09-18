@@ -66,11 +66,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     } else {
         const auto arrays = cnpy::npz_load(base.string() + ".npz");
         const auto array = [&](const std::string& name) -> const cnpy::NpyArray& {
-            const auto it = std::find_if(arrays.begin(), arrays.end(), [&](const auto& entry) {
-                return entry.first == name;
-            });
-            OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
-            return it->second;
+            return ov_gguf_test::npz_array(arrays, name);
         };
         const auto& logits = array("logits");
         ASSERT_EQ(logits.shape.size(), 2);
@@ -127,17 +123,6 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         request.infer();
         return request.get_output_tensor();
     };
-    const auto nmse = [vocab](const float* actual, const float* expected) {
-        double error = 0, norm = 0;
-        for (int32_t i = 0; i < vocab; ++i) {
-            EXPECT_TRUE(std::isfinite(actual[i]));
-            const double difference = actual[i] - expected[i];
-            error += difference * difference;
-            norm += expected[i] * expected[i];
-        }
-        EXPECT_GT(norm, 1e-12) << "Reference must contain nonzero logits";
-        return error / norm;
-    };
     size_t past = 0;
     size_t step = 0;
     size_t matching_tokens = 0;
@@ -148,12 +133,14 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         ASSERT_GE(result.get_size(), static_cast<size_t>(vocab));
         const auto* actual = result.data<const float>() + result.get_size() - vocab;
         const auto* expected = reference.data() + step++ * vocab;
-        const auto error = nmse(actual, expected);
+        const auto metric = ov_gguf_test::nmse(actual, expected, static_cast<size_t>(vocab));
+        ASSERT_TRUE(metric.all_finite());
+        ASSERT_GT(metric.reference_norm(), 1e-12) << "Reference must contain nonzero logits";
         const auto predicted = std::max_element(actual, actual + vocab) - actual;
         const auto wanted = std::max_element(expected, expected + vocab) - expected;
         matching_tokens += predicted == wanted;
         RecordProperty("top1_match_step_" + std::to_string(step), predicted == wanted ? 1 : 0);
-        RecordProperty("nmse_step_" + std::to_string(step), std::to_string(error));
+        RecordProperty("nmse_step_" + std::to_string(step), std::to_string(metric.value()));
         if (real_checkpoint) {
             // Real checkpoints can use different quantization arithmetic. Check the first prediction
             // and continuation agreement; keep their full-logit metrics in the XML report.
@@ -161,7 +148,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
                 EXPECT_EQ(predicted, wanted);
             }
         } else {
-            EXPECT_LT(error, 1e-5) << "Normalized MSE against llama.cpp CPU";
+            EXPECT_LT(metric.value(), 1e-5) << "Normalized MSE against llama.cpp CPU";
         }
         past += tokens.size();
     }
@@ -172,12 +159,14 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
             state.reset();
         const auto logits = infer(schedule.front(), 0);
         const auto* actual = logits.data<const float>() + logits.get_size() - vocab;
-        const auto error = nmse(actual, reference.data());
+        const auto metric = ov_gguf_test::nmse(actual, reference.data(), static_cast<size_t>(vocab));
+        ASSERT_TRUE(metric.all_finite());
+        ASSERT_GT(metric.reference_norm(), 1e-12);
         if (real_checkpoint)
             EXPECT_EQ(std::max_element(actual, actual + vocab) - actual,
                       std::max_element(reference.begin(), reference.begin() + vocab) - reference.begin());
         else
-            EXPECT_LT(error, 1e-5) << "Fresh prefill after resetting recurrent states";
+            EXPECT_LT(metric.value(), 1e-5) << "Fresh prefill after resetting recurrent states";
     }
     if (real_checkpoint) {
         EXPECT_GE(matching_tokens * 10, schedule.size() * 9) << "Fewer than 90% of greedy choices match";

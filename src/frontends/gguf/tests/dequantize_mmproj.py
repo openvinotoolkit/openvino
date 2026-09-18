@@ -13,6 +13,8 @@ from pathlib import Path
 import gguf
 import numpy as np
 
+from mmproj_fixtures import finish
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -30,10 +32,7 @@ def main():
                              field.types[-1] if len(field.types) > 1 else None)
     for tensor in reader.tensors:
         writer.add_tensor(tensor.name, gguf.dequantize(tensor.data, tensor.tensor_type).astype(np.float32))
-    writer.write_header_to_file()
-    writer.write_kv_data_to_file()
-    writer.write_tensors_to_file()
-    writer.close()
+    finish(writer)
 
 
 if __name__ == "__main__":
