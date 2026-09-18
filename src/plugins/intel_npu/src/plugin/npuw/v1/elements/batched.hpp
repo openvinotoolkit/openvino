@@ -6,11 +6,13 @@
 
 #include <memory>
 #include <mutex>
+#include <unordered_map>
 #include <vector>
 
 #include "../../compiled_model.hpp"
 #include "../../perf.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -68,7 +70,10 @@ private:
 // Unrolls one [N, ...] inference over the batch-1 inner request. Inputs with a
 // leading dim of N are sliced per row, a leading dim of 1 means broadcast. The
 // inner state is reset before every row and the row outputs are copied into the
-// [N, ...] public outputs, which are resized in place with set_shape() when bound.
+// [N, ...] public outputs. A tensor the caller bound is written into in place, an
+// unbound output is the element's own, allocated through the compiled model's
+// context when there is a device. With nothing bound the public tensors are the
+// inner's own, so a batch-1 caller works on them directly.
 class InferRequest final : public ov::ISyncInferRequest {
 public:
     InferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
@@ -76,6 +81,7 @@ public:
 
     void infer() override;
     void check_tensors() const override;
+    ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
 
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
@@ -91,10 +97,16 @@ private:
     BatchedInputs extract_batch() const;
 
     // Size the public outputs to [batch, ...] once the first row has produced the
-    // inner shapes: a fresh tensor when unset, set_shape() in place when bound.
+    // inner shapes: a bound tensor is set_shape()'d in place, the element's own is
+    // reused while the shape holds and reallocated when it changes.
     void prepare_outputs(std::size_t batch);
+    // Host memory from the compiled model's context when there is one, else a plain tensor.
+    ov::SoPtr<ov::ITensor> allocate_output(const ov::element::Type& type, const ov::Shape& shape) const;
 
     std::shared_ptr<ov::IAsyncInferRequest> m_inner;
+    ov::SoPtr<ov::IRemoteContext> m_context;
+    // The element's own stacked outputs, by port; a caller-bound tensor lives in the base request instead.
+    std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::SoPtr<ov::ITensor>> m_own_outputs;
     mutable std::mutex m_mutex;
 
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;

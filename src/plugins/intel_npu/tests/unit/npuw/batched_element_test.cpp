@@ -116,7 +116,16 @@ public:
           m_state(std::make_shared<MockState>(m_rec)),
           m_adapter_state(std::make_shared<ov::npuw::VariableState>(
               "lora_state.MatMul.A",
-              ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1})))) {}
+              ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1})))) {
+        // Like a plugin request, own a [1, ...] tensor per input from the start.
+        for (const auto& port : get_inputs()) {
+            ov::Shape shape;
+            for (const auto& dim : port.get_partial_shape()) {
+                shape.push_back(dim.is_static() ? static_cast<std::size_t>(dim.get_length()) : std::size_t{1});
+            }
+            set_tensor(port, ov::get_tensor_impl(ov::Tensor(port.get_element_type(), shape)));
+        }
+    }
 
     void infer() override {
         m_rec->events.emplace_back("infer");
@@ -167,7 +176,9 @@ public:
           m_rec(std::move(rec)) {}
 
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
-        return std::make_shared<MockInnerSync>(shared_from_this(), m_rec);
+        auto request = std::make_shared<MockInnerSync>(shared_from_this(), m_rec);
+        m_last_request = request;
+        return request;
     }
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
@@ -178,7 +189,14 @@ public:
         return {};
     }
 
+    // The sync request behind the most recent create_infer_request(), for tests
+    // that compare the element's public tensors with the inner's own.
+    std::shared_ptr<ov::ISyncInferRequest> last_request() const {
+        return m_last_request.lock();
+    }
+
 private:
+    mutable std::weak_ptr<ov::ISyncInferRequest> m_last_request;
     std::shared_ptr<Recorder> m_rec;
 };
 
@@ -575,9 +593,10 @@ TEST_F(NPUWBatchedElementTest, NonResizablePreBoundOutputThrows) {
     EXPECT_THROW(req->infer(), ov::Exception);
 }
 
-// With no output bound, the element allocates one on the first infer and keeps
-// resizing that same tensor as the batch changes, growing and shrinking.
-TEST_F(NPUWBatchedElementTest, BatchChangeResizesElementOutputs) {
+// With no output bound, the element allocates its own on the first infer, keeps
+// it while the batch holds and gets a fresh one when the batch changes, growing
+// and shrinking; the rows are always right.
+TEST_F(NPUWBatchedElementTest, ElementOutputsFollowBatchChanges) {
     auto model = build_two_output_model();
     auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
     auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
@@ -588,10 +607,16 @@ TEST_F(NPUWBatchedElementTest, BatchChangeResizesElementOutputs) {
     const auto first = req->get_tensor(wrapped->outputs()[0]);
     ASSERT_EQ(first->get_shape()[0], 3u);
 
+    // Same batch: the same tensor is written again.
+    set_input_ids(req, {{12, 1}, {23, 1}, {34, 1}});
+    req->infer();
+    const auto same = req->get_tensor(wrapped->outputs()[0]);
+    EXPECT_EQ(same._ptr, first._ptr);
+    EXPECT_FLOAT_EQ(row_value(same, 2), 34.0f);
+
     set_input_ids(req, {{44, 1}, {55, 1}});
     ASSERT_NO_THROW(req->infer());
     const auto out = req->get_tensor(wrapped->outputs()[0]);
-    EXPECT_EQ(out._ptr, first._ptr);
     ASSERT_EQ(out->get_shape()[0], 2u);
     EXPECT_FLOAT_EQ(row_value(out, 0), 44.0f);
     EXPECT_FLOAT_EQ(row_value(out, 1), 55.0f);
@@ -599,16 +624,38 @@ TEST_F(NPUWBatchedElementTest, BatchChangeResizesElementOutputs) {
     set_input_ids(req, {{66, 1}});
     ASSERT_NO_THROW(req->infer());
     const auto single = req->get_tensor(wrapped->outputs()[0]);
-    EXPECT_EQ(single._ptr, first._ptr);
     ASSERT_EQ(single->get_shape()[0], 1u);
     EXPECT_FLOAT_EQ(row_value(single, 0), 66.0f);
 
     set_input_ids(req, {{77, 1}, {88, 1}, {99, 1}, {100, 1}});
     ASSERT_NO_THROW(req->infer());
     const auto grown = req->get_tensor(wrapped->outputs()[0]);
-    EXPECT_EQ(grown._ptr, first._ptr);
     ASSERT_EQ(grown->get_shape()[0], 4u);
     EXPECT_FLOAT_EQ(row_value(grown, 3), 100.0f);
+}
+
+// Nothing is bound or allocated up front: before the first infer the public
+// tensors are the inner request's own, inputs and outputs alike, and after it
+// the output is the element's stacked copy, never the inner's tensor.
+TEST_F(NPUWBatchedElementTest, UnboundTensorsDefaultToTheInner) {
+    auto model = build_two_output_model();
+    auto inner = std::make_shared<MockInnerCompiled>(model, m_plugin, m_recorder);
+    auto wrapped = std::make_shared<ov::npuw::batched::CompiledModel>(inner, m_plugin, rerank_tags());
+    auto req = wrapped->create_infer_request();
+    auto inner_req = inner->last_request();
+    ASSERT_TRUE(inner_req);
+
+    const auto in_port = wrapped->inputs()[0];
+    const auto out_port = wrapped->outputs()[0];
+    EXPECT_EQ(req->get_tensor(in_port)._ptr, inner_req->get_tensor(in_port)._ptr);
+    EXPECT_EQ(req->get_tensor(out_port)._ptr, inner_req->get_tensor(out_port)._ptr);
+
+    set_input_ids(req, {{42, 1}, {43, 1}});
+    req->infer();
+    const auto out = req->get_tensor(out_port);
+    EXPECT_NE(out._ptr, inner_req->get_tensor(out_port)._ptr);
+    ASSERT_EQ(out->get_shape()[0], 2u);
+    EXPECT_FLOAT_EQ(row_value(out, 1), 43.0f);
 }
 
 // A single row goes through the same path: a caller-bound tensor of the fitting
