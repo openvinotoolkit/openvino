@@ -623,6 +623,7 @@ ShapeOfParameter::ShapeOfParameter() {
             for (auto&& input : matched_shape_out.get_target_inputs()) {
                 input.replace_source_output(new_const);
             }
+            return true;
         }
         return false;
     };
@@ -646,6 +647,7 @@ ShapeOfConcat::ShapeOfConcat() {
             for (auto&& input : matched_shape_out.get_target_inputs()) {
                 input.replace_source_output(new_const);
             }
+            return true;
         }
         return false;
     };
