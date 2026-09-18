@@ -254,6 +254,9 @@ void ov::npuw::batched::InferRequest::prepare_outputs(std::size_t batch) {
 
         const auto current = get_tensor(port);
         if (!current) {
+            // A plain host tensor. The inner request only ever holds [1, ...]
+            // buffers, so the stacked output cannot come from it directly. Getting
+            // it allocated by the inner's device instead is a follow-up.
             set_tensor(port, ov::get_tensor_impl(ov::Tensor(inner_out->get_element_type(), shape)));
             continue;
         }
