@@ -5,6 +5,7 @@
 #include "snippets/lowered/pass/move_scalar_to_consumer.hpp"
 
 #include <iterator>
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -13,6 +14,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/scalar.hpp"
 
 namespace ov::snippets::lowered::pass {
