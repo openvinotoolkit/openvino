@@ -238,7 +238,8 @@ public:
                     auto new_add = std::make_shared<ov::op::v1::Add>(qk_score_node->output(0), unsq2->output(0));
                     new_add->set_friendly_name(qk_score_node->get_friendly_name() + "/with_mask");
                     auto names = qk_score_node->output(0).get_names();
-                    qk_score_node->output(0).set_names({});
+                    // Synthetic name instead of leaving this dead node nameless.
+                    qk_score_node->output(0).set_names({qk_score_node->get_friendly_name() + "/orig"});
                     new_add->output(0).add_names(names);
                     for (const auto& reader : readers) {
                         reader.replace_source_output(new_add->output(0));
