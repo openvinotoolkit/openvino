@@ -5,9 +5,10 @@
 #pragma once
 
 #include <cstddef>
-#include <stdexcept>
+#include <limits>
 #include <type_traits>
 
+#include "openvino/core/except.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -23,21 +24,27 @@ constexpr T div(const T x, const T y) {
     return x / y;
 }
 
-// NOTE: Execution throws `std::domain_error` if either a non-integral value or an
-// out-of-bounds value is detected in the input tensor.
+// NOTE: Execution throws `ov::AssertFailure` on integer division by zero and, for
+// signed integral types, on the `std::numeric_limits<T>::min() / -1` overflow case.
+// This helper operates on values already typed as `T`; any non-integral or
+// out-of-range input validation, if required, must occur before calling it.
+template <class T>
+void validate_div_inputs(const T x, const T y) {
+    OPENVINO_ASSERT(y != 0, "integer division by zero");
+    if constexpr (std::is_signed_v<T>) {
+        OPENVINO_ASSERT(x != std::numeric_limits<T>::min() || y != -1, "integer division overflow");
+    }
+}
+
 template <class T>
 T try_div(const T x, const T y) {
-    if (y == 0) {
-        throw std::domain_error("integer division by zero");
-    }
+    validate_div_inputs(x, y);
     return div(x, y);
 }
 
 template <class T>
 T try_python_div(const T x, const T y) {
-    if (y == 0) {
-        throw std::domain_error("integer division by zero");
-    }
+    validate_div_inputs(x, y);
 
     T quot = div(x, y);
     if constexpr (std::is_unsigned_v<T>) {
