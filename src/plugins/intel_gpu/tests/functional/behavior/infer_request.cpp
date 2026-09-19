@@ -22,8 +22,11 @@
 #include "common_test_utils/subgraph_builders/read_concat_split_assign.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 namespace {
 typedef std::tuple<
@@ -106,6 +109,15 @@ static std::shared_ptr<ov::Model> makeStaticInputModel(ov::Shape& shape_out) {
     return std::make_shared<ov::Model>(results, ov::ParameterVector{param});
 }
 
+// Caller-owned USM-host output sharing needs an integrated GPU whose driver actually exposes USM;
+// RemoteContextImpl rejects USM_HOST allocation when unified shared memory is unsupported/disabled.
+static bool gpu_supports_usm_host_output_sharing(ov::Core& core) {
+    if (core.get_property(ov::test::utils::DEVICE_GPU, ov::device::type) != ov::device::Type::INTEGRATED)
+        return false;
+    const auto caps = core.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+    return std::find(caps.begin(), caps.end(), ov::intel_gpu::capability::USM_MEMORY) != caps.end();
+}
+
 // Static input must be inferable when set_tensor() is never called.
 TEST(TensorTest, smoke_lazyAllocStaticInputInferWithoutSetTensor) {
     ov::Shape shape;
@@ -167,10 +179,553 @@ TEST(TensorTest, smoke_lazyAllocStaticOutputReusesUserTensor) {
     }
 }
 
+// Dynamic output bound to a caller-owned iGPU USM-host buffer produces correct values.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHost) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
+    auto relu = std::make_shared<ov::op::v0::Relu>(input);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{input});
+
+    auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+    auto compiled_model = core.compile_model(model, remote_context);
+
+    const ov::Shape shape{2, 4};
+    ov::Tensor input_tensor(ov::element::f32, shape);
+    const std::vector<float> input_values{-4.0f, -3.0f, -2.0f, -1.0f, 1.0f, 2.0f, 3.0f, 4.0f};
+    std::copy(input_values.begin(), input_values.end(), input_tensor.data<float>());
+
+    auto gpu_context = remote_context.as<ov::intel_gpu::ocl::ClContext>();
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    ov::Tensor output_tensor(ov::element::f32, shape, usm_allocation.get());
+    ASSERT_FALSE(output_tensor.is<ov::intel_gpu::ocl::USMTensor>());
+    std::fill_n(output_tensor.data<float>(), output_tensor.get_size(), -1.0f);
+
+    auto request = compiled_model.create_infer_request();
+    request.set_input_tensor(input_tensor);
+    request.set_output_tensor(output_tensor);
+    OV_ASSERT_NO_THROW(request.infer());
+
+    const std::vector<float> expected{0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 2.0f, 3.0f, 4.0f};
+    auto actual = request.get_output_tensor();
+    // This asserts the caller-pointer contract and correctness, not that zero-copy actually happened
+    // (data() stays the caller pointer even on the copy path). The graph-shares-caller-allocation
+    // assertion lives in unit/dynamic_execution/zero_copy_output_test.cpp, which can see graph memory.
+    ASSERT_EQ(actual.data(), usm_allocation.get());
+    ASSERT_EQ(actual.get_size(), expected.size());
+    for (size_t i = 0; i < actual.get_size(); ++i) {
+        ASSERT_FLOAT_EQ(actual.data<const float>()[i], expected[i]);
+    }
+}
+
+static std::shared_ptr<ov::Model> makeDynamicReluModel() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
+    auto relu = std::make_shared<ov::op::v0::Relu>(input);
+    return std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{input});
+}
+
+static std::shared_ptr<ov::Model> makeDynamicMatMulModel(const size_t k, std::vector<float>& weights_data) {
+    weights_data.resize(k * k);
+    for (size_t i = 0; i < weights_data.size(); ++i) {
+        weights_data[i] = static_cast<float>((i % 7) + 1) * 0.01f;
+    }
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, static_cast<int64_t>(k)});
+    auto weights = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{k, k}, weights_data);
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(param, weights, false, false);
+    return std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{param});
+}
+
+static std::vector<float> reference_matmul(const ov::Shape& shape,
+                                           const size_t k,
+                                           const std::vector<float>& input_values,
+                                           const std::vector<float>& weights_data) {
+    std::vector<float> expected(ov::shape_size(shape), 0.0f);
+    for (size_t r = 0; r < shape[0]; ++r) {
+        for (size_t c = 0; c < k; ++c) {
+            float acc = 0.0f;
+            for (size_t col = 0; col < k; ++col) {
+                acc += input_values[r * k + col] * weights_data[col * k + c];
+            }
+            expected[r * k + c] = acc;
+        }
+    }
+    return expected;
+}
+
+// A caller buffer sized for the max shape stays bound and correct across smaller/larger runtime shapes.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostGrowthWithinCapacity) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    const ov::Shape max_shape{8, 4};
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, max_shape);
+
+    // Bind the max-capacity caller buffer exactly once; the loop varies only the input shape.
+    ov::Tensor output_tensor(ov::element::f32, max_shape, usm_allocation.get());
+    request.set_output_tensor(output_tensor);
+
+    for (const size_t rows : {size_t{2}, size_t{8}, size_t{4}}) {
+        const ov::Shape shape{rows, 4};
+        // The first bind (pre-shrink) fixes capacity at max_shape and same-pointer rebinds are
+        // no-ops (is_the_same_buffer), so the caller buffer stays zero-copy across all shapes.
+
+        ov::Tensor input_tensor(ov::element::f32, shape);
+        for (size_t i = 0; i < input_tensor.get_size(); ++i) {
+            input_tensor.data<float>()[i] = static_cast<float>(i) - 4.0f;
+        }
+        request.set_input_tensor(input_tensor);
+        OV_ASSERT_NO_THROW(request.infer());
+
+        auto actual = request.get_output_tensor();
+        ASSERT_EQ(actual.data(), usm_allocation.get());
+        ASSERT_EQ(actual.get_shape(), shape);
+        for (size_t i = 0; i < actual.get_size(); ++i) {
+            const float in = static_cast<float>(i) - 4.0f;
+            ASSERT_FLOAT_EQ(actual.data<const float>()[i], in > 0.0f ? in : 0.0f);
+        }
+    }
+}
+
+// Runtime output exceeding the caller buffer fails safely (throws) without corrupting caller memory.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostGrowthBeyondCapacityIsSafe) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    const ov::Shape small_shape{2, 4};
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, small_shape);
+    ov::Tensor output_tensor(ov::element::f32, small_shape, usm_allocation.get());
+    request.set_output_tensor(output_tensor);
+
+    ov::Tensor small_input(ov::element::f32, small_shape);
+    std::fill_n(small_input.data<float>(), small_input.get_size(), 1.0f);
+    request.set_input_tensor(small_input);
+    OV_ASSERT_NO_THROW(request.infer());
+    ASSERT_EQ(request.get_output_tensor().data(), usm_allocation.get());
+
+    // Sentinel detects any out-of-bounds write into the caller buffer during the oversized run.
+    constexpr float sentinel = -17.0f;
+    std::fill_n(static_cast<float*>(usm_allocation.get()), ov::shape_size(small_shape), sentinel);
+
+    ov::Tensor large_input(ov::element::f32, ov::Shape{8, 4});
+    std::fill_n(large_input.data<float>(), large_input.get_size(), 1.0f);
+    request.set_input_tensor(large_input);
+    ASSERT_ANY_THROW(request.infer());
+
+    const auto* caller_data = static_cast<const float*>(usm_allocation.get());
+    for (size_t i = 0; i < ov::shape_size(small_shape); ++i) {
+        ASSERT_FLOAT_EQ(caller_data[i], sentinel);
+    }
+}
+
+// Rebinding to a different caller USM-host allocation writes the new buffer, leaves the old untouched.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRebindsAllocation) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+    const ov::Shape shape{2, 4};
+
+    auto first_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto second_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    ov::Tensor input_tensor(ov::element::f32, shape);
+
+    std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 1.0f);
+    request.set_input_tensor(input_tensor);
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, first_allocation.get()));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    constexpr float sentinel = -23.0f;
+    std::fill_n(static_cast<float*>(first_allocation.get()), ov::shape_size(shape), sentinel);
+    std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 2.0f);
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, second_allocation.get()));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.data(), second_allocation.get());
+    const auto* first_data = static_cast<const float*>(first_allocation.get());
+    const auto* second_data = static_cast<const float*>(second_allocation.get());
+    for (size_t i = 0; i < ov::shape_size(shape); ++i) {
+        ASSERT_FLOAT_EQ(first_data[i], sentinel);
+        ASSERT_FLOAT_EQ(second_data[i], 2.0f);
+    }
+}
+
+// Switching from a bound caller USM-host buffer to an ineligible ordinary host tensor copies correctly.
+TEST(TensorTest, smoke_dynamicOutputSwitchesFromUsmHostToCopyFallback) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+    const ov::Shape shape{2, 4};
+
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    ov::Tensor input_tensor(ov::element::f32, shape);
+    std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 1.0f);
+    request.set_input_tensor(input_tensor);
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, usm_allocation.get()));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    constexpr float sentinel = -31.0f;
+    std::fill_n(static_cast<float*>(usm_allocation.get()), ov::shape_size(shape), sentinel);
+    std::vector<float> host_output(ov::shape_size(shape), sentinel);
+    std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 3.0f);
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, host_output.data()));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.data(), host_output.data());
+    const auto* usm_data = static_cast<const float*>(usm_allocation.get());
+    for (size_t i = 0; i < ov::shape_size(shape); ++i) {
+        ASSERT_FLOAT_EQ(usm_data[i], sentinel);
+        ASSERT_FLOAT_EQ(host_output[i], 3.0f);
+    }
+}
+
+// When the same caller USM-host buffer is supplied as both a dynamic output and an input,
+// the zero-copy binding must be rejected: a tiled MatMul would otherwise overwrite the input
+// buffer before it is fully read, silently corrupting results. The plugin must fall back to an
+// internal output plus copy so the aliased input stays intact until the kernel finishes reading.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostInputOutputAliasIsSafe) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    // K must be large enough to force tiled MatMul execution so reads/writes to the same
+    // buffer interleave; square weights let the output be fed back as input.
+    constexpr size_t K = 1024;
+    const ov::Shape shape{2, K};
+
+    // Known weights so the reference can be computed by hand.
+    std::vector<float> weights_data;
+    auto model = makeDynamicMatMulModel(K, weights_data);
+
+    // f32 inference precision keeps the aliased buffer wired straight into MatMul: without it the
+    // default f16 path inserts Convert/reorder nodes that stage input and output through separate
+    // internal buffers, hiding the in-place aliasing this test must exercise.
+    auto compiled_model = core.compile_model(model, core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    // Single USM-host allocation used as BOTH input and output (the aliasing pattern).
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto* buffer = static_cast<float*>(usm_allocation.get());
+    std::vector<float> input_values(ov::shape_size(shape));
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        input_values[i] = static_cast<float>((i % 5)) - 2.0f;
+    }
+
+    const auto expected = reference_matmul(shape, K, input_values, weights_data);
+
+    ov::Tensor aliased(ov::element::f32, shape, usm_allocation.get());
+    request.set_input_tensor(aliased);
+    request.set_output_tensor(aliased);
+
+    // In-place aliasing corruption is a nondeterministic GPU data race: with the fix every run is
+    // correct, without it a run is expected to diverge. Repeat so a regression is caught reliably.
+    constexpr int kIterations = 16;
+    for (int iter = 0; iter < kIterations; ++iter) {
+        std::copy(input_values.begin(), input_values.end(), buffer);  // a prior corrupted run may have overwritten the input
+
+        OV_ASSERT_NO_THROW(request.infer());
+
+        auto actual = request.get_output_tensor();
+        ASSERT_EQ(actual.get_size(), expected.size());
+        const auto* actual_data = actual.data<const float>();
+        for (size_t i = 0; i < actual.get_size(); ++i) {
+            ASSERT_NEAR(actual_data[i], expected[i], 1e-2f)
+                << "aliased input/output corrupted at element " << i << " on iteration " << iter;
+        }
+    }
+}
+
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteInputAliasIsSafe) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    constexpr size_t K = 1024;
+    const ov::Shape shape{2, K};
+    std::vector<float> weights_data;
+    auto model = makeDynamicMatMulModel(K, weights_data);
+    auto compiled_model = core.compile_model(model,
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    auto remote_input = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto* buffer = static_cast<float*>(remote_input.get());
+    std::vector<float> input_values(ov::shape_size(shape));
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        input_values[i] = static_cast<float>((i % 5)) - 2.0f;
+    }
+    const auto expected = reference_matmul(shape, K, input_values, weights_data);
+
+    ov::Tensor output_wrapper(ov::element::f32, shape, remote_input.get());
+    request.set_input_tensor(remote_input);
+    request.set_output_tensor(output_wrapper);
+
+    constexpr int kIterations = 16;
+    for (int iter = 0; iter < kIterations; ++iter) {
+        std::copy(input_values.begin(), input_values.end(), buffer);
+
+        OV_ASSERT_NO_THROW(request.infer());
+
+        auto actual = request.get_output_tensor();
+        ASSERT_EQ(actual.get_size(), expected.size());
+        const auto* actual_data = actual.data<const float>();
+        for (size_t i = 0; i < actual.get_size(); ++i) {
+            ASSERT_NEAR(actual_data[i], expected[i], 1e-2f)
+                << "remote aliased input/output corrupted at element " << i << " on iteration " << iter;
+        }
+    }
+}
+
+// The same remote (USM-host) tensor is set as BOTH dynamic input and output. Since a remote output
+// is normally bound zero-copy, the plugin must instead copy out so a tiled MatMul can't corrupt the input.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputAliasIsSafe) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    constexpr size_t K = 1024;
+    const ov::Shape shape{2, K};
+    std::vector<float> weights_data;
+    auto model = makeDynamicMatMulModel(K, weights_data);
+    auto compiled_model = core.compile_model(model,
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    // A single remote tensor used as both input and output (the remote aliasing pattern).
+    auto remote_aliased = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto* buffer = static_cast<float*>(remote_aliased.get());
+    std::vector<float> input_values(ov::shape_size(shape));
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        input_values[i] = static_cast<float>((i % 5)) - 2.0f;
+    }
+    const auto expected = reference_matmul(shape, K, input_values, weights_data);
+
+    request.set_input_tensor(remote_aliased);
+    request.set_output_tensor(remote_aliased);
+
+    constexpr int kIterations = 16;
+    for (int iter = 0; iter < kIterations; ++iter) {
+        std::copy(input_values.begin(), input_values.end(), buffer);
+
+        OV_ASSERT_NO_THROW(request.infer());
+
+        // Output was copied back into the shared remote buffer; read it directly.
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_NEAR(buffer[i], expected[i], 1e-2f)
+                << "remote aliased output corrupted at element " << i << " on iteration " << iter;
+        }
+    }
+}
+
+// A remote output that was bound zero-copy in an earlier non-aliased inference and only later
+// aliases an input must drop the stale binding, otherwise set_output_memory() rebinds the aliased buffer.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputBecomesAliasedIsSafe) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    constexpr size_t K = 1024;
+    const ov::Shape shape{2, K};
+    std::vector<float> weights_data;
+    auto model = makeDynamicMatMulModel(K, weights_data);
+    auto compiled_model = core.compile_model(model,
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    auto remote_output = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto* out_buffer = static_cast<float*>(remote_output.get());
+    std::vector<float> input_values(ov::shape_size(shape));
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        input_values[i] = static_cast<float>((i % 5)) - 2.0f;
+    }
+    const auto expected = reference_matmul(shape, K, input_values, weights_data);
+
+    // First inference: distinct input, remote output bound zero-copy (no aliasing yet).
+    ov::Tensor distinct_input(ov::element::f32, shape);
+    std::copy(input_values.begin(), input_values.end(), distinct_input.data<float>());
+    request.set_input_tensor(distinct_input);
+    request.set_output_tensor(remote_output);
+    OV_ASSERT_NO_THROW(request.infer());
+
+    // Now feed the same remote tensor back as input: the previously cached zero-copy binding must
+    // be dropped so the kernel doesn't read and overwrite the same buffer.
+    request.set_input_tensor(remote_output);
+
+    // The stale-binding race has a narrow window (depends on infer-1's binding surviving), so use a
+    // higher iteration count than the from-start alias tests to sample it reliably.
+    constexpr int kIterations = 64;
+    for (int iter = 0; iter < kIterations; ++iter) {
+        std::copy(input_values.begin(), input_values.end(), out_buffer);
+
+        OV_ASSERT_NO_THROW(request.infer());
+
+        for (size_t i = 0; i < expected.size(); ++i) {
+            ASSERT_NEAR(out_buffer[i], expected[i], 1e-2f)
+                << "remote output corrupted after becoming aliased at element " << i << " on iteration " << iter;
+        }
+    }
+}
+
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostPartialInputAliasFallsBack) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    constexpr size_t K = 1024;
+    const ov::Shape shape{2, K};
+    std::vector<float> weights_data;
+    auto model = makeDynamicMatMulModel(K, weights_data);
+    auto compiled_model = core.compile_model(model,
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, ov::Shape{shape[0], shape[1] + 1});
+    auto* usm_data = static_cast<float*>(usm_allocation.get());
+    auto output_ptr = usm_data + 1;
+    ov::Tensor input_tensor(ov::element::f32, shape, usm_data);
+    ov::Tensor output_tensor(ov::element::f32, shape, output_ptr);
+
+    std::vector<float> input_values(ov::shape_size(shape));
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        input_values[i] = static_cast<float>((i % 5)) - 2.0f;
+    }
+    const auto expected = reference_matmul(shape, K, input_values, weights_data);
+
+    request.set_input_tensor(input_tensor);
+    request.set_output_tensor(output_tensor);
+
+    constexpr int kIterations = 16;
+    for (int iter = 0; iter < kIterations; ++iter) {
+        std::copy(input_values.begin(), input_values.end(), usm_data);
+
+        OV_ASSERT_NO_THROW(request.infer());
+
+        auto actual = request.get_output_tensor();
+        ASSERT_EQ(actual.data(), output_ptr);
+        ASSERT_EQ(actual.get_size(), expected.size());
+        const auto* actual_data = actual.data<const float>();
+        for (size_t i = 0; i < actual.get_size(); ++i) {
+            ASSERT_NEAR(actual_data[i], expected[i], 1e-2f)
+                << "partially aliased input/output corrupted at element " << i << " on iteration " << iter;
+        }
+    }
+}
+
+// The output overlap must use the caller buffer's capacity, not the current (possibly shrunk) logical
+// shape: after wait() shrinks the output, an input parked in the allocation tail looks disjoint by
+// logical span but is overwritten once the output grows back during execution. The alias guard must
+// still fall back to a plugin buffer + copy-out. Bind large -> shrink -> park input in tail -> grow.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostShrinkThenGrowTailAliasIsSafe) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    constexpr size_t K = 1024;
+    constexpr size_t capacity_rows = 4;
+    std::vector<float> weights_data;
+    auto model = makeDynamicMatMulModel(K, weights_data);
+    auto compiled_model = core.compile_model(model,
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    // One allocation of capacity_rows x K; the output view starts at row 0, the aliasing input at row 1.
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, ov::Shape{capacity_rows, K});
+    auto* usm_data = static_cast<float*>(usm_allocation.get());
+
+    // Bind the output at full capacity first so its recorded actual_size is capacity_rows x K.
+    ov::Tensor output_tensor(ov::element::f32, ov::Shape{capacity_rows, K}, usm_data);
+    request.set_output_tensor(output_tensor);
+
+    // Warm-up at capacity, then shrink the output to a single row via a 1-row inference.
+    {
+        ov::Tensor warm_input(ov::element::f32, ov::Shape{capacity_rows, K});
+        std::fill_n(warm_input.data<float>(), warm_input.get_size(), 1.0f);
+        request.set_input_tensor(warm_input);
+        OV_ASSERT_NO_THROW(request.infer());
+
+        ov::Tensor shrink_input(ov::element::f32, ov::Shape{1, K});
+        std::fill_n(shrink_input.data<float>(), shrink_input.get_size(), 1.0f);
+        request.set_input_tensor(shrink_input);
+        OV_ASSERT_NO_THROW(request.infer());  // wait() shrinks the output tensor to {1, K}
+    }
+
+    // Park a 2-row input in the tail (rows 1..3): disjoint from the shrunk 1-row output span, but the
+    // output grows to 2 rows during execution and overwrites row 1 unless the guard uses capacity.
+    const ov::Shape grow_shape{2, K};
+    auto* input_ptr = usm_data + K;  // row 1
+    ov::Tensor tail_input(ov::element::f32, grow_shape, input_ptr);
+    request.set_input_tensor(tail_input);
+
+    std::vector<float> input_values(ov::shape_size(grow_shape));
+    for (size_t i = 0; i < input_values.size(); ++i) {
+        input_values[i] = static_cast<float>((i % 5)) - 2.0f;
+    }
+    const auto expected = reference_matmul(grow_shape, K, input_values, weights_data);
+
+    constexpr int kIterations = 16;
+    for (int iter = 0; iter < kIterations; ++iter) {
+        std::copy(input_values.begin(), input_values.end(), input_ptr);
+
+        OV_ASSERT_NO_THROW(request.infer());
+
+        auto actual = request.get_output_tensor();
+        ASSERT_EQ(actual.data(), usm_data);
+        ASSERT_EQ(actual.get_size(), expected.size());
+        const auto* actual_data = actual.data<const float>();
+        for (size_t i = 0; i < actual.get_size(); ++i) {
+            ASSERT_NEAR(actual_data[i], expected[i], 1e-2f)
+                << "tail-aliased input corrupted after shrink-then-grow at element " << i << " on iteration " << iter;
+        }
+    }
+}
+
 // AUTO_BATCH's shared buffer must be sized batch=N, not the slot's own batch=1 port. Checked
 // by value: an offset bug doesn't change the exposed shape, only which bytes get read/written.
-TEST(TensorTest, smoke_lazyAllocAutoBatchUsesBatchedShapeNotSlotShape) {
-    constexpr int kBatch = 4;
+TEST(TensorTest, smoke_lazyAllocAutoBatchUsesBatchedShapeNotSlotShape) {    constexpr int kBatch = 4;
     ov::Shape shape;
     auto model = makeStaticInputModel(shape);
 
