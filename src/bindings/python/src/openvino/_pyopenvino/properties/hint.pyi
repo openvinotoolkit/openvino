@@ -6,7 +6,52 @@ import typing
 """
 openvino.properties.hint submodule that simulates ov::hint
 """
-__all__: list[str] = ['ExecutionMode', 'ModelDistributionPolicy', 'PerformanceMode', 'Priority', 'SchedulingCoreType', 'activations_scale_factor', 'allow_auto_batching', 'compiled_blob', 'dynamic_quantization_group_size', 'enable_cpu_pinning', 'enable_cpu_reservation', 'enable_hyper_threading', 'execution_mode', 'inference_precision', 'kv_cache_precision', 'model', 'model_distribution_policy', 'model_priority', 'num_requests', 'performance_mode', 'scheduling_core_type']
+__all__: list[str] = ['AttnMode', 'ExecutionMode', 'ModelDistributionPolicy', 'PerformanceMode', 'Priority', 'SchedulingCoreType', 'activations_scale_factor', 'allow_auto_batching', 'attn_kernel_mode', 'compiled_blob', 'dynamic_quantization_group_size', 'enable_cpu_pinning', 'enable_cpu_reservation', 'enable_hyper_threading', 'execution_mode', 'inference_precision', 'kv_cache_precision', 'model', 'model_distribution_policy', 'model_priority', 'num_requests', 'performance_mode', 'scheduling_core_type']
+class AttnMode:
+    """
+    Members:
+
+      AUTO
+
+      PA_CM
+    """
+    AUTO: typing.ClassVar[AttnMode]  # value = <AttnMode.AUTO: 0>
+    PA_CM: typing.ClassVar[AttnMode]  # value = <AttnMode.PA_CM: 1>
+    __members__: typing.ClassVar[dict[str, AttnMode]]  # value = {'AUTO': <AttnMode.AUTO: 0>, 'PA_CM': <AttnMode.PA_CM: 1>}
+    def __eq__(self, other: typing.Any) -> bool:
+        ...
+    def __ge__(self, other: typing.Any) -> bool:
+        ...
+    def __getstate__(self) -> int:
+        ...
+    def __gt__(self, other: typing.Any) -> bool:
+        ...
+    def __hash__(self) -> int:
+        ...
+    def __index__(self) -> int:
+        ...
+    def __init__(self, value: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    def __int__(self) -> int:
+        ...
+    def __le__(self, other: typing.Any) -> bool:
+        ...
+    def __lt__(self, other: typing.Any) -> bool:
+        ...
+    def __ne__(self, other: typing.Any) -> bool:
+        ...
+    def __repr__(self) -> str:
+        ...
+    def __setstate__(self, state: typing.SupportsInt | typing.SupportsIndex) -> None:
+        ...
+    def __str__(self) -> str:
+        ...
+    @property
+    def name(self) -> str:
+        ...
+    @property
+    def value(self) -> int:
+        ...
 class ExecutionMode:
     """
     Members:
@@ -333,6 +378,12 @@ def performance_mode() -> str:
     ...
 @typing.overload
 def performance_mode(arg0: PerformanceMode) -> tuple[str, openvino._pyopenvino.OVAny]:
+    ...
+@typing.overload
+def attn_kernel_mode() -> str:
+    ...
+@typing.overload
+def attn_kernel_mode(arg0: AttnMode) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def scheduling_core_type() -> str:

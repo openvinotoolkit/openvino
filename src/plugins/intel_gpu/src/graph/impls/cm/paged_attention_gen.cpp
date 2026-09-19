@@ -123,6 +123,19 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
 // to compute xattn block_mask.
 bool bypass_xattn(const kernel_impl_params& params) {
     bool bypass = false;
+    const auto desc = params.typed_desc<paged_attention>();
+    // PA_CM coupling: when the user explicitly requests ov::hint::attn_kernel_mode=PA_CM,
+    // disable the xattn-bypass heuristic and always run the full xattn path. Rationale:
+    //   - PA_CM is a hard "use the CM kernel" requirement (see properties.hpp), so users
+    //     opting in expect the CM xattn path to be exercised end-to-end regardless of
+    //     the threshold / q_len heuristic that AUTO would otherwise use to short-circuit
+    //     to a cheaper non-xattn execution.
+    //   - This makes the CM path deterministically reachable for benchmarking and
+    //     validation. The latency cost of skipping the heuristic is the explicit trade-off
+    //     a PA_CM caller accepts; AUTO callers are unaffected.
+    if (desc->use_cm_kernel) {
+        return bypass;
+    }
     bool allow_bypass = params.get_program().get_config().get_allow_bypass_xattn();
     if (allow_bypass) {
         auto xattn_thresh = get_xattn_thresh(params);

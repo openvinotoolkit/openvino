@@ -87,6 +87,13 @@ def test_properties_rw_base():
             ),
         ),
         (
+            hints.AttnMode,
+            (
+                (hints.AttnMode.AUTO, "AttnMode.AUTO", 0),
+                (hints.AttnMode.PA_CM, "AttnMode.PA_CM", 1),
+            ),
+        ),
+        (
             hints.SchedulingCoreType,
             (
                 (hints.SchedulingCoreType.ANY_CORE, "SchedulingCoreType.ANY_CORE", 0),
@@ -302,6 +309,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             hints.performance_mode,
             "PERFORMANCE_HINT",
             ((hints.PerformanceMode.LATENCY, hints.PerformanceMode.LATENCY),),
+        ),
+        (
+            hints.attn_kernel_mode,
+            "ATTENTION_KERNEL_MODE",
+            ((hints.AttnMode.PA_CM, hints.AttnMode.PA_CM),),
         ),
         (
             hints.enable_cpu_pinning,
