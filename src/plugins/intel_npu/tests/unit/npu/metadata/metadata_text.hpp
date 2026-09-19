@@ -162,6 +162,19 @@ TEST_F(MetadataHumanReadableTests, allTextFields) {
     EXPECT_EQ(storedMeta->get_compatibility_descriptor().value(), compatDesc);
 }
 
+TEST_F(MetadataHumanReadableTests, rejectsExcessiveNesting) {
+    const auto make = [](size_t depth) {
+        return std::string("meta=2.0;ov=2026.1.0;") + std::string(depth, '{') + "future_field=FUTURE_VAL" +
+               std::string(depth, '}');
+    };
+    // Shallow nesting is accepted.
+    OV_ASSERT_NO_THROW((void)::read_as_text(make(8)));
+    // Nesting past the depth limit must throw. A moderate depth (above the limit,
+    // well below a stack overflow) keeps this deterministic: without the guard the
+    // input parses cleanly, so its absence is a clean failure, not a crash.
+    ASSERT_ANY_THROW((void)::read_as_text(make(100)));
+}
+
 TEST_P(MetadataTextTest, Format) {
     std::unique_ptr<MetadataBase> meta;
     if (isValid) {

@@ -54,24 +54,11 @@ std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, con
 // then return the same vector without an extra copy.
 OutputVector rename_outputs_with_suffix(OutputVector outputs, const std::string& suffix);
 
-/// \brief Build a TopK over `axis` and return its INDICES port.
-///
-/// Shared by the ARGSORT and TOP_K translators. Both want ggml's "indices that sort/select along
-/// ne[0]" semantics, which in OpenVINO is output(1) of a TopK whose index element type follows the
-/// decoder's "output_type" attribute. Keeping that contract in one place stops the two call sites
-/// from drifting apart.
-///
-/// \param input       tensor to sort/select over
-/// \param k           number of elements to keep along `axis` (may be a dynamic value)
-/// \param axis        axis to operate on
-/// \param mode        MAX for descending, MIN for ascending
-/// \param index_type  element type of the returned indices
-/// \param stable      whether ties keep their input order
+// GGML TOP_K and ARGSORT return I32 indices, which are OpenVINO TopK's second output.
 ov::Output<ov::Node> make_topk_indices(const ov::Output<ov::Node>& input,
                                        const ov::Output<ov::Node>& k,
                                        int64_t axis,
                                        ov::op::v11::TopK::Mode mode,
-                                       const ov::element::Type& index_type,
                                        bool stable = false);
 
 std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rope_config,
