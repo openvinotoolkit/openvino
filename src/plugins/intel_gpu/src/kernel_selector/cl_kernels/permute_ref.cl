@@ -4,6 +4,10 @@
 
 #include "include/batch_headers/fetch_data.cl"
 
+#if UINT2_INPUT || UINT2_OUTPUT
+#include "include/batch_headers/int2_utils.cl"
+#endif
+
 KERNEL (permute_ref)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
@@ -71,12 +75,29 @@ KERNEL (permute_ref)(
     const uint f = (uint)get_global_id(2) % INPUT0_FEATURE_NUM;
     const uint b = (uint)get_global_id(2) / INPUT0_FEATURE_NUM;
 #endif
-    INPUT0_TYPE input_var = input[IN_IDX];
+    const uint input_idx = IN_IDX;
+#if UINT2_INPUT
+    INPUT0_TYPE input_var = TO_INPUT0_TYPE(convert_as_uint2_float(input[input_idx >> 2], input_idx));
+#else
+    INPUT0_TYPE input_var = input[input_idx];
+#endif
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    output[OUT_IDX] = FUSED_OPS_RESULT;
+    OUTPUT_TYPE output_value = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
 #else
-    output[OUT_IDX] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(input[IN_IDX]), ACTIVATION_PARAMS));
+    OUTPUT_TYPE output_value = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(input_var), ACTIVATION_PARAMS));
+#endif
+
+    const uint output_idx = OUT_IDX;
+#if UINT2_OUTPUT
+    const uint output_value_u32 = (uint)(convert_int(output_value) & 0x03);
+    const uint packed_idx = output_idx / 16;
+    const uint shift = (output_idx % 16) * 2;
+    volatile __global uint* packed_output = (volatile __global uint*)output;
+    atomic_and(&packed_output[packed_idx], ~(0x03u << shift));
+    atomic_or(&packed_output[packed_idx], output_value_u32 << shift);
+#else
+    output[output_idx] = output_value;
 #endif
 }

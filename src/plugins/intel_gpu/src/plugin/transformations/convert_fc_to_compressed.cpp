@@ -45,11 +45,22 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (!fc || transformation_callback(fc)) {
             return false;
         }
-        bool has_transpose = pattern_map.count(transpose_m) != 0u;
+        const bool has_transpose_before_reshape = pattern_map.count(transpose_before_reshape_m) != 0u;
+        const bool has_transpose = pattern_map.count(transpose_after_reshape_m) != 0u || has_transpose_before_reshape;
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
         bool sub_with_convert = pattern_map.count(sub_with_convert_m) > 0;
 
         auto weight_shape = fc->get_input_shape(1);
+        const auto output_features_idx =
+            fc->get_transpose_b() ? weight_shape.size() - 2 : weight_shape.size() - 1;
+        const auto output_features = weight_shape[output_features_idx];
+        auto has_output_features_in_inner_dimension = [output_features](const std::shared_ptr<ov::Node>& node) {
+            const auto& shape = node->get_output_shape(0);
+            const auto inner_dim = std::find_if(shape.rbegin(), shape.rend(), [](size_t dim) {
+                return dim > 1;
+            });
+            return inner_dim != shape.rend() && *inner_dim == output_features;
+        };
         bool is_weight_3d = (std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) {
                                  return d > 1;
                              }) == 3);
@@ -112,18 +123,25 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         };
 
         const ov::Output<Node>& fc_input_a = fc->input(0).get_source_output();
-        const auto& scale = reshape_const(pattern_map.at(mul_const_m).get_node_shared_ptr());
+        const auto& scale = has_transpose_before_reshape
+                                ? pattern_map.at(mul_const_m).get_node_shared_ptr()
+                                : reshape_const(pattern_map.at(mul_const_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
 
         const bool with_zero_point = pattern_map.count(sub_no_convert_m) > 0 || pattern_map.count(sub_with_convert_m) > 0;
         if (with_zero_point) {
-            optional_zero_point = convert_const_to_u8(reshape_const(pattern_map.at(sub_const_m).get_node_shared_ptr()));
+            const auto zero_point = has_transpose_before_reshape
+                                        ? pattern_map.at(sub_const_m).get_node_shared_ptr()
+                                        : reshape_const(pattern_map.at(sub_const_m).get_node_shared_ptr());
+            optional_zero_point = convert_const_to_u8(zero_point);
         }
 
-        std::shared_ptr<ov::Node> fc_input_b = pattern_map.count(weights_const_m)
-                                                   ? reshape_const(pattern_map.at(weights_const_m).get_node_shared_ptr())
-                                                   : (pattern_map.count(weights_reshape_m) ? pattern_map.at(weights_reshape_m).get_node_shared_ptr()
-                                                                                           : pattern_map.at(weights_param_m).get_node_shared_ptr());
+        std::shared_ptr<ov::Node> fc_input_b =
+            pattern_map.count(weights_const_m)
+                ? (has_transpose_before_reshape ? pattern_map.at(weights_const_m).get_node_shared_ptr()
+                                                : reshape_const(pattern_map.at(weights_const_m).get_node_shared_ptr()))
+                : (pattern_map.count(weights_reshape_m) ? pattern_map.at(weights_reshape_m).get_node_shared_ptr()
+                                                        : pattern_map.at(weights_param_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> fc_input_scale = scale;
         std::shared_ptr<ov::Node> fc_input_zp = optional_zero_point;
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
@@ -151,8 +169,12 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         }
 
         if (has_transpose) {
-            const auto& transpose = pattern_map.at(transpose_m).get_node_shared_ptr();
-            std::shared_ptr<ov::Node> transpose_const = pattern_map.at(transpose_const_m).get_node_shared_ptr();
+            const auto& transpose = pattern_map
+                                        .at(has_transpose_before_reshape ? transpose_before_reshape_input_m : transpose_after_reshape_m)
+                                        .get_node_shared_ptr();
+            std::shared_ptr<ov::Node> transpose_const = has_transpose_before_reshape
+                                                            ? transpose->get_input_node_shared_ptr(1)
+                                                            : pattern_map.at(transpose_const_m).get_node_shared_ptr();
             if (ov::shape_size(transpose_const->get_shape()) != fc_input_b->get_output_partial_shape(0).size()) {
                 std::vector<int32_t> new_order(fc_input_b->get_output_partial_shape(0).size());
                 std::iota(new_order.begin(), new_order.end(), 0);
@@ -163,14 +185,46 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             fc_input_b = transpose->clone_with_new_inputs({fc_input_b->output(0), transpose_const});
             result_nodes.push_back(fc_input_b);
 
-            if (ov::shape_size(scale->output(0).get_shape()) > 1) {
+            if (ov::shape_size(scale->output(0).get_shape()) > 1 &&
+                !has_output_features_in_inner_dimension(scale)) {
                 fc_input_scale = transpose->clone_with_new_inputs({scale->output(0), transpose_const});
                 result_nodes.push_back(fc_input_scale);
             }
 
-            if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1) {
+            if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1 &&
+                !has_output_features_in_inner_dimension(optional_zero_point)) {
                 fc_input_zp = transpose->clone_with_new_inputs({optional_zero_point->output(0), transpose_const});
                 result_nodes.push_back(fc_input_zp);
+            }
+        }
+
+        if (has_transpose_before_reshape) {
+            const auto& reshape = pattern_map.at(transpose_before_reshape_m).get_node_shared_ptr();
+            const auto& reshape_const_node = pattern_map.at(transpose_const_m);
+            fc_input_b = reshape->clone_with_new_inputs({fc_input_b->output(0), reshape_const_node});
+            result_nodes.push_back(fc_input_b);
+
+            auto reshape_squeeze = [&](std::shared_ptr<ov::Node> node) {
+                const auto& shape = node->get_output_shape(0);
+                const auto output_rank = fc_input_b->get_output_shape(0).size();
+                if (shape.size() <= output_rank) {
+                    return node;
+                }
+
+                ov::Shape output_shape(shape.begin(), shape.begin() + output_rank - 1);
+                output_shape.push_back(ov::shape_size(ov::Shape(shape.begin() + output_rank - 1, shape.end())));
+                auto shape_const = ov::op::v0::Constant::create(ov::element::i32,
+                                                                ov::Shape{output_shape.size()},
+                                                                output_shape);
+                auto reshaped = std::make_shared<ov::op::v1::Reshape>(node, shape_const, false);
+                result_nodes.push_back(shape_const);
+                result_nodes.push_back(reshaped);
+                return std::static_pointer_cast<ov::Node>(reshaped);
+            };
+
+            fc_input_scale = reshape_squeeze(fc_input_scale);
+            if (with_zero_point) {
+                fc_input_zp = reshape_squeeze(fc_input_zp);
             }
         }
 
