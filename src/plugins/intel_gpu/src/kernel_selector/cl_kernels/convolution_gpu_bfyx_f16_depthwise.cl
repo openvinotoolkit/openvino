@@ -30,10 +30,10 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
     __global FILTER_TYPE* weights
 #if BIAS_TERM
     , __global BIAS_TYPE* biases
-#endif
+#endif // BIAS_TERM
 #if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
-#endif
+#endif // HAS_FUSED_OPS
 )
 {
     const uint yx = (uint)get_global_id(0);
@@ -64,9 +64,9 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
 
 #if BIAS_TERM
     INPUT_TYPE8 dst = (INPUT_TYPE8)(DT_INPUT_BLOCK_READ(biases, f_block * FEATURE_SLICE_SIZE));
-#else
+#else // BIAS_TERM
     INPUT_TYPE8 dst = (INPUT_TYPE8)(INPUT0_VAL_ZERO);
-#endif
+#endif // BIAS_TERM
 
 #if ((FILTER_SIZE_X == 3) && (FILTER_SIZE_Y == 3) && (STRIDE_SIZE_X == 1) && (DILATION_SIZE_X == 1) && (DILATION_SIZE_Y == 1))
 
@@ -146,7 +146,7 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
         dst[7] = mad(src_tail_20,    wei_21, dst[7]);
         dst[7] = mad(src_tail_21,    wei_22, dst[7]);
     }
-#else // X_BLOCK_SIZE == 1
+#else // X_BLOCK_SIZE == 8
         dst[0] = mad(src_block_0[0], wei_00, dst[0]);
         dst[0] = mad(src_block_0[1], wei_01, dst[0]);
         dst[0] = mad(src_block_0[2], wei_02, dst[0]);
@@ -158,7 +158,7 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
         dst[0] = mad(src_block_2[0], wei_20, dst[0]);
         dst[0] = mad(src_block_2[1], wei_21, dst[0]);
         dst[0] = mad(src_block_2[2], wei_22, dst[0]);
-#endif
+#endif // X_BLOCK_SIZE == 8
 
 #else // ((FILTER_SIZE_X == 3) && (FILTER_SIZE_Y == 3) && (STRIDE_SIZE_X == 1))
 
@@ -224,7 +224,7 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
 #if HAS_FUSED_OPS
             FUSED_OPS_SCALAR;
             res[i] = FUSED_OPS_RESULT_SCALAR;
-#else
+#else // HAS_FUSED_OPS
             res[i] = TO_OUTPUT_TYPE(dst[i]);
 #endif // HAS_FUSED_OPS
             if ((x + i) < OUTPUT_SIZE_X && f_block * FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM)
@@ -239,7 +239,7 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
 #if HAS_FUSED_OPS
             FUSED_OPS_VEC;
             res = FUSED_OPS_RESULT_VEC;
-#else
+#else // HAS_FUSED_OPS
             res = TO_OUTPUT_TYPE8(dst);
 #endif // HAS_FUSED_OPS
             DT_OUTPUT_BLOCK_WRITE8(output, output_offset + x * output_x_pitch, res);
@@ -250,14 +250,14 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
 #if HAS_FUSED_OPS
                 FUSED_OPS_SCALAR;
                 res[i] = FUSED_OPS_RESULT_SCALAR;
-#else
+#else // HAS_FUSED_OPS
                 res[i] = TO_OUTPUT_TYPE(dst[i]);
 #endif // HAS_FUSED_OPS
                 DT_OUTPUT_BLOCK_WRITE(output, output_offset + (x + i) * output_x_pitch, res[i]);
             }
         }
     }
-#else // X_BLOCK_SIZE == 1
+#else // X_BLOCK_SIZE == 8
     OUTPUT_TYPE res;
 #if OUTPUT_LEFTOVERS
     if ((f_block + 1) * FEATURE_SLICE_SIZE >= OUTPUT_FEATURE_NUM)
@@ -266,7 +266,7 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
         uint i = 0;
         FUSED_OPS_SCALAR;
         res = FUSED_OPS_RESULT_SCALAR;
-#else
+#else // HAS_FUSED_OPS
         res = TO_OUTPUT_TYPE(dst[0]);
 #endif // HAS_FUSED_OPS
         if (x < OUTPUT_SIZE_X && f_block * FEATURE_SLICE_SIZE + lid < OUTPUT_FEATURE_NUM)
@@ -279,12 +279,12 @@ KERNEL(convolution_gpu_bfyx_f16_depthwise)(
         uint i = 0;
         FUSED_OPS_SCALAR;
         res = FUSED_OPS_RESULT_SCALAR;
-#else
+#else // HAS_FUSED_OPS
         res = TO_OUTPUT_TYPE(dst[0]);
 #endif // HAS_FUSED_OPS
         DT_OUTPUT_BLOCK_WRITE(output, output_offset + x * output_x_pitch, res);
     }
-#endif
+#endif // X_BLOCK_SIZE == 8
 }
 
 #undef FEATURE_SLICE_SIZE
