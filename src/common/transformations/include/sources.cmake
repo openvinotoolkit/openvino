@@ -170,6 +170,7 @@ set(CONTROL_FLOW_HEADERS
 
 set(FP16_COMPRESSION_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/align_mixed_fp32_fp16_types.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/clamp_fp16_fc_output.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/convert_compression_only_to_legacy.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/convert_legacy_precision_attribute.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp
