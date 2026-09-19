@@ -28,7 +28,7 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   # To debug NPU compiler, set OV_NPU_LOG_LEVEL=LOG_INFO or higher
-  # OV_NPU_LOG_LEVEL: 'LOG_INFO'
+  OV_NPU_LOG_LEVEL: 'LOG_INFO'
 
 jobs:
   NPU_Models_Tests:
@@ -154,7 +154,7 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_torchvision_models.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_timm.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_edsr.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s > ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log 2>&1
 
       # Group B: hf_transformers + easyocr + gfpgan + tpsmm share compatible deps.
       - name: Install PyTorch tests requirements (group B - hf_transformers/easyocr/gfpgan/tpsmm)
@@ -179,14 +179,14 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_gfpgan.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_tpsmm.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupB_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
-      
+
       # Group C: aliked + detectron2 share compatible deps (installed together).
       # Disabled, re-enable: E-229647
       - name: Install PyTorch tests requirements (group C - aliked/detectron2)
         if: false
         run: |
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}\requirements_pytorch
-      
+
       # Disabled, re-enable: E-229647
       - name: PyTorch Models Tests -  NPU compile only (group C)
         if: false
@@ -219,10 +219,11 @@ jobs:
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: ${{ !cancelled() }}
+        if: ${{ always() && !cancelled() }}
         with:
           name: test-results-npu-models-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
           path: |
             ${{ env.INSTALL_TEST_DIR }}\TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_*.log
             ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_unsupported_ops_*.log
           if-no-files-found: 'error'
