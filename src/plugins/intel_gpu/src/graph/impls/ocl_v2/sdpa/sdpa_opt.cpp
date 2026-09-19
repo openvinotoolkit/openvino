@@ -80,6 +80,11 @@ public:
                     // Sometimes micro kernel will fail due to "Insufficient registers in requested bundle",
                     // In this case, fallback to opt kernel.
                     if (!has_stage(regular_micro_multi_tokens)) {
+                        // The fallback kernel has no fused Q rotation, so taking it for a node that
+                        // carries one would silently compute attention over an unrotated Q.
+                        OPENVINO_ASSERT(!params.typed_desc<scaled_dot_product_attention>()->has_rope_q,
+                                        "SDPA: the micro kernel carrying the fused Q rotation could not be built and "
+                                        "no other stage implements it");
                         GPU_DEBUG_TRACE_DETAIL << "fail to create micro kernel, fallback to regular_multi_tokens for prefill \n";
                         add_stage(regular_multi_tokens, params);
                     }
@@ -97,6 +102,10 @@ public:
                 if (can_use_micro_sdpa) {
                     add_stage(regular_micro_single_token, params);
                 }
+                // ARL-H and the indirect path steer single-token decode away from the micro kernel,
+                // which is the only one that implements the fused Q rotation.
+                OPENVINO_ASSERT(can_use_micro_sdpa || !params.typed_desc<scaled_dot_product_attention>()->has_rope_q,
+                                "SDPA: a fused Q rotation reached a single-token stage that cannot apply it");
 #endif
                 add_stage(is_indirect ? indirect_single_token : regular_single_token, params);
                 if (get_partitions_num(params, SDPAStage::SINGLE_TOKEN) > 1) {
@@ -135,6 +144,8 @@ public:
         // If we need to optimize unaligned head size SDPA for 2nd+ token phase of LM model,
         // we'll need to fix single_token kernel to support unaligned head size.
         if (is_prefill || unaligned_head_size(new_params)) {
+            OPENVINO_ASSERT(!new_params.typed_desc<scaled_dot_product_attention>()->has_rope_q,
+                            "SDPA: a fused Q rotation reached a stage that cannot apply it");
             GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
@@ -143,6 +154,13 @@ public:
             return execute_stage(events, instance, regular_micro_single_token);
         }
 #endif
+        // The micro kernel is the only one that applies a fused Q rotation, and both dispatches
+        // above have been declined by now -- the reachable reason is a micro stage that failed to
+        // build. Running the remaining stages would compute attention over an unrotated Q and
+        // report success.
+        OPENVINO_ASSERT(!new_params.typed_desc<scaled_dot_product_attention>()->has_rope_q,
+                        "SDPA: a fused Q rotation reached a stage that cannot apply it");
+
         const auto num_of_partitions = get_partitions_num(new_params, SDPAStage::SINGLE_TOKEN);
         GPU_DEBUG_TRACE_DETAIL << "execute single_tokens with indirect = " << is_indirect << "\n";
         auto ev = execute_stage(events, instance, is_indirect ? indirect_single_token : regular_single_token);
@@ -217,7 +235,15 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     ov::Dimension K_num_heads_dim = get_num_heads(k_layout, extended_input_k_transpose_order);
     ov::Dimension V_num_heads_dim = get_num_heads(v_layout, extended_input_v_transpose_order);
 
-    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 || extended_input_v_transpose_order[3] != 3) {
+    // {0, 1, 3, 2} on V means the value tensor is physically (batch, heads, head_size,
+    // tokens), which is the layout the V*S microkernel wants -- see TRANSPOSE_V in
+    // sdpa_gen_micro.cpp. Every other order still has to keep head_size last. This has to be
+    // the same decision the generator makes, not a copy of it: the VAL_S* strides are emitted
+    // from the extended order either way, so a node running the micro kernel with TRANSPOSE_V
+    // off would contract V with a leading dimension of 1.
+    const bool value_transposed = micro_transpose_v(params);
+    if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 ||
+        (extended_input_v_transpose_order[3] != 3 && !value_transposed)) {
         return false;
     }
 

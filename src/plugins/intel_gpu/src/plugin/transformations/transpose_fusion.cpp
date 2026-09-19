@@ -213,10 +213,15 @@ TransposeVLSDPAMatcher::TransposeVLSDPAMatcher() {
 }
 
 TransposeSDPAMatcher::TransposeSDPAMatcher() {
+    // i8 joins the float types because micro-SDPA can contract an s8 key on the systolic pipe.
+    // This matcher folds q, k and v all-or-nothing, so one narrowed operand rejecting here
+    // materialises all three transposes rather than only its own. u8 is deliberately absent:
+    // neither SDPA implementation manager accepts a u8 key or value.
     auto is_fp_type = [](const ov::Output<ov::Node>& output) -> bool {
         switch (output.get_element_type()) {
         case ov::element::f16:
         case ov::element::f32:
+        case ov::element::i8:
             return true;
         default:
             return false;
@@ -270,15 +275,23 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         size_t input_k_output_idx = sdpa->get_input_source_output(1).get_index();
         size_t input_v_output_idx = sdpa->get_input_source_output(2).get_index();
 
-        auto process_transpose = [](const std::shared_ptr<Node>& transpose_node,
-                                    const std::shared_ptr<Node>& transpose_order_const_node,
-                                    std::vector<int64_t>& order,
-                                    size_t& output_idx) {
+        // {0, 1, 3, 2} on V is the marker for a value tensor that has been physically
+        // materialised as (batch, heads, head_size, tokens). micro-SDPA's V*S microkernel
+        // contracts V over tokens, so with the deployed layout its reduction axis is the strided
+        // one and gemmstone answers with an SLM staging pass; k-contiguous V lets it load
+        // straight to registers as K*Q already does. Folding the transpose here is what keeps it
+        // a stride relabelling rather than a second physical permute.
+        const std::vector<int64_t> value_transposed_order = {0, 1, 3, 2};
+        auto process_transpose = [&](const std::shared_ptr<Node>& transpose_node,
+                                     const std::shared_ptr<Node>& transpose_order_const_node,
+                                     std::vector<int64_t>& order,
+                                     size_t& output_idx,
+                                     bool is_value = false) {
             auto transpose_order_const = ov::as_type_ptr<ov::op::v0::Constant>(transpose_order_const_node);
 
             order = transpose_order_const->cast_vector<int64_t>();
             // Allow any transposes without head_size dim position change
-            if (order.back() != static_cast<int64_t>(order.size() - 1)) {
+            if (order.back() != static_cast<int64_t>(order.size() - 1) && !(is_value && order == value_transposed_order)) {
                 return false;
             }
 
@@ -307,7 +320,8 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
             can_fuse_transposes &= process_transpose(pattern_map.at(transpose_v_m).get_node_shared_ptr(),
                                                      pattern_map.at(transpose_v_order_m).get_node_shared_ptr(),
                                                      order_v,
-                                                     input_v_output_idx);
+                                                     input_v_output_idx,
+                                                     true);
         }
 
         if (!can_fuse_transposes) {

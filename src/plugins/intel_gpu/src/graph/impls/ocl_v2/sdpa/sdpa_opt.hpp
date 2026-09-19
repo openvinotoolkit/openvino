@@ -30,6 +30,31 @@ struct SDPAOpt : public ImplementationManager {
     [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
+
+        // WITH_ROPE_Q exists only in the micro-kernel. Every other stage this manager can select
+        // binds Q/K/V and ignores the two trailing cos/sin inputs, which would compute attention
+        // over an unrotated Q and report nothing.
+        //
+        // Declining here is a last-line invariant, not a fallback: by this point the RoPE has been
+        // folded away, so no implementation can produce a rotated Q and compilation fails with
+        // "Can't choose implementation". RoPESDPAFusion is registered only where the micro-kernel
+        // can run, which is what keeps this unreachable; a failure here means those two have
+        // drifted apart, and failing is better than answering with an unrotated Q.
+        if (desc->has_rope_q) {
+            if (!supports_micro_sdpa(*node.get_kernel_impl_params())) {
+                return false;
+            }
+            // The kernel reads the cos/sin tables as dense, unpadded, offset-0 buffers: unlike
+            // every other input they reach it without strides or a base offset.
+            const auto inputs_num = node.get_inputs_count();
+            for (size_t i = inputs_num - 2; i < inputs_num; i++) {
+                const auto& table_layout = node.get_input_layout(i);
+                if (table_layout.format != format::bfyx || table_layout.data_padding) {
+                    return false;
+                }
+            }
+        }
+
         static constexpr std::array supported_q_types = {
             ov::element::f32,
             ov::element::f16,
