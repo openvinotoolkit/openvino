@@ -28,12 +28,14 @@ NamedOutputs scatter(const NodeContext& node) {
         return node.default_single_output_mapping({std::make_shared<ov::opset15::ScatterNDUpdate>(x, new_ids, updates)},
                                                   {"Out"});
     } else {
+        // Paddle zeroes only the rows listed in Ids before accumulating the updates
         auto x_dtype = x.get_element_type();
         const auto value_node = default_opset::Constant::create(x_dtype, {1}, {0});
-        const auto shape_node = std::make_shared<default_opset::ShapeOf>(x);
-        const auto zero_node = std::make_shared<default_opset::Broadcast>(value_node, shape_node);
+        const auto updates_shape_node = std::make_shared<default_opset::ShapeOf>(updates);
+        const auto zero_node = std::make_shared<default_opset::Broadcast>(value_node, updates_shape_node);
+        const auto zeroed_x = std::make_shared<ov::opset15::ScatterNDUpdate>(x, new_ids, zero_node);
         return node.default_single_output_mapping(
-            {std::make_shared<ov::opset15::ScatterNDUpdate>(zero_node,
+            {std::make_shared<ov::opset15::ScatterNDUpdate>(zeroed_x,
                                                             new_ids,
                                                             updates,
                                                             ov::opset15::ScatterNDUpdate::Reduction::SUM)},
