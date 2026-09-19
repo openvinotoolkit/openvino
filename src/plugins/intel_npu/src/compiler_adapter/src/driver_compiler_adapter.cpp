@@ -210,6 +210,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         return is_option_supported(optionName);
     };
 
+    OPENVINO_ASSERT(is_option_supported(ov::intel_npu::ws_compile_call_number.name()),
+                    "WS_COMPILE_CALL_NUMBER is a compiler option and must be supported by the compiler.");
+    OPENVINO_ASSERT(!updatedConfig.has(ov::intel_npu::ws_compile_call_number.name()),
+                    "WS_COMPILE_CALL_NUMBER is an internal option owned by the weights separation compilation "
+                    "loop and must not be set by the user.");
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
         updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++));

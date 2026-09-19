@@ -219,6 +219,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
 
+        OPENVINO_ASSERT(is_option_supported(ov::intel_npu::ws_compile_call_number.name()),
+                        "WS_COMPILE_CALL_NUMBER is a compiler option and must be supported by the compiler.");
+        OPENVINO_ASSERT(!localConfig.has(ov::intel_npu::ws_compile_call_number.name()),
+                        "WS_COMPILE_CALL_NUMBER is an internal option owned by the weights separation compilation "
+                        "loop and must not be set by the user.");
         while (true) {
             auto iterativeResult = _compiler->compileWsIterative(targetModel, localConfig, i++);
             auto tensor = std::move(iterativeResult.first);
