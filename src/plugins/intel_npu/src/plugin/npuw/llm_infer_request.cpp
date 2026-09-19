@@ -1525,9 +1525,18 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         //       kv layers) and the set of "1" units of number of previously calculated
         //       tokens on the left (for past kv layers).
         auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
-        std::copy_n(attention_mask->data<int64_t>(),
-                    attention_mask->get_size() - input_tokens_len,
-                    kv_attn_mask->data<int64_t>());
+        // NB: `attention_mask` is caller-provided and may be sized independently of the generate
+        //     variant `select_generate_request()` picked (e.g. a caller-side fixed max_length buffer,
+        //     not grown with the actual token count). Clamp the copy to the destination's actual
+        //     past-token capacity to avoid writing past the end of `kv_attn_mask`, and zero-fill any
+        //     remainder so stale data from a previously used (possibly larger) request isn't retained.
+        const size_t requested_past_len = attention_mask->get_size() - input_tokens_len;
+        const size_t dest_past_capacity = kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len;
+        const size_t past_len = std::min(requested_past_len, dest_past_capacity);
+        std::copy_n(attention_mask->data<int64_t>(), past_len, kv_attn_mask->data<int64_t>());
+        if (past_len < dest_past_capacity) {
+            std::fill_n(kv_attn_mask->data<int64_t>() + past_len, dest_past_capacity - past_len, 0);
+        }
         if (input_tokens_len < kvcache_desc.max_generation_token_len) {
             std::fill_n(
                 kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len,
