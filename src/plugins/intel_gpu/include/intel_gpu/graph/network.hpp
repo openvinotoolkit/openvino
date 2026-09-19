@@ -8,6 +8,7 @@
 
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/record_replay_session.hpp"
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/engine.hpp"
@@ -243,6 +244,7 @@ private:
     program::ptr _program;
     engine& _engine;
     stream::ptr _stream;
+    record_replay_session::ptr _record_replay_session = nullptr;
     std::unique_ptr<memory_pool> _memory_pool;
     bool _internal;
     bool _is_primary_stream;
@@ -278,12 +280,16 @@ private:
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
 
+    /// @brief Invalidate the recording of the previous iteration
+    void invalidate_recording();
+    /// @brief Prepares record and replay session
+    /// @note expects that exec_order is constructed
+    void prepare_record_replay();
     void build_exec_order();
     void allocate_primitive_instance(program_node const& node);
     void transfer_memory_to_device(std::shared_ptr<primitive_inst> instance, program_node const& node);
     void add_to_exec_order(const primitive_id& id);
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
-    void invalidate_output_memory_chain(const primitive_id& id);
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
     output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
