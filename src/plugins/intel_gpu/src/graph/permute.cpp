@@ -62,7 +62,8 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, 
         output_type = impl_param.get_output_element_type();
         for (const auto& desc : impl_param.fused_desc) {
             if (desc.is_type<reorder>()) {
-                output_fmt = desc.output_layout.format;
+                OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+                output_fmt = desc.output_layouts[0].format;
             }
         }
     }

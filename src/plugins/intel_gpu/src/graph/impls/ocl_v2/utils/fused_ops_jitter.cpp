@@ -10,6 +10,7 @@
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/activation.hpp"
+#include "intel_gpu/primitives/dynamic_quantize.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "jitter.hpp"
 #include "kernel_selector/jitter.h"
@@ -89,7 +90,7 @@ JitConstants make_fused_ops_jit_constants(const RuntimeParams& params, const std
 
     const auto& fused_ops_descs = params.fused_desc;
     if (std::all_of(fused_ops_descs.cbegin(), fused_ops_descs.cend(), [](const fused_primitive_desc& desc) {
-            return desc.is_type<reorder>();
+            return desc.is_type<reorder>() || desc.is_type<dynamic_quantize>();
         })) {
         return jit;
     }
@@ -106,7 +107,7 @@ JitConstants make_fused_ops_jit_constants(const RuntimeParams& params, const std
 
             for (size_t i = 0; i < fused_ops_descs.size(); i++) {
                 // Reorder is not processed by jitter
-                if (fused_ops_descs[i].is_type<reorder>()) {
+                if (fused_ops_descs[i].is_type<reorder>() || fused_ops_descs[i].is_type<dynamic_quantize>()) {
                     continue;
                 }
 
@@ -214,7 +215,8 @@ JitConstants FusedOpsCodeGenerator::make_fused_tensor_jit_constants(const FusedO
         jit.add(make_layout_jit_constants(name, params.get_input_layout(in_idx), params.in_port_to_shape_info_offset.at(in_idx)));
     }
     // Use shape_ids from output tensor as won't support fused ops which changes out shape for now
-    jit.add(make_layout_jit_constants(get_output_tensor_name().str(), desc.output_layout, params.out_port_to_shape_info_offset.at(0)));
+    OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+    jit.add(make_layout_jit_constants(get_output_tensor_name().str(), desc.output_layouts[0], params.out_port_to_shape_info_offset.at(0)));
     return jit;
 }
 
@@ -301,7 +303,8 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
     std::vector<JitTerm> input_vars;
 
     out_var = get_output_var_name(in_var, op_idx);
-    const auto& out_type = desc.output_layout.data_type;
+    OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+    const auto& out_type = desc.output_layouts[0].data_type;
 
     if (conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE && desc.is_type<quantize>()) {
         is_shuffled = true;
@@ -318,7 +321,8 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
     }
 
     auto get_acc_t = [&]() -> ov::element::Type {
-        std::vector<ov::element::Type> input_types = {desc.output_layout.data_type};
+        OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+        std::vector<ov::element::Type> input_types = {desc.output_layouts[0].data_type};
         for (const auto& dep : dep_data) {
             input_types.emplace_back(params.input_layouts[dep.m_idx].data_type);
         }
@@ -444,7 +448,8 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
             }
 
             // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-            bool output_type_is_int8 = desc.output_layout.data_type == ov::element::u8 || desc.output_layout.data_type == ov::element::i8;
+            OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+            bool output_type_is_int8 = desc.output_layouts[0].data_type == ov::element::u8 || desc.output_layouts[0].data_type == ov::element::i8;
             if (((p->_need_post_scale || p->_need_post_shift) && output_type_is_int8) || !output_type_is_int8) {
                 op_decls += make_statement(tmp_var.assign(round(tmp_var))).str();
             }
@@ -505,7 +510,8 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
             }
 
             // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-            bool output_type_is_int8 = desc.output_layout.data_type == ov::element::u8 || desc.output_layout.data_type == ov::element::i8;
+            OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+            bool output_type_is_int8 = desc.output_layouts[0].data_type == ov::element::u8 || desc.output_layouts[0].data_type == ov::element::i8;
             if (((p->_need_post_scale || p->_need_post_shift) && output_type_is_int8) || !output_type_is_int8) {
                 op_decls += make_statement(tmp_var.assign(round(tmp_var))).str();
             }
@@ -754,16 +760,19 @@ JitTerm FusedOpsCodeGenerator::get_output_var_name(const JitTerm& input_var, siz
 }
 
 JitTerm FusedOpsCodeGenerator::get_output_type(size_t vec_size) const {
-    return make_type(desc.output_layout.data_type, vec_size);
+    OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+    return make_type(desc.output_layouts[0].data_type, vec_size);
 }
 
 JitTerm FusedOpsCodeGenerator::convert_to_output_type(const JitTerm& var, size_t vec_size) const {
-    return convert_to_type(var, desc.output_layout.data_type, vec_size);
+    OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+    return convert_to_type(var, desc.output_layouts[0].data_type, vec_size);
 }
 
 JitTerm FusedOpsCodeGenerator::convert_to_output_type_sat(const JitTerm& var, size_t vec_size) const {
-    if (desc.output_layout.data_type == ov::element::f32 || desc.output_layout.data_type == ov::element::f16) {
-        return convert_to_type(var, desc.output_layout.data_type, vec_size);
+    OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+    if (desc.output_layouts[0].data_type == ov::element::f32 || desc.output_layouts[0].data_type == ov::element::f16) {
+        return convert_to_type(var, desc.output_layouts[0].data_type, vec_size);
     }
 
     return concat("convert_", get_output_type(vec_size), "_sat_rte")(var);
